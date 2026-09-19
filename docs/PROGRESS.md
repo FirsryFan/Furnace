@@ -4,6 +4,60 @@
 
 ---
 
+## 2026-09-19 轮次六之二：源码已上传 GitHub（公开仓库 Furnace）
+
+仓库：**https://github.com/FirsryFan/Furnace**（公开，MIT）
+
+### 上传过程与最终状态
+
+- 远端起始只有 `LICENSE` + `README.md`（1 个提交 `a397880`）。把它的 `.git` 接入本地工作目录以**保留历史**，
+  然后分两次提交推送：
+  - `620cc8e9` — `feat: Threadflow 首个可运行版本（Windows + Android）`（179 个文件，1.84 MB）
+  - `fdb0b212` — `chore: 固化行尾策略（.gitattributes）`
+- 远端核对（GitHub API）：两个提交都在 `main` 上；公开 tree 共 **180 个 blob**、`truncated=false`。
+
+### 忽略策略（两个关键取舍）
+
+1. **`lib/data/database/database.g.dart` 故意提交** —— Drift 生成的 schema 代码。不提交的话，
+   全新 clone 必须先跑 `build_runner` 才能编译；提交它也让 schema 变更在 diff 里可审。
+   因此给 `app/.gitignore` 里的 `lib/**/*.g.dart` 加了 `!` 例外。
+2. **构建产物全部排除** —— `app/build/` **1324 MB**、`app/windows/` **311 MB**（几乎全是
+   `ephemeral/` 等 CMake 生成物）、`.dart_tool/` 284 MB。最终入库仅 **1.84 MB**。
+3. `gradle-wrapper.jar` / `gradlew` 也保留入库（Flutter 模板默认排除），clone 后 `./gradlew`
+   即可用，无需额外 bootstrap。
+
+### 安全处理（**重要**）
+
+用户在本轮中途把仓库从私有改为**公开**（实测 `private=False, visibility=public`）。签名密钥必须随之排除：
+
+- 生成过 `app/android/threadflow-release.jks` 与 `key.properties`（开发口令）。
+  **已确认没有任何提交包含它们**（`git log --all -- <jks>` 为空），并已加入 `.gitignore`，
+  因此公开仓库的**全历史**里都没有密钥。
+- 全历史审计（遍历所有提交的所有文件名，共 181 个）：无 `.jks`/`.keystore`/`key.properties`/
+  `*.db`/`*.apk`/`*.aab`/口令类文件。
+- `app/build.gradle.kts` 在 `key.properties` 缺失时**回退使用 debug 证书**，所以别人 clone 后
+  `flutter build apk` 仍能出包（可装机自测，不适合分发）。keystore 保留在本地，
+  **这台机器仍能产出正式签名包**。
+
+### 行尾策略（新增 `.gitattributes`）
+
+`core.autocrlf` 依赖机器设置，已经造成过一次 `LICENSE` 整文件假差异，并让 `gradlew.bat` 在索引里存成 LF。
+现用 `.gitattributes` 明确规则，并用 `git ls-files --eol` 核对：`gradlew` 保持 LF
+（否则 macOS/Linux 报 bad interpreter）、批处理/PowerShell 用 CRLF、二进制（jar/jks/图片/字体/apk/db）
+不做转换、生成文件标记 `linguist-generated`。
+
+### 文档
+
+根 `README.md` 重写为仓库门面：模块表、当前状态与已知未完成项、目录结构、Windows/Android 构建命令、
+**签名注意事项**、文档索引。构建 Android 前指向 `docs/DEPLOY.md`（其中记录了 6 个必须避开的坑）。
+
+### 下一步
+
+- 用户在 **Android 真机**上安装 `dist/Threadflow-0.1.0-release.apk` 验证运行。
+- 之后可做：主题与 `.tfpkg` 接入设置页 UI、字体导入、页面缩放、日程块拖拽。
+
+---
+
 ## 2026-09-19 轮次六：Android 落地（从零装工具链 → 产出已签名 release APK）
 
 > 用户要求：“把没有做的做完，尽早完成 Android 版本，这是我大部分的适用场景。”
