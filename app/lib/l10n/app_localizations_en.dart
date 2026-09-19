@@ -825,4 +825,148 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get docStatusBody =>
       'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.';
+
+  @override
+  String get settingsAppearance => 'Appearance';
+
+  @override
+  String get settingsThemeSystemEntry => 'Follow the system';
+
+  @override
+  String get settingsThemeSystemHint =>
+      'Switch automatically with the system brightness (built-in themes)';
+
+  @override
+  String get settingsThemeBuiltin => 'Built-in theme';
+
+  @override
+  String get settingsThemeCustom => 'Custom theme';
+
+  @override
+  String get settingsThemeImport => 'Import theme';
+
+  @override
+  String get settingsThemeImportHint => 'Pick a .json theme file';
+
+  @override
+  String get settingsThemeImportInvalid =>
+      'Not a valid theme file (it must be JSON with fields like name and colors)';
+
+  @override
+  String settingsThemeImported(String name) {
+    return 'Imported theme \"$name\"';
+  }
+
+  @override
+  String get settingsThemeExport => 'Export theme';
+
+  @override
+  String get settingsThemeExported => 'Theme exported';
+
+  @override
+  String get settingsThemeDeleted => 'Theme deleted';
+
+  @override
+  String get settingsThemeBuiltinProtected =>
+      'Built-in themes cannot be deleted (editing saves a copy)';
+
+  @override
+  String get settingsThemeBuiltinHint =>
+      'This is a built-in theme. Saving stores a copy, so the shipped default stays untouched.';
+
+  @override
+  String get settingsThemeEdit => 'Edit theme';
+
+  @override
+  String get settingsThemeSaved => 'Theme saved';
+
+  @override
+  String get settingsThemeBrightness => 'Brightness';
+
+  @override
+  String get settingsThemePrimary => 'Primary colour';
+
+  @override
+  String get settingsThemeBackground => 'Background';
+
+  @override
+  String get settingsThemeOpacity => 'Background opacity';
+
+  @override
+  String get settingsThemeScale => 'Page scale';
+
+  @override
+  String get settingsThemeScaleHint =>
+      '80%-150%; affects body text and control sizes.';
+
+  @override
+  String get settingsThemeAnimations => 'Animations';
+
+  @override
+  String get settingsThemeAnimationsOn => 'Animations enabled';
+
+  @override
+  String get settingsThemeAnimationsOff => 'Animations disabled';
+
+  @override
+  String get settingsThemeFonts => 'Fonts';
+
+  @override
+  String get settingsThemeFontUi => 'UI font (empty = system default)';
+
+  @override
+  String get settingsThemeFontEditor =>
+      'Body/editor font (empty = system default)';
+
+  @override
+  String get settingsThemeFontHint =>
+      'Enter a font family name. Importing font files is not implemented yet.';
+
+  @override
+  String get settingsData => 'Data';
+
+  @override
+  String get settingsTfpkgExport => 'Export workspace (.tfpkg)';
+
+  @override
+  String get settingsTfpkgExportHint =>
+      'Pack everything into one file for backup or moving machines';
+
+  @override
+  String get settingsTfpkgImport => 'Import workspace (.tfpkg)';
+
+  @override
+  String get settingsTfpkgImportHint =>
+      'Restore from a .tfpkg; the current data is backed up first';
+
+  @override
+  String settingsTfpkgImportPreview(int rows, int tables, int themes) {
+    return 'About to import: $rows rows, $tables tables, $themes themes';
+  }
+
+  @override
+  String get settingsTfpkgMergeReplace => 'Replace (clear, then write)';
+
+  @override
+  String get settingsTfpkgMergeAppend => 'Append (keep local, skip clashes)';
+
+  @override
+  String settingsTfpkgImportDone(int rows) {
+    return 'Import finished: $rows rows written';
+  }
+
+  @override
+  String get settingsTfpkgExportDone => 'Workspace exported';
+
+  @override
+  String get settingsTfpkgInvalid => 'This is not a valid .tfpkg file';
+
+  @override
+  String settingsTfpkgSkippedTables(int count) {
+    return '$count table(s) came from a newer version and were skipped';
+  }
+
+  @override
+  String get settingsBackupNote =>
+      'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
 }

@@ -14,13 +14,15 @@ import '../../thread/application/thread_rank_service.dart';
 import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
 import '../application/demo_data_service.dart';
+import 'appearance_section.dart';
+import 'data_section.dart';
 import 'usage_doc_page.dart';
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) {
   return ref.watch(settingsRepositoryProvider).getProfile();
 });
 
-/// Settings page: language and theme (in-memory until M2).
+/// Settings page: profile, data, usage guide, appearance, tags, language.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -46,9 +48,12 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.backup_outlined),
             title: Text(l10n.settingsBackup),
+            subtitle: Text(l10n.settingsBackupNote),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _backupData(context),
           ),
+          // Whole-workspace export/import (.tfpkg).
+          const DataSection(),
           ListTile(
             leading: const Icon(Icons.menu_book_outlined),
             title: Text(l10n.settingsUsageDoc),
@@ -82,13 +87,8 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _pickLanguage(context, ref),
           ),
-          ListTile(
-            leading: const Icon(Icons.brightness_6),
-            title: Text(l10n.settingsTheme),
-            subtitle: Text(_themeLabel(l10n, settings.themeMode)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _pickTheme(context, ref),
-          ),
+          // Appearance: system brightness + theme documents, with import/export.
+          const AppearanceSection(),
         ],
       ),
     );
@@ -99,14 +99,6 @@ class SettingsPage extends ConsumerWidget {
       AppLanguage.system => l10n.settingsLanguageSystem,
       AppLanguage.zh => l10n.settingsLanguageZh,
       AppLanguage.en => l10n.settingsLanguageEn,
-    };
-  }
-
-  String _themeLabel(AppLocalizations l10n, AppThemeMode themeMode) {
-    return switch (themeMode) {
-      AppThemeMode.system => l10n.settingsThemeSystem,
-      AppThemeMode.light => l10n.settingsThemeLight,
-      AppThemeMode.dark => l10n.settingsThemeDark,
     };
   }
 
@@ -253,33 +245,6 @@ class SettingsPage extends ConsumerWidget {
     );
     if (choice != null) {
       ref.read(settingsControllerProvider.notifier).setLanguage(choice);
-    }
-  }
-
-  Future<void> _pickTheme(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    final choice = await showDialog<AppThemeMode>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(l10n.settingsTheme),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, AppThemeMode.system),
-            child: Text(l10n.settingsThemeSystem),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, AppThemeMode.light),
-            child: Text(l10n.settingsThemeLight),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, AppThemeMode.dark),
-            child: Text(l10n.settingsThemeDark),
-          ),
-        ],
-      ),
-    );
-    if (choice != null) {
-      ref.read(settingsControllerProvider.notifier).setThemeMode(choice);
     }
   }
 }

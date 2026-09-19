@@ -9,7 +9,7 @@ void main() {
   runApp(
     const ProviderScope(
       child: AppBootstrap(
-        child: KnowFlowApp(),
+        child: ThreadflowApp(),
       ),
     ),
   );

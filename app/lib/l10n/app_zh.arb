@@ -302,5 +302,65 @@
   "docCurrentWeights": "当前权重（括号内为出厂值）",
   "docWeightsNormalized": "你改的权重会自动归一化：即使相加不等于 1，总分也不会超过 1，因为内部按权重总和重新折算。",
   "docStatusTitle": "事件条左边缘的颜色",
-  "docStatusBody": "绿色＝已完成；蓝色＝等待中（还没到期望时刻）；黄色＝已经过了期望时刻；红色＝已经过了截止时刻。颜色只表达状态，不改变排序。"
+  "docStatusBody": "绿色＝已完成；蓝色＝等待中（还没到期望时刻）；黄色＝已经过了期望时刻；红色＝已经过了截止时刻。颜色只表达状态，不改变排序。",
+
+  "settingsAppearance": "外观",
+  "settingsThemeSystemEntry": "跟随系统",
+  "settingsThemeSystemHint": "按系统深浅色自动切换（内置主题）",
+  "settingsThemeBuiltin": "内置主题",
+  "settingsThemeCustom": "自定义主题",
+  "settingsThemeImport": "导入主题",
+  "settingsThemeImportHint": "选择一个 .json 主题文件",
+  "settingsThemeImportInvalid": "这个文件不是有效的主题（需要包含 name、colors 等字段的 JSON）",
+  "settingsThemeImported": "已导入主题「{name}」",
+  "@settingsThemeImported": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "settingsThemeExport": "导出主题",
+  "settingsThemeExported": "主题已导出",
+  "settingsThemeDeleted": "主题已删除",
+  "settingsThemeBuiltinProtected": "内置主题不能删除（可以编辑，保存会另存为副本）",
+  "settingsThemeBuiltinHint": "这是内置主题。保存时会另存为一个副本，内置默认值保持不变。",
+  "settingsThemeEdit": "编辑主题",
+  "settingsThemeSaved": "主题已保存",
+  "settingsThemeBrightness": "明暗",
+  "settingsThemePrimary": "主色调",
+  "settingsThemeBackground": "背景",
+  "settingsThemeOpacity": "背景透明度",
+  "settingsThemeScale": "页面缩放",
+  "settingsThemeScaleHint": "80%–150%，影响正文与控件尺寸。",
+  "settingsThemeAnimations": "动画",
+  "settingsThemeAnimationsOn": "开启动画效果",
+  "settingsThemeAnimationsOff": "已关闭动画",
+  "settingsThemeFonts": "字体",
+  "settingsThemeFontUi": "界面字体（留空＝系统默认）",
+  "settingsThemeFontEditor": "正文/编辑器字体（留空＝系统默认）",
+  "settingsThemeFontHint": "填字体族名称。字体文件导入功能尚未实现。",
+
+  "settingsData": "数据",
+  "settingsTfpkgExport": "导出工作区（.tfpkg）",
+  "settingsTfpkgExportHint": "把全部数据打包成一个文件，用于备份或换机",
+  "settingsTfpkgImport": "导入工作区（.tfpkg）",
+  "settingsTfpkgImportHint": "从 .tfpkg 恢复，导入前会自动备份当前数据",
+  "settingsTfpkgImportPreview": "即将导入：{rows} 行数据、{tables} 张表、{themes} 个主题",
+  "@settingsTfpkgImportPreview": {
+    "placeholders": {
+      "rows": { "type": "int" },
+      "tables": { "type": "int" },
+      "themes": { "type": "int" }
+    }
+  },
+  "settingsTfpkgMergeReplace": "覆盖（清空后写入）",
+  "settingsTfpkgMergeAppend": "追加（保留本地，跳过冲突）",
+  "settingsTfpkgImportDone": "导入完成：写入 {rows} 行",
+  "@settingsTfpkgImportDone": {
+    "placeholders": { "rows": { "type": "int" } }
+  },
+  "settingsTfpkgExportDone": "工作区已导出",
+  "settingsTfpkgInvalid": "这个文件不是有效的 .tfpkg",
+  "settingsTfpkgSkippedTables": "有 {count} 张表来自更新的版本，已跳过",
+  "@settingsTfpkgSkippedTables": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。"
 }

@@ -794,4 +794,139 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get docStatusBody =>
       '绿色＝已完成；蓝色＝等待中（还没到期望时刻）；黄色＝已经过了期望时刻；红色＝已经过了截止时刻。颜色只表达状态，不改变排序。';
+
+  @override
+  String get settingsAppearance => '外观';
+
+  @override
+  String get settingsThemeSystemEntry => '跟随系统';
+
+  @override
+  String get settingsThemeSystemHint => '按系统深浅色自动切换（内置主题）';
+
+  @override
+  String get settingsThemeBuiltin => '内置主题';
+
+  @override
+  String get settingsThemeCustom => '自定义主题';
+
+  @override
+  String get settingsThemeImport => '导入主题';
+
+  @override
+  String get settingsThemeImportHint => '选择一个 .json 主题文件';
+
+  @override
+  String get settingsThemeImportInvalid =>
+      '这个文件不是有效的主题（需要包含 name、colors 等字段的 JSON）';
+
+  @override
+  String settingsThemeImported(String name) {
+    return '已导入主题「$name」';
+  }
+
+  @override
+  String get settingsThemeExport => '导出主题';
+
+  @override
+  String get settingsThemeExported => '主题已导出';
+
+  @override
+  String get settingsThemeDeleted => '主题已删除';
+
+  @override
+  String get settingsThemeBuiltinProtected => '内置主题不能删除（可以编辑，保存会另存为副本）';
+
+  @override
+  String get settingsThemeBuiltinHint => '这是内置主题。保存时会另存为一个副本，内置默认值保持不变。';
+
+  @override
+  String get settingsThemeEdit => '编辑主题';
+
+  @override
+  String get settingsThemeSaved => '主题已保存';
+
+  @override
+  String get settingsThemeBrightness => '明暗';
+
+  @override
+  String get settingsThemePrimary => '主色调';
+
+  @override
+  String get settingsThemeBackground => '背景';
+
+  @override
+  String get settingsThemeOpacity => '背景透明度';
+
+  @override
+  String get settingsThemeScale => '页面缩放';
+
+  @override
+  String get settingsThemeScaleHint => '80%–150%，影响正文与控件尺寸。';
+
+  @override
+  String get settingsThemeAnimations => '动画';
+
+  @override
+  String get settingsThemeAnimationsOn => '开启动画效果';
+
+  @override
+  String get settingsThemeAnimationsOff => '已关闭动画';
+
+  @override
+  String get settingsThemeFonts => '字体';
+
+  @override
+  String get settingsThemeFontUi => '界面字体（留空＝系统默认）';
+
+  @override
+  String get settingsThemeFontEditor => '正文/编辑器字体（留空＝系统默认）';
+
+  @override
+  String get settingsThemeFontHint => '填字体族名称。字体文件导入功能尚未实现。';
+
+  @override
+  String get settingsData => '数据';
+
+  @override
+  String get settingsTfpkgExport => '导出工作区（.tfpkg）';
+
+  @override
+  String get settingsTfpkgExportHint => '把全部数据打包成一个文件，用于备份或换机';
+
+  @override
+  String get settingsTfpkgImport => '导入工作区（.tfpkg）';
+
+  @override
+  String get settingsTfpkgImportHint => '从 .tfpkg 恢复，导入前会自动备份当前数据';
+
+  @override
+  String settingsTfpkgImportPreview(int rows, int tables, int themes) {
+    return '即将导入：$rows 行数据、$tables 张表、$themes 个主题';
+  }
+
+  @override
+  String get settingsTfpkgMergeReplace => '覆盖（清空后写入）';
+
+  @override
+  String get settingsTfpkgMergeAppend => '追加（保留本地，跳过冲突）';
+
+  @override
+  String settingsTfpkgImportDone(int rows) {
+    return '导入完成：写入 $rows 行';
+  }
+
+  @override
+  String get settingsTfpkgExportDone => '工作区已导出';
+
+  @override
+  String get settingsTfpkgInvalid => '这个文件不是有效的 .tfpkg';
+
+  @override
+  String settingsTfpkgSkippedTables(int count) {
+    return '有 $count 张表来自更新的版本，已跳过';
+  }
+
+  @override
+  String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
 }

@@ -59,8 +59,10 @@ class TfpkgService implements TfpkgDumpSource {
 
   /// Imports [dump].
   ///
-  /// - [TfpkgMergeMode.replace] empties every table in the package first, so
-  ///   the workspace ends up exactly as the file describes.
+  /// - [TfpkgMergeMode.replace] empties **the tables present in the package**
+  ///   and writes the package content, so the resulting workspace matches the
+  ///   file. Tables the package does not mention are left alone - clearing the
+  ///   whole database would throw away data the file never carried.
   /// - [TfpkgMergeMode.append] keeps local rows and skips id clashes.
   ///
   /// Foreign keys are switched off for the duration: the package is a set of

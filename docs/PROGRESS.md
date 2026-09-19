@@ -4,6 +4,75 @@
 
 ---
 
+## 2026-09-19 轮次七：清理剩余问题 + v0.1.0 发版
+
+### 1. 补齐批次 5 的两块（此前只有模型/库层，没接 UI）
+
+**主题系统（spec §4）**
+
+- 新增 `data/repositories/theme_repository.dart`：内置深浅主题的**幂等播种**、当前主题
+  （存 `LocalSettings.active_theme_id`）、保存/导入/导出/删除。
+  关键语义：**编辑内置主题会另存为副本**，出厂默认永不被就地覆盖；删除当前主题会自动回落到"跟随系统"，
+  不会留下悬空引用；损坏的 payload 解析失败时回退内置深色而不是抛异常。
+- 新增 `features/settings/application/appearance_providers.dart`：把"当前主题"解析为
+  `ActiveAppearance`（主题文档 + 旧的 system/light/dark 回退），供 app 与设置页共用。
+- 新增 `features/settings/presentation/appearance_section.dart`：外观区 —— 跟随系统 + 主题列表
+  （色卡预览、编辑、导出、删除）+ 导入。
+- 新增 `features/settings/presentation/theme_editor_page.dart`：明暗、主色、背景色与透明度、
+  页面缩放 80%–150%、动画开关、字体族。
+- `app/app.dart` 重写：`MaterialApp` 的主题由**主题文档**驱动，不再用硬编码的 `AppTheme`
+  （该文件已删除）；页面缩放与动画开关在 `builder` 里对整棵树生效。
+
+**`.tfpkg` 工作区打包（spec §3）**
+
+- 新增 `features/settings/presentation/data_section.dart`：设置页「数据」区。
+  - 导出：写入带时间戳的 `.tfpkg`。
+  - 导入：先读 manifest 显示**预览**（多少行/多少表/多少主题）并让用户选**追加或覆盖**，
+    然后**自动备份**当前工作区（`pre-import-<时间戳>.tfpkg`）再导入；完成后刷新相关 provider
+    并报告写入行数、以及被跳过的未来版本表。
+- 修正 `TfpkgService.importDump` 的覆盖语义：现在只清空**包内出现过的表**。
+  原实现"覆盖=清空整库"，会把包里根本没带的表一起抹掉。
+
+**顺带修掉的真 bug**
+
+- 通知服务的 Windows 标识仍是 `KnowFlow` / `com.knowflow.app`，与产品名不一致 → 改为
+  `Threadflow` / `com.threadflow.app`，并换了一个不再像占位符的 GUID（附注：AppUserModelId
+  必须跨版本稳定，改动会让 Windows 丢弃已排期的提醒）。
+
+### 2. 剩余问题清单（本轮结束时的真实状态）
+
+已完成：主题系统全链路、`.tfpkg` 导出/导入 UI、通知品牌、覆盖语义修正。
+**仍未做**（已写入 `docs/DEPLOY.md` §5）：
+
+- 字体**文件**导入（只能填字体族名称）；"正文/编辑器字体"与界面字体目前共用同一套字体族，
+  要独立生效需在阅读视图再包一层 `DefaultTextStyle`。
+- 日程块的拖拽移动/拉伸边缘改时长。
+- 真机运行验证（用户有 Android 手机，待测）。
+
+### 3. Windows release 在本工作区也需要 ASCII 路径（新发现）
+
+`flutter build windows --release` **失败**，报错与 Android release 同源：
+`Unable to read file ...\.dart_tool\flutter_build\<hash>\app.dill` → `MSB8066`。
+debug 走 JIT 不受影响。解法同样是 junction：
+
+```powershell
+cmd /c mklink /J E:\threadflow-android "<真实路径>"
+cd E:\threadflow-android; flutter build windows --release
+```
+
+已实测：Windows release 产物打包 **35.66 MB**，`knowflow.exe` 启动后窗口正常、占用 255 MB。
+
+### 4. v0.1.0 产物（本轮实测）
+
+| 产物 | 大小 | 验证 |
+| --- | --- | --- |
+| `dist/Threadflow-0.1.0-android.apk` | 62.07 MB | `apksigner`：`CN=Threadflow`；`aapt2`：包名 `com.threadflow.knowflow`、targetSdk 36、三套 `libsqlite3.so` |
+| `dist/Threadflow-0.1.0-windows-x64.zip` | 35.66 MB | 启动实测：进程存活、有窗口句柄、255 MB |
+| 测试 | — | **190/190 全绿**（上一轮 172，本轮 +18 项主题仓库测试） |
+| 静态检查 | — | `dart analyze` **0 error** |
+
+---
+
 ## 2026-09-19 轮次六之二：源码已上传 GitHub（公开仓库 Furnace）
 
 仓库：**https://github.com/FirsryFan/Furnace**（公开，MIT）

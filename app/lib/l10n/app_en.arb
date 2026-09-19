@@ -302,5 +302,65 @@
   "docCurrentWeights": "Current weights (shipped values in brackets)",
   "docWeightsNormalized": "Edited weights are normalized automatically: even if they do not add up to 1, the total never exceeds 1 because the ranker rescales by their sum.",
   "docStatusTitle": "Event bar edge colours",
-  "docStatusBody": "Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering."
+  "docStatusBody": "Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.",
+
+  "settingsAppearance": "Appearance",
+  "settingsThemeSystemEntry": "Follow the system",
+  "settingsThemeSystemHint": "Switch automatically with the system brightness (built-in themes)",
+  "settingsThemeBuiltin": "Built-in theme",
+  "settingsThemeCustom": "Custom theme",
+  "settingsThemeImport": "Import theme",
+  "settingsThemeImportHint": "Pick a .json theme file",
+  "settingsThemeImportInvalid": "Not a valid theme file (it must be JSON with fields like name and colors)",
+  "settingsThemeImported": "Imported theme \"{name}\"",
+  "@settingsThemeImported": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "settingsThemeExport": "Export theme",
+  "settingsThemeExported": "Theme exported",
+  "settingsThemeDeleted": "Theme deleted",
+  "settingsThemeBuiltinProtected": "Built-in themes cannot be deleted (editing saves a copy)",
+  "settingsThemeBuiltinHint": "This is a built-in theme. Saving stores a copy, so the shipped default stays untouched.",
+  "settingsThemeEdit": "Edit theme",
+  "settingsThemeSaved": "Theme saved",
+  "settingsThemeBrightness": "Brightness",
+  "settingsThemePrimary": "Primary colour",
+  "settingsThemeBackground": "Background",
+  "settingsThemeOpacity": "Background opacity",
+  "settingsThemeScale": "Page scale",
+  "settingsThemeScaleHint": "80%-150%; affects body text and control sizes.",
+  "settingsThemeAnimations": "Animations",
+  "settingsThemeAnimationsOn": "Animations enabled",
+  "settingsThemeAnimationsOff": "Animations disabled",
+  "settingsThemeFonts": "Fonts",
+  "settingsThemeFontUi": "UI font (empty = system default)",
+  "settingsThemeFontEditor": "Body/editor font (empty = system default)",
+  "settingsThemeFontHint": "Enter a font family name. Importing font files is not implemented yet.",
+
+  "settingsData": "Data",
+  "settingsTfpkgExport": "Export workspace (.tfpkg)",
+  "settingsTfpkgExportHint": "Pack everything into one file for backup or moving machines",
+  "settingsTfpkgImport": "Import workspace (.tfpkg)",
+  "settingsTfpkgImportHint": "Restore from a .tfpkg; the current data is backed up first",
+  "settingsTfpkgImportPreview": "About to import: {rows} rows, {tables} tables, {themes} themes",
+  "@settingsTfpkgImportPreview": {
+    "placeholders": {
+      "rows": { "type": "int" },
+      "tables": { "type": "int" },
+      "themes": { "type": "int" }
+    }
+  },
+  "settingsTfpkgMergeReplace": "Replace (clear, then write)",
+  "settingsTfpkgMergeAppend": "Append (keep local, skip clashes)",
+  "settingsTfpkgImportDone": "Import finished: {rows} rows written",
+  "@settingsTfpkgImportDone": {
+    "placeholders": { "rows": { "type": "int" } }
+  },
+  "settingsTfpkgExportDone": "Workspace exported",
+  "settingsTfpkgInvalid": "This is not a valid .tfpkg file",
+  "settingsTfpkgSkippedTables": "{count} table(s) came from a newer version and were skipped",
+  "@settingsTfpkgSkippedTables": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups."
 }

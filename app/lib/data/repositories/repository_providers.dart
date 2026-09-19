@@ -13,6 +13,7 @@ import 'package_repository.dart';
 import 'settings_repository.dart';
 import 'tag_repository.dart';
 import 'task_repository.dart';
+import 'theme_repository.dart';
 import 'thread_rank_repository.dart';
 import 'thread_state_repository.dart';
 import 'time_block_repository.dart';
@@ -20,6 +21,11 @@ import 'time_template_repository.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository(ref.watch(appDatabaseProvider));
+});
+
+/// Appearance themes (spec §4): selection, import and export.
+final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
+  return ThemeRepository(ref.watch(appDatabaseProvider));
 });
 
 final tagRepositoryProvider = Provider<TagRepository>((ref) {

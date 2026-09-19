@@ -1609,6 +1609,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.'**
   String get docStatusBody;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsAppearance;
+
+  /// No description provided for @settingsThemeSystemEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system'**
+  String get settingsThemeSystemEntry;
+
+  /// No description provided for @settingsThemeSystemHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch automatically with the system brightness (built-in themes)'**
+  String get settingsThemeSystemHint;
+
+  /// No description provided for @settingsThemeBuiltin.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in theme'**
+  String get settingsThemeBuiltin;
+
+  /// No description provided for @settingsThemeCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom theme'**
+  String get settingsThemeCustom;
+
+  /// No description provided for @settingsThemeImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import theme'**
+  String get settingsThemeImport;
+
+  /// No description provided for @settingsThemeImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a .json theme file'**
+  String get settingsThemeImportHint;
+
+  /// No description provided for @settingsThemeImportInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a valid theme file (it must be JSON with fields like name and colors)'**
+  String get settingsThemeImportInvalid;
+
+  /// No description provided for @settingsThemeImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported theme \"{name}\"'**
+  String settingsThemeImported(String name);
+
+  /// No description provided for @settingsThemeExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export theme'**
+  String get settingsThemeExport;
+
+  /// No description provided for @settingsThemeExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme exported'**
+  String get settingsThemeExported;
+
+  /// No description provided for @settingsThemeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme deleted'**
+  String get settingsThemeDeleted;
+
+  /// No description provided for @settingsThemeBuiltinProtected.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in themes cannot be deleted (editing saves a copy)'**
+  String get settingsThemeBuiltinProtected;
+
+  /// No description provided for @settingsThemeBuiltinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a built-in theme. Saving stores a copy, so the shipped default stays untouched.'**
+  String get settingsThemeBuiltinHint;
+
+  /// No description provided for @settingsThemeEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit theme'**
+  String get settingsThemeEdit;
+
+  /// No description provided for @settingsThemeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme saved'**
+  String get settingsThemeSaved;
+
+  /// No description provided for @settingsThemeBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Brightness'**
+  String get settingsThemeBrightness;
+
+  /// No description provided for @settingsThemePrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary colour'**
+  String get settingsThemePrimary;
+
+  /// No description provided for @settingsThemeBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get settingsThemeBackground;
+
+  /// No description provided for @settingsThemeOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Background opacity'**
+  String get settingsThemeOpacity;
+
+  /// No description provided for @settingsThemeScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Page scale'**
+  String get settingsThemeScale;
+
+  /// No description provided for @settingsThemeScaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'80%-150%; affects body text and control sizes.'**
+  String get settingsThemeScaleHint;
+
+  /// No description provided for @settingsThemeAnimations.
+  ///
+  /// In en, this message translates to:
+  /// **'Animations'**
+  String get settingsThemeAnimations;
+
+  /// No description provided for @settingsThemeAnimationsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Animations enabled'**
+  String get settingsThemeAnimationsOn;
+
+  /// No description provided for @settingsThemeAnimationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Animations disabled'**
+  String get settingsThemeAnimationsOff;
+
+  /// No description provided for @settingsThemeFonts.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts'**
+  String get settingsThemeFonts;
+
+  /// No description provided for @settingsThemeFontUi.
+  ///
+  /// In en, this message translates to:
+  /// **'UI font (empty = system default)'**
+  String get settingsThemeFontUi;
+
+  /// No description provided for @settingsThemeFontEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Body/editor font (empty = system default)'**
+  String get settingsThemeFontEditor;
+
+  /// No description provided for @settingsThemeFontHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a font family name. Importing font files is not implemented yet.'**
+  String get settingsThemeFontHint;
+
+  /// No description provided for @settingsData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get settingsData;
+
+  /// No description provided for @settingsTfpkgExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export workspace (.tfpkg)'**
+  String get settingsTfpkgExport;
+
+  /// No description provided for @settingsTfpkgExportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack everything into one file for backup or moving machines'**
+  String get settingsTfpkgExportHint;
+
+  /// No description provided for @settingsTfpkgImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import workspace (.tfpkg)'**
+  String get settingsTfpkgImport;
+
+  /// No description provided for @settingsTfpkgImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from a .tfpkg; the current data is backed up first'**
+  String get settingsTfpkgImportHint;
+
+  /// No description provided for @settingsTfpkgImportPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'About to import: {rows} rows, {tables} tables, {themes} themes'**
+  String settingsTfpkgImportPreview(int rows, int tables, int themes);
+
+  /// No description provided for @settingsTfpkgMergeReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace (clear, then write)'**
+  String get settingsTfpkgMergeReplace;
+
+  /// No description provided for @settingsTfpkgMergeAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append (keep local, skip clashes)'**
+  String get settingsTfpkgMergeAppend;
+
+  /// No description provided for @settingsTfpkgImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Import finished: {rows} rows written'**
+  String settingsTfpkgImportDone(int rows);
+
+  /// No description provided for @settingsTfpkgExportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace exported'**
+  String get settingsTfpkgExportDone;
+
+  /// No description provided for @settingsTfpkgInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a valid .tfpkg file'**
+  String get settingsTfpkgInvalid;
+
+  /// No description provided for @settingsTfpkgSkippedTables.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} table(s) came from a newer version and were skipped'**
+  String settingsTfpkgSkippedTables(int count);
+
+  /// No description provided for @settingsBackupNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a copy of the raw database file; prefer .tfpkg for regular backups.'**
+  String get settingsBackupNote;
 }
 
 class _AppLocalizationsDelegate

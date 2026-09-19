@@ -2,7 +2,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Local notification wrapper for task reminders.
+/// Local notification wrapper for event reminders.
+///
+/// Renamed branding: the app is Threadflow, so the Windows notification entry
+/// and the Android channel say so too. The Windows AppUserModelId and GUID must
+/// stay stable per installation - changing them makes Windows treat the app as
+/// a different program and drops previously scheduled reminders, so they are
+/// only ever changed together with a note in PROGRESS.md.
 class NotificationService {
   NotificationService() {
     tzdata.initializeTimeZones();
@@ -10,9 +16,9 @@ class NotificationService {
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         windows: WindowsInitializationSettings(
-          appName: 'KnowFlow',
-          appUserModelId: 'com.knowflow.app',
-          guid: 'a1b2c3d4-0000-0000-0000-000000000000',
+          appName: 'Threadflow',
+          appUserModelId: 'com.threadflow.app',
+          guid: 'b7c4e1a2-3f56-4d18-9a70-2c8e5f0b1d33',
         ),
       ),
     );

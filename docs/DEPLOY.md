@@ -155,11 +155,43 @@ cd app; flutter build windows --release
 - 手机端数据库位于应用私有目录，卸载即删。
 - 分享请用软件内「导出知识包（.kpak）」，不含个人事件/日程/复习进度。
 - 分发安装包时**不要**附带自己的数据库文件。
+- 整库备份/换机用设置页的「导出工作区（.tfpkg）」；导入前会自动在应用数据目录写一份
+  `pre-import-<时间戳>.tfpkg`。
 
 ---
 
-## 4. 已知限制
+## 4. Windows release 也需要 ASCII 路径（2026-09-19 实测）
 
-- 主题系统 / `.tfpkg` 全量打包 / 字体导入 / 页面缩放尚未实现（批次 5）。
+`flutter build windows --release` 在本工作区**会失败**，报错与 Android release 同源：
+
+```
+CUSTOMBUILD : error : Unable to read file:
+E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app\.dart_tool\flutter_build\<hash>\app.dill
+error MSB8066: ... flutter_assemble.vcxproj ... 已退出，代码为 1
+```
+
+`debug` 构建走 JIT，不受影响；`release` 需要 AOT 快照器读取 `app.dill`，而该路径经
+MSBuild/CMake 传递时被非 ASCII 字符破坏。
+
+**解决办法与 Android 相同：从纯 ASCII 的 junction 路径构建。**
+
+```powershell
+cmd /c mklink /J E:\threadflow-android "<真实项目 app 路径>"
+cd E:\threadflow-android
+Remove-Item .dart_tool\flutter_build -Recurse -Force -ErrorAction SilentlyContinue
+flutter build windows --release
+```
+
+产物在 `E:\threadflow-android\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
+`knowflow.exe` 启动后窗口正常、占用约 255 MB）。发版时把该目录压成 zip 分发。
+
+---
+
+## 5. 已知限制
+
+- **字体文件导入**尚未实现（主题里可填字体族名称，但不能导入字体文件）。
+- 「正文/编辑器字体」目前与界面字体共用同一套 ThemeData 字体族；两者的**独立**生效需要在
+  阅读视图里再包一层 `DefaultTextStyle`，尚未做。
 - 日程块暂不支持拖拽移动或拉伸边缘改时长；改时间走对话框。
-- 界面仅验证了"能编译、能启动、有窗口"，**布局与手感需要你在真机上确认**。
+- 界面仅验证了「能编译、能启动、有窗口」，**布局与手感需要在真机上确认**。
+
