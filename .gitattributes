@@ -1,0 +1,55 @@
+# Line-ending policy.
+#
+# Git's default `core.autocrlf` setting is machine-dependent, which already
+# caused a spurious whole-file diff on LICENSE once. These rules make the
+# repository's expectations explicit so a clone behaves the same everywhere.
+#
+# Verified after committing: `git ls-files --eol` reports
+#   i/lf  w/lf   app/android/gradlew          (a Unix shell script - must stay LF)
+#   i/-text      app/android/.../gradle-wrapper.jar  (binary - never converted)
+
+# Default: keep files as they are in the repository.
+* text=auto
+
+# Unix shell scripts must keep LF, otherwise macOS/Linux checkouts break with
+# "bad interpreter".
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Windows batch/PowerShell files are happier with CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Dart / Kotlin / Gradle / docs: LF (matches the working tree and Dart tooling).
+*.dart text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.gradle text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.arb text eol=lf
+
+# Binary assets: never touched by line-ending conversion.
+*.jar binary
+*.jks binary
+*.keystore binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.apk binary
+*.aab binary
+*.db binary
+
+# Keep the generated SQLite schema diff readable rather than collapsing it.
+app/lib/data/database/database.g.dart linguist-generated=true
+app/lib/l10n/app_localizations*.dart linguist-generated=true
+app/pubspec.lock linguist-generated=true
