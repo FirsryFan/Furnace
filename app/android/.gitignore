@@ -1,0 +1,26 @@
+/.gradle
+/captures/
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# The Gradle wrapper is deliberately COMMITTED in this repository (the Flutter
+# template excludes it here) so a fresh clone can run ./gradlew immediately:
+#
+#   gradle-wrapper.jar / gradlew / gradlew.bat
+
+# Signing material is NOT committed: this repository is public.
+#
+#   key.properties + threadflow-release.jks
+#
+# Create your own keystore before producing a distributable build:
+#   keytool -genkeypair -v -keystore threadflow-release.jks -keyalg RSA \
+#     -keysize 2048 -validity 10000 -alias threadflow
+# and point app/android/key.properties at it.
+#
+# Without key.properties the release build still succeeds - app/build.gradle.kts
+# falls back to the debug signing key - so the app is installable, just not
+# suitable for distribution. See docs/DEPLOY.md.
+key.properties
+**/*.keystore
+**/*.jks

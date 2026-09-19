@@ -1,0 +1,72 @@
+name: knowflow
+description: "Threadflow (KnowFlow) - offline-first productivity suite for class teams: Thread event stream, Time calendar, Knowledge spaced repetition, and a tag tree."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Local database
+  drift: ^2.19.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Knowledge package (.kpak) zip handling
+  archive: ^3.6.1
+
+  # File import/export dialogs
+  file_picker: 12.3.0
+
+  # Local notifications for task reminders
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.0
+
+  # IDs
+  uuid: ^4.4.0
+
+  # Localization / intl
+  intl: any
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  # Raw SQLite access in tests (building a v1 database to exercise the
+  # v1 -> v2 migration).
+  sqlite3: ^2.4.0
+
+  # Drift code generation
+  drift_dev: ^2.19.0
+  build_runner: ^2.4.11
+
+# SQLite native library source.
+#
+# NOTE: this deliberately does NOT set `source: system` any more.
+# The sqlite3 build hook resolves `source: system` to a library named
+# `name_<target-os>` (falling back to `name`), so a `name_windows`-only
+# configuration made the ANDROID build look for the platform's libsqlite3.so -
+# which the Android NDK does not let apps link against. The default hook
+# downloads a precompiled libsqlite3 for each target instead, which works on
+# both Windows and Android (verified: the release assets for the resolved
+# sqlite3 version are reachable).
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3
+
+flutter:
+  uses-material-design: true
+  generate: true

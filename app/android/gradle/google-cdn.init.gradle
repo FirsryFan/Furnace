@@ -1,0 +1,117 @@
+// Redirects Google Maven / Maven Central to reachable, fast mirrors.
+//
+// Why this file exists
+// --------------------
+// On this machine:
+//   * `maven.google.com` resolves but the TLS handshake times out
+//     (`flutter doctor`: "[!] Network resources ... maven.google.com: 信号灯超时时间已到");
+//   * the direct CDN host `dl.google.com/dl/android/maven2` answers but runs at
+//     ~60 KB/s, so Gradle dies with "Could not download ... Read timed out";
+//   * `repo.maven.apache.org` behaves the same way.
+//
+// Measured here (8 second transfer of the same AGP jar):
+//   dl.google.com/dl/android/maven2      501 KB
+//   maven.aliyun.com/repository/google  12389 KB
+//
+// The hosts file is not an option (not writable without administrator rights).
+//
+// How it is applied
+// -----------------
+// Installed as `~/.gradle/init.d/threadflow-google-cdn.gradle`, so Gradle applies
+// it to EVERY build - including the included build of Flutter's own Gradle
+// plugin, which is where the first attempts kept failing on
+// `protos-32.1.0.jar`. The same file is versioned in the repo at
+// `app/android/gradle/google-cdn.init.gradle`.
+//
+// Why `beforeSettings` and not only `allprojects`
+// -----------------------------------------------
+// An included build (Flutter's `includeBuild(.../flutter_tools/gradle)`) is a
+// separate Gradle build with its own pluginManagement repositories; hooking
+// `allprojects` in the root build never sees it. `beforeSettings` fires for
+// every settings object, so the rewrite also lands there.
+
+def GOOGLE_MIRROR = 'https://maven.aliyun.com/repository/google'
+def CENTRAL_MIRROR = 'https://maven.aliyun.com/repository/central'
+
+def isGoogleMaven = { String url ->
+    url != null && (url.contains('maven.google.com') ||
+        url.contains('dl.google.com/dl/android/maven2') ||
+        url.contains('android.googlesource.com'))
+}
+
+def isMavenCentral = { String url ->
+    url != null && (url.contains('repo.maven.apache.org') ||
+        url.contains('repo1.maven.org'))
+}
+
+def rewriteOne = { repo ->
+    try {
+        if (repo instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository) {
+            def url = repo.url?.toString()
+            if (isGoogleMaven(url)) {
+                repo.setUrl(GOOGLE_MIRROR)
+                println "[mirror.init] ${repo.name}: ${url} -> ${GOOGLE_MIRROR}"
+                return true
+            }
+            if (isMavenCentral(url)) {
+                repo.setUrl(CENTRAL_MIRROR)
+                println "[mirror.init] ${repo.name}: ${url} -> ${CENTRAL_MIRROR}"
+                return true
+            }
+        }
+    } catch (Throwable ignored) {
+        // Never break a build because of a repository probe.
+    }
+    return false
+}
+
+/// Rewrites everything currently in a repository handler.
+def rewriteHandler = { handler ->
+    try {
+        def pending = new ArrayList(handler)
+        pending.each { rewriteOne(it) }
+    } catch (Throwable ignored) {
+    }
+}
+
+/// Also rewrites repositories that get added later on the same handler.
+def guardHandler = { handler ->
+    try {
+        rewriteHandler(handler)
+        handler.whenObjectAdded { repo -> rewriteOne(repo) }
+    } catch (Throwable ignored) {
+    }
+}
+
+beforeSettings { settings ->
+    // Covers the root build AND every included build.
+    guardHandler(settings.pluginManagement.repositories)
+    try {
+        guardHandler(settings.dependencyResolutionManagement.repositories)
+    } catch (Throwable ignored) {
+    }
+    try {
+        guardHandler(settings.buildscript.repositories)
+    } catch (Throwable ignored) {
+    }
+}
+
+settingsEvaluated { settings ->
+    rewriteHandler(settings.pluginManagement.repositories)
+    try {
+        rewriteHandler(settings.dependencyResolutionManagement.repositories)
+    } catch (Throwable ignored) {
+    }
+}
+
+gradle.beforeProject { project ->
+    guardHandler(project.repositories)
+    guardHandler(project.buildscript.repositories)
+}
+
+allprojects {
+    guardHandler(repositories)
+    buildscript {
+        guardHandler(repositories)
+    }
+}
