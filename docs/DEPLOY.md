@@ -10,14 +10,20 @@
 
 这台机器**原先完全没有 Android SDK，也没有 JDK**。已按以下方式装好：
 
+> **磁盘布局（2026-09-19 整理）**：除了 JDK，其余全部在 **E 盘**，不再占用 C 盘。
+> 本次整理把 Android SDK（2873 MB）与 Gradle 用户目录（5257 MB）从 C 盘迁到
+> `E:\Document\AndroidDev\`，并删除了下载包与构建产物；**C 盘可用空间 15.9 GB → 22.1 GB**。
+
 | 组件 | 位置 | 说明 |
 | --- | --- | --- |
-| JDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` | `winget install --id Microsoft.OpenJDK.21`（微软 CDN 比 GitHub 稳） |
-| Android SDK | `C:\AndroidDev\sdk` | 命令行工具解包；组件用 `sdkmanager` 装 |
-| 环境变量 | `ANDROID_HOME` / `ANDROID_SDK_ROOT` = `C:\AndroidDev\sdk`；`JAVA_HOME` = JDK 路径 | 已写入**用户级**环境变量 |
-| Flutter 配置 | `flutter config --android-sdk C:\AndroidDev\sdk` | 已写入 |
-| Gradle 发行包 | `~\.gradle\wrapper\dists\gradle-9.3.1-all\...` | 见 §1.1，官方源太慢，从腾讯镜像取并**校验过官方 sha256** |
-| 仓库镜像 init script | `~\.gradle\init.d\threadflow-google-cdn.gradle` | 见 §1.1 |
+| JDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` | `winget install --id Microsoft.OpenJDK.21`。**仍在 C 盘**：它装在 Program Files 下，且**机器级** `JAVA_HOME`/`PATH` 指向它；移动需要管理员权限（实测机器级环境变量不可写），硬移会让全机 Java 失效 |
+| Android SDK | `E:\Document\AndroidDev\sdk` | 命令行工具解包；组件用 `sdkmanager` 装 |
+| NDK | `E:\Document\AndroidDev\sdk\ndk\28.2.13676358` | 随 SDK |
+| Gradle 用户目录 | `E:\Document\AndroidDev\gradle-home` | 依赖缓存 + 发行包。通过用户级 `GRADLE_USER_HOME` 重定向，**否则会写回 `~\.gradle`** |
+| 环境变量（用户级） | `ANDROID_HOME` / `ANDROID_SDK_ROOT` = `E:\Document\AndroidDev\sdk`；`GRADLE_USER_HOME` = `E:\Document\AndroidDev\gradle-home`；`JAVA_HOME` = JDK 路径 | 已写入 |
+| Flutter 配置 | `flutter config --android-sdk E:\Document\AndroidDev\sdk` | 已写入 |
+| 仓库镜像 init script | `E:\Document\AndroidDev\gradle-home\init.d\threadflow-google-cdn.gradle` | Gradle 自动加载 `<GRADLE_USER_HOME>\init.d\*.gradle`，所以必须放在 GRADLE_USER_HOME 里，见 §1.1 |
+| ASCII 构建 junction | `E:\Document\threadflow-build` → 真实 `app\` 目录 | release 的 AOT 编译要求 ASCII 路径，见 §4 |
 
 已安装的 SDK 组件（对齐 Flutter 3.47 要求：compileSdk 36 / minSdk 24 / NDK 28.2.13676358）：
 
@@ -26,7 +32,14 @@ platform-tools           platforms;android-36
 build-tools;36.0.0       ndk;28.2.13676358   (2172 MB, sha1 已核对官方值)
 ```
 
-> ⚠️ 网络注意：`dl.google.com` 与 Maven Central 通但很慢（~60–100 KB/s），GitHub 偶发 TLS/连接重置。
+> ⚠️ **给未来的自己**：`.ps1` 脚本若含中文，必须存成 **UTF-8 带 BOM**。
+> PowerShell 5.1 对无 BOM 的脚本按 ANSI 解析，会把中文读成乱码并报
+> `The string is missing the terminator` 这类解析错误——文件内容其实是好的，
+> 只是被错误解码（本次已在 `build_android.ps1` 上踩到并修复）。
+
+> ⚠️ 网络注意：`dl.google.com` 与 Maven Central 通但很慢（~60–100 KB/s），
+> GitHub 偶发 TLS/连接重置，`api.github.com` 还会因**证书吊销服务器不可达**
+> 报 `CRYPT_E_REVOCATION_OFFLINE`（加 `curl --ssl-no-revoke` 可解）。
 > 大文件用 `curl.exe -L --retry 10 --retry-all-errors -C -`；**看起来"卡住"往往是慢而不是失败**。
 
 ---
@@ -46,9 +59,9 @@ powershell -ExecutionPolicy Bypass -File scripts/build_android.ps1 -Mode appbund
 
 ```powershell
 $env:JAVA_HOME="C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-$env:ANDROID_HOME="C:\AndroidDev\sdk"
-cmd /c mklink /J E:\threadflow-android "<真实项目 app 路径>"
-cd E:\threadflow-android
+$env:ANDROID_HOME="E:\Document\AndroidDev\sdk"
+cmd /c mklink /J E:\Document\threadflow-build "<真实项目 app 路径>"
+cd E:\Document\threadflow-build
 flutter build apk --release
 ```
 
@@ -63,7 +76,7 @@ app/build/app/outputs/bundle/release/app-release.aab
 安装到手机（USB 调试打开）：
 
 ```powershell
-C:\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
+E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 ```
 
 ### 实测验证结果（用 `aapt2` / `apksigner` 读真实 APK，不是推测）
@@ -92,7 +105,7 @@ C:\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 3. **release 的 AOT 快照器读不到 `app.dill`**（debug 走 JIT 所以没事）：
    `Unable to read file ...\flutter_build\<hash>\app.dill` → `Target android_aot_release_android-arm64 failed`。
    **必须从纯 ASCII 路径构建**。`scripts/build_android.ps1` 用目录 junction 解决：
-   `mklink /J E:\threadflow-android <真实路径>`，再从该路径执行 `flutter build`。
+   `mklink /J E:\Document\threadflow-build <真实路径>`，再从该路径执行 `flutter build`。
 
 **B. 网络受限**：`maven.google.com` **不可达**（`flutter doctor` 报其超时）；
 `dl.google.com` 与 Maven Central 通，但只有 **~60–100 KB/s**，会以 `Read timed out` 失败。
@@ -176,13 +189,13 @@ MSBuild/CMake 传递时被非 ASCII 字符破坏。
 **解决办法与 Android 相同：从纯 ASCII 的 junction 路径构建。**
 
 ```powershell
-cmd /c mklink /J E:\threadflow-android "<真实项目 app 路径>"
-cd E:\threadflow-android
+cmd /c mklink /J E:\Document\threadflow-build "<真实项目 app 路径>"
+cd E:\Document\threadflow-build
 Remove-Item .dart_tool\flutter_build -Recurse -Force -ErrorAction SilentlyContinue
 flutter build windows --release
 ```
 
-产物在 `E:\threadflow-android\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
+产物在 `E:\Document\threadflow-build\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
 `knowflow.exe` 启动后窗口正常、占用约 255 MB）。发版时把该目录压成 zip 分发。
 
 ---
@@ -194,4 +207,3 @@ flutter build windows --release
   阅读视图里再包一层 `DefaultTextStyle`，尚未做。
 - 日程块暂不支持拖拽移动或拉伸边缘改时长；改时间走对话框。
 - 界面仅验证了「能编译、能启动、有窗口」，**布局与手感需要在真机上确认**。
-

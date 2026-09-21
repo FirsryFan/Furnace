@@ -1,4 +1,4 @@
-# Android 构建脚本（本机环境已实测通过）
+﻿# Android 构建脚本（本机环境已实测通过）
 #
 # 为什么需要这个脚本
 # ------------------
@@ -29,7 +29,7 @@
 param(
     [ValidateSet('release', 'debug', 'appbundle')]
     [string]$Mode = 'release',
-    [string]$AsciiPath = 'E:\threadflow-android'
+    [string]$AsciiPath = 'E:\Document\threadflow-build'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,25 +37,54 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $AppDir = Join-Path $ProjectRoot 'app'
 
-# --- 1. 工具链环境（本机实测路径）-------------------------------------------
-$JdkHome = 'C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot'
-$AndroidSdk = 'C:\AndroidDev\sdk'
+# --- 1. 工具链环境（本机实测路径，带多候选探测）-------------------------------
+# 布局（2026-09-19 整理后）：
+#   Android SDK + NDK + Gradle 缓存  -> E:\Document\AndroidDev\*   （不占 C 盘）
+#   JDK                             -> C:\Program Files\Microsoft\jdk-* （见下）
+#
+# JDK 为什么仍在 C 盘：它由 winget 装在 Program Files 下，且**机器级**
+# JAVA_HOME 与 PATH 指向它；移动它需要管理员权限（机器级环境变量不可写），
+# 硬移会让全机 Java 失效。详见 docs/DEPLOY.md。
+function Find-First($candidates, $what) {
+    foreach ($c in $candidates) {
+        if ($c -and (Test-Path $c)) { return $c }
+    }
+    throw "找不到$what。候选位置：`n  $($candidates -join "`n  ")`n见 docs/DEPLOY.md 第 0 节的安装步骤。"
+}
 
-if (-not (Test-Path $JdkHome)) {
-    throw "找不到 JDK：$JdkHome。安装：winget install --id Microsoft.OpenJDK.21"
-}
-if (-not (Test-Path $AndroidSdk)) {
-    throw "找不到 Android SDK：$AndroidSdk。见 docs/DEPLOY.md 第 0 节的安装步骤。"
-}
+$JdkHome = Find-First @(
+    $env:JAVA_HOME,
+    'C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot',
+    'E:\Document\AndroidDev\jdk-21'
+) 'JDK'
+
+$AndroidSdk = Find-First @(
+    $env:ANDROID_SDK_ROOT,
+    'E:\Document\AndroidDev\sdk',
+    'C:\AndroidDev\sdk'
+) 'Android SDK'
+
+$GradleHome = Find-First @(
+    $env:GRADLE_USER_HOME,
+    'E:\Document\AndroidDev\gradle-home'
+) 'Gradle 用户目录'
 
 $env:JAVA_HOME = $JdkHome
 $env:ANDROID_HOME = $AndroidSdk
 $env:ANDROID_SDK_ROOT = $AndroidSdk
+# 让 Gradle 的依赖缓存与发行包都待在 E 盘，而不是默认的 ~\.gradle
+$env:GRADLE_USER_HOME = $GradleHome
 $env:PATH = "$JdkHome\bin;$AndroidSdk\platform-tools;$env:PATH"
 
-# --- 2. 仓库镜像 init script（幂等安装）-------------------------------------
+Write-Host "[build_android] JDK       = $JdkHome"
+Write-Host "[build_android] AndroidSDK= $AndroidSdk"
+Write-Host "[build_android] GradleHome= $GradleHome"
+
+# --- 2. 仓库镜像 init script（幂等安装到 GRADLE_USER_HOME）-------------------
+# Gradle 会自动加载 <GRADLE_USER_HOME>\init.d\*.gradle，所以这里要装到与
+# GRADLE_USER_HOME 一致的位置，否则镜像规则不生效（maven.google.com 不可达）。
 $initSource = Join-Path $AppDir 'android\gradle\google-cdn.init.gradle'
-$initDir = Join-Path $env:USERPROFILE '.gradle\init.d'
+$initDir = Join-Path $GradleHome 'init.d'
 $initTarget = Join-Path $initDir 'threadflow-google-cdn.gradle'
 New-Item -ItemType Directory -Force -Path $initDir | Out-Null
 Copy-Item $initSource $initTarget -Force
