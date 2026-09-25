@@ -7,6 +7,78 @@
 
 > 这些不阻塞架构设计，但进入具体 UI/算法/数据格式实现前需要确认。
 
+> ⏳ **例外：追加「Q3 / Q4」两节（2026-09-25）**，是用户新提出的两项能力（AI 接入、
+> MindNet 认知模型接入）。它们**尚未结案、尚未开始实现**，需要先定方案再动代码。
+
+---
+
+## Q3.（待讨论）接入 AI：复刻 agent loop / skill / 工具，但不做 cordis 扩展结构
+
+**用户原话要点**：API 接入 AI，复刻 deepseek harness 的 agent loop / skill / 工具，
+但**不需要 cordis 结构**，"弄一个专门的目的明确的软件就行了"。
+
+**已核实的事实**（本会话实测，非推测）：
+
+- 仓库现有代码**完全没有**网络/LLM 依赖：`pubspec.yaml` 无 http/dio/openai 类依赖。
+- 应用当前定位是**本地优先、不联网、无账号**（README 与 PRIVACY.md 的核心承诺）。
+  AI 接入**直接冲突**于这条承诺，需要用户明确取舍：可选开关？还是改定位？
+
+**待用户决定的问题**：
+
+1. **AI 在这个 app 里做什么？** 候选（可多选）：Thread 事件自然语言解析成任务？
+   Knowledge 自动出题/挖空？标签树自动归类？日程自动排？
+   —— 不同的用途要求的工具集完全不同，这是动手前必须先定的。
+2. **哪家 API / 什么协议？** DeepSeek 官方？OpenAI 兼容端点？本地 Ollama？
+3. **API Key 怎么存？** 本地加密存 SQLite？还是每次手填/走环境变量？
+   （涉及 PRIVACY.md 的改写。）
+4. **"工具"要开放哪些能力？** 只读（查询任务/日程/卡片）还是可写（建任务、改日程）？
+   可写就要有确认步骤，否则模型会直接改用户数据。
+
+**"不采用 cordis"的具体含义**（我按理解列出，需用户确认）：不做插件系统 / 不做运行时
+扩展注册表 / 不做多 agent 编排 —— 就是一份固定的、写死的工具清单 + 一个单 agent 循环。
+即：`对话 → 模型返回工具调用 → 本地执行 → 结果回灌 → 直到完成`，工具在代码里静态声明。
+
+---
+
+## Q4.（待讨论）接入 MindNet 认知模型（只读，不可写）
+
+**硬约束**：`E:\Document\MindNet` **只能读，不能做任何写操作**（用户明确要求）。
+
+**已核实的事实**（本会话只读检查，未做任何修改）：
+
+| 项 | 实测结果 |
+| --- | --- |
+| 形态 | Node.js 包（`package.json` version `2.0.0-alpha.1`），**没有 pubspec.yaml**，不是 Dart 包 |
+| 依赖 | `dependencies` 与 `devDependencies` **均为空** —— 零 npm 依赖 |
+| 源码规模 | `src/` 共 **3712 行**（`v2/engine.js` 746、`core/kernel.js` 566、`io/run.js` 574、`diffusion.js` 466、`model.js` 336、`calibration.js` 321、`feedback.js` 316、其余更小） |
+| 双端可跑 | `v2/engine.js` 用 `typeof module !== 'undefined'` 判断环境，Node 走 `module.exports`，非 Node 挂到 `globalThis.MindNet` —— **同一份代码能在浏览器里跑**（`viz/index.html` 直接 `file://` 打开即用） |
+| 对外接口 | ① 浏览器壳 `viz/index.html`（可导出完整状态 JSON）② CLI `node cli.js <输入.json> --json` ③ 库 `require('./src/index.js')` 导出 `Config` / `CognitiveModel` / `Graph` 等 |
+| 输入输出 | 输入 `{ graph:{nodes,edges}, initial_nodes, target_nodes }`，输出知识贡献 KC（Gap/Penalty）与目标激活状态；都是 JSON |
+
+**核心难题**：Furnace 的目标平台包含 **Android**，而 Android 上**没有 Node 运行时**，
+本机也没有嵌入 JS 引擎。所以"直接调用 MindNet"最多只能在 Windows 上做 sidecar，
+Android 无法复用。
+
+**候选方案（需要用户选或讨论）**：
+
+| 方案 | 说明 | 代价 / 风险 |
+| --- | --- | --- |
+| A. 移植到 Dart | 把 `src/` 的扩散/记忆动力学按需移植为纯 Dart（仓库已有先例：`ThreadRanker`/`FsrsScheduler`/`DiffusionBoost` 都是纯 Dart 算法层） | 工作量大；必须用 MindNet 的 `test/` + `probe/` 输出做对拍验证，否则会变成"看起来像"的假实现 |
+| B. 只取子集 | 只移植本 app 真正要用的那部分（例如扩散 + KC 计算），其余不搬 | 需要先明确用途；子集边界一旦选错返工 |
+| C. 不移植，Windows 端 sidecar | Windows 上起 Node 子进程跑 `cli.js --json` | Android 不可用；违背"同一套 Flutter 代码"的现有前提 |
+| D. 暂不接入 | 先明确用途再决定 | 不动代码 |
+
+**待用户决定的问题**：
+
+1. **接入 MindNet 要达到什么效果？** 例如：用 KC（发展区/死角）去调整 Knowledge 的
+   复习顺序？解释 Thread 排序里"目标匹配/扩散"这一项？还是仅做可视化展示？
+   —— 注意仓库**已有**一个简化版扩散（`DiffusionBoost`，图谱距离 BFS + 衰减），
+   需要明确它是被 MindNet 取代，还是两者并存。
+2. **MindNet 的"图"从哪来？** 是否就是 app 里的标签树（Mindnet 在定稿里已并入标签体系）？
+   如果是，节点/边如何映射，边的权重从哪来。
+3.（若选 A/B）接受的**对拍口径**是什么：要求 Dart 实现与 JS 实现在给定样例上
+   输出完全一致，还是允许数值近似（给一个容差）。
+
 ---
 
 ## 1. 思维导图交互深度

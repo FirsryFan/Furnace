@@ -68,6 +68,32 @@
 - `flutter build windows --release`（经 `E:\Document\furnace-build` junction）→ 成功产出 `furnace.exe`，实际启动并完成上述数据库接管验证；
 - 3 个构建脚本 `Parser::ParseFile` → 0 语法错误。
 
+### 4.1 发版后补修：Windows 窗口标题仍显示 `knowflow`
+
+v0.2.0 发布后实际启动程序读窗口标题，发现 **`MainWindowTitle = 'knowflow'`** ——
+`app/windows/runner/main.cpp` 里有一处硬编码的 `window.Create(L"knowflow", ...)`。
+
+**这是一个扫描漏洞**：先前的"全仓残留扫描"按扩展名白名单过滤，`.cpp` 不在其中，所以
+这一处从头到尾没被扫到。教训：改名类任务的残留扫描不能只列扩展名，要按"排除构建产物"
+做全类型扫描。改用全类型扫描后复查，`knowflow` / `threadflow` 只剩数据库中必须保留的
+旧文件名、密钥别名，以及历史文档记录。
+
+已修复为 `L"Furnace"` 并重新构建，**实测启动后窗口标题为 `Furnace`**，数据未受影响
+（哈希仍为 `E5313D87CF004430…`）。版本号随之 0.2.0 → **0.2.1**，重新出包并发布。
+
+### 5. 本轮之后仍未开始的两项新需求（用户 2026-09-25 提出）
+
+这两项**没有开始实现**，因为需要先定方案；事实与待决策项已写入
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) 的 **Q3 / Q4** 两节：
+
+- **Q3 AI 接入**：用 API 接 agent loop + skill + 工具（复刻 deepseek harness 的思路，
+  但明确不要 cordis 扩展结构）。已核实：现有代码零 LLM/网络依赖，且"不联网"是当前
+  产品的核心承诺 —— 动手前需要先定「AI 用来做什么 / 哪家 API / Key 怎么存 / 工具是否可写」。
+- **Q4 MindNet 认知模型接入**（**只读，禁止写入该仓库**）：已只读核实 —— 它是零 npm
+  依赖的 Node 包（`src/` 3712 行），同一份代码能在浏览器直接跑，但它**不是 Dart 包**，
+  且 Android 上没有 Node 运行时，所以"直接调用"在手机端不可用；是否移植到 Dart、
+  移植哪一部分、与已有的 `DiffusionBoost` 如何分工，都需要先定。
+
 ---
 
 ## 2026-09-19 轮次七：清理剩余问题 + v0.1.0 发版
