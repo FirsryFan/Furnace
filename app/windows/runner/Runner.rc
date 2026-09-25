@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "knowflow" "\0"
+            VALUE "CompanyName", "FirsryFan" "\0"
+            VALUE "FileDescription", "Furnace" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "knowflow" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "knowflow.exe" "\0"
-            VALUE "ProductName", "knowflow" "\0"
+            VALUE "InternalName", "furnace" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 FirsryFan. MIT licensed." "\0"
+            VALUE "OriginalFilename", "furnace.exe" "\0"
+            VALUE "ProductName", "Furnace" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

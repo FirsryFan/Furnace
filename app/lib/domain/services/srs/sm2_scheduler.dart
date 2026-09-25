@@ -1,4 +1,4 @@
-/// Simplified SM-2 spaced repetition scheduler for KnowFlow.
+/// Simplified SM-2 spaced repetition scheduler for Furnace.
 ///
 /// The UI exposes three review ratings:
 /// - [SrsRating.forgot]

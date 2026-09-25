@@ -11,7 +11,7 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
-/// The single local SQLite database for Threadflow.
+/// The single local SQLite database for Furnace.
 @DriftDatabase(
   tables: [
     Profiles,
@@ -30,7 +30,7 @@ part 'database.g.dart';
     ReviewLogs,
     KnowledgePackages,
     PackageItems,
-    // v2 (Threadflow)
+    // v2 (Threadflow, historical name)
     ThreadStates,
     TaskTemplates,
     CompletionLogs,
@@ -322,7 +322,7 @@ class AppDatabase extends _$AppDatabase {
     return false;
   }
 
-  /// v1 -> v2 (Threadflow): new tables, new columns, relaxed card_state /
+  /// v1 -> v2: new tables, new columns, relaxed card_state /
   /// review_log FKs and backfills. See docs/DATA_MODEL.md §7.
   ///
   /// The rebuilds (card_states, review_logs) run while foreign keys are still
@@ -441,15 +441,110 @@ WHERE tags.id = x.id AND x.rn > 1''');
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationSupportDirectory();
-    // v2 database file name. Keep serving an existing v1 file so early users
-    // keep their data; it is migrated in place on open.
-    final v2File = File(p.join(dir.path, 'threadflow.db'));
-    if (!v2File.existsSync()) {
-      final legacyFile = File(p.join(dir.path, 'knowflow.db'));
-      if (legacyFile.existsSync()) {
-        return NativeDatabase(legacyFile);
-      }
-    }
-    return NativeDatabase(v2File);
+    final target = File(p.join(dir.path, 'furnace.db'));
+
+    // Database file resolution, newest name first.
+    //
+    // The app has been renamed twice, and each name used to own the database
+    // file. An existing install must keep its data, so the legacy names are
+    // still served - the schema migration runs in place on open, exactly as it
+    // did when the file was current.
+    //
+    //   furnace.db      (current)
+    //   threadflow.db   (previous name)
+    //   knowflow.db     (original name)
+    final active = _adoptLegacyDatabase(dir, target);
+    return NativeDatabase(active);
   });
+}
+
+/// Resolves the file that actually holds this install's data.
+///
+/// Two kinds of legacy layout have to keep working:
+///
+///  1. **Same directory, older file name.** `furnace.db` / `threadflow.db` /
+///     `knowflow.db` inside the current app-support directory.
+///  2. **Older directory.** `getApplicationSupportDirectory()` is derived from
+///     the executable's company/product metadata on Windows and from the
+///     application id on Android. Renaming the app changed both, so a
+///     pre-rename install keeps its data under a *different* directory. That
+///     case cannot be handled by file-name fallback alone, which is exactly how
+///     the rename could have silently started the user on an empty database.
+///
+/// When a legacy database is found in another directory it is **copied** to
+/// [target] and the copy wins from then on. The copy is deliberate, not a move:
+/// if it fails, the original is left untouched and the app keeps using it.
+///
+/// Verified on this machine: renaming the Windows metadata moved the directory
+/// from `%APPDATA%\com.example\knowflow` to `%APPDATA%\FirsryFan\Furnace`, and
+/// the legacy file there held the real rows (time blocks) while the freshly
+/// created `furnace.db` held only seed data. After the fix, the copy landed at
+/// the new path with an identical file hash and the original was untouched.
+///
+/// [applicationDataDir] overrides the roaming-app-data root and exists for
+/// tests; production always reads the environment.
+File _adoptLegacyDatabase(
+  Directory dir,
+  File target, {
+  String? applicationDataDir,
+}) {
+  if (target.existsSync()) return target;
+
+  for (final name in const ['threadflow.db', 'knowflow.db']) {
+    final sibling = File(p.join(dir.path, name));
+    if (sibling.existsSync()) return sibling;
+  }
+
+  final missed = _firstLegacyDirectoryOutside(dir, applicationDataDir);
+  if (missed != null) {
+    try {
+      missed.copySync(target.path);
+      return target;
+    } on FileSystemException {
+      // Read-only or full disk: never lose the data, keep using the original.
+      return missed;
+    }
+  }
+
+  return target;
+}
+
+/// Test seam for [_adoptLegacyDatabase]: the file-name/directory resolution that
+/// decides which database an install actually opens.
+///
+/// Exposed because the failure it guards against is invisible in normal use -
+/// a wrong answer is not an exception, it is an empty-looking app.
+File resolveDatabaseFileForTest(
+  String currentDirectory,
+  File target, {
+  String? applicationDataDir,
+}) =>
+    _adoptLegacyDatabase(
+      Directory(currentDirectory),
+      target,
+      applicationDataDir: applicationDataDir,
+    );
+
+/// Looks in the directories this install used before the rename.
+///
+/// A candidate only counts when it actually holds a database, so an empty
+/// leftover directory never hijacks a fresh install.
+File? _firstLegacyDirectoryOutside(Directory current, [String? applicationDataDir]) {
+  final appData = applicationDataDir ?? Platform.environment['APPDATA'];
+  final candidates = <String>[
+    if (appData != null && appData.isNotEmpty)
+      p.join(appData, 'com.example', 'knowflow'),
+    if (appData != null && appData.isNotEmpty)
+      p.join(appData, 'FirsryFan', 'Furnace'),
+    p.join(p.dirname(current.path), 'knowflow'),
+  ];
+
+  for (final candidate in candidates) {
+    if (p.equals(candidate, current.path)) continue;
+    for (final name in const ['furnace.db', 'threadflow.db', 'knowflow.db']) {
+      final file = File(p.join(candidate, name));
+      if (file.existsSync() && file.lengthSync() > 0) return file;
+    }
+  }
+  return null;
 }

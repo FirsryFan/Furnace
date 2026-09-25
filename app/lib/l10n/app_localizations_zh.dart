@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Threadflow';
+  String get appTitle => 'Furnace';
 
   @override
   String get navMindMap => '思维导图';

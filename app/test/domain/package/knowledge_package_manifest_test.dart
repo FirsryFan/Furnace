@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/package/knowledge_package_manifest.dart';
+import 'package:furnace/domain/package/knowledge_package_manifest.dart';
 
 void main() {
   group('KnowledgePackageManifest', () {

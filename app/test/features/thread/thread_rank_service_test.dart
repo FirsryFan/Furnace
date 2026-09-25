@@ -1,12 +1,12 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/tag_repository.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/data/repositories/thread_rank_repository.dart';
-import 'package:knowflow/data/repositories/thread_state_repository.dart';
-import 'package:knowflow/data/repositories/time_block_repository.dart';
-import 'package:knowflow/features/thread/application/thread_rank_service.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/data/repositories/thread_rank_repository.dart';
+import 'package:furnace/data/repositories/thread_state_repository.dart';
+import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/features/thread/application/thread_rank_service.dart';
 
 /// End-to-end glue: stored events + schedule blocks + status bar + editable
 /// weights -> a ranked feed the UI can render.

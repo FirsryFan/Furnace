@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/time_template_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/time_template_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 /// v4 -> v5: the day/week grid no longer defaults to whole-hour rows
@@ -103,7 +103,7 @@ CREATE TABLE time_view_settings (
   }
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('threadflow_mig5_');
+    tempDir = Directory.systemTemp.createTempSync('furnace_mig5_');
   });
 
   tearDown(() {

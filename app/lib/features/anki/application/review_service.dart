@@ -11,7 +11,7 @@ import '../../../data/repositories/tag_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../../domain/services/cloze/cloze_engine.dart';
 import '../../../domain/services/cloze/tag_diffusion.dart';
-import '../../../domain/services/config/threadflow_defaults.dart';
+import '../../../domain/services/config/furnace_defaults.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 
 /// One ready-to-answer unit in the review queue.
@@ -266,7 +266,7 @@ class ReviewService {
         candidates: candidates,
         usedSlotKeys: usedKeys,
         exhausted: exhausted,
-        newClozeProbability: ThreadflowDefaults.newClozeProbability,
+        newClozeProbability: FurnaceDefaults.newClozeProbability,
         random: random,
       );
     } on StateError {
@@ -321,7 +321,7 @@ class ReviewService {
   }
 
   /// Consumes one boost cycle when a lifted knowledge point is actually drawn
-  /// (the boost decays after [ThreadflowDefaults.boostCycles] draws).
+  /// (the boost decays after [FurnaceDefaults.boostCycles] draws).
   Future<void> consumeBoost(String knowledgePointId) async {
     final boost = await ankiRepository.boostFor(knowledgePointId);
     if (boost == null) {
@@ -387,13 +387,13 @@ class ReviewService {
       forcedBefore: forcedBefore,
       streakBefore: state.forcedStreak,
       now: moment,
-      relearnMinutes: ThreadflowDefaults.forcedRelearnMinutes,
-      releaseStreak: ThreadflowDefaults.forcedConsecutiveCorrect,
+      relearnMinutes: FurnaceDefaults.forcedRelearnMinutes,
+      releaseStreak: FurnaceDefaults.forcedConsecutiveCorrect,
     );
 
     final nextDueAt = correct && !step.forced
         ? schedule.dueAt
-        : moment.add(const Duration(minutes: ThreadflowDefaults.forcedRelearnMinutes));
+        : moment.add(const Duration(minutes: FurnaceDefaults.forcedRelearnMinutes));
 
     await ankiRepository.updateUnitCardState(
       state.id,
@@ -501,7 +501,7 @@ class ReviewService {
         await ankiRepository.upsertBoost(
           knowledgePointId: other.id,
           factor: bestFactor,
-          remainingCycles: ThreadflowDefaults.boostCycles,
+          remainingCycles: FurnaceDefaults.boostCycles,
         );
         boosted.add(BoostedItem(
           title: other.title,

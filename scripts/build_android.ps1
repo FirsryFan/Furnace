@@ -29,7 +29,7 @@
 param(
     [ValidateSet('release', 'debug', 'appbundle')]
     [string]$Mode = 'release',
-    [string]$AsciiPath = 'E:\Document\threadflow-build'
+    [string]$AsciiPath = 'E:\Document\furnace-build'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,14 +85,29 @@ Write-Host "[build_android] GradleHome= $GradleHome"
 # GRADLE_USER_HOME 一致的位置，否则镜像规则不生效（maven.google.com 不可达）。
 $initSource = Join-Path $AppDir 'android\gradle\google-cdn.init.gradle'
 $initDir = Join-Path $GradleHome 'init.d'
-$initTarget = Join-Path $initDir 'threadflow-google-cdn.gradle'
+$initTarget = Join-Path $initDir 'furnace-google-cdn.gradle'
 New-Item -ItemType Directory -Force -Path $initDir | Out-Null
 Copy-Item $initSource $initTarget -Force
 Write-Host "[build_android] 仓库镜像已安装到 $initTarget"
+# 清理旧名残留，否则同一个 init 规则会被加载两次
+Remove-Item (Join-Path $initDir 'threadflow-google-cdn.gradle') -Force -ErrorAction SilentlyContinue
 
 # --- 3. 纯 ASCII 构建路径（junction 到真实目录）-----------------------------
 # release 的 AOT 编译要求 ASCII 路径；debug 不要求，但统一走同一条路径更省心。
-if (-not (Test-Path $AsciiPath)) {
+# 改名（Threadflow -> Furnace）后默认路径变了，但旧机器上可能已存在旧 junction，
+# 指向同一个 app 目录也算可用，避免重复创建。
+$legacyAscii = 'E:\Document\threadflow-build'
+$resolved = $null
+foreach ($cand in @($AsciiPath, $legacyAscii)) {
+    if (-not $cand) { continue }
+    if (Test-Path (Join-Path $cand 'pubspec.yaml')) { $resolved = $cand; break }
+}
+if ($resolved) {
+    if ($resolved -ne $AsciiPath) {
+        Write-Host "[build_android] 复用已存在的 ASCII 构建路径: $resolved"
+    }
+    $AsciiPath = $resolved
+} else {
     Write-Host "[build_android] 创建 junction: $AsciiPath -> $AppDir"
     cmd /c mklink /J "$AsciiPath" "$AppDir" | Out-Null
 }

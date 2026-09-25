@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/core/theme/theme_profile.dart';
+import 'package:furnace/core/theme/theme_profile.dart';
 
 /// Theme JSON document (spec §4 / GAP D13): import/export round trip, lenient
 /// parsing, and the documented 80%-150% scale bounds.

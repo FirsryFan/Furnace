@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/services/config/threadflow_defaults.dart';
+import '../../domain/services/config/furnace_defaults.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
@@ -479,7 +479,7 @@ class AnkiRepository {
           ..where((t) => t.knowledgePointId.equals(knowledgePointId)))
         .getSingleOrNull();
     final now = DateTime.now().millisecondsSinceEpoch;
-    final cycles = remainingCycles ?? ThreadflowDefaults.boostCycles;
+    final cycles = remainingCycles ?? FurnaceDefaults.boostCycles;
     if (existing == null) {
       await _db.into(_db.boostEntries).insert(
             BoostEntriesCompanion.insert(

@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/anki_repository.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/data/repositories/thread_state_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/data/repositories/thread_state_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 /// Builds a real v1 database file (subset of the v1 tables touched by the
@@ -15,7 +15,7 @@ void main() {
   late File dbFile;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('threadflow_mig_');
+    tempDir = Directory.systemTemp.createTempSync('furnace_mig_');
     dbFile = File('${tempDir.path}/v1.db');
     final db = sql.sqlite3.open(dbFile.path);
     db.execute('''

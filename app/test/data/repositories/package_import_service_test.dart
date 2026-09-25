@@ -1,12 +1,12 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/anki_repository.dart';
-import 'package:knowflow/data/repositories/mind_map_repository.dart';
-import 'package:knowflow/data/repositories/package_repository.dart';
-import 'package:knowflow/data/repositories/tag_repository.dart';
-import 'package:knowflow/domain/package/knowledge_package_manifest.dart';
-import 'package:knowflow/features/packages/application/package_import_service.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/mind_map_repository.dart';
+import 'package:furnace/data/repositories/package_repository.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/package/knowledge_package_manifest.dart';
+import 'package:furnace/features/packages/application/package_import_service.dart';
 
 void main() {
   late AppDatabase db;

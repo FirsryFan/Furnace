@@ -1,7 +1,7 @@
-# 架构设计（Threadflow 对齐版）
+# 架构设计（Furnace 对齐版）
 
-> 产品：Threadflow（前身：知序 KnowFlow）
-> 更新：2026-09-07，对齐 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md) 定稿；决策编号见 [GAP_ANALYSIS.md](GAP_ANALYSIS.md)（D1–D13）
+> 产品：Furnace（前身：知序 Furnace）
+> 更新：2026-09-07，对齐 [FURNACE_SPEC.md](FURNACE_SPEC.md) 定稿；决策编号见 [GAP_ANALYSIS.md](GAP_ANALYSIS.md)（D1–D13）
 > 技术栈：Flutter（Windows 优先，Android 8+）/ Riverpod / Drift
 > 架构风格：本地优先 + 单机关系库 + 纯 Dart 算法层 + Feature-first UI
 
@@ -21,7 +21,7 @@
 | Markdown 导入导出 | 自实现轻量转换（词条级） | 定稿 1.3.1 |
 | 思维导图 | 树形自绘组件（既有） | 拖拽 re-parent R6 打磨 |
 | 日历视图 | 自绘日/周/月网格（table_calendar 视 O1） | Time 模块 R5 |
-| 国际化 | ARB zh/en | 词表按 Threadflow 更新 |
+| 国际化 | ARB zh/en | 词表按 Furnace 更新 |
 
 沿用不表：uuid、path_provider、file_picker、timezone、intl。
 
@@ -117,7 +117,7 @@ Themes(payload JSON) + LocalSettings.active_theme_id
 
 ## 6. 常量收口（D10）
 
-算法缺省常量集中在 `domain/services/config/threadflow_defaults.dart`（GAP §4.1–4.3 全表）。
+算法缺省常量集中在 `domain/services/config/furnace_defaults.dart`（GAP §4.1–4.3 全表）。
 FSRS 默认权重常量随实现锁版本（注明 ts-fsrs 对应版本）。UI 一律经 provider 读取，禁止散落硬编码。
 
 ## 7. 测试策略（v2）

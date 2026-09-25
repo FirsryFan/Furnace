@@ -1,8 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/data/repositories/thread_rank_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/data/repositories/thread_rank_repository.dart';
 
 /// Actual-duration bookkeeping (blueprint 2.6, user annotation 14): two
 /// stamps, no ticking timer, and an anomaly guard the user can override.

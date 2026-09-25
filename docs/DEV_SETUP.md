@@ -1,6 +1,6 @@
 # 开发环境设置
 
-> 项目：知序 KnowFlow
+> 项目：Furnace
 > 技术栈：Flutter（Windows 优先）
 
 ---

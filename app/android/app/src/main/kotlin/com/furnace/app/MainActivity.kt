@@ -1,4 +1,4 @@
-package com.threadflow.knowflow
+package com.furnace.app
 
 import io.flutter.embedding.android.FlutterActivity
 

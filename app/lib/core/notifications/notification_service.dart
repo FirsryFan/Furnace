@@ -4,7 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 /// Local notification wrapper for event reminders.
 ///
-/// Renamed branding: the app is Threadflow, so the Windows notification entry
+/// Branding: the app is Furnace, so the Windows notification entry
 /// and the Android channel say so too. The Windows AppUserModelId and GUID must
 /// stay stable per installation - changing them makes Windows treat the app as
 /// a different program and drops previously scheduled reminders, so they are
@@ -16,8 +16,8 @@ class NotificationService {
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         windows: WindowsInitializationSettings(
-          appName: 'Threadflow',
-          appUserModelId: 'com.threadflow.app',
+          appName: 'Furnace',
+          appUserModelId: 'com.furnace.app',
           guid: 'b7c4e1a2-3f56-4d18-9a70-2c8e5f0b1d33',
         ),
       ),

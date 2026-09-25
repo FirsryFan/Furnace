@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/entities/card_template.dart';
-import 'package:knowflow/domain/entities/knowledge_point.dart';
-import 'package:knowflow/domain/services/cloze/cloze_generator.dart';
+import 'package:furnace/domain/entities/card_template.dart';
+import 'package:furnace/domain/entities/knowledge_point.dart';
+import 'package:furnace/domain/services/cloze/cloze_generator.dart';
 
 void main() {
   group('ClozeGenerator', () {

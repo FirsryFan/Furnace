@@ -1,6 +1,6 @@
 # Furnace
 
-**Threadflow** 的代码仓库 —— 面向高密度信息工作者的**本地优先**生产力工具。
+**Furnace** 的代码仓库 —— 面向高密度信息工作者的**本地优先**生产力工具。
 
 四大核心模块：
 
@@ -22,13 +22,13 @@
 | Thread 排序引擎（权重归一化、deadline 硬约束、期望时刻黄标提权） | ✅ |
 | Knowledge 复习引擎（FSRS-6、自由挖空、错题绑定、严格判分、标签树扩散、按天台账） | ✅ |
 | 界面（Thread / Time 日历 / Knowledge 复习 / 标签树 / 设置 / 使用文档） | ✅ |
-| `.tfpkg` 全量打包编解码 + 覆盖/追加合并 | ✅ 库层完成，**尚未接入设置页 UI** |
-| 主题 JSON 模型（颜色/背景/字体/缩放/动画） | ✅ 模型完成，**尚未接入设置页 UI** |
-| Windows 构建 | ✅ 实测可运行 |
+| `.tfpkg` 全量打包编解码 + 覆盖/追加合并 | ✅ 库层 + **设置页已接入** |
+| 主题 JSON（颜色/背景/字体/缩放/动画）+ 外观设置页 | ✅ **已接入设置页并在全局生效** |
+| Windows 构建 | ✅ 实测可运行（`furnace.exe`） |
 | Android 构建 | ✅ 实测产出已签名 release APK（61.7 MB） |
-| 自动化测试 | **172 项全绿**；`dart analyze` 0 error |
+| 自动化测试 | **190 项全绿**；`dart analyze` **0 error / 0 warning** |
 
-**尚未实现**：主题与 `.tfpkg` 的设置页接入、字体文件导入、页面缩放、日程块的拖拽移动/拉伸改时长、真机运行验证。
+**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证。
 
 ## 目录结构
 
@@ -41,7 +41,7 @@ app/                     Flutter 应用
     domain/              纯 Dart 算法：排序、FSRS、挖空、扩散、时间窗口、主题模型
     features/            thread / timeboard / anki(Knowledge) / tags / settings / packages
     l10n/                中英 ARB 与生成的本地化
-  test/                  172 项测试，与 lib 结构对应
+  test/                  190 项测试，与 lib 结构对应
   android/               Android 工程 + 构建期 Gradle 修补
   windows/               Windows 工程
 docs/                    设计蓝图、权威规范、差距分析、进度、部署
@@ -92,7 +92,7 @@ dart analyze                 # 应为 0 error
 | 文档 | 内容 |
 | --- | --- |
 | [docs/DESIGN_BLUEPRINT.md](docs/DESIGN_BLUEPRINT.md) | 设计蓝图 v2（已按用户批注修订，当前开发依据） |
-| [docs/THREADFLOW_SPEC.md](docs/THREADFLOW_SPEC.md) | 产品权威规范（定稿） |
+| [docs/FURNACE_SPEC.md](docs/FURNACE_SPEC.md) | 产品权威规范（定稿） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 技术架构与数据模型 |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 构建、环境事实与踩坑记录 |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | 逐轮开发进展（长期记忆） |

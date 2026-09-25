@@ -5,7 +5,7 @@
 ///           + expectedPressure*wExpected - fatiguePenalty*wFatigue
 ///
 /// All sub-scores are normalized to [0,1]; defaults live in
-/// ThreadflowDefaults (GAP 4.1). Pure Dart - no DB access.
+/// FurnaceDefaults (GAP 4.1). Pure Dart - no DB access.
 ///
 /// User-annotated semantics (blueprint v2):
 /// - `expected_time` and `deadline` are INDEPENDENT observation points.
@@ -21,19 +21,19 @@ library;
 
 import 'dart:math' as math;
 
-import '../config/threadflow_defaults.dart';
+import '../config/furnace_defaults.dart';
 import 'time_window_engine.dart';
 
 /// Tunable weights of the weighted sum. Exposed to the UI so the user can
 /// inspect and edit every parameter (blueprint P5). Defaults come from
-/// [ThreadflowDefaults].
+/// [FurnaceDefaults].
 class RankWeights {
   const RankWeights({
-    this.urgency = ThreadflowDefaults.wUrgency,
-    this.goal = ThreadflowDefaults.wGoal,
-    this.fit = ThreadflowDefaults.wFit,
-    this.fatigue = ThreadflowDefaults.wFatigue,
-    this.expected = ThreadflowDefaults.wExpected,
+    this.urgency = FurnaceDefaults.wUrgency,
+    this.goal = FurnaceDefaults.wGoal,
+    this.fit = FurnaceDefaults.wFit,
+    this.fatigue = FurnaceDefaults.wFatigue,
+    this.expected = FurnaceDefaults.wExpected,
   });
 
   final double urgency;
@@ -288,7 +288,7 @@ abstract final class ThreadRanker {
           dueAt != null &&
           hardAvailable != null &&
           estimate >
-              hardAvailable + ThreadflowDefaults.insufficientMarginMinutes;
+              hardAvailable + FurnaceDefaults.insufficientMarginMinutes;
 
       if (cannotFit) {
         insufficient.add(RankedEvent(
@@ -382,7 +382,7 @@ abstract final class ThreadRanker {
     if (energyFit != null) {
       return energyFit;
     }
-    return ThreadflowDefaults.fitMissingEstimateScore;
+    return FurnaceDefaults.fitMissingEstimateScore;
   }
 
   // --- urgency ---------------------------------------------------------------
@@ -390,20 +390,20 @@ abstract final class ThreadRanker {
   static double _urgency(RankEvent event, DateTime now) {
     if (event.dueAt != null) {
       final remaining = event.dueAt!.difference(now);
-      if (remaining.inMinutes <= ThreadflowDefaults.urgencyCapMinutes) {
+      if (remaining.inMinutes <= FurnaceDefaults.urgencyCapMinutes) {
         return 1.0;
       }
       return _decay(remaining.inMinutes.toDouble(),
-          ThreadflowDefaults.urgencyHalfLifeMinutes);
+          FurnaceDefaults.urgencyHalfLifeMinutes);
     }
     if (event.expectedAt != null) {
       final remaining = event.expectedAt!.difference(now);
       if (remaining.inMinutes <= 0) {
-        return ThreadflowDefaults.expectedSoftCap;
+        return FurnaceDefaults.expectedSoftCap;
       }
       return _decay(remaining.inMinutes.toDouble(),
-              ThreadflowDefaults.expectedSoftHalfLifeMinutes) *
-          ThreadflowDefaults.expectedSoftCap;
+              FurnaceDefaults.expectedSoftHalfLifeMinutes) *
+          FurnaceDefaults.expectedSoftCap;
     }
     return 0.0;
   }
@@ -500,7 +500,7 @@ abstract final class ThreadRanker {
 
   static double _fatigue(RankEvent event, RankContext context) {
     final now = context.now;
-    final windowMinutes = ThreadflowDefaults.fatigueWindowMinutes;
+    final windowMinutes = FurnaceDefaults.fatigueWindowMinutes;
     var raw = 0.0;
     for (final completion in context.completions) {
       final ageMinutes =
@@ -522,14 +522,14 @@ abstract final class ThreadRanker {
         raw += decay * overlap;
       }
     }
-    final normalized = raw / ThreadflowDefaults.fatigueNormDenominator;
+    final normalized = raw / FurnaceDefaults.fatigueNormDenominator;
     return normalized.clamp(0.0, 1.0);
   }
 
   // --- expected-time pressure (blueprint 2.3, YELLOW flag) ---------------------
 
   /// Rises to 1 as `expected_time` approaches (within
-  /// [ThreadflowDefaults.expectedNearWindowMinutes]), saturates at 1 while
+  /// [FurnaceDefaults.expectedNearWindowMinutes]), saturates at 1 while
   /// overdue, then fades back to 0 over the soft half-life so a
   /// long-forgotten expectation does not boost forever.
   static double _expectedPressure(RankEvent event, DateTime now) {
@@ -538,7 +538,7 @@ abstract final class ThreadRanker {
       return 0.0;
     }
     final minutesUntil = expectedAt.difference(now).inMinutes.toDouble();
-    final window = ThreadflowDefaults.expectedNearWindowMinutes.toDouble();
+    final window = FurnaceDefaults.expectedNearWindowMinutes.toDouble();
     if (minutesUntil <= 0) {
       // Past the expected moment with no deadline conflict (such events never
       // reach here): keep the yellow flag for the near window, then fade.
@@ -547,7 +547,7 @@ abstract final class ThreadRanker {
         return 1.0;
       }
       final faded =
-          (1.0 - (overdue - window) / ThreadflowDefaults.expectedSoftHalfLifeMinutes)
+          (1.0 - (overdue - window) / FurnaceDefaults.expectedSoftHalfLifeMinutes)
               .clamp(0.0, 1.0);
       return faded;
     }

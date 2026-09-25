@@ -1,4 +1,4 @@
-# Bootstrap the KnowFlow Flutter app on a machine with Flutter installed.
+﻿# Bootstrap the Furnace Flutter app on a machine with Flutter installed.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ try {
     flutter gen-l10n
 
     Write-Host "==> Generating Drift database code ..."
-    # --force-jit avoids an AOT compiler write issue in some Windows paths.
+# --force-jit avoids an AOT compiler write issue in some Windows paths.
     dart run build_runner build --force-jit
 
     Write-Host "==> Done. Run 'flutter run -d windows' to start."

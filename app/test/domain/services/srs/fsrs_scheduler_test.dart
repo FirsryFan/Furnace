@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/srs/fsrs_scheduler.dart';
+import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
 
 void main() {
   final now = DateTime.utc(2026, 9, 7, 12);

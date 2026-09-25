@@ -2,12 +2,12 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/package/tfpkg_codec.dart';
-import 'package:knowflow/data/package/tfpkg_service.dart';
-import 'package:knowflow/data/repositories/tag_repository.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/data/repositories/thread_rank_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/package/tfpkg_codec.dart';
+import 'package:furnace/data/package/tfpkg_service.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/data/repositories/thread_rank_repository.dart';
 
 /// `.tfpkg` workspace export/import (spec §3 / GAP D4).
 void main() {
@@ -154,7 +154,7 @@ void main() {
 
     test('replace empties the local table first', () async {
       final bytes = await TfpkgService(db).exportBytes();
-      final dump = TfpkgCodec.readManifest(bytes);
+      expect(bytes, isNotEmpty);
 
       final target = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(target.close);

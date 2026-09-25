@@ -327,7 +327,7 @@ class PackageItems extends Table {
 }
 
 // ============================================================================
-// v2 tables (Threadflow): added in schema 1 -> 2.
+// v2 tables: added in schema 1 -> 2.
 // ============================================================================
 
 /// Single-row Thread status bar state: current energy & main goal

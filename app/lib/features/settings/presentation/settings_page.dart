@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:knowflow/l10n/app_localizations.dart';
+import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -107,12 +107,19 @@ class SettingsPage extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final dir = await getApplicationSupportDirectory();
-      // The live database file is `threadflow.db`. The old name `knowflow.db`
-      // only exists as a legacy fallback that gets migrated in place, so
-      // backing it up would have saved a stale file (or reported "not found"
-      // on every fresh install).
-      final source = File('${dir.path}${Platform.pathSeparator}threadflow.db');
-      if (!await source.exists()) {
+      // The live file is `furnace.db`, but an install that predates the rename
+      // is still served from `threadflow.db` / `knowflow.db` (see
+      // _openConnection). Backing up only the current name would report
+      // "not found" on those installs, so the same order is used here.
+      File? source;
+      for (final name in const ['furnace.db', 'threadflow.db', 'knowflow.db']) {
+        final candidate = File('${dir.path}${Platform.pathSeparator}$name');
+        if (await candidate.exists()) {
+          source = candidate;
+          break;
+        }
+      }
+      if (source == null) {
         messenger.showSnackBar(
           SnackBar(content: Text('${l10n.settingsBackup}: not found')),
         );
@@ -122,7 +129,7 @@ class SettingsPage extends ConsumerWidget {
       // file_picker 12: static method, takes the bytes, returns a Uri.
       final target = await FilePicker.saveFile(
         dialogTitle: l10n.settingsBackup,
-        fileName: 'threadflow-backup.db',
+        fileName: 'furnace-backup.db',
         bytes: bytes,
         type: FileType.any,
       );

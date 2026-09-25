@@ -1,8 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/time_block_repository.dart';
-import 'package:knowflow/data/repositories/time_template_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/data/repositories/time_template_repository.dart';
 
 /// Day/week templates and the Time view preferences (user feedback item 3).
 void main() {

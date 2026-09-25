@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/config/threadflow_defaults.dart';
-import 'package:knowflow/domain/services/scheduling/thread_ranker.dart';
-import 'package:knowflow/domain/services/scheduling/time_window_engine.dart';
+import 'package:furnace/domain/services/config/furnace_defaults.dart';
+import 'package:furnace/domain/services/scheduling/thread_ranker.dart';
+import 'package:furnace/domain/services/scheduling/time_window_engine.dart';
 
 void main() {
   final now = DateTime(2026, 9, 7, 20); // Monday evening
@@ -141,7 +141,7 @@ void main() {
       );
       expect(noEnergy.ready.single.score.energyFit, isNull);
       expect(noEnergy.ready.single.score.fit,
-          ThreadflowDefaults.fitMissingEstimateScore);
+          FurnaceDefaults.fitMissingEstimateScore);
     });
 
     test('weights are normalized so the total cannot exceed 1', () {
@@ -254,8 +254,8 @@ void main() {
           score.fit * score.weights.fit -
           score.fatiguePenalty * score.weights.fatigue;
       expect(recomputed, closeTo(0.4 + 0.15 + 0.1 - 0.05, 1e-9));
-      expect(ThreadflowDefaults.wUrgency + ThreadflowDefaults.wGoal +
-          ThreadflowDefaults.wFit + ThreadflowDefaults.wFatigue,
+      expect(FurnaceDefaults.wUrgency + FurnaceDefaults.wGoal +
+          FurnaceDefaults.wFit + FurnaceDefaults.wFatigue,
           closeTo(1.0, 1e-9));
     });
 
@@ -370,7 +370,7 @@ void main() {
         id: 'stale',
         title: 'stale',
         expectedAt: now.subtract(Duration(
-            minutes: ThreadflowDefaults.expectedNearWindowMinutes + 400)),
+            minutes: FurnaceDefaults.expectedNearWindowMinutes + 400)),
       );
       final output = ThreadRanker.rank(
         events: [event],

@@ -17,7 +17,7 @@
 //
 // How it is applied
 // -----------------
-// Installed as `~/.gradle/init.d/threadflow-google-cdn.gradle`, so Gradle applies
+// Installed as `~/.gradle/init.d/furnace-google-cdn.gradle`, so Gradle applies
 // it to EVERY build - including the included build of Flutter's own Gradle
 // plugin, which is where the first attempts kept failing on
 // `protos-32.1.0.jar`. The same file is versioned in the repo at

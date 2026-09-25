@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/scheduling/time_window_engine.dart';
+import 'package:furnace/domain/services/scheduling/time_window_engine.dart';
 
 ScheduleBlock block(
   String id,

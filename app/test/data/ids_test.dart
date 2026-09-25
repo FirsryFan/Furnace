@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/ids.dart';
+import 'package:furnace/data/ids.dart';
 
 /// Regression guard for a real data-loss bug: every repository used to derive
 /// ids from `DateTime.now().microsecondsSinceEpoch`, so several inserts inside

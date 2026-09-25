@@ -58,7 +58,7 @@ class DataSection extends ConsumerWidget {
           .replaceAll('-', '');
       final target = await FilePicker.saveFile(
         dialogTitle: l10n.settingsTfpkgExport,
-        fileName: 'threadflow-$stamp.tfpkg',
+        fileName: 'furnace-$stamp.tfpkg',
         bytes: bytes,
         type: FileType.any,
       );

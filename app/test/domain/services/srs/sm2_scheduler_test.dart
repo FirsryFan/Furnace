@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/srs/sm2_scheduler.dart';
+import 'package:furnace/domain/services/srs/sm2_scheduler.dart';
 
 void main() {
   final now = DateTime(2026, 8, 19, 12);

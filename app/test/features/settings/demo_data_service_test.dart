@@ -1,14 +1,14 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/anki_repository.dart';
-import 'package:knowflow/data/repositories/tag_repository.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/data/repositories/thread_rank_repository.dart';
-import 'package:knowflow/data/repositories/thread_state_repository.dart';
-import 'package:knowflow/data/repositories/time_block_repository.dart';
-import 'package:knowflow/features/settings/application/demo_data_service.dart';
-import 'package:knowflow/features/thread/application/thread_rank_service.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/data/repositories/thread_rank_repository.dart';
+import 'package:furnace/data/repositories/thread_state_repository.dart';
+import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/features/settings/application/demo_data_service.dart';
+import 'package:furnace/features/thread/application/thread_rank_service.dart';
 
 /// The demo workspace is the first thing the user touches when reviewing the
 /// UI, so it must actually produce a usable, non-empty workspace.

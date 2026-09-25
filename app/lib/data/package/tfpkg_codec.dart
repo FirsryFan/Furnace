@@ -39,7 +39,7 @@ class AttachmentBlob {
 class TfpkgDump {
   const TfpkgDump({
     this.formatVersion = 1,
-    this.appName = 'Threadflow',
+    this.appName = 'Furnace',
     this.appVersion,
     this.exportedAt,
     this.tables = const {},
@@ -85,7 +85,7 @@ class TfpkgDump {
     final rawTables = (json['tables'] as Map<String, dynamic>?) ?? const {};
     return TfpkgDump(
       formatVersion: (json['formatVersion'] as num?)?.toInt() ?? 1,
-      appName: json['appName'] as String? ?? 'Threadflow',
+      appName: json['appName'] as String? ?? 'Furnace',
       appVersion: json['appVersion'] as String?,
       exportedAt: DateTime.tryParse(json['exportedAt'] as String? ?? ''),
       tables: {

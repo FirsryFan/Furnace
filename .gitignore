@@ -1,4 +1,4 @@
-# Ignore rules for the Threadflow workspace (public repository).
+# Ignore rules for the Furnace workspace (public repository).
 #
 # `app/.gitignore` (from the Flutter template) covers most Dart/Flutter output.
 # The rules here add what it misses, and - importantly - UN-ignore the generated

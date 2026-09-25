@@ -9,7 +9,7 @@ void main() {
   runApp(
     const ProviderScope(
       child: AppBootstrap(
-        child: ThreadflowApp(),
+        child: FurnaceApp(),
       ),
     ),
   );

@@ -4,7 +4,7 @@
 > 实测基线（2026-09-08）：算法层代码早已存在，`flutter test` 105/105 全绿。本表状态列已按 **2026-09-08 实测** 更新；逐条经过说明见 [PROGRESS.md](PROGRESS.md) 同日轮次。
 > 本轮设计依据：[DESIGN_BLUEPRINT.md](DESIGN_BLUEPRINT.md) v2（用户 13 条批注）。
 
-> 对齐：Threadflow 定稿（[THREADFLOW_SPEC.md](THREADFLOW_SPEC.md)，存档 2026-09-07）
+> 对齐：Furnace 定稿（[FURNACE_SPEC.md](FURNACE_SPEC.md)，存档 2026-09-07）
 > 状态与阶段来源：[GAP_ANALYSIS.md](GAP_ANALYSIS.md) §2 逐条差距矩阵（每行状态与该表一致，禁止夸大）；阶段定义见 GAP §6 与本仓库 [MILESTONES.md](MILESTONES.md) §2
 > 术语：按定稿词表（事件/日程块/词条/节点/系/主题…）；代码内部模块名（tasks/timeboard/anki/mindmap）对照见 ARCHITECTURE.md（D2）
 > 代码位置均相对 `app/lib/`，与 GAP 现状列核对过的实际文件

@@ -1,4 +1,4 @@
-# Threadflow — Flutter 应用
+# Furnace — Flutter 应用
 
 这是 [Furnace](../README.md) 仓库里的 Flutter 应用本身。产品定位、模块说明、
 当前状态与已知未完成项，请看**仓库根目录的 [README](../README.md)**。
@@ -49,4 +49,4 @@ test/             与 lib 结构对应的测试
 ```
 
 设计依据见 [../docs/DESIGN_BLUEPRINT.md](../docs/DESIGN_BLUEPRINT.md)（已按用户批注修订），
-产品权威规范见 [../docs/THREADFLOW_SPEC.md](../docs/THREADFLOW_SPEC.md)。
+产品权威规范见 [../docs/FURNACE_SPEC.md](../docs/FURNACE_SPEC.md)。

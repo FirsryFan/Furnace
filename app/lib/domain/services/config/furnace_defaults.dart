@@ -1,11 +1,11 @@
-/// Central default constants for the Threadflow algorithms (GAP 4.1-4.3).
+/// Central default constants for the Furnace algorithms (GAP 4.1-4.3).
 ///
-/// Every tunable value that the final spec (THREADFLOW_SPEC.md 1.1.3 / 1.3)
+/// Every tunable value that the final spec (FURNACE_SPEC.md 1.1.3 / 1.3)
 /// does not pin down lives here - single source of truth, no UI hardcoding.
 library;
 
-class ThreadflowDefaults {
-  ThreadflowDefaults._();
+class FurnaceDefaults {
+  FurnaceDefaults._();
 
   // ---- ThreadRanker weights (spec 1.1.3) --------------------------------
   static const double wUrgency = 0.4;

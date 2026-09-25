@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:knowflow/l10n/app_localizations.dart';
+import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../features/anki/presentation/knowledge_page.dart';
 import '../../features/tags/presentation/tag_tree_page.dart';

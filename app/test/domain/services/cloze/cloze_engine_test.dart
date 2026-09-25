@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/cloze/cloze_engine.dart';
+import 'package:furnace/domain/services/cloze/cloze_engine.dart';
 
 void main() {
   group('candidate discovery (spec 1.3.1/1.3.2)', () {

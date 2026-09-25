@@ -1,7 +1,7 @@
 # 发布与分发（Windows + Android）
 
-> 产品名：Threadflow（工作目录沿用 `class-productivity`，Dart 包名 `knowflow`，
-> Android 包名 `com.threadflow.knowflow`）
+> 产品名：Furnace（工作目录沿用 `class-productivity`，Dart 包名 `furnace`，
+> Android 包名 `com.furnace.app`）
 > 环境实测日期：2026-09-19（本机）；Android 从零装好并**已产出可安装的 release APK**
 
 ---
@@ -22,8 +22,8 @@
 | Gradle 用户目录 | `E:\Document\AndroidDev\gradle-home` | 依赖缓存 + 发行包。通过用户级 `GRADLE_USER_HOME` 重定向，**否则会写回 `~\.gradle`** |
 | 环境变量（用户级） | `ANDROID_HOME` / `ANDROID_SDK_ROOT` = `E:\Document\AndroidDev\sdk`；`GRADLE_USER_HOME` = `E:\Document\AndroidDev\gradle-home`；`JAVA_HOME` = JDK 路径 | 已写入 |
 | Flutter 配置 | `flutter config --android-sdk E:\Document\AndroidDev\sdk` | 已写入 |
-| 仓库镜像 init script | `E:\Document\AndroidDev\gradle-home\init.d\threadflow-google-cdn.gradle` | Gradle 自动加载 `<GRADLE_USER_HOME>\init.d\*.gradle`，所以必须放在 GRADLE_USER_HOME 里，见 §1.1 |
-| ASCII 构建 junction | `E:\Document\threadflow-build` → 真实 `app\` 目录 | release 的 AOT 编译要求 ASCII 路径，见 §4 |
+| 仓库镜像 init script | `E:\Document\AndroidDev\gradle-home\init.d\furnace-google-cdn.gradle` | Gradle 自动加载 `<GRADLE_USER_HOME>\init.d\*.gradle`，所以必须放在 GRADLE_USER_HOME 里，见 §1.1 |
+| ASCII 构建 junction | `E:\Document\furnace-build` → 真实 `app\` 目录 | release 的 AOT 编译要求 ASCII 路径，见 §4 |
 
 已安装的 SDK 组件（对齐 Flutter 3.47 要求：compileSdk 36 / minSdk 24 / NDK 28.2.13676358）：
 
@@ -60,8 +60,8 @@ powershell -ExecutionPolicy Bypass -File scripts/build_android.ps1 -Mode appbund
 ```powershell
 $env:JAVA_HOME="C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
 $env:ANDROID_HOME="E:\Document\AndroidDev\sdk"
-cmd /c mklink /J E:\Document\threadflow-build "<真实项目 app 路径>"
-cd E:\Document\threadflow-build
+cmd /c mklink /J E:\Document\furnace-build "<真实项目 app 路径>"
+cd E:\Document\furnace-build
 flutter build apk --release
 ```
 
@@ -83,14 +83,14 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 
 | 项 | 值 |
 | --- | --- |
-| 包名 / 版本 | `com.threadflow.knowflow` / 0.1.0 |
-| 应用名 | Threadflow |
+| 包名 / 版本 | `com.furnace.app` / 0.1.0 |
+| 应用名 | Furnace |
 | compileSdk / targetSdk | 36 / 36（minSdk 24，满足"Android 8+"） |
 | native | `lib/arm64-v8a`、`armeabi-v7a`、`x86_64` 三套 `libsqlite3.so` 均已打包 |
 | 权限 | `POST_NOTIFICATIONS`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE` |
-| release 签名 | `CN=Threadflow, OU=Personal, O=Threadflow, C=CN`（不再用 debug 证书） |
+| release 签名 | **实测** `CN=Threadflow, OU=Personal, O=Threadflow, L=, ST=, C=CN`（alias `threadflow`，有效期到 2054-02-04）。本行原先写成 `CN=Furnace`，与 `keytool` 实测不符，已按实测更正 |
 
-> ⚠️ keystore 是本地生成的 `android/threadflow-release.jks`，口令为开发用值
+> ⚠️ keystore 是本地生成的 `android/furnace-release.jks`，口令为开发用值
 > （见 `android/key.properties`；两者都在 `android/.gitignore` 里）。
 > **对外发布前请重新生成并妥善保管**：换 keystore 之后已安装的用户无法覆盖升级。
 
@@ -105,7 +105,7 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 3. **release 的 AOT 快照器读不到 `app.dill`**（debug 走 JIT 所以没事）：
    `Unable to read file ...\flutter_build\<hash>\app.dill` → `Target android_aot_release_android-arm64 failed`。
    **必须从纯 ASCII 路径构建**。`scripts/build_android.ps1` 用目录 junction 解决：
-   `mklink /J E:\Document\threadflow-build <真实路径>`，再从该路径执行 `flutter build`。
+   `mklink /J E:\Document\furnace-build <真实路径>`，再从该路径执行 `flutter build`。
 
 **B. 网络受限**：`maven.google.com` **不可达**（`flutter doctor` 报其超时）；
 `dl.google.com` 与 Maven Central 通，但只有 **~60–100 KB/s**，会以 `Read timed out` 失败。
@@ -118,7 +118,7 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 
 因此 `android/gradle/google-cdn.init.gradle` 把所有指向 maven.google.com /
 dl.google.com / Maven Central 的仓库改写到阿里云镜像。该文件同时安装到
-`~/.gradle/init.d/threadflow-google-cdn.gradle`（Gradle 自动应用于**所有**构建，包括
+`~/.gradle/init.d/furnace-google-cdn.gradle`（Gradle 自动应用于**所有**构建，包括
 Flutter 插件的 included build —— 第一版只钩 root build，插件构建仍在慢源上超时）。
 hosts 文件不可用：无管理员权限不可写。
 
@@ -128,7 +128,7 @@ hosts 文件不可用：无管理员权限不可写。
 
 ### Android 相关配置改动（相对 Flutter 模板）
 
-- `AndroidManifest.xml`：应用名 `Threadflow`；新增 `POST_NOTIFICATIONS`（Android 13+ 必需，
+- `AndroidManifest.xml`：应用名 `Furnace`；新增 `POST_NOTIFICATIONS`（Android 13+ 必需，
   否则定时提醒被静默丢弃）、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`。**没有**申请精确闹钟权限，
   因为 `NotificationService` 用的是 `AndroidScheduleMode.inexactAllowWhileIdle`。
 - `app/build.gradle.kts`：`isCoreLibraryDesugaringEnabled = true` +
@@ -156,16 +156,21 @@ powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
 cd app; flutter build windows --release
 ```
 
-产物：`app/build/windows/x64/runner/Release/`（`knowflow.exe`）。
+产物：`app/build/windows/x64/runner/Release/`（`furnace.exe`）。
 把该目录压成 zip 发给同学即可；或后续用 Inno Setup / MSIX 做安装包。
 
 ---
 
 ## 3. 数据与隐私
 
-- 本地数据库（Windows）：`%APPDATA%\com.example\knowflow\threadflow.db`
-  （若存在旧文件 `knowflow.db`，首次打开会就地迁移）。
-- 手机端数据库位于应用私有目录，卸载即删。
+- 本地数据库（Windows）：`%APPDATA%\<CompanyName>\<ProductName>\furnace.db`。
+  当前 exe 元数据是 `CompanyName=FirsryFan` / `ProductName=Furnace`，所以实测落在
+  `%APPDATA%\FirsryFan\Furnace\furnace.db`。
+  **改名会同时改变这个目录**（`getApplicationSupportDirectory()` 的路径来自 exe 元数据 /
+  Android applicationId），所以旧装的库留在 `%APPDATA%\com.example\knowflow\threadflow.db`。
+  首次启动时数据层会自动把它**复制**到新目录（复制而非移动：失败则继续用原文件），
+  因此改名不会让老用户看到空库。见 `database.dart` 的 `_adoptLegacyDatabase`。
+- 手机端数据库位于应用私有目录，卸载即删；applicationId 为 `com.furnace.app`。
 - 分享请用软件内「导出知识包（.kpak）」，不含个人事件/日程/复习进度。
 - 分发安装包时**不要**附带自己的数据库文件。
 - 整库备份/换机用设置页的「导出工作区（.tfpkg）」；导入前会自动在应用数据目录写一份
@@ -189,14 +194,14 @@ MSBuild/CMake 传递时被非 ASCII 字符破坏。
 **解决办法与 Android 相同：从纯 ASCII 的 junction 路径构建。**
 
 ```powershell
-cmd /c mklink /J E:\Document\threadflow-build "<真实项目 app 路径>"
-cd E:\Document\threadflow-build
+cmd /c mklink /J E:\Document\furnace-build "<真实项目 app 路径>"
+cd E:\Document\furnace-build
 Remove-Item .dart_tool\flutter_build -Recurse -Force -ErrorAction SilentlyContinue
 flutter build windows --release
 ```
 
-产物在 `E:\Document\threadflow-build\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
-`knowflow.exe` 启动后窗口正常、占用约 255 MB）。发版时把该目录压成 zip 分发。
+产物在 `E:\Document\furnace-build\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
+`furnace.exe` 启动后窗口正常、占用约 255 MB）。发版时把该目录压成 zip 分发。
 
 ---
 

@@ -1,8 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/core/theme/theme_profile.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/theme_repository.dart';
+import 'package:furnace/core/theme/theme_profile.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/theme_repository.dart';
 
 /// Appearance themes: seeding, selection, import/export and the promise that a
 /// built-in theme can never be destroyed by editing it.
@@ -208,11 +208,11 @@ void main() {
     test('illegal characters are stripped', () {
       expect(
         ThemeRepository.fileNameFor(const ThemeProfileData(name: 'a/b:c*d?')),
-        'a_b_c_d_.threadflow-theme.json',
+        'a_b_c_d_.furnace-theme.json',
       );
       expect(
         ThemeRepository.fileNameFor(const ThemeProfileData(name: '   ')),
-        'theme.threadflow-theme.json',
+        'theme.furnace-theme.json',
       );
     });
   });

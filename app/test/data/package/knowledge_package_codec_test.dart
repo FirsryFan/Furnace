@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/package/knowledge_package_codec.dart';
-import 'package:knowflow/domain/package/knowledge_package_manifest.dart';
+import 'package:furnace/data/package/knowledge_package_codec.dart';
+import 'package:furnace/domain/package/knowledge_package_manifest.dart';
 
 void main() {
   group('KnowledgePackageCodec', () {

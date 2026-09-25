@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/time_block_repository.dart';
-import 'package:knowflow/data/repositories/time_template_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/data/repositories/time_template_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 /// v3 -> v4 upgrade in place: the Time module gained schedule templates and
@@ -14,7 +14,7 @@ void main() {
   late File dbFile;
 
   setUp(() {
-    tempDir = Directory.systemTemp.createTempSync('threadflow_mig4_');
+    tempDir = Directory.systemTemp.createTempSync('furnace_mig4_');
     dbFile = File('${tempDir.path}/v3.db');
     final db = sql.sqlite3.open(dbFile.path);
     // A v3 database: the tables the migration touches, plus enough of the

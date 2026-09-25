@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/settings_repository.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 
 void main() {
   late AppDatabase db;

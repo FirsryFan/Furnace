@@ -2,14 +2,14 @@ import 'dart:math';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/data/database/database.dart';
-import 'package:knowflow/data/repositories/anki_repository.dart';
-import 'package:knowflow/data/repositories/diffusion_log_repository.dart';
-import 'package:knowflow/data/repositories/tag_repository.dart';
-import 'package:knowflow/data/repositories/task_repository.dart';
-import 'package:knowflow/domain/services/cloze/tag_diffusion.dart';
-import 'package:knowflow/domain/services/srs/fsrs_scheduler.dart';
-import 'package:knowflow/features/anki/application/review_service.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/diffusion_log_repository.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/data/repositories/task_repository.dart';
+import 'package:furnace/domain/services/cloze/tag_diffusion.dart';
+import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
+import 'package:furnace/features/anki/application/review_service.dart';
 
 /// The review engine (blueprint 4; user annotations 17, 18, 19):
 /// one blank per question, a wrong answer bound to come back the same day,

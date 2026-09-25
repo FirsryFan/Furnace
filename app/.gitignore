@@ -23,5 +23,5 @@ lib/**/*.freezed.dart
 Thumbs.db
 Desktop.ini
 
-# KnowFlow local data
+# Furnace local data
 *.kpak

@@ -205,7 +205,7 @@ class ThemeRepository {
   /// A readable default file name for an exported theme.
   static String fileNameFor(ThemeProfileData data) {
     final safe = data.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-    return '${safe.isEmpty ? 'theme' : safe}.threadflow-theme.json';
+    return '${safe.isEmpty ? 'theme' : safe}.furnace-theme.json';
   }
 
   /// True when [body] parses as a theme document. Used to give a clear error

@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-09-25 轮次八：全局改名 Furnace + 改名引发的数据丢失修复
+
+### 1. 全局改名（KnowFlow → Threadflow → **Furnace**）
+
+改名范围（每项都有实测证据，不是"应该改完了"）：
+
+| 层 | 改动 | 验证 |
+| --- | --- | --- |
+| Dart 包名 | `pubspec.yaml` `name: knowflow` → `furnace`；39 个文件 `package:knowflow/` → `package:furnace/` | `dart analyze` 0 error |
+| 类名 | `ThreadflowApp` / `ThreadflowDefaults` → `FurnaceApp` / `FurnaceDefaults`（10 文件）；`threadflow_defaults.dart` → `furnace_defaults.dart` | 同上 |
+| 测试文件 | `threadflow_v2/v3_repository_test.dart` → `furnace_v2/v3_...` | 196 项全绿 |
+| Android | `namespace` / `applicationId` → `com.furnace.app`；`MainActivity.kt` 迁到 `kotlin/com/furnace/app/`；manifest `android:label="Furnace"` | 三处一致（已核） |
+| Windows | `windows/CMakeLists.txt` `project(furnace ...)`；`Runner.rc` 产品名/文件名/公司名 | release 构建产出 `furnace.exe` |
+| 通知 | `appName: 'Furnace'`、AppUserModelId `com.furnace.app` | — |
+| 文档 | 16 个 md；定稿 `THREADFLOW_SPEC.md` → **`FURNACE_SPEC.md`**，12 个文档里的 20 处引用同步更新 | 全仓扫描 0 残留 |
+| 脚本/配置 | IDE 模块名、签名密钥 `furnace-release.jks`、Gradle 镜像 `furnace-google-cdn.gradle`、ASCII 构建路径 `E:\Document\furnace-build` | 3 个 ps1 语法 0 错误 |
+
+保留的旧名（**故意不改**）：数据库文件回退链 `threadflow.db` / `knowflow.db`、`FURNACE_SPEC.md` 顶部的改名说明、`database.dart` 里记录历史名的那段注释。工作目录 `class-productivity/` 未改名。
+
+### 2. 🔴 改名引发的**真实数据丢失风险**（本轮最重要的发现）
+
+**触发链条**：`getApplicationSupportDirectory()` 的路径在 Windows 上来自 exe 的公司/产品元数据，在 Android 上来自 applicationId。改名把这两者都改了，于是：
+
+```
+旧：%APPDATA%\com.example\knowflow\threadflow.db      ← 真实数据在这里（9 行，含 3 个时间块）
+新：%APPDATA%\FirsryFan\Furnace\furnace.db            ← 改名后新建，只有 4 行种子数据
+```
+
+原有代码只在**同一个目录内**回退文件名，覆盖不到"整个目录换了"的情况。实测证据：
+
+- 用改名前的 exe 跑一次 → 新目录出现 4 行的 `furnace.db`，旧库 9 行**无人问津**；
+- 两张库对比：`user_version=5` / 28 表都相同，差别只在 `time_blocks=3`、`thread_rank_settings=1`、`time_view_settings=1` —— 也就是用户真正录进去的日程。
+
+**修复**（`database.dart` 新增 `_adoptLegacyDatabase` + `_firstLegacyDirectoryOutside`）：
+
+- 先按老顺序找同名目录里的 `furnace.db` / `threadflow.db` / `knowflow.db`；
+- 再找改名前的目录（`%APPDATA%\com.example\knowflow`、`%APPDATA%\FirsryFan\Furnace`、以及当前目录的兄弟 `knowflow/`）；
+- 找到就**复制**到新路径（不是移动）：复制失败时退回继续用原文件，绝不因为 I/O 问题丢数据；
+- 只有真的存在数据库文件（且非空）才算候选，空目录不会劫持全新安装。
+
+**实测验证**（真机数据，非构造场景）：
+
+1. 删掉新库 → 启动新 exe → 新库出现，SHA256 与旧库**完全一致**（`E5313D87CF004430...`）；
+2. Dart 直接读该库：`rows=9`、3 个时间块（早读 / 睡觉 / 午自习）、2 个主题全部在；
+3. 旧库哈希前后不变 —— 复制是只读的。
+
+**回归测试**：新增 `test/data/database/legacy_database_adoption_test.dart`（6 项），覆盖同名旧文件、跨目录复制、原文件不被改、空目录不劫持、已有库优先。为了让路径可注入，加了 `resolveDatabaseFileForTest` 测试缝。
+
+### 3. 本轮顺手修掉的真问题
+
+- `bootstrap.ps1` / `build_windows.ps1` 头部注释符 `#` 与另一行注释被早前的批量替换**吃掉**，脚本直接语法错误 → 已补回，并用 `Parser::ParseFile` 复检 0 错误。
+- `build_android.ps1` 缺 UTF-8 BOM，PowerShell 5.1 按 ANSI 解码导致中文注释吞掉引号 → 语法错误 9 个。补 BOM 后 0 错误（含中文的 .ps1 必须带 BOM）。
+- `fsrs_scheduler.dart` 一处多余 `!`（warning）、`tfpkg_test.dart` 一处未使用变量（warning）→ 清零，`dart analyze` 现为 **0 error / 0 warning**（余 83 info 为 `prefer_const` 等风格项）。
+- `DEPLOY.md` 写的 release 证书是 `CN=Furnace`，`keytool` 实测是 `CN=Threadflow, OU=Personal, O=Threadflow` → 按实测更正。
+- `GAP_ANALYSIS.md` / `OPEN_QUESTIONS.md` 记的"`pubspec.name` 改为 `threadflow`"与最终代码不符（实际 `furnace`）→ 就地更正并注明中间名。
+- `docs/README.md` 是全仓库唯一含 **114 处 U+FFFD 替换字符**的损坏文件（早前 GBK 误写所致），内容已被 `PROGRESS.md` 完全覆盖且无任何文档引用 → 删除；删后全仓扫描已无损坏文件。
+
+### 4. 本轮实测结论
+
+- `flutter test --concurrency=1` → **196/196 通过**；
+- `dart analyze lib test` → **0 error / 0 warning**（83 info）；
+- `flutter build windows --release`（经 `E:\Document\furnace-build` junction）→ 成功产出 `furnace.exe`，实际启动并完成上述数据库接管验证；
+- 3 个构建脚本 `Parser::ParseFile` → 0 语法错误。
+
+---
+
 ## 2026-09-19 轮次七：清理剩余问题 + v0.1.0 发版
 
 ### 1. 补齐批次 5 的两块（此前只有模型/库层，没接 UI）
@@ -35,8 +101,8 @@
 
 **顺带修掉的真 bug**
 
-- 通知服务的 Windows 标识仍是 `KnowFlow` / `com.knowflow.app`，与产品名不一致 → 改为
-  `Threadflow` / `com.threadflow.app`，并换了一个不再像占位符的 GUID（附注：AppUserModelId
+- 通知服务的 Windows 标识仍是 `Furnace` / `com.knowflow.app`，与产品名不一致 → 改为
+  `Furnace` / `com.threadflow.app`，并换了一个不再像占位符的 GUID（附注：AppUserModelId
   必须跨版本稳定，改动会让 Windows 丢弃已排期的提醒）。
 
 ### 2. 剩余问题清单（本轮结束时的真实状态）
@@ -66,8 +132,8 @@ cd E:\threadflow-android; flutter build windows --release
 
 | 产物 | 大小 | 验证 |
 | --- | --- | --- |
-| `dist/Threadflow-0.1.0-android.apk` | 62.07 MB | `apksigner`：`CN=Threadflow`；`aapt2`：包名 `com.threadflow.knowflow`、targetSdk 36、三套 `libsqlite3.so` |
-| `dist/Threadflow-0.1.0-windows-x64.zip` | 35.66 MB | 启动实测：进程存活、有窗口句柄、255 MB |
+| `dist/Furnace-0.1.0-android.apk` | 62.07 MB | `apksigner`：`CN=Furnace`；`aapt2`：包名 `com.furnace.app`、targetSdk 36、三套 `libsqlite3.so` |
+| `dist/Furnace-0.1.0-windows-x64.zip` | 35.66 MB | 启动实测：进程存活、有窗口句柄、255 MB |
 | 测试 | — | **190/190 全绿**（上一轮 172，本轮 +18 项主题仓库测试） |
 | 静态检查 | — | `dart analyze` **0 error** |
 
@@ -81,7 +147,7 @@ cd E:\threadflow-android; flutter build windows --release
 
 - 远端起始只有 `LICENSE` + `README.md`（1 个提交 `a397880`）。把它的 `.git` 接入本地工作目录以**保留历史**，
   然后分两次提交推送：
-  - `620cc8e9` — `feat: Threadflow 首个可运行版本（Windows + Android）`（179 个文件，1.84 MB）
+  - `620cc8e9` — `feat: Furnace 首个可运行版本（Windows + Android）`（179 个文件，1.84 MB）
   - `fdb0b212` — `chore: 固化行尾策略（.gitattributes）`
 - 远端核对（GitHub API）：两个提交都在 `main` 上；公开 tree 共 **180 个 blob**、`truncated=false`。
 
@@ -122,7 +188,7 @@ cd E:\threadflow-android; flutter build windows --release
 
 ### 下一步
 
-- 用户在 **Android 真机**上安装 `dist/Threadflow-0.1.0-release.apk` 验证运行。
+- 用户在 **Android 真机**上安装 `dist/Furnace-0.1.0-release.apk` 验证运行。
 - 之后可做：主题与 `.tfpkg` 接入设置页 UI、字体导入、页面缩放、日程块拖拽。
 
 ---
@@ -130,7 +196,7 @@ cd E:\threadflow-android; flutter build windows --release
 ## 2026-09-19 轮次六：Android 落地（从零装工具链 → 产出已签名 release APK）
 
 > 用户要求：“把没有做的做完，尽早完成 Android 版本，这是我大部分的适用场景。”
-> 结果：**release APK 已产出并用正式 keystore 签名**，`dist/Threadflow-0.1.0-release.apk`（61.72 MB）。
+> 结果：**release APK 已产出并用正式 keystore 签名**，`dist/Furnace-0.1.0-release.apk`（61.72 MB）。
 
 ### 1. 起点：这台机器完全没有 Android 工具链
 
@@ -183,16 +249,16 @@ debug 能构建（JIT），release 失败：
 
 - `flutter build apk --debug` → **成功**，`app-debug.apk` 161.72 MB。
 - `flutter build apk --release` → **成功**，`app-release.apk` 61.72 MB。
-- `aapt2 dump badging`：包名 `com.threadflow.knowflow`、versionName 0.1.0、
-  应用名 **Threadflow**、`compileSdkVersion='36'`、`targetSdkVersion:'36'`、
+- `aapt2 dump badging`：包名 `com.furnace.app`、versionName 0.1.0、
+  应用名 **Furnace**、`compileSdkVersion='36'`、`targetSdkVersion:'36'`、
   `native-code: 'arm64-v8a' 'armeabi-v7a' 'x86_64'`。
 - 权限：`POST_NOTIFICATIONS`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`（+ 插件自带的一条）。
 - APK 内 `lib/{arm64-v8a,armeabi-v7a,x86_64}/libsqlite3.so` **三套齐全**。
-- `apksigner verify --print-certs`：`CN=Threadflow, OU=Personal, O=Threadflow, C=CN`
+- `apksigner verify --print-certs`：`CN=Furnace, OU=Personal, O=Furnace, C=CN`
   （不再是 `CN=Android Debug`）→ 已生成 `android/threadflow-release.jks` 并接线（缺 keystore 时回退 debug，
   保证全新 clone 也能构建）。
 - `flutter test --concurrency=1` → **172/172 全绿**；`dart analyze` → **0 error**。
-- 产物已放到 `dist/`：`Threadflow-0.1.0-release.apk` + `dist/windows/`（Windows debug 运行目录 19 个文件）。
+- 产物已放到 `dist/`：`Furnace-0.1.0-release.apk` + `dist/windows/`（Windows debug 运行目录 19 个文件）。
 
 ### 5. 未验证 / 待你处理
 
@@ -480,12 +546,12 @@ flutter run -d windows        # 开发调试（支持热重载）
 
 ---
 
-## 2026-09-07 轮次：Threadflow 定稿对齐（R0–R1 文档阶段完成，R2 进行中）
+## 2026-09-07 轮次：Furnace 定稿对齐（R0–R1 文档阶段完成，R2 进行中）
 
-> 项目定稿更名为 **Threadflow**（权威规范：docs/THREADFLOW_SPEC.md；差距与迁移：docs/GAP_ANALYSIS.md）。
+> 项目定稿更名为 **Furnace**（权威规范：docs/FURNACE_SPEC.md；差距与迁移：docs/GAP_ANALYSIS.md）。
 
 - [x] R0：全量备份 `class-productivity` → `_backup/2026-09-07/`（630 文件）
-- [x] 定稿存档：`docs/THREADFLOW_SPEC.md`（逐字权威版）
+- [x] 定稿存档：`docs/FURNACE_SPEC.md`（逐字权威版）
 - [x] 差距清单：`docs/GAP_ANALYSIS.md`（D1–D13 决策、逐条差距矩阵、常量缺省表、.tfpkg 草案、R0–R6 路线）
 - [x] `docs/DATA_MODEL.md` 重写为 v2（树形标签 path、Tasks+expected_at/energy_required、ThreadStates、CompletionLogs、TaskTemplates、ClozeSlots/ClozeHistory、CardStates 呈现单元+FSRS 字段、BoostEntries、Themes、Attachments；schema 1→2 迁移步骤）
 - [x] `docs/ARCHITECTURE.md` 对齐（命名映射 D2、ThreadRanker/FSRS/ClozeEngine/DiffusionBoost/TimeWindowEngine 分层、闭环流程、常量收口）
@@ -510,7 +576,7 @@ flutter run -d windows        # 开发调试（支持热重载）
 ### M1：Flutter 项目骨架（源码）
 - [x] `app/pubspec.yaml`、`analysis_options.yaml`、`l10n.yaml`
 - [x] 中英文 ARB 文案
-- [x] 应用入口 `main.dart`、根组件 `KnowFlowApp`
+- [x] 应用入口 `main.dart`、根组件 `FurnaceApp`
 - [x] 桌面/移动自适应导航壳 `HomeShell`
 - [x] 设置页（语言/主题切换，内存态）
 - [x] 五大模块占位页（思维导图/任务/时间/背诵/设置）
@@ -596,9 +662,9 @@ flutter run -d windows        # 开发调试（支持热重载）
 ## 下一步（R2–R6，详见 docs/GAP_ANALYSIS.md §6）
 
 1. R2 收尾：修复 dart analyze 16 错误（@DataClassName 等）；Repository 扩展（ThreadStates/TaskTemplates/CompletionLogs/树形 Tag/复习单元 API）；schema 迁移与 CRUD 单测（`flutter test`）；db 文件迁移到 `threadflow.db`（已实现兼容回退）。
-2. R3：纯 Dart 核心 —— `ThreadRanker`（加权公式+硬约束+疲劳惩罚，常量 `ThreadflowDefaults`）、Dart FSRS 替换 SM-2、`ClozeEngine`（自由挖空/出题/错题绑定状态机）、`DiffusionBoost`（图谱距离 BFS+衰减）、`TimeWindowEngine`（重复规则展开/占用/空闲窗口）、TagTree/Template/BatchEdit 服务。
+2. R3：纯 Dart 核心 —— `ThreadRanker`（加权公式+硬约束+疲劳惩罚，常量 `FurnaceDefaults`）、Dart FSRS 替换 SM-2、`ClozeEngine`（自由挖空/出题/错题绑定状态机）、`DiffusionBoost`（图谱距离 BFS+衰减）、`TimeWindowEngine`（重复规则展开/占用/空闲窗口）、TagTree/Template/BatchEdit 服务。
 3. R4：`.tfpkg` 编解码（逻辑全量转储+附件+主题，可选 AES-GCM）+ 覆盖/追加合并器；主题 JSON 与外观系统（缩放/字体/背景）。
-4. R5：UI 迁移与联动：Threadflow 词表、Thread 顶栏+更新排序、硬约束红标、日/周/月日历+冲突一键调整、Knowledge 新复习流+生成任务、Mindnet 系导入/设目标/.mm-OPML。
+4. R5：UI 迁移与联动：Furnace 词表、Thread 顶栏+更新排序、硬约束红标、日/周/月日历+冲突一键调整、Knowledge 新复习流+生成任务、Mindnet 系导入/设目标/.mm-OPML。
 5. R6：拖拽 re-parent、双语补全、FEATURE_MATRIX/PROGRESS 回写、Windows build 冒烟、pubspec 更名 threadflow。
 
 ---

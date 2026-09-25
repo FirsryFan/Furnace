@@ -1,7 +1,7 @@
-# 数据模型（Threadflow v2）
+# 数据模型（Furnace v2）
 
-> 产品：Threadflow（前身：知序 KnowFlow）
-> 更新：2026-09-07（对齐 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md) 定稿；差距与决策见 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) 决策 D 系列与 §3）
+> 产品：Furnace（前身：知序 Furnace）
+> 更新：2026-09-07（对齐 [FURNACE_SPEC.md](FURNACE_SPEC.md) 定稿；差距与决策见 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) 决策 D 系列与 §3）
 > 存储：SQLite（Drift）
 > 约定：所有表包含 `id`（TEXT UUID）、`created_at`、`updated_at`（INTEGER 毫秒时间戳），除单行表外。
 > 版本：schema v1 → v2（迁移步骤见文末 §7；只加列/加表，不删列）

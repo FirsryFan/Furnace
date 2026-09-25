@@ -7,7 +7,7 @@
 ///
 /// Local-only, fully deterministic, no fuzz (enable_fuzz = false).
 ///
-/// Threadflow integration: the spec's wrong-answer forced-binding machine
+/// Furnace integration: the spec's wrong-answer forced-binding machine
 /// (10 min short interval, 2 consecutive correct) lives OUTSIDE this class,
 /// on CardStates.forced/forcedStreak; once released, FSRS takes over again.
 library;
@@ -247,7 +247,7 @@ abstract final class FsrsScheduler {
               : forgettingCurve(
                   w: w,
                   elapsedDays: elapsedDays,
-                  stability: memory!.stability),
+                  stability: memory.stability),
         );
 
     var again = nextIntervalDays(

@@ -32,7 +32,7 @@ class TfpkgService implements TfpkgDumpSource {
         if (row['payload'] is String) row['payload'] as String,
     ];
     return TfpkgDump(
-      appName: 'Threadflow',
+      appName: 'Furnace',
       appVersion: appVersion,
       exportedAt: DateTime.now(),
       tables: tables,

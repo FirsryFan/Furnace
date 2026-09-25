@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/features/timeboard/presentation/calendar_page.dart';
-import 'package:knowflow/features/timeboard/presentation/widgets/calendar_support.dart';
+import 'package:furnace/features/timeboard/presentation/calendar_page.dart';
+import 'package:furnace/features/timeboard/presentation/widgets/calendar_support.dart';
 
 /// ISO-8601 week numbering, used by the week-number column and the multi-year
 /// timeline (user feedback item 3).

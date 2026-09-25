@@ -7,7 +7,7 @@ import '../../../data/repositories/task_repository.dart';
 import '../../../data/repositories/thread_rank_repository.dart';
 import '../../../data/repositories/thread_state_repository.dart';
 import '../../../data/repositories/time_block_repository.dart';
-import '../../../domain/services/config/threadflow_defaults.dart';
+import '../../../domain/services/config/furnace_defaults.dart';
 import '../../../domain/services/scheduling/thread_ranker.dart';
 import '../../../domain/services/scheduling/time_window_engine.dart';
 
@@ -75,7 +75,7 @@ class ThreadRankService {
 
     final completions = await taskRepository.getCompletionLogs(
       sinceMs: moment
-          .subtract(Duration(minutes: ThreadflowDefaults.fatigueWindowMinutes))
+          .subtract(Duration(minutes: FurnaceDefaults.fatigueWindowMinutes))
           .millisecondsSinceEpoch,
     );
 
@@ -168,7 +168,7 @@ class ThreadFeedNotifier extends AsyncNotifier<ThreadFeed?> {
   /// before actually sorting (blueprint 2.2 / user annotation 10).
   Future<bool> isStateStale() async {
     final repo = ref.read(threadStateRepositoryProvider);
-    return repo.isStale(ThreadflowDefaults.stateStaleAfter);
+    return repo.isStale(FurnaceDefaults.stateStaleAfter);
   }
 
   /// Runs the sort and publishes the result.

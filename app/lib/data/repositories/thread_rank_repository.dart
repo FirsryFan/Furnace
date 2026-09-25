@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/services/config/threadflow_defaults.dart';
+import '../../domain/services/config/furnace_defaults.dart';
 import '../../domain/services/scheduling/thread_ranker.dart';
 import '../database/database.dart';
 
@@ -76,11 +76,11 @@ class ThreadRankRepository {
 
   /// Restores the shipped default weights.
   Future<void> resetWeights() => updateWeights(
-        urgency: ThreadflowDefaults.wUrgency,
-        goal: ThreadflowDefaults.wGoal,
-        fit: ThreadflowDefaults.wFit,
-        fatigue: ThreadflowDefaults.wFatigue,
-        expected: ThreadflowDefaults.wExpected,
+        urgency: FurnaceDefaults.wUrgency,
+        goal: FurnaceDefaults.wGoal,
+        fit: FurnaceDefaults.wFit,
+        fatigue: FurnaceDefaults.wFatigue,
+        expected: FurnaceDefaults.wExpected,
       );
 
   /// Whether the Thread status bar is collapsed (blueprint 2.2).

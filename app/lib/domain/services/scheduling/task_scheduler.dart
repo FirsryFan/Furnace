@@ -1,4 +1,4 @@
-/// Transparent task scheduling engine for KnowFlow.
+/// Transparent task scheduling engine for Furnace.
 ///
 /// Rule order:
 /// 1. Dependencies must come before dependents.

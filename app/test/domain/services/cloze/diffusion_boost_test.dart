@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/cloze/diffusion_boost.dart';
+import 'package:furnace/domain/services/cloze/diffusion_boost.dart';
 
 void main() {
   // Tree:

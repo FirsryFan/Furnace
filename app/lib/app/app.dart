@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:knowflow/l10n/app_localizations.dart';
+import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,13 +8,13 @@ import '../features/settings/application/appearance_providers.dart';
 import 'settings/settings_controller.dart';
 import 'shell/home_shell.dart';
 
-/// Root widget of Threadflow.
+/// Root widget of Furnace.
 ///
 /// Appearance is driven by the selected theme document (spec §4) rather than a
 /// hard-coded pair of ThemeData objects. The theme also carries the page scale
 /// and the animation switch, both applied here so they take effect app-wide.
-class ThreadflowApp extends ConsumerWidget {
-  const ThreadflowApp({super.key});
+class FurnaceApp extends ConsumerWidget {
+  const FurnaceApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

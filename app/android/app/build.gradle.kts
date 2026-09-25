@@ -8,7 +8,7 @@ plugins {
 
 // Release signing.
 //
-// `android/key.properties` points at `threadflow-release.jks`; both are
+// `android/key.properties` points at `furnace-release.jks`; both are
 // git-ignored. When the file is absent (a fresh clone, or CI without secrets)
 // the release build falls back to the debug config, so `flutter build apk`
 // still works instead of failing outright.
@@ -20,7 +20,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.threadflow.knowflow"
+    namespace = "com.furnace.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.threadflow.knowflow"
+        applicationId = "com.furnace.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -54,7 +54,7 @@ android {
             create("release") {
                 // Resolved against the android/ root project, NOT this module:
                 // `file()` here would look in android/app/ and fail with
-                // "Keystore file '...\android\app\threadflow-release.jks' not found".
+                // "Keystore file '...\android\app\furnace-release.jks' not found".
                 storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/entities/task.dart';
-import 'package:knowflow/domain/entities/time_block.dart';
-import 'package:knowflow/domain/services/scheduling/task_scheduler.dart';
+import 'package:furnace/domain/entities/task.dart';
+import 'package:furnace/domain/entities/time_block.dart';
+import 'package:furnace/domain/services/scheduling/task_scheduler.dart';
 
 void main() {
   group('TaskScheduler', () {

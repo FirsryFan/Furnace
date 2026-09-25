@@ -1,4 +1,4 @@
-# Build the KnowFlow Windows release.
+﻿# Build the Furnace Windows release.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ try {
     flutter gen-l10n
 
     Write-Host "==> Generating Drift database code ..."
-    # --force-jit avoids an AOT compiler write issue in some Windows paths.
+# --force-jit avoids an AOT compiler write issue in some Windows paths.
     dart run build_runner build --force-jit
 
     Write-Host "==> Building Windows release ..."

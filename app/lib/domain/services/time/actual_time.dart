@@ -10,7 +10,7 @@
 /// per record.
 library;
 
-import '../config/threadflow_defaults.dart';
+import '../config/furnace_defaults.dart';
 
 /// The outcome of one completed event, ready to be written to the completion
 /// history.
@@ -72,7 +72,7 @@ abstract final class ActualTime {
       return false;
     }
     return actualMinutes >
-            estimate * ThreadflowDefaults.actualAnomalyMultiplier &&
-        actualMinutes > ThreadflowDefaults.actualAnomalyMinMinutes;
+            estimate * FurnaceDefaults.actualAnomalyMultiplier &&
+        actualMinutes > FurnaceDefaults.actualAnomalyMinMinutes;
   }
 }

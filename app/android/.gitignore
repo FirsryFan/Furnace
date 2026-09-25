@@ -11,11 +11,11 @@ GeneratedPluginRegistrant.java
 
 # Signing material is NOT committed: this repository is public.
 #
-#   key.properties + threadflow-release.jks
+#   key.properties + furnace-release.jks
 #
 # Create your own keystore before producing a distributable build:
-#   keytool -genkeypair -v -keystore threadflow-release.jks -keyalg RSA \
-#     -keysize 2048 -validity 10000 -alias threadflow
+#   keytool -genkeypair -v -keystore furnace-release.jks -keyalg RSA \
+#     -keysize 2048 -validity 10000 -alias furnace
 # and point app/android/key.properties at it.
 #
 # Without key.properties the release build still succeeds - app/build.gradle.kts

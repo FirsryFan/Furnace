@@ -1,7 +1,8 @@
-# Threadflow 软件设计报告（定稿版）
+# Furnace 软件设计报告（定稿版）
 
-> **本文件 = 项目权威规范（authoritative spec）。**
-> 存档日期：2026-09-07。内容与用户交付的「定稿版」逐字一致，不擅自增删改。
+> **改名说明（2026-09-21）**：本文件原名为 `THREADFLOW_SPEC.md`，产品原名 Threadflow。
+> 产品统一改名为 **Furnace** 后本文件随之更名；**正文内容保持定稿原文不逐字修改**，
+> 以免破坏"定稿存档"的性质。文中出现的 Threadflow / KnowFlow 均为历史名称。
 > 与本文冲突的早期文档（PRD v0.1、架构 v0.1 等）以本文为准；差异与迁移方案见 [GAP_ANALYSIS.md](GAP_ANALYSIS.md)。
 
 ---

@@ -1,8 +1,8 @@
 # 隐私与安全设计
 
-> 工作名：Threadflow（定稿；历史工作名：知序 KnowFlow）
+> 工作名：Furnace（定稿；历史工作名：知序 Furnace）
 > 目标：个人数据默认不出设备。`.kpak` 班级分享只含用户主动选择的知识内容；`.tfpkg` 是用户主动的全量导出（含个人数据，默认加密可选）。
-> 对齐依据：定稿 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md) §3（打包传输）、D4 双轨打包（[GAP_ANALYSIS.md](GAP_ANALYSIS.md)）；`.tfpkg` 格式细则见 [KNOWLEDGE_PACKAGE.md](KNOWLEDGE_PACKAGE.md) 第 7 节。
+> 对齐依据：定稿 [FURNACE_SPEC.md](FURNACE_SPEC.md) §3（打包传输）、D4 双轨打包（[GAP_ANALYSIS.md](GAP_ANALYSIS.md)）；`.tfpkg` 格式细则见 [KNOWLEDGE_PACKAGE.md](KNOWLEDGE_PACKAGE.md) 第 7 节。
 
 ---
 
@@ -20,7 +20,7 @@
 
 | 数据类型 | 存放位置 | 说明 |
 | --- | --- | --- |
-| 个人数据库（SQLite） | 系统应用数据目录 | 如 `%APPDATA%/threadflow/threadflow.db` |
+| 个人数据库（SQLite） | 系统应用数据目录 | Windows 实测：`%APPDATA%\FirsryFan\Furnace\furnace.db`（目录名来自 exe 元数据）；Android 位于应用私有目录（applicationId `com.furnace.app`，卸载即删；**具体绝对路径尚未在真机核实**） |
 | `.kpak` 分享包导出文件 | 用户选择的位置 | 只含主动勾选的知识内容（子集） |
 | `.tfpkg` 工作区导出文件 | 用户选择的位置 | 全量（含全部个人数据）；用于自己的备份/迁移/整体传输，加密默认可选 |
 | 附件/图片 | 应用数据目录下内部目录 | 随 `.kpak`（可选）与 `.tfpkg`（全量）打包 |

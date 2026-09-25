@@ -1,7 +1,7 @@
 # 知识包格式与分享机制
 
-> 工作名：知序 KnowFlow（历史工作名；产品定稿：**Threadflow**，见 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md)）
-> 格式：`.kpak`＝分享子集格式（v1 基线，见本文第 1–6 节）；`.tfpkg`＝Threadflow 全量工作区格式（定稿，见本文第 7 节）
+> 工作名：知序 Furnace（历史工作名；产品定稿：**Furnace**，见 [FURNACE_SPEC.md](FURNACE_SPEC.md)）
+> 格式：`.kpak`＝分享子集格式（v1 基线，见本文第 1–6 节）；`.tfpkg`＝Furnace 全量工作区格式（定稿，见本文第 7 节）
 > 目标：让同学之间方便地分享“知识点库”，且不泄露个人数据。
 > 定稿依据：D4（`.kpak` 与 `.tfpkg` 双轨）、D13（主题 JSON）；实体命名、决策编号与格式草案一律以 [GAP_ANALYSIS.md](GAP_ANALYSIS.md)（§3 表清单、§5 `.tfpkg` 草案）为准，本文件不私造版本。
 
@@ -172,13 +172,13 @@ xxx.kpak
 
 ---
 
-## 7. `.tfpkg` 全量工作区格式（Threadflow 定稿）
+## 7. `.tfpkg` 全量工作区格式（Furnace 定稿）
 
-> 本节为 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) §5 草案的展开与落稿，是 `.tfpkg` 的完整可实现格式规格。决策依据：定稿 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md) §3（数据持久化与打包传输）、D4（双轨打包）、D13（主题 JSON）；实体键与表名与 GAP §3 变更清单对齐，行内字段定义以 DATA_MODEL v2 节为准（只读引用），本节不逐字段重复。
+> 本节为 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) §5 草案的展开与落稿，是 `.tfpkg` 的完整可实现格式规格。决策依据：定稿 [FURNACE_SPEC.md](FURNACE_SPEC.md) §3（数据持久化与打包传输）、D4（双轨打包）、D13（主题 JSON）；实体键与表名与 GAP §3 变更清单对齐，行内字段定义以 DATA_MODEL v2 节为准（只读引用），本节不逐字段重复。
 
 ### 7.1 定位与分工
 
-- `.tfpkg`（Threadflow Package）：**全量工作区打包**——SQLite 数据逻辑全量 + 附件 + 主题配置，压缩为单个文件；由**「导出工作区」**产生（定稿 §3）。
+- `.tfpkg`（Furnace Package）：**全量工作区打包**——SQLite 数据逻辑全量 + 附件 + 主题配置，压缩为单个文件；由**「导出工作区」**产生（定稿 §3）。
 - 用途：**备份 / 迁移 / 整体传输**（换机、重装、归档、同用户多设备间合并）。
 - 与 `.kpak` 分工（D4）：`.kpak`＝班级分享子集（本文第 1–6 节，不含个人数据）；`.tfpkg`＝**含全部个人数据**，不是分享格式——分享场景一律走 `.kpak`。
 - 导出范围：整个工作区，无范围筛选概念（范围筛选是 `.kpak` 的行为）。

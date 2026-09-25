@@ -1,17 +1,17 @@
 # 开发里程碑与 MVP 范围
 
-> 工作名：Threadflow（定稿名；原工作名「知序 KnowFlow」按 GAP D1 弃用，应用标题/ARB/`pubspec.name` 全面替换）
-> 目标：v0.1 的 M0–M6 里程碑已在源码层面完成并跑通核心闭环（Windows 实机可用）；本文件现按 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) §6 组织「Threadflow 定稿迁移」里程碑（R0–R6）。
-> 权威：产品定稿见 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md)（存档 2026-09-07）；命名/常量/格式/阶段等一切决策以 GAP_ANALYSIS.md 为 hub，本文件不新增决策、不私造编号。
+> 工作名：Furnace（定稿名；原工作名「知序 Furnace」按 GAP D1 弃用，应用标题/ARB/`pubspec.name` 全面替换）
+> 目标：v0.1 的 M0–M6 里程碑已在源码层面完成并跑通核心闭环（Windows 实机可用）；本文件现按 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) §6 组织「Furnace 定稿迁移」里程碑（R0–R6）。
+> 权威：产品定稿见 [FURNACE_SPEC.md](FURNACE_SPEC.md)（存档 2026-09-07）；命名/常量/格式/阶段等一切决策以 GAP_ANALYSIS.md 为 hub，本文件不新增决策、不私造编号。
 
 ---
 
 ## 1. 定稿基线
 
 > 现状基线（2026-09-07 核对，SPEC/GAP 存档日）：旧里程碑 **M0–M6 已达成**（源码层面；`app/` 57 个 Dart 源文件、Drift schema v1；Flutter 3.47.2 / Dart 3.13.2 Windows 实机可用，详见 PROGRESS.md）。
-> 产品已定稿为 **Threadflow**，核心闭环不变（创建/导入知识点 → 复习与间隔重复；导图节点转标签 → 关联事件/词条；事件 + 时间块 → 排序建议；导出知识包 → 导入背诵；中英切换）。定稿与现状的逐条差异见 GAP §2，历史成果全部保留、按差距迁移，无推倒重来。
+> 产品已定稿为 **Furnace**，核心闭环不变（创建/导入知识点 → 复习与间隔重复；导图节点转标签 → 关联事件/词条；事件 + 时间块 → 排序建议；导出知识包 → 导入背诵；中英切换）。定稿与现状的逐条差异见 GAP §2，历史成果全部保留、按差距迁移，无推倒重来。
 
-### 历史里程碑（v0.1「知序 KnowFlow」计划，M0–M6 已完成）
+### 历史里程碑（v0.1「知序 Furnace」计划，M0–M6 已完成）
 
 <details>
 <summary>M0–M6 历史清单（源码层面已完成；点击展开）</summary>
@@ -66,7 +66,7 @@
 
 ---
 
-## 2. Threadflow 定稿迁移里程碑
+## 2. Furnace 定稿迁移里程碑
 
 > 阶段内容与 DoD 均抄列自 [GAP_ANALYSIS.md](GAP_ANALYSIS.md) §6；「差距行」编号对应 GAP §2 各表（2.1 Thread / 2.2 Time / 2.3 Knowledge / 2.4 Mindnet / 2.5 模块联动 / 2.6 持久化与打包 / 2.7 外观自定义 / 2.8 交互细节）。阶段列标「R3/R5」的行＝核心/数据部分在 R3、UI 部分在 R5，由两个阶段分别认领。数据层工作（R2）以 GAP §3 变更清单为准。
 
@@ -80,7 +80,7 @@
 
 - 内容：README / PRD（标记被取代）/ ARCHITECTURE / DATA_MODEL v2 / KNOWLEDGE_PACKAGE（+tfpkg）/ PRIVACY / MILESTONES 重排（本文）/ FEATURE_MATRIX 重建 / OPEN_QUESTIONS 结案（含 O2：TimeBlock.available 存量与 D6 同向、无需翻转）。
 - DoD：GAP §2 每行都有落点。
-- 差距行：无 §2 业务差距行（文档层落点）；本阶段产物（THREADFLOW_SPEC / GAP_ANALYSIS 存档 2026-09-07）是后续所有代码变更的唯一 hub（GAP 头部声明）。
+- 差距行：无 §2 业务差距行（文档层落点）；本阶段产物（FURNACE_SPEC / GAP_ANALYSIS 存档 2026-09-07）是后续所有代码变更的唯一 hub（GAP 头部声明）。
 
 ### R2：schema v2 数据层
 
@@ -137,7 +137,7 @@
 | 风险 | 对策 |
 | --- | --- |
 | SM-2 → FSRS 迁移（D9） | SM-2 保留为存档文件（不再被调用）；Dart FSRS 采用官方默认权重常量＋本地三参模型，替换接入点并配算法向量单测比对（R3 DoD） |
-| 定稿公式缺少数值参数（D10） | 所有缺省常量集中收口为 `ThreadflowDefaults` 常量表（GAP §4），UI 不硬编码；常量可调，作为后续「排序规则深度自定义」的载体 |
+| 定稿公式缺少数值参数（D10） | 所有缺省常量集中收口为 `FurnaceDefaults` 常量表（GAP §4），UI 不硬编码；常量可调，作为后续「排序规则深度自定义」的载体 |
 | `.tfpkg` 加密依赖可用性（O1） | cryptography 不可用则压缩默认开、加密留接口＋文档说明，依赖可用时补 AES-GCM（R4） |
 | 富文本编辑器依赖可用性（O1） | flutter_quill 不可用则先做「结构化 Markdown＋引用本地图片」的编辑器；词条 Markdown/JSON 导入导出必做（R3/R5） |
 | `.tfpkg` 格式后期变更 | manifest 自带 `formatVersion=1`（沿用 .kpak 经验）；覆盖导入前自动生成当前库 `.tfpkg` 备份；`.kpak` 既有升级/去重逻辑继续沿用 |
@@ -151,7 +151,7 @@
 | 版本 | 内容 | 状态/时间 |
 | --- | --- | --- |
 | v0.1 历史基线 | 旧计划 M1–M6（含 M0 设计文档）核心闭环，源码层面完成 | 已完成（2026-09-07 前；未打包发布） |
-| v0.2 定稿迁移版 | R1–R6 完成（R0 备份已于 2026-09-07、R1 文档对齐已于 2026-09-07 完成）＝ Threadflow 定稿功能全量落地，Windows 可用发布版 | R2–R6 推进中；时间视投入 |
+| v0.2 定稿迁移版 | R1–R6 完成（R0 备份已于 2026-09-07、R1 文档对齐已于 2026-09-07 完成）＝ Furnace 定稿功能全量落地，Windows 可用发布版 | R2–R6 推进中；时间视投入 |
 | v0.3 Android | 同一套代码适配 Android 8+（定稿目标平台） | 视需要 |
 
 > 时间仅为粗估，取决于实际开发投入。学生项目建议按 §2 的 R 顺序推进：先拿到数据层与纯 Dart 核心的测试全绿（R2/R3），再做 UI 迁移（R5）。

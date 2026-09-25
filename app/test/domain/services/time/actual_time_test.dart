@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knowflow/domain/services/time/actual_time.dart';
+import 'package:furnace/domain/services/time/actual_time.dart';
 
 void main() {
   final start = DateTime(2026, 9, 8, 20);

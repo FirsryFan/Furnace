@@ -1,6 +1,6 @@
-# Threadflow 设计蓝图 v2（已批注 → 开发依据）
+# Furnace 设计蓝图 v2（已批注 → 开发依据）
 
-> 状态：**已按用户 2026-09-08 批注修订**。本文 = 本轮开发依据；结论稳定后回写 [THREADFLOW_SPEC.md](THREADFLOW_SPEC.md) / [GAP_ANALYSIS.md](GAP_ANALYSIS.md) / [DATA_MODEL.md](DATA_MODEL.md)。
+> 状态：**已按用户 2026-09-08 批注修订**。本文 = 本轮开发依据；结论稳定后回写 [FURNACE_SPEC.md](FURNACE_SPEC.md) / [GAP_ANALYSIS.md](GAP_ANALYSIS.md) / [DATA_MODEL.md](DATA_MODEL.md)。
 > 批注来源：用户 2026-09-08 的 13 条修正（下文标 **【用户】**）。
 > 依据：定稿规范 + 差距分析 + **实测代码现状**（§0）。
 
@@ -10,7 +10,7 @@
 
 - `app/` 执行 `flutter test -r expanded` → **78 个测试全绿，exit code 0**。
 - **R2 数据层已完成**：Drift schema v2、树形 Tag(parent_id/path)、ThreadStates、CompletionLogs、TaskTemplates、ClozeSlots/ClozeHistory、BoostEntries、Themes、Attachments、v1→v2 迁移。
-- **R3 核心算法已完成**：`ThreadRanker`、`TimeWindowEngine`、`ThreadflowDefaults`、`FsrsScheduler`（FSRS-6）、`ClozeEngine`+`ForcedMachine`、`DiffusionBoost`。
+- **R3 核心算法已完成**：`ThreadRanker`、`TimeWindowEngine`、`FurnaceDefaults`、`FsrsScheduler`（FSRS-6）、`ClozeEngine`+`ForcedMachine`、`DiffusionBoost`。
 - 环境：Flutter 3.47.2 / Dart 3.13.2。此目录**不是 git 仓库**。
 - 缺的是 R4/R5 UI 接线：`home_shell.dart` 仍是 6 个旧页；Thread 页无顶栏/无排序入口；`anki_page.dart` 仍走 SM-2。
 - ⚠️ `docs/PROGRESS.md`、`docs/FEATURE_MATRIX.md` 把 R3 标为"未实现"，**已过期**。
@@ -28,7 +28,7 @@
 | P5 | 参数公开 **【用户 6】** | **所有算法参数对用户公开**，在事件「属性」页可看可改；**每一处可编辑参数卡的底部都有小字**解释该参数的现实意义。 |
 | P6 | 可解释性 **【用户 6 + 13】** | 采用 **L0 + L2**：列表条目**不显示任何排序理由/分数**（明确 **不要 L1**）；全部理由与参数集中在「属性」页。 |
 | P7 | 命名 | 用户可见＝定稿词表；代码内部保留 tasks/timeboard/anki/mindmap（GAP D2）。 |
-| P8 | 常量 | 可调数值走 `ThreadflowDefaults`（GAP D10）；但按 P5，这些值可被用户在属性页覆盖。 |
+| P8 | 常量 | 可调数值走 `FurnaceDefaults`（GAP D10）；但按 P5，这些值可被用户在属性页覆盖。 |
 
 ## 2. 【第一批次重点】Thread —— 顶栏 + 排序 + 属性页
 
@@ -67,7 +67,7 @@ Thread 模块
 | 目标 **【用户 2】** | **不完整显示**。顶栏只给一个**标题**（超长省略号），`🎯` 是按钮：**点击进入详细编辑**（弹层/全屏页，可写完整文本）。 |
 | 精力 **【用户 3】** | 一个**颜色条按钮**：**红→绿渐变**匹配数字；形状内部**只显示数字本身**（**不显示 `/10`**）。点击进入编辑：**带节点的水平滑动条**，滑条下方给出**当前精力水平的大致描述文字**。 |
 | 排序按钮 **【用户 4】** | 一个 icon（`refresh` 系），无文字。 |
-| 过期确认 **【用户 10】** | 点排序 → 若 `now - updated_at > 2h`（`ThreadflowDefaults.stateStaleAfter`）→ 弹窗确认 → **确认后排序**。 |
+| 过期确认 **【用户 10】** | 点排序 → 若 `now - updated_at > 2h`（`FurnaceDefaults.stateStaleAfter`）→ 弹窗确认 → **确认后排序**。 |
 | 精力描述 | 10 档建议：1–2 很低（只适合机械事务）、3–4 低（轻松任务）、5–6 中（常规）、7–8 高（需要专注）、9–10 极高（攻坚）。数字是权威，描述只是辅助。 |
 
 ### 2.3 排序与"黄/红"标注（**已按用户 16 修订，语义改动最大**）
@@ -132,7 +132,7 @@ Thread 模块
   - 定稿 1.4.2 的 OPML / FreeMind(.mm) 导入导出 → 变成**标签体系的导入导出**。
   - 定稿 1.4.3 的"系导入" → 就是新建标签树（不再有两个体系之间搬运）。
   - `MindMaps`/`MindNodes` 表与 `mindmap` 特征代码：**保留不动、UI 下线**（不删数据），避免破坏现有 78 个测试与已导入的 `.kpak`。
-- 标签在导航里的位置：建议**升为一级入口**（Thread 的目标匹配与筛选全靠它）。⚠️ 定稿把 Mindnet 列为四大核心之一，本改动**偏离定稿**，需在回写 `THREADFLOW_SPEC` 时显式记录（Q2.8）。
+- 标签在导航里的位置：建议**升为一级入口**（Thread 的目标匹配与筛选全靠它）。⚠️ 定稿把 Mindnet 列为四大核心之一，本改动**偏离定稿**，需在回写 `FURNACE_SPEC` 时显式记录（Q2.8）。
 - 标签树交互：末级显示 + **点击**（非 hover）展开完整路径面包屑；拖动改层级/排序；改名级联刷新子树 path。
 
 ## 3. Time
