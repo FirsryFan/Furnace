@@ -25,10 +25,10 @@
 | `.tfpkg` 全量打包编解码 + 覆盖/追加合并 | ✅ 库层 + **设置页已接入** |
 | 主题 JSON（颜色/背景/字体/缩放/动画）+ 外观设置页 | ✅ **已接入设置页并在全局生效** |
 | Windows 构建 | ✅ 实测可运行（`furnace.exe`） |
-| Android 构建 | ✅ 实测产出已签名 release APK（61.7 MB） |
-| 自动化测试 | **190 项全绿**；`dart analyze` **0 error / 0 warning** |
+| Android 构建 | ✅ 实测产出已签名 release APK（62.08 MB，`com.furnace.app`） |
+| 自动化测试 | **196 项全绿**；`dart analyze` **0 error / 0 warning** |
 
-**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证。
+**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证、AI 接入（Q3）、MindNet 接入（Q4）——后两项见 [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md)。
 
 ## 目录结构
 
