@@ -13,6 +13,7 @@ import '../../tags/presentation/tag_tree_page.dart';
 import '../../thread/application/thread_rank_service.dart';
 import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
+import '../../ai/presentation/ai_settings_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
 import 'data_section.dart';
@@ -89,6 +90,16 @@ class SettingsPage extends ConsumerWidget {
           ),
           // Appearance: system brightness + theme documents, with import/export.
           const AppearanceSection(),
+          ListTile(
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: Text(l10n.settingsAiSection),
+            subtitle: Text(l10n.settingsAiApiKeyHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AiSettingsPage()),
+            ),
+          ),
         ],
       ),
     );

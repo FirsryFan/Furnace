@@ -4,6 +4,111 @@
 
 ---
 
+## 2026-09-25 轮次九：AI 集成落地（schema v6 + agent loop + 对话界面）
+
+设计见 [AI_DESIGN.md](AI_DESIGN.md)（20 条决策），skill 格式见
+[SKILL_FORMAT.md](SKILL_FORMAT.md)。本轮实现的是 A1–A5 的**最小可用闭环**：
+能对话、能审批、能改数据、主界面跟着变。
+
+### 1. schema v5 → v6（一次迁移干三件事）
+
+刻意合并成一次迁移，避免两次升级风险：
+
+| 内容 | 明细 |
+| --- | --- |
+| AI 会话存储 | `ai_conversations` / `ai_messages` / `ai_actions` 三张新表 |
+| AI 配置列 | `local_settings` 增 `ai_enabled` / `ai_api_key` / `ai_base_url` / `ai_model` / `ai_permission_mode` |
+| 认知模型前置字段 | `card_states` 增 `encoding_strength`（MindNet `R0`）与 `savings`（`Σ`） |
+
+第三项**不是 AI 功能**，是 MindNet 移植的前置缺口：Furnace 原先只持久化
+`stability`/`difficulty`，而 MindNet 的曲线是 `R = R0·Ψ(t/S)`，缺 `R0` 时两边在
+`R0 < 1` 会静默不一致（见 MINDNET_CONTRACT §8.3）。顺路补上，省一次迁移。
+
+**真实库验证**（不是构造场景）：`%APPDATA%\FirsryFan\Furnace\furnace.db`
+迁移前 `user_version=5`、26 表、9 行 → 迁移后 `user_version=6`、**31 表**、
+`rows=9`，3 个时间块（早读/睡觉/午自习）一条没少。
+
+`_tableFor` 同步登记了新表 —— 它是自愈路径（`_ensureColumns`）与 `.tfpkg`
+转储的表名映射，漏登记会让自愈直接抛 `unknown table`。
+
+### 2. 模型适配层（全应用唯一出网点）
+
+- `ModelAdapter` 抽象 + `OpenAiCompatAdapter`（真实调用）+ `FakeModelAdapter`（测试）
+- 协议按 OpenAI 兼容实现（DeepSeek 官方即此格式），换端点只改 base URL
+- **不开 `strict` 模式**：它要求每个 object 的所有属性都必填，会逼着把参数改成
+  `anyOf` 联合，反而更难懂。改为在 Dart 侧校验，并把错误作为工具结果回灌给模型
+- SSE 重组抽成独立的 `StreamAssembler`（纯逻辑、无 socket），**23 项测试**专门
+  盯着最容易静默出错的地方：分片 `arguments` 按 `index` 拼接、`id`/`name` 只在
+  首片出现却被重复发送时不能拼接、无 `index` 时的退化处理、参数不是合法 JSON 时
+  报错而不抛异常
+
+### 3. 工具层（现有 Repository 的薄包装）
+
+- `AiTool` / `ToolRisk` / `ToolArgs` / `ToolResult` 基类
+- `query_tasks` / `manage_task`（6 个 action）/ `query_schedule` / `manage_time_block`
+- **工具不写 SQL**，全部经 Repository：这样 AI 改了数据，Thread 页经 Riverpod
+  自己就刷新了，不需要任何"通知界面刷新"的代码；业务规则也只有一份实现
+- 工具按模块聚合而非按仓库方法铺开：60 多个仓库方法铺成工具会让模型在**选工具**
+  这一步就开始犯错
+- 只读工具返回摘要 + `total_matching` + `truncated`，默认 20 条上限（可调到 200），
+  避免把整表塞进上下文
+
+**写测试时抓到一个真 bug**：`restoreTask` 只恢复了 `depends_on`（它依赖谁），
+漏了 `depended_on_by`（谁依赖它）。撤销一个被依赖的任务会静默丢掉"A 等 B"这条边。
+已修并加了针对性测试。
+
+### 4. 审批引擎（把用户的规则变成可测的裁决）
+
+用户口径：**除删除外都可全自动**；删除永远逐条确认。据此把风险压成两级
+（`write` / `destructive`），模式压成两档（`plan` / `auto`，默认 `auto`）。
+
+我另加了一条用户没提但必要的约束（D13b）：**凡是撤不回来的操作也强制逐条确认**。
+因为"敢让它全自动"的前提是"出事能撤回"，撤不回来的操作自动执行等于把这个前提
+挖空。这条正好覆盖 skill 跑脚本（可能有外部副作用）。
+
+`ApprovalEngine` 是纯函数（风险、可逆性、模式 → 裁决），**11 项测试**含两条
+穷举：任何模式下 `destructive` 都不是 `executeNow`；只有 `auto` + `write` +
+可逆才允许静默执行。
+
+### 5. Agent loop
+
+实现 AI_DESIGN §10 已定的约束：单 agent、轮次上限 8、工具结果只追加到末尾
+（Chat Completion API 不允许中段插入工具调用）、**被拒绝的调用也要回灌给模型**
+（否则它会反复提同样的请求）。
+
+历史每轮从数据库重建而非留在内存：数据库是唯一真相，中途重启不丢，循环也不会
+和用户看到的不一致。**24 项测试**覆盖：自动执行真的落库、按计划模式先攒后确认、
+删除在 auto 模式下仍然停下、拒绝无副作用且告知模型、未知工具/坏参数/校验失败
+都以工具结果回灌而非崩溃、达到轮次上限时**明确告知用户**而不是静默截断、
+创建与更新的撤销都能真正回滚。
+
+### 6. 界面
+
+- 对话页：消息流 + 工具调用结果卡（带撤销）+ **审批清单卡**（本轮操作一次确认）
+- AI 设置页：key / base URL / model / 权限模式，另列出本机可用工具与平台差异
+- **导航门控**：`aiEnabledProvider` 为假时对话入口根本不存在 —— 实测无 key 时
+  `ai_enabled=0`、三张表 0 行、应用行为与加这个功能之前完全一致
+- 快捷键：Ctrl+0 跳设置（设置页索引会因 AI 页有无而位移，所以不能复用 Ctrl+1..4）
+
+### 7. 本轮实测结论
+
+- `flutter test --concurrency=1` → **308/308 通过**（轮次八结束时 196，本轮 +112）
+- `dart analyze lib test` → **0 error / 0 warning**（54 info 全为既有风格项，
+  `features/ai` 下 0 条）
+- `flutter build windows --release` → 成功；启动后窗口标题 `Furnace`、
+  工作集 267 MB、数据库 `user_version=6`、AI 仍未启用、3 个时间块完好
+
+### 8. 本轮之后仍未做的
+
+- **`.fskill` 执行容器**（A7）：格式已在 SKILL_FORMAT.md 定稿，容器未实现。
+  它需要先确定 skill 脚本的运行细节，且只在 Windows 上有意义。
+- **真实 API 调用未实测**：需要用户提供 key。所有 provider 交互都经
+  `FakeModelAdapter` 测过，但真机真实响应（尤其 SSE 分片的实际形状）尚未跑过。
+- **Android 构建未重做**：Dart 层改动与平台无关，但本轮没重跑 Android 构建。
+- MindNet tierA 移植：接口已协商完（MINDNET_CONTRACT §8），未开始写代码。
+
+---
+
 ## 2026-09-25 轮次八：全局改名 Furnace + 改名引发的数据丢失修复
 
 ### 1. 全局改名（KnowFlow → Threadflow → **Furnace**）

@@ -45,6 +45,10 @@ part 'database.g.dart';
     // v4 (Time module, user feedback item 3)
     TimeTemplates,
     TimeViewSettings,
+    // v6 (AI integration + MindNet port prerequisites)
+    AiConversations,
+    AiMessages,
+    AiActions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -54,7 +58,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -74,6 +78,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 5) {
           await _upgradeV4ToV5();
+        }
+        if (from < 6) {
+          await _upgradeV5ToV6();
         }
       },
       beforeOpen: (details) async {
@@ -103,6 +110,19 @@ class AppDatabase extends _$AppDatabase {
         completionLogs.durationSuspicious,
       ],
       'time_view_settings': [timeViewSettings.minutesPerRowChosen],
+      // v6: without these the generated mappers throw on existing rows when a
+      // file is stamped v6 but was written by an older build.
+      'local_settings': [
+        localSettings.aiEnabled,
+        localSettings.aiApiKey,
+        localSettings.aiBaseUrl,
+        localSettings.aiModel,
+        localSettings.aiPermissionMode,
+      ],
+      'card_states': [
+        cardStates.encodingStrength,
+        cardStates.savings,
+      ],
     };
     final m = Migrator(this);
     for (final entry in expected.entries) {
@@ -121,8 +141,61 @@ class AppDatabase extends _$AppDatabase {
   /// a row size themselves is moved to the new 30-minute default, while a
   /// deliberate 15/30/60 choice is preserved (that is what
   /// `minutes_per_row_chosen` records).
-  Future<void> _upgradeV4ToV5() async {
-    if (!await _tableExists('time_view_settings')) {
+  /// v5 -> v6: AI conversation storage, AI settings columns, and the two
+  /// cognitive-model fields.
+  ///
+  /// Three separate things land here on purpose, as ONE migration:
+  ///
+  ///  1. `ai_conversations` / `ai_messages` / `ai_actions` - the conversation is
+  ///     the AI surface, so it is ordinary user data (docs/AI_DESIGN.md).
+  ///  2. `local_settings` gains the AI configuration columns. Everything is
+  ///     nullable/defaulted so an existing row means "AI is off" without a
+  ///     rewrite - the app must behave exactly as before until a key is set.
+  ///  3. `card_states` gains `encoding_strength` (MindNet `R0`) and `savings`
+  ///     (`Sigma`). These are prerequisites for porting the cognitive model:
+  ///     without R0 the FSRS curve and MindNet's `R = R0*Psi(t/S)` disagree
+  ///     once `R0 < 1`, and without Sigma the stability-increase term is
+  ///     incomplete (docs/MINDNET_CONTRACT.md 8.3).
+  ///
+  /// Additive only, and idempotent: `Migrator.createTable` always emits the
+  /// current schema, so a database arriving from v1 already has these tables
+  /// after [_upgradeV1ToV2] and every step is existence-probed first.
+  Future<void> _upgradeV5ToV6() async {
+    final m = Migrator(this);
+
+    if (!await _tableExists('ai_conversations')) {
+      await m.createTable(aiConversations);
+    }
+    if (!await _tableExists('ai_messages')) {
+      await m.createTable(aiMessages);
+    }
+    if (!await _tableExists('ai_actions')) {
+      await m.createTable(aiActions);
+    }
+
+    if (await _tableExists('local_settings')) {
+      for (final column in [
+        localSettings.aiEnabled,
+        localSettings.aiApiKey,
+        localSettings.aiBaseUrl,
+        localSettings.aiModel,
+        localSettings.aiPermissionMode,
+      ]) {
+        await _addColumnIfMissing(m, 'local_settings', column);
+      }
+    }
+
+    if (await _tableExists('card_states')) {
+      for (final column in [
+        cardStates.encodingStrength,
+        cardStates.savings,
+      ]) {
+        await _addColumnIfMissing(m, 'card_states', column);
+      }
+    }
+  }
+
+  Future<void> _upgradeV4ToV5() async {    if (!await _tableExists('time_view_settings')) {
       return;
     }
     // A database whose time_view_settings was created from the pre-v5 schema
@@ -289,6 +362,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// The generated table object for a SQL table name.
+  ///
+  /// Used by the `_ensureColumns` self-heal pass and by the `.tfpkg` dump /
+  /// restore path, so every table those two touch must appear here.
   TableInfo<Table, dynamic> _tableFor(String name) {
     switch (name) {
       case 'tasks':
@@ -299,6 +375,18 @@ class AppDatabase extends _$AppDatabase {
         return timeViewSettings;
       case 'time_templates':
         return timeTemplates;
+      // v6: the self-heal pass adds columns to these two, and the package
+      // dump/restore path resolves every user table by name.
+      case 'local_settings':
+        return localSettings;
+      case 'card_states':
+        return cardStates;
+      case 'ai_conversations':
+        return aiConversations;
+      case 'ai_messages':
+        return aiMessages;
+      case 'ai_actions':
+        return aiActions;
       default:
         throw ArgumentError('unknown table $name');
     }

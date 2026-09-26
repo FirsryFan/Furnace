@@ -323,6 +323,40 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> activeThemeId = GeneratedColumn<String>(
       'active_theme_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiEnabledMeta =
+      const VerificationMeta('aiEnabled');
+  @override
+  late final GeneratedColumn<bool> aiEnabled = GeneratedColumn<bool>(
+      'ai_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("ai_enabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _aiApiKeyMeta =
+      const VerificationMeta('aiApiKey');
+  @override
+  late final GeneratedColumn<String> aiApiKey = GeneratedColumn<String>(
+      'ai_api_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiBaseUrlMeta =
+      const VerificationMeta('aiBaseUrl');
+  @override
+  late final GeneratedColumn<String> aiBaseUrl = GeneratedColumn<String>(
+      'ai_base_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiModelMeta =
+      const VerificationMeta('aiModel');
+  @override
+  late final GeneratedColumn<String> aiModel = GeneratedColumn<String>(
+      'ai_model', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiPermissionModeMeta =
+      const VerificationMeta('aiPermissionMode');
+  @override
+  late final GeneratedColumn<String> aiPermissionMode = GeneratedColumn<String>(
+      'ai_permission_mode', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -336,8 +370,20 @@ class $LocalSettingsTable extends LocalSettings
       'updated_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, language, themeMode, profileId, activeThemeId, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        language,
+        themeMode,
+        profileId,
+        activeThemeId,
+        aiEnabled,
+        aiApiKey,
+        aiBaseUrl,
+        aiModel,
+        aiPermissionMode,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -368,6 +414,30 @@ class $LocalSettingsTable extends LocalSettings
           _activeThemeIdMeta,
           activeThemeId.isAcceptableOrUnknown(
               data['active_theme_id']!, _activeThemeIdMeta));
+    }
+    if (data.containsKey('ai_enabled')) {
+      context.handle(_aiEnabledMeta,
+          aiEnabled.isAcceptableOrUnknown(data['ai_enabled']!, _aiEnabledMeta));
+    }
+    if (data.containsKey('ai_api_key')) {
+      context.handle(_aiApiKeyMeta,
+          aiApiKey.isAcceptableOrUnknown(data['ai_api_key']!, _aiApiKeyMeta));
+    }
+    if (data.containsKey('ai_base_url')) {
+      context.handle(
+          _aiBaseUrlMeta,
+          aiBaseUrl.isAcceptableOrUnknown(
+              data['ai_base_url']!, _aiBaseUrlMeta));
+    }
+    if (data.containsKey('ai_model')) {
+      context.handle(_aiModelMeta,
+          aiModel.isAcceptableOrUnknown(data['ai_model']!, _aiModelMeta));
+    }
+    if (data.containsKey('ai_permission_mode')) {
+      context.handle(
+          _aiPermissionModeMeta,
+          aiPermissionMode.isAcceptableOrUnknown(
+              data['ai_permission_mode']!, _aiPermissionModeMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -400,6 +470,16 @@ class $LocalSettingsTable extends LocalSettings
           .read(DriftSqlType.string, data['${effectivePrefix}profile_id']),
       activeThemeId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}active_theme_id']),
+      aiEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}ai_enabled'])!,
+      aiApiKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ai_api_key']),
+      aiBaseUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ai_base_url']),
+      aiModel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ai_model']),
+      aiPermissionMode: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}ai_permission_mode']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -421,6 +501,25 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
 
   /// v2: active appearance theme; NULL = follow built-in defaults.
   final String? activeThemeId;
+
+  /// Master switch. NULL / false means the AI surface does not exist at all and
+  /// the app makes no network call of any kind - which is what keeps the
+  /// "offline by default" promise true rather than aspirational.
+  final bool aiEnabled;
+
+  /// Provider API key, stored in plain text on purpose (single-user app, see
+  /// AI_DESIGN D18 and the requirement that key handling stay convenient).
+  /// It is exported inside `.tfpkg`; the export UI says so.
+  final String? aiApiKey;
+
+  /// OpenAI-compatible endpoint. Defaults to DeepSeek when NULL.
+  final String? aiBaseUrl;
+
+  /// Model name. Defaults to `deepseek-chat` when NULL.
+  final String? aiModel;
+
+  /// `plan` | `auto` (see AI_DESIGN D12 v2).
+  final String? aiPermissionMode;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -429,6 +528,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       required this.themeMode,
       this.profileId,
       this.activeThemeId,
+      required this.aiEnabled,
+      this.aiApiKey,
+      this.aiBaseUrl,
+      this.aiModel,
+      this.aiPermissionMode,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -442,6 +546,19 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || activeThemeId != null) {
       map['active_theme_id'] = Variable<String>(activeThemeId);
+    }
+    map['ai_enabled'] = Variable<bool>(aiEnabled);
+    if (!nullToAbsent || aiApiKey != null) {
+      map['ai_api_key'] = Variable<String>(aiApiKey);
+    }
+    if (!nullToAbsent || aiBaseUrl != null) {
+      map['ai_base_url'] = Variable<String>(aiBaseUrl);
+    }
+    if (!nullToAbsent || aiModel != null) {
+      map['ai_model'] = Variable<String>(aiModel);
+    }
+    if (!nullToAbsent || aiPermissionMode != null) {
+      map['ai_permission_mode'] = Variable<String>(aiPermissionMode);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -459,6 +576,19 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       activeThemeId: activeThemeId == null && nullToAbsent
           ? const Value.absent()
           : Value(activeThemeId),
+      aiEnabled: Value(aiEnabled),
+      aiApiKey: aiApiKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiApiKey),
+      aiBaseUrl: aiBaseUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiBaseUrl),
+      aiModel: aiModel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiModel),
+      aiPermissionMode: aiPermissionMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiPermissionMode),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -473,6 +603,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       themeMode: serializer.fromJson<String>(json['themeMode']),
       profileId: serializer.fromJson<String?>(json['profileId']),
       activeThemeId: serializer.fromJson<String?>(json['activeThemeId']),
+      aiEnabled: serializer.fromJson<bool>(json['aiEnabled']),
+      aiApiKey: serializer.fromJson<String?>(json['aiApiKey']),
+      aiBaseUrl: serializer.fromJson<String?>(json['aiBaseUrl']),
+      aiModel: serializer.fromJson<String?>(json['aiModel']),
+      aiPermissionMode: serializer.fromJson<String?>(json['aiPermissionMode']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -486,6 +621,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'themeMode': serializer.toJson<String>(themeMode),
       'profileId': serializer.toJson<String?>(profileId),
       'activeThemeId': serializer.toJson<String?>(activeThemeId),
+      'aiEnabled': serializer.toJson<bool>(aiEnabled),
+      'aiApiKey': serializer.toJson<String?>(aiApiKey),
+      'aiBaseUrl': serializer.toJson<String?>(aiBaseUrl),
+      'aiModel': serializer.toJson<String?>(aiModel),
+      'aiPermissionMode': serializer.toJson<String?>(aiPermissionMode),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -497,6 +637,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           String? themeMode,
           Value<String?> profileId = const Value.absent(),
           Value<String?> activeThemeId = const Value.absent(),
+          bool? aiEnabled,
+          Value<String?> aiApiKey = const Value.absent(),
+          Value<String?> aiBaseUrl = const Value.absent(),
+          Value<String?> aiModel = const Value.absent(),
+          Value<String?> aiPermissionMode = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -506,6 +651,13 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         profileId: profileId.present ? profileId.value : this.profileId,
         activeThemeId:
             activeThemeId.present ? activeThemeId.value : this.activeThemeId,
+        aiEnabled: aiEnabled ?? this.aiEnabled,
+        aiApiKey: aiApiKey.present ? aiApiKey.value : this.aiApiKey,
+        aiBaseUrl: aiBaseUrl.present ? aiBaseUrl.value : this.aiBaseUrl,
+        aiModel: aiModel.present ? aiModel.value : this.aiModel,
+        aiPermissionMode: aiPermissionMode.present
+            ? aiPermissionMode.value
+            : this.aiPermissionMode,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -518,6 +670,13 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       activeThemeId: data.activeThemeId.present
           ? data.activeThemeId.value
           : this.activeThemeId,
+      aiEnabled: data.aiEnabled.present ? data.aiEnabled.value : this.aiEnabled,
+      aiApiKey: data.aiApiKey.present ? data.aiApiKey.value : this.aiApiKey,
+      aiBaseUrl: data.aiBaseUrl.present ? data.aiBaseUrl.value : this.aiBaseUrl,
+      aiModel: data.aiModel.present ? data.aiModel.value : this.aiModel,
+      aiPermissionMode: data.aiPermissionMode.present
+          ? data.aiPermissionMode.value
+          : this.aiPermissionMode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -531,6 +690,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('themeMode: $themeMode, ')
           ..write('profileId: $profileId, ')
           ..write('activeThemeId: $activeThemeId, ')
+          ..write('aiEnabled: $aiEnabled, ')
+          ..write('aiApiKey: $aiApiKey, ')
+          ..write('aiBaseUrl: $aiBaseUrl, ')
+          ..write('aiModel: $aiModel, ')
+          ..write('aiPermissionMode: $aiPermissionMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -539,7 +703,18 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
 
   @override
   int get hashCode => Object.hash(
-      id, language, themeMode, profileId, activeThemeId, createdAt, updatedAt);
+      id,
+      language,
+      themeMode,
+      profileId,
+      activeThemeId,
+      aiEnabled,
+      aiApiKey,
+      aiBaseUrl,
+      aiModel,
+      aiPermissionMode,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -549,6 +724,11 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.themeMode == this.themeMode &&
           other.profileId == this.profileId &&
           other.activeThemeId == this.activeThemeId &&
+          other.aiEnabled == this.aiEnabled &&
+          other.aiApiKey == this.aiApiKey &&
+          other.aiBaseUrl == this.aiBaseUrl &&
+          other.aiModel == this.aiModel &&
+          other.aiPermissionMode == this.aiPermissionMode &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -559,6 +739,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String> themeMode;
   final Value<String?> profileId;
   final Value<String?> activeThemeId;
+  final Value<bool> aiEnabled;
+  final Value<String?> aiApiKey;
+  final Value<String?> aiBaseUrl;
+  final Value<String?> aiModel;
+  final Value<String?> aiPermissionMode;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -567,6 +752,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.themeMode = const Value.absent(),
     this.profileId = const Value.absent(),
     this.activeThemeId = const Value.absent(),
+    this.aiEnabled = const Value.absent(),
+    this.aiApiKey = const Value.absent(),
+    this.aiBaseUrl = const Value.absent(),
+    this.aiModel = const Value.absent(),
+    this.aiPermissionMode = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -576,6 +766,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.themeMode = const Value.absent(),
     this.profileId = const Value.absent(),
     this.activeThemeId = const Value.absent(),
+    this.aiEnabled = const Value.absent(),
+    this.aiApiKey = const Value.absent(),
+    this.aiBaseUrl = const Value.absent(),
+    this.aiModel = const Value.absent(),
+    this.aiPermissionMode = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -586,6 +781,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? themeMode,
     Expression<String>? profileId,
     Expression<String>? activeThemeId,
+    Expression<bool>? aiEnabled,
+    Expression<String>? aiApiKey,
+    Expression<String>? aiBaseUrl,
+    Expression<String>? aiModel,
+    Expression<String>? aiPermissionMode,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -595,6 +795,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (themeMode != null) 'theme_mode': themeMode,
       if (profileId != null) 'profile_id': profileId,
       if (activeThemeId != null) 'active_theme_id': activeThemeId,
+      if (aiEnabled != null) 'ai_enabled': aiEnabled,
+      if (aiApiKey != null) 'ai_api_key': aiApiKey,
+      if (aiBaseUrl != null) 'ai_base_url': aiBaseUrl,
+      if (aiModel != null) 'ai_model': aiModel,
+      if (aiPermissionMode != null) 'ai_permission_mode': aiPermissionMode,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -606,6 +811,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String>? themeMode,
       Value<String?>? profileId,
       Value<String?>? activeThemeId,
+      Value<bool>? aiEnabled,
+      Value<String?>? aiApiKey,
+      Value<String?>? aiBaseUrl,
+      Value<String?>? aiModel,
+      Value<String?>? aiPermissionMode,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -614,6 +824,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       themeMode: themeMode ?? this.themeMode,
       profileId: profileId ?? this.profileId,
       activeThemeId: activeThemeId ?? this.activeThemeId,
+      aiEnabled: aiEnabled ?? this.aiEnabled,
+      aiApiKey: aiApiKey ?? this.aiApiKey,
+      aiBaseUrl: aiBaseUrl ?? this.aiBaseUrl,
+      aiModel: aiModel ?? this.aiModel,
+      aiPermissionMode: aiPermissionMode ?? this.aiPermissionMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -637,6 +852,21 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (activeThemeId.present) {
       map['active_theme_id'] = Variable<String>(activeThemeId.value);
     }
+    if (aiEnabled.present) {
+      map['ai_enabled'] = Variable<bool>(aiEnabled.value);
+    }
+    if (aiApiKey.present) {
+      map['ai_api_key'] = Variable<String>(aiApiKey.value);
+    }
+    if (aiBaseUrl.present) {
+      map['ai_base_url'] = Variable<String>(aiBaseUrl.value);
+    }
+    if (aiModel.present) {
+      map['ai_model'] = Variable<String>(aiModel.value);
+    }
+    if (aiPermissionMode.present) {
+      map['ai_permission_mode'] = Variable<String>(aiPermissionMode.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -654,6 +884,11 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('themeMode: $themeMode, ')
           ..write('profileId: $profileId, ')
           ..write('activeThemeId: $activeThemeId, ')
+          ..write('aiEnabled: $aiEnabled, ')
+          ..write('aiApiKey: $aiApiKey, ')
+          ..write('aiBaseUrl: $aiBaseUrl, ')
+          ..write('aiModel: $aiModel, ')
+          ..write('aiPermissionMode: $aiPermissionMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5431,6 +5666,18 @@ class $CardStatesTable extends CardStates
   late final GeneratedColumn<double> difficulty = GeneratedColumn<double>(
       'difficulty', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _encodingStrengthMeta =
+      const VerificationMeta('encodingStrength');
+  @override
+  late final GeneratedColumn<double> encodingStrength = GeneratedColumn<double>(
+      'encoding_strength', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _savingsMeta =
+      const VerificationMeta('savings');
+  @override
+  late final GeneratedColumn<double> savings = GeneratedColumn<double>(
+      'savings', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _forcedMeta = const VerificationMeta('forced');
   @override
   late final GeneratedColumn<int> forced = GeneratedColumn<int>(
@@ -5463,6 +5710,8 @@ class $CardStatesTable extends CardStates
         unitKey,
         stability,
         difficulty,
+        encodingStrength,
+        savings,
         forced,
         forcedStreak
       ];
@@ -5553,6 +5802,16 @@ class $CardStatesTable extends CardStates
           difficulty.isAcceptableOrUnknown(
               data['difficulty']!, _difficultyMeta));
     }
+    if (data.containsKey('encoding_strength')) {
+      context.handle(
+          _encodingStrengthMeta,
+          encodingStrength.isAcceptableOrUnknown(
+              data['encoding_strength']!, _encodingStrengthMeta));
+    }
+    if (data.containsKey('savings')) {
+      context.handle(_savingsMeta,
+          savings.isAcceptableOrUnknown(data['savings']!, _savingsMeta));
+    }
     if (data.containsKey('forced')) {
       context.handle(_forcedMeta,
           forced.isAcceptableOrUnknown(data['forced']!, _forcedMeta));
@@ -5606,6 +5865,10 @@ class $CardStatesTable extends CardStates
           .read(DriftSqlType.double, data['${effectivePrefix}stability']),
       difficulty: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}difficulty']),
+      encodingStrength: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}encoding_strength']),
+      savings: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}savings']),
       forced: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}forced'])!,
       forcedStreak: attachedDatabase.typeMapping
@@ -5644,6 +5907,19 @@ class CardState extends DataClass implements Insertable<CardState> {
   final double? stability;
   final double? difficulty;
 
+  /// v6: encoding strength / encoding ceiling (MindNet `R0`).
+  ///
+  /// FSRS as implemented here has no separate ceiling: its curve returns an
+  /// absolute retrievability, while MindNet's is `R = R0 * Psi(t/S)`. Porting
+  /// the cognitive model therefore needs R0 stored, otherwise the two curves
+  /// silently disagree once `R0 < 1` (see docs/MINDNET_CONTRACT.md 8.1).
+  /// Nullable: NULL means "never set", not 1.0, so legacy rows stay honest.
+  final double? encodingStrength;
+
+  /// v6: savings effect (MindNet `Sigma`), used by the stability-increase term.
+  /// Nullable for the same reason as [encodingStrength].
+  final double? savings;
+
   /// v2 forced-binding state (wrong-answer rule): 1 while a short-interval
   /// (10 min) relearning loop with the same unit is active.
   final int forced;
@@ -5666,6 +5942,8 @@ class CardState extends DataClass implements Insertable<CardState> {
       this.unitKey,
       this.stability,
       this.difficulty,
+      this.encodingStrength,
+      this.savings,
       required this.forced,
       required this.forcedStreak});
   @override
@@ -5699,6 +5977,12 @@ class CardState extends DataClass implements Insertable<CardState> {
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<double>(difficulty);
+    }
+    if (!nullToAbsent || encodingStrength != null) {
+      map['encoding_strength'] = Variable<double>(encodingStrength);
+    }
+    if (!nullToAbsent || savings != null) {
+      map['savings'] = Variable<double>(savings);
     }
     map['forced'] = Variable<int>(forced);
     map['forced_streak'] = Variable<int>(forcedStreak);
@@ -5735,6 +6019,12 @@ class CardState extends DataClass implements Insertable<CardState> {
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
+      encodingStrength: encodingStrength == null && nullToAbsent
+          ? const Value.absent()
+          : Value(encodingStrength),
+      savings: savings == null && nullToAbsent
+          ? const Value.absent()
+          : Value(savings),
       forced: Value(forced),
       forcedStreak: Value(forcedStreak),
     );
@@ -5759,6 +6049,8 @@ class CardState extends DataClass implements Insertable<CardState> {
       unitKey: serializer.fromJson<String?>(json['unitKey']),
       stability: serializer.fromJson<double?>(json['stability']),
       difficulty: serializer.fromJson<double?>(json['difficulty']),
+      encodingStrength: serializer.fromJson<double?>(json['encodingStrength']),
+      savings: serializer.fromJson<double?>(json['savings']),
       forced: serializer.fromJson<int>(json['forced']),
       forcedStreak: serializer.fromJson<int>(json['forcedStreak']),
     );
@@ -5782,6 +6074,8 @@ class CardState extends DataClass implements Insertable<CardState> {
       'unitKey': serializer.toJson<String?>(unitKey),
       'stability': serializer.toJson<double?>(stability),
       'difficulty': serializer.toJson<double?>(difficulty),
+      'encodingStrength': serializer.toJson<double?>(encodingStrength),
+      'savings': serializer.toJson<double?>(savings),
       'forced': serializer.toJson<int>(forced),
       'forcedStreak': serializer.toJson<int>(forcedStreak),
     };
@@ -5803,6 +6097,8 @@ class CardState extends DataClass implements Insertable<CardState> {
           Value<String?> unitKey = const Value.absent(),
           Value<double?> stability = const Value.absent(),
           Value<double?> difficulty = const Value.absent(),
+          Value<double?> encodingStrength = const Value.absent(),
+          Value<double?> savings = const Value.absent(),
           int? forced,
           int? forcedStreak}) =>
       CardState(
@@ -5825,6 +6121,10 @@ class CardState extends DataClass implements Insertable<CardState> {
         unitKey: unitKey.present ? unitKey.value : this.unitKey,
         stability: stability.present ? stability.value : this.stability,
         difficulty: difficulty.present ? difficulty.value : this.difficulty,
+        encodingStrength: encodingStrength.present
+            ? encodingStrength.value
+            : this.encodingStrength,
+        savings: savings.present ? savings.value : this.savings,
         forced: forced ?? this.forced,
         forcedStreak: forcedStreak ?? this.forcedStreak,
       );
@@ -5855,6 +6155,10 @@ class CardState extends DataClass implements Insertable<CardState> {
       stability: data.stability.present ? data.stability.value : this.stability,
       difficulty:
           data.difficulty.present ? data.difficulty.value : this.difficulty,
+      encodingStrength: data.encodingStrength.present
+          ? data.encodingStrength.value
+          : this.encodingStrength,
+      savings: data.savings.present ? data.savings.value : this.savings,
       forced: data.forced.present ? data.forced.value : this.forced,
       forcedStreak: data.forcedStreak.present
           ? data.forcedStreak.value
@@ -5880,6 +6184,8 @@ class CardState extends DataClass implements Insertable<CardState> {
           ..write('unitKey: $unitKey, ')
           ..write('stability: $stability, ')
           ..write('difficulty: $difficulty, ')
+          ..write('encodingStrength: $encodingStrength, ')
+          ..write('savings: $savings, ')
           ..write('forced: $forced, ')
           ..write('forcedStreak: $forcedStreak')
           ..write(')'))
@@ -5903,6 +6209,8 @@ class CardState extends DataClass implements Insertable<CardState> {
       unitKey,
       stability,
       difficulty,
+      encodingStrength,
+      savings,
       forced,
       forcedStreak);
   @override
@@ -5924,6 +6232,8 @@ class CardState extends DataClass implements Insertable<CardState> {
           other.unitKey == this.unitKey &&
           other.stability == this.stability &&
           other.difficulty == this.difficulty &&
+          other.encodingStrength == this.encodingStrength &&
+          other.savings == this.savings &&
           other.forced == this.forced &&
           other.forcedStreak == this.forcedStreak);
 }
@@ -5944,6 +6254,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
   final Value<String?> unitKey;
   final Value<double?> stability;
   final Value<double?> difficulty;
+  final Value<double?> encodingStrength;
+  final Value<double?> savings;
   final Value<int> forced;
   final Value<int> forcedStreak;
   final Value<int> rowid;
@@ -5963,6 +6275,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
     this.unitKey = const Value.absent(),
     this.stability = const Value.absent(),
     this.difficulty = const Value.absent(),
+    this.encodingStrength = const Value.absent(),
+    this.savings = const Value.absent(),
     this.forced = const Value.absent(),
     this.forcedStreak = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5983,6 +6297,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
     this.unitKey = const Value.absent(),
     this.stability = const Value.absent(),
     this.difficulty = const Value.absent(),
+    this.encodingStrength = const Value.absent(),
+    this.savings = const Value.absent(),
     this.forced = const Value.absent(),
     this.forcedStreak = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6005,6 +6321,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
     Expression<String>? unitKey,
     Expression<double>? stability,
     Expression<double>? difficulty,
+    Expression<double>? encodingStrength,
+    Expression<double>? savings,
     Expression<int>? forced,
     Expression<int>? forcedStreak,
     Expression<int>? rowid,
@@ -6025,6 +6343,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
       if (unitKey != null) 'unit_key': unitKey,
       if (stability != null) 'stability': stability,
       if (difficulty != null) 'difficulty': difficulty,
+      if (encodingStrength != null) 'encoding_strength': encodingStrength,
+      if (savings != null) 'savings': savings,
       if (forced != null) 'forced': forced,
       if (forcedStreak != null) 'forced_streak': forcedStreak,
       if (rowid != null) 'rowid': rowid,
@@ -6047,6 +6367,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
       Value<String?>? unitKey,
       Value<double?>? stability,
       Value<double?>? difficulty,
+      Value<double?>? encodingStrength,
+      Value<double?>? savings,
       Value<int>? forced,
       Value<int>? forcedStreak,
       Value<int>? rowid}) {
@@ -6066,6 +6388,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
       unitKey: unitKey ?? this.unitKey,
       stability: stability ?? this.stability,
       difficulty: difficulty ?? this.difficulty,
+      encodingStrength: encodingStrength ?? this.encodingStrength,
+      savings: savings ?? this.savings,
       forced: forced ?? this.forced,
       forcedStreak: forcedStreak ?? this.forcedStreak,
       rowid: rowid ?? this.rowid,
@@ -6120,6 +6444,12 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
     if (difficulty.present) {
       map['difficulty'] = Variable<double>(difficulty.value);
     }
+    if (encodingStrength.present) {
+      map['encoding_strength'] = Variable<double>(encodingStrength.value);
+    }
+    if (savings.present) {
+      map['savings'] = Variable<double>(savings.value);
+    }
     if (forced.present) {
       map['forced'] = Variable<int>(forced.value);
     }
@@ -6150,6 +6480,8 @@ class CardStatesCompanion extends UpdateCompanion<CardState> {
           ..write('unitKey: $unitKey, ')
           ..write('stability: $stability, ')
           ..write('difficulty: $difficulty, ')
+          ..write('encodingStrength: $encodingStrength, ')
+          ..write('savings: $savings, ')
           ..write('forced: $forced, ')
           ..write('forcedStreak: $forcedStreak, ')
           ..write('rowid: $rowid')
@@ -12770,6 +13102,1309 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
   }
 }
 
+class $AiConversationsTable extends AiConversations
+    with TableInfo<$AiConversationsTable, AiConversation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiConversationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 200),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, title, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_conversations';
+  @override
+  VerificationContext validateIntegrity(Insertable<AiConversation> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AiConversation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AiConversation(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $AiConversationsTable createAlias(String alias) {
+    return $AiConversationsTable(attachedDatabase, alias);
+  }
+}
+
+class AiConversation extends DataClass implements Insertable<AiConversation> {
+  final String id;
+
+  /// Human label shown in the conversation list. Never empty: falls back to a
+  /// timestamp when the first message is empty.
+  final String title;
+  final int createdAt;
+  final int updatedAt;
+  const AiConversation(
+      {required this.id,
+      required this.title,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  AiConversationsCompanion toCompanion(bool nullToAbsent) {
+    return AiConversationsCompanion(
+      id: Value(id),
+      title: Value(title),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AiConversation.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AiConversation(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  AiConversation copyWith(
+          {String? id, String? title, int? createdAt, int? updatedAt}) =>
+      AiConversation(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  AiConversation copyWithCompanion(AiConversationsCompanion data) {
+    return AiConversation(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiConversation(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, title, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AiConversation &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const AiConversationsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AiConversationsCompanion.insert({
+    required String id,
+    required String title,
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        title = Value(title),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<AiConversation> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AiConversationsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? title,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return AiConversationsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiConversationsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AiMessagesTable extends AiMessages
+    with TableInfo<$AiMessagesTable, AiMessage> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiMessagesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _conversationIdMeta =
+      const VerificationMeta('conversationId');
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+      'conversation_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toolCallIdMeta =
+      const VerificationMeta('toolCallId');
+  @override
+  late final GeneratedColumn<String> toolCallId = GeneratedColumn<String>(
+      'tool_call_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, conversationId, role, content, toolCallId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_messages';
+  @override
+  VerificationContext validateIntegrity(Insertable<AiMessage> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+          _conversationIdMeta,
+          conversationId.isAcceptableOrUnknown(
+              data['conversation_id']!, _conversationIdMeta));
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    }
+    if (data.containsKey('tool_call_id')) {
+      context.handle(
+          _toolCallIdMeta,
+          toolCallId.isAcceptableOrUnknown(
+              data['tool_call_id']!, _toolCallIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AiMessage map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AiMessage(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      conversationId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}conversation_id'])!,
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content']),
+      toolCallId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tool_call_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AiMessagesTable createAlias(String alias) {
+    return $AiMessagesTable(attachedDatabase, alias);
+  }
+}
+
+class AiMessage extends DataClass implements Insertable<AiMessage> {
+  final String id;
+  final String conversationId;
+
+  /// `user` | `assistant` | `tool` | `system`.
+  final String role;
+
+  /// Message body. For `tool` rows this is the JSON result handed back to the
+  /// model; for `assistant` rows it may be empty when the turn was pure tool
+  /// calls.
+  final String? content;
+
+  /// Provider tool-call id, only set on `tool` rows. Needed because the Chat
+  /// Completion API rejects a tool result whose id does not match the request
+  /// that produced it.
+  final String? toolCallId;
+  final int createdAt;
+  const AiMessage(
+      {required this.id,
+      required this.conversationId,
+      required this.role,
+      this.content,
+      this.toolCallId,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['conversation_id'] = Variable<String>(conversationId);
+    map['role'] = Variable<String>(role);
+    if (!nullToAbsent || content != null) {
+      map['content'] = Variable<String>(content);
+    }
+    if (!nullToAbsent || toolCallId != null) {
+      map['tool_call_id'] = Variable<String>(toolCallId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AiMessagesCompanion toCompanion(bool nullToAbsent) {
+    return AiMessagesCompanion(
+      id: Value(id),
+      conversationId: Value(conversationId),
+      role: Value(role),
+      content: content == null && nullToAbsent
+          ? const Value.absent()
+          : Value(content),
+      toolCallId: toolCallId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toolCallId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AiMessage.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AiMessage(
+      id: serializer.fromJson<String>(json['id']),
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      role: serializer.fromJson<String>(json['role']),
+      content: serializer.fromJson<String?>(json['content']),
+      toolCallId: serializer.fromJson<String?>(json['toolCallId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'conversationId': serializer.toJson<String>(conversationId),
+      'role': serializer.toJson<String>(role),
+      'content': serializer.toJson<String?>(content),
+      'toolCallId': serializer.toJson<String?>(toolCallId),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AiMessage copyWith(
+          {String? id,
+          String? conversationId,
+          String? role,
+          Value<String?> content = const Value.absent(),
+          Value<String?> toolCallId = const Value.absent(),
+          int? createdAt}) =>
+      AiMessage(
+        id: id ?? this.id,
+        conversationId: conversationId ?? this.conversationId,
+        role: role ?? this.role,
+        content: content.present ? content.value : this.content,
+        toolCallId: toolCallId.present ? toolCallId.value : this.toolCallId,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AiMessage copyWithCompanion(AiMessagesCompanion data) {
+    return AiMessage(
+      id: data.id.present ? data.id.value : this.id,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      role: data.role.present ? data.role.value : this.role,
+      content: data.content.present ? data.content.value : this.content,
+      toolCallId:
+          data.toolCallId.present ? data.toolCallId.value : this.toolCallId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiMessage(')
+          ..write('id: $id, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('role: $role, ')
+          ..write('content: $content, ')
+          ..write('toolCallId: $toolCallId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, conversationId, role, content, toolCallId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AiMessage &&
+          other.id == this.id &&
+          other.conversationId == this.conversationId &&
+          other.role == this.role &&
+          other.content == this.content &&
+          other.toolCallId == this.toolCallId &&
+          other.createdAt == this.createdAt);
+}
+
+class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
+  final Value<String> id;
+  final Value<String> conversationId;
+  final Value<String> role;
+  final Value<String?> content;
+  final Value<String?> toolCallId;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AiMessagesCompanion({
+    this.id = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.content = const Value.absent(),
+    this.toolCallId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AiMessagesCompanion.insert({
+    required String id,
+    required String conversationId,
+    required String role,
+    this.content = const Value.absent(),
+    this.toolCallId = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        conversationId = Value(conversationId),
+        role = Value(role),
+        createdAt = Value(createdAt);
+  static Insertable<AiMessage> custom({
+    Expression<String>? id,
+    Expression<String>? conversationId,
+    Expression<String>? role,
+    Expression<String>? content,
+    Expression<String>? toolCallId,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (role != null) 'role': role,
+      if (content != null) 'content': content,
+      if (toolCallId != null) 'tool_call_id': toolCallId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AiMessagesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? conversationId,
+      Value<String>? role,
+      Value<String?>? content,
+      Value<String?>? toolCallId,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AiMessagesCompanion(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      role: role ?? this.role,
+      content: content ?? this.content,
+      toolCallId: toolCallId ?? this.toolCallId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (toolCallId.present) {
+      map['tool_call_id'] = Variable<String>(toolCallId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiMessagesCompanion(')
+          ..write('id: $id, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('role: $role, ')
+          ..write('content: $content, ')
+          ..write('toolCallId: $toolCallId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AiActionsTable extends AiActions
+    with TableInfo<$AiActionsTable, AiAction> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiActionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messageIdMeta =
+      const VerificationMeta('messageId');
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+      'message_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _conversationIdMeta =
+      const VerificationMeta('conversationId');
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+      'conversation_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _toolCallIdMeta =
+      const VerificationMeta('toolCallId');
+  @override
+  late final GeneratedColumn<String> toolCallId = GeneratedColumn<String>(
+      'tool_call_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _toolNameMeta =
+      const VerificationMeta('toolName');
+  @override
+  late final GeneratedColumn<String> toolName = GeneratedColumn<String>(
+      'tool_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _argsJsonMeta =
+      const VerificationMeta('argsJson');
+  @override
+  late final GeneratedColumn<String> argsJson = GeneratedColumn<String>(
+      'args_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _riskMeta = const VerificationMeta('risk');
+  @override
+  late final GeneratedColumn<String> risk = GeneratedColumn<String>(
+      'risk', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _beforeJsonMeta =
+      const VerificationMeta('beforeJson');
+  @override
+  late final GeneratedColumn<String> beforeJson = GeneratedColumn<String>(
+      'before_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _afterJsonMeta =
+      const VerificationMeta('afterJson');
+  @override
+  late final GeneratedColumn<String> afterJson = GeneratedColumn<String>(
+      'after_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resultJsonMeta =
+      const VerificationMeta('resultJson');
+  @override
+  late final GeneratedColumn<String> resultJson = GeneratedColumn<String>(
+      'result_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        messageId,
+        conversationId,
+        toolCallId,
+        toolName,
+        argsJson,
+        risk,
+        status,
+        beforeJson,
+        afterJson,
+        resultJson,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_actions';
+  @override
+  VerificationContext validateIntegrity(Insertable<AiAction> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(_messageIdMeta,
+          messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta));
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+          _conversationIdMeta,
+          conversationId.isAcceptableOrUnknown(
+              data['conversation_id']!, _conversationIdMeta));
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('tool_call_id')) {
+      context.handle(
+          _toolCallIdMeta,
+          toolCallId.isAcceptableOrUnknown(
+              data['tool_call_id']!, _toolCallIdMeta));
+    }
+    if (data.containsKey('tool_name')) {
+      context.handle(_toolNameMeta,
+          toolName.isAcceptableOrUnknown(data['tool_name']!, _toolNameMeta));
+    } else if (isInserting) {
+      context.missing(_toolNameMeta);
+    }
+    if (data.containsKey('args_json')) {
+      context.handle(_argsJsonMeta,
+          argsJson.isAcceptableOrUnknown(data['args_json']!, _argsJsonMeta));
+    } else if (isInserting) {
+      context.missing(_argsJsonMeta);
+    }
+    if (data.containsKey('risk')) {
+      context.handle(
+          _riskMeta, risk.isAcceptableOrUnknown(data['risk']!, _riskMeta));
+    } else if (isInserting) {
+      context.missing(_riskMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('before_json')) {
+      context.handle(
+          _beforeJsonMeta,
+          beforeJson.isAcceptableOrUnknown(
+              data['before_json']!, _beforeJsonMeta));
+    }
+    if (data.containsKey('after_json')) {
+      context.handle(_afterJsonMeta,
+          afterJson.isAcceptableOrUnknown(data['after_json']!, _afterJsonMeta));
+    }
+    if (data.containsKey('result_json')) {
+      context.handle(
+          _resultJsonMeta,
+          resultJson.isAcceptableOrUnknown(
+              data['result_json']!, _resultJsonMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AiAction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AiAction(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      messageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_id']),
+      conversationId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}conversation_id'])!,
+      toolCallId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tool_call_id']),
+      toolName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tool_name'])!,
+      argsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}args_json'])!,
+      risk: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}risk'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      beforeJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}before_json']),
+      afterJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}after_json']),
+      resultJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}result_json']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at']),
+    );
+  }
+
+  @override
+  $AiActionsTable createAlias(String alias) {
+    return $AiActionsTable(attachedDatabase, alias);
+  }
+}
+
+class AiAction extends DataClass implements Insertable<AiAction> {
+  final String id;
+
+  /// The assistant message whose turn proposed this call.
+  final String? messageId;
+  final String conversationId;
+
+  /// Provider-side call id, so a result can be matched back.
+  final String? toolCallId;
+  final String toolName;
+
+  /// Raw JSON arguments exactly as the model produced them. Kept verbatim so a
+  /// failed validation can be shown to the user and replayed.
+  final String argsJson;
+
+  /// `write` | `destructive` (mirrors ToolRisk).
+  final String risk;
+
+  /// `pending` | `approved` | `rejected` | `executed` | `failed`.
+  final String status;
+
+  /// Row(s) as they were before the call, JSON. Enables undo.
+  final String? beforeJson;
+
+  /// Row(s) as they became, JSON.
+  final String? afterJson;
+
+  /// Failure reason, or the human-readable result summary.
+  final String? resultJson;
+  final int createdAt;
+  final int? updatedAt;
+  const AiAction(
+      {required this.id,
+      this.messageId,
+      required this.conversationId,
+      this.toolCallId,
+      required this.toolName,
+      required this.argsJson,
+      required this.risk,
+      required this.status,
+      this.beforeJson,
+      this.afterJson,
+      this.resultJson,
+      required this.createdAt,
+      this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || messageId != null) {
+      map['message_id'] = Variable<String>(messageId);
+    }
+    map['conversation_id'] = Variable<String>(conversationId);
+    if (!nullToAbsent || toolCallId != null) {
+      map['tool_call_id'] = Variable<String>(toolCallId);
+    }
+    map['tool_name'] = Variable<String>(toolName);
+    map['args_json'] = Variable<String>(argsJson);
+    map['risk'] = Variable<String>(risk);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || beforeJson != null) {
+      map['before_json'] = Variable<String>(beforeJson);
+    }
+    if (!nullToAbsent || afterJson != null) {
+      map['after_json'] = Variable<String>(afterJson);
+    }
+    if (!nullToAbsent || resultJson != null) {
+      map['result_json'] = Variable<String>(resultJson);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<int>(updatedAt);
+    }
+    return map;
+  }
+
+  AiActionsCompanion toCompanion(bool nullToAbsent) {
+    return AiActionsCompanion(
+      id: Value(id),
+      messageId: messageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(messageId),
+      conversationId: Value(conversationId),
+      toolCallId: toolCallId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toolCallId),
+      toolName: Value(toolName),
+      argsJson: Value(argsJson),
+      risk: Value(risk),
+      status: Value(status),
+      beforeJson: beforeJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(beforeJson),
+      afterJson: afterJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(afterJson),
+      resultJson: resultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultJson),
+      createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory AiAction.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AiAction(
+      id: serializer.fromJson<String>(json['id']),
+      messageId: serializer.fromJson<String?>(json['messageId']),
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      toolCallId: serializer.fromJson<String?>(json['toolCallId']),
+      toolName: serializer.fromJson<String>(json['toolName']),
+      argsJson: serializer.fromJson<String>(json['argsJson']),
+      risk: serializer.fromJson<String>(json['risk']),
+      status: serializer.fromJson<String>(json['status']),
+      beforeJson: serializer.fromJson<String?>(json['beforeJson']),
+      afterJson: serializer.fromJson<String?>(json['afterJson']),
+      resultJson: serializer.fromJson<String?>(json['resultJson']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'messageId': serializer.toJson<String?>(messageId),
+      'conversationId': serializer.toJson<String>(conversationId),
+      'toolCallId': serializer.toJson<String?>(toolCallId),
+      'toolName': serializer.toJson<String>(toolName),
+      'argsJson': serializer.toJson<String>(argsJson),
+      'risk': serializer.toJson<String>(risk),
+      'status': serializer.toJson<String>(status),
+      'beforeJson': serializer.toJson<String?>(beforeJson),
+      'afterJson': serializer.toJson<String?>(afterJson),
+      'resultJson': serializer.toJson<String?>(resultJson),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int?>(updatedAt),
+    };
+  }
+
+  AiAction copyWith(
+          {String? id,
+          Value<String?> messageId = const Value.absent(),
+          String? conversationId,
+          Value<String?> toolCallId = const Value.absent(),
+          String? toolName,
+          String? argsJson,
+          String? risk,
+          String? status,
+          Value<String?> beforeJson = const Value.absent(),
+          Value<String?> afterJson = const Value.absent(),
+          Value<String?> resultJson = const Value.absent(),
+          int? createdAt,
+          Value<int?> updatedAt = const Value.absent()}) =>
+      AiAction(
+        id: id ?? this.id,
+        messageId: messageId.present ? messageId.value : this.messageId,
+        conversationId: conversationId ?? this.conversationId,
+        toolCallId: toolCallId.present ? toolCallId.value : this.toolCallId,
+        toolName: toolName ?? this.toolName,
+        argsJson: argsJson ?? this.argsJson,
+        risk: risk ?? this.risk,
+        status: status ?? this.status,
+        beforeJson: beforeJson.present ? beforeJson.value : this.beforeJson,
+        afterJson: afterJson.present ? afterJson.value : this.afterJson,
+        resultJson: resultJson.present ? resultJson.value : this.resultJson,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+      );
+  AiAction copyWithCompanion(AiActionsCompanion data) {
+    return AiAction(
+      id: data.id.present ? data.id.value : this.id,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      toolCallId:
+          data.toolCallId.present ? data.toolCallId.value : this.toolCallId,
+      toolName: data.toolName.present ? data.toolName.value : this.toolName,
+      argsJson: data.argsJson.present ? data.argsJson.value : this.argsJson,
+      risk: data.risk.present ? data.risk.value : this.risk,
+      status: data.status.present ? data.status.value : this.status,
+      beforeJson:
+          data.beforeJson.present ? data.beforeJson.value : this.beforeJson,
+      afterJson: data.afterJson.present ? data.afterJson.value : this.afterJson,
+      resultJson:
+          data.resultJson.present ? data.resultJson.value : this.resultJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiAction(')
+          ..write('id: $id, ')
+          ..write('messageId: $messageId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('toolCallId: $toolCallId, ')
+          ..write('toolName: $toolName, ')
+          ..write('argsJson: $argsJson, ')
+          ..write('risk: $risk, ')
+          ..write('status: $status, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      messageId,
+      conversationId,
+      toolCallId,
+      toolName,
+      argsJson,
+      risk,
+      status,
+      beforeJson,
+      afterJson,
+      resultJson,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AiAction &&
+          other.id == this.id &&
+          other.messageId == this.messageId &&
+          other.conversationId == this.conversationId &&
+          other.toolCallId == this.toolCallId &&
+          other.toolName == this.toolName &&
+          other.argsJson == this.argsJson &&
+          other.risk == this.risk &&
+          other.status == this.status &&
+          other.beforeJson == this.beforeJson &&
+          other.afterJson == this.afterJson &&
+          other.resultJson == this.resultJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AiActionsCompanion extends UpdateCompanion<AiAction> {
+  final Value<String> id;
+  final Value<String?> messageId;
+  final Value<String> conversationId;
+  final Value<String?> toolCallId;
+  final Value<String> toolName;
+  final Value<String> argsJson;
+  final Value<String> risk;
+  final Value<String> status;
+  final Value<String?> beforeJson;
+  final Value<String?> afterJson;
+  final Value<String?> resultJson;
+  final Value<int> createdAt;
+  final Value<int?> updatedAt;
+  final Value<int> rowid;
+  const AiActionsCompanion({
+    this.id = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.toolCallId = const Value.absent(),
+    this.toolName = const Value.absent(),
+    this.argsJson = const Value.absent(),
+    this.risk = const Value.absent(),
+    this.status = const Value.absent(),
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    this.resultJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AiActionsCompanion.insert({
+    required String id,
+    this.messageId = const Value.absent(),
+    required String conversationId,
+    this.toolCallId = const Value.absent(),
+    required String toolName,
+    required String argsJson,
+    required String risk,
+    required String status,
+    this.beforeJson = const Value.absent(),
+    this.afterJson = const Value.absent(),
+    this.resultJson = const Value.absent(),
+    required int createdAt,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        conversationId = Value(conversationId),
+        toolName = Value(toolName),
+        argsJson = Value(argsJson),
+        risk = Value(risk),
+        status = Value(status),
+        createdAt = Value(createdAt);
+  static Insertable<AiAction> custom({
+    Expression<String>? id,
+    Expression<String>? messageId,
+    Expression<String>? conversationId,
+    Expression<String>? toolCallId,
+    Expression<String>? toolName,
+    Expression<String>? argsJson,
+    Expression<String>? risk,
+    Expression<String>? status,
+    Expression<String>? beforeJson,
+    Expression<String>? afterJson,
+    Expression<String>? resultJson,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (messageId != null) 'message_id': messageId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (toolCallId != null) 'tool_call_id': toolCallId,
+      if (toolName != null) 'tool_name': toolName,
+      if (argsJson != null) 'args_json': argsJson,
+      if (risk != null) 'risk': risk,
+      if (status != null) 'status': status,
+      if (beforeJson != null) 'before_json': beforeJson,
+      if (afterJson != null) 'after_json': afterJson,
+      if (resultJson != null) 'result_json': resultJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AiActionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String?>? messageId,
+      Value<String>? conversationId,
+      Value<String?>? toolCallId,
+      Value<String>? toolName,
+      Value<String>? argsJson,
+      Value<String>? risk,
+      Value<String>? status,
+      Value<String?>? beforeJson,
+      Value<String?>? afterJson,
+      Value<String?>? resultJson,
+      Value<int>? createdAt,
+      Value<int?>? updatedAt,
+      Value<int>? rowid}) {
+    return AiActionsCompanion(
+      id: id ?? this.id,
+      messageId: messageId ?? this.messageId,
+      conversationId: conversationId ?? this.conversationId,
+      toolCallId: toolCallId ?? this.toolCallId,
+      toolName: toolName ?? this.toolName,
+      argsJson: argsJson ?? this.argsJson,
+      risk: risk ?? this.risk,
+      status: status ?? this.status,
+      beforeJson: beforeJson ?? this.beforeJson,
+      afterJson: afterJson ?? this.afterJson,
+      resultJson: resultJson ?? this.resultJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (toolCallId.present) {
+      map['tool_call_id'] = Variable<String>(toolCallId.value);
+    }
+    if (toolName.present) {
+      map['tool_name'] = Variable<String>(toolName.value);
+    }
+    if (argsJson.present) {
+      map['args_json'] = Variable<String>(argsJson.value);
+    }
+    if (risk.present) {
+      map['risk'] = Variable<String>(risk.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (beforeJson.present) {
+      map['before_json'] = Variable<String>(beforeJson.value);
+    }
+    if (afterJson.present) {
+      map['after_json'] = Variable<String>(afterJson.value);
+    }
+    if (resultJson.present) {
+      map['result_json'] = Variable<String>(resultJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiActionsCompanion(')
+          ..write('id: $id, ')
+          ..write('messageId: $messageId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('toolCallId: $toolCallId, ')
+          ..write('toolName: $toolName, ')
+          ..write('argsJson: $argsJson, ')
+          ..write('risk: $risk, ')
+          ..write('status: $status, ')
+          ..write('beforeJson: $beforeJson, ')
+          ..write('afterJson: $afterJson, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12806,6 +14441,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TimeTemplatesTable timeTemplates = $TimeTemplatesTable(this);
   late final $TimeViewSettingsTable timeViewSettings =
       $TimeViewSettingsTable(this);
+  late final $AiConversationsTable aiConversations =
+      $AiConversationsTable(this);
+  late final $AiMessagesTable aiMessages = $AiMessagesTable(this);
+  late final $AiActionsTable aiActions = $AiActionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12838,7 +14477,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         threadRankSettings,
         diffusionLogs,
         timeTemplates,
-        timeViewSettings
+        timeViewSettings,
+        aiConversations,
+        aiMessages,
+        aiActions
       ];
 }
 
@@ -12999,6 +14641,11 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String> themeMode,
   Value<String?> profileId,
   Value<String?> activeThemeId,
+  Value<bool> aiEnabled,
+  Value<String?> aiApiKey,
+  Value<String?> aiBaseUrl,
+  Value<String?> aiModel,
+  Value<String?> aiPermissionMode,
   required int createdAt,
   required int updatedAt,
 });
@@ -13009,6 +14656,11 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String> themeMode,
   Value<String?> profileId,
   Value<String?> activeThemeId,
+  Value<bool> aiEnabled,
+  Value<String?> aiApiKey,
+  Value<String?> aiBaseUrl,
+  Value<String?> aiModel,
+  Value<String?> aiPermissionMode,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -13036,6 +14688,22 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get activeThemeId => $composableBuilder(
       column: $table.activeThemeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get aiEnabled => $composableBuilder(
+      column: $table.aiEnabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiApiKey => $composableBuilder(
+      column: $table.aiApiKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiBaseUrl => $composableBuilder(
+      column: $table.aiBaseUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiModel => $composableBuilder(
+      column: $table.aiModel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiPermissionMode => $composableBuilder(
+      column: $table.aiPermissionMode,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -13069,6 +14737,22 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.activeThemeId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get aiEnabled => $composableBuilder(
+      column: $table.aiEnabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiApiKey => $composableBuilder(
+      column: $table.aiApiKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiBaseUrl => $composableBuilder(
+      column: $table.aiBaseUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiModel => $composableBuilder(
+      column: $table.aiModel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiPermissionMode => $composableBuilder(
+      column: $table.aiPermissionMode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -13099,6 +14783,21 @@ class $$LocalSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get activeThemeId => $composableBuilder(
       column: $table.activeThemeId, builder: (column) => column);
+
+  GeneratedColumn<bool> get aiEnabled =>
+      $composableBuilder(column: $table.aiEnabled, builder: (column) => column);
+
+  GeneratedColumn<String> get aiApiKey =>
+      $composableBuilder(column: $table.aiApiKey, builder: (column) => column);
+
+  GeneratedColumn<String> get aiBaseUrl =>
+      $composableBuilder(column: $table.aiBaseUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get aiModel =>
+      $composableBuilder(column: $table.aiModel, builder: (column) => column);
+
+  GeneratedColumn<String> get aiPermissionMode => $composableBuilder(
+      column: $table.aiPermissionMode, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -13138,6 +14837,11 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String> themeMode = const Value.absent(),
             Value<String?> profileId = const Value.absent(),
             Value<String?> activeThemeId = const Value.absent(),
+            Value<bool> aiEnabled = const Value.absent(),
+            Value<String?> aiApiKey = const Value.absent(),
+            Value<String?> aiBaseUrl = const Value.absent(),
+            Value<String?> aiModel = const Value.absent(),
+            Value<String?> aiPermissionMode = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -13147,6 +14851,11 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             themeMode: themeMode,
             profileId: profileId,
             activeThemeId: activeThemeId,
+            aiEnabled: aiEnabled,
+            aiApiKey: aiApiKey,
+            aiBaseUrl: aiBaseUrl,
+            aiModel: aiModel,
+            aiPermissionMode: aiPermissionMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -13156,6 +14865,11 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String> themeMode = const Value.absent(),
             Value<String?> profileId = const Value.absent(),
             Value<String?> activeThemeId = const Value.absent(),
+            Value<bool> aiEnabled = const Value.absent(),
+            Value<String?> aiApiKey = const Value.absent(),
+            Value<String?> aiBaseUrl = const Value.absent(),
+            Value<String?> aiModel = const Value.absent(),
+            Value<String?> aiPermissionMode = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -13165,6 +14879,11 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             themeMode: themeMode,
             profileId: profileId,
             activeThemeId: activeThemeId,
+            aiEnabled: aiEnabled,
+            aiApiKey: aiApiKey,
+            aiBaseUrl: aiBaseUrl,
+            aiModel: aiModel,
+            aiPermissionMode: aiPermissionMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -15455,6 +17174,8 @@ typedef $$CardStatesTableCreateCompanionBuilder = CardStatesCompanion Function({
   Value<String?> unitKey,
   Value<double?> stability,
   Value<double?> difficulty,
+  Value<double?> encodingStrength,
+  Value<double?> savings,
   Value<int> forced,
   Value<int> forcedStreak,
   Value<int> rowid,
@@ -15475,6 +17196,8 @@ typedef $$CardStatesTableUpdateCompanionBuilder = CardStatesCompanion Function({
   Value<String?> unitKey,
   Value<double?> stability,
   Value<double?> difficulty,
+  Value<double?> encodingStrength,
+  Value<double?> savings,
   Value<int> forced,
   Value<int> forcedStreak,
   Value<int> rowid,
@@ -15536,6 +17259,13 @@ class $$CardStatesTableFilterComposer
 
   ColumnFilters<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get encodingStrength => $composableBuilder(
+      column: $table.encodingStrength,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get savings => $composableBuilder(
+      column: $table.savings, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get forced => $composableBuilder(
       column: $table.forced, builder: (column) => ColumnFilters(column));
@@ -15602,6 +17332,13 @@ class $$CardStatesTableOrderingComposer
   ColumnOrderings<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get encodingStrength => $composableBuilder(
+      column: $table.encodingStrength,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get savings => $composableBuilder(
+      column: $table.savings, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get forced => $composableBuilder(
       column: $table.forced, builder: (column) => ColumnOrderings(column));
 
@@ -15664,6 +17401,12 @@ class $$CardStatesTableAnnotationComposer
   GeneratedColumn<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => column);
 
+  GeneratedColumn<double> get encodingStrength => $composableBuilder(
+      column: $table.encodingStrength, builder: (column) => column);
+
+  GeneratedColumn<double> get savings =>
+      $composableBuilder(column: $table.savings, builder: (column) => column);
+
   GeneratedColumn<int> get forced =>
       $composableBuilder(column: $table.forced, builder: (column) => column);
 
@@ -15709,6 +17452,8 @@ class $$CardStatesTableTableManager extends RootTableManager<
             Value<String?> unitKey = const Value.absent(),
             Value<double?> stability = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
+            Value<double?> encodingStrength = const Value.absent(),
+            Value<double?> savings = const Value.absent(),
             Value<int> forced = const Value.absent(),
             Value<int> forcedStreak = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -15729,6 +17474,8 @@ class $$CardStatesTableTableManager extends RootTableManager<
             unitKey: unitKey,
             stability: stability,
             difficulty: difficulty,
+            encodingStrength: encodingStrength,
+            savings: savings,
             forced: forced,
             forcedStreak: forcedStreak,
             rowid: rowid,
@@ -15749,6 +17496,8 @@ class $$CardStatesTableTableManager extends RootTableManager<
             Value<String?> unitKey = const Value.absent(),
             Value<double?> stability = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
+            Value<double?> encodingStrength = const Value.absent(),
+            Value<double?> savings = const Value.absent(),
             Value<int> forced = const Value.absent(),
             Value<int> forcedStreak = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -15769,6 +17518,8 @@ class $$CardStatesTableTableManager extends RootTableManager<
             unitKey: unitKey,
             stability: stability,
             difficulty: difficulty,
+            encodingStrength: encodingStrength,
+            savings: savings,
             forced: forced,
             forcedStreak: forcedStreak,
             rowid: rowid,
@@ -19053,6 +20804,634 @@ typedef $$TimeViewSettingsTableProcessedTableManager = ProcessedTableManager<
     ),
     TimeViewSetting,
     PrefetchHooks Function()>;
+typedef $$AiConversationsTableCreateCompanionBuilder = AiConversationsCompanion
+    Function({
+  required String id,
+  required String title,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$AiConversationsTableUpdateCompanionBuilder = AiConversationsCompanion
+    Function({
+  Value<String> id,
+  Value<String> title,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$AiConversationsTableFilterComposer
+    extends Composer<_$AppDatabase, $AiConversationsTable> {
+  $$AiConversationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AiConversationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AiConversationsTable> {
+  $$AiConversationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AiConversationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AiConversationsTable> {
+  $$AiConversationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AiConversationsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AiConversationsTable,
+    AiConversation,
+    $$AiConversationsTableFilterComposer,
+    $$AiConversationsTableOrderingComposer,
+    $$AiConversationsTableAnnotationComposer,
+    $$AiConversationsTableCreateCompanionBuilder,
+    $$AiConversationsTableUpdateCompanionBuilder,
+    (
+      AiConversation,
+      BaseReferences<_$AppDatabase, $AiConversationsTable, AiConversation>
+    ),
+    AiConversation,
+    PrefetchHooks Function()> {
+  $$AiConversationsTableTableManager(
+      _$AppDatabase db, $AiConversationsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiConversationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiConversationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiConversationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiConversationsCompanion(
+            id: id,
+            title: title,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String title,
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiConversationsCompanion.insert(
+            id: id,
+            title: title,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AiConversationsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AiConversationsTable,
+    AiConversation,
+    $$AiConversationsTableFilterComposer,
+    $$AiConversationsTableOrderingComposer,
+    $$AiConversationsTableAnnotationComposer,
+    $$AiConversationsTableCreateCompanionBuilder,
+    $$AiConversationsTableUpdateCompanionBuilder,
+    (
+      AiConversation,
+      BaseReferences<_$AppDatabase, $AiConversationsTable, AiConversation>
+    ),
+    AiConversation,
+    PrefetchHooks Function()>;
+typedef $$AiMessagesTableCreateCompanionBuilder = AiMessagesCompanion Function({
+  required String id,
+  required String conversationId,
+  required String role,
+  Value<String?> content,
+  Value<String?> toolCallId,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AiMessagesTableUpdateCompanionBuilder = AiMessagesCompanion Function({
+  Value<String> id,
+  Value<String> conversationId,
+  Value<String> role,
+  Value<String?> content,
+  Value<String?> toolCallId,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AiMessagesTableFilterComposer
+    extends Composer<_$AppDatabase, $AiMessagesTable> {
+  $$AiMessagesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AiMessagesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AiMessagesTable> {
+  $$AiMessagesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AiMessagesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AiMessagesTable> {
+  $$AiMessagesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+      column: $table.conversationId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AiMessagesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AiMessagesTable,
+    AiMessage,
+    $$AiMessagesTableFilterComposer,
+    $$AiMessagesTableOrderingComposer,
+    $$AiMessagesTableAnnotationComposer,
+    $$AiMessagesTableCreateCompanionBuilder,
+    $$AiMessagesTableUpdateCompanionBuilder,
+    (AiMessage, BaseReferences<_$AppDatabase, $AiMessagesTable, AiMessage>),
+    AiMessage,
+    PrefetchHooks Function()> {
+  $$AiMessagesTableTableManager(_$AppDatabase db, $AiMessagesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiMessagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiMessagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiMessagesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> conversationId = const Value.absent(),
+            Value<String> role = const Value.absent(),
+            Value<String?> content = const Value.absent(),
+            Value<String?> toolCallId = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiMessagesCompanion(
+            id: id,
+            conversationId: conversationId,
+            role: role,
+            content: content,
+            toolCallId: toolCallId,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String conversationId,
+            required String role,
+            Value<String?> content = const Value.absent(),
+            Value<String?> toolCallId = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiMessagesCompanion.insert(
+            id: id,
+            conversationId: conversationId,
+            role: role,
+            content: content,
+            toolCallId: toolCallId,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AiMessagesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AiMessagesTable,
+    AiMessage,
+    $$AiMessagesTableFilterComposer,
+    $$AiMessagesTableOrderingComposer,
+    $$AiMessagesTableAnnotationComposer,
+    $$AiMessagesTableCreateCompanionBuilder,
+    $$AiMessagesTableUpdateCompanionBuilder,
+    (AiMessage, BaseReferences<_$AppDatabase, $AiMessagesTable, AiMessage>),
+    AiMessage,
+    PrefetchHooks Function()>;
+typedef $$AiActionsTableCreateCompanionBuilder = AiActionsCompanion Function({
+  required String id,
+  Value<String?> messageId,
+  required String conversationId,
+  Value<String?> toolCallId,
+  required String toolName,
+  required String argsJson,
+  required String risk,
+  required String status,
+  Value<String?> beforeJson,
+  Value<String?> afterJson,
+  Value<String?> resultJson,
+  required int createdAt,
+  Value<int?> updatedAt,
+  Value<int> rowid,
+});
+typedef $$AiActionsTableUpdateCompanionBuilder = AiActionsCompanion Function({
+  Value<String> id,
+  Value<String?> messageId,
+  Value<String> conversationId,
+  Value<String?> toolCallId,
+  Value<String> toolName,
+  Value<String> argsJson,
+  Value<String> risk,
+  Value<String> status,
+  Value<String?> beforeJson,
+  Value<String?> afterJson,
+  Value<String?> resultJson,
+  Value<int> createdAt,
+  Value<int?> updatedAt,
+  Value<int> rowid,
+});
+
+class $$AiActionsTableFilterComposer
+    extends Composer<_$AppDatabase, $AiActionsTable> {
+  $$AiActionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toolName => $composableBuilder(
+      column: $table.toolName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get argsJson => $composableBuilder(
+      column: $table.argsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get risk => $composableBuilder(
+      column: $table.risk, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get beforeJson => $composableBuilder(
+      column: $table.beforeJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get afterJson => $composableBuilder(
+      column: $table.afterJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AiActionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AiActionsTable> {
+  $$AiActionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+      column: $table.messageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toolName => $composableBuilder(
+      column: $table.toolName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get argsJson => $composableBuilder(
+      column: $table.argsJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get risk => $composableBuilder(
+      column: $table.risk, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get beforeJson => $composableBuilder(
+      column: $table.beforeJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get afterJson => $composableBuilder(
+      column: $table.afterJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AiActionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AiActionsTable> {
+  $$AiActionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+      column: $table.conversationId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolCallId => $composableBuilder(
+      column: $table.toolCallId, builder: (column) => column);
+
+  GeneratedColumn<String> get toolName =>
+      $composableBuilder(column: $table.toolName, builder: (column) => column);
+
+  GeneratedColumn<String> get argsJson =>
+      $composableBuilder(column: $table.argsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get risk =>
+      $composableBuilder(column: $table.risk, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get beforeJson => $composableBuilder(
+      column: $table.beforeJson, builder: (column) => column);
+
+  GeneratedColumn<String> get afterJson =>
+      $composableBuilder(column: $table.afterJson, builder: (column) => column);
+
+  GeneratedColumn<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AiActionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AiActionsTable,
+    AiAction,
+    $$AiActionsTableFilterComposer,
+    $$AiActionsTableOrderingComposer,
+    $$AiActionsTableAnnotationComposer,
+    $$AiActionsTableCreateCompanionBuilder,
+    $$AiActionsTableUpdateCompanionBuilder,
+    (AiAction, BaseReferences<_$AppDatabase, $AiActionsTable, AiAction>),
+    AiAction,
+    PrefetchHooks Function()> {
+  $$AiActionsTableTableManager(_$AppDatabase db, $AiActionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiActionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiActionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiActionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String?> messageId = const Value.absent(),
+            Value<String> conversationId = const Value.absent(),
+            Value<String?> toolCallId = const Value.absent(),
+            Value<String> toolName = const Value.absent(),
+            Value<String> argsJson = const Value.absent(),
+            Value<String> risk = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> beforeJson = const Value.absent(),
+            Value<String?> afterJson = const Value.absent(),
+            Value<String?> resultJson = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int?> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiActionsCompanion(
+            id: id,
+            messageId: messageId,
+            conversationId: conversationId,
+            toolCallId: toolCallId,
+            toolName: toolName,
+            argsJson: argsJson,
+            risk: risk,
+            status: status,
+            beforeJson: beforeJson,
+            afterJson: afterJson,
+            resultJson: resultJson,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String?> messageId = const Value.absent(),
+            required String conversationId,
+            Value<String?> toolCallId = const Value.absent(),
+            required String toolName,
+            required String argsJson,
+            required String risk,
+            required String status,
+            Value<String?> beforeJson = const Value.absent(),
+            Value<String?> afterJson = const Value.absent(),
+            Value<String?> resultJson = const Value.absent(),
+            required int createdAt,
+            Value<int?> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AiActionsCompanion.insert(
+            id: id,
+            messageId: messageId,
+            conversationId: conversationId,
+            toolCallId: toolCallId,
+            toolName: toolName,
+            argsJson: argsJson,
+            risk: risk,
+            status: status,
+            beforeJson: beforeJson,
+            afterJson: afterJson,
+            resultJson: resultJson,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AiActionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AiActionsTable,
+    AiAction,
+    $$AiActionsTableFilterComposer,
+    $$AiActionsTableOrderingComposer,
+    $$AiActionsTableAnnotationComposer,
+    $$AiActionsTableCreateCompanionBuilder,
+    $$AiActionsTableUpdateCompanionBuilder,
+    (AiAction, BaseReferences<_$AppDatabase, $AiActionsTable, AiAction>),
+    AiAction,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -19112,4 +21491,10 @@ class $AppDatabaseManager {
       $$TimeTemplatesTableTableManager(_db, _db.timeTemplates);
   $$TimeViewSettingsTableTableManager get timeViewSettings =>
       $$TimeViewSettingsTableTableManager(_db, _db.timeViewSettings);
+  $$AiConversationsTableTableManager get aiConversations =>
+      $$AiConversationsTableTableManager(_db, _db.aiConversations);
+  $$AiMessagesTableTableManager get aiMessages =>
+      $$AiMessagesTableTableManager(_db, _db.aiMessages);
+  $$AiActionsTableTableManager get aiActions =>
+      $$AiActionsTableTableManager(_db, _db.aiActions);
 }

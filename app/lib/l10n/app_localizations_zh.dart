@@ -929,4 +929,105 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
+
+  @override
+  String get navAi => '对话';
+
+  @override
+  String get aiTitle => 'AI 对话';
+
+  @override
+  String get aiNewConversation => '新对话';
+
+  @override
+  String get aiEmptyHint => '直接说要做什么，例如「帮我把下周的复习计划排进日程」。';
+
+  @override
+  String get aiInputHint => '输入消息…';
+
+  @override
+  String get aiSend => '发送';
+
+  @override
+  String get aiThinking => '思考中…';
+
+  @override
+  String get aiPendingTitle => '以下操作需要你确认';
+
+  @override
+  String get aiApproveAll => '全部执行';
+
+  @override
+  String get aiRejectAll => '全部拒绝';
+
+  @override
+  String get aiNeedsConfirm => '需单独确认';
+
+  @override
+  String get aiAutoExecuted => '已自动执行';
+
+  @override
+  String get aiUndo => '撤销';
+
+  @override
+  String get aiUndone => '已撤销';
+
+  @override
+  String get aiNotConfigured => 'AI 尚未接入';
+
+  @override
+  String get aiNotConfiguredHint =>
+      '在「设置 → AI」里填入 API key 后，这里会出现对话界面。未接入时应用不会发起任何网络请求。';
+
+  @override
+  String get aiGoToSettings => '去设置';
+
+  @override
+  String get aiDeleteConversation => '删除对话';
+
+  @override
+  String get aiDeleteConversationConfirm => '删除这个对话？此操作不可撤销。';
+
+  @override
+  String get settingsAiSection => 'AI 接入';
+
+  @override
+  String get settingsAiEnabled => '启用 AI';
+
+  @override
+  String get settingsAiApiKey => 'API Key';
+
+  @override
+  String get settingsAiApiKeyHint => '明文存放在本地数据库，且会随 .tfpkg 导出';
+
+  @override
+  String get settingsAiBaseUrl => 'Base URL';
+
+  @override
+  String get settingsAiModel => '模型';
+
+  @override
+  String get settingsAiPermissionMode => '权限模式';
+
+  @override
+  String get settingsAiPermissionPlan => '按计划（写入前汇总确认一次）';
+
+  @override
+  String get settingsAiPermissionAuto => '自动（除删除外直接执行，可撤销）';
+
+  @override
+  String get settingsAiPermissionHint => '删除类操作在任何模式下都需要逐条确认。';
+
+  @override
+  String get settingsAiSave => '保存';
+
+  @override
+  String get settingsAiSaved => '已保存';
+
+  @override
+  String get settingsAiKeyRequired => '填入 API key 后才能启用';
+
+  @override
+  String get settingsAiPlatformNote =>
+      'Android 上没有 Node 运行时与桌面浏览器，脚本型 skill 与浏览器扩展能力只在 Windows 上可用。';
 }

@@ -969,4 +969,110 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsBackupNote =>
       'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
+
+  @override
+  String get navAi => 'Chat';
+
+  @override
+  String get aiTitle => 'AI chat';
+
+  @override
+  String get aiNewConversation => 'New chat';
+
+  @override
+  String get aiEmptyHint =>
+      'Just say what you need, for example: put next week revision into my schedule.';
+
+  @override
+  String get aiInputHint => 'Type a message...';
+
+  @override
+  String get aiSend => 'Send';
+
+  @override
+  String get aiThinking => 'Thinking...';
+
+  @override
+  String get aiPendingTitle => 'These need your confirmation';
+
+  @override
+  String get aiApproveAll => 'Run all';
+
+  @override
+  String get aiRejectAll => 'Reject all';
+
+  @override
+  String get aiNeedsConfirm => 'Needs its own confirmation';
+
+  @override
+  String get aiAutoExecuted => 'Ran automatically';
+
+  @override
+  String get aiUndo => 'Undo';
+
+  @override
+  String get aiUndone => 'Undone';
+
+  @override
+  String get aiNotConfigured => 'AI is not set up';
+
+  @override
+  String get aiNotConfiguredHint =>
+      'Add an API key in Settings > AI and the chat screen appears here. Until then the app makes no network request at all.';
+
+  @override
+  String get aiGoToSettings => 'Open settings';
+
+  @override
+  String get aiDeleteConversation => 'Delete chat';
+
+  @override
+  String get aiDeleteConversationConfirm =>
+      'Delete this chat? This cannot be undone.';
+
+  @override
+  String get settingsAiSection => 'AI';
+
+  @override
+  String get settingsAiEnabled => 'Enable AI';
+
+  @override
+  String get settingsAiApiKey => 'API key';
+
+  @override
+  String get settingsAiApiKeyHint =>
+      'Stored in plain text locally, and exported inside .tfpkg';
+
+  @override
+  String get settingsAiBaseUrl => 'Base URL';
+
+  @override
+  String get settingsAiModel => 'Model';
+
+  @override
+  String get settingsAiPermissionMode => 'Permission mode';
+
+  @override
+  String get settingsAiPermissionPlan => 'Plan (confirm writes once per turn)';
+
+  @override
+  String get settingsAiPermissionAuto =>
+      'Auto (run everything but deletions, undoable)';
+
+  @override
+  String get settingsAiPermissionHint =>
+      'Deletions always ask one by one, in every mode.';
+
+  @override
+  String get settingsAiSave => 'Save';
+
+  @override
+  String get settingsAiSaved => 'Saved';
+
+  @override
+  String get settingsAiKeyRequired => 'An API key is required to enable this';
+
+  @override
+  String get settingsAiPlatformNote =>
+      'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.';
 }

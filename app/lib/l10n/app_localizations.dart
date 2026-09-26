@@ -1861,6 +1861,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This is a copy of the raw database file; prefer .tfpkg for regular backups.'**
   String get settingsBackupNote;
+
+  /// No description provided for @navAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get navAi;
+
+  /// No description provided for @aiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI chat'**
+  String get aiTitle;
+
+  /// No description provided for @aiNewConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get aiNewConversation;
+
+  /// No description provided for @aiEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Just say what you need, for example: put next week revision into my schedule.'**
+  String get aiEmptyHint;
+
+  /// No description provided for @aiInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message...'**
+  String get aiInputHint;
+
+  /// No description provided for @aiSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get aiSend;
+
+  /// No description provided for @aiThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking...'**
+  String get aiThinking;
+
+  /// No description provided for @aiPendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'These need your confirmation'**
+  String get aiPendingTitle;
+
+  /// No description provided for @aiApproveAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Run all'**
+  String get aiApproveAll;
+
+  /// No description provided for @aiRejectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject all'**
+  String get aiRejectAll;
+
+  /// No description provided for @aiNeedsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs its own confirmation'**
+  String get aiNeedsConfirm;
+
+  /// No description provided for @aiAutoExecuted.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran automatically'**
+  String get aiAutoExecuted;
+
+  /// No description provided for @aiUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get aiUndo;
+
+  /// No description provided for @aiUndone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get aiUndone;
+
+  /// No description provided for @aiNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is not set up'**
+  String get aiNotConfigured;
+
+  /// No description provided for @aiNotConfiguredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an API key in Settings > AI and the chat screen appears here. Until then the app makes no network request at all.'**
+  String get aiNotConfiguredHint;
+
+  /// No description provided for @aiGoToSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get aiGoToSettings;
+
+  /// No description provided for @aiDeleteConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get aiDeleteConversation;
+
+  /// No description provided for @aiDeleteConversationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this chat? This cannot be undone.'**
+  String get aiDeleteConversationConfirm;
+
+  /// No description provided for @settingsAiSection.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get settingsAiSection;
+
+  /// No description provided for @settingsAiEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable AI'**
+  String get settingsAiEnabled;
+
+  /// No description provided for @settingsAiApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get settingsAiApiKey;
+
+  /// No description provided for @settingsAiApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored in plain text locally, and exported inside .tfpkg'**
+  String get settingsAiApiKeyHint;
+
+  /// No description provided for @settingsAiBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get settingsAiBaseUrl;
+
+  /// No description provided for @settingsAiModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get settingsAiModel;
+
+  /// No description provided for @settingsAiPermissionMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission mode'**
+  String get settingsAiPermissionMode;
+
+  /// No description provided for @settingsAiPermissionPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan (confirm writes once per turn)'**
+  String get settingsAiPermissionPlan;
+
+  /// No description provided for @settingsAiPermissionAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (run everything but deletions, undoable)'**
+  String get settingsAiPermissionAuto;
+
+  /// No description provided for @settingsAiPermissionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletions always ask one by one, in every mode.'**
+  String get settingsAiPermissionHint;
+
+  /// No description provided for @settingsAiSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get settingsAiSave;
+
+  /// No description provided for @settingsAiSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get settingsAiSaved;
+
+  /// No description provided for @settingsAiKeyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'An API key is required to enable this'**
+  String get settingsAiKeyRequired;
+
+  /// No description provided for @settingsAiPlatformNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.'**
+  String get settingsAiPlatformNote;
 }
 
 class _AppLocalizationsDelegate

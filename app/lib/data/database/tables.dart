@@ -21,6 +21,27 @@ class LocalSettings extends Table {
   /// v2: active appearance theme; NULL = follow built-in defaults.
   TextColumn get activeThemeId => text().nullable()();
 
+  // --- v6: AI configuration (single-row settings, see docs/AI_DESIGN.md) ---
+
+  /// Master switch. NULL / false means the AI surface does not exist at all and
+  /// the app makes no network call of any kind - which is what keeps the
+  /// "offline by default" promise true rather than aspirational.
+  BoolColumn get aiEnabled => boolean().withDefault(const Constant(false))();
+
+  /// Provider API key, stored in plain text on purpose (single-user app, see
+  /// AI_DESIGN D18 and the requirement that key handling stay convenient).
+  /// It is exported inside `.tfpkg`; the export UI says so.
+  TextColumn get aiApiKey => text().nullable()();
+
+  /// OpenAI-compatible endpoint. Defaults to DeepSeek when NULL.
+  TextColumn get aiBaseUrl => text().nullable()();
+
+  /// Model name. Defaults to `deepseek-chat` when NULL.
+  TextColumn get aiModel => text().nullable()();
+
+  /// `plan` | `auto` (see AI_DESIGN D12 v2).
+  TextColumn get aiPermissionMode => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
@@ -244,6 +265,19 @@ class CardStates extends Table {
   /// v2 FSRS state.
   RealColumn get stability => real().nullable()();
   RealColumn get difficulty => real().nullable()();
+
+  /// v6: encoding strength / encoding ceiling (MindNet `R0`).
+  ///
+  /// FSRS as implemented here has no separate ceiling: its curve returns an
+  /// absolute retrievability, while MindNet's is `R = R0 * Psi(t/S)`. Porting
+  /// the cognitive model therefore needs R0 stored, otherwise the two curves
+  /// silently disagree once `R0 < 1` (see docs/MINDNET_CONTRACT.md 8.1).
+  /// Nullable: NULL means "never set", not 1.0, so legacy rows stay honest.
+  RealColumn get encodingStrength => real().nullable()();
+
+  /// v6: savings effect (MindNet `Sigma`), used by the stability-increase term.
+  /// Nullable for the same reason as [encodingStrength].
+  RealColumn get savings => real().nullable()();
 
   /// v2 forced-binding state (wrong-answer rule): 1 while a short-interval
   /// (10 min) relearning loop with the same unit is active.
@@ -598,6 +632,107 @@ class TimeViewSettings extends Table {
 
   IntColumn get updatedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+// ---------------------------------------------------------------------------
+// v6: AI integration (see docs/AI_DESIGN.md)
+//
+// The conversation is the primary AI surface, so it is stored like any other
+// user data - which also means `.tfpkg` already carries it (the package dumps
+// every table found in sqlite_master, no extra work).
+//
+// The API key lives in LocalSettings, NOT here: it is a single-row setting,
+// matching how the active theme id is stored. Note that it therefore travels
+// inside `.tfpkg` too; the export UI warns about that.
+// ---------------------------------------------------------------------------
+
+/// One AI conversation. Title is generated from the first user message.
+class AiConversations extends Table {
+  TextColumn get id => text()();
+
+  /// Human label shown in the conversation list. Never empty: falls back to a
+  /// timestamp when the first message is empty.
+  TextColumn get title => text().withLength(min: 1, max: 200)();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// One message in a conversation.
+///
+/// `role` is the provider-facing role (`user` | `assistant` | `tool` | `system`).
+/// Tool *calls* are not stored as their own rows here: the model's request and
+/// the local execution are two different things (a request can be rejected), so
+/// the execution side lives in [AiActions] where it can carry a status.
+class AiMessages extends Table {
+  TextColumn get id => text()();
+  TextColumn get conversationId => text().references(AiConversations, #id)();
+
+  /// `user` | `assistant` | `tool` | `system`.
+  TextColumn get role => text()();
+
+  /// Message body. For `tool` rows this is the JSON result handed back to the
+  /// model; for `assistant` rows it may be empty when the turn was pure tool
+  /// calls.
+  TextColumn get content => text().nullable()();
+
+  /// Provider tool-call id, only set on `tool` rows. Needed because the Chat
+  /// Completion API rejects a tool result whose id does not match the request
+  /// that produced it.
+  TextColumn get toolCallId => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Audit + approval ledger for every tool call the model proposed.
+///
+/// Why this is separate from [AiMessages]: the approval engine needs a durable
+/// record that survives a rejected or failed call, and the undo feature needs
+/// the before/after snapshots. A tool whose snapshot cannot be taken reliably
+/// is marked `reversible = false` and is never auto-executed (AI_DESIGN D13b).
+class AiActions extends Table {
+  TextColumn get id => text()();
+
+  /// The assistant message whose turn proposed this call.
+  TextColumn get messageId => text().nullable()();
+
+  TextColumn get conversationId => text().references(AiConversations, #id)();
+
+  /// Provider-side call id, so a result can be matched back.
+  TextColumn get toolCallId => text().nullable()();
+
+  TextColumn get toolName => text()();
+
+  /// Raw JSON arguments exactly as the model produced them. Kept verbatim so a
+  /// failed validation can be shown to the user and replayed.
+  TextColumn get argsJson => text()();
+
+  /// `write` | `destructive` (mirrors ToolRisk).
+  TextColumn get risk => text()();
+
+  /// `pending` | `approved` | `rejected` | `executed` | `failed`.
+  TextColumn get status => text()();
+
+  /// Row(s) as they were before the call, JSON. Enables undo.
+  TextColumn get beforeJson => text().nullable()();
+
+  /// Row(s) as they became, JSON.
+  TextColumn get afterJson => text().nullable()();
+
+  /// Failure reason, or the human-readable result summary.
+  TextColumn get resultJson => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
