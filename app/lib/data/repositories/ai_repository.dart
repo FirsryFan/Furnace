@@ -353,6 +353,36 @@ class AiRepository {
     return _toRecord(row);
   }
 
+  /// Links a recorded action to the assistant message whose turn proposed it.
+  ///
+  /// The link is made after the fact because the message is only written once
+  /// the whole turn is complete - see [AgentLoop] for why an incomplete turn
+  /// must never reach the conversation history.
+  Future<void> attachMessageId({
+    required String conversationId,
+    required String toolCallId,
+    required String messageId,
+  }) async {
+    await (_db.update(_db.aiActions)
+          ..where((t) =>
+              t.conversationId.equals(conversationId) &
+              t.toolCallId.equals(toolCallId)))
+        .write(AiActionsCompanion(messageId: Value(messageId)));
+  }
+
+  /// Actions whose turn has already been written into the conversation.
+  ///
+  /// Used to rebuild history: an action with no [AiActionRecord.messageId] has
+  /// not been committed as part of a turn yet.
+  Future<List<AiActionRecord>> listCommittedActions(String conversationId) async {
+    final rows = await (_db.select(_db.aiActions)
+          ..where((t) =>
+              t.conversationId.equals(conversationId) & t.messageId.isNotNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+    return rows.map(_toRecord).toList();
+  }
+
   Future<void> updateActionStatus(
     String id, {
     required String status,

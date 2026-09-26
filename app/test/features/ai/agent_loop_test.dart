@@ -508,6 +508,222 @@ void main() {
     });
   });
 
+  group('history stays valid for the provider', () {
+    /// Asserts the invariant the provider enforces on every request: each
+    /// assistant message that carries tool calls must be followed by one tool
+    /// message per call, before anything else.
+    void expectValidHistory(List<ChatMessage> messages, {required String when}) {
+      for (var i = 0; i < messages.length; i++) {
+        final message = messages[i];
+        if (message.role != 'assistant' || message.toolCalls.isEmpty) {
+          continue;
+        }
+        final ids = message.toolCalls.map((c) => c.id).toList();
+        final answers = <String>[];
+        for (var j = i + 1; j < messages.length; j++) {
+          final next = messages[j];
+          // A non-tool message here means the tool call is unanswered.
+          if (next.role != 'tool') {
+            break;
+          }
+          answers.add(next.toolCallId ?? '');
+        }
+        expect(answers, containsAll(ids),
+            reason: '$when: tool call(s) $ids were not answered immediately '
+                'after the assistant message (found $answers)');
+      }
+    }
+
+    /// The same invariant, checked against what is STORED rather than what was
+    /// sent. A dangling tool call in the database is the real defect: it
+    /// poisons every later request, not just the one it appears in.
+    Future<void> expectStoredHistoryValid(String conversationId) async {
+      final rows = await repository.listMessages(conversationId);
+      final actions = await repository.listCommittedActions(conversationId);
+      final byMessage = <String, List<String>>{};
+      for (final a in actions) {
+        if (a.messageId == null || a.toolCallId == null) {
+          continue;
+        }
+        byMessage.putIfAbsent(a.messageId!, () => []).add(a.toolCallId!);
+      }
+
+      // Every committed action must belong to an assistant message.
+      final assistantIds = rows
+          .where((r) => r.role == AiRepository.roleAssistant)
+          .map((r) => r.id)
+          .toSet();
+      for (final messageId in byMessage.keys) {
+        expect(assistantIds, contains(messageId),
+            reason: 'an action claims a turn message that does not exist');
+      }
+
+      // And every tool reply must belong to a committed turn.
+      final toolCallIds = byMessage.values.expand((e) => e).toSet();
+      for (final row in rows.where((r) => r.role == AiRepository.roleTool)) {
+        expect(toolCallIds, contains(row.toolCallId),
+            reason: 'stored tool reply ${row.toolCallId} has no committed '
+                'assistant turn - the provider would reject this history');
+      }
+
+      // Finally, each committed turn must have a reply per call.
+      for (final entry in byMessage.entries) {
+        for (final id in entry.value) {
+          final answered = rows.any((r) =>
+              r.role == AiRepository.roleTool && r.toolCallId == id);
+          expect(answered, isTrue,
+              reason: 'tool call $id has no stored reply');
+        }
+      }
+    }
+
+    test('a plan-mode turn that ran over two rounds leaves no dangling call',
+        () async {
+      // The pathological sequence, found only by running against the real
+      // provider: round 1 asks for a read tool (pending), the user approves,
+      // round 2 asks for a write tool (pending again). Storing the assistant
+      // message before its tool replies existed used to leave an unanswered
+      // tool call in the database, and every later request failed with a 400:
+      //   "An assistant message with 'tool_calls' must be followed by tool
+      //    messages responding to each 'tool_call_id'"
+      final adapter = FakeModelAdapter([
+        FakeModelAdapter.callTool('query_tasks', {'limit': 5}, id: 'call_read'),
+        FakeModelAdapter.callTool(
+            'manage_task', {'action': 'create', 'title': '两轮之后'}, id: 'call_write'),
+        FakeModelAdapter.answer('都做完了。'),
+      ]);
+      final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
+      final conversation = await repository.createConversation();
+
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '先看看再建一个'));
+      expect(loop.state.hasPending, isTrue);
+      await expectStoredHistoryValid(conversation.id);
+
+      // Approve round 1; round 2 proposes the write and waits again.
+      await settle(loop, () => loop.approvePending(conversation.id));
+      expect(loop.state.hasPending, isTrue);
+      await expectStoredHistoryValid(conversation.id);
+
+      await settle(loop, () => loop.approvePending(conversation.id));
+      expect(loop.state.hasPending, isFalse);
+      await expectStoredHistoryValid(conversation.id);
+
+      // Every request the loop made must also have been a valid history.
+      for (final request in adapter.requests) {
+        expectValidHistory(request.messages, when: 'a live round');
+      }
+      expect((await tasks.getTasks()).single.title, '两轮之后');
+    });
+
+    test('an auto-mode turn with two calls stores both replies', () async {
+      // Two calls in one assistant message: the provider needs one reply per
+      // call, in the same message group.
+      final adapter = FakeModelAdapter([
+        [
+          const ModelToolCall(ToolCallRequest(
+            id: 'c1',
+            name: 'manage_task',
+            rawArguments: '{"action":"create","title":"甲"}',
+            arguments: {'action': 'create', 'title': '甲'},
+          )),
+          const ModelToolCall(ToolCallRequest(
+            id: 'c2',
+            name: 'manage_task',
+            rawArguments: '{"action":"create","title":"乙"}',
+            arguments: {'action': 'create', 'title': '乙'},
+          )),
+          const ModelTurnDone(finishReason: 'tool_calls'),
+        ],
+        FakeModelAdapter.answer('两个都加好了。'),
+      ]);
+      final loop = buildLoop(adapter);
+      final conversation = await repository.createConversation();
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '加两个'));
+
+      await expectStoredHistoryValid(conversation.id);
+      final stored = await repository.listMessages(conversation.id);
+      final assistant =
+          stored.firstWhere((m) => m.role == AiRepository.roleAssistant);
+      final replies = stored
+          .where((m) => m.role == AiRepository.roleTool)
+          .map((m) => m.toolCallId)
+          .toList();
+      expect(replies, containsAll(['c1', 'c2']));
+      expect(assistant.content, isNull);
+    });
+
+    test('a pending turn is kept out of the history entirely', () async {
+      // While waiting for approval the assistant message must NOT be stored:
+      // an incomplete turn is not a valid history.
+      final adapter = FakeModelAdapter([
+        FakeModelAdapter.callTool(
+            'manage_task', {'action': 'create', 'title': '等确认'}, id: 'call_1'),
+        FakeModelAdapter.answer('好了。'),
+      ]);
+      final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
+      final conversation = await repository.createConversation();
+
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '加任务'));
+      expect(loop.state.hasPending, isTrue);
+
+      final stored = await repository.listMessages(conversation.id);
+      expect(stored.map((m) => m.role), ['user'],
+          reason: 'nothing about the unfinished turn may be in the history');
+
+      // The proposal is still auditable while it waits.
+      final actions = await repository.listActions(conversation.id);
+      expect(actions.single.status, AiRepository.statusPending);
+      expect(actions.single.messageId, isNull);
+      await expectStoredHistoryValid(conversation.id);
+    });
+
+    test('a new turn is refused while one is unresolved', () async {
+      // Driving another turn would produce exactly the invalid history above.
+      final adapter = FakeModelAdapter([
+        FakeModelAdapter.callTool(
+            'manage_task', {'action': 'create', 'title': 'x'}, id: 'call_1'),
+        FakeModelAdapter.answer('好'),
+      ]);
+      final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
+      final conversation = await repository.createConversation();
+
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '第一句'));
+      final requestsBefore = adapter.requests.length;
+
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '插队的一句'));
+
+      expect(adapter.requests.length, requestsBefore,
+          reason: 'no request may be made while a turn awaits approval');
+      final stored = await repository.listMessages(conversation.id);
+      expect(stored.map((m) => m.content), ['第一句'],
+          reason: 'the interrupting message must not be recorded either');
+    });
+
+    test('a rejection still closes the turn with a tool answer', () async {
+      final adapter = FakeModelAdapter([
+        FakeModelAdapter.callTool(
+            'manage_task', {'action': 'delete', 'id': 'nope'}, id: 'call_del'),
+        FakeModelAdapter.answer('好'),
+      ]);
+      final loop = buildLoop(adapter);
+      final conversation = await repository.createConversation();
+
+      await settle(loop, () => loop.sendUserMessage(
+          conversationId: conversation.id, text: '删'));
+      await settle(loop, () => loop.rejectPending(conversation.id));
+
+      await expectStoredHistoryValid(conversation.id);
+      for (final request in adapter.requests) {
+        expectValidHistory(request.messages, when: 'after a rejection');
+      }
+    });
+  });
+
   group('schedule tools through the loop', () {
     test('a time block is created and lands in the repository', () async {
       final adapter = FakeModelAdapter([

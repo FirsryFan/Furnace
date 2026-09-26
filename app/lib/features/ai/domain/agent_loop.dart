@@ -37,6 +37,41 @@ class PendingCall {
   }
 }
 
+/// One model turn that asked for tools, plus the replies gathered so far.
+///
+/// The provider requires an assistant message carrying `tool_calls` to be
+/// followed **immediately** by one tool message per call. That makes a turn an
+/// all-or-nothing unit: until every call has a reply, the turn must not appear
+/// in the history at all. Modelling the turn explicitly is what keeps that
+/// invariant true on *every* path - approval, rejection, auto-execution and
+/// failure - instead of only on whichever path was tried first.
+class TurnGroup {
+  TurnGroup({required this.assistantText});
+
+  /// Text the model emitted alongside the calls, if any.
+  final String? assistantText;
+
+  /// Call ids in order, so the assistant message lists them deterministically.
+  final List<String> callIds = [];
+
+  /// One reply per call id. A payload of `null` is impossible: a rejection is
+  /// itself a reply, which is why the model stops re-proposing.
+  final Map<String, Map<String, Object?>> replies = {};
+
+  /// The assistant message row, once written. Written at most once per turn.
+  String? messageId;
+
+  bool get isComplete =>
+      callIds.isNotEmpty && callIds.every(replies.containsKey);
+
+  void addReply(String callId, Map<String, Object?> payload) {
+    if (!callIds.contains(callId)) {
+      callIds.add(callId);
+    }
+    replies[callId] = payload;
+  }
+}
+
 /// One executed call, for display and undo.
 class ExecutedCall {
   const ExecutedCall({
@@ -68,6 +103,7 @@ class AgentTurnState {
     this.generating = false,
     this.streamingText = '',
     this.pending = const [],
+    this.pendingTurn,
     this.executed = const [],
     this.error,
     this.rounds = 0,
@@ -81,6 +117,10 @@ class AgentTurnState {
 
   /// Calls that need a decision before anything happens.
   final List<PendingCall> pending;
+
+  /// The turn those calls belong to. Held in memory: an unfinished turn is not
+  /// valid history, so it must not reach the database before it is complete.
+  final TurnGroup? pendingTurn;
 
   /// Calls that have already run (automatically or after approval).
   final List<ExecutedCall> executed;
@@ -98,15 +138,18 @@ class AgentTurnState {
     bool? generating,
     String? streamingText,
     List<PendingCall>? pending,
+    TurnGroup? pendingTurn,
     List<ExecutedCall>? executed,
     String? error,
     int? rounds,
     bool clearError = false,
+    bool clearPendingTurn = false,
   }) =>
       AgentTurnState(
         generating: generating ?? this.generating,
         streamingText: streamingText ?? this.streamingText,
         pending: pending ?? this.pending,
+        pendingTurn: clearPendingTurn ? null : (pendingTurn ?? this.pendingTurn),
         executed: executed ?? this.executed,
         error: clearError ? null : (error ?? this.error),
         rounds: rounds ?? this.rounds,
@@ -177,6 +220,13 @@ class AgentLoop {
     if (trimmed.isEmpty) {
       return;
     }
+    if (_state.hasPending) {
+      // Driving a new turn while a previous one is unresolved would leave the
+      // model's tool calls unanswered in the history, and the provider rejects
+      // that with a 400. The UI already disables its input here; this guard
+      // makes the invariant true for every caller.
+      return;
+    }
     _emit(const AgentTurnState(generating: true));
     await repository.addMessage(
       conversationId: conversationId,
@@ -189,40 +239,50 @@ class AgentLoop {
   /// Executes the calls the user approved, then lets the model continue.
   Future<void> approvePending(String conversationId) async {
     final pending = _state.pending;
-    if (pending.isEmpty) {
+    final group = _state.pendingTurn;
+    if (pending.isEmpty || group == null) {
       return;
     }
-    _emit(_state.copyWith(pending: const [], generating: true));
+    _emit(_state.copyWith(
+      pending: const [],
+      pendingTurn: group,
+      generating: true,
+    ));
     for (final item in pending) {
-      await _execute(conversationId, item);
+      await _execute(conversationId, item, group);
     }
+    // The turn is complete now, so it can be recorded as one valid unit and the
+    // model can be asked for the next step.
+    await _commitTurn(conversationId, group);
+    _emit(_state.copyWith(clearPendingTurn: true));
     await _drive(conversationId);
   }
 
-  /// Refuses every pending call. They are still reported to the model, so it
-  /// stops asking for the same thing.
+  /// Refuses every pending call.
+  ///
+  /// A refusal is itself a reply, and it is recorded as one: the provider needs
+  /// an answer per call, and the model needs to know it was refused or it will
+  /// simply propose the same thing again.
   Future<void> rejectPending(String conversationId) async {
     final pending = _state.pending;
-    if (pending.isEmpty) {
+    final group = _state.pendingTurn;
+    if (pending.isEmpty || group == null) {
       return;
     }
     for (final item in pending) {
+      final payload = <String, Object?>{
+        'ok': false,
+        'error': '用户拒绝了这次操作',
+      };
+      group.addReply(item.call.id, payload);
       await repository.updateActionStatus(
         item.actionId,
         status: AiRepository.statusRejected,
-        resultJson: jsonEncode({'rejected': true}),
-      );
-      await repository.addMessage(
-        conversationId: conversationId,
-        role: AiRepository.roleTool,
-        toolCallId: item.call.id,
-        content: jsonEncode({
-          'ok': false,
-          'error': '用户拒绝了这次操作',
-        }),
+        resultJson: jsonEncode(payload),
       );
     }
-    _emit(_state.copyWith(pending: const []));
+    await _commitTurn(conversationId, group);
+    _emit(_state.copyWith(pending: const [], clearPendingTurn: true));
   }
 
   /// Undoes one executed call by applying its before-snapshot.
@@ -318,15 +378,11 @@ class AgentLoop {
         return;
       }
 
-      // Persist the assistant turn that asked for the tools, so the history the
-      // model sees next round matches what the provider expects.
-      final assistantMessage = await repository.addMessage(
-        conversationId: conversationId,
-        role: AiRepository.roleAssistant,
-        content: textBuffer.isEmpty ? null : textBuffer.toString(),
+      final pending = <PendingCall>[];
+      final group = TurnGroup(
+        assistantText: textBuffer.isEmpty ? null : textBuffer.toString(),
       );
 
-      final pending = <PendingCall>[];
       for (final call in calls) {
         final tool = registry.byName(call.name);
         final action = tool?.actionOf(call.arguments) ?? call.name;
@@ -340,7 +396,6 @@ class AgentLoop {
 
         final record = await repository.recordAction(
           conversationId: conversationId,
-          messageId: assistantMessage.id,
           toolCallId: call.id,
           toolName: call.name,
           risk: risk.id,
@@ -355,14 +410,10 @@ class AgentLoop {
 
         if (tool == null || call.parseError != null) {
           // Report the problem back to the model instead of dropping the call.
-          await _reportToolResult(
-            conversationId: conversationId,
-            call: call,
-            payload: {
-              'ok': false,
-              'error': call.parseError ?? '未知工具 ${call.name}',
-            },
-          );
+          group.addReply(call.id, {
+            'ok': false,
+            'error': call.parseError ?? '未知工具 ${call.name}',
+          });
           continue;
         }
 
@@ -374,23 +425,29 @@ class AgentLoop {
         );
 
         if (decision.runsWithoutAsking) {
-          await _execute(conversationId, item);
+          await _execute(conversationId, item, group);
         } else {
+          group.callIds.add(call.id);
           pending.add(item);
         }
       }
 
       if (pending.isNotEmpty) {
-        // Stop and wait for the user. The loop resumes in approvePending /
-        // rejectPending.
+        // The turn cannot be written yet: it still has calls with no reply, and
+        // a half-answered turn is not a valid history. It is committed by
+        // approvePending / rejectPending once the user has decided. The
+        // proposals themselves are already on the ledger for audit.
         _emit(_state.copyWith(
           generating: false,
-          streamingText: '',
+          streamingText: textBuffer.toString(),
           pending: pending,
+          pendingTurn: group,
           rounds: rounds,
         ));
         return;
       }
+
+      await _commitTurn(conversationId, group);
     }
 
     // C3: the cap was reached. Say so plainly rather than stopping silently.
@@ -409,8 +466,49 @@ class AgentLoop {
     ));
   }
 
+  /// Writes a completed turn: the assistant message, then one tool reply per
+  /// call, in call order.
+  ///
+  /// The group is committed **once**; a second call is a no-op, which is what
+  /// makes approve/reject idempotent and safe to retry.
+  Future<void> _commitTurn(String conversationId, TurnGroup group) async {
+    if (group.messageId != null || !group.isComplete) {
+      return;
+    }
+    final message = await repository.addMessage(
+      conversationId: conversationId,
+      role: AiRepository.roleAssistant,
+      content: group.assistantText,
+    );
+    group.messageId = message.id;
+    for (final callId in group.callIds) {
+      await repository.addMessage(
+        conversationId: conversationId,
+        role: AiRepository.roleTool,
+        toolCallId: callId,
+        content: jsonEncode(group.replies[callId]),
+      );
+      await repository.attachMessageId(
+        conversationId: conversationId,
+        toolCallId: callId,
+        messageId: message.id,
+      );
+    }
+  }
+
   /// Runs one approved (or auto-approved) call and records the outcome.
-  Future<void> _execute(String conversationId, PendingCall item) async {
+  ///
+  /// The reply is added to [group] rather than written directly, so the turn is
+  /// only persisted once it is complete.
+  Future<void> _execute(
+    String conversationId,
+    PendingCall item,
+    TurnGroup group,
+  ) async {
+    final alreadyReplied = group.replies.containsKey(item.call.id);
+    if (alreadyReplied) {
+      return;
+    }
     final record = (await repository.listActions(conversationId))
         .where((a) => a.id == item.actionId)
         .toList();
@@ -418,6 +516,10 @@ class AgentLoop {
         (record.first.status == AiRepository.statusExecuted ||
             record.first.status == AiRepository.statusRejected);
     if (alreadyDone) {
+      group.addReply(
+        item.call.id,
+        jsonDecode(record.first.resultJson ?? '{}').cast<String, Object?>(),
+      );
       return;
     }
 
@@ -446,11 +548,10 @@ class AgentLoop {
       resultJson: jsonEncode(result.toModelJson()),
     );
 
-    await _reportToolResult(
-      conversationId: conversationId,
-      call: item.call,
-      payload: result.toModelJson(),
-    );
+    // The reply joins the turn instead of being written on its own: a tool
+    // message without its assistant message is exactly what the provider
+    // rejects.
+    group.addReply(item.call.id, result.toModelJson());
 
     _emit(_state.copyWith(executed: [
       ..._state.executed,
@@ -464,28 +565,31 @@ class AgentLoop {
     ]));
   }
 
-  Future<void> _reportToolResult({
-    required String conversationId,
-    required ToolCallRequest call,
-    required Map<String, Object?> payload,
-  }) async {
-    final content = jsonEncode(payload);
-    await repository.addMessage(
-      conversationId: conversationId,
-      role: AiRepository.roleTool,
-      toolCallId: call.id,
-      content: content,
-    );
-    // Keep the raw text on the ledger too, so the transcript is self-contained.
-  }
-
   /// Rebuilds the provider-facing history from storage.
   ///
   /// Rebuilt every round rather than kept in memory: the database is the source
   /// of truth, so a restart mid-conversation loses nothing, and the loop cannot
   /// drift from what the user sees.
+  ///
+  /// A tool-calling turn is emitted as a **contiguous group** - the assistant
+  /// message followed by one tool message per call - because the provider
+  /// rejects a history where a `tool_call_id` is not answered immediately
+  /// afterwards. Grouping also makes the order independent of the order the
+  /// rows happened to be written in (the assistant message is written last, see
+  /// [_drive], precisely so an incomplete turn never exists on disk).
   Future<List<ChatMessage>> _buildHistory(String conversationId) async {
     final rows = await repository.listMessages(conversationId);
+    final actions = await repository.listCommittedActions(conversationId);
+
+    final byMessage = <String, List<AiActionRecord>>{};
+    for (final action in actions) {
+      final messageId = action.messageId;
+      if (messageId == null) {
+        continue;
+      }
+      byMessage.putIfAbsent(messageId, () => []).add(action);
+    }
+
     final messages = <ChatMessage>[
       ChatMessage.system(_systemPrompt()),
     ];
@@ -495,48 +599,50 @@ class AgentLoop {
         case AiRepository.roleUser:
           messages.add(ChatMessage.user(row.content ?? ''));
         case AiRepository.roleAssistant:
-          // Assistant turns that carried tool calls are reconstructed from the
-          // ledger below, because the calls themselves live there.
-          final calls = await _callsForMessage(row.id);
-          if (calls.isEmpty && (row.content == null || row.content!.isEmpty)) {
-            continue;
+          final turn = byMessage[row.id];
+          if (turn == null || turn.isEmpty) {
+            if (row.content == null || row.content!.isEmpty) {
+              continue;
+            }
+            messages.add(ChatMessage.assistant(content: row.content));
+            break;
           }
+          // The turn's tool calls, then their answers, in the order the calls
+          // were made. Ordering by the call list (not by row timestamps) keeps
+          // request and reply paired even if a reply was written late.
           messages.add(ChatMessage.assistant(
             content: row.content,
-            toolCalls: calls,
+            toolCalls: [
+              for (final action in turn)
+                if (action.toolCallId != null)
+                  ToolCallRequest(
+                    id: action.toolCallId!,
+                    name: action.toolName,
+                    rawArguments: action.argsJson ?? '{}',
+                    arguments: _decodeArgs(action.argsJson ?? '{}'),
+                  ),
+            ],
           ));
-        case AiRepository.roleTool:
-          if (row.toolCallId == null) {
-            continue;
+          for (final action in turn) {
+            if (action.toolCallId == null) {
+              continue;
+            }
+            messages.add(ChatMessage.tool(
+              action.resultJson ??
+                  jsonEncode({'ok': action.status == AiRepository.statusExecuted}),
+              toolCallId: action.toolCallId!,
+            ));
           }
-          messages.add(ChatMessage.tool(
-            row.content ?? '',
-            toolCallId: row.toolCallId!,
-          ));
+        case AiRepository.roleTool:
+          // Committed turns already emitted their tool replies above. A `tool`
+          // row without a matching committed action would be an orphan, and
+          // sending one is exactly what the provider rejects.
+          break;
         case AiRepository.roleSystem:
           messages.add(ChatMessage.system(row.content ?? ''));
       }
     }
     return messages;
-  }
-
-  Future<List<ToolCallRequest>> _callsForMessage(String messageId) async {
-    final rows = await (db.select(db.aiActions)
-          ..where((t) => t.messageId.equals(messageId)))
-        .get();
-    final calls = <ToolCallRequest>[];
-    for (final row in rows) {
-      if (row.toolCallId == null) {
-        continue;
-      }
-      calls.add(ToolCallRequest(
-        id: row.toolCallId!,
-        name: row.toolName,
-        rawArguments: row.argsJson,
-        arguments: _decodeArgs(row.argsJson),
-      ));
-    }
-    return calls;
   }
 
   Map<String, Object?> _decodeArgs(String raw) {
