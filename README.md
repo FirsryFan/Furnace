@@ -18,17 +18,18 @@
 
 | 能力 | 状态 |
 | --- | --- |
-| 数据层（Drift SQLite，schema v5，26+ 表，v1→v5 幂等迁移 + 缺失列自愈） | ✅ |
+| 数据层（Drift SQLite，schema v6，31 表，v1→v6 幂等迁移 + 缺失列自愈） | ✅ |
 | Thread 排序引擎（权重归一化、deadline 硬约束、期望时刻黄标提权） | ✅ |
 | Knowledge 复习引擎（FSRS-6、自由挖空、错题绑定、严格判分、标签树扩散、按天台账） | ✅ |
 | 界面（Thread / Time 日历 / Knowledge 复习 / 标签树 / 设置 / 使用文档） | ✅ |
 | `.tfpkg` 全量打包编解码 + 覆盖/追加合并 | ✅ 库层 + **设置页已接入** |
 | 主题 JSON（颜色/背景/字体/缩放/动画）+ 外观设置页 | ✅ **已接入设置页并在全局生效** |
+| **AI 对话**（agent loop + 工具层 + 审批引擎 + 对话/设置界面） | ✅ 闭环已实现；**默认关闭**，填入 key 后对话入口才出现 |
 | Windows 构建 | ✅ 实测可运行（`furnace.exe`） |
 | Android 构建 | ✅ 实测产出已签名 release APK（62.08 MB，`com.furnace.app`） |
-| 自动化测试 | **196 项全绿**；`dart analyze` **0 error / 0 warning** |
+| 自动化测试 | **308 项全绿**；`dart analyze` **0 error / 0 warning** |
 
-**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证、AI 接入（Q3）、MindNet 接入（Q4）——后两项见 [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md)。
+**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证、真实 API 调用实测（缺 key）、`.fskill` 执行容器（格式已定稿，见 [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md)）、MindNet tierA 移植（接口已协商完，见 [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md)）。
 
 ## 目录结构
 
@@ -74,7 +75,7 @@ junction 自动处理）、以及 `file_picker` 的版本冲突。
 
 ```powershell
 cd app
-flutter test                 # 172 项
+flutter test                 # 308 项
 dart analyze                 # 应为 0 error
 ```
 
@@ -96,6 +97,9 @@ dart analyze                 # 应为 0 error
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 技术架构与数据模型 |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 构建、环境事实与踩坑记录 |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | 逐轮开发进展（长期记忆） |
+| [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | AI 集成设计（20 条决策与依据） |
+| [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md) | `.fskill` 包格式与安全边界 |
+| [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md) | 与 MindNet 的接口约定（双方回应都在里面） |
 | [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) · [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) | 差距分析与功能矩阵 |
 
 ## 许可
