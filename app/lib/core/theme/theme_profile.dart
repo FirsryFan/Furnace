@@ -202,25 +202,61 @@ class ThemeProfileData {
   );
 
   /// Builds the Flutter theme for this profile.
+  ///
+  /// Every field of this document is meant to be *visible*. Three of them were
+  /// not: `background`, `backgroundOpacity` and `editorFont` were editable in
+  /// the theme editor and parsed from files, but never reached the widget tree,
+  /// so changing them did nothing. That is worse than not offering them - the
+  /// user believes the setting took effect. They are applied here.
   ThemeData toThemeData() {
     final scheme = ColorScheme.fromSeed(
       seedColor: colorOf(primary, fallback: const Color(0xFF2F6F4F)),
       brightness: isDark ? Brightness.dark : Brightness.light,
     );
+
+    // The configured background colour, at the configured opacity, is the
+    // scaffold background. Opacity below 1 lets whatever is painted behind the
+    // scaffold show through, which is what the slider promises.
+    final backgroundColour = background == null
+        ? null
+        : colorOf(background!, fallback: scheme.surface)
+            .withValues(alpha: backgroundOpacity.clamp(0.0, 1.0));
+
+    final surfaceOverride = surface == null
+        ? null
+        : colorOf(surface!, fallback: scheme.surface);
+
     final base = ThemeData(
-      colorScheme: scheme,
+      colorScheme: surfaceOverride == null
+          ? scheme
+          : scheme.copyWith(surface: surfaceOverride),
       useMaterial3: true,
       fontFamily: uiFont,
       visualDensity: VisualDensity.standard,
+      scaffoldBackgroundColor: backgroundColour,
     );
-    final surfaceOverride = surface == null
-        ? null
-        : colorOf(surface, fallback: scheme.surface);
-    return surfaceOverride == null
-        ? base
-        : base.copyWith(
-            colorScheme: scheme.copyWith(surface: surfaceOverride),
-          );
+
+    if (editorFont == null) {
+      return base;
+    }
+
+    // A body/editor font is a different thing from the UI font: it applies to
+    // what the user *reads and writes* (descriptions, notes, card answers,
+    // message bodies) while buttons, tabs and titles keep the UI font. Applying
+    // it to the whole text theme would silently defeat the second setting, so
+    // only the body styles are overridden.
+    final body = base.textTheme;
+    return base.copyWith(
+      textTheme: body.copyWith(
+        bodyLarge: body.bodyLarge?.copyWith(fontFamily: editorFont),
+        bodyMedium: body.bodyMedium?.copyWith(fontFamily: editorFont),
+        bodySmall: body.bodySmall?.copyWith(fontFamily: editorFont),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(fontFamily: editorFont),
+        labelStyle: TextStyle(fontFamily: editorFont),
+      ),
+    );
   }
 }
 

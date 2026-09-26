@@ -1,7 +1,12 @@
+import 'dart:io';
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../core/theme/theme_profile.dart';
 import '../features/settings/application/appearance_providers.dart';
@@ -61,6 +66,63 @@ class FurnaceApp extends ConsumerWidget {
   }
 }
 
+/// Paints the theme's background image behind the whole app.
+///
+/// The path stored in a theme document is relative to the app support
+/// directory (importing copies the file there, so a theme travels with its
+/// image only as far as the user re-imports it). A missing file therefore
+/// degrades to "no image" instead of crashing the app on startup - a theme
+/// whose picture was deleted must not make the app unusable.
+class _BackgroundImage extends StatelessWidget {
+  const _BackgroundImage({
+    required this.relativePath,
+    required this.blur,
+    required this.child,
+  });
+
+  final String relativePath;
+  final double blur;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Directory>(
+      future: getApplicationSupportDirectory(),
+      builder: (context, snapshot) {
+        final dir = snapshot.data;
+        if (dir == null) {
+          return child;
+        }
+        final file = File(p.join(dir.path, relativePath));
+        if (!file.existsSync()) {
+          return child;
+        }
+        Widget image = Image.file(
+          file,
+          fit: BoxFit.cover,
+          // Decode at a sane size: a phone photo as a full-resolution
+          // background costs a lot of memory for no visible gain.
+          cacheWidth: 2048,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        );
+        if (blur > 0) {
+          image = ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: image,
+          );
+        }
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(child: image),
+            child,
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// Applies the theme's page scale and animation switch to the widget tree.
 ///
 /// Why only `textScaler`: scaling here AND inside `ThemeData` would scale text
@@ -90,6 +152,17 @@ class _AppearanceScope extends StatelessWidget {
       ),
       child: child,
     );
+
+    // A background image is a layer *behind* the whole app. The theme's
+    // scaffold background is painted with the configured opacity, so the image
+    // shows through exactly as far as the opacity slider says.
+    if (profile.backgroundImagePath != null) {
+      result = _BackgroundImage(
+        relativePath: profile.backgroundImagePath!,
+        blur: profile.backgroundBlur,
+        child: result,
+      );
+    }
 
     if (!profile.animations) {
       // Disabling animations is expressed by shortening every implicit

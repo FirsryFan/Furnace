@@ -2059,6 +2059,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.'**
   String get settingsAiPlatformNote;
+
+  /// No description provided for @settingsThemeBackgroundNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No background image'**
+  String get settingsThemeBackgroundNone;
+
+  /// No description provided for @settingsThemeBackgroundSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Background image set'**
+  String get settingsThemeBackgroundSet;
+
+  /// No description provided for @settingsThemeBackgroundPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an image'**
+  String get settingsThemeBackgroundPick;
+
+  /// No description provided for @settingsThemeBackgroundBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Background blur'**
+  String get settingsThemeBackgroundBlur;
+
+  /// No description provided for @settingsThemeBackgroundFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That image could not be read'**
+  String get settingsThemeBackgroundFailed;
+
+  /// No description provided for @settingsTfpkgExportSecretsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This package would include your AI API key. If you are sending it to someone else, choose the version without secrets.'**
+  String get settingsTfpkgExportSecretsHint;
+
+  /// No description provided for @settingsTfpkgExportWithSecrets.
+  ///
+  /// In en, this message translates to:
+  /// **'Include (for my own backup)'**
+  String get settingsTfpkgExportWithSecrets;
+
+  /// No description provided for @settingsTfpkgExportNoSecrets.
+  ///
+  /// In en, this message translates to:
+  /// **'Without secrets (to share)'**
+  String get settingsTfpkgExportNoSecrets;
+
+  /// No description provided for @settingsTfpkgExportDoneNoSecrets.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace exported (API key excluded)'**
+  String get settingsTfpkgExportDoneNoSecrets;
 }
 
 class _AppLocalizationsDelegate

@@ -6,5 +6,13 @@ import '../../data/package/tfpkg_codec.dart';
 /// dump rather than on the database, which keeps both sides testable in
 /// isolation.
 abstract interface class TfpkgDumpSource {
-  Future<TfpkgDump> exportDump({String? appVersion});
+  /// Produces the dump to encode.
+  ///
+  /// [excludeSensitive] blanks stored secrets (today: the AI API key) so a
+  /// package can be handed to someone else without handing over a working
+  /// credential.
+  Future<TfpkgDump> exportDump({
+    String? appVersion,
+    bool excludeSensitive = false,
+  });
 }

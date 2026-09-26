@@ -48,9 +48,36 @@ class DataSection extends ConsumerWidget {
   Future<void> _export(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+
+    // A `.tfpkg` is the thing people hand to each other, and it carries the AI
+    // API key (a plain settings column). Ask before including it rather than
+    // deciding for the user - defaulting to "include" would leak a working
+    // credential the first time someone shares a package without thinking.
+    final includeSecrets = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsTfpkgExport),
+        content: Text(l10n.settingsTfpkgExportSecretsHint),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.settingsTfpkgExportNoSecrets),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.settingsTfpkgExportWithSecrets),
+          ),
+        ],
+      ),
+    );
+    if (includeSecrets == null) {
+      return;
+    }
+
     try {
       final service = TfpkgService(ref.read(appDatabaseProvider));
-      final bytes = await service.exportBytes();
+      final bytes =
+          await service.exportBytes(excludeSensitive: !includeSecrets);
       final stamp = DateTime.now()
           .toIso8601String()
           .substring(0, 16)
@@ -66,7 +93,11 @@ class DataSection extends ConsumerWidget {
         return;
       }
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.settingsTfpkgExportDone)),
+        SnackBar(
+          content: Text(includeSecrets
+              ? l10n.settingsTfpkgExportDone
+              : l10n.settingsTfpkgExportDoneNoSecrets),
+        ),
       );
     } catch (error) {
       messenger.showSnackBar(

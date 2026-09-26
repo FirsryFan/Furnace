@@ -1,10 +1,19 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/theme_profile.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/appearance_providers.dart';
+
+/// Folder inside the app support directory that holds imported background
+/// images. The theme document stores a path relative to that directory.
+const String _backgroundDirName = 'theme-backgrounds';
 
 /// Editor for one theme document (spec §4).
 ///
@@ -53,6 +62,61 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
       _isBuiltin = row?.isBuiltin == 1;
       _loading = false;
     });
+  }
+
+  /// Copies a chosen image into the app's own directory and points the theme at
+  /// it.
+  ///
+  /// Copying rather than referencing the original path is deliberate: the user
+  /// may move or delete the file they picked, and a theme that silently loses
+  /// its background (or worse, breaks on another machine) is a bad trade for a
+  /// few hundred kilobytes. The stored path stays relative, so the theme
+  /// document itself never contains a machine-specific absolute path.
+  Future<void> _pickBackgroundImage(ThemeProfileData data) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
+      );
+      if (picked.isEmpty) {
+        return;
+      }
+      final source = picked.first;
+      final bytes = await source.readAsBytes();
+      if (bytes.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.settingsThemeBackgroundFailed)),
+        );
+        return;
+      }
+
+      final dir = await getApplicationSupportDirectory();
+      final target = Directory(p.join(dir.path, _backgroundDirName));
+      await target.create(recursive: true);
+      // A fresh name per import: overwriting the previous file would leave any
+      // other theme pointing at a picture it never chose.
+      final name = 'bg-${DateTime.now().millisecondsSinceEpoch}'
+          '${p.extension(source.name).toLowerCase()}';
+      await File(p.join(target.path, name)).writeAsBytes(bytes);
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        // Use the CURRENT edit state, not the value captured when the card was
+        // built: the user may have changed colours in the meantime, and saving
+        // the stale snapshot would silently discard those edits.
+        _data = (_data ?? data).copyWith(
+          backgroundImagePath: p.join(_backgroundDirName, name),
+        );
+      });
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('${l10n.settingsThemeBackgroundPick}: $error')),
+      );
+    }
   }
 
   @override
@@ -159,6 +223,49 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
                               data.copyWith(backgroundOpacity: value),
                         ),
                       ),
+                      const Divider(),
+                      // The image fields existed in the theme document but had
+                      // no way to be set and nothing rendered them. Both halves
+                      // are wired here.
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              data.backgroundImagePath == null
+                                  ? l10n.settingsThemeBackgroundNone
+                                  : l10n.settingsThemeBackgroundSet,
+                            ),
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.image_outlined),
+                            label: Text(l10n.settingsThemeBackgroundPick),
+                            onPressed: () => _pickBackgroundImage(data),
+                          ),
+                          if (data.backgroundImagePath != null)
+                            IconButton(
+                              tooltip: l10n.commonClear,
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setState(
+                                () => _data = data.copyWith(
+                                  clearBackgroundImage: true,
+                                  backgroundBlur: 0,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (data.backgroundImagePath != null) ...[
+                        Text('${l10n.settingsThemeBackgroundBlur}: '
+                            '${data.backgroundBlur.round()}'),
+                        Slider(
+                          value: data.backgroundBlur.clamp(0, 30),
+                          max: 30,
+                          divisions: 30,
+                          onChanged: (value) => setState(
+                            () => _data = data.copyWith(backgroundBlur: value),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

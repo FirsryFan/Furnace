@@ -395,5 +395,14 @@
   "settingsAiSave": "Save",
   "settingsAiSaved": "Saved",
   "settingsAiKeyRequired": "An API key is required to enable this",
-  "settingsAiPlatformNote": "Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only."
+  "settingsAiPlatformNote": "Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.",
+  "settingsThemeBackgroundNone": "No background image",
+  "settingsThemeBackgroundSet": "Background image set",
+  "settingsThemeBackgroundPick": "Pick an image",
+  "settingsThemeBackgroundBlur": "Background blur",
+  "settingsThemeBackgroundFailed": "That image could not be read",
+  "settingsTfpkgExportSecretsHint": "This package would include your AI API key. If you are sending it to someone else, choose the version without secrets.",
+  "settingsTfpkgExportWithSecrets": "Include (for my own backup)",
+  "settingsTfpkgExportNoSecrets": "Without secrets (to share)",
+  "settingsTfpkgExportDoneNoSecrets": "Workspace exported (API key excluded)"
 }

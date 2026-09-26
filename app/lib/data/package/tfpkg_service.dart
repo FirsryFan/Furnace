@@ -20,11 +20,28 @@ class TfpkgService implements TfpkgDumpSource {
   /// Themes are exported as raw JSON documents.
   static const String themesTable = 'themes';
 
+  /// Columns that hold a secret and must be blanked when the user asks for an
+  /// export without sensitive configuration.
+  ///
+  /// The API key is the only one today; it lives in a normal settings column,
+  /// which means a plain `.tfpkg` carries it. Since a package is exactly the
+  /// thing people hand to someone else, sharing one should not hand over a
+  /// working credential.
+  static const Map<String, List<String>> sensitiveColumns = {
+    'local_settings': ['ai_api_key'],
+  };
+
   @override
-  Future<TfpkgDump> exportDump({String? appVersion}) async {
+  Future<TfpkgDump> exportDump({
+    String? appVersion,
+    bool excludeSensitive = false,
+  }) async {
     final tables = <String, TableDump>{};
     for (final table in await _db.userTables()) {
-      final rows = await _db.dumpTable(table);
+      var rows = await _db.dumpTable(table);
+      if (excludeSensitive) {
+        rows = _withoutSecrets(table, rows);
+      }
       tables[table] = TableDump(rows: rows);
     }
     final themes = <String>[
@@ -44,8 +61,12 @@ class TfpkgService implements TfpkgDumpSource {
   Future<Uint8List> exportBytes({
     String? appVersion,
     List<AttachmentBlob> attachments = const [],
+    bool excludeSensitive = false,
   }) async {
-    final dump = await exportDump(appVersion: appVersion);
+    final dump = await exportDump(
+      appVersion: appVersion,
+      excludeSensitive: excludeSensitive,
+    );
     return TfpkgCodec.encode(TfpkgDump(
       formatVersion: dump.formatVersion,
       appName: dump.appName,
@@ -55,6 +76,29 @@ class TfpkgService implements TfpkgDumpSource {
       themes: dump.themes,
       attachments: attachments,
     ));
+  }
+
+  /// Blanks the secret columns of [rows], leaving everything else untouched.
+  ///
+  /// The row and its other settings survive so the import still restores the
+  /// user's preferences; only the credential goes. A key that is simply absent
+  /// is not a key that is wrong, so the receiving install reads as "AI not set
+  /// up" rather than as "AI configured with a broken key".
+  List<Map<String, dynamic>> _withoutSecrets(
+    String table,
+    List<Map<String, dynamic>> rows,
+  ) {
+    final columns = sensitiveColumns[table];
+    if (columns == null || rows.isEmpty) {
+      return rows;
+    }
+    return [
+      for (final row in rows)
+        {
+          for (final entry in row.entries)
+            entry.key: columns.contains(entry.key) ? null : entry.value,
+        },
+    ];
   }
 
   /// Imports [dump].

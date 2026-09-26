@@ -1075,4 +1075,33 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsAiPlatformNote =>
       'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.';
+
+  @override
+  String get settingsThemeBackgroundNone => 'No background image';
+
+  @override
+  String get settingsThemeBackgroundSet => 'Background image set';
+
+  @override
+  String get settingsThemeBackgroundPick => 'Pick an image';
+
+  @override
+  String get settingsThemeBackgroundBlur => 'Background blur';
+
+  @override
+  String get settingsThemeBackgroundFailed => 'That image could not be read';
+
+  @override
+  String get settingsTfpkgExportSecretsHint =>
+      'This package would include your AI API key. If you are sending it to someone else, choose the version without secrets.';
+
+  @override
+  String get settingsTfpkgExportWithSecrets => 'Include (for my own backup)';
+
+  @override
+  String get settingsTfpkgExportNoSecrets => 'Without secrets (to share)';
+
+  @override
+  String get settingsTfpkgExportDoneNoSecrets =>
+      'Workspace exported (API key excluded)';
 }

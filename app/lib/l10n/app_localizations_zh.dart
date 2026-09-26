@@ -1030,4 +1030,32 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsAiPlatformNote =>
       'Android 上没有 Node 运行时与桌面浏览器，脚本型 skill 与浏览器扩展能力只在 Windows 上可用。';
+
+  @override
+  String get settingsThemeBackgroundNone => '未设置背景图';
+
+  @override
+  String get settingsThemeBackgroundSet => '已设置背景图';
+
+  @override
+  String get settingsThemeBackgroundPick => '选择背景图';
+
+  @override
+  String get settingsThemeBackgroundBlur => '背景模糊';
+
+  @override
+  String get settingsThemeBackgroundFailed => '这个图片文件读不出来';
+
+  @override
+  String get settingsTfpkgExportSecretsHint =>
+      '这个包会带上你的 AI API key。如果是要发给别人，请选择不含密钥的版本。';
+
+  @override
+  String get settingsTfpkgExportWithSecrets => '包含（自己备份用）';
+
+  @override
+  String get settingsTfpkgExportNoSecrets => '不含密钥（发给别人）';
+
+  @override
+  String get settingsTfpkgExportDoneNoSecrets => '工作区已导出（未包含 API key）';
 }
