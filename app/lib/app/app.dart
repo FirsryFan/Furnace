@@ -66,59 +66,122 @@ class FurnaceApp extends ConsumerWidget {
   }
 }
 
-/// Paints the theme's background image behind the whole app.
+/// Paints the theme's background image behind the whole app, with the theme's
+/// background colour laid over it as a translucent scrim.
 ///
-/// The path stored in a theme document is relative to the app support
-/// directory (importing copies the file there, so a theme travels with its
-/// image only as far as the user re-imports it). A missing file therefore
-/// degrades to "no image" instead of crashing the app on startup - a theme
-/// whose picture was deleted must not make the app unusable.
-class _BackgroundImage extends StatelessWidget {
+/// Layering, bottom to top:
+///
+///   1. the image
+///   2. the background colour at the configured opacity (the "scrim")
+///   3. the app
+///
+/// The scrim is what makes the background **readable**: a photo behind raw text
+/// makes the text unreadable, and a 0-opacity colour would leave it that way.
+/// Painting the colour over the image (rather than under, as a scaffold
+/// background) is also what fixes the bug where the image never appeared at
+/// all: the scaffold sits *above* this layer, so an opaque scaffold background
+/// covered the picture no matter how transparent the colour was meant to be.
+/// `ThemeProfileData.toThemeData` therefore makes the scaffold transparent
+/// whenever a background image is present.
+///
+/// The path stored in a theme document is relative to the app support directory
+/// (importing copies the file there). A missing file degrades to "no image"
+/// instead of crashing the app on startup - a theme whose picture was deleted
+/// must not make the app unusable.
+class _BackgroundImage extends StatefulWidget {
   const _BackgroundImage({
     required this.relativePath,
     required this.blur,
+    required this.scrim,
     required this.child,
   });
 
   final String relativePath;
   final double blur;
+  final Color? scrim;
   final Widget child;
 
   @override
+  State<_BackgroundImage> createState() => _BackgroundImageState();
+}
+
+class _BackgroundImageState extends State<_BackgroundImage> {
+  /// Resolved once and kept: the support directory does not move while the app
+  /// runs, and re-resolving per rebuild made the layer flicker. `null` means
+  /// "not resolved yet" and is handled by painting only the scrim.
+  String? _filePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(_BackgroundImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.relativePath != widget.relativePath) {
+      _resolve();
+    }
+  }
+
+  Future<void> _resolve() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      if (!mounted) {
+        return;
+      }
+      setState(() => _filePath = p.join(dir.path, widget.relativePath));
+    } catch (_) {
+      // No support directory (should not happen on a supported platform), or
+      // the plugin failed: fall back to "no image" rather than taking the app
+      // down over a decoration. Leaving `_filePath` null does exactly that.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Directory>(
-      future: getApplicationSupportDirectory(),
-      builder: (context, snapshot) {
-        final dir = snapshot.data;
-        if (dir == null) {
-          return child;
-        }
-        final file = File(p.join(dir.path, relativePath));
-        if (!file.existsSync()) {
-          return child;
-        }
-        Widget image = Image.file(
-          file,
-          fit: BoxFit.cover,
-          // Decode at a sane size: a phone photo as a full-resolution
-          // background costs a lot of memory for no visible gain.
-          cacheWidth: 2048,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-        );
-        if (blur > 0) {
-          image = ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-            child: image,
-          );
-        }
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(child: image),
-            child,
-          ],
-        );
-      },
+    final path = _filePath;
+    final exists = path != null && File(path).existsSync();
+
+    // Until the path is known, paint only the scrim: no flash of the image
+    // appearing a frame later.
+    if (!exists) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (widget.scrim != null)
+            Positioned.fill(child: ColoredBox(color: widget.scrim!)),
+          widget.child,
+        ],
+      );
+    }
+
+    Widget image = Image.file(
+      File(path),
+      fit: BoxFit.cover,
+      // Decode at a sane size: a phone photo as a full-resolution background
+      // costs a lot of memory for no visible gain.
+      cacheWidth: 2048,
+      // A file that exists but cannot be decoded (truncated, exotic format)
+      // must degrade, not throw.
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+    );
+    if (widget.blur > 0) {
+      image = ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: widget.blur, sigmaY: widget.blur),
+        child: image,
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(child: image),
+        if (widget.scrim != null)
+          Positioned.fill(child: ColoredBox(color: widget.scrim!)),
+        widget.child,
+      ],
     );
   }
 }
@@ -153,13 +216,22 @@ class _AppearanceScope extends StatelessWidget {
       child: child,
     );
 
-    // A background image is a layer *behind* the whole app. The theme's
-    // scaffold background is painted with the configured opacity, so the image
-    // shows through exactly as far as the opacity slider says.
-    if (profile.backgroundImagePath != null) {
+    // A background image is a layer *behind* the whole app, with the theme's
+    // background colour over it as a scrim. The scaffold is transparent in that
+    // case (see ThemeProfileData.toThemeData), which is what actually lets the
+    // picture be seen.
+    if (profile.hasBackgroundImage) {
       result = _BackgroundImage(
         relativePath: profile.backgroundImagePath!,
         blur: profile.backgroundBlur,
+        scrim: profile.background == null
+            ? null
+            : ThemeProfileData.colorOf(
+                profile.background!,
+                fallback: const Color(0xFF000000),
+              ).withValues(
+                alpha: profile.backgroundOpacity.clamp(0.0, 1.0),
+              ),
         child: result,
       );
     }

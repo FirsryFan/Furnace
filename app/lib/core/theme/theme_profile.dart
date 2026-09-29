@@ -49,13 +49,17 @@ class ThemeProfileData {
   final String? backgroundImagePath;
   final double backgroundBlur;
 
+  /// True when a background image is configured. The scaffold has to be
+  /// transparent in that case, because the image is painted *behind* it.
+  bool get hasBackgroundImage =>
+      backgroundImagePath != null && backgroundImagePath!.isNotEmpty;
+
   /// Font family names; null = the platform default.
   final String? uiFont;
   final String? editorFont;
 
   /// Page scale, clamped to [ThemeScale.min]..[ThemeScale.max].
   final double scale;
-
   /// When false, implicit animations are removed.
   final bool animations;
 
@@ -217,6 +221,12 @@ class ThemeProfileData {
     // The configured background colour, at the configured opacity, is the
     // scaffold background. Opacity below 1 lets whatever is painted behind the
     // scaffold show through, which is what the slider promises.
+    //
+    // EXCEPT when the theme has a background image: the colour then becomes a
+    // translucent scrim painted OVER the image (see `_Backdrop`), so the
+    // scaffold must be fully transparent. Leaving it opaque here is exactly
+    // what hid the image completely - the scaffold sits above the image layer,
+    // so 0.9 opacity covered it just as well as 1.0.
     final backgroundColour = background == null
         ? null
         : colorOf(background!, fallback: scheme.surface)
@@ -233,7 +243,8 @@ class ThemeProfileData {
       useMaterial3: true,
       fontFamily: uiFont,
       visualDensity: VisualDensity.standard,
-      scaffoldBackgroundColor: backgroundColour,
+      scaffoldBackgroundColor:
+          hasBackgroundImage ? Colors.transparent : backgroundColour,
     );
 
     if (editorFont == null) {
