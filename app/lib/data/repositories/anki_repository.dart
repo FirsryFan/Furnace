@@ -360,6 +360,49 @@ class AnkiRepository {
     );
   }
 
+  /// Writes **only** the two cognitive-model columns of one card state row.
+  ///
+  /// This is the narrow write seam of decision D2: `stability`, `difficulty`
+  /// and `dueAt` stay FSRS's (written by [updateUnitCardState] in the same
+  /// review), while `encoding_strength` (MindNet's `R0`) and `savings`
+  /// (`Sigma`) belong to the cognitive model. One column, one writer - and the
+  /// narrowness is the point, not an implementation detail:
+  ///
+  ///  * **`updatedAt` is not bumped here.** The review that produced these two
+  ///    numbers has already written its own `updatedAt` through
+  ///    [updateUnitCardState]; writing it again would put a second writer on a
+  ///    column this method has no business owning.
+  ///  * **A `null` argument means "leave that column alone"**, following the
+  ///    `Value.absent()` convention the rest of this file uses. There is
+  ///    deliberately **no way to clear either column back to NULL** from here:
+  ///    model state either has a value and keeps evolving, or the row never
+  ///    carried one. (A caller that really needs to erase model state must say
+  ///    so with a method of its own rather than overloading `null`.)
+  ///  * **Both arguments `null` is a no-op**: an all-absent companion would
+  ///    issue a pointless empty `UPDATE`, so it returns without touching the
+  ///    database.
+  ///
+  /// The values are meant to come from the cognitive model's own seam
+  /// (`CognitiveModel.modelStateAfterReview`), never from a curve re-derived at
+  /// the call site - that is what keeps one number from having two sources.
+  Future<void> updateModelState(
+    String id, {
+    double? encodingStrength,
+    double? savings,
+  }) async {
+    if (encodingStrength == null && savings == null) {
+      return;
+    }
+    await (_db.update(_db.cardStates)..where((t) => t.id.equals(id))).write(
+      CardStatesCompanion(
+        encodingStrength: encodingStrength == null
+            ? const Value.absent()
+            : Value(encodingStrength),
+        savings: savings == null ? const Value.absent() : Value(savings),
+      ),
+    );
+  }
+
   /// Extended review log (v2). All new columns optional; preset-card callers
   /// keep using the legacy signature unchanged.
   Future<void> addReviewLog({

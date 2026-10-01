@@ -11,8 +11,10 @@ import '../../../data/repositories/tag_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../../domain/services/cloze/cloze_engine.dart';
 import '../../../domain/services/cloze/tag_diffusion.dart';
+import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/config/furnace_defaults.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
+import 'review_advisory.dart';
 
 /// One ready-to-answer unit in the review queue.
 class ReviewItem {
@@ -108,13 +110,22 @@ class ReviewService {
     required this.taskRepository,
     required this.diffusionLogRepository,
     Random? random,
-  }) : random = random ?? Random();
+    CognitiveModel? cognitiveModel,
+  })  : random = random ?? Random(),
+        cognitiveModel = cognitiveModel ?? const MindNetCognitiveModel();
 
   final AnkiRepository ankiRepository;
   final TagRepository tagRepository;
   final TaskRepository taskRepository;
   final DiffusionLogRepository diffusionLogRepository;
   final Random random;
+
+  /// The advisor (D1). It orders the model band and produces the two
+  /// model-owned numbers; it never decides `dueAt`, and a failure inside it
+  /// must not stop a review. Injected rather than constructed at the call site
+  /// so the implementation stays swappable (`cognitiveModelProvider`, and
+  /// `HeuristicCognitiveModel` when the model must not be consulted).
+  final CognitiveModel cognitiveModel;
 
   /// How many cards must pass before an active (wrong-answer) blank returns.
   static const int relearnGapCards = 3;
@@ -163,15 +174,46 @@ class ReviewService {
       }
     }
 
-    // Boost ordering: a lifted knowledge point floats to the front of its band
-    // (x1.8 > x1.3 > 1.0), stable otherwise.
-    due.sort((a, b) {
-      final fa = boostedIds[a.knowledgePointId] ?? 1.0;
-      final fb = boostedIds[b.knowledgePointId] ?? 1.0;
-      return fb.compareTo(fa);
-    });
+    // Banded order (D1/D4/D5). The model band's ordering is the model's own
+    // total order - this call site only decides which band an item belongs to,
+    // never how two items inside a band compare. Boost ordering used to be a
+    // sort here; it is now the `boosted` band, which is what keeps exactly one
+    // rule per band.
+    final candidates = <ReviewCandidate>[];
+    final byCandidate = Map<ReviewCandidate, ReviewItem>.identity();
+    for (final item in [...forced, ...due]) {
+      final candidate = ReviewCandidate(
+        knowledgePointId: item.knowledgePointId,
+        row: item.cardState,
+        isNew: item.isNew,
+      );
+      candidates.add(candidate);
+      byCandidate[candidate] = item;
+    }
 
-    return _interleave(forced, due);
+    final ordering = ReviewAdvisory.order(
+      candidates: candidates,
+      model: cognitiveModel,
+      nowHours: modelHoursOf(moment),
+      boostFactorByKnowledgePoint: boostedIds,
+    );
+
+    // Forced items keep the caller's order and are handed to `_interleave`
+    // unchanged: where a wrong-answer blank reappears is annotation 17's rule,
+    // not the advisor's.
+    final orderedForced = <ReviewItem>[];
+    final orderedDue = <ReviewItem>[];
+    for (final candidate in ordering.ranked) {
+      final item = byCandidate[candidate]!;
+      if (ordering.bandByCardStateId[candidate.cardStateId] ==
+          ReviewBand.forced) {
+        orderedForced.add(item);
+      } else {
+        orderedDue.add(item);
+      }
+    }
+
+    return _interleave(orderedForced, orderedDue);
   }
 
   /// Places active units a few cards after their wrong answer; when nothing
@@ -409,6 +451,31 @@ class ReviewService {
       lastReviewedAt: moment.millisecondsSinceEpoch,
     );
 
+    // D2: the model owns exactly two columns, and this is their only writer.
+    // `updateUnitCardState` above stays the only writer of stability /
+    // difficulty / dueAt, so neither side can overwrite the other. `state` is
+    // the row *before* this review - the seam's contract is "row plus event".
+    //
+    // Advisement never blocks a review (D1): if the model is unavailable or
+    // throws, the review still completes and only the model's two columns keep
+    // their previous values.
+    try {
+      final modelState = cognitiveModel.modelStateAfterReview(
+        state,
+        rating: effectiveRating.value,
+        nowHours: modelHoursOf(moment),
+      );
+      await ankiRepository.updateModelState(
+        state.id,
+        encodingStrength: modelState.r0,
+        savings: modelState.sigma,
+      );
+    } catch (_) {
+      // Deliberately swallowed: the cognitive model is an advisor, and a
+      // review that was already recorded must not be reported as failed
+      // because the advisor misbehaved.
+    }
+
     await ankiRepository.addReviewLog(
       cardStateId: state.id,
       cardTemplateId: item.unitKey,
@@ -449,6 +516,15 @@ class ReviewService {
 
   /// Records the wrong answer, lifts related knowledge points through the tag
   /// tree, and writes the day's ledger lines (annotation 19).
+  ///
+  /// **This is a heuristic, not a model quantity** (D5, MINDNET_CONTRACT §6.5):
+  /// `TagDiffusion` walks the tag tree undirected and multiplies by
+  /// `1.8 / 1.3`, numbers that have no calibration source. It is kept because
+  /// it demonstrably helps today, and it is kept *separate*: the lift becomes
+  /// its own `boosted` band (`ReviewAdvisory`), never a term inside the model's
+  /// score, and its conclusion must not be shown side by side with the model's
+  /// diagnosis as if they were the same kind of statement - the two can
+  /// disagree (a point the model calls a dead end can still be lifted here).
   Future<List<BoostedItem>> _recordWrong(
     ReviewItem item,
     DateTime moment,
@@ -570,5 +646,7 @@ final reviewServiceProvider = Provider<ReviewService>((ref) {
     tagRepository: ref.watch(tagRepositoryProvider),
     taskRepository: ref.watch(taskRepositoryProvider),
     diffusionLogRepository: ref.watch(diffusionLogRepositoryProvider),
+    // The one place the app decides which model implementation is in use.
+    cognitiveModel: ref.watch(cognitiveModelProvider),
   );
 });
