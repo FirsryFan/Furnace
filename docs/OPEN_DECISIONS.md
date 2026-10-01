@@ -62,48 +62,68 @@ AI 功能耦合会让两边都更难改，我不建议。
 
 ---
 
-## B. 需要你定夺的
+## B. 需要你定夺的（2026-10-01 更新：**B1–B4 已定案并落地**，B5 仍未做）
 
-### B1. 认知模型在复习流程里扮演什么角色（我最需要你定的）
+> 每条给**结论 + 依据 + 你可以怎么推翻**。协议正文：`docs/MINDNET_CONTRACT.md` §9；
+> 接入地图与证据台账：`docs/MINDNET_INTEGRATION.md`。
 
-现在我做到的是"一套经过对拍验证、且能与现有数据互读的实现"，**但复习界面还没调用它**。
-怎么做有三条路，差别很大：
+### B1. 认知模型在复习流程里的角色 —— **定案 (a) 顾问**
 
-| 方案 | 含义 | 代价 |
-| --- | --- | --- |
-| **(a) 顾问**：FSRS 继续决定到期时间，模型只用来**排序**和判断"发展区/死角" | 数据零风险，改动小 | 模型的调度能力没用上 |
-| **(b) 调度器**：模型直接决定间隔，FSRS 退居备用 | 用上全部能力 | 需要定"默认用哪个"，且要处理老数据 |
-| **(c) 可选**：设置里让用户选 FSRS / 认知模型 | 最灵活 | 多一个要理解的概念；两条路径都要维护 |
+**已实现**：队列段序 `forced → boosted → model → unseen`；`model` 段的顺序**唯一**由
+`CognitiveModel.orderAdvisory` 给出（`app/lib/features/anki/application/review_advisory.dart:263`，本文件不写比较器）。
+全序键：目标集命中 → 增益 ↓ → `dueAt` ↑（`null` 排最后）→ 知识点 id ↑ → 卡 id ↑。
 
-**我倾向 (a) 起步**：它立刻改善复习体验（先复习快忘的），且不碰到期时间的权威来源，
-风险最低。但这取决于你要的是"复习顺序更聪明"还是"间隔算法更准"。
+**依据**：契约 §6.3 的顾问配方 + 决定 D1；数据上 FSRS 仍是 `stability`/`difficulty`/`dueAt` 的唯一写者，
+模型只写 `encoding_strength`/`savings`（窄写 `app/lib/data/repositories/anki_repository.dart:388`）——
+所有权表见 `docs/MINDNET_INTEGRATION.md` §2。
 
-### B2. 未复习过的卡在模型眼里是"遗忘已久"
+**你可以推翻**：改成 (b) 调度器或 (c) 设置项，只需改变 `cognitiveModelProvider`
+（`app/lib/domain/services/cognitive/cognitive_model.dart:485`）的消费方式，接口不用动；
+但 (b) 要先处理老数据缺 `S/D` 的情形，成本最高。
 
-这是 A6 那个语义的**直接后果**：`lastReview = 0` 意味着 `R` 趋近 0。
-对**排序**来说这恰好合理（没复习过的应该先看）；但如果按"增益最大"排序，
-所有新卡会挤在最前面。
+### B2. 新卡（模型眼里"遗忘已久"）—— **定案：不交给模型打分（D4）**
 
-要么接受（新卡优先是常见做法），要么给新卡一个显式的初始 `lastReviewedAt = 现在`。
-**你倾向哪个？** 我暂时没改，因为改了就不是 MindNet 的语义了。
+**已实现**：新卡单独成组 `unseen`，排在 `forced`/`boosted`/`model` 之后，顺序确定；
+**不伪造 `lastReviewedAt`**（段定义 `review_advisory.dart:49`）。
 
-### B3. 图投影（标签树 → 认知图）
+**依据**：`lastReview = 0` 的语义（纪元起算小时）会让 `R → 0`，若交给模型排序会把所有新卡挤到最前；
+而无历史时模型无从判断——D4 把这条不确定性显式化，而不是用假数据喂它。
 
-用途 1（判题目质量）需要它，而契约里对方明确说"`ls` 边权**没有标定来源**"，给了
-量级建议（父子 0.6–0.8、兄弟 0.3–0.5）并要求标注为未标定。
+**你可以推翻**：若你希望新卡优先，只需把 `unseen` 段提到 `model` 段之前（一行位置的改动），
+代价是排序不再完全由模型解释。
 
-我可以按那个量级实现并**在界面上标明"边权未标定"**。你要接受这个前提吗？
-还是想先用一段时间的数据再定权重？
+### B3. 图投影（标签树 → 认知图）与未标定边权 —— **定案：按量级实现 + 全程标注未标定**
 
-### B4. tierB（快层）要不要做
+**已实现**：`CognitiveGraph.fromTags`（`app/lib/domain/services/cognitive/cognitive_graph.dart:315`）；
+父子边 `ls = 0.7`（`:238`）、兄弟边 `ls = 0.4`（`:242`），**两者都标 [未标定]**；
+`ms` 是**必填**参数（忘传编译不过），缺条目进 `nodesWithoutMs`（`:266`），MindNet 的 0.8 兜底只以
+具名常量 `mindNetDefaultMs`（`:259`）存在、绝不隐式套用。
 
-它约 400–600 行，负责驱动/激活/容量/点火/目标偏置/诊断。契约的建议是"tierA 稳了再上"。
-**我倾向先不做**——它对"复习间隔准不准"没有贡献，只有在做"目标激活/死角诊断"
-那类功能时才需要。你若近期不做那类功能，这块可以一直搁置。
+**依据**：契约 §6.4 明确"`ls` 没有标定来源"、只给量级；§6.6/§8.2 要求参数不写死、并标注未标定。
+未标定参数清单见 `docs/MINDNET_INTEGRATION.md` §6.2。
 
-### B5. Android 未重构建（你之前说先不急）
+**你可以推翻**：用一段时间的数据再定权重的做法仍然可行——把 `parentChildLs`/`siblingLs` 传成你的值即可，
+接口已经把它们做成参数而不是常量。
 
-本轮 Dart 层改动与平台无关，但我没重跑 Android。**网络恢复后我可以补**。
+### B4. tierB（快层）要不要做 —— **定案：已做（移植 + 对拍 + 接入）**
+
+**已实现**：`fast_engine.dart`（驱动/激活/容量/点火/目标偏置 + `v2/engine.js` 的 `step` 管线）与
+`fast_diagnosis.dart`（7 类卡点 + 反事实可达性）；随机源按契约建议掐掉（`T_ign = 0`、不装 `rhythm.gate`）。
+
+**对拍证据**：本会话实跑 `flutter test test/domain/services/srs/mindnet_dsr_conformance_test.dart
+test/domain/services/cognitive/mindnet_fast_conformance_test.dart
+test/domain/services/cognitive/fast_diagnosis_conformance_test.dart
+test/domain/services/cognitive/mindnet_protocol_guard_test.dart --concurrency=1` → `All tests passed! (+46)`；
+**B01 只有 1 条用例、5 个快照同值**（只证明第 1 轮 + 停止语义），补强证据是诊断 fixture 的
+`multiround_progression`（6 轮互异）——见 `docs/MINDNET_INTEGRATION.md` §3.4。
+
+**你可以推翻**：若"目标激活/死角诊断"类功能近期不做，可以停用 tierB（`problem_evaluator` 在无 tierB 时
+退化为仅 tierA 判定，有测试），已移植的代码不必删。
+
+### B5. Android 未重构建（你之前说先不急）—— **仍未做**
+
+本轮 Dart 层改动与平台无关；Windows release 已构建并验证（见 `docs/MINDNET_INTEGRATION.md` §0），
+Android 未重跑。**网络恢复后我可以补**。
 
 ---
 

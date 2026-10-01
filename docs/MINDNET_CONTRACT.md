@@ -513,3 +513,218 @@ d=1 → ×1.8、d=2 → ×1.3，3 轮后衰减）。**不是同一件事**，七
 我这边**不会**：改你的仓库、把 Dart 实现做成依赖你仓库的构建步骤、
 或假装 `ls` / `W_DAR` / `β_goal` 这些参数是标定过的。
 
+---
+
+## 9. 接入协议 v1（Furnace 侧，2026-10-02）
+
+> 本节由 **Furnace 侧**追加，记录**已经落到代码里**的接入协议。§1–§8 是协商历史，不改写；
+> 与本节冲突处以本节为准（唯 §8.4 那两条待确认项已由本节 §9.5、§9.6 回答）。
+> 每个数字都标了来源（文件、常量、或实测命令）。
+
+### 9.0 范围
+
+tierA（记忆层）与 tierB（快层）都已在 Furnace 侧有纯 Dart 实现并用 conformance 样例对拍；
+**没有**移植 `rhythm.gate` / `mulberry32` RNG / `attention.inhibition` / `legacy_v1` / `memory.dsr`（契约 §6.1 + 队内 D3）。
+随机源按建议掐掉：`T_ign = 0`、不装 `rhythm.gate`（`availability ≡ 1`），所以 tierB 完全确定性、可逐位对拍。
+
+### 9.1 数据所有权：一列一个写者（D2）
+
+| 列（`card_states`） | 谁写 | 说明 |
+| --- | --- | --- |
+| `stability` | **FSRS** | 单位是**天**；模型读它并 ×24 成小时 |
+| `difficulty` | **FSRS** | 模型读它当 `D` 的起点 |
+| `dueAt` / `intervalDays` / `lastReviewedAt` / `state` / `repetitions` / `lapses` / `forced` / `forcedStreak` | **FSRS 复习流程** | 模型一律不碰 |
+| `encoding_strength`（`R0`） | **认知模型** | 经窄写方法 `AnkiRepository.updateModelState` |
+| `savings`（`Σ`） | **认知模型** | 同上 |
+
+- 窄写方法只写这两列、**不写 `updatedAt`**，两参皆 `null` 时直接返回；
+- **禁止**在复习流程里调用 `DsrCardState.write()` / `applyReview()` 落库：那个 companion 会一并写
+  `stability` / `difficulty` / `dueAt` / `intervalDays` / `lastReviewedAt` / **`updatedAt`** /
+  `repetitions` / `ease`，等于让模型抢 FSRS 的列（`dsr_card_state.dart` L88–120）。
+  其中 **`updatedAt` 尤其要盯住**：它正是 `updateModelState` 的文档明确声明"不得二次写入"的那一列
+  （`anki_repository.dart` L371–374 附近），漏掉它会让"谁写 `updatedAt`"这条最容易被忽略的警戒失效；
+- 因此**不需要新表、新列或迁移**；schema 仍是 **v6**，`encoding_strength` / `savings` 是 v6 已存在的列。
+
+### 9.2 单位换算：唯一换算点
+
+`DsrCardState.hoursPerDay = 24`（`dsr_card_state.dart` L26）是**全系统唯一**的天↔小时换算点；
+纪元小时数一律走 `modelHoursOf(DateTime)`（`cognitive_model.dart`）。
+MindNet 的 `S` / `t` 是**小时**，FSRS 的是**天** —— 在别处再乘一次 24 就是静默 bug。
+**另外两个同值 24 不是换算点，别拿它们当换算用**（t25 复核建议点名）：`DsrParams.legacyK = 24`
+（`dsr_memory.dart` L45/L76，单位是**小时**的常数）与 `FastConfig.forgettingK = 24.0`
+（`fast_engine.dart` L91/L110，MindNet 配置常数）。它们只是"恰好等于 24"，与天↔小时换算无关 ——
+§8.1 担心的静默 bug 正是从这种"看起来很合理"的复用开始的。
+另外两条已实测的坑：`R = R0·Ψ(t/S)`（`t = S` 给 `0.9·R0`，不是 0.9）；"没有复习记录"= 纪元小时 0（不是"现在"）。
+
+### 9.3 参数：标定状态必须外显
+
+**已标定**（有出处）：
+
+| 参数 | 值 | 出处 |
+| --- | --- | --- |
+| `attention.capacity.W_DAR` | 4 | Cowan / Oberauer（工作记忆容量） |
+| `attention.capacity.W_FA` | 1 | 焦点唯一 |
+
+**未标定**（代码里带 `calibrated: false` 与"未标定"字样，`fast_engine.dart` 的 `FastMechanisms`（工厂在 `:204`）；**注意不是 `FastParamRegistry`——该符号不存在**，t25 复核指出）：
+
+| 参数 | 当前值 | 说明 |
+| --- | --- | --- |
+| 父子边权 `ls` | 0.7 | 无标定来源（契约 §6.4 明确） |
+| 兄弟边权 `ls` | 0.4 | 同上；方向规则=重要度高→低，同分按 id 升序 |
+| `dynamics.shunting.alpha_a` / `lambda_a` | 0.5 / 0.2 | 量级合理 |
+| `dynamics.shunting.eta_q` / `lambda_q` | 0.5 / 0.3 | 亚阈累积 |
+| `context.goal.beta_goal` / `kappa_reach` / `fan_k` | 0.3 / 0.5 / 0 | `fan_k = 0`（关闭 fan-out 稀释） |
+| `attention.ignition.T_ign` | 0（接入用） | 掐随机源；机制默认 0.05 |
+| `memory.dsr.legacy_k` | 24 h | MindNet 声明的默认值（`memory.dsr.js` 的 `default: 24`），不是编造常数 |
+
+**本轮未移植、因而也没有标定的**（t25 复核要求点名）：`rhythm.gate` 的走神率/占空比/警觉衰减
+（`p_off` / `p_on` / `duty` / `τ_vig`）、`mulberry32` 随机源、`attention.inhibition`、`legacy_v1`、
+`metacognition.belief` —— 它们的默认值同样是未标定量级，且不在本轮接入范围内（契约 §6.1 的可移植性矩阵 + 队内 D3）。
+
+`ls` **不会**随反馈学习（反馈只动 `S`/`D`）；MindNet 侧对这两类数没有标定来源，本侧只是照量级采用。
+
+### 9.4 降级与回落规则
+
+| 情形 | 行为 |
+| --- | --- |
+| 模型实现缺失 / 抛异常 | 复习流程**照常完成**：`grade()` 里模型写入包在 try/catch 中，失败只跳过两列（有测试用抛 `StateError` 的模型钉住） |
+| `encoding_strength` 为 NULL 但**有** FSRS 记忆 | `R0` 读作 **1.0**（FSRS 曲线无上限；`R0 = 1` 时两条曲线完全一致）；`savings` NULL 读作 **0.8** |
+| `stability` 与 `difficulty` **都为 NULL**（全新卡） | 走 tierA 自己的初始化分支：`R0 = 0.8`、`Σ = 0.8`（与 `memory.dsr.js` 的 `ensureState` 对齐）。**这不是 §9.1 那条 NULL 规则的例外，而是另一个分支** |
+| 新卡 | **不交给模型打分**（无历史=模型无从判断），单独成组 `unseen`；不伪造 `lastReviewedAt` |
+| 诊断层不在场（tierB 未跑） | zone = `unavailable`，排序照常（tierA 的 R/增益仍在场） |
+| 诊断跑了但该知识点不在结果里 | zone = `healthy`（跑了、无卡点）。**`healthy` 与 `unavailable` 必须区分**：把"没跑模型"显示成"健康"或"未知"都会骗用户 |
+
+### 9.5 复习队列（advisor，D1）
+
+段序固定为 **`forced → boosted → model → unseen`**：
+
+- `forced`（答错绑定、当天必须回来）沿用既有 `_interleave` 的落位规则，一行未改；
+- `boosted` 仍是 `DiffusionBoost` 的启发式加权，**但已明确标注"启发式、非模型量"**，
+  且不与模型诊断同屏展示（契约 §6.5 的短期分工）；
+- `model` 段顺序**唯一**由 `CognitiveModel.orderAdvisory` 给出，全序键：
+  目标集命中 → 增益 ↓ → `dueAt` ↑（**`null` 排最后**：没排程的行不该被当成 1970 悄悄提前）→ 知识点 id ↑ → 卡 id ↑；
+- 段与组内顺序的键用 **`cardStateId`**（不是 `unitKey`：无空可挖时 `unitKey` 一律回落成 `'essay'`，多个知识点会撞键并静默覆盖）。
+
+### 9.6 用途 1（题目质量/难度评估）输入输出协议
+
+链路（全部在 Furnace 侧，MindNet 无需改动）：
+
+```
+候选题目（id / 题干摘要 / 知识点标签 / difficulty_hint）
+  → 标签树投影 CognitiveGraph.fromTags(tags, ms: {tagId: R0}, ...)
+  → graph.toJson()            # 就是 MindNet 的 {nodes, edges}
+  → FastGraph.fromSpec(...)
+  → FastEngine.startDiffusion(starts, targets) → runRounds(3~5)
+  → FastDiagnosis.bottlenecks(...) / FastPlanner.plan(..., retentionProbe:)
+  → 每题判定 ∈ {too_easy, zpd, too_hard, out_of_scope, redundant, high_value} + 排序键
+```
+
+- `starts` = 最近动过的节点（可空；空数组合法）；`targets` = 该题的知识点。
+  **两者都必须先过滤成图内存在的 id**：图外 id 会抛 `ArgumentError`，而"这题引用了一个投影没建出来的标签"是正常情况；
+- `difficulty_hint` 只作**无历史时的排序先验**，**不得**作为模型的 `D` 传入（模型的 `D` 是每条线索的状态，由表现档位与 `R` 更新）；
+- tierB 不在场时该层退化：只用 tierA 的 `R` 与 `scheduleInterval` 给初版判定（不抛异常）。
+
+### 9.7 `ms` 的口径（修正 §6.3 的措辞）
+
+§6.3 那句"`ms` 是『当前可提取度』"与同段的 `R0 = ms` 互相拉扯；Furnace 侧只读核对 MindNet 源码后的口径是：
+
+> **`ms` = 节点的 `R0`（编码上限），节点级属性，只在初始化时被读一次**；此后由模型维护。
+> 因此本侧传入的是 `CognitiveModel.modelReadingOf(row).r0`（即 `encoding_strength`），**不是**当前 `R`。
+
+三条依据（只读）：`src/model.js` 的 `this.ms = f.ms === undefined ? 0.8 : f.ms`；
+`mechanisms/memory.dsr.js` 的 `ensureState` 把 `ms` 读作 `R0 = min(1, ms)`（且 `ms <= 0` 时回落 0.8）；
+`src/io/run.js` 的状态导出写的是 `ms: bag.R0`。
+
+**导出侧还有一处口径不一致，必须写死**（t25 复核）：`src/io/run.js` 的 `:387` 导出 `ms: bag.R0`，
+而同一文件 `:602` 导出的是 `ms: round6(node.ms)` 并另给一个 `R0` 字段；`mechanisms/memory.dsr.js` 的 `:114`
+又会把 `node.ms` 改写成**当前 R**。所以**导出的 `ms` 不等于输入语义的 `R0`，绝不能回喂** ——
+回喂会让"编码上限"被当前可提取度覆盖，且不会报错。
+
+本侧投影的对应约定：`fromTags(ms: ...)` 的 `ms` 是**必填参数**（忘传编译不过），
+节点在 map 里缺条目 ⇒ 不写该键、并出现在 `graph.nodesWithoutMs` 里（= "未提供"，**不等于 0.8**）；
+MindNet 的 0.8 兜底只以具名常量 `CognitiveGraph.mindNetDefaultMs` 存在，**绝不隐式套用**。
+
+**一个必须写明的语义后果**（reviewer 裁定）：因为 `R ≤ R0`，把 `R0` 当 `ms` 喂进快层，会让模型把节点当成
+"比此刻实际更可达"，于是**可达性/发展区判断偏乐观**。这是**设计取向而非缺陷**：`R0` 是编码上限、`R` 是导出量，
+喂 `R` 会自相矛盾（§6.3）。看诊断结论时要记得这一层乐观偏差。
+
+### 9.8 快照与两个守卫（`--check` 不守我们这份）
+
+- **协议常量与冻结快照**：`app/lib/domain/services/cognitive/mindnet_protocol.dart`
+  —— `mindnet.conformance/1`、`generated_from.commit = ace605d9778e8641957c570c1e58049ca82e4a01`、
+  容差 `rel 1e-12 / abs 1e-15 / round6` 与 `must_be_exact` 名单。
+- **快照更正**：§8 写作时的基准是 `c624884`，但仓库里这份 fixture 实际是 **`ace605d`** 生成的；
+  以文件为准，常量按 `ace605d` 钉住（§8 作为历史留档不改写）。
+- **与 MindNet 当前 HEAD 的关系已核**：用 `node tools/conformance.js --check` 实测，样例数值与 MindNet
+  HEAD **`f4eec9b`** 完全一致（`--check` 只报"commit 变了：107ab12 → f4eec9b"，数值零差异），
+  且 Furnace 那份拷贝与 MindNet 仓库里的文件逐字节只差 `generated_from.commit` 一处
+  （两边各 36812 B、tierA/tierB 数值全同）。
+- **Furnace 快照守卫**：`test/domain/services/cognitive/mindnet_protocol_guard_test.dart`
+  读 fixture 比对上述常量，不一致就失败并打印两侧值。**已做证伪实验**：改掉 fixture 里的 commit
+  → 守卫失败（`snapshot drift: fixture was generated from deadbeef…`），还原后逐字节一致、重新通过。
+- **`--check` 的能力边界**：`node tools/conformance.js --check` 比的是 **MindNet 实现 vs MindNet 自己的
+  conformance 文件**，并且在比对时归一化掉 `generated_from.commit`（Furnace 侧取证：`tools/conformance.js` 的
+  `--check` 分支为 **L270–302** —— 成功返回在 L298、失败分支 L300–302；归一化在 L284）。
+  所以它**不能**证明 Furnace 这份拷贝没过期 —— 那是上面那个 Dart 守卫的职责。
+  两个守卫分工写在这里，避免下一个人拿 `--check` 的通过去声称"我们的快照是新的"。
+
+### 9.8b MindNet 侧操作规程（铁律，实测得出）
+
+> 这一节的每条都是本轮踩出来的，不是推测。**违反它的代价是本轮一次真实的"参考仓库被写脏"事故。**
+
+1. **只允许 `--check`**：核验新鲜度只用 `node tools/conformance.js --check`（实测只读：运行前后 `porcelain` / mtime / size / SHA256 四项全同）。
+2. **`npm test` 也会写盘**：MindNet 自己的 `test/conformance.test.js` 在用例内无条件执行
+   `execFileSync(process.execPath, [script, '--write'])`（约 L126），而 `package.json` 的 `"test"` 就是跑 `test/*.test.js`
+   ⇒ **跑一次 `npm test` 必然重写 `conformance/mindnet_vectors.json` 的 `generated_from.commit`**。
+   落盘点在 `tools/conformance.js` 约 L304-305；该文件里**唯一的只读分支**是 `--check`。
+3. 因此禁令要写成白名单式：**MindNet 侧只允许 `--check`（与 git 只读命令）**；
+   禁止 `--write`、不带 `--check` 的 `conformance.js`、`npm run conformance`、以及 `npm test`。
+4. **"零写入"类核验必须排在整轮动作的最后**：中途跑过任何写盘路径，早前的读数就作废。
+5. **还原也只能由仓库所有者授权后做**：回滚同样是写操作。（本轮那处脏文件即由第 2 条造成，内容只差一行 commit 戳记、数值零变化；是否还原由用户决定。）
+6. **读数口径（本轮三个成员各自独立踩过）**——同一份产物换一种读法就得出不同的数字，而每种读法看起来都像在直接测量。
+   **可执行句式：凡报「次数 / 行数 / 条数」，先声明口径**（计的是哪个符号、哪一类操作、按什么切分、含不含空行）**再给数；
+   能附 sha256 或符号名时，不引行号** —— 行号会随修订漂移（本轮同一处从 L673 漂到 L710、宿主入口从 L42 漂到 L56/L64，
+   而指纹与行为都没变；例：引 `tool/mindnet_probe.dart` 的 `OpenMode.readOnly` 比引 L710 稳）。
+   具体三类：
+   - **读含非 ASCII 的文件：一律加 `-Encoding utf8`（或用 node）**。PowerShell 5.1 的 `Get-Content` 不加
+     `-Encoding` 会按 ANSI/GBK 解码 UTF-8，产生**两个症状**：① 回显乱码（**看着像文件被改坏**）；
+     ② 多字节字符被错切、**行被合并**（同一文件实测 `.Count` = 116，而 `[IO.File]::ReadAllLines()` = 129；
+     该文件含 44 行非 ASCII）。纯 ASCII 文件上通常看不出来，所以更难发现。**判断文档是否损坏只看字节解码**
+     （`U+FFFD` 计数、BOM），不看控制台回显 —— 本轮因此一度被误判为"交付物损坏"。
+     （更正记录：这两条最初被写成两个独立成因、"`.Count` 不计空行"，实测否证后合并为本条。）
+   - **数行数**：用 `[IO.File]::ReadAllLines()` 或 node 的**换行计数**；`split('\n')` 会把末尾换行算成
+     空尾块（1576 vs 换行数 1575）。文档里写行数/行范围，必须注明用的是哪种计数方式。
+   - **数键个数**：带引号搜 `"key`（`Select-String '"cognitive' app_en.arb` = 44 键）；不带引号会把
+     `@key` 的 description 文案也算进去（57）。本轮 ARB 的正确数字是 **44 / 44**，不是 44 / 57。
+   - **引用他人读数**：转述之前先自己跑一遍 —— 本轮据此拦下一条"其实已修复、却仍被准备上报"的缺陷
+     （探针托管入口的默认 30 s 超时；修复后实测 21 s 通过，原 finding 已撤回）。
+
+### 9.9 真实数据观察协议（只读）
+
+目的：让用户能拿**真实学习数据**看模型当前判断，且**不可能**碰到自己的数据。
+
+- 探针：`app/tool/mindnet_probe.dart`（纯逻辑，可测）+ 宿主入口
+  `app/test/tool/mindnet_probe_report_test.dart`。
+- **运行方式（t19 后更新）**：`dart run tool/mindnet_probe.dart --db <path> [--json] [--limit N] [--now <ISO-8601 时间戳>]`
+  （`--now` 吃的是 ISO-8601，例如 `--now 2026-10-01T00:00:00Z`，用于**冻结读数时钟**以便复算比对；
+  传裸小时数会 `exit=2`：`Invalid argument(s): --now expects an ISO-8601 timestamp` —— 实测）
+  现在**可用**：它作为启动器把读数请求转交给 `flutter test` 宿主。**宿主为什么存在**：模型 seam 只能活在
+  Flutter 运行时里 —— `database.dart` → `path_provider` → `package:flutter` → `dart:ui`，纯 Dart VM 没有
+  `dart:ui`（实测报错）。探针 CLI 本身是纯 Dart（无 Flutter import），负责复制数据库、校验见证、渲染表格与 JSON。
+  等价的手工宿主调用（老写法，仍可用）：
+  ```powershell
+  cd app
+  flutter test test/tool/mindnet_probe_report_test.dart `
+    --dart-define=PROBE_DB="$env:APPDATA\FirsryFan\Furnace\furnace.db"
+  # 可选：--dart-define=PROBE_JSON=1、--dart-define=PROBE_LIMIT=20
+  # 该用例用**进程内 host**（不再另 spawn 一层 `flutter test`）：实测约 12 s，
+  # 仍保留 5 分钟上限作为余量。默认 runner 会嵌套一层、耗时 21–36 s 并横跨
+  # `flutter test` 的默认 30 s 单测超时（冷机可复现 flaky），已改掉。
+  ```
+- **零写入保证**：探针先把库文件（连同 `-wal` / `-shm`）复制到临时目录，**只打开副本**；
+  原库仅被 `stat`。已用真实库实测：运行前后 SHA256 完全一致（`8C58A610…E4615EC6`）。
+- 输出：每张卡的 `R` / 增益 / `R0` / `Σ` / 标签数 / 新卡标记 + 汇总（卡数、新卡数、最低与平均 `R`、平均增益），
+  按"最该复习的在前"排序；`--json` 给机器读。
+- 判读：`R` 低 + 增益高 = 模型认为"快忘了、现在复习最值"；`R` 高 = 还记着。
+  `ls` / `W_DAR` / `β_goal` 等参数**未标定**，所以看趋势可以，别把绝对值当结论。
+

@@ -12,14 +12,19 @@
 仓库 `https://github.com/FirsryFan/Furnace`，本机路径
 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity`。
 
-**当前状态**：`flutter test` **360/360 通过**，`dart analyze lib test` **0 error / 0 warning**
+**当前状态**：`flutter test --concurrency=1` **`All tests passed! (+520 ~2)`**
+（跳过 2 条：探针宿主入口在无 `--dart-define` 时 inert），`dart analyze lib test` **0 error / 0 warning**
 （87 条 info 全是既有风格项），Windows release 可构建可运行，Android 未重构建（用户说先不急）。
 schema 已到 **v6**，31 张表。
 
-**本会话做完的三块**：
+**本会话做完的四块**：
 1. 全局改名 → **Furnace**（并修掉改名引发的**数据目录漂移**，会静默丢用户数据）
 2. **AI 集成闭环**（对话页 + agent loop + 工具层 + 审批引擎，真实 API 实测过）
 3. **MindNet 认知模型 tierA 移植**（43/43 对拍通过）+ 界面几个"假控件"修复
+4. **MindNet 认知模型真正接入**（2026-10-01）：tierB 快层移植 + 标签树→认知图投影 +
+   `CognitiveModel` 可替换接口 + 复习队列顾问式段序 + 用途 1（题目质量评估，含只读 AI 工具）
+   + 真实库只读探针与读数页 + 协议冻结与守卫。**集成地图与证据见 `docs/MINDNET_INTEGRATION.md`**，
+   协议正文见 `docs/MINDNET_CONTRACT.md` §9。
 
 **最重要的三份文档**（按需读，不必全读）：
 | 文档 | 什么时候读 |
@@ -35,6 +40,7 @@ schema 已到 **v6**，31 张表。
 | 约束 | 说明 |
 | --- | --- |
 | **`E:\Document\MindNet` 只读** | 用户明确要求。绝不在其中创建/修改/删除任何文件。需要它提供什么，走 `docs/MINDNET_CONTRACT.md` 的文件契约 |
+| **MindNet 侧只允许 `--check`** | **实测铁律**：`npm test` 也会写盘——MindNet 的 conformance 测试在用例内执行 `--write`（`E:\Document\MindNet\test\conformance.test.js:123-129`），跑一次就把 `conformance/mindnet_vectors.json` 的 commit 戳记重写。禁止 `npm test` / `npm run conformance` / `--write` / 不带 `--check` 的 `tools/conformance.js`；连 `--check` 打印的"顺手跑一次 `--write`"提示也不得照做；**"零写入"核验必须排在整轮动作的最后**；还原需仓库所有者授权（详见 `MINDNET_CONTRACT.md` §9.8b、`docs/MINDNET_INTEGRATION.md` §9） |
 | **未填 API key 时不得有任何网络请求** | 这是产品承诺。`aiEnabledProvider` 为假时对话入口根本不存在，这条有测试守着 |
 | **删除类操作永远逐条确认** | 用户明确要求，任何权限模式下都不例外。`ApprovalEngine` 有穷举测试 |
 | **撤不回来的操作也强制逐条确认** | 我加的约束（`docs/AI_DESIGN.md` D13b）：能自动执行的前提是能撤回 |
@@ -224,9 +230,14 @@ presentation/    ai_chat_page.dart(680) · ai_settings_page.dart(240)
 | --- | --- |
 | **`Backdrop` 的视觉确认** | 装饰部分是结构性测试（7 项），**渲染部分没有像素级验证**：像素测试会死锁（`Image.file` 需要真实异步解码，widget 测试跑在 fake-async 里，`runAsync` 也没解决）；窗口截屏在本会话拿到全黑。**需要人眼确认** |
 | **Android 重构建** | 用户说先不急。Dart 层改动与平台无关，但未实测 |
-| **tierB 快层** | 约 400–600 行（驱动/激活/容量/点火/目标偏置/诊断）。契约建议 tierA 稳了再上；对"间隔准不准"无贡献 |
-| **图投影（标签树 → 认知图）** | 用途 1（判题目质量）的胶水，未开始。契约明确说 `ls` 边权**无标定来源**，只给了量级建议（父子 0.6–0.8、兄弟 0.3–0.5），需标注为未标定 |
+| **tierB 快层** | ~~约 400–600 行~~ → **2026-10-01 已完成**：移植 + 对拍 + 接入（`docs/MINDNET_INTEGRATION.md` §1.3/§3） |
+| **图投影（标签树 → 认知图）** | ~~未开始~~ → **2026-10-01 已完成**：`CognitiveGraph.fromTags`，边权 0.7/0.4 **标注未标定**（同上 §1.2/§6.2） |
 | **`.fskill` 执行容器** | 格式已定稿（`docs/SKILL_FORMAT.md`），容器未实现 |
+
+**2026-10-01 轮新增的未解决项**（完整清单与依据见 `docs/MINDNET_INTEGRATION.md` §7）：
+可达性判断因 `ms = R0` 而**偏乐观**（设计取向）；**标签 id 与知识点 id 是两个空间**，未打通（需要 kp→标签的桥）；
+读数页 zone 恒 `unavailable`（页面不跑 tierB，如实标注）；`ls` / `W_*` / `β_goal` 等**未标定**；
+MindNet 工作树有一处**先前遗留**的脏文件（` M conformance/mindnet_vectors.json`，等授权还原）。
 
 ---
 
@@ -235,14 +246,28 @@ presentation/    ai_chat_page.dart(680) · ai_settings_page.dart(240)
 ```powershell
 cd E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app
 
-# 全量测试（约 1 分钟）。末尾应显示 "All tests passed!"
-# 注：文件里声明的 test 是 361 条，执行计数为 360 —— 差额来自
-# mindnet_dsr_conformance_test 里那条"文件缺失就 fail"的守卫，
-# 它在文件存在时走 skip 分支。数字对不上是正常的，不要以为漏跑。
+# 全量测试（约 2–3 分钟）。末尾应显示 "All tests passed!"
+# 2026-10-01 基线：+520 ~2（2 条 skip 是探针宿主入口在无 --dart-define 时的既定 inert）
 flutter test --concurrency=1
 
 # 静态分析（应为 0 error / 0 warning；87 条 info 全是既有风格项，无 warning）
 dart analyze lib test
+
+# MindNet 对拍与协议守卫（tierA 43 条 + tierB B01 + 诊断 scenarios + 快照守卫）
+flutter test test/domain/services/srs/mindnet_dsr_conformance_test.dart `
+  test/domain/services/cognitive/mindnet_fast_conformance_test.dart `
+  test/domain/services/cognitive/fast_diagnosis_conformance_test.dart `
+  test/domain/services/cognitive/mindnet_protocol_guard_test.dart --concurrency=1
+
+# 真实库只读探针（复制副本后再读；原库只被 stat。详见 MINDNET_INTEGRATION.md §10）
+flutter test test/tool/mindnet_probe_report_test.dart `
+  --dart-define=PROBE_DB="$env:APPDATA\FirsryFan\Furnace\furnace.db"
+
+# 文档机械闸门（外部路径用 --allow 放行；MINDNET_INTEGRATION.md 当前 BLOCKER 0 / WARN 0）
+node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" `
+  "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\docs\MINDNET_INTEGRATION.md" `
+  --workspace "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity" `
+  --allow "src/" --allow "mechanisms/" --allow "tools/" --allow "memory.dsr.js" --allow "engine.js" --allow "conformance/"
 
 # 改了 schema 后必须重新生成并提交生成代码
 cd E:\Document\furnace-build
@@ -261,7 +286,7 @@ $env:FURNACE_LIVE_AI='1'; flutter test live\agent_loop_live_test.dart
   而用户实测图片根本不显示。**要看最终效果，不是中间件存在。**
 - **别把 bug 写进测试**：实现和断言犯同一个错误时，绿灯毫无意义（§4 的时钟 bug 就是）。
 - **改代码前确认你跑的是新构建**：本会话两次启动旧 exe，白测一轮。
-  Windows 看 `build\windows\x64\runner\Release\data\app.so` 的时间戳，不是 `furnace.exe`
+  Windows 看 `app/build/windows/x64/runner/Release/data/app.so` 的时间戳，不是 `furnace.exe`
   （那 91 KB 只是壳）。
 - **AOT 产物里搜中文找不到是正常的**：本地化在 `flutter_assets`，且多为 UTF-16。
 

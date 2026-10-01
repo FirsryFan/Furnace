@@ -4,6 +4,108 @@
 
 ---
 
+## 2026-10-01 轮次十一：MindNet 认知模型**真正接入**（tierB + 顾问式排序 + 用途 1 + 只读观测）
+
+> 本轮把上一轮的 tierA 移植**接进了复习流程与 AI 工具**，并把协议冻结进代码。
+> 协议正文：`docs/MINDNET_CONTRACT.md` §9；集成地图 + 证据台账：`docs/MINDNET_INTEGRATION.md`（新增）。
+> 本节所有数字都来自本会话实跑，命令与结果原文在 `MINDNET_INTEGRATION.md` §0。
+
+### 1. tierB 快层移植 + 对拍
+
+`app/lib/domain/services/cognitive/fast_engine.dart`（`dynamics.shunting` 精确积分 / `attention.capacity` /
+`attention.ignition` / `context.goal` + `v2/engine.js` 的 `step` 管线）与 `fast_diagnosis.dart`
+（7 类瓶颈 + 反事实可达性 + 处方）。随机源按契约 §6.1 掐掉：`T_ign = 0`、不装 `rhythm.gate`（`availability ≡ 1`）。
+未移植：`rhythm.gate` / `mulberry32` / `attention.inhibition` / `legacy_v1` / `metacognition.belief`。
+
+对拍：4 个测试文件一起跑 → `All tests passed! (+46)`。**B01 的区分力边界必须记住**：
+`mindnet_vectors.json` 的 tierB 只有 1 条用例且 **5 个快照完全相同**（本会话实测 `distinct=1`、`round=[1,1,1,1,1]`），
+所以它只证明"第 1 轮全字段逐位一致 + 停止语义"；多轮演化由诊断 fixture 的
+`scenarios.multiround_progression`（6 轮互异）补强。
+
+### 2. 标签树 → 认知图投影
+
+`cognitive_graph.dart`：`CognitiveTag` / `CognitiveNode` / `CognitiveEdge` / `CognitiveGraph`；
+`fromTags` 的 `ms` 是**必填**（忘传编译不过），父子边 `ls = 0.7`、兄弟边 `ls = 0.4`（**都标未标定**）。
+两处刻意的诚实设计：节点缺 `ms` 条目 ⇒ 不写该键 + 进 `nodesWithoutMs`（**不等于** MindNet 的 0.8）；
+MindNet 的兜底只以具名常量 `mindNetDefaultMs` 存在，绝不隐式套用。
+起因是一次真实的静默分歧：MindNet 对缺省 `ms` 用 0.8（`src/model.js:50`）而把它读作 `R0`
+（`mechanisms/memory.dsr.js:90`），与"有 stability、`encoding_strength` 为 NULL 读作 1.0"（D2）冲突——
+现在有**三条路径同值**的测试钉住（行读 / 读数接口 / 投影后的 JSON 都必须是 1.0）。
+
+### 3. 可替换接口（`cognitive_model.dart`）
+
+`CognitiveModel{id, retrievabilityOf, expectedGain, orderAdvisory, modelReadingOf, modelStateAfterReview}`
++ `modelHoursOf`（唯一时钟换算）+ `cognitiveModelProvider`（唯一替换点）。
+`orderAdvisory` 是**全系统唯一排序原语**：目标集命中 → 增益 ↓ → `dueAt` ↑（`null` 排最后）→ 知识点 id ↑ → 卡 id ↑，
+纯函数（有一条"把数据库 close 掉仍能排序"的证伪测试）。
+`modelStateAfterReview` 只**算**复习后的 `(R0′, Σ′)`，不落库——复习流程用窄写
+`AnkiRepository.updateModelState` 只写这两列（**不碰 `updatedAt`**），且包在 `try` 里（模型坏了不阻断复习）。
+
+### 4. 复习流程接入（段序）
+
+`ReviewAdvisory`：`forced → boosted → model → unseen`。`model` 段顺序直接调 `orderAdvisory`，
+**不自己写比较器**；`boosted` 仍是 DiffusionBoost 的启发式（已标注"非模型量"、不与诊断同屏）；
+`unseen` 不给新卡打分（D4）。段与组内键用 `cardStateId` 而非 `unitKey`——
+无空可挖时 `unitKey` 一律回落 `'essay'`（`review_service.dart:233-235`），多知识点会撞键。
+zone 词表 9 值（t2 的 7 类 + `unavailable` + `healthy`）；`healthy`（跑了、无卡点）与
+`unavailable`（没跑模型）**必须区分**。
+
+### 5. 用途 1（题目质量/难度评估）
+
+`problem_evaluator.dart`：标签树投影（`ms` 取 `modelReadingOf(row).r0`，即编码上限）→ `FastGraph.fromSpec`
+→ 引擎 4 机制 + `T_ign=0` → `FastDiagnosis.bottlenecks` → 6 种判定
+（`too_easy` / `zpd` / `too_hard` / `out_of_scope` / `redundant` / `high_value`）+ 排序键；
+`difficulty_hint` **只作无历史时的先验**，绝不当模型的 `D`；`starts`/`targets` 必须先过滤成图内 id。
+AI 工具 `evaluate_problem_fit`（`cognitive_tools.dart:24`）注册在 `ToolRegistry.forApp`
+（`tool_registry.dart:11/43-55`），provider 经 `ToolRegistry.forApp(..., model: …)` 接线——运行时可达。
+**一条建模约束**：图节点 id 来自**标签**、记忆行来自**知识点**，是两个 id 空间；不对齐时工具按只读降级为仅 tierA 判定。
+
+### 6. 只读观测面
+
+`app/tool/mindnet_probe.dart`（纯 Dart）+ Flutter 宿主（`test/tool/mindnet_probe_test.dart`）+
+报告入口（`test/tool/mindnet_probe_report_test.dart`）：**为什么需要宿主**——`database.dart` →
+`path_provider` → `package:flutter` → `dart:ui`，纯 Dart VM 没有 `dart:ui`。
+探针先复制库（含 `-wal`/`-shm`）到临时目录、**只打开副本**，原库只被 `stat`；真实库实测运行前后 SHA256 一致。
+页面：设置页 →「认知模型」读数页，只读，顶部标注"顾问模式、不改到期时间""`ls` 等边权未标定"。
+
+### 7. 协议冻结与两个守卫
+
+`mindnet_protocol.dart` 把协议串、**冻结 commit `ace605d`**、容差（`rel 1e-12 / abs 1e-15 / round6`）与
+`must_be_exact` 名单固化成常量；`mindnet_protocol_guard_test.dart` 读 fixture 比对，漂移即失败
+（已做证伪实验：改 commit → 失败并打印两侧值；还原后 SHA256 回到原值）。
+**`--check` 不守我们这份**：它比的是 MindNet 实现 vs MindNet 自己的文件，且归一化掉 commit
+（`tools/conformance.js:284`）。
+
+### 8. 本轮的事故与教训（都写进文档了）
+
+1. **任务登记结构性失败**：`inScope` 写成工作区外形式 ⇒ `changedPaths` 的两个条件互斥，任务永远登记不了；
+   处置是取消原任务并以仓库相对形式重新入账（映射见 `MINDNET_INTEGRATION.md` §8）。
+2. **验证任务不能带 failed 验收完成**：`t18`/`t25` 因此以 `failed` 收口、未登记，但报告仍在盘上
+   （`docs/VERIFICATION_MINDNET.md`、`docs/VERIFICATION_PROTOCOL.md`）；它们唯一的失败项是
+   "MindNet porcelain 为空"，属**先前遗留**。
+3. **MindNet 被写脏的根因（实测定位）**：MindNet 的 conformance 测试在用例内执行 `--write`
+   （`E:\Document\MindNet\test\conformance.test.js:123-129`），而 `npm test` 就是跑它 ⇒ **跑一次 `npm test` 必然重戳
+   `conformance/mindnet_vectors.json` 的 commit**。铁律：MindNet 侧只允许 `--check`；连 `--check`
+   打印的"顺手跑一次 `--write`"提示也不得照做；"零写入"核验必须排在整轮动作最后；还原需仓库所有者授权。
+4. **中途一次编译级阻塞**（t19 的在改文件 `#517` 括号化级联被推断成 `void`）曾让 `features/ai` 与全量在
+   compile 阶段变红；定位、交叉告警、修复后复跑（`features/ai` +105、`dart analyze lib` 0 error）。
+
+### 9. 本轮验证快照（本会话实跑）
+
+- `flutter test --concurrency=1` → **`All tests passed! (+520 ~2)`**（跳过 2 条：探针宿主入口在无 `--dart-define` 时 inert）
+- `dart analyze lib test` → **0 error / 0 warning / 87 info**
+- 对拍与守卫 → **+46**
+- Windows release：exit 0，产物 `app/build/windows/x64/runner/Release/data/app.so` LastWrite `2026-10-01 14:03:09`
+- MindNet：` M conformance/mindnet_vectors.json`（先前遗留、等授权还原；本侧未写入未回滚）
+
+### 10. 本轮**没有**解决的（如实列出）
+
+可达性判断因 `ms = R0` 而**偏乐观**（设计取向，非缺陷）；**两个 id 空间**未打通（需要 kp→标签的桥）；
+读数页 zone 恒 `unavailable`（页面不跑 tierB）；`ls` / `W_*` / `β_goal` 等**未标定**；
+Android 未重构建；`.fskill` 容器与 Thread 事件流刷新仍是历史遗留。
+
+---
+
 ## 2026-09-26 轮次十：MindNet 认知模型接入（tierA 记忆层 + 数据统一）
 
 用户离场，授权我自主推进，要求"认知模型载入 Furnace，保证使用流畅性与数据统一性"。
