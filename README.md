@@ -92,12 +92,15 @@ dart analyze                 # 应为 0 error
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | **接手先读**：现状、硬约束、环境坑、验证方法、未完成项 |
+| [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) | 已做的决定 + 需要用户定夺的问题 |
 | [docs/DESIGN_BLUEPRINT.md](docs/DESIGN_BLUEPRINT.md) | 设计蓝图 v2（已按用户批注修订，当前开发依据） |
 | [docs/FURNACE_SPEC.md](docs/FURNACE_SPEC.md) | 产品权威规范（定稿） |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | 技术架构与数据模型 |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 构建、环境事实与踩坑记录 |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | 逐轮开发进展（长期记忆） |
 | [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | AI 集成设计（20 条决策与依据） |
+| [docs/APPEARANCE_DESIGN.md](docs/APPEARANCE_DESIGN.md) | 界面个性化设计（现状核对 + 图标/主题色/字体方案） |
 | [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md) | `.fskill` 包格式与安全边界 |
 | [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md) | 与 MindNet 的接口约定（双方回应都在里面） |
 | [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) · [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) | 差距分析与功能矩阵 |
