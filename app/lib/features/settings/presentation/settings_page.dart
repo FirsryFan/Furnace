@@ -14,6 +14,7 @@ import '../../thread/application/thread_rank_service.dart';
 import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
+import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
 import 'data_section.dart';
@@ -79,6 +80,21 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const TagTreePage()),
+            ),
+          ),
+          // Read-only observation page for the cognitive model (t19): the entry
+          // lives here rather than in the bottom navigation on purpose - the
+          // shell's five destinations are unchanged.
+          ListTile(
+            leading: const Icon(Icons.insights_outlined),
+            title: Text(l10n.cognitiveModelTitle),
+            subtitle: Text(l10n.cognitiveModelSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CognitiveModelPage(),
+              ),
             ),
           ),
           ListTile(

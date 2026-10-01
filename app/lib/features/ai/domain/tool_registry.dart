@@ -1,7 +1,16 @@
 import 'dart:io';
 
+import '../../../data/database/database.dart';
+import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/tag_repository.dart';
+import '../../../data/repositories/task_repository.dart';
+import '../../../data/repositories/time_block_repository.dart';
+import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
+import '../tools/cognitive_tools.dart';
+import '../tools/schedule_tools.dart';
+import '../tools/task_tools.dart';
 
 /// The complete, static list of tools the model may use.
 ///
@@ -15,6 +24,37 @@ import '../domain/model_adapter.dart';
 /// Android rather than failing at call time.
 class ToolRegistry {
   ToolRegistry(this._tools);
+
+  /// The app's single tool list, assembled in one place.
+  ///
+  /// Registration and construction belong together: a tool that is not in this
+  /// list is not reachable by the model at all (it would be dead code), and
+  /// keeping the list here - rather than inside a Riverpod callback - is what
+  /// lets a test assert membership and schemas without a widget tree.
+  factory ToolRegistry.forApp({
+    required AppDatabase db,
+    required TaskRepository tasks,
+    required TimeBlockRepository blocks,
+    required AnkiRepository anki,
+    required TagRepository tags,
+    CognitiveModel model = const MindNetCognitiveModel(),
+    DateTime Function()? clock,
+  }) {
+    return ToolRegistry([
+      QueryTasksTool(tasks, db),
+      ManageTaskTool(tasks, db),
+      QueryScheduleTool(blocks),
+      ManageTimeBlockTool(blocks, db),
+      // 用途 1 (docs/MINDNET_CONTRACT.md §6.3): read-only problem evaluation.
+      EvaluateProblemFitTool(
+        ankiRepository: anki,
+        tagRepository: tags,
+        model: model,
+        clock: clock,
+      ),
+    ]);
+  }
+
 
   final List<AiTool> _tools;
 

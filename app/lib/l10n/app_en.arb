@@ -404,5 +404,89 @@
   "settingsTfpkgExportSecretsHint": "This package would include your AI API key. If you are sending it to someone else, choose the version without secrets.",
   "settingsTfpkgExportWithSecrets": "Include (for my own backup)",
   "settingsTfpkgExportNoSecrets": "Without secrets (to share)",
-  "settingsTfpkgExportDoneNoSecrets": "Workspace exported (API key excluded)"
+  "settingsTfpkgExportDoneNoSecrets": "Workspace exported (API key excluded)",
+
+  "cognitiveModelTitle": "Cognitive model",
+  "cognitiveModelSubtitle": "Read-only readings: R / band / zone",
+  "cognitiveAdvisorMode": "Advisor mode: due dates are not changed",
+  "cognitiveAdvisorModeDetail": "FSRS still owns when a card is due. The model only influences the queue order and the numbers on this page.",
+  "cognitiveUncalibratedWeights": "Weights such as ls are not calibrated",
+  "cognitiveUncalibratedWeightsDetail": "The model's edge weights (ls and friends) have no calibration source, so this ordering is a heuristic, not a measurement.",
+  "cognitiveReadOnlyNote": "Read-only page: nothing here is written to the database",
+  "cognitiveZoneNote": "Zone uses the same ReviewZone vocabulary as the review queue. The fast diagnosis layer is not mounted here, so it reads unavailable (no diagnosis was produced) - which does NOT mean healthy (checked, nothing to report).",
+  "cognitiveSummary": "{cards} card(s), model {model}",
+  "@cognitiveSummary": {
+    "placeholders": { "cards": { "type": "int" }, "model": { "type": "String" } }
+  },
+  "cognitiveSummaryBands": "Bands: {bands}",
+  "@cognitiveSummaryBands": {
+    "placeholders": { "bands": { "type": "String" } }
+  },
+  "cognitiveSummaryNumbers": "New cards {newCards}, mean R {meanR}",
+  "@cognitiveSummaryNumbers": {
+    "placeholders": { "newCards": { "type": "int" }, "meanR": { "type": "String" } }
+  },
+  "cognitiveReadAt": "Read at {moment}",
+  "@cognitiveReadAt": {
+    "placeholders": { "moment": { "type": "String" } }
+  },
+  "cognitiveEmpty": "No cards to observe yet. Add a knowledge point and review a few cards first.",
+  "cognitiveNewCard": "new",
+  "cognitiveSeenCard": "seen",
+  "cognitiveCardId": "card {id}",
+  "@cognitiveCardId": {
+    "placeholders": { "id": { "type": "String" } }
+  },
+  "cognitiveRetrievability": "R {value}",
+  "@cognitiveRetrievability": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "cognitiveGain": "gain {value}",
+  "@cognitiveGain": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "cognitiveEncoding": "R0 {value}",
+  "@cognitiveEncoding": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "cognitiveSavings": "Sigma {value}",
+  "@cognitiveSavings": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "cognitiveTags": "tags {count}",
+  "@cognitiveTags": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "cognitiveColumnBand": "Band",
+  "cognitiveColumnZone": "Zone",
+  "cognitiveColumnSchedule": "Schedule (FSRS)",
+  "cognitiveGainNotUsed": "gain does not decide this position: the card is forced or boosted, so the model did not place it (D5)",
+  "cognitiveNewCardNotOrdered": "new cards are neither scored nor ordered by the model (D4)",
+  "cognitiveNoSchedule": "unscheduled",
+  "cognitiveDue": "due {moment}",
+  "@cognitiveDue": {
+    "placeholders": { "moment": { "type": "String" } }
+  },
+  "cognitiveInterval": "interval {days} d",
+  "@cognitiveInterval": {
+    "placeholders": { "days": { "type": "String" } }
+  },
+  "cognitiveSuggestedInterval": "a Good answer now would schedule {days} d",
+  "@cognitiveSuggestedInterval": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "cognitiveErrorTitle": "The readings could not be loaded",
+  "cognitiveBandForced": "forced today",
+  "cognitiveBandBoosted": "boosted (heuristic)",
+  "cognitiveBandModel": "model-ranked",
+  "cognitiveBandUnseen": "unseen",
+  "cognitiveZoneProximal": "proximal (almost recalled)",
+  "cognitiveZoneEmpty": "empty (no way in)",
+  "cognitiveZoneDeadEnd": "dead end",
+  "cognitiveZoneSlow": "slow (needs too many rounds)",
+  "cognitiveZoneOverload": "overload (outcompeted by capacity)",
+  "cognitiveZoneOffGoal": "off goal",
+  "cognitiveZoneDanger": "danger (confident but forgotten)",
+  "cognitiveZoneHealthy": "healthy (checked, nothing to report)",
+  "cognitiveZoneUnavailable": "unavailable (no diagnosis)"
 }

@@ -1104,4 +1104,170 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsTfpkgExportDoneNoSecrets =>
       'Workspace exported (API key excluded)';
+
+  @override
+  String get cognitiveModelTitle => 'Cognitive model';
+
+  @override
+  String get cognitiveModelSubtitle => 'Read-only readings: R / band / zone';
+
+  @override
+  String get cognitiveAdvisorMode => 'Advisor mode: due dates are not changed';
+
+  @override
+  String get cognitiveAdvisorModeDetail =>
+      'FSRS still owns when a card is due. The model only influences the queue order and the numbers on this page.';
+
+  @override
+  String get cognitiveUncalibratedWeights =>
+      'Weights such as ls are not calibrated';
+
+  @override
+  String get cognitiveUncalibratedWeightsDetail =>
+      'The model\'s edge weights (ls and friends) have no calibration source, so this ordering is a heuristic, not a measurement.';
+
+  @override
+  String get cognitiveReadOnlyNote =>
+      'Read-only page: nothing here is written to the database';
+
+  @override
+  String get cognitiveZoneNote =>
+      'Zone uses the same ReviewZone vocabulary as the review queue. The fast diagnosis layer is not mounted here, so it reads unavailable (no diagnosis was produced) - which does NOT mean healthy (checked, nothing to report).';
+
+  @override
+  String cognitiveSummary(int cards, String model) {
+    return '$cards card(s), model $model';
+  }
+
+  @override
+  String cognitiveSummaryBands(String bands) {
+    return 'Bands: $bands';
+  }
+
+  @override
+  String cognitiveSummaryNumbers(int newCards, String meanR) {
+    return 'New cards $newCards, mean R $meanR';
+  }
+
+  @override
+  String cognitiveReadAt(String moment) {
+    return 'Read at $moment';
+  }
+
+  @override
+  String get cognitiveEmpty =>
+      'No cards to observe yet. Add a knowledge point and review a few cards first.';
+
+  @override
+  String get cognitiveNewCard => 'new';
+
+  @override
+  String get cognitiveSeenCard => 'seen';
+
+  @override
+  String cognitiveCardId(String id) {
+    return 'card $id';
+  }
+
+  @override
+  String cognitiveRetrievability(String value) {
+    return 'R $value';
+  }
+
+  @override
+  String cognitiveGain(String value) {
+    return 'gain $value';
+  }
+
+  @override
+  String cognitiveEncoding(String value) {
+    return 'R0 $value';
+  }
+
+  @override
+  String cognitiveSavings(String value) {
+    return 'Sigma $value';
+  }
+
+  @override
+  String cognitiveTags(int count) {
+    return 'tags $count';
+  }
+
+  @override
+  String get cognitiveColumnBand => 'Band';
+
+  @override
+  String get cognitiveColumnZone => 'Zone';
+
+  @override
+  String get cognitiveColumnSchedule => 'Schedule (FSRS)';
+
+  @override
+  String get cognitiveGainNotUsed =>
+      'gain does not decide this position: the card is forced or boosted, so the model did not place it (D5)';
+
+  @override
+  String get cognitiveNewCardNotOrdered =>
+      'new cards are neither scored nor ordered by the model (D4)';
+
+  @override
+  String get cognitiveNoSchedule => 'unscheduled';
+
+  @override
+  String cognitiveDue(String moment) {
+    return 'due $moment';
+  }
+
+  @override
+  String cognitiveInterval(String days) {
+    return 'interval $days d';
+  }
+
+  @override
+  String cognitiveSuggestedInterval(int days) {
+    return 'a Good answer now would schedule $days d';
+  }
+
+  @override
+  String get cognitiveErrorTitle => 'The readings could not be loaded';
+
+  @override
+  String get cognitiveBandForced => 'forced today';
+
+  @override
+  String get cognitiveBandBoosted => 'boosted (heuristic)';
+
+  @override
+  String get cognitiveBandModel => 'model-ranked';
+
+  @override
+  String get cognitiveBandUnseen => 'unseen';
+
+  @override
+  String get cognitiveZoneProximal => 'proximal (almost recalled)';
+
+  @override
+  String get cognitiveZoneEmpty => 'empty (no way in)';
+
+  @override
+  String get cognitiveZoneDeadEnd => 'dead end';
+
+  @override
+  String get cognitiveZoneSlow => 'slow (needs too many rounds)';
+
+  @override
+  String get cognitiveZoneOverload => 'overload (outcompeted by capacity)';
+
+  @override
+  String get cognitiveZoneOffGoal => 'off goal';
+
+  @override
+  String get cognitiveZoneDanger => 'danger (confident but forgotten)';
+
+  @override
+  String get cognitiveZoneHealthy => 'healthy (checked, nothing to report)';
+
+  @override
+  String get cognitiveZoneUnavailable => 'unavailable (no diagnosis)';
 }

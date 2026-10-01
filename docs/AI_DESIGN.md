@@ -147,6 +147,7 @@ class ToolSpec {
 | 知识点 | `manage_knowledge_point`（create·update·delete） | **删除=`destructive`** | ✅ |
 | 工作区 | `export_workspace`（导出 `.tfpkg`） | `write` | ✅（删掉产出文件即可） |
 | 统计 | `get_stats`（进度、完成率、排序结果解释） | 只读 | — |
+| 认知模型 | `evaluate_problem_fit`（用途1：候选题质量/难度评估，走 `ProblemEvaluator` + `CognitiveModel`） | 只读 | — |
 | skill | `run_skill` / `list_skills` | 见 §5 | ⚠️ 见下 |
 
 > **skill 的 reversible 是特例**：skill 脚本可能产生**外部副作用**（例如在组卷网上留下访问记录、

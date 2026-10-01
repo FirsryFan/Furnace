@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/agent_loop.dart';
 import '../domain/approval_engine.dart';
 import '../domain/model_adapter.dart';
 import '../domain/tool_registry.dart';
 import '../infrastructure/openai_compat_adapter.dart';
-import '../tools/schedule_tools.dart';
-import '../tools/task_tools.dart';
 
 /// Conversation, message and action storage (v6 tables).
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
@@ -33,16 +32,20 @@ final aiEnabledProvider = Provider<bool>((ref) {
 
 /// The static tool list. Registered once; a tool is available because it is in
 /// this list (AI_DESIGN §10 C2 - no plugin registry).
+///
+/// The list itself lives in [ToolRegistry.forApp] so that "is this tool
+/// registered?" is answerable without a provider container; this callback only
+/// supplies the dependencies. That is what keeps 用途 1's tool
+/// (`evaluate_problem_fit`) reachable at runtime instead of dead code.
 final toolRegistryProvider = Provider<ToolRegistry>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  final tasks = ref.watch(taskRepositoryProvider);
-  final blocks = ref.watch(timeBlockRepositoryProvider);
-  return ToolRegistry([
-    QueryTasksTool(tasks, db),
-    ManageTaskTool(tasks, db),
-    QueryScheduleTool(blocks),
-    ManageTimeBlockTool(blocks, db),
-  ]);
+  return ToolRegistry.forApp(
+    db: ref.watch(appDatabaseProvider),
+    tasks: ref.watch(taskRepositoryProvider),
+    blocks: ref.watch(timeBlockRepositoryProvider),
+    anki: ref.watch(ankiRepositoryProvider),
+    tags: ref.watch(tagRepositoryProvider),
+    model: ref.watch(cognitiveModelProvider),
+  );
 });
 
 /// The network adapter. Rebuilt whenever the configuration changes so a new key

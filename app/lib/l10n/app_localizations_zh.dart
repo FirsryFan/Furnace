@@ -1058,4 +1058,165 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsTfpkgExportDoneNoSecrets => '工作区已导出（未包含 API key）';
+
+  @override
+  String get cognitiveModelTitle => '认知模型';
+
+  @override
+  String get cognitiveModelSubtitle => '只读读数：R / 分组 / 发展区';
+
+  @override
+  String get cognitiveAdvisorMode => '顾问模式：不改到期时间';
+
+  @override
+  String get cognitiveAdvisorModeDetail => '到期时间仍由 FSRS 决定；模型只影响队列顺序和本页读数。';
+
+  @override
+  String get cognitiveUncalibratedWeights => 'ls 等边权未标定';
+
+  @override
+  String get cognitiveUncalibratedWeightsDetail =>
+      '模型的边权（ls 等）没有标定来源，所以这个排序只是启发式参考，不是测量结果。';
+
+  @override
+  String get cognitiveReadOnlyNote => '只读页面：不会写入数据库';
+
+  @override
+  String get cognitiveZoneNote =>
+      '发展区/死角沿用复习队列的同一套 ReviewZone 词表。本页未挂载快层诊断，因此取值为「不可用（未做诊断）」——它不等于「健康（查过，没问题）」。';
+
+  @override
+  String cognitiveSummary(int cards, String model) {
+    return '$cards 张卡 · 模型 $model';
+  }
+
+  @override
+  String cognitiveSummaryBands(String bands) {
+    return '分组：$bands';
+  }
+
+  @override
+  String cognitiveSummaryNumbers(int newCards, String meanR) {
+    return '新卡 $newCards 张 · 平均 R $meanR';
+  }
+
+  @override
+  String cognitiveReadAt(String moment) {
+    return '读数时刻 $moment';
+  }
+
+  @override
+  String get cognitiveEmpty => '还没有可观察的卡片。先添加知识点并复习几张卡。';
+
+  @override
+  String get cognitiveNewCard => '新卡';
+
+  @override
+  String get cognitiveSeenCard => '老卡';
+
+  @override
+  String cognitiveCardId(String id) {
+    return '卡 $id';
+  }
+
+  @override
+  String cognitiveRetrievability(String value) {
+    return 'R $value';
+  }
+
+  @override
+  String cognitiveGain(String value) {
+    return '增益 $value';
+  }
+
+  @override
+  String cognitiveEncoding(String value) {
+    return 'R0 $value';
+  }
+
+  @override
+  String cognitiveSavings(String value) {
+    return 'Σ $value';
+  }
+
+  @override
+  String cognitiveTags(int count) {
+    return '标签 $count';
+  }
+
+  @override
+  String get cognitiveColumnBand => '分组';
+
+  @override
+  String get cognitiveColumnZone => '发展区/死角';
+
+  @override
+  String get cognitiveColumnSchedule => '排程（FSRS）';
+
+  @override
+  String get cognitiveGainNotUsed =>
+      '增益不参与排序：该卡在 forced/boosted 组里，位置不是模型决定的（D5）';
+
+  @override
+  String get cognitiveNewCardNotOrdered => '新卡不交由模型评分与排序（D4）';
+
+  @override
+  String get cognitiveNoSchedule => '未排程';
+
+  @override
+  String cognitiveDue(String moment) {
+    return '到期 $moment';
+  }
+
+  @override
+  String cognitiveInterval(String days) {
+    return '当前间隔 $days 天';
+  }
+
+  @override
+  String cognitiveSuggestedInterval(int days) {
+    return '现在答「记得」FSRS 会排 $days 天';
+  }
+
+  @override
+  String get cognitiveErrorTitle => '读数加载失败';
+
+  @override
+  String get cognitiveBandForced => '强制今天回';
+
+  @override
+  String get cognitiveBandBoosted => '标签扩散提升（启发式）';
+
+  @override
+  String get cognitiveBandModel => '模型排序';
+
+  @override
+  String get cognitiveBandUnseen => '新卡';
+
+  @override
+  String get cognitiveZoneProximal => '发展区（差一点就想起来）';
+
+  @override
+  String get cognitiveZoneEmpty => '空（进不去）';
+
+  @override
+  String get cognitiveZoneDeadEnd => '死角（想得到、走不下去）';
+
+  @override
+  String get cognitiveZoneSlow => '过慢（要太多轮才点亮）';
+
+  @override
+  String get cognitiveZoneOverload => '容量竞争（被挤掉）';
+
+  @override
+  String get cognitiveZoneOffGoal => '偏离目标';
+
+  @override
+  String get cognitiveZoneDanger => '危险（自信但记不住）';
+
+  @override
+  String get cognitiveZoneHealthy => '健康（查过，没问题）';
+
+  @override
+  String get cognitiveZoneUnavailable => '不可用（未做诊断）';
 }

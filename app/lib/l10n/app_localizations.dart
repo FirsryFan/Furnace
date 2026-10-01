@@ -2113,6 +2113,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Workspace exported (API key excluded)'**
   String get settingsTfpkgExportDoneNoSecrets;
+
+  /// No description provided for @cognitiveModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive model'**
+  String get cognitiveModelTitle;
+
+  /// No description provided for @cognitiveModelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only readings: R / band / zone'**
+  String get cognitiveModelSubtitle;
+
+  /// No description provided for @cognitiveAdvisorMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Advisor mode: due dates are not changed'**
+  String get cognitiveAdvisorMode;
+
+  /// No description provided for @cognitiveAdvisorModeDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'FSRS still owns when a card is due. The model only influences the queue order and the numbers on this page.'**
+  String get cognitiveAdvisorModeDetail;
+
+  /// No description provided for @cognitiveUncalibratedWeights.
+  ///
+  /// In en, this message translates to:
+  /// **'Weights such as ls are not calibrated'**
+  String get cognitiveUncalibratedWeights;
+
+  /// No description provided for @cognitiveUncalibratedWeightsDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'The model\'s edge weights (ls and friends) have no calibration source, so this ordering is a heuristic, not a measurement.'**
+  String get cognitiveUncalibratedWeightsDetail;
+
+  /// No description provided for @cognitiveReadOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only page: nothing here is written to the database'**
+  String get cognitiveReadOnlyNote;
+
+  /// No description provided for @cognitiveZoneNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone uses the same ReviewZone vocabulary as the review queue. The fast diagnosis layer is not mounted here, so it reads unavailable (no diagnosis was produced) - which does NOT mean healthy (checked, nothing to report).'**
+  String get cognitiveZoneNote;
+
+  /// No description provided for @cognitiveSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{cards} card(s), model {model}'**
+  String cognitiveSummary(int cards, String model);
+
+  /// No description provided for @cognitiveSummaryBands.
+  ///
+  /// In en, this message translates to:
+  /// **'Bands: {bands}'**
+  String cognitiveSummaryBands(String bands);
+
+  /// No description provided for @cognitiveSummaryNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'New cards {newCards}, mean R {meanR}'**
+  String cognitiveSummaryNumbers(int newCards, String meanR);
+
+  /// No description provided for @cognitiveReadAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Read at {moment}'**
+  String cognitiveReadAt(String moment);
+
+  /// No description provided for @cognitiveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No cards to observe yet. Add a knowledge point and review a few cards first.'**
+  String get cognitiveEmpty;
+
+  /// No description provided for @cognitiveNewCard.
+  ///
+  /// In en, this message translates to:
+  /// **'new'**
+  String get cognitiveNewCard;
+
+  /// No description provided for @cognitiveSeenCard.
+  ///
+  /// In en, this message translates to:
+  /// **'seen'**
+  String get cognitiveSeenCard;
+
+  /// No description provided for @cognitiveCardId.
+  ///
+  /// In en, this message translates to:
+  /// **'card {id}'**
+  String cognitiveCardId(String id);
+
+  /// No description provided for @cognitiveRetrievability.
+  ///
+  /// In en, this message translates to:
+  /// **'R {value}'**
+  String cognitiveRetrievability(String value);
+
+  /// No description provided for @cognitiveGain.
+  ///
+  /// In en, this message translates to:
+  /// **'gain {value}'**
+  String cognitiveGain(String value);
+
+  /// No description provided for @cognitiveEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'R0 {value}'**
+  String cognitiveEncoding(String value);
+
+  /// No description provided for @cognitiveSavings.
+  ///
+  /// In en, this message translates to:
+  /// **'Sigma {value}'**
+  String cognitiveSavings(String value);
+
+  /// No description provided for @cognitiveTags.
+  ///
+  /// In en, this message translates to:
+  /// **'tags {count}'**
+  String cognitiveTags(int count);
+
+  /// No description provided for @cognitiveColumnBand.
+  ///
+  /// In en, this message translates to:
+  /// **'Band'**
+  String get cognitiveColumnBand;
+
+  /// No description provided for @cognitiveColumnZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone'**
+  String get cognitiveColumnZone;
+
+  /// No description provided for @cognitiveColumnSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule (FSRS)'**
+  String get cognitiveColumnSchedule;
+
+  /// No description provided for @cognitiveGainNotUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'gain does not decide this position: the card is forced or boosted, so the model did not place it (D5)'**
+  String get cognitiveGainNotUsed;
+
+  /// No description provided for @cognitiveNewCardNotOrdered.
+  ///
+  /// In en, this message translates to:
+  /// **'new cards are neither scored nor ordered by the model (D4)'**
+  String get cognitiveNewCardNotOrdered;
+
+  /// No description provided for @cognitiveNoSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'unscheduled'**
+  String get cognitiveNoSchedule;
+
+  /// No description provided for @cognitiveDue.
+  ///
+  /// In en, this message translates to:
+  /// **'due {moment}'**
+  String cognitiveDue(String moment);
+
+  /// No description provided for @cognitiveInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'interval {days} d'**
+  String cognitiveInterval(String days);
+
+  /// No description provided for @cognitiveSuggestedInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'a Good answer now would schedule {days} d'**
+  String cognitiveSuggestedInterval(int days);
+
+  /// No description provided for @cognitiveErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The readings could not be loaded'**
+  String get cognitiveErrorTitle;
+
+  /// No description provided for @cognitiveBandForced.
+  ///
+  /// In en, this message translates to:
+  /// **'forced today'**
+  String get cognitiveBandForced;
+
+  /// No description provided for @cognitiveBandBoosted.
+  ///
+  /// In en, this message translates to:
+  /// **'boosted (heuristic)'**
+  String get cognitiveBandBoosted;
+
+  /// No description provided for @cognitiveBandModel.
+  ///
+  /// In en, this message translates to:
+  /// **'model-ranked'**
+  String get cognitiveBandModel;
+
+  /// No description provided for @cognitiveBandUnseen.
+  ///
+  /// In en, this message translates to:
+  /// **'unseen'**
+  String get cognitiveBandUnseen;
+
+  /// No description provided for @cognitiveZoneProximal.
+  ///
+  /// In en, this message translates to:
+  /// **'proximal (almost recalled)'**
+  String get cognitiveZoneProximal;
+
+  /// No description provided for @cognitiveZoneEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'empty (no way in)'**
+  String get cognitiveZoneEmpty;
+
+  /// No description provided for @cognitiveZoneDeadEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'dead end'**
+  String get cognitiveZoneDeadEnd;
+
+  /// No description provided for @cognitiveZoneSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'slow (needs too many rounds)'**
+  String get cognitiveZoneSlow;
+
+  /// No description provided for @cognitiveZoneOverload.
+  ///
+  /// In en, this message translates to:
+  /// **'overload (outcompeted by capacity)'**
+  String get cognitiveZoneOverload;
+
+  /// No description provided for @cognitiveZoneOffGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'off goal'**
+  String get cognitiveZoneOffGoal;
+
+  /// No description provided for @cognitiveZoneDanger.
+  ///
+  /// In en, this message translates to:
+  /// **'danger (confident but forgotten)'**
+  String get cognitiveZoneDanger;
+
+  /// No description provided for @cognitiveZoneHealthy.
+  ///
+  /// In en, this message translates to:
+  /// **'healthy (checked, nothing to report)'**
+  String get cognitiveZoneHealthy;
+
+  /// No description provided for @cognitiveZoneUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'unavailable (no diagnosis)'**
+  String get cognitiveZoneUnavailable;
 }
 
 class _AppLocalizationsDelegate
