@@ -2377,6 +2377,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'unavailable (no diagnosis)'**
   String get cognitiveZoneUnavailable;
+
+  /// No description provided for @settingsThemeIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Icons'**
+  String get settingsThemeIcons;
+
+  /// No description provided for @settingsThemeIconsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Icons are set per semantic slot. A name this build does not know falls back to the slot\'s built-in icon.'**
+  String get settingsThemeIconsHint;
+
+  /// No description provided for @iconPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an icon'**
+  String get iconPickerTitle;
+
+  /// No description provided for @iconPickerSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search icon names'**
+  String get iconPickerSearch;
+
+  /// No description provided for @iconPickerRestoreDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default'**
+  String get iconPickerRestoreDefault;
+
+  /// No description provided for @iconPickerDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get iconPickerDefault;
+
+  /// No description provided for @iconPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No icon matches that name'**
+  String get iconPickerEmpty;
+
+  /// No description provided for @iconCategoryCommon.
+  ///
+  /// In en, this message translates to:
+  /// **'Common'**
+  String get iconCategoryCommon;
+
+  /// No description provided for @iconCategoryNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get iconCategoryNavigation;
+
+  /// No description provided for @iconCategoryTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get iconCategoryTime;
+
+  /// No description provided for @iconCategoryKnowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge'**
+  String get iconCategoryKnowledge;
+
+  /// No description provided for @iconCategoryObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Objects'**
+  String get iconCategoryObjects;
+
+  /// No description provided for @iconCategoryMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get iconCategoryMedia;
+
+  /// No description provided for @iconCategoryPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get iconCategoryPeople;
+
+  /// No description provided for @iconCategoryAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get iconCategoryAi;
+
+  /// No description provided for @iconCategoryUi.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get iconCategoryUi;
 }
 
 class _AppLocalizationsDelegate

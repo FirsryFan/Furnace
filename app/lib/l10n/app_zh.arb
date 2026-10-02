@@ -449,5 +449,22 @@
   "cognitiveZoneOffGoal": "偏离目标",
   "cognitiveZoneDanger": "危险（自信但记不住）",
   "cognitiveZoneHealthy": "健康（查过，没问题）",
-  "cognitiveZoneUnavailable": "不可用（未做诊断）"
+  "cognitiveZoneUnavailable": "不可用（未做诊断）",
+
+  "settingsThemeIcons": "图标",
+  "settingsThemeIconsHint": "图标按语义槽位设置；主题文件里这个版本不认识的名字会回退到该槽位的内置图标。",
+  "iconPickerTitle": "选择图标",
+  "iconPickerSearch": "搜索图标名",
+  "iconPickerRestoreDefault": "恢复默认",
+  "iconPickerDefault": "默认",
+  "iconPickerEmpty": "没有匹配的图标",
+  "iconCategoryCommon": "常用",
+  "iconCategoryNavigation": "导航",
+  "iconCategoryTime": "时间",
+  "iconCategoryKnowledge": "知识",
+  "iconCategoryObjects": "物件",
+  "iconCategoryMedia": "媒体",
+  "iconCategoryPeople": "人物",
+  "iconCategoryAi": "智能",
+  "iconCategoryUi": "界面"
 }

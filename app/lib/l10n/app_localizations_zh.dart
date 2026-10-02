@@ -1219,4 +1219,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cognitiveZoneUnavailable => '不可用（未做诊断）';
+
+  @override
+  String get settingsThemeIcons => '图标';
+
+  @override
+  String get settingsThemeIconsHint => '图标按语义槽位设置；主题文件里这个版本不认识的名字会回退到该槽位的内置图标。';
+
+  @override
+  String get iconPickerTitle => '选择图标';
+
+  @override
+  String get iconPickerSearch => '搜索图标名';
+
+  @override
+  String get iconPickerRestoreDefault => '恢复默认';
+
+  @override
+  String get iconPickerDefault => '默认';
+
+  @override
+  String get iconPickerEmpty => '没有匹配的图标';
+
+  @override
+  String get iconCategoryCommon => '常用';
+
+  @override
+  String get iconCategoryNavigation => '导航';
+
+  @override
+  String get iconCategoryTime => '时间';
+
+  @override
+  String get iconCategoryKnowledge => '知识';
+
+  @override
+  String get iconCategoryObjects => '物件';
+
+  @override
+  String get iconCategoryMedia => '媒体';
+
+  @override
+  String get iconCategoryPeople => '人物';
+
+  @override
+  String get iconCategoryAi => '智能';
+
+  @override
+  String get iconCategoryUi => '界面';
 }

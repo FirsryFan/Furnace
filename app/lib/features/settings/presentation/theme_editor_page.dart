@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/theme_profile.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/appearance_providers.dart';
+import 'icon_picker_page.dart';
 
 /// Folder inside the app support directory that holds imported background
 /// images. The theme document stores a path relative to that directory.
@@ -117,6 +119,34 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         SnackBar(content: Text('${l10n.settingsThemeBackgroundPick}: $error')),
       );
     }
+  }
+
+  /// Opens the built-in picker for one slot and stores the result.
+  ///
+  /// The picker returns a catalog **name** (or [IconPickerPage.restoreDefault] to
+  /// go back to the slot's factory icon). Nothing is written until the user saves
+  /// the theme, exactly like every other control on this page.
+  Future<void> _pickIcon(ThemeProfileData data, String slot) async {
+    final picked = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => IconPickerPage(
+          slot: slot,
+          current: AppIcons.effectiveName(slot, data.icons),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    // Copy the CURRENT edit state, not the snapshot this row was built from: the
+    // user may have edited another field while the picker was open.
+    final next = Map<String, String>.from((_data ?? data).icons);
+    if (picked == IconPickerPage.restoreDefault) {
+      next.remove(slot);
+    } else {
+      next[slot] = picked;
+    }
+    setState(() => _data = (_data ?? data).copyWith(icons: next));
   }
 
   @override
@@ -266,6 +296,39 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+                // Icons (design doc decision D1). Seven rows, one per semantic
+                // slot; each opens the built-in picker. The theme stores names,
+                // so a row shows the *effective* name - which is what the shell
+                // is actually rendering, not merely what the file says.
+                _Card(
+                  icon: Icons.grid_view_outlined,
+                  title: l10n.settingsThemeIcons,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final slot in AppIcons.slots)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            AppIcons.iconData(slot, data.icons, filled: false),
+                          ),
+                          title: Text(slotLabel(l10n, slot)),
+                          subtitle: Text(
+                            data.icons.containsKey(slot)
+                                ? '${data.icons[slot]}'
+                                : l10n.iconPickerDefault,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _pickIcon(data, slot),
+                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.settingsThemeIconsHint,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:furnace/core/theme/app_icons.dart';
 import 'package:furnace/core/theme/theme_profile.dart';
 
 /// Theme JSON document (spec §4 / GAP D13): import/export round trip, lenient
@@ -48,6 +49,8 @@ void main() {
       expect(json['colors'], isA<Map<String, dynamic>>());
       expect(json['background'], isA<Map<String, dynamic>>());
       expect(json['fonts'], isA<Map<String, dynamic>>());
+      // The icons section is a sibling of those three (APPEARANCE_DESIGN D1).
+      expect(json['icons'], isA<Map<String, dynamic>>());
     });
   });
 
@@ -134,6 +137,55 @@ void main() {
       expect(dark.colorScheme.surface,
           ThemeProfileData.colorOf(ThemeProfileData.builtinDark.surface,
               fallback: dark.colorScheme.surface));
+    });
+  });
+
+  group('icons section (APPEARANCE_DESIGN D1)', () {
+    test('a configured map survives the JSON round trip', () {
+      const original = ThemeProfileData(
+        name: 'starred',
+        icons: {'tags': 'star', 'thread': 'rocket_launch'},
+      );
+      final restored = ThemeProfileData.decode(original.encode());
+      expect(restored.icons, original.icons);
+      expect(restored.name, original.name);
+    });
+
+    test('an older theme file without the section loads with an empty map', () {
+      // This is the compatibility promise: files written before D1 exist, and an
+      // empty map means "every slot keeps its factory icon".
+      final profile = ThemeProfileData.decode(
+        '{"name":"old","colors":{"primary":"#FF0000"}}',
+      );
+      expect(profile.icons, isEmpty);
+      expect(profile.primary, '#FF0000');
+      expect(AppIcons.effectiveName('tags', profile.icons), 'account_tree');
+    });
+
+    test('junk values are dropped instead of breaking the import', () {
+      final profile = ThemeProfileData.decode(
+        '{"icons":{"tags":"star","number":123,"blank":"   ","list":[1]}}',
+      );
+      expect(profile.icons, {'tags': 'star'});
+    });
+
+    test('a name this build does not know is kept as written', () {
+      // Dropping it would silently rewrite the user's file; keeping it means the
+      // value survives a round trip and the renderer falls back instead.
+      final profile = ThemeProfileData.decode(
+        '{"icons":{"tags":"icon_from_a_newer_build"}}',
+      );
+      expect(profile.icons['tags'], 'icon_from_a_newer_build');
+      final roundTripped = ThemeProfileData.decode(profile.encode());
+      expect(roundTripped.icons['tags'], 'icon_from_a_newer_build');
+      expect(AppIcons.effectiveName('tags', profile.icons), 'account_tree');
+    });
+
+    test('copyWith replaces the map, and keeps it when not passed', () {
+      const base = ThemeProfileData(name: 'x', icons: {'tags': 'star'});
+      expect(base.copyWith(scale: 1.2).icons, {'tags': 'star'});
+      expect(base.copyWith(icons: {'thread': 'bolt'}).icons, {'thread': 'bolt'});
+      expect(base.copyWith(icons: const {}).icons, isEmpty);
     });
   });
 

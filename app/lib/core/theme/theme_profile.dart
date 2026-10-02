@@ -28,6 +28,7 @@ class ThemeProfileData {
     this.editorFont,
     this.scale = 1.0,
     this.animations = true,
+    this.icons = const <String, String>{},
   });
 
   final int schemaVersion;
@@ -63,6 +64,18 @@ class ThemeProfileData {
   /// When false, implicit animations are removed.
   final bool animations;
 
+  /// Icon choice per semantic slot (design doc decision D1): slot name ->
+  /// catalog base name, e.g. `{'tags': 'account_tree'}`.
+  ///
+  /// Only the *names* live in the document. Resolving a name into an `IconData`
+  /// - including the fallback to the slot's factory icon when this build does not
+  /// know the name - belongs to `AppIcons` (core/theme/app_icons.dart), so a theme
+  /// file written by a newer build still loads here instead of throwing.
+  ///
+  /// Empty means "nothing configured yet": every slot then renders its factory
+  /// icon, which is exactly what the shell rendered before D1 existed.
+  final Map<String, String> icons;
+
   bool get isDark => brightness == 'dark';
 
   ThemeProfileData copyWith({
@@ -80,6 +93,7 @@ class ThemeProfileData {
     String? editorFont,
     double? scale,
     bool? animations,
+    Map<String, String>? icons,
   }) =>
       ThemeProfileData(
         schemaVersion: schemaVersion,
@@ -98,6 +112,7 @@ class ThemeProfileData {
         editorFont: editorFont ?? this.editorFont,
         scale: scale ?? this.scale,
         animations: animations ?? this.animations,
+        icons: icons ?? this.icons,
       );
 
   Map<String, dynamic> toJson() => {
@@ -119,6 +134,11 @@ class ThemeProfileData {
           if (uiFont != null) 'ui': uiFont,
           if (editorFont != null) 'editor': editorFont,
         },
+        // Icons sit at the top level next to colors/background/fonts: they are a
+        // section of the document in their own right (design doc D1), not a
+        // decoration of one of the others. Always written, so the section is
+        // discoverable in an exported file even before anything is configured.
+        'icons': icons,
         'scale': scale,
         'animations': animations,
       };
@@ -130,6 +150,9 @@ class ThemeProfileData {
     final colors = (json['colors'] as Map<String, dynamic>?) ?? const {};
     final background = (json['background'] as Map<String, dynamic>?) ?? const {};
     final fonts = (json['fonts'] as Map<String, dynamic>?) ?? const {};
+    // A theme file written before D1 has no `icons` section at all: it must load
+    // (empty map, every slot keeps its factory icon) rather than throw.
+    final icons = (json['icons'] as Map<String, dynamic>?) ?? const {};
     return ThemeProfileData(
       schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
       name: json['name'] as String? ?? 'Custom',
@@ -150,6 +173,15 @@ class ThemeProfileData {
               ) ??
           1.0,
       animations: json['animations'] as bool? ?? true,
+      // Only string values survive: a hand-edited file with a number or a list
+      // where a name belongs degrades to "not configured" instead of crashing the
+      // import. Names this build does not know are kept as written, so a round
+      // trip never silently drops a choice the user made elsewhere.
+      icons: <String, String>{
+        for (final entry in icons.entries)
+          if (entry.value is String && (entry.value as String).trim().isNotEmpty)
+            entry.key: (entry.value as String).trim(),
+      },
     );
   }
 

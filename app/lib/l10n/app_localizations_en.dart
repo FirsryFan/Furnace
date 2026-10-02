@@ -1270,4 +1270,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cognitiveZoneUnavailable => 'unavailable (no diagnosis)';
+
+  @override
+  String get settingsThemeIcons => 'Icons';
+
+  @override
+  String get settingsThemeIconsHint =>
+      'Icons are set per semantic slot. A name this build does not know falls back to the slot\'s built-in icon.';
+
+  @override
+  String get iconPickerTitle => 'Pick an icon';
+
+  @override
+  String get iconPickerSearch => 'Search icon names';
+
+  @override
+  String get iconPickerRestoreDefault => 'Restore default';
+
+  @override
+  String get iconPickerDefault => 'Default';
+
+  @override
+  String get iconPickerEmpty => 'No icon matches that name';
+
+  @override
+  String get iconCategoryCommon => 'Common';
+
+  @override
+  String get iconCategoryNavigation => 'Navigation';
+
+  @override
+  String get iconCategoryTime => 'Time';
+
+  @override
+  String get iconCategoryKnowledge => 'Knowledge';
+
+  @override
+  String get iconCategoryObjects => 'Objects';
+
+  @override
+  String get iconCategoryMedia => 'Media';
+
+  @override
+  String get iconCategoryPeople => 'People';
+
+  @override
+  String get iconCategoryAi => 'AI';
+
+  @override
+  String get iconCategoryUi => 'Interface';
 }

@@ -488,5 +488,22 @@
   "cognitiveZoneOffGoal": "off goal",
   "cognitiveZoneDanger": "danger (confident but forgotten)",
   "cognitiveZoneHealthy": "healthy (checked, nothing to report)",
-  "cognitiveZoneUnavailable": "unavailable (no diagnosis)"
+  "cognitiveZoneUnavailable": "unavailable (no diagnosis)",
+
+  "settingsThemeIcons": "Icons",
+  "settingsThemeIconsHint": "Icons are set per semantic slot. A name this build does not know falls back to the slot's built-in icon.",
+  "iconPickerTitle": "Pick an icon",
+  "iconPickerSearch": "Search icon names",
+  "iconPickerRestoreDefault": "Restore default",
+  "iconPickerDefault": "Default",
+  "iconPickerEmpty": "No icon matches that name",
+  "iconCategoryCommon": "Common",
+  "iconCategoryNavigation": "Navigation",
+  "iconCategoryTime": "Time",
+  "iconCategoryKnowledge": "Knowledge",
+  "iconCategoryObjects": "Objects",
+  "iconCategoryMedia": "Media",
+  "iconCategoryPeople": "People",
+  "iconCategoryAi": "AI",
+  "iconCategoryUi": "Interface"
 }

@@ -3,15 +3,49 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
+import '../../core/theme/app_icons.dart';
 import '../../features/ai/application/ai_providers.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
 import '../../features/anki/presentation/knowledge_page.dart';
+import '../../features/settings/application/appearance_providers.dart';
 import '../../features/tags/presentation/tag_tree_page.dart';
 import '../../features/packages/presentation/packages_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/thread/application/thread_rank_service.dart';
 import '../../features/thread/presentation/thread_page.dart';
 import '../../features/timeboard/presentation/time_page.dart';
+
+/// The shell's destinations, with their icons resolved from the active theme.
+///
+/// Slot names are the only thing that ties a destination to an icon: the labels
+/// stay exactly where they were (l10n), and an unconfigured slot renders the
+/// factory icon, so an untouched theme looks like the app always looked.
+///
+/// A top-level function rather than an inline list so the theme -> icon path can
+/// be exercised without mounting every page the shell hosts (see
+/// `test/features/settings/icon_picker_test.dart`).
+List<NavigationDestination> shellDestinations({
+  required AppLocalizations l10n,
+  required Map<String, String> icons,
+  required bool aiConfigured,
+}) {
+  NavigationDestination destination(String slot, String label) =>
+      NavigationDestination(
+        icon: Icon(AppIcons.iconData(slot, icons, filled: false)),
+        selectedIcon: Icon(AppIcons.iconData(slot, icons, filled: true)),
+        label: label,
+      );
+
+  return <NavigationDestination>[
+    destination('tags', l10n.navTags),
+    destination('thread', l10n.navThread),
+    destination('time', l10n.navTime),
+    destination('knowledge', l10n.navAnki),
+    destination('packages', l10n.navPackages),
+    if (aiConfigured) destination('ai', l10n.navAi),
+    destination('settings', l10n.navSettings),
+  ];
+}
 
 /// Ctrl+R: re-sort the Thread feed.
 class _SortThreadIntent extends Intent {
@@ -62,44 +96,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const SettingsPage(),
     ];
 
-    final destinations = [
-      NavigationDestination(
-        icon: const Icon(Icons.account_tree_outlined),
-        selectedIcon: const Icon(Icons.account_tree),
-        label: l10n.navTags,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.bolt_outlined),
-        selectedIcon: const Icon(Icons.bolt),
-        label: l10n.navThread,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.schedule_outlined),
-        selectedIcon: const Icon(Icons.schedule),
-        label: l10n.navTime,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.psychology_outlined),
-        selectedIcon: const Icon(Icons.psychology),
-        label: l10n.navAnki,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.library_books_outlined),
-        selectedIcon: const Icon(Icons.library_books),
-        label: l10n.navPackages,
-      ),
-      if (aiConfigured)
-        NavigationDestination(
-          icon: const Icon(Icons.smart_toy_outlined),
-          selectedIcon: const Icon(Icons.smart_toy),
-          label: l10n.navAi,
-        ),
-      NavigationDestination(
-        icon: const Icon(Icons.settings_outlined),
-        selectedIcon: const Icon(Icons.settings),
-        label: l10n.navSettings,
-      ),
-    ];
+    final destinations = shellDestinations(
+      l10n: l10n,
+      // The icons come from the active theme document (APPEARANCE_DESIGN D1).
+      // Watching the provider is what makes a theme change visible immediately:
+      // saving a theme invalidates it, this rebuilds, and the rail/bar re-renders
+      // with the new IconData. `data` is null while following the legacy
+      // system/light/dark setting, which is why the map defaults to empty - every
+      // slot then renders its factory icon.
+      icons: ref.watch(activeAppearanceProvider).valueOrNull?.data?.icons ??
+          const <String, String>{},
+      aiConfigured: aiConfigured,
+    );
 
     // Clearing the key removes the AI destination; if it happened to be
     // selected, the index would point past the end.
