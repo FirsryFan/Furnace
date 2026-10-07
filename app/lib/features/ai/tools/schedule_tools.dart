@@ -46,10 +46,13 @@ class QueryScheduleTool extends AiTool {
       };
 
   @override
-  ToolRisk riskFor(String action) => ToolRisk.write;
+  ToolRisk riskFor(String action) => ToolRisk.write; // unused: no actions
 
   @override
   bool reversibleFor(String action) => true;
+
+  @override
+  bool get readOnly => true;
 
   @override
   bool get availableOnCurrentPlatform => true;

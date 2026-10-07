@@ -452,6 +452,12 @@ abstract class AppLocalizations {
   /// **'Reminder'**
   String get tasksReminder;
 
+  /// No description provided for @tasksReminderPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are not allowed, so this reminder will not appear. Allow notifications for Furnace in system settings, then set the reminder again.'**
+  String get tasksReminderPermissionDenied;
+
   /// No description provided for @tasksDueAt.
   ///
   /// In en, this message translates to:

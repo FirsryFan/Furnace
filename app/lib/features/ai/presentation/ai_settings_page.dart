@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../../data/repositories/ai_repository.dart';
@@ -303,9 +306,16 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
 
     // file_picker 12: `pickFiles` is static, returns the files directly, and
     // the bytes come from an async `readAsBytes()` (see packages_page.dart).
+    //
+    // `.fskill` is filtered on the desktop and NOT on Android on purpose: the
+    // Android picker goes through the system document UI, which filters by MIME
+    // type, and an unknown extension has no MIME type - filtering by one there
+    // makes the user's own `.fskill` files unselectable. The package is
+    // validated immediately after picking anyway, so the filter is a
+    // convenience, not a gate.
     final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['fskill'],
+      type: Platform.isAndroid ? FileType.any : FileType.custom,
+      allowedExtensions: Platform.isAndroid ? null : const ['fskill'],
     );
     if (!mounted) {
       return;

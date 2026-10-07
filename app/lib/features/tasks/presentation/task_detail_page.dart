@@ -507,12 +507,21 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
     await ref
         .read(notificationServiceProvider)
         .cancelReminder(notificationId);
-    await ref.read(notificationServiceProvider).scheduleReminder(
-          id: notificationId,
-          title: task.title,
-          body: l10n.tasksReminder,
-          when: remindAt,
-        );
+    final scheduled =
+        await ref.read(notificationServiceProvider).scheduleReminder(
+              id: notificationId,
+              title: task.title,
+              body: l10n.tasksReminder,
+              when: remindAt,
+            );
+    if (!scheduled && context.mounted) {
+      // The reminder is stored either way; what failed is the system's
+      // permission to show it. Saying so is the difference between "the app
+      // forgot" and "Android is blocking it".
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.tasksReminderPermissionDenied)),
+      );
+    }
     ref.invalidate(taskListProvider);
     ref.invalidate(scheduleSuggestionsProvider);
     await _load();

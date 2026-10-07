@@ -62,6 +62,7 @@
   "tasksAddDependency": "Add dependency",
   "tasksRemindAt": "Remind at",
   "tasksReminder": "Reminder",
+  "tasksReminderPermissionDenied": "Notifications are not allowed, so this reminder will not appear. Allow notifications for Furnace in system settings, then set the reminder again.",
   "tasksDueAt": "Deadline",
   "timeNewBlock": "New schedule block",
   "timeTodaySchedule": "Today's schedule",

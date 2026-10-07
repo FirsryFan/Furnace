@@ -270,6 +270,17 @@ abstract class AiTool {
   /// Which platforms may offer this tool.
   bool get availableOnCurrentPlatform;
 
+  /// True when the tool only reads.
+  ///
+  /// Reading is not a risk, so **no permission mode ever asks about it**
+  /// (docs/AI_DESIGN.md §6.1 D12: 只读查询 = 自动, in both modes). Declaring it
+  /// explicitly - instead of inferring it from a `write` risk that happens to do
+  /// nothing - is what lets the engine answer "may the agent look at my data?"
+  /// without a guess. Without this, a query tool was treated as a write and in
+  /// 「按计划」mode the model had to ask permission before it could even see what
+  /// it was talking about.
+  bool get readOnly => false;
+
   /// Runs the call. Implementations should throw [ToolArgError] for bad model
   /// input and let real failures propagate as exceptions the engine records.
   Future<ToolResult> run(ToolInvocation invocation);

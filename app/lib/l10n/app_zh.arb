@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "zh",
   "appTitle": "Furnace",
   "navMindMap": "思维导图",
@@ -59,6 +59,7 @@
   "tasksAddDependency": "添加依赖",
   "tasksRemindAt": "提醒时间",
   "tasksReminder": "提醒",
+  "tasksReminderPermissionDenied": "系统没有允许通知权限，这条提醒不会弹出。请在系统设置里允许 Furnace 发送通知后重新设置提醒。",
   "tasksDueAt": "截止时刻",
   "timeNewBlock": "新建日程块",
   "timeTodaySchedule": "今日安排",

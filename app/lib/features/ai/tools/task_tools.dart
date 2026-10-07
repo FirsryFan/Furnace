@@ -73,6 +73,9 @@ class QueryTasksTool extends AiTool {
   bool reversibleFor(String action) => true;
 
   @override
+  bool get readOnly => true;
+
+  @override
   bool get availableOnCurrentPlatform => true;
 
   @override

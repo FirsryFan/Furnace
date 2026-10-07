@@ -186,6 +186,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tasksReminder => '提醒';
 
   @override
+  String get tasksReminderPermissionDenied =>
+      '系统没有允许通知权限，这条提醒不会弹出。请在系统设置里允许 Furnace 发送通知后重新设置提醒。';
+
+  @override
   String get tasksDueAt => '截止时刻';
 
   @override

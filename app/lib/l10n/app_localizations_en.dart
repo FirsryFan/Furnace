@@ -186,6 +186,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tasksReminder => 'Reminder';
 
   @override
+  String get tasksReminderPermissionDenied =>
+      'Notifications are not allowed, so this reminder will not appear. Allow notifications for Furnace in system settings, then set the reminder again.';
+
+  @override
   String get tasksDueAt => 'Deadline';
 
   @override

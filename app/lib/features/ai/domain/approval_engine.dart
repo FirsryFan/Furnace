@@ -59,6 +59,7 @@ class ApprovalEngine {
     required String toolName,
     required ToolRisk risk,
     required bool reversible,
+    bool readOnly = false,
   }) {
     // Deletion first: it outranks the mode and the reversibility claim. A
     // "reversible" delete is still a delete, and the user asked to be asked.
@@ -69,6 +70,19 @@ class ApprovalEngine {
         reversible: reversible,
         disposition: ToolDisposition.individualApproval,
         reason: '删除类操作永远逐条确认',
+      );
+    }
+
+    // Reading is not a change, so it is never a question - in either mode. The
+    // agent's authority covers the user's data; whether it may *act* on it is
+    // what the permission mode decides, and looking is not acting.
+    if (readOnly) {
+      return ApprovalDecision(
+        toolName: toolName,
+        risk: risk,
+        reversible: reversible,
+        disposition: ToolDisposition.executeNow,
+        reason: '只读查询不需要确认',
       );
     }
 
@@ -110,6 +124,7 @@ class ApprovalEngine {
       toolName: tool.name,
       risk: tool.riskFor(action),
       reversible: tool.reversibleFor(action),
+      readOnly: tool.readOnly,
     );
   }
 }

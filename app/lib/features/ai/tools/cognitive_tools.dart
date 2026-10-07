@@ -1,4 +1,4 @@
-﻿/// 用途 1 in the AI tool layer: "which of these problems is worth doing now?"
+/// 用途 1 in the AI tool layer: "which of these problems is worth doing now?"
 ///
 /// The tool is a **thin, read-only wrapper** (AI_DESIGN D2): it reads the user's
 /// tags and card rows through the repositories, hands them to
@@ -113,6 +113,9 @@ class EvaluateProblemFitTool extends AiTool {
 
   @override
   bool reversibleFor(String action) => true;
+
+  @override
+  bool get readOnly => true;
 
   @override
   bool get availableOnCurrentPlatform => true;

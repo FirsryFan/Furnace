@@ -1,4 +1,4 @@
-﻿/// The AI's delete path: tags, single cards, and whole flashcards.
+/// The AI's delete path: tags, single cards, and whole flashcards.
 ///
 /// Deletion is the one thing the design never lets run without the user
 /// (AI_DESIGN D12: `destructive` is never `executeNow`, in any permission
@@ -57,12 +57,14 @@ class DeleteContentTool extends AiTool {
   @override
   String get description =>
       '删除标签、单张卡片，或整张闪存卡。'
+      '**先调用 query_content 找到目标 id**，不要凭记忆猜名字；'
+      '当然也可以直接用 name（标签名）/question（卡片题目）/title（闪存卡标题）定位。'
       '**这是破坏性操作：无论权限模式如何，每一条都需要用户单独确认**，所以只在用户明确要求删除时才调用。'
       'kind=tag 删除标签（连同它的全部子标签和关联）；'
       'kind=card 删除一张卡片；'
       'kind=flashcard 删除一张闪存卡（连同它的全部卡片与复习状态）。'
-      '定位目标优先用 id（可从之前的工具结果里拿）；也可以用 name（标签名）/question（卡片的题目）/'
-      'title（闪存卡标题）做精确匹配——如果匹配到多条，会拒绝执行并列出候选，让你改用 id。'
+      '名字/题目/标题先做精确匹配，再退回"唯一的部分匹配"（此时确认框里会显示真正要删的那一条）；'
+      '匹配到多条会拒绝并列出候选（含 id）让你改用 id。'
       '删错了可以让用户在这条对话里一键撤销。';
 
   @override
@@ -76,19 +78,19 @@ class DeleteContentTool extends AiTool {
           },
           'id': {
             'type': 'string',
-            'description': '目标 id（优先用它；三种 kind 都支持）',
+            'description': '目标 id（最可靠；先用 query_content 拿到它）',
           },
           'name': {
             'type': 'string',
-            'description': 'kind=tag 时可代替 id：标签名（精确匹配）',
+            'description': 'kind=tag 时可代替 id：标签名（精确或唯一部分匹配）',
           },
           'question': {
             'type': 'string',
-            'description': 'kind=card 时可代替 id：卡片题目（精确匹配，需与库里完全一致）',
+            'description': 'kind=card 时可代替 id：卡片题目（精确或唯一部分匹配）',
           },
           'title': {
             'type': 'string',
-            'description': 'kind=flashcard 时可代替 id：闪存卡标题（精确匹配）',
+            'description': 'kind=flashcard 时可代替 id：闪存卡标题（精确或唯一部分匹配）',
           },
         },
         'required': <String>['kind'],
@@ -201,23 +203,43 @@ class DeleteContentTool extends AiTool {
     if (name == null) {
       throw ToolArgError('kind=tag 需要 id 或 name');
     }
-    final matches = [
-      for (final tag in await _tags.getAllTags())
-        if (tag.name == name.trim()) tag,
+    final wanted = name.trim();
+    final all = await _tags.getAllTags();
+    final exact = [for (final tag in all) if (tag.name == wanted) tag];
+    if (exact.length == 1) {
+      return exact.single;
+    }
+    if (exact.length > 1) {
+      throw ToolArgError(_tagCandidates(wanted, exact));
+    }
+    // No exact hit: fall back to a partial one, but only when it is unique.
+    // Using a unique partial match is safe *because* a delete is always
+    // confirmed one by one and the confirmation names the exact target, so the
+    // user reads 「删除标签「物理力学」」 before anything is removed. Two or more
+    // candidates are still refused: choosing between them would be a guess, and
+    // a guess is what the confirmation cannot repair.
+    final needle = wanted.toLowerCase();
+    final loose = [
+      for (final tag in all)
+        if (tag.name.toLowerCase().contains(needle) ||
+            (tag.path ?? '').toLowerCase().contains(needle))
+          tag,
     ];
-    if (matches.isEmpty) {
-      throw ToolArgError('找不到名字为「$name」的标签');
+    if (loose.isEmpty) {
+      throw ToolArgError('找不到名字为「$wanted」的标签（可用 query_content 查看现有标签）');
     }
-    if (matches.length > 1) {
-      final where = [
-        for (final tag in matches)
-          '${tag.path ?? tag.name}（id=${tag.id}）',
-      ].join('、');
-      throw ToolArgError(
-        '「$name」匹配到 ${matches.length} 个标签：$where —— 请改用 id 指定要删哪一个',
-      );
+    if (loose.length == 1) {
+      return loose.single;
     }
-    return matches.single;
+    throw ToolArgError(_tagCandidates(wanted, loose));
+  }
+
+  /// The refusal that turns a failed guess into a next step.
+  static String _tagCandidates(String wanted, List<Tag> matches) {
+    final where = [
+      for (final tag in matches) '${tag.path ?? tag.name}（id=${tag.id}）',
+    ].join('、');
+    return '「$wanted」匹配到 ${matches.length} 个标签：$where —— 请改用 id（可用 query_content 查看）指定要删哪一个';
   }
 
   // --- cards --------------------------------------------------------------
@@ -273,23 +295,38 @@ class DeleteContentTool extends AiTool {
     if (question == null) {
       throw ToolArgError('kind=card 需要 id 或 question');
     }
-    // Exact match on purpose: the model's paraphrase of a question is not the
-    // question, and "close enough" is how the wrong card gets deleted.
-    final query = _db.select(_db.cardTemplates)
-      ..where((t) => t.question.equals(question.trim()));
-    final matches = await query.get();
-    if (matches.isEmpty) {
-      throw ToolArgError('找不到题目为「$question」的卡片（需要与库里的题目完全一致）');
+    final wanted = question.trim();
+    final exactQuery = _db.select(_db.cardTemplates)
+      ..where((t) => t.question.equals(wanted));
+    final exact = await exactQuery.get();
+    if (exact.length == 1) {
+      return exact.single;
     }
-    if (matches.length > 1) {
-      final where = [
-        for (final card in matches) '${_shorten(card.question)}（id=${card.id}）',
-      ].join('、');
-      throw ToolArgError(
-        '这个题目匹配到 ${matches.length} 张卡片：$where —— 请改用 id 指定要删哪一张',
-      );
+    if (exact.length > 1) {
+      throw ToolArgError(_cardCandidates(wanted, exact));
     }
-    return matches.single;
+    // See _resolveTag: a *unique* partial match is usable because the user still
+    // confirms the deletion and the dialog names the exact card.
+    final needle = wanted.toLowerCase();
+    final all = await _db.select(_db.cardTemplates).get();
+    final loose = [
+      for (final card in all)
+        if (card.question.toLowerCase().contains(needle)) card,
+    ];
+    if (loose.isEmpty) {
+      throw ToolArgError('找不到题目为「$wanted」的卡片（可用 query_content 查看现有卡片）');
+    }
+    if (loose.length == 1) {
+      return loose.single;
+    }
+    throw ToolArgError(_cardCandidates(wanted, loose));
+  }
+
+  static String _cardCandidates(String wanted, List<CardTemplate> matches) {
+    final where = [
+      for (final card in matches) '${_shorten(card.question)}（id=${card.id}）',
+    ].join('、');
+    return '「$wanted」匹配到 ${matches.length} 张卡片：$where —— 请改用 id（可用 query_content 查看）指定要删哪一张';
   }
 
   // --- flashcards ---------------------------------------------------------
@@ -360,21 +397,37 @@ class DeleteContentTool extends AiTool {
     if (title == null) {
       throw ToolArgError('kind=flashcard 需要 id 或 title');
     }
-    final query = _db.select(_db.knowledgePoints)
-      ..where((t) => t.title.equals(title.trim()));
-    final matches = await query.get();
-    if (matches.isEmpty) {
-      throw ToolArgError('找不到标题为「$title」的闪存卡（需要与库里的标题完全一致）');
+    final wanted = title.trim();
+    final exactQuery = _db.select(_db.knowledgePoints)
+      ..where((t) => t.title.equals(wanted));
+    final exact = await exactQuery.get();
+    if (exact.length == 1) {
+      return exact.single;
     }
-    if (matches.length > 1) {
-      final where = [
-        for (final point in matches) '${_shorten(point.title)}（id=${point.id}）',
-      ].join('、');
-      throw ToolArgError(
-        '这个标题匹配到 ${matches.length} 张闪存卡：$where —— 请改用 id 指定要删哪一张',
-      );
+    if (exact.length > 1) {
+      throw ToolArgError(_flashcardCandidates(wanted, exact));
     }
-    return matches.single;
+    // See _resolveTag: unique partial match is usable, several are not.
+    final needle = wanted.toLowerCase();
+    final all = await _db.select(_db.knowledgePoints).get();
+    final loose = [
+      for (final point in all)
+        if (point.title.toLowerCase().contains(needle)) point,
+    ];
+    if (loose.isEmpty) {
+      throw ToolArgError('找不到标题为「$wanted」的闪存卡（可用 query_content 查看现有闪存卡）');
+    }
+    if (loose.length == 1) {
+      return loose.single;
+    }
+    throw ToolArgError(_flashcardCandidates(wanted, loose));
+  }
+
+  static String _flashcardCandidates(String wanted, List<KnowledgePoint> matches) {
+    final where = [
+      for (final point in matches) '${_shorten(point.title)}（id=${point.id}）',
+    ].join('、');
+    return '「$wanted」匹配到 ${matches.length} 张闪存卡：$where —— 请改用 id（可用 query_content 查看）指定要删哪一张';
   }
 
   // --- snapshot plumbing --------------------------------------------------

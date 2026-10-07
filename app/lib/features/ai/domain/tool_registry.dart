@@ -9,6 +9,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
 import '../tools/cognitive_tools.dart';
+import '../tools/content_query_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
@@ -63,6 +64,11 @@ class ToolRegistry {
       // it, and deleting a flashcard takes its review history, so every call is
       // per-item confirmed and snapshotted for undo (tools/deletion_tools.dart).
       DeleteContentTool(db: db, anki: anki, tags: tags),
+      // The pair of the tool above: the model cannot delete what it cannot
+      // name, and before this pair existed the only way to address a tag or a
+      // flashcard was to guess its name from the conversation
+      // (tools/content_query_tools.dart). Read-only, so no mode asks about it.
+      QueryContentTool(db: db, anki: anki, tags: tags),
     ]);
   }
 
