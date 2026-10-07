@@ -14,6 +14,7 @@ import '../domain/ai_tool.dart';
 import '../domain/approval_engine.dart';
 import '../domain/vision_payload.dart';
 import '../infrastructure/ai_attachment_store.dart';
+import 'ai_message_markup.dart';
 
 /// The AI conversation screen.
 ///
@@ -666,7 +667,7 @@ class _MessageBubble extends StatelessWidget {
                   for (final image in images) _MessageImage(image: image),
                 ],
               ),
-            if (_text.isNotEmpty) SelectableText(_text),
+            if (_text.isNotEmpty) AiMessageBody(text: _text, isUser: _isUser),
           ],
         ),
       ),
