@@ -212,6 +212,10 @@ class AgentLoop {
   /// and using the built-in rules alone. See [_systemPrompt].
   static const Duration skillReadTimeout = Duration(seconds: 2);
 
+  /// How long one message's images may take to come off disk before the turn
+  /// proceeds without them. See [_imageParts].
+  static const Duration imageReadTimeout = Duration(seconds: 10);
+
   /// Ceiling on model round-trips per user message. Eight is enough for
   /// "look something up, then act on it, then confirm" without letting a loop
   /// run away with the user's credit.
@@ -714,12 +718,25 @@ class AgentLoop {
   ///
   /// An empty list for every message without pictures, which is what keeps the
   /// text-only request shape untouched.
+  ///
+  /// Bounded for the same reason as [_systemPrompt]'s skill read: reading a
+  /// picture means resolving the app support directory, and a turn must never be
+  /// able to freeze on that. The store's own policy already treats an unreadable
+  /// picture as a droppable one, so a stall gets the same answer - this message
+  /// goes without its image rather than not at all. The ceiling is generous on
+  /// purpose: it exists to catch a stall, not a slow disk.
   Future<List<ChatImagePart>> _imageParts(String messageId) async {
     final store = attachments;
     if (store == null) {
       return const [];
     }
-    return store.partsForMessage(messageId);
+    try {
+      return await store
+          .partsForMessage(messageId)
+          .timeout(imageReadTimeout);
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// The system prompt: the fixed rules, plus whatever the user's enabled
