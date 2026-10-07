@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-10-02 轮次十四：AI 自主权（能查才能删）+ 安卓端落地（通知权限 / skill 选择器）
+
+> 用户反馈两条：①桌面端 AI 有删除工具却删不掉——**因为不知道 id**；
+> ②"内置 agent 应该有权修改一切，这个权力是否被允许使用由用户的选项决定"。
+
+### 1. 根因：能删，但看不见
+
+`delete_content` 早就支持按 id / name / question / title 定位，但：
+
+- 模型**没有列清单的工具**——标签、闪存卡、卡片的 id 只能靠用户在对话里说出来，凭记忆猜名字，
+  猜错一个字就得到"找不到…"，没有下一步；
+- 按计划（plan）模式下**连查询都要申请**：只读工具只是"声明成 `write` 但什么都不写"，
+  而 `ApprovalEngine` 只看 risk ⇒ 查询落在"本轮汇总确认"里，模型连看一眼都得先问。
+
+### 2. 修法
+
+- **`AiTool.readOnly`（新）**：默认 `false`，七个只读工具声明 `true`；`ApprovalEngine` 见到它直接
+  `executeNow`，**两种模式下"看"都不需要确认**。这条是 D12 表里本来就写的"只读查询＝自动"，
+  现在由代码保证而不是靠约定。判断原则：**agent 有权碰用户的全部数据；需不需要问由权限模式决定，而"看"不是"动"。**
+- **`query_content`（新工具，第 9 个）**：`kind = tag | flashcard | card`，返回 id 与足够定位的上下文
+  （标签的 path/parent/关联数、闪存卡标题/来源/卡片数、卡片题目与所属闪存卡），支持关键词过滤与 limit。
+  与 `delete_content` 成对使用：**先看，再拿 id 动手**。
+- **删除定位加一层"唯一部分匹配"**：先精确匹配；没有精确命中时退回包含匹配，**唯一命中才采用**
+  （安全前提是删除永远逐条确认、确认框里显示的就是要删的那一条），多命中仍然拒绝并列出候选（含 id）。
+  精确命中优先于更长的部分匹配。
+
+### 3. 安卓端
+
+- **通知权限（真 bug）**：Android 13（API 33）起 `POST_NOTIFICATIONS` 是运行时权限，清单声明不够；
+  此前代码从不申请 ⇒ **手机上的任务提醒会被系统静默丢弃**。现在在设置提醒时申请一次，
+  被拒就明确告诉用户（新增 `tasksReminderPermissionDenied`，中英双语）。
+- **`.fskill` 选择器**：Android 走系统文档 UI、按 MIME 过滤，`.fskill` 没有 MIME ⇒ 用户自己的文件选不中。
+  安卓改用"任意文件"（包本身随后就要过严格校验），桌面端保持扩展名过滤。
+- 提醒的时间点写了一条测试钉住：`TZDateTime.from` 保持**时刻**不变，
+  所以"没调用 `setLocalLocation`"不是 bug——免得下一个人去"修"它。
+
+### 4. 验证快照（本会话实跑）
+
+- 新增测试：`content_query_tools_test.dart` 12 条（列清单/过滤/limit/未知 kind、只读免确认 vs 删除必确认、
+  query→delete 端到端、唯一部分匹配可用而多命中拒绝、精确优先）、`reminder_instant_test.dart` 2 条
+- `test/features/ai` → **`+226 All tests passed!`**
+- 全量 `flutter test --concurrency=1` → **`+810 ~2 All tests passed!`**（轮次十三为 +796：本轮 +12 查询/审批 +2 提醒时刻）
+- 两平台 release 已重构建，产物见 `dist/`
+- `dart analyze lib test` → **87 info，0 error / 0 warning**
+
+---
+
 ## 2026-10-02 轮次十三：AI 对话渲染 markdown/LaTeX + AI 删除标签与卡片 + 术语统一为「闪存卡」
 
 > 用户三条诉求：①对话界面要能渲染 markdown 与 LaTeX；②给 AI 加上标签与卡片的删除能力；③「知识点」改名为「闪存卡」。

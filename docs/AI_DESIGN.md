@@ -156,12 +156,12 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
-**2026-10-02 实测：当前真正注册的工具清单（8 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+**2026-10-02 实测：当前真正注册的工具清单（9 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
 清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`：
 
 | 工具 | 文件 | 风险 | reversible |
 | --- | --- | --- | --- |
-| `query_tasks` | `tools/task_tools.dart` | 只读（声明 `write`，无 action，见该文件注释） | — |
+| `query_tasks` | `tools/task_tools.dart` | 只读（`AiTool.readOnly`） | — |
 | `manage_task` | 同上 | 增改 `write`；**删除 `destructive`** | ✅（删除存整行 + 依赖边） |
 | `query_schedule` | `tools/schedule_tools.dart` | 只读 | — |
 | `manage_time_block` | 同上 | 增改 `write`；**删除 `destructive`** | ✅ |
@@ -169,6 +169,14 @@ class ToolSpec {
 | `fetch_page` | `tools/web_tools.dart` | 只读（唯一的联网工具，约束见 D1 修订） | — |
 | `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建；照片→闪存卡的落库工具） |
 | `delete_content` | `tools/deletion_tools.dart` | **`destructive`（tag/card/flashcard 三种 kind 全是）** | ✅（`before_json` 存原行，含标签子树与关联、卡片状态与复习日志） |
+| `query_content` | `tools/content_query_tools.dart` | 只读（标签/闪存卡/卡片的 id 与上下文） | — |
+
+> **2026-10-02 补：只读是显式声明的，不是猜出来的。** `AiTool.readOnly` 默认 `false`，七个只读工具
+> （`query_tasks` / `query_schedule` / `evaluate_problem_fit` / `fetch_page` / `query_content`）声明 `true`，
+> `ApprovalEngine` 见到它就返回 `executeNow`——**两种权限模式下，看数据都不需要用户确认**。
+> 这条直接对应本节 D12 表里"只读查询＝自动"，此前只是靠"声明成 `write` 但什么都不写"糊过去，
+> 结果是「按计划」模式下模型连查一下都要先申请，删除更是无从下手（连 id 都拿不到）。
+> 判断原则一句话：**agent 有权碰用户的一切数据，需不需要问由权限模式决定；而"看"不是"动"。**
 
 **决策 D7**：`destructive` 类工具**永远不进入自动执行**，无论用户选了哪个权限模式。删除必须逐条确认。
 > 依据①：模型判断错一次，数据就没了。这条没有权衡余地。
