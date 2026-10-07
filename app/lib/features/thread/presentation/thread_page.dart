@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
@@ -30,6 +31,30 @@ class ThreadPage extends ConsumerStatefulWidget {
 
 class _ThreadPageState extends ConsumerState<ThreadPage> {
   bool _archiveView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // A write anywhere else (a task edited in the task list, the AI assistant
+    // adding one, a schedule block moved) invalidates the in-memory ranking.
+    // Re-sorting keeps the stream honest; the ranker is pure, so nothing moves
+    // unless the inputs really changed - and it never writes, so this cannot
+    // feed itself.
+    _revisionSubscription = ref.listenManual(dataRevisionProvider, (_, __) {
+      if (ref.read(threadFeedProvider).valueOrNull == null) {
+        return;
+      }
+      ref.read(threadFeedProvider.notifier).sort();
+    });
+  }
+
+  late final ProviderSubscription<int> _revisionSubscription;
+
+  @override
+  void dispose() {
+    _revisionSubscription.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

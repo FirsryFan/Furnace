@@ -26,6 +26,7 @@ class _ScheduleEntry {
 }
 
 final timeBlockScheduleProvider = FutureProvider<List<_ScheduleEntry>>((ref) async {
+  ref.watchDatabaseRevision();
   final blocks = await ref.watch(timeBlockRepositoryProvider).getTimeBlocks();
   final entries = <_ScheduleEntry>[];
   for (final block in blocks) {
