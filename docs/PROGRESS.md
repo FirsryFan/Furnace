@@ -4,6 +4,83 @@
 
 ---
 
+## 2026-10-02 轮次十三：AI 对话渲染 markdown/LaTeX + AI 删除标签与卡片 + 术语统一为「闪存卡」
+
+> 用户三条诉求：①对话界面要能渲染 markdown 与 LaTeX；②给 AI 加上标签与卡片的删除能力；③「知识点」改名为「闪存卡」。
+
+### 1. 对话正文：markdown + LaTeX
+
+依赖选择（有据）：**`gpt_markdown` 1.3.2**。实测 `dart pub add --dry-run` 在 Dart 3.13.2 / Flutter 3.47.2 下可解，
+只带 4 个**纯 Dart** 传递依赖（`val_latex` / `val_latex_flutter` / `val_highlight` / `val_highlight_flutter`，都没有 `plugin:` 段）；
+pub.dev 评分 160/160、327 likes、30 天 16.2 万次下载、标签含 `latex`/`streaming`。
+备选方案 `flutter_markdown_plus + flutter_math_fork` 要带 11 个依赖，未采用。
+
+实现：`features/ai/presentation/ai_message_markup.dart`（新增）——`AiMessageBody` 负责"谁来渲染"，`aiMessageRendersAsMarkdown` 负责"能不能渲染"；
+`ai_chat_page.dart` 只改一行（`SelectableText` → `AiMessageBody`）。
+
+三条规则（都写进注释）：
+
+- **用户消息永远是纯文本**：用户打的字是数据，按 markdown 解析会悄悄改变他看到的内容（`*`、`$` 必须原样）。
+- **助手消息在"结构完整"时才按 markdown 渲染**：流式半成品里一个未闭合的 ``` 或 `$$` 会吞掉后面整段，
+  所以这类构造没闭合时按纯文本显示，闭合那一刻自动切换。判据只看内容，不看"是否在流式中"——
+  已成型的内容边流边渲染才是用户预期的效果。
+  - 检查项只有两类：围栏行数（``` 与 ~~~ 各自）奇偶，以及 `$`/`$$` 的配对（`\$` 视为字面量；`$` 后接空白视为普通文本，
+    闭 `$` 前接空白同样不算闭）。强调、列表、表格、链接、行内代码**故意不检查**——它们出错只会变成难看的字面量，
+    不会曲解整段，若纳入检查则一个落单的 `*` 就会把整条回答降级成纯文本。
+- **颜色只取 `Theme.of(context)`**：链接色显式覆写（包默认是硬编码蓝），代码块/表格底色由 `ColorScheme` 推出，
+  亮/暗主题都不写死黑白；`MediaQuery.textScaler`（`lib/app/app.dart`）自然继承。
+
+验证：`test/features/ai/ai_markdown_test.dart` **19 条**（markdown 结构、行内/展示公式、`\(...\)`/`\[...\]`、用户文本原样、
+流式守卫 6 条单测 + 端到端"经真实 `AiChatPage` 边流边切换"、主题不写死颜色、文字缩放）。
+另做了**敏感性实验**（改完即还原）确认断言不是空跑：关掉 `useDollarSignsForLatex` ⇒ 数学断言 2→0 失败；
+把守卫强改为恒真 ⇒ 5 条失败。
+
+### 2. AI 删除标签 / 卡片 / 闪存卡
+
+新增 `features/ai/tools/deletion_tools.dart`，一个工具 `delete_content`（`kind = tag | card | flashcard`），已注册（工具总数 8）。
+
+- **破坏性、逐条确认**：`riskFor` 对所有 kind 返回 `destructive`；审批引擎既有断言"没有任何模式下破坏性调用会静默执行"。
+- **可撤销**：删除前把原始行（SQL 列名）读入 `before_json`，撤销走 `.tfpkg` 同一套 `restoreTable`。
+  删标签的快照含**整棵子树 + 全部 `object_tags` 关联**；删闪存卡含其卡片、`card_states` 与 `review_logs`
+  （**学习历史也会还回来**）。
+- **绝不猜**：按 id 或按 `name`/`question`/`title` 精确匹配；**匹配到多条即拒绝并列出候选（含 id）**。
+- 级联委托仓储（`deleteTag` / `deleteTemplate` / `deleteKnowledgePoint`），AI 与界面不会有两种"删除"语义。
+
+验证：`test/features/ai/deletion_tools_test.dart` **11 条**（注册与风险分级、子树+关联删与撤销、卡片的状态与日志回滚、
+闪存卡全量回滚、歧义拒绝、目标不存在拒绝、未知 kind 拒绝）。
+
+### 3. 术语统一：知识点 / 词条 → **闪存卡**
+
+改名范围＝**用户可见文案**（原来界面里同时存在「知识点」与「词条」两种叫法，本身就是不一致）：
+
+| 位置 | 改后 |
+| --- | --- |
+| 导航 `navAnki` | 闪存卡 / Flashcards |
+| `ankiNewKnowledgePoint` / `ankiNoDueCards` | 新建闪存卡 / 没有到期的闪存卡 |
+| `knowledgeBoosted` / `knowledgeInsightBoost` | …相关闪存卡 |
+| `tagsDeleteBody` / `settingsDemoDataHint` / `packagesScopeHint` / `cognitiveEmpty` | 闪存卡 |
+| 模型可见文案（`knowledge_tools.dart`、`cognitive_tools.dart`、`problem_evaluator.dart`）、`demo_data_service.dart` 硬编码串 | 闪存卡 |
+
+**代码标识符、数据库列、MindNet 契约里的 `knowledgePoint`/`KP` 一律不动**——这是没有用户可见收益的迁移。
+映射记在 `app_en.arb` 的 `@navAnki` 描述里；顺带删掉从未被引用的重复键 `navKnowledge`。
+
+### 4. 验证快照（本会话实跑）
+
+- 全量 `flutter test --concurrency=1` → **`+796 ~2 All tests passed!`**（轮次十二为 +766：本轮 +11 删除 +19 markdown）
+- `dart analyze lib test` → **0 error / 0 warning**，info 数与基线持平
+- Windows / Android release：本轮重构建（新依赖必须重出产物），产物事实见下方§5
+
+### 5. 仍未验证 / 已知取舍（如实）
+
+- **没有像素级验证**：所有断言都在 widget 树上（TextSpan 样式、控件类型、装饰色），没有截图/golden/真机。
+- **链接渲染但点不动**：`onLinkTap` 留空——应用没有打开外部 URL 的能力，而为此引入 `url_launcher` 属越界。
+- **窄屏 + 宽表格未验证**：包默认表格横向滚动，套在最大 560 宽的气泡里，与页面纵向列表的嵌套手势没在真机上试过。
+- 守卫的已知误判：整段里出现孤立的 `$`（如「花了 $5」）会让该条降级为纯文本；代码围栏里的 `$` 也参与扫描；
+  仅表头、未闭合粗体/反引号/`[label](` 这类半成品按"字面量"处理（已验证不抛异常、文本不丢），
+  但"刚到达一半的 `\(`"没测。
+
+---
+
 ## 2026-10-02 轮次十二：写库即刷新（响应式）+ 知识库可用 + AI 三件（图片造卡 / 联网抓取 / skill 安装）
 
 > 用户四条诉求：①让 AI 能上传图片并制作背诵卡片；②"最大的问题是状态更新——现在还要重启才能更新日程、任务等界面"；

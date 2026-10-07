@@ -16,7 +16,10 @@
 
 | 能力 | 2026-09-08 表 | 2026-10-02 实测 |
 | --- | --- | --- |
-| AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 7 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
+| AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 8 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
+| AI 对话正文渲染 markdown / LaTeX | 表内无此节 | ✅ 2026-10-02 新增（`gpt_markdown`；见 PROGRESS 轮次十三） |
+| AI 删除标签 / 卡片 / 闪存卡 | 表内无此节 | ✅ 2026-10-02 新增（`features/ai/tools/deletion_tools.dart`）：破坏性工具，逐条确认 + 快照可撤销 |
+| 术语：知识点 / 词条 | — | ✅ 2026-10-02 统一为用户可见词 **闪存卡**（`navAnki` 等；代码与数据库仍是 `knowledgePoint`，见 `app_en.arb` 的 `@navAnki` 说明） |
 | AI 图片输入 → 自动生成背诵卡片 | 表内无此节 | ✅ 新增（`features/ai/domain/vision_payload.dart`、`features/ai/tools/knowledge_tools.dart`） |
 | AI 只读联网抓取 `fetch_page` | 表内无此节 | ✅ 新增（`features/ai/tools/web_tools.dart` + `domain/services/web/`）；**不做 DNS 解析**，见 [AI_DESIGN.md](AI_DESIGN.md) D1 |
 | `.fskill` 安装 / 启停 / 删除 | 表内无此节（[SKILL_FORMAT.md](SKILL_FORMAT.md) 标注"容器未实现"） | ✅ 安装与管理已实现（`domain/skill/` + `data/skill/`）；**脚本执行容器仍未实现**（§7） |

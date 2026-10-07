@@ -156,6 +156,20 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
+**2026-10-02 实测：当前真正注册的工具清单（8 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`：
+
+| 工具 | 文件 | 风险 | reversible |
+| --- | --- | --- | --- |
+| `query_tasks` | `tools/task_tools.dart` | 只读（声明 `write`，无 action，见该文件注释） | — |
+| `manage_task` | 同上 | 增改 `write`；**删除 `destructive`** | ✅（删除存整行 + 依赖边） |
+| `query_schedule` | `tools/schedule_tools.dart` | 只读 | — |
+| `manage_time_block` | 同上 | 增改 `write`；**删除 `destructive`** | ✅ |
+| `evaluate_problem_fit` | `tools/cognitive_tools.dart` | 只读（用途 1） | — |
+| `fetch_page` | `tools/web_tools.dart` | 只读（唯一的联网工具，约束见 D1 修订） | — |
+| `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建；照片→闪存卡的落库工具） |
+| `delete_content` | `tools/deletion_tools.dart` | **`destructive`（tag/card/flashcard 三种 kind 全是）** | ✅（`before_json` 存原行，含标签子树与关联、卡片状态与复习日志） |
+
 **决策 D7**：`destructive` 类工具**永远不进入自动执行**，无论用户选了哪个权限模式。删除必须逐条确认。
 > 依据①：模型判断错一次，数据就没了。这条没有权衡余地。
 
@@ -209,7 +223,7 @@ scripts/**         配套脚本
 
 | 能力 | Windows | Android |
 | --- | --- | --- |
-| 内置工具（当前 7 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
+| 内置工具（当前 8 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
 | 提示词型 skill（只有 `prompt.md`） | ✅ | ✅ |
 | 脚本型 skill（`.fskill` 带脚本） | ✅ | ❌ |
 | 浏览器扩展桥（复用已登录标签页） | ✅ | ❌ |
