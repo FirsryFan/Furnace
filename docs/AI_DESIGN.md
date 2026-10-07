@@ -41,7 +41,9 @@ uses-permission: POST_NOTIFICATIONS / RECEIVE_BOOT_COMPLETED / VIBRATE
 
 **决策 D1**：接受这个降级，但用三条硬约束把它兜住：
 1. **默认关闭**：没填 key 时，应用的行为与现在**完全一致**（代码路径不触发任何网络调用）。
-2. **出网只有一处**：整个代码库里只有模型适配器一个地方能发起网络请求；工具层、skill 脚本默认**不联网**（例外见 §5 的域名白名单）。
+2. **出网只有两处**（2026-10-02 修订，原文为"只有模型适配器一处"）：①模型适配器，把用户输入与工具调用所需的本地摘要发给**用户自己配置**的端点；②只读网页抓取工具 `fetch_page`（`app/lib/features/ai/tools/web_tools.dart`）。工具层其余部分与 skill 脚本仍不出网——skill 的执行容器**尚未实现**，实现时必须走 §5 的 `networkAllow` 白名单 + 首次确认。
+   `fetch_page` 的约束都写在代码里并有测试：只允许 http/https、只 GET、**不发送 cookie / Authorization / 任何凭证**、固定 User-Agent 标识自身、**拒绝回环 / 内网 / 链路本地地址**（`domain/services/web/web_http.dart:refuseNonPublicHost`，且**每一跳重定向都重新校验**）、重定向 ≤5、超时 15s、响应体 ≤2 MiB、每次调用落 `ai_actions` 台账。
+   已知限制（如实写明，不假装覆盖）：该守卫检查的是字面 IP 与 `localhost`，**不做 DNS 解析**，因此"解析到内网地址的域名"不受它保护；要堵住需要 resolve-then-pin 抓取，本轮未做。
 3. **可核查**：设置页明确显示"AI 已开启，会向 api.deepseek.com 发送你输入的内容与工具调用所需的本地数据摘要"，不藏。
 
 > 依据：用户选①优先级。全应用只有一个出网点，是让"AI 关掉 = 回到原状"这句话真正成立的最小结构。
@@ -207,7 +209,7 @@ scripts/**         配套脚本
 
 | 能力 | Windows | Android |
 | --- | --- | --- |
-| 内置工具（15 个） | ✅ | ✅ |
+| 内置工具（当前 7 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
 | 提示词型 skill（只有 `prompt.md`） | ✅ | ✅ |
 | 脚本型 skill（`.fskill` 带脚本） | ✅ | ❌ |
 | 浏览器扩展桥（复用已登录标签页） | ✅ | ❌ |

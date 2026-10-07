@@ -9,6 +9,26 @@
 > 术语：按定稿词表（事件/日程块/词条/节点/系/主题…）；代码内部模块名（tasks/timeboard/anki/mindmap）对照见 ARCHITECTURE.md（D2）
 > 代码位置均相对 `app/lib/`，与 GAP 现状列核对过的实际文件
 
+## 2026-10-02 实测状态修正（下表多处 R4/R5 行已过期，以本块为准）
+
+> 下表是 R 阶段规划当时的快照，此后多轮已落地但表格未逐行维护。
+> 与代码不符时，以 [PROGRESS.md](PROGRESS.md) 的轮次记录（尤其轮次十一、十二）与本块为准。
+
+| 能力 | 2026-09-08 表 | 2026-10-02 实测 |
+| --- | --- | --- |
+| AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 7 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
+| AI 图片输入 → 自动生成背诵卡片 | 表内无此节 | ✅ 新增（`features/ai/domain/vision_payload.dart`、`features/ai/tools/knowledge_tools.dart`） |
+| AI 只读联网抓取 `fetch_page` | 表内无此节 | ✅ 新增（`features/ai/tools/web_tools.dart` + `domain/services/web/`）；**不做 DNS 解析**，见 [AI_DESIGN.md](AI_DESIGN.md) D1 |
+| `.fskill` 安装 / 启停 / 删除 | 表内无此节（[SKILL_FORMAT.md](SKILL_FORMAT.md) 标注"容器未实现"） | ✅ 安装与管理已实现（`domain/skill/` + `data/skill/`）；**脚本执行容器仍未实现**（§7） |
+| 跨页状态更新需要重启 | 表内无此节 | ✅ 已修复（2026-10-02 写库即刷新，[REACTIVITY_DESIGN.md](REACTIVITY_DESIGN.md)） |
+| `.tfpkg` 导出/导入（全量逻辑转储） | 🔴 R4 | ✅ 已实现（`data/package/tfpkg_service.dart`、设置页「数据」小节） |
+| 主题 JSON（主/辅色、背景、动画） | 🔴 R4 | ✅ 已实现（`Themes` 表、`core/theme/theme_profile.dart`、主题编辑器；**图标槽位**为 2026-10-02 新增） |
+| 日/周/月/时间线日历 | 🔴 R5 | ✅ 已实现（`features/timeboard/presentation/calendar_page.dart`，`CalendarView{day,week,month,timeline}`） |
+| 页面缩放 80%–150% | 🔴 R4 | ❌ 仍未实现（在 `app/lib/` 下检索 `textScaleFactor` / `scaleFactor` / `uiScale` / `pageScale` 均无命中） |
+| Android 适配 / 正式包联网 | 🔴 v0.3 / — | ✅ 已重构建（2026-10-02）；并修掉"release 清单缺 `INTERNET`、AI 在 Android 正式包上完全连不上网" |
+
+---
+
 ## 2026-09-08 实测状态修正（覆盖下表的 R3 行）
 
 | 能力 | 2026-09-07 表 | 2026-09-08 实测 |

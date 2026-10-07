@@ -320,8 +320,8 @@ forced → boosted → model → unseen
 | 读数页 zone 恒 `unavailable` | 如实标注 | §5.2（t19 边界） |
 | `ls` / `W_DAR` / `β_goal` 等未标定 | 已标注 | §6.2 |
 | DiffusionBoost 仍在 | 短期分工（D5） | §5.1 |
-| Android 未重构建 / `.fskill` 容器 / Thread 事件流刷新 | 未做（本轮非目标） | `docs/HANDOFF.md` 的历史遗留条目 |
-| **MindNet 工作树有一处先前遗留的脏文件** | 未处置（等授权） | §9；`git -C E:\Document\MindNet status --porcelain` = ` M conformance/mindnet_vectors.json` |
+| ~~Android 未重构建 / `.fskill` 容器 / Thread 事件流刷新~~ **已更新（2026-10-02）** | Android 已重构建；Thread 事件流刷新已实现（`docs/REACTIVITY_DESIGN.md`）；`.fskill` **安装/管理**已实现、**脚本执行容器**仍未实现（`docs/SKILL_FORMAT.md` §7） | `docs/HANDOFF.md` |
+| ~~**MindNet 工作树有一处先前遗留的脏文件**~~ **已判定：保留（2026-10-02）** | 工作区戳 `f4eec9b` **等于该仓库 HEAD**，已提交的 `107ab12` 才是过期值，回退等于换回过期值；以后核验口径＝"diff 只允许出现 `generated_from.commit` 一行" | `MINDNET_CONTRACT.md` §9.8b 第 5/6 条 |
 | 全量测试有 2 条 skip | 正常 | §0（探针宿主入口无 `--dart-define` 时 inert） |
 
 ---

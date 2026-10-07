@@ -4,6 +4,109 @@
 
 ---
 
+## 2026-10-02 轮次十二：写库即刷新（响应式）+ 知识库可用 + AI 三件（图片造卡 / 联网抓取 / skill 安装）
+
+> 用户四条诉求：①让 AI 能上传图片并制作背诵卡片；②"最大的问题是状态更新——现在还要重启才能更新日程、任务等界面"；
+> ③知识库的三点（命名、已导入包列表、选择性导出）；④让 AI 能浏览网页抓取元素，并安装 skill。
+> 四条全部落地；下文的数字都来自本会话实跑。
+
+### 1. ② 响应式：根因与机制
+
+根因不是热重载：界面数据来自**非 autoDispose 的 `FutureProvider`**，页面 `ref.watch` 到的是**缓存值**；
+而写库只发生在动作所在的那个页面里，跨来源的写入（AI 造卡、导入知识包、复习评分）**没有任何人通知其他页面**，
+于是只有重启（或该页面自己的 `invalidate`）才更新。
+
+新机制是一条链、四个文件：写语句 → drift `QueryExecutor` → `DbWriteInterceptor`
+（`insert/update/delete/custom/batch`）→ `DataChangeBus.recordChange()`（微任务合并）→
+`dataRevisionProvider` → 19 个 `ref.watchDatabaseRevision()` 的 provider 重新取数 → 页面重建。
+
+- **拦截点在执行器层，不在仓储层**：新增仓储、新增 AI 工具在结构上不可能"忘记通知"。
+- **前台恢复也算一次变化**（`home_shell.dart` 的 `WidgetsBindingObserver`）：到期卡、今天的日程、
+  "N 分钟前排序"都是时钟派生，后台放一夜没有任何写。
+- 复习页在**答题中途不刷新队列**（不丢进度）；Thread 在已有排序结果时自动 `sort()`（排序器纯读，不会自激）。
+- 设计文档（新增）：`docs/REACTIVITY_DESIGN.md`——不变量、覆盖清单、刻意不覆盖、验证方式。
+- 关键验证：`test/features/reactivity_live_page_test.dart` 挂**真实标签页** + 外部写 ⇒ 新数据出现；
+  **对照组**把 revision 冻结成常量（复现改动前行为）⇒ 同样的写不可见。两条一起才说明测的是这条链。
+
+### 2. 顺带修掉的真 bug：Android release 根本没有 `INTERNET`
+
+`app/android/app/src/main/AndroidManifest.xml` 此前只有 debug/profile 清单带 `INTERNET`
+（Flutter 默认如此）⇒ **AI 在 Android 正式包里从来连不上网**。已补上，并按事实改写
+`docs/PRIVACY.md`（"默认无网络权限"这条承诺不再成立，改为"AI 未配置 key 时没有任何网络调用"）。
+
+### 3. ③ 知识库
+
+- 中文导航 `navAnki` 由未翻译的 "Knowledge" 改为「知识点」，与「知识库」（`.kpak` 导入导出）区分；
+- 知识库页现在**列出已导入的知识包**（名称/版本/作者/导入时间/条目计数），随 revision 自动刷新；
+- 导出对话框新增**版本号**与**导出范围**（全部内容 / 按标签筛选）：按标签导出只带所选标签及其知识点，
+  **不含思维导图**（半张导图是坏树，不是小树）。
+
+### 4. ① 图片 → 背诵卡片
+
+- `vision_payload.dart`：`dart:ui` 解码 + 降采样（长边 1280、`allowUpscaling:false`）+ 4 MB 上限，超限**拒发**；
+- `model_adapter.dart`：`ChatImagePart` / `ChatMessage.images` / `contentParts`——**无图时仍是纯字符串**，
+  文本链路逐字节不变；
+- `ai_attachment_store.dart` + `ai_repository.addAttachment`：图片落 `<appSupport>/ai_attachments/`，
+  库里只存相对路径（字节不进数据库，沿用既有 `Attachments` 表，**无 schema 改动**）；
+- `create_knowledge_cards`（写工具）：走既有审批引擎，`afterJson` 记 id，撤销 = 删除所建。
+  无卡片时**在任何写入之前**先算自动填空题，算不出就整单拒绝（不留下"有知识点没卡片"的半成品）。
+
+### 5. ④a `fetch_page`（只读联网抓取）
+
+只用 `dart:io HttpClient`（**零新依赖**）。规则：只 http/https、只 GET、**不带 cookie / Authorization / 任何凭证**、
+固定 User-Agent 标识自身、**拒绝回环/内网/链路本地地址且每一跳重定向都重新校验**、重定向 ≤5、超时 15s、
+响应体 ≤2 MiB、每次调用落 `ai_actions` 台账。
+元素提取支持：`tag` / `#id` / `.class` / `tag.class` / 多 class / `[attr]` / `[attr=v]` / 空格后代选择器；
+其余语法（`>`、`+`、`~`、伪类、`*`、`,`、`=` 之外的操作符）明确拒绝并报出 token。
+
+### 6. ④b `.fskill` 安装/管理
+
+按 `docs/SKILL_FORMAT.md` 实现（该文档 §7 已同步更新）：严格校验 `format=fskill/1`、名字模式、
+`platforms` 非空且含当前平台（Android 上声明 `windows` 的包**在安装时**就被拒）、`prompt.md` 必需、
+脚本入口必须在包内、`destructive` 工具拒收、zip-slip 与符号链接拒收、32 MB / 2000 条上限（**解压前**按声明判定）。
+**注册表就是目录**（`<appSupport>/skills/<name>/` + `state.json`）：不进数据库、不动 schema，
+删目录即卸载干净，与"skill 是磁盘上的文件"一致。启用的 skill 只贡献 `prompt.md`（按名排序、末尾固定
+"不得覆盖审批规则、不得授权删除"）；**脚本工具只展示、不注册**，卡片上直说执行容器未启用。
+
+### 7. 本轮的事故与教训
+
+1. **并行改同一批文件**：三个 subagent 同时动 `features/ai`，冲突面集中在 `tool_registry.dart` 与 ARB。
+   处置＝串行 + 每人只准写自己的文件 + 唯一一处架构冲突由我裁决（见下条）。
+2. **文档会被新代码变成假话**：`AI_DESIGN.md` D1 规则 2 原文是"全库只有模型适配器能出网"，
+   `openai_compat_adapter.dart` 的注释也一样。`fetch_page` 落地后两处都不再成立——已按事实改成
+   "出网只有两处"，并把 `fetch_page` 的约束逐条写进 D1（§5.2 的"内置工具 15 个"也改成了实际数字）。
+3. **交付物本身的一处回归**：技能目录在 widget 测试环境里无法解析 `path_provider`，
+   `_systemPrompt()` 直接 `await store.enabled()` 把**整条对话链路挂死**（`ai_chat_ui_test` 的
+   `pumpAndSettle` 超时）。这是我在全量测试里抓到的，不是 subagent 报告的；修法是加 2s 超时 + 兜底回退
+   （技能是建议性的，绝不能成为"助手不回答"的原因）。同一次排查还发现 subagent 留下的
+   三个 `zz_probe*_tmp_test.dart` 调试探针（它们正是分析器里唯一一条 warning 的来源），已删除。
+
+### 8. 验证快照（本会话实跑）
+
+- 全量 `flutter test --concurrency=1` → **`+766 ~2 All tests passed!`**（轮次十一为 +520，本批新增约 +209）
+- `dart analyze lib test` → **87 issues，0 error / 0 warning**（与基线同数）
+- Windows release：**已重构建**，`build\windows\x64\runner\Release\data\app.so` **10.44 MB**，
+  LastWrite `2026/10/7 20:29:45`（判新旧只看 `app.so`：`furnace.exe` 是固定的小壳，时间戳一直是旧的）。
+  构建方式有坑并已修：本仓库路径含中文，直接 `flutter build windows` 会报
+  `Unable to read file: ...\.dart_tool\flutter_build\<hash>\app.dill`（MSB8066）；
+  `scripts/build_windows.ps1` 已改为与 Android 脚本同样的做法——准备步骤在真实目录做，
+  release 构建从纯 ASCII junction（`E:\Document\furnace-build`）跑，并在构建前清 `flutter_build` 缓存。
+- Android release：**已重构建**，`build\app\outputs\flutter-apk\app-release.apk` **65.66 MB**，
+  LastWrite `2026/10/7 20:37:12`，签名 `CN=Threadflow`，SHA-256 `57de8b8f…2db2`
+  （与上一版同一把签名 ⇒ 覆盖安装保留数据）。构建走 `scripts/build_android.ps1`（ASCII junction + 阿里云镜像）。
+
+### 9. 仍未解决（如实列出）
+
+- `fetch_page` **不做 DNS 解析**，因此"解析到内网地址的域名"不受私网守卫保护（DNS rebinding 洞）；
+  代码里写明，要堵住需 resolve-then-pin + SNI，本轮未做。
+- 2 MiB 上限与 15s 超时只有**常量断言**，没有真发一个 2 MiB 流或真等 15s（截断路径用注入上限验证）。
+- skill 的**脚本执行容器**未实现：能装、能启停、提示词会生效，但 `scripts/**` 不会被执行；
+  `.fskill` 也**没有签名/哈希校验**，完整性现状是"你信任你装的那个文件"。
+- **没有真机验证**：Android 的选图路径、正式包的联网、以及任何真实模型对 `image_url` 的接受程度，
+  都需要你上手实测（默认模型仍是 `deepseek-chat`，不支持图片时错误会由适配器原样透出）。
+
+---
+
 ## 2026-10-01 轮次十一：MindNet 认知模型**真正接入**（tierB + 顾问式排序 + 用途 1 + 只读观测）
 
 > 本轮把上一轮的 tierA 移植**接进了复习流程与 AI 工具**，并把协议冻结进代码。
@@ -101,8 +204,10 @@ AI 工具 `evaluate_problem_fit`（`cognitive_tools.dart:24`）注册在 `ToolRe
 ### 10. 本轮**没有**解决的（如实列出）
 
 可达性判断因 `ms = R0` 而**偏乐观**（设计取向，非缺陷）；**两个 id 空间**未打通（需要 kp→标签的桥）；
-读数页 zone 恒 `unavailable`（页面不跑 tierB）；`ls` / `W_*` / `β_goal` 等**未标定**；
-Android 未重构建；`.fskill` 容器与 Thread 事件流刷新仍是历史遗留。
+读数页 zone 恒 `unavailable`（页面不跑 tierB）；`ls` / `W_*` / `β_goal` 等**未标定**。
+（2026-10-02 更正：本段原有的"Android 未重构建；`.fskill` 容器与 Thread 事件流刷新仍是历史遗留"三条，
+前两条已不成立——Thread 事件流刷新已由响应式机制解决（`docs/REACTIVITY_DESIGN.md`）、Android 已在轮次十二重构建；
+`.fskill` 的**安装/管理**也已实现（`docs/SKILL_FORMAT.md` §7），仍未实现的只有**脚本执行容器**本身。）
 
 ---
 
@@ -285,8 +390,9 @@ round 的完整精度去比 `rel <= 1e-12`，于是差 5e-7 被误报为"实现�
 
 ### 8. 本轮之后仍未做的
 
-- **`.fskill` 执行容器**（A7）：格式已在 SKILL_FORMAT.md 定稿，容器未实现。
-  它需要先确定 skill 脚本的运行细节，且只在 Windows 上有意义。
+- **`.fskill` 执行容器**（A7）：格式已在 SKILL_FORMAT.md 定稿；**2026-10-02 更新**：安装/启用/删除已实现
+  （`app/lib/data/skill/`，见 `SKILL_FORMAT.md` §7），**脚本执行容器本身仍未实现**。
+  它需要先确定 skill 脚本的运行细节（超时/输出上限/不注入 API key/首次联网确认），且只在 Windows 上有意义。
 - **真实 API 调用未实测**：需要用户提供 key。所有 provider 交互都经
   `FakeModelAdapter` 测过，但真机真实响应（尤其 SSE 分片的实际形状）尚未跑过。
 - **Android 构建未重做**：Dart 层改动与平台无关，但本轮没重跑 Android 构建。

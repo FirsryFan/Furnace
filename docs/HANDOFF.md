@@ -229,10 +229,10 @@ presentation/    ai_chat_page.dart(680) · ai_settings_page.dart(240)
 | 项 | 说明 |
 | --- | --- |
 | **`Backdrop` 的视觉确认** | 装饰部分是结构性测试（7 项），**渲染部分没有像素级验证**：像素测试会死锁（`Image.file` 需要真实异步解码，widget 测试跑在 fake-async 里，`runAsync` 也没解决）；窗口截屏在本会话拿到全黑。**需要人眼确认** |
-| **Android 重构建** | 用户说先不急。Dart 层改动与平台无关，但未实测 |
+| **Android 重构建** | ~~用户说先不急~~ → **2026-10-02 已重构建**（release APK + Windows release，见 `docs/PROGRESS.md` 轮次十二） |
 | **tierB 快层** | ~~约 400–600 行~~ → **2026-10-01 已完成**：移植 + 对拍 + 接入（`docs/MINDNET_INTEGRATION.md` §1.3/§3） |
 | **图投影（标签树 → 认知图）** | ~~未开始~~ → **2026-10-01 已完成**：`CognitiveGraph.fromTags`，边权 0.7/0.4 **标注未标定**（同上 §1.2/§6.2） |
-| **`.fskill` 执行容器** | 格式已定稿（`docs/SKILL_FORMAT.md`），容器未实现 |
+| **`.fskill` 执行容器** | 格式已定稿（`docs/SKILL_FORMAT.md`）；**2026-10-02**：安装/启用/删除已实现，**脚本执行容器本身仍未实现**（见该文档 §7） |
 
 **2026-10-01 轮新增的未解决项**（完整清单与依据见 `docs/MINDNET_INTEGRATION.md` §7）：
 可达性判断因 `ms = R0` 而**偏乐观**（设计取向）；**标签 id 与知识点 id 是两个空间**，未打通（需要 kp→标签的桥）；
