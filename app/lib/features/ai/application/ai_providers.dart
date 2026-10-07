@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../data/skill/skill_store.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/agent_loop.dart';
 import '../domain/approval_engine.dart';
 import '../domain/model_adapter.dart';
 import '../domain/tool_registry.dart';
+import '../infrastructure/ai_attachment_store.dart';
 import '../infrastructure/openai_compat_adapter.dart';
 
 /// Conversation, message and action storage (v6 tables).
@@ -80,9 +82,49 @@ final agentLoopProvider =
     approval: ApprovalEngine(mode: config.permissionMode),
     repository: ref.watch(aiRepositoryProvider),
     db: ref.watch(appDatabaseProvider),
+    attachments: ref.watch(aiAttachmentStoreProvider),
+    skills: ref.watch(skillStoreProvider),
   );
   ref.onDispose(loop.dispose);
   return loop;
+});
+
+/// The installed `.fskill` packages.
+///
+/// The install directory is the registry (docs/SKILL_FORMAT.md §7): skills are
+/// files, not rows, so there is no table to query and nothing to migrate. One
+/// instance for the whole app, because the settings card and the agent loop
+/// must not disagree about which skills are enabled.
+final skillStoreProvider = Provider<SkillStore>((ref) {
+  return SkillStore();
+});
+
+/// What the settings card lists: every installed skill with its enabled flag.
+///
+/// A FutureProvider rather than a Stream: the store has no change stream to
+/// watch (it is a directory, and the app is the only writer), so the card
+/// invalidates this after each install/enable/remove instead of the store
+/// growing a notifier it does not otherwise need.
+final installedSkillsProvider = FutureProvider<List<InstalledSkill>>((ref) {
+  return ref.watch(skillStoreProvider).list();
+});
+
+/// Where attached images are written and read back from.
+///
+/// A single instance for the whole app: the loop stores pictures with it and the
+/// conversation view reads them through it, and two instances would mean two
+/// ideas of where the files live.
+final aiAttachmentStoreProvider = Provider<AiAttachmentStore>((ref) {
+  return AiAttachmentStore(repository: ref.watch(aiRepositoryProvider));
+});
+
+/// Images attached to each message of a conversation, keyed by message id.
+///
+/// Resolved to absolute paths here rather than in the widget so a bubble can be
+/// built synchronously; a missing file simply does not appear.
+final messageImagesProvider = FutureProvider.family
+    .autoDispose<Map<String, List<AiMessageImage>>, String>((ref, id) {
+  return ref.watch(aiAttachmentStoreProvider).imagesForConversation(id);
 });
 
 /// The conversation list.

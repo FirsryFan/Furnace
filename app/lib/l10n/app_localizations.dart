@@ -2042,6 +2042,30 @@ abstract class AppLocalizations {
   /// **'Delete this chat? This cannot be undone.'**
   String get aiDeleteConversationConfirm;
 
+  /// No description provided for @aiAttachImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach image'**
+  String get aiAttachImage;
+
+  /// No description provided for @aiRemoveImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove image'**
+  String get aiRemoveImage;
+
+  /// No description provided for @aiImageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Image too large: even after compression it is over 4 MB, so it was not sent. Use a smaller image, or crop the parts you do not need.'**
+  String get aiImageTooLarge;
+
+  /// No description provided for @aiImageUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'This image could not be read: unsupported format or damaged file. Use PNG, JPG, WebP or GIF.'**
+  String get aiImageUnreadable;
+
   /// No description provided for @settingsAiSection.
   ///
   /// In en, this message translates to:
@@ -2125,6 +2149,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.'**
   String get settingsAiPlatformNote;
+
+  /// No description provided for @skillsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get skillsTitle;
+
+  /// No description provided for @skillsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk - nothing in the package runs. Enabling a skill adds its prompt to what the model is told.'**
+  String get skillsIntro;
+
+  /// No description provided for @skillsInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install .fskill'**
+  String get skillsInstall;
+
+  /// No description provided for @skillsInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing...'**
+  String get skillsInstalling;
+
+  /// No description provided for @skillsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No skills installed.'**
+  String get skillsEmpty;
+
+  /// No description provided for @skillsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get skillsEnabled;
+
+  /// No description provided for @skillsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get skillsDisabled;
+
+  /// No description provided for @skillsPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Platforms'**
+  String get skillsPlatforms;
+
+  /// No description provided for @skillsNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network'**
+  String get skillsNetwork;
+
+  /// No description provided for @skillsNetworkNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none allowed'**
+  String get skillsNetworkNone;
+
+  /// No description provided for @skillsPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions'**
+  String get skillsPermissions;
+
+  /// No description provided for @skillsPermissionsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none requested'**
+  String get skillsPermissionsNone;
+
+  /// No description provided for @skillsTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Declared tools'**
+  String get skillsTools;
+
+  /// No description provided for @skillsToolsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get skillsToolsNone;
+
+  /// No description provided for @skillsContainerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Script execution container is not enabled: declared script tools cannot be called yet, and nothing in a package runs.'**
+  String get skillsContainerNote;
+
+  /// No description provided for @skillsPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get skillsPath;
+
+  /// No description provided for @skillsRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get skillsRemove;
+
+  /// No description provided for @skillsRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove skill'**
+  String get skillsRemoveConfirmTitle;
+
+  /// No description provided for @skillsRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: delete this skill\'s files from disk? This cannot be undone from inside the app.'**
+  String skillsRemoveConfirm(String name);
+
+  /// No description provided for @skillsCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get skillsCancel;
+
+  /// No description provided for @skillsRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove this skill'**
+  String get skillsRemoveFailed;
+
+  /// No description provided for @skillsToggleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change this skill\'s state'**
+  String get skillsToggleFailed;
+
+  /// No description provided for @skillsInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installation refused or failed'**
+  String get skillsInstallFailed;
 
   /// No description provided for @settingsThemeBackgroundNone.
   ///

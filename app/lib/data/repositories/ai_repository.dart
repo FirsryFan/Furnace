@@ -147,6 +147,13 @@ class AiRepository {
   static const String statusExecuted = 'executed';
   static const String statusFailed = 'failed';
 
+  /// `attachments.owner_type` for an image attached to an AI message.
+  ///
+  /// The `attachments` table is shared with rich-text and theme images, so the
+  /// owner type is what keeps an AI photo from being picked up by another
+  /// feature's file cleanup.
+  static const String attachmentOwnerType = 'ai_message';
+
   // --- configuration -------------------------------------------------------
 
   /// Reads the AI configuration. Never creates a settings row: a missing row
@@ -261,7 +268,15 @@ class AiRepository {
   /// Foreign keys are ON, but the child rows are removed explicitly so the
   /// behaviour does not depend on cascade configuration.
   Future<void> deleteConversation(String id) async {
+    final messageIds = [for (final row in await listMessages(id)) row.id];
     await _db.transaction(() async {
+      if (messageIds.isNotEmpty) {
+        await (_db.delete(_db.attachments)
+              ..where((t) =>
+                  t.ownerType.equals(attachmentOwnerType) &
+                  t.ownerId.isIn(messageIds)))
+            .go();
+      }
       await (_db.delete(_db.aiActions)
             ..where((t) => t.conversationId.equals(id)))
           .go();
@@ -303,6 +318,59 @@ class AiRepository {
     await _touch(conversationId, now);
     return (await (_db.select(_db.aiMessages)..where((t) => t.id.equals(id)))
         .getSingle());
+  }
+
+  // --- attachments ---------------------------------------------------------
+
+  /// Registers one image file with the message it belongs to.
+  ///
+  /// The bytes are deliberately **not** here: `attachments` stores a path under
+  /// the app support directory. That keeps a multi-megabyte photo out of the
+  /// database (and out of the row data a `.tfpkg` dump carries), and it is the
+  /// existing table, so no schema change was needed for images at all.
+  Future<void> addAttachment({
+    required String messageId,
+    required String relPath,
+    String? mime,
+  }) async {
+    await _db.into(_db.attachments).insert(
+          AttachmentsCompanion.insert(
+            id: Ids.next('att'),
+            ownerType: attachmentOwnerType,
+            ownerId: messageId,
+            relPath: relPath,
+            mime: Value(mime),
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+  }
+
+  /// The images attached to one message, oldest first.
+  Future<List<Attachment>> listMessageAttachments(String messageId) {
+    final query = _db.select(_db.attachments)
+      ..where((t) =>
+          t.ownerType.equals(attachmentOwnerType) & t.ownerId.equals(messageId))
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    return query.get();
+  }
+
+  /// Every image attached to any message of a conversation.
+  ///
+  /// Used to clean the files up when the conversation is deleted: the rows are
+  /// removed with the conversation, but the files are not, and leaving them
+  /// behind would leak a photo per deleted conversation.
+  Future<List<Attachment>> listConversationAttachments(
+    String conversationId,
+  ) async {
+    final messageIds = [for (final row in await listMessages(conversationId)) row.id];
+    if (messageIds.isEmpty) {
+      return const [];
+    }
+    final query = _db.select(_db.attachments)
+      ..where((t) =>
+          t.ownerType.equals(attachmentOwnerType) & t.ownerId.isIn(messageIds))
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    return query.get();
   }
 
   // --- tool actions --------------------------------------------------------

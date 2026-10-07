@@ -30,22 +30,45 @@ class ModelToolSpec {
       };
 }
 
+/// One image attached to a user message, already downscaled and re-encoded.
+///
+/// The Chat Completion API has no separate upload step: a local image travels
+/// inside the request body as a base64 `data:` URL in an `image_url` content
+/// part. That is why this carries [base64] rather than a path - by the time the
+/// message is built the bytes have to be in the JSON.
+class ChatImagePart {
+  const ChatImagePart({required this.mime, required this.base64});
+
+  /// `image/png` (what the vision encoder always produces).
+  final String mime;
+
+  /// Base64 of the encoded image, without the `data:` prefix.
+  final String base64;
+
+  Map<String, Object?> toJson() => {
+        'type': 'image_url',
+        'image_url': {'url': 'data:$mime;base64,$base64'},
+      };
+}
+
 /// One message handed to the provider.
 class ChatMessage {
   const ChatMessage({
     required this.role,
     this.content,
+    this.images = const [],
     this.toolCallId,
     this.toolCalls = const [],
   });
 
-  const ChatMessage.user(String this.content)
+  const ChatMessage.user(String this.content, {this.images = const []})
       : role = 'user',
         toolCallId = null,
         toolCalls = const [];
 
   const ChatMessage.system(String this.content)
       : role = 'system',
+        images = const [],
         toolCallId = null,
         toolCalls = const [];
 
@@ -53,26 +76,55 @@ class ChatMessage {
   /// produced, or the provider rejects the request.
   const ChatMessage.tool(String this.content, {required String this.toolCallId})
       : role = 'tool',
+        images = const [],
         toolCalls = const [];
 
   /// An assistant turn: text and/or tool calls.
   const ChatMessage.assistant({this.content, this.toolCalls = const []})
       : role = 'assistant',
+        images = const [],
         toolCallId = null;
 
   /// `system` | `user` | `assistant` | `tool`.
   final String role;
   final String? content;
+
+  /// Images attached to this message. Empty for every message that is not a
+  /// user turn carrying a photo, which is what keeps the text-only wire shape
+  /// byte-for-byte what it was before images existed.
+  final List<ChatImagePart> images;
+
   final String? toolCallId;
   final List<ToolCallRequest> toolCalls;
 
-  Map<String, Object?> toJson() => {
-        'role': role,
-        if (content != null) 'content': content,
-        if (toolCallId != null) 'tool_call_id': toolCallId,
-        if (toolCalls.isNotEmpty)
-          'tool_calls': [for (final call in toolCalls) call.toJson()],
-      };
+  /// The provider's `content` field.
+  ///
+  /// A message without images sends the plain string - the Chat Completion API
+  /// accepts that everywhere, and a text-only turn must not start looking like a
+  /// multimodal one. Once images are attached it has to become the part list
+  /// (`text` first, then one `image_url` per image), because that is the only
+  /// shape that can carry an image.
+  Object? get contentParts {
+    if (images.isEmpty) {
+      return content;
+    }
+    return <Object?>[
+      if (content != null && content!.isNotEmpty)
+        {'type': 'text', 'text': content},
+      for (final image in images) image.toJson(),
+    ];
+  }
+
+  Map<String, Object?> toJson() {
+    final parts = contentParts;
+    return {
+      'role': role,
+      if (parts != null) 'content': parts,
+      if (toolCallId != null) 'tool_call_id': toolCallId,
+      if (toolCalls.isNotEmpty)
+        'tool_calls': [for (final call in toolCalls) call.toJson()],
+    };
+  }
 }
 
 /// A tool call the model asked for. [arguments] is already decoded; the raw

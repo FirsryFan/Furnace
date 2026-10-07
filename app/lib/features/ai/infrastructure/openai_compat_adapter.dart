@@ -13,7 +13,13 @@ import 'sse_assembler.dart';
 /// Writing it against the compatible shape rather than a DeepSeek-specific one
 /// means a local or third-party endpoint is a base-URL change.
 ///
-/// This is the only class in the app that opens a network connection.
+/// The model half of the app's network egress.
+///
+/// There is exactly one other egress point - the read-only `fetch_page` tool
+/// (`features/ai/tools/web_tools.dart`, rules in `domain/services/web/web_http.dart`)
+/// - and `docs/AI_DESIGN.md` D1 rule 2 was amended on 2026-10-02 to say so. Both
+/// are reachable only while the AI surface exists, i.e. only after the user has
+/// configured their own endpoint.
 class OpenAiCompatAdapter implements ModelAdapter {
   OpenAiCompatAdapter({
     required this.apiKey,

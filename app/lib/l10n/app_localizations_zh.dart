@@ -1022,6 +1022,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiDeleteConversationConfirm => '删除这个对话？此操作不可撤销。';
 
   @override
+  String get aiAttachImage => '添加图片';
+
+  @override
+  String get aiRemoveImage => '移除图片';
+
+  @override
+  String get aiImageTooLarge => '图片太大：压缩后仍超过 4 MB，无法发送。请换一张更小的图片，或先裁剪掉不需要的部分。';
+
+  @override
+  String get aiImageUnreadable =>
+      '无法读取这张图片：格式不支持或文件已损坏。请换成 PNG、JPG、WebP 或 GIF。';
+
+  @override
   String get settingsAiSection => 'AI 接入';
 
   @override
@@ -1063,6 +1076,78 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsAiPlatformNote =>
       'Android 上没有 Node 运行时与桌面浏览器，脚本型 skill 与浏览器扩展能力只在 Windows 上可用。';
+
+  @override
+  String get skillsTitle => 'Skill 管理';
+
+  @override
+  String get skillsIntro =>
+      '.fskill 是一个 zip 包：一段提示词，外加可选的工具与脚本声明。安装只是把文件解开到磁盘上，包里的东西不会被执行；启用后它的提示词会随系统提示词一起发给模型。';
+
+  @override
+  String get skillsInstall => '安装 .fskill';
+
+  @override
+  String get skillsInstalling => '正在安装…';
+
+  @override
+  String get skillsEmpty => '还没有安装任何 skill。';
+
+  @override
+  String get skillsEnabled => '已启用';
+
+  @override
+  String get skillsDisabled => '已停用';
+
+  @override
+  String get skillsPlatforms => '支持平台';
+
+  @override
+  String get skillsNetwork => '允许联网';
+
+  @override
+  String get skillsNetworkNone => '不允许联网';
+
+  @override
+  String get skillsPermissions => '申请的宿主能力';
+
+  @override
+  String get skillsPermissionsNone => '未申请';
+
+  @override
+  String get skillsTools => '声明的工具';
+
+  @override
+  String get skillsToolsNone => '无';
+
+  @override
+  String get skillsContainerNote => '脚本执行容器未启用：声明出来的脚本工具现在还不能被调用，包里的任何东西都不会运行。';
+
+  @override
+  String get skillsPath => '文件位置';
+
+  @override
+  String get skillsRemove => '删除';
+
+  @override
+  String get skillsRemoveConfirmTitle => '删除 skill';
+
+  @override
+  String skillsRemoveConfirm(String name) {
+    return '$name：确认把这个 skill 的文件从磁盘上删掉？在应用里无法撤销。';
+  }
+
+  @override
+  String get skillsCancel => '取消';
+
+  @override
+  String get skillsRemoveFailed => '删除这个 skill 失败';
+
+  @override
+  String get skillsToggleFailed => '切换这个 skill 的状态失败';
+
+  @override
+  String get skillsInstallFailed => '安装被拒绝或失败';
 
   @override
   String get settingsThemeBackgroundNone => '未设置背景图';

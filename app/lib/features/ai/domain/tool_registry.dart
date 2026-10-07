@@ -9,8 +9,10 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
 import '../tools/cognitive_tools.dart';
+import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
+import '../tools/web_tools.dart';
 
 /// The complete, static list of tools the model may use.
 ///
@@ -41,6 +43,7 @@ class ToolRegistry {
     DateTime Function()? clock,
   }) {
     return ToolRegistry([
+      FetchPageTool(),
       QueryTasksTool(tasks, db),
       ManageTaskTool(tasks, db),
       QueryScheduleTool(blocks),
@@ -52,6 +55,9 @@ class ToolRegistry {
         model: model,
         clock: clock,
       ),
+      // The write half of the photo flow: an attached page of notes becomes a
+      // real knowledge point plus cards (see tools/knowledge_tools.dart).
+      CreateKnowledgeCardsTool(anki),
     ]);
   }
 

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -10,6 +12,8 @@ import '../application/ai_providers.dart';
 import '../domain/agent_loop.dart';
 import '../domain/ai_tool.dart';
 import '../domain/approval_engine.dart';
+import '../domain/vision_payload.dart';
+import '../infrastructure/ai_attachment_store.dart';
 
 /// The AI conversation screen.
 ///
@@ -39,6 +43,18 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   AgentLoop? _loop;
   StreamSubscription<AgentTurnState>? _subscription;
   AgentTurnState _turn = const AgentTurnState();
+
+  /// Images picked but not yet sent. They are already files on disk (that is
+  /// what makes the thumbnail work without holding megabytes in memory); the
+  /// database rows only appear once the message they belong to exists.
+  final List<PendingImage> _pendingImages = [];
+
+  /// True while a picked photo is being decoded, downscaled and written.
+  bool _preparingImages = false;
+
+  /// The one encoder the screen uses. Limits live in the class so the size cap
+  /// is a property of the feature, not a number sprinkled in the UI.
+  static const VisionImageEncoder _encoder = VisionImageEncoder();
 
   @override
   void dispose() {
@@ -86,12 +102,78 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final text = _input.text.trim();
     final loop = _loop;
     final id = _conversationId;
-    if (text.isEmpty || loop == null || id == null) {
+    if ((text.isEmpty && _pendingImages.isEmpty) || loop == null || id == null) {
       return;
     }
+    final images = List<PendingImage>.from(_pendingImages);
     _input.clear();
-    await loop.sendUserMessage(conversationId: id, text: text);
+    // The loop registers the images against the message it is about to write, so
+    // they are persisted before the model is asked anything. They stay in the
+    // strip until that has happened: if the send is refused, the user still has
+    // them and can try again instead of hunting for the file twice.
+    await loop.sendUserMessage(conversationId: id, text: text, images: images);
+    if (mounted) {
+      setState(_pendingImages.clear);
+    }
+    _invalidateConversation(id);
+  }
+
+  /// Picks one or more images, downscales them, and stages them for the next
+  /// message.
+  ///
+  /// Failures are answered per image instead of aborting the batch: one
+  /// unsupported file must not throw away the three good ones next to it.
+  Future<void> _pickImages() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final store = ref.read(aiAttachmentStoreProvider);
+    try {
+      final picked = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+      );
+      if (picked.isEmpty) {
+        return;
+      }
+      setState(() => _preparingImages = true);
+      for (final file in picked) {
+        final result = await _encoder.encode(await file.readAsBytes());
+        switch (result) {
+          case VisionImageRejected(:final code):
+            messenger.showSnackBar(
+              SnackBar(content: Text(aiImageFailureText(l10n, code))),
+            );
+          case VisionImageReady():
+            final saved = await store.save(result);
+            if (!mounted) {
+              return;
+            }
+            setState(() => _pendingImages.add(saved));
+        }
+      }
+    } catch (error) {
+      // A picker that cannot open (missing platform implementation, revoked
+      // permission) must say so rather than leaving the button dead.
+      messenger.showSnackBar(
+        SnackBar(content: Text('${l10n.aiAttachImage}: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _preparingImages = false);
+      }
+    }
+  }
+
+  /// Drops a staged image, file included - nothing references it yet, and an
+  /// unregistered file would never be cleaned up by anything else.
+  void _removePending(PendingImage image) {
+    setState(() => _pendingImages.remove(image));
+    unawaited(ref.read(aiAttachmentStoreProvider).deleteFiles([image.relPath]));
+  }
+
+  void _invalidateConversation(String id) {
     ref.invalidate(messagesProvider(id));
+    ref.invalidate(messageImagesProvider(id));
   }
 
   Future<void> _approve() async {
@@ -101,7 +183,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       return;
     }
     await loop.approvePending(id);
-    ref.invalidate(messagesProvider(id));
+    _invalidateConversation(id);
   }
 
   Future<void> _reject() async {
@@ -111,7 +193,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       return;
     }
     await loop.rejectPending(id);
-    ref.invalidate(messagesProvider(id));
+    _invalidateConversation(id);
   }
 
   Future<void> _undo(String actionId) async {
@@ -122,7 +204,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
     await loop.undoExecuted(id, actionId);
     // Undoing changes user data, so the screens that show it must reload.
-    ref.invalidate(messagesProvider(id));
+    _invalidateConversation(id);
   }
 
   Future<void> _newConversation() async {
@@ -217,6 +299,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
     }
     final messages = ref.watch(messagesProvider(id));
+    // Absolute paths, resolved outside the widget so the bubbles stay
+    // synchronous; a conversation whose files are gone simply shows no pictures.
+    final imagesByMessage =
+        ref.watch(messageImagesProvider(id)).valueOrNull ??
+            const <String, List<AiMessageImage>>{};
     final config = ref.watch(aiConfigProvider).valueOrNull;
 
     return Column(
@@ -245,7 +332,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 for (final row in rows)
                   if (row.role != AiRepository.roleTool &&
                       row.role != AiRepository.roleSystem)
-                    _MessageBubble(row: row),
+                    _MessageBubble(
+                      row: row,
+                      images: imagesByMessage[row.id] ?? const [],
+                    ),
                 if (_turn.streamingText.isNotEmpty)
                   _MessageBubble.streaming(_turn.streamingText),
                 for (final call in _turn.executed)
@@ -273,29 +363,70 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _input,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.send,
-                    enabled: !_turn.generating && !_turn.hasPending,
-                    onSubmitted: (_) => _send(),
-                    decoration: InputDecoration(
-                      hintText: l10n.aiInputHint,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+                if (_pendingImages.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final image in _pendingImages)
+                          _StagedImage(
+                            image: image,
+                            removeLabel: l10n.aiRemoveImage,
+                            onRemove: () => _removePending(image),
+                          ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  tooltip: l10n.aiSend,
-                  onPressed: (_turn.generating || _turn.hasPending) ? null : _send,
-                  icon: const Icon(Icons.send),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: l10n.aiAttachImage,
+                      onPressed: (_turn.generating ||
+                              _turn.hasPending ||
+                              _preparingImages)
+                          ? null
+                          : _pickImages,
+                      icon: _preparingImages
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add_photo_alternate_outlined),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 5,
+                        textInputAction: TextInputAction.send,
+                        enabled: !_turn.generating && !_turn.hasPending,
+                        onSubmitted: (_) => _send(),
+                        decoration: InputDecoration(
+                          hintText: l10n.aiInputHint,
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: l10n.aiSend,
+                      onPressed: (_turn.generating ||
+                              _turn.hasPending ||
+                              _preparingImages)
+                          ? null
+                          : _send,
+                      icon: const Icon(Icons.send),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -331,6 +462,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       return;
     }
     _subscription?.cancel();
+    // Files before rows: the paths are read from the rows the delete removes.
+    await ref.read(aiAttachmentStoreProvider).deleteConversationFiles(id);
     await ref.read(aiRepositoryProvider).deleteConversation(id);
     setState(() {
       _conversationId = null;
@@ -485,16 +618,21 @@ class _ModeBanner extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.row})
+  const _MessageBubble({required this.row, this.images = const []})
       : streaming = false,
         _streamText = '';
 
   const _MessageBubble.streaming(String text)
       : row = null,
+        images = const [],
         streaming = true,
         _streamText = text;
 
   final AiMessage? row;
+
+  /// Images stored for this message, if any. Empty for every text-only turn.
+  final List<AiMessageImage> images;
+
   final bool streaming;
   final String _streamText;
 
@@ -514,11 +652,109 @@ class _MessageBubble extends StatelessWidget {
           color: _isUser ? scheme.primaryContainer : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: SelectableText(_text),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The picture itself, never a text rendering of its bytes: the
+            // stored message holds the prompt text only.
+            if (images.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final image in images) _MessageImage(image: image),
+                ],
+              ),
+            if (_text.isNotEmpty) SelectableText(_text),
+          ],
+        ),
       ),
     );
   }
 }
+
+/// One image inside a message bubble; tapping it opens it large enough to read.
+class _MessageImage extends StatelessWidget {
+  const _MessageImage({required this.image});
+
+  final AiMessageImage image;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (context) => Dialog(
+          child: InteractiveViewer(
+            maxScale: 8,
+            child: Image.file(File(image.absolutePath)),
+          ),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.file(
+          File(image.absolutePath),
+          width: 160,
+          height: 160,
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+}
+
+/// A picked image waiting to be sent, with its remove affordance.
+class _StagedImage extends StatelessWidget {
+  const _StagedImage({
+    required this.image,
+    required this.removeLabel,
+    required this.onRemove,
+  });
+
+  final PendingImage image;
+  final String removeLabel;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(File(image.absolutePath), fit: BoxFit.cover),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              tooltip: removeLabel,
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              onPressed: onRemove,
+              icon: const Icon(Icons.cancel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The user-facing text for an image the encoder refused.
+///
+/// Kept next to the screen that shows it: the encoder detects the failure, but
+/// it is a domain object and deliberately knows nothing about localisation.
+String aiImageFailureText(AppLocalizations l10n, ImageFailureCode code) =>
+    switch (code) {
+      ImageFailureCode.tooLarge => l10n.aiImageTooLarge,
+      ImageFailureCode.unreadable => l10n.aiImageUnreadable,
+    };
 
 /// One already-executed call, with its undo affordance.
 class _ExecutedTile extends StatelessWidget {

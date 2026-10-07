@@ -1065,6 +1065,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Delete this chat? This cannot be undone.';
 
   @override
+  String get aiAttachImage => 'Attach image';
+
+  @override
+  String get aiRemoveImage => 'Remove image';
+
+  @override
+  String get aiImageTooLarge =>
+      'Image too large: even after compression it is over 4 MB, so it was not sent. Use a smaller image, or crop the parts you do not need.';
+
+  @override
+  String get aiImageUnreadable =>
+      'This image could not be read: unsupported format or damaged file. Use PNG, JPG, WebP or GIF.';
+
+  @override
   String get settingsAiSection => 'AI';
 
   @override
@@ -1109,6 +1123,79 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsAiPlatformNote =>
       'Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.';
+
+  @override
+  String get skillsTitle => 'Skills';
+
+  @override
+  String get skillsIntro =>
+      'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk - nothing in the package runs. Enabling a skill adds its prompt to what the model is told.';
+
+  @override
+  String get skillsInstall => 'Install .fskill';
+
+  @override
+  String get skillsInstalling => 'Installing...';
+
+  @override
+  String get skillsEmpty => 'No skills installed.';
+
+  @override
+  String get skillsEnabled => 'Enabled';
+
+  @override
+  String get skillsDisabled => 'Disabled';
+
+  @override
+  String get skillsPlatforms => 'Platforms';
+
+  @override
+  String get skillsNetwork => 'Network';
+
+  @override
+  String get skillsNetworkNone => 'none allowed';
+
+  @override
+  String get skillsPermissions => 'Permissions';
+
+  @override
+  String get skillsPermissionsNone => 'none requested';
+
+  @override
+  String get skillsTools => 'Declared tools';
+
+  @override
+  String get skillsToolsNone => 'none';
+
+  @override
+  String get skillsContainerNote =>
+      'Script execution container is not enabled: declared script tools cannot be called yet, and nothing in a package runs.';
+
+  @override
+  String get skillsPath => 'Files';
+
+  @override
+  String get skillsRemove => 'Remove';
+
+  @override
+  String get skillsRemoveConfirmTitle => 'Remove skill';
+
+  @override
+  String skillsRemoveConfirm(String name) {
+    return '$name: delete this skill\'s files from disk? This cannot be undone from inside the app.';
+  }
+
+  @override
+  String get skillsCancel => 'Cancel';
+
+  @override
+  String get skillsRemoveFailed => 'Could not remove this skill';
+
+  @override
+  String get skillsToggleFailed => 'Could not change this skill\'s state';
+
+  @override
+  String get skillsInstallFailed => 'Installation refused or failed';
 
   @override
   String get settingsThemeBackgroundNone => 'No background image';

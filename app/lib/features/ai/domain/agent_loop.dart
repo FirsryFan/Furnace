@@ -7,6 +7,10 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/skill/skill_prompt.dart';
+import '../../../data/skill/skill_store.dart';
+import '../infrastructure/ai_attachment_store.dart';
+import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
 import 'ai_tool.dart';
@@ -178,6 +182,8 @@ class AgentLoop {
     required this.approval,
     required this.repository,
     required this.db,
+    this.attachments,
+    this.skills,
     this.maxRounds = 8,
   });
 
@@ -186,6 +192,25 @@ class AgentLoop {
   final ApprovalEngine approval;
   final AiRepository repository;
   final AppDatabase db;
+
+  /// Where attached images are stored and read back from.
+  ///
+  /// Optional so a text-only loop (and every existing test) needs no filesystem:
+  /// a loop built without it simply cannot carry images, and says so rather than
+  /// sending a message whose photo silently went nowhere.
+  final AiAttachmentStore? attachments;
+
+  /// Where installed `.fskill` packages live.
+  ///
+  /// Optional for the same reason as [attachments]: a loop built without it has
+  /// no skills, and its system prompt is byte-identical to the prompt that
+  /// existed before skills did. That equality is what makes "skills off" mean
+  /// "exactly the old behaviour" rather than "close to it".
+  final SkillStore? skills;
+
+  /// How long the system prompt waits for the skill directory before giving up
+  /// and using the built-in rules alone. See [_systemPrompt].
+  static const Duration skillReadTimeout = Duration(seconds: 2);
 
   /// Ceiling on model round-trips per user message. Eight is enough for
   /// "look something up, then act on it, then confirm" without letting a loop
@@ -209,15 +234,20 @@ class AgentLoop {
 
   /// Sends one user message and drives the loop until the model is done.
   ///
+  /// [images] are already written to disk by an [AiAttachmentStore]; they are
+  /// registered against the message here, because their `owner_id` is the message
+  /// id and the message does not exist until this call.
+  ///
   /// Returns normally in every case: provider failures become [error] on the
   /// state, because losing a turn to an exception would throw away the user's
   /// message too.
   Future<void> sendUserMessage({
     required String conversationId,
     required String text,
+    List<PendingImage> images = const [],
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty && images.isEmpty) {
       return;
     }
     if (_state.hasPending) {
@@ -227,12 +257,27 @@ class AgentLoop {
       // makes the invariant true for every caller.
       return;
     }
+    final store = attachments;
+    if (images.isNotEmpty && store == null) {
+      // A wiring mistake, not a user mistake: without a store the pictures could
+      // not be shown to the model at all. Refusing beats sending a message whose
+      // attachment the model never sees.
+      _emit(const AgentTurnState(
+        error: '图片附件未启用：这次对话没有配置文件存储，图片不会被发送。',
+      ));
+      return;
+    }
     _emit(const AgentTurnState(generating: true));
-    await repository.addMessage(
+    final message = await repository.addMessage(
       conversationId: conversationId,
       role: AiRepository.roleUser,
-      content: trimmed,
+      // An image-only message has no text; storing NULL keeps the empty string
+      // out of the history instead of turning it into a text part.
+      content: trimmed.isEmpty ? null : trimmed,
     );
+    if (images.isNotEmpty) {
+      await store!.register(message.id, images);
+    }
     await _drive(conversationId);
   }
 
@@ -287,8 +332,9 @@ class AgentLoop {
 
   /// Undoes one executed call by applying its before-snapshot.
   ///
-  /// Only create/update/delete of tasks and time blocks are undoable today; a
-  /// call with no snapshot cannot be undone and the UI does not offer it.
+  /// Only creates/updates/deletes of tasks and time blocks, and the creation of
+  /// knowledge cards, are undoable today; a call with no snapshot cannot be
+  /// undone and the UI does not offer it.
   Future<void> undoExecuted(String conversationId, String actionId) async {
     final index = _state.executed.indexWhere((e) => e.actionId == actionId);
     if (index < 0) {
@@ -591,13 +637,19 @@ class AgentLoop {
     }
 
     final messages = <ChatMessage>[
-      ChatMessage.system(_systemPrompt()),
+      ChatMessage.system(await _systemPrompt()),
     ];
 
     for (final row in rows) {
       switch (row.role) {
         case AiRepository.roleUser:
-          messages.add(ChatMessage.user(row.content ?? ''));
+          // The images stored for this message go straight back into the
+          // request: a follow-up question about the same photo has to be able to
+          // see it, exactly like the turn it arrived in.
+          messages.add(ChatMessage.user(
+            row.content ?? '',
+            images: await _imageParts(row.id),
+          ));
         case AiRepository.roleAssistant:
           final turn = byMessage[row.id];
           if (turn == null || turn.isEmpty) {
@@ -658,17 +710,56 @@ class AgentLoop {
     return const {};
   }
 
-  String _systemPrompt() {
+  /// The stored images of one message, as provider content parts.
+  ///
+  /// An empty list for every message without pictures, which is what keeps the
+  /// text-only request shape untouched.
+  Future<List<ChatImagePart>> _imageParts(String messageId) async {
+    final store = attachments;
+    if (store == null) {
+      return const [];
+    }
+    return store.partsForMessage(messageId);
+  }
+
+  /// The system prompt: the fixed rules, plus whatever the user's enabled
+  /// skills contribute.
+  ///
+  /// The base text is built here and the skill block is appended by
+  /// [SkillPrompt.build] - a pure function, so "which skills reached the model,
+  /// and in what order" is answerable by a test without a conversation.
+  ///
+  /// Skills are re-read on every turn rather than cached at construction
+  /// because the store is a directory that the settings screen writes: a skill
+  /// disabled a moment ago must not still be speaking on the next message.
+  Future<String> _systemPrompt() async {
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    return '你是 Furnace 的助手，直接操作用户的任务、日程、标签与复习数据。\n'
+    const base = '你是 Furnace 的助手，直接操作用户的任务、日程、标签与复习数据。';
+    final rules = '$base\n'
         '今天的日期是 $date。\n'
         '规则：\n'
         '1. 需要知道现状时先用查询工具，不要凭猜测回答。\n'
         '2. 涉及修改时，先查清楚再动手；能一次完成的不要拆成多次。\n'
         '3. 删除类操作需要用户逐条确认，这是设计如此，不要因此反复重试。\n'
         '4. 用中文回答，简洁直接，不要复述你已经做过的事的细节。';
+    final store = skills;
+    if (store == null) {
+      return rules;
+    }
+    try {
+      // Advisory, never load-bearing. A skill read that fails or stalls has to
+      // degrade to the built-in rules instead of freezing the turn: "no skills
+      // this turn" is always an acceptable answer, "the assistant never
+      // answers" is not. The install directory is genuinely unavailable in some
+      // of the places this code runs (a widget test has no `path_provider`) and
+      // can be slow anywhere, and neither case is worth a hung conversation.
+      final enabled = await store.enabled().timeout(skillReadTimeout);
+      return SkillPrompt.build(rules, enabled);
+    } catch (_) {
+      return rules;
+    }
   }
 
   /// Applies a before-snapshot. Returns false when the action has none.
@@ -707,6 +798,12 @@ class AgentLoop {
   }
 
   bool _isCreate(AiActionRecord record) {
+    // `create_knowledge_cards` creates a set of rows, so its "before" state is
+    // "nothing existed" just like `manage_task(create)` - it simply has no
+    // `action` argument to say so.
+    if (record.toolName == CreateKnowledgeCardsTool.toolName) {
+      return true;
+    }
     final args = _decodeArgs(record.argsJson ?? '{}');
     return args['action'] == 'create';
   }
@@ -719,6 +816,8 @@ class AgentLoop {
     }
     final map = decoded.cast<String, Object?>();
     switch (toolName) {
+      case CreateKnowledgeCardsTool.toolName:
+        return deleteCreatedKnowledgeCards(db, map);
       case 'manage_task':
         final task = map['task'] as Map?;
         final id = task?['id'] as String?;
