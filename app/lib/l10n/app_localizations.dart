@@ -140,17 +140,11 @@ abstract class AppLocalizations {
   /// **'Time'**
   String get navTime;
 
-  /// No description provided for @navAnki.
+  /// User-facing term (2026-10-02): 闪存卡 / flashcard. It replaced the older words 「知识点」 and 「词条」. Code, database columns and the MindNet contract still say knowledgePoint / KP on purpose - renaming identifiers or the schema would be a migration with no user-visible benefit.
   ///
   /// In en, this message translates to:
-  /// **'Knowledge'**
+  /// **'Flashcards'**
   String get navAnki;
-
-  /// No description provided for @navKnowledge.
-  ///
-  /// In en, this message translates to:
-  /// **'Knowledge'**
-  String get navKnowledge;
 
   /// No description provided for @navPackages.
   ///
@@ -851,7 +845,7 @@ abstract class AppLocalizations {
   /// No description provided for @ankiNewKnowledgePoint.
   ///
   /// In en, this message translates to:
-  /// **'New knowledge point'**
+  /// **'New flashcard'**
   String get ankiNewKnowledgePoint;
 
   /// No description provided for @ankiAutoBlank.
@@ -1049,7 +1043,7 @@ abstract class AppLocalizations {
   /// No description provided for @packagesScopeHint.
   ///
   /// In en, this message translates to:
-  /// **'Filtering by tags exports only the knowledge points under those tags, and no mind maps.'**
+  /// **'Filtering by tags exports only the flashcards under those tags, and no mind maps.'**
   String get packagesScopeHint;
 
   /// No description provided for @packagesSelectTags.
@@ -1607,7 +1601,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDemoDataHint.
   ///
   /// In en, this message translates to:
-  /// **'Creates sample tags, knowledge points, events and schedule blocks so the UI can be inspected right away.'**
+  /// **'Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.'**
   String get settingsDemoDataHint;
 
   /// No description provided for @settingsDemoDataConfirm.
@@ -2417,7 +2411,7 @@ abstract class AppLocalizations {
   /// No description provided for @cognitiveEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No cards to observe yet. Add a knowledge point and review a few cards first.'**
+  /// **'No cards to observe yet. Add a flashcard and review a few cards first.'**
   String get cognitiveEmpty;
 
   /// No description provided for @cognitiveNewCard.

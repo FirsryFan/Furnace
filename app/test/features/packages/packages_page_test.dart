@@ -71,9 +71,9 @@ void main() {
     expect(find.text('v1.2.0'), findsOneWidget);
     expect(find.textContaining('张三'), findsOneWidget);
     expect(
-      find.textContaining('知识点 1'),
+      find.textContaining('闪存卡 1'),
       findsOneWidget,
-      reason: 'the tile reports how many knowledge points the package brought in',
+      reason: 'the tile reports how many flashcards the package brought in',
     );
   });
 

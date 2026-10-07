@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
@@ -178,7 +178,7 @@ class DemoDataService {
     // --- Thread status bar: energy + a goal that matches tagged events ----
     await threadStateRepository.updateState(energy: 7, goalText: '数学');
 
-    return '示例数据已载入：4 个词条、6 个事件、3 个日程块、8 个标签。';
+    return '示例数据已载入：4 个闪存卡、6 个事件、3 个日程块、8 个标签。';
   }
 }
 

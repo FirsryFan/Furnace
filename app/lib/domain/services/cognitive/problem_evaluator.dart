@@ -1,4 +1,4 @@
-/// 用途 1: judging a batch of candidate problems against the user's own state.
+﻿/// 用途 1: judging a batch of candidate problems against the user's own state.
 ///
 /// This is the "约 20 行胶水" of MINDNET_CONTRACT §6.3, spelled out as a pure
 /// function so it can be tested without a database, a clock or a network:
@@ -365,7 +365,7 @@ abstract final class ProblemEvaluator {
         diagnosis: diagnosis,
         verdict: ProblemVerdict.outOfScope,
         rankKey: 0,
-        reason: '没有知识点标签，模型无从判断',
+        reason: '没有闪存卡标签，模型无从判断',
       );
     }
     if (noWayIn) {
@@ -501,7 +501,7 @@ abstract final class ProblemEvaluator {
           stem: current.stem,
           verdict: ProblemVerdict.redundant,
           rankKey: 0.1,
-          reason: '这些知识点已被另一道更全的题覆盖，重复练习',
+          reason: '这些闪存卡已被另一道更全的题覆盖，重复练习',
           knowledgePointIds: current.knowledgePointIds,
           judgedKnowledgePointIds: current.judgedKnowledgePointIds,
           diagnosisByKnowledgePoint: current.diagnosisByKnowledgePoint,

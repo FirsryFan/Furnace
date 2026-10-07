@@ -1,4 +1,4 @@
-/// The AI's write path into the Knowledge module: "make me 背诵卡片 from this".
+﻿/// The AI's write path into the Knowledge module: "make me 背诵卡片 from this".
 ///
 /// This is what closes the loop for the photo flow. A model can already *look*
 /// at an attached image; without this tool the answer would be a chat message
@@ -62,7 +62,7 @@ class CreateKnowledgeCardsTool extends AiTool {
 
   @override
   String get description =>
-      '创建一个知识点，并为它生成背诵卡片（问题/答案）。'
+      '创建一个闪存卡，并为它生成背诵卡片（问题/答案）。'
       '**用户发来课本/笔记的照片、或粘贴一段内容，并要求"做成背诵卡片 / 记忆卡片 / 帮我记住"时，用这个工具**：'
       '先读懂内容，把关键信息整理成 content，再自己出题填 cards。'
       '题目与答案必须与原文同一种语言（原文是中文就用中文，是英文就用英文），一道题只问一个点，'
@@ -77,12 +77,12 @@ class CreateKnowledgeCardsTool extends AiTool {
         'properties': {
           'title': {
             'type': 'string',
-            'description': '知识点标题（必填）：一句话说清这个点是什么，会成为复习列表里的一行',
+            'description': '闪存卡标题（必填）：一句话说清这个点是什么，会成为复习列表里的一行',
           },
           'content': {
             'type': 'string',
-            'description': '知识点正文（必填）：把照片/原文里的关键内容整理成一段可以直接复习的文字；'
-                '它既是以后挖空的依据，也是用户点开知识点时看到的内容',
+            'description': '闪存卡正文（必填）：把照片/原文里的关键内容整理成一段可以直接复习的文字；'
+                '它既是以后挖空的依据，也是用户点开闪存卡时看到的内容',
           },
           'source': {
             'type': 'string',
@@ -187,7 +187,7 @@ class CreateKnowledgeCardsTool extends AiTool {
 
       return ToolResult(
         ok: true,
-        summary: '已创建知识点「${point.title}」，含 ${created.length} 张卡片'
+        summary: '已创建闪存卡「${point.title}」，含 ${created.length} 张卡片'
             '${auto != null ? '（自动生成填空题）' : ''}',
         modelResult: {
           'knowledge_point_id': point.id,

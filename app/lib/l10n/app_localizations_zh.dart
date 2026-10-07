@@ -30,10 +30,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navTime => 'Time';
 
   @override
-  String get navAnki => '知识点';
-
-  @override
-  String get navKnowledge => 'Knowledge';
+  String get navAnki => '闪存卡';
 
   @override
   String get navPackages => '知识库';
@@ -390,7 +387,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiReviews7d => '7天复习';
 
   @override
-  String get ankiNewKnowledgePoint => '新建词条';
+  String get ankiNewKnowledgePoint => '新建闪存卡';
 
   @override
   String get ankiAutoBlank => '自动挖空';
@@ -423,7 +420,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiTypeEssay => '大题';
 
   @override
-  String get ankiNoDueCards => '没有到期词条';
+  String get ankiNoDueCards => '没有到期的闪存卡';
 
   @override
   String get ankiCorrect => '正确';
@@ -489,7 +486,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get packagesScopeByTag => '按标签筛选';
 
   @override
-  String get packagesScopeHint => '按标签筛选时只导出所选标签下的知识点，且不含思维导图。';
+  String get packagesScopeHint => '按标签筛选时只导出所选标签下的闪存卡，且不含思维导图。';
 
   @override
   String get packagesSelectTags => '选择标签';
@@ -541,7 +538,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get tagsDeleteBody => '它的整棵子树会一起删除，已挂载该标签的事件/词条会失去这个标签。';
+  String get tagsDeleteBody => '它的整棵子树会一起删除，已挂载该标签的事件/闪存卡会失去这个标签。';
 
   @override
   String get threadTitle => 'Thread';
@@ -752,7 +749,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String knowledgeBoosted(int count, String factor) {
-    return '同时提权了 $count 个相关词条（最高 $factor 倍）';
+    return '同时提权了 $count 个相关闪存卡（最高 $factor 倍）';
   }
 
   @override
@@ -774,7 +771,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get knowledgeInsightWrong => '答错的';
 
   @override
-  String get knowledgeInsightBoost => '被提权的相关词条';
+  String get knowledgeInsightBoost => '被提权的相关闪存卡';
 
   @override
   String knowledgeInsightDistance(int distance) {
@@ -790,7 +787,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsDemoData => '载入示例数据';
 
   @override
-  String get settingsDemoDataHint => '生成一批示例标签、词条、事件与日程块，方便先看界面效果。';
+  String get settingsDemoDataHint => '生成一批示例标签、闪存卡、事件与日程块，方便先看界面效果。';
 
   @override
   String get settingsDemoDataConfirm => '把示例数据加进当前工作区？';
@@ -1224,7 +1221,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get cognitiveEmpty => '还没有可观察的卡片。先添加知识点并复习几张卡。';
+  String get cognitiveEmpty => '还没有可观察的卡片。先添加闪存卡并复习几张卡。';
 
   @override
   String get cognitiveNewCard => '新卡';

@@ -30,10 +30,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navTime => 'Time';
 
   @override
-  String get navAnki => 'Knowledge';
-
-  @override
-  String get navKnowledge => 'Knowledge';
+  String get navAnki => 'Flashcards';
 
   @override
   String get navPackages => 'Library';
@@ -393,7 +390,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ankiReviews7d => '7d reviews';
 
   @override
-  String get ankiNewKnowledgePoint => 'New knowledge point';
+  String get ankiNewKnowledgePoint => 'New flashcard';
 
   @override
   String get ankiAutoBlank => 'Auto blank';
@@ -494,7 +491,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get packagesScopeHint =>
-      'Filtering by tags exports only the knowledge points under those tags, and no mind maps.';
+      'Filtering by tags exports only the flashcards under those tags, and no mind maps.';
 
   @override
   String get packagesSelectTags => 'Select tags';
@@ -818,7 +815,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDemoDataHint =>
-      'Creates sample tags, knowledge points, events and schedule blocks so the UI can be inspected right away.';
+      'Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.';
 
   @override
   String get settingsDemoDataConfirm =>
@@ -1277,7 +1274,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cognitiveEmpty =>
-      'No cards to observe yet. Add a knowledge point and review a few cards first.';
+      'No cards to observe yet. Add a flashcard and review a few cards first.';
 
   @override
   String get cognitiveNewCard => 'new';

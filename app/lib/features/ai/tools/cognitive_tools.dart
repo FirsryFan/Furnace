@@ -1,4 +1,4 @@
-/// 用途 1 in the AI tool layer: "which of these problems is worth doing now?"
+﻿/// 用途 1 in the AI tool layer: "which of these problems is worth doing now?"
 ///
 /// The tool is a **thin, read-only wrapper** (AI_DESIGN D2): it reads the user's
 /// tags and card rows through the repositories, hands them to
@@ -50,7 +50,7 @@ class EvaluateProblemFitTool extends AiTool {
   String get description =>
       '评估一批候选题"现在值不值得做"，并给出推荐顺序。每道题得到判定（too_easy 已经会了 / '
       'zpd 发展中区 / too_hard 现在做是硬啃 / out_of_scope 超纲或死角 / redundant 与另一题重复 / '
-      'high_value 值得现在做）、排序键和人话理由。判定来自认知模型：知识点标签 → 认知图 → '
+      'high_value 值得现在做）、排序键和人话理由。判定来自认知模型：闪存卡标签 → 认知图 → '
       '快层扩散诊断（"差点想起来"= 发展区、"进不去/走不下去"= 死角），并结合用户自己的复习状态。'
       '**只读**：不写数据、不排复习、不改任何卡片。题目自报的难度只作"没有复习记录时"的先验。';
 
@@ -72,7 +72,7 @@ class EvaluateProblemFitTool extends AiTool {
                 'knowledge_point_ids': {
                   'type': 'array',
                   'items': {'type': 'string'},
-                  'description': '这道题用到的知识点标签 id；没有标签时无法判定',
+                  'description': '这道题用到的闪存卡标签 id；没有标签时无法判定',
                 },
                 'difficulty_hint': {
                   'type': 'number',
@@ -88,7 +88,7 @@ class EvaluateProblemFitTool extends AiTool {
             'type': 'array',
             'items': {'type': 'string'},
             'description':
-                '用户此刻在脑子里的知识点（通常是刚复习/刚做错的），可空；'
+                '用户此刻在脑子里的闪存卡（通常是刚复习/刚做错的），可空；'
                     '图外 id 会被忽略',
           },
           'now': {
