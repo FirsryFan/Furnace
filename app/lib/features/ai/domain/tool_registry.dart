@@ -9,6 +9,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
 import '../tools/cognitive_tools.dart';
+import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -58,6 +59,10 @@ class ToolRegistry {
       // The write half of the photo flow: an attached page of notes becomes a
       // real knowledge point plus cards (see tools/knowledge_tools.dart).
       CreateKnowledgeCardsTool(anki),
+      // The only destructive tool. Deleting a tag takes its whole subtree with
+      // it, and deleting a flashcard takes its review history, so every call is
+      // per-item confirmed and snapshotted for undo (tools/deletion_tools.dart).
+      DeleteContentTool(db: db, anki: anki, tags: tags),
     ]);
   }
 

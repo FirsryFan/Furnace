@@ -10,6 +10,7 @@ import '../../../data/repositories/ai_repository.dart';
 import '../../../data/skill/skill_prompt.dart';
 import '../../../data/skill/skill_store.dart';
 import '../infrastructure/ai_attachment_store.dart';
+import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -803,6 +804,10 @@ class AgentLoop {
     final map = snapshot.cast<String, Object?>();
 
     switch (record.toolName) {
+      case DeleteContentTool.toolName:
+        // Deletion is the only action whose snapshot holds rows from several
+        // tables; the tool writes them parents-first so this one call is enough.
+        return restoreDeletedContent(db, map);
       case 'manage_task':
         await restoreTask(db, map);
         return true;
