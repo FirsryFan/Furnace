@@ -20,11 +20,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: MaterialApp(
-          locale: const Locale('zh'),
+        child: const MaterialApp(
+          locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const PackagesPage(),
+          home: PackagesPage(),
         ),
       ),
     );

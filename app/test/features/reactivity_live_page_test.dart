@@ -33,11 +33,11 @@ void main() {
           appDatabaseProvider.overrideWithValue(db),
           ...extraOverrides,
         ],
-        child: MaterialApp(
-          locale: const Locale('zh'),
+        child: const MaterialApp(
+          locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const TagTreePage(),
+          home: TagTreePage(),
         ),
       ),
     );
