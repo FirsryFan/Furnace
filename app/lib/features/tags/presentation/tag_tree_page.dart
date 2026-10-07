@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
@@ -8,6 +9,7 @@ import '../../../l10n/app_localizations.dart';
 /// All tags, flat. The tree is assembled in memory so a rename or move only
 /// needs one refresh.
 final allTagsProvider = FutureProvider<List<Tag>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(tagRepositoryProvider).getAllTags();
 });
 

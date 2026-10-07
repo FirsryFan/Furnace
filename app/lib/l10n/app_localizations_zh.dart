@@ -30,7 +30,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navTime => 'Time';
 
   @override
-  String get navAnki => 'Knowledge';
+  String get navAnki => '知识点';
 
   @override
   String get navKnowledge => 'Knowledge';
@@ -475,6 +475,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get packagesDefaultAuthor => '我';
+
+  @override
+  String get packagesInstalledTitle => '已导入的知识包';
+
+  @override
+  String get packagesScopeLabel => '导出范围';
+
+  @override
+  String get packagesScopeAll => '全部内容';
+
+  @override
+  String get packagesScopeByTag => '按标签筛选';
+
+  @override
+  String get packagesScopeHint => '按标签筛选时只导出所选标签下的知识点，且不含思维导图。';
+
+  @override
+  String get packagesSelectTags => '选择标签';
+
+  @override
+  String get packagesNoTags => '还没有标签，无法按标签筛选';
+
+  @override
+  String get packagesItemsCount => '条目';
+
+  @override
+  String get packagesCardTemplates => '卡片';
+
+  @override
+  String get packagesImportedAt => '导入时间';
+
+  @override
+  String get packagesVersionHint => '例如 1.0.0';
 
   @override
   String get tagsEmpty => '还没有标签';

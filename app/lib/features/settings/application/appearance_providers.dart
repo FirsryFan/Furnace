@@ -6,6 +6,10 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 
 /// All stored themes, built-ins first.
+///
+/// Deliberately NOT wired to the database revision: the theme is written from
+/// two places that already invalidate this provider, and rebuilding the whole
+/// app's `ThemeData` on every review grade would be pure cost.
 final themesProvider = FutureProvider<List<ThemeProfile>>((ref) {
   return ref.watch(themeRepositoryProvider).getAll();
 });

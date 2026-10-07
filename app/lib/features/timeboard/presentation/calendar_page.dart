@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/time_template_repository.dart';
@@ -9,14 +10,17 @@ import '../../../l10n/app_localizations.dart';
 import 'widgets/calendar_support.dart';
 
 final calendarBlocksProvider = FutureProvider<List<TimeBlock>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(timeBlockRepositoryProvider).getTimeBlocks();
 });
 
 final timeViewSettingsProvider = FutureProvider<TimeViewSetting>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(timeViewRepositoryProvider).ensure();
 });
 
 final timeTemplatesProvider = FutureProvider<List<TimeTemplate>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(timeTemplateRepositoryProvider).getTemplates();
 });
 

@@ -481,6 +481,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get packagesDefaultAuthor => 'Me';
 
   @override
+  String get packagesInstalledTitle => 'Imported packages';
+
+  @override
+  String get packagesScopeLabel => 'Export scope';
+
+  @override
+  String get packagesScopeAll => 'Everything';
+
+  @override
+  String get packagesScopeByTag => 'Filter by tags';
+
+  @override
+  String get packagesScopeHint =>
+      'Filtering by tags exports only the knowledge points under those tags, and no mind maps.';
+
+  @override
+  String get packagesSelectTags => 'Select tags';
+
+  @override
+  String get packagesNoTags => 'No tags yet, so there is nothing to filter by';
+
+  @override
+  String get packagesItemsCount => 'items';
+
+  @override
+  String get packagesCardTemplates => 'Cards';
+
+  @override
+  String get packagesImportedAt => 'Imported';
+
+  @override
+  String get packagesVersionHint => 'e.g. 1.0.0';
+
+  @override
   String get tagsEmpty => 'No tags yet';
 
   @override

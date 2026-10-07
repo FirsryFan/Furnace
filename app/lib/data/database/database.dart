@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'db_write_interceptor.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -542,8 +543,18 @@ LazyDatabase _openConnection() {
     //   threadflow.db   (previous name)
     //   knowflow.db     (original name)
     final active = _adoptLegacyDatabase(dir, target);
-    return NativeDatabase(active);
+    return instrumentWrites(NativeDatabase(active));
   });
+}
+
+/// Wraps a raw executor so that every committed write reaches the
+/// [DataChangeBus] (see `db_write_interceptor.dart`).
+///
+/// Kept public and separate from [_openConnection] so a test can install the
+/// exact same instrumentation on an in-memory database and prove that a write
+/// through a repository is observable.
+QueryExecutor instrumentWrites(QueryExecutor inner) {
+  return inner.interceptWith(DbWriteInterceptor());
 }
 
 /// Resolves the file that actually holds this install's data.

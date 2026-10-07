@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
+import '../../core/state/data_change_bus.dart';
 import '../../core/theme/app_icons.dart';
 import '../../features/ai/application/ai_providers.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
@@ -73,8 +74,32 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Coming back to the foreground is a data change even when nothing was
+  /// written: due cards, today's schedule and "sorted N minutes ago" are all
+  /// derived from the clock. Refreshing here is what keeps a long-running app
+  /// from showing yesterday.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      DataChangeBus.instance.recordChange();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

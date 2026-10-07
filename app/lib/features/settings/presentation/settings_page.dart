@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../app/settings/settings_controller.dart';
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../tags/presentation/tag_tree_page.dart';
@@ -21,6 +22,7 @@ import 'data_section.dart';
 import 'usage_doc_page.dart';
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(settingsRepositoryProvider).getProfile();
 });
 

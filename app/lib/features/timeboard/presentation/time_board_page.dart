@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../tasks/application/task_scheduler_providers.dart';
 
 final timeBlocksProvider = FutureProvider<List<TimeBlock>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(timeBlockRepositoryProvider).getTimeBlocks();
 });
 
 final timeBlockTasksProvider =
     FutureProvider.family<List<Task>, String>((ref, timeBlockId) {
+  ref.watchDatabaseRevision();
   return ref.watch(taskRepositoryProvider).getTasksForTimeBlock(timeBlockId);
 });
 

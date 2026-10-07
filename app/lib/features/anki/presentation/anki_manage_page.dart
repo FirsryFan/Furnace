@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/entities/knowledge_point.dart' as domain;
@@ -9,10 +10,12 @@ import '../../../domain/services/cloze/cloze_generator.dart';
 import '../application/anki_stats_service.dart';
 
 final ankiKnowledgePointsProvider = FutureProvider<List<KnowledgePoint>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(ankiRepositoryProvider).getKnowledgePoints();
 });
 
 final ankiStatsProvider = FutureProvider<AnkiStats>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(ankiStatsServiceProvider).load();
 });
 

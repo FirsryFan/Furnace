@@ -9,6 +9,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- The AI assistant talks to a model endpoint the user configures, and the
+         browsing tool fetches pages. Flutter only puts INTERNET in the debug and
+         profile manifests, so without this line the RELEASE build cannot reach
+         the network at all - which is how it shipped until now. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="Furnace"

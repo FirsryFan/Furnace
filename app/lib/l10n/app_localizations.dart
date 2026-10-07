@@ -1022,6 +1022,72 @@ abstract class AppLocalizations {
   /// **'Me'**
   String get packagesDefaultAuthor;
 
+  /// No description provided for @packagesInstalledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported packages'**
+  String get packagesInstalledTitle;
+
+  /// No description provided for @packagesScopeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Export scope'**
+  String get packagesScopeLabel;
+
+  /// No description provided for @packagesScopeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything'**
+  String get packagesScopeAll;
+
+  /// No description provided for @packagesScopeByTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by tags'**
+  String get packagesScopeByTag;
+
+  /// No description provided for @packagesScopeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtering by tags exports only the knowledge points under those tags, and no mind maps.'**
+  String get packagesScopeHint;
+
+  /// No description provided for @packagesSelectTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Select tags'**
+  String get packagesSelectTags;
+
+  /// No description provided for @packagesNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet, so there is nothing to filter by'**
+  String get packagesNoTags;
+
+  /// No description provided for @packagesItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'items'**
+  String get packagesItemsCount;
+
+  /// No description provided for @packagesCardTemplates.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get packagesCardTemplates;
+
+  /// No description provided for @packagesImportedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported'**
+  String get packagesImportedAt;
+
+  /// No description provided for @packagesVersionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 1.0.0'**
+  String get packagesVersionHint;
+
   /// No description provided for @tagsEmpty.
   ///
   /// In en, this message translates to:

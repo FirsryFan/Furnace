@@ -35,6 +35,28 @@ class PackageRepository {
         .getSingleOrNull();
   }
 
+  /// Every imported package, newest first - what the knowledge library lists.
+  Future<List<KnowledgePackage>> getAllPackages() {
+    return (_db.select(_db.knowledgePackages)
+          ..orderBy([(t) => OrderingTerm.desc(t.importedAt)]))
+        .get();
+  }
+
+  /// How many imported objects each package owns, keyed by package id and then
+  /// by `package_items.object_type`.
+  ///
+  /// One query for the whole list on purpose: the library shows every package
+  /// at once, and N+1 queries there would be visible.
+  Future<Map<String, Map<String, int>>> itemCountsByPackage() async {
+    final rows = await _db.select(_db.packageItems).get();
+    final counts = <String, Map<String, int>>{};
+    for (final row in rows) {
+      final byType = counts.putIfAbsent(row.packageId, () => <String, int>{});
+      byType[row.objectType] = (byType[row.objectType] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   Future<PackageItem?> findPackageItem({
     required String packageId,
     required String objectType,

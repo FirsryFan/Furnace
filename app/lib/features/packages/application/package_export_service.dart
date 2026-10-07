@@ -20,25 +20,39 @@ class PackageExportService {
   final AnkiRepository _anki;
   final MindMapRepository _mindMaps;
 
+  /// Builds the manifest that becomes a `.kpak`.
+  ///
+  /// [tagIds] is the export scope. Empty (the default) means "the whole local
+  /// library", which is what this dialog used to do unconditionally. A non-empty
+  /// set narrows the export to the knowledge points carrying at least one of
+  /// those tags:
+  ///
+  /// * only the selected tags are written into the package, so the receiver does
+  ///   not inherit the rest of the tag tree;
+  /// * mind maps are left out, because a map's nodes reference tags by id and a
+  ///   partially exported map would be a broken tree rather than a smaller one.
   Future<KnowledgePackageManifest> buildManifest({
     String name = 'My Library',
     String version = '1.0.0',
     String author = 'Me',
+    Set<String> tagIds = const <String>{},
   }) async {
+    final filtered = tagIds.isNotEmpty;
     final tags = await _tags.getAllTags();
     final knowledgePoints = await _anki.getKnowledgePoints();
-    final mindMaps = await _mindMaps.getMindMaps();
+    final mindMaps = filtered ? const <MindMap>[] : await _mindMaps.getMindMaps();
 
     final tagById = {for (final tag in tags) tag.id: tag};
 
     final packageTags = [
       for (final tag in tags)
-        PackageTag(
-          id: tag.id,
-          name: tag.name,
-          color: tag.color,
-          description: tag.description,
-        ),
+        if (!filtered || tagIds.contains(tag.id))
+          PackageTag(
+            id: tag.id,
+            name: tag.name,
+            color: tag.color,
+            description: tag.description,
+          ),
     ];
 
     final packageKnowledgePoints = <PackageKnowledgePoint>[];
@@ -48,16 +62,22 @@ class PackageExportService {
         objectType: 'knowledge_point',
         objectId: kp.id,
       );
+      final kpTags = [
+        for (final tag in objectTagLinks)
+          if (tagById.containsKey(tag.id)) tag.id,
+      ];
+      // A filtered export keeps a knowledge point only when it carries one of
+      // the selected tags - the same link rows the package will carry.
+      if (filtered && !kpTags.any(tagIds.contains)) {
+        continue;
+      }
       packageKnowledgePoints.add(
         PackageKnowledgePoint(
           id: kp.id,
           title: kp.title,
           content: kp.content,
           source: kp.source,
-          tags: [
-            for (final tag in objectTagLinks)
-              if (tagById.containsKey(tag.id)) tag.id,
-          ],
+          tags: kpTags,
           templates: [
             for (final template in templates)
               PackageCardTemplate(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/review_service.dart';
@@ -46,10 +47,23 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   void initState() {
     super.initState();
     _load();
+    // Cards can appear from outside this screen (the AI tool layer, a package
+    // import, the manage tab). They must reach the queue without a restart -
+    // but never in the middle of an answer, which would throw the user's
+    // position away, so the reload only happens on an untouched queue.
+    _revisionSubscription = ref.listenManual(dataRevisionProvider, (_, __) {
+      if (_loading || _feedback != null || _outcome != null || _index != 0) {
+        return;
+      }
+      _load();
+    });
   }
+
+  late final ProviderSubscription<int> _revisionSubscription;
 
   @override
   void dispose() {
+    _revisionSubscription.close();
     _answer.dispose();
     _scroll.dispose();
     super.dispose();

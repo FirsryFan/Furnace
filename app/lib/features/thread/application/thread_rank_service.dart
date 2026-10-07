@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
@@ -181,14 +182,17 @@ class ThreadFeedNotifier extends AsyncNotifier<ThreadFeed?> {
 }
 
 /// The live Thread status bar state (energy + goal), read by the status bar.
-/// Invalidate it after any write so the bar reflects the new value.
+/// Re-runs after any database write, so the bar reflects the new value without
+/// a restart.
 final threadStateProvider = FutureProvider<ThreadState?>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(threadStateRepositoryProvider).getState();
 });
 
 /// The user's current (possibly edited) ranking weights. Read by the usage
 /// documentation page and by the weights editor.
 final currentWeightsProvider = FutureProvider<RankWeights>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(threadRankRepositoryProvider).getWeights();
 });
 

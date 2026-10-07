@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/diffusion_log_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
@@ -15,6 +16,7 @@ final insightDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 /// stays clean for flow, and "what did I get wrong today" lives here.
 final insightSummaryProvider =
     FutureProvider.family<DiffusionDaySummary, DateTime>((ref, day) {
+  ref.watchDatabaseRevision();
   return ref.watch(diffusionLogRepositoryProvider).summarizeDay(day);
 });
 

@@ -33,6 +33,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
@@ -507,8 +508,12 @@ int _suggestedIntervalDays(CardState row, DateTime now) {
 
 /// One database read, all `select`s. Overridden in tests with fixture inputs so
 /// the page can be driven without a database.
-final cognitiveObservationInputsProvider =
-    FutureProvider<CognitiveObservationInputs>((ref) async {
+///
+/// `autoDispose`: this reads every card state, so it must not stay alive (and
+/// re-read on every write) once the page is closed.
+final cognitiveObservationInputsProvider = FutureProvider.autoDispose<
+    CognitiveObservationInputs>((ref) async {
+  ref.watchDatabaseRevision();
   final db = ref.watch(appDatabaseProvider);
 
   final points = await db.select(db.knowledgePoints).get();
@@ -547,7 +552,8 @@ final cognitiveObservationInputsProvider =
 
 /// The reading the page shows: the injected model's numbers, the advisor's
 /// bands, nothing else.
-final cognitiveReadingsProvider = FutureProvider<CognitiveReadings>((ref) async {
+final cognitiveReadingsProvider =
+    FutureProvider.autoDispose<CognitiveReadings>((ref) async {
   final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
   final model = ref.watch(cognitiveModelProvider);
   return assembleCognitiveReadings(

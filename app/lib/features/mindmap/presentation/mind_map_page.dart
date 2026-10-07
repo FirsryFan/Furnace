@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 
 final mindMapsProvider = FutureProvider<List<MindMap>>((ref) {
+  ref.watchDatabaseRevision();
   return ref.watch(mindMapRepositoryProvider).getMindMaps();
 });
 
@@ -13,6 +15,7 @@ final selectedMapIdProvider = StateProvider<String?>((ref) => null);
 
 final mindNodesProvider =
     FutureProvider.family<List<MindNode>, String>((ref, mapId) {
+  ref.watchDatabaseRevision();
   return ref.watch(mindMapRepositoryProvider).getNodesForMap(mapId);
 });
 
