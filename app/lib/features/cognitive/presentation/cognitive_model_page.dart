@@ -36,6 +36,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
+import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
@@ -534,20 +535,56 @@ final cognitiveObservationInputsProvider = FutureProvider.autoDispose<
   final states = await db.select(db.cardStates).get();
   final boosts = await db.select(db.boostEntries).get();
 
+  // A card state is only a card when its flashcard still exists, and the two
+  // shapes resolve that link differently: a template-backed state names the
+  // flashcard through its template, while a presentation unit
+  // (`cloze:…` / `essay:…`) names it directly. Rows that resolve to nothing are
+  // debris from a deletion performed before the cascade was complete - they are
+  // counted separately ([orphanCardStateCountProvider]) instead of being drawn
+  // as cards with no name, which is exactly how they were noticed.
+  final templates = await db.select(db.cardTemplates).get();
+  final flashcardOfTemplate = {
+    for (final template in templates) template.id: template.knowledgePointId,
+  };
+
+  final live = <(CardState, String)>[];
+  for (final state in states) {
+    final templateId = state.cardTemplateId;
+    final flashcardId = state.knowledgePointId ??
+        (templateId == null ? null : flashcardOfTemplate[templateId]);
+    if (flashcardId == null || !titles.containsKey(flashcardId)) {
+      continue;
+    }
+    live.add((state, flashcardId));
+  }
+
   return CognitiveObservationInputs(
     units: [
-      for (final state in states)
+      for (final (state, flashcardId) in live)
         CognitiveObservedUnit(
           row: state,
-          knowledgePointTitle: titles[state.knowledgePointId] ?? '',
-          tagCount: tagCounts[state.knowledgePointId] ?? 0,
+          knowledgePointTitle: titles[flashcardId]!,
+          tagCount: tagCounts[flashcardId] ?? 0,
           isNew: state.repetitions == 0,
         ),
     ],
     boostFactorByKnowledgePoint: {
-      for (final boost in boosts) boost.knowledgePointId: boost.factor,
+      for (final boost in boosts)
+        if (titles.containsKey(boost.knowledgePointId))
+          boost.knowledgePointId: boost.factor,
     },
   );
+});
+
+/// How many card states belong to a flashcard that no longer exists.
+///
+/// The page shows this number (and offers to delete them) instead of listing
+/// them as cards: they cannot be reviewed, so the only honest thing to do with
+/// them is say so and let the user clear them.
+final orphanCardStateCountProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  ref.watchDatabaseRevision();
+  return ref.watch(ankiRepositoryProvider).countOrphanCardStates();
 });
 
 /// The reading the page shows: the injected model's numbers, the advisor's
@@ -584,6 +621,7 @@ class CognitiveModelPage extends ConsumerWidget {
           children: [
             _Notes(l10n: l10n),
             const SizedBox(height: 8),
+            const _OrphanRepairBanner(),
             _Summary(l10n: l10n, readings: data),
             const SizedBox(height: 8),
             if (data.cards.isEmpty)
@@ -597,6 +635,77 @@ class CognitiveModelPage extends ConsumerWidget {
             else
               for (final card in data.cards)
                 _CardTile(l10n: l10n, card: card),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The repair path for card states whose flashcard is already gone.
+///
+/// Those rows were written by an older, incomplete cascade; they can never be
+/// reviewed, so the page reports how many there are and offers to remove them
+/// instead of drawing them as nameless cards. The action is explicit on
+/// purpose: a silent cleanup on load would be a data change behind the user's
+/// back, on a page that otherwise promises to be read-only.
+class _OrphanRepairBanner extends ConsumerWidget {
+  const _OrphanRepairBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final count = ref.watch(orphanCardStateCountProvider).valueOrNull ?? 0;
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    final onContainer = theme.colorScheme.onErrorContainer;
+    return Card(
+      color: theme.colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.cleaning_services_outlined, color: onContainer),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.cognitiveOrphanTitle(count),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(color: onContainer),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.cognitiveOrphanDetail,
+              style: theme.textTheme.bodySmall?.copyWith(color: onContainer),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () async {
+                  final removed = await ref
+                      .read(ankiRepositoryProvider)
+                      .purgeOrphanKnowledgeRows();
+                  ref.invalidate(orphanCardStateCountProvider);
+                  ref.invalidate(cognitiveObservationInputsProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.cognitiveOrphanDone(removed)),
+                      ),
+                    );
+                  }
+                },
+                child: Text(l10n.cognitiveOrphanAction(count)),
+              ),
+            ),
           ],
         ),
       ),

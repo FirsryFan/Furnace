@@ -479,6 +479,19 @@
     "placeholders": { "moment": { "type": "String" } }
   },
   "cognitiveEmpty": "No cards to observe yet. Add a flashcard and review a few cards first.",
+  "cognitiveOrphanTitle": "{count} card states whose flashcard is gone",
+  "@cognitiveOrphanTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "cognitiveOrphanDetail": "They can never be reviewed again, so they are not listed as cards. Clearing them deletes the rows (and their review logs) for good.",
+  "cognitiveOrphanAction": "Clear {count}",
+  "@cognitiveOrphanAction": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "cognitiveOrphanDone": "Cleared {count} unusable card states",
+  "@cognitiveOrphanDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "cognitiveNewCard": "new",
   "cognitiveSeenCard": "seen",
   "cognitiveCardId": "card {id}",

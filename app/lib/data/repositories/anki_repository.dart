@@ -210,6 +210,15 @@ class AnkiRepository {
 
   Future<void> deleteTemplate(String id) async {
     await _db.transaction(() async {
+      final states = await (_db.select(_db.cardStates)
+            ..where((t) => t.cardTemplateId.equals(id)))
+          .get();
+      final stateIds = [for (final state in states) state.id];
+      if (stateIds.isNotEmpty) {
+        await (_db.delete(_db.reviewLogs)
+              ..where((t) => t.cardStateId.isIn(stateIds)))
+            .go();
+      }
       await (_db.delete(_db.reviewLogs)
             ..where((t) => t.cardTemplateId.equals(id)))
           .go();
@@ -221,23 +230,137 @@ class AnkiRepository {
     });
   }
 
+  /// Deletes a flashcard and everything that belongs to it.
+  ///
+  /// "Everything" is the point of this method, and it took a leak to notice:
+  /// card states come in two shapes - a template-backed one
+  /// (`card_template_id` set) and a **presentation unit** one
+  /// (`unit_key = 'cloze:…' / 'essay:…'`, no template at all). Deleting only the
+  /// rows reachable through the templates left the unit states behind: the
+  /// flashcard was gone from the Knowledge screen while its cards still showed
+  /// up in the cognitive-model readings page and could still be counted by the
+  /// model. States are therefore selected by `knowledge_point_id` *and* through
+  /// the templates, so neither shape survives.
+  ///
+  /// The rest of the row set is cleaned for the same reason: cloze slots and
+  /// history, the diffusion boost entry, and the tag links that point at the
+  /// knowledge point. A leftover row that no screen happens to read today is
+  /// still a bug waiting for the next reader.
   Future<void> deleteKnowledgePoint(String id) async {
     await _db.transaction(() async {
       final templates = await getTemplatesForKnowledgePoint(id);
+      final states = await (_db.select(_db.cardStates)
+            ..where(
+              (t) => t.knowledgePointId.equals(id) |
+                  t.cardTemplateId.isIn([for (final t in templates) t.id]),
+            ))
+          .get();
+      final stateIds = [for (final state in states) state.id];
+      if (stateIds.isNotEmpty) {
+        await (_db.delete(_db.reviewLogs)
+              ..where((t) => t.cardStateId.isIn(stateIds)))
+            .go();
+      }
       for (final template in templates) {
         await (_db.delete(_db.reviewLogs)
               ..where((t) => t.cardTemplateId.equals(template.id)))
             .go();
-        await (_db.delete(_db.cardStates)
-              ..where((t) => t.cardTemplateId.equals(template.id)))
-            .go();
-        await (_db.delete(_db.cardTemplates)
-              ..where((t) => t.id.equals(template.id)))
-            .go();
       }
+      await (_db.delete(_db.cardStates)
+            ..where(
+              (t) => t.knowledgePointId.equals(id) |
+                  t.cardTemplateId.isIn([for (final t in templates) t.id]),
+            ))
+          .go();
+      await (_db.delete(_db.cardTemplates)
+            ..where((t) => t.knowledgePointId.equals(id)))
+          .go();
+      await (_db.delete(_db.clozeSlots)
+            ..where((t) => t.knowledgePointId.equals(id)))
+          .go();
+      await (_db.delete(_db.clozeHistory)
+            ..where((t) => t.knowledgePointId.equals(id)))
+          .go();
+      await (_db.delete(_db.boostEntries)
+            ..where((t) => t.knowledgePointId.equals(id)))
+          .go();
+      await (_db.delete(_db.objectTags)
+            ..where((t) =>
+                t.objectType.equals('knowledge_point') & t.objectId.equals(id)))
+          .go();
       await (_db.delete(_db.knowledgePoints)..where((t) => t.id.equals(id)))
           .go();
     });
+  }
+
+  /// Counts the rows that hang off a flashcard which no longer exists.
+  ///
+  /// Used by the cognitive-model page to say "these are debris, not cards", and
+  /// by the repair path below. A template-backed state is only debris when its
+  /// *template* is gone (its `knowledge_point_id` may legitimately be NULL),
+  /// while a unit state is debris when its knowledge point is gone - getting
+  /// that distinction backwards would delete live review states.
+  Future<int> countOrphanCardStates() async {
+    final row = await _db.customSelect(
+      'SELECT COUNT(*) AS n FROM card_states WHERE '
+      '(card_template_id IS NULL AND (knowledge_point_id IS NULL OR '
+      ' knowledge_point_id NOT IN (SELECT id FROM knowledge_points))) OR '
+      '(card_template_id IS NOT NULL AND '
+      ' card_template_id NOT IN (SELECT id FROM card_templates))',
+    ).getSingle();
+    return row.read<int>('n');
+  }
+
+  /// Deletes the debris [countOrphanCardStates] reports, plus the rows that
+  /// reference it.
+  ///
+  /// This is the repair path for databases written while the cascade above was
+  /// incomplete: those rows can never be reviewed (the review queue cannot
+  /// present a card whose flashcard is gone) yet they were still listed as
+  /// cards. Returns how many card states were removed, so the caller can tell
+  /// the user what actually happened.
+  Future<int> purgeOrphanKnowledgeRows() async {
+    var removed = 0;
+    await _db.transaction(() async {
+      removed = await countOrphanCardStates();
+      await _db.customStatement(
+        'DELETE FROM review_logs WHERE card_state_id IN ('
+        ' SELECT id FROM card_states WHERE '
+        ' (card_template_id IS NULL AND (knowledge_point_id IS NULL OR '
+        '  knowledge_point_id NOT IN (SELECT id FROM knowledge_points))) OR '
+        ' (card_template_id IS NOT NULL AND '
+        '  card_template_id NOT IN (SELECT id FROM card_templates)))',
+      );
+      await _db.customStatement(
+        'DELETE FROM card_states WHERE '
+        '(card_template_id IS NULL AND (knowledge_point_id IS NULL OR '
+        ' knowledge_point_id NOT IN (SELECT id FROM knowledge_points))) OR '
+        '(card_template_id IS NOT NULL AND '
+        ' card_template_id NOT IN (SELECT id FROM card_templates))',
+      );
+      // Rows that name a flashcard which is gone. Each statement is the same
+      // "delete what cannot be read any more" rule on another table.
+      for (final table in const [
+        'card_templates',
+        'cloze_slots',
+        'cloze_history',
+        'boost_entries',
+      ]) {
+        await _db.customStatement(
+          'DELETE FROM $table WHERE knowledge_point_id NOT IN '
+          '(SELECT id FROM knowledge_points)',
+        );
+      }
+      await _db.customStatement(
+        "DELETE FROM object_tags WHERE object_type = 'knowledge_point' AND "
+        'object_id NOT IN (SELECT id FROM knowledge_points)',
+      );
+      await _db.customStatement(
+        'DELETE FROM review_logs WHERE card_state_id NOT IN '
+        '(SELECT id FROM card_states)',
+      );
+    });
+    return removed;
   }
 
   Future<List<int>> getReviewCountsPerDay(int days) async {

@@ -1281,6 +1281,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'No cards to observe yet. Add a flashcard and review a few cards first.';
 
   @override
+  String cognitiveOrphanTitle(int count) {
+    return '$count card states whose flashcard is gone';
+  }
+
+  @override
+  String get cognitiveOrphanDetail =>
+      'They can never be reviewed again, so they are not listed as cards. Clearing them deletes the rows (and their review logs) for good.';
+
+  @override
+  String cognitiveOrphanAction(int count) {
+    return 'Clear $count';
+  }
+
+  @override
+  String cognitiveOrphanDone(int count) {
+    return 'Cleared $count unusable card states';
+  }
+
+  @override
   String get cognitiveNewCard => 'new';
 
   @override

@@ -2420,6 +2420,30 @@ abstract class AppLocalizations {
   /// **'No cards to observe yet. Add a flashcard and review a few cards first.'**
   String get cognitiveEmpty;
 
+  /// No description provided for @cognitiveOrphanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} card states whose flashcard is gone'**
+  String cognitiveOrphanTitle(int count);
+
+  /// No description provided for @cognitiveOrphanDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'They can never be reviewed again, so they are not listed as cards. Clearing them deletes the rows (and their review logs) for good.'**
+  String get cognitiveOrphanDetail;
+
+  /// No description provided for @cognitiveOrphanAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear {count}'**
+  String cognitiveOrphanAction(int count);
+
+  /// No description provided for @cognitiveOrphanDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {count} unusable card states'**
+  String cognitiveOrphanDone(int count);
+
   /// No description provided for @cognitiveNewCard.
   ///
   /// In en, this message translates to:

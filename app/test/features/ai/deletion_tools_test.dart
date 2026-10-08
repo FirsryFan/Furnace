@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -286,6 +286,48 @@ void main() {
         (await anki.getKnowledgePoints()).map((p) => p.title),
         ['光合作用'],
       );
+    });
+
+    test('a presentation unit state is deleted and restored too', () async {
+      // The shape that leaked: `cloze:…` / `essay:…` states own no template, so
+      // a snapshot (or a delete) that only walked the templates missed them -
+      // and they kept showing up in the cognitive-model page as nameless cards.
+      final point = await anki.createKnowledgePoint(
+        title: '光合作用',
+        content: '主要场所是叶绿体。',
+      );
+      final card = await anki.createTemplate(
+        knowledgePointId: point.id,
+        type: 'essay',
+        question: '场所？',
+        answer: '叶绿体',
+      );
+      final templateState = await anki.getOrCreateCardState(card.id);
+      final unitState =
+          await anki.getOrCreateUnitCardState(point.id, 'essay:${point.id}');
+      await anki.addReviewLog(
+        cardStateId: unitState.id,
+        cardTemplateId: card.id,
+        rating: 3,
+        reviewedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      final result = await call({'kind': 'flashcard', 'title': '光合作用'});
+
+      expect(result.ok, isTrue);
+      expect(await cardState(templateState.id), isNull);
+      expect(await cardState(unitState.id), isNull);
+      expect(await reviewLogCount(), 0);
+
+      expect(await undo(result), isTrue);
+
+      expect(await cardState(templateState.id), isNotNull);
+      expect(
+        await cardState(unitState.id),
+        isNotNull,
+        reason: 'undo has to restore every shape the delete removed',
+      );
+      expect(await reviewLogCount(), 1);
     });
   });
 

@@ -1228,6 +1228,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cognitiveEmpty => '还没有可观察的卡片。先添加闪存卡并复习几张卡。';
 
   @override
+  String cognitiveOrphanTitle(int count) {
+    return '有 $count 条卡片状态所属的闪存卡已经不存在';
+  }
+
+  @override
+  String get cognitiveOrphanDetail =>
+      '它们不可能再被复习，所以这里不再把它们当成卡片显示。点右边会把这些行（连同它们的复习日志）真正删掉。';
+
+  @override
+  String cognitiveOrphanAction(int count) {
+    return '清掉这 $count 条';
+  }
+
+  @override
+  String cognitiveOrphanDone(int count) {
+    return '已清掉 $count 条失效卡片状态';
+  }
+
+  @override
   String get cognitiveNewCard => '新卡';
 
   @override

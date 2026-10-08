@@ -250,22 +250,33 @@ class DeleteContentTool extends AiTool {
     final statesTable = _db.cardStates.actualTableName;
     final logsTable = _db.reviewLogs.actualTableName;
 
+    final states = await _rowsWhere(
+      statesTable,
+      'card_template_id = ?',
+      [Variable.withString(card.id)],
+    );
+    final stateIds = [for (final row in states) row['id']! as String];
+    // Review logs are taken by state as well as by template: a log only needs to
+    // name the state it belongs to, and leaving those behind is how a deletion
+    // ends up "mostly" done.
+    final logWhere = [
+      if (stateIds.isNotEmpty)
+        'card_state_id IN (${_placeholders(stateIds.length)})',
+      'card_template_id = ?',
+    ].join(' OR ');
+    final logArgs = <Variable<Object>>[
+      for (final id in stateIds) Variable.withString(id),
+      Variable.withString(card.id),
+    ];
+
     final snapshot = <String, List<Map<String, dynamic>>>{
       templatesTable: await _rowsWhere(
         templatesTable,
         'id = ?',
         [Variable.withString(card.id)],
       ),
-      statesTable: await _rowsWhere(
-        statesTable,
-        'card_template_id = ?',
-        [Variable.withString(card.id)],
-      ),
-      logsTable: await _rowsWhere(
-        logsTable,
-        'card_template_id = ?',
-        [Variable.withString(card.id)],
-      ),
+      if (states.isNotEmpty) statesTable: states,
+      logsTable: await _rowsWhere(logsTable, logWhere, logArgs),
     };
 
     await _anki.deleteTemplate(card.id);
@@ -341,6 +352,33 @@ class DeleteContentTool extends AiTool {
     final statesTable = _db.cardStates.actualTableName;
     final logsTable = _db.reviewLogs.actualTableName;
 
+    // The states are read the same way the repository deletes them: the ones
+    // that name this flashcard **and** the ones reachable through its templates.
+    // A presentation unit (`cloze:…` / `essay:…`) owns a state row with no
+    // template, so a snapshot that only walked the templates would make undo
+    // restore less than the delete removed - and those leftover rows are exactly
+    // what kept showing up in the cognitive-model page.
+    final stateWhere = templateIds.isEmpty
+        ? 'knowledge_point_id = ?'
+        : '(knowledge_point_id = ? OR card_template_id IN '
+            '(${_placeholders(templateIds.length)}))';
+    final stateArgs = <Variable<Object>>[
+      Variable.withString(point.id),
+      for (final id in templateIds) Variable.withString(id),
+    ];
+    final states = await _rowsWhere(statesTable, stateWhere, stateArgs);
+    final stateIds = [for (final row in states) row['id']! as String];
+    final logArgs = <Variable<Object>>[
+      for (final id in stateIds) Variable.withString(id),
+      for (final id in templateIds) Variable.withString(id),
+    ];
+    final logWhere = [
+      if (stateIds.isNotEmpty)
+        'card_state_id IN (${_placeholders(stateIds.length)})',
+      if (templateIds.isNotEmpty)
+        'card_template_id IN (${_placeholders(templateIds.length)})',
+    ].join(' OR ');
+
     // Parents before children: `restoreTable` inserts row by row, and the
     // flashcard has to exist again before rows that reference it can.
     final snapshot = <String, List<Map<String, dynamic>>>{
@@ -354,18 +392,9 @@ class DeleteContentTool extends AiTool {
         'knowledge_point_id = ?',
         [Variable.withString(point.id)],
       ),
-      if (templateIds.isNotEmpty) ...{
-        statesTable: await _rowsWhere(
-          statesTable,
-          'card_template_id IN (${_placeholders(templateIds.length)})',
-          [for (final id in templateIds) Variable.withString(id)],
-        ),
-        logsTable: await _rowsWhere(
-          logsTable,
-          'card_template_id IN (${_placeholders(templateIds.length)})',
-          [for (final id in templateIds) Variable.withString(id)],
-        ),
-      },
+      if (states.isNotEmpty) statesTable: states,
+      if (logWhere.isNotEmpty)
+        logsTable: await _rowsWhere(logsTable, logWhere, logArgs),
     };
 
     await _anki.deleteKnowledgePoint(point.id);
