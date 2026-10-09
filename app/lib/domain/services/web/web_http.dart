@@ -39,7 +39,7 @@ const int maxBodyBytes = 2 * 1024 * 1024;
 ///
 /// Kept in step with `pubspec.yaml`'s version by hand; the point of the header
 /// is honesty about who is calling, not exact version matching.
-const String userAgent = 'Furnace/0.2.1 (+local assistant)';
+const String userAgent = 'Furnace/0.3.0 (+local assistant)';
 
 /// Only these schemes may be fetched. Anything else is refused before a socket
 /// is opened.
