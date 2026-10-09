@@ -4,9 +4,10 @@
 /// its `manifest.json` (§2.1) plus the per-tool declarations of `tools/*.json`.
 ///
 /// **Nothing here executes anything.** Installing a skill unpacks files onto
-/// disk, and an enabled skill contributes its `prompt.md` to the model's system
-/// prompt. The script execution container described in §3 of the spec does not
-/// exist yet, so a declared script is only ever displayed - never run.
+/// disk, and an enabled skill contributes its `prompt.md` (plus its
+/// `references/**`) to the model's system prompt. Running a declared script is
+/// `SkillRunner`'s job (`data/skill/skill_runner.dart`, the §3 container), and it
+/// only ever happens after the call has been confirmed by the user.
 library;
 
 import 'dart:io';
@@ -118,10 +119,12 @@ class SkillScriptDeclaration {
 /// One `tools/*.json` declaration: what the skill would expose to the model.
 ///
 /// The shape is deliberately identical to a built-in tool's (`name` /
-/// `description` / `parameters`) so that when the container does exist, the
-/// approval engine and the audit ledger need no second code path (AI_DESIGN
-/// D11). Until then these are **displayed only** and are never registered into
-/// `ToolRegistry`: a tool that could not run would be worse than an absent one.
+/// `description` / `parameters`) so that the approval engine and the audit
+/// ledger need no second code path (AI_DESIGN D11). That is what lets an enabled
+/// skill's declaration become a callable `SkillTool` on the turn it is enabled,
+/// judged by the same engine as everything else - and it is why a declaration
+/// with `risk: destructive` is refused: the container has no delete semantics to
+/// hand it.
 class SkillToolDeclaration {
   const SkillToolDeclaration({
     required this.name,
@@ -232,9 +235,11 @@ class SkillManifest {
   /// "no platform list" would otherwise have to be read as "every platform".
   final List<SkillPlatform> platforms;
 
-  /// Hostnames the skill's scripts would be allowed to reach. Empty means no
-  /// network at all (spec §2.1). Nothing enforces this yet - the container is
-  /// what would - so it is shown to the user as a declared intention.
+  /// Hostnames the skill's scripts are allowed to reach. Empty means no network
+  /// at all (spec §2.1). The container refuses to run a networked skill until the
+  /// user has allowed it ([InstalledSkill.networkAllowed]); the list is what the
+  /// user was shown when they allowed it, **not** an OS-level egress rule - see
+  /// the honesty note in `skill_runner.dart`.
   final List<String> networkAllow;
 
   /// Host capabilities requested, e.g. `browser_bridge`. Unrequested

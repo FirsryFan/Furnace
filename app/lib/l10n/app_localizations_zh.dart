@@ -1083,10 +1083,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get skillsIntro =>
-      '.fskill 是一个 zip 包：一段提示词，外加可选的工具与脚本声明。安装只是把文件解开到磁盘上，包里的东西不会被执行；启用后它的提示词会随系统提示词一起发给模型。';
+      '.fskill 是一个 zip 包：一段提示词，外加可选的工具与脚本声明。安装只是把文件解开到磁盘上；启用后它的提示词（与参考文件）会随系统提示词一起发给模型，它声明的工具也可以被调用——每次调用都会先让你确认。';
 
   @override
   String get skillsInstall => '安装 .fskill';
+
+  @override
+  String get skillsInstallSample => '安装示例 skill';
 
   @override
   String get skillsInstalling => '正在安装…';
@@ -1122,7 +1125,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsToolsNone => '无';
 
   @override
-  String get skillsContainerNote => '脚本执行容器未启用：声明出来的脚本工具现在还不能被调用，包里的任何东西都不会运行。';
+  String get skillsContainerNote =>
+      '脚本执行容器已启用（仅 Windows）：启用的 skill 一进入本轮，它声明的脚本工具就会出现在模型的工具列表里。每次调用都会在对话里等你单独确认，确认后才会启动一次性子进程；子进程拿不到应用的环境变量，也不能借用你的 API key。';
+
+  @override
+  String get skillsContainerNoteUnavailable =>
+      '脚本执行只支持 Windows：这台设备上没有 Node 运行时，所以声明出来的脚本工具不会出现在模型的工具列表里（技能提示词仍然生效）。';
+
+  @override
+  String get skillsContainerRunnable =>
+      '本机可以运行这个 skill 的脚本（Windows），声明的工具会随「已启用」一起交给模型。';
+
+  @override
+  String skillsContainerNotRunnable(String platforms) {
+    return '本机不能运行这个 skill 的脚本（它只声明支持 $platforms），工具不会出现在模型面前；提示词仍然随「已启用」生效。';
+  }
+
+  @override
+  String skillsUnsupportedCapability(String capability) {
+    return '宿主能力 $capability 容器不提供（见 docs/SKILL_FORMAT.md §4）：申请了它，这个 skill 的脚本调用会被直接拒绝，而不是缺了能力硬跑。';
+  }
+
+  @override
+  String skillsNetworkConsent(String domains) {
+    return '允许联网（$domains）';
+  }
+
+  @override
+  String skillsNetworkNoConsent(String domains) {
+    return '未允许联网（$domains）：在你打开左边这个开关之前，它的脚本调用会被拒绝。';
+  }
+
+  @override
+  String get skillsNetworkDeclaredNone => '这个 skill 没有声明要联网（networkAllow 为空）。';
+
+  @override
+  String get skillsNetworkConsentNote =>
+      '打开开关等于放行这个 skill 的脚本联网。你看到的是它声明的域名清单；容器按声明约束，并没有在系统层面挡住别的域名。';
+
+  @override
+  String get skillsNetworkToggleFailed => '切换这个 skill 的网络许可失败';
 
   @override
   String get skillsPath => '文件位置';

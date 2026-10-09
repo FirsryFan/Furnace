@@ -20,6 +20,7 @@ void main() {
         prompt: prompt ?? '这是 $name 的方法论。',
         tools: const [],
         enabled: enabled,
+        networkAllowed: false,
         installedAt: DateTime.utc(2026, 10, 1),
         directory: '/tmp/skills/$name',
       );

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,8 @@ void main() {
     String name = 'demo-skill',
     String version = '1.0.0',
     bool enabled = true,
+    bool networkAllowed = false,
+    List<String> platforms = const ['windows'],
     List<String> networkAllow = const ['example.com'],
     List<String> permissions = const ['browser_bridge'],
     List<SkillToolDeclaration> tools = const [],
@@ -33,13 +36,16 @@ void main() {
           name: name,
           version: version,
           description: '演示用的 skill',
-          platforms: const [SkillPlatform.windows],
+          platforms: [
+            for (final id in platforms) SkillPlatform.fromId(id)!,
+          ],
           networkAllow: networkAllow,
           permissions: permissions,
         ),
         prompt: '# 方法论\n',
         tools: tools,
         enabled: enabled,
+        networkAllowed: networkAllowed,
         installedAt: DateTime.utc(2026, 10, 1),
         directory: r'C:\appdata\skills\demo-skill',
       );
@@ -87,11 +93,39 @@ void main() {
     expect(find.textContaining('演示用的 skill'), findsOneWidget);
     // The declared facts the spec requires to be shown, not just the name.
     expect(find.textContaining('windows'), findsOneWidget);
-    expect(find.textContaining('example.com'), findsOneWidget);
-    expect(find.textContaining('browser_bridge'), findsOneWidget);
+    expect(find.textContaining('example.com'), findsWidgets);
+    // `browser_bridge` appears twice on purpose: once as a declared fact and
+    // once as the warning that the container does not provide it.
+    expect(find.textContaining('browser_bridge'), findsNWidgets(2));
+    expect(find.textContaining('容器不提供'), findsOneWidget);
     expect(find.textContaining('find_questions'), findsOneWidget);
-    // The honest statement about the missing execution container.
-    expect(find.textContaining('容器未启用'), findsOneWidget);
+  });
+
+  testWidgets('the card states whether scripts can run on this platform',
+      (tester) async {
+    await pumpCard(tester, [skill()]);
+
+    if (Platform.isWindows) {
+      // The container is implemented, so the old "not enabled" note must be
+      // gone: leaving it would be a false statement about this build.
+      expect(find.textContaining('容器已启用'), findsOneWidget);
+      expect(find.textContaining('容器未启用'), findsNothing);
+      expect(find.textContaining('本机可以运行'), findsOneWidget);
+    } else {
+      expect(find.textContaining('脚本执行只支持 Windows'), findsOneWidget);
+    }
+  });
+
+  testWidgets('a skill this machine cannot run says so instead of pretending',
+      (tester) async {
+    await pumpCard(tester, [
+      skill(platforms: const ['linux']),
+    ]);
+
+    // Whatever the host platform is, a package declaring `linux` only cannot
+    // have its scripts run here.
+    expect(find.textContaining('本机不能运行'), findsOneWidget);
+    expect(find.textContaining('linux'), findsWidgets);
   });
 
   testWidgets('an empty install list says so and does not claim a container',
@@ -99,8 +133,42 @@ void main() {
     await pumpCard(tester, const []);
 
     expect(find.textContaining('还没有安装任何 skill'), findsOneWidget);
-    expect(find.textContaining('容器未启用'), findsNothing,
+    expect(find.textContaining('容器已启用'), findsNothing,
         reason: 'the container note belongs to an installed skill, not a header');
+    expect(find.textContaining('脚本执行只支持 Windows'), findsNothing);
+  });
+
+  testWidgets('the network switch is labelled with the declared domains and '
+      'reaches the store', (tester) async {
+    final store = _FakeSkillStore();
+    await pumpCard(
+      tester,
+      [skill(networkAllow: const ['zujuan.xkw.com'], networkAllowed: false)],
+      store: store,
+    );
+
+    // The domains are on the consent control itself, because "allow network"
+    // without them would be consent to nothing in particular.
+    final consentSwitch = find.widgetWithText(
+      SwitchListTile,
+      '允许联网（zujuan.xkw.com）',
+    );
+    expect(consentSwitch, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(consentSwitch).value, isFalse);
+    expect(find.textContaining('未允许联网（zujuan.xkw.com）'), findsOneWidget);
+
+    await tester.tap(consentSwitch);
+    await tester.pumpAndSettle();
+
+    expect(store.networkToggled, [('demo-skill', true)]);
+  });
+
+  testWidgets('a skill that declares no network gets no consent control',
+      (tester) async {
+    await pumpCard(tester, [skill(networkAllow: const [])]);
+
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.textContaining('没有声明要联网'), findsOneWidget);
   });
 
   testWidgets('an invalid package shows the specific refusal reason',
@@ -148,9 +216,12 @@ void main() {
     final store = _FakeSkillStore();
     await pumpCard(tester, [skill(enabled: true)], store: store);
 
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    // The tile now holds two switches (enable, then network consent), and the
+    // enable one is built first, so `first` is unambiguous here.
+    final enableSwitch = find.byType(Switch).first;
+    expect(tester.widget<Switch>(enableSwitch).value, isTrue);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(enableSwitch);
     await tester.pumpAndSettle();
 
     expect(store.toggled, [('demo-skill', false)],
@@ -204,6 +275,9 @@ class _FakeSkillStore extends SkillStore {
   /// Names passed to [setEnabled], in call order.
   final List<(String, bool)> toggled = [];
 
+  /// Names and values passed to [setNetworkAllowed], in call order.
+  final List<(String, bool)> networkToggled = [];
+
   /// Names passed to [remove].
   final List<String> removed = [];
 
@@ -227,6 +301,12 @@ class _FakeSkillStore extends SkillStore {
   @override
   Future<bool> setEnabled(String name, bool enabled) async {
     toggled.add((name, enabled));
+    return true;
+  }
+
+  @override
+  Future<bool> setNetworkAllowed(String name, bool allowed) async {
+    networkToggled.add((name, allowed));
     return true;
   }
 

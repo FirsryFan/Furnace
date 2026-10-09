@@ -8,21 +8,21 @@
 ///
 /// ```
 /// <appSupport>/skills/<name>/          the extracted package, untouched
-/// <appSupport>/skills/<name>/state.json  {"enabled": true, "installedAt": ...}
+/// <appSupport>/skills/<name>/state.json  {"enabled": true, "networkAllowed": false, ...}
 /// ```
 ///
 /// `state.json` lives *inside* the skill directory rather than beside it, so
 /// deleting the directory removes the skill completely and there is nothing to
-/// keep in step. The enable flag defaults to `false` when the file is missing,
-/// which is the safe reading: an unreadable state is not consent to feed a
-/// skill's instructions to the model.
+/// keep in step. Two facts live in it, and both default to "no" when the file
+/// is missing or the field is absent, which is the safe reading in each case: an
+/// unreadable state is not consent to feed a skill's instructions to the model,
+/// and it is not consent for its scripts to use the network either.
 ///
-/// **Installing runs nothing.** It validates, unpacks, and records a flag.
-/// Nothing in a `.fskill` is executed by this class or by anything it calls,
-/// and the script container of spec §3 does not exist yet (see
-/// `SkillToolDeclaration`). There is also no signature or hash verification:
-/// the integrity story is "you trust the file you installed", and this code
-/// does not imply otherwise.
+/// **This class runs nothing.** Installing validates, unpacks and records flags;
+/// running a declared script is `SkillRunner`'s job, and it happens only after
+/// the call has been through the approval engine. There is no signature or hash
+/// verification: the integrity story is "you trust the file you installed", and
+/// this code does not imply otherwise.
 library;
 
 import 'dart:convert';
@@ -45,6 +45,7 @@ class InstalledSkill {
     required this.enabled,
     required this.installedAt,
     required this.directory,
+    this.networkAllowed = false,
   });
 
   final SkillManifest manifest;
@@ -53,10 +54,21 @@ class InstalledSkill {
   /// each have to re-read the disk.
   final String prompt;
 
-  /// Declared tools. Displayed, never registered into `ToolRegistry`.
+  /// Declared tools. Registered into the agent loop's tool list while the skill
+  /// is enabled and the platform allows it; a displayed declaration with no
+  /// `scripts[]` entry still appears here and is refused at call time.
   final List<SkillToolDeclaration> tools;
 
   final bool enabled;
+
+  /// Whether the user has allowed this skill's scripts to use the network
+  /// (spec §3 "联网" row, §5.3).
+  ///
+  /// Defaults to `false`, and a missing field in `state.json` reads as `false`
+  /// too: consent is something the user gives, never something the absence of a
+  /// record implies. [SkillManifest.networkAllow] is what the user was shown
+  /// when giving it; nothing enforces the domain list itself.
+  final bool networkAllowed;
 
   final DateTime installedAt;
 
@@ -65,11 +77,19 @@ class InstalledSkill {
 
   String get name => manifest.name;
 
-  InstalledSkill copyWith({bool? enabled}) => InstalledSkill(
+  /// Whether this skill's scripts may run on [platform].
+  ///
+  /// One home for the §5.5 gate, so the settings card's "runnable here" note and
+  /// the agent loop's decision to offer the tool cannot disagree.
+  bool isRunnableOn(SkillPlatform platform) =>
+      platform == SkillPlatform.windows && manifest.supports(platform);
+
+  InstalledSkill copyWith({bool? enabled, bool? networkAllowed}) => InstalledSkill(
         manifest: manifest,
         prompt: prompt,
         tools: tools,
         enabled: enabled ?? this.enabled,
+        networkAllowed: networkAllowed ?? this.networkAllowed,
         installedAt: installedAt,
         directory: directory,
       );
@@ -167,18 +187,40 @@ class SkillStore {
       [for (final skill in await list()) if (skill.enabled) skill];
 
   /// Turns one skill on or off. Returns false when it is not installed.
+  ///
+  /// Every write goes through [_updateState], so changing the enable flag can
+  /// never drop the network consent the user gave earlier (or the reverse):
+  /// `state.json` has two independent facts in it and they must not overwrite
+  /// each other just because they share a file.
   Future<bool> setEnabled(String name, bool enabled) async {
     final directory = await _skillDirectory(name);
     if (!directory.existsSync()) {
       return false;
     }
-    final state = await _readState(directory);
-    await _writeState(directory, {
-      'enabled': enabled,
-      // Keep the original install time when only the flag changes.
-      'installedAt': (state['installedAt'] as String?) ??
-          DateTime.now().toUtc().toIso8601String(),
-    });
+    await _updateState(directory, (state) => {
+          ...state,
+          'enabled': enabled,
+        });
+    return true;
+  }
+
+  /// Records the user's consent for this skill to use the network.
+  ///
+  /// This is the switch the settings card shows next to the declared domains.
+  /// It is stored per skill and inside that skill's own directory, so removing
+  /// the skill removes the consent with it - and reinstalling starts from "not
+  /// allowed" again, which is the safe reading of a reinstall. What the user
+  /// consented to is the domain list they were shown; the container does not
+  /// enforce it (see `SkillRunner`).
+  Future<bool> setNetworkAllowed(String name, bool allowed) async {
+    final directory = await _skillDirectory(name);
+    if (!directory.existsSync()) {
+      return false;
+    }
+    await _updateState(directory, (state) => {
+          ...state,
+          'networkAllowed': allowed,
+        });
     return true;
   }
 
@@ -218,12 +260,15 @@ class SkillStore {
       final installedAt = DateTime.now().toUtc();
       // `state.json` sits inside the skill directory so deleting the directory
       // deletes the skill completely; there is no second place to keep in step.
-      // The flag starts `true` because installing *is* the user's decision to
-      // use the skill.
+      // The enable flag starts `true` because installing *is* the user's decision
+      // to use the skill. Network consent starts `false` for the opposite
+      // reason: a fresh install has never been shown the domain list, and the
+      // absence of a record must not read as consent.
       final stateFile = File(p.join(staging.path, stateFileName));
       await stateFile.writeAsString(
         const JsonEncoder.withIndent('  ').convert({
           'enabled': true,
+          'networkAllowed': false,
           'installedAt': installedAt.toIso8601String(),
           'tools': decodeToolDeclarations(package.tools),
         }),
@@ -237,6 +282,7 @@ class SkillStore {
         prompt: package.prompt,
         tools: package.tools,
         enabled: true,
+        networkAllowed: false,
         installedAt: installedAt,
         directory: target.path,
       );
@@ -315,6 +361,11 @@ class SkillStore {
       // Absent state means "not enabled": an unreadable state file must not be
       // read as permission to feed this skill's instructions to the model.
       enabled: state['enabled'] == true,
+      // A missing field means "not allowed" too. Every install writes the field,
+      // so only a `state.json` from before network consent existed - or one
+      // edited by hand - can be missing it, and both should read as "no consent
+      // was recorded" rather than as consent.
+      networkAllowed: state['networkAllowed'] == true,
       installedAt:
           DateTime.tryParse(state['installedAt']?.toString() ?? '')?.toLocal() ??
               directory.statSync().modified,
@@ -379,13 +430,26 @@ class SkillStore {
     }
   }
 
-  Future<void> _writeState(
+  /// Rewrites `state.json` after applying [change] to what is on disk now.
+  ///
+  /// Read-modify-write rather than write-the-whole-map, because the state file
+  /// holds independent facts (`enabled`, `networkAllowed`, `installedAt`) and
+  /// every writer would otherwise have to remember to carry the others along. A
+  /// missing file reads as `{}`, which is what makes the first write after a
+  /// pre-existing install behave like an update instead of a reset.
+  Future<void> _updateState(
     Directory directory,
-    Map<String, Object?> state,
+    Map<String, Object?> Function(Map<String, Object?> state) change,
   ) async {
+    final state = await _readState(directory);
+    final next = change(state);
+    // The install time is preserved unless the caller deliberately replaces it;
+    // it is the one field the user sees and cannot otherwise recover.
+    next['installedAt'] ??=
+        (state['installedAt'] as String?) ?? DateTime.now().toUtc().toIso8601String();
     final file = File(p.join(directory.path, stateFileName));
     await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(state),
+      const JsonEncoder.withIndent('  ').convert(next),
       flush: true,
     );
   }

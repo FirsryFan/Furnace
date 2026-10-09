@@ -2159,7 +2159,7 @@ abstract class AppLocalizations {
   /// No description provided for @skillsIntro.
   ///
   /// In en, this message translates to:
-  /// **'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk - nothing in the package runs. Enabling a skill adds its prompt to what the model is told.'**
+  /// **'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk. Enabling a skill adds its prompt (and its reference files) to what the model is told; a declared tool can then be called, and every call is confirmed by you first.'**
   String get skillsIntro;
 
   /// No description provided for @skillsInstall.
@@ -2167,6 +2167,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install .fskill'**
   String get skillsInstall;
+
+  /// No description provided for @skillsInstallSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the sample skill'**
+  String get skillsInstallSample;
 
   /// No description provided for @skillsInstalling.
   ///
@@ -2237,8 +2243,62 @@ abstract class AppLocalizations {
   /// No description provided for @skillsContainerNote.
   ///
   /// In en, this message translates to:
-  /// **'Script execution container is not enabled: declared script tools cannot be called yet, and nothing in a package runs.'**
+  /// **'The script container is enabled (Windows only): once an enabled skill is part of a turn, its declared script tools appear in the model\'s tool list. Every call waits for your individual confirmation in the conversation, and only then does a one-shot child process start. The child does not receive the app\'s environment, so it cannot borrow your API key.'**
   String get skillsContainerNote;
+
+  /// No description provided for @skillsContainerNoteUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Script execution is Windows only: there is no Node runtime on this device, so declared script tools do not appear in the model\'s tool list (the skill\'s prompt still applies).'**
+  String get skillsContainerNoteUnavailable;
+
+  /// No description provided for @skillsContainerRunnable.
+  ///
+  /// In en, this message translates to:
+  /// **'This machine can run the skill\'s scripts (Windows), so its declared tools are offered to the model while it is enabled.'**
+  String get skillsContainerRunnable;
+
+  /// No description provided for @skillsContainerNotRunnable.
+  ///
+  /// In en, this message translates to:
+  /// **'This machine cannot run the skill\'s scripts (it declares {platforms} only), so its tools are not offered to the model; its prompt still applies while it is enabled.'**
+  String skillsContainerNotRunnable(String platforms);
+
+  /// No description provided for @skillsUnsupportedCapability.
+  ///
+  /// In en, this message translates to:
+  /// **'The container does not provide the host capability {capability} (see docs/SKILL_FORMAT.md §4): a skill asking for it has its script calls refused rather than run without it.'**
+  String skillsUnsupportedCapability(String capability);
+
+  /// No description provided for @skillsNetworkConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow network ({domains})'**
+  String skillsNetworkConsent(String domains);
+
+  /// No description provided for @skillsNetworkNoConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'Network not allowed ({domains}): its script calls are refused until you turn this on.'**
+  String skillsNetworkNoConsent(String domains);
+
+  /// No description provided for @skillsNetworkDeclaredNone.
+  ///
+  /// In en, this message translates to:
+  /// **'This skill declares no network use (networkAllow is empty).'**
+  String get skillsNetworkDeclaredNone;
+
+  /// No description provided for @skillsNetworkConsentNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning this on lets this skill\'s scripts use the network. What you are shown is the domain list it declares; the container confines by declaration, it does not block other domains at the OS level.'**
+  String get skillsNetworkConsentNote;
+
+  /// No description provided for @skillsNetworkToggleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change this skill\'s network permission'**
+  String get skillsNetworkToggleFailed;
 
   /// No description provided for @skillsPath.
   ///

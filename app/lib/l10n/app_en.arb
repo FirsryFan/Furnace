@@ -415,8 +415,9 @@
   "settingsAiKeyRequired": "An API key is required to enable this",
   "settingsAiPlatformNote": "Android has no Node runtime and no desktop browser, so script-based abilities are Windows-only.",
   "skillsTitle": "Skills",
-  "skillsIntro": "A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk - nothing in the package runs. Enabling a skill adds its prompt to what the model is told.",
+  "skillsIntro": "A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk. Enabling a skill adds its prompt (and its reference files) to what the model is told; a declared tool can then be called, and every call is confirmed by you first.",
   "skillsInstall": "Install .fskill",
+  "skillsInstallSample": "Install the sample skill",
   "skillsInstalling": "Installing...",
   "skillsEmpty": "No skills installed.",
   "skillsEnabled": "Enabled",
@@ -428,7 +429,44 @@
   "skillsPermissionsNone": "none requested",
   "skillsTools": "Declared tools",
   "skillsToolsNone": "none",
-  "skillsContainerNote": "Script execution container is not enabled: declared script tools cannot be called yet, and nothing in a package runs.",
+  "skillsContainerNote": "The script container is enabled (Windows only): once an enabled skill is part of a turn, its declared script tools appear in the model's tool list. Every call waits for your individual confirmation in the conversation, and only then does a one-shot child process start. The child does not receive the app's environment, so it cannot borrow your API key.",
+  "skillsContainerNoteUnavailable": "Script execution is Windows only: there is no Node runtime on this device, so declared script tools do not appear in the model's tool list (the skill's prompt still applies).",
+  "skillsContainerRunnable": "This machine can run the skill's scripts (Windows), so its declared tools are offered to the model while it is enabled.",
+  "skillsContainerNotRunnable": "This machine cannot run the skill's scripts (it declares {platforms} only), so its tools are not offered to the model; its prompt still applies while it is enabled.",
+  "@skillsContainerNotRunnable": {
+    "placeholders": {
+      "platforms": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsUnsupportedCapability": "The container does not provide the host capability {capability} (see docs/SKILL_FORMAT.md §4): a skill asking for it has its script calls refused rather than run without it.",
+  "@skillsUnsupportedCapability": {
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsNetworkConsent": "Allow network ({domains})",
+  "@skillsNetworkConsent": {
+    "placeholders": {
+      "domains": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsNetworkNoConsent": "Network not allowed ({domains}): its script calls are refused until you turn this on.",
+  "@skillsNetworkNoConsent": {
+    "placeholders": {
+      "domains": {
+        "type": "String"
+      }
+    }
+  },
+  "skillsNetworkDeclaredNone": "This skill declares no network use (networkAllow is empty).",
+  "skillsNetworkConsentNote": "Turning this on lets this skill's scripts use the network. What you are shown is the domain list it declares; the container confines by declaration, it does not block other domains at the OS level.",
+  "skillsNetworkToggleFailed": "Could not change this skill's network permission",
   "skillsPath": "Files",
   "skillsRemove": "Remove",
   "skillsRemoveConfirmTitle": "Remove skill",

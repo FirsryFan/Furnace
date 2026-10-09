@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/skill/sample_skill.dart';
+import '../../../data/skill/skill_runner.dart';
 import '../../../data/skill/skill_store.dart';
+import '../../../domain/skill/skill_manifest.dart';
 import '../application/ai_providers.dart';
 import '../application/ai_settings_notifier.dart';
 import '../domain/tool_registry.dart';
@@ -248,13 +251,20 @@ class _ToolsCard extends StatelessWidget {
 
 /// Installed `.fskill` packages: switch them on and off, install more, remove.
 ///
-/// This is the whole skill UI, and it is deliberately explicit about the two
-/// things the feature does *not* do yet, because both are the kind of absence a
-/// user would otherwise read as a bug:
+/// This is the whole skill UI. It is deliberately explicit about what the
+/// feature does *not* provide, because an absence a user cannot see is the kind
+/// of thing that gets read as a bug:
 ///
-///  * script-backed tools are declared and shown but **cannot be called** - the
-///    execution container of docs/SKILL_FORMAT.md §3 does not exist, so the card
-///    says so instead of registering a tool that would fail at call time;
+///  * a script-backed tool runs only on Windows, in the skill's own directory,
+///    with a minimal environment and after the user confirms that single call -
+///    the card states whether this skill's tools are runnable *here*, and on
+///    other platforms says why they are not;
+///  * a skill that wants the network stays refused until the user allows it once
+///    ([SkillStore.setNetworkAllowed]), and the switch names the domains it
+///    asked for;
+///  * a requested host capability the container does not implement
+///    (`browser_bridge`) is shown as a warning, and calls are refused with that
+///    capability named rather than half-working;
 ///  * a refusal is shown with its own reason (wrong protocol, name, platform,
 ///    a destructive tool, an oversized archive) rather than as "invalid file",
 ///    because the reason is the only part the user can act on.
@@ -297,8 +307,35 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
     setState(() => _error = message);
   }
 
-  Future<void> _install() async {
+  /// Installs the skill that ships with the app (`data/skill/sample_skill.dart`).
+  ///
+  /// One tap beats "go and find a `.fskill` first" when the question is whether
+  /// the script container works on this machine at all: the sample declares one
+  /// tool that echoes back what it received, so a user can see a real child
+  /// process run - and see that the environment it got carries no API key.
+  Future<void> _installSample() async {
     final l10n = AppLocalizations.of(context);
+    setState(() {
+      _installing = true;
+      _error = null;
+    });
+
+    final outcome = await _installBytes(SampleSkill.build());
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _installing = false;
+      _error = outcome.error;
+    });
+    if (outcome.installed != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.skillsTitle}: ${outcome.installed}')),
+      );
+    }
+  }
+
+  Future<void> _install() async {    final l10n = AppLocalizations.of(context);
     setState(() {
       _installing = true;
       _error = null;
@@ -403,6 +440,35 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
     ref.invalidate(installedSkillsProvider);
   }
 
+  /// Records the user's consent for one skill's scripts to use the network.
+  ///
+  /// Stored per skill inside its own directory, so it survives a restart and is
+  /// removed together with the skill. Until it is set, [SkillRunner] refuses to
+  /// run that skill's scripts with a reason naming the declared domains: the
+  /// user is asked once, explicitly, and the absence of an answer is not a yes.
+  Future<void> _setNetworkAllowed(InstalledSkill skill, bool value) async {
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _busy = skill.name;
+      _error = null;
+    });
+    final ok =
+        await ref.read(skillStoreProvider).setNetworkAllowed(skill.name, value);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = null);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.skillsNetworkToggleFailed}：${skill.name}'),
+        ),
+      );
+      return;
+    }
+    ref.invalidate(installedSkillsProvider);
+  }
+
   Future<void> _remove(InstalledSkill skill) async {
     final l10n = AppLocalizations.of(context);
     // Confirmed first, and the dialog names the skill: this is the only action
@@ -444,6 +510,11 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final installed = ref.watch(installedSkillsProvider);
+    // Read once, here, and passed down: the platform decides both the card's
+    // note and whether a skill's scripts are runnable at all, and those two
+    // statements must not be able to disagree.
+    final platform = SkillPlatform.current;
+    final scriptsHere = platform == SkillPlatform.windows;
 
     return Card(
       child: Padding(
@@ -467,6 +538,11 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
                   label: Text(
                     _installing ? l10n.skillsInstalling : l10n.skillsInstall,
                   ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _installing ? null : _installSample,
+                  child: Text(l10n.skillsInstallSample),
                 ),
               ],
             ),
@@ -502,15 +578,23 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
                     for (final skill in skills)
                       _SkillTile(
                         skill: skill,
+                        platform: platform,
                         busy: _busy == skill.name,
                         onChanged: (value) => _setEnabled(skill, value),
+                        onNetworkChanged: (value) =>
+                            _setNetworkAllowed(skill, value),
                         onRemove: () => _remove(skill),
                       ),
                     const SizedBox(height: 6),
                     _SkillsMessage(
                       icon: Icons.info_outline,
                       color: scheme.outline,
-                      text: l10n.skillsContainerNote,
+                      // The note has to describe *this* platform: on Windows the
+                      // container runs, elsewhere it does not exist, and saying
+                      // either one everywhere would be a lie on one of them.
+                      text: scriptsHere
+                          ? l10n.skillsContainerNote
+                          : l10n.skillsContainerNoteUnavailable,
                     ),
                   ],
                 );
@@ -523,18 +607,32 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
   }
 }
 
-/// One installed skill: what it is, what it declares, and the two controls.
+/// One installed skill: what it is, what it declares, and the controls.
+///
+/// The tile answers three questions the spec makes the UI responsible for: can
+/// this skill's scripts run *here* (§5.5), has the user allowed it to use the
+/// network (§3, §5.3), and did it ask for a host capability the container does
+/// not have (§4). Each answer is a visible line rather than something the user
+/// has to infer from a failed call.
 class _SkillTile extends StatelessWidget {
   const _SkillTile({
     required this.skill,
+    required this.platform,
     required this.busy,
     required this.onChanged,
+    required this.onNetworkChanged,
     required this.onRemove,
   });
 
   final InstalledSkill skill;
+
+  /// Injected for the same reason the agent loop's gate is: the Windows and the
+  /// non-Windows rendering both have to be testable without a device.
+  final SkillPlatform platform;
+
   final bool busy;
   final ValueChanged<bool> onChanged;
+  final ValueChanged<bool> onNetworkChanged;
   final VoidCallback onRemove;
 
   @override
@@ -543,6 +641,13 @@ class _SkillTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final manifest = skill.manifest;
     final toolNames = [for (final tool in skill.tools) tool.name];
+
+    // What the container would actually refuse, derived from the same constant
+    // the runner uses, so the warning and the refusal cannot drift apart.
+    final unsupported = SkillRunner.unsupportedCapabilities(skill);
+    final runnable = skill.isRunnableOn(platform);
+    final domains = manifest.networkAllow.join(', ');
+    final canConsent = manifest.networkAllow.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -613,6 +718,61 @@ class _SkillTile extends StatelessWidget {
             value: skill.directory,
             monospace: true,
           ),
+          const SizedBox(height: 4),
+          // Whether the declared tools can run on this machine. A skill that
+          // cannot run here still says so, and still contributes its prompt.
+          _SkillsMessage(
+            icon: runnable ? Icons.play_circle_outline : Icons.block_outlined,
+            color: runnable ? scheme.primary : scheme.outline,
+            text: runnable
+                ? l10n.skillsContainerRunnable
+                : l10n.skillsContainerNotRunnable(
+                    manifest.platforms.map((p) => p.id).join(', '),
+                  ),
+          ),
+          if (canConsent) ...[
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              // The label names the domains the user is consenting to, because
+              // "allow network" without them would be consent to nothing in
+              // particular.
+              title: Text(
+                l10n.skillsNetworkConsent(domains),
+                style: const TextStyle(fontSize: 11),
+              ),
+              value: skill.networkAllowed,
+              onChanged: busy ? null : onNetworkChanged,
+            ),
+            if (!skill.networkAllowed)
+              _SkillsMessage(
+                icon: Icons.wifi_off_outlined,
+                color: scheme.outline,
+                text: l10n.skillsNetworkNoConsent(domains),
+              )
+            else
+              _SkillsMessage(
+                icon: Icons.info_outline,
+                color: scheme.outline,
+                text: l10n.skillsNetworkConsentNote,
+              ),
+          ] else
+            _SkillField(
+              label: l10n.skillsNetwork,
+              value: l10n.skillsNetworkDeclaredNone,
+            ),
+          if (unsupported.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _SkillsMessage(
+              icon: Icons.warning_amber_outlined,
+              color: scheme.error,
+              // Naming the capability is the point: a user who sees
+              // `browser_bridge` refused can look up what that was supposed to
+              // mean, which "unsupported skill" would not tell them.
+              text: l10n.skillsUnsupportedCapability(unsupported.join(', ')),
+            ),
+          ],
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(

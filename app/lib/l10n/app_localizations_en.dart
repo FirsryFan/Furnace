@@ -1130,10 +1130,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skillsIntro =>
-      'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk - nothing in the package runs. Enabling a skill adds its prompt to what the model is told.';
+      'A .fskill is a zip package: a prompt, plus optional declared tools and scripts. Installing only unpacks files onto disk. Enabling a skill adds its prompt (and its reference files) to what the model is told; a declared tool can then be called, and every call is confirmed by you first.';
 
   @override
   String get skillsInstall => 'Install .fskill';
+
+  @override
+  String get skillsInstallSample => 'Install the sample skill';
 
   @override
   String get skillsInstalling => 'Installing...';
@@ -1170,7 +1173,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skillsContainerNote =>
-      'Script execution container is not enabled: declared script tools cannot be called yet, and nothing in a package runs.';
+      'The script container is enabled (Windows only): once an enabled skill is part of a turn, its declared script tools appear in the model\'s tool list. Every call waits for your individual confirmation in the conversation, and only then does a one-shot child process start. The child does not receive the app\'s environment, so it cannot borrow your API key.';
+
+  @override
+  String get skillsContainerNoteUnavailable =>
+      'Script execution is Windows only: there is no Node runtime on this device, so declared script tools do not appear in the model\'s tool list (the skill\'s prompt still applies).';
+
+  @override
+  String get skillsContainerRunnable =>
+      'This machine can run the skill\'s scripts (Windows), so its declared tools are offered to the model while it is enabled.';
+
+  @override
+  String skillsContainerNotRunnable(String platforms) {
+    return 'This machine cannot run the skill\'s scripts (it declares $platforms only), so its tools are not offered to the model; its prompt still applies while it is enabled.';
+  }
+
+  @override
+  String skillsUnsupportedCapability(String capability) {
+    return 'The container does not provide the host capability $capability (see docs/SKILL_FORMAT.md §4): a skill asking for it has its script calls refused rather than run without it.';
+  }
+
+  @override
+  String skillsNetworkConsent(String domains) {
+    return 'Allow network ($domains)';
+  }
+
+  @override
+  String skillsNetworkNoConsent(String domains) {
+    return 'Network not allowed ($domains): its script calls are refused until you turn this on.';
+  }
+
+  @override
+  String get skillsNetworkDeclaredNone =>
+      'This skill declares no network use (networkAllow is empty).';
+
+  @override
+  String get skillsNetworkConsentNote =>
+      'Turning this on lets this skill\'s scripts use the network. What you are shown is the domain list it declares; the container confines by declaration, it does not block other domains at the OS level.';
+
+  @override
+  String get skillsNetworkToggleFailed =>
+      'Could not change this skill\'s network permission';
 
   @override
   String get skillsPath => 'Files';

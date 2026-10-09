@@ -8,7 +8,10 @@ import 'package:drift/drift.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../../../data/skill/skill_prompt.dart';
+import '../../../data/skill/skill_runner.dart';
 import '../../../data/skill/skill_store.dart';
+import '../../../domain/skill/skill_manifest.dart';
+import '../../../domain/skill/skill_tool.dart';
 import '../infrastructure/ai_attachment_store.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
@@ -185,6 +188,8 @@ class AgentLoop {
     required this.db,
     this.attachments,
     this.skills,
+    this.skillRunner,
+    this.skillPlatform,
     this.maxRounds = 8,
   });
 
@@ -207,10 +212,27 @@ class AgentLoop {
   /// no skills, and its system prompt is byte-identical to the prompt that
   /// existed before skills did. That equality is what makes "skills off" mean
   /// "exactly the old behaviour" rather than "close to it".
+  ///
+  /// When it is present, its enabled skills supply **both** prompt text and
+  /// their declared script tools; see [_turnTools].
   final SkillStore? skills;
 
+  /// The script container used for enabled skills' declared tools.
+  ///
+  /// Built on demand when absent, so a loop that has no skills never constructs
+  /// one and every existing test is unaffected. Injected in tests that need to
+  /// drive a caller-supplied container.
+  final SkillRunner? skillRunner;
+
+  /// The platform the skill gate is decided for.
+  ///
+  /// Defaults to [SkillPlatform.current]; injectable for the same reason the
+  /// manifest's own gate is: "on Android the tool is absent" has to be testable
+  /// without an Android device.
+  final SkillPlatform? skillPlatform;
+
   /// How long the system prompt waits for the skill directory before giving up
-  /// and using the built-in rules alone. See [_systemPrompt].
+  /// and using the built-in rules alone. See [_turnTools].
   static const Duration skillReadTimeout = Duration(seconds: 2);
 
   /// How long one message's images may take to come off disk before the turn
@@ -376,14 +398,17 @@ class AgentLoop {
       rounds++;
       _emit(_state.copyWith(generating: true, rounds: rounds, clearError: true));
 
-      final history = await _buildHistory(conversationId);
+      // One read of the skill directory per round: it produces this round's
+      // tool list *and* the prompt that accompanies it.
+      final turnTools = await _turnTools();
+      final history = await _buildHistory(conversationId, turnTools.systemPrompt);
       final calls = <ToolCallRequest>[];
       final textBuffer = StringBuffer();
       String? failure;
 
       await for (final event in adapter.runTurn(
         messages: history,
-        tools: registry.modelSpecs,
+        tools: turnTools.specs,
       )) {
         switch (event) {
           case ModelTextDelta(:final text):
@@ -435,7 +460,7 @@ class AgentLoop {
       );
 
       for (final call in calls) {
-        final tool = registry.byName(call.name);
+        final tool = registry.byName(call.name) ?? turnTools.byName(call.name);
         final action = tool?.actionOf(call.arguments) ?? call.name;
         final risk = tool?.riskFor(action) ?? ToolRisk.write;
         final reversible = tool?.reversibleFor(action) ?? false;
@@ -585,7 +610,8 @@ class AgentLoop {
     } on ToolArgError catch (e) {
       result = ToolResult.failure(e.message);
     } catch (e) {
-      // A real failure (database, disk) must not kill the conversation.
+      // A real failure (database, disk, a process that would not start) must not
+      // kill the conversation.
       result = ToolResult.failure('执行失败：$e');
     }
 
@@ -618,6 +644,11 @@ class AgentLoop {
 
   /// Rebuilds the provider-facing history from storage.
   ///
+  /// [systemPrompt] is passed in rather than built here because the skill read
+  /// that produces it also produces this turn's skill tools (see [_turnTools]);
+  /// reading the skill directory twice per round would risk the prompt and the
+  /// tool list describing two different sets of skills.
+  ///
   /// Rebuilt every round rather than kept in memory: the database is the source
   /// of truth, so a restart mid-conversation loses nothing, and the loop cannot
   /// drift from what the user sees.
@@ -628,7 +659,10 @@ class AgentLoop {
   /// afterwards. Grouping also makes the order independent of the order the
   /// rows happened to be written in (the assistant message is written last, see
   /// [_drive], precisely so an incomplete turn never exists on disk).
-  Future<List<ChatMessage>> _buildHistory(String conversationId) async {
+  Future<List<ChatMessage>> _buildHistory(
+    String conversationId,
+    String systemPrompt,
+  ) async {
     final rows = await repository.listMessages(conversationId);
     final actions = await repository.listCommittedActions(conversationId);
 
@@ -642,7 +676,7 @@ class AgentLoop {
     }
 
     final messages = <ChatMessage>[
-      ChatMessage.system(await _systemPrompt()),
+      ChatMessage.system(systemPrompt),
     ];
 
     for (final row in rows) {
@@ -746,16 +780,59 @@ class AgentLoop {
   /// The base text is built here and the skill block is appended by
   /// [SkillPrompt.build] - a pure function, so "which skills reached the model,
   /// and in what order" is answerable by a test without a conversation.
+  String _systemPrompt(String rules, List<InstalledSkill> enabled) =>
+      SkillPrompt.build(rules, enabled);
+
+  /// Everything one model round needs from the skill directory: the system
+  /// prompt, and the declared tools of the same enabled skills.
   ///
-  /// Skills are re-read on every turn rather than cached at construction
-  /// because the store is a directory that the settings screen writes: a skill
-  /// disabled a moment ago must not still be speaking on the next message.
-  Future<String> _systemPrompt() async {
+  /// **One read, two uses.** A round reads the skills exactly once, because two
+  /// reads could see two different states - a skill enabled between them would
+  /// either describe itself in the prompt while being absent from the tool list,
+  /// or the reverse - and the honest answer to "what is enabled right now" has
+  /// to be a single answer. A disabled skill contributes nothing here, which is
+  /// what makes "disabled means disabled" true for tools as well as for prompt
+  /// text (spec §5.5).
+  ///
+  /// The read is advisory and bounded for exactly the reasons the skill prompt
+  /// always was: the install directory can be slow or absent (a widget test has
+  /// no `path_provider`), and "no skills this turn" is an acceptable answer while
+  /// "the assistant never answers" is not.
+  Future<_TurnTools> _turnTools() async {
+    final rules = _baseRules();
+    final store = skills;
+    if (store == null) {
+      return _TurnTools(systemPrompt: rules, builtInTools: registry.all);
+    }
+    try {
+      final enabled = await store.enabled().timeout(skillReadTimeout);
+      return _TurnTools(
+        systemPrompt: _systemPrompt(rules, enabled),
+        builtInTools: registry.all,
+        skillTools: [
+          for (final skill in enabled)
+            ...declareSkillTools(
+              skill: skill,
+              runner: skillRunner ?? const SkillRunner(),
+              platform: skillPlatform ?? SkillPlatform.current,
+            ),
+        ],
+      );
+    } catch (_) {
+      return _TurnTools(systemPrompt: rules, builtInTools: registry.all);
+    }
+  }
+
+  /// The date, the persona and the rules that predate skills.
+  ///
+  /// Byte-identical to what the loop sent before skill tools existed, so that
+  /// "skills disabled" keeps meaning "the old behaviour exactly".
+  String _baseRules() {
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     const base = '你是 Furnace 的助手，直接操作用户的任务、日程、标签与复习数据。';
-    final rules = '$base\n'
+    return '$base\n'
         '今天的日期是 $date。\n'
         '规则：\n'
         '1. 需要知道现状时先用查询工具，不要凭猜测回答。\n'
@@ -764,22 +841,6 @@ class AgentLoop {
         '4. 要动某个标签、闪存卡或卡片时，先用 query_content 找到它的 id 再操作；'
         '不要凭记忆猜名字，猜错只会得到"找不到"，而查是免费的。\n'
         '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。';
-    final store = skills;
-    if (store == null) {
-      return rules;
-    }
-    try {
-      // Advisory, never load-bearing. A skill read that fails or stalls has to
-      // degrade to the built-in rules instead of freezing the turn: "no skills
-      // this turn" is always an acceptable answer, "the assistant never
-      // answers" is not. The install directory is genuinely unavailable in some
-      // of the places this code runs (a widget test has no `path_provider`) and
-      // can be slow anywhere, and neither case is worth a hung conversation.
-      final enabled = await store.enabled().timeout(skillReadTimeout);
-      return SkillPrompt.build(rules, enabled);
-    } catch (_) {
-      return rules;
-    }
   }
 
   /// Applies a before-snapshot. Returns false when the action has none.
@@ -864,4 +925,85 @@ class AgentLoop {
         return false;
     }
   }
+}
+
+/// The declared script tools of one enabled skill, wired to [runner].
+///
+/// A skill's tools are derived from two places that have to agree: `tools/*.json`
+/// says what the model may ask for, and `manifest.json`'s `scripts[]` says which
+/// file that becomes. The join is by name ([SkillToolDeclaration.name] against
+/// [SkillScriptDeclaration.name]), and a declaration with no script is still
+/// built - with `script: null` - so the model can be told why the call cannot
+/// run instead of the tool silently not existing.
+///
+/// A pure function of (skill, runner, platform), which is what lets the gating
+/// rule be tested without a conversation, a database or a device.
+List<SkillTool> declareSkillTools({
+  required InstalledSkill skill,
+  required SkillRunner runner,
+  required SkillPlatform platform,
+}) {
+  final byName = <String, SkillScriptDeclaration>{
+    for (final script in skill.manifest.scripts) script.name: script,
+  };
+  return [
+    for (final declaration in skill.tools)
+      SkillTool(
+        skill: skill,
+        declaration: declaration,
+        script: byName[declaration.name],
+        runner: runner,
+        platform: platform,
+      ),
+  ];
+}
+
+/// What one model round offers: the tools the provider sees, and the system
+/// prompt built from the same read of the skill directory.
+///
+/// Keeping them in one object is the point. The two are produced together
+/// because they must agree about which skills are enabled; a round that offered
+/// a tool from a skill the prompt did not mention (or the reverse) would be a
+/// state the user never asked for.
+class _TurnTools {
+  _TurnTools({
+    required this.systemPrompt,
+    required List<AiTool> builtInTools,
+    List<SkillTool> skillTools = const [],
+  })  : specs = [
+          for (final tool in builtInTools)
+            if (tool.availableOnCurrentPlatform)
+              ModelToolSpec(
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              ),
+          for (final tool in skillTools)
+            if (tool.availableOnCurrentPlatform)
+              ModelToolSpec(
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              ),
+        ],
+        _byName = {
+          for (final tool in skillTools) tool.name: tool,
+        };
+
+  final String systemPrompt;
+
+  /// The provider-facing declarations for this round: the registry's tools for
+  /// this platform, followed by the enabled skills' script tools.
+  ///
+  /// A skill tool is included only when [AiTool.availableOnCurrentPlatform]
+  /// says so, which is the §5.5 gate: on a platform without a Node runtime the
+  /// tools are **absent from the list**, not present and failing when called.
+  final List<ModelToolSpec> specs;
+
+  final Map<String, SkillTool> _byName;
+
+  /// The skill tool named [name], or `null` - which is how a call to a skill
+  /// that is not enabled right now reaches the loop's "unknown tool" path and is
+  /// recorded as a failure rather than executed.
+  SkillTool? byName(String name) => _byName[name];
 }
