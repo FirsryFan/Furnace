@@ -22,7 +22,7 @@
 | 术语：知识点 / 词条 | — | ✅ 2026-10-02 统一为用户可见词 **闪存卡**（`navAnki` 等；代码与数据库仍是 `knowledgePoint`，见 `app_en.arb` 的 `@navAnki` 说明） |
 | AI 图片输入 → 自动生成背诵卡片 | 表内无此节 | ✅ 新增（`features/ai/domain/vision_payload.dart`、`features/ai/tools/knowledge_tools.dart`） |
 | AI 只读联网抓取 `fetch_page` | 表内无此节 | ✅ 新增（`features/ai/tools/web_tools.dart` + `domain/services/web/`）；**不做 DNS 解析**，见 [AI_DESIGN.md](AI_DESIGN.md) D1 |
-| `.fskill` 安装 / 启停 / 删除 | 表内无此节（[SKILL_FORMAT.md](SKILL_FORMAT.md) 标注"容器未实现"） | ✅ 安装与管理已实现（`domain/skill/` + `data/skill/`）；**脚本执行容器仍未实现**（§7） |
+| `.fskill` 安装 / 启停 / 删除 / **脚本执行容器** | 表内无此节（[SKILL_FORMAT.md](SKILL_FORMAT.md) 原标注"容器未实现"） | ✅ 全部实现（`domain/skill/` + `data/skill/`：§3 容器 `skill_runner.dart`、工具包装 `skill_tool.dart`）；脚本仅 Windows 可执行，`browser_bridge` 未实现 |
 | 跨页状态更新需要重启 | 表内无此节 | ✅ 已修复（2026-10-02 写库即刷新，[REACTIVITY_DESIGN.md](REACTIVITY_DESIGN.md)） |
 | `.tfpkg` 导出/导入（全量逻辑转储） | 🔴 R4 | ✅ 已实现（`data/package/tfpkg_service.dart`、设置页「数据」小节） |
 | 主题 JSON（主/辅色、背景、动画） | 🔴 R4 | ✅ 已实现（`Themes` 表、`core/theme/theme_profile.dart`、主题编辑器；**图标槽位**为 2026-10-02 新增） |

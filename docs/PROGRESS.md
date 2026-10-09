@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-02 轮次十五：skill 功能收口（§3 脚本容器 + 工具可调用 + 参考文件进提示词 + 示例 skill）
+
+> 用户问"skill 功能有什么没做到的吗？请完善"，并要求尽快出 release 供安卓日常使用。
+
+### 1. 补齐的缺口（逐条对 `docs/SKILL_FORMAT.md`）
+
+| 缺口 | 现状 |
+| --- | --- |
+| §3 脚本执行容器：`scripts/**` 从不执行 | ✅ `data/skill/skill_runner.dart`。Windows 专用；子进程一次一调用，`cwd` = skill 私有目录；**环境变量只取固定白名单**（`PATH/SystemRoot/windir/TEMP/TMP/PATHEXT/ComSpec/NUMBER_OF_PROCESSORS`）且 `includeParentEnvironment: false`，**API key 不可能进去**；默认 60 s / 上限 300 s 超时并**杀整棵进程树**（`taskkill /f /t`）；stdout+stderr 共享 256 KB 上限；退出码非 0 作为失败并带 stderr；每次执行落 `ai_actions` 台账 |
+| §2.1/§6 `tools/*.json` 只展示、不可调用 | ✅ `domain/skill/skill_tool.dart` + `agent_loop` 每轮读取启用 skill 并注入工具（名字 `<skill>_<tool>`）。**参数双向校验**：Schema 里有而声明里没有 ⇒ 拒绝；声明里有而 Schema 没描述 ⇒ 也拒绝；一个值一个 argv 元素、不经 shell |
+| §5.1 审批 | ✅ 风险 `write` + **不可撤销** ⇒ 两种权限模式下**每次调用逐条确认**（走既有引擎，无第二道闸门）；拒绝的调用也写台账，子进程一律不起 |
+| §3 联网默认拒绝 | ✅ `networkAllow` 非空必须先由用户在该 skill 卡片上允许一次（记进 `state.json` 的 `networkAllowed`），否则拒绝执行并列出域名。注释写明这是**声明式**而非操作系统级沙箱 |
+| §4 宿主能力 | ✅ 只提供 `filesystem_write`；`browser_bridge` 之类在调用时**点名拒绝**，不假装支持 |
+| §5.5 平台门控 | ✅ 脚本工具只在 Windows 现身（注入平台以便测试；安卓上提示词仍生效、工具不存在） |
+| prompt 只注入 `prompt.md` | ✅ `SkillPrompt` 现在把 `references/**` 也注入（路径统一 `/`），三层上限：单文件 16 KB / 单 skill 48 KB / 整段 64 KB，超限截断标注，**基础规则永不被截断** |
+| A7「至少一个自带示例 skill」 | ✅ `data/skill/sample_skill.dart` + 卡片上的「安装示例 skill」按钮：内存里生成 `furnace-demo`（prompt + `scripts/echo.mjs` + `tools/run_echo.json`），脚本回显 argv 与它看得到的环境变量名——**用户能亲手验证"脚本真的跑了、key 真的没进去"**，不必先自己写一个包 |
+| 文档过期声明 | ✅ `SKILL_FORMAT.md` 状态头/§7、`AI_DESIGN.md` §5.2/A7、`FEATURE_MATRIX.md`、`skill_manifest.dart`/`skill_store.dart` 里"容器未实现/只展示不注册"的说法全部按事实改写；`skillsIntro` 中英文案同步（"包里的东西不会被执行"已不成立） |
+
+### 2. 仍未做（如实）
+
+- `browser_bridge`：需要配套 MV3 浏览器扩展，本容器不提供（调用时点名拒绝）。
+- `.fskill` **无签名/哈希校验**：现状是"你信任你装的那个文件"，只保留 zip 自带的 CRC（能发现损坏，不能发现篡改）。
+- 安卓上没有 Node 运行时 ⇒ 脚本型 skill 只在 Windows 可执行（提示词型两边都可用）。
+
+### 3. 验证快照（本会话实跑）
+
+- 新增测试：`skill_runner_test` 21、`skill_tool_test` 11、`skill_tools_loop_test` 6、`sample_skill_test` 4、
+  `skill_reference_prompt_test` 6；`test/data/skill + test/domain/skill + test/features/ai` 一起 **+341 全绿**（本机有 Node v24.19.0，没有跳过任何进程测试）
+- 全量 `flutter test --concurrency=1` 与两平台 release：见下方提交与 `dist/`
+- `dart analyze lib test` → **0 error / 0 warning**（87 info，与基线同数）
+
+---
+
 ## 2026-10-02 轮次十四：AI 自主权（能查才能删）+ 安卓端落地（通知权限 / skill 选择器）
 
 > 用户反馈两条：①桌面端 AI 有删除工具却删不掉——**因为不知道 id**；

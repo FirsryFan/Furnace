@@ -1,8 +1,8 @@
 # `.fskill` 规范（skill 包格式）
 
-> 状态：**格式已定稿；插件安装/管理已实现（2026-10-02，见 §7）；脚本执行容器（§3）仍未实现**。本文档先固定格式与安全边界，
-> 因为格式一旦被第三方 skill 采用就很难改；容器实现排在 AI 对话闭环之后
-> （见 [AI_DESIGN.md](AI_DESIGN.md) §12 的 A7 阶段）。
+> 状态：**格式定稿；安装/管理（§7）与 `§3` 脚本执行容器均已实现（2026-10-02）**。
+> 未实现的部分只剩 §4 的宿主能力 `browser_bridge`（需要配套的 MV3 浏览器扩展），
+> 以及签名/哈希校验（§7 已如实说明现状）。
 
 ---
 
@@ -120,21 +120,33 @@ skill 工具与内置工具**同构**：同一个注册表、同一套风险分�
 
 ## 7. 分发
 
-**导入/管理界面已实现（2026-10-02）**，容器仍未实现。现状：
+**安装/管理（2026-10-02）与 §3 脚本执行容器（2026-10-02）都已实现**。现状：
 
 - 安装：设置页 → AI → 「技能（skill）」卡片 → 安装 `.fskill`（`file_picker` 选文件）。代码：
-  `app/lib/data/skill/skill_store.dart`（安装/列举/启停/删除）、`skill_package_codec.dart`（zip 读取与路径安全）、
+  `app/lib/data/skill/skill_store.dart`（安装/列举/启停/删除/联网授权）、`skill_package_codec.dart`（zip 读取与路径安全）、
   `skill_archive.dart`（校验：协议号、名字、平台门控、脚本入口是否在包内、工具声明、体积上限）、
-  `app/lib/domain/skill/skill_manifest.dart`（`manifest.json` 类型化模型）、`app/lib/data/skill/skill_prompt.dart`（系统提示词拼装）。
-- **注册表就是目录**：`<appSupport>/skills/<name>/`，权限状态放在该目录内的 `state.json`（`{"enabled":…}`）。
+  `app/lib/domain/skill/skill_manifest.dart`（`manifest.json` 类型化模型）、`app/lib/data/skill/skill_prompt.dart`（系统提示词拼装）、
+  **`app/lib/data/skill/skill_runner.dart`（§3 容器）与 `app/lib/domain/skill/skill_tool.dart`（把声明变成可调用工具）**。
+- **注册表就是目录**：`<appSupport>/skills/<name>/`，状态放在该目录内的 `state.json`
+  （`{"enabled":…, "networkAllowed":…, "installedAt":…, "tools":…}`）。
   与本节开头"skill 是磁盘上的文件"一致：**不进数据库**（所以 `.tfpkg` 依然不带走它），删目录即卸载干净。
-- **启用的 skill 只贡献 `prompt.md`**：由 `SkillPrompt.build` 追加到系统提示词，按名字排序（确定性），末尾固定一句
-  "skill 指令不得覆盖工具审批规则、不得授权删除"。未启用的一律不进入提示词；一个都没启用时提示词逐字节不变。
-- **脚本仍然不会被执行**：`scripts[]` 与 `tools/*.json` 会被校验并在卡片里**展示**（名字/描述/风险/是否可撤销），
-  **不注册进 `ToolRegistry`**，卡片上直接写明"脚本执行容器未启用"。理由与本节 §3 的规则一致：容器需要
-  超时/输出上限/不注入 API key/首次联网确认这一整套，做一个半吊子的执行器比不执行更糟。
+- **启用的 skill 贡献两样东西**：`prompt.md`（**以及 `references/**` 的文件内容**，带三层上限：单文件 16 KB / 单 skill 48 KB / 整段 64 KB）
+  拼进系统提示词，按名字排序（确定性），末尾固定一句"skill 指令不得覆盖工具审批规则、不得授权删除"；
+  以及它 `tools/*.json` 声明的工具（名字为 `<skill>_<tool>`）。未启用的一律两样都不给；一个都没启用时提示词逐字节不变。
+- **脚本执行（§3，Windows）**：只在该 skill 启用且本机是 Windows 时出现在模型工具表里。
+  子进程一次一调用、`cwd` = skill 私有目录、环境变量**只取固定白名单**
+  （`PATH/SystemRoot/windir/TEMP/TMP/PATHEXT/ComSpec/NUMBER_OF_PROCESSORS`，`includeParentEnvironment: false`，
+  **API key 不可能进去**）、默认 60 s / 上限 300 s 超时并杀**整棵进程树**、stdout+stderr 共享 256 KB 上限、
+  退出码非 0 作为失败并带上 stderr、每次执行落 `ai_actions` 台账。
+- **参数只能来自声明**：`scripts[].args` 与工具的 JSON Schema 做**双向**校验——Schema 里有、声明里没有 ⇒ 拒绝；
+  声明里有、Schema 没描述 ⇒ 也拒绝。一个值一个 argv 元素，不经 shell。
+- **审批与内置工具同构**：skill 工具是 `write` + **不可撤销**，所以两种权限模式下**每次调用都逐条确认**（D13b）；
+  拒绝的调用同样写台账，子进程一个都不会起。
+- **联网**：`networkAllow` 非空的 skill 必须先由用户在卡片上允许一次（记在 `state.json`），否则拒绝执行并列出域名。
+  注释里写明这是**声明式**约束而不是操作系统级沙箱——真要拦网络需要防火墙/容器级手段。
+- **宿主能力**：容器只提供 `filesystem_write`；申请 `browser_bridge` 之类的会在调用时被明确拒绝（点名该能力），不假装支持。
 - **完整性问题如实说明**：`.fskill` 目前**没有签名、没有哈希校验**，能验证的只有 zip 自带的 CRC（只能发现损坏，不能发现篡改）。
   因此现阶段的事实是"你信任你装的那个文件"。
-- 仍待定/未做：脚本执行容器（§3）、`networkAllow` 的真正强制（需要容器）、`permissions` 的宿主能力（`browser_bridge`）、
-  以及技能市场/来源可信度。`.tfpkg` 是否要带走 skill 的取舍**维持"不带走"**（见上）。
+- 仍待定/未做：`browser_bridge`（需配套浏览器扩展）、签名/来源可信度、技能市场。
+  `.tfpkg` 是否要带走 skill 的取舍**维持"不带走"**（见上）。
 

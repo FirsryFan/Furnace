@@ -231,9 +231,9 @@ scripts/**         配套脚本
 
 | 能力 | Windows | Android |
 | --- | --- | --- |
-| 内置工具（当前 8 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
-| 提示词型 skill（只有 `prompt.md`） | ✅ | ✅ |
-| 脚本型 skill（`.fskill` 带脚本） | ✅ | ❌ |
+| 内置工具（当前 9 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
+| 提示词型 skill（`prompt.md` + `references/**`） | ✅ | ✅ |
+| 脚本型 skill（`.fskill` 带脚本，§3 容器） | ✅ 已实现（2026-10-02） | ❌ |
 | 浏览器扩展桥（复用已登录标签页） | ✅ | ❌ |
 | shell / 进程 | ❌（不给 AI） | ❌ |
 
@@ -376,7 +376,7 @@ abstract class CognitiveModel {
 | A4 | `ApprovalEngine` + 四种权限模式 | 单测：每种模式下各风险的裁决结果 |
 | A5 | 对话界面 + 导航门控 | Windows 手测整条链路；确认主界面自动刷新 |
 | A6 | 其余工具补齐 + 统计/解释类工具 | 单测 |
-| A7 | `SkillContainer` + `.fskill` 规范 + 至少一个自带示例 skill | Windows 手测；含超时/拒绝联网/无 key 注入的测试 |
+| A7 | `SkillContainer` + `.fskill` 规范 + 至少一个自带示例 skill | ✅ 2026-10-02：容器（`data/skill/skill_runner.dart`）+ 工具包装（`domain/skill/skill_tool.dart`）+ 安装管理（`skill_store.dart`）已实现；含超时/拒绝联网/无 key 注入/未声明参数拒绝/不可撤销逐条确认的测试。**仍缺：自带示例 skill 与 Windows 手测** |
 | A8 | 隐私文档改写 + Android `INTERNET` 权限 + 实机验证 | 真机跑到对话功能 |
 
 **决策 D20**：A1–A5 是**最小可用闭环**（能对话、能审批、能改数据、主界面跟着变）。先把这五步走完再谈 skill。理由：如果闭环不成立，skill 做得再花也没用（依据①③）。
