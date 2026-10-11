@@ -1,4 +1,4 @@
-# Furnace AI 集成设计（v1，待批注）
+﻿# Furnace AI 集成设计（v1，待批注）
 
 > 状态：**待用户批注**。本文件是讨论结论的落地版，用户可直接在文中修改。
 > 决策标准（用户给定，冲突时按此优先级压）：
@@ -156,7 +156,7 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
-**2026-10-02 实测：当前真正注册的工具清单（9 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+**2026-10-02 实测：当前真正注册的工具清单（10 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
 清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`：
 
 | 工具 | 文件 | 风险 | reversible |
@@ -170,6 +170,7 @@ class ToolSpec {
 | `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建；照片→闪存卡的落库工具） |
 | `delete_content` | `tools/deletion_tools.dart` | **`destructive`（tag/card/flashcard 三种 kind 全是）** | ✅（`before_json` 存原行，含标签子树与关联、卡片状态与复习日志） |
 | `query_content` | `tools/content_query_tools.dart` | 只读（标签/闪存卡/卡片的 id 与上下文） | — |
+| `create_tags` | `tools/tag_tools.dart` | `write`（搭标签树，可指定父标签 id 或路径） | ✅（撤销＝删除所建子树） |
 
 > **2026-10-02 补：只读是显式声明的，不是猜出来的。** `AiTool.readOnly` 默认 `false`，七个只读工具
 > （`query_tasks` / `query_schedule` / `evaluate_problem_fit` / `fetch_page` / `query_content`）声明 `true`，
@@ -231,7 +232,7 @@ scripts/**         配套脚本
 
 | 能力 | Windows | Android |
 | --- | --- | --- |
-| 内置工具（当前 9 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
+| 内置工具（当前 10 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
 | 提示词型 skill（`prompt.md` + `references/**`） | ✅ | ✅ |
 | 脚本型 skill（`.fskill` 带脚本，§3 容器） | ✅ 已实现（2026-10-02） | ❌ |
 | 浏览器扩展桥（复用已登录标签页） | ✅ | ❌ |

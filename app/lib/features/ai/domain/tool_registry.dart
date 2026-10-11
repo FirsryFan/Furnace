@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
@@ -9,6 +9,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
 import '../tools/cognitive_tools.dart';
+import '../tools/tag_tools.dart';
 import '../tools/content_query_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
@@ -69,6 +70,9 @@ class ToolRegistry {
       // flashcard was to guess its name from the conversation
       // (tools/content_query_tools.dart). Read-only, so no mode asks about it.
       QueryContentTool(db: db, anki: anki, tags: tags),
+      // Building the tag tree is a normal reversible write; deleting from it is
+      // delete_content (destructive, per-item confirmed).
+      CreateTagsTool(tags),
     ]);
   }
 

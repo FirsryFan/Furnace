@@ -1,4 +1,4 @@
-/// The one HTTP call the `fetch_page` tool makes, with every rule that makes it
+﻿/// The one HTTP call the `fetch_page` tool makes, with every rule that makes it
 /// safe to expose to a model written down here rather than at the call site.
 ///
 /// What this file deliberately does **not** do:
@@ -39,7 +39,7 @@ const int maxBodyBytes = 2 * 1024 * 1024;
 ///
 /// Kept in step with `pubspec.yaml`'s version by hand; the point of the header
 /// is honesty about who is calling, not exact version matching.
-const String userAgent = 'Furnace/0.3.0 (+local assistant)';
+const String userAgent = 'Furnace/0.3.1 (+local assistant)';
 
 /// Only these schemes may be fetched. Anything else is refused before a socket
 /// is opened.

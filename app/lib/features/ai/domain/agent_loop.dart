@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 // Needed for the `|` operator on drift expressions: it is an extension member,
@@ -15,6 +15,7 @@ import '../../../domain/skill/skill_tool.dart';
 import '../infrastructure/ai_attachment_store.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/knowledge_tools.dart';
+import '../tools/tag_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
 import 'ai_tool.dart';
@@ -839,6 +840,7 @@ class AgentLoop {
         '2. 涉及修改时，先查清楚再动手；能一次完成的不要拆成多次。\n'
         '3. 删除类操作需要用户逐条确认，这是设计如此，不要因此反复重试。\n'
         '4. 要动某个标签、闪存卡或卡片时，先用 query_content 找到它的 id 再操作；'
+        '要新增标签就调 create_tags（可指定父标签的 id 或路径，用来搭标签树）；'
         '不要凭记忆猜名字，猜错只会得到"找不到"，而查是免费的。\n'
         '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。';
   }
@@ -886,7 +888,8 @@ class AgentLoop {
     // `create_knowledge_cards` creates a set of rows, so its "before" state is
     // "nothing existed" just like `manage_task(create)` - it simply has no
     // `action` argument to say so.
-    if (record.toolName == CreateKnowledgeCardsTool.toolName) {
+    if (record.toolName == CreateTagsTool.toolName ||
+        record.toolName == CreateKnowledgeCardsTool.toolName) {
       return true;
     }
     final args = _decodeArgs(record.argsJson ?? '{}');
@@ -901,6 +904,8 @@ class AgentLoop {
     }
     final map = decoded.cast<String, Object?>();
     switch (toolName) {
+      case CreateTagsTool.toolName:
+        return deleteCreatedTags(db, map);
       case CreateKnowledgeCardsTool.toolName:
         return deleteCreatedKnowledgeCards(db, map);
       case 'manage_task':

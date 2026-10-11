@@ -1,4 +1,4 @@
-# 功能矩阵
+﻿# 功能矩阵
 
 > ⚠️ **本矩阵的 2026-09-07 版曾把已实现的算法标为「未实现」，与源码不符。**
 > 实测基线（2026-09-08）：算法层代码早已存在，`flutter test` 105/105 全绿。本表状态列已按 **2026-09-08 实测** 更新；逐条经过说明见 [PROGRESS.md](PROGRESS.md) 同日轮次。
@@ -16,8 +16,9 @@
 
 | 能力 | 2026-09-08 表 | 2026-10-02 实测 |
 | --- | --- | --- |
-| AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 8 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
+| AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 10 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
 | AI 对话正文渲染 markdown / LaTeX | 表内无此节 | ✅ 2026-10-02 新增（`gpt_markdown`；见 PROGRESS 轮次十三） |
+| AI 处理标签树（create_tags 添加 / delete_content 删除） | 表内无此节 | ✅ 2026-10-02 新增：按父标签 id 或路径建标签（找不到就拒绝，不默默建到顶层），删除含整棵子树且逐条确认 |
 | AI 删除标签 / 卡片 / 闪存卡 | 表内无此节 | ✅ 2026-10-02 新增（`features/ai/tools/deletion_tools.dart`）：破坏性工具，逐条确认 + 快照可撤销 |
 | 术语：知识点 / 词条 | — | ✅ 2026-10-02 统一为用户可见词 **闪存卡**（`navAnki` 等；代码与数据库仍是 `knowledgePoint`，见 `app_en.arb` 的 `@navAnki` 说明） |
 | AI 图片输入 → 自动生成背诵卡片 | 表内无此节 | ✅ 新增（`features/ai/domain/vision_payload.dart`、`features/ai/tools/knowledge_tools.dart`） |
