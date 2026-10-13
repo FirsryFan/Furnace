@@ -48,6 +48,12 @@ import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
+import 'zone_labels.dart';
+
+// The band/zone words are re-exported so every existing importer of this page
+// (`cognitive_model_page_test.dart` calls `zoneLabel`) keeps resolving them,
+// while the review screen can import them without pulling in this whole page.
+export 'zone_labels.dart';
 
 /// One card as the observation surface sees it: the stored row plus what it
 /// belongs to. `isNew` is the review flow's own flag (D4), not a second
@@ -1105,29 +1111,6 @@ class _ErrorNote extends StatelessWidget {
     );
   }
 }
-
-/// Band vocabulary, exhaustive on purpose: a fifth band in `ReviewAdvisory`
-/// stops compiling here instead of silently rendering nothing.
-String bandLabel(AppLocalizations l10n, ReviewBand band) => switch (band) {
-      ReviewBand.forced => l10n.cognitiveBandForced,
-      ReviewBand.boosted => l10n.cognitiveBandBoosted,
-      ReviewBand.model => l10n.cognitiveBandModel,
-      ReviewBand.unseen => l10n.cognitiveBandUnseen,
-    };
-
-/// Zone vocabulary, exhaustive on purpose (all nine `ReviewZone` values are
-/// named, including [ReviewZone.unavailable] and [ReviewZone.healthy]).
-String zoneLabel(AppLocalizations l10n, ReviewZone zone) => switch (zone) {
-      ReviewZone.proximal => l10n.cognitiveZoneProximal,
-      ReviewZone.empty => l10n.cognitiveZoneEmpty,
-      ReviewZone.deadEnd => l10n.cognitiveZoneDeadEnd,
-      ReviewZone.slow => l10n.cognitiveZoneSlow,
-      ReviewZone.overload => l10n.cognitiveZoneOverload,
-      ReviewZone.offGoal => l10n.cognitiveZoneOffGoal,
-      ReviewZone.danger => l10n.cognitiveZoneDanger,
-      ReviewZone.healthy => l10n.cognitiveZoneHealthy,
-      ReviewZone.unavailable => l10n.cognitiveZoneUnavailable,
-    };
 
 String? _jsonString(Object? value) => value == null ? null : value as String;
 

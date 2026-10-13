@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/features/anki/application/review_advisory.dart';
 import 'package:furnace/features/anki/presentation/review_page.dart';
+import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 /// The practice screen's half of the contract: the mode control is reachable
@@ -18,10 +20,17 @@ void main() {
     }
   }
 
-  Future<void> pumpReview(WidgetTester tester, AppDatabase db) async {
+  Future<void> pumpReview(
+    WidgetTester tester,
+    AppDatabase db, {
+    List<Override> extra = const [],
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          ...extra,
+        ],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -315,5 +324,84 @@ void main() {
     expect(log.correct, 0);
     expect(log.format, 'mcq');
     expect(log.reviewedSolution, isFalse);
+  });
+
+  // The chip is the only place the fast layer's verdict reaches the user while
+  // practising, and it must be the *same* verdict the 认知模型 page reports: this
+  // test hands the screen the very reading the page would hand it.
+  CognitiveReadings readingsWith(Map<String, ReviewZone> zones) =>
+      CognitiveReadings(
+        modelId: 'test',
+        nowHours: 0,
+        nowUtc: DateTime.utc(2024),
+        cards: const [],
+        bandByCardStateId: const {},
+        scoreByCardStateId: const {},
+        zoneByKnowledgePoint: zones,
+        fastLayerRan: true,
+      );
+
+  testWidgets('a diagnosed knowledge point shows the fast layer verdict as a '
+      'chip that acts on nothing', (tester) async {
+    final (db, anki) = await openDatabase();
+    final template = await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+      hint: '想想叶子的颜色',
+    );
+
+    await pumpReview(
+      tester,
+      db,
+      extra: [
+        cognitiveReadingsProvider.overrideWith(
+          (ref) async => readingsWith({template.knowledgePointId: ReviewZone.empty}),
+        ),
+      ],
+    );
+
+    expect(find.text('模型看这块：空（进不去）'), findsOneWidget);
+    expect(find.text('提示'), findsOneWidget,
+        reason: 'the chip must not displace the answer controls');
+    expect(await db.select(db.reviewLogs).get(), isEmpty,
+        reason: 'a diagnosis is context, not an answer');
+  });
+
+  testWidgets('an undiagnosed knowledge point shows no chip at all',
+      (tester) async {
+    final (db, anki) = await openDatabase();
+    final template = await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+    );
+
+    await pumpReview(
+      tester,
+      db,
+      extra: [
+        // The layer ran and had nothing to report, and the other arm: it did not
+        // run at all. Neither may be dressed up as a finding.
+        cognitiveReadingsProvider.overrideWith(
+          (ref) async => readingsWith({template.knowledgePointId: ReviewZone.healthy}),
+        ),
+      ],
+    );
+    expect(find.textContaining('模型看这块'), findsNothing);
+
+    await pumpReview(
+      tester,
+      db,
+      extra: [
+        cognitiveReadingsProvider.overrideWith(
+          (ref) async =>
+              readingsWith({template.knowledgePointId: ReviewZone.unavailable}),
+        ),
+      ],
+    );
+    expect(find.textContaining('模型看这块'), findsNothing);
   });
 }

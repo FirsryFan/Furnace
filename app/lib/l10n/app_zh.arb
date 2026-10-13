@@ -163,6 +163,13 @@
   "ankiStillForgot": "还是不会",
   "ankiAfterAnswerHint": "只影响认知模型把这次算作遗忘还是学习；下次复习时间不变。",
   "ankiNextCard": "下一张",
+  "reviewZoneChip": "模型看这块：{zone}",
+  "@reviewZoneChip": {
+    "description": "复习页上一张卡所属知识点的快层诊断；只在真的诊断出卡点时显示",
+    "placeholders": {
+      "zone": {}
+    }
+  },
   "ankiTypePreference": "生成题型偏好",
   "ankiTypePreferenceMixed": "混合（当前：填空题）",
   "ankiTypePreferenceFillBlankLenient": "宽松填空题",

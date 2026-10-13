@@ -478,6 +478,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiNextCard => '下一张';
 
   @override
+  String reviewZoneChip(Object zone) {
+    return '模型看这块：$zone';
+  }
+
+  @override
   String get ankiTypePreference => '生成题型偏好';
 
   @override

@@ -1022,6 +1022,12 @@ abstract class AppLocalizations {
   /// **'Next card'**
   String get ankiNextCard;
 
+  /// No description provided for @reviewZoneChip.
+  ///
+  /// In en, this message translates to:
+  /// **'Model\'s read: {zone}'**
+  String reviewZoneChip(Object zone);
+
   /// No description provided for @ankiTypePreference.
   ///
   /// In en, this message translates to:

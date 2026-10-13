@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-14 轮次二十：复习时看得见模型怎么读这张卡
+
+用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
+
+- 轮次十九之后，快层诊断只活在读数页与 AI 工具里：正在做题的人看不到模型对**这块**的判断，
+  "全量接入"缺了最该出现的那一处。
+- `review_page.dart` 现在读 `cognitiveReadingsProvider`（**同一份读数**，不是重算一遍），
+  取 `zoneByKnowledgePoint[item.knowledgePointId]`：有真卡点时才在标题下显示一枚小 chip
+  （`reviewZoneChip`："模型看这块：空（进不去）"）。`healthy` 与 `unavailable` 都不显示——
+  两者都是"这张卡上没什么可说的"，每张卡都挂一枚就等于教会用户忽略它；两者的区别仍由读数页解释。
+  chip 是文本，不是控件：复习流程里的决定仍然只有"答案"和"评分"两个。
+- 词汇只留一份：`bandLabel`/`zoneLabel` 从 `cognitive_model_page.dart` 移到
+  `lib/features/cognitive/presentation/zone_labels.dart`，页面 `export` 它（既有 `zoneLabel` 导入方不受影响），
+  复习页直接导入。两个界面说同一个 `ReviewZone` 必须是同一个词。
+- 队列**仍然**不传诊断（`ReviewAdvisory.order` 的 zone map 不参与排序，传了也没有可观察效果）：
+  这是刻意的，写进了 `MINDNET_ROADMAP.md` §4。
+- 顺手修掉 `review_page.dart` 注释里的一处乱码（"蹇樺嵈" → "忘记"）。
+- 测试：`review_page_test.dart` 新增 2 条（诊断出卡点 ⇒ chip 可见且不写日志；`healthy` 与 `unavailable` ⇒ 无 chip）。
+  全量 `flutter test --concurrency=1` → `+1061 ~2 All tests passed!`；`dart analyze lib test` → 0 error / 0 warning / 90 info。
+
+---
+
 ## 2026-10-11 轮次十九：读数页真的跑 tierB（`LibraryDiagnosisRunner`）
 
 用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。

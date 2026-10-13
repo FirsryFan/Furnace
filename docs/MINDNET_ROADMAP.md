@@ -124,6 +124,11 @@
   - `diagnosisByKnowledgePoint` 传的是 **`null`（没跑）或非空 map（跑了）**，两者不可合并：`null` ⇒ `unavailable`，空 map ⇒ `healthy`。
   - `CognitiveReadings.fastLayerRan` 随读数带出，页面多两条说明：这次跑没跑（含起点/目标口径）、以及"危险需要自信度、本应用不存所以不会出现"。
   - `unavailable` 不再等于"本页不跑"，而是"这次没做诊断"。
-- 仍未做：复习队列（`ReviewAdvisory.order` 的实时调用方）**不传诊断**，队列里的 zone 依旧恒为 `unavailable`——这是下一步（把它接到同一个 runner，注意别让排序变成阻塞）。
-- 测试：`test/domain/services/cognitive/library_diagnosis_test.dart`（8 条：没有图不跑、只有图没有起点/目标不跑、孤立节点 = `empty/no_entry`、缺卡行 = `nodesWithoutMs`、非法 R0 当成没提供、danger 永不出现、JSON 握手）+ 读数页新增"诊断让 zone 变真 / 空 map 是 healthy"与"两条说明"用例。
+- 仍未做：复习队列（`ReviewAdvisory.order` 的实时调用方）**不传诊断**，队列里的 zone 依旧恒为 `unavailable`。
+  为什么刻意不接：zone map **不参与排序**（排序由 band 与 `expectedGain` 决定，见 `ReviewAdvisory.order`），
+  把它传进 `buildQueue` 没有任何可观察效果，只会多一次 tierB 与多一处"传了但没人读"的假接线。
+- 已完成（轮次二十）：正在做题的人**看得见**这条诊断——`review_page.dart` 读同一份 `cognitiveReadingsProvider`，
+  取 `zoneByKnowledgePoint[当前知识点]`，只在有真卡点时显示一枚 chip（`reviewZoneChip`；`healthy`/`unavailable` 都不显示）。
+  词汇因此抽到 `lib/features/cognitive/presentation/zone_labels.dart`（`bandLabel`/`zoneLabel` 单一定义，读数页 `export`，复习页导入）。
+- 测试：`test/domain/services/cognitive/library_diagnosis_test.dart`（8 条：没有图不跑、只有图没有起点/目标不跑、孤立节点 = `empty/no_entry`、缺卡行 = `nodesWithoutMs`、非法 R0 当成没提供、danger 永不出现、JSON 握手）+ 读数页新增"诊断让 zone 变真 / 空 map 是 healthy"与"两条说明"用例 + 复习页 2 条（有卡点 ⇒ chip、无卡点/未诊断 ⇒ 无 chip）。
 

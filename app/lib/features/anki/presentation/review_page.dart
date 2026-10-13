@@ -6,7 +6,13 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/srs/dsr_card_state.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
+// The tierB verdict shown on a card is read from the very reading the 认知模型
+// page renders (`zoneByKnowledgePoint`), not re-derived here: the page and this
+// screen must not disagree about one zone. This import also brings the zone
+// words it re-exports (`zoneLabel`), so there is one vocabulary as well.
+import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../application/judge_mode_preference.dart';
+import '../application/review_advisory.dart';
 import '../application/review_service.dart';
 
 /// Practice screen (blueprint 4.3; user annotations 17, 18, 19).
@@ -360,7 +366,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
 
   /// Records the self-assessment and moves on.
   ///
-  /// This press is the graded event of the self path: 蹇樺嵈 means wrong and
+  /// This press is the graded event of the self path: 忘记 means wrong and
   /// anything else means right, which is why the log's `judge_mode` is `self`.
   /// 忘记 goes through the solution question like every other failed recall, so
   /// the self and auto paths cannot record the same event differently.
@@ -441,6 +447,20 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
 
     final forcedCount = _queue.where((i) => i.cardState.forced == 1).length;
     final hint = item.hint;
+    // What the fast layer said about this card's knowledge point, as the 认知模型
+    // page reports it. Only a real complaint becomes a chip: `healthy` ("ran,
+    // nothing wrong") and `unavailable` ("nothing was diagnosed") are both
+    // "nothing to report on this card", and a chip on every card would train the
+    // user to stop reading it. The page is where the two are told apart.
+    final zone = ref
+        .watch(cognitiveReadingsProvider)
+        .valueOrNull
+        ?.zoneByKnowledgePoint[item.knowledgePointId];
+    final diagnosedZone = zone == null ||
+            zone == ReviewZone.unavailable ||
+            zone == ReviewZone.healthy
+        ? null
+        : zone;
     final correctIndex = item.kind == ReviewItemKind.mcq
         ? ReviewService.correctOptionIndex(
             options: item.options,
@@ -467,6 +487,15 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
+                if (diagnosedZone != null) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _ZoneChip(
+                      text: l10n.reviewZoneChip(zoneLabel(l10n, diagnosedZone)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 SelectableText(
                   item.question,
@@ -584,6 +613,36 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
           onGenerateTask: _generateTask,
         ),
       ],
+    );
+  }
+}
+
+/// The fast layer's one-word verdict about the card on screen.
+///
+/// Small on purpose: it is context, not a task, and it must never look like
+/// something to act on (nothing here is a control - the review flow's only
+/// decisions are the answer and the rating).
+class _ZoneChip extends StatelessWidget {
+  const _ZoneChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: scheme.onSecondaryContainer),
+      ),
     );
   }
 }

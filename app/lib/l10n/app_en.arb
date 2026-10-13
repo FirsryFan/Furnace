@@ -166,6 +166,7 @@
   "ankiStillForgot": "Still didn't know it",
   "ankiAfterAnswerHint": "Only tells the cognitive model whether this was forgetting or learning; the next review date is unchanged.",
   "ankiNextCard": "Next card",
+  "reviewZoneChip": "Model's read: {zone}",
   "ankiTypePreference": "Card type preference",
   "ankiTypePreferenceMixed": "Mixed (currently: fill in blank)",
   "ankiTypePreferenceFillBlankLenient": "Lenient fill in blank",

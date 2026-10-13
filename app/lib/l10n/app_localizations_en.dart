@@ -486,6 +486,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ankiNextCard => 'Next card';
 
   @override
+  String reviewZoneChip(Object zone) {
+    return 'Model\'s read: $zone';
+  }
+
+  @override
   String get ankiTypePreference => 'Card type preference';
 
   @override
