@@ -29,8 +29,12 @@
 /// the model reading's `R0` (0.5 when the column has never been written, the
 /// JS's own substitution for an unknown `R0`), and the third is "0 when the
 /// diffusion leaves the node conscious, otherwise hours since it was last
-/// reviewed". See [Metacognition] and `_readMetacognition` for both
-/// substitutions in full, including why the recency term is split in two.
+/// reviewed". See [Metacognition] and
+/// [_readMetacognition] for both substitutions in full, including why the
+/// recency term is split in two. **That reading is a property of the run, not of
+/// a problem**: it answers "what is on the learner's mind right now", and
+/// 轮次二十二 measured that it cannot be projected onto one candidate - see the
+/// boundary note in `problem_evaluator.dart` before wiring it there again.
 ///
 /// Nodes with no card row are **not** counted: their retrievability is unknown,
 /// and inventing one would manufacture confidence. They already show up in
@@ -250,6 +254,10 @@ abstract final class LibraryDiagnosisRunner {
   /// * otherwise the only trace left is the review history -> hours since the
   ///   representative card was last reviewed, and infinity when it never was
   ///   (the JS's `Infinity` for "never conscious").
+  ///
+  /// Private on purpose (轮次二十二): it was made public for a danger-first
+  /// ordering in [ProblemEvaluator], and the measurement showed that ordering
+  /// cannot work - the reader belongs to the run that produced it.
   static MetacognitionReading _readMetacognition({
     required List<CognitiveTag> tags,
     required FastEngine engine,

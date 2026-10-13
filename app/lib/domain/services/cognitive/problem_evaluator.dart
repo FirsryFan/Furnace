@@ -26,6 +26,19 @@
 ///   `startDiffusion` throws `ArgumentError` for an id that is not a node
 ///   (empty lists are legal), so a knowledge point outside the projection must
 ///   be dropped here rather than crash a review-planning call.
+/// * **there is deliberately no danger-first ordering here.** It was written,
+///   measured and removed (轮次二十二). Danger needs a node the diffusion leaves
+///   **conscious**, but this evaluator's targets *are* the candidate's own
+///   knowledge points, and `context.goal` excludes target nodes from the drive
+///   on purpose (`fast_engine.dart` `_goalDriveCompute`: biasing the goal itself
+///   would light it in round 1), so a candidate could never report its own
+///   danger. Widening the filter is worse, not better: a probe over the same
+///   graph showed the conscious set is decided by tag insertion order and
+///   capacity, and does **not** change when a different card goes stale - it
+///   would have ranked on tag order, not on what the learner has forgotten.
+///   Danger stays a *context* reading (the readings page, where the metacognition
+///   rows are folded into `FastDiagnosis.bottlenecks`), which is where it is
+///   meaningful.
 library;
 
 import '../../../data/database/database.dart';
@@ -169,7 +182,8 @@ class ProblemEvaluationReport {
   });
 
   /// Ranked: `rankKey` descending, then problem id ascending, so the order is
-  /// total and independent of the input order.
+  /// total and independent of the input order. There is no danger-first tier -
+  /// see the boundary note at the top of this file.
   final List<ProblemEvaluation> evaluations;
 
   /// Whether the fast layer actually ran (tierB). When false every verdict came

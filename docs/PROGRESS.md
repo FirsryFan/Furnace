@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-10-14 轮次二十二：危险区排前——写完了，量出来了，删掉了
+
+用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
+
+- 上一轮把「危险」算出来了，但它只活在读数页。本轮本来要把它变成**排序规则**：某个知识点的卡片处在危险区，
+  这道题就排到最前（`ProblemEvaluator` 的 danger-first），AI 工具同步报 `danger_knowledge_point_ids`。
+  代码写完、单测写完，探针一跑发现规则的前提是错的，于是撤回，并把原因钉在代码里。
+- 错在哪（`fast_engine.dart:1580-1592` 自己的注释就是答案）：**`context.goal` 故意把目标节点排除在 drive 之外**
+  （"给目标本身加偏置会让它在第一轮就亮起来"）。而 `evaluate_problem_fit` 里每道题的扩散**目标正是这道题自己的知识点**
+  ⇒ 目标永不 `CONSCIOUS`。探针实测：`targets=[p1]` 时 `p1=SUBCONSCIOUS@0.269`，而它的兄弟 `a,b,c=CONSCIOUS@0.316`。
+  也就是说，按"只看这道题自己的知识点"过滤后，`dangerKnowledgePointIds` **必然是空的**（新单测的期望值 `[]` 不是 bug，
+  是这层的定义在说话）。
+- 放宽过滤也不行，而且更糟：六组夹具（`test/scratch_danger_probe_test.dart`，用完即删）显示亮起来的集合由**标签插入顺序 + 容量**
+  决定，与卡片是否变旧无关——A 组只把 `a,b` 弄旧、B 组只把 `p2,p3` 弄旧，亮起来的都是同样的 `a,b,c`；
+  目标在首位的 D/F 组一个都不亮，把顺序倒过来的 E 组亮最后三个。按这个排序 = 按标签顺序排序，不是按"学生忘了什么"排序。
+- 因此本轮的实际交付是**一个被否掉的假设 + 一条边界**：
+  - `problem_evaluator.dart` 撤回 danger-first 排序、`dangerKnowledgePointIds` 字段、`_diagnose` 里的元认知读取
+    （回到"只返回 complaints"），文件头写清为什么这里**不该**有危险区排序；
+  - `cognitive_tools.dart` 撤回 `danger_ranked` / `danger_needs_starts` / `danger_knowledge_point_ids` 与 schema 里那段说明；
+  - `library_diagnosis.dart` 的 `readMetacognition` 退回私有 `_readMetacognition`，并注明"这是**关于一次运行**的读数，
+    不是一道题的属性"；
+  - 危险区仍然活在它本来就有意义的地方：读数页、（复习页的）对照说明，以及喂给 `FastDiagnosis.bottlenecks` 的 `dangerRows`。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info；认知相关三个测试文件
+  （`problem_evaluator_test.dart`、`library_diagnosis_test.dart`、`cognitive_tools_test.dart`）一起跑 → `+31 All tests passed!`；
+  全量 `flutter test --concurrency=1` → `+1081 ~2 All tests passed!`（与 v0.4.2 相同：本轮加了 2 条危险区用例又随功能一起删掉）。
+
+---
+
 ## 2026-10-14 轮次二十一：元认知层——「危险（自信但记不住）」第一次算得出来
 
 用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
