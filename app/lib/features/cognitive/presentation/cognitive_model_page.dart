@@ -22,10 +22,13 @@
 ///
 /// What this file deliberately does **not** do:
 ///
-/// * it does not run the tierB fast layer, so [ReviewZone.unavailable] is the
-///   honest zone for every card here (the review queue passes no diagnosis map
-///   either - §9.5). `unavailable` explicitly does *not* mean "no problem"
-///   ([ReviewZone.healthy]); the page says so in words.
+/// * it does not reimplement the tierB fast layer: it asks
+///   [LibraryDiagnosisRunner] for one run and hands the result to the advisor.
+///   `null` (the run did not happen) and an empty map (it happened and found
+///   nothing) must stay distinguishable - the first is
+///   [ReviewZone.unavailable], the second [ReviewZone.healthy], and
+///   `unavailable` explicitly does *not* mean "no problem". The review queue
+///   still passes no diagnosis map (§9.5), so its zones stay `unavailable`.
 /// * it does not touch `dueAt`, `stability` or `difficulty`: FSRS owns those
 ///   (D1). The model influences the queue order and nothing else.
 library;
@@ -37,9 +40,11 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
+import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
@@ -290,6 +295,7 @@ class CognitiveReadings {
     required this.bandByCardStateId,
     required this.scoreByCardStateId,
     required this.zoneByKnowledgePoint,
+    this.fastLayerRan = false,
   });
 
   final String modelId;
@@ -304,6 +310,11 @@ class CognitiveReadings {
   final Map<String, ReviewBand> bandByCardStateId;
   final Map<String, double> scoreByCardStateId;
   final Map<String, ReviewZone> zoneByKnowledgePoint;
+
+  /// Whether the tierB fast layer actually ran for this reading. False means
+  /// every zone is [ReviewZone.unavailable] *because nothing was diagnosed* (no
+  /// tag graph, or nothing to diffuse from) - not because the cards are healthy.
+  final bool fastLayerRan;
 
   int get cardCount => cards.length;
   int get newCount => cards.where((card) => card.isNew).length;
@@ -342,6 +353,7 @@ class CognitiveReadings {
         'modelId': modelId,
         'nowHours': nowHours,
         'nowUtc': nowUtc.toUtc().toIso8601String(),
+        'fastLayerRan': fastLayerRan,
         'summary': {
           'cards': cardCount,
           'newCards': newCount,
@@ -375,12 +387,20 @@ class CognitiveReadings {
 /// vocabulary are `ReviewAdvisory`'s (§9.5), and `starts`/`targets`-style
 /// product rules stay where they belong (the review flow passes none here: this
 /// page observes, it does not plan).
+///
+/// [diagnosisByKnowledgePoint] is the tierB run's output
+/// (`LibraryDiagnosisRunner`). Its `null` case is meaningful and must stay
+/// distinguishable from an empty map: `null` = nothing was diagnosed
+/// ([ReviewZone.unavailable]), empty = the layer ran and found nothing to
+/// complain about ([ReviewZone.healthy]). [fastLayerRan] carries that fact into
+/// the reading so the page can say which one happened.
 CognitiveReadings assembleCognitiveReadings({
   required List<CognitiveObservedUnit> units,
   required CognitiveModel model,
   required DateTime now,
   Map<String, double> boostFactorByKnowledgePoint = const {},
   Map<String, BottleneckType>? diagnosisByKnowledgePoint,
+  bool fastLayerRan = false,
 }) {
   final candidates = <ReviewCandidate>[
     for (final unit in units)
@@ -464,6 +484,7 @@ CognitiveReadings assembleCognitiveReadings({
     bandByCardStateId: ordering.bandByCardStateId,
     scoreByCardStateId: ordering.scoreByCardStateId,
     zoneByKnowledgePoint: ordering.zoneByKnowledgePoint,
+    fastLayerRan: fastLayerRan,
   );
 }
 
@@ -588,16 +609,101 @@ final orphanCardStateCountProvider =
 });
 
 /// The reading the page shows: the injected model's numbers, the advisor's
-/// bands, nothing else.
+/// bands, the fast layer's zones - nothing else.
 final cognitiveReadingsProvider =
     FutureProvider.autoDispose<CognitiveReadings>((ref) async {
   final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
   final model = ref.watch(cognitiveModelProvider);
+  final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
   return assembleCognitiveReadings(
     units: inputs.units,
     model: model,
     now: DateTime.now(),
     boostFactorByKnowledgePoint: inputs.boostFactorByKnowledgePoint,
+    // `null` (not `{}`) when the layer did not run: the advisor turns that into
+    // "unavailable", which is the honest zone for "nothing was diagnosed".
+    diagnosisByKnowledgePoint:
+        diagnosis.fastLayerRan ? diagnosis.byKnowledgePoint : null,
+    fastLayerRan: diagnosis.fastLayerRan,
+  );
+});
+
+/// How many recently reviewed knowledge points seed the diffusion ("what the
+/// user is holding in mind right now", §6.3). A product rule, not a calibrated
+/// number: the model cannot tell us this, so the page states it here.
+const int cognitiveStartNodeLimit = 5;
+
+/// The tierB run behind the zone column: the tag tree plus one representative
+/// card row per knowledge point, diffused once from the most recently reviewed
+/// points toward today's due set.
+///
+/// Two product rules are visible here on purpose (Furnace has no goal entity):
+///
+/// * `starts` = the [cognitiveStartNodeLimit] most recently reviewed points.
+/// * `targets` = the points with something due now (or a forced card) - "what
+///   this session is trying to push". Nodes outside that set can therefore be
+///   reported as `off_goal` / `dead_end`, which is what those verdicts mean.
+///
+/// `danger` cannot appear: it would need metacognition belief rows, and this app
+/// stores none (see `LibraryDiagnosisRunner`). The page says so in words.
+final cognitiveLibraryDiagnosisProvider =
+    FutureProvider.autoDispose<LibraryDiagnosis>((ref) async {
+  ref.watchDatabaseRevision();
+  final db = ref.watch(appDatabaseProvider);
+  final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
+  final model = ref.watch(cognitiveModelProvider);
+  final now = DateTime.now();
+  final nowHours = modelHoursOf(now);
+
+  final tags = [
+    for (final row in await db.select(db.tags).get()) CognitiveTag.fromTag(row),
+  ];
+  if (tags.isEmpty || inputs.units.isEmpty) {
+    return LibraryDiagnosis.notRun;
+  }
+
+  // One representative row per knowledge point, using the same rule as the AI
+  // tool (`representativeCardRow`) so the page and the tool cannot disagree.
+  final rowsByKnowledgePoint = <String, List<CardState>>{};
+  for (final unit in inputs.units) {
+    (rowsByKnowledgePoint[unit.knowledgePointId] ??= <CardState>[])
+        .add(unit.row);
+  }
+  final rows = <String, CardState>{};
+  for (final entry in rowsByKnowledgePoint.entries) {
+    final row = representativeCardRow(entry.value);
+    if (row != null) {
+      rows[entry.key] = row;
+    }
+  }
+
+  final reviewed = [
+    for (final entry in rows.entries)
+      if (entry.value.lastReviewedAt != null) entry,
+  ]..sort((a, b) {
+      final byReviewed =
+          b.value.lastReviewedAt!.compareTo(a.value.lastReviewedAt!);
+      return byReviewed != 0 ? byReviewed : a.key.compareTo(b.key);
+    });
+  final starts = [
+    for (final entry in reviewed.take(cognitiveStartNodeLimit)) entry.key,
+  ];
+
+  final nowMs = now.millisecondsSinceEpoch;
+  final targets = [
+    for (final entry in rows.entries)
+      if (entry.value.forced == 1 ||
+          (entry.value.dueAt != null && entry.value.dueAt! <= nowMs))
+        entry.key,
+  ];
+
+  return LibraryDiagnosisRunner.run(
+    tags: tags,
+    rowsByKnowledgePoint: rows,
+    model: model,
+    nowHours: nowHours,
+    startKnowledgePointIds: starts,
+    targetKnowledgePointIds: targets,
   );
 });
 
@@ -619,7 +725,7 @@ class CognitiveModelPage extends ConsumerWidget {
         data: (data) => ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            _Notes(l10n: l10n),
+            _Notes(l10n: l10n, fastLayerRan: data.fastLayerRan),
             const SizedBox(height: 8),
             const _OrphanRepairBanner(),
             _Summary(l10n: l10n, readings: data),
@@ -717,9 +823,13 @@ class _OrphanRepairBanner extends ConsumerWidget {
 /// a user who reads only the first screen must not conclude that the model
 /// schedules reviews or that its weights are calibrated.
 class _Notes extends StatelessWidget {
-  const _Notes({required this.l10n});
+  const _Notes({required this.l10n, required this.fastLayerRan});
 
   final AppLocalizations l10n;
+
+  /// Whether the tierB run happened. The note says which, because the page now
+  /// runs it - a "the page never diagnoses" sentence would be a lie.
+  final bool fastLayerRan;
 
   @override
   Widget build(BuildContext context) {
@@ -748,6 +858,22 @@ class _Notes extends StatelessWidget {
               icon: Icons.lock_outline,
               title: l10n.cognitiveReadOnlyNote,
               detail: l10n.cognitiveZoneNote,
+              emphasis: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            _NoteRow(
+              icon: Icons.travel_explore_outlined,
+              title: l10n.cognitiveFastLayerNote,
+              detail: fastLayerRan
+                  ? l10n.cognitiveFastLayerRanDetail
+                  : l10n.cognitiveFastLayerNotRunDetail,
+              emphasis: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            _NoteRow(
+              icon: Icons.visibility_off_outlined,
+              title: l10n.cognitiveZoneDanger,
+              detail: l10n.cognitiveNoDangerNote,
               emphasis: theme.colorScheme.onSurfaceVariant,
             ),
           ],

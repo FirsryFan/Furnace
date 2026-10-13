@@ -232,11 +232,12 @@ presentation/    ai_chat_page.dart(680) · ai_settings_page.dart(240)
 | **Android 重构建** | ~~用户说先不急~~ → **2026-10-02 已重构建**（release APK + Windows release，见 `docs/PROGRESS.md` 轮次十二） |
 | **tierB 快层** | ~~约 400–600 行~~ → **2026-10-01 已完成**：移植 + 对拍 + 接入（`docs/MINDNET_INTEGRATION.md` §1.3/§3） |
 | **图投影（标签树 → 认知图）** | ~~未开始~~ → **2026-10-01 已完成**：`CognitiveGraph.fromTags`，边权 0.7/0.4 **标注未标定**（同上 §1.2/§6.2） |
-| **`.fskill` 执行容器** | 格式已定稿（`docs/SKILL_FORMAT.md`）；**2026-10-02**：安装/启用/删除已实现，**脚本执行容器本身仍未实现**（见该文档 §7） |
+| **`.fskill` 执行容器** | ~~未实现~~ → **2026-10-02 已实现**：`app/lib/data/skill/skill_runner.dart`（argv 双向校验、环境白名单、超时、杀进程树、256 KB 输出上限；`docs/SKILL_FORMAT.md` §3），工具已可调用脚本 |
 
 **2026-10-01 轮新增的未解决项**（完整清单与依据见 `docs/MINDNET_INTEGRATION.md` §7）：
 可达性判断因 `ms = R0` 而**偏乐观**（设计取向）；**标签 id 与知识点 id 是两个空间**，未打通（需要 kp→标签的桥）；
-读数页 zone 恒 `unavailable`（页面不跑 tierB，如实标注）；`ls` / `W_*` / `β_goal` 等**未标定**；
+读数页 zone 现在真的会跑 tierB（轮次十九：`app/lib/domain/services/cognitive/library_diagnosis.dart`），
+只有"这次没做诊断"才是 `unavailable`；复习队列与探针仍不跑 tierB，队列里的 zone 恒为 `unavailable`；`ls` / `W_*` / `β_goal` 等**未标定**；
 MindNet 工作树有一处**先前遗留**的脏文件（` M conformance/mindnet_vectors.json`，等授权还原）。
 
 ---

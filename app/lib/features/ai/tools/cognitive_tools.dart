@@ -17,6 +17,8 @@ import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/cognitive/library_diagnosis.dart'
+    show representativeCardRow;
 import '../../../domain/services/cognitive/problem_evaluator.dart';
 import '../domain/ai_tool.dart';
 
@@ -207,20 +209,10 @@ class EvaluateProblemFitTool extends AiTool {
   /// The row that represents a knowledge point: the unit with the most review
   /// history, ties broken by id so the choice cannot depend on query order.
   ///
-  /// The evaluator reasons per knowledge point while Furnace stores per unit
-  /// (a point can own several blanks); "the one that has been reviewed the
-  /// most" is the closest thing to "what this point currently looks like", and
-  /// it is stated here rather than hidden in a sort.
-  static CardState? _representativeRow(List<CardState> states) {
-    if (states.isEmpty) {
-      return null;
-    }
-    final sorted = [...states]..sort((a, b) {
-        final byReps = b.repetitions.compareTo(a.repetitions);
-        return byReps != 0 ? byReps : a.id.compareTo(b.id);
-      });
-    return sorted.first;
-  }
+  /// The rule itself lives in `library_diagnosis.dart` (`representativeCardRow`)
+  /// because the readings page picks the same row; one definition, two callers.
+  static CardState? _representativeRow(List<CardState> states) =>
+      representativeCardRow(states);
 
   static List<ProblemCandidate> _parseProblems(Object? raw) {
     if (raw is! List) {

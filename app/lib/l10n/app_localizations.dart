@@ -1937,7 +1937,7 @@ abstract class AppLocalizations {
   /// No description provided for @docCognitiveBody.
   ///
   /// In en, this message translates to:
-  /// **'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and zone needs the slow tier - the page does not run it, so it shows unavailable. The three statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.'**
+  /// **'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" needs confidence data this app does not store, so it never appears. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.'**
   String get docCognitiveBody;
 
   /// No description provided for @docFormulaTitle.
@@ -2975,8 +2975,32 @@ abstract class AppLocalizations {
   /// No description provided for @cognitiveZoneNote.
   ///
   /// In en, this message translates to:
-  /// **'Zone uses the same ReviewZone vocabulary as the review queue. The fast diagnosis layer is not mounted here, so it reads unavailable (no diagnosis was produced) - which does NOT mean healthy (checked, nothing to report).'**
+  /// **'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".'**
   String get cognitiveZoneNote;
+
+  /// No description provided for @cognitiveFastLayerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Zones come from the tierB fast layer'**
+  String get cognitiveFastLayerNote;
+
+  /// No description provided for @cognitiveFastLayerRanDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'It ran this time: each zone is the diffusion verdict on the tag graph (weak / empty / slow / overloaded / off-goal / dead-end). Starts are the most recently reviewed knowledge points, targets are the ones due today.'**
+  String get cognitiveFastLayerRanDetail;
+
+  /// No description provided for @cognitiveFastLayerNotRunDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'It did not run this time: there are no tags, or no usable start and target, so every zone reads unavailable.'**
+  String get cognitiveFastLayerNotRunDetail;
+
+  /// No description provided for @cognitiveNoDangerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'\"Danger (confident but forgetting)\" needs metacognitive belief, and this app stores none, so it never appears.'**
+  String get cognitiveNoDangerNote;
 
   /// No description provided for @cognitiveSummary.
   ///

@@ -17,6 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
+import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
+    show BottleneckType;
+import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
@@ -208,13 +211,47 @@ void main() {
       overrides: [
         cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
       ],
     );
 
     expect(find.text('顾问模式：不改到期时间'), findsOneWidget);
     expect(find.text('ls 等边权未标定'), findsOneWidget);
     expect(find.text('只读页面：不会写入数据库'), findsOneWidget);
+    // The page really runs tierB, so it must say which of the two happened -
+    // "unavailable" alone would hide whether anything was diagnosed at all.
+    expect(find.text('发展区来自快层诊断'), findsOneWidget);
+    expect(find.textContaining('这次没跑：'), findsOneWidget);
+    expect(find.textContaining('「危险（自信但记不住）」需要元认知信念'), findsOneWidget);
     expect(find.text('认知模型'), findsOneWidget);
+  });
+
+  testWidgets('a diagnosis turns zones real, and an empty map is healthy',
+      (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider.overrideWith(
+          (ref) async => const LibraryDiagnosis(
+            byKnowledgePoint: {'kp-1': BottleneckType.weak},
+            fastLayerRan: true,
+            rounds: 4,
+          ),
+        ),
+      ],
+    );
+
+    // kp-1 was diagnosed as `weak` -> the developing zone.
+    expect(find.textContaining('发展区/死角: 发展区（差一点就想起来）'), findsOneWidget);
+    // kp-2 is absent from a *ran* diagnosis, which means "asked, nothing to
+    // report" - the one case that may show `healthy`, and it is not the same
+    // fact as the map being null.
+    expect(find.textContaining('发展区/死角: 健康（查过，没问题）'), findsNWidgets(2));
+    expect(find.textContaining('这次跑过：'), findsOneWidget);
+    expect(find.textContaining('不可用（未做诊断）'), findsNothing);
   });
 
   testWidgets('renders the injected model\'s numbers, bands and zones',
@@ -224,6 +261,8 @@ void main() {
       overrides: [
         cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
       ],
     );
 

@@ -970,7 +970,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docCognitiveBody =>
-      '设置里的「认知模型」是只读读数页：R 是当前记忆强度，R0 是刚记住时的强度，Σ 是累计投入，zone 需要跑慢层才有值（读数页不跑，所以显示 unavailable）。页面顶部三条声明说明它不改到期时间、参数尚未标定、不替你做决定。AI 的 evaluate_problem_fit 工具读的是同一批数字，用来判断一道题值不值得现在做。';
+      '设置里的「认知模型」是只读读数页：R 是当前记忆强度，R0 是刚记住时的强度，Σ 是累计投入；「发展区/死角」由标签图上的快层扩散给出（起点=最近复习的知识点，目标=今天到期的），没有标签、或没有可用的起点与目标时显示「不可用」——它不等于「健康」。「危险」需要自信度数据，本应用不存，所以不会出现。页面顶部几条声明说明它不改到期时间、参数尚未标定、不替你做决定。AI 的 evaluate_problem_fit 工具读的是同一批数字，用来判断一道题值不值得现在做。';
 
   @override
   String get docFormulaTitle => '总分怎么算';
@@ -1539,7 +1539,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cognitiveZoneNote =>
-      '发展区/死角沿用复习队列的同一套 ReviewZone 词表。本页未挂载快层诊断，因此取值为「不可用（未做诊断）」——它不等于「健康（查过，没问题）」。';
+      '发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。';
+
+  @override
+  String get cognitiveFastLayerNote => '发展区来自快层诊断';
+
+  @override
+  String get cognitiveFastLayerRanDetail =>
+      '这次跑过：取值来自标签图上的扩散结果（弱/空/慢/过载/偏离目标/死路）。起点=最近复习的几个知识点，目标=今天到期的那些。';
+
+  @override
+  String get cognitiveFastLayerNotRunDetail =>
+      '这次没跑：没有标签，或没有可用的起点与目标，所以区域一律是「不可用」。';
+
+  @override
+  String get cognitiveNoDangerNote => '「危险（自信但记不住）」需要元认知信念，本应用不存这些数据，所以它不会出现。';
 
   @override
   String cognitiveSummary(int cards, String model) {

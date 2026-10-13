@@ -105,3 +105,25 @@
   （只有 `retrieval_success` 抬 R0）。**断言必须建在"足够熟"的行上**：新卡 R≈0 时 `effort` 被钳到 1.0，两条路径的 Σ 完全相同。
 - 尚未做（切片 2 的另一半）：`exposure`（看了没测）入口——读书/看补充资料目前仍不进模型。
 
+### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
+
+此前只有 AI 工具 `evaluate_problem_fit` 会跑快层，读数页自己声明"不跑 tierB ⇒ zone 恒为 unavailable"。
+现在读数页与工具共用同一条装配路径：
+
+- `lib/domain/services/cognitive/library_diagnosis.dart`：
+  - `representativeCardRow(List<CardState>)`——同一知识点多张单元卡时选代表行（`repetitions` 降序、同则 `id` 升序）。
+    这一条规则**只定义一次**，读数页与 `cognitive_tools.dart` 的 `_representativeRow` 都委托它，两边不可能再给出不同的代表行。
+  - `LibraryDiagnosisRunner.run({tags, rowsByKnowledgePoint, model, nowHours, startKnowledgePointIds, targetKnowledgePointIds, moduleDefaults, rounds = 4})`：
+    与 `ProblemEvaluator._diagnose` 同一配方（`FastGraph.fromSpec` + `attention.ignition.T_ign = 0` 覆盖 + `startDiffusion` + `runRounds(4)` + `FastDiagnosis.bottlenecks`）。
+    ms 取 `model.modelReadingOf(row, nowHours).r0`，且要求 `isFinite && > 0 && <= 1`，否则该节点进 `nodesWithoutMs`（**不套用 MindNet 的 0.8 默认**）。
+  - 三条产品规则写在文件头：`starts` = 最近复习的知识点、`targets` = 今天到期的集合（Furnace 没有 goal 实体）、`rounds = 4` **未标定**。
+  - `danger` 永不出现：它只可能来自 `FastDangerRow`，而元认知信念本应用不存；`LibraryDiagnosis.toJson()` 走 `mindnet.library/1` 握手，便于日后对拍。
+- `lib/features/cognitive/presentation/cognitive_model_page.dart`：
+  - 新增 `cognitiveLibraryDiagnosisProvider`（tierB 跑一次；`starts` 取最近复习的 `cognitiveStartNodeLimit = 5` 个，`targets` 取 `forced == 1 || dueAt <= now`），
+    与 `cognitiveObservationInputsProvider` 一起喂给 `assembleCognitiveReadings`。
+  - `diagnosisByKnowledgePoint` 传的是 **`null`（没跑）或非空 map（跑了）**，两者不可合并：`null` ⇒ `unavailable`，空 map ⇒ `healthy`。
+  - `CognitiveReadings.fastLayerRan` 随读数带出，页面多两条说明：这次跑没跑（含起点/目标口径）、以及"危险需要自信度、本应用不存所以不会出现"。
+  - `unavailable` 不再等于"本页不跑"，而是"这次没做诊断"。
+- 仍未做：复习队列（`ReviewAdvisory.order` 的实时调用方）**不传诊断**，队列里的 zone 依旧恒为 `unavailable`——这是下一步（把它接到同一个 runner，注意别让排序变成阻塞）。
+- 测试：`test/domain/services/cognitive/library_diagnosis_test.dart`（8 条：没有图不跑、只有图没有起点/目标不跑、孤立节点 = `empty/no_entry`、缺卡行 = `nodesWithoutMs`、非法 R0 当成没提供、danger 永不出现、JSON 握手）+ 读数页新增"诊断让 zone 变真 / 空 map 是 healthy"与"两条说明"用例。
+

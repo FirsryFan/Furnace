@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-10-11 轮次十九：读数页真的跑 tierB（`LibraryDiagnosisRunner`）
+
+用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
+
+- 此前只有 AI 工具 `evaluate_problem_fit` 跑快层，读数页在文件头声明"不跑 tierB ⇒ 每张卡的 zone 恒为 unavailable"。
+  用户的"发展区/死角"列因此永远是一句"不可用"，看着像缺陷而不是设计。
+- 新增 `lib/domain/services/cognitive/library_diagnosis.dart`：
+  - `representativeCardRow(List<CardState>)`（`repetitions` 降序、同则 `id` 升序）——这条规则原先在 `cognitive_tools.dart`
+    里独立存在，现在读数页与工具**共用一份定义**，两边不可能再选出不同的代表行。
+  - `LibraryDiagnosisRunner.run(...)` 复用 `ProblemEvaluator._diagnose` 的同一配方（`FastGraph.fromSpec` +
+    `attention.ignition.T_ign = 0` 覆盖 + `startDiffusion` + `runRounds(4)` + `FastDiagnosis.bottlenecks`）；
+    ms 只取 `modelReadingOf(row).r0` 且必须 `isFinite && > 0 && <= 1`，否则进 `nodesWithoutMs`（**不套用 MindNet 的 0.8 默认**）。
+  - 三条产品规则写在文件头（`starts` = 最近复习的点，`targets` = 今天到期的集合，`rounds = 4` 未标定）；
+    `danger` 永不出现，因为它只可能来自元认知信念行，而本应用不存。
+- `cognitive_model_page.dart`：新增 `cognitiveLibraryDiagnosisProvider`（`starts` 取最近复习的 5 个，
+  `cognitiveStartNodeLimit = 5`；`targets` = `forced == 1 || dueAt <= now`），`CognitiveReadings.fastLayerRan` 随读数带出。
+  `diagnosisByKnowledgePoint` 传 `null`（没跑）或非空 map（跑了）——两者不可合并：`null` ⇒ `unavailable`，
+  空 map ⇒ `healthy`（"查过，没问题"）。
+- 页面说明从三条增到五条：新增"这次跑没跑（含起点/目标口径）"与"危险需要自信度，本应用不存所以不会出现"；
+  `unavailable` 的含义从"本页不跑"改成"这次没做诊断"。使用文档 `docCognitiveBody` 同步改写。
+- 尚未做：复习队列（`ReviewAdvisory.order` 的实时调用方）仍不传诊断，队列里的 zone 依旧恒为 `unavailable`。
+- 测试：`library_diagnosis_test.dart` 8 条（没有图不跑 / 没有起点与目标不跑 / 孤立节点 = `empty/no_entry` /
+  缺卡行报 `nodesWithoutMs` / 非法 R0 当成没提供 / danger 永不出现 / JSON 握手），读数页新增 1 条
+  "诊断让 zone 变真、空 map 是 healthy"并给既有两条补 `LibraryDiagnosis.notRun` 覆盖。
+
+---
+
 ## 2026-10-11 轮次十八：做错之后"对过答案"是另一个事件（schema v9）
 
 用户：正常任务完成后，把认知模型全量接入并丰富它的应用场景（`docs/MINDNET_ROADMAP.md` 的落地顺序）。

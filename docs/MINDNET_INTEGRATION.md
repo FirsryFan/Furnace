@@ -266,7 +266,10 @@ forced → boosted → model → unseen
 | 诊断给出卡点 | 与 7 类一一映射 |
 
 **`healthy` 与 `unavailable` 必须区分**：把"没跑模型"显示成"健康"或"未知"都会骗用户（§9.4）。
-**已知边界（t19 如实标注）**：读数页当前的 zone 列恒为 `unavailable`（页面不跑 tierB），这是如实反映"诊断层不在场"。
+**边界更新（轮次十九）**：读数页**已经会跑 tierB**（`lib/domain/services/cognitive/library_diagnosis.dart` 的
+`LibraryDiagnosisRunner`，配方与 `ProblemEvaluator._diagnose` 相同：`T_ign = 0`、`startDiffusion`、`runRounds(4)`），
+`diagnosisByKnowledgePoint` 传 `null`（没跑）或非空 map（跑了）。仍未跑 tierB 的调用方：复习队列
+（`ReviewAdvisory.order` 的实时调用点）与 `tool/mindnet_probe.dart`，它们的 zone 才恒为 `unavailable`。
 
 ---
 
@@ -317,10 +320,10 @@ forced → boosted → model → unseen
 | 可达性判断**偏乐观** | 已登记、设计取向 | `ms = R0` 的语义后果，§3.6（t25 复算 `R ≤ R0`） |
 | **两个 id 空间**（标签 vs 知识点） | 未解决 | §4.4；不对齐时工具降级为仅 tierA（有测试） |
 | 新卡不参与模型打分 | 设计（D4） | §5.1 的 `unseen` 段 |
-| 读数页 zone 恒 `unavailable` | 如实标注 | §5.2（t19 边界） |
+| ~~读数页 zone 恒 `unavailable`~~ **已更新（轮次十九）** | 读数页已跑 tierB（`LibraryDiagnosisRunner`，起终点口径写在页面说明里）；`unavailable` 只剩"这次没做诊断"一义。队列与探针仍不跑 | §5.2 + `docs/MINDNET_ROADMAP.md` §4 |
 | `ls` / `W_DAR` / `β_goal` 等未标定 | 已标注 | §6.2 |
 | DiffusionBoost 仍在 | 短期分工（D5） | §5.1 |
-| ~~Android 未重构建 / `.fskill` 容器 / Thread 事件流刷新~~ **已更新（2026-10-02）** | Android 已重构建；Thread 事件流刷新已实现（`docs/REACTIVITY_DESIGN.md`）；`.fskill` **安装/管理**已实现、**脚本执行容器**仍未实现（`docs/SKILL_FORMAT.md` §7） | `docs/HANDOFF.md` |
+| ~~Android 未重构建 / `.fskill` 容器 / Thread 事件流刷新~~ **已更新（2026-10-02）** | Android 已重构建；Thread 事件流刷新已实现（`docs/REACTIVITY_DESIGN.md`）；`.fskill` **安装/管理与脚本执行容器**均已实现（`app/lib/data/skill/skill_runner.dart`，`docs/SKILL_FORMAT.md` §3） | `docs/HANDOFF.md` |
 | ~~**MindNet 工作树有一处先前遗留的脏文件**~~ **已判定：保留（2026-10-02）** | 工作区戳 `f4eec9b` **等于该仓库 HEAD**，已提交的 `107ab12` 才是过期值，回退等于换回过期值；以后核验口径＝"diff 只允许出现 `generated_from.commit` 一行" | `MINDNET_CONTRACT.md` §9.8b 第 5/6 条 |
 | 全量测试有 2 条 skip | 正常 | §0（探针宿主入口无 `--dart-define` 时 inert） |
 
@@ -400,7 +403,7 @@ t19 登记 output 记录的真实库实测：运行前后 SHA256 同为 `8c58a61
 | `R` 低 + 增益高 | 模型认为"快忘了、现在复习最值" |
 | `R` 高 | 还记着 |
 | `band` 分布 | `forced` / `boosted` / `model` / `unseen` 各几张；全是 `unseen` 说明数据里没有历史 |
-| `zone` 全 `unavailable` | **预期**（页面 / 探针不跑 tierB）；若出现 `healthy` 说明诊断层跑过 |
+| `zone` 全 `unavailable` | 探针不跑 tierB，所以**预期**如此；读数页只在"这次没做诊断"（没有标签/没有起点与目标）时才这样 |
 | `nodesWithoutMs` 非空 | 有标签没有任何卡片的编码上限——检查是否两个 id 空间未对齐（§4.4） |
 | 原库 SHA256 / mtime 变化 | **异常**（探针只读副本）；立即停止并报告 |
 
