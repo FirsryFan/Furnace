@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-10-14 轮次二十一：元认知层——「危险（自信但记不住）」第一次算得出来
+
+用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
+
+- 读数页与复习页都写着「危险」需要一个本应用不存的量，所以它永远不出现——这句话把"没做"说成了"设计"。
+  MindNet 第三层（`mechanisms/metacognition.belief.js`）说明缺的是哪个量：信念
+  `b_v = sigmoid(b0 + w_fluency·fluency + w_encoding·Σ + w_recency·recency(Δt))`，与卡片真实可回忆的 `R` 相减；
+  差 > `delta` 是危险区，差 < −`delta` 是焦虑区，`mean |差|` 是校准度。
+- 新增 `lib/domain/services/cognitive/metacognition.dart`：纯逻辑、无 IO、无时钟。
+  `MetacognitionParams`（`wFluency 1.5` / `wEncoding 0.8` / `wRecency 0.8` / `tauRecencyHours 6` / `b0 1.5` / `delta 0.2`，**未标定**）、
+  `MetacognitionObservation` / `MetacognitionRow` / `MetacognitionReading`、`Metacognition.read`。
+  起点不参与判断（JS 同样跳过 `isStart`）："刚复习过"不能证明自己知道。
+- **recency 用混合时钟**：`state == conscious` 记 0 小时，否则取距上次复习的小时数，没复习过取 +∞。
+  第一版直接取"距上次复习"，结果 recency 与 `R` 一起衰减、差被抵掉（探针实测：4 标签夹具在 nowHours=10000 时差 −0.2668 ⇒ 误判焦虑）；
+  换混合时钟后同一夹具 `belief 0.6397` vs `R 0.5062`（差 +0.1335），把时钟推到 100000 就越过 0.2（`danger=[a,b]`）。
+  探针 `test/scratch_meta_probe_test.dart` 用完即删，仓库不留探针。
+- `library_diagnosis.dart`：`LibraryDiagnosis` 增 `metacognition` 并进 `toJson()`；元认知的危险行同时喂给
+  `FastDiagnosis.bottlenecks(dangerRows:)`（同一节点只报一次）。节点 `R` 取代表卡的 `modelReadingOf(row).r`，
+  `r0`/Σ 缺失就不参与，不发明默认值。
+- 页面：`cognitive_model_page.dart` 摘要下新增"模型怎么看你"卡片——校准度（三位小数）、危险名单、低估名单；
+  跑过但一个节点都判不了就明说"这次没有一个知识点能被判断"，有行但没越过 `0.2` 就明说阈值。
+  只在 `fastLayerRan` 时渲染：危险/低估是**关于这一次运行**的陈述，没跑就没有可比的，空列表会被读成"没问题"。
+  原说明 `cognitiveNoDangerNote`（"本应用不存这些数据，所以它不会出现"）已改写为 `cognitiveDangerNote`。
+- 测试：新增 `metacognition_test.dart` 14 条（sigmoid 数值、belief 钉死 0.522484 / 0.784147 / 0.832019 / 0.665967 / 0.476181、
+  校准度 0.413851、跳过起点、`r0` 缺省 0.5、阈值两侧）；`library_diagnosis_test.dart` 10 条（"危险永不出现"改成
+  "危险来自远时钟下的元认知"，改用 `staleHours = 100000`）；读数页 +4 条（没跑 ⇒ 不渲染；有危险/低估 ⇒ 名单；
+  跑过但判不了 ⇒ 明说；没越过阈值 ⇒ 明说阈值）。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 90 info；全量 `flutter test --concurrency=1` → `+1081 ~2 All tests passed!`
+  （轮次二十记的是 `+1061`，多出的 20 条 = 元认知 14 + `library_diagnosis_test` 8→10 + 读数页 4）。
+
+---
+
 ## 2026-10-14 轮次二十：复习时看得见模型怎么读这张卡
 
 用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。

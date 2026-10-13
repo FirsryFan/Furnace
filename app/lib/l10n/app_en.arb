@@ -629,7 +629,23 @@
   "cognitiveFastLayerNote": "Zones come from the tierB fast layer",
   "cognitiveFastLayerRanDetail": "It ran this time: each zone is the diffusion verdict on the tag graph (weak / empty / slow / overloaded / off-goal / dead-end). Starts are the most recently reviewed knowledge points, targets are the ones due today.",
   "cognitiveFastLayerNotRunDetail": "It did not run this time: there are no tags, or no usable start and target, so every zone reads unavailable.",
-  "cognitiveNoDangerNote": "\"Danger (confident but forgetting)\" needs metacognitive belief, and this app stores none, so it never appears.",
+  "cognitiveDangerNote": "\"Danger (confident but forgetting)\" is now computed by the metacognition layer: it appears only when a knowledge point is lit up on the tag graph this run while its cards have gone untouched for a long time. A knowledge point that is not listed is not therefore fine - it may simply not have been judged this time.",
+  "cognitiveMetacognitionTitle": "How the model reads you",
+  "cognitiveMetacognitionDetail": "Compares how much the model believes in a node (belief, from fluency, encoding strength and recency) with how much its cards can actually still be recalled. The wider the gap, the more it is worth a look.",
+  "cognitiveMetacognitionCalibration": "mean gap {gap} (smaller is better; the weights are uncalibrated, so this is for reference)",
+  "@cognitiveMetacognitionCalibration": {
+    "placeholders": { "gap": {} }
+  },
+  "cognitiveMetacognitionDanger": "danger: {nodes} (being studied, but the cards are long untouched)",
+  "@cognitiveMetacognitionDanger": {
+    "placeholders": { "nodes": {} }
+  },
+  "cognitiveMetacognitionAnxiety": "underrated: {nodes} (the cards are fine; you feel they are not)",
+  "@cognitiveMetacognitionAnxiety": {
+    "placeholders": { "nodes": {} }
+  },
+  "cognitiveMetacognitionNoRows": "No knowledge point could be judged this time: each one needs at least one card, and the diagnosis has to have run.",
+  "cognitiveMetacognitionLevel": "No knowledge point crossed the 0.2 gap threshold: nothing is in danger or underrated this run.",
   "cognitiveSummary": "{cards} card(s), model {model}",
   "@cognitiveSummary": {
     "placeholders": { "cards": { "type": "int" }, "model": { "type": "String" } }

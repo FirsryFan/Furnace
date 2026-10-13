@@ -20,6 +20,7 @@ import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
+import 'package:furnace/domain/services/cognitive/metacognition.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
@@ -223,7 +224,11 @@ void main() {
     // "unavailable" alone would hide whether anything was diagnosed at all.
     expect(find.text('发展区来自快层诊断'), findsOneWidget);
     expect(find.textContaining('这次没跑：'), findsOneWidget);
-    expect(find.textContaining('「危险（自信但记不住）」需要元认知信念'), findsOneWidget);
+    expect(
+      find.textContaining('现在由元认知层算出来'),
+      findsOneWidget,
+      reason: 'danger is computed now, so the note may not claim it never appears',
+    );
     expect(find.text('认知模型'), findsOneWidget);
   });
 
@@ -322,6 +327,131 @@ void main() {
 
     final after = await _dumpAll(db);
     expect(after, before, reason: 'the page must only SELECT');
+  });
+
+  testWidgets('the metacognition section is off when the layer did not run',
+      (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+      ],
+    );
+
+    // Danger and underestimation are statements about a run. Without one there
+    // is nothing to compare, and an empty list would read as "no problem".
+    expect(find.text('模型怎么看你'), findsNothing);
+    expect(find.textContaining('平均偏差'), findsNothing);
+  });
+
+  testWidgets('the metacognition section names danger and underestimation',
+      (tester) async {
+    final danger = MetacognitionRow(
+      node: 'kp-1',
+      name: '光合作用',
+      belief: 0.80,
+      r: 0.36,
+      diff: 0.44,
+    );
+    final anxiety = MetacognitionRow(
+      node: 'kp-2',
+      name: '呼吸作用',
+      belief: 0.30,
+      r: 0.62,
+      diff: -0.32,
+    );
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider.overrideWith(
+          (ref) async => LibraryDiagnosis(
+            byKnowledgePoint: const {'kp-1': BottleneckType.weak},
+            fastLayerRan: true,
+            rounds: 4,
+            metacognition: MetacognitionReading(
+              rows: [danger, anxiety],
+              danger: [danger],
+              anxiety: [anxiety],
+              calibration: 0.38,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    expect(find.text('模型怎么看你'), findsOneWidget);
+    expect(find.textContaining('平均偏差 0.380'), findsOneWidget);
+    expect(find.textContaining('危险：光合作用'), findsOneWidget);
+    expect(find.textContaining('低估：呼吸作用'), findsOneWidget);
+    // The threshold line is for the case where *nothing* crossed it, so it must
+    // not be shown alongside two lists that did.
+    expect(find.textContaining('没有一个知识点越过'), findsNothing);
+  });
+
+  testWidgets('a run that judged nothing says so instead of an empty list',
+      (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider.overrideWith(
+          (ref) async => const LibraryDiagnosis(
+            byKnowledgePoint: {'kp-1': BottleneckType.weak},
+            fastLayerRan: true,
+            rounds: 4,
+          ),
+        ),
+      ],
+    );
+
+    // `rounds: 4` ran, yet no knowledge point could be judged (no card row for
+    // one). Empty output must be explained, not drawn.
+    expect(find.text('模型怎么看你'), findsOneWidget);
+    expect(find.textContaining('这次没有一个知识点能被判断'), findsOneWidget);
+    expect(find.textContaining('平均偏差'), findsNothing);
+  });
+
+  testWidgets('a judged run with no gap names the threshold it did not cross',
+      (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider.overrideWith(
+          (ref) async => LibraryDiagnosis(
+            byKnowledgePoint: const {'kp-1': BottleneckType.weak},
+            fastLayerRan: true,
+            rounds: 4,
+            metacognition: MetacognitionReading(
+              rows: [
+                const MetacognitionRow(
+                  node: 'kp-1',
+                  name: '光合作用',
+                  belief: 0.44,
+                  r: 0.42,
+                  diff: 0.02,
+                ),
+              ],
+              danger: const [],
+              anxiety: const [],
+              calibration: 0.02,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    expect(find.textContaining('平均偏差 0.020'), findsOneWidget);
+    expect(find.textContaining('没有一个知识点越过 0.2'), findsOneWidget);
+    expect(find.textContaining('危险：'), findsNothing);
+    expect(find.textContaining('低估：'), findsNothing);
   });
 
   testWidgets('the settings entry opens the page', (tester) async {

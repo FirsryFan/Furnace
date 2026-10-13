@@ -14,9 +14,11 @@ import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 /// * "nothing ran" (no graph) and "ran and had nothing to say" are different
 ///   results - the same distinction the page makes between `unavailable` and
 ///   `healthy`.
-/// * `danger` can never appear: this app stores no metacognition rows, so the
-///   hook gets an empty `dangerRows` list. The test asserts the *absence* so a
-///   future change that starts inventing danger rows fails here.
+/// * `danger` comes from the metacognition layer and from nowhere else: the
+///   runner counts every non-start node with a card row, hands its belief rows to
+///   the classifier, and a node with no card row is *not* judged (test 6).
+///   Whether a node lands in `danger` or in `anxiety` is a statement about the
+///   clock, so tests 4 and 5 run the same graph at an early and a stale hour.
 /// * ids outside the graph are dropped instead of crashing the engine, and a
 ///   start node never complains about itself.
 void main() {
@@ -116,7 +118,7 @@ void main() {
     );
   });
 
-  test('danger is never reported: no metacognition rows exist here', () {
+  test('the belief reading skips the start and judges the rest', () {
     final result = LibraryDiagnosisRunner.run(
       tags: [
         tag('root'),
@@ -133,7 +135,75 @@ void main() {
       targetKnowledgePointIds: const ['c'],
     );
 
-    expect(result.byKnowledgePoint.values, isNot(contains(BottleneckType.danger)));
+    expect(result.metacognition.hasRows, isTrue);
+    expect(
+      result.metacognition.rows.map((row) => row.node),
+      isNot(contains('root')),
+    );
+    expect(
+      result.metacognition.rows.map((row) => row.node),
+      containsAll(const ['a', 'b', 'c']),
+    );
+    // At this clock the cards are only ~1000 model hours old, so their belief
+    // sits *below* what the cards can actually do: the layer reports the quieter
+    // "you think you are worse off than you are", not danger.
+    expect(result.metacognition.danger, isEmpty);
+    expect(result.metacognition.anxiety, isNotEmpty);
+    expect(
+      result.byKnowledgePoint.values,
+      isNot(contains(BottleneckType.danger)),
+    );
+  });
+
+  test('the same graph turns dangerous once the cards go stale', () {
+    // A danger verdict is a statement about the clock, not about the graph: the
+    // diffusion still lights the same nodes, but their cards have not been
+    // touched for ~100k model hours, so belief now sits far above reality.
+    const staleHours = 100000.0;
+    final result = LibraryDiagnosisRunner.run(
+      tags: [
+        tag('root'),
+        tag('a', parentId: 'root'),
+        tag('b', parentId: 'root'),
+        tag('c', parentId: 'root'),
+      ],
+      rowsByKnowledgePoint: {
+        for (final id in const ['root', 'a', 'b', 'c']) id: rowOf(id),
+      },
+      model: model,
+      nowHours: staleHours,
+      startKnowledgePointIds: const ['root'],
+      targetKnowledgePointIds: const ['c'],
+    );
+
+    expect(result.metacognition.danger, isNotEmpty);
+    for (final row in result.metacognition.danger) {
+      expect(row.diff, greaterThan(0.2));
+      expect(result.byKnowledgePoint[row.node], BottleneckType.danger);
+    }
+    // The target is judged too - and it is *not* the dangerous one here.
+    expect(result.byKnowledgePoint['c'], isNot(BottleneckType.danger));
+  });
+
+  test('a node with no card row is not judged: its reality is unknown', () {
+    final result = LibraryDiagnosisRunner.run(
+      tags: [tag('root'), tag('target', parentId: 'root'), tag('no-row')],
+      rowsByKnowledgePoint: {
+        'root': rowOf('root'),
+        'target': rowOf('target'),
+      },
+      model: model,
+      nowHours: nowHours,
+      startKnowledgePointIds: const ['root'],
+      targetKnowledgePointIds: const ['target'],
+    );
+
+    // 'no-row' gets no belief row at all rather than a guessed retrievability.
+    expect(
+      result.metacognition.rows.map((row) => row.node),
+      isNot(contains('no-row')),
+    );
+    expect(result.metacognition.calibration, isNot(0));
   });
 
   test('a node with no in-edges is the empty/no-entry complaint', () {
@@ -208,5 +278,9 @@ void main() {
     expect(json['starts'], const ['root']);
     expect(json['targets'], const ['target']);
     expect(json['bottlenecks'], isA<Map<String, Object?>>());
+    final metacognition = json['metacognition']! as Map<String, Object?>;
+    expect(metacognition['schema'], 'mindnet.metacognition/1');
+    expect(metacognition['calibration'], isA<double>());
+    expect(metacognition['rows'], isA<List<Object?>>());
   });
 }

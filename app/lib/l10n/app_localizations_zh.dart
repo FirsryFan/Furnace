@@ -1558,7 +1558,38 @@ class AppLocalizationsZh extends AppLocalizations {
       '这次没跑：没有标签，或没有可用的起点与目标，所以区域一律是「不可用」。';
 
   @override
-  String get cognitiveNoDangerNote => '「危险（自信但记不住）」需要元认知信念，本应用不存这些数据，所以它不会出现。';
+  String get cognitiveDangerNote =>
+      '「危险（自信但记不住）」现在由元认知层算出来：只有当某个知识点这次在标签图上被点亮、而它的卡片已经很久没碰时才会出现。没有列出来的知识点不等于没问题，它可能只是这次没被判断。';
+
+  @override
+  String get cognitiveMetacognitionTitle => '模型怎么看你';
+
+  @override
+  String get cognitiveMetacognitionDetail =>
+      '把「模型信多少」（信念，来自充分度、编码强度与新鲜度）和「卡片真实还能回忆多少」放在一起比。差得越大，越值得看一眼。';
+
+  @override
+  String cognitiveMetacognitionCalibration(Object gap) {
+    return '平均偏差 $gap（越小越准；权重未标定，只作参考）';
+  }
+
+  @override
+  String cognitiveMetacognitionDanger(Object nodes) {
+    return '危险：$nodes（正在学，但卡片很久没碰）';
+  }
+
+  @override
+  String cognitiveMetacognitionAnxiety(Object nodes) {
+    return '低估：$nodes（卡片还行，你却觉得不行）';
+  }
+
+  @override
+  String get cognitiveMetacognitionNoRows =>
+      '这次没有一个知识点能被判断：每个知识点至少要有一张卡，而且这次诊断得跑起来。';
+
+  @override
+  String get cognitiveMetacognitionLevel =>
+      '没有一个知识点越过 0.2 的差距阈值：这次既没有危险，也没有低估。';
 
   @override
   String cognitiveSummary(int cards, String model) {

@@ -117,12 +117,12 @@
     与 `ProblemEvaluator._diagnose` 同一配方（`FastGraph.fromSpec` + `attention.ignition.T_ign = 0` 覆盖 + `startDiffusion` + `runRounds(4)` + `FastDiagnosis.bottlenecks`）。
     ms 取 `model.modelReadingOf(row, nowHours).r0`，且要求 `isFinite && > 0 && <= 1`，否则该节点进 `nodesWithoutMs`（**不套用 MindNet 的 0.8 默认**）。
   - 三条产品规则写在文件头：`starts` = 最近复习的知识点、`targets` = 今天到期的集合（Furnace 没有 goal 实体）、`rounds = 4` **未标定**。
-  - `danger` 永不出现：它只可能来自 `FastDangerRow`，而元认知信念本应用不存；`LibraryDiagnosis.toJson()` 走 `mindnet.library/1` 握手，便于日后对拍。
+  - `danger` 由元认知层算出（轮次二十一之前它恒为空，因为信念 b_v 本应用不存）；`LibraryDiagnosis.toJson()` 走 `mindnet.library/1` 握手，便于日后对拍。
 - `lib/features/cognitive/presentation/cognitive_model_page.dart`：
   - 新增 `cognitiveLibraryDiagnosisProvider`（tierB 跑一次；`starts` 取最近复习的 `cognitiveStartNodeLimit = 5` 个，`targets` 取 `forced == 1 || dueAt <= now`），
     与 `cognitiveObservationInputsProvider` 一起喂给 `assembleCognitiveReadings`。
   - `diagnosisByKnowledgePoint` 传的是 **`null`（没跑）或非空 map（跑了）**，两者不可合并：`null` ⇒ `unavailable`，空 map ⇒ `healthy`。
-  - `CognitiveReadings.fastLayerRan` 随读数带出，页面多两条说明：这次跑没跑（含起点/目标口径）、以及"危险需要自信度、本应用不存所以不会出现"。
+  - `CognitiveReadings.fastLayerRan` 随读数带出，页面多两条说明：这次跑没跑（含起点/目标口径）、以及危险从哪来（见下一条）。
   - `unavailable` 不再等于"本页不跑"，而是"这次没做诊断"。
 - 仍未做：复习队列（`ReviewAdvisory.order` 的实时调用方）**不传诊断**，队列里的 zone 依旧恒为 `unavailable`。
   为什么刻意不接：zone map **不参与排序**（排序由 band 与 `expectedGain` 决定，见 `ReviewAdvisory.order`），
@@ -130,5 +130,30 @@
 - 已完成（轮次二十）：正在做题的人**看得见**这条诊断——`review_page.dart` 读同一份 `cognitiveReadingsProvider`，
   取 `zoneByKnowledgePoint[当前知识点]`，只在有真卡点时显示一枚 chip（`reviewZoneChip`；`healthy`/`unavailable` 都不显示）。
   词汇因此抽到 `lib/features/cognitive/presentation/zone_labels.dart`（`bandLabel`/`zoneLabel` 单一定义，读数页 `export`，复习页导入）。
-- 测试：`test/domain/services/cognitive/library_diagnosis_test.dart`（8 条：没有图不跑、只有图没有起点/目标不跑、孤立节点 = `empty/no_entry`、缺卡行 = `nodesWithoutMs`、非法 R0 当成没提供、danger 永不出现、JSON 握手）+ 读数页新增"诊断让 zone 变真 / 空 map 是 healthy"与"两条说明"用例 + 复习页 2 条（有卡点 ⇒ chip、无卡点/未诊断 ⇒ 无 chip）。
+- 测试：`test/domain/services/cognitive/library_diagnosis_test.dart`（10 条：没有图不跑、只有图没有起点/目标不跑、孤立节点 = `empty/no_entry`、缺卡行 = `nodesWithoutMs`、非法 R0 当成没提供、belief 跳过起点只判其余、没有卡行的知识点不进元认知、danger 来自远时钟下的元认知、JSON 握手）+ 读数页新增"诊断让 zone 变真 / 空 map 是 healthy"与"两条说明"用例 + 复习页 2 条（有卡点 ⇒ chip、无卡点/未诊断 ⇒ 无 chip）。
+
+### 切片 3：元认知层（危险区 / 焦虑区 / 校准度，已完成 轮次二十一）
+
+MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的是哪个量：信念
+`b_v = sigmoid(b0 + w_fluency·fluency + w_encoding·Σ + w_recency·recency(Δt))`，与卡片真实可回忆的 `R` 相减。
+差 > `delta` 判危险（以为会其实不会），差 < −`delta` 判焦虑（会但不敢用），`mean |差|` 是校准度 κ。
+本应用现在自己算这个量，不再说"不存所以不出现"。
+
+- `lib/domain/services/cognitive/metacognition.dart`：纯逻辑（无 IO、无时钟），只有 `MetacognitionParams`
+  （`wFluency 1.5` / `wEncoding 0.8` / `wRecency 0.8` / `tauRecencyHours 6` / `b0 1.5` / `delta 0.2`，**未标定**，与 JS 默认值一致）、
+  `MetacognitionObservation` / `MetacognitionRow` / `MetacognitionReading` 与 `Metacognition.read({observations, params})`。
+  起点（`isStart`）不进结果——JS 同样跳过："刚复习过"不能用来证明自己知道。
+- **recency 用混合时钟**：`state == conscious` 记 0 小时（这次在图上被点亮就是新鲜），否则取距上次复习的小时数，没复习过取 +∞。
+  第一版直接取"距上次复习"，结果 recency 与 `R` 一起衰减、差被抵掉（同一夹具在 nowHours=10000 时差 −0.2668 ⇒ 误判焦虑）；
+  换混合时钟后同一夹具 `belief 0.6397` vs `R 0.5062`（差 +0.1335），把时钟推到 100000 就越过 0.2（`danger=[a,b]`）。
+  依据：`DsrMemory.retrievability` 衰减极慢（Δt 从 725h 到 9725h，`r` 只从 0.7106 降到 0.5062），
+  所以"久没复习"必须由 recency 这一侧表达，而不是等 `R` 自己掉下来。
+- `library_diagnosis.dart`：`LibraryDiagnosis` 增 `metacognition` 字段并进 `toJson()`；元认知的危险行同时喂给
+  `FastDiagnosis.bottlenecks(dangerRows:)`（同一节点只报一次）。每节点的 `R` 取代表卡的 `modelReadingOf(row).r`；
+  `r0`/Σ 缺失就不参与，不发明默认值。
+- 页面 `cognitive_model_page.dart`：摘要下新增"模型怎么看你"卡片——校准度（三位小数，未标定）、危险名单、低估名单；
+  跑过但一个节点都判不了时明说"这次没有一个知识点能被判断"，有行但没越过 `0.2` 时明说阈值。
+  只在 `fastLayerRan` 时渲染：危险/低估是**关于这一次运行**的陈述，没跑就没有可比的，空列表会被读成"没问题"。
+  `cognitiveNoDangerNote` 因此改写为 `cognitiveDangerNote`（原文"本应用不存这些数据"已不成立）。
+- 仍未做：`evaluate_problem_fit` 把危险区排在前面；权重标定——κ 现在只是"两边差多少"，还不是"模型准不准"的可比数字。
 

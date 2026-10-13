@@ -1628,8 +1628,38 @@ class AppLocalizationsEn extends AppLocalizations {
       'It did not run this time: there are no tags, or no usable start and target, so every zone reads unavailable.';
 
   @override
-  String get cognitiveNoDangerNote =>
-      '\"Danger (confident but forgetting)\" needs metacognitive belief, and this app stores none, so it never appears.';
+  String get cognitiveDangerNote =>
+      '\"Danger (confident but forgetting)\" is now computed by the metacognition layer: it appears only when a knowledge point is lit up on the tag graph this run while its cards have gone untouched for a long time. A knowledge point that is not listed is not therefore fine - it may simply not have been judged this time.';
+
+  @override
+  String get cognitiveMetacognitionTitle => 'How the model reads you';
+
+  @override
+  String get cognitiveMetacognitionDetail =>
+      'Compares how much the model believes in a node (belief, from fluency, encoding strength and recency) with how much its cards can actually still be recalled. The wider the gap, the more it is worth a look.';
+
+  @override
+  String cognitiveMetacognitionCalibration(Object gap) {
+    return 'mean gap $gap (smaller is better; the weights are uncalibrated, so this is for reference)';
+  }
+
+  @override
+  String cognitiveMetacognitionDanger(Object nodes) {
+    return 'danger: $nodes (being studied, but the cards are long untouched)';
+  }
+
+  @override
+  String cognitiveMetacognitionAnxiety(Object nodes) {
+    return 'underrated: $nodes (the cards are fine; you feel they are not)';
+  }
+
+  @override
+  String get cognitiveMetacognitionNoRows =>
+      'No knowledge point could be judged this time: each one needs at least one card, and the diagnosis has to have run.';
+
+  @override
+  String get cognitiveMetacognitionLevel =>
+      'No knowledge point crossed the 0.2 gap threshold: nothing is in danger or underrated this run.';
 
   @override
   String cognitiveSummary(int cards, String model) {

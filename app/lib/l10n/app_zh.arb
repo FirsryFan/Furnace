@@ -632,7 +632,23 @@
   "cognitiveFastLayerNote": "发展区来自快层诊断",
   "cognitiveFastLayerRanDetail": "这次跑过：取值来自标签图上的扩散结果（弱/空/慢/过载/偏离目标/死路）。起点=最近复习的几个知识点，目标=今天到期的那些。",
   "cognitiveFastLayerNotRunDetail": "这次没跑：没有标签，或没有可用的起点与目标，所以区域一律是「不可用」。",
-  "cognitiveNoDangerNote": "「危险（自信但记不住）」需要元认知信念，本应用不存这些数据，所以它不会出现。",
+  "cognitiveDangerNote": "「危险（自信但记不住）」现在由元认知层算出来：只有当某个知识点这次在标签图上被点亮、而它的卡片已经很久没碰时才会出现。没有列出来的知识点不等于没问题，它可能只是这次没被判断。",
+  "cognitiveMetacognitionTitle": "模型怎么看你",
+  "cognitiveMetacognitionDetail": "把「模型信多少」（信念，来自充分度、编码强度与新鲜度）和「卡片真实还能回忆多少」放在一起比。差得越大，越值得看一眼。",
+  "cognitiveMetacognitionCalibration": "平均偏差 {gap}（越小越准；权重未标定，只作参考）",
+  "@cognitiveMetacognitionCalibration": {
+    "placeholders": { "gap": {} }
+  },
+  "cognitiveMetacognitionDanger": "危险：{nodes}（正在学，但卡片很久没碰）",
+  "@cognitiveMetacognitionDanger": {
+    "placeholders": { "nodes": {} }
+  },
+  "cognitiveMetacognitionAnxiety": "低估：{nodes}（卡片还行，你却觉得不行）",
+  "@cognitiveMetacognitionAnxiety": {
+    "placeholders": { "nodes": {} }
+  },
+  "cognitiveMetacognitionNoRows": "这次没有一个知识点能被判断：每个知识点至少要有一张卡，而且这次诊断得跑起来。",
+  "cognitiveMetacognitionLevel": "没有一个知识点越过 0.2 的差距阈值：这次既没有危险，也没有低估。",
   "cognitiveSummary": "{cards} 张卡 · 模型 {model}",
   "cognitiveSummaryBands": "分组：{bands}",
   "cognitiveSummaryNumbers": "新卡 {newCards} 张 · 平均 R {meanR}",

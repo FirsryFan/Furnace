@@ -45,6 +45,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
 import '../../../domain/services/cognitive/library_diagnosis.dart';
+import '../../../domain/services/cognitive/metacognition.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
@@ -302,6 +303,7 @@ class CognitiveReadings {
     required this.scoreByCardStateId,
     required this.zoneByKnowledgePoint,
     this.fastLayerRan = false,
+    this.metacognition = MetacognitionReading.empty,
   });
 
   final String modelId;
@@ -321,6 +323,12 @@ class CognitiveReadings {
   /// every zone is [ReviewZone.unavailable] *because nothing was diagnosed* (no
   /// tag graph, or nothing to diffuse from) - not because the cards are healthy.
   final bool fastLayerRan;
+
+  /// The metacognition layer's read, when the tierB run produced one. Empty
+  /// (the default) means "not judged this run" - it is *not* a claim that
+  /// nothing is in danger, which is why the page draws the section only when
+  /// [fastLayerRan] is true.
+  final MetacognitionReading metacognition;
 
   int get cardCount => cards.length;
   int get newCount => cards.where((card) => card.isNew).length;
@@ -360,6 +368,7 @@ class CognitiveReadings {
         'nowHours': nowHours,
         'nowUtc': nowUtc.toUtc().toIso8601String(),
         'fastLayerRan': fastLayerRan,
+        'metacognition': metacognition.toJson(),
         'summary': {
           'cards': cardCount,
           'newCards': newCount,
@@ -407,6 +416,7 @@ CognitiveReadings assembleCognitiveReadings({
   Map<String, double> boostFactorByKnowledgePoint = const {},
   Map<String, BottleneckType>? diagnosisByKnowledgePoint,
   bool fastLayerRan = false,
+  MetacognitionReading metacognition = MetacognitionReading.empty,
 }) {
   final candidates = <ReviewCandidate>[
     for (final unit in units)
@@ -491,6 +501,7 @@ CognitiveReadings assembleCognitiveReadings({
     scoreByCardStateId: ordering.scoreByCardStateId,
     zoneByKnowledgePoint: ordering.zoneByKnowledgePoint,
     fastLayerRan: fastLayerRan,
+    metacognition: metacognition,
   );
 }
 
@@ -631,6 +642,7 @@ final cognitiveReadingsProvider =
     diagnosisByKnowledgePoint:
         diagnosis.fastLayerRan ? diagnosis.byKnowledgePoint : null,
     fastLayerRan: diagnosis.fastLayerRan,
+    metacognition: diagnosis.metacognition,
   );
 });
 
@@ -735,6 +747,8 @@ class CognitiveModelPage extends ConsumerWidget {
             const SizedBox(height: 8),
             const _OrphanRepairBanner(),
             _Summary(l10n: l10n, readings: data),
+            if (data.fastLayerRan)
+              _Metacognition(l10n: l10n, reading: data.metacognition),
             const SizedBox(height: 8),
             if (data.cards.isEmpty)
               Padding(
@@ -877,12 +891,106 @@ class _Notes extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _NoteRow(
-              icon: Icons.visibility_off_outlined,
+              icon: Icons.psychology_outlined,
               title: l10n.cognitiveZoneDanger,
-              detail: l10n.cognitiveNoDangerNote,
+              detail: l10n.cognitiveDangerNote,
               emphasis: theme.colorScheme.onSurfaceVariant,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The metacognition layer's read, shown as named lists rather than a chart.
+///
+/// This is the only block on the page that puts two different quantities side by
+/// side - what the model believes (belief) against what the cards can actually
+/// do (retrievability) - so a single number would hide the point. The names and
+/// the gap threshold come from [MetacognitionReading]; this widget rounds
+/// nothing and decides nothing.
+///
+/// It renders only when the tierB run happened, because danger and
+/// underestimation are statements *about a run*: without one there is nothing to
+/// compare, and drawing the empty list would read as "no problem".
+class _Metacognition extends StatelessWidget {
+  const _Metacognition({required this.l10n, required this.reading});
+
+  final AppLocalizations l10n;
+  final MetacognitionReading reading;
+
+  /// ' · ' rather than a locale comma: the same separator reads correctly in
+  /// both languages, so this widget does not have to branch on locale.
+  static String _names(List<MetacognitionRow> rows) =>
+      [for (final row in rows) row.name].join(' · ');
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subtle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.cognitiveMetacognitionTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(l10n.cognitiveMetacognitionDetail, style: subtle),
+              const SizedBox(height: 8),
+              if (!reading.hasRows)
+                Text(l10n.cognitiveMetacognitionNoRows, style: subtle)
+              else ...[
+                Text(
+                  l10n.cognitiveMetacognitionCalibration(
+                    reading.calibration.toStringAsFixed(3),
+                  ),
+                  style: subtle,
+                ),
+                if (reading.danger.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    l10n.cognitiveMetacognitionDanger(_names(reading.danger)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
+                if (reading.anxiety.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    l10n.cognitiveMetacognitionAnxiety(_names(reading.anxiety)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.tertiary,
+                    ),
+                  ),
+                ],
+                if (reading.danger.isEmpty && reading.anxiety.isEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(l10n.cognitiveMetacognitionLevel, style: subtle),
+                ],
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -3002,11 +3002,53 @@ abstract class AppLocalizations {
   /// **'It did not run this time: there are no tags, or no usable start and target, so every zone reads unavailable.'**
   String get cognitiveFastLayerNotRunDetail;
 
-  /// No description provided for @cognitiveNoDangerNote.
+  /// No description provided for @cognitiveDangerNote.
   ///
   /// In en, this message translates to:
-  /// **'\"Danger (confident but forgetting)\" needs metacognitive belief, and this app stores none, so it never appears.'**
-  String get cognitiveNoDangerNote;
+  /// **'\"Danger (confident but forgetting)\" is now computed by the metacognition layer: it appears only when a knowledge point is lit up on the tag graph this run while its cards have gone untouched for a long time. A knowledge point that is not listed is not therefore fine - it may simply not have been judged this time.'**
+  String get cognitiveDangerNote;
+
+  /// No description provided for @cognitiveMetacognitionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How the model reads you'**
+  String get cognitiveMetacognitionTitle;
+
+  /// No description provided for @cognitiveMetacognitionDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Compares how much the model believes in a node (belief, from fluency, encoding strength and recency) with how much its cards can actually still be recalled. The wider the gap, the more it is worth a look.'**
+  String get cognitiveMetacognitionDetail;
+
+  /// No description provided for @cognitiveMetacognitionCalibration.
+  ///
+  /// In en, this message translates to:
+  /// **'mean gap {gap} (smaller is better; the weights are uncalibrated, so this is for reference)'**
+  String cognitiveMetacognitionCalibration(Object gap);
+
+  /// No description provided for @cognitiveMetacognitionDanger.
+  ///
+  /// In en, this message translates to:
+  /// **'danger: {nodes} (being studied, but the cards are long untouched)'**
+  String cognitiveMetacognitionDanger(Object nodes);
+
+  /// No description provided for @cognitiveMetacognitionAnxiety.
+  ///
+  /// In en, this message translates to:
+  /// **'underrated: {nodes} (the cards are fine; you feel they are not)'**
+  String cognitiveMetacognitionAnxiety(Object nodes);
+
+  /// No description provided for @cognitiveMetacognitionNoRows.
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge point could be judged this time: each one needs at least one card, and the diagnosis has to have run.'**
+  String get cognitiveMetacognitionNoRows;
+
+  /// No description provided for @cognitiveMetacognitionLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge point crossed the 0.2 gap threshold: nothing is in danger or underrated this run.'**
+  String get cognitiveMetacognitionLevel;
 
   /// No description provided for @cognitiveSummary.
   ///
