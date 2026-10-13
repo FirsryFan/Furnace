@@ -357,6 +357,24 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> aiPermissionMode = GeneratedColumn<String>(
       'ai_permission_mode', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiMaxRoundsMeta =
+      const VerificationMeta('aiMaxRounds');
+  @override
+  late final GeneratedColumn<int> aiMaxRounds = GeneratedColumn<int>(
+      'ai_max_rounds', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _ankiJudgeModeMeta =
+      const VerificationMeta('ankiJudgeMode');
+  @override
+  late final GeneratedColumn<String> ankiJudgeMode = GeneratedColumn<String>(
+      'anki_judge_mode', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ankiCardTypePreferenceMeta =
+      const VerificationMeta('ankiCardTypePreference');
+  @override
+  late final GeneratedColumn<String> ankiCardTypePreference =
+      GeneratedColumn<String>('anki_card_type_preference', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -381,6 +399,9 @@ class $LocalSettingsTable extends LocalSettings
         aiBaseUrl,
         aiModel,
         aiPermissionMode,
+        aiMaxRounds,
+        ankiJudgeMode,
+        ankiCardTypePreference,
         createdAt,
         updatedAt
       ];
@@ -439,6 +460,24 @@ class $LocalSettingsTable extends LocalSettings
           aiPermissionMode.isAcceptableOrUnknown(
               data['ai_permission_mode']!, _aiPermissionModeMeta));
     }
+    if (data.containsKey('ai_max_rounds')) {
+      context.handle(
+          _aiMaxRoundsMeta,
+          aiMaxRounds.isAcceptableOrUnknown(
+              data['ai_max_rounds']!, _aiMaxRoundsMeta));
+    }
+    if (data.containsKey('anki_judge_mode')) {
+      context.handle(
+          _ankiJudgeModeMeta,
+          ankiJudgeMode.isAcceptableOrUnknown(
+              data['anki_judge_mode']!, _ankiJudgeModeMeta));
+    }
+    if (data.containsKey('anki_card_type_preference')) {
+      context.handle(
+          _ankiCardTypePreferenceMeta,
+          ankiCardTypePreference.isAcceptableOrUnknown(
+              data['anki_card_type_preference']!, _ankiCardTypePreferenceMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -480,6 +519,13 @@ class $LocalSettingsTable extends LocalSettings
           .read(DriftSqlType.string, data['${effectivePrefix}ai_model']),
       aiPermissionMode: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}ai_permission_mode']),
+      aiMaxRounds: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ai_max_rounds']),
+      ankiJudgeMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}anki_judge_mode']),
+      ankiCardTypePreference: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}anki_card_type_preference']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -520,6 +566,31 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
 
   /// `plan` | `auto` (see AI_DESIGN D12 v2).
   final String? aiPermissionMode;
+
+  /// v7: ceiling on model round-trips per user message - the agent loop's
+  /// tool-call budget.
+  ///
+  /// NULL means "the user never chose", which the app reads as its shipped
+  /// default rather than writing a value during the migration: an upgraded row
+  /// must keep the behaviour it had before this setting existed.
+  final int? aiMaxRounds;
+
+  /// Default judging mode for a new answer: `strict` | `lenient` | `self`.
+  ///
+  /// These are the same words the practice screen's per-answer control uses, and
+  /// the value only decides what that control starts as - the user can still
+  /// judge any single answer differently while answering.
+  ///
+  /// NULL means [JudgeModePreference.strict], i.e. exact character comparison,
+  /// which is the behaviour this app had before the setting existed.
+  final String? ankiJudgeMode;
+
+  /// Card type the automatic generation paths should write:
+  /// `mixed` | `fill_blank` | `mcq` | `essay`.
+  ///
+  /// NULL means `mixed`, which resolves to the fill-blank fallback: exactly the
+  /// card every generator produced before the preference existed.
+  final String? ankiCardTypePreference;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -533,6 +604,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.aiBaseUrl,
       this.aiModel,
       this.aiPermissionMode,
+      this.aiMaxRounds,
+      this.ankiJudgeMode,
+      this.ankiCardTypePreference,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -559,6 +633,16 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || aiPermissionMode != null) {
       map['ai_permission_mode'] = Variable<String>(aiPermissionMode);
+    }
+    if (!nullToAbsent || aiMaxRounds != null) {
+      map['ai_max_rounds'] = Variable<int>(aiMaxRounds);
+    }
+    if (!nullToAbsent || ankiJudgeMode != null) {
+      map['anki_judge_mode'] = Variable<String>(ankiJudgeMode);
+    }
+    if (!nullToAbsent || ankiCardTypePreference != null) {
+      map['anki_card_type_preference'] =
+          Variable<String>(ankiCardTypePreference);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -589,6 +673,15 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiPermissionMode: aiPermissionMode == null && nullToAbsent
           ? const Value.absent()
           : Value(aiPermissionMode),
+      aiMaxRounds: aiMaxRounds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiMaxRounds),
+      ankiJudgeMode: ankiJudgeMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ankiJudgeMode),
+      ankiCardTypePreference: ankiCardTypePreference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ankiCardTypePreference),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -608,6 +701,10 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiBaseUrl: serializer.fromJson<String?>(json['aiBaseUrl']),
       aiModel: serializer.fromJson<String?>(json['aiModel']),
       aiPermissionMode: serializer.fromJson<String?>(json['aiPermissionMode']),
+      aiMaxRounds: serializer.fromJson<int?>(json['aiMaxRounds']),
+      ankiJudgeMode: serializer.fromJson<String?>(json['ankiJudgeMode']),
+      ankiCardTypePreference:
+          serializer.fromJson<String?>(json['ankiCardTypePreference']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -626,6 +723,10 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'aiBaseUrl': serializer.toJson<String?>(aiBaseUrl),
       'aiModel': serializer.toJson<String?>(aiModel),
       'aiPermissionMode': serializer.toJson<String?>(aiPermissionMode),
+      'aiMaxRounds': serializer.toJson<int?>(aiMaxRounds),
+      'ankiJudgeMode': serializer.toJson<String?>(ankiJudgeMode),
+      'ankiCardTypePreference':
+          serializer.toJson<String?>(ankiCardTypePreference),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -642,6 +743,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> aiBaseUrl = const Value.absent(),
           Value<String?> aiModel = const Value.absent(),
           Value<String?> aiPermissionMode = const Value.absent(),
+          Value<int?> aiMaxRounds = const Value.absent(),
+          Value<String?> ankiJudgeMode = const Value.absent(),
+          Value<String?> ankiCardTypePreference = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -658,6 +762,12 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         aiPermissionMode: aiPermissionMode.present
             ? aiPermissionMode.value
             : this.aiPermissionMode,
+        aiMaxRounds: aiMaxRounds.present ? aiMaxRounds.value : this.aiMaxRounds,
+        ankiJudgeMode:
+            ankiJudgeMode.present ? ankiJudgeMode.value : this.ankiJudgeMode,
+        ankiCardTypePreference: ankiCardTypePreference.present
+            ? ankiCardTypePreference.value
+            : this.ankiCardTypePreference,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -677,6 +787,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiPermissionMode: data.aiPermissionMode.present
           ? data.aiPermissionMode.value
           : this.aiPermissionMode,
+      aiMaxRounds:
+          data.aiMaxRounds.present ? data.aiMaxRounds.value : this.aiMaxRounds,
+      ankiJudgeMode: data.ankiJudgeMode.present
+          ? data.ankiJudgeMode.value
+          : this.ankiJudgeMode,
+      ankiCardTypePreference: data.ankiCardTypePreference.present
+          ? data.ankiCardTypePreference.value
+          : this.ankiCardTypePreference,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -695,6 +813,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('aiBaseUrl: $aiBaseUrl, ')
           ..write('aiModel: $aiModel, ')
           ..write('aiPermissionMode: $aiPermissionMode, ')
+          ..write('aiMaxRounds: $aiMaxRounds, ')
+          ..write('ankiJudgeMode: $ankiJudgeMode, ')
+          ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -713,6 +834,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiBaseUrl,
       aiModel,
       aiPermissionMode,
+      aiMaxRounds,
+      ankiJudgeMode,
+      ankiCardTypePreference,
       createdAt,
       updatedAt);
   @override
@@ -729,6 +853,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.aiBaseUrl == this.aiBaseUrl &&
           other.aiModel == this.aiModel &&
           other.aiPermissionMode == this.aiPermissionMode &&
+          other.aiMaxRounds == this.aiMaxRounds &&
+          other.ankiJudgeMode == this.ankiJudgeMode &&
+          other.ankiCardTypePreference == this.ankiCardTypePreference &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -744,6 +871,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> aiBaseUrl;
   final Value<String?> aiModel;
   final Value<String?> aiPermissionMode;
+  final Value<int?> aiMaxRounds;
+  final Value<String?> ankiJudgeMode;
+  final Value<String?> ankiCardTypePreference;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -757,6 +887,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiBaseUrl = const Value.absent(),
     this.aiModel = const Value.absent(),
     this.aiPermissionMode = const Value.absent(),
+    this.aiMaxRounds = const Value.absent(),
+    this.ankiJudgeMode = const Value.absent(),
+    this.ankiCardTypePreference = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -771,6 +904,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiBaseUrl = const Value.absent(),
     this.aiModel = const Value.absent(),
     this.aiPermissionMode = const Value.absent(),
+    this.aiMaxRounds = const Value.absent(),
+    this.ankiJudgeMode = const Value.absent(),
+    this.ankiCardTypePreference = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -786,6 +922,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? aiBaseUrl,
     Expression<String>? aiModel,
     Expression<String>? aiPermissionMode,
+    Expression<int>? aiMaxRounds,
+    Expression<String>? ankiJudgeMode,
+    Expression<String>? ankiCardTypePreference,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -800,6 +939,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (aiBaseUrl != null) 'ai_base_url': aiBaseUrl,
       if (aiModel != null) 'ai_model': aiModel,
       if (aiPermissionMode != null) 'ai_permission_mode': aiPermissionMode,
+      if (aiMaxRounds != null) 'ai_max_rounds': aiMaxRounds,
+      if (ankiJudgeMode != null) 'anki_judge_mode': ankiJudgeMode,
+      if (ankiCardTypePreference != null)
+        'anki_card_type_preference': ankiCardTypePreference,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -816,6 +959,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? aiBaseUrl,
       Value<String?>? aiModel,
       Value<String?>? aiPermissionMode,
+      Value<int?>? aiMaxRounds,
+      Value<String?>? ankiJudgeMode,
+      Value<String?>? ankiCardTypePreference,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -829,6 +975,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       aiBaseUrl: aiBaseUrl ?? this.aiBaseUrl,
       aiModel: aiModel ?? this.aiModel,
       aiPermissionMode: aiPermissionMode ?? this.aiPermissionMode,
+      aiMaxRounds: aiMaxRounds ?? this.aiMaxRounds,
+      ankiJudgeMode: ankiJudgeMode ?? this.ankiJudgeMode,
+      ankiCardTypePreference:
+          ankiCardTypePreference ?? this.ankiCardTypePreference,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -867,6 +1017,16 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (aiPermissionMode.present) {
       map['ai_permission_mode'] = Variable<String>(aiPermissionMode.value);
     }
+    if (aiMaxRounds.present) {
+      map['ai_max_rounds'] = Variable<int>(aiMaxRounds.value);
+    }
+    if (ankiJudgeMode.present) {
+      map['anki_judge_mode'] = Variable<String>(ankiJudgeMode.value);
+    }
+    if (ankiCardTypePreference.present) {
+      map['anki_card_type_preference'] =
+          Variable<String>(ankiCardTypePreference.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -889,6 +1049,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('aiBaseUrl: $aiBaseUrl, ')
           ..write('aiModel: $aiModel, ')
           ..write('aiPermissionMode: $aiPermissionMode, ')
+          ..write('aiMaxRounds: $aiMaxRounds, ')
+          ..write('ankiJudgeMode: $ankiJudgeMode, ')
+          ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -6553,6 +6716,21 @@ class $ReviewLogsTable extends ReviewLogs
   late final GeneratedColumn<int> msTaken = GeneratedColumn<int>(
       'ms_taken', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _reviewedSolutionMeta =
+      const VerificationMeta('reviewedSolution');
+  @override
+  late final GeneratedColumn<bool> reviewedSolution = GeneratedColumn<bool>(
+      'reviewed_solution', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("reviewed_solution" IN (0, 1))'));
+  static const VerificationMeta _closenessMeta =
+      const VerificationMeta('closeness');
+  @override
+  late final GeneratedColumn<double> closeness = GeneratedColumn<double>(
+      'closeness', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _reviewedAtMeta =
       const VerificationMeta('reviewedAt');
   @override
@@ -6577,6 +6755,8 @@ class $ReviewLogsTable extends ReviewLogs
         judgeMode,
         format,
         msTaken,
+        reviewedSolution,
+        closeness,
         reviewedAt,
         createdAt
       ];
@@ -6641,6 +6821,16 @@ class $ReviewLogsTable extends ReviewLogs
       context.handle(_msTakenMeta,
           msTaken.isAcceptableOrUnknown(data['ms_taken']!, _msTakenMeta));
     }
+    if (data.containsKey('reviewed_solution')) {
+      context.handle(
+          _reviewedSolutionMeta,
+          reviewedSolution.isAcceptableOrUnknown(
+              data['reviewed_solution']!, _reviewedSolutionMeta));
+    }
+    if (data.containsKey('closeness')) {
+      context.handle(_closenessMeta,
+          closeness.isAcceptableOrUnknown(data['closeness']!, _closenessMeta));
+    }
     if (data.containsKey('reviewed_at')) {
       context.handle(
           _reviewedAtMeta,
@@ -6684,6 +6874,10 @@ class $ReviewLogsTable extends ReviewLogs
           .read(DriftSqlType.string, data['${effectivePrefix}format']),
       msTaken: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}ms_taken']),
+      reviewedSolution: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}reviewed_solution']),
+      closeness: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}closeness']),
       reviewedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}reviewed_at'])!,
       createdAt: attachedDatabase.typeMapping
@@ -6722,6 +6916,26 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
 
   /// v2 answer time in ms.
   final int? msTaken;
+
+  /// v9: did the user read the expected answer/solution after a failed recall?
+  ///
+  /// This is MindNet's `reviewed_solution` (`docs/IO_PROTOCOL.md` §2.3): the
+  /// same wrong answer is two different events depending on it - a bare miss
+  /// (`lapse`, S drops) or a learning event (`retrieval_failure_feedback`,
+  /// whose S gain grows with [closeness]). NULL means "not asked or not
+  /// applicable" (every right answer, and rows written before v9), never
+  /// "false by default": the two paths must stay distinguishable after the
+  /// fact instead of being silently flattened into one.
+  final bool? reviewedSolution;
+
+  /// v9: how close the failed recall was, in `(0, 1)`, when
+  /// [reviewedSolution] is true.
+  ///
+  /// MindNet's `closeness = x_v / C_v` (`docs/MODEL_v2_MATH.md` §3): the
+  /// stability gain of a failure-feedback event is multiplied by exactly this
+  /// number, so it is stored verbatim rather than folded into a boolean.
+  /// NULL whenever the event was not a failure-feedback one.
+  final double? closeness;
   final int reviewedAt;
   final int createdAt;
   const ReviewLog(
@@ -6735,6 +6949,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       this.judgeMode,
       this.format,
       this.msTaken,
+      this.reviewedSolution,
+      this.closeness,
       required this.reviewedAt,
       required this.createdAt});
   @override
@@ -6763,6 +6979,12 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
     }
     if (!nullToAbsent || msTaken != null) {
       map['ms_taken'] = Variable<int>(msTaken);
+    }
+    if (!nullToAbsent || reviewedSolution != null) {
+      map['reviewed_solution'] = Variable<bool>(reviewedSolution);
+    }
+    if (!nullToAbsent || closeness != null) {
+      map['closeness'] = Variable<double>(closeness);
     }
     map['reviewed_at'] = Variable<int>(reviewedAt);
     map['created_at'] = Variable<int>(createdAt);
@@ -6794,6 +7016,12 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       msTaken: msTaken == null && nullToAbsent
           ? const Value.absent()
           : Value(msTaken),
+      reviewedSolution: reviewedSolution == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewedSolution),
+      closeness: closeness == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closeness),
       reviewedAt: Value(reviewedAt),
       createdAt: Value(createdAt),
     );
@@ -6813,6 +7041,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       judgeMode: serializer.fromJson<String?>(json['judgeMode']),
       format: serializer.fromJson<String?>(json['format']),
       msTaken: serializer.fromJson<int?>(json['msTaken']),
+      reviewedSolution: serializer.fromJson<bool?>(json['reviewedSolution']),
+      closeness: serializer.fromJson<double?>(json['closeness']),
       reviewedAt: serializer.fromJson<int>(json['reviewedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
@@ -6831,6 +7061,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       'judgeMode': serializer.toJson<String?>(judgeMode),
       'format': serializer.toJson<String?>(format),
       'msTaken': serializer.toJson<int?>(msTaken),
+      'reviewedSolution': serializer.toJson<bool?>(reviewedSolution),
+      'closeness': serializer.toJson<double?>(closeness),
       'reviewedAt': serializer.toJson<int>(reviewedAt),
       'createdAt': serializer.toJson<int>(createdAt),
     };
@@ -6847,6 +7079,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           Value<String?> judgeMode = const Value.absent(),
           Value<String?> format = const Value.absent(),
           Value<int?> msTaken = const Value.absent(),
+          Value<bool?> reviewedSolution = const Value.absent(),
+          Value<double?> closeness = const Value.absent(),
           int? reviewedAt,
           int? createdAt}) =>
       ReviewLog(
@@ -6861,6 +7095,10 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
         judgeMode: judgeMode.present ? judgeMode.value : this.judgeMode,
         format: format.present ? format.value : this.format,
         msTaken: msTaken.present ? msTaken.value : this.msTaken,
+        reviewedSolution: reviewedSolution.present
+            ? reviewedSolution.value
+            : this.reviewedSolution,
+        closeness: closeness.present ? closeness.value : this.closeness,
         reviewedAt: reviewedAt ?? this.reviewedAt,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -6880,6 +7118,10 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       judgeMode: data.judgeMode.present ? data.judgeMode.value : this.judgeMode,
       format: data.format.present ? data.format.value : this.format,
       msTaken: data.msTaken.present ? data.msTaken.value : this.msTaken,
+      reviewedSolution: data.reviewedSolution.present
+          ? data.reviewedSolution.value
+          : this.reviewedSolution,
+      closeness: data.closeness.present ? data.closeness.value : this.closeness,
       reviewedAt:
           data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -6899,6 +7141,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           ..write('judgeMode: $judgeMode, ')
           ..write('format: $format, ')
           ..write('msTaken: $msTaken, ')
+          ..write('reviewedSolution: $reviewedSolution, ')
+          ..write('closeness: $closeness, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -6917,6 +7161,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       judgeMode,
       format,
       msTaken,
+      reviewedSolution,
+      closeness,
       reviewedAt,
       createdAt);
   @override
@@ -6933,6 +7179,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           other.judgeMode == this.judgeMode &&
           other.format == this.format &&
           other.msTaken == this.msTaken &&
+          other.reviewedSolution == this.reviewedSolution &&
+          other.closeness == this.closeness &&
           other.reviewedAt == this.reviewedAt &&
           other.createdAt == this.createdAt);
 }
@@ -6948,6 +7196,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
   final Value<String?> judgeMode;
   final Value<String?> format;
   final Value<int?> msTaken;
+  final Value<bool?> reviewedSolution;
+  final Value<double?> closeness;
   final Value<int> reviewedAt;
   final Value<int> createdAt;
   final Value<int> rowid;
@@ -6962,6 +7212,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     this.judgeMode = const Value.absent(),
     this.format = const Value.absent(),
     this.msTaken = const Value.absent(),
+    this.reviewedSolution = const Value.absent(),
+    this.closeness = const Value.absent(),
     this.reviewedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6977,6 +7229,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     this.judgeMode = const Value.absent(),
     this.format = const Value.absent(),
     this.msTaken = const Value.absent(),
+    this.reviewedSolution = const Value.absent(),
+    this.closeness = const Value.absent(),
     required int reviewedAt,
     required int createdAt,
     this.rowid = const Value.absent(),
@@ -6996,6 +7250,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     Expression<String>? judgeMode,
     Expression<String>? format,
     Expression<int>? msTaken,
+    Expression<bool>? reviewedSolution,
+    Expression<double>? closeness,
     Expression<int>? reviewedAt,
     Expression<int>? createdAt,
     Expression<int>? rowid,
@@ -7011,6 +7267,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       if (judgeMode != null) 'judge_mode': judgeMode,
       if (format != null) 'format': format,
       if (msTaken != null) 'ms_taken': msTaken,
+      if (reviewedSolution != null) 'reviewed_solution': reviewedSolution,
+      if (closeness != null) 'closeness': closeness,
       if (reviewedAt != null) 'reviewed_at': reviewedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -7028,6 +7286,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       Value<String?>? judgeMode,
       Value<String?>? format,
       Value<int?>? msTaken,
+      Value<bool?>? reviewedSolution,
+      Value<double?>? closeness,
       Value<int>? reviewedAt,
       Value<int>? createdAt,
       Value<int>? rowid}) {
@@ -7042,6 +7302,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       judgeMode: judgeMode ?? this.judgeMode,
       format: format ?? this.format,
       msTaken: msTaken ?? this.msTaken,
+      reviewedSolution: reviewedSolution ?? this.reviewedSolution,
+      closeness: closeness ?? this.closeness,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -7081,6 +7343,12 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     if (msTaken.present) {
       map['ms_taken'] = Variable<int>(msTaken.value);
     }
+    if (reviewedSolution.present) {
+      map['reviewed_solution'] = Variable<bool>(reviewedSolution.value);
+    }
+    if (closeness.present) {
+      map['closeness'] = Variable<double>(closeness.value);
+    }
     if (reviewedAt.present) {
       map['reviewed_at'] = Variable<int>(reviewedAt.value);
     }
@@ -7106,6 +7374,8 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
           ..write('judgeMode: $judgeMode, ')
           ..write('format: $format, ')
           ..write('msTaken: $msTaken, ')
+          ..write('reviewedSolution: $reviewedSolution, ')
+          ..write('closeness: $closeness, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -14405,6 +14675,378 @@ class AiActionsCompanion extends UpdateCompanion<AiAction> {
   }
 }
 
+class $ReviewGroupPlansTable extends ReviewGroupPlans
+    with TableInfo<$ReviewGroupPlansTable, ReviewGroupPlan> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewGroupPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+      'tag_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _newCardsPerDayMeta =
+      const VerificationMeta('newCardsPerDay');
+  @override
+  late final GeneratedColumn<int> newCardsPerDay = GeneratedColumn<int>(
+      'new_cards_per_day', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _reviewCardsPerDayMeta =
+      const VerificationMeta('reviewCardsPerDay');
+  @override
+  late final GeneratedColumn<int> reviewCardsPerDay = GeneratedColumn<int>(
+      'review_cards_per_day', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, tagId, newCardsPerDay, reviewCardsPerDay, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_group_plans';
+  @override
+  VerificationContext validateIntegrity(Insertable<ReviewGroupPlan> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tag_id')) {
+      context.handle(
+          _tagIdMeta, tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta));
+    } else if (isInserting) {
+      context.missing(_tagIdMeta);
+    }
+    if (data.containsKey('new_cards_per_day')) {
+      context.handle(
+          _newCardsPerDayMeta,
+          newCardsPerDay.isAcceptableOrUnknown(
+              data['new_cards_per_day']!, _newCardsPerDayMeta));
+    }
+    if (data.containsKey('review_cards_per_day')) {
+      context.handle(
+          _reviewCardsPerDayMeta,
+          reviewCardsPerDay.isAcceptableOrUnknown(
+              data['review_cards_per_day']!, _reviewCardsPerDayMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {tagId},
+      ];
+  @override
+  ReviewGroupPlan map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewGroupPlan(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tagId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tag_id'])!,
+      newCardsPerDay: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}new_cards_per_day'])!,
+      reviewCardsPerDay: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}review_cards_per_day'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ReviewGroupPlansTable createAlias(String alias) {
+    return $ReviewGroupPlansTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
+  final String id;
+
+  /// The group's tag. Keyed by tag *id*, never by path: `TagRepository` rewrites
+  /// every descendant's `path` in cascade on rename/move, so a plan keyed by
+  /// path would silently point at a different (or no) group after a rename.
+  /// `deleteTag` removes the whole subtree, so the cascade here is what keeps
+  /// plans from outliving their group.
+  final String tagId;
+
+  /// New cards allowed per day. 0 means "no new cards from this group today".
+  ///
+  /// The column is NOT NULL with a 0 default so a freshly created row always has
+  /// a number to enforce; "never configured" is the absence of the row, not a
+  /// NULL inside it.
+  final int newCardsPerDay;
+
+  /// Reviews allowed per day. 0 means unlimited - see
+  /// `ReviewGroupPlan.isReviewCapped`, which also spells out why 0 cannot mean
+  /// "no reviews" in this schema.
+  final int reviewCardsPerDay;
+  final int createdAt;
+  final int updatedAt;
+  const ReviewGroupPlan(
+      {required this.id,
+      required this.tagId,
+      required this.newCardsPerDay,
+      required this.reviewCardsPerDay,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tag_id'] = Variable<String>(tagId);
+    map['new_cards_per_day'] = Variable<int>(newCardsPerDay);
+    map['review_cards_per_day'] = Variable<int>(reviewCardsPerDay);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ReviewGroupPlansCompanion toCompanion(bool nullToAbsent) {
+    return ReviewGroupPlansCompanion(
+      id: Value(id),
+      tagId: Value(tagId),
+      newCardsPerDay: Value(newCardsPerDay),
+      reviewCardsPerDay: Value(reviewCardsPerDay),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReviewGroupPlan.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewGroupPlan(
+      id: serializer.fromJson<String>(json['id']),
+      tagId: serializer.fromJson<String>(json['tagId']),
+      newCardsPerDay: serializer.fromJson<int>(json['newCardsPerDay']),
+      reviewCardsPerDay: serializer.fromJson<int>(json['reviewCardsPerDay']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tagId': serializer.toJson<String>(tagId),
+      'newCardsPerDay': serializer.toJson<int>(newCardsPerDay),
+      'reviewCardsPerDay': serializer.toJson<int>(reviewCardsPerDay),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ReviewGroupPlan copyWith(
+          {String? id,
+          String? tagId,
+          int? newCardsPerDay,
+          int? reviewCardsPerDay,
+          int? createdAt,
+          int? updatedAt}) =>
+      ReviewGroupPlan(
+        id: id ?? this.id,
+        tagId: tagId ?? this.tagId,
+        newCardsPerDay: newCardsPerDay ?? this.newCardsPerDay,
+        reviewCardsPerDay: reviewCardsPerDay ?? this.reviewCardsPerDay,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ReviewGroupPlan copyWithCompanion(ReviewGroupPlansCompanion data) {
+    return ReviewGroupPlan(
+      id: data.id.present ? data.id.value : this.id,
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      newCardsPerDay: data.newCardsPerDay.present
+          ? data.newCardsPerDay.value
+          : this.newCardsPerDay,
+      reviewCardsPerDay: data.reviewCardsPerDay.present
+          ? data.reviewCardsPerDay.value
+          : this.reviewCardsPerDay,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewGroupPlan(')
+          ..write('id: $id, ')
+          ..write('tagId: $tagId, ')
+          ..write('newCardsPerDay: $newCardsPerDay, ')
+          ..write('reviewCardsPerDay: $reviewCardsPerDay, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, tagId, newCardsPerDay, reviewCardsPerDay, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewGroupPlan &&
+          other.id == this.id &&
+          other.tagId == this.tagId &&
+          other.newCardsPerDay == this.newCardsPerDay &&
+          other.reviewCardsPerDay == this.reviewCardsPerDay &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
+  final Value<String> id;
+  final Value<String> tagId;
+  final Value<int> newCardsPerDay;
+  final Value<int> reviewCardsPerDay;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const ReviewGroupPlansCompanion({
+    this.id = const Value.absent(),
+    this.tagId = const Value.absent(),
+    this.newCardsPerDay = const Value.absent(),
+    this.reviewCardsPerDay = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewGroupPlansCompanion.insert({
+    required String id,
+    required String tagId,
+    this.newCardsPerDay = const Value.absent(),
+    this.reviewCardsPerDay = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tagId = Value(tagId),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ReviewGroupPlan> custom({
+    Expression<String>? id,
+    Expression<String>? tagId,
+    Expression<int>? newCardsPerDay,
+    Expression<int>? reviewCardsPerDay,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tagId != null) 'tag_id': tagId,
+      if (newCardsPerDay != null) 'new_cards_per_day': newCardsPerDay,
+      if (reviewCardsPerDay != null) 'review_cards_per_day': reviewCardsPerDay,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewGroupPlansCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tagId,
+      Value<int>? newCardsPerDay,
+      Value<int>? reviewCardsPerDay,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return ReviewGroupPlansCompanion(
+      id: id ?? this.id,
+      tagId: tagId ?? this.tagId,
+      newCardsPerDay: newCardsPerDay ?? this.newCardsPerDay,
+      reviewCardsPerDay: reviewCardsPerDay ?? this.reviewCardsPerDay,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
+    }
+    if (newCardsPerDay.present) {
+      map['new_cards_per_day'] = Variable<int>(newCardsPerDay.value);
+    }
+    if (reviewCardsPerDay.present) {
+      map['review_cards_per_day'] = Variable<int>(reviewCardsPerDay.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewGroupPlansCompanion(')
+          ..write('id: $id, ')
+          ..write('tagId: $tagId, ')
+          ..write('newCardsPerDay: $newCardsPerDay, ')
+          ..write('reviewCardsPerDay: $reviewCardsPerDay, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -14445,6 +15087,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AiConversationsTable(this);
   late final $AiMessagesTable aiMessages = $AiMessagesTable(this);
   late final $AiActionsTable aiActions = $AiActionsTable(this);
+  late final $ReviewGroupPlansTable reviewGroupPlans =
+      $ReviewGroupPlansTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14480,7 +15124,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         timeViewSettings,
         aiConversations,
         aiMessages,
-        aiActions
+        aiActions,
+        reviewGroupPlans
       ];
 }
 
@@ -14646,6 +15291,9 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> aiBaseUrl,
   Value<String?> aiModel,
   Value<String?> aiPermissionMode,
+  Value<int?> aiMaxRounds,
+  Value<String?> ankiJudgeMode,
+  Value<String?> ankiCardTypePreference,
   required int createdAt,
   required int updatedAt,
 });
@@ -14661,6 +15309,9 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> aiBaseUrl,
   Value<String?> aiModel,
   Value<String?> aiPermissionMode,
+  Value<int?> aiMaxRounds,
+  Value<String?> ankiJudgeMode,
+  Value<String?> ankiCardTypePreference,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -14703,6 +15354,16 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get aiPermissionMode => $composableBuilder(
       column: $table.aiPermissionMode,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get aiMaxRounds => $composableBuilder(
+      column: $table.aiMaxRounds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ankiJudgeMode => $composableBuilder(
+      column: $table.ankiJudgeMode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ankiCardTypePreference => $composableBuilder(
+      column: $table.ankiCardTypePreference,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
@@ -14753,6 +15414,17 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.aiPermissionMode,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get aiMaxRounds => $composableBuilder(
+      column: $table.aiMaxRounds, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ankiJudgeMode => $composableBuilder(
+      column: $table.ankiJudgeMode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ankiCardTypePreference => $composableBuilder(
+      column: $table.ankiCardTypePreference,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -14799,6 +15471,15 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get aiPermissionMode => $composableBuilder(
       column: $table.aiPermissionMode, builder: (column) => column);
 
+  GeneratedColumn<int> get aiMaxRounds => $composableBuilder(
+      column: $table.aiMaxRounds, builder: (column) => column);
+
+  GeneratedColumn<String> get ankiJudgeMode => $composableBuilder(
+      column: $table.ankiJudgeMode, builder: (column) => column);
+
+  GeneratedColumn<String> get ankiCardTypePreference => $composableBuilder(
+      column: $table.ankiCardTypePreference, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -14842,6 +15523,9 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> aiBaseUrl = const Value.absent(),
             Value<String?> aiModel = const Value.absent(),
             Value<String?> aiPermissionMode = const Value.absent(),
+            Value<int?> aiMaxRounds = const Value.absent(),
+            Value<String?> ankiJudgeMode = const Value.absent(),
+            Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -14856,6 +15540,9 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiBaseUrl: aiBaseUrl,
             aiModel: aiModel,
             aiPermissionMode: aiPermissionMode,
+            aiMaxRounds: aiMaxRounds,
+            ankiJudgeMode: ankiJudgeMode,
+            ankiCardTypePreference: ankiCardTypePreference,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -14870,6 +15557,9 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> aiBaseUrl = const Value.absent(),
             Value<String?> aiModel = const Value.absent(),
             Value<String?> aiPermissionMode = const Value.absent(),
+            Value<int?> aiMaxRounds = const Value.absent(),
+            Value<String?> ankiJudgeMode = const Value.absent(),
+            Value<String?> ankiCardTypePreference = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -14884,6 +15574,9 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiBaseUrl: aiBaseUrl,
             aiModel: aiModel,
             aiPermissionMode: aiPermissionMode,
+            aiMaxRounds: aiMaxRounds,
+            ankiJudgeMode: ankiJudgeMode,
+            ankiCardTypePreference: ankiCardTypePreference,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -17554,6 +18247,8 @@ typedef $$ReviewLogsTableCreateCompanionBuilder = ReviewLogsCompanion Function({
   Value<String?> judgeMode,
   Value<String?> format,
   Value<int?> msTaken,
+  Value<bool?> reviewedSolution,
+  Value<double?> closeness,
   required int reviewedAt,
   required int createdAt,
   Value<int> rowid,
@@ -17569,6 +18264,8 @@ typedef $$ReviewLogsTableUpdateCompanionBuilder = ReviewLogsCompanion Function({
   Value<String?> judgeMode,
   Value<String?> format,
   Value<int?> msTaken,
+  Value<bool?> reviewedSolution,
+  Value<double?> closeness,
   Value<int> reviewedAt,
   Value<int> createdAt,
   Value<int> rowid,
@@ -17613,6 +18310,13 @@ class $$ReviewLogsTableFilterComposer
 
   ColumnFilters<int> get msTaken => $composableBuilder(
       column: $table.msTaken, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get reviewedSolution => $composableBuilder(
+      column: $table.reviewedSolution,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get closeness => $composableBuilder(
+      column: $table.closeness, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => ColumnFilters(column));
@@ -17661,6 +18365,13 @@ class $$ReviewLogsTableOrderingComposer
   ColumnOrderings<int> get msTaken => $composableBuilder(
       column: $table.msTaken, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get reviewedSolution => $composableBuilder(
+      column: $table.reviewedSolution,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get closeness => $composableBuilder(
+      column: $table.closeness, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => ColumnOrderings(column));
 
@@ -17707,6 +18418,12 @@ class $$ReviewLogsTableAnnotationComposer
   GeneratedColumn<int> get msTaken =>
       $composableBuilder(column: $table.msTaken, builder: (column) => column);
 
+  GeneratedColumn<bool> get reviewedSolution => $composableBuilder(
+      column: $table.reviewedSolution, builder: (column) => column);
+
+  GeneratedColumn<double> get closeness =>
+      $composableBuilder(column: $table.closeness, builder: (column) => column);
+
   GeneratedColumn<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => column);
 
@@ -17747,6 +18464,8 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             Value<String?> judgeMode = const Value.absent(),
             Value<String?> format = const Value.absent(),
             Value<int?> msTaken = const Value.absent(),
+            Value<bool?> reviewedSolution = const Value.absent(),
+            Value<double?> closeness = const Value.absent(),
             Value<int> reviewedAt = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -17762,6 +18481,8 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             judgeMode: judgeMode,
             format: format,
             msTaken: msTaken,
+            reviewedSolution: reviewedSolution,
+            closeness: closeness,
             reviewedAt: reviewedAt,
             createdAt: createdAt,
             rowid: rowid,
@@ -17777,6 +18498,8 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             Value<String?> judgeMode = const Value.absent(),
             Value<String?> format = const Value.absent(),
             Value<int?> msTaken = const Value.absent(),
+            Value<bool?> reviewedSolution = const Value.absent(),
+            Value<double?> closeness = const Value.absent(),
             required int reviewedAt,
             required int createdAt,
             Value<int> rowid = const Value.absent(),
@@ -17792,6 +18515,8 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             judgeMode: judgeMode,
             format: format,
             msTaken: msTaken,
+            reviewedSolution: reviewedSolution,
+            closeness: closeness,
             reviewedAt: reviewedAt,
             createdAt: createdAt,
             rowid: rowid,
@@ -21432,6 +22157,199 @@ typedef $$AiActionsTableProcessedTableManager = ProcessedTableManager<
     (AiAction, BaseReferences<_$AppDatabase, $AiActionsTable, AiAction>),
     AiAction,
     PrefetchHooks Function()>;
+typedef $$ReviewGroupPlansTableCreateCompanionBuilder
+    = ReviewGroupPlansCompanion Function({
+  required String id,
+  required String tagId,
+  Value<int> newCardsPerDay,
+  Value<int> reviewCardsPerDay,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$ReviewGroupPlansTableUpdateCompanionBuilder
+    = ReviewGroupPlansCompanion Function({
+  Value<String> id,
+  Value<String> tagId,
+  Value<int> newCardsPerDay,
+  Value<int> reviewCardsPerDay,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ReviewGroupPlansTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewGroupPlansTable> {
+  $$ReviewGroupPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tagId => $composableBuilder(
+      column: $table.tagId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get newCardsPerDay => $composableBuilder(
+      column: $table.newCardsPerDay,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reviewCardsPerDay => $composableBuilder(
+      column: $table.reviewCardsPerDay,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReviewGroupPlansTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewGroupPlansTable> {
+  $$ReviewGroupPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tagId => $composableBuilder(
+      column: $table.tagId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get newCardsPerDay => $composableBuilder(
+      column: $table.newCardsPerDay,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reviewCardsPerDay => $composableBuilder(
+      column: $table.reviewCardsPerDay,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReviewGroupPlansTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewGroupPlansTable> {
+  $$ReviewGroupPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tagId =>
+      $composableBuilder(column: $table.tagId, builder: (column) => column);
+
+  GeneratedColumn<int> get newCardsPerDay => $composableBuilder(
+      column: $table.newCardsPerDay, builder: (column) => column);
+
+  GeneratedColumn<int> get reviewCardsPerDay => $composableBuilder(
+      column: $table.reviewCardsPerDay, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ReviewGroupPlansTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ReviewGroupPlansTable,
+    ReviewGroupPlan,
+    $$ReviewGroupPlansTableFilterComposer,
+    $$ReviewGroupPlansTableOrderingComposer,
+    $$ReviewGroupPlansTableAnnotationComposer,
+    $$ReviewGroupPlansTableCreateCompanionBuilder,
+    $$ReviewGroupPlansTableUpdateCompanionBuilder,
+    (
+      ReviewGroupPlan,
+      BaseReferences<_$AppDatabase, $ReviewGroupPlansTable, ReviewGroupPlan>
+    ),
+    ReviewGroupPlan,
+    PrefetchHooks Function()> {
+  $$ReviewGroupPlansTableTableManager(
+      _$AppDatabase db, $ReviewGroupPlansTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewGroupPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewGroupPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewGroupPlansTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tagId = const Value.absent(),
+            Value<int> newCardsPerDay = const Value.absent(),
+            Value<int> reviewCardsPerDay = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReviewGroupPlansCompanion(
+            id: id,
+            tagId: tagId,
+            newCardsPerDay: newCardsPerDay,
+            reviewCardsPerDay: reviewCardsPerDay,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tagId,
+            Value<int> newCardsPerDay = const Value.absent(),
+            Value<int> reviewCardsPerDay = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReviewGroupPlansCompanion.insert(
+            id: id,
+            tagId: tagId,
+            newCardsPerDay: newCardsPerDay,
+            reviewCardsPerDay: reviewCardsPerDay,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReviewGroupPlansTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ReviewGroupPlansTable,
+    ReviewGroupPlan,
+    $$ReviewGroupPlansTableFilterComposer,
+    $$ReviewGroupPlansTableOrderingComposer,
+    $$ReviewGroupPlansTableAnnotationComposer,
+    $$ReviewGroupPlansTableCreateCompanionBuilder,
+    $$ReviewGroupPlansTableUpdateCompanionBuilder,
+    (
+      ReviewGroupPlan,
+      BaseReferences<_$AppDatabase, $ReviewGroupPlansTable, ReviewGroupPlan>
+    ),
+    ReviewGroupPlan,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -21497,4 +22415,6 @@ class $AppDatabaseManager {
       $$AiMessagesTableTableManager(_db, _db.aiMessages);
   $$AiActionsTableTableManager get aiActions =>
       $$AiActionsTableTableManager(_db, _db.aiActions);
+  $$ReviewGroupPlansTableTableManager get reviewGroupPlans =>
+      $$ReviewGroupPlansTableTableManager(_db, _db.reviewGroupPlans);
 }

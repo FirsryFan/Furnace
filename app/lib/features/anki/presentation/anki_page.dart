@@ -6,6 +6,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/srs/sm2_scheduler.dart';
 import 'anki_manage_page.dart';
+import 'review_plan_page.dart';
 
 class _ReviewItem {
   const _ReviewItem({required this.state, required this.template});
@@ -115,9 +116,20 @@ class _AnkiPageState extends ConsumerState<AnkiPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? _EmptyReview(l10n: l10n)
-              : _buildReview(context, l10n),
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 16),
+              children: [
+                // The review preferences sit on this screen (the review surface),
+                // not in the global settings page, and they stay visible when the
+                // queue is empty: "no cards due" is exactly when a user is most
+                // likely to change how cards are generated or judged.
+                const ReviewPreferencesCard(),
+                if (_items.isEmpty)
+                  _EmptyReview(l10n: l10n)
+                else
+                  _buildReview(context, l10n),
+              ],
+            ),
     );
   }
 
@@ -285,7 +297,8 @@ class _EmptyReview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

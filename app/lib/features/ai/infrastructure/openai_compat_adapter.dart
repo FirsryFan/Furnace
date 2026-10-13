@@ -53,6 +53,11 @@ class OpenAiCompatAdapter implements ModelAdapter {
   }) async* {
     HttpClientRequest request;
     HttpClientResponse response;
+    // Times the generation only: started when the request goes out and stopped
+    // when the stream ends, so the loop's own work around this call (reading
+    // skills, rebuilding the history, running tools) is not inside it. That is
+    // the denominator the panel divides completion tokens by.
+    final generationWatch = Stopwatch();
     try {
       request = await _client
           .postUrl(Uri.parse('$baseUrl/chat/completions'))
@@ -66,10 +71,16 @@ class OpenAiCompatAdapter implements ModelAdapter {
         'messages': [for (final m in messages) m.toJson()],
         if (tools.isNotEmpty) 'tools': [for (final t in tools) t.toJson()],
         'stream': true,
+        // Without this the streamed response carries no `usage` at all on
+        // DeepSeek and OpenAI: the token counts are only sent when the caller
+        // opts in. The turn/usage panel would then have nothing measured to
+        // show, so the opt-in is part of the feature rather than an extra.
+        'stream_options': {'include_usage': true},
         if (tools.isNotEmpty) 'tool_choice': 'auto',
         'temperature': temperature,
       });
       request.add(utf8.encode(body));
+      generationWatch.start();
       response = await request.close().timeout(requestTimeout);
     } on TimeoutException {
       yield const ModelFailure('请求超时：模型服务没有在预期时间内响应。');
@@ -141,7 +152,10 @@ class OpenAiCompatAdapter implements ModelAdapter {
       return;
     }
 
-    for (final event in assembler.finish()) {
+    generationWatch.stop();
+    for (final event in assembler.finish(
+      generationDuration: generationWatch.elapsed,
+    )) {
       yield event;
     }
   }

@@ -1,4 +1,4 @@
-﻿/// The AI's write path into the Knowledge module: "make me 背诵卡片 from this".
+/// The AI's write path into the Knowledge module: "make me 背诵卡片 from this".
 ///
 /// This is what closes the loop for the photo flow. A model can already *look*
 /// at an attached image; without this tool the answer would be a chat message
@@ -22,7 +22,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../domain/entities/card_template.dart' as domain;
 import '../../../domain/entities/knowledge_point.dart' as domain;
-import '../../../domain/services/cloze/cloze_generator.dart';
+import '../../anki/application/card_type_preference.dart';
 import '../domain/ai_tool.dart';
 
 /// One card the model asked for, after validation.
@@ -31,12 +31,14 @@ class _RequestedCard {
     required this.question,
     required this.answer,
     required this.type,
+    this.options = const [],
     this.hint,
   });
 
   final String question;
   final String answer;
   final String type;
+  final List<String> options;
   final String? hint;
 }
 
@@ -67,8 +69,10 @@ class CreateKnowledgeCardsTool extends AiTool {
       '先读懂内容，把关键信息整理成 content，再自己出题填 cards。'
       '题目与答案必须与原文同一种语言（原文是中文就用中文，是英文就用英文），一道题只问一个点，'
       '答案要能在不看照片时独立读懂（不要写"如上图"）。'
-      'cards 每题给 question 与 answer，type 可选：fill_blank 填空 / mcq 选择 / essay 大题（默认）。'
-      '不给 cards 时会自动从 content 生成一张填空题（content 里需要一个可挖空的关键信息）。'
+      'cards 每题给 question 与 answer，type 可选：fill_blank 填空 / mcq 选择 / essay 大题（默认）；'
+      '选 mcq 时必须同时给 options。'
+      '不给 cards 时会自动从 content 生成一张卡片，题型跟随用户的题型偏好（默认填空题，'
+      'content 里需要一个可挖空的关键信息）。'
       '创建完成后可以在这条对话里一键撤销。';
 
   @override
@@ -90,7 +94,7 @@ class CreateKnowledgeCardsTool extends AiTool {
           },
           'cards': {
             'type': 'array',
-            'description': '卡片列表，一道题一条。留空时会自动生成一张填空题。',
+            'description': '卡片列表，一道题一条。留空时会按用户的题型偏好自动生成一张。',
             'items': {
               'type': 'object',
               'properties': {
@@ -100,6 +104,12 @@ class CreateKnowledgeCardsTool extends AiTool {
                   'type': 'string',
                   'enum': cardTypes.toList(),
                   'description': '题型，默认 $defaultCardType',
+                },
+                'options': {
+                  'type': 'array',
+                  'items': {'type': 'string'},
+                  'description': '选择题的选项（type=mcq 时必填）：正确的那个必须与 answer 一致；'
+                      '干扰项只能来自原文里真实存在的信息，不要编造。',
                 },
                 'hint': {'type': 'string', 'description': '提示（可选）'},
               },
@@ -139,19 +149,29 @@ class CreateKnowledgeCardsTool extends AiTool {
       // half-made one.
       domain.CardTemplate? auto;
       if (requested.isEmpty) {
+        // The type follows the user's generation preference instead of being
+        // hard-wired to fill_blank; with the default preference this is the same
+        // fill-blank fallback as before.
         // The generator only reads the title and the content; the id it is
         // given never reaches the database, because the template it returns is
         // re-created through the repository below.
-        auto = ClozeGenerator.generateFillBlank(domain.KnowledgePoint(
-          id: 'unsaved',
-          title: title,
-          content: content,
-          source: source,
-        ));
+        auto = CardGenerationPolicy.generate(
+          domain.KnowledgePoint(
+            id: 'unsaved',
+            title: title,
+            content: content,
+            source: source,
+          ),
+          CardTypePreferenceStore.current,
+        );
         if (auto == null) {
-          return const ToolResult.failure(
-            '没有可用的卡片：请在 cards 里给出 question/answer；'
-            '或者在 content 里写一个能挖空的关键信息（例如"…是…"的句子）',
+          return ToolResult.failure(
+            CardTypePreferenceStore.current == CardTypePreference.mcq
+                ? '无法自动出一道选择题：content 里只有一个可挖空的关键信息，'
+                    '凑不出“原文里真实存在”的干扰项，编造的选项会把错的内容教给用户。'
+                    '请在 cards 里给出 question/answer 与 options。'
+                : '没有可用的卡片：请在 cards 里给出 question/answer；'
+                    '或者在 content 里写一个能挖空的关键信息（例如"…是…"的句子）',
           );
         }
       }
@@ -169,18 +189,20 @@ class CreateKnowledgeCardsTool extends AiTool {
           question: card.question,
           answer: card.answer,
           type: card.type,
+          options: card.options,
           clozeTemplate: card.type == 'fill_blank' ? card.question : null,
           hint: card.hint,
         ));
       }
       if (auto != null) {
-        // Same three calls the package importer makes for an auto-generated
-        // blank, so the two paths cannot drift.
+        // Same repository calls the package importer makes for an auto-generated
+        // card, so the two paths cannot drift.
         created.add(await _writeCard(
           knowledgePointId: point.id,
           question: auto.question,
           answer: auto.answer,
-          type: 'fill_blank',
+          type: auto.type.storageType,
+          options: auto.options,
           clozeTemplate: auto.clozeTemplate,
         ));
       }
@@ -216,6 +238,7 @@ class CreateKnowledgeCardsTool extends AiTool {
     required String question,
     required String answer,
     required String type,
+    List<String> options = const [],
     String? clozeTemplate,
     String? hint,
   }) async {
@@ -224,6 +247,7 @@ class CreateKnowledgeCardsTool extends AiTool {
       type: type,
       question: question,
       answer: answer,
+      options: options,
       clozeTemplate: clozeTemplate,
       hint: hint,
     );
@@ -269,15 +293,49 @@ class CreateKnowledgeCardsTool extends AiTool {
           '`cards[$i].type` 未知：$type。可用：${cardTypes.join(' / ')}',
         );
       }
+      final options = _parseOptions(entry['options'], index: i, type: type);
       final hint = entry['hint']?.toString().trim();
       cards.add(_RequestedCard(
         question: question,
         answer: answer,
         type: type,
+        options: options,
         hint: (hint == null || hint.isEmpty) ? null : hint,
       ));
     }
     return cards;
+  }
+
+  /// Validates `cards[i].options`.
+  ///
+  /// A choice card without choices can only be presented as a self-judged card,
+  /// which is not what the model asked for - so an mcq missing its options is an
+  /// error the model can read and fix, not a card the user cannot answer.
+  static List<String> _parseOptions(
+    Object? raw, {
+    required int index,
+    required String type,
+  }) {
+    if (raw == null) {
+      if (type == 'mcq') {
+        throw ToolArgError(
+          '`cards[$index]` 是选择题但没有 options；请给出选项，'
+          '并让 answer 与正确选项一致（也可以直接写成 fill_blank 或 essay）',
+        );
+      }
+      return const [];
+    }
+    if (raw is! List) {
+      throw ToolArgError('`cards[$index].options` 必须是字符串数组');
+    }
+    final options = [
+      for (final option in raw)
+        if (option.toString().trim().isNotEmpty) option.toString().trim(),
+    ];
+    if (type == 'mcq' && options.isEmpty) {
+      throw ToolArgError('`cards[$index].options` 不能为空（选择题至少要有一个选项）');
+    }
+    return options;
   }
 }
 

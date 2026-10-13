@@ -50,6 +50,8 @@ part 'database.g.dart';
     AiConversations,
     AiMessages,
     AiActions,
+    // v8 (per-group daily review plan)
+    ReviewGroupPlans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -58,8 +60,12 @@ class AppDatabase extends _$AppDatabase {
   /// Creates an in-memory/testing database from an existing [executor].
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
+  /// v7 is the unshipped release that added `local_settings.ai_max_rounds`
+  /// plus the two review-preference columns; v8 adds the per-group daily plan
+  /// table; v9 adds the two failure-feedback columns on `review_logs`. See
+  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9].
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -82,6 +88,15 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 6) {
           await _upgradeV5ToV6();
+        }
+        if (from < 7) {
+          await _upgradeV6ToV7();
+        }
+        if (from < 8) {
+          await _upgradeV7ToV8();
+        }
+        if (from < 9) {
+          await _upgradeV8ToV9();
         }
       },
       beforeOpen: (details) async {
@@ -113,16 +128,28 @@ class AppDatabase extends _$AppDatabase {
       'time_view_settings': [timeViewSettings.minutesPerRowChosen],
       // v6: without these the generated mappers throw on existing rows when a
       // file is stamped v6 but was written by an older build.
+      // v7: same reasoning for the agent loop's round cap and the two review
+      // preferences (judging mode, card type preference).
       'local_settings': [
         localSettings.aiEnabled,
         localSettings.aiApiKey,
         localSettings.aiBaseUrl,
         localSettings.aiModel,
         localSettings.aiPermissionMode,
+        localSettings.aiMaxRounds,
+        localSettings.ankiJudgeMode,
+        localSettings.ankiCardTypePreference,
       ],
       'card_states': [
         cardStates.encodingStrength,
         cardStates.savings,
+      ],
+      // v9: the failure-feedback pair. A file stamped v9 whose review_logs
+      // predates the columns would otherwise make the generated mapper throw on
+      // the first history read (the same failure mode as the v6 columns above).
+      'review_logs': [
+        reviewLogs.reviewedSolution,
+        reviewLogs.closeness,
       ],
     };
     final m = Migrator(this);
@@ -133,6 +160,12 @@ class AppDatabase extends _$AppDatabase {
       for (final column in entry.value) {
         await _addColumnIfMissing(m, entry.key, column);
       }
+    }
+    // v8 tables are healed the same way for the same reason. A missing *table*
+    // is not a mapper crash but a silent "your plan is gone", which is why this
+    // check belongs here next to the column one.
+    if (!await _tableExists('review_group_plans')) {
+      await m.createTable(reviewGroupPlans);
     }
   }
 
@@ -193,6 +226,69 @@ class AppDatabase extends _$AppDatabase {
       ]) {
         await _addColumnIfMissing(m, 'card_states', column);
       }
+    }
+  }
+
+  /// v6 -> v7: the agent loop's tool-call budget and the two review preferences
+  /// (default judging mode, card type preference) become user settings.
+  ///
+  /// Additive and deliberately NULL on every existing row: NULL reads as "the
+  /// user never chose", which `AiConfig` / `JudgeModePreference` /
+  /// `CardTypePreference` resolve to the shipped default. That keeps an upgraded
+  /// install behaving exactly as it did before the setting existed, instead of
+  /// the migration silently picking a new budget, a new judging mode or a new
+  /// card type for it.
+  ///
+  /// Three unrelated-looking columns land in one migration on purpose: they are
+  /// the same class of change (a nullable `local_settings` preference whose
+  /// absence means "keep the old behaviour"), and v7 has not shipped yet, so
+  /// splitting them would buy a second version number and nothing else.
+  Future<void> _upgradeV6ToV7() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    for (final column in [
+      localSettings.aiMaxRounds,
+      localSettings.ankiJudgeMode,
+      localSettings.ankiCardTypePreference,
+    ]) {
+      await _addColumnIfMissing(m, 'local_settings', column);
+    }
+  }
+
+  /// v7 -> v8: the per-group daily review plan table.
+  ///
+  /// Purely additive and created empty: no row means no configured target, and
+  /// an install that never opens the plan UI therefore keeps drawing exactly the
+  /// cards it drew before this release. Writing default rows for existing tags
+  /// would instead cap every group on upgrade day, which is precisely the
+  /// silent card loss this design avoids.
+  Future<void> _upgradeV7ToV8() async {
+    if (!await _tableExists('review_group_plans')) {
+      await Migrator(this).createTable(reviewGroupPlans);
+    }
+  }
+
+  /// v8 -> v9: the two failure-feedback columns on `review_logs`.
+  ///
+  /// Both are nullable and stay NULL for every existing row, which is exactly
+  /// right: a review written before this version was never asked "did you read
+  /// the answer?", and inventing `false` for those rows would claim every past
+  /// miss was a bare lapse. The model's own two columns
+  /// (`card_states.encoding_strength` / `savings`) are untouched - the event
+  /// this migration records is one the review flow already had to ask for, not
+  /// a recomputation of history.
+  Future<void> _upgradeV8ToV9() async {
+    if (!await _tableExists('review_logs')) {
+      return;
+    }
+    final m = Migrator(this);
+    for (final column in [
+      reviewLogs.reviewedSolution,
+      reviewLogs.closeness,
+    ]) {
+      await _addColumnIfMissing(m, 'review_logs', column);
     }
   }
 
@@ -388,6 +484,14 @@ class AppDatabase extends _$AppDatabase {
         return aiMessages;
       case 'ai_actions':
         return aiActions;
+      // v8: the self-heal pass creates it when a file claims v8 without it, and
+      // the package dump/restore path resolves every user table by name.
+      case 'review_group_plans':
+        return reviewGroupPlans;
+      // v9: the self-heal pass adds the two review-log columns, so opening a
+      // file that claims v9 must be able to resolve the table by name.
+      case 'review_logs':
+        return reviewLogs;
       default:
         throw ArgumentError('unknown table $name');
     }

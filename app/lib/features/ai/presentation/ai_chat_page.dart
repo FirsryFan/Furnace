@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+// Key events and the hardware keyboard state: `material.dart` re-exports the
+// text-input enums but not the key classes this page handles.
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -10,6 +13,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../application/ai_providers.dart';
 import '../domain/agent_loop.dart';
+import 'widgets/turn_usage_panel.dart';
 import '../domain/ai_tool.dart';
 import '../domain/approval_engine.dart';
 import '../domain/vision_payload.dart';
@@ -33,6 +37,13 @@ class AiChatPage extends ConsumerStatefulWidget {
   /// the navigation stays in one place instead of the page owning routes.
   final VoidCallback? onOpenSettings;
 
+  /// The three controls a widget test has to find without matching on a
+  /// localised label. Public so the test and the widget cannot drift apart.
+  static const Key sidebarToggleKey = ValueKey<String>('aiSidebarToggle');
+  static const Key sidebarKey = ValueKey<String>('aiConversationSidebar');
+  static const Key inputResizeHandleKey =
+      ValueKey<String>('aiInputResizeHandle');
+
   @override
   ConsumerState<AiChatPage> createState() => _AiChatPageState();
 }
@@ -43,6 +54,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   String? _conversationId;
   AgentLoop? _loop;
   StreamSubscription<AgentTurnState>? _subscription;
+
+  /// What the running/last turn cost. Owned here rather than read from the loop
+  /// on every build: the loop clears its usage when the next message starts, and
+  /// a panel that blanked out at that moment would be useless as a summary.
+  final TurnUsageNotifier _usage = TurnUsageNotifier();
   AgentTurnState _turn = const AgentTurnState();
 
   /// Images picked but not yet sent. They are already files on disk (that is
@@ -53,6 +69,45 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   /// True while a picked photo is being decoded, downscaled and written.
   bool _preparingImages = false;
 
+  /// Below this width the conversation list would squeeze the thread rather than
+  /// sit beside it, so it is not offered at all - and neither is the toggle that
+  /// shows it, because a button that cannot do anything is worse than no button.
+  static const double _sidebarBreakpoint = 900;
+
+  /// Whether the conversation list is expanded.
+  ///
+  /// Held in the page state, which survives every rebuild this screen causes
+  /// (each provider change rebuilds it): collapsing the list and then having it
+  /// spring back on the next message would be worse than not offering the
+  /// toggle.
+  bool _sidebarOpen = true;
+
+  /// Height of the message box in text lines, and the range the drag handle
+  /// allows.
+  ///
+  /// Lines rather than pixels because that is the unit the user sees, and
+  /// because [TextField] turns a line count into the right pixel height from the
+  /// real text metrics - so the box stays correct at any text scale.
+  static const int _minInputLines = 1;
+  static const int _maxInputLines = 12;
+  static const int _defaultInputLines = 3;
+  int _inputLines = _defaultInputLines;
+
+  /// How far a drag has to travel to add or remove one line.
+  ///
+  /// Approximate on purpose: this only maps pointer travel onto a line count,
+  /// while the rendered height comes from the field's own metrics. Being a few
+  /// pixels off changes how far the handle must be dragged, never where it ends
+  /// up.
+  static const double _dragPixelsPerLine = 24;
+
+  /// Line count when the current drag started, and the total distance it has
+  /// moved. Measuring the drag from its start (rather than summing per-update
+  /// deltas) is what keeps the ends honest: dragging past a limit and back
+  /// returns to the limit immediately instead of first paying off an overshoot.
+  int _dragStartLines = _defaultInputLines;
+  double _dragDistance = 0;
+
   /// The one encoder the screen uses. Limits live in the class so the size cap
   /// is a property of the feature, not a number sprinkled in the UI.
   static const VisionImageEncoder _encoder = VisionImageEncoder();
@@ -62,6 +117,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     _subscription?.cancel();
     _input.dispose();
     _scroll.dispose();
+    _usage.dispose();
     super.dispose();
   }
 
@@ -84,6 +140,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         _scrollToEnd();
       }
     });
+    _usage.attach(states: loop?.states, initial: _turn);
     setState(() {});
   }
 
@@ -104,6 +161,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final loop = _loop;
     final id = _conversationId;
     if ((text.isEmpty && _pendingImages.isEmpty) || loop == null || id == null) {
+      return;
+    }
+    if (_turn.generating || _turn.hasPending || _preparingImages) {
+      // The send button is disabled in these states, and the keyboard has to be
+      // refused for the same reason rather than trusting the disabled widget:
+      // the loop drops a message sent while it is busy, and by then `_input` has
+      // already been cleared below - the user's text would vanish unsent.
       return;
     }
     final images = List<PendingImage>.from(_pendingImages);
@@ -177,6 +241,80 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     ref.invalidate(messageImagesProvider(id));
   }
 
+  /// Which key sends and which one breaks the line.
+  ///
+  /// **Enter sends; Shift+Enter and Ctrl+Enter insert a line break.** That keeps
+  /// the one-keystroke send the box already had, and makes an explicit line
+  /// break possible at all - the old field allowed five lines but offered no way
+  /// to ask for one. The send button stays where it was, so sending never
+  /// requires the keyboard.
+  ///
+  /// The combination is decided here rather than left to the platform's
+  /// text-input action, because that action is a single "done" result: it cannot
+  /// tell Shift+Enter from Enter, and on desktop embedders it is the engine, not
+  /// this widget, that produces it. `TextInputAction.send` is still set on the
+  /// field, so the engine's own path arrives at the same [_send].
+  KeyEventResult _onInputKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key != LogicalKeyboardKey.enter &&
+        key != LogicalKeyboardKey.numpadEnter) {
+      return KeyEventResult.ignored;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isShiftPressed || keyboard.isControlPressed) {
+      _insertLineBreak();
+    } else {
+      _send();
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// Inserts a newline at the caret, leaving the caret after it.
+  ///
+  /// Written into the controller instead of leaving the key unhandled and hoping
+  /// the platform inserts the character: a widget test has no platform
+  /// text-input bridge at all, and "it breaks the line on most machines" is a
+  /// worse contract than one that always does.
+  void _insertLineBreak() {
+    final value = _input.value;
+    final text = value.text;
+    final selection = value.selection;
+    // A field that has never been focused has no valid selection; appending is
+    // the only sensible place then.
+    final start = selection.isValid ? selection.start : text.length;
+    final end = selection.isValid ? selection.end : text.length;
+    _input.value = value.copyWith(
+      text: text.replaceRange(start, end, '\n'),
+      selection: TextSelection.collapsed(offset: start + 1),
+      composing: TextRange.empty,
+    );
+  }
+
+  /// Remembers the height a drag starts from.
+  void _resizeInputStart() {
+    _dragStartLines = _inputLines;
+    _dragDistance = 0;
+  }
+
+  /// Resizes the message box: one line per [_dragPixelsPerLine] dragged.
+  void _resizeInput(double dy) {
+    _dragDistance += dy;
+    // Truncation toward zero gives the same feel up and down, and the limits
+    // clamp rather than wrap: a drag that runs past the maximum simply stops,
+    // and reversing it comes back at once.
+    final moved = (_dragDistance / _dragPixelsPerLine).truncate();
+    final target =
+        (_dragStartLines + moved).clamp(_minInputLines, _maxInputLines);
+    if (target != _inputLines) {
+      setState(() => _inputLines = target);
+    }
+  }
+
+  void _toggleSidebar() => setState(() => _sidebarOpen = !_sidebarOpen);
+
   Future<void> _approve() async {
     final loop = _loop;
     final id = _conversationId;
@@ -232,10 +370,25 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
 
     final conversations = ref.watch(conversationsProvider);
+    // Resolved once, here, so the toggle and the list it controls can never
+    // disagree about whether the list is offered at this width.
+    final hasSidebar =
+        MediaQuery.sizeOf(context).width >= _sidebarBreakpoint;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.aiTitle),
         actions: [
+          if (hasSidebar)
+            IconButton(
+              key: AiChatPage.sidebarToggleKey,
+              tooltip: _sidebarOpen
+                  ? l10n.aiHideConversationList
+                  : l10n.aiShowConversationList,
+              icon: Icon(_sidebarOpen
+                  ? Icons.vertical_split
+                  : Icons.vertical_split_outlined),
+              onPressed: _toggleSidebar,
+            ),
           IconButton(
             tooltip: l10n.aiNewConversation,
             icon: const Icon(Icons.add_comment_outlined),
@@ -272,15 +425,30 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           }
           return Row(
             children: [
-              if (MediaQuery.of(context).size.width >= 900)
-                _ConversationList(
-                  conversations: list,
-                  selectedId: _conversationId,
-                  onSelect: _attach,
-                  l10n: l10n,
+              if (hasSidebar)
+                AnimatedSize(
+                  // The space is animated rather than the list itself: the list
+                  // is swapped in and out (a hidden list must not keep
+                  // rebuilding), and this makes the swap read as a slide.
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.centerLeft,
+                  child: _sidebarOpen
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ConversationList(
+                              key: AiChatPage.sidebarKey,
+                              conversations: list,
+                              selectedId: _conversationId,
+                              onSelect: _attach,
+                              l10n: l10n,
+                            ),
+                            const VerticalDivider(width: 1),
+                          ],
+                        )
+                      : const SizedBox(width: 0),
                 ),
-              if (MediaQuery.of(context).size.width >= 900)
-                const VerticalDivider(width: 1),
               Expanded(child: _buildConversation(l10n, list)),
             ],
           );
@@ -384,6 +552,34 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       ],
                     ),
                   ),
+                // The drag handle, and the one place the key behaviour is
+                // documented for the user: which key sends and which breaks the
+                // line is a convention, and a convention nobody can see is a
+                // support question.
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InputResizeHandle(
+                        key: AiChatPage.inputResizeHandleKey,
+                        tooltip: l10n.aiInputResizeHandle,
+                        onDragStart: _resizeInputStart,
+                        onDragUpdate: _resizeInput,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        l10n.aiInputKeyHint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -403,17 +599,29 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           : const Icon(Icons.add_photo_alternate_outlined),
                     ),
                     Expanded(
-                      child: TextField(
-                        controller: _input,
-                        minLines: 1,
-                        maxLines: 5,
-                        textInputAction: TextInputAction.send,
-                        enabled: !_turn.generating && !_turn.hasPending,
-                        onSubmitted: (_) => _send(),
-                        decoration: InputDecoration(
-                          hintText: l10n.aiInputHint,
-                          border: const OutlineInputBorder(),
-                          isDense: true,
+                      child: Focus(
+                        // Sits above the field in the focus chain, so it decides
+                        // Enter and Shift+Enter before any platform default.
+                        onKeyEvent: _onInputKey,
+                        child: TextField(
+                          controller: _input,
+                          // minLines == maxLines: the box keeps the height the
+                          // user chose with the handle above, and scrolls inside
+                          // itself once the text needs more room, instead of
+                          // growing and pushing the conversation away.
+                          minLines: _inputLines,
+                          maxLines: _inputLines,
+                          keyboardType: TextInputType.multiline,
+                          // The engine's own "send" for the Enter key, so the
+                          // desktop text-input path and [_onInputKey] agree.
+                          textInputAction: TextInputAction.send,
+                          enabled: !_turn.generating && !_turn.hasPending,
+                          onSubmitted: (_) => _send(),
+                          decoration: InputDecoration(
+                            hintText: l10n.aiInputHint,
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
                         ),
                       ),
                     ),
@@ -556,6 +764,7 @@ class _EmptyConversation extends StatelessWidget {
 
 class _ConversationList extends StatelessWidget {
   const _ConversationList({
+    super.key,
     required this.conversations,
     required this.selectedId,
     required this.onSelect,
@@ -582,6 +791,59 @@ class _ConversationList extends StatelessWidget {
               onTap: () => onSelect(c.id),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The drag strip above the message box.
+///
+/// It carries its own gesture recognizer and sits outside the message list, so a
+/// vertical drag here resizes the box and can never be read as a scroll of the
+/// conversation - which is the whole reason it is a separate widget instead of a
+/// decoration inside the field.
+///
+/// The *whole* strip is the target, not only the pill: a four-pixel line is a
+/// poor thing to ask a mouse to hit. The line count needs no label here - the
+/// box itself shows it by changing height - so the handle explains itself with a
+/// tooltip and a resize cursor.
+class _InputResizeHandle extends StatelessWidget {
+  const _InputResizeHandle({
+    super.key,
+    required this.tooltip,
+    required this.onDragStart,
+    required this.onDragUpdate,
+  });
+
+  final String tooltip;
+  final VoidCallback onDragStart;
+  final ValueChanged<double> onDragUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeUpDown,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (_) => onDragStart(),
+          onVerticalDragUpdate: (details) => onDragUpdate(details.delta.dy),
+          child: SizedBox(
+            height: 14,
+            child: Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: scheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 // Needed for the `|` operator on drift expressions: it is an extension member,
@@ -14,6 +14,7 @@ import '../../../domain/skill/skill_manifest.dart';
 import '../../../domain/skill/skill_tool.dart';
 import '../infrastructure/ai_attachment_store.dart';
 import '../tools/deletion_tools.dart';
+import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/tag_tools.dart';
 import '../tools/schedule_tools.dart';
@@ -106,6 +107,234 @@ class ExecutedCall {
       );
 }
 
+/// What one user turn used, as far as the app can measure it.
+///
+/// One object, produced by the loop and read by the turn/usage panel, so the
+/// page never adds numbers up itself and never parses provider JSON. Every
+/// figure here is either **measured** - the provider reported it, or a stopwatch
+/// timed it - or `null`, which the panel renders as a dash. Nothing is filled in
+/// with a plausible-looking number, because a fabricated `0%` cache hit rate
+/// reads as a measurement and is not one.
+class TurnUsage {
+  const TurnUsage({
+    this.rounds = 0,
+    this.maxRounds = AgentLoop.defaultMaxRounds,
+    this.roundsWithUsage = 0,
+    this.promptTokens = 0,
+    this.completionTokens = 0,
+    this.cacheHitPromptTokens,
+    this.cacheMissPromptTokens,
+    this.generationTime = Duration.zero,
+    this.lastPromptTokens,
+    this.contextWindowTokens = AgentLoop.defaultContextWindowTokens,
+    this.toolCallsExecuted = 0,
+    this.toolCallsPending = 0,
+    this.toolCallsRejected = 0,
+    this.inFlightChars = 0,
+    this.inFlightElapsed = Duration.zero,
+  });
+
+  /// Model round-trips used by this turn so far.
+  final int rounds;
+
+  /// The configured ceiling those rounds are counted against.
+  final int maxRounds;
+
+  /// How many of [rounds] actually reported a usage block. Zero means the
+  /// provider never reported token counts, which is what turns the token
+  /// figures into dashes instead of a confident `0`.
+  final int roundsWithUsage;
+
+  /// Prompt tokens summed over the rounds that reported usage.
+  final int promptTokens;
+
+  /// Completion tokens summed over the rounds that reported usage.
+  final int completionTokens;
+
+  /// Prompt tokens the provider served from its cache, summed the same way.
+  /// `null` when no round reported them.
+  final int? cacheHitPromptTokens;
+
+  /// Prompt tokens the provider had to process, summed the same way. `null`
+  /// when no round reported them.
+  final int? cacheMissPromptTokens;
+
+  /// Generation wall time: the sum of the per-round generation durations, i.e.
+  /// time spent inside the model's own round-trip. History building, the skill
+  /// read, tool execution and waiting for the user's approval are all outside
+  /// it, which is what makes [tokensPerSecond] a property of the model rather
+  /// than of how slow a tool happened to be.
+  final Duration generationTime;
+
+  /// The last round's prompt tokens, i.e. how full the context was when the
+  /// model last saw it.
+  final int? lastPromptTokens;
+
+  /// The context window the estimate is taken against. Not measured - see
+  /// [AgentLoop.defaultContextWindowTokens].
+  final int contextWindowTokens;
+
+  /// Tool calls that really ran this turn (auto-approved or approved).
+  final int toolCallsExecuted;
+
+  /// Tool calls waiting for the user's decision right now.
+  final int toolCallsPending;
+
+  /// Tool calls the user refused this turn.
+  final int toolCallsRejected;
+
+  /// Characters streamed in the round currently in flight. Feeds the live rate
+  /// only; it is discarded when the round's real token count arrives.
+  final int inFlightChars;
+
+  /// Generation time elapsed in the round currently in flight.
+  final Duration inFlightElapsed;
+
+  /// Characters per token assumed **only** for the live, in-flight estimate.
+  ///
+  /// The provider reports token counts when a round ends, never during it, so
+  /// the only thing countable mid-stream is the text that has arrived. 2.5 is a
+  /// deliberately middle-of-the-road figure: English runs about 4 characters per
+  /// token and Chinese closer to 1.5, so a mixed reply lands near this. The live
+  /// figure is labelled as an estimate in the UI and is never used for the
+  /// frozen one.
+  static const double liveCharsPerToken = 2.5;
+
+  int get totalTokens => promptTokens + completionTokens;
+
+  bool get hasUsage => roundsWithUsage > 0;
+
+  /// Whether anything at all is worth showing. An untouched turn is empty, and
+  /// the panel is hidden rather than showing six zeros.
+  bool get isEmpty =>
+      rounds == 0 &&
+      roundsWithUsage == 0 &&
+      promptTokens == 0 &&
+      completionTokens == 0 &&
+      toolCallsExecuted == 0 &&
+      toolCallsPending == 0 &&
+      toolCallsRejected == 0;
+
+  /// Cache hits as a share of the prompt tokens, or `null` when the provider
+  /// did not report the pair.
+  ///
+  /// `null` and `0.0` are different answers and are kept different: a provider
+  /// that reports `0` hits out of `1000` miss tokens is a measurement of no
+  /// caching, while a provider that reports neither leaves the question open.
+  /// An all-zero pair is treated as "not reported", since a real request cannot
+  /// have an empty prompt.
+  double? get cacheHitRatio {
+    final hit = cacheHitPromptTokens;
+    final miss = cacheMissPromptTokens;
+    if (hit == null && miss == null) {
+      return null;
+    }
+    final total = (hit ?? 0) + (miss ?? 0);
+    if (total <= 0) {
+      return null;
+    }
+    return (hit ?? 0) / total;
+  }
+
+  /// Whether only some of this turn's rounds reported cache accounting.
+  ///
+  /// Derived rather than stored: when every round reports the pair, hits plus
+  /// misses account for the whole prompt, so a shortfall means a round stayed
+  /// silent. Saying so matters, because otherwise the ratio would look like a
+  /// statement about the whole turn while describing a subset of it.
+  bool get cacheAccountingIsPartial {
+    if (cacheHitPromptTokens == null && cacheMissPromptTokens == null) {
+      return false;
+    }
+    final accounted = (cacheHitPromptTokens ?? 0) + (cacheMissPromptTokens ?? 0);
+    return accounted < promptTokens;
+  }
+
+  /// Completion tokens divided by generation wall time, for the turn as a
+  /// whole. `null` when no round was timed, because a rate without a duration
+  /// would be an invention.
+  ///
+  /// The numerator and the denominator cover the same rounds: a round that
+  /// reported tokens but no duration never happens in practice (the loop times
+  /// every round itself), but if it did, its tokens would be counted in
+  /// [totalTokens] and left out of the rate rather than deflating the divisor.
+  double? get tokensPerSecond {
+    final micros = generationTime.inMicroseconds;
+    if (micros <= 0) {
+      return null;
+    }
+    return completionTokens / (micros / Duration.microsecondsPerSecond);
+  }
+
+  /// The rate while a round is still being generated: the same definition as
+  /// [tokensPerSecond] - completion tokens over generation time, never over the
+  /// turn's total time - with the in-flight round contributing an *estimated*
+  /// numerator, since the provider has not reported one yet.
+  ///
+  /// Returns `null` while nothing has been generated at all, in this round or an
+  /// earlier one. `0.0` would read as "the model is producing nothing", which is
+  /// a different statement from "no token has been produced yet".
+  double? get liveTokensPerSecond {
+    final micros = (generationTime + inFlightElapsed).inMicroseconds;
+    if (micros <= 0) {
+      return null;
+    }
+    final tokens = completionTokens + inFlightChars / liveCharsPerToken;
+    if (tokens <= 0) {
+      return null;
+    }
+    return tokens / (micros / Duration.microsecondsPerSecond);
+  }
+
+  /// How full the context was on the last round, against
+  /// [contextWindowTokens]. An estimate, because the window size is a
+  /// configured constant rather than something the endpoint reports.
+  double? get contextUsageRatio {
+    final last = lastPromptTokens;
+    if (last == null || contextWindowTokens <= 0) {
+      return null;
+    }
+    return last / contextWindowTokens;
+  }
+
+  TurnUsage copyWith({
+    int? rounds,
+    int? maxRounds,
+    int? roundsWithUsage,
+    int? promptTokens,
+    int? completionTokens,
+    int? cacheHitPromptTokens,
+    int? cacheMissPromptTokens,
+    Duration? generationTime,
+    int? lastPromptTokens,
+    int? contextWindowTokens,
+    int? toolCallsExecuted,
+    int? toolCallsPending,
+    int? toolCallsRejected,
+    int? inFlightChars,
+    Duration? inFlightElapsed,
+  }) =>
+      TurnUsage(
+        rounds: rounds ?? this.rounds,
+        maxRounds: maxRounds ?? this.maxRounds,
+        roundsWithUsage: roundsWithUsage ?? this.roundsWithUsage,
+        promptTokens: promptTokens ?? this.promptTokens,
+        completionTokens: completionTokens ?? this.completionTokens,
+        cacheHitPromptTokens:
+            cacheHitPromptTokens ?? this.cacheHitPromptTokens,
+        cacheMissPromptTokens:
+            cacheMissPromptTokens ?? this.cacheMissPromptTokens,
+        generationTime: generationTime ?? this.generationTime,
+        lastPromptTokens: lastPromptTokens ?? this.lastPromptTokens,
+        contextWindowTokens: contextWindowTokens ?? this.contextWindowTokens,
+        toolCallsExecuted: toolCallsExecuted ?? this.toolCallsExecuted,
+        toolCallsPending: toolCallsPending ?? this.toolCallsPending,
+        toolCallsRejected: toolCallsRejected ?? this.toolCallsRejected,
+        inFlightChars: inFlightChars ?? this.inFlightChars,
+        inFlightElapsed: inFlightElapsed ?? this.inFlightElapsed,
+      );
+}
+
 /// The conversation as the UI sees it.
 class AgentTurnState {
   const AgentTurnState({
@@ -116,6 +345,7 @@ class AgentTurnState {
     this.executed = const [],
     this.error,
     this.rounds = 0,
+    this.usage = const TurnUsage(),
   });
 
   /// A model call is in flight.
@@ -138,7 +368,15 @@ class AgentTurnState {
   final String? error;
 
   /// How many model round-trips this turn used.
+  ///
+  /// Mirrors [TurnUsage.rounds]; both come from the loop's one accumulator, so
+  /// they cannot disagree. Kept as its own field because it predates the usage
+  /// panel and other code and tests read it directly.
   final int rounds;
+
+  /// Everything the turn cost: rounds, tool calls, tokens, timing. This is the
+  /// single object the page reads - it never parses provider JSON itself.
+  final TurnUsage usage;
 
   bool get hasPending => pending.isNotEmpty;
   bool get isIdle => !generating && !hasPending;
@@ -151,18 +389,26 @@ class AgentTurnState {
     List<ExecutedCall>? executed,
     String? error,
     int? rounds,
+    TurnUsage? usage,
     bool clearError = false,
     bool clearPendingTurn = false,
-  }) =>
-      AgentTurnState(
-        generating: generating ?? this.generating,
-        streamingText: streamingText ?? this.streamingText,
-        pending: pending ?? this.pending,
-        pendingTurn: clearPendingTurn ? null : (pendingTurn ?? this.pendingTurn),
-        executed: executed ?? this.executed,
-        error: clearError ? null : (error ?? this.error),
-        rounds: rounds ?? this.rounds,
-      );
+  }) {
+    final nextRounds = rounds ?? this.rounds;
+    // One writer, one number: `rounds` and `usage.rounds` are stamped together
+    // so a caller that passes only one of them cannot produce a panel that
+    // disagrees with the state it is drawn from.
+    final nextUsage = (usage ?? this.usage).copyWith(rounds: nextRounds);
+    return AgentTurnState(
+      generating: generating ?? this.generating,
+      streamingText: streamingText ?? this.streamingText,
+      pending: pending ?? this.pending,
+      pendingTurn: clearPendingTurn ? null : (pendingTurn ?? this.pendingTurn),
+      executed: executed ?? this.executed,
+      error: clearError ? null : (error ?? this.error),
+      rounds: nextRounds,
+      usage: nextUsage,
+    );
+  }
 }
 
 /// Runs the agent loop: model -> tool calls -> approval -> execution -> model.
@@ -191,7 +437,8 @@ class AgentLoop {
     this.skills,
     this.skillRunner,
     this.skillPlatform,
-    this.maxRounds = 8,
+    this.maxRounds = defaultMaxRounds,
+    this.contextWindowTokens = defaultContextWindowTokens,
   });
 
   final ModelAdapter adapter;
@@ -245,6 +492,37 @@ class AgentLoop {
   /// run away with the user's credit.
   final int maxRounds;
 
+  /// The default of [maxRounds], named so a usage panel can render "used / cap"
+  /// from a state alone.
+  ///
+  /// The same number as [AiConfig.defaultMaxRounds], and deliberately not a
+  /// second literal 8: the user chooses this budget in settings, so the shipped
+  /// default has to live in one place or the two would drift the first time it
+  /// changes.
+  static const int defaultMaxRounds = AiConfig.defaultMaxRounds;
+
+  /// The context window the occupancy figure is estimated against.
+  ///
+  /// There is no reliable per-model table in this repository, and the endpoint
+  /// does not report its window, so this is **one configured number with a
+  /// documented default** rather than a measurement: 64k, a conservative
+  /// floor that DeepSeek's 64k-context models and every larger window are at
+  /// least this big. The panel labels the figure as an estimate for that
+  /// reason. Injection exists so a test can pin the arithmetic; changing it is
+  /// a one-line edit here, not a lookup table scattered across the UI.
+  final int contextWindowTokens;
+
+  /// The 64k default of [contextWindowTokens].
+  static const int defaultContextWindowTokens = 65536;
+
+  /// Everything the current turn has cost. Reset when a new turn starts, and
+  /// **not** reset by an approval, because approving continues the same turn -
+  /// its round-trips and tokens belong to the same user message.
+  late _TurnMetrics _metrics = _TurnMetrics(
+    maxRounds: maxRounds,
+    contextWindowTokens: contextWindowTokens,
+  );
+
   final _states = StreamController<AgentTurnState>.broadcast();
   AgentTurnState _state = const AgentTurnState();
 
@@ -295,6 +573,12 @@ class AgentLoop {
       ));
       return;
     }
+    // A new user message starts a new turn, so the counters start over here and
+    // only here: an approval continues the turn it belongs to.
+    _metrics = _TurnMetrics(
+      maxRounds: maxRounds,
+      contextWindowTokens: contextWindowTokens,
+    );
     _emit(const AgentTurnState(generating: true));
     final message = await repository.addMessage(
       conversationId: conversationId,
@@ -316,10 +600,13 @@ class AgentLoop {
     if (pending.isEmpty || group == null) {
       return;
     }
+    // The decision has been made, so nothing is waiting on the user any more.
+    _metrics.toolCallsPending = 0;
     _emit(_state.copyWith(
       pending: const [],
       pendingTurn: group,
       generating: true,
+      usage: _metrics.snapshot(),
     ));
     for (final item in pending) {
       await _execute(conversationId, item, group);
@@ -354,15 +641,26 @@ class AgentLoop {
         resultJson: jsonEncode(payload),
       );
     }
+    // Refused calls are steps the user paid attention to, so they are counted -
+    // as refusals, never as executions, or the panel would report work that
+    // never happened.
+    _metrics.toolCallsPending = 0;
+    _metrics.toolCallsRejected += pending.length;
     await _commitTurn(conversationId, group);
-    _emit(_state.copyWith(pending: const [], clearPendingTurn: true));
+    _emit(_state.copyWith(
+      pending: const [],
+      clearPendingTurn: true,
+      usage: _metrics.snapshot(),
+    ));
   }
 
   /// Undoes one executed call by applying its before-snapshot.
   ///
-  /// Only creates/updates/deletes of tasks and time blocks, and the creation of
-  /// knowledge cards, are undoable today; a call with no snapshot cannot be
-  /// undone and the UI does not offer it.
+  /// Undoable today: creates/updates/deletes of tasks and time blocks, the
+  /// creation of knowledge cards, the creation of tags, the creation of
+  /// documents (the file is removed), and the deletions `delete_content`
+  /// performs (its snapshot holds the original rows). A call with no snapshot
+  /// cannot be undone, and the UI does not offer it.
   Future<void> undoExecuted(String conversationId, String actionId) async {
     final index = _state.executed.indexWhere((e) => e.actionId == actionId);
     if (index < 0) {
@@ -394,10 +692,20 @@ class AgentLoop {
   // --- the loop ------------------------------------------------------------
 
   Future<void> _drive(String conversationId) async {
-    var rounds = 0;
-    while (rounds < maxRounds) {
-      rounds++;
-      _emit(_state.copyWith(generating: true, rounds: rounds, clearError: true));
+    // The round counter lives on the accumulator rather than in this method,
+    // because an approval re-enters _drive for the *same* user turn: a local
+    // counter would restart at 1 and both the cap and the panel would report a
+    // turn that used fewer round-trips than it really did.
+    while (_metrics.rounds < maxRounds) {
+      _metrics.rounds++;
+      _metrics.inFlightChars = 0;
+      _metrics.inFlightElapsed = Duration.zero;
+      _emit(_state.copyWith(
+        generating: true,
+        rounds: _metrics.rounds,
+        usage: _metrics.snapshot(),
+        clearError: true,
+      ));
 
       // One read of the skill directory per round: it produces this round's
       // tool list *and* the prompt that accompanies it.
@@ -406,6 +714,13 @@ class AgentLoop {
       final calls = <ToolCallRequest>[];
       final textBuffer = StringBuffer();
       String? failure;
+      ModelTurnDone? done;
+
+      // Times this round only. The adapter's own stopwatch is preferred when it
+      // reports one, but a loop-side measurement keeps the figure available for
+      // adapters that do not (and for the live rate, which needs a number while
+      // the round is still running).
+      final roundWatch = Stopwatch()..start();
 
       await for (final event in adapter.runTurn(
         messages: history,
@@ -414,18 +729,34 @@ class AgentLoop {
         switch (event) {
           case ModelTextDelta(:final text):
             textBuffer.write(text);
+            _metrics.inFlightChars = textBuffer.length;
+            _metrics.inFlightElapsed = roundWatch.elapsed;
             _emit(_state.copyWith(
               generating: true,
               streamingText: textBuffer.toString(),
+              usage: _metrics.snapshot(),
             ));
           case ModelToolCall(:final call):
             calls.add(call);
           case ModelTurnDone():
-            break;
+            done = event;
           case ModelFailure(:final message):
             failure = message;
         }
       }
+      roundWatch.stop();
+
+      // Fold the round in before the failure check: tokens the provider already
+      // generated and billed for are real whether or not the round ended well.
+      final roundUsage = done?.usage;
+      if (roundUsage != null) {
+        _metrics.recordRound(
+          roundUsage,
+          done?.generationDuration ?? roundWatch.elapsed,
+        );
+      }
+      _metrics.inFlightChars = 0;
+      _metrics.inFlightElapsed = Duration.zero;
 
       if (failure != null) {
         // Keep whatever text arrived before the failure: a partial answer is
@@ -437,7 +768,11 @@ class AgentLoop {
             content: textBuffer.toString(),
           );
         }
-        _emit(_state.copyWith(generating: false, error: failure));
+        _emit(_state.copyWith(
+          generating: false,
+          error: failure,
+          usage: _metrics.snapshot(),
+        ));
         return;
       }
 
@@ -450,7 +785,8 @@ class AgentLoop {
         _emit(_state.copyWith(
           generating: false,
           streamingText: '',
-          rounds: rounds,
+          rounds: _metrics.rounds,
+          usage: _metrics.snapshot(),
         ));
         return;
       }
@@ -514,12 +850,14 @@ class AgentLoop {
         // a half-answered turn is not a valid history. It is committed by
         // approvePending / rejectPending once the user has decided. The
         // proposals themselves are already on the ledger for audit.
+        _metrics.toolCallsPending = pending.length;
         _emit(_state.copyWith(
           generating: false,
           streamingText: textBuffer.toString(),
           pending: pending,
           pendingTurn: group,
-          rounds: rounds,
+          rounds: _metrics.rounds,
+          usage: _metrics.snapshot(),
         ));
         return;
       }
@@ -539,7 +877,8 @@ class AgentLoop {
       generating: false,
       streamingText: '',
       error: notice,
-      rounds: rounds,
+      rounds: _metrics.rounds,
+      usage: _metrics.snapshot(),
     ));
   }
 
@@ -616,6 +955,11 @@ class AgentLoop {
       result = ToolResult.failure('执行失败：$e');
     }
 
+    // Counted here and not in `_drive`, because this is the one place a call
+    // really runs: the two early returns above are replays of an earlier call,
+    // and counting those would report the same step twice.
+    _metrics.toolCallsExecuted++;
+
     await repository.updateActionStatus(
       item.actionId,
       status: result.ok
@@ -631,16 +975,19 @@ class AgentLoop {
     // rejects.
     group.addReply(item.call.id, result.toModelJson());
 
-    _emit(_state.copyWith(executed: [
-      ..._state.executed,
-      ExecutedCall(
-        toolName: item.tool.name,
-        summary: result.summary,
-        result: result,
-        actionId: item.actionId,
-        undone: false,
-      ),
-    ]));
+    _emit(_state.copyWith(
+      executed: [
+        ..._state.executed,
+        ExecutedCall(
+          toolName: item.tool.name,
+          summary: result.summary,
+          result: result,
+          actionId: item.actionId,
+          undone: false,
+        ),
+      ],
+      usage: _metrics.snapshot(),
+    ));
   }
 
   /// Rebuilds the provider-facing history from storage.
@@ -842,7 +1189,10 @@ class AgentLoop {
         '4. 要动某个标签、闪存卡或卡片时，先用 query_content 找到它的 id 再操作；'
         '要新增标签就调 create_tags（可指定父标签的 id 或路径，用来搭标签树）；'
         '不要凭记忆猜名字，猜错只会得到"找不到"，而查是免费的。\n'
-        '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。';
+        '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。\n'
+        '6. 要"生成文档 / 导出文件"时用 create_document，文档是写在'
+        '<appSupport>/documents 里的文件；把返回的 path 原样告诉用户，'
+        '不要声称已经发送、上传或分享过任何东西。';
   }
 
   /// Applies a before-snapshot. Returns false when the action has none.
@@ -889,7 +1239,8 @@ class AgentLoop {
     // "nothing existed" just like `manage_task(create)` - it simply has no
     // `action` argument to say so.
     if (record.toolName == CreateTagsTool.toolName ||
-        record.toolName == CreateKnowledgeCardsTool.toolName) {
+        record.toolName == CreateKnowledgeCardsTool.toolName ||
+        record.toolName == CreateDocumentTool.toolName) {
       return true;
     }
     final args = _decodeArgs(record.argsJson ?? '{}');
@@ -908,6 +1259,10 @@ class AgentLoop {
         return deleteCreatedTags(db, map);
       case CreateKnowledgeCardsTool.toolName:
         return deleteCreatedKnowledgeCards(db, map);
+      case CreateDocumentTool.toolName:
+        // A document is a file, not a row: the snapshot names the file and the
+        // helper deletes exactly that one (tools/document_tools.dart).
+        return deleteCreatedDocuments(map);
       case 'manage_task':
         final task = map['task'] as Map?;
         final id = task?['id'] as String?;
@@ -1012,3 +1367,71 @@ class _TurnTools {
   /// recorded as a failure rather than executed.
   SkillTool? byName(String name) => _byName[name];
 }
+
+/// The mutable accumulation behind [TurnUsage].
+///
+/// [TurnUsage] has to stay immutable - the page rebuilds off the state object -
+/// while the loop adds to the same totals from several places: the streaming
+/// loop, tool execution and the approval handlers. Keeping those writes in one
+/// small object is what stops each of them from inventing its own addend.
+class _TurnMetrics {
+  _TurnMetrics({required this.maxRounds, required this.contextWindowTokens});
+
+  final int maxRounds;
+  final int contextWindowTokens;
+
+  int rounds = 0;
+  int roundsWithUsage = 0;
+  int promptTokens = 0;
+  int completionTokens = 0;
+  int? cacheHitPromptTokens;
+  int? cacheMissPromptTokens;
+  Duration generationTime = Duration.zero;
+  int? lastPromptTokens;
+  int toolCallsExecuted = 0;
+  int toolCallsPending = 0;
+  int toolCallsRejected = 0;
+  int inFlightChars = 0;
+  Duration inFlightElapsed = Duration.zero;
+
+  /// Folds one finished round in.
+  ///
+  /// [generation] is the round's generation wall time. Cache tokens accumulate
+  /// only for rounds that reported them: a round that stayed silent must not be
+  /// treated as a round that cached nothing, or the ratio would drift towards
+  /// zero for a reason that has nothing to do with caching.
+  void recordRound(ModelUsage usage, Duration generation) {
+    roundsWithUsage++;
+    promptTokens += usage.promptTokens;
+    completionTokens += usage.completionTokens;
+    lastPromptTokens = usage.promptTokens;
+    generationTime += generation;
+    final hit = usage.cacheHitPromptTokens;
+    if (hit != null) {
+      cacheHitPromptTokens = (cacheHitPromptTokens ?? 0) + hit;
+    }
+    final miss = usage.cacheMissPromptTokens;
+    if (miss != null) {
+      cacheMissPromptTokens = (cacheMissPromptTokens ?? 0) + miss;
+    }
+  }
+
+  TurnUsage snapshot() => TurnUsage(
+        rounds: rounds,
+        maxRounds: maxRounds,
+        roundsWithUsage: roundsWithUsage,
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+        cacheHitPromptTokens: cacheHitPromptTokens,
+        cacheMissPromptTokens: cacheMissPromptTokens,
+        generationTime: generationTime,
+        lastPromptTokens: lastPromptTokens,
+        contextWindowTokens: contextWindowTokens,
+        toolCallsExecuted: toolCallsExecuted,
+        toolCallsPending: toolCallsPending,
+        toolCallsRejected: toolCallsRejected,
+        inFlightChars: inFlightChars,
+        inFlightElapsed: inFlightElapsed,
+      );
+}
+

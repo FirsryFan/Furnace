@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -20,6 +20,9 @@ import 'package:furnace/l10n/app_localizations.dart';
 /// and the provider that supplies the install list is overridden, so no real
 /// directory is read.
 void main() {
+  /// One declared script, for the tests whose subject is the script note.
+  const script = SkillScriptDeclaration(name: 'run', entry: 'scripts/run.mjs');
+
   InstalledSkill skill({
     String name = 'demo-skill',
     String version = '1.0.0',
@@ -29,6 +32,7 @@ void main() {
     List<String> networkAllow = const ['example.com'],
     List<String> permissions = const ['browser_bridge'],
     List<SkillToolDeclaration> tools = const [],
+    List<SkillScriptDeclaration> scripts = const [],
   }) =>
       InstalledSkill(
         manifest: SkillManifest(
@@ -41,6 +45,7 @@ void main() {
           ],
           networkAllow: networkAllow,
           permissions: permissions,
+          scripts: scripts,
         ),
         prompt: '# 方法论\n',
         tools: tools,
@@ -103,7 +108,9 @@ void main() {
 
   testWidgets('the card states whether scripts can run on this platform',
       (tester) async {
-    await pumpCard(tester, [skill()]);
+    // A skill that actually declares a script: the note is about *this* skill's
+    // scripts, so a fixture without any would be testing a different sentence.
+    await pumpCard(tester, [skill(scripts: const [script])]);
 
     if (Platform.isWindows) {
       // The container is implemented, so the old "not enabled" note must be
@@ -119,13 +126,25 @@ void main() {
   testWidgets('a skill this machine cannot run says so instead of pretending',
       (tester) async {
     await pumpCard(tester, [
-      skill(platforms: const ['linux']),
+      skill(platforms: const ['linux'], scripts: const [script]),
     ]);
 
     // Whatever the host platform is, a package declaring `linux` only cannot
     // have its scripts run here.
     expect(find.textContaining('本机不能运行'), findsOneWidget);
     expect(find.textContaining('linux'), findsWidgets);
+  });
+
+  testWidgets('a prompt-only skill is never described as having runnable scripts',
+      (tester) async {
+    // Two of the packages that ship with the app are prompt-only. "This machine
+    // can run this skill's scripts" is a claim such a package cannot back up, so
+    // the card must say the accurate thing instead.
+    await pumpCard(tester, [skill(name: 'prompt-only')]);
+
+    expect(find.textContaining('只有提示词'), findsOneWidget);
+    expect(find.textContaining('本机可以运行'), findsNothing);
+    expect(find.textContaining('本机不能运行'), findsNothing);
   });
 
   testWidgets('an empty install list says so and does not claim a container',

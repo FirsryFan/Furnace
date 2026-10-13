@@ -84,6 +84,10 @@ final agentLoopProvider =
     db: ref.watch(appDatabaseProvider),
     attachments: ref.watch(aiAttachmentStoreProvider),
     skills: ref.watch(skillStoreProvider),
+    // The user's tool-call budget. Read from the same configuration the
+    // settings screen saves, so the slider there is what the loop actually
+    // runs with - and so the telemetry panel's "used / cap" is the same cap.
+    maxRounds: config.maxRounds,
   );
   ref.onDispose(loop.dispose);
   return loop;

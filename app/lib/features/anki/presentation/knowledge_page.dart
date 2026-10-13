@@ -5,12 +5,15 @@ import '../../../l10n/app_localizations.dart';
 import 'anki_manage_page.dart';
 import 'knowledge_insight_page.dart';
 import 'review_page.dart';
+import 'review_plan_page.dart';
 
 /// The Knowledge module (blueprint 4; user annotation 19).
 ///
 /// Two tabs, because the practice screen must stay free of management
 /// clutter: 复习 (flow) and 管理 (knowledge points / templates). "Today's
-/// review" is a separate screen reached from the app bar.
+/// review" is a separate screen reached from the app bar - and so is 复习计划,
+/// where the two persisted review preferences and the per-group daily plan live
+/// (the practice screen deliberately keeps no settings furniture).
 class KnowledgePage extends ConsumerStatefulWidget {
   const KnowledgePage({super.key});
 
@@ -29,6 +32,23 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
       appBar: AppBar(
         title: Text(_index == 0 ? l10n.navAnki : l10n.ankiManage),
         actions: [
+          IconButton(
+            // A one-tap path to the two review preferences from the review
+            // screen itself, without leaving the queue: the block is the same
+            // widget the plan page shows.
+            tooltip: l10n.reviewPreferences,
+            icon: const Icon(Icons.tune),
+            onPressed: () => showReviewPreferencesDialog(context),
+          ),
+          IconButton(
+            tooltip: l10n.reviewPlanTitle,
+            icon: const Icon(Icons.event_available),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const ReviewPlanPage(),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: l10n.knowledgeInsight,
             icon: const Icon(Icons.insights),

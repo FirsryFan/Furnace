@@ -25,6 +25,21 @@ abstract final class DsrCardState {
   /// systems, so converting anywhere else would be a silent bug.
   static const double hoursPerDay = 24;
 
+  /// The `closeness` the review UI submits for a near miss ("差点想起来").
+  ///
+  /// MindNet documents the weak-clue band as `closeness = x_v / C_v >= 0.6`
+  /// (`docs/MODEL_v2_MATH.md` §3 table, 弱/差点想起) and the default for
+  /// `wrong + reviewed_solution` as `0.5` (`docs/IO_PROTOCOL.md` §2.3). Only
+  /// those two documented points are offered: any other value on the scale
+  /// would be an uncalibrated invention, and picking one needs the calibration
+  /// protocol (`docs/CALIBRATION.md`).
+  static const double closenessNearMiss = 0.6;
+
+  /// The documented default `closeness` for a failure-feedback event - used
+  /// when the caller says the answer was reviewed without saying how close it
+  /// was (`docs/IO_PROTOCOL.md` §2.3).
+  static const double closenessDefault = 0.5;
+
   /// Reads the model state out of a stored row.
   ///
   /// A row that has never carried model state (NULL columns) is initialised
@@ -156,12 +171,37 @@ abstract final class DsrCardState {
   /// answer was produced. A failed recall is a lapse; a hard-but-successful one
   /// is a success with a low grade (which raises D and therefore slows later
   /// gains) - not a failure, because the answer did come back.
+  ///
+  /// [reviewedSolution] splits the failed recall in two, which is the model's
+  /// own distinction (MindNet `docs/IO_PROTOCOL.md` §2.3, "wrong +
+  /// `reviewed_solution: true` → `retrieval_failure_feedback`"; the reference
+  /// implementation maps it in `src/io/run.js` and only `lapse` takes the
+  /// drop-stability branch in `mechanisms/memory.dsr.js`):
+  ///
+  ///  * a bare miss (`lapse`) *cuts* S - real forgetting;
+  ///  * a miss followed by reading the solution is a **learning** event whose
+  ///    gain grows with [closeness] (`stabilityIncrease`'s ratio is exactly
+  ///    `closeness` for that type), so "差点想起来" must not be recorded as
+  ///    forgetting. Both keep `grade = 1` and both leave FSRS's due date alone:
+  ///    the FSRS rating is Again either way.
+  ///
+  /// The default (`reviewedSolution = false`) reproduces the previous mapping
+  /// bit for bit, which is what keeps the tierA conformance vectors and the B01
+  /// cross-check untouched.
   static DsrReviewEvent eventFor({
     required int rating,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   }) {
     if (rating <= 1) {
+      if (reviewedSolution) {
+        return DsrReviewEvent(
+          type: DsrEventType.retrievalFailureFeedback,
+          grade: 1,
+          closeness: closeness.clamp(0.0, 1.0),
+        );
+      }
       return const DsrReviewEvent(type: DsrEventType.lapse, grade: 1);
     }
     return DsrReviewEvent(
@@ -182,6 +222,7 @@ abstract final class DsrCardState {
     required double nowHours,
     required double targetRetention,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
     DsrParams params = const DsrParams(),
     int? nowMillis,
@@ -190,7 +231,12 @@ abstract final class DsrCardState {
     final outcome = DsrMemory.applyReview(
       state,
       nowHours,
-      eventFor(rating: rating, reread: reread, closeness: closeness),
+      eventFor(
+        rating: rating,
+        reread: reread,
+        reviewedSolution: reviewedSolution,
+        closeness: closeness,
+      ),
       params,
     );
     return (

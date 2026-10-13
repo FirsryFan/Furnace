@@ -272,6 +272,8 @@ Attachment n ─── 1 owner(多态)
 | judge_mode | TEXT NULL | v2：`auto`（严格逐字符比对）/`self`（用户自判） |
 | format | TEXT NULL | v2：实际呈现形式 `mcq`/`mcq_multi`/`ordered_multi`/`fill`/`essay` |
 | ms_taken | INTEGER NULL | v2：作答耗时 ms |
+| reviewed_solution | INTEGER NULL | v9：做错之后有没有对过答案（`0`/`1`）；**NULL = 没问过或不适用**，不写 false |
+| closeness | REAL NULL | v9：对答案后想起来的程度 0–1；NULL = 没问过或这次答对了。当前 UI 只给两个文档锚点 0.5 / 0.6（见 `docs/MINDNET_ROADMAP.md` §4） |
 | reviewed_at | INTEGER | |
 | created_at | INTEGER | |
 
@@ -359,3 +361,22 @@ Attachment n ─── 1 owner(多态)
 11. 建新索引（§4）：CardStates UNIQUE(knowledge_point_id, unit_key) 等。
 
 > 版本号：`schemaVersion = 2`。迁移前建议用户数据自动备份（v2 首次启动前或升级弹窗）。
+
+---
+
+## 8. v3 → v9 增量（本文档只细化到 v2，之后以迁移代码为准）
+
+本文档 §1–§7 描述的是 v1 → v2；v3 起的每一步写在 `app/lib/data/database/database.dart` 的
+`onUpgrade` / `_upgradeV*ToV*` 里，`_ensureColumns()` 是"版本号已是最新但列/表缺失"的自愈兜底
+（对应测试：`app/test/data/database/v5..v9_migration_test.dart`、`app/test/features/ai/v7_migration_test.dart`）。
+其中 v9 这一步与认知模型的事件语义绑定，单独记在这里：
+
+| 序 | 表 | 变更 | 语义 |
+| --- | --- | --- | --- |
+| v7 | `local_settings` | ADD `ai_max_rounds` INTEGER NULL；ADD `anki_judge_mode` TEXT NULL；ADD `anki_card_type_preference` TEXT NULL | 三个 NULL 都表示"用户没选"，分别解析为 `AiConfig.defaultMaxRounds`（8）、`strict` 判分、`mixed` 题型 |
+| v8 | 新表 `review_group_plans` | tag_id 唯一 + 名称/两档每日上限 | **没有行 = 不限额**（不是 0），删标签连带删方案 |
+| v9 | `review_logs` | ADD `reviewed_solution` INTEGER NULL；ADD `closeness` REAL NULL | 做错后"对过答案"是 `retrieval_failure_feedback` 而不是 `lapse`（MindNet `IO_PROTOCOL.md` §2.3）；NULL ≠ false |
+
+> v9 的教训：`_tableFor()` 必须认识 `review_logs`，否则自愈路径会抛
+> `Invalid argument(s): unknown table review_logs`，真实旧库将无法打开——`v9_migration_test` 就是为了这条存在的。
+

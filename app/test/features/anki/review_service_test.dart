@@ -275,4 +275,115 @@ void main() {
       expect(task.description, contains('来自复习'));
     });
   });
+
+  group('a miss followed by the solution (MindNet IO_PROTOCOL 2.3)', () {
+    test('is logged as feedback, and leaves the FSRS schedule untouched',
+        () async {
+      // Two identical cards, one reviewed each way. The point of the
+      // distinction is the *cognitive model*, not the interval: FSRS stays the
+      // only authority for the due date (design rule D1), which is exactly what
+      // the review screen promises the user when it asks the question.
+      final missed = await anki.createKnowledgePoint(
+        title: '光合作用场所甲',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final nearMiss = await anki.createKnowledgePoint(
+        title: '光合作用场所乙',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      // Draw the queue once so the presentation units exist, ripen both equally
+      // (S = 19.2h, reviewed 10 hours ago, so R stays high), then draw it again:
+      // an item carries the row as it was when the queue was drawn, and a
+      // brand-new row sits at `effort = 1` because the retrievability term alone
+      // saturates the clamp - the two paths would then coincide for a reason
+      // that has nothing to do with the event mapping.
+      await service.buildQueue();
+      final tenHoursAgo = DateTime.now()
+          .subtract(const Duration(hours: 10))
+          .millisecondsSinceEpoch;
+      for (final kp in [missed, nearMiss]) {
+        final row = (await anki.unitStatesForKnowledgePoint(kp.id)).single;
+        await anki.updateUnitCardState(
+          row.id,
+          stability: 19.2,
+          difficulty: 5.1618,
+          lastReviewedAt: tenHoursAgo,
+        );
+      }
+      final queue = await service.buildQueue();
+      final plainItem =
+          queue.firstWhere((i) => i.knowledgePointId == missed.id);
+      final feedbackItem =
+          queue.firstWhere((i) => i.knowledgePointId == nearMiss.id);
+
+      await service.grade(
+        item: plainItem,
+        correct: false,
+        rating: FsrsRating.good,
+        submitted: '线粒体',
+      );
+      await service.grade(
+        item: feedbackItem,
+        correct: false,
+        rating: FsrsRating.good,
+        submitted: '线粒体',
+        reviewedSolution: true,
+        closeness: 0.6,
+      );
+
+      final plainState =
+          (await anki.unitStatesForKnowledgePoint(missed.id)).single;
+      final feedbackState =
+          (await anki.unitStatesForKnowledgePoint(nearMiss.id)).single;
+
+      // Same failed recall, so the same lapse in FSRS: same interval, same
+      // forced binding, same model ceiling.
+      expect(feedbackState.stability, plainState.stability);
+      // The due stamp is taken from the wall clock at write time, so the two
+      // reviews differ by milliseconds; the interval is what must match.
+      expect(
+        (feedbackState.dueAt! - plainState.dueAt!).abs(),
+        lessThan(2000),
+        reason: 'the answer to the question must not move the schedule',
+      );
+      expect(feedbackState.forced, 1);
+      expect(feedbackState.encodingStrength, plainState.encodingStrength,
+          reason: 'R0 only moves on a successful retrieval');
+
+      // The model does see the difference, through `Sigma`: the storage term
+      // uses `effort = (1 - R) + (1 - closeness)`
+      // (MindNet mechanisms/memory.dsr.js, the storage-strength line), so a
+      // nearer miss claims slightly less of it than an unexplained one.
+      expect(feedbackState.savings, isNotNull);
+      expect(plainState.savings, isNotNull);
+      expect(feedbackState.savings, lessThan(plainState.savings!));
+
+      final logs = await db.select(db.reviewLogs).get();
+      final plainLog =
+          logs.firstWhere((l) => l.cardStateId == plainState.id);
+      final feedbackLog =
+          logs.firstWhere((l) => l.cardStateId == feedbackState.id);
+      expect(plainLog.reviewedSolution, isFalse,
+          reason: 'asked, and the answer was no');
+      expect(plainLog.closeness, isNull);
+      expect(feedbackLog.reviewedSolution, isTrue);
+      expect(feedbackLog.closeness, closeTo(0.6, 1e-9));
+      expect(feedbackLog.correct, 0);
+    });
+
+    test('a correct answer leaves both new columns null', () async {
+      await anki.createKnowledgePoint(
+        title: '光合作用场所',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final item = (await service.buildQueue()).single;
+      await service.grade(item: item, correct: true, rating: FsrsRating.good);
+
+      final log = (await db.select(db.reviewLogs).get()).single;
+      expect(log.reviewedSolution, isNull,
+          reason: 'the question is never asked after a correct answer, so the '
+              'column must stay unknown rather than default to false');
+      expect(log.closeness, isNull);
+    });
+  });
 }

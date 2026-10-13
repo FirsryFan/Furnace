@@ -439,6 +439,154 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ankiYourAnswer => 'Your answer';
 
   @override
+  String get ankiHint => 'Hint';
+
+  @override
+  String get ankiHintHelper =>
+      'Shown only when you ask for it; asking is not an answer';
+
+  @override
+  String get ankiJudgeStrict => 'Strict';
+
+  @override
+  String get ankiJudgeLenient => 'Lenient';
+
+  @override
+  String get ankiJudgeSelf => 'Self';
+
+  @override
+  String get ankiJudgeStrictHint =>
+      'Exact characters: dictation and spelling practice';
+
+  @override
+  String get ankiJudgeLenientHint =>
+      'Ignores spaces, full/half width, punctuation and case; tolerates one typo';
+
+  @override
+  String get ankiJudgeSelfHint => 'See the answer, then judge yourself';
+
+  @override
+  String get ankiJudgeYourself => 'Compare with the answer and grade yourself';
+
+  @override
+  String get ankiAfterAnswerPrompt =>
+      'After seeing the answer, how close were you?';
+
+  @override
+  String get ankiNearMiss => 'Nearly had it';
+
+  @override
+  String get ankiStillForgot => 'Still didn\'t know it';
+
+  @override
+  String get ankiAfterAnswerHint =>
+      'Only tells the cognitive model whether this was forgetting or learning; the next review date is unchanged.';
+
+  @override
+  String get ankiNextCard => 'Next card';
+
+  @override
+  String get ankiTypePreference => 'Card type preference';
+
+  @override
+  String get ankiTypePreferenceMixed => 'Mixed (currently: fill in blank)';
+
+  @override
+  String get ankiTypePreferenceFillBlankLenient => 'Lenient fill in blank';
+
+  @override
+  String get ankiTypePreferenceNotSaved =>
+      'Saved: it applies from the next generated card on';
+
+  @override
+  String get ankiJudgePreference => 'Default judging mode';
+
+  @override
+  String get ankiJudgePreferenceDetail =>
+      'Only decides what a new answer starts as; the control above each card still wins.';
+
+  @override
+  String get ankiTypePreferenceDetail =>
+      'Used when a card is generated for new material (auto blank, package import, AI).';
+
+  @override
+  String get reviewPreferences => 'Review preferences';
+
+  @override
+  String get reviewPlanTitle => 'Review plan';
+
+  @override
+  String get reviewPlanToday => 'Today';
+
+  @override
+  String get reviewPlanEmpty =>
+      'No card group has a daily target yet. Add one to plan \"how much per group, per day\": a group is a tag, and its whole subtree counts as that group.';
+
+  @override
+  String get reviewPlanAdd => 'Add a group target';
+
+  @override
+  String get reviewPlanPickGroup => 'Which card group?';
+
+  @override
+  String get reviewPlanNoTags =>
+      'No tags yet: a card group is a tag, so create the tag first.';
+
+  @override
+  String reviewPlanGroupTitle(String tag) {
+    return 'Daily target for $tag';
+  }
+
+  @override
+  String get reviewPlanGroupBody =>
+      'The tag and everything under it count as this group.';
+
+  @override
+  String get reviewPlanNewCardsPerDay => 'New cards per day';
+
+  @override
+  String get reviewPlanReviewCardsPerDay => 'Reviews per day';
+
+  @override
+  String get reviewPlanZeroIsUnlimited =>
+      '0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.';
+
+  @override
+  String reviewPlanTarget(int newCards, int reviewCards) {
+    return 'Target: $newCards new · $reviewCards reviews';
+  }
+
+  @override
+  String reviewPlanDoneToday(int count) {
+    return 'Done today: $count';
+  }
+
+  @override
+  String reviewPlanRemaining(int count) {
+    return 'Remaining allowance: $count';
+  }
+
+  @override
+  String get reviewPlanReviewsUnlimited => 'Remaining allowance: no limit';
+
+  @override
+  String get reviewPlanNewCardsNormal => 'New cards are drawn normally.';
+
+  @override
+  String get reviewPlanNewCardsStopped =>
+      'Review allowance used up: this group stops drawing new cards today. A card answered wrong today still comes back.';
+
+  @override
+  String get reviewPlanEdit => 'Edit target';
+
+  @override
+  String get reviewPlanClear => 'Remove target (back to no limit)';
+
+  @override
+  String get ankiAutoBlankUnsupported =>
+      'Cannot build a card for the current type preference: this content does not have enough to blank out';
+
+  @override
   String get packagesImport => 'Import .kpak';
 
   @override
@@ -837,7 +985,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUsageDocHint =>
-      'The ranking algorithm and every parameter explained in one place';
+      'How each part works and what its limits are: AI, review, knowledge base, cognitive model, ranking';
+
+  @override
+  String get docAiTitle =>
+      'What the assistant can do, and what waits for your consent';
+
+  @override
+  String get docAiBody =>
+      'The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_content, fetch_page, evaluate_problem_fit) run immediately; writes (creating tags, flashcards, tasks, documents...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.';
+
+  @override
+  String get docReviewTitle => 'Review and flashcards';
+
+  @override
+  String get docReviewBody =>
+      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day.';
+
+  @override
+  String get docKnowledgeTitle => 'Knowledge base and tags';
+
+  @override
+  String get docKnowledgeBody =>
+      'Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI\'s delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.';
+
+  @override
+  String get docCognitiveTitle => 'How to read the cognitive model';
+
+  @override
+  String get docCognitiveBody =>
+      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and zone needs the slow tier - the page does not run it, so it shows unavailable. The three statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
 
   @override
   String get docFormulaTitle => 'How the score is computed';
@@ -860,6 +1037,45 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get docStatusBody =>
       'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.';
+
+  @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get settingsAboutHint =>
+      'Version, data location, network egress, known gaps';
+
+  @override
+  String get aboutVersionLabel => 'Version';
+
+  @override
+  String aboutVersionValue(String version, int build) {
+    return '$version (build $build)';
+  }
+
+  @override
+  String get aboutDataTitle => 'Where the data lives';
+
+  @override
+  String get aboutDataBody =>
+      'The database, skills, AI-written documents and image attachments all live under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).';
+
+  @override
+  String get aboutDataDirLabel => 'Application data directory';
+
+  @override
+  String get aboutNetworkTitle => 'Network egress';
+
+  @override
+  String get aboutNetworkBody =>
+      'Only two things reach the network on their own: (1) AI requests, sent to the endpoint you configured in AI settings - conversation text and images both go there; (2) fetch_page, which reads public pages with GET only, no cookies, refuses loopback and private addresses, follows at most 5 redirects and caps a body at 2 MiB. A skill\'s scripts run only if you switch its network permission on, and that switch decides whether the script runs at all - it does not block individual domains.';
+
+  @override
+  String get aboutGapsTitle => 'Known gaps';
+
+  @override
+  String get aboutGapsBody =>
+      '(1) No DOCX / PDF output - create_document writes .md / .txt only; (2) a skill\'s networkAllow is a switch, not per-domain enforcement (that would need OS-level egress control); (3) skill scripts run on Windows only, so those tools are absent on Android; (4) the browser bridge (browser_bridge) is not implemented; (5) the cognitive model has only the memory tier and the fast scheduler wired up - the run/1 session protocol, metacognition and rhythm tiers are not (see docs/MINDNET_ROADMAP.md); (6) fetch_page cannot refuse a host whose address fails to resolve (recorded, unfixed).';
 
   @override
   String get settingsAppearance => 'Appearance';
@@ -1022,6 +1238,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiInputHint => 'Type a message...';
 
   @override
+  String get aiInputKeyHint => 'Enter sends · Shift+Enter adds a line break';
+
+  @override
+  String get aiInputResizeHandle => 'Drag up or down to resize the message box';
+
+  @override
+  String get aiShowConversationList => 'Show the chat list';
+
+  @override
+  String get aiHideConversationList => 'Hide the chat list';
+
+  @override
   String get aiSend => 'Send';
 
   @override
@@ -1080,6 +1308,68 @@ class AppLocalizationsEn extends AppLocalizations {
       'This image could not be read: unsupported format or damaged file. Use PNG, JPG, WebP or GIF.';
 
   @override
+  String get aiUsageCurrent => 'This turn';
+
+  @override
+  String get aiUsageLast => 'Last turn';
+
+  @override
+  String get aiUsageRounds => 'Rounds';
+
+  @override
+  String get aiUsageSteps => 'Tool calls';
+
+  @override
+  String get aiUsageTotalTokens => 'Total tokens';
+
+  @override
+  String aiUsagePromptCompletion(int prompt, int completion) {
+    return 'prompt $prompt + completion $completion';
+  }
+
+  @override
+  String get aiUsageTokensPerSecond => 'Tokens/s';
+
+  @override
+  String get aiUsageCacheHit => 'Cache hit rate';
+
+  @override
+  String get aiUsageCacheAbsent =>
+      'This endpoint reported no cache accounting.';
+
+  @override
+  String get aiUsageCachePartial =>
+      'Only some rounds reported cache accounting.';
+
+  @override
+  String get aiUsageContext => 'Context used';
+
+  @override
+  String aiUsageContextEstimate(int tokens) {
+    return 'Estimated against a $tokens-token window; the window is a configured value, not a measurement.';
+  }
+
+  @override
+  String aiUsagePending(int count) {
+    return '$count awaiting approval';
+  }
+
+  @override
+  String aiUsageRejected(int count) {
+    return '$count rejected';
+  }
+
+  @override
+  String get aiUsageLiveEstimate =>
+      'Still streaming: counted from the text that has arrived so far.';
+
+  @override
+  String get aiUsageNoUsage => 'This turn reported no token usage.';
+
+  @override
+  String get aiUsageUnavailable => '—';
+
+  @override
   String get settingsAiSection => 'AI';
 
   @override
@@ -1113,6 +1403,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Deletions always ask one by one, in every mode.';
 
   @override
+  String get settingsAiMaxRounds => 'Tool-call round limit per message';
+
+  @override
+  String settingsAiMaxRoundsValue(int rounds) {
+    return '$rounds rounds';
+  }
+
+  @override
+  String get settingsAiMaxRoundsHint =>
+      'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 8.';
+
+  @override
   String get settingsAiSave => 'Save';
 
   @override
@@ -1137,6 +1439,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skillsInstallSample => 'Install the sample skill';
+
+  @override
+  String get skillsBuiltinTitle => 'Built-in skills:';
+
+  @override
+  String get skillsBuiltinInstall => 'Install';
 
   @override
   String get skillsInstalling => 'Installing...';
@@ -1178,6 +1486,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get skillsContainerNoteUnavailable =>
       'Script execution is Windows only: there is no Node runtime on this device, so declared script tools do not appear in the model\'s tool list (the skill\'s prompt still applies).';
+
+  @override
+  String get skillsContainerPromptOnly =>
+      'This skill has no scripts to run: only its prompt applies, on both Android and Windows, for as long as it stays enabled.';
 
   @override
   String get skillsContainerRunnable =>

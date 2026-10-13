@@ -44,6 +44,7 @@ class AiConfig {
     this.baseUrl,
     this.model,
     this.permissionMode = AiPermissionMode.plan,
+    this.maxRounds = defaultMaxRounds,
   });
 
   /// The master switch. When false the rest is ignored and the app must make
@@ -55,10 +56,40 @@ class AiConfig {
   final String? model;
   final AiPermissionMode permissionMode;
 
+  /// How many model round-trips one user message may spend: the agent loop's
+  /// tool-call budget (`AgentLoop.maxRounds`).
+  ///
+  /// A paid call per round, so this is a user setting rather than a constant:
+  /// "look something up, then act on it, then confirm" fits in the default,
+  /// while a longer multi-step task may need more than the default allows.
+  final int maxRounds;
+
   /// DeepSeek's OpenAI-compatible endpoint. Kept here rather than in the
   /// adapter so the default is visible next to the setting it belongs to.
   static const String defaultBaseUrl = 'https://api.deepseek.com';
   static const String defaultModel = 'deepseek-chat';
+
+  /// The shipped round budget, used when the user has never chosen one (a NULL
+  /// `local_settings.ai_max_rounds`, which is every row on an upgraded file).
+  static const int defaultMaxRounds = 8;
+
+  /// The range the setting offers, and the range any stored value is resolved
+  /// into. Bounded on purpose: a hand-edited or future-written
+  /// `ai_max_rounds` must not be able to make one message spend an unbounded
+  /// number of paid calls, and zero rounds would answer nothing at all.
+  static const int minMaxRounds = 1;
+  static const int maxMaxRounds = 20;
+
+  /// [stored] as a usable budget: the default when nothing was chosen, clamped
+  /// into [minMaxRounds]..[maxMaxRounds] otherwise. Applied on the way in *and*
+  /// on the way out, so the number the loop runs with is always in range even
+  /// if the file holds something else.
+  static int resolveMaxRounds(int? stored) {
+    if (stored == null) {
+      return defaultMaxRounds;
+    }
+    return stored.clamp(minMaxRounds, maxMaxRounds);
+  }
 
   /// True when the user has actually completed the setup, i.e. the AI surface
   /// should exist at all.
@@ -85,6 +116,7 @@ class AiConfig {
     String? baseUrl,
     String? model,
     AiPermissionMode? permissionMode,
+    int? maxRounds,
   }) =>
       AiConfig(
         enabled: enabled ?? this.enabled,
@@ -92,6 +124,7 @@ class AiConfig {
         baseUrl: baseUrl ?? this.baseUrl,
         model: model ?? this.model,
         permissionMode: permissionMode ?? this.permissionMode,
+        maxRounds: maxRounds ?? this.maxRounds,
       );
 }
 
@@ -171,6 +204,9 @@ class AiRepository {
       baseUrl: row.aiBaseUrl,
       model: row.aiModel,
       permissionMode: AiPermissionMode.fromId(row.aiPermissionMode),
+      // NULL means "never chosen" - see [AiConfig.resolveMaxRounds] - so an
+      // upgraded install keeps the behaviour it had before the setting existed.
+      maxRounds: AiConfig.resolveMaxRounds(row.aiMaxRounds),
     );
   }
 
@@ -203,6 +239,9 @@ class AiRepository {
         aiBaseUrl: Value(config.baseUrl),
         aiModel: Value(config.model),
         aiPermissionMode: Value(config.permissionMode.id),
+        // Resolved rather than stored verbatim, so the file can never hold a
+        // budget outside the range the UI offers.
+        aiMaxRounds: Value(AiConfig.resolveMaxRounds(config.maxRounds)),
         updatedAt: Value(now),
       ),
     );

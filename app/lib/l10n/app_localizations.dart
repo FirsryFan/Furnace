@@ -938,6 +938,258 @@ abstract class AppLocalizations {
   /// **'Your answer'**
   String get ankiYourAnswer;
 
+  /// No description provided for @ankiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint'**
+  String get ankiHint;
+
+  /// No description provided for @ankiHintHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown only when you ask for it; asking is not an answer'**
+  String get ankiHintHelper;
+
+  /// No description provided for @ankiJudgeStrict.
+  ///
+  /// In en, this message translates to:
+  /// **'Strict'**
+  String get ankiJudgeStrict;
+
+  /// No description provided for @ankiJudgeLenient.
+  ///
+  /// In en, this message translates to:
+  /// **'Lenient'**
+  String get ankiJudgeLenient;
+
+  /// No description provided for @ankiJudgeSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Self'**
+  String get ankiJudgeSelf;
+
+  /// No description provided for @ankiJudgeStrictHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact characters: dictation and spelling practice'**
+  String get ankiJudgeStrictHint;
+
+  /// No description provided for @ankiJudgeLenientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignores spaces, full/half width, punctuation and case; tolerates one typo'**
+  String get ankiJudgeLenientHint;
+
+  /// No description provided for @ankiJudgeSelfHint.
+  ///
+  /// In en, this message translates to:
+  /// **'See the answer, then judge yourself'**
+  String get ankiJudgeSelfHint;
+
+  /// No description provided for @ankiJudgeYourself.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with the answer and grade yourself'**
+  String get ankiJudgeYourself;
+
+  /// No description provided for @ankiAfterAnswerPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'After seeing the answer, how close were you?'**
+  String get ankiAfterAnswerPrompt;
+
+  /// No description provided for @ankiNearMiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearly had it'**
+  String get ankiNearMiss;
+
+  /// No description provided for @ankiStillForgot.
+  ///
+  /// In en, this message translates to:
+  /// **'Still didn\'t know it'**
+  String get ankiStillForgot;
+
+  /// No description provided for @ankiAfterAnswerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only tells the cognitive model whether this was forgetting or learning; the next review date is unchanged.'**
+  String get ankiAfterAnswerHint;
+
+  /// No description provided for @ankiNextCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Next card'**
+  String get ankiNextCard;
+
+  /// No description provided for @ankiTypePreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Card type preference'**
+  String get ankiTypePreference;
+
+  /// No description provided for @ankiTypePreferenceMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed (currently: fill in blank)'**
+  String get ankiTypePreferenceMixed;
+
+  /// No description provided for @ankiTypePreferenceFillBlankLenient.
+  ///
+  /// In en, this message translates to:
+  /// **'Lenient fill in blank'**
+  String get ankiTypePreferenceFillBlankLenient;
+
+  /// No description provided for @ankiTypePreferenceNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved: it applies from the next generated card on'**
+  String get ankiTypePreferenceNotSaved;
+
+  /// No description provided for @ankiJudgePreference.
+  ///
+  /// In en, this message translates to:
+  /// **'Default judging mode'**
+  String get ankiJudgePreference;
+
+  /// No description provided for @ankiJudgePreferenceDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Only decides what a new answer starts as; the control above each card still wins.'**
+  String get ankiJudgePreferenceDetail;
+
+  /// No description provided for @ankiTypePreferenceDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Used when a card is generated for new material (auto blank, package import, AI).'**
+  String get ankiTypePreferenceDetail;
+
+  /// No description provided for @reviewPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Review preferences'**
+  String get reviewPreferences;
+
+  /// No description provided for @reviewPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review plan'**
+  String get reviewPlanTitle;
+
+  /// No description provided for @reviewPlanToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get reviewPlanToday;
+
+  /// No description provided for @reviewPlanEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No card group has a daily target yet. Add one to plan \"how much per group, per day\": a group is a tag, and its whole subtree counts as that group.'**
+  String get reviewPlanEmpty;
+
+  /// No description provided for @reviewPlanAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a group target'**
+  String get reviewPlanAdd;
+
+  /// No description provided for @reviewPlanPickGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Which card group?'**
+  String get reviewPlanPickGroup;
+
+  /// No description provided for @reviewPlanNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet: a card group is a tag, so create the tag first.'**
+  String get reviewPlanNoTags;
+
+  /// No description provided for @reviewPlanGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily target for {tag}'**
+  String reviewPlanGroupTitle(String tag);
+
+  /// No description provided for @reviewPlanGroupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The tag and everything under it count as this group.'**
+  String get reviewPlanGroupBody;
+
+  /// No description provided for @reviewPlanNewCardsPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'New cards per day'**
+  String get reviewPlanNewCardsPerDay;
+
+  /// No description provided for @reviewPlanReviewCardsPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews per day'**
+  String get reviewPlanReviewCardsPerDay;
+
+  /// No description provided for @reviewPlanZeroIsUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.'**
+  String get reviewPlanZeroIsUnlimited;
+
+  /// No description provided for @reviewPlanTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target: {newCards} new · {reviewCards} reviews'**
+  String reviewPlanTarget(int newCards, int reviewCards);
+
+  /// No description provided for @reviewPlanDoneToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Done today: {count}'**
+  String reviewPlanDoneToday(int count);
+
+  /// No description provided for @reviewPlanRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining allowance: {count}'**
+  String reviewPlanRemaining(int count);
+
+  /// No description provided for @reviewPlanReviewsUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining allowance: no limit'**
+  String get reviewPlanReviewsUnlimited;
+
+  /// No description provided for @reviewPlanNewCardsNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'New cards are drawn normally.'**
+  String get reviewPlanNewCardsNormal;
+
+  /// No description provided for @reviewPlanNewCardsStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Review allowance used up: this group stops drawing new cards today. A card answered wrong today still comes back.'**
+  String get reviewPlanNewCardsStopped;
+
+  /// No description provided for @reviewPlanEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit target'**
+  String get reviewPlanEdit;
+
+  /// No description provided for @reviewPlanClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove target (back to no limit)'**
+  String get reviewPlanClear;
+
+  /// No description provided for @ankiAutoBlankUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot build a card for the current type preference: this content does not have enough to blank out'**
+  String get ankiAutoBlankUnsupported;
+
   /// No description provided for @packagesImport.
   ///
   /// In en, this message translates to:
@@ -1637,8 +1889,56 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUsageDocHint.
   ///
   /// In en, this message translates to:
-  /// **'The ranking algorithm and every parameter explained in one place'**
+  /// **'How each part works and what its limits are: AI, review, knowledge base, cognitive model, ranking'**
   String get settingsUsageDocHint;
+
+  /// No description provided for @docAiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What the assistant can do, and what waits for your consent'**
+  String get docAiTitle;
+
+  /// No description provided for @docAiBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_content, fetch_page, evaluate_problem_fit) run immediately; writes (creating tags, flashcards, tasks, documents...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.'**
+  String get docAiBody;
+
+  /// No description provided for @docReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and flashcards'**
+  String get docReviewTitle;
+
+  /// No description provided for @docReviewBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day.'**
+  String get docReviewBody;
+
+  /// No description provided for @docKnowledgeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge base and tags'**
+  String get docKnowledgeTitle;
+
+  /// No description provided for @docKnowledgeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI\'s delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.'**
+  String get docKnowledgeBody;
+
+  /// No description provided for @docCognitiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How to read the cognitive model'**
+  String get docCognitiveTitle;
+
+  /// No description provided for @docCognitiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and zone needs the slow tier - the page does not run it, so it shows unavailable. The three statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.'**
+  String get docCognitiveBody;
 
   /// No description provided for @docFormulaTitle.
   ///
@@ -1675,6 +1975,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.'**
   String get docStatusBody;
+
+  /// No description provided for @settingsAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsAbout;
+
+  /// No description provided for @settingsAboutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, data location, network egress, known gaps'**
+  String get settingsAboutHint;
+
+  /// No description provided for @aboutVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get aboutVersionLabel;
+
+  /// No description provided for @aboutVersionValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{version} (build {build})'**
+  String aboutVersionValue(String version, int build);
+
+  /// No description provided for @aboutDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the data lives'**
+  String get aboutDataTitle;
+
+  /// No description provided for @aboutDataBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The database, skills, AI-written documents and image attachments all live under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).'**
+  String get aboutDataBody;
+
+  /// No description provided for @aboutDataDirLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Application data directory'**
+  String get aboutDataDirLabel;
+
+  /// No description provided for @aboutNetworkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Network egress'**
+  String get aboutNetworkTitle;
+
+  /// No description provided for @aboutNetworkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Only two things reach the network on their own: (1) AI requests, sent to the endpoint you configured in AI settings - conversation text and images both go there; (2) fetch_page, which reads public pages with GET only, no cookies, refuses loopback and private addresses, follows at most 5 redirects and caps a body at 2 MiB. A skill\'s scripts run only if you switch its network permission on, and that switch decides whether the script runs at all - it does not block individual domains.'**
+  String get aboutNetworkBody;
+
+  /// No description provided for @aboutGapsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Known gaps'**
+  String get aboutGapsTitle;
+
+  /// No description provided for @aboutGapsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'(1) No DOCX / PDF output - create_document writes .md / .txt only; (2) a skill\'s networkAllow is a switch, not per-domain enforcement (that would need OS-level egress control); (3) skill scripts run on Windows only, so those tools are absent on Android; (4) the browser bridge (browser_bridge) is not implemented; (5) the cognitive model has only the memory tier and the fast scheduler wired up - the run/1 session protocol, metacognition and rhythm tiers are not (see docs/MINDNET_ROADMAP.md); (6) fetch_page cannot refuse a host whose address fails to resolve (recorded, unfixed).'**
+  String get aboutGapsBody;
 
   /// No description provided for @settingsAppearance.
   ///
@@ -1958,6 +2324,30 @@ abstract class AppLocalizations {
   /// **'Type a message...'**
   String get aiInputHint;
 
+  /// No description provided for @aiInputKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter sends · Shift+Enter adds a line break'**
+  String get aiInputKeyHint;
+
+  /// No description provided for @aiInputResizeHandle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag up or down to resize the message box'**
+  String get aiInputResizeHandle;
+
+  /// No description provided for @aiShowConversationList.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the chat list'**
+  String get aiShowConversationList;
+
+  /// No description provided for @aiHideConversationList.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the chat list'**
+  String get aiHideConversationList;
+
   /// No description provided for @aiSend.
   ///
   /// In en, this message translates to:
@@ -2066,6 +2456,108 @@ abstract class AppLocalizations {
   /// **'This image could not be read: unsupported format or damaged file. Use PNG, JPG, WebP or GIF.'**
   String get aiImageUnreadable;
 
+  /// No description provided for @aiUsageCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'This turn'**
+  String get aiUsageCurrent;
+
+  /// No description provided for @aiUsageLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last turn'**
+  String get aiUsageLast;
+
+  /// No description provided for @aiUsageRounds.
+  ///
+  /// In en, this message translates to:
+  /// **'Rounds'**
+  String get aiUsageRounds;
+
+  /// No description provided for @aiUsageSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calls'**
+  String get aiUsageSteps;
+
+  /// No description provided for @aiUsageTotalTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Total tokens'**
+  String get aiUsageTotalTokens;
+
+  /// No description provided for @aiUsagePromptCompletion.
+  ///
+  /// In en, this message translates to:
+  /// **'prompt {prompt} + completion {completion}'**
+  String aiUsagePromptCompletion(int prompt, int completion);
+
+  /// No description provided for @aiUsageTokensPerSecond.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens/s'**
+  String get aiUsageTokensPerSecond;
+
+  /// No description provided for @aiUsageCacheHit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache hit rate'**
+  String get aiUsageCacheHit;
+
+  /// No description provided for @aiUsageCacheAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'This endpoint reported no cache accounting.'**
+  String get aiUsageCacheAbsent;
+
+  /// No description provided for @aiUsageCachePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Only some rounds reported cache accounting.'**
+  String get aiUsageCachePartial;
+
+  /// No description provided for @aiUsageContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Context used'**
+  String get aiUsageContext;
+
+  /// No description provided for @aiUsageContextEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated against a {tokens}-token window; the window is a configured value, not a measurement.'**
+  String aiUsageContextEstimate(int tokens);
+
+  /// No description provided for @aiUsagePending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} awaiting approval'**
+  String aiUsagePending(int count);
+
+  /// No description provided for @aiUsageRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rejected'**
+  String aiUsageRejected(int count);
+
+  /// No description provided for @aiUsageLiveEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Still streaming: counted from the text that has arrived so far.'**
+  String get aiUsageLiveEstimate;
+
+  /// No description provided for @aiUsageNoUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'This turn reported no token usage.'**
+  String get aiUsageNoUsage;
+
+  /// No description provided for @aiUsageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'—'**
+  String get aiUsageUnavailable;
+
   /// No description provided for @settingsAiSection.
   ///
   /// In en, this message translates to:
@@ -2126,6 +2618,24 @@ abstract class AppLocalizations {
   /// **'Deletions always ask one by one, in every mode.'**
   String get settingsAiPermissionHint;
 
+  /// No description provided for @settingsAiMaxRounds.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool-call round limit per message'**
+  String get settingsAiMaxRounds;
+
+  /// No description provided for @settingsAiMaxRoundsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{rounds} rounds'**
+  String settingsAiMaxRoundsValue(int rounds);
+
+  /// No description provided for @settingsAiMaxRoundsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 8.'**
+  String get settingsAiMaxRoundsHint;
+
   /// No description provided for @settingsAiSave.
   ///
   /// In en, this message translates to:
@@ -2173,6 +2683,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install the sample skill'**
   String get skillsInstallSample;
+
+  /// No description provided for @skillsBuiltinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in skills:'**
+  String get skillsBuiltinTitle;
+
+  /// No description provided for @skillsBuiltinInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get skillsBuiltinInstall;
 
   /// No description provided for @skillsInstalling.
   ///
@@ -2251,6 +2773,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Script execution is Windows only: there is no Node runtime on this device, so declared script tools do not appear in the model\'s tool list (the skill\'s prompt still applies).'**
   String get skillsContainerNoteUnavailable;
+
+  /// No description provided for @skillsContainerPromptOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This skill has no scripts to run: only its prompt applies, on both Android and Windows, for as long as it stays enabled.'**
+  String get skillsContainerPromptOnly;
 
   /// No description provided for @skillsContainerRunnable.
   ///

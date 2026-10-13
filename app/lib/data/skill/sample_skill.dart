@@ -30,6 +30,12 @@ abstract final class SampleSkill {
   /// The one tool the sample declares, and the script behind it.
   static const String toolName = 'run_echo';
 
+  /// The manifest description. Kept as a constant because the settings card's
+  /// built-in list shows it *before* the package is built (`builtin_skills.dart`),
+  /// where there is no manifest to read it from.
+  static const String description =
+      '示例 skill：验证脚本容器真的能跑，并回显它收到的参数与环境变量名';
+
   /// The file name the settings card offers, if the user wants to keep the
   /// package around: `<name>.fskill`.
   static String get fileName => '$name.fskill';
@@ -44,7 +50,7 @@ abstract final class SampleSkill {
       'format': SkillManifest.currentFormat,
       'name': name,
       'version': '1.0.0',
-      'description': '示例 skill：验证脚本容器真的能跑，并回显它收到的参数与环境变量名',
+      'description': description,
       'platforms': const ['windows', 'android'],
       'networkAllow': const <String>[],
       'permissions': const <String>[],

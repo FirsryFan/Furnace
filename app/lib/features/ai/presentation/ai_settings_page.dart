@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../../data/repositories/ai_repository.dart';
-import '../../../data/skill/sample_skill.dart';
+import '../../../data/skill/builtin_skill.dart';
+import '../../../data/skill/builtin_skills.dart';
 import '../../../data/skill/skill_runner.dart';
 import '../../../data/skill/skill_store.dart';
 import '../../../domain/skill/skill_manifest.dart';
@@ -33,6 +34,11 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
   final _model = TextEditingController();
   bool _enabled = false;
   AiPermissionMode _mode = AiPermissionMode.plan;
+
+  /// The user's tool-call budget for the agent loop. Held as the resolved
+  /// configuration value, so an untouched setting shows the shipped default
+  /// rather than a blank or a zero.
+  int _maxRounds = AiConfig.defaultMaxRounds;
   bool _loaded = false;
   bool _obscureKey = true;
 
@@ -51,6 +57,7 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
     _loaded = true;
     _enabled = config.enabled;
     _mode = config.permissionMode;
+    _maxRounds = AiConfig.resolveMaxRounds(config.maxRounds);
     _key.text = config.apiKey ?? '';
     _baseUrl.text = config.baseUrl ?? '';
     _model.text = config.model ?? '';
@@ -72,6 +79,7 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
           baseUrl: _baseUrl.text,
           model: _model.text,
           permissionMode: _mode,
+          maxRounds: _maxRounds,
         ));
     if (!mounted) {
       return;
@@ -161,6 +169,43 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                 padding: const EdgeInsets.only(left: 16, top: 4),
                 child: Text(
                   l10n.settingsAiPermissionHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(l10n.settingsAiMaxRounds,
+                        style: Theme.of(context).textTheme.titleSmall),
+                  ),
+                  Text(
+                    l10n.settingsAiMaxRoundsValue(_maxRounds),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                // One division per round, so the slider can only land on whole
+                // rounds: a paid model call is not divisible.
+                value: _maxRounds.toDouble(),
+                min: AiConfig.minMaxRounds.toDouble(),
+                max: AiConfig.maxMaxRounds.toDouble(),
+                divisions: AiConfig.maxMaxRounds - AiConfig.minMaxRounds,
+                label: l10n.settingsAiMaxRoundsValue(_maxRounds),
+                onChanged: (value) =>
+                    setState(() => _maxRounds = value.round()),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Text(
+                  l10n.settingsAiMaxRoundsHint,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.outline,
@@ -313,14 +358,24 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
   /// the script container works on this machine at all: the sample declares one
   /// tool that echoes back what it received, so a user can see a real child
   /// process run - and see that the environment it got carries no API key.
-  Future<void> _installSample() async {
+  Future<void> _installSample() => _installBuiltin(BuiltinSkills.sample);
+
+  /// Installs one of the packages that ship inside the app
+  /// (`data/skill/builtin_skills.dart`) and reports the outcome.
+  ///
+  /// This is the sample's own path, generalised: [SkillStore.install] validates
+  /// and unpacks, so a built-in is refused exactly the way a picked file would
+  /// be if it were malformed. Nothing here trusts the package just because the
+  /// app shipped it - which is also why the card can offer a one-tap install
+  /// without a second code path to audit.
+  Future<void> _installBuiltin(BuiltinSkill skill) async {
     final l10n = AppLocalizations.of(context);
     setState(() {
       _installing = true;
       _error = null;
     });
 
-    final outcome = await _installBytes(SampleSkill.build());
+    final outcome = await _installBytes(skill.build());
     if (!mounted) {
       return;
     }
@@ -554,6 +609,33 @@ class SkillsCardState extends ConsumerState<SkillsCard> {
                 text: _error!,
               ),
             ],
+            const SizedBox(height: 4),
+            // Deliberately one wrapping line rather than a block per skill: the
+            // card already grows with the installed list, and two stacked rows
+            // pushed its fixed-height widget tests into an overflow. The label
+            // carries the display name; the package name and the one-line
+            // description appear on the tile once it is installed (and in the
+            // tooltip), so nothing about the package is hidden.
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  l10n.skillsBuiltinTitle,
+                  style: TextStyle(fontSize: 11, color: scheme.outline),
+                ),
+                for (final skill in BuiltinSkills.cardEntries)
+                  Tooltip(
+                    message: skill.summary,
+                    child: TextButton(
+                      key: Key('builtin-skill-install-${skill.name}'),
+                      onPressed:
+                          _installing ? null : () => _installBuiltin(skill),
+                      child: Text('${l10n.skillsBuiltinInstall} ${skill.title}'),
+                    ),
+                  ),
+              ],
+            ),
             const Divider(height: 20),
             installed.when(
               loading: () => const Padding(
@@ -645,7 +727,12 @@ class _SkillTile extends StatelessWidget {
     // What the container would actually refuse, derived from the same constant
     // the runner uses, so the warning and the refusal cannot drift apart.
     final unsupported = SkillRunner.unsupportedCapabilities(skill);
-    final runnable = skill.isRunnableOn(platform);
+    // "This machine can run its scripts" is vacuous for a skill that declares
+    // none, and two of the packages that ship with the app are prompt-only, so
+    // this was the *only* thing the tile said about running them. The honest
+    // statement for those is different, not a matter of degree.
+    final declaresScripts = manifest.scripts.isNotEmpty;
+    final runnable = declaresScripts && skill.isRunnableOn(platform);
     final domains = manifest.networkAllow.join(', ');
     final canConsent = manifest.networkAllow.isNotEmpty;
 
@@ -722,13 +809,19 @@ class _SkillTile extends StatelessWidget {
           // Whether the declared tools can run on this machine. A skill that
           // cannot run here still says so, and still contributes its prompt.
           _SkillsMessage(
-            icon: runnable ? Icons.play_circle_outline : Icons.block_outlined,
+            icon: !declaresScripts
+                ? Icons.info_outline
+                : runnable
+                    ? Icons.play_circle_outline
+                    : Icons.block_outlined,
             color: runnable ? scheme.primary : scheme.outline,
-            text: runnable
-                ? l10n.skillsContainerRunnable
-                : l10n.skillsContainerNotRunnable(
-                    manifest.platforms.map((p) => p.id).join(', '),
-                  ),
+            text: !declaresScripts
+                ? l10n.skillsContainerPromptOnly
+                : runnable
+                    ? l10n.skillsContainerRunnable
+                    : l10n.skillsContainerNotRunnable(
+                        manifest.platforms.map((p) => p.id).join(', '),
+                      ),
           ),
           if (canConsent) ...[
             const SizedBox(height: 4),

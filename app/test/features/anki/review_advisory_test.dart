@@ -501,6 +501,7 @@ class _SpyModel implements CognitiveModel {
     required int rating,
     required double nowHours,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   }) =>
       _inner.modelStateAfterReview(
@@ -508,6 +509,7 @@ class _SpyModel implements CognitiveModel {
         rating: rating,
         nowHours: nowHours,
         reread: reread,
+        reviewedSolution: reviewedSolution,
         closeness: closeness,
       );
 }

@@ -42,6 +42,39 @@ class LocalSettings extends Table {
   /// `plan` | `auto` (see AI_DESIGN D12 v2).
   TextColumn get aiPermissionMode => text().nullable()();
 
+  /// v7: ceiling on model round-trips per user message - the agent loop's
+  /// tool-call budget.
+  ///
+  /// NULL means "the user never chose", which the app reads as its shipped
+  /// default rather than writing a value during the migration: an upgraded row
+  /// must keep the behaviour it had before this setting existed.
+  IntColumn get aiMaxRounds => integer().nullable()();
+
+  // --- v7: review preferences (user request "提出题型方式的喜好") ---
+  //
+  // Both columns are nullable and read as NULL on every upgraded row, because
+  // NULL is carrying a real meaning here: "the user never chose", which the app
+  // resolves to the shipped default. Writing a value during the migration would
+  // instead freeze today's default into every install and make a later change of
+  // that default unreachable for existing users.
+
+  /// Default judging mode for a new answer: `strict` | `lenient` | `self`.
+  ///
+  /// These are the same words the practice screen's per-answer control uses, and
+  /// the value only decides what that control starts as - the user can still
+  /// judge any single answer differently while answering.
+  ///
+  /// NULL means [JudgeModePreference.strict], i.e. exact character comparison,
+  /// which is the behaviour this app had before the setting existed.
+  TextColumn get ankiJudgeMode => text().nullable()();
+
+  /// Card type the automatic generation paths should write:
+  /// `mixed` | `fill_blank` | `mcq` | `essay`.
+  ///
+  /// NULL means `mixed`, which resolves to the fill-blank fallback: exactly the
+  /// card every generator produced before the preference existed.
+  TextColumn get ankiCardTypePreference => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
@@ -320,6 +353,26 @@ class ReviewLogs extends Table {
 
   /// v2 answer time in ms.
   IntColumn get msTaken => integer().nullable()();
+
+  /// v9: did the user read the expected answer/solution after a failed recall?
+  ///
+  /// This is MindNet's `reviewed_solution` (`docs/IO_PROTOCOL.md` §2.3): the
+  /// same wrong answer is two different events depending on it - a bare miss
+  /// (`lapse`, S drops) or a learning event (`retrieval_failure_feedback`,
+  /// whose S gain grows with [closeness]). NULL means "not asked or not
+  /// applicable" (every right answer, and rows written before v9), never
+  /// "false by default": the two paths must stay distinguishable after the
+  /// fact instead of being silently flattened into one.
+  BoolColumn get reviewedSolution => boolean().nullable()();
+
+  /// v9: how close the failed recall was, in `(0, 1)`, when
+  /// [reviewedSolution] is true.
+  ///
+  /// MindNet's `closeness = x_v / C_v` (`docs/MODEL_v2_MATH.md` §3): the
+  /// stability gain of a failure-feedback event is multiplied by exactly this
+  /// number, so it is stored verbatim rather than folded into a boolean.
+  /// NULL whenever the event was not a failure-feedback one.
+  RealColumn get closeness => real().nullable()();
 
   IntColumn get reviewedAt => integer()();
   IntColumn get createdAt => integer()();
@@ -736,4 +789,55 @@ class AiActions extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+// ============================================================================
+// v8: per-group daily review plan ("每天各个卡组的任务量").
+// ============================================================================
+
+/// One card group's daily target.
+///
+/// A "卡组" is a **tag**: the tag tree is the app's only grouping of knowledge
+/// points (`ObjectTags` links `knowledge_point` objects to tags, and
+/// `tag_repository.getTagsUnderPath` already treats `a/b` as covering its whole
+/// path prefix). A group therefore means "this tag and, because the plan is
+/// about a subject rather than one leaf, every tag under it" - the same
+/// subtree reading `TagDiffusion` and `getTagsUnderPath` already use.
+///
+/// One row per tag, created only when the user actually sets a target: an empty
+/// table is what "nothing is configured" looks like, and that state must leave
+/// today's behaviour (no cap at all) untouched. A tag with no row has no limit.
+@DataClassName('ReviewGroupPlan')
+class ReviewGroupPlans extends Table {
+  TextColumn get id => text()();
+
+  /// The group's tag. Keyed by tag *id*, never by path: `TagRepository` rewrites
+  /// every descendant's `path` in cascade on rename/move, so a plan keyed by
+  /// path would silently point at a different (or no) group after a rename.
+  /// `deleteTag` removes the whole subtree, so the cascade here is what keeps
+  /// plans from outliving their group.
+  TextColumn get tagId => text().references(Tags, #id)();
+
+  /// New cards allowed per day. 0 means "no new cards from this group today".
+  ///
+  /// The column is NOT NULL with a 0 default so a freshly created row always has
+  /// a number to enforce; "never configured" is the absence of the row, not a
+  /// NULL inside it.
+  IntColumn get newCardsPerDay => integer().withDefault(const Constant(0))();
+
+  /// Reviews allowed per day. 0 means unlimited - see
+  /// `ReviewGroupPlan.isReviewCapped`, which also spells out why 0 cannot mean
+  /// "no reviews" in this schema.
+  IntColumn get reviewCardsPerDay => integer().withDefault(const Constant(0))();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {tagId},
+      ];
 }

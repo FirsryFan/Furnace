@@ -22,6 +22,29 @@ class UsageDocPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
         children: [
+          // The four modules a user meets before the ranking algorithm. The
+          // ranking block below stays where it was; this page is the one place
+          // that explains how the app behaves, not just how it sorts.
+          _DocEntry(
+            icon: Icons.smart_toy_outlined,
+            title: l10n.docAiTitle,
+            body: l10n.docAiBody,
+          ),
+          _DocEntry(
+            icon: Icons.school_outlined,
+            title: l10n.docReviewTitle,
+            body: l10n.docReviewBody,
+          ),
+          _DocEntry(
+            icon: Icons.account_tree_outlined,
+            title: l10n.docKnowledgeTitle,
+            body: l10n.docKnowledgeBody,
+          ),
+          _DocEntry(
+            icon: Icons.insights_outlined,
+            title: l10n.docCognitiveTitle,
+            body: l10n.docCognitiveBody,
+          ),
           _DocEntry(
             icon: Icons.functions,
             title: l10n.docFormulaTitle,

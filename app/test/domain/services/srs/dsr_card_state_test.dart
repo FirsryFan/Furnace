@@ -342,4 +342,152 @@ void main() {
           DsrEventType.reread);
     });
   });
+
+  group('a miss followed by the solution is a different event', () {
+    test('the mapping only fires on a failed recall', () {
+      final feedback = DsrCardState.eventFor(
+        rating: 1,
+        reviewedSolution: true,
+        closeness: 0.6,
+      );
+      expect(feedback.type, DsrEventType.retrievalFailureFeedback);
+      expect(feedback.grade, 1, reason: 'it is still a failed recall');
+      expect(feedback.closeness, 0.6);
+
+      // Answering correctly is unaffected: there is no failure to feed back on.
+      for (final rating in [2, 3, 4]) {
+        expect(
+          DsrCardState.eventFor(
+            rating: rating,
+            reviewedSolution: true,
+            closeness: 0.6,
+          ).type,
+          DsrEventType.retrievalSuccess,
+        );
+      }
+      // And with the flag off nothing changed at all.
+      expect(DsrCardState.eventFor(rating: 1).type, DsrEventType.lapse);
+      expect(DsrCardState.eventFor(rating: 0).type, DsrEventType.lapse);
+    });
+
+    test('closeness is clamped to the documented 0..1 range', () {
+      expect(
+        DsrCardState.eventFor(
+          rating: 1,
+          reviewedSolution: true,
+          closeness: 1.7,
+        ).closeness,
+        1.0,
+      );
+      expect(
+        DsrCardState.eventFor(
+          rating: 1,
+          reviewedSolution: true,
+          closeness: -0.3,
+        ).closeness,
+        0.0,
+      );
+    });
+
+    test('the documented anchors are named constants', () {
+      // 0.5 is the protocol default for `reviewed_solution` without an explicit
+      // closeness (MindNet docs/IO_PROTOCOL.md §2.3); 0.6 is the top of the
+      // "nearly had it" band the UI offers as its strong choice
+      // (docs/MODEL_v2_MATH.md, closeness >= 0.6).
+      expect(DsrCardState.closenessDefault, 0.5);
+      expect(DsrCardState.closenessNearMiss, 0.6);
+    });
+
+    test('a bare miss cuts stability, the same miss read as learning raises it',
+        () async {
+      // This is the whole point of the slice, and the reason a bare `Again` and
+      // a `Again` you then checked against the answer must not be recorded the
+      // same way: MindNet's reference implementation sends only `lapse` down the
+      // drop-stability branch (mechanisms/memory.dsr.js).
+      final row = await seedCard(stability: 19.2, difficulty: 5.1618);
+
+      final lapse = DsrCardState.applyReview(
+        row,
+        rating: 1,
+        nowHours: 40,
+        targetRetention: 0.9,
+      );
+      final feedback = DsrCardState.applyReview(
+        row,
+        rating: 1,
+        nowHours: 40,
+        targetRetention: 0.9,
+        reviewedSolution: true,
+        closeness: DsrCardState.closenessNearMiss,
+      );
+
+      expect(lapse.outcome.kind, 'lapse');
+      expect(lapse.outcome.sInc, isNull,
+          reason: 'a lapse has no stability increase at all');
+      expect(lapse.update.stability.value, lessThan(row.stability!));
+
+      expect(feedback.outcome.kind, 'review');
+      expect(feedback.outcome.sInc, isNotNull);
+      expect(feedback.update.stability.value, greaterThan(row.stability!));
+      expect(feedback.update.stability.value,
+          greaterThan(lapse.update.stability.value!));
+    });
+
+    test('the gain grows with how close the recall was', () async {
+      // `stabilityIncrease` uses `closeness` as the ratio for this event type,
+      // which is the model's stated lever ("越接近 1（差点想起来）增益越大").
+      final row = await seedCard(stability: 19.2, difficulty: 5.1618);
+      double stabilityFor(double closeness) => DsrCardState.applyReview(
+            row,
+            rating: 1,
+            nowHours: 40,
+            targetRetention: 0.9,
+            reviewedSolution: true,
+            closeness: closeness,
+          ).update.stability.value!;
+
+      final vague = stabilityFor(0.2);
+      final likely = stabilityFor(0.5);
+      final nearly = stabilityFor(0.9);
+      expect(likely, greaterThan(vague));
+      expect(nearly, greaterThan(likely));
+    });
+
+    test('with the flag off the result is bit-for-bit what it was before',
+        () async {
+      // The regression gate for the conformance vectors: everything the new
+      // parameter can change must be reachable only by asking for it.
+      final row = await seedCard(
+        stability: 12,
+        difficulty: 4.7,
+        encodingStrength: 0.9,
+        savings: 0.3,
+        lastReviewedAt: 3000000,
+      );
+      for (final rating in [1, 2, 3, 4]) {
+        final implicit = DsrCardState.applyReview(
+          row,
+          rating: rating,
+          nowHours: 400,
+          targetRetention: 0.9,
+        );
+        final explicitOff = DsrCardState.applyReview(
+          row,
+          rating: rating,
+          nowHours: 400,
+          targetRetention: 0.9,
+          reviewedSolution: false,
+        );
+        expect(explicitOff.update.stability.value,
+            implicit.update.stability.value);
+        expect(explicitOff.update.dueAt.value, implicit.update.dueAt.value);
+        expect(explicitOff.update.encodingStrength.value,
+            implicit.update.encodingStrength.value);
+        expect(explicitOff.update.savings.value, implicit.update.savings.value);
+        expect(
+            explicitOff.update.difficulty.value, implicit.update.difficulty.value);
+        expect(explicitOff.outcome.kind, implicit.outcome.kind);
+      }
+    });
+  });
 }

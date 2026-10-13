@@ -146,6 +146,10 @@ class TagRepository {
   }
 
   /// Deletes a tag with its whole subtree and all object links.
+  ///
+  /// The group's daily target goes with it (v8), in the same transaction: a plan
+  /// row addresses a group by tag id, so a plan that outlived its tag would name
+  /// a group nothing can resolve.
   Future<void> deleteTag(String id) async {
     final ids = [id, ...await _descendantIds(id)];
     await _db.transaction(() async {
@@ -154,6 +158,9 @@ class TagRepository {
               ..where((t) => t.tagId.equals(tagId)))
             .go();
       }
+      await (_db.delete(_db.reviewGroupPlans)
+            ..where((t) => t.tagId.isIn(ids)))
+          .go();
       await (_db.delete(_db.tags)..where((t) => t.id.isIn(ids))).go();
     });
   }

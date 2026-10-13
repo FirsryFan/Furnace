@@ -20,6 +20,8 @@ class StreamAssembler {
   String? _finishReason;
   int? _promptTokens;
   int? _completionTokens;
+  int? _cacheHitPromptTokens;
+  int? _cacheMissPromptTokens;
 
   /// The assistant text accumulated so far.
   String get text => _text.toString();
@@ -27,6 +29,8 @@ class StreamAssembler {
   String? get finishReason => _finishReason;
   int? get promptTokens => _promptTokens;
   int? get completionTokens => _completionTokens;
+  int? get cacheHitPromptTokens => _cacheHitPromptTokens;
+  int? get cacheMissPromptTokens => _cacheMissPromptTokens;
 
   /// Consumes one decoded SSE chunk and returns the events it completes.
   List<ModelEvent> consume(Map<String, Object?> chunk) {
@@ -38,6 +42,18 @@ class StreamAssembler {
           (usage['prompt_tokens'] as num?)?.toInt() ?? _promptTokens;
       _completionTokens =
           (usage['completion_tokens'] as num?)?.toInt() ?? _completionTokens;
+      // DeepSeek's cache accounting. Only assigned when the key is actually
+      // present: `?? _cacheHitPromptTokens` would be wrong here, because a
+      // provider that omits the key must leave the value unknown rather than
+      // carry the previous round's number forward as if it were measured.
+      final cacheHit = usage['prompt_cache_hit_tokens'];
+      if (cacheHit is num) {
+        _cacheHitPromptTokens = cacheHit.toInt();
+      }
+      final cacheMiss = usage['prompt_cache_miss_tokens'];
+      if (cacheMiss is num) {
+        _cacheMissPromptTokens = cacheMiss.toInt();
+      }
     }
 
     final choices = chunk['choices'];
@@ -77,7 +93,11 @@ class StreamAssembler {
   }
 
   /// Emits every assembled tool call, then the turn-end event.
-  List<ModelEvent> finish() {
+  ///
+  /// [generationDuration] is supplied by the caller rather than measured here,
+  /// because this class is pure logic with no clock: the adapter that owns the
+  /// socket times the request and hands the figure in.
+  List<ModelEvent> finish({Duration? generationDuration}) {
     final events = <ModelEvent>[];
     final ordered = _calls.keys.toList()..sort();
     for (final index in ordered) {
@@ -93,6 +113,9 @@ class StreamAssembler {
       finishReason: _finishReason,
       promptTokens: _promptTokens,
       completionTokens: _completionTokens,
+      cacheHitPromptTokens: _cacheHitPromptTokens,
+      cacheMissPromptTokens: _cacheMissPromptTokens,
+      generationDuration: generationDuration,
     ));
     return events;
   }

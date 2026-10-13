@@ -181,6 +181,36 @@ class ToolCallRequest {
       };
 }
 
+/// What one round-trip reported about its own token use.
+///
+/// A separate object from [ModelTurnDone] because "the round finished" and "the
+/// round told us what it cost" are different facts: a stream can end without a
+/// usage block (an older endpoint, a proxy that strips it, a truncated stream),
+/// and a caller has to be able to tell that apart from a genuine zero.
+class ModelUsage {
+  const ModelUsage({
+    required this.promptTokens,
+    required this.completionTokens,
+    this.cacheHitPromptTokens,
+    this.cacheMissPromptTokens,
+  });
+
+  /// Total prompt tokens for this round, cache hits included.
+  final int promptTokens;
+
+  /// Tokens the model generated in this round.
+  final int completionTokens;
+
+  /// DeepSeek-compatible prompt-cache accounting: how much of the prompt was
+  /// served from the provider's cache, and how much had to be processed.
+  ///
+  /// `null` - not `0` - when the endpoint did not report them, because "this
+  /// server never tells us" and "nothing was cached" are different answers and
+  /// only one of them is a measurement.
+  final int? cacheHitPromptTokens;
+  final int? cacheMissPromptTokens;
+}
+
 /// What a single turn can emit.
 sealed class ModelEvent {
   const ModelEvent();
@@ -201,11 +231,52 @@ class ModelToolCall extends ModelEvent {
 
 /// The end of the turn.
 class ModelTurnDone extends ModelEvent {
-  const ModelTurnDone({this.finishReason, this.promptTokens, this.completionTokens});
+  const ModelTurnDone({
+    this.finishReason,
+    this.promptTokens,
+    this.completionTokens,
+    this.cacheHitPromptTokens,
+    this.cacheMissPromptTokens,
+    this.generationDuration,
+  });
 
   final String? finishReason;
   final int? promptTokens;
   final int? completionTokens;
+
+  /// See [ModelUsage.cacheHitPromptTokens].
+  final int? cacheHitPromptTokens;
+
+  /// See [ModelUsage.cacheMissPromptTokens].
+  final int? cacheMissPromptTokens;
+
+  /// How long the generation itself took, measured by the adapter with a
+  /// stopwatch started when the request went out and stopped when the stream
+  /// ended.
+  ///
+  /// Deliberately *not* the length of the model round-trip as the agent loop
+  /// sees it: that span also contains history building, the skill-directory
+  /// read and tool execution, none of which is generation. Subtracting nothing
+  /// and dividing by it would report a rate that depends on how long a tool
+  /// happened to run, so the loop prefers this figure and only falls back to its
+  /// own stopwatch (over the same span) when an adapter reports none.
+  final Duration? generationDuration;
+
+  /// The usage this round reported, or `null` when it reported none.
+  ///
+  /// Note that [generationDuration] can be present without usage: a round can be
+  /// timed without knowing how many tokens it produced.
+  ModelUsage? get usage {
+    if (promptTokens == null && completionTokens == null) {
+      return null;
+    }
+    return ModelUsage(
+      promptTokens: promptTokens ?? 0,
+      completionTokens: completionTokens ?? 0,
+      cacheHitPromptTokens: cacheHitPromptTokens,
+      cacheMissPromptTokens: cacheMissPromptTokens,
+    );
+  }
 }
 
 /// A recoverable failure. Delivered as an event rather than thrown so the UI

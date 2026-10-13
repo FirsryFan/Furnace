@@ -1,6 +1,61 @@
-﻿# 开发进度
+# 开发进度
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
+
+---
+
+## 2026-10-11 轮次十八：做错之后"对过答案"是另一个事件（schema v9）
+
+用户：正常任务完成后，把认知模型全量接入并丰富它的应用场景（`docs/MINDNET_ROADMAP.md` 的落地顺序）。
+
+- 起因是 MindNet 文档里一条被我们丢掉的语义（`IO_PROTOCOL.md:81`、`MODEL_v2_MATH.md:418/527`）：
+  `wrong` + `reviewed_solution: true` 是 `retrieval_failure_feedback`（不是 `lapse`），closeness 越接近 1（差点想起来）增益越大。
+  参考实现里两条分支差 25 倍（`mechanisms/memory.dsr.js:226-243` 的 `LAPSE` 分支 vs `S * inc` 分支）——
+  我们此前把所有 `rating <= 1` 都当成 `lapse`，也就是"做错后对过答案"被当成"彻底没想起来"。
+- 事件层：`DsrCardState.eventFor(rating, reread, reviewedSolution, closeness)`——只有 `rating <= 1 && reviewedSolution` 才走
+  `retrievalFailureFeedback`，默认参数下**逐位不变**（43 条 tierA 与 B01 对拍不受影响）；`applyReview` 与
+  `CognitiveModel.modelStateAfterReview` 同步透传。两个锚点常量 `closenessDefault = 0.5`（IO_PROTOCOL §2.3 默认）、
+  `closenessNearMiss = 0.6`（MODEL_v2_MATH §3 弱线索带）——**只用文档已定义的锚点，不发明中间刻度**。
+- 存储：schema v9，`review_logs.reviewed_solution`（可空 bool）与 `review_logs.closeness`（可空 real）。
+  NULL = 没问/不适用，写 `false` 等于替历史数据编造"对过答案"，所以旧行保持 NULL。
+- UI：判错后**先不写库**，问一句「差点想起来」（0.6）还是「还是不会」（0.5），未回答时"下一张"禁用——
+  两个答案是两个模型事件，事后补写等于对同一次复习应用两次模型列。
+- 机制（实测）：`failure_feedback` 的 S 上升、`lapse` 的 S 崩落（同一 ripe 行 20.31 vs 0.49）；
+  但本应用自有的两列里 R0 两条路径都不动（只有成功检索抬 R0），Σ 因 `effort = (1-R) + (1-closeness)`
+  反而在 closeness 大时增量更小。**新卡 R≈0 时 effort 被钳到 1.0，两条路径的 Σ 完全相同**，
+  所以测试必须建在"足够熟"的行上（这是一次真实教训，已写进测试注释）。
+- 新增测试：`dsr_card_state_test` 6 条（映射、钳制、两路径 S 走向、closeness 单调、关掉开关时与旧输出逐字段一致）、
+  `review_service_test` 2 条（日志两列 + FSRS 完全不变、答对两列都是 NULL）、
+  `review_page_test` 4 条（判错先问且不能跳过、两种回答落库、答对不提问）、
+  **`v9_migration_test` 4 条**（真实 v8 文件升级、旧日志两列为 NULL、版本号已 9 但缺列时自愈、NULL ≠ 存 false）。
+- 顺带修掉一个会在真机升级时炸掉的缺陷：`_tableFor('review_logs')` 缺失，
+  `_ensureColumns` 一旦检查 `review_logs` 就抛 `Invalid argument(s): unknown table review_logs`——
+  也就是**任何真实 v8 库升到 v9 都会打不开**。被新写的迁移测试当场抓到（不是猜的）。
+
+---
+
+## 2026-10-11 轮次十七：桌面端 AI 细化 + 闪存卡与复习计划 + 设置「关于」
+
+用户四条：①agent loop 调用工具次数要能设置；②文本框允许拉伸和换行；③侧边栏允许折叠；④加"组卷网找题""议论文写作"skill；
+并指出认知模型远不止已接入的那些（→ `docs/MINDNET_ROADMAP.md`）。
+
+- AI 设置：schema v7 加 `local_settings.ai_max_rounds`；`AiConfig.maxRounds`（`defaultMaxRounds = 8`，NULL 解析为默认）
+  在设置页可改；消息框按行拉伸（1–12 行、默认 3 行，`minLines == maxLines` + 拖拽手柄）；
+  会话侧栏可折叠（`_sidebarOpen`；窄于 `_sidebarBreakpoint = 900` 时连按钮都不给——按不动等于没有）。
+- 用量遥测：新增 `presentation/widgets/turn_usage_panel.dart`（轮数/步数/总 token/tokens-per-second/缓存命中率/上下文占用率；
+  缓存缺失显示 `—` 而不是 0%；上下文窗口是**按常量估算**并如实标注），`AgentLoop` 产出 `TurnUsage`；
+  面板放在消息列表里（随内容滚动，滚到底部时正好在输入框上方可见）。
+- 文档工具：第 11 个工具 `create_document`——把正文写成 `<appSupport>/documents/*.md|.txt`，
+  512 KiB 上限、文件名消毒（Windows 非法字符/`..`/保留名）、不覆盖同名；**明确不做 DOCX/PDF**。
+- 内置 skill 两个（`.fskill` 容器见轮次十五）：`zujuan-finder`（`networkAllow: ["zujuan.xkw.com"]`）与
+  `argumentative-writing`（纯提示词），设置页一键安装。
+- 闪存卡 UX：提示按钮（用户触发才显示）、三种判分 `strict|lenient|self`、题型偏好
+  `mixed|fill_blank|mcq|essay|fill_blank_lenient`（v7 两列，NULL = 用户没选）、mcq/essay 进队列。
+- 复习计划：schema v8 新表 `review_group_plans`（卡组=标签子树，new/review 每日上限，**没有行 = 不限**，
+  `isReviewCapped` 规定目标 ≤ 0 视为不限）+ `review_plan_page.dart`；
+  `ReviewService.buildQueue` 在配额耗尽时只压制"从未见过"的单元，**强制重来（答错的卡）不受配额影响**。
+- 设置页：新增「关于」（版本、数据目录、出网只有两处、已知未做六条）与使用文档四段（AI/复习/知识库/认知模型）；
+  `core/app_info.dart` 成为版本号与 User-Agent 的单一来源，并有与 `pubspec.yaml` 对照的测试兜底。
 
 ---
 

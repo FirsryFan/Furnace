@@ -62,6 +62,7 @@ class _FakeModel implements CognitiveModel {
     required int rating,
     required double nowHours,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   }) =>
       (r0: 0.7, sigma: 0.9);

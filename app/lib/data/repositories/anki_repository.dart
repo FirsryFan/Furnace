@@ -122,6 +122,59 @@ class AnkiRepository {
     return _db.select(_db.cardTemplates).get();
   }
 
+  /// The full tag tree paths of several objects at once, keyed by object id.
+  ///
+  /// The plan needs "which groups does this knowledge point belong to" for every
+  /// knowledge point, and asking [TagRepository.tagsForObject] per point would be
+  /// one query per row. Objects without any tag are simply absent from the map
+  /// (never present with an empty list), so a caller can tell "untagged" from
+  /// "no tags loaded yet" without a second lookup.
+  ///
+  /// Only rows whose `path` is non-empty are returned: the path is what the plan
+  /// matches on, and a tag without one cannot be placed in the tree.
+  Future<Map<String, List<String>>> tagPathsForObjects({
+    required String objectType,
+    required Iterable<String> objectIds,
+  }) async {
+    final ids = objectIds.toSet().toList();
+    if (ids.isEmpty) {
+      return const {};
+    }
+    final result = <String, List<String>>{};
+    // Chunked because SQLite has a hard limit on bound variables (999 in the
+    // builds this app ships) and a large library can exceed it.
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end = start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      final links = await (_db.select(_db.objectTags)
+            ..where(
+              (t) =>
+                  t.objectType.equals(objectType) &
+                  t.objectId.isIn(ids.sublist(start, end)),
+            ))
+          .get();
+      if (links.isEmpty) {
+        continue;
+      }
+      final tagIds = {for (final link in links) link.tagId}.toList();
+      final tags = await (_db.select(_db.tags)
+            ..where((t) => t.id.isIn(tagIds)))
+          .get();
+      final pathById = <String, String>{
+        for (final tag in tags)
+          if (tag.path != null && tag.path!.isNotEmpty) tag.id: tag.path!,
+      };
+      for (final link in links) {
+        final path = pathById[link.tagId];
+        if (path == null) {
+          continue;
+        }
+        result.putIfAbsent(link.objectId, () => []).add(path);
+      }
+    }
+    return result;
+  }
+
   // Card states and reviews
 
   Future<CardState> getOrCreateCardState(String cardTemplateId) async {
@@ -388,6 +441,35 @@ class AnkiRepository {
     return row.read(count) ?? 0;
   }
 
+  /// How many reviews each knowledge point has already had since [sinceMillis].
+  ///
+  /// This is the "actual" half of the daily plan. It is counted per knowledge
+  /// point rather than per card because the group a review belongs to is decided
+  /// by the knowledge point's tags: a presentation unit (`cloze:…`,
+  /// `essay:…`) and a template-backed card of the same material are the same
+  /// material in the plan's eyes.
+  ///
+  /// `review_logs.card_state_id` is NOT NULL, but a log whose state row is gone
+  /// (imported debris) cannot be attributed to anything, so the join is an inner
+  /// one and those rows are simply not counted - attributing them to a group
+  /// would need a guess.
+  Future<Map<String, int>> reviewCountsPerKnowledgePointSince(
+    int sinceMillis,
+  ) async {
+    final rows = await _db.customSelect(
+      'SELECT cs.knowledge_point_id AS kp, COUNT(*) AS n '
+      'FROM review_logs rl '
+      'JOIN card_states cs ON cs.id = rl.card_state_id '
+      'WHERE rl.reviewed_at >= ? AND cs.knowledge_point_id IS NOT NULL '
+      'GROUP BY cs.knowledge_point_id',
+      variables: [Variable.withInt(sinceMillis)],
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<String>('kp'): row.read<int>('n'),
+    };
+  }
+
   // --- v2: presentation units (cloze / essay / preset) ----------------------
 
   /// Finds or creates the card state of a presentation unit. For preset cards
@@ -528,6 +610,11 @@ class AnkiRepository {
 
   /// Extended review log (v2). All new columns optional; preset-card callers
   /// keep using the legacy signature unchanged.
+  ///
+  /// [reviewedSolution] / [closeness] are the v9 failure-feedback pair and are
+  /// left NULL unless the caller actually asked the user (a bare `false` would
+  /// claim every miss was a plain lapse, and pre-v9 rows must stay
+  /// distinguishable from a deliberate "还是不会").
   Future<void> addReviewLog({
     required String cardStateId,
     required String cardTemplateId,
@@ -539,6 +626,8 @@ class AnkiRepository {
     String? judgeMode,
     String? format,
     int? msTaken,
+    bool? reviewedSolution,
+    double? closeness,
   }) async {
     await _db.into(_db.reviewLogs).insert(
           ReviewLogsCompanion.insert(
@@ -552,6 +641,8 @@ class AnkiRepository {
             judgeMode: Value(judgeMode),
             format: Value(format),
             msTaken: Value(msTaken),
+            reviewedSolution: Value(reviewedSolution),
+            closeness: Value(closeness),
             reviewedAt: reviewedAt,
             createdAt: reviewedAt,
           ),

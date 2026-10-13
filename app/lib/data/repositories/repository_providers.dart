@@ -10,6 +10,7 @@ import 'anki_repository.dart';
 import 'diffusion_log_repository.dart';
 import 'mind_map_repository.dart';
 import 'package_repository.dart';
+import 'review_plan_repository.dart';
 import 'settings_repository.dart';
 import 'tag_repository.dart';
 import 'task_repository.dart';
@@ -53,6 +54,14 @@ final diffusionLogRepositoryProvider =
 
 final ankiRepositoryProvider = Provider<AnkiRepository>((ref) {
   return AnkiRepository(ref.watch(appDatabaseProvider));
+});
+
+/// Review preferences and the per-group daily plan ("每天各个卡组的任务量").
+final reviewPlanRepositoryProvider = Provider<ReviewPlanRepository>((ref) {
+  return ReviewPlanRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(ankiRepositoryProvider),
+  );
 });
 
 final ankiServiceProvider = Provider<AnkiService>((ref) {

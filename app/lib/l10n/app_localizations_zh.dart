@@ -436,6 +436,142 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiYourAnswer => '你的答案';
 
   @override
+  String get ankiHint => '提示';
+
+  @override
+  String get ankiHintHelper => '做题时可以点出来看，不算作答';
+
+  @override
+  String get ankiJudgeStrict => '严格';
+
+  @override
+  String get ankiJudgeLenient => '宽松';
+
+  @override
+  String get ankiJudgeSelf => '自判';
+
+  @override
+  String get ankiJudgeStrictHint => '逐字比对：默写、单词拼写用这个';
+
+  @override
+  String get ankiJudgeLenientHint => '忽略空格、全半角、中英标点和大小写，容忍一个错别字';
+
+  @override
+  String get ankiJudgeSelfHint => '先看答案，再由你自己判对错';
+
+  @override
+  String get ankiJudgeYourself => '对照答案，自己判分';
+
+  @override
+  String get ankiAfterAnswerPrompt => '对答案后，你想起来多少？';
+
+  @override
+  String get ankiNearMiss => '差点想起来';
+
+  @override
+  String get ankiStillForgot => '还是不会';
+
+  @override
+  String get ankiAfterAnswerHint => '只影响认知模型把这次算作遗忘还是学习；下次复习时间不变。';
+
+  @override
+  String get ankiNextCard => '下一张';
+
+  @override
+  String get ankiTypePreference => '生成题型偏好';
+
+  @override
+  String get ankiTypePreferenceMixed => '混合（当前：填空题）';
+
+  @override
+  String get ankiTypePreferenceFillBlankLenient => '宽松填空题';
+
+  @override
+  String get ankiTypePreferenceNotSaved => '已保存：从现在起生成的卡片就按它来';
+
+  @override
+  String get ankiJudgePreference => '判分方式';
+
+  @override
+  String get ankiJudgePreferenceDetail => '只决定新的一次作答从哪种判分方式开始；每张卡上方的选择仍然优先。';
+
+  @override
+  String get ankiTypePreferenceDetail => '在为新内容生成卡片时生效（自动挖空、知识包导入、AI 建卡）。';
+
+  @override
+  String get reviewPreferences => '复习偏好';
+
+  @override
+  String get reviewPlanTitle => '复习计划';
+
+  @override
+  String get reviewPlanToday => '今天';
+
+  @override
+  String get reviewPlanEmpty =>
+      '还没有任何卡组设了每日任务量。加一个就能安排「每天各个卡组的任务量」：一个卡组就是一个标签，它下面的整个子树都算这个卡组。';
+
+  @override
+  String get reviewPlanAdd => '添加卡组任务量';
+
+  @override
+  String get reviewPlanPickGroup => '选择卡组';
+
+  @override
+  String get reviewPlanNoTags => '还没有标签：卡组就是标签，请先建标签。';
+
+  @override
+  String reviewPlanGroupTitle(String tag) {
+    return '$tag 的每日任务量';
+  }
+
+  @override
+  String get reviewPlanGroupBody => '这个标签以及它下面的所有标签都算作这个卡组。';
+
+  @override
+  String get reviewPlanNewCardsPerDay => '每天新卡';
+
+  @override
+  String get reviewPlanReviewCardsPerDay => '每天复习';
+
+  @override
+  String get reviewPlanZeroIsUnlimited =>
+      '每天复习填 0 或留空表示不限量。复习量用完之后，这个卡组当天不再抽新卡——今天答错的卡仍然会回来。';
+
+  @override
+  String reviewPlanTarget(int newCards, int reviewCards) {
+    return '目标：新卡 $newCards · 复习 $reviewCards';
+  }
+
+  @override
+  String reviewPlanDoneToday(int count) {
+    return '今天已完成：$count';
+  }
+
+  @override
+  String reviewPlanRemaining(int count) {
+    return '剩余额度：$count';
+  }
+
+  @override
+  String get reviewPlanReviewsUnlimited => '剩余额度：不限';
+
+  @override
+  String get reviewPlanNewCardsNormal => '新卡正常抽取。';
+
+  @override
+  String get reviewPlanNewCardsStopped => '复习额度已用完：这个卡组今天不再抽新卡。今天答错的卡仍然会回来。';
+
+  @override
+  String get reviewPlanEdit => '修改任务量';
+
+  @override
+  String get reviewPlanClear => '删除任务量（恢复为不限）';
+
+  @override
+  String get ankiAutoBlankUnsupported => '按当前题型偏好生成不了：这段内容里没有足够的可挖空信息';
+
+  @override
   String get packagesImport => '导入知识包';
 
   @override
@@ -806,7 +942,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsUsageDoc => '使用文档';
 
   @override
-  String get settingsUsageDocHint => '排序算法与全部参数的说明都在这里';
+  String get settingsUsageDocHint => 'AI、复习、知识库、认知模型与排序算法：怎么用、有什么限制都写在这里';
+
+  @override
+  String get docAiTitle => 'AI 助手能做什么、什么要你确认';
+
+  @override
+  String get docAiBody =>
+      'AI 只能通过工具改数据，每个工具都带风险等级：读操作（query_content、fetch_page、evaluate_problem_fit）直接执行；写操作（建标签、建闪存卡、建任务、写文档…）在「逐条确认」和「先计划后确认」两种模式下都要你点同意；删除类操作在任何模式下都逐条确认，并且可以撤销。执行前会告诉你改什么，执行后可以撤销一次；模型看不到你的 API key，skill 脚本也拿不到它。';
+
+  @override
+  String get docReviewTitle => '复习与闪存卡';
+
+  @override
+  String get docReviewBody =>
+      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。';
+
+  @override
+  String get docKnowledgeTitle => '知识库与标签';
+
+  @override
+  String get docKnowledgeBody =>
+      '标签是一棵树，路径用 / 分隔。删除一个标签会连同它整棵子树、子树里的闪存卡与复习记录一起删除（AI 的删除工具会逐条确认并留下可撤销的快照）。卡片有两种存在形态——模板生成的卡、以及按单元直接建的卡——认知读数页都算数；读数页顶部的孤儿横幅只在你按它的按钮时才清理。';
+
+  @override
+  String get docCognitiveTitle => '认知模型读数怎么理解';
+
+  @override
+  String get docCognitiveBody =>
+      '设置里的「认知模型」是只读读数页：R 是当前记忆强度，R0 是刚记住时的强度，Σ 是累计投入，zone 需要跑慢层才有值（读数页不跑，所以显示 unavailable）。页面顶部三条声明说明它不改到期时间、参数尚未标定、不替你做决定。AI 的 evaluate_problem_fit 工具读的是同一批数字，用来判断一道题值不值得现在做。';
 
   @override
   String get docFormulaTitle => '总分怎么算';
@@ -828,6 +992,44 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get docStatusBody =>
       '绿色＝已完成；蓝色＝等待中（还没到期望时刻）；黄色＝已经过了期望时刻；红色＝已经过了截止时刻。颜色只表达状态，不改变排序。';
+
+  @override
+  String get settingsAbout => '关于';
+
+  @override
+  String get settingsAboutHint => '版本、数据位置、出网范围、已知未做';
+
+  @override
+  String get aboutVersionLabel => '版本';
+
+  @override
+  String aboutVersionValue(String version, int build) {
+    return '$version（构建 $build）';
+  }
+
+  @override
+  String get aboutDataTitle => '数据位置';
+
+  @override
+  String get aboutDataBody =>
+      '数据库、skill、AI 生成的文档与图片附件都在这个目录下；备份就是复制 furnace.db（也可以用上面的「备份数据」）。';
+
+  @override
+  String get aboutDataDirLabel => '应用数据目录';
+
+  @override
+  String get aboutNetworkTitle => '出网范围';
+
+  @override
+  String get aboutNetworkBody =>
+      '会主动联网的只有两处：① AI 请求——发给你在「AI 设置」里填的端点（对话文字与图片都走它）；② fetch_page——抓公开网页，只发 GET、不带 cookie、拒绝内网与回环地址、最多跟 5 次跳转、单次正文上限 2 MiB。skill 脚本要联网必须在安装时声明域名、并由你打开网络开关；那个开关只决定脚本能不能跑，不会逐个域名拦截。';
+
+  @override
+  String get aboutGapsTitle => '已知未做';
+
+  @override
+  String get aboutGapsBody =>
+      '① 不生成 DOCX / PDF（create_document 只写 .md / .txt）；② skill 的 networkAllow 只是开关，没有域名级拦截（需要系统级出口控制）；③ skill 脚本只能在 Windows 上运行，Android 上相关工具不出现；④ 浏览器桥（browser_bridge）还没做；⑤ 认知模型只接了记忆层与快排，run/1 会话协议、元认知层、节律层还没接（见 docs/MINDNET_ROADMAP.md）；⑥ fetch_page 对解析不出 IP 的地址不会拦（已记录，未修）。';
 
   @override
   String get settingsAppearance => '外观';
@@ -980,6 +1182,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiInputHint => '输入消息…';
 
   @override
+  String get aiInputKeyHint => 'Enter 发送 · Shift+Enter 换行';
+
+  @override
+  String get aiInputResizeHandle => '上下拖动调整输入框高度';
+
+  @override
+  String get aiShowConversationList => '展开对话列表';
+
+  @override
+  String get aiHideConversationList => '收起对话列表';
+
+  @override
   String get aiSend => '发送';
 
   @override
@@ -1036,6 +1250,65 @@ class AppLocalizationsZh extends AppLocalizations {
       '无法读取这张图片：格式不支持或文件已损坏。请换成 PNG、JPG、WebP 或 GIF。';
 
   @override
+  String get aiUsageCurrent => '本轮';
+
+  @override
+  String get aiUsageLast => '最近一轮';
+
+  @override
+  String get aiUsageRounds => '轮数';
+
+  @override
+  String get aiUsageSteps => '步数';
+
+  @override
+  String get aiUsageTotalTokens => '总 token';
+
+  @override
+  String aiUsagePromptCompletion(int prompt, int completion) {
+    return '输入 $prompt + 输出 $completion';
+  }
+
+  @override
+  String get aiUsageTokensPerSecond => 'tokens/s';
+
+  @override
+  String get aiUsageCacheHit => '缓存命中率';
+
+  @override
+  String get aiUsageCacheAbsent => '该服务未返回缓存命中数据。';
+
+  @override
+  String get aiUsageCachePartial => '只有部分轮次返回了缓存命中数据。';
+
+  @override
+  String get aiUsageContext => '上下文占用';
+
+  @override
+  String aiUsageContextEstimate(int tokens) {
+    return '按 $tokens token 窗口估算；窗口是配置值，不是实测值。';
+  }
+
+  @override
+  String aiUsagePending(int count) {
+    return '$count 待确认';
+  }
+
+  @override
+  String aiUsageRejected(int count) {
+    return '$count 已拒绝';
+  }
+
+  @override
+  String get aiUsageLiveEstimate => '仍在生成：按已到达的文本估算。';
+
+  @override
+  String get aiUsageNoUsage => '本轮没有返回 token 用量。';
+
+  @override
+  String get aiUsageUnavailable => '—';
+
+  @override
   String get settingsAiSection => 'AI 接入';
 
   @override
@@ -1066,6 +1339,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAiPermissionHint => '删除类操作在任何模式下都需要逐条确认。';
 
   @override
+  String get settingsAiMaxRounds => '单条消息的工具调用轮数上限';
+
+  @override
+  String settingsAiMaxRoundsValue(int rounds) {
+    return '$rounds 轮';
+  }
+
+  @override
+  String get settingsAiMaxRoundsHint =>
+      '每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 8 轮。';
+
+  @override
   String get settingsAiSave => '保存';
 
   @override
@@ -1090,6 +1375,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get skillsInstallSample => '安装示例 skill';
+
+  @override
+  String get skillsBuiltinTitle => '内置技能：';
+
+  @override
+  String get skillsBuiltinInstall => '安装';
 
   @override
   String get skillsInstalling => '正在安装…';
@@ -1131,6 +1422,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get skillsContainerNoteUnavailable =>
       '脚本执行只支持 Windows：这台设备上没有 Node 运行时，所以声明出来的脚本工具不会出现在模型的工具列表里（技能提示词仍然生效）。';
+
+  @override
+  String get skillsContainerPromptOnly =>
+      '这个 skill 只有提示词，没有脚本要运行（提示词随「已启用」在安卓与 Windows 上都生效）。';
 
   @override
   String get skillsContainerRunnable =>

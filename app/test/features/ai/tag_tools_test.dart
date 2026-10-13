@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -149,6 +149,9 @@ void main() {
       [existing.id],
       reason: 'the subtree goes with the parent; the pre-existing tag stays',
     );
+    // The id read above is also the cheapest check that the undo removed the
+    // rows it created rather than only the ones it listed first.
+    expect(left.map((tag) => tag.id), isNot(contains(physicsId)));
   });
 
   test('empty and oversized batches are refused', () async {

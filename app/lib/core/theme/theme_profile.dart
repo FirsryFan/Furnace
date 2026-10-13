@@ -268,6 +268,18 @@ class ThemeProfileData {
         ? null
         : colorOf(surface!, fallback: scheme.surface);
 
+    // Content surfaces follow the same transparency as the backdrop.
+    //
+    // The slider says "let the background show through", but it only reached the
+    // scaffold: cards kept the opaque surface colour, so a page built out of
+    // cards - the usage guide is the one the user pointed at - looked completely
+    // unaffected by it. Cards and dialogs are where the text lives, so they take
+    // the same alpha. At the default opacity of 1 nothing changes at all, which
+    // is what keeps an untouched theme pixel-identical.
+    final contentAlpha = backgroundOpacity.clamp(0.0, 1.0);
+    final contentColour = (surfaceOverride ?? scheme.surface)
+        .withValues(alpha: contentAlpha);
+
     final base = ThemeData(
       colorScheme: surfaceOverride == null
           ? scheme
@@ -277,6 +289,8 @@ class ThemeProfileData {
       visualDensity: VisualDensity.standard,
       scaffoldBackgroundColor:
           hasBackgroundImage ? Colors.transparent : backgroundColour,
+      cardTheme: CardThemeData(color: contentColour),
+      dialogTheme: DialogThemeData(backgroundColor: contentColour),
     );
 
     if (editorFont == null) {

@@ -139,13 +139,16 @@ abstract interface class CognitiveModel {
   ///
   /// [rating] is the review UI's 1..4 (`1` is a lapse), mapped to the model's
   /// event vocabulary by `DsrCardState.eventFor` so the two cannot drift
-  /// apart. Nothing is persisted here and [row] is not mutated - the caller
-  /// owns the write.
+  /// apart. [reviewedSolution] is that mapping's second input: a failed recall
+  /// the user then read the answer for is `retrieval_failure_feedback`, not a
+  /// lapse (see `DsrCardState.eventFor`). Nothing is persisted here and [row]
+  /// is not mutated - the caller owns the write.
   ({double r0, double sigma}) modelStateAfterReview(
     CardState row, {
     required int rating,
     required double nowHours,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   });
 }
@@ -307,6 +310,7 @@ class MindNetCognitiveModel implements CognitiveModel {
     required int rating,
     required double nowHours,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   }) {
     // The event grammar is `DsrCardState.eventFor`'s, not this file's: a rating
@@ -321,6 +325,7 @@ class MindNetCognitiveModel implements CognitiveModel {
       DsrCardState.eventFor(
         rating: rating,
         reread: reread,
+        reviewedSolution: reviewedSolution,
         closeness: closeness,
       ),
       params,
@@ -449,6 +454,7 @@ class HeuristicCognitiveModel implements CognitiveModel {
     required int rating,
     required double nowHours,
     bool reread = false,
+    bool reviewedSolution = false,
     double closeness = 0.5,
   }) =>
       (

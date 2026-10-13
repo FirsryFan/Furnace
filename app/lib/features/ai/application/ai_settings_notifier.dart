@@ -28,6 +28,9 @@ class AiSettingsController {
         baseUrl: _nullIfBlank(config.baseUrl),
         model: _nullIfBlank(config.model),
         permissionMode: config.permissionMode,
+        // Not blank-able: the round budget is a bounded number, and the
+        // repository resolves anything out of range into the offered range.
+        maxRounds: config.maxRounds,
       ),
       fallbackLanguage: language ?? 'system',
     );

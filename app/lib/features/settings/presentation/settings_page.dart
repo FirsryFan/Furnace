@@ -18,6 +18,7 @@ import '../../ai/presentation/ai_settings_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
+import 'about_page.dart';
 import 'data_section.dart';
 import 'usage_doc_page.dart';
 
@@ -116,6 +117,18 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AiSettingsPage()),
+            ),
+          ),
+          // Version, data location, the two network paths and the known gaps:
+          // facts the user cannot read off any other page.
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(l10n.settingsAbout),
+            subtitle: Text(l10n.settingsAboutHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AboutPage()),
             ),
           ),
         ],

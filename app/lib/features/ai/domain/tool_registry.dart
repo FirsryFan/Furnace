@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
@@ -12,6 +12,7 @@ import '../tools/cognitive_tools.dart';
 import '../tools/tag_tools.dart';
 import '../tools/content_query_tools.dart';
 import '../tools/deletion_tools.dart';
+import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -73,6 +74,9 @@ class ToolRegistry {
       // Building the tag tree is a normal reversible write; deleting from it is
       // delete_content (destructive, per-item confirmed).
       CreateTagsTool(tags),
+      // The AI's document output: an answer the user wants to keep becomes a
+      // file under <appSupport>/documents, with a real undo (tools/document_tools.dart).
+      CreateDocumentTool(),
     ]);
   }
 

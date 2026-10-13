@@ -6,8 +6,8 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/entities/knowledge_point.dart' as domain;
-import '../../../domain/services/cloze/cloze_generator.dart';
 import '../application/anki_stats_service.dart';
+import '../application/card_type_preference.dart';
 
 final ankiKnowledgePointsProvider = FutureProvider<List<KnowledgePoint>>((ref) {
   ref.watchDatabaseRevision();
@@ -28,11 +28,39 @@ class AnkiManagePage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final kpsAsync = ref.watch(ankiKnowledgePointsProvider);
     final statsAsync = ref.watch(ankiStatsProvider);
+    final preference = ref.watch(cardTypePreferenceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.ankiManage),
         actions: [
+          // The card type the generators should write. In memory only for now
+          // (see `card_type_preference.dart`), so the snackbar says so rather
+          // than letting the user believe it was saved.
+          PopupMenuButton<CardTypePreference>(
+            tooltip: l10n.ankiTypePreference,
+            icon: const Icon(Icons.category_outlined),
+            initialValue: preference,
+            onSelected: (value) {
+              ref.read(cardTypePreferenceProvider.notifier).select(value);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${l10n.ankiTypePreference}: '
+                    '${_preferenceLabel(l10n, value)} · '
+                    '${l10n.ankiTypePreferenceNotSaved}',
+                  ),
+                ),
+              );
+            },
+            itemBuilder: (context) => [
+              for (final option in CardTypePreference.values)
+                PopupMenuItem(
+                  value: option,
+                  child: Text(_preferenceLabel(l10n, option)),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: l10n.ankiNewKnowledgePoint,
             icon: const Icon(Icons.add),
@@ -142,6 +170,20 @@ class AnkiManagePage extends ConsumerWidget {
     );
   }
 
+  /// The user-facing name of a generation preference.
+  static String _preferenceLabel(
+    AppLocalizations l10n,
+    CardTypePreference preference,
+  ) =>
+      switch (preference) {
+        CardTypePreference.mixed => l10n.ankiTypePreferenceMixed,
+        CardTypePreference.mcq => l10n.ankiTypeMcq,
+        CardTypePreference.fillBlank => l10n.ankiTypeFillBlank,
+        CardTypePreference.fillBlankLenient =>
+          l10n.ankiTypePreferenceFillBlankLenient,
+        CardTypePreference.essay => l10n.ankiTypeEssay,
+      };
+
   Future<void> _createKnowledgePoint(
     BuildContext context,
     WidgetRef ref,
@@ -218,20 +260,26 @@ class AnkiManagePage extends ConsumerWidget {
       content: kp.content,
       source: kp.source,
     );
-    final template = ClozeGenerator.generateFillBlank(domainKp);
+    // The card type comes from the user's preference - the AI tool reads the
+    // same value - so the auto-blank button is not silently fill-blank-only.
+    final template = CardGenerationPolicy.generate(
+      domainKp,
+      ref.read(cardTypePreferenceProvider),
+    );
     if (template == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.ankiAutoBlank}: null')),
+          SnackBar(content: Text(l10n.ankiAutoBlankUnsupported)),
         );
       }
       return;
     }
     final created = await ref.read(ankiRepositoryProvider).createTemplate(
           knowledgePointId: kp.id,
-          type: 'fill_blank',
+          type: template.type.storageType,
           question: template.question,
           answer: template.answer,
+          options: template.options,
           clozeTemplate: template.clozeTemplate,
         );
     await ref.read(ankiRepositoryProvider).getOrCreateCardState(created.id);
@@ -319,6 +367,7 @@ class AnkiManagePage extends ConsumerWidget {
     final questionController = TextEditingController();
     final answerController = TextEditingController();
     final optionsController = TextEditingController();
+    final hintController = TextEditingController();
     var type = 'fill_blank';
 
     final saved = await showDialog<bool>(
@@ -363,6 +412,14 @@ class AnkiManagePage extends ConsumerWidget {
                   controller: answerController,
                   decoration: InputDecoration(labelText: l10n.ankiAnswer),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: hintController,
+                  decoration: InputDecoration(
+                    labelText: l10n.ankiHint,
+                    helperText: l10n.ankiHintHelper,
+                  ),
+                ),
                 if (type == 'mcq') ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -403,12 +460,14 @@ class AnkiManagePage extends ConsumerWidget {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
+    final hint = hintController.text.trim();
     final template = await ref.read(ankiRepositoryProvider).createTemplate(
           knowledgePointId: kp.id,
           type: type,
           question: question,
           answer: answer,
           options: options,
+          hint: hint.isEmpty ? null : hint,
         );
     await ref.read(ankiRepositoryProvider).getOrCreateCardState(template.id);
     ref.invalidate(ankiKnowledgePointsProvider);
@@ -428,6 +487,7 @@ class AnkiManagePage extends ConsumerWidget {
           ? ''
           : template.options!.split('\u0001').join('\n'),
     );
+    final hintController = TextEditingController(text: template.hint ?? '');
     var type = template.type;
 
     final saved = await showDialog<bool>(
@@ -472,6 +532,14 @@ class AnkiManagePage extends ConsumerWidget {
                   controller: answerController,
                   decoration: InputDecoration(labelText: l10n.ankiAnswer),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: hintController,
+                  decoration: InputDecoration(
+                    labelText: l10n.ankiHint,
+                    helperText: l10n.ankiHintHelper,
+                  ),
+                ),
                 if (type == 'mcq') ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -511,6 +579,10 @@ class AnkiManagePage extends ConsumerWidget {
           question: questionController.text.trim(),
           answer: answerController.text.trim(),
           options: options,
+          // An emptied field clears the hint: `updateTemplate` treats a null
+          // hint as "leave it alone", so the cleared case has to be said with an
+          // empty string rather than null.
+          hint: hintController.text.trim(),
         );
     ref.invalidate(ankiKnowledgePointsProvider);
     ref.invalidate(ankiStatsProvider);

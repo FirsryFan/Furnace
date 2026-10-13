@@ -1,4 +1,4 @@
-﻿/// The one HTTP call the `fetch_page` tool makes, with every rule that makes it
+/// The one HTTP call the `fetch_page` tool makes, with every rule that makes it
 /// safe to expose to a model written down here rather than at the call site.
 ///
 /// What this file deliberately does **not** do:
@@ -22,6 +22,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data' show BytesBuilder;
 
+import '../../../core/app_info.dart';
+
 /// How many redirects one fetch may follow before giving up.
 const int maxRedirects = 5;
 
@@ -37,9 +39,9 @@ const int maxBodyBytes = 2 * 1024 * 1024;
 
 /// Identifies this app to servers, instead of impersonating a browser.
 ///
-/// Kept in step with `pubspec.yaml`'s version by hand; the point of the header
-/// is honesty about who is calling, not exact version matching.
-const String userAgent = 'Furnace/0.3.1 (+local assistant)';
+/// Defined in `core/app_info.dart` so the version in this header and the one
+/// Settings -> About shows cannot drift apart.
+const String userAgent = kAppUserAgent;
 
 /// Only these schemes may be fetched. Anything else is refused before a socket
 /// is opened.

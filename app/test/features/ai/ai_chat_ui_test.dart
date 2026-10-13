@@ -29,7 +29,17 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 
 /// Seeds an in-memory database with the AI configuration taken from the real
 /// one, so the UI sees the same state it would in the running app.
-Future<(AppDatabase, AiConfig)> buildSeededDb() async {
+///
+/// [permissionMode] overrides what the live database says. The key, endpoint and
+/// model still come from the live row - that is what makes this a real harness -
+/// but the permission mode does not: it is the *user's* setting, it can change
+/// between runs, and a test whose expectations depend on it is not deterministic.
+/// It did exactly that: the live row read `auto`, so the tool ran immediately and
+/// the approval assertion failed for a reason that had nothing to do with the
+/// code under test.
+Future<(AppDatabase, AiConfig)> buildSeededDb({
+  AiPermissionMode? permissionMode,
+}) async {
   final appData = Platform.environment['APPDATA'];
   if (appData == null) {
     return (AppDatabase.forTesting(NativeDatabase.memory()),
@@ -54,7 +64,8 @@ Future<(AppDatabase, AiConfig)> buildSeededDb() async {
     apiKey: row['ai_api_key'] as String?,
     baseUrl: row['ai_base_url'] as String?,
     model: row['ai_model'] as String?,
-    permissionMode: AiPermissionMode.fromId(row['ai_permission_mode'] as String?),
+    permissionMode:
+        permissionMode ?? AiPermissionMode.fromId(row['ai_permission_mode'] as String?),
   );
   await AiRepository(db)
       .saveConfig(config, fallbackLanguage: 'zh');
@@ -70,7 +81,11 @@ final _aiTab = find.byIcon(Icons.smart_toy_outlined);
 
 void main() {
   testWidgets('the whole chat flow works through the real UI', (tester) async {
-    final (db, config) = await buildSeededDb();
+    // Plan mode is forced, not inherited: the point of this test is the approval
+    // path, and the live setting is not ours to depend on.
+    final (db, config) = await buildSeededDb(
+      permissionMode: AiPermissionMode.plan,
+    );
     if (!config.isUsable) {
       // ignore: avoid_print
       print('skipped: no AI configuration in the real database');
@@ -169,6 +184,64 @@ void main() {
     await tester.pumpAndSettle();
     // The screen loads from that repository without error.
     expect(find.textContaining('Thread'), findsWidgets);
+
+    await db.close();
+  });
+
+  testWidgets('in auto mode the same call runs without an approval step',
+      (tester) async {
+    // The other half of D13b, and the reason the mode is forced here rather than
+    // read from the live row: the same call in the mode where the user has said
+    // "just do it" must not be held back, and no approval panel may appear.
+    final (db, config) =
+        await buildSeededDb(permissionMode: AiPermissionMode.auto);
+    if (!config.isUsable) {
+      // ignore: avoid_print
+      print('skipped: no AI configuration in the real database');
+      await db.close();
+      return;
+    }
+
+    final tasks = TaskRepositoryForTest(db);
+    final adapter = FakeModelAdapter([
+      FakeModelAdapter.callTool(
+          'manage_task', {'action': 'create', 'title': '自动模式链路测试'},
+          id: 'call_ui_auto'),
+      FakeModelAdapter.answer('已经加好了。'),
+    ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          modelAdapterProvider.overrideWithValue(adapter),
+        ],
+        child: const FurnaceApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_aiTab.first);
+    await tester.pumpAndSettle();
+
+    final newChat = find.byIcon(Icons.add);
+    if (newChat.evaluate().isNotEmpty) {
+      await tester.tap(newChat.first);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.enterText(
+        find.byType(TextField).last, '帮我建一个任务：自动模式链路测试');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.play_arrow), findsNothing,
+        reason: 'auto mode must not ask for approval');
+    expect(
+      (await tasks.all()).map((t) => t.title),
+      contains('自动模式链路测试'),
+      reason: 'the call must have run through the same repository',
+    );
 
     await db.close();
   });
