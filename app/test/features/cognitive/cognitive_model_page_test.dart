@@ -616,7 +616,7 @@ void main() {
     LearningMetrics metricsWith({bool withPrediction = true}) {
       return LearningMetrics.read(
         samples: [
-          RetentionSample(
+          const RetentionSample(
             cardStateId: 'cs-1',
             reviewedAtMs: 0,
             recalled: true,
@@ -629,7 +629,7 @@ void main() {
             intervalDays: 2,
             predictedR: withPrediction ? 0.8 : null,
           ),
-          RetentionSample(
+          const RetentionSample(
             cardStateId: 'cs-1',
             reviewedAtMs: 2,
             recalled: true,
