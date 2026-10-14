@@ -1859,6 +1859,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assessmentEntryAction => '测一测（给模型一个起点）';
 
   @override
+  String get learningMetricsTitle => '学习效果（复习日志说了算）';
+
+  @override
+  String get learningMetricsDetail =>
+      '留存率是「隔了多久再看还记得多少」，只看复习结果，不看模型的自我感觉；校准度要等带预测的复习攒出样本。';
+
+  @override
+  String get learningMetricsEmpty => '还没有复习记录——这里会随着你复习慢慢长出数字。';
+
+  @override
+  String get learningMetricsNoBuckets => '有复习记录，但还没有「第二次复习」，所以还分不出间隔。';
+
+  @override
+  String get learningMetricsUnavailable => '复习日志读不出来（见上方错误），这一块暂时没有数字。';
+
+  @override
+  String learningMetricsOverall(Object reviewed, Object retention) {
+    return '$reviewed 次复习，整体留存 $retention%';
+  }
+
+  @override
+  String learningMetricsBucket(Object range, Object samples, Object retention) {
+    return '$range 天：$samples 次，记住 $retention%';
+  }
+
+  @override
+  String learningMetricsCalibration(Object brier, Object ece) {
+    return '校准：Brier $brier（越小越准），ECE $ece（预测与实际的分箱差距）';
+  }
+
+  @override
+  String get learningMetricsNoCalibration =>
+      '校准曲线还没有样本：从这一版起，每次复习都会在判分前记下模型当时的预测，攒够就会显示。历史复习没有这个值，也不补算。';
+
+  @override
   String get settingsThemeIcons => '图标';
 
   @override

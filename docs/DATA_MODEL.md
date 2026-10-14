@@ -416,3 +416,25 @@ Attachment n ─── 1 owner(多态)
 > 只能写在仓储里（`AssessmentRepository.deleteSession`），`v10_migration_test` 用断言把这条钉住，
 > 免得后来者以为有数据库兜底而省掉显式清理。
 
+## 10. v11：`review_logs.predicted_r`（M6 校准曲线）
+
+| 列 | 类型 | 语义 |
+| --- | --- | --- |
+| `predicted_r` | `REAL`，可空 | 判分**之前**模型对"这张卡这次能不能想起来"的预测（`R`）。NULL = 没有预测 |
+
+这一列存在的唯一理由是**校准必须诚实**：如果预测是在复习之后按新状态重算的，那等于拿已知答案给自己打分，
+Brier/ECE 会系统性地好看。因此：
+
+- 写入点是 `review_service.dart` 的复习流程（`state` = 复习前的行，`moment` = 展示答案的时刻），
+  且 `AnkiRepository.addReviewLog` **从不自己推导**这个值；
+- v11 之前的所有行一律 NULL。NULL 表示"当时没有记预测"，**不等于**"预测 0.5"，所以
+  `LearningMetrics.hasCalibration` 在没有任何带预测的样本时是 false，读数页明说"校准曲线还没有样本"；
+- 迁移 `_upgradeV10ToV11()` 只加列（`_addColumnIfMissing`），`_ensureColumns()` 同步登记，
+  同样防"版本号跑在列前面"；
+- 历史**不补算**：补算出来的预测不是预测。曲线从这一版开始积累。
+
+证据：`app/test/data/database/v11_migration_test.dart`（真实 v10 文件升级后老行 `predicted_r` 为 NULL +
+自愈路径能写能读）、`app/test/data/repositories/anki_repository_test.dart`（`retentionSamples` 的判分、
+间隔、NULL 预测）、`app/test/features/anki/review_service_test.dart`（写入的预测与答对答错无关——
+这条断言就是"预测在判分之前算"的守卫）。
+

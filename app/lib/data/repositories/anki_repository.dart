@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../domain/services/config/furnace_defaults.dart';
+import '../../domain/services/cognitive/learning_metrics.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
@@ -470,8 +471,56 @@ class AnkiRepository {
     };
   }
 
-  // --- v2: presentation units (cloze / essay / preset) ----------------------
+  /// Every review that can be judged, oldest first inside each card, with the
+  /// interval since the previous review of the *same* card already attached.
+  ///
+  /// This is the input of `LearningMetrics` (milestone ②「记忆效果好」): the
+  /// retention half needs nothing but these rows. `predicted_r` is read too and
+  /// stays `null` for every row written before v11, which is why the
+  /// calibration half has to admit it has no samples yet instead of drawing a
+  /// curve from invented predictions.
+  ///
+  /// The join is a LEFT one on purpose: a log whose card_state row is gone
+  /// (imported debris) still describes a real review, so it counts towards the
+  /// curve with a `null` knowledge point rather than vanishing from the totals.
+  Future<List<RetentionSample>> retentionSamples({
+    int? sinceMillis,
+    int limit = 5000,
+  }) async {
+    final rows = await _db.customSelect(
+      'SELECT rl.card_state_id AS card, cs.knowledge_point_id AS kp, '
+      'rl.reviewed_at AS at, rl.rating AS rating, rl.rating_fsrs AS fsrs, '
+      'rl.correct AS correct, rl.predicted_r AS predicted '
+      'FROM review_logs rl '
+      'LEFT JOIN card_states cs ON cs.id = rl.card_state_id '
+      '${sinceMillis == null ? '' : 'WHERE rl.reviewed_at >= ? '}'
+      'ORDER BY rl.card_state_id ASC, rl.reviewed_at ASC LIMIT ?',
+      variables: [
+        if (sinceMillis != null) Variable.withInt(sinceMillis),
+        Variable.withInt(limit),
+      ],
+    ).get();
 
+    final samples = <RetentionSample>[
+      for (final row in rows)
+        RetentionSample(
+          cardStateId: row.read<String>('card'),
+          knowledgePointId: row.read<String?>('kp'),
+          reviewedAtMs: row.read<int>('at'),
+          recalled: recalledFromReview(
+            rating: row.read<int?>('rating'),
+            ratingFsrs: row.read<int?>('fsrs'),
+            correct: row.read<int?>('correct') == null
+                ? null
+                : row.read<int>('correct') == 1,
+          ),
+          predictedR: row.read<double?>('predicted'),
+        ),
+    ];
+    return withIntervals(samples);
+  }
+
+  // --- v2: presentation units (cloze / essay / preset) ----------------------
   /// Finds or creates the card state of a presentation unit. For preset cards
   /// pass [presetTemplateId]; cloze/essay units pass their own [unitKey].
   Future<CardState> getOrCreateUnitCardState(
@@ -615,6 +664,12 @@ class AnkiRepository {
   /// left NULL unless the caller actually asked the user (a bare `false` would
   /// claim every miss was a plain lapse, and pre-v9 rows must stay
   /// distinguishable from a deliberate "还是不会").
+  ///
+  /// [predictedR] is the v11 pre-review prediction: the model's `R` at the
+  /// moment the answer was shown, before the grade existed. Callers must pass
+  /// what they actually predicted (or NULL when the advisor did not run);
+  /// `addReviewLog` never derives it, because a value recomputed here would be
+  /// computed *after* [correct] and the calibration curve would be worthless.
   Future<void> addReviewLog({
     required String cardStateId,
     required String cardTemplateId,
@@ -628,6 +683,7 @@ class AnkiRepository {
     int? msTaken,
     bool? reviewedSolution,
     double? closeness,
+    double? predictedR,
   }) async {
     await _db.into(_db.reviewLogs).insert(
           ReviewLogsCompanion.insert(
@@ -643,6 +699,7 @@ class AnkiRepository {
             msTaken: Value(msTaken),
             reviewedSolution: Value(reviewedSolution),
             closeness: Value(closeness),
+            predictedR: Value(predictedR),
             reviewedAt: reviewedAt,
             createdAt: reviewedAt,
           ),

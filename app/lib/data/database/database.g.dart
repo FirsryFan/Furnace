@@ -6731,6 +6731,12 @@ class $ReviewLogsTable extends ReviewLogs
   late final GeneratedColumn<double> closeness = GeneratedColumn<double>(
       'closeness', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _predictedRMeta =
+      const VerificationMeta('predictedR');
+  @override
+  late final GeneratedColumn<double> predictedR = GeneratedColumn<double>(
+      'predicted_r', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _reviewedAtMeta =
       const VerificationMeta('reviewedAt');
   @override
@@ -6757,6 +6763,7 @@ class $ReviewLogsTable extends ReviewLogs
         msTaken,
         reviewedSolution,
         closeness,
+        predictedR,
         reviewedAt,
         createdAt
       ];
@@ -6831,6 +6838,12 @@ class $ReviewLogsTable extends ReviewLogs
       context.handle(_closenessMeta,
           closeness.isAcceptableOrUnknown(data['closeness']!, _closenessMeta));
     }
+    if (data.containsKey('predicted_r')) {
+      context.handle(
+          _predictedRMeta,
+          predictedR.isAcceptableOrUnknown(
+              data['predicted_r']!, _predictedRMeta));
+    }
     if (data.containsKey('reviewed_at')) {
       context.handle(
           _reviewedAtMeta,
@@ -6878,6 +6891,8 @@ class $ReviewLogsTable extends ReviewLogs
           .read(DriftSqlType.bool, data['${effectivePrefix}reviewed_solution']),
       closeness: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}closeness']),
+      predictedR: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}predicted_r']),
       reviewedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}reviewed_at'])!,
       createdAt: attachedDatabase.typeMapping
@@ -6936,6 +6951,16 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
   /// number, so it is stored verbatim rather than folded into a boolean.
   /// NULL whenever the event was not a failure-feedback one.
   final double? closeness;
+
+  /// v11: the model's `R` for this card **at the moment of the review, before
+  /// the grade existed**.
+  ///
+  /// This is what makes the calibration curve honest: a prediction recomputed
+  /// after the fact from the post-review state would be grading the model on an
+  /// answer it already knew (`docs/ASSESSMENT_DESIGN.md` §7 M6). NULL for every
+  /// row written before v11 and for reviews where the advisor was unavailable -
+  /// "no prediction" and "predicted 0.5" are different facts.
+  final double? predictedR;
   final int reviewedAt;
   final int createdAt;
   const ReviewLog(
@@ -6951,6 +6976,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       this.msTaken,
       this.reviewedSolution,
       this.closeness,
+      this.predictedR,
       required this.reviewedAt,
       required this.createdAt});
   @override
@@ -6985,6 +7011,9 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
     }
     if (!nullToAbsent || closeness != null) {
       map['closeness'] = Variable<double>(closeness);
+    }
+    if (!nullToAbsent || predictedR != null) {
+      map['predicted_r'] = Variable<double>(predictedR);
     }
     map['reviewed_at'] = Variable<int>(reviewedAt);
     map['created_at'] = Variable<int>(createdAt);
@@ -7022,6 +7051,9 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       closeness: closeness == null && nullToAbsent
           ? const Value.absent()
           : Value(closeness),
+      predictedR: predictedR == null && nullToAbsent
+          ? const Value.absent()
+          : Value(predictedR),
       reviewedAt: Value(reviewedAt),
       createdAt: Value(createdAt),
     );
@@ -7043,6 +7075,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       msTaken: serializer.fromJson<int?>(json['msTaken']),
       reviewedSolution: serializer.fromJson<bool?>(json['reviewedSolution']),
       closeness: serializer.fromJson<double?>(json['closeness']),
+      predictedR: serializer.fromJson<double?>(json['predictedR']),
       reviewedAt: serializer.fromJson<int>(json['reviewedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
@@ -7063,6 +7096,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       'msTaken': serializer.toJson<int?>(msTaken),
       'reviewedSolution': serializer.toJson<bool?>(reviewedSolution),
       'closeness': serializer.toJson<double?>(closeness),
+      'predictedR': serializer.toJson<double?>(predictedR),
       'reviewedAt': serializer.toJson<int>(reviewedAt),
       'createdAt': serializer.toJson<int>(createdAt),
     };
@@ -7081,6 +7115,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           Value<int?> msTaken = const Value.absent(),
           Value<bool?> reviewedSolution = const Value.absent(),
           Value<double?> closeness = const Value.absent(),
+          Value<double?> predictedR = const Value.absent(),
           int? reviewedAt,
           int? createdAt}) =>
       ReviewLog(
@@ -7099,6 +7134,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
             ? reviewedSolution.value
             : this.reviewedSolution,
         closeness: closeness.present ? closeness.value : this.closeness,
+        predictedR: predictedR.present ? predictedR.value : this.predictedR,
         reviewedAt: reviewedAt ?? this.reviewedAt,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -7122,6 +7158,8 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           ? data.reviewedSolution.value
           : this.reviewedSolution,
       closeness: data.closeness.present ? data.closeness.value : this.closeness,
+      predictedR:
+          data.predictedR.present ? data.predictedR.value : this.predictedR,
       reviewedAt:
           data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -7143,6 +7181,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           ..write('msTaken: $msTaken, ')
           ..write('reviewedSolution: $reviewedSolution, ')
           ..write('closeness: $closeness, ')
+          ..write('predictedR: $predictedR, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -7163,6 +7202,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
       msTaken,
       reviewedSolution,
       closeness,
+      predictedR,
       reviewedAt,
       createdAt);
   @override
@@ -7181,6 +7221,7 @@ class ReviewLog extends DataClass implements Insertable<ReviewLog> {
           other.msTaken == this.msTaken &&
           other.reviewedSolution == this.reviewedSolution &&
           other.closeness == this.closeness &&
+          other.predictedR == this.predictedR &&
           other.reviewedAt == this.reviewedAt &&
           other.createdAt == this.createdAt);
 }
@@ -7198,6 +7239,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
   final Value<int?> msTaken;
   final Value<bool?> reviewedSolution;
   final Value<double?> closeness;
+  final Value<double?> predictedR;
   final Value<int> reviewedAt;
   final Value<int> createdAt;
   final Value<int> rowid;
@@ -7214,6 +7256,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     this.msTaken = const Value.absent(),
     this.reviewedSolution = const Value.absent(),
     this.closeness = const Value.absent(),
+    this.predictedR = const Value.absent(),
     this.reviewedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -7231,6 +7274,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     this.msTaken = const Value.absent(),
     this.reviewedSolution = const Value.absent(),
     this.closeness = const Value.absent(),
+    this.predictedR = const Value.absent(),
     required int reviewedAt,
     required int createdAt,
     this.rowid = const Value.absent(),
@@ -7252,6 +7296,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     Expression<int>? msTaken,
     Expression<bool>? reviewedSolution,
     Expression<double>? closeness,
+    Expression<double>? predictedR,
     Expression<int>? reviewedAt,
     Expression<int>? createdAt,
     Expression<int>? rowid,
@@ -7269,6 +7314,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       if (msTaken != null) 'ms_taken': msTaken,
       if (reviewedSolution != null) 'reviewed_solution': reviewedSolution,
       if (closeness != null) 'closeness': closeness,
+      if (predictedR != null) 'predicted_r': predictedR,
       if (reviewedAt != null) 'reviewed_at': reviewedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -7288,6 +7334,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       Value<int?>? msTaken,
       Value<bool?>? reviewedSolution,
       Value<double?>? closeness,
+      Value<double?>? predictedR,
       Value<int>? reviewedAt,
       Value<int>? createdAt,
       Value<int>? rowid}) {
@@ -7304,6 +7351,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
       msTaken: msTaken ?? this.msTaken,
       reviewedSolution: reviewedSolution ?? this.reviewedSolution,
       closeness: closeness ?? this.closeness,
+      predictedR: predictedR ?? this.predictedR,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -7349,6 +7397,9 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
     if (closeness.present) {
       map['closeness'] = Variable<double>(closeness.value);
     }
+    if (predictedR.present) {
+      map['predicted_r'] = Variable<double>(predictedR.value);
+    }
     if (reviewedAt.present) {
       map['reviewed_at'] = Variable<int>(reviewedAt.value);
     }
@@ -7376,6 +7427,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLog> {
           ..write('msTaken: $msTaken, ')
           ..write('reviewedSolution: $reviewedSolution, ')
           ..write('closeness: $closeness, ')
+          ..write('predictedR: $predictedR, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -15746,8 +15798,11 @@ class AssessmentResponse extends DataClass
     implements Insertable<AssessmentResponse> {
   final String id;
 
-  /// 所属会话。会话删了，它的步骤就没有意义，所以级联删除是这里的正确语义
-  /// （与 `review_group_plans` 一样显式在仓储里做，不指望 `PRAGMA` 一定开着）。
+  /// 所属会话。会话删了，它的步骤就没有意义，所以级联删除是这里的正确语义。
+  ///
+  /// 但**不能指望数据库**：本项目的生成 schema 不带外键约束（实测，连 v2 就有的
+  /// `review_logs` 也没有），`references(...)` 只是意图声明。清理由
+  /// `AssessmentRepository.deleteSession` 显式完成。
   final String sessionId;
 
   /// 这一步针对的知识点；NULL 表示不属于任何点（整卷性提示之类）。
@@ -19809,6 +19864,7 @@ typedef $$ReviewLogsTableCreateCompanionBuilder = ReviewLogsCompanion Function({
   Value<int?> msTaken,
   Value<bool?> reviewedSolution,
   Value<double?> closeness,
+  Value<double?> predictedR,
   required int reviewedAt,
   required int createdAt,
   Value<int> rowid,
@@ -19826,6 +19882,7 @@ typedef $$ReviewLogsTableUpdateCompanionBuilder = ReviewLogsCompanion Function({
   Value<int?> msTaken,
   Value<bool?> reviewedSolution,
   Value<double?> closeness,
+  Value<double?> predictedR,
   Value<int> reviewedAt,
   Value<int> createdAt,
   Value<int> rowid,
@@ -19877,6 +19934,9 @@ class $$ReviewLogsTableFilterComposer
 
   ColumnFilters<double> get closeness => $composableBuilder(
       column: $table.closeness, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get predictedR => $composableBuilder(
+      column: $table.predictedR, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => ColumnFilters(column));
@@ -19932,6 +19992,9 @@ class $$ReviewLogsTableOrderingComposer
   ColumnOrderings<double> get closeness => $composableBuilder(
       column: $table.closeness, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get predictedR => $composableBuilder(
+      column: $table.predictedR, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => ColumnOrderings(column));
 
@@ -19984,6 +20047,9 @@ class $$ReviewLogsTableAnnotationComposer
   GeneratedColumn<double> get closeness =>
       $composableBuilder(column: $table.closeness, builder: (column) => column);
 
+  GeneratedColumn<double> get predictedR => $composableBuilder(
+      column: $table.predictedR, builder: (column) => column);
+
   GeneratedColumn<int> get reviewedAt => $composableBuilder(
       column: $table.reviewedAt, builder: (column) => column);
 
@@ -20026,6 +20092,7 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             Value<int?> msTaken = const Value.absent(),
             Value<bool?> reviewedSolution = const Value.absent(),
             Value<double?> closeness = const Value.absent(),
+            Value<double?> predictedR = const Value.absent(),
             Value<int> reviewedAt = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -20043,6 +20110,7 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             msTaken: msTaken,
             reviewedSolution: reviewedSolution,
             closeness: closeness,
+            predictedR: predictedR,
             reviewedAt: reviewedAt,
             createdAt: createdAt,
             rowid: rowid,
@@ -20060,6 +20128,7 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             Value<int?> msTaken = const Value.absent(),
             Value<bool?> reviewedSolution = const Value.absent(),
             Value<double?> closeness = const Value.absent(),
+            Value<double?> predictedR = const Value.absent(),
             required int reviewedAt,
             required int createdAt,
             Value<int> rowid = const Value.absent(),
@@ -20077,6 +20146,7 @@ class $$ReviewLogsTableTableManager extends RootTableManager<
             msTaken: msTaken,
             reviewedSolution: reviewedSolution,
             closeness: closeness,
+            predictedR: predictedR,
             reviewedAt: reviewedAt,
             createdAt: createdAt,
             rowid: rowid,

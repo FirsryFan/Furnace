@@ -3476,6 +3476,60 @@ abstract class AppLocalizations {
   /// **'Measure (give the model a starting point)'**
   String get assessmentEntryAction;
 
+  /// No description provided for @learningMetricsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning effect (the review log decides)'**
+  String get learningMetricsTitle;
+
+  /// No description provided for @learningMetricsDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Retention is \"how much was still there after that long\", read from review outcomes only - not from the model\'s own opinion of itself. Calibration waits for reviews that recorded a prediction.'**
+  String get learningMetricsDetail;
+
+  /// No description provided for @learningMetricsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet - these numbers grow as you review.'**
+  String get learningMetricsEmpty;
+
+  /// No description provided for @learningMetricsNoBuckets.
+  ///
+  /// In en, this message translates to:
+  /// **'There are reviews, but no second review of any card yet, so there is no interval to bucket.'**
+  String get learningMetricsNoBuckets;
+
+  /// No description provided for @learningMetricsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The review log could not be read (see the error above), so this block has no numbers.'**
+  String get learningMetricsUnavailable;
+
+  /// Review count and overall retention on the reading page
+  ///
+  /// In en, this message translates to:
+  /// **'{reviewed} reviews, {retention}% recalled overall'**
+  String learningMetricsOverall(Object reviewed, Object retention);
+
+  /// One interval bucket: day range, review count, retention percent
+  ///
+  /// In en, this message translates to:
+  /// **'{range} d: {samples} reviews, {retention}% recalled'**
+  String learningMetricsBucket(Object range, Object samples, Object retention);
+
+  /// Brier score and expected calibration error
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration: Brier {brier} (lower is better), ECE {ece} (per-bin gap between prediction and outcome)'**
+  String learningMetricsCalibration(Object brier, Object ece);
+
+  /// No description provided for @learningMetricsNoCalibration.
+  ///
+  /// In en, this message translates to:
+  /// **'No calibration samples yet: from this version on, every review records what the model predicted before the answer. Old reviews have no such value and are not back-filled.'**
+  String get learningMetricsNoCalibration;
+
   /// No description provided for @settingsThemeIcons.
   ///
   /// In en, this message translates to:

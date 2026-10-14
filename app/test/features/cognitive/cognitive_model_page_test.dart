@@ -20,6 +20,7 @@ import 'package:furnace/domain/services/cognitive/assessment_prior.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
+import 'package:furnace/domain/services/cognitive/learning_metrics.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/metacognition.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
@@ -118,6 +119,9 @@ CognitiveObservationInputs _fixtureInputs() => CognitiveObservationInputs(
       boostFactorByKnowledgePoint: const {'kp-1': 1.8},
     );
 
+/// The default metrics the page tests see: a library nobody has reviewed.
+const LearningMetrics _noReviews = LearningMetrics.empty;
+
 Future<void> _pumpPage(
   WidgetTester tester, {
   required List<Override> overrides,
@@ -137,6 +141,11 @@ Future<void> _pumpPage(
       // and Riverpod's last-wins rule lets it take effect.
       overrides: [
         cognitivePriorsProvider.overrideWith((ref) async => const {}),
+        // Same reasoning as the priors above: the metrics card is a `select`
+        // over `review_logs`, and a test that stubs the observation inputs has
+        // no database behind it. Empty is the honest default here (an empty
+        // library has no reviews); callers that want numbers override it last.
+        learningMetricsProvider.overrideWith((ref) async => _noReviews),
         ...overrides,
       ],
       child: MaterialApp(
@@ -588,5 +597,93 @@ void main() {
 
     expect(find.byType(CognitiveModelPage), findsOneWidget);
     expect(find.text('顾问模式：不改到期时间'), findsOneWidget);
+  });
+
+  group('the learning-effect card (M6)', () {
+    /// The three overrides every test in this file needs before the page leaves
+    /// its loading state: the observation inputs, the model, and the diagnosis
+    /// (which otherwise waits on a real database).
+    List<Override> shellOverrides() => [
+          cognitiveObservationInputsProvider
+              .overrideWith((ref) => _fixtureInputs()),
+          cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+          cognitiveLibraryDiagnosisProvider
+              .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        ];
+
+    /// Three reviews of one card: 12h later remembered, 2 days later missed,
+    /// 10 days later remembered. Only the middle one carries a prediction.
+    LearningMetrics metricsWith({bool withPrediction = true}) {
+      return LearningMetrics.read(
+        samples: [
+          RetentionSample(
+            cardStateId: 'cs-1',
+            reviewedAtMs: 0,
+            recalled: true,
+            intervalDays: 0.5,
+          ),
+          RetentionSample(
+            cardStateId: 'cs-1',
+            reviewedAtMs: 1,
+            recalled: false,
+            intervalDays: 2,
+            predictedR: withPrediction ? 0.8 : null,
+          ),
+          RetentionSample(
+            cardStateId: 'cs-1',
+            reviewedAtMs: 2,
+            recalled: true,
+            intervalDays: 10,
+          ),
+        ],
+      );
+    }
+
+    testWidgets('no reviews says so instead of showing a zero',
+        (tester) async {
+      await _pumpPage(
+        tester,
+        overrides: shellOverrides(),
+      );
+
+      expect(find.text('学习效果（复习日志说了算）'), findsOneWidget);
+      expect(find.textContaining('还没有复习记录'), findsOneWidget);
+    });
+
+    testWidgets('reviews show retention by interval and the calibration gap',
+        (tester) async {
+      final metrics = metricsWith();
+      await _pumpPage(
+        tester,
+        overrides: [
+          ...shellOverrides(),
+          learningMetricsProvider.overrideWith((ref) async => metrics),
+        ],
+      );
+
+      // 3 次里 2 次记得 -> 67%；0.5 天与 2 天各一桶、10 天落在 7–30 桶。
+      expect(find.textContaining('3 次复习，整体留存 67%'), findsOneWidget);
+      expect(find.textContaining('1–3 天：1 次，记住 0%'), findsOneWidget);
+      expect(find.textContaining('7–30 天：1 次，记住 100%'), findsOneWidget);
+      // 只有一条带预测，所以校准有数：brier = 0.8^2 = 0.64。
+      expect(find.textContaining('Brier 0.640'), findsOneWidget);
+      expect(find.textContaining('校准曲线还没有样本'), findsNothing);
+    });
+
+    testWidgets('reviews without a prediction admit there is no curve',
+        (tester) async {
+      final metrics = metricsWith(withPrediction: false);
+      await _pumpPage(
+        tester,
+        overrides: [
+          ...shellOverrides(),
+          learningMetricsProvider.overrideWith((ref) async => metrics),
+        ],
+      );
+
+      expect(find.textContaining('3 次复习，整体留存 67%'), findsOneWidget);
+      expect(find.textContaining('校准曲线还没有样本'), findsOneWidget);
+      expect(find.textContaining('Brier'), findsNothing);
+    });
   });
 }

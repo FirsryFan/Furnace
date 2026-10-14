@@ -46,6 +46,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
 import '../../../domain/services/cognitive/library_diagnosis.dart';
+import '../../../domain/services/cognitive/learning_metrics.dart';
 import '../../../domain/services/cognitive/metacognition.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
@@ -689,6 +690,20 @@ final cognitivePriorsProvider =
       );
 });
 
+/// The learning-effect reading (M6): retention by interval plus whatever
+/// calibration the predicted-`R` history supports.
+///
+/// Deliberately **not** derived from the fast layer or from the priors: it is a
+/// `select` over `review_logs` only. That is what makes it an *external* check
+/// on the model - if the numbers here were assembled from the model's own
+/// reading, the curve would always agree with itself.
+final learningMetricsProvider =
+    FutureProvider.autoDispose<LearningMetrics>((ref) async {
+  ref.watchDatabaseRevision();
+  final samples = await ref.watch(ankiRepositoryProvider).retentionSamples();
+  return LearningMetrics.read(samples: samples);
+});
+
 /// The reading the page shows: the injected model's numbers, the advisor's
 /// bands, the fast layer's zones - nothing else.
 final cognitiveReadingsProvider =
@@ -821,6 +836,7 @@ class CognitiveModelPage extends ConsumerWidget {
             _Summary(l10n: l10n, readings: data),
             if (data.fastLayerRan)
               _Metacognition(l10n: l10n, reading: data.metacognition),
+            const _LearningMetricsSection(),
             const SizedBox(height: 8),
             if (data.cards.isEmpty)
               Padding(
@@ -1125,6 +1141,125 @@ class _Metacognition extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// "学得到底怎么样"——M6 的留存率与校准度。
+///
+/// 这一块是整页唯一一个**不看成模型自己的读数**的卡片：数字全部来自复习日志，
+/// 所以它是模型的考官，而不是模型的自我介绍。校准那一半在没有带预测的复习时
+/// 明说没有，而不是画一条由假设拼出来的曲线。
+class _LearningMetricsSection extends ConsumerWidget {
+  const _LearningMetricsSection();
+
+  static String _days(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toStringAsFixed(1);
+
+  static String _range(RetentionBucket bucket) => bucket.hiDays.isFinite
+      ? '${_days(bucket.loDays)}–${_days(bucket.hiDays)}'
+      : '${_days(bucket.loDays)}+';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final subtle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final metrics = ref.watch(learningMetricsProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.insights_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.learningMetricsTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(l10n.learningMetricsDetail, style: subtle),
+              const SizedBox(height: 8),
+              if (metrics.isLoading)
+                const SizedBox(
+                  height: 16,
+                  child: Center(
+                    child: SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (metrics.hasError)
+                Text(l10n.learningMetricsUnavailable, style: subtle)
+              else
+                ..._body(l10n, theme, subtle, metrics.requireValue),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _body(
+    AppLocalizations l10n,
+    ThemeData theme,
+    TextStyle? subtle,
+    LearningMetrics data,
+  ) {
+    if (data.isEmpty) {
+      return [Text(l10n.learningMetricsEmpty, style: subtle)];
+    }
+
+    final retained = (data.retention * 100).round();
+    final shown = [for (final b in data.buckets) if (b.samples > 0) b];
+    return [
+      Text(
+        l10n.learningMetricsOverall(data.reviewedCount, retained),
+        style: theme.textTheme.bodyMedium,
+      ),
+      const SizedBox(height: 6),
+      if (shown.isEmpty)
+        Text(l10n.learningMetricsNoBuckets, style: subtle)
+      else
+        for (final bucket in shown)
+          Text(
+            l10n.learningMetricsBucket(
+              _range(bucket),
+              bucket.samples,
+              (bucket.retention * 100).round(),
+            ),
+            style: subtle,
+          ),
+      const SizedBox(height: 6),
+      // 有预测样本才谈校准；否则这句话就是"这一版之前根本没记过预测"，
+      // 与"模型很准"（brier 0）必须能被区分开。
+      Text(
+        data.hasCalibration
+            ? l10n.learningMetricsCalibration(
+                data.brier!.toStringAsFixed(3),
+                data.ece!.toStringAsFixed(3),
+              )
+            : l10n.learningMetricsNoCalibration,
+        style: subtle,
+      ),
+    ];
   }
 }
 

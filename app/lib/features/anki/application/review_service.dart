@@ -911,6 +911,19 @@ class ReviewService {
       lastReviewedAt: moment.millisecondsSinceEpoch,
     );
 
+    // M6: the prediction is written down *now*, while the outcome is still
+    // unknown to it. `state` is the row before this review and `moment` is when
+    // the answer was shown, so this is exactly "what the model expected the
+    // user to recall" - the number the calibration curve later grades.
+    // An unavailable advisor means NULL (no prediction), never a failed review.
+    double? predictedR;
+    try {
+      predictedR =
+          cognitiveModel.modelReadingOf(state, nowHours: modelHoursOf(moment)).r;
+    } catch (_) {
+      predictedR = null;
+    }
+
     // D2: the model owns exactly two columns, and this is their only writer.
     // `updateUnitCardState` above stays the only writer of stability /
     // difficulty / dueAt, so neither side can overwrite the other. `state` is
@@ -959,6 +972,7 @@ class ReviewService {
       // here would make the log claim it was.
       reviewedSolution: correct ? null : reviewedSolution,
       closeness: correct || !reviewedSolution ? null : closeness,
+      predictedR: predictedR,
       reviewedAt: moment.millisecondsSinceEpoch,
     );
 

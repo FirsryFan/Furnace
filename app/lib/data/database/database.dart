@@ -67,10 +67,12 @@ class AppDatabase extends _$AppDatabase {
   /// v7 is the unshipped release that added `local_settings.ai_max_rounds`
   /// plus the two review-preference columns; v8 adds the per-group daily plan
   /// table; v9 adds the two failure-feedback columns on `review_logs`; v10 adds
-  /// the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5). See
-  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10].
+  /// the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5); v11 adds the
+  /// pre-review prediction column on `review_logs` (M6 calibration). See
+  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
+  /// [_upgradeV10ToV11].
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -105,6 +107,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 10) {
           await _upgradeV9ToV10();
+        }
+        if (from < 11) {
+          await _upgradeV10ToV11();
         }
       },
       beforeOpen: (details) async {
@@ -155,9 +160,11 @@ class AppDatabase extends _$AppDatabase {
       // v9: the failure-feedback pair. A file stamped v9 whose review_logs
       // predates the columns would otherwise make the generated mapper throw on
       // the first history read (the same failure mode as the v6 columns above).
+      // v11: the pre-review prediction, healed for the same reason.
       'review_logs': [
         reviewLogs.reviewedSolution,
         reviewLogs.closeness,
+        reviewLogs.predictedR,
       ],
     };
     final m = Migrator(this);
@@ -332,6 +339,19 @@ class AppDatabase extends _$AppDatabase {
     if (!await _tableExists('cognitive_priors')) {
       await m.createTable(cognitivePriors);
     }
+  }
+
+  /// v10 -> v11: the pre-review prediction on `review_logs` (M6 calibration).
+  ///
+  /// Additive and NULL for every existing row, which is the only honest value:
+  /// the prediction was never recorded, and recomputing one now would be
+  /// inventing a prediction that did not exist when the user answered. The
+  /// calibration curve therefore starts empty and fills up from here.
+  Future<void> _upgradeV10ToV11() async {
+    if (!await _tableExists('review_logs')) {
+      return;
+    }
+    await _addColumnIfMissing(Migrator(this), 'review_logs', reviewLogs.predictedR);
   }
 
   Future<void> _upgradeV4ToV5() async {    if (!await _tableExists('time_view_settings')) {

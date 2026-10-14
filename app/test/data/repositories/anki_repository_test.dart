@@ -147,4 +147,98 @@ void main() {
       expect(after.savings, isA<double>());
     });
   });
+
+  group('retentionSamples (M6)', () {
+    const day = Duration.millisecondsPerDay;
+
+    test('logs become recalled verdicts with the gap to the previous review',
+        () async {
+      final kp = await anki.createKnowledgePoint(title: '细胞呼吸', content: '…');
+      await db.into(db.cardStates).insert(
+            CardStatesCompanion.insert(
+              id: 'cs-1',
+              knowledgePointId: Value(kp.id),
+              createdAt: 0,
+              updatedAt: 0,
+            ),
+          );
+
+      // 第一天忘了、第二天隔 3 天想起来、再隔 10 天又想起来。
+      await anki.addReviewLog(
+        cardStateId: 'cs-1',
+        cardTemplateId: 'ct1',
+        rating: 0,
+        correct: 0,
+        reviewedAt: day,
+      );
+      await anki.addReviewLog(
+        cardStateId: 'cs-1',
+        cardTemplateId: 'ct1',
+        rating: 2,
+        ratingFsrs: 3,
+        correct: 1,
+        reviewedAt: 4 * day,
+        predictedR: 0.42,
+      );
+      await anki.addReviewLog(
+        cardStateId: 'cs-1',
+        cardTemplateId: 'ct1',
+        rating: 2,
+        ratingFsrs: 4,
+        correct: 1,
+        reviewedAt: 14 * day,
+      );
+
+      final samples = await anki.retentionSamples();
+
+      expect(samples, hasLength(3));
+      expect(samples.map((s) => s.recalled), [false, true, true]);
+      expect(samples.map((s) => s.intervalDays), [null, 3.0, 10.0]);
+      expect(samples.every((s) => s.knowledgePointId == kp.id), isTrue);
+      // 只有第二次写了预测，另外两次是"没有预测"，不是 0。
+      expect(samples.map((s) => s.predictedR), [null, 0.42, null]);
+    });
+
+    test('a since filter keeps the later reviews only', () async {
+      await anki.addReviewLog(
+        cardStateId: 'cs-1',
+        cardTemplateId: 'ct1',
+        rating: 2,
+        reviewedAt: day,
+      );
+      await anki.addReviewLog(
+        cardStateId: 'cs-1',
+        cardTemplateId: 'ct1',
+        rating: 2,
+        reviewedAt: 5 * day,
+      );
+
+      final samples = await anki.retentionSamples(sinceMillis: 3 * day);
+
+      expect(samples, hasLength(1));
+      expect(samples.single.reviewedAtMs, 5 * day);
+    });
+
+    test('a log whose card state is gone still counts, with no knowledge point',
+        () async {
+      // 导入碎片会留下这种行：复习确实发生过，但卡已经不在了。它不该从
+      // 留存率里消失（LEFT JOIN 的理由），也归不到任何知识点上。
+      await db.into(db.reviewLogs).insert(
+            ReviewLogsCompanion.insert(
+              id: 'rl-odd',
+              cardStateId: 'cs-gone',
+              rating: 2,
+              reviewedAt: day,
+              createdAt: day,
+            ),
+          );
+
+      final samples = await anki.retentionSamples();
+
+      expect(samples, hasLength(1));
+      expect(samples.single.knowledgePointId, null);
+      expect(samples.single.recalled, isTrue);
+      expect(samples.single.intervalDays, null);
+    });
+  });
 }

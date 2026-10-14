@@ -1935,6 +1935,44 @@ class AppLocalizationsEn extends AppLocalizations {
       'Measure (give the model a starting point)';
 
   @override
+  String get learningMetricsTitle => 'Learning effect (the review log decides)';
+
+  @override
+  String get learningMetricsDetail =>
+      'Retention is \"how much was still there after that long\", read from review outcomes only - not from the model\'s own opinion of itself. Calibration waits for reviews that recorded a prediction.';
+
+  @override
+  String get learningMetricsEmpty =>
+      'No reviews yet - these numbers grow as you review.';
+
+  @override
+  String get learningMetricsNoBuckets =>
+      'There are reviews, but no second review of any card yet, so there is no interval to bucket.';
+
+  @override
+  String get learningMetricsUnavailable =>
+      'The review log could not be read (see the error above), so this block has no numbers.';
+
+  @override
+  String learningMetricsOverall(Object reviewed, Object retention) {
+    return '$reviewed reviews, $retention% recalled overall';
+  }
+
+  @override
+  String learningMetricsBucket(Object range, Object samples, Object retention) {
+    return '$range d: $samples reviews, $retention% recalled';
+  }
+
+  @override
+  String learningMetricsCalibration(Object brier, Object ece) {
+    return 'Calibration: Brier $brier (lower is better), ECE $ece (per-bin gap between prediction and outcome)';
+  }
+
+  @override
+  String get learningMetricsNoCalibration =>
+      'No calibration samples yet: from this version on, every review records what the model predicted before the answer. Old reviews have no such value and are not back-filled.';
+
+  @override
   String get settingsThemeIcons => 'Icons';
 
   @override

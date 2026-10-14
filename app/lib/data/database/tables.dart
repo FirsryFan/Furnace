@@ -374,6 +374,16 @@ class ReviewLogs extends Table {
   /// NULL whenever the event was not a failure-feedback one.
   RealColumn get closeness => real().nullable()();
 
+  /// v11: the model's `R` for this card **at the moment of the review, before
+  /// the grade existed**.
+  ///
+  /// This is what makes the calibration curve honest: a prediction recomputed
+  /// after the fact from the post-review state would be grading the model on an
+  /// answer it already knew (`docs/ASSESSMENT_DESIGN.md` §7 M6). NULL for every
+  /// row written before v11 and for reviews where the advisor was unavailable -
+  /// "no prediction" and "predicted 0.5" are different facts.
+  RealColumn get predictedR => real().nullable()();
+
   IntColumn get reviewedAt => integer()();
   IntColumn get createdAt => integer()();
 

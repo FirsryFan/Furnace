@@ -386,4 +386,63 @@ void main() {
       expect(log.closeness, isNull);
     });
   });
+
+  group('the pre-review prediction (M6 calibration)', () {
+    test('a graded review records the prediction, in range', () async {
+      await anki.createKnowledgePoint(
+        title: '光合作用场所',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final item = (await service.buildQueue()).single;
+
+      await service.grade(item: item, correct: true, rating: FsrsRating.good);
+
+      final log = (await db.select(db.reviewLogs).get()).single;
+      expect(
+        log.predictedR,
+        isNotNull,
+        reason: '预测必须在判分之前落库，否则这条日志永远进不了校准曲线',
+      );
+      expect(log.predictedR, greaterThan(0));
+      expect(log.predictedR, lessThanOrEqualTo(1));
+    });
+
+    test('the same pre-review row predicts the same thing either way', () async {
+      // 两张一模一样的卡（模型状态相同），一张答对、一张答错。预测值必须相同：
+      // 它是在答案出现之前算的，如果哪天有人把它挪到判分之后，这条会红。
+      final right = await anki.createKnowledgePoint(
+        title: '光合作用场所甲',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final wrong = await anki.createKnowledgePoint(
+        title: '光合作用场所乙',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final queue = await service.buildQueue();
+
+      await service.grade(
+        item: queue.firstWhere((i) => i.knowledgePointId == right.id),
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      await service.grade(
+        item: queue.firstWhere((i) => i.knowledgePointId == wrong.id),
+        correct: false,
+        rating: FsrsRating.good,
+        submitted: '线粒体',
+      );
+
+      final logs = await db.select(db.reviewLogs).get();
+      expect(logs, hasLength(2));
+      final rightLog = logs.singleWhere((l) => l.correct == 1);
+      final wrongLog = logs.singleWhere((l) => l.correct == 0);
+      expect(rightLog.predictedR, isNotNull);
+      expect(wrongLog.predictedR, isNotNull);
+      expect(
+        rightLog.predictedR,
+        closeTo(wrongLog.predictedR!, 1e-3),
+        reason: '预测只依赖复习前的行与时刻，与这次答对答错无关',
+      );
+    });
+  });
 }

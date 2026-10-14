@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-15 轮次二十六：M6 学习效果度量——留存率立刻可算，校准曲线从这一版开始积累
+
+用户：milestone ②「链接认知模型和 flashcard，我实际操作发现记忆效果好」。这句话在模型自己有度量之前只是感觉，
+本轮把复习日志变成两个能摆出来的量：**留存率**（按"距上次复习多久"分桶）与**校准**（模型判分前给的预测 vs 真实结果）。
+
+- 新的纯逻辑层 `app/lib/domain/services/cognitive/learning_metrics.dart`（无数据库、无 Flutter、无时钟）：
+  `recalledFromReview`（客观判分 > FSRS 评分 ≥3 > v1 旧评分 ≥2；`fuzzy`/`Hard` 都**不算**记得——校准要的是
+  "能不能取出来"，含印象分会把留存率整体抬高）、`RetentionSample`/`RetentionBucket`/`CalibrationBin`/
+  `LearningMetrics.read`（Brier = mean((R−实际)²)，ECE = Σ(n_b/N)·|预测均值−实际|）、`withIntervals`（按
+  `(cardStateId, reviewedAtMs)` 推进出间隔；同一毫秒的两次是间隔 0）。默认间隔边界 0/1/3/7/30/∞，默认 5 个校准箱。
+  桶与箱**始终完整**：没有样本的桶也画出来，"这周没复习"本身就是要看见的信息。
+- **schema v11**：`review_logs.predicted_r`（可空）。为什么必须新增列而不是事后重算——`docs/ASSESSMENT_DESIGN.md`
+  §7 的 M6 写清：预测必须在**判分之前**落库，事后按复习后的状态重算等于用已知答案给自己打分。老行一律 NULL
+  （"没有预测"和"预测 0.5"是两件事），所以校准曲线**从这一版开始积累，历史不补算**。迁移 `_upgradeV10ToV11`
+  只加列；`_ensureColumns` 同步登记，防"版本号跑在列前面"。
+- 写入点：`review_service.dart` 在 D2 那段之前算 `predictedR = cognitiveModel.modelReadingOf(state, nowHours:
+  modelHoursOf(moment)).r`（`state` 是复习前的行、`moment` 是展示答案的时刻），advisor 抛异常就是 NULL，
+  绝不因为顾问失灵把一次已经记好的复习报成失败。`addReviewLog` 新增 `predictedR` 参数，且**从不自己推导**它。
+- 读取：`AnkiRepository.retentionSamples({sinceMillis, limit})`——LEFT JOIN `card_states`（导入碎片里卡没了的
+  日志仍算一次真实复习，只是没有知识点），读到 `predicted_r` 后交给 `withIntervals`。
+- 读数页新卡片 `_LearningMetricsSection`（provider `learningMetricsProvider`）：整体留存率、每个**有样本**的间隔桶、
+  以及校准（有样本才显示 Brier/ECE，否则明说"校准曲线还没有样本"）。这一块是整页唯一**不看模型自己读数**的卡片，
+  数字全来自复习日志——它是模型的考官，不是模型的自我介绍。
+- 开发中踩到的两个坑（都已修，留在测试里）：`Variable.withInt` 不接受 `int?`，`sinceMillis` 的过滤条件因此改成
+  拼接 SQL；`_pumpPage` 里除了先验之外还要默认 override 新的 metrics provider，否则"纯 widget"测试又会去开真实数据库。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info（与基线同数）；
+  `flutter test test/domain/services/cognitive/learning_metrics_test.dart` → `+16 All tests passed!`；
+  `flutter test test/data/database/v11_migration_test.dart` → `+2`；
+  `flutter test test/data/repositories/anki_repository_test.dart` → `+7`（原 4 + 3）；
+  `flutter test test/features/anki/review_service_test.dart` → `+14`（原 12 + 2）；
+  `flutter test test/features/cognitive/cognitive_model_page_test.dart` → `+15`（原 12 + 3）；
+  全量 `flutter test --concurrency=1` → `+1131 ~2 All tests passed!`（1105 = 轮次二十五基线，+26 = 本轮）。
+- 未做（下一片）：把留存率/校准接进 AI 工具（让 AI 能引用"你这批卡 3–7 天桶只有 62%"）；按知识点聚合的留存
+  （现在只按间隔分桶）；板块化 instrument 与标定协议（`calibrated` 仍全部为 false）。
+
+---
+
 ## 2026-10-14 轮次二十五：测评层 M1d——先验与观测在读数页合并，并且分得清谁是谁
 
 用户：milestone ①「用户测评来初始化认知模型」继续（口径同前：自评起步、测抽象参数、不从卡片出题）。
