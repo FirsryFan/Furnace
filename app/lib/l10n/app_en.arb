@@ -691,8 +691,18 @@
     "placeholders": { "value": { "type": "String" } }
   },
   "cognitiveEncoding": "R0 {value}",
+  "cognitiveEncodingPrior": "R0 {value} (measurement prior)",
+  "cognitivePriorNote": "Measurement priors",
+  "cognitivePriorCount": "{count} cards now start from a measurement prior (uncalibrated); the rest start from their own review history or the model's defaults. Once a card has actually been reviewed, the observation takes over and the prior stops speaking.",
+  "cognitivePriorNone": "No measurement priors yet: every card starts from the model's defaults or its own review history. One measurement gives this part of the material an estimate about you.",
   "@cognitiveEncoding": {
     "placeholders": { "value": { "type": "String" } }
+  },
+  "@cognitiveEncodingPrior": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "@cognitivePriorCount": {
+    "placeholders": { "count": { "type": "int" } }
   },
   "cognitiveSavings": "Sigma {value}",
   "@cognitiveSavings": {

@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/domain/services/cognitive/assessment_prior.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
@@ -130,7 +131,14 @@ Future<void> _pumpPage(
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: overrides,
+      // The reading now also reads measurement priors. Tests that stub the
+      // observation inputs hand in no database, so the priors are stubbed the
+      // same way; a caller that wants real priors passes its own override last,
+      // and Riverpod's last-wins rule lets it take effect.
+      overrides: [
+        cognitivePriorsProvider.overrideWith((ref) async => const {}),
+        ...overrides,
+      ],
       child: MaterialApp(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -210,7 +218,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider
             .overrideWith((ref) async => LibraryDiagnosis.notRun),
@@ -227,7 +236,8 @@ void main() {
     expect(
       find.textContaining('现在由元认知层算出来'),
       findsOneWidget,
-      reason: 'danger is computed now, so the note may not claim it never appears',
+      reason:
+          'danger is computed now, so the note may not claim it never appears',
     );
     expect(find.text('认知模型'), findsOneWidget);
   });
@@ -237,7 +247,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => const LibraryDiagnosis(
@@ -264,7 +275,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider
             .overrideWith((ref) async => LibraryDiagnosis.notRun),
@@ -334,7 +346,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider
             .overrideWith((ref) async => LibraryDiagnosis.notRun),
@@ -366,7 +379,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => LibraryDiagnosis(
@@ -398,7 +412,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => const LibraryDiagnosis(
@@ -422,7 +437,8 @@ void main() {
     await _pumpPage(
       tester,
       overrides: [
-        cognitiveObservationInputsProvider.overrideWith((ref) => _fixtureInputs()),
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => LibraryDiagnosis(
@@ -452,6 +468,88 @@ void main() {
     expect(find.textContaining('没有一个知识点越过 0.2'), findsOneWidget);
     expect(find.textContaining('危险：'), findsNothing);
     expect(find.textContaining('低估：'), findsNothing);
+  });
+
+  testWidgets('a fresh card starts from its measurement prior, and says so',
+      (tester) async {
+    // `repetitions: 0` and no `lastReviewedAt`: the card has no observation of
+    // its own, which is exactly when a measurement prior may speak (M1d).
+    final fresh = _row('cs-new', 'kp-1').copyWith(
+      repetitions: 0,
+      lastReviewedAt: const Value(null),
+    );
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider.overrideWith(
+          (ref) async => CognitiveObservationInputs(
+            units: [
+              CognitiveObservedUnit(
+                row: fresh,
+                knowledgePointTitle: '光合作用',
+                tagCount: 0,
+                isNew: true,
+              ),
+            ],
+          ),
+        ),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        cognitivePriorsProvider.overrideWith(
+          (ref) async => const {
+            'kp-1': AssessmentPriorEstimate(
+              knowledgePointId: 'kp-1',
+              r0: 0.9,
+              difficulty: null,
+              fluency: 0.6,
+              n: 2,
+              confidence: 0.4,
+              basis: ['prior:assessment:blended'],
+            ),
+          },
+        ),
+      ],
+    );
+
+    // The fake model says 0.70 for every card; this one shows the prior instead,
+    // marked as such - the value must not be passed off as an observation.
+    expect(find.text('R0 0.90（测评先验）'), findsOneWidget);
+    expect(find.text('R0 0.70'), findsNothing);
+    expect(find.textContaining('1 张卡的起点现在来自测评先验'), findsOneWidget);
+  });
+
+  testWidgets('a reviewed card keeps its own R0 even when a prior exists',
+      (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        cognitivePriorsProvider.overrideWith(
+          (ref) async => const {
+            'kp-1': AssessmentPriorEstimate(
+              knowledgePointId: 'kp-1',
+              r0: 0.9,
+              difficulty: null,
+              fluency: 0.6,
+              n: 2,
+              confidence: 0.4,
+              basis: ['prior:assessment:self'],
+            ),
+          },
+        ),
+      ],
+    );
+
+    // Every fixture card has review history, so none of them may trade its own
+    // R0 for the prior: a prior is a starting point, not a replacement.
+    expect(find.text('R0 0.70'), findsNWidgets(3));
+    expect(find.textContaining('（测评先验）'), findsNothing);
+    expect(find.textContaining('还没有测评先验'), findsOneWidget);
   });
 
   testWidgets('the settings entry opens the page', (tester) async {

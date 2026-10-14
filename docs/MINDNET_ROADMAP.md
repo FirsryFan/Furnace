@@ -9,7 +9,8 @@
 ## 0. 一句话现状
 
 我们接进去的是：**tierA 记忆层（R/R0/Σ/S/D）+ tierB 快层（shunting/capacity/ignition/goal）+
-卡点诊断与反事实可达性 + 顾问式排序（bands）+ 只读读数页/探针 + 用途 1 工具 + 元认知层（危险区/焦虑区/校准度，轮次二十一）**。
+卡点诊断与反事实可达性 + 顾问式排序（bands）+ 只读读数页/探针 + 用途 1 工具 + 元认知层（危险区/焦虑区/校准度，轮次二十一）+
+测评层（抽象参数先验 R0/D/fluency，轮次二十三～二十五）**。
 没接进去的是：**`run/1` 会话协议的五类动作、节律层 α(τ)、
 17 条指令库与反事实规划器的排序输出、KC v2 完整报告、参数标定、反馈微调、材料摄取（INGEST/TRANSCRIBE）、机制插件化**。
 
@@ -175,4 +176,22 @@ MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的�
 - 若日后要做"先做最危险的题"，需要的不是同一张图的扩散结果，而是**与问题无关的**判定：
   例如"这张卡的 `R` 低于阈值而自评/编码强度高"——那要先有 `fluency` 的真实来源（自评或作答历史），
   现在没有，所以不做。
+
+### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
+
+为什么要有它：MindNet 的 `R0`/`D` 在 Furnace 里一直只有两个来源——FSRS 存下来的观测值，或
+`0.5` 的默认值；`fluency`（元认知信念的输入）**根本没有来源**（元认知层只好拿 `encodingStrength`
+当代理，这正是切片 3 追加项失败的原因）。测评层给这三件事一个**用户自己产出的**起点。
+
+- M1a（轮次二十三）：纯逻辑先验层 `assessment_prior.dart`——自评 + 答题结果 → 每知识点
+  `R0`/`D`/`fluency` 先验 + 全局校准偏置 + 置信度。`calibrated: false` 一律保留。
+- M1b（轮次二十三）：schema v10 三表（`assessment_sessions`/`assessment_responses`/`cognitive_priors`）
+  + `AssessmentRepository` + v10 迁移单测。先验是**派生量**，`.tfpkg` 导入后按证据重算。
+- M1c（轮次二十四）：最小 UI `app/lib/features/assessment/presentation/assessment_page.dart`——
+  选范围 → 自评 → 复述抽检 → 读数；最后一步之前不写库，跳过＝不写行（不是写 0）。
+- M1d（轮次二十五）：读数页合并展示——先验只改"还没复习过的卡"展示的起点 `R0`，旁边标"（测评先验）"；
+  卡片一旦有自己的复习史，观测接管，先验不再说话。先验不写回 `card_states`、也不改 `ReviewAdvisory` 排序。
+- 设计文档在 `docs/ASSESSMENT_DESIGN.md`（含分板块 instrument 表、同步三分类、明确不做清单）。
+- 仍未做：板块化 instrument 的实现（物理/语文等各一套题目形态）、客观题的自动判分、
+  以及用标定协议把这批先验的系数真正标出来（CALIBRATION §2）。
 

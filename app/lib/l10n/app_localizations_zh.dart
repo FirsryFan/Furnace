@@ -1660,6 +1660,23 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String cognitiveEncodingPrior(String value) {
+    return 'R0 $value（测评先验）';
+  }
+
+  @override
+  String get cognitivePriorNote => '测评先验';
+
+  @override
+  String cognitivePriorCount(int count) {
+    return '$count 张卡的起点现在来自测评先验（未标定）；其余是复习观测或模型默认值。卡片一旦真的复习过，观测就接管，先验不再说话。';
+  }
+
+  @override
+  String get cognitivePriorNone =>
+      '还没有测评先验：每张卡的起点都是模型默认值或它自己的复习观测。测一次会给这部分知识一个关于你的估计。';
+
+  @override
   String cognitiveSavings(String value) {
     return 'Σ $value';
   }

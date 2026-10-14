@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-14 轮次二十五：测评层 M1d——先验与观测在读数页合并，并且分得清谁是谁
+
+用户：milestone ①「用户测评来初始化认知模型」继续（口径同前：自评起步、测抽象参数、不从卡片出题）。
+
+- 合并规则（这一片的核心，写在 `docs/ASSESSMENT_DESIGN.md` §7 的 M1d 条目里）：**先验只改一张"还没有
+  自己复习史"的卡的起点 `R0`**（`repetitions == 0 && lastReviewedAt == null`）。卡片一旦真的复习过，
+  观测接管、先验不再说话——先验是起点，不是替代品，否则"复习校正"这件事就失去意义。
+- `cognitive_model_page.dart`：`CognitiveCardReading` 新增 `prior` / `hasObservation` / `r0FromPrior` /
+  `displayedR0`，并在 `toJson` 里带上 `prior` 与 `r0FromPrior`；`assembleCognitiveReadings` 新增
+  `priorByKnowledgePoint`；`CognitiveReadings` 新增同名字段与 `priorCount`。卡片的 R0 chip 在先验生效时
+  显示 `R0 0.90（测评先验）`（新键 `cognitiveEncodingPrior`），备注区新增一行"测评先验"：
+  要么"{n} 张卡的起点现在来自测评先验（未标定）"，要么"还没有测评先验"。两种说法都刻意保留，
+  因为"零个"本身就是用户在读数页需要知道的事实。
+- 读取路径：新 provider `cognitivePriorsProvider`（`assessment_priors` 只在这里被读），
+  经 `AssessmentRepository.priorEstimatesFor`（新增批量版）取先验；逐个先验的 `priorFor` 与批量版共用
+  同一个 `_mergePriors`，来源优先级不会在两处漂移。
+- 一个必须记的副作用：读数 provider 现在会碰数据库，于是 8 条"纯 widget"页面测试（它们 override 观测输入
+  与模型、不接数据库）会去开真实的 `AppDatabase`——**测试当场红了 6 条**。修法不是 try/catch 吞掉，
+  而是在 `_pumpPage` 里把 `cognitivePriorsProvider` 默认 override 成 `{}`（调用方自己的 override 排在后面，
+  按 Riverpod 的"后者胜"仍可覆盖），既保住测试的纯净，也不改变生产路径。
+- 先验**不写回** `card_states`、也**不参与** `ReviewAdvisory` 排序：排序仍由 D4/D5 的规则决定，
+  本轮只改"展示的起点"。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info（与基线同数）；
+  `flutter test test/features/cognitive/cognitive_model_page_test.dart` → `+12 All tests passed!`（原 10 条 + 2 条 M1d）；
+  `flutter test test/data/repositories/assessment_repository_test.dart` → `+5 All tests passed!`（原 4 条 + 批量先验 1 条）；
+  全量 `flutter test --concurrency=1` → `+1105 ~2 All tests passed!`（1102 = 轮次二十四基线，+3 = 本轮）。
+- 文档：`ASSESSMENT_DESIGN.md` §7 的 M1d 由"待做"改为"已完成"并写清合并口径；
+  `MINDNET_ROADMAP.md` §0 的"已接入"补上测评层，新增"切片 4：测评层（M1a–M1d）"记录动机与未做项。
+- 未做（下一片）：M6 度量——留存率 + 校准曲线，用来验证 milestone ②"记忆效果好"到底成不成立；
+  以及板块化 instrument（物理/语文各一套题目形态）与标定协议。
+
+---
+
 ## 2026-10-14 轮次二十四：测评层 M1c——第一次能用界面给模型一个起点
 
 用户：milestone ①「用户测评来初始化认知模型」；口径不变——**先自评起步、客观抽检逐步**，测**抽象参数**，

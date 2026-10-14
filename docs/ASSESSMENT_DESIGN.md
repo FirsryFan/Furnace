@@ -115,7 +115,13 @@ abstract class AssessmentInstrument {
   实现落在 `app/lib/features/assessment/presentation/assessment_page.dart`，入口在读数页。两处与本文原稿不同，
   理由记在这里：①结果页不展示"先验 vs 未测评的差异"（那需要 M1d 的观测合并，本片只报本轮写了几步证据、
   重算了几个点、平均 R0/置信度）；②复述抽检取范围的两端 + 中间（确定性），不抽"最弱卡"——那会变成另一种刷卡。
-- **M1d**：接进读数页（测评先验与复习观测的合并展示，标注"先验/观测"），并在 `MINDNET_ROADMAP.md` 记切片。
+- **M1d（已完成，轮次二十五）**：接进读数页（测评先验与复习观测的合并展示，标注"先验/观测"）。
+  实现口径（本节即验收）：先验只改**这张卡展示的起点 R0**，且只在这张卡还没有自己的复习史
+  （`repetitions == 0 && lastReviewedAt == null`）时生效；一旦复习过，观测接管、先验不再说话，
+  值旁边带"（测评先验）"字样，读数页的备注行报"几张卡正在用先验"。先验**不写回** `card_states`，
+  也不参与 `ReviewAdvisory` 的排序（排序仍由 D4/D5 的规则决定）。读取走
+  `AssessmentRepository.priorEstimatesFor`（批量版），与逐点的 `priorFor` 用同一套来源优先级，
+  避免两处各写一份合并规则。
 - **M6（度量，随后）**：留存率 + 校准曲线，用来验证 M2"记忆效果好"到底成不成立。
 
 ## 8. 明确不做

@@ -74,8 +74,7 @@ class AssessmentRepository {
   Future<void> finishSession(String sessionId, {DateTime? now}) async {
     final moment = now ?? DateTime.now();
     await (_db.update(_db.assessmentSessions)
-          ..where((t) =>
-              t.id.equals(sessionId) & t.finishedAt.isNull()))
+          ..where((t) => t.id.equals(sessionId) & t.finishedAt.isNull()))
         .write(
       AssessmentSessionsCompanion(
         finishedAt: Value(moment.millisecondsSinceEpoch),
@@ -85,8 +84,7 @@ class AssessmentRepository {
   }
 
   Future<AssessmentSession?> session(String sessionId) =>
-      (_db.select(_db.assessmentSessions)
-            ..where((t) => t.id.equals(sessionId)))
+      (_db.select(_db.assessmentSessions)..where((t) => t.id.equals(sessionId)))
           .getSingleOrNull();
 
   /// 最近的若干轮，从新到旧。
@@ -139,7 +137,8 @@ class AssessmentRepository {
   }) async {
     if (selfRating != null &&
         (selfRating < minSelfRating || selfRating > maxSelfRating)) {
-      throw ArgumentError('自评必须在 $minSelfRating–$maxSelfRating 之间，实际 $selfRating');
+      throw ArgumentError(
+          '自评必须在 $minSelfRating–$maxSelfRating 之间，实际 $selfRating');
     }
     if (stepKind == selfReportStep && selfRating == null) {
       throw ArgumentError('$selfReportStep 步骤必须带 selfRating');
@@ -315,6 +314,23 @@ class AssessmentRepository {
     if (rows == null || rows.isEmpty) {
       return null;
     }
+    return _mergePriors(rows);
+  }
+
+  /// 一批知识点的先验读数，每个 id 至多一条（同一套合并规则）。
+  ///
+  /// 批量版不只是省查询：读数页要一次展示几十个点，逐个调 [priorFor] 会让
+  /// "哪个来源优先"在两处各写一遍。
+  Future<Map<String, AssessmentPriorEstimate>> priorEstimatesFor(
+    Iterable<String> knowledgePointIds,
+  ) async {
+    final grouped = await priorsFor(knowledgePointIds);
+    return {
+      for (final entry in grouped.entries) entry.key: _mergePriors(entry.value),
+    };
+  }
+
+  AssessmentPriorEstimate _mergePriors(List<CognitivePrior> rows) {
     final order = <String>[blendedSource, objectiveSource, selfSource];
     rows.sort((a, b) {
       final ai = order.indexOf(a.source);

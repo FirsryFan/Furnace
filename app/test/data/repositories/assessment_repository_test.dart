@@ -274,4 +274,53 @@ void main() {
     expect(await repo.clearPriors(), 2);
     expect(await repo.clearPriors(), 0);
   });
+
+  test('批量先验与逐个先验给出同一答案（读数页用的就是批量版）', () async {
+    await seedPoint('kp1');
+    await seedPoint('kp2');
+    await db.batch((batch) {
+      batch.insertAll(db.cognitivePriors, [
+        CognitivePriorsCompanion.insert(
+          knowledgePointId: 'kp1',
+          source: AssessmentRepository.selfSource,
+          r0: 0.45,
+          fluency: const Value(0.2),
+          n: const Value(1),
+          createdAt: 1700000000000,
+        ),
+        CognitivePriorsCompanion.insert(
+          knowledgePointId: 'kp1',
+          source: AssessmentRepository.blendedSource,
+          r0: 0.55,
+          d: const Value(5.0),
+          fluency: const Value(0.4),
+          n: const Value(4),
+          createdAt: 1700000000001,
+        ),
+        CognitivePriorsCompanion.insert(
+          knowledgePointId: 'kp2',
+          source: AssessmentRepository.objectiveSource,
+          r0: 0.80,
+          d: const Value(3.0),
+          n: const Value(2),
+          createdAt: 1700000000002,
+        ),
+      ]);
+    });
+
+    final batch = await repo.priorEstimatesFor(<String>['kp1', 'kp2', 'kp3']);
+
+    // kp3 has no prior: it must be absent, not a zero-filled guess.
+    expect(batch.keys.toSet(), {'kp1', 'kp2'});
+    final one = await repo.priorFor('kp1');
+    expect(batch['kp1']!.r0, one!.r0);
+    expect(batch['kp1']!.basis, one.basis);
+    expect(batch['kp1']!.confidence, one.confidence);
+    expect(batch['kp2']!.basis.single,
+        'prior:${AssessmentRepository.objectiveSource}');
+    expect(batch['kp2']!.difficulty, 3.0);
+    expect(batch['kp2']!.fluency, isNull);
+    // 空输入不查库、也不报错。
+    expect(await repo.priorEstimatesFor(const <String>[]), isEmpty);
+  });
 }

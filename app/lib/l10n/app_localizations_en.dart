@@ -1731,6 +1731,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String cognitiveEncodingPrior(String value) {
+    return 'R0 $value (measurement prior)';
+  }
+
+  @override
+  String get cognitivePriorNote => 'Measurement priors';
+
+  @override
+  String cognitivePriorCount(int count) {
+    return '$count cards now start from a measurement prior (uncalibrated); the rest start from their own review history or the model\'s defaults. Once a card has actually been reviewed, the observation takes over and the prior stops speaking.';
+  }
+
+  @override
+  String get cognitivePriorNone =>
+      'No measurement priors yet: every card starts from the model\'s defaults or its own review history. One measurement gives this part of the material an estimate about you.';
+
+  @override
   String cognitiveSavings(String value) {
     return 'Sigma $value';
   }

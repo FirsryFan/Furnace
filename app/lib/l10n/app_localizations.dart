@@ -3140,6 +3140,30 @@ abstract class AppLocalizations {
   /// **'R0 {value}'**
   String cognitiveEncoding(String value);
 
+  /// No description provided for @cognitiveEncodingPrior.
+  ///
+  /// In en, this message translates to:
+  /// **'R0 {value} (measurement prior)'**
+  String cognitiveEncodingPrior(String value);
+
+  /// No description provided for @cognitivePriorNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement priors'**
+  String get cognitivePriorNote;
+
+  /// No description provided for @cognitivePriorCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cards now start from a measurement prior (uncalibrated); the rest start from their own review history or the model\'s defaults. Once a card has actually been reviewed, the observation takes over and the prior stops speaking.'**
+  String cognitivePriorCount(int count);
+
+  /// No description provided for @cognitivePriorNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No measurement priors yet: every card starts from the model\'s defaults or its own review history. One measurement gives this part of the material an estimate about you.'**
+  String get cognitivePriorNone;
+
   /// No description provided for @cognitiveSavings.
   ///
   /// In en, this message translates to:

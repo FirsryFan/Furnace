@@ -40,6 +40,7 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cognitive/assessment_prior.dart';
 import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
@@ -153,9 +154,9 @@ class CognitiveObservationInputs {
 
   factory CognitiveObservationInputs.fromJson(Map<String, Object?> json) {
     final units = (json['units'] as List?) ?? const [];
-    final boosts =
-        (json['boostFactorByKnowledgePoint'] as Map?)?.cast<String, Object?>() ??
-            const {};
+    final boosts = (json['boostFactorByKnowledgePoint'] as Map?)
+            ?.cast<String, Object?>() ??
+        const {};
     return CognitiveObservationInputs(
       units: [
         for (final unit in units)
@@ -208,6 +209,7 @@ class CognitiveCardReading {
     required this.difficulty,
     required this.forced,
     required this.forcedStreak,
+    this.prior,
   });
 
   final String cardStateId;
@@ -264,6 +266,26 @@ class CognitiveCardReading {
   final int forced;
   final int forcedStreak;
 
+  /// The measurement prior for this card's knowledge point, when one exists
+  /// (M1d). It is a *starting point*, not an observation: see [r0FromPrior].
+  final AssessmentPriorEstimate? prior;
+
+  /// Whether this card has any review history of its own. `repetitions` and
+  /// `lastReviewedAt` are checked together because a row can be forced or
+  /// re-imported and end up with one but not the other.
+  bool get hasObservation => lastReviewedAt != null || repetitions > 0;
+
+  /// True when the starting point shown for this card is the measurement prior
+  /// instead of the model's own `r0`.
+  ///
+  /// A prior only speaks until the first real review: after that, the card's own
+  /// history is the better evidence, and quietly letting the prior outrank it
+  /// would be the "先验≠观测" mistake the design doc forbids (§8).
+  bool get r0FromPrior => prior != null && !hasObservation;
+
+  /// The value the page shows as this card's starting point.
+  double get displayedR0 => r0FromPrior ? prior!.r0 : r0;
+
   Map<String, Object?> toJson() => {
         'cardStateId': cardStateId,
         'knowledgePointId': knowledgePointId,
@@ -290,6 +312,8 @@ class CognitiveCardReading {
         'difficulty': difficulty,
         'forced': forced,
         'forcedStreak': forcedStreak,
+        'prior': prior?.toJson(),
+        'r0FromPrior': r0FromPrior,
       };
 }
 
@@ -305,6 +329,7 @@ class CognitiveReadings {
     required this.zoneByKnowledgePoint,
     this.fastLayerRan = false,
     this.metacognition = MetacognitionReading.empty,
+    this.priorByKnowledgePoint = const {},
   });
 
   final String modelId;
@@ -331,6 +356,15 @@ class CognitiveReadings {
   /// [fastLayerRan] is true.
   final MetacognitionReading metacognition;
 
+  /// The measurement priors (M1d), keyed by knowledge point id. A prior is kept
+  /// whole here - not folded into `r0` - because the page has to say *which*
+  /// starting points are still guesses from a measurement rather than numbers
+  /// that came out of the user's own reviews (§8: 先验≠观测).
+  final Map<String, AssessmentPriorEstimate> priorByKnowledgePoint;
+
+  /// Cards whose displayed starting point is a measurement prior.
+  int get priorCount => cards.where((card) => card.r0FromPrior).length;
+
   int get cardCount => cards.length;
   int get newCount => cards.where((card) => card.isNew).length;
 
@@ -348,7 +382,9 @@ class CognitiveReadings {
       : cards.map((card) => card.gain).reduce((a, b) => a + b) / cards.length;
 
   Map<ReviewBand, int> get bandCounts {
-    final counts = <ReviewBand, int>{for (final band in ReviewBand.values) band: 0};
+    final counts = <ReviewBand, int>{
+      for (final band in ReviewBand.values) band: 0
+    };
     for (final card in cards) {
       counts[card.band] = (counts[card.band] ?? 0) + 1;
     }
@@ -356,7 +392,9 @@ class CognitiveReadings {
   }
 
   Map<ReviewZone, int> get zoneCounts {
-    final counts = <ReviewZone, int>{for (final zone in ReviewZone.values) zone: 0};
+    final counts = <ReviewZone, int>{
+      for (final zone in ReviewZone.values) zone: 0
+    };
     for (final card in cards) {
       counts[card.zone] = (counts[card.zone] ?? 0) + 1;
     }
@@ -370,6 +408,11 @@ class CognitiveReadings {
         'nowUtc': nowUtc.toUtc().toIso8601String(),
         'fastLayerRan': fastLayerRan,
         'metacognition': metacognition.toJson(),
+        'priorByKnowledgePoint': {
+          for (final entry in priorByKnowledgePoint.entries)
+            entry.key: entry.value.toJson(),
+        },
+        'priorCount': priorCount,
         'summary': {
           'cards': cardCount,
           'newCards': newCount,
@@ -386,11 +429,13 @@ class CognitiveReadings {
         },
         'cards': [for (final card in cards) card.toJson()],
         'bandByCardStateId': {
-          for (final entry in bandByCardStateId.entries) entry.key: entry.value.name,
+          for (final entry in bandByCardStateId.entries)
+            entry.key: entry.value.name,
         },
         'scoreByCardStateId': scoreByCardStateId,
         'zoneByKnowledgePoint': {
-          for (final entry in zoneByKnowledgePoint.entries) entry.key: entry.value.name,
+          for (final entry in zoneByKnowledgePoint.entries)
+            entry.key: entry.value.name,
         },
       };
 }
@@ -418,6 +463,7 @@ CognitiveReadings assembleCognitiveReadings({
   Map<String, BottleneckType>? diagnosisByKnowledgePoint,
   bool fastLayerRan = false,
   MetacognitionReading metacognition = MetacognitionReading.empty,
+  Map<String, AssessmentPriorEstimate> priorByKnowledgePoint = const {},
 }) {
   final candidates = <ReviewCandidate>[
     for (final unit in units)
@@ -435,7 +481,8 @@ CognitiveReadings assembleCognitiveReadings({
     diagnosisByKnowledgePoint: diagnosisByKnowledgePoint,
   );
 
-  final unitByCandidate = Map<ReviewCandidate, CognitiveObservedUnit>.identity();
+  final unitByCandidate =
+      Map<ReviewCandidate, CognitiveObservedUnit>.identity();
   for (var i = 0; i < candidates.length; i++) {
     unitByCandidate[candidates[i]] = units[i];
   }
@@ -455,8 +502,8 @@ CognitiveReadings assembleCognitiveReadings({
     }
     final row = unit.row;
     final reading = model.modelReadingOf(row, nowHours: modelHoursOf(now));
-    final band = ordering.bandByCardStateId[candidate.cardStateId] ??
-        ReviewBand.unseen;
+    final band =
+        ordering.bandByCardStateId[candidate.cardStateId] ?? ReviewBand.unseen;
     // The advisor only scores the model band (D4); every other row still gets
     // the model's answer to "what would reviewing this be worth", flagged as
     // not-deciding by `scoreUsedForOrdering`.
@@ -477,8 +524,7 @@ CognitiveReadings assembleCognitiveReadings({
           ReviewZone.unavailable,
       isNew: unit.isNew,
       scoreUsedForOrdering: band == ReviewBand.model,
-      boostFactor:
-          boostFactorByKnowledgePoint[unit.knowledgePointId] ?? 1.0,
+      boostFactor: boostFactorByKnowledgePoint[unit.knowledgePointId] ?? 1.0,
       tagCount: unit.tagCount,
       dueAt: row.dueAt,
       lastReviewedAt: row.lastReviewedAt,
@@ -490,6 +536,7 @@ CognitiveReadings assembleCognitiveReadings({
       difficulty: row.difficulty,
       forced: row.forced,
       forcedStreak: row.forcedStreak,
+      prior: priorByKnowledgePoint[unit.knowledgePointId],
     ));
   }
 
@@ -533,7 +580,8 @@ int _suggestedIntervalDays(CardState row, DateTime now) {
       ? null
       : FsrsMemory(
           stability: row.stability!,
-          difficulty: row.difficulty ?? HeuristicCognitiveModel.fallbackDifficulty,
+          difficulty:
+              row.difficulty ?? HeuristicCognitiveModel.fallbackDifficulty,
         );
   final lastReview = row.lastReviewedAt == null
       ? now
@@ -551,8 +599,8 @@ int _suggestedIntervalDays(CardState row, DateTime now) {
 ///
 /// `autoDispose`: this reads every card state, so it must not stay alive (and
 /// re-read on every write) once the page is closed.
-final cognitiveObservationInputsProvider = FutureProvider.autoDispose<
-    CognitiveObservationInputs>((ref) async {
+final cognitiveObservationInputsProvider =
+    FutureProvider.autoDispose<CognitiveObservationInputs>((ref) async {
   ref.watchDatabaseRevision();
   final db = ref.watch(appDatabaseProvider);
 
@@ -626,6 +674,21 @@ final orphanCardStateCountProvider =
   return ref.watch(ankiRepositoryProvider).countOrphanCardStates();
 });
 
+/// The measurement priors for the knowledge points currently on screen (M1d).
+///
+/// Kept apart from the reading so the reading stays a pure function of its
+/// inputs and this is the only thing that touches the assessment tables: the
+/// page's other numbers all come from `select`s on the model's own columns.
+final cognitivePriorsProvider =
+    FutureProvider.autoDispose<Map<String, AssessmentPriorEstimate>>(
+        (ref) async {
+  ref.watchDatabaseRevision();
+  final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
+  return ref.watch(assessmentRepositoryProvider).priorEstimatesFor(
+        inputs.units.map((unit) => unit.knowledgePointId),
+      );
+});
+
 /// The reading the page shows: the injected model's numbers, the advisor's
 /// bands, the fast layer's zones - nothing else.
 final cognitiveReadingsProvider =
@@ -633,6 +696,7 @@ final cognitiveReadingsProvider =
   final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
   final model = ref.watch(cognitiveModelProvider);
   final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
+  final priors = await ref.watch(cognitivePriorsProvider.future);
   return assembleCognitiveReadings(
     units: inputs.units,
     model: model,
@@ -644,6 +708,7 @@ final cognitiveReadingsProvider =
         diagnosis.fastLayerRan ? diagnosis.byKnowledgePoint : null,
     fastLayerRan: diagnosis.fastLayerRan,
     metacognition: diagnosis.metacognition,
+    priorByKnowledgePoint: priors,
   );
 });
 
@@ -746,7 +811,11 @@ class CognitiveModelPage extends ConsumerWidget {
           children: [
             _AssessmentEntry(l10n: l10n),
             const SizedBox(height: 8),
-            _Notes(l10n: l10n, fastLayerRan: data.fastLayerRan),
+            _Notes(
+              l10n: l10n,
+              fastLayerRan: data.fastLayerRan,
+              priorCount: data.priorCount,
+            ),
             const SizedBox(height: 8),
             const _OrphanRepairBanner(),
             _Summary(l10n: l10n, readings: data),
@@ -762,8 +831,7 @@ class CognitiveModelPage extends ConsumerWidget {
                 ),
               )
             else
-              for (final card in data.cards)
-                _CardTile(l10n: l10n, card: card),
+              for (final card in data.cards) _CardTile(l10n: l10n, card: card),
           ],
         ),
       ),
@@ -887,13 +955,23 @@ class _OrphanRepairBanner extends ConsumerWidget {
 /// a user who reads only the first screen must not conclude that the model
 /// schedules reviews or that its weights are calibrated.
 class _Notes extends StatelessWidget {
-  const _Notes({required this.l10n, required this.fastLayerRan});
+  const _Notes({
+    required this.l10n,
+    required this.fastLayerRan,
+    required this.priorCount,
+  });
 
   final AppLocalizations l10n;
 
   /// Whether the tierB run happened. The note says which, because the page now
   /// runs it - a "the page never diagnoses" sentence would be a lie.
   final bool fastLayerRan;
+
+  /// How many cards are currently showing a measurement prior as their starting
+  /// point (M1d). Zero is a fact worth stating: it tells the user the numbers on
+  /// this page are all defaults or observations, and the measurement page is one
+  /// tap away.
+  final int priorCount;
 
   @override
   Widget build(BuildContext context) {
@@ -938,6 +1016,15 @@ class _Notes extends StatelessWidget {
               icon: Icons.psychology_outlined,
               title: l10n.cognitiveZoneDanger,
               detail: l10n.cognitiveDangerNote,
+              emphasis: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            _NoteRow(
+              icon: Icons.assignment_turned_in_outlined,
+              title: l10n.cognitivePriorNote,
+              detail: priorCount > 0
+                  ? l10n.cognitivePriorCount(priorCount)
+                  : l10n.cognitivePriorNone,
               emphasis: theme.colorScheme.onSurfaceVariant,
             ),
           ],
@@ -1172,7 +1259,14 @@ class _CardTile extends StatelessWidget {
                   ),
                 ),
                 _Chip(text: l10n.cognitiveGain(card.gain.toStringAsFixed(3))),
-                _Chip(text: l10n.cognitiveEncoding(card.r0.toStringAsFixed(2))),
+                _Chip(
+                  text: card.r0FromPrior
+                      ? l10n.cognitiveEncodingPrior(
+                          card.displayedR0.toStringAsFixed(2),
+                        )
+                      : l10n.cognitiveEncoding(
+                          card.displayedR0.toStringAsFixed(2)),
+                ),
                 _Chip(
                   text: l10n.cognitiveSavings(card.sigma.toStringAsFixed(2)),
                 ),
@@ -1215,9 +1309,7 @@ class _CardTile extends StatelessWidget {
   String _scheduleText(AppLocalizations l10n, CognitiveCardReading card) {
     final due = card.dueAt == null
         ? l10n.cognitiveNoSchedule
-        : DateTime.fromMillisecondsSinceEpoch(card.dueAt!)
-            .toLocal()
-            .toString();
+        : DateTime.fromMillisecondsSinceEpoch(card.dueAt!).toLocal().toString();
     return '${l10n.cognitiveDue(due)} · '
         '${l10n.cognitiveInterval(card.intervalDays.toStringAsFixed(1))} · '
         '${l10n.cognitiveSuggestedInterval(card.suggestedIntervalDays)}';
