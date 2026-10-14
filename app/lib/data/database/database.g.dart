@@ -15047,6 +15047,1557 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
   }
 }
 
+class $AssessmentSessionsTable extends AssessmentSessions
+    with TableInfo<$AssessmentSessionsTable, AssessmentSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AssessmentSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _subjectKeyMeta =
+      const VerificationMeta('subjectKey');
+  @override
+  late final GeneratedColumn<String> subjectKey = GeneratedColumn<String>(
+      'subject_key', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _scopeTagIdsMeta =
+      const VerificationMeta('scopeTagIds');
+  @override
+  late final GeneratedColumn<String> scopeTagIds = GeneratedColumn<String>(
+      'scope_tag_ids', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+      'started_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _finishedAtMeta =
+      const VerificationMeta('finishedAt');
+  @override
+  late final GeneratedColumn<int> finishedAt = GeneratedColumn<int>(
+      'finished_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _budgetMeta = const VerificationMeta('budget');
+  @override
+  late final GeneratedColumn<String> budget = GeneratedColumn<String>(
+      'budget', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        subjectKey,
+        scopeTagIds,
+        startedAt,
+        finishedAt,
+        budget,
+        note,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'assessment_sessions';
+  @override
+  VerificationContext validateIntegrity(Insertable<AssessmentSession> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('subject_key')) {
+      context.handle(
+          _subjectKeyMeta,
+          subjectKey.isAcceptableOrUnknown(
+              data['subject_key']!, _subjectKeyMeta));
+    }
+    if (data.containsKey('scope_tag_ids')) {
+      context.handle(
+          _scopeTagIdsMeta,
+          scopeTagIds.isAcceptableOrUnknown(
+              data['scope_tag_ids']!, _scopeTagIdsMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+          _finishedAtMeta,
+          finishedAt.isAcceptableOrUnknown(
+              data['finished_at']!, _finishedAtMeta));
+    }
+    if (data.containsKey('budget')) {
+      context.handle(_budgetMeta,
+          budget.isAcceptableOrUnknown(data['budget']!, _budgetMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AssessmentSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AssessmentSession(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      subjectKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subject_key'])!,
+      scopeTagIds: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}scope_tag_ids'])!,
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}started_at'])!,
+      finishedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}finished_at']),
+      budget: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}budget']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $AssessmentSessionsTable createAlias(String alias) {
+    return $AssessmentSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class AssessmentSession extends DataClass
+    implements Insertable<AssessmentSession> {
+  final String id;
+
+  /// 科目键（`physics` / `chinese` / …），空串表示不分科。
+  ///
+  /// 分板块是用户定下的口径：物理和语文不能用同一套 instrument，所以"这轮测的
+  /// 是哪个板块"必须落进数据，否则以后无法按板块回看和校准。
+  final String subjectKey;
+
+  /// 本轮覆盖的标签范围（JSON 数组，tag id）。空数组表示整库。
+  ///
+  /// 存 id 而不是路径：`TagRepository` 改名会重写所有后代的 `path`，路径在这里
+  /// 会像 `review_group_plans` 的旧设计一样指到别人身上。
+  final String scopeTagIds;
+  final int startedAt;
+
+  /// 结束时间；NULL 表示这一轮还没做完（中途退出）。
+  final int? finishedAt;
+
+  /// 预算（JSON：题数 / 分钟）。NULL 表示没设预算。
+  final String? budget;
+  final String? note;
+  final int createdAt;
+  final int updatedAt;
+  const AssessmentSession(
+      {required this.id,
+      required this.subjectKey,
+      required this.scopeTagIds,
+      required this.startedAt,
+      this.finishedAt,
+      this.budget,
+      this.note,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['subject_key'] = Variable<String>(subjectKey);
+    map['scope_tag_ids'] = Variable<String>(scopeTagIds);
+    map['started_at'] = Variable<int>(startedAt);
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<int>(finishedAt);
+    }
+    if (!nullToAbsent || budget != null) {
+      map['budget'] = Variable<String>(budget);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  AssessmentSessionsCompanion toCompanion(bool nullToAbsent) {
+    return AssessmentSessionsCompanion(
+      id: Value(id),
+      subjectKey: Value(subjectKey),
+      scopeTagIds: Value(scopeTagIds),
+      startedAt: Value(startedAt),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
+      budget:
+          budget == null && nullToAbsent ? const Value.absent() : Value(budget),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AssessmentSession.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AssessmentSession(
+      id: serializer.fromJson<String>(json['id']),
+      subjectKey: serializer.fromJson<String>(json['subjectKey']),
+      scopeTagIds: serializer.fromJson<String>(json['scopeTagIds']),
+      startedAt: serializer.fromJson<int>(json['startedAt']),
+      finishedAt: serializer.fromJson<int?>(json['finishedAt']),
+      budget: serializer.fromJson<String?>(json['budget']),
+      note: serializer.fromJson<String?>(json['note']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'subjectKey': serializer.toJson<String>(subjectKey),
+      'scopeTagIds': serializer.toJson<String>(scopeTagIds),
+      'startedAt': serializer.toJson<int>(startedAt),
+      'finishedAt': serializer.toJson<int?>(finishedAt),
+      'budget': serializer.toJson<String?>(budget),
+      'note': serializer.toJson<String?>(note),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  AssessmentSession copyWith(
+          {String? id,
+          String? subjectKey,
+          String? scopeTagIds,
+          int? startedAt,
+          Value<int?> finishedAt = const Value.absent(),
+          Value<String?> budget = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          int? createdAt,
+          int? updatedAt}) =>
+      AssessmentSession(
+        id: id ?? this.id,
+        subjectKey: subjectKey ?? this.subjectKey,
+        scopeTagIds: scopeTagIds ?? this.scopeTagIds,
+        startedAt: startedAt ?? this.startedAt,
+        finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
+        budget: budget.present ? budget.value : this.budget,
+        note: note.present ? note.value : this.note,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  AssessmentSession copyWithCompanion(AssessmentSessionsCompanion data) {
+    return AssessmentSession(
+      id: data.id.present ? data.id.value : this.id,
+      subjectKey:
+          data.subjectKey.present ? data.subjectKey.value : this.subjectKey,
+      scopeTagIds:
+          data.scopeTagIds.present ? data.scopeTagIds.value : this.scopeTagIds,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      finishedAt:
+          data.finishedAt.present ? data.finishedAt.value : this.finishedAt,
+      budget: data.budget.present ? data.budget.value : this.budget,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssessmentSession(')
+          ..write('id: $id, ')
+          ..write('subjectKey: $subjectKey, ')
+          ..write('scopeTagIds: $scopeTagIds, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('budget: $budget, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, subjectKey, scopeTagIds, startedAt,
+      finishedAt, budget, note, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AssessmentSession &&
+          other.id == this.id &&
+          other.subjectKey == this.subjectKey &&
+          other.scopeTagIds == this.scopeTagIds &&
+          other.startedAt == this.startedAt &&
+          other.finishedAt == this.finishedAt &&
+          other.budget == this.budget &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AssessmentSessionsCompanion extends UpdateCompanion<AssessmentSession> {
+  final Value<String> id;
+  final Value<String> subjectKey;
+  final Value<String> scopeTagIds;
+  final Value<int> startedAt;
+  final Value<int?> finishedAt;
+  final Value<String?> budget;
+  final Value<String?> note;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const AssessmentSessionsCompanion({
+    this.id = const Value.absent(),
+    this.subjectKey = const Value.absent(),
+    this.scopeTagIds = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.budget = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AssessmentSessionsCompanion.insert({
+    required String id,
+    this.subjectKey = const Value.absent(),
+    this.scopeTagIds = const Value.absent(),
+    required int startedAt,
+    this.finishedAt = const Value.absent(),
+    this.budget = const Value.absent(),
+    this.note = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        startedAt = Value(startedAt),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<AssessmentSession> custom({
+    Expression<String>? id,
+    Expression<String>? subjectKey,
+    Expression<String>? scopeTagIds,
+    Expression<int>? startedAt,
+    Expression<int>? finishedAt,
+    Expression<String>? budget,
+    Expression<String>? note,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (subjectKey != null) 'subject_key': subjectKey,
+      if (scopeTagIds != null) 'scope_tag_ids': scopeTagIds,
+      if (startedAt != null) 'started_at': startedAt,
+      if (finishedAt != null) 'finished_at': finishedAt,
+      if (budget != null) 'budget': budget,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AssessmentSessionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? subjectKey,
+      Value<String>? scopeTagIds,
+      Value<int>? startedAt,
+      Value<int?>? finishedAt,
+      Value<String?>? budget,
+      Value<String?>? note,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return AssessmentSessionsCompanion(
+      id: id ?? this.id,
+      subjectKey: subjectKey ?? this.subjectKey,
+      scopeTagIds: scopeTagIds ?? this.scopeTagIds,
+      startedAt: startedAt ?? this.startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      budget: budget ?? this.budget,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (subjectKey.present) {
+      map['subject_key'] = Variable<String>(subjectKey.value);
+    }
+    if (scopeTagIds.present) {
+      map['scope_tag_ids'] = Variable<String>(scopeTagIds.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<int>(finishedAt.value);
+    }
+    if (budget.present) {
+      map['budget'] = Variable<String>(budget.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssessmentSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('subjectKey: $subjectKey, ')
+          ..write('scopeTagIds: $scopeTagIds, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('budget: $budget, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AssessmentResponsesTable extends AssessmentResponses
+    with TableInfo<$AssessmentResponsesTable, AssessmentResponse> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AssessmentResponsesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _knowledgePointIdMeta =
+      const VerificationMeta('knowledgePointId');
+  @override
+  late final GeneratedColumn<String> knowledgePointId = GeneratedColumn<String>(
+      'knowledge_point_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stepKindMeta =
+      const VerificationMeta('stepKind');
+  @override
+  late final GeneratedColumn<String> stepKind = GeneratedColumn<String>(
+      'step_kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
+  @override
+  late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
+      'prompt', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _answerMeta = const VerificationMeta('answer');
+  @override
+  late final GeneratedColumn<String> answer = GeneratedColumn<String>(
+      'answer', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _correctMeta =
+      const VerificationMeta('correct');
+  @override
+  late final GeneratedColumn<bool> correct = GeneratedColumn<bool>(
+      'correct', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("correct" IN (0, 1))'));
+  static const VerificationMeta _selfRatingMeta =
+      const VerificationMeta('selfRating');
+  @override
+  late final GeneratedColumn<int> selfRating = GeneratedColumn<int>(
+      'self_rating', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _confidenceMeta =
+      const VerificationMeta('confidence');
+  @override
+  late final GeneratedColumn<int> confidence = GeneratedColumn<int>(
+      'confidence', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _elapsedMsMeta =
+      const VerificationMeta('elapsedMs');
+  @override
+  late final GeneratedColumn<int> elapsedMs = GeneratedColumn<int>(
+      'elapsed_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _judgedByMeta =
+      const VerificationMeta('judgedBy');
+  @override
+  late final GeneratedColumn<String> judgedBy = GeneratedColumn<String>(
+      'judged_by', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('self'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        sessionId,
+        knowledgePointId,
+        stepKind,
+        prompt,
+        answer,
+        correct,
+        selfRating,
+        confidence,
+        elapsedMs,
+        judgedBy,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'assessment_responses';
+  @override
+  VerificationContext validateIntegrity(Insertable<AssessmentResponse> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('knowledge_point_id')) {
+      context.handle(
+          _knowledgePointIdMeta,
+          knowledgePointId.isAcceptableOrUnknown(
+              data['knowledge_point_id']!, _knowledgePointIdMeta));
+    }
+    if (data.containsKey('step_kind')) {
+      context.handle(_stepKindMeta,
+          stepKind.isAcceptableOrUnknown(data['step_kind']!, _stepKindMeta));
+    } else if (isInserting) {
+      context.missing(_stepKindMeta);
+    }
+    if (data.containsKey('prompt')) {
+      context.handle(_promptMeta,
+          prompt.isAcceptableOrUnknown(data['prompt']!, _promptMeta));
+    }
+    if (data.containsKey('answer')) {
+      context.handle(_answerMeta,
+          answer.isAcceptableOrUnknown(data['answer']!, _answerMeta));
+    }
+    if (data.containsKey('correct')) {
+      context.handle(_correctMeta,
+          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+    }
+    if (data.containsKey('self_rating')) {
+      context.handle(
+          _selfRatingMeta,
+          selfRating.isAcceptableOrUnknown(
+              data['self_rating']!, _selfRatingMeta));
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+          _confidenceMeta,
+          confidence.isAcceptableOrUnknown(
+              data['confidence']!, _confidenceMeta));
+    }
+    if (data.containsKey('elapsed_ms')) {
+      context.handle(_elapsedMsMeta,
+          elapsedMs.isAcceptableOrUnknown(data['elapsed_ms']!, _elapsedMsMeta));
+    }
+    if (data.containsKey('judged_by')) {
+      context.handle(_judgedByMeta,
+          judgedBy.isAcceptableOrUnknown(data['judged_by']!, _judgedByMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AssessmentResponse map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AssessmentResponse(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      knowledgePointId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}knowledge_point_id']),
+      stepKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}step_kind'])!,
+      prompt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}prompt']),
+      answer: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}answer']),
+      correct: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}correct']),
+      selfRating: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}self_rating']),
+      confidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}confidence']),
+      elapsedMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elapsed_ms']),
+      judgedBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}judged_by'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AssessmentResponsesTable createAlias(String alias) {
+    return $AssessmentResponsesTable(attachedDatabase, alias);
+  }
+}
+
+class AssessmentResponse extends DataClass
+    implements Insertable<AssessmentResponse> {
+  final String id;
+
+  /// 所属会话。会话删了，它的步骤就没有意义，所以级联删除是这里的正确语义
+  /// （与 `review_group_plans` 一样显式在仓储里做，不指望 `PRAGMA` 一定开着）。
+  final String sessionId;
+
+  /// 这一步针对的知识点；NULL 表示不属于任何点（整卷性提示之类）。
+  ///
+  /// 可空是有意的：一轮测评可以包含不落在某个知识点上的步骤，把这类步骤硬塞
+  /// 一个知识点会让先验估计多出无中生有的样本。
+  final String? knowledgePointId;
+
+  /// 步骤类型：`self_report` / `recall` / `objective`。
+  final String stepKind;
+  final String? prompt;
+  final String? answer;
+
+  /// 客观对错的判分；NULL 表示这一步没有客观判分（自评就没有）。
+  final bool? correct;
+
+  /// 自评：0–5 的 JOL（"你觉得自己会多少"）。NULL 表示没问。
+  final int? selfRating;
+
+  /// 作答时的把握程度 0–5，与 `selfRating` 分开：一个问"会多少"，一个问
+  /// "多确定"。首版两个都收，先只把 `selfRating` 喂给先验层。
+  final int? confidence;
+  final int? elapsedMs;
+
+  /// 谁判的：`self` / `ai` / `auto`。首版全部是 `self`（用户口径①自评起步）。
+  final String judgedBy;
+  final int createdAt;
+  const AssessmentResponse(
+      {required this.id,
+      required this.sessionId,
+      this.knowledgePointId,
+      required this.stepKind,
+      this.prompt,
+      this.answer,
+      this.correct,
+      this.selfRating,
+      this.confidence,
+      this.elapsedMs,
+      required this.judgedBy,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    if (!nullToAbsent || knowledgePointId != null) {
+      map['knowledge_point_id'] = Variable<String>(knowledgePointId);
+    }
+    map['step_kind'] = Variable<String>(stepKind);
+    if (!nullToAbsent || prompt != null) {
+      map['prompt'] = Variable<String>(prompt);
+    }
+    if (!nullToAbsent || answer != null) {
+      map['answer'] = Variable<String>(answer);
+    }
+    if (!nullToAbsent || correct != null) {
+      map['correct'] = Variable<bool>(correct);
+    }
+    if (!nullToAbsent || selfRating != null) {
+      map['self_rating'] = Variable<int>(selfRating);
+    }
+    if (!nullToAbsent || confidence != null) {
+      map['confidence'] = Variable<int>(confidence);
+    }
+    if (!nullToAbsent || elapsedMs != null) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs);
+    }
+    map['judged_by'] = Variable<String>(judgedBy);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AssessmentResponsesCompanion toCompanion(bool nullToAbsent) {
+    return AssessmentResponsesCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      knowledgePointId: knowledgePointId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(knowledgePointId),
+      stepKind: Value(stepKind),
+      prompt:
+          prompt == null && nullToAbsent ? const Value.absent() : Value(prompt),
+      answer:
+          answer == null && nullToAbsent ? const Value.absent() : Value(answer),
+      correct: correct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(correct),
+      selfRating: selfRating == null && nullToAbsent
+          ? const Value.absent()
+          : Value(selfRating),
+      confidence: confidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confidence),
+      elapsedMs: elapsedMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(elapsedMs),
+      judgedBy: Value(judgedBy),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AssessmentResponse.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AssessmentResponse(
+      id: serializer.fromJson<String>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      knowledgePointId: serializer.fromJson<String?>(json['knowledgePointId']),
+      stepKind: serializer.fromJson<String>(json['stepKind']),
+      prompt: serializer.fromJson<String?>(json['prompt']),
+      answer: serializer.fromJson<String?>(json['answer']),
+      correct: serializer.fromJson<bool?>(json['correct']),
+      selfRating: serializer.fromJson<int?>(json['selfRating']),
+      confidence: serializer.fromJson<int?>(json['confidence']),
+      elapsedMs: serializer.fromJson<int?>(json['elapsedMs']),
+      judgedBy: serializer.fromJson<String>(json['judgedBy']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'knowledgePointId': serializer.toJson<String?>(knowledgePointId),
+      'stepKind': serializer.toJson<String>(stepKind),
+      'prompt': serializer.toJson<String?>(prompt),
+      'answer': serializer.toJson<String?>(answer),
+      'correct': serializer.toJson<bool?>(correct),
+      'selfRating': serializer.toJson<int?>(selfRating),
+      'confidence': serializer.toJson<int?>(confidence),
+      'elapsedMs': serializer.toJson<int?>(elapsedMs),
+      'judgedBy': serializer.toJson<String>(judgedBy),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AssessmentResponse copyWith(
+          {String? id,
+          String? sessionId,
+          Value<String?> knowledgePointId = const Value.absent(),
+          String? stepKind,
+          Value<String?> prompt = const Value.absent(),
+          Value<String?> answer = const Value.absent(),
+          Value<bool?> correct = const Value.absent(),
+          Value<int?> selfRating = const Value.absent(),
+          Value<int?> confidence = const Value.absent(),
+          Value<int?> elapsedMs = const Value.absent(),
+          String? judgedBy,
+          int? createdAt}) =>
+      AssessmentResponse(
+        id: id ?? this.id,
+        sessionId: sessionId ?? this.sessionId,
+        knowledgePointId: knowledgePointId.present
+            ? knowledgePointId.value
+            : this.knowledgePointId,
+        stepKind: stepKind ?? this.stepKind,
+        prompt: prompt.present ? prompt.value : this.prompt,
+        answer: answer.present ? answer.value : this.answer,
+        correct: correct.present ? correct.value : this.correct,
+        selfRating: selfRating.present ? selfRating.value : this.selfRating,
+        confidence: confidence.present ? confidence.value : this.confidence,
+        elapsedMs: elapsedMs.present ? elapsedMs.value : this.elapsedMs,
+        judgedBy: judgedBy ?? this.judgedBy,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AssessmentResponse copyWithCompanion(AssessmentResponsesCompanion data) {
+    return AssessmentResponse(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      knowledgePointId: data.knowledgePointId.present
+          ? data.knowledgePointId.value
+          : this.knowledgePointId,
+      stepKind: data.stepKind.present ? data.stepKind.value : this.stepKind,
+      prompt: data.prompt.present ? data.prompt.value : this.prompt,
+      answer: data.answer.present ? data.answer.value : this.answer,
+      correct: data.correct.present ? data.correct.value : this.correct,
+      selfRating:
+          data.selfRating.present ? data.selfRating.value : this.selfRating,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      elapsedMs: data.elapsedMs.present ? data.elapsedMs.value : this.elapsedMs,
+      judgedBy: data.judgedBy.present ? data.judgedBy.value : this.judgedBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssessmentResponse(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('knowledgePointId: $knowledgePointId, ')
+          ..write('stepKind: $stepKind, ')
+          ..write('prompt: $prompt, ')
+          ..write('answer: $answer, ')
+          ..write('correct: $correct, ')
+          ..write('selfRating: $selfRating, ')
+          ..write('confidence: $confidence, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('judgedBy: $judgedBy, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      sessionId,
+      knowledgePointId,
+      stepKind,
+      prompt,
+      answer,
+      correct,
+      selfRating,
+      confidence,
+      elapsedMs,
+      judgedBy,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AssessmentResponse &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.knowledgePointId == this.knowledgePointId &&
+          other.stepKind == this.stepKind &&
+          other.prompt == this.prompt &&
+          other.answer == this.answer &&
+          other.correct == this.correct &&
+          other.selfRating == this.selfRating &&
+          other.confidence == this.confidence &&
+          other.elapsedMs == this.elapsedMs &&
+          other.judgedBy == this.judgedBy &&
+          other.createdAt == this.createdAt);
+}
+
+class AssessmentResponsesCompanion extends UpdateCompanion<AssessmentResponse> {
+  final Value<String> id;
+  final Value<String> sessionId;
+  final Value<String?> knowledgePointId;
+  final Value<String> stepKind;
+  final Value<String?> prompt;
+  final Value<String?> answer;
+  final Value<bool?> correct;
+  final Value<int?> selfRating;
+  final Value<int?> confidence;
+  final Value<int?> elapsedMs;
+  final Value<String> judgedBy;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AssessmentResponsesCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.knowledgePointId = const Value.absent(),
+    this.stepKind = const Value.absent(),
+    this.prompt = const Value.absent(),
+    this.answer = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.selfRating = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.judgedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AssessmentResponsesCompanion.insert({
+    required String id,
+    required String sessionId,
+    this.knowledgePointId = const Value.absent(),
+    required String stepKind,
+    this.prompt = const Value.absent(),
+    this.answer = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.selfRating = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.judgedBy = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        sessionId = Value(sessionId),
+        stepKind = Value(stepKind),
+        createdAt = Value(createdAt);
+  static Insertable<AssessmentResponse> custom({
+    Expression<String>? id,
+    Expression<String>? sessionId,
+    Expression<String>? knowledgePointId,
+    Expression<String>? stepKind,
+    Expression<String>? prompt,
+    Expression<String>? answer,
+    Expression<bool>? correct,
+    Expression<int>? selfRating,
+    Expression<int>? confidence,
+    Expression<int>? elapsedMs,
+    Expression<String>? judgedBy,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (knowledgePointId != null) 'knowledge_point_id': knowledgePointId,
+      if (stepKind != null) 'step_kind': stepKind,
+      if (prompt != null) 'prompt': prompt,
+      if (answer != null) 'answer': answer,
+      if (correct != null) 'correct': correct,
+      if (selfRating != null) 'self_rating': selfRating,
+      if (confidence != null) 'confidence': confidence,
+      if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+      if (judgedBy != null) 'judged_by': judgedBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AssessmentResponsesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? sessionId,
+      Value<String?>? knowledgePointId,
+      Value<String>? stepKind,
+      Value<String?>? prompt,
+      Value<String?>? answer,
+      Value<bool?>? correct,
+      Value<int?>? selfRating,
+      Value<int?>? confidence,
+      Value<int?>? elapsedMs,
+      Value<String>? judgedBy,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AssessmentResponsesCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      knowledgePointId: knowledgePointId ?? this.knowledgePointId,
+      stepKind: stepKind ?? this.stepKind,
+      prompt: prompt ?? this.prompt,
+      answer: answer ?? this.answer,
+      correct: correct ?? this.correct,
+      selfRating: selfRating ?? this.selfRating,
+      confidence: confidence ?? this.confidence,
+      elapsedMs: elapsedMs ?? this.elapsedMs,
+      judgedBy: judgedBy ?? this.judgedBy,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (knowledgePointId.present) {
+      map['knowledge_point_id'] = Variable<String>(knowledgePointId.value);
+    }
+    if (stepKind.present) {
+      map['step_kind'] = Variable<String>(stepKind.value);
+    }
+    if (prompt.present) {
+      map['prompt'] = Variable<String>(prompt.value);
+    }
+    if (answer.present) {
+      map['answer'] = Variable<String>(answer.value);
+    }
+    if (correct.present) {
+      map['correct'] = Variable<bool>(correct.value);
+    }
+    if (selfRating.present) {
+      map['self_rating'] = Variable<int>(selfRating.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<int>(confidence.value);
+    }
+    if (elapsedMs.present) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs.value);
+    }
+    if (judgedBy.present) {
+      map['judged_by'] = Variable<String>(judgedBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssessmentResponsesCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('knowledgePointId: $knowledgePointId, ')
+          ..write('stepKind: $stepKind, ')
+          ..write('prompt: $prompt, ')
+          ..write('answer: $answer, ')
+          ..write('correct: $correct, ')
+          ..write('selfRating: $selfRating, ')
+          ..write('confidence: $confidence, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('judgedBy: $judgedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CognitivePriorsTable extends CognitivePriors
+    with TableInfo<$CognitivePriorsTable, CognitivePrior> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CognitivePriorsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _knowledgePointIdMeta =
+      const VerificationMeta('knowledgePointId');
+  @override
+  late final GeneratedColumn<String> knowledgePointId = GeneratedColumn<String>(
+      'knowledge_point_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _r0Meta = const VerificationMeta('r0');
+  @override
+  late final GeneratedColumn<double> r0 = GeneratedColumn<double>(
+      'r0', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _dMeta = const VerificationMeta('d');
+  @override
+  late final GeneratedColumn<double> d = GeneratedColumn<double>(
+      'd', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _fluencyMeta =
+      const VerificationMeta('fluency');
+  @override
+  late final GeneratedColumn<double> fluency = GeneratedColumn<double>(
+      'fluency', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _nMeta = const VerificationMeta('n');
+  @override
+  late final GeneratedColumn<int> n = GeneratedColumn<int>(
+      'n', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _calibratedMeta =
+      const VerificationMeta('calibrated');
+  @override
+  late final GeneratedColumn<int> calibrated = GeneratedColumn<int>(
+      'calibrated', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [knowledgePointId, source, r0, d, fluency, n, calibrated, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cognitive_priors';
+  @override
+  VerificationContext validateIntegrity(Insertable<CognitivePrior> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('knowledge_point_id')) {
+      context.handle(
+          _knowledgePointIdMeta,
+          knowledgePointId.isAcceptableOrUnknown(
+              data['knowledge_point_id']!, _knowledgePointIdMeta));
+    } else if (isInserting) {
+      context.missing(_knowledgePointIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('r0')) {
+      context.handle(_r0Meta, r0.isAcceptableOrUnknown(data['r0']!, _r0Meta));
+    } else if (isInserting) {
+      context.missing(_r0Meta);
+    }
+    if (data.containsKey('d')) {
+      context.handle(_dMeta, d.isAcceptableOrUnknown(data['d']!, _dMeta));
+    }
+    if (data.containsKey('fluency')) {
+      context.handle(_fluencyMeta,
+          fluency.isAcceptableOrUnknown(data['fluency']!, _fluencyMeta));
+    }
+    if (data.containsKey('n')) {
+      context.handle(_nMeta, n.isAcceptableOrUnknown(data['n']!, _nMeta));
+    }
+    if (data.containsKey('calibrated')) {
+      context.handle(
+          _calibratedMeta,
+          calibrated.isAcceptableOrUnknown(
+              data['calibrated']!, _calibratedMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {knowledgePointId, source};
+  @override
+  CognitivePrior map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CognitivePrior(
+      knowledgePointId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}knowledge_point_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      r0: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}r0'])!,
+      d: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}d']),
+      fluency: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}fluency']),
+      n: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}n'])!,
+      calibrated: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}calibrated'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $CognitivePriorsTable createAlias(String alias) {
+    return $CognitivePriorsTable(attachedDatabase, alias);
+  }
+}
+
+class CognitivePrior extends DataClass implements Insertable<CognitivePrior> {
+  final String knowledgePointId;
+
+  /// 先验来源，形如 `assessment:self` / `assessment:objective` /
+  /// `assessment:blended`。
+  final String source;
+
+  /// 编码强度上限先验（MindNet `R0`）。
+  final double r0;
+
+  /// 难度先验（MindNet `D`，FSRS 量纲 1–10）。只有客观抽检能给，否则 NULL。
+  final double? d;
+
+  /// 主观流畅度先验（元认知信念的输入 `f`），0–1。没自评时为 NULL。
+  final double? fluency;
+
+  /// 样本数（抽检题数 + 有自评则 1）。
+  final int n;
+
+  /// 是否经过真实数据标定。设计文档 §2 的口径是"全部未标定"，所以默认 0；
+  /// 写 1 意味着这个数不再是显式选定的粗映射。
+  final int calibrated;
+  final int createdAt;
+  const CognitivePrior(
+      {required this.knowledgePointId,
+      required this.source,
+      required this.r0,
+      this.d,
+      this.fluency,
+      required this.n,
+      required this.calibrated,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['knowledge_point_id'] = Variable<String>(knowledgePointId);
+    map['source'] = Variable<String>(source);
+    map['r0'] = Variable<double>(r0);
+    if (!nullToAbsent || d != null) {
+      map['d'] = Variable<double>(d);
+    }
+    if (!nullToAbsent || fluency != null) {
+      map['fluency'] = Variable<double>(fluency);
+    }
+    map['n'] = Variable<int>(n);
+    map['calibrated'] = Variable<int>(calibrated);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  CognitivePriorsCompanion toCompanion(bool nullToAbsent) {
+    return CognitivePriorsCompanion(
+      knowledgePointId: Value(knowledgePointId),
+      source: Value(source),
+      r0: Value(r0),
+      d: d == null && nullToAbsent ? const Value.absent() : Value(d),
+      fluency: fluency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fluency),
+      n: Value(n),
+      calibrated: Value(calibrated),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CognitivePrior.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CognitivePrior(
+      knowledgePointId: serializer.fromJson<String>(json['knowledgePointId']),
+      source: serializer.fromJson<String>(json['source']),
+      r0: serializer.fromJson<double>(json['r0']),
+      d: serializer.fromJson<double?>(json['d']),
+      fluency: serializer.fromJson<double?>(json['fluency']),
+      n: serializer.fromJson<int>(json['n']),
+      calibrated: serializer.fromJson<int>(json['calibrated']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'knowledgePointId': serializer.toJson<String>(knowledgePointId),
+      'source': serializer.toJson<String>(source),
+      'r0': serializer.toJson<double>(r0),
+      'd': serializer.toJson<double?>(d),
+      'fluency': serializer.toJson<double?>(fluency),
+      'n': serializer.toJson<int>(n),
+      'calibrated': serializer.toJson<int>(calibrated),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  CognitivePrior copyWith(
+          {String? knowledgePointId,
+          String? source,
+          double? r0,
+          Value<double?> d = const Value.absent(),
+          Value<double?> fluency = const Value.absent(),
+          int? n,
+          int? calibrated,
+          int? createdAt}) =>
+      CognitivePrior(
+        knowledgePointId: knowledgePointId ?? this.knowledgePointId,
+        source: source ?? this.source,
+        r0: r0 ?? this.r0,
+        d: d.present ? d.value : this.d,
+        fluency: fluency.present ? fluency.value : this.fluency,
+        n: n ?? this.n,
+        calibrated: calibrated ?? this.calibrated,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  CognitivePrior copyWithCompanion(CognitivePriorsCompanion data) {
+    return CognitivePrior(
+      knowledgePointId: data.knowledgePointId.present
+          ? data.knowledgePointId.value
+          : this.knowledgePointId,
+      source: data.source.present ? data.source.value : this.source,
+      r0: data.r0.present ? data.r0.value : this.r0,
+      d: data.d.present ? data.d.value : this.d,
+      fluency: data.fluency.present ? data.fluency.value : this.fluency,
+      n: data.n.present ? data.n.value : this.n,
+      calibrated:
+          data.calibrated.present ? data.calibrated.value : this.calibrated,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CognitivePrior(')
+          ..write('knowledgePointId: $knowledgePointId, ')
+          ..write('source: $source, ')
+          ..write('r0: $r0, ')
+          ..write('d: $d, ')
+          ..write('fluency: $fluency, ')
+          ..write('n: $n, ')
+          ..write('calibrated: $calibrated, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      knowledgePointId, source, r0, d, fluency, n, calibrated, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CognitivePrior &&
+          other.knowledgePointId == this.knowledgePointId &&
+          other.source == this.source &&
+          other.r0 == this.r0 &&
+          other.d == this.d &&
+          other.fluency == this.fluency &&
+          other.n == this.n &&
+          other.calibrated == this.calibrated &&
+          other.createdAt == this.createdAt);
+}
+
+class CognitivePriorsCompanion extends UpdateCompanion<CognitivePrior> {
+  final Value<String> knowledgePointId;
+  final Value<String> source;
+  final Value<double> r0;
+  final Value<double?> d;
+  final Value<double?> fluency;
+  final Value<int> n;
+  final Value<int> calibrated;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const CognitivePriorsCompanion({
+    this.knowledgePointId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.r0 = const Value.absent(),
+    this.d = const Value.absent(),
+    this.fluency = const Value.absent(),
+    this.n = const Value.absent(),
+    this.calibrated = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CognitivePriorsCompanion.insert({
+    required String knowledgePointId,
+    required String source,
+    required double r0,
+    this.d = const Value.absent(),
+    this.fluency = const Value.absent(),
+    this.n = const Value.absent(),
+    this.calibrated = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : knowledgePointId = Value(knowledgePointId),
+        source = Value(source),
+        r0 = Value(r0),
+        createdAt = Value(createdAt);
+  static Insertable<CognitivePrior> custom({
+    Expression<String>? knowledgePointId,
+    Expression<String>? source,
+    Expression<double>? r0,
+    Expression<double>? d,
+    Expression<double>? fluency,
+    Expression<int>? n,
+    Expression<int>? calibrated,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (knowledgePointId != null) 'knowledge_point_id': knowledgePointId,
+      if (source != null) 'source': source,
+      if (r0 != null) 'r0': r0,
+      if (d != null) 'd': d,
+      if (fluency != null) 'fluency': fluency,
+      if (n != null) 'n': n,
+      if (calibrated != null) 'calibrated': calibrated,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CognitivePriorsCompanion copyWith(
+      {Value<String>? knowledgePointId,
+      Value<String>? source,
+      Value<double>? r0,
+      Value<double?>? d,
+      Value<double?>? fluency,
+      Value<int>? n,
+      Value<int>? calibrated,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return CognitivePriorsCompanion(
+      knowledgePointId: knowledgePointId ?? this.knowledgePointId,
+      source: source ?? this.source,
+      r0: r0 ?? this.r0,
+      d: d ?? this.d,
+      fluency: fluency ?? this.fluency,
+      n: n ?? this.n,
+      calibrated: calibrated ?? this.calibrated,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (knowledgePointId.present) {
+      map['knowledge_point_id'] = Variable<String>(knowledgePointId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (r0.present) {
+      map['r0'] = Variable<double>(r0.value);
+    }
+    if (d.present) {
+      map['d'] = Variable<double>(d.value);
+    }
+    if (fluency.present) {
+      map['fluency'] = Variable<double>(fluency.value);
+    }
+    if (n.present) {
+      map['n'] = Variable<int>(n.value);
+    }
+    if (calibrated.present) {
+      map['calibrated'] = Variable<int>(calibrated.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CognitivePriorsCompanion(')
+          ..write('knowledgePointId: $knowledgePointId, ')
+          ..write('source: $source, ')
+          ..write('r0: $r0, ')
+          ..write('d: $d, ')
+          ..write('fluency: $fluency, ')
+          ..write('n: $n, ')
+          ..write('calibrated: $calibrated, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15089,6 +16640,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AiActionsTable aiActions = $AiActionsTable(this);
   late final $ReviewGroupPlansTable reviewGroupPlans =
       $ReviewGroupPlansTable(this);
+  late final $AssessmentSessionsTable assessmentSessions =
+      $AssessmentSessionsTable(this);
+  late final $AssessmentResponsesTable assessmentResponses =
+      $AssessmentResponsesTable(this);
+  late final $CognitivePriorsTable cognitivePriors =
+      $CognitivePriorsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15125,7 +16682,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         aiConversations,
         aiMessages,
         aiActions,
-        reviewGroupPlans
+        reviewGroupPlans,
+        assessmentSessions,
+        assessmentResponses,
+        cognitivePriors
       ];
 }
 
@@ -22350,6 +23910,747 @@ typedef $$ReviewGroupPlansTableProcessedTableManager = ProcessedTableManager<
     ),
     ReviewGroupPlan,
     PrefetchHooks Function()>;
+typedef $$AssessmentSessionsTableCreateCompanionBuilder
+    = AssessmentSessionsCompanion Function({
+  required String id,
+  Value<String> subjectKey,
+  Value<String> scopeTagIds,
+  required int startedAt,
+  Value<int?> finishedAt,
+  Value<String?> budget,
+  Value<String?> note,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$AssessmentSessionsTableUpdateCompanionBuilder
+    = AssessmentSessionsCompanion Function({
+  Value<String> id,
+  Value<String> subjectKey,
+  Value<String> scopeTagIds,
+  Value<int> startedAt,
+  Value<int?> finishedAt,
+  Value<String?> budget,
+  Value<String?> note,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$AssessmentSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $AssessmentSessionsTable> {
+  $$AssessmentSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get scopeTagIds => $composableBuilder(
+      column: $table.scopeTagIds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get budget => $composableBuilder(
+      column: $table.budget, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AssessmentSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AssessmentSessionsTable> {
+  $$AssessmentSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get scopeTagIds => $composableBuilder(
+      column: $table.scopeTagIds, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get budget => $composableBuilder(
+      column: $table.budget, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AssessmentSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AssessmentSessionsTable> {
+  $$AssessmentSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => column);
+
+  GeneratedColumn<String> get scopeTagIds => $composableBuilder(
+      column: $table.scopeTagIds, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get budget =>
+      $composableBuilder(column: $table.budget, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AssessmentSessionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AssessmentSessionsTable,
+    AssessmentSession,
+    $$AssessmentSessionsTableFilterComposer,
+    $$AssessmentSessionsTableOrderingComposer,
+    $$AssessmentSessionsTableAnnotationComposer,
+    $$AssessmentSessionsTableCreateCompanionBuilder,
+    $$AssessmentSessionsTableUpdateCompanionBuilder,
+    (
+      AssessmentSession,
+      BaseReferences<_$AppDatabase, $AssessmentSessionsTable, AssessmentSession>
+    ),
+    AssessmentSession,
+    PrefetchHooks Function()> {
+  $$AssessmentSessionsTableTableManager(
+      _$AppDatabase db, $AssessmentSessionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AssessmentSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AssessmentSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AssessmentSessionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> subjectKey = const Value.absent(),
+            Value<String> scopeTagIds = const Value.absent(),
+            Value<int> startedAt = const Value.absent(),
+            Value<int?> finishedAt = const Value.absent(),
+            Value<String?> budget = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AssessmentSessionsCompanion(
+            id: id,
+            subjectKey: subjectKey,
+            scopeTagIds: scopeTagIds,
+            startedAt: startedAt,
+            finishedAt: finishedAt,
+            budget: budget,
+            note: note,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String> subjectKey = const Value.absent(),
+            Value<String> scopeTagIds = const Value.absent(),
+            required int startedAt,
+            Value<int?> finishedAt = const Value.absent(),
+            Value<String?> budget = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AssessmentSessionsCompanion.insert(
+            id: id,
+            subjectKey: subjectKey,
+            scopeTagIds: scopeTagIds,
+            startedAt: startedAt,
+            finishedAt: finishedAt,
+            budget: budget,
+            note: note,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AssessmentSessionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AssessmentSessionsTable,
+    AssessmentSession,
+    $$AssessmentSessionsTableFilterComposer,
+    $$AssessmentSessionsTableOrderingComposer,
+    $$AssessmentSessionsTableAnnotationComposer,
+    $$AssessmentSessionsTableCreateCompanionBuilder,
+    $$AssessmentSessionsTableUpdateCompanionBuilder,
+    (
+      AssessmentSession,
+      BaseReferences<_$AppDatabase, $AssessmentSessionsTable, AssessmentSession>
+    ),
+    AssessmentSession,
+    PrefetchHooks Function()>;
+typedef $$AssessmentResponsesTableCreateCompanionBuilder
+    = AssessmentResponsesCompanion Function({
+  required String id,
+  required String sessionId,
+  Value<String?> knowledgePointId,
+  required String stepKind,
+  Value<String?> prompt,
+  Value<String?> answer,
+  Value<bool?> correct,
+  Value<int?> selfRating,
+  Value<int?> confidence,
+  Value<int?> elapsedMs,
+  Value<String> judgedBy,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AssessmentResponsesTableUpdateCompanionBuilder
+    = AssessmentResponsesCompanion Function({
+  Value<String> id,
+  Value<String> sessionId,
+  Value<String?> knowledgePointId,
+  Value<String> stepKind,
+  Value<String?> prompt,
+  Value<String?> answer,
+  Value<bool?> correct,
+  Value<int?> selfRating,
+  Value<int?> confidence,
+  Value<int?> elapsedMs,
+  Value<String> judgedBy,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AssessmentResponsesTableFilterComposer
+    extends Composer<_$AppDatabase, $AssessmentResponsesTable> {
+  $$AssessmentResponsesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stepKind => $composableBuilder(
+      column: $table.stepKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get prompt => $composableBuilder(
+      column: $table.prompt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get answer => $composableBuilder(
+      column: $table.answer, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get selfRating => $composableBuilder(
+      column: $table.selfRating, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elapsedMs => $composableBuilder(
+      column: $table.elapsedMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get judgedBy => $composableBuilder(
+      column: $table.judgedBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AssessmentResponsesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AssessmentResponsesTable> {
+  $$AssessmentResponsesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stepKind => $composableBuilder(
+      column: $table.stepKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get prompt => $composableBuilder(
+      column: $table.prompt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get answer => $composableBuilder(
+      column: $table.answer, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get selfRating => $composableBuilder(
+      column: $table.selfRating, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elapsedMs => $composableBuilder(
+      column: $table.elapsedMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get judgedBy => $composableBuilder(
+      column: $table.judgedBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AssessmentResponsesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AssessmentResponsesTable> {
+  $$AssessmentResponsesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId, builder: (column) => column);
+
+  GeneratedColumn<String> get stepKind =>
+      $composableBuilder(column: $table.stepKind, builder: (column) => column);
+
+  GeneratedColumn<String> get prompt =>
+      $composableBuilder(column: $table.prompt, builder: (column) => column);
+
+  GeneratedColumn<String> get answer =>
+      $composableBuilder(column: $table.answer, builder: (column) => column);
+
+  GeneratedColumn<bool> get correct =>
+      $composableBuilder(column: $table.correct, builder: (column) => column);
+
+  GeneratedColumn<int> get selfRating => $composableBuilder(
+      column: $table.selfRating, builder: (column) => column);
+
+  GeneratedColumn<int> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => column);
+
+  GeneratedColumn<int> get elapsedMs =>
+      $composableBuilder(column: $table.elapsedMs, builder: (column) => column);
+
+  GeneratedColumn<String> get judgedBy =>
+      $composableBuilder(column: $table.judgedBy, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AssessmentResponsesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AssessmentResponsesTable,
+    AssessmentResponse,
+    $$AssessmentResponsesTableFilterComposer,
+    $$AssessmentResponsesTableOrderingComposer,
+    $$AssessmentResponsesTableAnnotationComposer,
+    $$AssessmentResponsesTableCreateCompanionBuilder,
+    $$AssessmentResponsesTableUpdateCompanionBuilder,
+    (
+      AssessmentResponse,
+      BaseReferences<_$AppDatabase, $AssessmentResponsesTable,
+          AssessmentResponse>
+    ),
+    AssessmentResponse,
+    PrefetchHooks Function()> {
+  $$AssessmentResponsesTableTableManager(
+      _$AppDatabase db, $AssessmentResponsesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AssessmentResponsesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AssessmentResponsesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AssessmentResponsesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<String?> knowledgePointId = const Value.absent(),
+            Value<String> stepKind = const Value.absent(),
+            Value<String?> prompt = const Value.absent(),
+            Value<String?> answer = const Value.absent(),
+            Value<bool?> correct = const Value.absent(),
+            Value<int?> selfRating = const Value.absent(),
+            Value<int?> confidence = const Value.absent(),
+            Value<int?> elapsedMs = const Value.absent(),
+            Value<String> judgedBy = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AssessmentResponsesCompanion(
+            id: id,
+            sessionId: sessionId,
+            knowledgePointId: knowledgePointId,
+            stepKind: stepKind,
+            prompt: prompt,
+            answer: answer,
+            correct: correct,
+            selfRating: selfRating,
+            confidence: confidence,
+            elapsedMs: elapsedMs,
+            judgedBy: judgedBy,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String sessionId,
+            Value<String?> knowledgePointId = const Value.absent(),
+            required String stepKind,
+            Value<String?> prompt = const Value.absent(),
+            Value<String?> answer = const Value.absent(),
+            Value<bool?> correct = const Value.absent(),
+            Value<int?> selfRating = const Value.absent(),
+            Value<int?> confidence = const Value.absent(),
+            Value<int?> elapsedMs = const Value.absent(),
+            Value<String> judgedBy = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AssessmentResponsesCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            knowledgePointId: knowledgePointId,
+            stepKind: stepKind,
+            prompt: prompt,
+            answer: answer,
+            correct: correct,
+            selfRating: selfRating,
+            confidence: confidence,
+            elapsedMs: elapsedMs,
+            judgedBy: judgedBy,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AssessmentResponsesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AssessmentResponsesTable,
+    AssessmentResponse,
+    $$AssessmentResponsesTableFilterComposer,
+    $$AssessmentResponsesTableOrderingComposer,
+    $$AssessmentResponsesTableAnnotationComposer,
+    $$AssessmentResponsesTableCreateCompanionBuilder,
+    $$AssessmentResponsesTableUpdateCompanionBuilder,
+    (
+      AssessmentResponse,
+      BaseReferences<_$AppDatabase, $AssessmentResponsesTable,
+          AssessmentResponse>
+    ),
+    AssessmentResponse,
+    PrefetchHooks Function()>;
+typedef $$CognitivePriorsTableCreateCompanionBuilder = CognitivePriorsCompanion
+    Function({
+  required String knowledgePointId,
+  required String source,
+  required double r0,
+  Value<double?> d,
+  Value<double?> fluency,
+  Value<int> n,
+  Value<int> calibrated,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$CognitivePriorsTableUpdateCompanionBuilder = CognitivePriorsCompanion
+    Function({
+  Value<String> knowledgePointId,
+  Value<String> source,
+  Value<double> r0,
+  Value<double?> d,
+  Value<double?> fluency,
+  Value<int> n,
+  Value<int> calibrated,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$CognitivePriorsTableFilterComposer
+    extends Composer<_$AppDatabase, $CognitivePriorsTable> {
+  $$CognitivePriorsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get r0 => $composableBuilder(
+      column: $table.r0, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get d => $composableBuilder(
+      column: $table.d, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get fluency => $composableBuilder(
+      column: $table.fluency, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get n => $composableBuilder(
+      column: $table.n, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get calibrated => $composableBuilder(
+      column: $table.calibrated, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CognitivePriorsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CognitivePriorsTable> {
+  $$CognitivePriorsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get r0 => $composableBuilder(
+      column: $table.r0, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get d => $composableBuilder(
+      column: $table.d, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get fluency => $composableBuilder(
+      column: $table.fluency, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get n => $composableBuilder(
+      column: $table.n, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get calibrated => $composableBuilder(
+      column: $table.calibrated, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CognitivePriorsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CognitivePriorsTable> {
+  $$CognitivePriorsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get knowledgePointId => $composableBuilder(
+      column: $table.knowledgePointId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<double> get r0 =>
+      $composableBuilder(column: $table.r0, builder: (column) => column);
+
+  GeneratedColumn<double> get d =>
+      $composableBuilder(column: $table.d, builder: (column) => column);
+
+  GeneratedColumn<double> get fluency =>
+      $composableBuilder(column: $table.fluency, builder: (column) => column);
+
+  GeneratedColumn<int> get n =>
+      $composableBuilder(column: $table.n, builder: (column) => column);
+
+  GeneratedColumn<int> get calibrated => $composableBuilder(
+      column: $table.calibrated, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CognitivePriorsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CognitivePriorsTable,
+    CognitivePrior,
+    $$CognitivePriorsTableFilterComposer,
+    $$CognitivePriorsTableOrderingComposer,
+    $$CognitivePriorsTableAnnotationComposer,
+    $$CognitivePriorsTableCreateCompanionBuilder,
+    $$CognitivePriorsTableUpdateCompanionBuilder,
+    (
+      CognitivePrior,
+      BaseReferences<_$AppDatabase, $CognitivePriorsTable, CognitivePrior>
+    ),
+    CognitivePrior,
+    PrefetchHooks Function()> {
+  $$CognitivePriorsTableTableManager(
+      _$AppDatabase db, $CognitivePriorsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CognitivePriorsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CognitivePriorsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CognitivePriorsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> knowledgePointId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<double> r0 = const Value.absent(),
+            Value<double?> d = const Value.absent(),
+            Value<double?> fluency = const Value.absent(),
+            Value<int> n = const Value.absent(),
+            Value<int> calibrated = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CognitivePriorsCompanion(
+            knowledgePointId: knowledgePointId,
+            source: source,
+            r0: r0,
+            d: d,
+            fluency: fluency,
+            n: n,
+            calibrated: calibrated,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String knowledgePointId,
+            required String source,
+            required double r0,
+            Value<double?> d = const Value.absent(),
+            Value<double?> fluency = const Value.absent(),
+            Value<int> n = const Value.absent(),
+            Value<int> calibrated = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CognitivePriorsCompanion.insert(
+            knowledgePointId: knowledgePointId,
+            source: source,
+            r0: r0,
+            d: d,
+            fluency: fluency,
+            n: n,
+            calibrated: calibrated,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CognitivePriorsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CognitivePriorsTable,
+    CognitivePrior,
+    $$CognitivePriorsTableFilterComposer,
+    $$CognitivePriorsTableOrderingComposer,
+    $$CognitivePriorsTableAnnotationComposer,
+    $$CognitivePriorsTableCreateCompanionBuilder,
+    $$CognitivePriorsTableUpdateCompanionBuilder,
+    (
+      CognitivePrior,
+      BaseReferences<_$AppDatabase, $CognitivePriorsTable, CognitivePrior>
+    ),
+    CognitivePrior,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -22417,4 +24718,10 @@ class $AppDatabaseManager {
       $$AiActionsTableTableManager(_db, _db.aiActions);
   $$ReviewGroupPlansTableTableManager get reviewGroupPlans =>
       $$ReviewGroupPlansTableTableManager(_db, _db.reviewGroupPlans);
+  $$AssessmentSessionsTableTableManager get assessmentSessions =>
+      $$AssessmentSessionsTableTableManager(_db, _db.assessmentSessions);
+  $$AssessmentResponsesTableTableManager get assessmentResponses =>
+      $$AssessmentResponsesTableTableManager(_db, _db.assessmentResponses);
+  $$CognitivePriorsTableTableManager get cognitivePriors =>
+      $$CognitivePriorsTableTableManager(_db, _db.cognitivePriors);
 }

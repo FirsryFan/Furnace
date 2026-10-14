@@ -380,3 +380,39 @@ Attachment n ─── 1 owner(多态)
 > v9 的教训：`_tableFor()` 必须认识 `review_logs`，否则自愈路径会抛
 > `Invalid argument(s): unknown table review_logs`，真实旧库将无法打开——`v9_migration_test` 就是为了这条存在的。
 
+---
+
+## 9. v10：测评层三张表（M1b，`docs/ASSESSMENT_DESIGN.md` §5）
+
+测评层是 milestone ①「用测评初始化认知模型」。设计口径：先自评起步、客观抽检逐步；
+测的是**抽象参数**（`R0`/`D`/`fluency`），不是背了几张卡；instrument 按板块设计。
+
+| 表 | 关键列 | 语义 |
+| --- | --- | --- |
+| `assessment_sessions` | `id` / `subject_key`（空串=不分科）/ `scope_tag_ids`（JSON，tag id 而不是路径）/ `started_at` / `finished_at`（NULL=没做完）/ `budget`（JSON，NULL=没设）/ `note` | 一次**测量事件**。结束时间只记一次：重复 finish 不把事实往后推 |
+| `assessment_responses` | `id` / `session_id` / `knowledge_point_id`（NULL=整卷性步骤）/ `step_kind`(`self_report`\|`recall`\|`objective`) / `prompt` / `answer` / `correct` / `self_rating`(0–5) / `confidence`(0–5) / `elapsed_ms` / `judged_by`(`self`\|`ai`\|`auto`) | **只追加**的证据行。`correct`（客观）与 `self_rating`（主观）是两个列：先验层正是靠两者之差算校准偏置 |
+| `cognitive_priors` | 主键 `(knowledge_point_id, source)` / `source`(`assessment:self`\|`:objective`\|`:blended`) / `r0` / `d`（NULL=没抽检）/ `fluency`（NULL=没自评）/ `n` / `calibrated`(默认 0) / `created_at` | **派生**的先验，随时可整表重算。不写进 `card_states`（先验≠观测） |
+
+迁移与自愈：`schemaVersion` 9 → 10，`_upgradeV9ToV10()` 建三张表（全部**只加不删、建成空表**——
+没有人被测过就是空表，不开测评界面的安装读到的行为与之前完全一致）；`_ensureColumns()` 额外做
+"版本号已经是最新但表缺失"的自愈（Drift 在 `user_version` 已等于当前版本时**完全跳过** `onUpgrade`）。
+测试：`app/test/data/database/v10_migration_test.dart`（真实 v9 文件升级 / 自愈路径 / 外键实测）、
+`app/test/data/repositories/assessment_repository_test.dart`（步骤往返、无证据步骤被拒、先验是派生的、多来源合并）。
+
+### 9.1 同步三分类（用户口径③：不做实时同步）
+
+同步在 **Windows 出一个可发布 release 时做一次**，现在的 `.tfpkg` 导出/导入就是载体
+（`exportDump` 按 `user_tables()` 动态枚举，新表自动进包）。为了让那天不做数据手术，新表从第一天
+就按三类标好：
+
+| 类 | 表 | 合并规则 |
+| --- | --- | --- |
+| 只追加（日志） | `assessment_responses`、`review_logs`、`completion_logs`、`diffusion_logs` | 并集 + 按 id 去重 |
+| 可合并（状态） | `assessment_sessions`（按 `finished_at` 取完整的一轮）、`card_states`、`tasks` | 字段级 last-write-wins + 冲突留痕 |
+| 派生（可重算） | `cognitive_priors` | 不参与合并：导入后本地 `rebuildPriors()` 重算 |
+
+> v10 的实测教训：本项目生成的 schema **不带任何外键约束**——`references(...)` 只是意图声明，
+> `PRAGMA foreign_key_list(review_logs)` 为空，连 v2 就存在的表也没有。所以"删一轮连步骤一起删"
+> 只能写在仓储里（`AssessmentRepository.deleteSession`），`v10_migration_test` 用断言把这条钉住，
+> 免得后来者以为有数据库兜底而省掉显式清理。
+

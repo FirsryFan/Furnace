@@ -841,3 +841,129 @@ class ReviewGroupPlans extends Table {
         {tagId},
       ];
 }
+
+/// 一轮测评的会话。`docs/ASSESSMENT_DESIGN.md` §5 的 M1b。
+///
+/// 一次测评是一个**测量事件**：用户开始做某个 instrument 时开一条，做完关一条。
+/// 这一行本身不带分数——每一步的证据在 `assessment_responses` 里，因为一轮里
+/// 每步的证据强弱不同（自评是主观的，抽检是客观的），压成一行就把区别丢了。
+@DataClassName('AssessmentSession')
+class AssessmentSessions extends Table {
+  TextColumn get id => text()();
+
+  /// 科目键（`physics` / `chinese` / …），空串表示不分科。
+  ///
+  /// 分板块是用户定下的口径：物理和语文不能用同一套 instrument，所以"这轮测的
+  /// 是哪个板块"必须落进数据，否则以后无法按板块回看和校准。
+  TextColumn get subjectKey => text().withDefault(const Constant(''))();
+
+  /// 本轮覆盖的标签范围（JSON 数组，tag id）。空数组表示整库。
+  ///
+  /// 存 id 而不是路径：`TagRepository` 改名会重写所有后代的 `path`，路径在这里
+  /// 会像 `review_group_plans` 的旧设计一样指到别人身上。
+  TextColumn get scopeTagIds => text().withDefault(const Constant('[]'))();
+
+  IntColumn get startedAt => integer()();
+
+  /// 结束时间；NULL 表示这一轮还没做完（中途退出）。
+  IntColumn get finishedAt => integer().nullable()();
+
+  /// 预算（JSON：题数 / 分钟）。NULL 表示没设预算。
+  TextColumn get budget => text().nullable()();
+
+  TextColumn get note => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 测评里的一步、以及这一步留下的证据。
+///
+/// 追加型日志（同步三分类里的"只追加"）：写进去就不再改。自评的 `self_rating`
+/// 与抽检的 `correct` 是两个列而不是一个"分数"列，因为"我觉得我会"和"我真的
+/// 答对了"是两种证据，`AssessmentPrior` 正是靠它们之差算校准偏置。
+@DataClassName('AssessmentResponse')
+class AssessmentResponses extends Table {
+  TextColumn get id => text()();
+
+  /// 所属会话。会话删了，它的步骤就没有意义，所以级联删除是这里的正确语义。
+  ///
+  /// 但**不能指望数据库**：本项目的生成 schema 不带外键约束（实测，连 v2 就有的
+  /// `review_logs` 也没有），`references(...)` 只是意图声明。清理由
+  /// `AssessmentRepository.deleteSession` 显式完成。
+  TextColumn get sessionId => text().references(AssessmentSessions, #id)();
+
+  /// 这一步针对的知识点；NULL 表示不属于任何点（整卷性提示之类）。
+  ///
+  /// 可空是有意的：一轮测评可以包含不落在某个知识点上的步骤，把这类步骤硬塞
+  /// 一个知识点会让先验估计多出无中生有的样本。
+  TextColumn get knowledgePointId =>
+      text().nullable().references(KnowledgePoints, #id)();
+
+  /// 步骤类型：`self_report` / `recall` / `objective`。
+  TextColumn get stepKind => text()();
+
+  TextColumn get prompt => text().nullable()();
+  TextColumn get answer => text().nullable()();
+
+  /// 客观对错的判分；NULL 表示这一步没有客观判分（自评就没有）。
+  BoolColumn get correct => boolean().nullable()();
+
+  /// 自评：0–5 的 JOL（"你觉得自己会多少"）。NULL 表示没问。
+  IntColumn get selfRating => integer().nullable()();
+
+  /// 作答时的把握程度 0–5，与 `selfRating` 分开：一个问"会多少"，一个问
+  /// "多确定"。首版两个都收，先只把 `selfRating` 喂给先验层。
+  IntColumn get confidence => integer().nullable()();
+
+  IntColumn get elapsedMs => integer().nullable()();
+
+  /// 谁判的：`self` / `ai` / `auto`。首版全部是 `self`（用户口径①自评起步）。
+  TextColumn get judgedBy => text().withDefault(const Constant('self'))();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 测评产出的**先验**，与复习观测分离（设计文档 §5、§8）。
+///
+/// 不写进 `card_states`：那里只放复习行为长出来的状态，先验只是"还没复习时的
+/// 起点"。合并规则是读模型时"有观测用观测、无观测用先验"，所以整张表都可以随时
+/// 重算——它也是同步三分类里的"派生（可重算）"，不参与跨设备合并。
+///
+/// 主键是 `(knowledge_point_id, source)` 而不是自增 id：同一知识点来自不同信号
+/// （自评 / 抽检）的先验是两行，谁也不能覆盖谁；重算同源先验则是一次 upsert。
+@DataClassName('CognitivePrior')
+class CognitivePriors extends Table {
+  TextColumn get knowledgePointId => text().references(KnowledgePoints, #id)();
+
+  /// 先验来源，形如 `assessment:self` / `assessment:objective` /
+  /// `assessment:blended`。
+  TextColumn get source => text()();
+
+  /// 编码强度上限先验（MindNet `R0`）。
+  RealColumn get r0 => real()();
+
+  /// 难度先验（MindNet `D`，FSRS 量纲 1–10）。只有客观抽检能给，否则 NULL。
+  RealColumn get d => real().nullable()();
+
+  /// 主观流畅度先验（元认知信念的输入 `f`），0–1。没自评时为 NULL。
+  RealColumn get fluency => real().nullable()();
+
+  /// 样本数（抽检题数 + 有自评则 1）。
+  IntColumn get n => integer().withDefault(const Constant(0))();
+
+  /// 是否经过真实数据标定。设计文档 §2 的口径是"全部未标定"，所以默认 0；
+  /// 写 1 意味着这个数不再是显式选定的粗映射。
+  IntColumn get calibrated => integer().withDefault(const Constant(0))();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {knowledgePointId, source};
+}

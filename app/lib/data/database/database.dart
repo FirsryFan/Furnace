@@ -52,6 +52,10 @@ part 'database.g.dart';
     AiActions,
     // v8 (per-group daily review plan)
     ReviewGroupPlans,
+    // v10 (assessment layer, docs/ASSESSMENT_DESIGN.md §5)
+    AssessmentSessions,
+    AssessmentResponses,
+    CognitivePriors,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -62,10 +66,11 @@ class AppDatabase extends _$AppDatabase {
 
   /// v7 is the unshipped release that added `local_settings.ai_max_rounds`
   /// plus the two review-preference columns; v8 adds the per-group daily plan
-  /// table; v9 adds the two failure-feedback columns on `review_logs`. See
-  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9].
+  /// table; v9 adds the two failure-feedback columns on `review_logs`; v10 adds
+  /// the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5). See
+  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10].
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -97,6 +102,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 9) {
           await _upgradeV8ToV9();
+        }
+        if (from < 10) {
+          await _upgradeV9ToV10();
         }
       },
       beforeOpen: (details) async {
@@ -163,9 +171,21 @@ class AppDatabase extends _$AppDatabase {
     }
     // v8 tables are healed the same way for the same reason. A missing *table*
     // is not a mapper crash but a silent "your plan is gone", which is why this
-    // check belongs here next to the column one.
+    // check belongs here next to the column one. v10's three assessment tables
+    // heal the same way: a file stamped v10 whose tables are missing (an
+    // interrupted migration, or a package import that predates them) would
+    // otherwise fail every read with "no such table".
     if (!await _tableExists('review_group_plans')) {
       await m.createTable(reviewGroupPlans);
+    }
+    if (!await _tableExists('assessment_sessions')) {
+      await m.createTable(assessmentSessions);
+    }
+    if (!await _tableExists('assessment_responses')) {
+      await m.createTable(assessmentResponses);
+    }
+    if (!await _tableExists('cognitive_priors')) {
+      await m.createTable(cognitivePriors);
     }
   }
 
@@ -289,6 +309,28 @@ class AppDatabase extends _$AppDatabase {
       reviewLogs.closeness,
     ]) {
       await _addColumnIfMissing(m, 'review_logs', column);
+    }
+  }
+
+  /// v9 -> v10: the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5).
+  ///
+  /// Purely additive and created **empty**, for the same reason as v8: no
+  /// session means nothing has been measured, and an install that never opens
+  /// the assessment surface must keep reading exactly the priors-absent
+  /// behaviour it had before. Every table is probed first so a file that
+  /// already carries them (an interrupted migration, or a database created
+  /// from the v10 schema but stamped lower) upgrades without a duplicate-table
+  /// error.
+  Future<void> _upgradeV9ToV10() async {
+    final m = Migrator(this);
+    if (!await _tableExists('assessment_sessions')) {
+      await m.createTable(assessmentSessions);
+    }
+    if (!await _tableExists('assessment_responses')) {
+      await m.createTable(assessmentResponses);
+    }
+    if (!await _tableExists('cognitive_priors')) {
+      await m.createTable(cognitivePriors);
     }
   }
 

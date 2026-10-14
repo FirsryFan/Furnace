@@ -7,6 +7,7 @@ import '../../features/packages/application/package_import_service.dart';
 import '../../features/tasks/application/task_scheduler_service.dart';
 import '../database/app_database_provider.dart';
 import 'anki_repository.dart';
+import 'assessment_repository.dart';
 import 'diffusion_log_repository.dart';
 import 'mind_map_repository.dart';
 import 'package_repository.dart';
@@ -64,9 +65,16 @@ final reviewPlanRepositoryProvider = Provider<ReviewPlanRepository>((ref) {
   );
 });
 
+/// 测评层的存储（`docs/ASSESSMENT_DESIGN.md` §5）：会话、携带证据的步骤，以及
+/// 由两者派生的先验。
+final assessmentRepositoryProvider = Provider<AssessmentRepository>((ref) {
+  return AssessmentRepository(ref.watch(appDatabaseProvider));
+});
+
 final ankiServiceProvider = Provider<AnkiService>((ref) {
   return AnkiService(ref.watch(ankiRepositoryProvider));
 });
+
 
 final ankiStatsServiceProvider = Provider<AnkiStatsService>((ref) {
   return AnkiStatsService(ref.watch(ankiRepositoryProvider));

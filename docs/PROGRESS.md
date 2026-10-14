@@ -4,7 +4,43 @@
 
 ---
 
-## 2026-10-14 轮次二十二：危险区排前——写完了，量出来了，删掉了
+## 2026-10-14 轮次二十三：测评层 M1b——schema v10 三张表 + 仓储 + 迁移单测
+
+用户：milestone ①「用户测评来初始化认知模型」；口径是**先自评起步、客观抽检逐步**，测的是
+**抽象参数**（不是"从卡片出题"），instrument 按板块设计；同步不做实时，等 Windows 出可发布
+release 时同步一次。
+
+- 承 M1a 的纯逻辑先验层（`app/lib/domain/services/cognitive/assessment_prior.dart`，10 条单测），
+  本轮把它落进数据库，按 `docs/ASSESSMENT_DESIGN.md` §5 建三张表：
+  - `assessment_sessions`：一次**测量事件**（`subject_key` / `scope_tag_ids` JSON / `started_at` /
+    `finished_at` / `budget` / `note`）。范围存 tag **id** 不存路径（改名会重写后代路径）。
+  - `assessment_responses`：**只追加**的步骤。`step_kind` = `self_report` / `recall` / `objective`；
+    客观的 `correct` 与主观的 `self_rating` 是**两个列**——先验层正是靠两者之差算校准偏置，
+    压成一个"分数"列就把这个区别丢了。
+  - `cognitive_priors`：**派生**的先验，主键 `(knowledge_point_id, source)`；`d` / `fluency` 可空
+    （没抽检就没有难度，没自评就没有流畅度），`calibrated` 默认 0（设计文档 §2：全部未标定）。
+- `schemaVersion` 9 → 10：`_upgradeV9ToV10()` 建成空表（不开测评界面的安装读到的行为与之前完全
+  一致），`_ensureColumns()` 追加"版本号已是最新但表缺失"的自愈（Drift 在 `user_version` 已等于
+  当前版本时会**完全跳过** `onUpgrade`，v5–v9 的列都是这么修的，v10 的表同理）。
+- 仓储 `app/lib/data/repositories/assessment_repository.dart`：开/关一轮、记步、
+  `evidenceFor` / `evidenceSince`（折成先验层能吃的 `AssessmentEvidence`，同一知识点的自评取
+  最后一次、抽检逐题累积）、`rebuildPriors()`（**先清空再写**——先验是派生的，证据变了几行先验就
+  必须消失）、`priorFor()` 合并多来源（blended > objective > self）。两道校验写死：自评步骤必须带
+  `selfRating`、客观步骤必须带 `correct`、两者都没有的步骤当场 `ArgumentError`（写进去只会让读数
+  多一个空洞样本）。
+- 本轮实测到一个项目事实：**本项目的生成 schema 不带任何外键约束**——`PRAGMA foreign_key_list`
+  在 `review_logs`、`card_templates` 以及三张新表上**全为空**（连 v2 就有的表也没有），
+  `references(...)` 只是意图声明。因此 `deleteSession` 的显式级联不是"额外一道保险"，而是唯一的
+  一道；`v10_migration_test.dart` 用断言把这条钉住，表定义注释也改成"不指望数据库"。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info；
+  `flutter test test/data/database/v10_migration_test.dart test/data/repositories/assessment_repository_test.dart`
+  → `+7 All tests passed!`；全量 `flutter test --concurrency=1` → `+1098 ~2 All tests passed!`
+  （1081 = 轮次二十二基线，+10 = M1a 先验层，+7 = 本轮）。
+- 未做（下一片）：M1c 最小 UI（选范围 → 自评 → 3 题复述抽检 → 结果页）、M1d 接进读数页
+  （先验 vs 观测的合并展示）、M6 度量（留存率 + 校准曲线）。
+
+---
+
 
 用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
 
