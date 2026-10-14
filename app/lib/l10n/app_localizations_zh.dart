@@ -1746,6 +1746,102 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cognitiveZoneUnavailable => '不可用（未做诊断）';
 
   @override
+  String get assessmentTitle => '给模型一个起点';
+
+  @override
+  String get assessmentIntro =>
+      '读数页上的数字要么来自你的复习记录，要么来自模型的默认值。这里做第三件事：用一次简短的测评，把默认值换成关于你的估计。测的是抽象参数（起点的可提取性、流畅度），不是背了多少张卡；先自评起步，客观抽检随后补。所有先验都标着未标定——它给你一个起点，不是结论。';
+
+  @override
+  String get assessmentStepScope => '① 选范围';
+
+  @override
+  String get assessmentStepSelf => '② 自评';
+
+  @override
+  String get assessmentStepRecall => '③ 复述抽检';
+
+  @override
+  String get assessmentStepResult => '④ 读数';
+
+  @override
+  String get assessmentScopeHint =>
+      '选一块范围（选中标签会连它的子标签一起算）。范围越集中，这一批先验越值得当真；分散到全库，它就只是平均值。';
+
+  @override
+  String assessmentScopeCount(Object count) {
+    return '这块里有 $count 个知识点';
+  }
+
+  @override
+  String get assessmentScopeEmpty => '还没有可测的知识点：先在标签页建标签、在闪存卡里建知识点，再回来。';
+
+  @override
+  String get assessmentNext => '下一步';
+
+  @override
+  String get assessmentBack => '上一步';
+
+  @override
+  String get assessmentSkip => '这次跳过';
+
+  @override
+  String get assessmentSelfHint =>
+      '不看资料，现在能复述多少？0 = 完全想不起来，5 = 能完整讲出来。自评不是考试，它给模型一个起点；答不准也没关系，客观抽检会来修正它。';
+
+  @override
+  String assessmentSelfAnswered(Object answered, Object total) {
+    return '已自评 $answered / $total 个';
+  }
+
+  @override
+  String get assessmentRecallHint =>
+      '下面三个知识点是范围的两端与中间各一个——每次给同一批，才能比较不同时间。写下你的复述，然后给自己一个分：说法对得上吗？';
+
+  @override
+  String get assessmentRecallPrompt => '复述这个知识点';
+
+  @override
+  String get assessmentRecallAnswer => '我复述的内容（可留空）';
+
+  @override
+  String get assessmentRecallRating => '我的复述对得上吗？';
+
+  @override
+  String get assessmentFinish => '完成并重算先验';
+
+  @override
+  String get assessmentResultTitle => '这一轮的读数';
+
+  @override
+  String get assessmentResultPending => '下面这支按钮会结束这一轮：先把回答写成证据，再重算范围内的先验。';
+
+  @override
+  String assessmentResultBody(Object steps, Object points) {
+    return '写入 $steps 步证据，重算 $points 个知识点的先验。';
+  }
+
+  @override
+  String assessmentResultR0(Object r0) {
+    return '平均起点 R0 $r0';
+  }
+
+  @override
+  String assessmentResultConfidence(Object confidence) {
+    return '平均置信度 $confidence（n/(n+3)，样本越多越靠近 1）';
+  }
+
+  @override
+  String get assessmentResultUncalibrated =>
+      '全部先验标着未标定：这批常数还是模型默认值。它在你答得少的时候只该当起点，不该当结论；等客观抽检攒够样本，标定才是下一步。';
+
+  @override
+  String get assessmentNoEvidence => '这一轮一步证据都没写（全部跳过），所以没有先验——空的一轮不会污染读数。';
+
+  @override
+  String get assessmentEntryAction => '测一测（给模型一个起点）';
+
+  @override
   String get settingsThemeIcons => '图标';
 
   @override

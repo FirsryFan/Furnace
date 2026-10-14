@@ -735,6 +735,72 @@
   "cognitiveZoneHealthy": "healthy (checked, nothing to report)",
   "cognitiveZoneUnavailable": "unavailable (no diagnosis)",
 
+  "assessmentTitle": "Give the model a starting point",
+  "assessmentIntro": "Every number on the reading page comes either from your review history or from the model's defaults. This does a third thing: one short assessment that replaces the defaults with an estimate about you. It measures abstract parameters (starting retrievability, fluency), not how many cards you memorised; self-report starts, objective checks come later. Every prior is still marked uncalibrated - it is a starting point, not a conclusion.",
+  "assessmentStepScope": "1. Scope",
+  "assessmentStepSelf": "2. Self-report",
+  "assessmentStepRecall": "3. Recall check",
+  "assessmentStepResult": "4. Reading",
+  "assessmentScopeHint": "Pick one area (a selected tag includes its children). The tighter the scope, the more the priors deserve to be taken seriously; spread over the whole library they are only an average.",
+  "assessmentScopeCount": "{count} knowledge points in this area",
+  "assessmentScopeEmpty": "Nothing to measure yet: create tags on the tags page and knowledge points in flashcards first.",
+  "assessmentNext": "Next",
+  "assessmentBack": "Back",
+  "assessmentSkip": "Skip this time",
+  "assessmentSelfHint": "Without looking anything up, how much could you retell right now? 0 = nothing at all, 5 = I could teach it. Self-report is not an exam; it gives the model a starting point, and objective checks will correct it.",
+  "assessmentSelfAnswered": "Self-rated {answered} / {total}",
+  "assessmentRecallHint": "These three knowledge points are the two ends and the middle of the scope - the same set every time, so different days can be compared. Write your retelling, then rate it: did it hold up?",
+  "assessmentRecallPrompt": "Retell this knowledge point",
+  "assessmentRecallAnswer": "What I retold (optional)",
+  "assessmentRecallRating": "Did my retelling hold up?",
+  "assessmentFinish": "Finish and recompute priors",
+  "assessmentResultTitle": "This round's reading",
+  "assessmentResultPending": "The button below ends this round: it writes the answers as evidence, then recomputes the priors for the scope.",
+  "assessmentResultBody": "Wrote {steps} evidence steps and recomputed priors for {points} knowledge points.",
+  "assessmentResultR0": "Mean starting R0 {r0}",
+  "assessmentResultConfidence": "Mean confidence {confidence} (n/(n+3): more samples move it toward 1)",
+  "assessmentResultUncalibrated": "Every prior is marked uncalibrated: these constants are still the model's defaults. With so few answers they are a starting point, not a conclusion; calibration waits for objective checks to accumulate.",
+  "assessmentNoEvidence": "This round wrote no evidence at all (everything was skipped), so there are no priors - an empty round must not pollute the reading.",
+  "assessmentEntryAction": "Measure (give the model a starting point)",
+  "@assessmentIntro": {
+    "description": "The assessment page's framing: abstract parameters, self-report first, everything uncalibrated"
+  },
+  "@assessmentScopeCount": {
+    "description": "How many knowledge points the chosen scope contains",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@assessmentSelfAnswered": {
+    "description": "Self-report progress",
+    "placeholders": {
+      "answered": {},
+      "total": {}
+    }
+  },
+  "@assessmentResultBody": {
+    "description": "Evidence steps written and knowledge points covered by one round",
+    "placeholders": {
+      "steps": {},
+      "points": {}
+    }
+  },
+  "@assessmentResultR0": {
+    "description": "Mean starting R0 across the priors in scope",
+    "placeholders": {
+      "r0": {}
+    }
+  },
+  "@assessmentResultConfidence": {
+    "description": "Mean confidence n/(n+3) across the priors in scope",
+    "placeholders": {
+      "confidence": {}
+    }
+  },
+  "@assessmentEntryAction": {
+    "description": "Entry point to the assessment on the reading page"
+  },
+
   "settingsThemeIcons": "Icons",
   "settingsThemeIconsHint": "Icons are set per semantic slot. A name this build does not know falls back to the slot's built-in icon.",
   "iconPickerTitle": "Pick an icon",

@@ -111,7 +111,10 @@ abstract class AssessmentInstrument {
 
 - **M1a（本轮起）**：纯逻辑先验层 `app/lib/domain/services/cognitive/assessment_prior.dart`——输入自评与抽检结果，输出每知识点 `r0`/`d`/`fluency` 先验 + 全局校准偏置 + 置信度。单测覆盖：高自评×全错（应压低 R0、偏置为正）、低自评×全对（应抬高、偏置为负）、无抽检（低置信、只给自评先验）、边界钳制。
 - **M1b**：schema v10 三张表 + 仓储 + 迁移单测；同步三分类写进 `DATA_MODEL.md`。
-- **M1c**：最小 UI——选范围 → 自评 → 3 题复述抽检 → 结果页（先验 vs 未测评的差异、校准偏置），写 `PROGRESS.md`。
+- **M1c（已完成，轮次二十四）**：最小 UI——选范围 → 自评 → 3 题复述抽检 → 结果页，写 `PROGRESS.md`。
+  实现落在 `app/lib/features/assessment/presentation/assessment_page.dart`，入口在读数页。两处与本文原稿不同，
+  理由记在这里：①结果页不展示"先验 vs 未测评的差异"（那需要 M1d 的观测合并，本片只报本轮写了几步证据、
+  重算了几个点、平均 R0/置信度）；②复述抽检取范围的两端 + 中间（确定性），不抽"最弱卡"——那会变成另一种刷卡。
 - **M1d**：接进读数页（测评先验与复习观测的合并展示，标注"先验/观测"），并在 `MINDNET_ROADMAP.md` 记切片。
 - **M6（度量，随后）**：留存率 + 校准曲线，用来验证 M2"记忆效果好"到底成不成立。
 

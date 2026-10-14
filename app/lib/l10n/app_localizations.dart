@@ -3290,6 +3290,168 @@ abstract class AppLocalizations {
   /// **'unavailable (no diagnosis)'**
   String get cognitiveZoneUnavailable;
 
+  /// No description provided for @assessmentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the model a starting point'**
+  String get assessmentTitle;
+
+  /// The assessment page's framing: abstract parameters, self-report first, everything uncalibrated
+  ///
+  /// In en, this message translates to:
+  /// **'Every number on the reading page comes either from your review history or from the model\'s defaults. This does a third thing: one short assessment that replaces the defaults with an estimate about you. It measures abstract parameters (starting retrievability, fluency), not how many cards you memorised; self-report starts, objective checks come later. Every prior is still marked uncalibrated - it is a starting point, not a conclusion.'**
+  String get assessmentIntro;
+
+  /// No description provided for @assessmentStepScope.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Scope'**
+  String get assessmentStepScope;
+
+  /// No description provided for @assessmentStepSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Self-report'**
+  String get assessmentStepSelf;
+
+  /// No description provided for @assessmentStepRecall.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Recall check'**
+  String get assessmentStepRecall;
+
+  /// No description provided for @assessmentStepResult.
+  ///
+  /// In en, this message translates to:
+  /// **'4. Reading'**
+  String get assessmentStepResult;
+
+  /// No description provided for @assessmentScopeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick one area (a selected tag includes its children). The tighter the scope, the more the priors deserve to be taken seriously; spread over the whole library they are only an average.'**
+  String get assessmentScopeHint;
+
+  /// How many knowledge points the chosen scope contains
+  ///
+  /// In en, this message translates to:
+  /// **'{count} knowledge points in this area'**
+  String assessmentScopeCount(Object count);
+
+  /// No description provided for @assessmentScopeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to measure yet: create tags on the tags page and knowledge points in flashcards first.'**
+  String get assessmentScopeEmpty;
+
+  /// No description provided for @assessmentNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get assessmentNext;
+
+  /// No description provided for @assessmentBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get assessmentBack;
+
+  /// No description provided for @assessmentSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this time'**
+  String get assessmentSkip;
+
+  /// No description provided for @assessmentSelfHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Without looking anything up, how much could you retell right now? 0 = nothing at all, 5 = I could teach it. Self-report is not an exam; it gives the model a starting point, and objective checks will correct it.'**
+  String get assessmentSelfHint;
+
+  /// Self-report progress
+  ///
+  /// In en, this message translates to:
+  /// **'Self-rated {answered} / {total}'**
+  String assessmentSelfAnswered(Object answered, Object total);
+
+  /// No description provided for @assessmentRecallHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These three knowledge points are the two ends and the middle of the scope - the same set every time, so different days can be compared. Write your retelling, then rate it: did it hold up?'**
+  String get assessmentRecallHint;
+
+  /// No description provided for @assessmentRecallPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Retell this knowledge point'**
+  String get assessmentRecallPrompt;
+
+  /// No description provided for @assessmentRecallAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'What I retold (optional)'**
+  String get assessmentRecallAnswer;
+
+  /// No description provided for @assessmentRecallRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Did my retelling hold up?'**
+  String get assessmentRecallRating;
+
+  /// No description provided for @assessmentFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish and recompute priors'**
+  String get assessmentFinish;
+
+  /// No description provided for @assessmentResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This round\'s reading'**
+  String get assessmentResultTitle;
+
+  /// No description provided for @assessmentResultPending.
+  ///
+  /// In en, this message translates to:
+  /// **'The button below ends this round: it writes the answers as evidence, then recomputes the priors for the scope.'**
+  String get assessmentResultPending;
+
+  /// Evidence steps written and knowledge points covered by one round
+  ///
+  /// In en, this message translates to:
+  /// **'Wrote {steps} evidence steps and recomputed priors for {points} knowledge points.'**
+  String assessmentResultBody(Object steps, Object points);
+
+  /// Mean starting R0 across the priors in scope
+  ///
+  /// In en, this message translates to:
+  /// **'Mean starting R0 {r0}'**
+  String assessmentResultR0(Object r0);
+
+  /// Mean confidence n/(n+3) across the priors in scope
+  ///
+  /// In en, this message translates to:
+  /// **'Mean confidence {confidence} (n/(n+3): more samples move it toward 1)'**
+  String assessmentResultConfidence(Object confidence);
+
+  /// No description provided for @assessmentResultUncalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Every prior is marked uncalibrated: these constants are still the model\'s defaults. With so few answers they are a starting point, not a conclusion; calibration waits for objective checks to accumulate.'**
+  String get assessmentResultUncalibrated;
+
+  /// No description provided for @assessmentNoEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'This round wrote no evidence at all (everything was skipped), so there are no priors - an empty round must not pollute the reading.'**
+  String get assessmentNoEvidence;
+
+  /// Entry point to the assessment on the reading page
+  ///
+  /// In en, this message translates to:
+  /// **'Measure (give the model a starting point)'**
+  String get assessmentEntryAction;
+
   /// No description provided for @settingsThemeIcons.
   ///
   /// In en, this message translates to:

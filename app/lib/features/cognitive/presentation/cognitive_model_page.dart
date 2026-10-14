@@ -49,6 +49,7 @@ import '../../../domain/services/cognitive/metacognition.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
+import '../../assessment/presentation/assessment_page.dart';
 import 'zone_labels.dart';
 
 // The band/zone words are re-exported so every existing importer of this page
@@ -743,6 +744,8 @@ class CognitiveModelPage extends ConsumerWidget {
         data: (data) => ListView(
           padding: const EdgeInsets.all(12),
           children: [
+            _AssessmentEntry(l10n: l10n),
+            const SizedBox(height: 8),
             _Notes(l10n: l10n, fastLayerRan: data.fastLayerRan),
             const SizedBox(height: 8),
             const _OrphanRepairBanner(),
@@ -761,6 +764,47 @@ class CognitiveModelPage extends ConsumerWidget {
             else
               for (final card in data.cards)
                 _CardTile(l10n: l10n, card: card),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The way out of "every number here is a default": one short measurement.
+///
+/// It sits above the notes because the page's own disclaimers are about what
+/// the model does *not* know yet, and this is the only action that changes that
+/// - a user who reads "weights are uncalibrated" and has nowhere to go learns
+/// nothing. The page stays select-only: the write happens on the assessment
+/// page, behind an explicit tap.
+class _AssessmentEntry extends StatelessWidget {
+  const _AssessmentEntry({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.assessmentTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AssessmentPage(),
+                ),
+              ),
+              icon: const Icon(Icons.assignment_outlined),
+              label: Text(l10n.assessmentEntryAction),
+            ),
           ],
         ),
       ),

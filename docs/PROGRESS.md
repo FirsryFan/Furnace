@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-14 轮次二十四：测评层 M1c——第一次能用界面给模型一个起点
+
+用户：milestone ①「用户测评来初始化认知模型」；口径不变——**先自评起步、客观抽检逐步**，测**抽象参数**，
+**不从卡片出题**，instrument 按板块设计。M1a（先验纯逻辑）与 M1b（schema v10）之后，本轮把这条链子接上界面。
+
+- 新页面 `app/lib/features/assessment/presentation/assessment_page.dart`（四步）：
+  - **①选范围**：标签多选，选中即连**后代**一起算。范围存 tag **id**、展开靠 `parentId` 而不是 `path` 前缀
+    （`path` 可空，且改名会重写后代路径）。
+  - **②自评**：每个知识点 0–5 的 JOL，再点一次同一枚 chip 就是"跳过"。跳过的点是**不写**，不是写 0——
+    "我不知道"不是"我什么都不会"，先验层平均的是它拿到的东西。
+  - **③复述抽检**：取范围的**两端与中间**各一个，**确定性**。随机会让两轮不可比；挑"最弱的卡"会把测评
+    悄悄变成另一种刷卡——用户明确否掉了这条路（`不建议从卡片出题`）。提示词是知识点本身，不是卡面。
+  - **④读数**：这一轮写了多少步证据、重算了几个点的先验、平均 R0 与平均置信度，并把"全部未标定"的
+    免责声明摆在正文（设计文档 §2 要求）。
+- 两条刻意的不变量：**最后一步之前一个字节都不写**（中途退出不留半截会话），以及**空的一轮仍然记一条
+  session**（它是一次测量事件）但**不产生先验**，界面上直说"一步证据都没写"。
+- 入口：读数页 `cognitive_model_page.dart:786-812` 新增一节 + `FilledButton.tonalIcon`，`push` 到测评页——
+  读数页正是用户发现"模型没有关于我的数据"的地方。
+- 测试 `app/test/features/assessment/assessment_page_test.dart`（4 条）：两条驱动完整流程后**查表**——`assessment_sessions`
+  一条（`scope_tag_ids` = `["t-root"]`、`finished_at` 非空）、`assessment_responses` 四条（两条 `self_report` +
+  两条 `recall`，`judged_by` 全是 `self`）、`cognitive_priors` 三条（只有被评过的 `kp-a/b/e`）；一条从读数页
+  入口推页（顺带验证同一数据库被接上）；一条 `recallPicks` 纯逻辑。评分 chip 带
+  `ValueKey('self-<kp>-4')` / `ValueKey('recall-<kp>-4')`——一屏有 6×5 枚同名 chip，"第二个 4"不是测试。
+- 顺手修：结果步原本拿 `assessmentFinish`（按钮同一句话）当提示，新增 `assessmentResultPending`（zh/en）。
+- 记录一个坑：本页刻意**不 import drift**（Flutter 与 drift 都导出 `Column`），因此 `Expression<bool>` 的 `&`
+  不可用（`dart analyze` → `undefined_operator`）。改成 SQL 只过滤 `object_type`、tag 侧在 Dart 里用集合过滤，
+  代码注释写明这个取舍。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info（与基线同数）；
+  `flutter test test/features/assessment/assessment_page_test.dart` → `+4 All tests passed!`；
+  全量 `flutter test --concurrency=1` → `+1102 ~2 All tests passed!`（1098 = 轮次二十三基线，+4 = 本轮）。
+- 未做（下一片）：M1d 把测评先验与复习观测在读数页合并展示并标注"先验/观测"；M6 度量（留存率 + 校准曲线）。
+
+---
+
 ## 2026-10-14 轮次二十三：测评层 M1b——schema v10 三张表 + 仓储 + 迁移单测
 
 用户：milestone ①「用户测评来初始化认知模型」；口径是**先自评起步、客观抽检逐步**，测的是
@@ -41,6 +75,7 @@ release 时同步一次。
 
 ---
 
+## 2026-10-14 轮次二十二：危险区排前——写完了，量出来了，撤回了
 
 用户：正常任务完成后把认知模型全量接入，并丰富它的应用场景（brainstorm → 筛选 → 实施）。
 

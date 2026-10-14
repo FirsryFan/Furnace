@@ -1818,6 +1818,106 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cognitiveZoneUnavailable => 'unavailable (no diagnosis)';
 
   @override
+  String get assessmentTitle => 'Give the model a starting point';
+
+  @override
+  String get assessmentIntro =>
+      'Every number on the reading page comes either from your review history or from the model\'s defaults. This does a third thing: one short assessment that replaces the defaults with an estimate about you. It measures abstract parameters (starting retrievability, fluency), not how many cards you memorised; self-report starts, objective checks come later. Every prior is still marked uncalibrated - it is a starting point, not a conclusion.';
+
+  @override
+  String get assessmentStepScope => '1. Scope';
+
+  @override
+  String get assessmentStepSelf => '2. Self-report';
+
+  @override
+  String get assessmentStepRecall => '3. Recall check';
+
+  @override
+  String get assessmentStepResult => '4. Reading';
+
+  @override
+  String get assessmentScopeHint =>
+      'Pick one area (a selected tag includes its children). The tighter the scope, the more the priors deserve to be taken seriously; spread over the whole library they are only an average.';
+
+  @override
+  String assessmentScopeCount(Object count) {
+    return '$count knowledge points in this area';
+  }
+
+  @override
+  String get assessmentScopeEmpty =>
+      'Nothing to measure yet: create tags on the tags page and knowledge points in flashcards first.';
+
+  @override
+  String get assessmentNext => 'Next';
+
+  @override
+  String get assessmentBack => 'Back';
+
+  @override
+  String get assessmentSkip => 'Skip this time';
+
+  @override
+  String get assessmentSelfHint =>
+      'Without looking anything up, how much could you retell right now? 0 = nothing at all, 5 = I could teach it. Self-report is not an exam; it gives the model a starting point, and objective checks will correct it.';
+
+  @override
+  String assessmentSelfAnswered(Object answered, Object total) {
+    return 'Self-rated $answered / $total';
+  }
+
+  @override
+  String get assessmentRecallHint =>
+      'These three knowledge points are the two ends and the middle of the scope - the same set every time, so different days can be compared. Write your retelling, then rate it: did it hold up?';
+
+  @override
+  String get assessmentRecallPrompt => 'Retell this knowledge point';
+
+  @override
+  String get assessmentRecallAnswer => 'What I retold (optional)';
+
+  @override
+  String get assessmentRecallRating => 'Did my retelling hold up?';
+
+  @override
+  String get assessmentFinish => 'Finish and recompute priors';
+
+  @override
+  String get assessmentResultTitle => 'This round\'s reading';
+
+  @override
+  String get assessmentResultPending =>
+      'The button below ends this round: it writes the answers as evidence, then recomputes the priors for the scope.';
+
+  @override
+  String assessmentResultBody(Object steps, Object points) {
+    return 'Wrote $steps evidence steps and recomputed priors for $points knowledge points.';
+  }
+
+  @override
+  String assessmentResultR0(Object r0) {
+    return 'Mean starting R0 $r0';
+  }
+
+  @override
+  String assessmentResultConfidence(Object confidence) {
+    return 'Mean confidence $confidence (n/(n+3): more samples move it toward 1)';
+  }
+
+  @override
+  String get assessmentResultUncalibrated =>
+      'Every prior is marked uncalibrated: these constants are still the model\'s defaults. With so few answers they are a starting point, not a conclusion; calibration waits for objective checks to accumulate.';
+
+  @override
+  String get assessmentNoEvidence =>
+      'This round wrote no evidence at all (everything was skipped), so there are no priors - an empty round must not pollute the reading.';
+
+  @override
+  String get assessmentEntryAction =>
+      'Measure (give the model a starting point)';
+
+  @override
   String get settingsThemeIcons => 'Icons';
 
   @override
