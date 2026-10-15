@@ -5,6 +5,14 @@ import '../../domain/services/cognitive/learning_metrics.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
+/// `exposure_logs.source` written by the review screen's "读过，没测自己" press.
+///
+/// The column is free text because the value set grows (the roadmap's material
+/// intake will add its own); this is the one producer today, and it lives here
+/// next to the writer so the review flow and any future reader cannot disagree
+/// about the spelling.
+const String kExposureSourceAnswerReveal = 'answer_reveal';
+
 /// Repository for knowledge points, card templates, card states and review
 /// logs.
 class AnkiRepository {
@@ -36,7 +44,7 @@ class AnkiRepository {
           ),
         );
     return (await _db.select(_db.knowledgePoints)
-            ..where((t) => t.id.equals(id)))
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -101,7 +109,8 @@ class AnkiRepository {
             updatedAt: now,
           ),
         );
-    return (await _db.select(_db.cardTemplates)..where((t) => t.id.equals(id)))
+    return (await _db.select(_db.cardTemplates)
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -146,7 +155,8 @@ class AnkiRepository {
     // builds this app ships) and a large library can exceed it.
     const chunkSize = 500;
     for (var start = 0; start < ids.length; start += chunkSize) {
-      final end = start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
       final links = await (_db.select(_db.objectTags)
             ..where(
               (t) =>
@@ -158,9 +168,8 @@ class AnkiRepository {
         continue;
       }
       final tagIds = {for (final link in links) link.tagId}.toList();
-      final tags = await (_db.select(_db.tags)
-            ..where((t) => t.id.isIn(tagIds)))
-          .get();
+      final tags =
+          await (_db.select(_db.tags)..where((t) => t.id.isIn(tagIds))).get();
       final pathById = <String, String>{
         for (final tag in tags)
           if (tag.path != null && tag.path!.isNotEmpty) tag.id: tag.path!,
@@ -196,7 +205,8 @@ class AnkiRepository {
             updatedAt: now,
           ),
         );
-    return (await _db.select(_db.cardStates)..where((t) => t.id.equals(id)))
+    return (await _db.select(_db.cardStates)
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -221,13 +231,11 @@ class AnkiRepository {
     await (_db.update(_db.cardStates)..where((t) => t.id.equals(id))).write(
       CardStatesCompanion(
         dueAt: Value(dueAt),
-        intervalDays: intervalDays == null
-            ? const Value.absent()
-            : Value(intervalDays),
+        intervalDays:
+            intervalDays == null ? const Value.absent() : Value(intervalDays),
         ease: ease == null ? const Value.absent() : Value(ease),
-        repetitions: repetitions == null
-            ? const Value.absent()
-            : Value(repetitions),
+        repetitions:
+            repetitions == null ? const Value.absent() : Value(repetitions),
         lapses: lapses == null ? const Value.absent() : Value(lapses),
         state: state == null ? const Value.absent() : Value(state),
         lastReviewedAt: Value(lastReviewedAt),
@@ -245,8 +253,7 @@ class AnkiRepository {
     String? clozeTemplate,
     String? hint,
   }) async {
-    await (_db.update(_db.cardTemplates)..where((t) => t.id.equals(id)))
-        .write(
+    await (_db.update(_db.cardTemplates)..where((t) => t.id.equals(id))).write(
       CardTemplatesCompanion(
         type: type == null ? const Value.absent() : Value(type),
         question: question == null ? const Value.absent() : Value(question),
@@ -279,8 +286,7 @@ class AnkiRepository {
       await (_db.delete(_db.cardStates)
             ..where((t) => t.cardTemplateId.equals(id)))
           .go();
-      await (_db.delete(_db.cardTemplates)..where((t) => t.id.equals(id)))
-          .go();
+      await (_db.delete(_db.cardTemplates)..where((t) => t.id.equals(id))).go();
     });
   }
 
@@ -305,7 +311,8 @@ class AnkiRepository {
       final templates = await getTemplatesForKnowledgePoint(id);
       final states = await (_db.select(_db.cardStates)
             ..where(
-              (t) => t.knowledgePointId.equals(id) |
+              (t) =>
+                  t.knowledgePointId.equals(id) |
                   t.cardTemplateId.isIn([for (final t in templates) t.id]),
             ))
           .get();
@@ -322,7 +329,8 @@ class AnkiRepository {
       }
       await (_db.delete(_db.cardStates)
             ..where(
-              (t) => t.knowledgePointId.equals(id) |
+              (t) =>
+                  t.knowledgePointId.equals(id) |
                   t.cardTemplateId.isIn([for (final t in templates) t.id]),
             ))
           .go();
@@ -355,13 +363,15 @@ class AnkiRepository {
   /// while a unit state is debris when its knowledge point is gone - getting
   /// that distinction backwards would delete live review states.
   Future<int> countOrphanCardStates() async {
-    final row = await _db.customSelect(
-      'SELECT COUNT(*) AS n FROM card_states WHERE '
-      '(card_template_id IS NULL AND (knowledge_point_id IS NULL OR '
-      ' knowledge_point_id NOT IN (SELECT id FROM knowledge_points))) OR '
-      '(card_template_id IS NOT NULL AND '
-      ' card_template_id NOT IN (SELECT id FROM card_templates))',
-    ).getSingle();
+    final row = await _db
+        .customSelect(
+          'SELECT COUNT(*) AS n FROM card_states WHERE '
+          '(card_template_id IS NULL AND (knowledge_point_id IS NULL OR '
+          ' knowledge_point_id NOT IN (SELECT id FROM knowledge_points))) OR '
+          '(card_template_id IS NOT NULL AND '
+          ' card_template_id NOT IN (SELECT id FROM card_templates))',
+        )
+        .getSingle();
     return row.read<int>('n');
   }
 
@@ -466,8 +476,7 @@ class AnkiRepository {
       variables: [Variable.withInt(sinceMillis)],
     ).get();
     return {
-      for (final row in rows)
-        row.read<String>('kp'): row.read<int>('n'),
+      for (final row in rows) row.read<String>('kp'): row.read<int>('n'),
     };
   }
 
@@ -550,7 +559,8 @@ class AnkiRepository {
             updatedAt: now,
           ),
         );
-    return (await _db.select(_db.cardStates)..where((t) => t.id.equals(id)))
+    return (await _db.select(_db.cardStates)
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -589,23 +599,17 @@ class AnkiRepository {
       CardStatesCompanion(
         dueAt: dueAt == null ? const Value.absent() : Value(dueAt),
         state: state == null ? const Value.absent() : Value(state),
-        stability: stability == null
-            ? const Value.absent()
-            : Value(stability),
-        difficulty: difficulty == null
-            ? const Value.absent()
-            : Value(difficulty),
-        intervalDays: intervalDays == null
-            ? const Value.absent()
-            : Value(intervalDays),
-        repetitions: repetitions == null
-            ? const Value.absent()
-            : Value(repetitions),
+        stability: stability == null ? const Value.absent() : Value(stability),
+        difficulty:
+            difficulty == null ? const Value.absent() : Value(difficulty),
+        intervalDays:
+            intervalDays == null ? const Value.absent() : Value(intervalDays),
+        repetitions:
+            repetitions == null ? const Value.absent() : Value(repetitions),
         lapses: lapses == null ? const Value.absent() : Value(lapses),
         forced: forced == null ? const Value.absent() : Value(forced),
-        forcedStreak: forcedStreak == null
-            ? const Value.absent()
-            : Value(forcedStreak),
+        forcedStreak:
+            forcedStreak == null ? const Value.absent() : Value(forcedStreak),
         lastReviewedAt: lastReviewedAt == null
             ? const Value.absent()
             : Value(lastReviewedAt),
@@ -706,6 +710,34 @@ class AnkiRepository {
         );
   }
 
+  /// v14: one "我读了，但没测自己" event - MindNet's `exposure`.
+  ///
+  /// Deliberately **not** a `review_logs` row. That table is the test record:
+  /// `learning_metrics.dart` builds the retention buckets from it and the
+  /// calibration curve grades its `predicted_r` against its `correct`, so a
+  /// reading stored there would need a fabricated `rating` (NOT NULL) and would
+  /// be counted as a recall test. The model side is unaffected by that choice -
+  /// the caller still sends a `reread` event, which is its own event type
+  /// (`DsrCardState.eventFor(rating: 3, reread: true)`).
+  ///
+  /// [exposedAt] is the wall-clock moment of the reading, the same clock
+  /// `review_logs.reviewed_at` uses, so the two tables can be read together.
+  Future<void> addExposureLog({
+    required String cardStateId,
+    required int exposedAt,
+    String source = kExposureSourceAnswerReveal,
+  }) async {
+    await _db.into(_db.exposureLogs).insert(
+          ExposureLogsCompanion.insert(
+            id: _newId('exposure'),
+            cardStateId: cardStateId,
+            source: source,
+            exposedAt: exposedAt,
+            createdAt: exposedAt,
+          ),
+        );
+  }
+
   // --- v2: cloze slots & history -------------------------------------------
 
   Future<ClozeSlot> createClozeSlot({
@@ -737,8 +769,7 @@ class AnkiRepository {
   }
 
   Future<void> markClozeSlotExhausted(String slotId) async {
-    await (_db.update(_db.clozeSlots)..where((t) => t.id.equals(slotId)))
-        .write(
+    await (_db.update(_db.clozeSlots)..where((t) => t.id.equals(slotId))).write(
       ClozeSlotsCompanion(
         exhausted: const Value(1),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
@@ -746,8 +777,7 @@ class AnkiRepository {
     );
   }
 
-  Future<List<ClozeSlot>> clozeSlotsForKnowledgePoint(
-      String knowledgePointId) {
+  Future<List<ClozeSlot>> clozeSlotsForKnowledgePoint(String knowledgePointId) {
     final query = _db.select(_db.clozeSlots);
     query.where((t) => t.knowledgePointId.equals(knowledgePointId));
     query.orderBy([(t) => OrderingTerm.asc(t.slotKey)]);

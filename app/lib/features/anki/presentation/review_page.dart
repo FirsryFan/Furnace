@@ -154,8 +154,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     if (!mounted) {
       return;
     }
-    final queue =
-        await ref.read(reviewServiceProvider).buildQueue(plan: plan);
+    final queue = await ref.read(reviewServiceProvider).buildQueue(plan: plan);
     if (!mounted) {
       return;
     }
@@ -182,9 +181,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   AnswerMode _effectiveMode(ReviewItem item) =>
       item.kind == ReviewItemKind.essay ? AnswerMode.self : _mode;
 
-  int? _elapsedSeconds() => _shownAt == null
-      ? null
-      : DateTime.now().difference(_shownAt!).inSeconds;
+  int? _elapsedSeconds() =>
+      _shownAt == null ? null : DateTime.now().difference(_shownAt!).inSeconds;
 
   /// Decides the answer, or hands it to the user when only the user can.
   Future<void> _submit() async {
@@ -401,6 +399,36 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     _advance();
   }
 
+  /// Records an **exposure**: the user read the answer instead of testing
+  /// himself (MindNet's `exposure`, "读了但没测").
+  ///
+  /// Nothing is graded here, so nothing is scheduled either: the card keeps its
+  /// due date and comes back exactly when it would have. That is the point - a
+  /// reading is not evidence of recall, and the model is told precisely that
+  /// (`DsrEventType.reread`: a tenth-sized stability gain, no `R0` lift). The
+  /// write itself is [ReviewService.recordExposure]; this method only reports it
+  /// and moves on.
+  Future<void> _expose() async {
+    final item = _current;
+    if (item == null || _submitting || _feedback == null) {
+      return;
+    }
+    setState(() => _submitting = true);
+    await ref.read(reviewServiceProvider).recordExposure(item: item);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _submitting = false);
+    // The press raises a question the screen must answer: "读了算不算复习一次?"
+    // - it does not, and the log stays empty.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context).ankiExposureRecorded),
+      ),
+    );
+    _advance();
+  }
+
   void _advance() {
     setState(() {
       _index++;
@@ -536,8 +564,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                     _OptionButton(
                       label: item.options[i],
                       selected: _selectedOption == item.options[i],
-                      isCorrect:
-                          _feedback == null ? null : correctIndex == i,
+                      isCorrect: _feedback == null ? null : correctIndex == i,
                       onTap: _feedback == null
                           ? () => setState(
                                 () => _selectedOption = item.options[i],
@@ -606,6 +633,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             }
           },
           onRate: _rate,
+          onExpose: _expose,
           // Pressing "next" before the solution question is answered would skip
           // the write of an answer that has not been recorded yet, so the
           // button is disabled until then.
@@ -983,6 +1011,7 @@ class _BottomBar extends StatelessWidget {
     required this.submitting,
     required this.onReveal,
     required this.onRate,
+    required this.onExpose,
     this.onNext,
     required this.onGenerateTask,
   });
@@ -991,6 +1020,12 @@ class _BottomBar extends StatelessWidget {
   final bool submitting;
   final VoidCallback onReveal;
   final ValueChanged<FsrsRating> onRate;
+
+  /// "我读过，没测自己" - the exposure button, shown next to the rating buttons
+  /// because that is the moment it describes: the answer is on screen and the
+  /// user is choosing what to tell the model. Unlike [onRate] it is not a grade
+  /// and writes no review log; the card keeps its due date.
+  final VoidCallback onExpose;
 
   /// Null while the review is not written yet (a failed recall still waiting for
   /// the solution question): there would be nothing to advance from.
@@ -1025,9 +1060,8 @@ class _BottomBar extends StatelessWidget {
                       tooltip: l10n.ankiForgot,
                       icon: const Icon(Icons.replay),
                       color: Theme.of(context).colorScheme.error,
-                      onPressed: submitting
-                          ? null
-                          : () => onRate(FsrsRating.again),
+                      onPressed:
+                          submitting ? null : () => onRate(FsrsRating.again),
                     ),
                     IconButton(
                       tooltip: l10n.ankiFuzzy,
@@ -1040,6 +1074,15 @@ class _BottomBar extends StatelessWidget {
                       icon: const Icon(Icons.check),
                       onPressed:
                           submitting ? null : () => onRate(FsrsRating.good),
+                    ),
+                    // The honest third answer to "how well did you know it?":
+                    // "I did not test myself, I just read it". It is not a
+                    // grade, so it is not in the grade group's styling - a
+                    // plain IconButton, and the model hears `reread`.
+                    IconButton(
+                      tooltip: l10n.ankiExposureTooltip,
+                      icon: const Icon(Icons.chrome_reader_mode),
+                      onPressed: submitting ? null : onExpose,
                     ),
                   ] else
                     // The answer is already recorded and judged: one press moves

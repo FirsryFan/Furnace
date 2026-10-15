@@ -139,9 +139,9 @@ void main() {
       );
       await (db.update(db.cardStates)..where((t) => t.id.equals('cs1')))
           .write(update);
-      final reloaded =
-          await (db.select(db.cardStates)..where((t) => t.id.equals('cs1')))
-              .getSingle();
+      final reloaded = await (db.select(db.cardStates)
+            ..where((t) => t.id.equals('cs1')))
+          .getSingle();
 
       final after = DsrCardState.read(reloaded, nowHours: nowHours);
       // Stability survives a day<->hour round trip to within rounding.
@@ -166,9 +166,9 @@ void main() {
       );
       await (db.update(db.cardStates)..where((t) => t.id.equals('cs1')))
           .write(update);
-      final stored =
-          await (db.select(db.cardStates)..where((t) => t.id.equals('cs1')))
-              .getSingle();
+      final stored = await (db.select(db.cardStates)
+            ..where((t) => t.id.equals('cs1')))
+          .getSingle();
 
       // intervalDays must be the same schedule the model computed.
       final expectedHours = DsrMemory.scheduleInterval(state, nowHours, 0.9);
@@ -195,9 +195,9 @@ void main() {
       );
       await (db.update(db.cardStates)..where((t) => t.id.equals('cs1')))
           .write(update);
-      final stored =
-          await (db.select(db.cardStates)..where((t) => t.id.equals('cs1')))
-              .getSingle();
+      final stored = await (db.select(db.cardStates)
+            ..where((t) => t.id.equals('cs1')))
+          .getSingle();
       expect(stored.dueAt, nowMillis);
       expect(stored.intervalDays, 0);
     });
@@ -218,10 +218,8 @@ void main() {
       );
       expect(result.outcome.kind, 'review');
       expect(result.update.stability.present, isTrue);
-      expect(result.update.stability.value,
-          greaterThan(row.stability ?? 0));
-      expect(result.update.encodingStrength.value,
-          greaterThan(1.0 - 1e-9));
+      expect(result.update.stability.value, greaterThan(row.stability ?? 0));
+      expect(result.update.encodingStrength.value, greaterThan(1.0 - 1e-9));
     });
 
     test('reviewing exactly at the due moment is a near no-op', () async {
@@ -284,7 +282,8 @@ void main() {
       expect(second.encodingStrength.value, first.encodingStrength.value);
     });
 
-    test('retrievability and expected gain are derived, never stored', () async {
+    test('retrievability and expected gain are derived, never stored',
+        () async {
       // `lastReviewedAt` matters: with no review time the model treats the item
       // as learned at hour 0, so the elapsed window is `nowHours` itself.
       // Seeding the review moment is what makes the decay measurable.
@@ -317,7 +316,8 @@ void main() {
       // card gives - the reviewed case is covered by the tests that seed
       // `lastReviewedAt`, so this one only pins the epoch reading.
       expect(forgotten, lessThan(0.9),
-          reason: 'a card never reviewed is treated as learned at hour 0, so it '
+          reason:
+              'a card never reviewed is treated as learned at hour 0, so it '
               'has decayed by hour 100000 rather than reading as brand new');
     });
   });
@@ -325,8 +325,8 @@ void main() {
   group('rating vocabulary', () {
     test('the mapping is explicit for every rating', () {
       expect(DsrCardState.eventFor(rating: 1).type, DsrEventType.lapse);
-      expect(DsrCardState.eventFor(rating: 2).type,
-          DsrEventType.retrievalSuccess);
+      expect(
+          DsrCardState.eventFor(rating: 2).type, DsrEventType.retrievalSuccess);
       expect(DsrCardState.eventFor(rating: 2).grade, 2);
       expect(DsrCardState.eventFor(rating: 4).grade, 4);
       // Out-of-range input is clamped rather than rejected: a rating is UI
@@ -484,10 +484,77 @@ void main() {
         expect(explicitOff.update.encodingStrength.value,
             implicit.update.encodingStrength.value);
         expect(explicitOff.update.savings.value, implicit.update.savings.value);
-        expect(
-            explicitOff.update.difficulty.value, implicit.update.difficulty.value);
+        expect(explicitOff.update.difficulty.value,
+            implicit.update.difficulty.value);
         expect(explicitOff.outcome.kind, implicit.outcome.kind);
       }
+    });
+  });
+
+  group('exposure: reading is not retrieval', () {
+    // The claim behind the review screen's "读过，没测自己" press
+    // (`ReviewService.recordExposure`, `docs/MINDNET_ROADMAP.md` §2): the same
+    // row, read once, must land on a *different* R/S trajectory than a real
+    // retrieval - otherwise the button would just be a quieter "记得".
+    test('a reread gains a fraction of a success and never lifts R0', () async {
+      final row = await seedCard(
+        stability: 30,
+        difficulty: 5,
+        encodingStrength: 0.7,
+        lastReviewedAt: 100 * Duration.millisecondsPerHour,
+        repetitions: 3,
+      );
+      const nowHours = 130.0;
+      final before = DsrCardState.read(row, nowHours: nowHours);
+      // The companion stores stability in DAYS (`write` divides the model's
+      // hours by 24), so the comparison base is the stored column, not the
+      // hours `read` hands to the model.
+      final sBeforeDays = row.stability!;
+
+      final viaExposure = DsrCardState.applyReview(
+        row,
+        // Grade 3 is MindNet's default for a reread; the button sends it too.
+        rating: 3,
+        nowHours: nowHours,
+        targetRetention: 0.9,
+        reread: true,
+      );
+      final viaSuccess = DsrCardState.applyReview(
+        row,
+        rating: 3,
+        nowHours: nowHours,
+        targetRetention: 0.9,
+      );
+      final viaLapse = DsrCardState.applyReview(
+        row,
+        rating: 1,
+        nowHours: nowHours,
+        targetRetention: 0.9,
+      );
+
+      final sExposure = viaExposure.update.stability.value!;
+      final sSuccess = viaSuccess.update.stability.value!;
+      final sLapse = viaLapse.update.stability.value!;
+
+      expect(sExposure, greaterThan(sBeforeDays), reason: '再读不是零收益：它仍是一条学习证据');
+      expect(sSuccess, greaterThan(sExposure), reason: '同样一次成功提取的增益远大于一次再读');
+      expect(sLapse, lessThan(sBeforeDays), reason: 'lapse 砍 S');
+
+      // The exact claim, not just the direction: the reread branch multiplies
+      // the *increase* by `kappa_reread_ratio` (0.1), so the gain part of the
+      // factor is exactly one tenth of a success's. The tolerance is 1e-6, not
+      // 1e-9, because `DsrReviewOutcome` hands out `sInc` rounded to 6 decimals
+      // (`round6`) - measured 0.09999999026487426, i.e. the rounding, not model
+      // error.
+      final rereadGain = viaExposure.outcome.sInc! - 1;
+      final successGain = viaSuccess.outcome.sInc! - 1;
+      expect(rereadGain / successGain, closeTo(0.1, 1e-6),
+          reason: 'reread 的增益项正好是成功项的 kappa_reread_ratio 倍');
+
+      // The ceiling is the sharp line: only a successful *retrieval* may lift
+      // R0, so one exposure must leave it exactly where it was.
+      expect(viaExposure.update.encodingStrength.value, before.r0);
+      expect(viaSuccess.update.encodingStrength.value!, greaterThan(before.r0));
     });
   });
 }

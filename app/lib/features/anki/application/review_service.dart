@@ -161,6 +161,27 @@ class BoostedItem {
   final int distance;
 }
 
+/// The outcome of one `exposure` - MindNet's "我读了，但没测自己".
+///
+/// There is deliberately no `correct` and no `nextDueAt` here: a reading is not
+/// a test and moves no FSRS column, so a caller may only learn which row was
+/// marked and what the *model's* two columns became.
+class ExposureOutcome {
+  const ExposureOutcome({
+    required this.cardStateId,
+    required this.exposedAt,
+    required this.modelState,
+  });
+
+  final String cardStateId;
+  final DateTime exposedAt;
+
+  /// The pair written to `encoding_strength` / `savings`, or null when the
+  /// advisor was unavailable and that write was skipped - the same contract as
+  /// [ReviewService.grade]: an unavailable model never fails the event.
+  final ({double r0, double sigma})? modelState;
+}
+
 /// The review engine (blueprint 4, user annotations 17/18/19).
 ///
 /// - Blank granularity: ONE blank per question (annotation 17).
@@ -247,8 +268,7 @@ class ReviewService {
       final contentStates =
           await ankiRepository.unitStatesForKnowledgePoint(point.id);
       final states = await _statesFor(contentStates, templates);
-      final forcedStates =
-          states.where((state) => state.forced == 1).toList();
+      final forcedStates = states.where((state) => state.forced == 1).toList();
       for (final state in forcedStates) {
         final item = await _itemFor(
           point,
@@ -381,9 +401,8 @@ class ReviewService {
   /// a card with a real schedule (a review) makes this false even when its
   /// `dueAt` is null because it was only ever *drawn*, never answered.
   bool _isUnseenDraw(List<CardState> states, DateTime now) {
-    final drawable = states
-        .where((s) => s.forced != 1)
-        .where((s) => s.dueAt == null || s.dueAt! <= now.millisecondsSinceEpoch);
+    final drawable = states.where((s) => s.forced != 1).where(
+        (s) => s.dueAt == null || s.dueAt! <= now.millisecondsSinceEpoch);
     // No state at all: the knowledge point has never been drawn, so this is new
     // material by definition.
     return drawable.every((s) => s.repetitions == 0);
@@ -488,8 +507,8 @@ class ReviewService {
     if (candidates.isEmpty) {
       // Nothing blankable: fall back to an essay-style self-judged unit.
       final fallbackKey = state?.unitKey ?? 'essay';
-      final resolved =
-          state ?? await ankiRepository.getOrCreateUnitCardState(point.id, fallbackKey);
+      final resolved = state ??
+          await ankiRepository.getOrCreateUnitCardState(point.id, fallbackKey);
       return ReviewItem(
         knowledgePoint: point,
         cardState: resolved,
@@ -554,9 +573,8 @@ class ReviewService {
     if (templateId == null) {
       return null;
     }
-    final template =
-        templates.where((t) => t.id == templateId).firstOrNull ??
-            await ankiRepository.getCardTemplateById(templateId);
+    final template = templates.where((t) => t.id == templateId).firstOrNull ??
+        await ankiRepository.getCardTemplateById(templateId);
     if (template == null) {
       // The template is gone but its state row is not: that row is debris, and
       // `AnkiRepository.purgeOrphanKnowledgeRows` is what removes it.
@@ -860,8 +878,7 @@ class ReviewService {
     DateTime? now,
   }) async {
     final moment = now ?? DateTime.now();
-    final effectiveRating =
-        correct ? rating : FsrsRating.again;
+    final effectiveRating = correct ? rating : FsrsRating.again;
 
     final state = item.cardState;
     final lastReview = state.lastReviewedAt == null
@@ -895,7 +912,8 @@ class ReviewService {
 
     final nextDueAt = correct && !step.forced
         ? schedule.dueAt
-        : moment.add(const Duration(minutes: FurnaceDefaults.forcedRelearnMinutes));
+        : moment
+            .add(const Duration(minutes: FurnaceDefaults.forcedRelearnMinutes));
 
     await ankiRepository.updateUnitCardState(
       state.id,
@@ -918,8 +936,9 @@ class ReviewService {
     // An unavailable advisor means NULL (no prediction), never a failed review.
     double? predictedR;
     try {
-      predictedR =
-          cognitiveModel.modelReadingOf(state, nowHours: modelHoursOf(moment)).r;
+      predictedR = cognitiveModel
+          .modelReadingOf(state, nowHours: modelHoursOf(moment))
+          .r;
     } catch (_) {
       predictedR = null;
     }
@@ -1002,6 +1021,73 @@ class ReviewService {
       released: step.released,
       stillForced: step.forced,
       boosted: boosted,
+    );
+  }
+
+  /// Records an **exposure**: the user read the answer and did not test
+  /// themselves (MindNet `docs/IO_PROTOCOL.md` §2.2,
+  /// `kernel.review(node, {type: 'reread'})`).
+  ///
+  /// It is not a review, and the difference is written down in three places on
+  /// purpose:
+  ///
+  /// * **FSRS is untouched** - no `updateUnitCardState` call, so `due_at`,
+  ///   `stability`, `difficulty`, `repetitions` and `last_reviewed_at` keep
+  ///   their values. Reading a card is not evidence that it was recalled, and
+  ///   only recall evidence may move an interval (D1).
+  /// * **No `review_logs` row** - that table is the *test* record: the retention
+  ///   buckets and the M6 calibration curve are computed from it
+  ///   (`docs/ASSESSMENT_DESIGN.md` §7). A row there would have to invent a
+  ///   `rating` and would count as a recall test.
+  /// * **The model gets a `reread`, not a success** - `reread: true` maps to
+  ///   `DsrEventType.reread` (`DsrCardState.eventFor`), whose stability gain is
+  ///   scaled by `kappa_reread_ratio` (0.1: "再读只有十分之一的增益") and which
+  ///   leaves `R0` alone, unlike `retrieval_success`.
+  ///
+  /// The model's two columns are still written, because that is exactly the
+  /// information an exposure carries: a tenth-sized S gain and no ceiling lift.
+  Future<ExposureOutcome> recordExposure({
+    required ReviewItem item,
+    DateTime? now,
+    String source = kExposureSourceAnswerReveal,
+  }) async {
+    final moment = now ?? DateTime.now();
+    final state = item.cardState;
+
+    ({double r0, double sigma})? modelState;
+    try {
+      modelState = cognitiveModel.modelStateAfterReview(
+        state,
+        // Grade 3 is MindNet's default for a reread (`memory.dsr.js`:
+        // `grade = ev.grade ?? (type === 'lapse' ? 1 : 3)`). It only reaches the
+        // difficulty term: the reread branch's stability gain ignores the grade,
+        // and the `R0` lift is reserved for `retrieval_success`.
+        rating: FsrsRating.good.value,
+        nowHours: modelHoursOf(moment),
+        reread: true,
+      );
+      await ankiRepository.updateModelState(
+        state.id,
+        encodingStrength: modelState.r0,
+        savings: modelState.sigma,
+      );
+    } catch (_) {
+      // Same contract as `grade`: the model is an advisor, and a reading that
+      // was recorded must not be reported as failed because the advisor
+      // misbehaved. The log row below is still written.
+      modelState = null;
+    }
+
+    await ankiRepository.addExposureLog(
+      cardStateId: state.id,
+      exposedAt: moment.millisecondsSinceEpoch,
+      source: source,
+    );
+
+    return ExposureOutcome(
+      cardStateId: state.id,
+      exposedAt: moment,
+      modelState: modelState,
     );
   }
 

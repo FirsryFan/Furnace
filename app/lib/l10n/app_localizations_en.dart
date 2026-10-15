@@ -486,6 +486,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ankiNextCard => 'Next card';
 
   @override
+  String get ankiExposureTooltip =>
+      'Reading only, not a review: due date unchanged, no review log';
+
+  @override
+  String get ankiExposureRecorded =>
+      'Noted as reading only: not a review, due date unchanged';
+
+  @override
   String reviewZoneChip(Object zone) {
     return 'Model\'s read: $zone';
   }
@@ -2633,4 +2641,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionPaperCopyDeferredHeading =>
       'Knowledge points blocked by the cap';
+
+  @override
+  String get tasksDueAtConflictTitle =>
+      'That time clashes with a schedule block';
+
+  @override
+  String tasksDueAtConflictBody(String title, String range) {
+    return '\"$title\" $range is a busy block, so it cannot be scheduled there.';
+  }
+
+  @override
+  String tasksDueAtConflictMoveBefore(String moment) {
+    return 'Move before it ($moment)';
+  }
+
+  @override
+  String tasksDueAtConflictMoveAfter(String moment) {
+    return 'Move after it ($moment)';
+  }
+
+  @override
+  String get tasksDueAtConflictKeep => 'Keep it as is';
+
+  @override
+  String get tasksDueAtConflictNoFreeMoment => 'No free slot in that direction';
 }

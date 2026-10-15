@@ -64,6 +64,8 @@ part 'database.g.dart';
     // v13 (handwriting intake proposals, docs/HANDWRITING_INTAKE_DESIGN.md §4)
     HandwritingIntakeRuns,
     HandwritingProposals,
+    // v14 (exposure log, docs/MINDNET_ROADMAP.md §2 / docs/DATA_MODEL.md)
+    ExposureLogs,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -80,11 +82,14 @@ class AppDatabase extends _$AppDatabase {
   /// the question bank and the reasoning-chain tables
   /// (`docs/QUESTION_BANK_DESIGN.md` §1/§3); v13 adds the two handwriting-intake
   /// tables that keep "整理过但还没确认" alive across a restart
-  /// (`docs/HANDWRITING_INTAKE_DESIGN.md` §4). See [_upgradeV6ToV7] /
+  /// (`docs/HANDWRITING_INTAKE_DESIGN.md` §4); v14 adds `exposure_logs`, the one
+  /// table for MindNet's `exposure` action ("读了但没测", the last of the five
+  /// `mindnet.run/1` actions the app could not express). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
-  /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13].
+  /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
+  /// [_upgradeV13ToV14].
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -128,6 +133,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 13) {
           await _upgradeV12ToV13();
+        }
+        if (from < 14) {
+          await _upgradeV13ToV14();
         }
       },
       beforeOpen: (details) async {
@@ -234,6 +242,12 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('handwriting_proposals')) {
       await m.createTable(handwritingProposals);
+    }
+    // v14's table heals the same way. `exposure_logs` is small, but a file
+    // stamped v14 without it would fail every "读过没测" write with
+    // "no such table" - and the reading would look like it was never recorded.
+    if (!await _tableExists('exposure_logs')) {
+      await m.createTable(exposureLogs);
     }
   }
 
@@ -435,6 +449,21 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('handwriting_proposals')) {
       await m.createTable(handwritingProposals);
+    }
+  }
+
+  /// v13 -> v14: the exposure log (`docs/MINDNET_ROADMAP.md` §2).
+  ///
+  /// One new table, nothing touched on existing ones. `exposure_logs` records
+  /// "我读了，但没测自己" - MindNet's `exposure` action, the last of the five
+  /// `mindnet.run/1` actions the app could not produce. It is deliberately not a
+  /// `review_logs` row: that table is the test record the retention buckets and
+  /// the calibration curve are computed from, and a reading is not a recall test.
+  /// Existence-probed so the v13 (createAll) path is a no-op.
+  Future<void> _upgradeV13ToV14() async {
+    final m = Migrator(this);
+    if (!await _tableExists('exposure_logs')) {
+      await m.createTable(exposureLogs);
     }
   }
 

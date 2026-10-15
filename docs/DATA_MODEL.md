@@ -407,7 +407,7 @@ Attachment n ─── 1 owner(多态)
 
 | 类 | 表 | 合并规则 |
 | --- | --- | --- |
-| 只追加（日志） | `assessment_responses`、`review_logs`、`completion_logs`、`diffusion_logs` | 并集 + 按 id 去重 |
+| 只追加（日志） | `assessment_responses`、`review_logs`、`completion_logs`、`diffusion_logs`、`exposure_logs` | 并集 + 按 id 去重 |
 | 可合并（状态） | `assessment_sessions`（按 `finished_at` 取完整的一轮）、`card_states`、`tasks` | 字段级 last-write-wins + 冲突留痕 |
 | 派生（可重算） | `cognitive_priors` | 不参与合并：导入后本地 `rebuildPriors()` 重算 |
 
@@ -467,4 +467,43 @@ Brier/ECE 会系统性地好看。因此：
 证据：`app/test/data/database/v12_migration_test.dart`（真实 v11 文件升级后老数据一行不少 + 四张新表
 可写可读 + 自愈路径）、`app/test/data/repositories/question_repository_test.dart`（指纹去重、空题干被拒、
 加工不改题干、来源/质量排序、检索过滤、删除级联、链与步骤往返与钳位）。
+
+## 12. v14：`exposure_logs`（读了没测，MindNet `exposure`）
+
+（v13 是两张拍照整理表，写在 `docs/HANDWRITING_INTAKE_DESIGN.md` §4。）
+
+`IO_PROTOCOL.md` §2.2 的五类动作里，`exposure`（"我看了/读了，但没测自己"）是本应用此前唯一
+无法产生的：复习页只有"显示答案 + 打分"两条路，读书或看补充资料完全进不了模型。
+`docs/MINDNET_ROADMAP.md` §2 把它列为落地顺序第 2 片的后一半。
+
+| 列 | 类型 | 语义 |
+| --- | --- | --- |
+| `id` | TEXT PK | `Ids.next('exposure')` |
+| `card_state_id` | TEXT | 哪一行卡的状态被读了（`references(CardStates#id)` 只是意图声明，本项目 schema 不带外键，见 v10/v12 的教训） |
+| `source` | TEXT 非空 | 读发生在哪里。当前唯一生产者是复习页的"读过，没测自己"（`kExposureSourceAnswerReveal = 'answer_reveal'`）；路线图里的材料摄取会写自己的值 |
+| `exposed_at` | INTEGER | 阅读的墙钟时刻（ms），与 `review_logs.reviewed_at` 同一个钟 |
+| `created_at` | INTEGER | 写入时刻（当前 = `exposed_at`） |
+
+**为什么单独一张表，而不是塞进 `review_logs`**：`review_logs` 是*测试*记录——留存率桶与 M6
+标定曲线都从它算（`docs/ASSESSMENT_DESIGN.md` §7）。曝光没有评分也没有对错：塞进去就得给
+`rating`（NOT NULL）编一个值，而且"看了没测"会被算成一次成功回忆。分开之后，
+留存率/标定/复习次数一律不受影响（`v14_migration_test` 用 `review_logs` 为空的断言钉住这条）。
+
+模型侧仍然收到事件，而且是**它自己的事件类型**：`ReviewService.recordExposure` →
+`CognitiveModel.modelStateAfterReview(row, rating: 3, nowHours, reread: true)` →
+`DsrEventType.reread`。它的 S 增益被 `kappa_reread_ratio`（默认 0.1，"再读只有十分之一的增益"）
+缩放、`R0` **不动**（只有 `retrieval_success` 抬 R0）；FSRS 的 `due_at`/`stability`/`difficulty`/
+`repetitions`/`lapses`/`last_reviewed_at`/`forced` **一个都不写**——读不是提取证据，间隔只能由
+提取证据推动（D1）。模型两列被写，且 advisor 不可用时按 `grade` 的同一契约为 null（不阻断事件）。
+
+迁移与自愈：`schemaVersion` 13 → 14，`_upgradeV13ToV14()` 建空表，`_ensureColumns()` 同时做
+"版本号已是最新但表缺失"的自愈（`schemaVersion` 跑在表前面的老文件不会每次写曝光都报
+`no such table`）。
+
+证据：`app/test/data/database/v14_migration_test.dart`（真实 v13 文件升级后老数据一行不少 +
+新表可写可读 + 曝光不产生复习记录 + 自愈路径）、`app/test/features/anki/review_service_test.dart`
+（不写复习记录/不动 FSRS 七列/只写模型两列且 R0 未被抬）、
+`app/test/domain/services/srs/dsr_card_state_test.dart`（同一行上 reread vs `retrieval_success` vs
+`lapse` 的 S 与 R0 轨迹不同）、`app/test/features/anki/review_page_test.dart`
+（按钮只在"答案已揭示、还没写库"时出现；按下后写曝光、不写复习记录、到期日不变）。
 

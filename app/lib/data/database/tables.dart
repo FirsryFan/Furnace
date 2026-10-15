@@ -391,6 +391,43 @@ class ReviewLogs extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// v14: one "I read it, but I did not test myself" event - MindNet's `exposure`.
+///
+/// `docs/IO_PROTOCOL.md` §2.2 lists five actions, and this is the only one the
+/// app had no way to produce: reading an answer is **not** a retrieval attempt,
+/// so the model must not be told that it was. MindNet records it as
+/// `kernel.review(node, {type: 'reread'})` - its own event type whose stability
+/// gain is scaled by `kappa_reread_ratio` (0.1 by default, "再读只有十分之一的
+/// 增益") and which leaves `R0` alone, unlike `retrieval_success`.
+///
+/// It is a **separate table on purpose**: `review_logs` is the *test* record,
+/// and the retention buckets and the calibration curve are computed from it
+/// (`docs/ASSESSMENT_DESIGN.md` §7 M6). An exposure has no grade and no
+/// outcome, so storing it there would need a fabricated `rating` (the column is
+/// NOT NULL) and would let "看了没测" count as a successful recall.
+class ExposureLogs extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get cardStateId => text().references(CardStates, #id)();
+
+  /// Where the reading happened. `answer_reveal` is the review screen's
+  /// "读过，没测自己" press (the only producer today).
+  ///
+  /// It is required, not nullable: a row whose origin is unknown cannot be
+  /// re-read years later, and the roadmap's material intake (INGEST /
+  /// TRANSCRIBE) will write its own values here.
+  TextColumn get source => text()();
+
+  /// Wall-clock moment of the reading, ms since epoch - the same clock
+  /// `review_logs.reviewed_at` uses, so the two tables can be read together.
+  IntColumn get exposedAt => integer()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class KnowledgePackages extends Table {
   TextColumn get id => text()();
   TextColumn get name => text().withLength(min: 1, max: 300)();

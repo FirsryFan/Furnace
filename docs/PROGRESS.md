@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-10-16 轮次四十四：`exposure`（读了没测）——mindnet 五类动作里最后一个接上（Q22，Lead）
+
+**做了什么**
+- 领域层**不需要**改：`CognitiveModel.modelStateAfterReview` 本来就带 `bool reread`，曝光直接复用
+  （`rating: 3, reread: true` → `DsrEventType.reread`）；没有新增数学，tierA 的 A06 两条 reread 向量
+  本来就在对拍里。
+- schema v14 新表 `exposure_logs`（`app/lib/data/database/tables.dart` 的 `class ExposureLogs`：
+  `id` / `card_state_id` / `source`（非空，唯一生产者 `kExposureSourceAnswerReveal = 'answer_reveal'`）/
+  `exposed_at` / `created_at`）；`app/lib/data/database/database.dart`：`schemaVersion => 14`、
+  `_upgradeV13ToV14()`、`_ensureColumns()` 里同款自愈。
+- 写路径：`app/lib/data/repositories/anki_repository.dart` 新增 `addExposureLog(...)`；
+  `app/lib/features/anki/application/review_service.dart` 新增
+  `recordExposure({required ReviewItem item, DateTime? now, String source})`——只写模型两列
+  （`updateModelState`）+ 一条曝光行，**不调 `updateUnitCardState`、不写 `review_logs`**。
+- UI：`app/lib/features/anki/presentation/review_page.dart` 在"答案已揭示、等评分"那档
+  （`_Feedback.awaitingSelfJudge`）加 `Icons.chrome_reader_mode`「读过，没测自己」，按下记曝光；
+  SnackBar 明说"不算复习、到期日不变"（两个 ARB + 生成物）。
+- 测试 4 处：`app/test/data/database/v14_migration_test.dart`（真实 v13 文件升级 + 自愈）、
+  `app/test/domain/services/srs/dsr_card_state_test.dart`（同一行上 reread / retrieval_success / lapse 的
+  S 与 R0 轨迹）、`app/test/features/anki/review_service_test.dart`、
+  `app/test/features/anki/review_page_test.dart`（按下后 `exposure_logs` 有行、`review_logs` 空、
+  `dueAt`/`repetitions`/`lastReviewedAt` 不变）。
+- 文档：`docs/DATA_MODEL.md` 新增 §12（列清单 + 为什么单独一张表 + 模型路径 + 迁移/自愈 + 证据）；
+  `docs/MINDNET_ROADMAP.md` §2-B"缺① exposure"与 §3 表第 2 行标 ✅（轮次四十四），§4 新增
+  「切片 2 的另一半」整节。
+
+**为什么**
+- `docs/IO_PROTOCOL.md` §2.2 的五个动作（`time`/`review`/`exposure`/`knowledge`/`goal`）里，`exposure`
+  是这个 app 唯一表达不出来的：读书、看答案在模型里是**独立事件类型** `reread`（S 增益 ×
+  `kappa_reread_ratio` 0.1，`R0` 不动——只有 `retrieval_success` 才抬 R0），既不是"没发生"，
+  也不能记成"一次成功回忆"。
+- **为什么不塞进 `review_logs`**：那是*测试*记录——留存率分桶与 M6 标定曲线都从它算。曝光没有评分、
+  没有对错，塞进去要给 NOT NULL 的 `rating` 编一个值，还会把"看了没测"算成一次成功回忆。
+- 可核对到数字的验收口径：同一行上 `(sInc_reread − 1) / (sInc_success − 1) = 0.1`（实测
+  `0.09999999026487426`，容差 1e-6——差的那点来自 `DsrReviewOutcome` 的 6 位四舍五入，不是模型偏差）。
+
+**验收**
+- `flutter test test/data/database/v14_migration_test.dart test/domain/services/srs/dsr_card_state_test.dart
+  test/features/anki --concurrency=1` → **`+109 All tests passed!`**。
+- `dart format`（9 个改动文件）→ 1 changed，再跑 0 changed；`dart analyze lib test` → `96 issues found.`
+  （0 error / 0 warning；本片文件无新 finding，新增测试文件 0 条）。
+- 一条自摆的坑：`DsrCardState.write` 把 stability 写回时**除以 24**（列的单位是*天*），而 `read` 乘回 24
+  （`DsrState.s` 的单位是*小时*）。我第一版直接断言 `update.stability.value > before.s`，报
+  `Expected: a value greater than <720.0> / Actual: <60.816243626859745>`。改成以存储列
+  （`row.stability!`，单位天）为基准后通过——比较模型量之前先确认两边的单位。
+
+---
+
 ## 2026-10-16 轮次四十三：目标题数下拉对任意合法值都不崩（Q20 带出的脆弱点，Lead）
 
 **做了什么**

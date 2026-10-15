@@ -8,6 +8,7 @@ import 'package:furnace/data/repositories/diffusion_log_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/domain/services/cloze/tag_diffusion.dart';
+import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
 import 'package:furnace/features/anki/application/review_service.dart';
 
@@ -137,7 +138,8 @@ void main() {
       expect(outcome.nextDueAt.difference(DateTime.now()).inMinutes,
           lessThanOrEqualTo(10));
 
-      final states = await anki.unitStatesForKnowledgePoint(item.knowledgePointId);
+      final states =
+          await anki.unitStatesForKnowledgePoint(item.knowledgePointId);
       expect(states.single.forced, 1);
       expect(states.single.forcedStreak, 0);
       expect(states.single.state, 'learning_forced');
@@ -175,7 +177,8 @@ void main() {
       expect(second.released, isTrue);
       expect(second.stillForced, isFalse);
 
-      final states = await anki.unitStatesForKnowledgePoint(item.knowledgePointId);
+      final states =
+          await anki.unitStatesForKnowledgePoint(item.knowledgePointId);
       expect(states.single.forced, 0);
       expect(states.single.forcedStreak, 0);
     });
@@ -359,8 +362,7 @@ void main() {
       expect(feedbackState.savings, lessThan(plainState.savings!));
 
       final logs = await db.select(db.reviewLogs).get();
-      final plainLog =
-          logs.firstWhere((l) => l.cardStateId == plainState.id);
+      final plainLog = logs.firstWhere((l) => l.cardStateId == plainState.id);
       final feedbackLog =
           logs.firstWhere((l) => l.cardStateId == feedbackState.id);
       expect(plainLog.reviewedSolution, isFalse,
@@ -407,7 +409,8 @@ void main() {
       expect(log.predictedR, lessThanOrEqualTo(1));
     });
 
-    test('the same pre-review row predicts the same thing either way', () async {
+    test('the same pre-review row predicts the same thing either way',
+        () async {
       // 两张一模一样的卡（模型状态相同），一张答对、一张答错。预测值必须相同：
       // 它是在答案出现之前算的，如果哪天有人把它挪到判分之后，这条会红。
       final right = await anki.createKnowledgePoint(
@@ -443,6 +446,57 @@ void main() {
         closeTo(wrongLog.predictedR!, 1e-3),
         reason: '预测只依赖复习前的行与时刻，与这次答对答错无关',
       );
+    });
+  });
+
+  group('exposure（读了但没测）', () {
+    test('记一次读过：不写复习记录、不动到期日，只更新模型两列', () async {
+      await anki.createKnowledgePoint(
+        title: '光合作用场所',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final queue = await service.buildQueue();
+      expect(queue, hasLength(1));
+      final item = queue.single;
+
+      final before = await (db.select(db.cardStates)
+            ..where((t) => t.id.equals(item.cardState.id)))
+          .getSingle();
+
+      final moment = DateTime(2026, 10, 16, 20);
+      final outcome = await service.recordExposure(item: item, now: moment);
+
+      expect(outcome.cardStateId, before.id);
+      expect(outcome.exposedAt, moment);
+      expect(outcome.modelState, isNotNull, reason: '默认 advisor 可用，两列会被写');
+
+      final rows = await db.select(db.exposureLogs).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.cardStateId, before.id);
+      expect(rows.single.source, kExposureSourceAnswerReveal);
+      expect(rows.single.exposedAt, moment.millisecondsSinceEpoch);
+      expect(rows.single.createdAt, moment.millisecondsSinceEpoch);
+
+      // 这不是一次测试：复习记录仍然空着，而留存率桶与标定曲线只读那张表。
+      expect(await db.select(db.reviewLogs).get(), isEmpty);
+
+      // FSRS 的每一个列都没动：读不是"记得"的证据，间隔只能由提取证据推动。
+      final after = await (db.select(db.cardStates)
+            ..where((t) => t.id.equals(before.id)))
+          .getSingle();
+      expect(after.dueAt, before.dueAt);
+      expect(after.stability, before.stability);
+      expect(after.difficulty, before.difficulty);
+      expect(after.repetitions, before.repetitions);
+      expect(after.lapses, before.lapses);
+      expect(after.lastReviewedAt, before.lastReviewedAt);
+      expect(after.forced, before.forced);
+
+      // 模型两列被写了，而且 R0 天花板没有被抬（那是 retrieval_success 的专利）。
+      expect(after.encodingStrength, isNotNull);
+      final reading = const MindNetCognitiveModel()
+          .modelReadingOf(before, nowHours: modelHoursOf(moment));
+      expect(after.encodingStrength, closeTo(reading.r0, 1e-12));
     });
   });
 }

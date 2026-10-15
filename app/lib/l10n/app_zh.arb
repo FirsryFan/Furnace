@@ -163,6 +163,11 @@
   "ankiStillForgot": "还是不会",
   "ankiAfterAnswerHint": "只影响认知模型把这次算作遗忘还是学习；下次复习时间不变。",
   "ankiNextCard": "下一张",
+  "ankiExposureTooltip": "只算读过，不算一次复习：不改到期日，也不进复习记录",
+  "@ankiExposureTooltip": {
+    "description": "复习页第三个选项（读了但没自测）的说明。记一次 exposure：模型只收到 reread，S 增益十分之一、R0 不动"
+  },
+  "ankiExposureRecorded": "已记下「读过、没测」：这次不算复习，到期日不变",
   "reviewZoneChip": "模型看这块：{zone}",
   "@reviewZoneChip": {
     "description": "复习页上一张卡所属知识点的快层诊断；只在真的诊断出卡点时显示",
@@ -1168,5 +1173,35 @@
   "questionPaperCopyImprovementLabel": "提升点",
   "questionPaperCopyBackgroundLabel": "背景",
   "questionPaperCopyUncoveredHeading": "未覆盖的知识点",
-  "questionPaperCopyDeferredHeading": "被上限挡下的知识点"
+  "questionPaperCopyDeferredHeading": "被上限挡下的知识点",
+  "tasksDueAtConflictTitle": "这段时间撞上了日程块",
+  "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
+  "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",
+  "tasksDueAtConflictMoveAfter": "移到这块之后（{moment}）",
+  "tasksDueAtConflictKeep": "保持不动",
+  "tasksDueAtConflictNoFreeMoment": "这个方向找不到空闲时段",
+  "@tasksDueAtConflictBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "@tasksDueAtConflictMoveBefore": {
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  },
+  "@tasksDueAtConflictMoveAfter": {
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  }
 }

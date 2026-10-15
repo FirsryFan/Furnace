@@ -72,7 +72,8 @@ void main() {
     return template;
   }
 
-  testWidgets('the hint is revealed by the button, never on its own, and is '
+  testWidgets(
+      'the hint is revealed by the button, never on its own, and is '
       'not a graded event', (tester) async {
     final (db, anki) = await openDatabase();
     await addCard(
@@ -139,7 +140,8 @@ void main() {
     expect(find.text('对答案后，你想起来多少？'), findsOneWidget);
     expect(
       tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.arrow_forward))
+          .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.arrow_forward))
           .onPressed,
       isNull,
       reason: 'there is nothing to advance from until the review is recorded',
@@ -156,7 +158,8 @@ void main() {
     expect(log.closeness, closeTo(0.6, 1e-9));
   });
 
-  testWidgets('a correct answer never asks the solution question and is written '
+  testWidgets(
+      'a correct answer never asks the solution question and is written '
       'immediately', (tester) async {
     final (db, anki) = await openDatabase();
     await addCard(
@@ -264,8 +267,7 @@ void main() {
     expect(log.format, 'essay');
     expect(log.reviewedSolution, isFalse,
         reason: 'the user was asked and said no');
-    expect(log.closeness, isNull,
-        reason: 'a bare lapse carries no closeness');
+    expect(log.closeness, isNull, reason: 'a bare lapse carries no closeness');
   });
 
   testWidgets('a choice card renders its options and records the tapped one',
@@ -341,7 +343,8 @@ void main() {
         fastLayerRan: true,
       );
 
-  testWidgets('a diagnosed knowledge point shows the fast layer verdict as a '
+  testWidgets(
+      'a diagnosed knowledge point shows the fast layer verdict as a '
       'chip that acts on nothing', (tester) async {
     final (db, anki) = await openDatabase();
     final template = await addCard(
@@ -357,7 +360,8 @@ void main() {
       db,
       extra: [
         cognitiveReadingsProvider.overrideWith(
-          (ref) async => readingsWith({template.knowledgePointId: ReviewZone.empty}),
+          (ref) async =>
+              readingsWith({template.knowledgePointId: ReviewZone.empty}),
         ),
       ],
     );
@@ -386,7 +390,8 @@ void main() {
         // The layer ran and had nothing to report, and the other arm: it did not
         // run at all. Neither may be dressed up as a finding.
         cognitiveReadingsProvider.overrideWith(
-          (ref) async => readingsWith({template.knowledgePointId: ReviewZone.healthy}),
+          (ref) async =>
+              readingsWith({template.knowledgePointId: ReviewZone.healthy}),
         ),
       ],
     );
@@ -403,5 +408,43 @@ void main() {
       ],
     );
     expect(find.textContaining('模型看这块'), findsNothing);
+  });
+
+  testWidgets('「读过，没测自己」：不写复习记录、不动到期日，只留一条曝光', (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+    );
+    final before = (await db.select(db.cardStates).get()).single;
+
+    await pumpReview(tester, db);
+    await tester.tap(find.byTooltip('显示答案'));
+    await tester.pump();
+
+    // The button only exists in the one state it describes: the answer is on
+    // screen and nothing has been written yet.
+    final exposure = find.byTooltip('只算读过，不算一次复习：不改到期日，也不进复习记录');
+    expect(exposure, findsOneWidget);
+
+    await tester.tap(exposure);
+    await settle(tester);
+
+    final rows = await db.select(db.exposureLogs).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.cardStateId, before.id);
+    expect(rows.single.source, kExposureSourceAnswerReveal);
+    expect(await db.select(db.reviewLogs).get(), isEmpty,
+        reason: '读了没测不是一次测试，复习记录必须仍然是空的');
+
+    final after = (await db.select(db.cardStates).get()).single;
+    expect(after.dueAt, before.dueAt, reason: '到期日不变');
+    expect(after.repetitions, before.repetitions);
+    expect(after.lastReviewedAt, before.lastReviewedAt);
+
+    // The press answers its own question out loud: it did not count as a review.
+    expect(find.text('已记下「读过、没测」：这次不算复习，到期日不变'), findsOneWidget);
   });
 }

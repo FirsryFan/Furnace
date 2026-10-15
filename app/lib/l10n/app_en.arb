@@ -166,6 +166,8 @@
   "ankiStillForgot": "Still didn't know it",
   "ankiAfterAnswerHint": "Only tells the cognitive model whether this was forgetting or learning; the next review date is unchanged.",
   "ankiNextCard": "Next card",
+  "ankiExposureTooltip": "Reading only, not a review: due date unchanged, no review log",
+  "ankiExposureRecorded": "Noted as reading only: not a review, due date unchanged",
   "reviewZoneChip": "Model's read: {zone}",
   "ankiTypePreference": "Card type preference",
   "ankiTypePreferenceMixed": "Mixed (currently: fill in blank)",
@@ -1279,5 +1281,35 @@
   "questionPaperCopyImprovementLabel": "Improvement",
   "questionPaperCopyBackgroundLabel": "Background",
   "questionPaperCopyUncoveredHeading": "Knowledge points with no candidates",
-  "questionPaperCopyDeferredHeading": "Knowledge points blocked by the cap"
+  "questionPaperCopyDeferredHeading": "Knowledge points blocked by the cap",
+  "tasksDueAtConflictTitle": "That time clashes with a schedule block",
+  "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
+  "tasksDueAtConflictMoveBefore": "Move before it ({moment})",
+  "tasksDueAtConflictMoveAfter": "Move after it ({moment})",
+  "tasksDueAtConflictKeep": "Keep it as is",
+  "tasksDueAtConflictNoFreeMoment": "No free slot in that direction",
+  "@tasksDueAtConflictBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "@tasksDueAtConflictMoveBefore": {
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  },
+  "@tasksDueAtConflictMoveAfter": {
+    "placeholders": {
+      "moment": {
+        "type": "String"
+      }
+    }
+  }
 }

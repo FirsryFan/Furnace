@@ -1022,6 +1022,18 @@ abstract class AppLocalizations {
   /// **'Next card'**
   String get ankiNextCard;
 
+  /// No description provided for @ankiExposureTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading only, not a review: due date unchanged, no review log'**
+  String get ankiExposureTooltip;
+
+  /// No description provided for @ankiExposureRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Noted as reading only: not a review, due date unchanged'**
+  String get ankiExposureRecorded;
+
   /// No description provided for @reviewZoneChip.
   ///
   /// In en, this message translates to:
@@ -4651,6 +4663,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Knowledge points blocked by the cap'**
   String get questionPaperCopyDeferredHeading;
+
+  /// No description provided for @tasksDueAtConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'That time clashes with a schedule block'**
+  String get tasksDueAtConflictTitle;
+
+  /// No description provided for @tasksDueAtConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" {range} is a busy block, so it cannot be scheduled there.'**
+  String tasksDueAtConflictBody(String title, String range);
+
+  /// No description provided for @tasksDueAtConflictMoveBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Move before it ({moment})'**
+  String tasksDueAtConflictMoveBefore(String moment);
+
+  /// No description provided for @tasksDueAtConflictMoveAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Move after it ({moment})'**
+  String tasksDueAtConflictMoveAfter(String moment);
+
+  /// No description provided for @tasksDueAtConflictKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it as is'**
+  String get tasksDueAtConflictKeep;
+
+  /// No description provided for @tasksDueAtConflictNoFreeMoment.
+  ///
+  /// In en, this message translates to:
+  /// **'No free slot in that direction'**
+  String get tasksDueAtConflictNoFreeMoment;
 }
 
 class _AppLocalizationsDelegate

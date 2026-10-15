@@ -19738,6 +19738,328 @@ class HandwritingProposalsCompanion
   }
 }
 
+class $ExposureLogsTable extends ExposureLogs
+    with TableInfo<$ExposureLogsTable, ExposureLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExposureLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _cardStateIdMeta =
+      const VerificationMeta('cardStateId');
+  @override
+  late final GeneratedColumn<String> cardStateId = GeneratedColumn<String>(
+      'card_state_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _exposedAtMeta =
+      const VerificationMeta('exposedAt');
+  @override
+  late final GeneratedColumn<int> exposedAt = GeneratedColumn<int>(
+      'exposed_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, cardStateId, source, exposedAt, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'exposure_logs';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExposureLog> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('card_state_id')) {
+      context.handle(
+          _cardStateIdMeta,
+          cardStateId.isAcceptableOrUnknown(
+              data['card_state_id']!, _cardStateIdMeta));
+    } else if (isInserting) {
+      context.missing(_cardStateIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('exposed_at')) {
+      context.handle(_exposedAtMeta,
+          exposedAt.isAcceptableOrUnknown(data['exposed_at']!, _exposedAtMeta));
+    } else if (isInserting) {
+      context.missing(_exposedAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExposureLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExposureLog(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      cardStateId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}card_state_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      exposedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}exposed_at'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ExposureLogsTable createAlias(String alias) {
+    return $ExposureLogsTable(attachedDatabase, alias);
+  }
+}
+
+class ExposureLog extends DataClass implements Insertable<ExposureLog> {
+  final String id;
+  final String cardStateId;
+
+  /// Where the reading happened. `answer_reveal` is the review screen's
+  /// "读过，没测自己" press (the only producer today).
+  ///
+  /// It is required, not nullable: a row whose origin is unknown cannot be
+  /// re-read years later, and the roadmap's material intake (INGEST /
+  /// TRANSCRIBE) will write its own values here.
+  final String source;
+
+  /// Wall-clock moment of the reading, ms since epoch - the same clock
+  /// `review_logs.reviewed_at` uses, so the two tables can be read together.
+  final int exposedAt;
+  final int createdAt;
+  const ExposureLog(
+      {required this.id,
+      required this.cardStateId,
+      required this.source,
+      required this.exposedAt,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['card_state_id'] = Variable<String>(cardStateId);
+    map['source'] = Variable<String>(source);
+    map['exposed_at'] = Variable<int>(exposedAt);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ExposureLogsCompanion toCompanion(bool nullToAbsent) {
+    return ExposureLogsCompanion(
+      id: Value(id),
+      cardStateId: Value(cardStateId),
+      source: Value(source),
+      exposedAt: Value(exposedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ExposureLog.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExposureLog(
+      id: serializer.fromJson<String>(json['id']),
+      cardStateId: serializer.fromJson<String>(json['cardStateId']),
+      source: serializer.fromJson<String>(json['source']),
+      exposedAt: serializer.fromJson<int>(json['exposedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'cardStateId': serializer.toJson<String>(cardStateId),
+      'source': serializer.toJson<String>(source),
+      'exposedAt': serializer.toJson<int>(exposedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ExposureLog copyWith(
+          {String? id,
+          String? cardStateId,
+          String? source,
+          int? exposedAt,
+          int? createdAt}) =>
+      ExposureLog(
+        id: id ?? this.id,
+        cardStateId: cardStateId ?? this.cardStateId,
+        source: source ?? this.source,
+        exposedAt: exposedAt ?? this.exposedAt,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ExposureLog copyWithCompanion(ExposureLogsCompanion data) {
+    return ExposureLog(
+      id: data.id.present ? data.id.value : this.id,
+      cardStateId:
+          data.cardStateId.present ? data.cardStateId.value : this.cardStateId,
+      source: data.source.present ? data.source.value : this.source,
+      exposedAt: data.exposedAt.present ? data.exposedAt.value : this.exposedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExposureLog(')
+          ..write('id: $id, ')
+          ..write('cardStateId: $cardStateId, ')
+          ..write('source: $source, ')
+          ..write('exposedAt: $exposedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, cardStateId, source, exposedAt, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExposureLog &&
+          other.id == this.id &&
+          other.cardStateId == this.cardStateId &&
+          other.source == this.source &&
+          other.exposedAt == this.exposedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class ExposureLogsCompanion extends UpdateCompanion<ExposureLog> {
+  final Value<String> id;
+  final Value<String> cardStateId;
+  final Value<String> source;
+  final Value<int> exposedAt;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const ExposureLogsCompanion({
+    this.id = const Value.absent(),
+    this.cardStateId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.exposedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExposureLogsCompanion.insert({
+    required String id,
+    required String cardStateId,
+    required String source,
+    required int exposedAt,
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        cardStateId = Value(cardStateId),
+        source = Value(source),
+        exposedAt = Value(exposedAt),
+        createdAt = Value(createdAt);
+  static Insertable<ExposureLog> custom({
+    Expression<String>? id,
+    Expression<String>? cardStateId,
+    Expression<String>? source,
+    Expression<int>? exposedAt,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (cardStateId != null) 'card_state_id': cardStateId,
+      if (source != null) 'source': source,
+      if (exposedAt != null) 'exposed_at': exposedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExposureLogsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? cardStateId,
+      Value<String>? source,
+      Value<int>? exposedAt,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return ExposureLogsCompanion(
+      id: id ?? this.id,
+      cardStateId: cardStateId ?? this.cardStateId,
+      source: source ?? this.source,
+      exposedAt: exposedAt ?? this.exposedAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (cardStateId.present) {
+      map['card_state_id'] = Variable<String>(cardStateId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (exposedAt.present) {
+      map['exposed_at'] = Variable<int>(exposedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExposureLogsCompanion(')
+          ..write('id: $id, ')
+          ..write('cardStateId: $cardStateId, ')
+          ..write('source: $source, ')
+          ..write('exposedAt: $exposedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -19796,6 +20118,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $HandwritingIntakeRunsTable(this);
   late final $HandwritingProposalsTable handwritingProposals =
       $HandwritingProposalsTable(this);
+  late final $ExposureLogsTable exposureLogs = $ExposureLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -19841,7 +20164,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         reasoningChains,
         reasoningSteps,
         handwritingIntakeRuns,
-        handwritingProposals
+        handwritingProposals,
+        exposureLogs
       ];
 }
 
@@ -29297,6 +29621,179 @@ typedef $$HandwritingProposalsTableProcessedTableManager
         ),
         HandwritingProposalRow,
         PrefetchHooks Function()>;
+typedef $$ExposureLogsTableCreateCompanionBuilder = ExposureLogsCompanion
+    Function({
+  required String id,
+  required String cardStateId,
+  required String source,
+  required int exposedAt,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$ExposureLogsTableUpdateCompanionBuilder = ExposureLogsCompanion
+    Function({
+  Value<String> id,
+  Value<String> cardStateId,
+  Value<String> source,
+  Value<int> exposedAt,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$ExposureLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExposureLogsTable> {
+  $$ExposureLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cardStateId => $composableBuilder(
+      column: $table.cardStateId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get exposedAt => $composableBuilder(
+      column: $table.exposedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ExposureLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExposureLogsTable> {
+  $$ExposureLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cardStateId => $composableBuilder(
+      column: $table.cardStateId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get exposedAt => $composableBuilder(
+      column: $table.exposedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ExposureLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExposureLogsTable> {
+  $$ExposureLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get cardStateId => $composableBuilder(
+      column: $table.cardStateId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<int> get exposedAt =>
+      $composableBuilder(column: $table.exposedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ExposureLogsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ExposureLogsTable,
+    ExposureLog,
+    $$ExposureLogsTableFilterComposer,
+    $$ExposureLogsTableOrderingComposer,
+    $$ExposureLogsTableAnnotationComposer,
+    $$ExposureLogsTableCreateCompanionBuilder,
+    $$ExposureLogsTableUpdateCompanionBuilder,
+    (
+      ExposureLog,
+      BaseReferences<_$AppDatabase, $ExposureLogsTable, ExposureLog>
+    ),
+    ExposureLog,
+    PrefetchHooks Function()> {
+  $$ExposureLogsTableTableManager(_$AppDatabase db, $ExposureLogsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExposureLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExposureLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExposureLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> cardStateId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<int> exposedAt = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExposureLogsCompanion(
+            id: id,
+            cardStateId: cardStateId,
+            source: source,
+            exposedAt: exposedAt,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String cardStateId,
+            required String source,
+            required int exposedAt,
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExposureLogsCompanion.insert(
+            id: id,
+            cardStateId: cardStateId,
+            source: source,
+            exposedAt: exposedAt,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ExposureLogsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ExposureLogsTable,
+    ExposureLog,
+    $$ExposureLogsTableFilterComposer,
+    $$ExposureLogsTableOrderingComposer,
+    $$ExposureLogsTableAnnotationComposer,
+    $$ExposureLogsTableCreateCompanionBuilder,
+    $$ExposureLogsTableUpdateCompanionBuilder,
+    (
+      ExposureLog,
+      BaseReferences<_$AppDatabase, $ExposureLogsTable, ExposureLog>
+    ),
+    ExposureLog,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29382,4 +29879,6 @@ class $AppDatabaseManager {
       $$HandwritingIntakeRunsTableTableManager(_db, _db.handwritingIntakeRuns);
   $$HandwritingProposalsTableTableManager get handwritingProposals =>
       $$HandwritingProposalsTableTableManager(_db, _db.handwritingProposals);
+  $$ExposureLogsTableTableManager get exposureLogs =>
+      $$ExposureLogsTableTableManager(_db, _db.exposureLogs);
 }

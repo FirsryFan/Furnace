@@ -48,10 +48,12 @@
 ### B. 闪存卡复习（趋势：把"评分"升级成"事件流"）
 
 - **已有**：tierA 全量 + tierB 快层 + 四段 bands + forced 重来 + 顾问式排序（不改到期日）。
-- **缺**：① `exposure`（看了没测）——读书/看补充资料也该进模型；② `wrong+reviewed_solution`/`closeness`/`grade` 的细分语义（现在只写 R0/Σ）；
+- **缺**：① ~~`exposure`（看了没测）——读书/看补充资料也该进模型~~ **已完成（轮次四十四）**：复习页"读过，没测自己" → `exposure_logs` + `reread` 事件；
+  ② `wrong+reviewed_solution`/`closeness`/`grade` 的细分语义（现在只写 R0/Σ）；
   ③ `run/1` 的幂等与存档回退；④ FEEDBACK 微调；⑤ 参数标定。
-- **落点**：`ReviewService.grade()` 改成构造一条 `review` 动作（含 reviewed_solution/closeness），新增"读过"入口发 `exposure`；
-  两张表之外的写入仍然只有 `encoding_strength`/`savings` 两列（D2 不变）。
+- **落点**：`ReviewService.grade()` 改成构造一条 `review` 动作（含 reviewed_solution/closeness）✅ 已完成（轮次三十六），
+  "读过"入口发 `exposure` ✅ 已完成（轮次四十四，`ReviewService.recordExposure`）；
+  两张表之外的写入仍然只有 `encoding_strength`/`savings` 两列（D2 不变）——曝光也只写这两列，FSRS 一列不碰。
 
 ### C. 给题目/知识点补充资料（趋势：资料进图，而不是只当附件）
 
@@ -74,7 +76,7 @@
 | 序 | 切片 | 为什么先做 | 验收 |
 | --- | --- | --- | --- |
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
-| 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 |
+| 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
@@ -106,6 +108,31 @@
   使 closeness 越大 Σ 增量越小（0.85 → 0.84，lapse 0.85），R0 两条路径都不动
   （只有 `retrieval_success` 抬 R0）。**断言必须建在"足够熟"的行上**：新卡 R≈0 时 `effort` 被钳到 1.0，两条路径的 Σ 完全相同。
 - 尚未做（切片 2 的另一半）：`exposure`（看了没测）入口——读书/看补充资料目前仍不进模型。
+
+### 切片 2 的另一半：`exposure`（读了没测，已完成 轮次四十四）
+
+- **语义来源**：`IO_PROTOCOL.md` §2.2 的五类动作（`time`/`review`/`exposure`/`knowledge`/`goal`）里，
+  `exposure` 是本应用此前唯一无法产生的一类；MindNet 把它翻译成 `kernel.review(node, {type:'reread'})`
+  （`src/io/run.js:278`），`mechanisms/memory.dsr.js` 里 reread 默认 `grade = 3`、S 增益乘
+  `kappa_reread_ratio`（0.1），且**只有 `retrieval_success` 抬 `R0`**。这两条向量
+  （`A06-applyReview-reread-t5/-t30`）本来就在 tierA 对拍里，所以这一片不新增数学。
+- **模型路径**：`ReviewService.recordExposure()` → `CognitiveModel.modelStateAfterReview(row,
+  rating: 3, nowHours, reread: true)`（接口早就有 `reread` 参数，不需要改接口）→ 只写
+  `card_states.encoding_strength/savings` 两列，**不调 `updateUnitCardState`**（到期日/streak 不动）、
+  **不写 `review_logs`**。
+- **存储**：schema v13 → v14，新表 `exposure_logs`（`id`/`card_state_id`/`source`/`exposed_at`/`created_at`）。
+  为什么不复用 `review_logs`：那张表是*测试*记录，留存率桶与 M6 标定曲线都从它算，曝光没有评分也没有
+  对错，塞进去要么给 `rating` 编值（NOT NULL），要么让"看了没测"被算成一次成功回忆。详见
+  `docs/DATA_MODEL.md` §12。
+- **UI**：`review_page.dart` 的 `_BottomBar` 在"答案已揭示、还没写库"（`_Feedback.awaitingSelfJudge`）
+  那一档多一个 `Icons.chrome_reader_mode` 按钮（`l10n.ankiExposureTooltip`），按下 → 记一条曝光 →
+  SnackBar 明说"这次不算复习，到期日不变" → 前移。到期日不变 ⇒ 本次会话不再出现，下次进复习页仍会出现。
+- **测试**（4 条，验收口径"读一次资料后 R/S 轨迹与只做错不同"）：
+  `dsr_card_state_test.dart` 的 `exposure: reading is not retrieval`（同一行上 reread 的 S 增益 < 成功、
+  > 0（不是零收益）、lapse 砍 S；`R0` 只有成功才抬）、`review_service_test.dart` 的
+  `exposure（读了但没测）`（`review_logs` 为空、FSRS 七列不变、模型两列写入且 R0 未抬）、
+  `review_page_test.dart`（按钮只在揭示答案后出现；按下后写曝光、不动到期日）、
+  `v14_migration_test.dart`（真实 v13 文件升级 + 老数据一行不少 + 自愈路径）。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 

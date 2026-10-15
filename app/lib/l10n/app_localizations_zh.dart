@@ -478,6 +478,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiNextCard => '下一张';
 
   @override
+  String get ankiExposureTooltip => '只算读过，不算一次复习：不改到期日，也不进复习记录';
+
+  @override
+  String get ankiExposureRecorded => '已记下「读过、没测」：这次不算复习，到期日不变';
+
+  @override
   String reviewZoneChip(Object zone) {
     return '模型看这块：$zone';
   }
@@ -2524,4 +2530,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperCopyDeferredHeading => '被上限挡下的知识点';
+
+  @override
+  String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
+
+  @override
+  String tasksDueAtConflictBody(String title, String range) {
+    return '「$title」$range 是忙碌日程块，不能排进去。';
+  }
+
+  @override
+  String tasksDueAtConflictMoveBefore(String moment) {
+    return '移到这块之前（$moment）';
+  }
+
+  @override
+  String tasksDueAtConflictMoveAfter(String moment) {
+    return '移到这块之后（$moment）';
+  }
+
+  @override
+  String get tasksDueAtConflictKeep => '保持不动';
+
+  @override
+  String get tasksDueAtConflictNoFreeMoment => '这个方向找不到空闲时段';
 }
