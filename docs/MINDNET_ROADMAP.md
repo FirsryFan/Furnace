@@ -58,7 +58,10 @@
 ### C. 给题目/知识点补充资料（趋势：资料进图，而不是只当附件）
 
 - **已有**：附件、知识包导入、AI 图片→闪存卡、markdown/LaTeX 渲染。
-- **缺**：① INGEST 的 `mindnet.material/1`（材料 → 节点/边/记忆记录）；② `knowledge` 动作（新知识点、新连接）；
+- **缺**：① INGEST 的 `mindnet.material/1`（材料 → 节点/边/记忆记录）—— **确定性转化已完成（轮次六十二：
+  `app/lib/domain/services/ingest/material_ingest.dart`，与 MindNet `src/ingest.js` 逐字段对拍，56 例；
+  "添加资料"入口（AI 产出信封 → 这一层 → `knowledge` 动作 + 出处进 `evidence`/`change_log`）未做）**；
+  ② `knowledge` 动作（新知识点、新连接）；
   ③ TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）；④ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5 已澄清语义差异）。
 - **落点**：新增"添加资料"入口 → 生成 `knowledge` 动作 +（可选）新卡片；把出处写到 `evidence`，进 `change_log`。
 
@@ -91,7 +94,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例；"添加资料"入口与 TRANSCRIBE 的照片→`run/1` 未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -448,6 +451,42 @@ MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的�
 证据：`app/test/features/cognitive/presentation/today_plan_page_test.dart` 7 例（真库：到期卡进清单且 priced in
 `retention`、未到期的卡不进、空的一天明说空、刷新重读；假清单：无价格不画价格行、两种度量分名、被裁件数如实报），
 全量回归 `flutter test --concurrency=1` → `+1678 ~2: All tests passed!`（轮次六十后是 `+1671 ~2`，差 7 = 这一页的 7 例）。
+
+### 切片 6 的一半：材料摄取 INGEST 第 ③ 步（Dart 端口，已完成 轮次六十二）
+
+为什么先做这一步：契约把材料摄取分成三步 —— 记号（人在页边写）、AI 提取（产出 `mindnet.material/1`
+清单）、**格式转化（确定性代码）**。前两步靠人和模型，第三步是纯函数，可以在这里做完并且被逐位对拍。
+`app/lib/domain/services/ingest/material_ingest.dart` 就是第三步：一份材料信封进去，出来三样正产品 ——
+规范清单（`MaterialStandardItem`，每条带记号/角色/出处/含义/是否进图/节点 id）、图补丁
+（`MaterialGraphPatch`，先节点后边）、以及可直接交给 `mindnet.run/1` 的请求（`MaterialRunRequest`：
+先建节点、再建边、把 `★` 设为目标，每条动作都带 `evidence` 的出处与"哪一页"）。
+
+确定性意味着可对拍：节点 id 走 32 位 FNV-1a（`en::w::resilient` / `en::s::9ef4708d` / `en::method::…`），
+同一页拍两次得到同一批 id（幂等键 `batch_id`，重复条目用 `duplicate_of` 复用节点）。这一层不写库、
+不发请求：`checkRunRequest` 只按 `io_check` 的语义在**影子图**上校验 —— 同一份请求里"先建节点、再给它们
+设目标"必须算合法，否则材料批量入库的正常形态会被误判成"目标不在图里"。
+
+对拍不是"照文档抄"：`app/tool/` 下留了一套三件式 harness（`ingest_parity_reference.cjs` 跑 MindNet 的
+`src/ingest.js` → `dart run tool/ingest_dump.dart` 跑这一层 → `ingest_parity_compare.cjs` 逐字段比较；
+需要外部 MindNet 检出与 node）。示例信封上的结果是 `PARITY OK`：6 节点 / 7 边 / 14 动作 / 6 条标准条目，
+除五处**有意差异**外逐字段相同 —— 五处都写进了 library doc 并被测试钉住：① `evidence.quote` 真的带页边
+那一行（JS 恒为 null）；② hub 的 region 写 `第 ? 页`（JS 会插值出 `第 undefined 页`）；③ 不做 NFC
+归一化（Dart 标准库无此函数，`pubspec.yaml` 也无此依赖）；④ `Number()` 语义里 `[]`/`{}` 一律算
+"不是数字"；⑤ 汇总不报"几张卡"（卡片是 INGEST §4 的可选呈现层，这一层不产出）。对拍第一次跑就抓到
+一个真差异：动作里的边多带了一个 `why` 键（`mindnet.run/1` 的 Edge 只有 `id/from/to/ls`），已改回去
+并加了断言 —— 这正是"照文档写"抓不到的那类错。
+
+三条刻意选择：① **整份拒绝**：校验不过就抛 `MaterialIngestException`，绝不让半份材料生效（顺序与
+`src/ingest.js` 一致，报错文案是人话 + 第几条）；② **不进图 ≠ 丢弃**：疑问/已知/提醒这些角色进 `skipped`
+并带原因，不认识的记号按"未分类"收下并给 `unknown-mark` 告警（INGEST §5 第三条不变量）；③ **不猜**：
+`meaning_source` 只认 `ai`/`user`，缺页边说明又用了省力通道就报错，材料元数据进节点 `meta`
+（`Node.from_object` 不读这个键，所以不破坏模型状态）。
+
+证据：`app/test/domain/services/ingest/material_ingest_test.dart` 56 例（对拍值：3 个 hash、6 个节点
+id/类型/名字、7 条边的顺序与权重、14 条动作与 `evidence`、汇总文案、幂等；报错族 16 种；告警族 7 种；
+角色优先级与 `duplicate_of`；`checkRunRequest` 正反例）。**还没做**的是把这一层接出去：
+① "添加资料"入口（AI 产出信封 → 这一层 → `knowledge` 动作 + 出处进 `evidence`/`change_log`）；
+② TRANSCRIBE 的"照片 → `run/1`"（含出处与置信度）；③ 资料与卡片的关联类型（线索边 vs 包含边）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

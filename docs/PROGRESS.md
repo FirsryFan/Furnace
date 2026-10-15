@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-10-16 轮次六十二：材料摄取的确定性核心（INGEST 第③步 Dart 端口，Lead）
+
+**做了什么**：roadmap §2-C / §3 第 6 行「材料摄取」的第一步 —— 契约把 INGEST 分成三步（记号由人在页边写、
+AI 提取出 `mindnet.material/1` 清单、**格式转化是确定性代码**），这一轮把第三步原样移植进本仓库。
+
+- **新文件** `app/lib/domain/services/ingest/material_ingest.dart`（约 1.7k 行，纯 Dart：不 import Flutter/drift、
+  不读照片、不调模型）：一份材料信封进去，出来三样正产品 —— 标准清单（`MaterialStandardItem`：记号/角色/
+  出处/含义/是否进图/节点 id）、图补丁（`MaterialGraphPatch`：先节点后边，边分 `contains`/`produce`/`topic`）、
+  可直接交给 `mindnet.run/1` 的请求（`MaterialRunRequest`：先建节点、再建边、★ 设为目标，每条动作带
+  `evidence{source, region, batch_id}`）。
+- **确定性**：节点 id 与参考实现同规则（32 位 FNV-1a → `en::w::resilient` / `en::s::9ef4708d` /
+  `en::t::9c90edeb` / `en::method::先抓连接词-再补细节`，主题 hub `en::topic::travel`）；`batch_id` 是幂等键，
+  重复条目用 `duplicate_of` 复用节点。`checkRunRequest` 只做 `io_check` 那类结构校验（**影子图**：同一份
+  请求里先建节点、再给它们设目标必须算合法）。
+- **对拍**：`app/tool/` 留下三件式 harness（`ingest_parity_reference.cjs` 用 node 跑 MindNet `src/ingest.js`
+  → `dart run tool/ingest_dump.dart` 跑这一层 → `ingest_parity_compare.cjs` 逐字段比较；需要外部
+  `E:\Document\MindNet` 检出，可用 `MINDNET_SRC` 覆盖）。示例信封上 `PARITY OK`：6 节点 / 7 边 / 14 动作 /
+  6 条标准条目，除五处有意差异外逐字段相同。
+- **五处有意差异**（都写进 library doc 并被测试钉住）：① `evidence.quote` 真的带页边那一行（JS 的 `meta`
+  没有 `margin_note`，恒 null）；② hub 的 region 写 `第 ? 页`（JS 插值出 `第 undefined 页`）；③ 不做 NFC
+  归一化（标准库无此函数、`pubspec.yaml` 无此依赖）；④ `Number()` 语义里 `[]`/`{}` 算"不是数字"；
+  ⑤ 汇总不报"几张卡"（卡片是 INGEST §4 的可选呈现层，这一层不产出）。
+
+**刻意选择**：
+
+1. **整份拒绝**：校验不过抛 `MaterialIngestException`（顺序与 `src/ingest.js` 一致、文案是人话 + 第几条），
+   绝不让半份材料生效 —— 材料入库是"要么整批进、要么不进"。
+2. **不进图 ≠ 丢弃**：疑问/已知/提醒进 `skipped` 并带原因；不认识的记号照收并给 `unknown-mark` 告警
+   （INGEST §5 第三条不变量"不认识的输入不会被丢，只会被标待归类"）。
+3. **对拍优先于"照文档写"**：第一次逐字段对拍就抓到动作里的边多带了一个 `why` 键（`mindnet.run/1` 的 Edge
+   只有 `id/from/to/ls`），已改回去并加断言；页码那处也按 JS 的 `Number(undefined)=NaN` 与
+   `Number(null)=0` 之分做了保真（键缺席 → 报"缺少 page"，显式 null → 0）。
+
+**证据**：`app/test/domain/services/ingest/material_ingest_test.dart` 56 例全绿 —— 对拍值（3 个 hash、6 个节点
+id/类型/名字、7 条边的顺序与权重、14 条动作与 `evidence`、汇总文案、幂等）、报错族 16 种、告警族 7 种、
+角色优先级与 `duplicate_of`、`checkRunRequest` 正反例（含"空 actions 合法"与"要建的节点已存在就报错"）。
+`dart analyze lib test` 仍是 95 issues（0 error / 0 warning，新文件 0 条）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1734 ~2: All tests passed!`（exit 0）。轮次六十一 后是
+`+1678 ~2`，差值 56 = 这一层的 56 例。
+
+**已知的没做**：这一层只是"信封 → 三样正产品"，还没有接线 —— ① "添加资料"入口（AI 产出信封 → 这一层
+→ `knowledge` 动作，出处进 `evidence`/`change_log`）；② TRANSCRIBE 的"照片 → `run/1`"（含出处与置信度）；
+③ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5）。`cards.json`/`tts.tsv`/`anki/` 这类
+呈现层按契约属于"本步之外"，这一层不做。
+
+---
+
 ## 2026-10-16 轮次六十一：界面上的今日清单（Q32c，Lead）
 
 **做了什么**：roadmap §1 控制层验收 / §3 第 5 行的最后一段 —— 轮次五十九 排好了序、轮次六十 交给了模型，
