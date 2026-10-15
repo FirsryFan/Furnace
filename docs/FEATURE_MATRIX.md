@@ -97,7 +97,7 @@
 | 日程块 CRUD：标题/开始/结束/重复规则字段、标签挂载（1.2.1） | ✅ | `features/timeboard/presentation/time_board_page.dart`（创建/编辑弹窗、可用状态切换、标签经 ObjectTags） |
 | 日程块重复规则展开（none/daily/weekly+dow…）（1.2.1） | 🔴 R3/R5 | `repeatRule` 列已在 `data/database/tables.dart`；解析/区间展开引擎 R3、UI 呈现 R5 |
 | 忙碌/开放语义与软性匹配推荐（D6：available=false＝忙碌硬块，计 Thread 硬约束占用、参与冲突检测、不可被建议采纳；available=true＝开放软块，供软性匹配与建议采纳，不计占用） | 🟡 缺口：语义并入 D6、软块推荐保留 → R3（O2 已结案 2026-09-07：available=true 本就是任务可排入的开放块，与 D6 同向，存量不翻转） | 引擎现按「适合类型」匹配（TaskScheduler 调度链路）；D6 解释已记入 ARCHITECTURE 4.1 |
-| 事件落在日程块内的冲突弹窗警告＋「移至该日程块之前/之后」一键调整（1.2.3） | 🟡 R5 | 任务侧已接：`domain/services/scheduling/schedule_conflict.dart`（半开区间、±1 分钟探测沿用 `TimeWindowEngine` 口径）＋`features/tasks/presentation/widgets/schedule_conflict_dialog.dart`，`task_detail_page.dart` 改截止时刻时弹警告并「移到这块之前/之后」；缺口：事件侧 expectedAt（`features/thread/presentation/event_properties_page.dart`）未接，期望用时可放进空闲区的联动未做 |
+| 事件落在日程块内的冲突弹窗警告＋「移至该日程块之前/之后」一键调整（1.2.3） | 🟡 R5 | 两侧都已接：`domain/services/scheduling/schedule_conflict.dart`（半开区间、±1 分钟探测沿用 `TimeWindowEngine` 口径）＋`features/tasks/presentation/widgets/schedule_conflict_dialog.dart`（同一个弹窗两侧共用）——任务侧 `task_detail_page.dart` 改**截止时刻**时警告（轮次四十六），事件侧 `features/thread/presentation/event_properties_page.dart` 改**期望时刻**时警告并「移到这块之前/之后」（轮次四十八，蓝图 2.4 / 用户 16：冲突时只挪期望位、不动 deadline）；缺口：期望用时可放进空闲区的联动未做 |
 | 向 Thread 确定性供数：当前时刻 / [t1,t2] 忙碌占用总时长 / 下一空闲窗口（1.2.3；联动 Time→Thread） | 🟡 缺口：现仅部分查询，需接口化 → R3 | `data/repositories/time_block_repository.dart`（消费方：ThreadRanker，R3） |
 | 今日安排汇总（含时间块已关联任务显示）（v0.1 保留能力） | ✅ | `time_board_page.dart` |
 

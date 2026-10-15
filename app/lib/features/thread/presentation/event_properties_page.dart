@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/database/database.dart';
 import '../../../../data/repositories/repository_providers.dart';
+import '../../../../domain/services/scheduling/schedule_conflict.dart';
 import '../../../../domain/services/scheduling/thread_ranker.dart';
+import '../../../../domain/services/scheduling/time_window_engine.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../settings/presentation/usage_doc_page.dart';
+import '../../tasks/presentation/widgets/schedule_conflict_dialog.dart';
 import '../application/thread_rank_service.dart';
 import 'widgets/energy_bar.dart';
 
@@ -95,7 +98,8 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _pick(DateTime? current, ValueChanged<DateTime?> apply) async {
+  /// 日期 + 时间两个选择器；任一被取消返回 null（调用方就不要动状态）。
+  Future<DateTime?> _chooseMoment(DateTime? current) async {
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -104,16 +108,94 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
       lastDate: DateTime(now.year + 3),
     );
     if (date == null || !mounted) {
-      return;
+      return null;
     }
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(current ?? now),
     );
-    if (time == null) {
+    if (time == null || !mounted) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// 选完**期望时刻**后的冲突检查（Q27 / 蓝图 2.4、用户 16）。
+  ///
+  /// 与 `task_detail_page.dart` 的 `_resolveDueAtConflict` 同一口径，但这里只服务
+  /// 期望时刻：`expected_at` 是排程的期望位，撞上忙碌日程块时该挪的就是它；
+  /// `deadline` 是硬承诺，本页不替用户改（蓝图：冲突时只挪期望位）。
+  ///
+  /// 弹窗是 Q23 已交付的同一个 [ScheduleConflictDialog]，文案复用
+  /// `tasksDueAtConflict*`——那些串本身只讲「撞上了日程块」，与期望/截止无关，
+  /// 所以本片不新增 l10n 键。
+  ///
+  /// 返回 null = 用户点掉了警告，**放弃这次选择**（`_expectedAt` 保持原值）。
+  /// 读日程块失败时不挡用户：冲突检查是提醒不是门禁，不能因为一次读库失败
+  /// 就让人选不了时刻。
+  Future<DateTime?> _resolveExpectedAtConflict(DateTime chosen) async {
+    final List<ScheduleBlock> blocks;
+    try {
+      blocks = await _scheduleBlocks();
+    } catch (_) {
+      return chosen;
+    }
+    final hit = ScheduleConflict.at(blocks: blocks, moment: chosen);
+    if (hit == null || !mounted) {
+      return chosen;
+    }
+    final before = ScheduleConflict.freeMomentBefore(blocks: blocks, hit: hit);
+    final after = ScheduleConflict.freeMomentAfter(blocks: blocks, hit: hit);
+    final choice = await showScheduleConflictWarning(
+      context: context,
+      hit: hit,
+      before: before,
+      after: after,
+    );
+    return switch (choice) {
+      ScheduleConflictChoice.before => before ?? chosen,
+      ScheduleConflictChoice.after => after ?? chosen,
+      ScheduleConflictChoice.keep => chosen,
+      null => null,
+    };
+  }
+
+  Future<void> _pickExpectedAt() async {
+    final chosen = await _chooseMoment(_expectedAt);
+    if (chosen == null || !mounted) {
       return;
     }
-    apply(DateTime(date.year, date.month, date.day, time.hour, time.minute));
+    final resolved = await _resolveExpectedAtConflict(chosen);
+    if (resolved == null || !mounted) {
+      return;
+    }
+    setState(() => _expectedAt = resolved);
+  }
+
+  /// 截止时刻本片**不做**冲突解析（蓝图：冲突时只挪期望位），行为与改动前一致。
+  Future<void> _pickDeadline() async {
+    final chosen = await _chooseMoment(_deadline);
+    if (chosen == null || !mounted) {
+      return;
+    }
+    setState(() => _deadline = chosen);
+  }
+
+  /// 把 `time_blocks` 行映射成引擎的 [ScheduleBlock]（与 `task_detail_page.dart`
+  /// 里那份映射同口径，只是这里在 presentation 层读表）。
+  Future<List<ScheduleBlock>> _scheduleBlocks() async {
+    final rows = await ref.read(timeBlockRepositoryProvider).getTimeBlocks();
+    return [
+      for (final row in rows)
+        ScheduleBlock(
+          id: row.id,
+          title: row.title,
+          startAt: DateTime.fromMillisecondsSinceEpoch(row.startAt),
+          endAt: DateTime.fromMillisecondsSinceEpoch(row.endAt),
+          available: row.available,
+          repeatRule: row.repeatRule,
+        ),
+    ];
   }
 
   @override
@@ -187,10 +269,7 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
                       enabled: _expectedAt != null),
                   child: _MomentField(
                     value: _expectedAt,
-                    onPick: () => _pick(
-                      _expectedAt,
-                      (value) => setState(() => _expectedAt = value),
-                    ),
+                    onPick: _pickExpectedAt,
                   ),
                 ),
                 _ParameterCard(
@@ -200,10 +279,7 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
                       enabled: _deadline != null),
                   child: _MomentField(
                     value: _deadline,
-                    onPick: () => _pick(
-                      _deadline,
-                      (value) => setState(() => _deadline = value),
-                    ),
+                    onPick: _pickDeadline,
                   ),
                 ),
                 _ParameterCard(

@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-10-16 轮次四十九：自由挖空 + 错题强制绑定接进复习 UI（Q26，teammate threadflow-engine）
+
+**结论（先 recon 再动手）**：算法/表/队列车道早已在——`app/lib/domain/services/cloze/cloze_engine.dart`
+的 `ForcedMachine.grade`/`chooseSlot`/`discoverCandidates`、`CardStates.forced`/`forcedStreak`
+（`app/lib/data/database/tables.dart:314-319`）、`app/lib/features/anki/application/review_service.dart:271-282`
+的强制车道都实现且有测试。缺的确实是**用户路径**：句中 `______` 是死文本，
+「今天之内再出现」只能等下一轮队列。
+
+**做了什么**
+- 新增纯逻辑 `app/lib/domain/services/cloze/forced_loop.dart`（会话内重做计划：答错 → 立即重做；
+  答对一次 → 约 10 分钟后再现；连续两次答对 → 解除；重插间隔由调用方传入既有常量
+  `ReviewService.relearnGapCards = 3`，不另立口径）与 `app/lib/domain/services/cloze/cloze_layout.dart`
+  （把 `______` 拆成 prefix/blank/suffix，槽位下标缺失或与下划线错位时返回 null）。
+- `ReviewOutcome` 增 `immediateRedo`（默认 false，只加不改语义）；新增 `ReviewService.refreshItem()`——
+  `grade()` 的契约是「`item.cardState` 是本次作答之前的行」，会话内重做必须先读新行，
+  否则 D11 的「连续两次答对」永远数不到第二次（反例已写进测试）。
+- 复习页：挖空就地渲染（`ValueKey('cloze-sentence')` + `ClozeLayout`）、答案填回那个空、
+  「新空」chip（`isNew`）、会话内闭环（`_reinsertForced` + `_skipGatedCards` + 与 `_queue` 平行的
+  `_floors` + `_sessionForced`）、没到 10 分钟下限时的等待态（`_ForcedWaitState`，分钟数取
+  `ForcedLoop.waitRemaining`）。模板卡 / 单选 / 自评三条路径行为未变（13 条既有 review_page 用例继续绿）。
+
+**口径分歧的显式选择**：D11 写「答错立即重做 → 约 10 分钟短间隔再出现」，而 `buildQueue`
+（`review_service.dart:271-282`）对强制卡只看位置、不看 `dueAt`——取「两个门都要过、取下限更晚者」，
+并在 `forced_loop.dart` 的 doc 与测试注释里写明这是对既有口径差异的选择、不是新规则。
+
+**验收**：`flutter test test/features/anki test/domain/services/cloze --concurrency=1` → `+128 All tests passed!`；
+全量 `flutter test --concurrency=1` → `+1578 ~2 All tests passed!`；`dart format` 0 changed；
+该切片 0 error / 0 warning（`dart format` 顺带重排 12 个既有文件，抽样确认为纯换行、无语义改动）。
+本片 3 个 ARB 键（`knowledgeForcedWait`/`knowledgeForcedWaitCheck`/`knowledgeNewBlank`）随轮次四十八的
+提交一起落库——ARB 与生成文件无法按 slice 切分。
+
+**遗留**：10 分钟「到点放行」在 widget 测试里无法模拟（页面读真实时钟、没有可注入的钟），
+由纯规则测试 + service 层 streak 测试覆盖。
+
+## 2026-10-16 轮次四十八：事件侧期望时刻的冲突警告——Q23 的另一半（Q27，Lead）
+
+**做了什么**
+- `app/lib/features/thread/presentation/event_properties_page.dart`：`_pick` 拆成
+  `_chooseMoment`（日期 + 时间两个选择器，取消返回 null）/ `_pickExpectedAt` / `_pickDeadline`；
+  新增 `_resolveExpectedAtConflict(chosen)`（`ScheduleConflict.at` → `freeMomentBefore`/`freeMomentAfter`
+  → 复用 Q23 的 `showScheduleConflictWarning`）与 `_scheduleBlocks()`
+  （`timeBlockRepositoryProvider` → `ScheduleBlock`，与 `task_detail_page.dart:256-269` 同口径）。
+- 新测试 `app/test/features/thread/presentation/event_properties_page_test.dart` 7 例（**先写先红**：
+  实现前 4 条冲突用例失败、3 条「不撞 / 改截止时刻」通过，正好把缺口钉在「选完时刻到落库之间」）。
+
+**为什么**
+- `docs/DESIGN_BLUEPRINT.md:85`（用户 16）与 `docs/GAP_ANALYSIS.md:54` 的分工是 `expected_at` = 排程的
+  期望位、`deadline` = 硬承诺，冲突时**只挪期望位**。轮次四十六接的是任务侧 `dueAt`，事件侧一直是空的。
+- 不新造规则、不新增 l10n 键：判定与候选时刻全部来自 Q23 已交付的领域层与弹窗；
+  `tasksDueAtConflict*` 的文案本身只讲「撞上了日程块」，与期望/截止无关。
+- 读日程块失败不挡用户（冲突检查是提醒不是门禁）；点掉弹窗 = 放弃这次选择（期望时刻保持原值）；
+  找不到空闲时刻的那个方向按钮禁用并说明——都是 Q23 已经钉住的口径，这里只做同样的接线。
+
+**验收**
+- `flutter test test/features/thread/presentation/event_properties_page_test.dart --concurrency=1`
+  → `+7 All tests passed!`；`flutter test test/features/thread --concurrency=1` → `+27 All tests passed!`。
+- `dart analyze`（两个改动文件）→ 仅 1 条既有 info（`event_properties_page.dart:337` 的
+  `prefer_function_declarations_over_variables`，改动前就在）；`dart format` 第二次跑 0 变更。
+- 事件侧**没有**动 deadline：第 7 条用例专门钉住「改截止时刻不弹警告、期望时刻不被碰」。
+
 ## 2026-10-16 轮次四十七：注意力可用性上屏——线程页顶部第一次给出 α(τ) 读数（Q25，Lead）
 
 **做了什么**
