@@ -21,8 +21,9 @@ import 'package:furnace/features/thread/application/thread_rank_service.dart';
 /// decided - that belongs to the cognitive layer's own tests.
 ///
 /// The ids in here are deliberately *not* interchangeable: a knowledge point is
-/// `kp-…` and a tag is `tag-…`, so a test that used one for both would hide the
-/// translation the provider has to do.
+/// `kp-…` and a tag is `tag-…`, so a test that used one for both would hide a
+/// broken link. The translation itself lives in the domain entry points (Q8) and
+/// is pinned by `test/features/cognitive/knowledge_point_key_space_test.dart`.
 void main() {
   late AppDatabase db;
 
@@ -81,9 +82,11 @@ void main() {
         await seedTaggedTask(tagName: '数学', knowledgePointTitle: '一次函数');
     final container = containerWith(
       LibraryDiagnosis(
-        // 键是**标签 id**：快层的图节点就是标签行（`cognitive_graph.dart` 的
-        // `CognitiveTag.fromTag` 直接取 `row.id`），诊断只认识标签。
-        byKnowledgePoint: {seeded.tagId: BottleneckType.danger},
+        // 键是**知识点 id**：Q8 之后，标签 → 知识点的翻译发生在
+        // `LibraryDiagnosisRunner.run` 里（它认识标签图，出口一律是调用方的键），
+        // 所以页面 provider 交出来的是 kp 键的结论。桥本身由
+        // `test/features/cognitive/knowledge_point_key_space_test.dart` 用真实数据钉住。
+        byKnowledgePoint: {seeded.knowledgePointId: BottleneckType.danger},
         fastLayerRan: true,
       ),
     );
@@ -99,7 +102,7 @@ void main() {
     final reading = inputs.readings.single;
     expect(reading.knowledgePointId, seeded.knowledgePointId);
     expect(reading.inDangerZone, isTrue,
-        reason: '标签上的结论必须翻译到知识点 id 上，否则真实数据里永远匹配不上');
+        reason: '结论按知识点 id 查得到，否则真实数据里永远匹配不上');
     expect(inputs.knowledgePointNames[seeded.knowledgePointId], '一次函数');
     expect(inputs.tags.single.name, '数学');
     expect(inputs.taskTagLinks.single.taskId, seeded.task.id);
@@ -126,7 +129,7 @@ void main() {
         await TaskRepository(db).createTask(title: '随便一件事', estimateMinutes: 15);
     final container = containerWith(
       LibraryDiagnosis(
-        byKnowledgePoint: {seeded.tagId: BottleneckType.danger},
+        byKnowledgePoint: {seeded.knowledgePointId: BottleneckType.danger},
         fastLayerRan: true,
       ),
     );

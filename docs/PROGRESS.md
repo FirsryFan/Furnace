@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-10-16 轮次三十：观察层键空间统一（Q8，Lead）
+
+接轮次二十九发现的缺陷：快层的图节点是**标签**，而页面/题目手里是**知识点**。上一轮只在
+threadflow 一条路上绕开，这一轮把桥挪进领域入口 —— 另外两条路（认知页、卡点评估）同样中招。
+
+- **桥**（新）：`app/lib/domain/services/cognitive/knowledge_point_tag_bridge.dart`
+  —— `tagIdsByKnowledgePoint` / `tagIdsOf` / `tagIdsOfAll` / `expandKeys` /
+  `verdictsByKnowledgePoint`（一个知识点挂多个标签时取**有结论且 id 最小**的那个，与 Q6 同规则；
+  纯函数、无 IO、结果与输入顺序无关）。
+- **领域入口收口**：`LibraryDiagnosisRunner.run`（`lib/domain/services/cognitive/library_diagnosis.dart`）
+  与 `ProblemEvaluator.evaluate`（`lib/domain/services/cognitive/problem_evaluator.dart`）各加一个
+  可选参数 `tagIdsByKnowledgePoint`：传了就先把行/起点/目标展开成标签键再进图，出图时把标签键的
+  结论**翻回知识点键**。不传 = 旧行为，所以既有的 168 个认知用例（fixture 两边用同一个字符串）
+  一字未改、全绿。
+- **三条调用路径统一**：`cognitive_model_page.dart` 的 `cognitiveLibraryDiagnosisProvider`
+  （新增 `knowledgePointTagIdsProvider` 只负责读 `ObjectTags`）与 `cognitiveReadingsProvider`
+  直接吃已是 kp 键的结论；`thread_balance_provider.dart` 删掉自己做的那份翻译；
+  `cognitive_tools.dart`（AI 工具）走同一个参数。
+- **契约定为**：进出口都是**知识点 id**，标签只是快层内部的图节点。这样"一个数字一个来源"
+  （D2）不需要每个消费者各自记得翻译。
+- **证据（实测）**：新增 `test/domain/services/cognitive/knowledge_point_tag_bridge_test.dart`
+  （15）+ `test/features/cognitive/knowledge_point_key_space_test.dart`（4，用真实仓储建出**不同**的
+  `kp-…`/`tag-…`）→ `+19 All tests passed!`；其中哨兵用例**不传映射时断言 `fastLayerRan == false`**
+  （把缺陷本身钉成测试），传了之后断言 `true` 且结论键里没有一个 `tag-…` 漏出来。
+  `flutter test test/features/ai/cognitive_tools_test.dart test/domain/services/cognitive`
+  → `+168 All tests passed!`（Q8 后回归）。
+- **旧测试为什么没抓到**：`library_diagnosis_test.dart:50-51` 用 `kp-1` 同时当标签 id 与知识点 id，
+  两套键空间在 fixture 里被压成了一套。教训写进 `docs/THREADFLOW_TWO_SEGMENT.md` §8.5。
+- **未做**：`reasonZh` 的 l10n（中文串仍在领域层）；AE 权重标定；把卡点/度量接进 AI 工具。
+
+---
+
 ## 2026-10-15 轮次二十九：ThreadFlow 两段式接进 App + 发现观察层键空间缺陷（Q6，Lead）
 
 - **段 B 接线的四层**：纯数据 `app/lib/domain/services/scheduling/thread_balance_inputs.dart`

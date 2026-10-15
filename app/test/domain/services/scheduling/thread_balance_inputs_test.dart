@@ -10,6 +10,26 @@ void main() {
       ObjectTagLink(tagId: tagId, objectType: 'task', objectId: id);
 
   group('task -> knowledge point resolution (shared tag)', () {
+    test('the same rule serves questions (v12), not just tasks', () {
+      final resolved = TaskKnowledgePointResolver.resolveFromTagLinks(
+        [
+          const ObjectTagLink(
+              tagId: 't-math', objectType: 'question', objectId: 'q-1'),
+          const ObjectTagLink(
+              tagId: 't-math', objectType: 'question', objectId: 'q-2'),
+          kp('t-math', 'kp-derivative'),
+        ],
+        sourceObjectType: kQuestionObjectType,
+      );
+
+      // Default (`task`) would ignore both rows: the object type is a parameter,
+      // the shared-tag rule is not.
+      expect(resolved, {
+        'q-1': ['kp-derivative'],
+        'q-2': ['kp-derivative'],
+      });
+    });
+
     test('a task and a knowledge point on the same tag are linked', () {
       final resolved = TaskKnowledgePointResolver.resolveFromTagLinks([
         task('t-math', 'task-1'),

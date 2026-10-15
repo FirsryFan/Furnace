@@ -33,23 +33,30 @@ class ObjectTagLink {
 /// 认知页的读取逻辑用同一个字符串（本项目没有外键，字符串就是契约）。
 const String kKnowledgePointObjectType = 'knowledge_point';
 
-/// 任务 → 知识点：靠**共享标签**推出。
+/// `ObjectTags.objectType` 里题目的取值（schema v12 的 `questions` 表）。
+const String kQuestionObjectType = 'question';
+
+/// 共享标签 → (对象 → 知识点)。
 ///
 /// 规则（纯确定性、可测试）：
 ///
-/// * 一个任务挂了标签 T，一个知识点也挂了标签 T ⇒ 这个任务练这个知识点；
-/// * 一个任务挂多个标签时取它们的**并集**（不是交集）；
-/// * 推不出任何知识点的任务**不出现在结果里**——"没有挂载"和"挂载了 0 个"
-///   是两件事，段落 B 对两者的处理不同（前者不参与认知有效性），所以这里
-///   直接省略，让调用方看得见；
-/// * 重复链接自动去重，结果里的任务 id 与知识点 id 都排序，保证同一份输入
+/// * 一个对象挂了标签 T，一个知识点也挂了标签 T ⇒ 这个对象（任务或题目）
+///   涉及这个知识点；
+/// * 一个对象挂多个标签时取它们的**并集**（不是交集）；
+/// * 推不出任何知识点的对象**不出现在结果里**——"没有挂载"和"挂载了 0 个"
+///   是两件事，调用方对两者的处理不同，所以这里直接省略，让调用方看得见；
+/// * 重复链接自动去重，结果里的对象 id 与知识点 id 都排序，保证同一份输入
 ///   永远给出同一份输出。
+///
+/// 名字里的 "Task" 是历史（它最早只服务 ThreadFlow）；规则本身与对象类型无关，
+/// 想推题目就传 `sourceObjectType: kQuestionObjectType`。
 abstract final class TaskKnowledgePointResolver {
   static Map<String, List<String>> resolveFromTagLinks(
-    List<ObjectTagLink> links,
-  ) {
+    List<ObjectTagLink> links, {
+    String sourceObjectType = kTaskObjectType,
+  }) {
     final knowledgePointsByTag = <String, Set<String>>{};
-    final tasksByTag = <String, Set<String>>{};
+    final sourcesByTag = <String, Set<String>>{};
     for (final link in links) {
       final tagId = link.tagId.trim();
       final objectId = link.objectId.trim();
@@ -58,27 +65,28 @@ abstract final class TaskKnowledgePointResolver {
       }
       if (link.objectType == kKnowledgePointObjectType) {
         (knowledgePointsByTag[tagId] ??= <String>{}).add(objectId);
-      } else if (link.objectType == kTaskObjectType) {
-        (tasksByTag[tagId] ??= <String>{}).add(objectId);
+      } else if (link.objectType == sourceObjectType) {
+        (sourcesByTag[tagId] ??= <String>{}).add(objectId);
       }
     }
 
-    final knowledgePointsByTask = <String, Set<String>>{};
-    final tagIds = tasksByTag.keys.toList()..sort();
+    final knowledgePointsBySource = <String, Set<String>>{};
+    final tagIds = sourcesByTag.keys.toList()..sort();
     for (final tagId in tagIds) {
       final knowledgePoints = knowledgePointsByTag[tagId];
       if (knowledgePoints == null || knowledgePoints.isEmpty) {
         continue;
       }
-      for (final taskId in tasksByTag[tagId]!) {
-        (knowledgePointsByTask[taskId] ??= <String>{}).addAll(knowledgePoints);
+      for (final sourceId in sourcesByTag[tagId]!) {
+        (knowledgePointsBySource[sourceId] ??= <String>{})
+            .addAll(knowledgePoints);
       }
     }
 
-    final taskIds = knowledgePointsByTask.keys.toList()..sort();
+    final sourceIds = knowledgePointsBySource.keys.toList()..sort();
     return <String, List<String>>{
-      for (final taskId in taskIds)
-        taskId: knowledgePointsByTask[taskId]!.toList()..sort(),
+      for (final sourceId in sourceIds)
+        sourceId: knowledgePointsBySource[sourceId]!.toList()..sort(),
     };
   }
 }

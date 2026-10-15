@@ -17,6 +17,7 @@ import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart'
     show representativeCardRow;
 import '../../../domain/services/cognitive/problem_evaluator.dart';
@@ -151,13 +152,34 @@ class EvaluateProblemFitTool extends AiTool {
       for (final row in await _tags.getAllTags()) CognitiveTag.fromTag(row),
     ];
     final rows = <String, CardState>{};
+    // Knowledge-point -> tag links, collected while reading the points: the
+    // evaluator's graph is built from **tags**, so the rows below have to be
+    // translated into that key space (same bridge as the page and the thread
+    // feed - see `docs/THREADFLOW_TWO_SEGMENT.md` §8.3 for the silent failure
+    // this prevents).
+    final links = <ObjectTagLink>[];
     for (final point in await _anki.getKnowledgePoints()) {
       final states = await _anki.unitStatesForKnowledgePoint(point.id);
       final row = _representativeRow(states);
-      if (row != null) {
-        rows[point.id] = row;
+      if (row == null) {
+        continue;
+      }
+      rows[point.id] = row;
+      for (final tag in await _tags.tagsForObject(
+        objectType: kKnowledgePointObjectType,
+        objectId: point.id,
+      )) {
+        links.add(
+          ObjectTagLink(
+            tagId: tag.id,
+            objectType: kKnowledgePointObjectType,
+            objectId: point.id,
+          ),
+        );
       }
     }
+    final tagIdsByKnowledgePoint =
+        KnowledgePointTagBridge.tagIdsByKnowledgePoint(links);
 
     final report = ProblemEvaluator.evaluate(
       candidates: limited,
@@ -167,6 +189,9 @@ class EvaluateProblemFitTool extends AiTool {
       nowHours: modelHoursOf(moment),
       startKnowledgePointIds:
           args.optStringList('start_knowledge_point_ids') ?? const <String>[],
+      // Same boundary as the page: the evaluator translates into the graph's tag
+      // key space and reports back in knowledge-point ids (Q8).
+      tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
     );
 
     final counts = <String, int>{};

@@ -243,13 +243,41 @@ PROBE tag-keyed   fastLayerRan=true  byKnowledgePoint={tag-15384e3e-…: empty, 
 `library_diagnosis_test.dart` 没抓到它，因为它的 fixture 用 `kp-1` 同时当标签 id
 和知识点 id（`:50-51` 的 `tag('kp-1')`）。
 
-* **Q6 自己的处理**：`thread_balance_provider.dart` 先做 `kp → tags` 翻译
+* **Q6 当场做的**：`thread_balance_provider.dart` 在**调用点**做 `kp → tags` 翻译
   （`ObjectTags` 里 `objectType == 'knowledge_point'` 的行），一个知识点有多个标签时
-  取 id 最小且**有结论**的那个，保证确定性；理由行的名字另走
-  `KnowledgePoints.title`（`domain_balance.dart` 的 `knowledgePointNames`），
-  所以 UI 上不会出现 `kp-…` 这种裸 id。
-* **上游（M1 观察层）尚未修**：认知页与复习页仍按知识点 id 查标签键的结论。这是一条
-  独立缺陷，需要单独的切片（同一份 `kp → tag` 桥 + D2 口径），不能混在 Q6 里静默改掉。
+  取 id 最小且**有结论**的那个，保证确定性。理由行的名字另走
+  `KnowledgePoints.title`，所以 UI 上不会出现 `kp-…` 这种裸 id。
+  （Q8 把这件事搬进了领域入口，见 §8.5；调用点只剩“把挂载表读出来”。）
+* **M1 观察层当时未修**：认知页与复习页仍按知识点 id 查标签键的结论。当时判断这是一条
+  独立缺陷，不能混在 Q6 里静默改掉 —— 结论没变，但它的**影响面比想象的大**（见 §8.5）。
+
+### 8.5 Q8：把翻译收进领域入口（已修）
+
+Q6 只在 threadflow 这一条路上绕开了键空间，于是同一个缺陷还留在另外两条路上：
+`cognitiveLibraryDiagnosisProvider`（认知页）与 `ProblemEvaluator.evaluate`（卡点评估
+拿学生状态）。Q8 把桥挪到**两个领域入口**，让契约保持“进出口都是知识点 id”。
+
+* 桥：`app/lib/domain/services/cognitive/knowledge_point_tag_bridge.dart`
+  —— `tagIdsByKnowledgePoint` / `tagIdsOf` / `tagIdsOfAll` / `expandKeys` /
+  `verdictsByKnowledgePoint`（一个 kp 多个标签时取**有结论且 id 最小**的，与 Q6 同规则）。
+* `LibraryDiagnosisRunner.run` 新增可选 `tagIdsByKnowledgePoint`
+  （`app/lib/domain/services/cognitive/library_diagnosis.dart`）：传了就先把
+  `rowsByKnowledgePoint` / `startKnowledgePointIds` / `targetKnowledgePointIds`
+  展开成标签键再进图，出图时把标签键的结论翻回**知识点键**。不传 = 旧行为。
+* `ProblemEvaluator.evaluate` 同样新增该参数（`.../problem_evaluator.dart`）：
+  学生状态行、起点、每个选项的目标都先翻译；判卷时仍用**知识点键**的 `rowsById`。
+* `cognitive_model_page.dart` 的 `cognitiveLibraryDiagnosisProvider` 与
+  `cognitiveReadingsProvider` 直接吃 `diagnosis.byKnowledgePoint`（已经是 kp 键）；
+  新增 `knowledgePointTagIdsProvider` 只负责把挂载表读出来。
+* `thread_balance_provider.dart` 不再自己翻译。
+* `cognitive_tools.dart`（AI 工具）走同一个参数，三个入口一套规则。
+
+**验收（实测）**：`test/domain/services/cognitive/knowledge_point_tag_bridge_test.dart`
+（15 例，规则）+ `test/features/cognitive/knowledge_point_key_space_test.dart`（4 例，
+用真实仓储建出**不同**的 `kp-…` / `tag-…`）→ `All tests passed!`（19）。其中哨兵用例
+在不传映射时断言 `fastLayerRan == false`（缺陷本身）、传了之后断言 `true` 且结论键里
+**没有一个** `tag-…` 漏出来 —— 旧 `library_diagnosis_test.dart` 的 fixture 两边用同一个
+字符串，所以它永远看不到这个问题。
 
 ### 8.4 证据（本次实际运行）
 
@@ -258,4 +286,6 @@ PROBE tag-keyed   fastLayerRan=true  byKnowledgePoint={tag-15384e3e-…: empty, 
 * `dart analyze lib test` → `error=0 warning=0 info=94`（与基线同数）。
 * `flutter test test/features/thread test/domain/services/scheduling`
   → `All tests passed!`（81 个用例：段 A/B 领域 71 + Thread 服务 7 + 新增 provider 3）。
+* `flutter test test/features/ai/cognitive_tools_test.dart test/domain/services/cognitive`
+  → `All tests passed!`（168；Q8 后回归，见 §8.5）。
 

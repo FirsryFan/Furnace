@@ -21,7 +21,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/repository_providers.dart';
-import '../../../domain/services/cognitive/fast_diagnosis.dart';
 import '../../../domain/services/scheduling/cognitive_readings.dart';
 import '../../../domain/services/scheduling/domain_balance.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
@@ -62,33 +61,13 @@ final threadBalanceInputsProvider =
             knowledgePointIds,
           );
 
-  // 键空间翻译（实测，Q6）：`Tags.id` 是 `tag-…`，`KnowledgePoints.id` 是
-  // `kp-…`（`anki_repository.dart:25` 的 `_newId('kp')`），**两者不是同一个
-  // 命名空间**。而 `LibraryDiagnosis.byKnowledgePoint` 的键是**标签 id**——
-  // 快层的图节点就是标签行（`cognitive_graph.dart:105` 的
-  // `CognitiveTag.fromTag` 直接取 `row.id`），诊断也是按 `tag.id` 去查
-  // `rowsByKnowledgePoint` 的（`library_diagnosis.dart:147-157`）。
-  // 排序这边要按**知识点 id** 对齐（任务挂的是知识点），所以必须先翻译：
-  // 一个知识点可以有多个标签，取 id 最小的那个有诊断结论的标签，保证确定性。
-  final tagIdsByKnowledgePoint = <String, List<String>>{};
-  for (final row in linkRows) {
-    if (row.objectType != kKnowledgePointObjectType) continue;
-    (tagIdsByKnowledgePoint[row.objectId] ??= <String>[]).add(row.tagId);
-  }
-  final verdictsByKnowledgePoint = <String, BottleneckType>{};
-  if (diagnosis.fastLayerRan) {
-    final knowledgePointIds = tagIdsByKnowledgePoint.keys.toList()..sort();
-    for (final knowledgePointId in knowledgePointIds) {
-      final tagIds = tagIdsByKnowledgePoint[knowledgePointId]!..sort();
-      for (final tagId in tagIds) {
-        final verdict = diagnosis.byKnowledgePoint[tagId];
-        if (verdict != null) {
-          verdictsByKnowledgePoint[knowledgePointId] = verdict;
-          break;
-        }
-      }
-    }
-  }
+  // 键空间（Q8）：`Tags.id` 是 `tag-…`，`KnowledgePoints.id` 是 `kp-…`，而快层
+  // 图节点是标签。翻译已经收进 `LibraryDiagnosisRunner.run`（认知页把
+  // `KnowledgePointTagBridge` 的映射交给它），所以这里拿到的
+  // `byKnowledgePoint` 已经是**知识点键**，排序这边不需要再翻一次——一份口径，
+  // 一个地方实现（`domain/services/cognitive/knowledge_point_tag_bridge.dart`）。
+  final verdictsByKnowledgePoint =
+      diagnosis.fastLayerRan ? diagnosis.byKnowledgePoint : null;
 
   return ThreadBalanceInputs(
     taskKnowledgePoints: taskKnowledgePoints,
@@ -96,8 +75,7 @@ final threadBalanceInputsProvider =
       knowledgePointIds: knowledgePointIds,
       // fastLayerRan == false 是"这轮没跑"，不是"库很健康"：传 null 才能让
       // 段落 B 知道"诊断缺席"，而不是"诊断过、没问题"。
-      diagnosisByKnowledgePoint:
-          diagnosis.fastLayerRan ? verdictsByKnowledgePoint : null,
+      diagnosisByKnowledgePoint: verdictsByKnowledgePoint,
       priors: priors,
     ),
     tags: <DomainTag>[

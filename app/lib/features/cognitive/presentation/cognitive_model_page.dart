@@ -45,6 +45,7 @@ import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
+import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/cognitive/learning_metrics.dart';
 import '../../../domain/services/cognitive/metacognition.dart';
@@ -704,6 +705,31 @@ final learningMetricsProvider =
   return LearningMetrics.read(samples: samples);
 });
 
+/// 知识点 id → 它直挂的标签 id（Q8）。
+///
+/// 这一层存在是因为**两套 id 不是一回事**：知识点是 `kp-…`，标签是 `tag-…`，
+/// 而认知快层的图节点是标签（`cognitive_graph.dart` 的 `CognitiveTag.fromTag`
+/// 直接取 `row.id`）。页面手里的是知识点，runner 要的是图节点，所以读一次
+/// `object_tags` 交给 [KnowledgePointTagBridge] 翻译。
+///
+/// 以前没有这一层：页面把知识点 id 直接当图节点 id 传进去，`starts`/`targets`/
+/// `rowsByKnowledgePoint` 在真实数据上全被丢掉，界面永远显示"这轮没诊断"
+/// （实测与解释见 `docs/THREADFLOW_TWO_SEGMENT.md` §8.3）。
+final knowledgePointTagIdsProvider =
+    FutureProvider.autoDispose<Map<String, List<String>>>((ref) async {
+  ref.watchDatabaseRevision();
+  final db = ref.watch(appDatabaseProvider);
+  final rows = await db.select(db.objectTags).get();
+  return KnowledgePointTagBridge.tagIdsByKnowledgePoint(<ObjectTagLink>[
+    for (final row in rows)
+      ObjectTagLink(
+        tagId: row.tagId,
+        objectType: row.objectType,
+        objectId: row.objectId,
+      ),
+  ]);
+});
+
 /// The reading the page shows: the injected model's numbers, the advisor's
 /// bands, the fast layer's zones - nothing else.
 final cognitiveReadingsProvider =
@@ -719,6 +745,11 @@ final cognitiveReadingsProvider =
     boostFactorByKnowledgePoint: inputs.boostFactorByKnowledgePoint,
     // `null` (not `{}`) when the layer did not run: the advisor turns that into
     // "unavailable", which is the honest zone for "nothing was diagnosed".
+    //
+    // The verdicts are keyed by knowledge point already: the runner translates
+    // the graph's tag-keyed nodes back into the caller's key space (Q8), so every
+    // consumer downstream (`review_advisory`, the review page, the AI tool) can
+    // keep looking up by knowledge point.
     diagnosisByKnowledgePoint:
         diagnosis.fastLayerRan ? diagnosis.byKnowledgePoint : null,
     fastLayerRan: diagnosis.fastLayerRan,
@@ -800,6 +831,16 @@ final cognitiveLibraryDiagnosisProvider =
         entry.key,
   ];
 
+  // Everything above is keyed by **knowledge point** (`kp-…`) because that is
+  // what cards and observations hang off. The runner's graph is built from
+  // **tags** (`tag-…`), so we hand it the bridge and it translates in and out
+  // (`LibraryDiagnosisRunner.run`, Q8). Without that translation the runner
+  // silently drops every row and start, and the page shows "no diagnosis yet" no
+  // matter how much data there is - the bug documented in
+  // `docs/THREADFLOW_TWO_SEGMENT.md` §8.3.
+  final tagIdsByKnowledgePoint =
+      await ref.watch(knowledgePointTagIdsProvider.future);
+
   return LibraryDiagnosisRunner.run(
     tags: tags,
     rowsByKnowledgePoint: rows,
@@ -807,6 +848,7 @@ final cognitiveLibraryDiagnosisProvider =
     nowHours: nowHours,
     startKnowledgePointIds: starts,
     targetKnowledgePointIds: targets,
+    tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
   );
 });
 

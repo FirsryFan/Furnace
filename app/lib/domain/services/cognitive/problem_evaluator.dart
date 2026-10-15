@@ -1,4 +1,4 @@
-﻿/// 用途 1: judging a batch of candidate problems against the user's own state.
+/// 用途 1: judging a batch of candidate problems against the user's own state.
 ///
 /// This is the "约 20 行胶水" of MINDNET_CONTRACT §6.3, spelled out as a pure
 /// function so it can be tested without a database, a clock or a network:
@@ -46,6 +46,7 @@ import 'cognitive_graph.dart';
 import 'cognitive_model.dart';
 import 'fast_diagnosis.dart';
 import 'fast_engine.dart';
+import 'knowledge_point_tag_bridge.dart';
 
 /// What the evaluator concluded about one candidate problem.
 enum ProblemVerdict {
@@ -206,6 +207,10 @@ abstract final class ProblemEvaluator {
   /// * `startKnowledgePointIds` - what the user is holding in mind right now
   ///   (§6.3's `starts`; often the most recently reviewed points). Empty is
   ///   legal and means a pure memory computation.
+  /// * `tagIdsByKnowledgePoint` - the `kp-…` → `tag-…` mapping
+  ///   ([KnowledgePointTagBridge]). Supply it whenever the caller's ids are real
+  ///   knowledge points; leave it empty only when they are already graph node
+  ///   ids. Either way the mapping never leaks into the report.
   /// * `runFastLayer` - set false to judge from tierA alone even when a graph
   ///   is available.
   static ProblemEvaluationReport evaluate({
@@ -215,6 +220,8 @@ abstract final class ProblemEvaluator {
     required CognitiveModel model,
     required double nowHours,
     List<String> startKnowledgePointIds = const [],
+    Map<String, List<String>> tagIdsByKnowledgePoint =
+        const <String, List<String>>{},
     Map<String, double> importanceByTagId = const {},
     Map<String, Object?> moduleDefaults = const {},
     bool runFastLayer = true,
@@ -222,6 +229,18 @@ abstract final class ProblemEvaluator {
         const ProblemEvaluatorThresholds(),
   }) {
     final nodeIds = {for (final tag in tags) tag.id};
+
+    // Q8 key space (`knowledge_point_tag_bridge.dart`): candidates, rows and
+    // starts are keyed by **knowledge point** (`kp-…`), the graph's nodes are
+    // **tags** (`tag-…`). Translate at this boundary only - the report below goes
+    // back to knowledge points, so the model never sees a tag id it cannot
+    // resolve. An empty map keeps the pre-Q8 behaviour (ids are node ids).
+    final rowsByTagId = tagIdsByKnowledgePoint.isEmpty
+        ? rowsByKnowledgePoint
+        : KnowledgePointTagBridge.expandKeys<CardState>(
+            byKnowledgePoint: rowsByKnowledgePoint,
+            tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+          );
 
     // ms is R0, the encoding ceiling - not the current retrievability (§6.3 as
     // clarified by MindNet's own `ensureState`, which reads `ms` as `R0`).
@@ -232,7 +251,7 @@ abstract final class ProblemEvaluator {
     // the same convention `cognitive_graph.dart` states for callers.
     final msByTagId = <String, double>{};
     for (final tag in tags) {
-      final row = rowsByKnowledgePoint[tag.id];
+      final row = rowsByTagId[tag.id];
       if (row == null) {
         continue;
       }
@@ -249,7 +268,12 @@ abstract final class ProblemEvaluator {
     );
     final spec = graph.toJson();
     final starts = [
-      for (final id in startKnowledgePointIds)
+      for (final id in tagIdsByKnowledgePoint.isEmpty
+          ? startKnowledgePointIds
+          : KnowledgePointTagBridge.tagIdsOfAll(
+              startKnowledgePointIds,
+              tagIdsByKnowledgePoint,
+            ))
         if (nodeIds.contains(id)) id,
     ];
 
@@ -267,23 +291,34 @@ abstract final class ProblemEvaluator {
           if (rowsByKnowledgePoint[id] != null) id,
       ];
 
-      // This problem's own diffusion run. Targets are filtered to graph nodes:
-      // the engine throws for anything else, and an empty target list is legal
-      // but tells us nothing.
-      final targets = [
-        for (final id in knowledgePointIds)
-          if (nodeIds.contains(id)) id,
-      ];
+      // This problem's own diffusion run. Targets are graph nodes: the engine
+      // throws for anything else, and an empty target list is legal but tells us
+      // nothing.
+      final graphTargets = tagIdsByKnowledgePoint.isEmpty
+          ? [
+              for (final id in knowledgePointIds)
+                if (nodeIds.contains(id)) id,
+            ]
+          : KnowledgePointTagBridge.tagIdsOfAll(
+              knowledgePointIds,
+              tagIdsByKnowledgePoint,
+            ).where(nodeIds.contains).toList();
       var diagnosis = const <String, BottleneckType>{};
-      if (runFastLayer && tags.isNotEmpty && targets.isNotEmpty) {
-        diagnosis = _diagnose(
+      if (runFastLayer && tags.isNotEmpty && graphTargets.isNotEmpty) {
+        final tagDiagnosis = _diagnose(
           spec: spec,
           starts: starts,
-          targets: targets,
+          targets: graphTargets,
           nowHours: nowHours,
           moduleDefaults: moduleDefaults,
           rounds: thresholds.diffusionRounds,
         );
+        diagnosis = tagIdsByKnowledgePoint.isEmpty
+            ? tagDiagnosis
+            : KnowledgePointTagBridge.verdictsByKnowledgePoint(
+                byTagId: tagDiagnosis,
+                tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+              );
         fastLayerRan = true;
       }
 

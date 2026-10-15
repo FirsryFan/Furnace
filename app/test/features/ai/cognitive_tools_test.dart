@@ -210,6 +210,37 @@ void main() {
       expect(payload['nodes_without_ms'], isNot(contains(sharedId)));
     });
 
+    test('a point reached through a real label runs, even though the label id is '
+        'not the point id (Q8)', () async {
+      // The test above deliberately gives the label and the knowledge point the
+      // SAME id, so it can never see the key-space defect: in real data the graph
+      // nodes are `tag-…` (`TagRepository._newId('tag')`) while callers hold
+      // `kp-…` (`AnkiRepository._newId('kp')`). Before the Q8 bridge this shape
+      // reported `fast_layer_ran: false` for every real dataset.
+      final pointId = await reviewedPoint('动量守恒');
+      final tag = await tags.createTag(name: '力学');
+      await tags.addTagToObject(
+        tagId: tag.id,
+        objectType: 'knowledge_point',
+        objectId: pointId,
+      );
+      expect(pointId, isNot(tag.id));
+
+      final result = await tool.run(invoke({
+        'problems': [problem('p1', kps: [pointId])],
+      }));
+
+      final payload = result.modelResult! as Map<String, Object?>;
+      expect(payload['fast_layer_ran'], isTrue);
+      final entry = (payload['problems']! as List).single as Map;
+      expect(entry['verdict'], 'out_of_scope');
+      final diagnosis = entry['diagnosis'] as Map;
+      // The verdict comes back in the caller's key space, and the internal
+      // `tag-…` key never leaks out.
+      expect(diagnosis[pointId], 'empty');
+      expect(diagnosis.keys, isNot(contains(tag.id)));
+    });
+
     test('difficulty_hint is a prior, never the model difficulty', () async {
       final strong = await reviewedPoint('动量', stability: 300);
 

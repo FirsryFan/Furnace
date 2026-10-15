@@ -45,6 +45,7 @@ import '../../../data/database/database.dart';
 import 'cognitive_graph.dart';
 import 'cognitive_model.dart';
 import 'fast_diagnosis.dart';
+import 'knowledge_point_tag_bridge.dart';
 import 'fast_engine.dart';
 import 'metacognition.dart';
 
@@ -134,6 +135,8 @@ abstract final class LibraryDiagnosisRunner {
     required double nowHours,
     List<String> startKnowledgePointIds = const <String>[],
     List<String> targetKnowledgePointIds = const <String>[],
+    Map<String, List<String>> tagIdsByKnowledgePoint =
+        const <String, List<String>>{},
     Map<String, Object?> moduleDefaults = const <String, Object?>{},
     int rounds = 4,
   }) {
@@ -141,12 +144,42 @@ abstract final class LibraryDiagnosisRunner {
       return LibraryDiagnosis.notRun;
     }
 
+    // Q8 key space (`knowledge_point_tag_bridge.dart`). Callers hold
+    // **knowledge points** (`kp-…`): cards hang off them, so do the page's
+    // observations. The graph's nodes are **tags** (`tag-…`). Translating here -
+    // once, at the boundary - keeps this method's contract true (every id in and
+    // out is a knowledge point) and stops the silent failure where every row and
+    // start is dropped and the page shows "no diagnosis" forever
+    // (`docs/THREADFLOW_TWO_SEGMENT.md` §8.3).
+    //
+    // An empty map means the caller's ids *are* graph node ids: that is the
+    // pre-Q8 behaviour, kept for callers (and tests) whose fixtures use one id
+    // for both.
+    final rowsByTagId = tagIdsByKnowledgePoint.isEmpty
+        ? rowsByKnowledgePoint
+        : KnowledgePointTagBridge.expandKeys<CardState>(
+            byKnowledgePoint: rowsByKnowledgePoint,
+            tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+          );
+    final startTagIds = tagIdsByKnowledgePoint.isEmpty
+        ? startKnowledgePointIds
+        : KnowledgePointTagBridge.tagIdsOfAll(
+            startKnowledgePointIds,
+            tagIdsByKnowledgePoint,
+          );
+    final targetTagIds = tagIdsByKnowledgePoint.isEmpty
+        ? targetKnowledgePointIds
+        : KnowledgePointTagBridge.tagIdsOfAll(
+            targetKnowledgePointIds,
+            tagIdsByKnowledgePoint,
+          );
+
     // `ms` is R0, the encoding ceiling (MindNet's `ensureState` reads it that
     // way). An illegal or missing R0 is *omitted* rather than defaulted, so
     // "not provided" stays visible in `nodesWithoutMs`.
     final msByTagId = <String, double>{};
     for (final tag in tags) {
-      final row = rowsByKnowledgePoint[tag.id];
+      final row = rowsByTagId[tag.id];
       if (row == null) {
         continue;
       }
@@ -161,11 +194,11 @@ abstract final class LibraryDiagnosisRunner {
     // `startDiffusion` throws for an unknown id, so both lists are filtered to
     // real nodes here rather than crashing a read-only page.
     final starts = <String>[
-      for (final id in startKnowledgePointIds)
+      for (final id in startTagIds)
         if (nodeIds.contains(id)) id,
     ];
     final targets = <String>[
-      for (final id in targetKnowledgePointIds)
+      for (final id in targetTagIds)
         if (nodeIds.contains(id)) id,
     ];
     if (starts.isEmpty && targets.isEmpty) {
@@ -199,13 +232,13 @@ abstract final class LibraryDiagnosisRunner {
     final metacognition = _readMetacognition(
       tags: tags,
       engine: engine,
-      rowsByKnowledgePoint: rowsByKnowledgePoint,
+      rowsByKnowledgePoint: rowsByTagId,
       model: model,
       nowHours: nowHours,
       starts: starts,
     );
 
-    final byKnowledgePoint = <String, BottleneckType>{};
+    final byTagId = <String, BottleneckType>{};
     for (final bottleneck in FastDiagnosis.bottlenecks(
       engine: engine,
       dangerRows: [
@@ -219,8 +252,17 @@ abstract final class LibraryDiagnosisRunner {
           ),
       ],
     )) {
-      byKnowledgePoint.putIfAbsent(bottleneck.node, () => bottleneck.type);
+      byTagId.putIfAbsent(bottleneck.node, () => bottleneck.type);
     }
+
+    // …and back into the caller's key space: a verdict is reported against the
+    // knowledge points that own the tag.
+    final byKnowledgePoint = tagIdsByKnowledgePoint.isEmpty
+        ? byTagId
+        : KnowledgePointTagBridge.verdictsByKnowledgePoint(
+            byTagId: byTagId,
+            tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+          );
 
     return LibraryDiagnosis(
       byKnowledgePoint: byKnowledgePoint,
