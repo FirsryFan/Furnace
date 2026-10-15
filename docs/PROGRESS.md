@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-16 轮次五十九：日计划的纯逻辑核心（Q32a，Lead）
+
+**做了什么**：roadmap §1 控制层验收「输出"今天该做的练习清单"，按收益/成本排序」的第一半 ——
+新增 `app/lib/domain/services/scheduling/today_plan.dart`，把两类已经在算价格的输入合成一份清单：
+
+- 卡片侧：`DsrCardState.read(row)` + `DsrMemory.retrievability` 算"复习这张卡，到 24 小时后能多留下
+  多少 R"（`retentionGainOf`：`before = R(now+24)`，`applyReview` 后 `after = R(now+24)`，价格 = ΔR / `costReview`）
+  —— 与题目侧 `dsrRetentionProbe` 是同一个量、同一个窗口，不是第二套留存数学。
+- 题目侧：直接取 `ProblemEvaluation.counterfactual*`；价格已经是 `V`，所以收益 = `V × 成本`
+  （成本用 planner 自己的 `costLink` / `costRetrieval`），**不在这里重算引擎**。
+- 排序是一条全序：价格降序（无价最后）→ kind（复习先于练习）→ 到期日升序（无日期最后）→ id 升序；
+  `take(maxActions)`，`considered` / `omitted` 如实报出被丢掉的条数。
+
+**三条刻意选择**：① 每项都带 `metric`（`retention` / `reachability`），因为两把尺子问的不是同一个问题，
+`TodayPlan.mixesMetrics` 明说这份清单里两种都有；② 没有正价格的项目（撞到上限的卡、没有价格的题）
+**不写 0.0**（沿用轮次五十八的规则：零增益不是价格），它们排在有价格之后，理由仍是人话；
+③ `TodayPlan.uncalibrated` 恒 `true`，这一层只把已有的两个价格摆在一起，没有引入任何新常数 ——
+日计划不是"第二个评分系统"，它只是把 driver 已有的读数搬到用户面前。
+
+**验收**：`app/test/domain/services/scheduling/today_plan_test.dart` **9 例全绿**
+（空计划也说明未标定 / 会忘的卡按留存定价且 `value == gain/cost` / 上限卡不报价格并回落 `unitKey` 当标题 /
+`retentionGainOf` 在上限处 `before == after == 0.9`、`gain = 0.0` 精确（把轮次五十八的实测写成断言）/
+题目侧保留 `metric` 且 `gain = V × 成本` / 无价题目只说理由 / 有价在前、无价按 kind 再到期日 /
+cap 与 `omitted` / 输入顺序不影响输出）；`dart format` 2 文件（仅行宽）；`dart analyze lib test`
+95 issues（与基线同数，仅既有 info，**0 error / 0 warning**）。
+
+**还剩的另一半（Q32b）**：把这份清单接进 AI 工具（`plan_today` 一类，照 `EvaluateProblemFitTool` 的形状）
+与 UI；在那之前它只是领域层的一个函数，用户还看不到"今天做这几件事"。
+
+---
+
 ## 2026-10-16 轮次五十八：留存探针接进题目排序（Q31b，Lead）
 
 **做了什么**：把轮次五十七做出的记忆层与探针接到找题的定价上（roadmap §2-A 缺① 的 `retention` 侧收尾）：
