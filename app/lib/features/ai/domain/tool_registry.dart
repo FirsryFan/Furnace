@@ -19,6 +19,7 @@ import '../tools/paper_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
+import '../tools/today_tools.dart';
 import '../tools/web_tools.dart';
 
 /// The complete, static list of tools the model may use.
@@ -57,6 +58,16 @@ class ToolRegistry {
       ManageTimeBlockTool(blocks, db),
       // 用途 1 (docs/MINDNET_CONTRACT.md §6.3): read-only problem evaluation.
       EvaluateProblemFitTool(
+        ankiRepository: anki,
+        tagRepository: tags,
+        model: model,
+        clock: clock,
+      ),
+      // 控制层（roadmap §1 控制层行 / §3 第 5 行）：把到期卡与候选题合成一份
+      // 「今天做这几件事」的清单，按 V(π)=ΔR/cost 排序，每条带度量与人话理由。
+      // 纯逻辑在 `domain/services/scheduling/today_plan.dart`（Q32a），
+      // 这个工具只读、不写、不改到期日（tools/today_tools.dart）。
+      PlanTodayTool(
         ankiRepository: anki,
         tagRepository: tags,
         model: model,

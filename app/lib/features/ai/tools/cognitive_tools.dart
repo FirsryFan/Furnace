@@ -123,7 +123,7 @@ class EvaluateProblemFitTool extends AiTool {
   @override
   Future<ToolResult> run(ToolInvocation invocation) async {
     final args = ToolArgs(invocation.arguments);
-    final candidates = _parseProblems(invocation.arguments['problems']);
+    final candidates = parseProblemCandidates(invocation.arguments['problems']);
     if (candidates.isEmpty) {
       return const ToolResult(
         ok: true,
@@ -144,51 +144,17 @@ class EvaluateProblemFitTool extends AiTool {
         nowMs == null ? _clock() : DateTime.fromMillisecondsSinceEpoch(nowMs);
 
     // Read-only reads: the tag tree (the projection's input) and one
-    // representative card row per knowledge point.
-    final tags = [
-      for (final row in await _tags.getAllTags()) CognitiveTag.fromTag(row),
-    ];
-    final rows = <String, CardState>{};
-    // Knowledge-point -> tag links, collected while reading the points: the
-    // evaluator's graph is built from **tags**, so the rows below have to be
-    // translated into that key space (same bridge as the page and the thread
-    // feed - see `docs/THREADFLOW_TWO_SEGMENT.md` §8.3 for the silent failure
-    // this prevents).
-    final links = <ObjectTagLink>[];
-    for (final point in await _anki.getKnowledgePoints()) {
-      final states = await _anki.unitStatesForKnowledgePoint(point.id);
-      final row = _representativeRow(states);
-      if (row == null) {
-        continue;
-      }
-      rows[point.id] = row;
-      for (final tag in await _tags.tagsForObject(
-        objectType: kKnowledgePointObjectType,
-        objectId: point.id,
-      )) {
-        links.add(
-          ObjectTagLink(
-            tagId: tag.id,
-            objectType: kKnowledgePointObjectType,
-            objectId: point.id,
-          ),
-        );
-      }
-    }
-    final tagIdsByKnowledgePoint =
-        KnowledgePointTagBridge.tagIdsByKnowledgePoint(links);
-
-    final report = ProblemEvaluator.evaluate(
-      candidates: limited,
-      tags: tags,
-      rowsByKnowledgePoint: rows,
+    // representative card row per knowledge point. The assembly is shared with
+    // `plan_today` (see [evaluateProblems]) so the two tools cannot drift into
+    // two different pictures of the same user state.
+    final report = await evaluateProblems(
+      ankiRepository: _anki,
+      tagRepository: _tags,
       model: _model,
-      nowHours: modelHoursOf(moment),
+      candidates: limited,
+      moment: moment,
       startKnowledgePointIds:
           args.optStringList('start_knowledge_point_ids') ?? const <String>[],
-      // Same boundary as the page: the evaluator translates into the graph's tag
-      // key space and reports back in knowledge-point ids (Q8).
-      tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
     );
 
     final counts = <String, int>{};
@@ -239,59 +205,6 @@ class EvaluateProblemFitTool extends AiTool {
     );
   }
 
-  /// The row that represents a knowledge point: the unit with the most review
-  /// history, ties broken by id so the choice cannot depend on query order.
-  ///
-  /// The rule itself lives in `library_diagnosis.dart` (`representativeCardRow`)
-  /// because the readings page picks the same row; one definition, two callers.
-  static CardState? _representativeRow(List<CardState> states) =>
-      representativeCardRow(states);
-
-  static List<ProblemCandidate> _parseProblems(Object? raw) {
-    if (raw is! List) {
-      return const [];
-    }
-    final out = <ProblemCandidate>[];
-    for (final entry in raw) {
-      if (entry is! Map) {
-        continue;
-      }
-      final id = entry['id']?.toString().trim() ?? '';
-      if (id.isEmpty) {
-        continue;
-      }
-      out.add(ProblemCandidate(
-        id: id,
-        stem: entry['stem']?.toString() ?? '',
-        knowledgePointIds: _stringList(entry['knowledge_point_ids']),
-        difficultyHint: _doubleOrNull(entry['difficulty_hint']),
-      ));
-    }
-    return out;
-  }
-
-  static List<String> _stringList(Object? raw) {
-    if (raw is List) {
-      return [
-        for (final item in raw)
-          if (item != null && item.toString().trim().isNotEmpty)
-            item.toString().trim(),
-      ];
-    }
-    if (raw == null) {
-      return const [];
-    }
-    final single = raw.toString().trim();
-    return single.isEmpty ? const [] : [single];
-  }
-
-  static double? _doubleOrNull(Object? raw) {
-    if (raw is num) {
-      return raw.toDouble();
-    }
-    return raw == null ? null : double.tryParse(raw.toString().trim());
-  }
-
   /// The contract's wire names (`too_easy`, …). A pure format mapping - the
   /// verdict itself is [ProblemEvaluator]'s.
   static String _verdictId(ProblemVerdict verdict) => switch (verdict) {
@@ -302,4 +215,113 @@ class EvaluateProblemFitTool extends AiTool {
         ProblemVerdict.redundant => 'redundant',
         ProblemVerdict.highValue => 'high_value',
       };
+}
+
+/// The read-only assembly both §2-A tools need: the tag tree, one representative
+/// card row per knowledge point, and the knowledge-point → tag bridge.
+///
+/// Extracted rather than copied so `evaluate_problem_fit` and `plan_today`
+/// cannot drift into two different pictures of the same user state; it reads
+/// through the repositories and writes nothing.
+Future<ProblemEvaluationReport> evaluateProblems({
+  required AnkiRepository ankiRepository,
+  required TagRepository tagRepository,
+  required CognitiveModel model,
+  required List<ProblemCandidate> candidates,
+  required DateTime moment,
+  List<String> startKnowledgePointIds = const <String>[],
+}) async {
+  final tags = [
+    for (final row in await tagRepository.getAllTags())
+      CognitiveTag.fromTag(row),
+  ];
+  final rows = <String, CardState>{};
+  // Knowledge-point -> tag links, collected while reading the points: the
+  // evaluator's graph is built from **tags**, so the rows below have to be
+  // translated into that key space (same bridge as the page and the thread
+  // feed - see `docs/THREADFLOW_TWO_SEGMENT.md` §8.3 for the silent failure
+  // this prevents).
+  final links = <ObjectTagLink>[];
+  for (final point in await ankiRepository.getKnowledgePoints()) {
+    final states = await ankiRepository.unitStatesForKnowledgePoint(point.id);
+    final row = representativeCardRow(states);
+    if (row == null) {
+      continue;
+    }
+    rows[point.id] = row;
+    for (final tag in await tagRepository.tagsForObject(
+      objectType: kKnowledgePointObjectType,
+      objectId: point.id,
+    )) {
+      links.add(
+        ObjectTagLink(
+          tagId: tag.id,
+          objectType: kKnowledgePointObjectType,
+          objectId: point.id,
+        ),
+      );
+    }
+  }
+
+  return ProblemEvaluator.evaluate(
+    candidates: candidates,
+    tags: tags,
+    rowsByKnowledgePoint: rows,
+    model: model,
+    nowHours: modelHoursOf(moment),
+    startKnowledgePointIds: startKnowledgePointIds,
+    // Same boundary as the page: the evaluator translates into the graph's tag
+    // key space and reports back in knowledge-point ids (Q8).
+    tagIdsByKnowledgePoint:
+        KnowledgePointTagBridge.tagIdsByKnowledgePoint(links),
+  );
+}
+
+/// Parses the `problems` argument both §2-A tools accept. A malformed entry is
+/// skipped, not guessed at; `id` is the only required key.
+List<ProblemCandidate> parseProblemCandidates(Object? raw) {
+  if (raw is! List) {
+    return const [];
+  }
+  final out = <ProblemCandidate>[];
+  for (final entry in raw) {
+    if (entry is! Map) {
+      continue;
+    }
+    final id = entry['id']?.toString().trim() ?? '';
+    if (id.isEmpty) {
+      continue;
+    }
+    out.add(ProblemCandidate(
+      id: id,
+      stem: entry['stem']?.toString() ?? '',
+      knowledgePointIds: stringListOf(entry['knowledge_point_ids']),
+      difficultyHint: doubleOrNullOf(entry['difficulty_hint']),
+    ));
+  }
+  return out;
+}
+
+/// One string or a list of strings, trimmed; empty entries dropped.
+List<String> stringListOf(Object? raw) {
+  if (raw is List) {
+    return [
+      for (final item in raw)
+        if (item != null && item.toString().trim().isNotEmpty)
+          item.toString().trim(),
+    ];
+  }
+  if (raw == null) {
+    return const [];
+  }
+  final single = raw.toString().trim();
+  return single.isEmpty ? const [] : [single];
+}
+
+/// A number from either a JSON number or a numeric string.
+double? doubleOrNullOf(Object? raw) {
+  if (raw is num) {
+    return raw.toDouble();
+  }
+  return raw == null ? null : double.tryParse(raw.toString().trim());
 }

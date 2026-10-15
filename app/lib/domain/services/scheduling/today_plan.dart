@@ -145,6 +145,8 @@ class TodayPlan {
         'now_hours': nowHours,
         'horizon_hours': horizonHours,
         'considered': considered,
+        // 两种度量同时出现时如实说出来：调用方不该把两个数字当成同一个单位。
+        'mixes_metrics': mixesMetrics,
         'actions': [for (final action in actions) action.toJson()],
       };
 }
@@ -212,8 +214,7 @@ abstract final class TodayPlanner {
           horizonHours: horizonHours,
           costReview: costReview,
         ),
-      for (final evaluation in problems.evaluations)
-        _problemAction(evaluation),
+      for (final evaluation in problems.evaluations) _problemAction(evaluation),
     ];
 
     // 键全部显式：value 降序（没有价格的排最后）→ 复习先于练习 → 到期日升序
@@ -258,9 +259,8 @@ abstract final class TodayPlanner {
       params: params,
     );
     final knowledgePointId = row.knowledgePointId;
-    final name = knowledgePointId == null
-        ? null
-        : knowledgePointNames[knowledgePointId];
+    final name =
+        knowledgePointId == null ? null : knowledgePointNames[knowledgePointId];
     final title = name ?? row.unitKey ?? knowledgePointId ?? row.id;
 
     // 零增益不是价格：它永远不会改变次序，而 0.0 读起来像"这张卡一文不值"。

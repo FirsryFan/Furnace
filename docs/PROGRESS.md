@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-10-16 轮次六十：日计划接进 AI 工具（Q32b，Lead）
+
+**做了什么**：roadmap §1 控制层验收 / §3 第 5 行的第二半 —— 轮次五十九 的纯逻辑核心有了调用方。
+
+- 新工具 `app/lib/features/ai/tools/today_tools.dart`：`PlanTodayTool`（`name: 'plan_today'`）。
+  参数：可选 `problems[]`（形状与 `evaluate_problem_fit` 相同）、`start_knowledge_point_ids`、
+  `max_actions`（clamp 1–50）、`horizon_hours`（clamp 1–720）、`now`。`run` 的顺序是：先算题目的评估报告
+  （没有候选题就用一份空报告，不假装跑过快层），再取 `AnkiRepository.getDueCardStates(now)`，
+  再拿 `getKnowledgePoints()` 的 id→标题当人话标题，最后 `TodayPlanner.build(...)`。
+  输出：摘要逐条 `'1. [复习|练习] {标题}，retention V=…：{理由}'`，结尾固定一行
+  `'加成未标定：这份顺序是提示，不是测量。'`；`modelResult` 直接是 `TodayPlan.toJson()`。
+  空的一天不是空壳：摘要明说"今天没有到期要复习的卡，也没有可排的题：清单是空的（这不是"没事做"，
+  只是到期队列与候选题都空着）"。
+- **重构（为了让两个工具给出同一个价格）**：`app/lib/features/ai/tools/cognitive_tools.dart` 把
+  `EvaluateProblemFitTool.run` 里的装配抽成顶层 `evaluateProblems({ankiRepository, tagRepository, model,
+  candidates, moment, startKnowledgePointIds})`（读标签树 → `CognitiveTag.fromTag`；每个知识点一条代表卡；
+  kp→tag 桥 `KnowledgePointTagBridge`），两个工具共用；原先只服务一个工具的私有静态
+  `_parseProblems/_stringList/_doubleOrNull/_representativeRow` 被顶层
+  `parseProblemCandidates/stringListOf/doubleOrNullOf` 取代（否则 analyze 报 `unused_element`）。
+- 注册：`app/lib/features/ai/domain/tool_registry.dart` 在 `EvaluateProblemFitTool(...)` 之后加
+  `PlanTodayTool(ankiRepository: anki, tagRepository: tags, model: model, clock: clock)`，
+  所以 `ToolRegistry.byName('plan_today')` 能取到。
+
+**刻意选择**（三条，理由都在代码注释里）：
+
+1. `readOnly: true` 而 `riskFor` 保持 `ToolRisk.write`：它不改任何数据，但它给的是"去做什么"，
+   与"读一眼"不是一类。
+2. `max_actions`/`horizon_hours` 有硬边界（1–50 / 1–720 小时），且摘要结尾永远带"加成未标定"——
+   这份顺序是提示不是测量，不能因为多问几次就变成事实。
+3. 空清单与"没有价格"分开说：前者是一天真没事，后者仍留在清单里只给理由（`TodayPlan.omitted`
+   报出被 `max_actions` 裁掉几件）。
+
+**证据**：`app/test/features/ai/today_tools_test.dart` 7 例全绿 —— 只读性（`AiPermissionMode` 下从不弹审批）、
+注册表里真的能 `byName('plan_today')`、空白天、到期卡进清单且 `kind: review`/`metric: retention`/gain > 0、
+未到期卡不进清单、候选题被 `reachability` 定价（`cost: 2.0`，`mixes_metrics: true`）、`max_actions: 1` 时
+`considered: 2` 且摘要含"另有 1 件排在清单外"。这一条候选题用例要求 fixture 里有两个顶层标签
+（`tag-a-island` < `tag-b-lit`，规则 4 的链方向由 id 决定）**并显式 `start_knowledge_point_ids: [litId]`**，
+否则 `add_in_edges` 没有可连的点亮节点 ⇒ 题目不给价格（第一次就是这么红的，payload 里 `why` 写着
+"诊断全是 empty/dead_end"）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1671 ~2: All tests passed!`（exit 0）。轮次五十九 后是
+`+1655 ~2`，差值 16 = Q32a 的 9 例 + Q32b 的 7 例；`dart analyze lib test` 仍是 95 issues（0 error / 0 warning）。
+
+**已知的没做**：UI 上的清单页（Q32c）；`plan_today` 仍只会看"现在到期的卡"，不排未来几天的
+（`horizon_hours` 只用于算 ΔR 的窗口，不用于挑卡）。
+
+---
+
 ## 2026-10-16 轮次五十九：日计划的纯逻辑核心（Q32a，Lead）
 
 **做了什么**：roadmap §1 控制层验收「输出"今天该做的练习清单"，按收益/成本排序」的第一半 ——
