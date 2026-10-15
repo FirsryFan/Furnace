@@ -41,6 +41,18 @@ const List<double> defaultIntervalBucketEdgesDays = [
 /// 默认的校准分箱数（预测 `R` 在 `[0, 1]` 上等宽切分）。
 const int defaultCalibrationBinCount = 5;
 
+/// 按知识点聚合留存率时的最小样本数。
+///
+/// 20 条时 `p = 0.5` 的标准误约 0.11（见 [KnowledgePointRetention.standardError]）：
+/// 比这更薄的分组，把它当成"最差的知识点"就是把噪声当结论。因此低于它的分组
+/// **如实省略**，而不是补 0、也不是借全局留存率冒充——"复习了两次全错"不是
+/// "这个知识点在漏"。
+const int kMinKnowledgePointRetentionSamples = 20;
+
+/// 孤儿日志（`card_states` 行已不存在，或那条卡没挂知识点）在内部分组时用的键；
+/// 不可能与真实 id 相同。
+const String _orphanKnowledgePointKey = '\u0000orphan';
+
 /// 一条待度量的复习结果。
 class RetentionSample {
   const RetentionSample({
@@ -85,10 +97,10 @@ class RetentionSample {
         'knowledge_point_id': knowledgePointId,
         'reviewed_at': reviewedAtMs,
         'recalled': recalled,
-        'interval_days': intervalDays == null
-            ? null
-            : DsrMemory.round6(intervalDays!),
-        'predicted_r': predictedR == null ? null : DsrMemory.round6(predictedR!),
+        'interval_days':
+            intervalDays == null ? null : DsrMemory.round6(intervalDays!),
+        'predicted_r':
+            predictedR == null ? null : DsrMemory.round6(predictedR!),
       };
 }
 
@@ -147,6 +159,39 @@ class CalibrationBin {
       };
 }
 
+/// 一个知识点上的留存率。
+///
+/// [knowledgePointId] 为 `null` 表示**归不到知识点**的复习：两种来源都会落进来——
+/// ① `card_states` 行已被删（`retentionSamples()` 用 `LEFT JOIN` 刻意保留这条日志，
+/// 它仍然是一次真实的复习）；② 这条卡来自 v1 模板（`getOrCreateCardState` 把
+/// `card_states.knowledge_point_id` 留空，模板才是它回到材料的唯一线索）。
+class KnowledgePointRetention {
+  const KnowledgePointRetention({
+    required this.knowledgePointId,
+    required this.samples,
+    required this.recalled,
+  });
+
+  final String? knowledgePointId;
+  final int samples;
+  final int recalled;
+
+  /// 这个知识点上"记得"的比例；空组为 0（调用方靠 [samples] 判断有没有意义）。
+  double get retention => samples == 0 ? 0 : recalled / samples;
+
+  /// 比例的伯努利标准误 `sqrt(p(1−p)/n)`：用来判断"最差"是不是只是样本少。
+  double get standardError =>
+      samples == 0 ? 0 : math.sqrt(retention * (1 - retention) / samples);
+
+  Map<String, Object?> toJson() => {
+        'knowledge_point_id': knowledgePointId,
+        'samples': samples,
+        'recalled': recalled,
+        'retention': DsrMemory.round6(retention),
+        'standard_error': DsrMemory.round6(standardError),
+      };
+}
+
 /// 一组复习历史的完整读数。
 class LearningMetrics {
   const LearningMetrics({
@@ -191,7 +236,8 @@ class LearningMetrics {
   bool get isEmpty => reviewedCount == 0;
 
   /// 总体留存率；没有样本时为 0（调用方看 [isEmpty]）。
-  double get retention => reviewedCount == 0 ? 0 : recalledCount / reviewedCount;
+  double get retention =>
+      reviewedCount == 0 ? 0 : recalledCount / reviewedCount;
 
   /// 有预测样本、校准数字才有意义。
   bool get hasCalibration => calibratedCount > 0;
@@ -318,6 +364,57 @@ class LearningMetrics {
       ece: ece,
     );
   }
+
+  /// 按知识点聚合的留存率，**最差的在前**。
+  ///
+  /// 只保留样本数 `>= minSamples` 的分组：样本不够的知识点**不会出现**在结果里，
+  /// 调用方要如实说"按知识点还看不出结论"，而不是拿一两条样本点名一个知识点。
+  /// 排序确定性：留存率升序 → 样本数降序 → 知识点 id 升序（孤儿日志排最后）。
+  static List<KnowledgePointRetention> retentionByKnowledgePoint({
+    required List<RetentionSample> samples,
+    int minSamples = kMinKnowledgePointRetentionSamples,
+  }) {
+    if (minSamples < 1) {
+      throw ArgumentError('最小样本数必须至少为 1，实际 $minSamples');
+    }
+
+    final tally = <String, ({int samples, int recalled})>{};
+    for (final sample in samples) {
+      final key = sample.knowledgePointId ?? _orphanKnowledgePointKey;
+      final current = tally[key];
+      tally[key] = (
+        samples: (current?.samples ?? 0) + 1,
+        recalled: (current?.recalled ?? 0) + (sample.recalled ? 1 : 0),
+      );
+    }
+
+    final out = <KnowledgePointRetention>[
+      for (final entry in tally.entries)
+        if (entry.value.samples >= minSamples)
+          KnowledgePointRetention(
+            knowledgePointId:
+                entry.key == _orphanKnowledgePointKey ? null : entry.key,
+            samples: entry.value.samples,
+            recalled: entry.value.recalled,
+          ),
+    ];
+    out.sort((a, b) {
+      // 孤儿日志不是知识点，永远排最后：工具摘要按列表头点名"最差的知识点"，
+      // 把"卡片已被删除"那一组摆在第一位会读成"这个知识点在漏"。
+      final aId = a.knowledgePointId;
+      final bId = b.knowledgePointId;
+      if (aId == null || bId == null) {
+        if (aId == null && bId == null) return 0;
+        return aId == null ? 1 : -1;
+      }
+      final byRetention = a.retention.compareTo(b.retention);
+      if (byRetention != 0) return byRetention;
+      final bySamples = b.samples.compareTo(a.samples);
+      if (bySamples != 0) return bySamples;
+      return aId.compareTo(bId);
+    });
+    return out;
+  }
 }
 
 /// 给样本补上"距上一次复习同一条卡多少天"。
@@ -325,8 +422,7 @@ class LearningMetrics {
 /// 按 `(cardStateId, reviewedAtMs)` 排序后逐条推进：同一条卡的上一条决定这一条的间隔；
 /// 时间戳相同时后一条视为间隔 0（同一秒里连点两次是真实会发生的事，不该被丢掉）。
 List<RetentionSample> withIntervals(List<RetentionSample> samples) {
-  final sorted = [...samples]
-    ..sort((a, b) {
+  final sorted = [...samples]..sort((a, b) {
       final byCard = a.cardStateId.compareTo(b.cardStateId);
       if (byCard != 0) return byCard;
       return a.reviewedAtMs.compareTo(b.reviewedAtMs);
@@ -338,7 +434,8 @@ List<RetentionSample> withIntervals(List<RetentionSample> samples) {
   for (final sample in sorted) {
     final sameCard = sample.cardStateId == lastCard;
     final days = sameCard && lastMs != null
-        ? math.max(0, sample.reviewedAtMs - lastMs) / Duration.millisecondsPerDay
+        ? math.max(0, sample.reviewedAtMs - lastMs) /
+            Duration.millisecondsPerDay
         : null;
     out.add(sameCard ? sample.copyWith(intervalDays: days) : sample);
     lastCard = sample.cardStateId;

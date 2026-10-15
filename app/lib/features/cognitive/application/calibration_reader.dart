@@ -16,12 +16,17 @@ import '../../../data/repositories/anki_repository.dart';
 import '../../../domain/services/cognitive/calibration.dart';
 import '../../../domain/services/cognitive/learning_metrics.dart';
 
-/// 一次读取的完整结果：留存读数 + 校准结论。
+/// 一次读取的完整结果：留存读数 + 校准结论 + 逐知识点留存。
 ///
-/// 两半共用同一批样本（同一次 `retentionSamples()`），所以界面上的"留存率"与
-/// "偏置"讲的一定是同一批复习，不会一边算 5000 条、另一边算 200 条。
+/// 三部分共用同一批样本（同一次 `retentionSamples()`），所以界面上的"留存率"、
+/// "偏置"与"哪个知识点在漏"讲的一定是同一批复习，不会一边算 5000 条、
+/// 另一边算 200 条。
 class CalibrationReading {
-  const CalibrationReading({required this.report, required this.metrics});
+  const CalibrationReading({
+    required this.report,
+    required this.metrics,
+    required this.knowledgePointRetention,
+  });
 
   /// 标定结论（能不能看、往哪偏）。
   final CalibrationReport report;
@@ -29,20 +34,25 @@ class CalibrationReading {
   /// 留存率与 Brier / ECE 分箱（`learning_metrics.dart`）。
   final LearningMetrics metrics;
 
+  /// 按知识点聚合的留存率，最差的在前；样本不够的知识点**不在这个列表里**。
+  final List<KnowledgePointRetention> knowledgePointRetention;
+
   bool get isEmpty => metrics.isEmpty && report.samples == 0;
 }
 
-/// 读一次复习历史，产出留存读数 + 校准结论。
+/// 读一次复习历史，产出留存读数 + 校准结论 + 逐知识点留存。
 ///
 /// [sinceMillis] 只影响样本范围（AI 工具的 `since_days` 会换算成它）；
 /// [bucketEdges] / [calibrationBinCount] 直接透给 `LearningMetrics.read`，
-/// 保持与读数页同一套默认值。
+/// 保持与读数页同一套默认值；[minKnowledgePointSamples] 透给
+/// `LearningMetrics.retentionByKnowledgePoint`。
 Future<CalibrationReading> readCalibrationReading(
   AppDatabase db, {
   int? sinceMillis,
   int limit = 5000,
   List<double> bucketEdges = defaultIntervalBucketEdgesDays,
   int calibrationBinCount = defaultCalibrationBinCount,
+  int minKnowledgePointSamples = kMinKnowledgePointRetentionSamples,
 }) async {
   final samples = await AnkiRepository(db).retentionSamples(
     sinceMillis: sinceMillis,
@@ -54,6 +64,10 @@ Future<CalibrationReading> readCalibrationReading(
       samples: samples,
       bucketEdges: bucketEdges,
       calibrationBinCount: calibrationBinCount,
+    ),
+    knowledgePointRetention: LearningMetrics.retentionByKnowledgePoint(
+      samples: samples,
+      minSamples: minKnowledgePointSamples,
     ),
   );
 }

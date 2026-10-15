@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
@@ -6,6 +7,7 @@ import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/domain/services/cognitive/learning_metrics.dart';
 import 'package:furnace/features/ai/domain/ai_tool.dart';
 import 'package:furnace/features/ai/domain/approval_engine.dart';
 import 'package:furnace/features/ai/domain/tool_registry.dart';
@@ -339,6 +341,120 @@ void main() {
     });
   });
 
+  group('逐知识点留存（Q18）', () {
+    /// 造一个知识点 + 一张卡 + [reviews] 条复习（前 [recalled] 条算记得）。
+    ///
+    /// 复习样本的知识点 id 来自 `LEFT JOIN card_states`，而
+    /// `getOrCreateCardState`（v1 模板卡）**刻意不写** `knowledge_point_id`
+    /// （见 `review_service.dart:415-425` 的注释），所以这里显式补上它，
+    /// 让夹具与 v2 `getOrCreateUnitCardState` 走出来的真实行一致。
+    Future<String> seedPoint(
+      String title, {
+      required int reviews,
+      required int recalled,
+    }) async {
+      final point = await anki.createKnowledgePoint(title: title, content: '');
+      final template = await anki.createTemplate(
+        knowledgePointId: point.id,
+        type: 'fill_blank',
+        question: 'Q',
+        answer: 'A',
+      );
+      final state = await anki.getOrCreateCardState(template.id);
+      await (db.update(db.cardStates)..where((t) => t.id.equals(state.id)))
+          .write(CardStatesCompanion(knowledgePointId: Value(point.id)));
+
+      final base = DateTime.now().millisecondsSinceEpoch;
+      for (var i = 0; i < reviews; i++) {
+        await seedReview(
+          card: (stateId: state.id, templateId: template.id),
+          recalled: i < recalled,
+          reviewedAtMs: base - i * 60000,
+        );
+      }
+      return point.id;
+    }
+
+    test('开启后给出逐点留存、带标题、最差在前', () async {
+      final pointId = await seedPoint('动量守恒', reviews: 20, recalled: 8);
+
+      final result =
+          await tool.run(invoke({'knowledge_point_retention': true}));
+      final rows =
+          payloadOf(result)['knowledge_point_retention']! as List<Object?>;
+      expect(rows, hasLength(1));
+      final row = rows.single! as Map<String, Object?>;
+      expect(row['knowledge_point_id'], pointId);
+      expect(row['knowledge_point_title'], '动量守恒');
+      expect(row['samples'], 20);
+      expect(row['recalled'], 8);
+      expect(result.summary, contains('动量守恒'));
+      expect(result.summary, contains('留存率最低的知识点'));
+    });
+
+    test('默认关闭时不返回逐点留存', () async {
+      await seedPoint('动量守恒', reviews: 20, recalled: 8);
+
+      final payload = payloadOf(await tool.run(invoke({})));
+      expect(payload.containsKey('knowledge_point_retention'), isFalse);
+    });
+
+    test('样本不够时如实说看不出结论，且不点名', () async {
+      await seedPoint('动量守恒', reviews: 19, recalled: 3);
+
+      final result =
+          await tool.run(invoke({'knowledge_point_retention': true}));
+      final rows =
+          payloadOf(result)['knowledge_point_retention']! as List<Object?>;
+      expect(rows, isEmpty);
+      expect(result.summary, contains('还看不出结论'));
+      expect(result.summary, contains('$kMinKnowledgePointRetentionSamples'));
+      expect(result.summary.contains('动量守恒'), isFalse);
+    });
+
+    test('最多点三个最差的，其余只说数量', () async {
+      await seedPoint('最好', reviews: 20, recalled: 20);
+      await seedPoint('最差', reviews: 20, recalled: 5);
+      await seedPoint('中间一', reviews: 20, recalled: 10);
+      await seedPoint('中间二', reviews: 20, recalled: 15);
+
+      final result =
+          await tool.run(invoke({'knowledge_point_retention': true}));
+      final rows =
+          payloadOf(result)['knowledge_point_retention']! as List<Object?>;
+      expect(rows, hasLength(4));
+      expect(result.summary, contains('最差'));
+      expect(result.summary, contains('中间一'));
+      expect(result.summary, contains('中间二'));
+      expect(result.summary.contains('最好'), isFalse);
+      expect(result.summary, contains('还有 1 个样本够的知识点没列出'));
+    });
+
+    test('挂不到知识点的复习单独一组，且明说它不是"最差的知识点"', () async {
+      // 故意不补 `card_states.knowledge_point_id`：这正是 v1 模板卡在库里的样子。
+      final card = await seedCard('没有知识点的卡');
+      final base = DateTime.now().millisecondsSinceEpoch;
+      for (var i = 0; i < 20; i++) {
+        await seedReview(
+          card: card,
+          recalled: i < 3,
+          reviewedAtMs: base - i * 60000,
+        );
+      }
+
+      final result =
+          await tool.run(invoke({'knowledge_point_retention': true}));
+      final rows =
+          payloadOf(result)['knowledge_point_retention']! as List<Object?>;
+      expect(rows, hasLength(1));
+      final row = rows.single! as Map<String, Object?>;
+      expect(row['knowledge_point_id'], isNull);
+      expect(row['samples'], 20);
+      expect(result.summary, contains('归不到知识点'));
+      expect(result.summary.contains('留存率最低的知识点'), isFalse);
+    });
+  });
+
   group('注册与 schema', () {
     test('在 ToolRegistry.forApp 里可达，且声明是只读的', () {
       final registry = ToolRegistry.forApp(
@@ -364,6 +480,7 @@ void main() {
           'since_days',
           'calibration_bin_count',
           'include_buckets',
+          'knowledge_point_retention',
           'limit',
         ]),
       );

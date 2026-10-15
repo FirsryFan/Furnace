@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:furnace/domain/services/cognitive/learning_metrics.dart';
@@ -23,7 +25,8 @@ RetentionSample sample(
 void main() {
   group('recalledFromReview', () {
     test('objective verdict wins over every rating', () {
-      expect(recalledFromReview(rating: 2, ratingFsrs: 4, correct: false), false);
+      expect(
+          recalledFromReview(rating: 2, ratingFsrs: 4, correct: false), false);
       expect(recalledFromReview(rating: 0, ratingFsrs: 1, correct: true), true);
     });
 
@@ -58,7 +61,8 @@ void main() {
       final c1 = out.where((s) => s.cardStateId == 'c1').toList();
       expect(c1.first.intervalDays, isNull);
       expect(c1.last.intervalDays, 2.0);
-      expect(out.where((s) => s.cardStateId == 'c2').single.intervalDays, isNull);
+      expect(
+          out.where((s) => s.cardStateId == 'c2').single.intervalDays, isNull);
     });
 
     test('unsorted input is sorted before the gaps are measured', () {
@@ -98,7 +102,8 @@ void main() {
       expect(metrics.bins.every((b) => b.samples == 0), isTrue);
     });
 
-    test('every interval lands in its own bucket, and the first review counts', () {
+    test('every interval lands in its own bucket, and the first review counts',
+        () {
       final metrics = LearningMetrics.read(
         samples: [
           sample('c1', ms: 1, recalled: true, interval: 0.5),
@@ -215,6 +220,126 @@ void main() {
       expect(json['predicted_r'], isNull);
       expect(json['card_state_id'], 'c1');
       expect(json['recalled'], false);
+    });
+  });
+
+  group('retentionByKnowledgePoint', () {
+    /// 造 [total] 条同知识点的复习，前 [recalled] 条算记得。
+    List<RetentionSample> pointSamples(
+      String? knowledgePointId, {
+      required int total,
+      required int recalled,
+      String cardPrefix = 'c',
+    }) {
+      return [
+        for (var i = 0; i < total; i++)
+          sample(
+            '$cardPrefix-$i',
+            ms: i,
+            recalled: i < recalled,
+            knowledgePointId: knowledgePointId,
+          ),
+      ];
+    }
+
+    test('groups by knowledge point and drops groups below the threshold', () {
+      final out = LearningMetrics.retentionByKnowledgePoint(
+        samples: [
+          ...pointSamples('kp-a', total: 25, recalled: 20),
+          ...pointSamples('kp-b', total: 19, recalled: 0),
+        ],
+      );
+
+      expect(out, hasLength(1));
+      expect(out.single.knowledgePointId, 'kp-a');
+      expect(out.single.samples, 25);
+      expect(out.single.recalled, 20);
+      expect(out.single.retention, 0.8);
+    });
+
+    test('worst retention first, then the bigger sample, then the id', () {
+      final out = LearningMetrics.retentionByKnowledgePoint(
+        samples: [
+          ...pointSamples('kp-halved', total: 20, recalled: 10),
+          ...pointSamples('kp-worst-small', total: 20, recalled: 5),
+          ...pointSamples('kp-worst-big', total: 30, recalled: 6),
+          ...pointSamples('kp-zzz', total: 20, recalled: 10),
+        ],
+      );
+
+      expect(
+        out.map((e) => e.knowledgePointId).toList(),
+        ['kp-worst-big', 'kp-worst-small', 'kp-halved', 'kp-zzz'],
+      );
+    });
+
+    test('the threshold is inclusive and configurable', () {
+      final exactly = pointSamples('kp-20', total: 20, recalled: 10);
+      final under = pointSamples('kp-19', total: 19, recalled: 10);
+
+      expect(
+        LearningMetrics.retentionByKnowledgePoint(
+                samples: [...exactly, ...under])
+            .map((e) => e.knowledgePointId)
+            .toList(),
+        ['kp-20'],
+      );
+      expect(
+        LearningMetrics.retentionByKnowledgePoint(
+          samples: [...exactly, ...under],
+          minSamples: 19,
+        ).map((e) => e.knowledgePointId).toList(),
+        ['kp-20', 'kp-19'],
+      );
+    });
+
+    test('orphan reviews get a null group and always sort last', () {
+      final out = LearningMetrics.retentionByKnowledgePoint(
+        samples: [
+          ...pointSamples(null, total: 20, recalled: 0, cardPrefix: 'orphan'),
+          ...pointSamples('kp-ok', total: 20, recalled: 18),
+        ],
+      );
+
+      expect(out, hasLength(2));
+      expect(out.first.knowledgePointId, 'kp-ok');
+      expect(out.first.retention, 0.9);
+      expect(out.last.knowledgePointId, isNull);
+      expect(out.last.retention, 0.0);
+    });
+
+    test('the standard error says how thin the group is', () {
+      final out = LearningMetrics.retentionByKnowledgePoint(
+        samples: pointSamples('kp-a', total: 20, recalled: 10),
+      ).single;
+
+      expect(out.standardError, closeTo(math.sqrt(0.25 / 20), 1e-12));
+    });
+
+    test('no samples means no groups, and a bad threshold is a bug', () {
+      expect(
+        LearningMetrics.retentionByKnowledgePoint(samples: const []),
+        isEmpty,
+      );
+      expect(
+        () => LearningMetrics.retentionByKnowledgePoint(
+          samples: const [],
+          minSamples: 0,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('json carries the id, the counts and the rounded rates', () {
+      final json = LearningMetrics.retentionByKnowledgePoint(
+        samples: pointSamples('kp-a', total: 20, recalled: 10),
+      ).single.toJson();
+
+      expect(json['knowledge_point_id'], 'kp-a');
+      expect(json['samples'], 20);
+      expect(json['recalled'], 10);
+      expect(json['retention'], 0.5);
+      expect(json['standard_error'], closeTo(0.111803, 1e-9));
     });
   });
 }

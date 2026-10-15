@@ -40,6 +40,9 @@ class ReviewMetricsTool extends AiTool {
   /// 摘要里最多点几个留存桶。
   static const int maxBucketLines = 4;
 
+  /// 摘要里最多点几个"最差的知识点"。
+  static const int maxKnowledgePointLines = 3;
+
   @override
   String get name => 'review_metrics';
 
@@ -48,6 +51,7 @@ class ReviewMetricsTool extends AiTool {
       '只用复习结果判定是否记得）；②**校准**（复习时判分**之前**模型预测的 R 与真实'
       '结果的对齐：Brier/ECE，以及标定偏置 b、斜率 a、是否显著）。'
       '回答"我最近的记忆效果怎么样""模型是不是过度自信""留存率掉在哪一段"时用它。'
+      '也可以按知识点聚合留存率（`knowledge_point_retention`），回答"哪些知识点真的在漏"。'
       '**只读**：不写数据、不改复习排程、不生成题目。'
       '样本不足或没有预测值时它会明说算不出来——不要拿摘要之外的数字当成结论。';
 
@@ -67,6 +71,12 @@ class ReviewMetricsTool extends AiTool {
           'include_buckets': {
             'type': 'boolean',
             'description': '是否返回留存分桶与校准分箱明细（默认 true）。',
+          },
+          'knowledge_point_retention': {
+            'type': 'boolean',
+            'description': '是否按知识点聚合留存率（默认 false）。开启后摘要会点名最差、'
+                '且样本至少 $kMinKnowledgePointRetentionSamples 条的知识点；'
+                '样本不够的知识点不会出现，摘要会如实说"还看不出结论"。',
           },
           'limit': {
             'type': 'integer',
@@ -111,6 +121,8 @@ class ReviewMetricsTool extends AiTool {
 
       final limit = (args.optInt('limit') ?? defaultLimit).clamp(1, maxLimit);
       final includeBuckets = args.optBool('include_buckets') ?? true;
+      final includeKnowledgePoints =
+          args.optBool('knowledge_point_retention') ?? false;
 
       final now = DateTime.now();
       final sinceMillis = sinceDays == null
@@ -126,6 +138,13 @@ class ReviewMetricsTool extends AiTool {
       final metrics = reading.metrics;
       final report = reading.report;
 
+      final perKnowledgePoint = includeKnowledgePoints
+          ? reading.knowledgePointRetention
+          : const <KnowledgePointRetention>[];
+      final titles = includeKnowledgePoints
+          ? await _knowledgePointTitles(perKnowledgePoint)
+          : const <String, String>{};
+
       final payload = <String, Object?>{
         'schema': 'mindnet.review_metrics/1',
         'since_days': sinceDays,
@@ -138,6 +157,16 @@ class ReviewMetricsTool extends AiTool {
             metrics.brier == null ? null : DsrMemory.round6(metrics.brier!),
         'ece': metrics.ece == null ? null : DsrMemory.round6(metrics.ece!),
         'calibration': report.toJson(),
+        if (includeKnowledgePoints)
+          'knowledge_point_retention': [
+            for (final entry in perKnowledgePoint)
+              {
+                ...entry.toJson(),
+                'knowledge_point_title': entry.knowledgePointId == null
+                    ? null
+                    : titles[entry.knowledgePointId],
+              },
+          ],
         if (includeBuckets)
           'buckets': [for (final bucket in metrics.buckets) bucket.toJson()],
         if (includeBuckets)
@@ -189,6 +218,10 @@ class ReviewMetricsTool extends AiTool {
         );
       }
 
+      if (includeKnowledgePoints) {
+        lines.add(_knowledgePointLine(perKnowledgePoint, titles));
+      }
+
       return ToolResult(
         ok: true,
         summary: lines.join(' '),
@@ -197,6 +230,78 @@ class ReviewMetricsTool extends AiTool {
     } on ToolArgError catch (e) {
       return ToolResult.failure(e.message);
     }
+  }
+
+  /// 只读：拿知识点标题，让摘要说人话而不是甩 id。查不到标题就退回 id。
+  Future<Map<String, String>> _knowledgePointTitles(
+    List<KnowledgePointRetention> entries,
+  ) async {
+    final ids = <String>[
+      for (final entry in entries)
+        if (entry.knowledgePointId != null) entry.knowledgePointId!,
+    ];
+    if (ids.isEmpty) return const <String, String>{};
+    final rows = await (_db.select(_db.knowledgePoints)
+          ..where((t) => t.id.isIn(ids)))
+        .get();
+    return {for (final row in rows) row.id: row.title};
+  }
+
+  /// 逐知识点那一行：样本不够就**如实说看不出结论**，不点名；
+  /// 归不到知识点的复习单独说，不混进"最差的知识点"里。
+  static String _knowledgePointLine(
+    List<KnowledgePointRetention> entries,
+    Map<String, String> titles,
+  ) {
+    final ranked = <KnowledgePointRetention>[
+      for (final entry in entries)
+        if (entry.knowledgePointId != null) entry,
+    ];
+    final orphans = <KnowledgePointRetention>[
+      for (final entry in entries)
+        if (entry.knowledgePointId == null) entry,
+    ];
+
+    final buffer = StringBuffer();
+    if (ranked.isEmpty) {
+      buffer.write(
+        '按知识点还看不出结论：没有一个知识点攒够 '
+        '$kMinKnowledgePointRetentionSamples 条复习，'
+        '现在点名"最差的知识点"就是把噪声当结论。',
+      );
+    } else {
+      final shown = ranked.length <= maxKnowledgePointLines
+          ? ranked
+          : ranked.sublist(0, maxKnowledgePointLines);
+      final parts = [
+        for (final entry in shown)
+          '${_knowledgePointLabel(entry, titles)} '
+              '${_percent(entry.retention)}（${entry.samples} 次）',
+      ];
+      buffer.write('留存率最低的知识点：${parts.join('；')}。');
+      if (ranked.length > shown.length) {
+        buffer.write('还有 ${ranked.length - shown.length} 个样本够的知识点没列出。');
+      }
+    }
+
+    if (orphans.isNotEmpty) {
+      final orphanSamples =
+          orphans.fold<int>(0, (sum, entry) => sum + entry.samples);
+      buffer.write(
+        '另有 $orphanSamples 条复习归不到知识点（卡片状态已被删，'
+        '或这条卡来自 v1 模板、本来就没挂知识点）。',
+      );
+    }
+    return buffer.toString();
+  }
+
+  static String _knowledgePointLabel(
+    KnowledgePointRetention entry,
+    Map<String, String> titles,
+  ) {
+    final id = entry.knowledgePointId!;
+    final title = titles[id];
+    return title == null || title.isEmpty ? id : '$title（$id）';
   }
 
   static String _percent(double ratio) =>

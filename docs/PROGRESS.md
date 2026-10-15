@@ -4,7 +4,50 @@
 
 ---
 
-## 2026-10-16 轮次三十八：标定协议 v1——只检验预测，不写回参数（Q16，Lead）
+## 2026-10-16 轮次三十九：按知识点的留存率——把"哪些知识点真的在漏"算出来（Q18，Lead）
+
+**做了什么**
+- `app/lib/domain/services/cognitive/learning_metrics.dart`（只加不改）：
+  - 新 `class KnowledgePointRetention{knowledgePointId?, samples, recalled, retention, standardError, toJson()}`；
+  - 新 `LearningMetrics.retentionByKnowledgePoint({samples, minSamples = kMinKnowledgePointRetentionSamples})`：
+    按 `RetentionSample.knowledgePointId` 分组，**低于阈值的分组如实省略**（不补 0、不拿全局留存率冒充）；
+    排序 = 留存率升序 → 样本数降序 → 知识点 id 升序；`minSamples < 1` 抛 `ArgumentError`；
+  - 新常量 `kMinKnowledgePointRetentionSamples = 20`。
+- `app/lib/features/cognitive/application/calibration_reader.dart`：`CalibrationReading` 增加
+  `knowledgePointRetention`，与留存/Brier/ECE/偏置**共用同一次** `retentionSamples`（不多查一次库）。
+- `app/lib/features/ai/tools/metrics_tools.dart`：`review_metrics` 增参 `knowledge_point_retention`
+  （默认 false）；开启后 `modelResult` 带逐点留存（含 `knowledge_point_title`，用
+  `db.select(db.knowledgePoints)` 只读补齐），摘要最多点名 3 个样本够的最差点，其余只说数量。
+- 文档：`docs/ASSESSMENT_DESIGN.md` M6 的"未做"清单划掉「按知识点聚合的留存率」并写清口径；
+  `docs/CALIBRATION.md` §6/§7/§8 相应更新。
+
+**为什么不这么做**
+- **门槛 20 条、更薄的组如实省略**：`p = 0.5` 时 20 条的标准误约 0.11；再薄就分不清"在漏"和"运气"。
+  "复习了两次全错"不是"这个知识点在漏"，所以宁可不说，也不点名。
+- **不补 0、不借全局留存率冒充**：省略就是省略。补 0 会把"没测过"读成"全忘了"，借全局值会抹掉个体差异。
+- **归不到知识点的复习单独一组、永远排最后**：`card_states` 已删的日志（`LEFT JOIN` 刻意保留）和
+  **v1 模板卡**（`getOrCreateCardState` 刻意不写 `knowledge_point_id`，见 `review_service.dart:415-425`）
+  都会落进来；把它们排在"最差"第一位会被读成"这个知识点在漏"，所以摘要里**不算**它们，
+  只单独说明有多少条归不到知识点。
+- **仍不做逐点标定**：逐点留存只需要复习结果；逐点偏置/斜率切完样本普遍不足 30 条，切了只有"样本不足"。
+- **只给 `standardError`，不宣称谁显著更差**：区间比较是另一件事，没做就不说。
+
+**验收**
+- 新增 `app/test/domain/services/cognitive/learning_metrics_test.dart` 逐点留存 7 例（分组与阈值省略、最差在前 +
+  样本数/id 兜底、阈值可配且含边界、归不到知识点的组永远最后、标准误、空输入与非法阈值、`toJson` 键与舍入）。
+- `app/test/features/ai/metrics_tools_test.dart` +5 例（开启后有键且带标题并点名；默认关闭无键；
+  样本不够时明说"看不出结论"且不点名；最多点 3 个、其余只说数量；归不到知识点时明说且不当作最差点）。
+- `flutter test test/domain/services/cognitive test/features/ai test/features/cognitive --concurrency=1`
+  → `+581 All tests passed!`；`dart analyze lib test` → `94 issues found.`（0 error / 0 warning）；
+  `dart format` 0 变更。
+
+**下一步**
+- 攒够 20 条以上复习后再看逐点留存，才知道"哪些知识点在漏"值不值得做成计划；
+- 组卷页控件（Q17，见轮次四十）、threadflow 与组卷的 `reasonZh` l10n；D 抓取登录态需要用户明确授权。
+
+---
+
+
 
 **做了什么**
 - 新 `app/lib/domain/services/cognitive/calibration.dart`（纯逻辑）：对 `review_logs.predicted_r`

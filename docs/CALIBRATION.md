@@ -79,8 +79,9 @@ p = σ(a·x + b)
 | 文件 | 职责 |
 | --- | --- |
 | `app/lib/domain/services/cognitive/calibration.dart` | 纯逻辑：`CalibrationReport.read(samples:)` + 五种结局 + 回溯牛顿。无 DB / 无 Flutter / 无时钟 |
-| `app/lib/features/cognitive/application/calibration_reader.dart` | `readCalibrationReading(db, …)`：**一次** `retentionSamples` 同时喂 `LearningMetrics`（留存/Brier/ECE）与 `CalibrationReport`（偏置）——两半讲的是同一批复习 |
-| `app/lib/features/ai/tools/metrics_tools.dart` | 只读工具 `review_metrics`：整体留存、最多 4 个有样本的间隔桶、Brier/ECE、`report.summaryZh`；样本不足时照原话转达。`readOnly => true`（任何权限模式都不逐条询问） |
+| `app/lib/domain/services/cognitive/learning_metrics.dart` | 留存/Brier/ECE 分箱；**逐知识点留存** `LearningMetrics.retentionByKnowledgePoint(samples:, minSamples:)` + `KnowledgePointRetention`（阈值 `kMinKnowledgePointRetentionSamples = 20`） |
+| `app/lib/features/cognitive/application/calibration_reader.dart` | `readCalibrationReading(db, …)`：**一次** `retentionSamples` 同时喂 `LearningMetrics`（留存/Brier/ECE + 逐点留存）与 `CalibrationReport`（偏置）——三半讲的是同一批复习 |
+| `app/lib/features/ai/tools/metrics_tools.dart` | 只读工具 `review_metrics`：整体留存、最多 4 个有样本的间隔桶、Brier/ECE、`report.summaryZh`；`knowledge_point_retention: true` 时再给逐点留存、最多点名 3 个样本够的最差点。样本不足时照原话转达。`readOnly => true`（任何权限模式都不逐条询问） |
 | `app/lib/features/ai/domain/tool_registry.dart` | 在 `ComposePaperTool` 之后注册 `ReviewMetricsTool(db: db)` |
 
 与 `library_diagnosis_reader.dart` 的分工是刻意的：**诊断读模型自己的状态（自证）**，
@@ -90,16 +91,24 @@ p = σ(a·x + b)
 
 - **不写回参数**：`calibrated` 保持 0；检验结果只做展示与对话，不改 `ls` / `W_DAR` 等任何系数。
 - **不做逐知识点标定**：样本量按知识点切开后普遍不足 30 条，切了只会得到一堆"样本不足"。
+  逐知识点**留存率**（轮次三十九）不在此列：它只需要复习结果，不需要预测值，所以阈值另设 20 条
+  并如实省略更薄的分组；但"逐点偏置/斜率"仍然没做。
 - **不做六个 MindNet 实验**：数据不在本仓库（外部只读文档）。
 - **不做先验与观测的联合标定**：`cognitive_priors` 与 `assessment_repository` 的合并规则仍按 M1d 的固定口径。
 - **工具不给"建议改什么参数"**：那需要先有标定结论，且改参数必须是显式动作。
+- **逐点留存只覆盖挂得上知识点的复习**：v1 模板卡的 `card_states.knowledge_point_id` 是空的
+  （`review_service.dart:415-425`），那些复习会落进 `null` 组；摘要里单独说明，**不算**"最差的知识点"。
+- **逐点留存不做区间估计的正确比较**：只给 `standardError`，不宣称"X 明显比 Y 差"。
 
 ## 8. 验收记录（本会话实跑）
 
 - `dart analyze lib test` → `94 issues found.`，`error` / `warning` 行计数 **0**（与基线同数）。
 - `flutter test test/domain/services/cognitive/calibration_test.dart --concurrency=1` → **17 例全绿**
   （四种"不算"、过度自信/低估/校准良好、斜率门槛、边界 0/1、确定性、`toJson` 契约）。
-- `flutter test test/features/ai/metrics_tools_test.dart --concurrency=1` → **12 例全绿**
-  （只读两条证明、空库、无预测、样本不足、过度自信、分桶默认开、间隔分桶、`since_days`、`limit`、非法参数、注册与 schema）。
+- `flutter test test/features/ai/metrics_tools_test.dart --concurrency=1` → **17 例全绿**
+  （只读两条证明、空库、无预测、样本不足、过度自信、分桶默认开、间隔分桶、`since_days`、`limit`、
+  非法参数、逐点留存四条、注册与 schema）。
+- `flutter test test/domain/services/cognitive/learning_metrics_test.dart --concurrency=1` → **23 例全绿**
+  （原有 16 + 逐点留存 7）。
 - 回归 `flutter test test/domain/services/cognitive test/features/ai test/features/cognitive --concurrency=1`
-  → `+569 All tests passed!`。
+  → `+581 All tests passed!`（轮次三十九加了 12 条：领域 7 + 工具 5）。
