@@ -274,6 +274,8 @@
   "threadRhythmHide": "隐藏这个读数",
   "threadRhythmUncalibrated": "节律参数未标定，这只是提示不是测量",
   "threadRhythmToggle": "注意力可用性读数",
+  "threadCognitiveRankToggle": "认知排序（目标 + 刚复习过）",
+  "threadCognitiveRankNote": "认知排序已打开：离当前目标或刚复习过的知识点近的任务排前面；加成未标定，只是次序提示",
   "threadNeedsSort": "需要重新排序",
   "threadNoEvents": "还没有事件",
   "threadGoal": "当前主要目标",

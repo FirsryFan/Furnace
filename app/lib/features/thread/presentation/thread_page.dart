@@ -67,8 +67,12 @@ class _ThreadPageState extends ConsumerState<ThreadPage> {
         title: Text(l10n.threadTitle),
         actions: [
           // Where the attention hint can be brought back after the reading's
-          // own hide button removed it (schema v15 switch, roadmap §3 row 4).
-          _RhythmToggle(enabledText: l10n.threadRhythmToggle),
+          // own hide button removed it (schema v15 switch, roadmap §3 row 4),
+          // plus the cognitive-order switch (schema v16, roadmap §2-D).
+          _ThreadMenu(
+            rhythmText: l10n.threadRhythmToggle,
+            cognitiveText: l10n.threadCognitiveRankToggle,
+          ),
           IconButton(
             tooltip: l10n.tasksNewTask,
             icon: const Icon(Icons.add),
@@ -93,6 +97,33 @@ class _ThreadPageState extends ConsumerState<ThreadPage> {
               }
             },
           ),
+          // 认知排序档位开着时，次序换了就得说清楚它是"提示"而不是测量
+          // （加成常数全部未标定，见 cognitive_rank.dart）。
+          if (ref.watch(cognitiveRankEnabledProvider).valueOrNull ?? false)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      l10n.threadCognitiveRankNote,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SegmentedButton<bool>(
@@ -685,36 +716,62 @@ class _NewEventDialogState extends ConsumerState<_NewEventDialog> {
   }
 }
 
-/// The attention-hint switch, kept in the app bar so hiding the reading on the
-/// status bar itself is undoable even when no event is in focus.
+/// The thread page's view menu: the attention-hint switch (kept in the app bar so
+/// hiding the reading on the status bar itself is undoable even when no event is
+/// in focus) and the cognitive-order switch (roadmap §2-D).
 ///
-/// The check mark shows the persisted choice; NULL (never chosen) reads as on,
-/// which is the shipped default (`docs/MINDNET_ROADMAP.md` §3 row 4).
-class _RhythmToggle extends ConsumerWidget {
-  const _RhythmToggle({required this.enabledText});
+/// The check marks show the persisted choices; NULL for the rhythm hint (never
+/// chosen) reads as on, which is the shipped default (`docs/MINDNET_ROADMAP.md`
+/// §3 row 4), while the cognitive order defaults to off on purpose: its boosts
+/// are all uncalibrated, so it must not replace the list the user is used to
+/// without being asked.
+class _ThreadMenu extends ConsumerWidget {
+  const _ThreadMenu({required this.rhythmText, required this.cognitiveText});
 
-  final String enabledText;
+  final String rhythmText;
+  final String cognitiveText;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(rhythmHintsEnabledProvider).valueOrNull ?? true;
-    return PopupMenuButton<bool>(
-      tooltip: enabledText,
+    final rhythmEnabled =
+        ref.watch(rhythmHintsEnabledProvider).valueOrNull ?? true;
+    final cognitiveEnabled =
+        ref.watch(cognitiveRankEnabledProvider).valueOrNull ?? false;
+    return PopupMenuButton<_ThreadMenuItem>(
+      tooltip: rhythmText,
       icon: const Icon(Icons.more_vert),
-      onSelected: (next) async {
-        await ref
-            .read(settingsRepositoryProvider)
-            .updateRhythmHintsEnabled(next);
-        ref.invalidate(rhythmHintsEnabledProvider);
-        ref.invalidate(studyRhythmProvider);
+      onSelected: (item) async {
+        switch (item) {
+          case _ThreadMenuItem.rhythm:
+            await ref
+                .read(settingsRepositoryProvider)
+                .updateRhythmHintsEnabled(!rhythmEnabled);
+            ref.invalidate(rhythmHintsEnabledProvider);
+            ref.invalidate(studyRhythmProvider);
+          case _ThreadMenuItem.cognitive:
+            await ref
+                .read(threadRankRepositoryProvider)
+                .setCognitiveRankEnabled(!cognitiveEnabled);
+            ref.invalidate(cognitiveRankEnabledProvider);
+            // 开关一翻，用户期待的是"现在"的次序就变：直接重排一次，不
+            // 等下一次数据变化（`sort()` 自己会重新读开关与素材）。
+            await ref.read(threadFeedProvider.notifier).sort();
+        }
       },
       itemBuilder: (context) => [
-        CheckedPopupMenuItem<bool>(
-          value: !enabled,
-          checked: enabled,
-          child: Text(enabledText),
+        CheckedPopupMenuItem<_ThreadMenuItem>(
+          value: _ThreadMenuItem.rhythm,
+          checked: rhythmEnabled,
+          child: Text(rhythmText),
+        ),
+        CheckedPopupMenuItem<_ThreadMenuItem>(
+          value: _ThreadMenuItem.cognitive,
+          checked: cognitiveEnabled,
+          child: Text(cognitiveText),
         ),
       ],
     );
   }
 }
+
+enum _ThreadMenuItem { rhythm, cognitive }

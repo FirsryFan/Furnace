@@ -1478,6 +1478,18 @@ abstract class AppLocalizations {
   /// **'Attention availability'**
   String get threadRhythmToggle;
 
+  /// No description provided for @threadCognitiveRankToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive ordering (goal + just reviewed)'**
+  String get threadCognitiveRankToggle;
+
+  /// No description provided for @threadCognitiveRankNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive ordering is on: tasks closer to the current goal or to just-reviewed knowledge points come first; the boosts are uncalibrated - a hint, not a measurement'**
+  String get threadCognitiveRankNote;
+
   /// No description provided for @threadNeedsSort.
   ///
   /// In en, this message translates to:

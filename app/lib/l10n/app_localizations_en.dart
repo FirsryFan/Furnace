@@ -747,6 +747,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadRhythmToggle => 'Attention availability';
 
   @override
+  String get threadCognitiveRankToggle =>
+      'Cognitive ordering (goal + just reviewed)';
+
+  @override
+  String get threadCognitiveRankNote =>
+      'Cognitive ordering is on: tasks closer to the current goal or to just-reviewed knowledge points come first; the boosts are uncalibrated - a hint, not a measurement';
+
+  @override
   String get threadNeedsSort => 'Needs re-sorting';
 
   @override

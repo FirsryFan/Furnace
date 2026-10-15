@@ -455,6 +455,14 @@ final currentWeightsProvider = FutureProvider<RankWeights>((ref) {
   return ref.watch(threadRankRepositoryProvider).getWeights();
 });
 
+/// 认知排序档位的开关，给线程页的菜单用（schema v16，默认关）。
+///
+/// 它和 `ThreadFeedNotifier` 读的是同一列；菜单写完之后会 invalidate 它并重排一次，
+/// 否则用户要等下一次数据变化才看到次序真的换了。
+final cognitiveRankEnabledProvider = FutureProvider<bool>((ref) async {
+  return ref.watch(threadRankRepositoryProvider).getCognitiveRankEnabled();
+});
+
 final threadRankServiceProvider = Provider<ThreadRankService>((ref) {
   return ThreadRankService(
     taskRepository: ref.watch(taskRepositoryProvider),

@@ -724,6 +724,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get threadRhythmToggle => '注意力可用性读数';
 
   @override
+  String get threadCognitiveRankToggle => '认知排序（目标 + 刚复习过）';
+
+  @override
+  String get threadCognitiveRankNote =>
+      '认知排序已打开：离当前目标或刚复习过的知识点近的任务排前面；加成未标定，只是次序提示';
+
+  @override
   String get threadNeedsSort => '需要重新排序';
 
   @override

@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-16 轮次五十五：认知排序的开关与"未标定"标注上屏（Q29e，Lead）
+
+**做了什么**：认知排序档位（roadmap §2-D）从"服务里能跑"变成"用户能开、开了看得懂"。
+
+- `app/lib/features/thread/application/thread_rank_service.dart`：新增
+  `cognitiveRankEnabledProvider`（`FutureProvider<bool>`，读 schema v16 的那一列），
+  它和 `ThreadFeedNotifier` 读的是同一列，不存在第二个真相。
+- `app/lib/features/thread/presentation/thread_page.dart`：AppBar 的 ⋮ 从 `_RhythmToggle`
+  （只有一个复选项）重构成 `_ThreadMenu`（两项：注意力可用性读数、认知排序，`_ThreadMenuItem`
+  枚举区分）。翻认知排序那一项会 `setCognitiveRankEnabled()` 落库 → invalidate 开关 provider →
+  **当场 `sort()` 一次**：用户翻开关期待的是"现在"的次序就变，不是等下一次数据变化。
+  开关打开时列表上方多一行说明（`Icons.psychology_outlined` + `threadCognitiveRankNote`）：
+  "认知排序已打开：离当前目标或刚复习过的知识点近的任务排前面；**加成未标定，只是次序提示**"。
+- ARB：`app/lib/l10n/app_zh.arb` / `app_en.arb` 各加 `threadCognitiveRankToggle`、
+  `threadCognitiveRankNote`，跑 `flutter gen-l10n` 重生成三个 `app_localizations*.dart`。
+
+**为什么把"未标定"直接写在列表上方**：这一档的距离加成（1.6 / 1.3 / 1.1）与精力强度（±0.25）
+全部未标定，而它会让次序**真的变**；只说"打开了"而不说"凭什么是这个次序"，用户会把提示当成测量。
+默认关（schema v16 的默认值）与这行说明是同一件事的两半。
+
+**验收**：`dart format` 3 文件 → `0 changed`；`dart analyze lib test` → `95 issues found`，
+`error`/`warning` 各 0（与改动前同数）；`flutter test
+test/features/thread/presentation/thread_page_cognitive_test.dart --concurrency=1` →
+`+1 All tests passed!`；全量 `flutter test --concurrency=1` → 见提交记录（上一片 `+1639 ~2`，
+本片 +1）。
+
+**还剩的另一半**：这一档加成常数的标定（外部，roadmap §4 末的六实验）；在那之前它默认关，
+打开也只是提示。
+
+---
+
 ## 2026-10-16 轮次五十四：认知排序档位接进排序服务（Q29d，Lead）
 
 **做了什么**：`app/lib/features/thread/application/thread_rank_service.dart` 里三处改动——

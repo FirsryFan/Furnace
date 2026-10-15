@@ -74,7 +74,9 @@
   开关已落库（轮次五十三：schema v16 的 `thread_rank_settings.cognitive_rank_enabled`，默认关）；
   服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 `CognitiveRankSeed` + 开关，
   `ThreadFeed` 暴露 `cognitiveRank` / `cognitiveFor` / `cognitiveReasonFor`，开关打开后
-  `readyTasks` 的次序真的会变；**UI 上的开关与"未标定"标注未做**）**；
+  `readyTasks` 的次序真的会变；**UI 开关与"未标定"标注也已完成（轮次五十五：线程页 AppBar
+  菜单里多一项"认知排序（目标 + 刚复习过）"，打开后列表上方出现"加成未标定，只是次序提示"
+  的说明行；`threadCognitiveRankToggle` / `threadCognitiveRankNote` 两个 ARB 键）**）**；
   ② `goal` 动作的**目标扩散**：目标集可达性排序（与 MindNet 的 `start_diffusion(starts, targets)` 对齐）；
   ③ 把"当前脑子里的东西"（刚复习/刚做错的节点）作为 `starts` 注入。
 - **落点**：`thread_rank_service.dart` 增加一个"认知排序"档位（与现有加权排序并存，可开关），输入 = 目标节点 + 刚活动节点 + α(τ)；
@@ -87,7 +89,7 @@
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
-| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；**UI 开关未做** |
+| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
@@ -209,7 +211,7 @@
 `test/data/database/v15_migration_test.dart`（2 例）、`thread_status_bar_test.dart`（4 例：
 有坐段就报数、没有坐段说"还没有足够记录"、点隐藏把开关落库且读数立刻消失、折叠后读数让位）。
 
-### 切片 4 的追加：认知排序档位（已完成 轮次五十–五十四）
+### 切片 4 的追加：认知排序档位（已完成 轮次五十–五十五）
 
 **缺口**：§2-D 的落点要求 Thread 排序用上"目标节点 + 刚活动节点 + α(τ)"。段落 A
 （`ThreadRanker` 的硬约束加权）与段落 B（`DomainBalanceRanker` 的领域均衡 + 有效性）都在跑，
@@ -282,8 +284,20 @@
 难度取最弱编码上限并且 α=0 时把弱编码的任务换下去）+ `thread_feed_notifier_test.dart`
 （2 例：开关关着没有这一档、库里打开之后排序结果真的带上它）。
 
-**还剩的另一半**：UI 上的开关（线程页 AppBar 菜单 + ARB 文案 + widget 测试）与"这一档
-未标定"的可见标注；以及这些加成常数的标定（外部，见 §4 末的标定实验）。
+**进展（轮次五十五）**：UI 也接完了 —— 线程页 AppBar 的那个 ⋮ 从"只有一个开关"变成
+`_ThreadMenu`（两项：注意力可用性读数、认知排序），翻开关会调
+`ThreadRankRepository.setCognitiveRankEnabled()` 落库、invalidate 开关 provider 并**当场重排
+一次**（不等下一次数据变化）；开关打开时列表上方多一行说明："认知排序已打开：离当前目标或
+刚复习过的知识点近的任务排前面；加成未标定，只是次序提示"——次序换了就得说清它是提示不是测量
+（本切片的加成常数仍全部 `[未标定]`）。新增两个 ARB 键 `threadCognitiveRankToggle` /
+`threadCognitiveRankNote`（zh + en，`flutter gen-l10n` 重生成）。
+
+**证据**：`app/test/features/thread/presentation/thread_page_cognitive_test.dart`（1 例：
+默认关且没有说明行 → 菜单里两项都在 → 点开开关，库里写 true、说明行出现 → 再点一次，
+库里写回 false、说明行消失）。
+
+**还剩的另一半**：加成常数的标定（外部，见 §4 末的标定实验）——在那之前这一档默认关，
+打开也只是"提示"，不是"测量"。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 
