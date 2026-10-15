@@ -14,6 +14,7 @@ import '../tools/content_query_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
+import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
 import '../tools/web_tools.dart';
@@ -59,6 +60,10 @@ class ToolRegistry {
         model: model,
         clock: clock,
       ),
+      // 用途 1 的兄弟 (Q12): 「这道题还有哪些同型邻居」。同一个题库投影
+      // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
+      // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。
+      FindSimilarQuestionsTool(db: db),
       // The write half of the photo flow: an attached page of notes becomes a
       // real knowledge point plus cards (see tools/knowledge_tools.dart).
       CreateKnowledgeCardsTool(anki),
@@ -80,7 +85,6 @@ class ToolRegistry {
     ]);
   }
 
-
   final List<AiTool> _tools;
 
   /// Every registered tool, including ones this platform cannot offer. Used by
@@ -88,12 +92,16 @@ class ToolRegistry {
   List<AiTool> get all => List.unmodifiable(_tools);
 
   /// The tools this platform may actually offer.
-  List<AiTool> get forCurrentPlatform =>
-      [for (final tool in _tools) if (tool.availableOnCurrentPlatform) tool];
+  List<AiTool> get forCurrentPlatform => [
+        for (final tool in _tools)
+          if (tool.availableOnCurrentPlatform) tool
+      ];
 
   /// Tools that are registered but unavailable here.
-  List<AiTool> get unavailableHere =>
-      [for (final tool in _tools) if (!tool.availableOnCurrentPlatform) tool];
+  List<AiTool> get unavailableHere => [
+        for (final tool in _tools)
+          if (!tool.availableOnCurrentPlatform) tool
+      ];
 
   AiTool? byName(String name) {
     for (final tool in _tools) {

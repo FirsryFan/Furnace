@@ -26,50 +26,12 @@ import 'paper_plan_provider.dart';
 
 /// 一道题的最新一条链的步骤动作序列（`idx` 升序），键是题目 id。
 ///
-/// 全部题目只读一次：`reasoning_chains` + `reasoning_steps` 各查一遍，
-/// 免得为每道题各查一次表。
+/// 读表主体在 `question_corpus_reader.dart` 的 `readChainActionTypes`（AI 工具层
+/// 用同一份，避免两处"题目 → 动作序列"的推导分叉）；这里只加数据版本。
 final chainActionTypesProvider =
     FutureProvider.autoDispose<Map<String, List<String>>>((ref) async {
   ref.watchDatabaseRevision();
-  final database = ref.watch(appDatabaseProvider);
-
-  final chains = await database.select(database.reasoningChains).get();
-  final steps = await database.select(database.reasoningSteps).get();
-
-  // 每条链的动作序列（idx 升序）。
-  final actionsByChain = <String, List<String>>{};
-  final sortedSteps = [...steps]..sort((a, b) {
-      final byChain = a.chainId.compareTo(b.chainId);
-      return byChain != 0 ? byChain : a.idx.compareTo(b.idx);
-    });
-  for (final step in sortedSteps) {
-    final action = step.actionType.trim();
-    if (action.isEmpty) continue;
-    (actionsByChain[step.chainId] ??= <String>[]).add(action);
-  }
-
-  // 一道题可能有多条链（不同模型/不同次）：只认最新那条，平手比 id，结果确定。
-  // `createdAt` 是 epoch 毫秒（int），不是 DateTime。
-  final latestByQuestion = <String, ({int createdAt, String id})>{};
-  for (final chain in chains) {
-    final questionId = chain.questionId.trim();
-    if (questionId.isEmpty) continue;
-    final current = latestByQuestion[questionId];
-    final isNewer = current == null ||
-        chain.createdAt > current.createdAt ||
-        (chain.createdAt == current.createdAt &&
-            chain.id.compareTo(current.id) > 0);
-    if (isNewer) {
-      latestByQuestion[questionId] = (createdAt: chain.createdAt, id: chain.id);
-    }
-  }
-
-  return {
-    for (final entry in latestByQuestion.entries)
-      entry.key: List<String>.unmodifiable(
-        actionsByChain[entry.value.id] ?? const <String>[],
-      ),
-  };
+  return readChainActionTypes(ref.watch(appDatabaseProvider));
 });
 
 /// 题库里的全部题目，带上各自的覆盖知识点与已有思维链动作序列。

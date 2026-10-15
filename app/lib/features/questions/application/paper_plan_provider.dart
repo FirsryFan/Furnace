@@ -3,7 +3,8 @@
 /// 领域分工：
 ///
 /// * 排序与打分全在 `domain/services/paper/paper_composer.dart`（Q9，已提交）；
-/// * 这个文件只做"读表 + 拼装"，是组卷前唯一的 IO 点；
+/// * 读表本身在 `question_corpus_reader.dart`（无 Riverpod 的纯函数）：这里只负责
+///   "数据版本 + 拼装"，是组卷前唯一的 IO 点；AI 工具层用同一份读表函数，不重写；
 /// * 诊断结论走**认知页自己的 provider**（`cognitiveLibraryDiagnosisProvider`），
 ///   不在这里重算——页面上说"危险"的知识点，组卷必须也按危险处理，两边共用同一次
 ///   诊断（D2：一个数字一个来源）。这条跨 feature 的 import 方向是
@@ -24,107 +25,24 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart';
-import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/scheduling/cognitive_readings.dart';
 import '../../../domain/services/scheduling/domain_balance.dart'
     show KnowledgePointReading;
-import '../../../domain/services/scheduling/thread_balance_inputs.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
+import 'question_corpus_reader.dart';
 
-/// 题库 + 知识点名字的一次读取快照：组卷、学科可选项、知识点名共用它，
-/// 免得每个 provider 各读一遍表。
-class PaperCorpus {
-  const PaperCorpus({
-    required this.candidates,
-    required this.knowledgePointNames,
-    required this.knowledgePointTagPaths,
-  });
-
-  /// 题干非空的全部题目（`state` 不筛：还没加工的题也能进卷，只是质量分低）。
-  final List<PaperCandidate> candidates;
-
-  /// 知识点 id → 标题（`KnowledgePoints.title`），用于理由行说人话。
-  final Map<String, String> knowledgePointNames;
-
-  /// 知识点 id → 它直挂的标签路径（`Tags.path`，形如 `文化课/学科/数学`），
-  /// 用来给理由行补学科背景；挂载了标签但路径为空的点不会出现在这里。
-  final Map<String, List<String>> knowledgePointTagPaths;
-
-  bool get isEmpty => candidates.isEmpty;
-
-  /// 题库里出现过的学科键（去空、去重、排序）。
-  List<String> get subjectKeys {
-    final keys = <String>{
-      for (final candidate in candidates)
-        if (candidate.subjectKey.trim().isNotEmpty) candidate.subjectKey.trim(),
-    }.toList()
-      ..sort();
-    return keys;
-  }
-}
+/// `PaperCorpus` 的公开路径保持在这里：组卷页与找相似题都从这个文件导入它，
+/// 类本身搬到了 `question_corpus_reader.dart`（AI 工具层也要用那份读表函数）。
+export 'question_corpus_reader.dart'
+    show PaperCorpus, readChainActionTypes, readPaperCorpus, readQuestionStems;
 
 /// 读一次题库，拼出组卷需要的两张表（题目 + 知识点名/标签路径）。
 final paperCorpusProvider =
     FutureProvider.autoDispose<PaperCorpus>((ref) async {
   ref.watchDatabaseRevision();
-  final db = ref.watch(appDatabaseProvider);
-
-  final questionRows = await db.select(db.questions).get();
-  final pointRows = await db.select(db.knowledgePoints).get();
-  final tagRows = await db.select(db.tags).get();
-  final linkRows = await db.select(db.objectTags).get();
-
-  final objectLinks = <ObjectTagLink>[
-    for (final row in linkRows)
-      ObjectTagLink(
-        tagId: row.tagId,
-        objectType: row.objectType,
-        objectId: row.objectId,
-      ),
-  ];
-  // 题目自己的覆盖点：同一标签既挂题目、又挂知识点 → 这道题覆盖那个知识点。
-  final pointsByQuestion = TaskKnowledgePointResolver.resolveFromTagLinks(
-    objectLinks,
-    sourceObjectType: kQuestionObjectType,
-  );
-  // 知识点挂的标签（键空间 Q8：`Tags.id` 是 `tag-…`，知识点 id 是 `kp-…`）。
-  final tagIdsByPoint =
-      KnowledgePointTagBridge.tagIdsByKnowledgePoint(objectLinks);
-  final pathByTagId = <String, String>{
-    for (final row in tagRows)
-      if ((row.path ?? '').trim().isNotEmpty) row.id: row.path!.trim(),
-  };
-
-  return PaperCorpus(
-    candidates: <PaperCandidate>[
-      for (final row in questionRows)
-        if (row.stem.trim().isNotEmpty)
-          PaperCandidate(
-            questionId: row.id,
-            subjectKey: row.subjectKey,
-            sourceLevel: row.sourceLevel,
-            questionType: row.questionType,
-            difficulty: row.difficulty,
-            aiQuality: row.aiQuality,
-            trapNote: row.trapNote,
-            matchedKnowledgePointIds:
-                pointsByQuestion[row.id] ?? const <String>[],
-          ),
-    ],
-    knowledgePointNames: <String, String>{
-      for (final row in pointRows)
-        if (row.title.trim().isNotEmpty) row.id: row.title.trim(),
-    },
-    knowledgePointTagPaths: <String, List<String>>{
-      for (final entry in tagIdsByPoint.entries)
-        entry.key: <String>[
-          for (final tagId in entry.value)
-            if (pathByTagId.containsKey(tagId)) pathByTagId[tagId]!,
-        ],
-    },
-  );
+  return readPaperCorpus(ref.watch(appDatabaseProvider));
 });
 
 /// 题库里的全部题目（`PaperCandidate`）。

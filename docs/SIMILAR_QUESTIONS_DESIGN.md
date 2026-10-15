@@ -72,10 +72,43 @@
 - `actionSequenceOverlap` 是 O(n·m) 的 LCS，链长上限 50；题库量级（每天 30 道）远不够触发性能问题，**没有索引**。
 - 相似题只按"库内线性扫描"找；将来要更快，先加索引/缓存，不先引向量库。
 - 找不到相似题时页面只说"库里还没有相似的题"，并给出收题入口——**不给"看着像"的题凑数**。
-- UI（题目详情页的"找相似题"区块）尚未做；本片只到 provider。
+- UI（题目详情页的"找相似题"区块）尚未完成；本片只到 provider，AI 工具面见 §6。
+- 相似结果**没有题干字段**（`SimilarQuestion.stem` 不存在）：领域层不搬运文案，谁展示谁按 id 读题干
+  （AI 工具用 `question_corpus_reader.dart` 的 `readQuestionStems`，UI 复用 `questionLibraryProvider`）。
 
 ## 5. 验收记录
 
 - `app/test/domain/services/paper/similar_questions_test.dart` → **14 例全绿**：共用知识点排序与分量；自己不推荐自己；跨学科同型 → 迁移标记；**LCS 顺序**（逆序分更低、空序列 0）；缺学科/缺难度取中性；难度差越大分越低；弱信号不过阈值（阈值调低才进）；`limit` 语义；**调权改变排序**；tie-break 与输入顺序无关；`reasonZh` 各段（含未知动作原样显示与兜底句）；输入清洗（空白/重复）；`toJson`；空候选不抛。
 - `app/test/features/questions/application/similar_question_provider_test.dart` → **6 例全绿**：共享知识点 + 同型动作入榜且理由讲同型步骤；跨学科 → 迁移候选；没链时只用结构信号；**多条链只认最新**（旧链不算数，两道结构分相同的题因此分出高下）；题干为空的脏行不进候选但仍能当基准题（回落读行）；不与自己配对 / 无相似题 / 不存在的题都返回空列表。
+- `app/test/features/ai/question_tools_test.dart` → **11 例全绿**：只读构造（两种权限模式都不逐条询问 + 调用前后整库指纹相同）；
+  按 `question_id` 找到并给出题干摘要/理由/中文动作名/四个分量；长题干截断；id 不存在 → `ok:false`；
+  题干为空的脏行当基准 → 0 条；只给条件（知识点 + 动作）能找到；无基准 → 失败；题库空 → ok + 0 条；
+  `limit` 默认 5 且钳 1..20；注册进 `ToolRegistry.forApp` 且 schema 键齐全。
+- 回归：`flutter test test/domain/services/paper test/features/questions/application test/features/ai` → **+385 全绿**
+  （读表抽出共享函数后，组卷/找相似题 provider 与全部 AI 工具测试都过）。
 - `dart analyze lib test` → 0 error / 0 warning / 94 info（= 基线）。
+
+## 6. AI 工具面：`find_similar_questions`
+
+Q12 的能力不只给页面用——agent 也应该能"找题"而不是"编题"。工具
+`app/lib/features/ai/tools/question_tools.dart` 的 `FindSimilarQuestionsTool`（注册在 `ToolRegistry.forApp`，
+`app/lib/features/ai/domain/tool_registry.dart`）把同一套领域逻辑暴露给模型：
+
+| 入参 | 说明 |
+|---|---|
+| `question_id` | 基准题（库里已有）；给了但查不到 → `ToolResult.failure`，不静默换题 |
+| `knowledge_point_ids`、`action_types`、`subject_key`、`question_type`、`difficulty` | 没有基准题时的显式条件；**至少要给一个**，否则失败并说明怎么给 |
+| `limit` | 默认 5，钳 1..20 |
+
+- `readOnly => true`（不写任何表，测试用整库指纹证明）；返回 `modelResult.questions[]` 带
+  `id` 与**截断到 120 字的题干摘要**、`score`、四个 `components`、`shared_knowledge_point_ids`、
+  中文知识点名、`shared_action_types` + 中文动作标签、`cross_subject_transfer`、`reason`。
+- 题库为空、或**一道都不够像**时也返回 `ok: true` + 明确的中文说明（"我不会自己出题，要么去收题页补题，
+  要么放宽条件"）——工具不许拿"看着像"的题凑数，也不许替模型生成题干。
+- **`compose_paper` 工具本轮不做**：组卷要喂认知读数，而读数目前只能从 Riverpod 的
+  `cognitiveLibraryDiagnosisProvider` 拿；不喂读数就组卷，"缺口"清单会永远是空的
+  （"没跑不等于健康"），那是让工具撒谎。抽一个非 Riverpod 的诊断读取是单独一个 slice。
+- 读表主体抽到 `app/lib/features/questions/application/question_corpus_reader.dart`
+  （`readPaperCorpus` / `readChainActionTypes` / `readQuestionStems`，纯 Dart 无 Riverpod），
+  两个 provider 变成瘦包装（仍各自 `ref.watchDatabaseRevision()`）；`paper_plan_provider.dart`
+  继续 `export` 这些符号，调用方路径不变。

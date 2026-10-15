@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-10-16 轮次三十四：AI 工具面——agent 能"找题"，不能"编题"（Q12 工具面，Lead）
+
+**做了什么**
+- 新 `app/lib/features/questions/application/question_corpus_reader.dart`（纯 Dart、无 Riverpod）：
+  把所有读表主体从 provider 里抽出来 —— `readPaperCorpus(db)`（题库快照：候选 + 知识点名 + 知识点标签路径）、
+  `readChainActionTypes(db)`（每题最新一条链的动作序列）、`readQuestionStems(db, ids:)`（题号 → 题干）。
+  `PaperCorpus` 类随之下移；`paper_plan_provider.dart` 仍然 `export` 这些符号，**调用方公开路径不变**，
+  两个 provider 变成瘦包装（仍各自 `ref.watchDatabaseRevision()`）。
+- 新 `app/lib/features/ai/tools/question_tools.dart` 的 `FindSimilarQuestionsTool`：入参
+  `question_id`（基准题）/ `knowledge_point_ids` / `action_types` / `subject_key` / `question_type` /
+  `difficulty` / `limit`（默认 5，钳 1..20）；否则**至少要给一个基准**，一个都没有就失败并说明怎么给。
+  走的就是 Q12 的 `SimilarQuestionFinder.rank`，题干用 `readQuestionStems` 读回并**截断到 120 字**。
+  注册进 `ToolRegistry.forApp`（`app/lib/features/ai/domain/tool_registry.dart`）。
+- `docs/SIMILAR_QUESTIONS_DESIGN.md` 新增 §6「AI 工具面」并补齐 §5 验收。
+
+**为什么不这么做**
+- **工具只找题、不编题**：题库里没有就是没有，摘要里明说"我不会自己出题，要么去收题页补题，要么放宽条件"；
+  不生成题干、不加"看着像"的题。
+- **`compose_paper` 工具本轮不做**：组卷要喂认知读数，而读数目前只能从 Riverpod 的
+  `cognitiveLibraryDiagnosisProvider` 拿；不喂读数就组卷，"缺口"清单会永远是空的（"没跑不等于健康"），
+  等于让工具撒谎。抽一个非 Riverpod 的诊断读取是单独一个 slice。
+- 读表逻辑只有一份：AI 工具、组卷页、详情页读的是同一个 `readPaperCorpus`，不各写一套。
+
+**验收**
+- `app/test/features/ai/question_tools_test.dart` **11 例全绿**：只读构造（两种权限模式都不逐条询问 +
+  调用前后**整库指纹相同**）；按 `question_id` 找到并给出题干摘要/理由/中文动作名/四个分量；长题干截断；
+  id 不存在 → `ok:false`；题干为空的脏行当基准 → 0 条；只给条件（知识点 + 动作）能找到；无基准 → 失败；
+  题库空 → ok + 0 条；`limit` 默认 5 且钳 1..20；注册与 schema 键齐全。
+- 回归：`flutter test test/domain/services/paper test/features/questions/application test/features/ai`
+  → **+385 全绿**（读表重构没有破坏组卷/找相似题 provider 与任何 AI 工具测试）。
+- `dart analyze lib test` → **94 info / 0 error / 0 warning**（= 基线）；`dart format` 后无未格式化文件。
+
+**下一步**
+- Q12 的 UI（题目详情页「找相似题」区块，task-12，teammate 进行中）交回 Lead 独立验收后提交。
+- `compose_paper` 工具：先抽非 Riverpod 的诊断读取，再接工具。
+
+---
+
 ## 2026-10-16 轮次三十三：找相似题——AI 不出题，只找相似题（Q12，Lead）
 
 **做了什么**
