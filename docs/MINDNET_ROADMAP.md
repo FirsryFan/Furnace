@@ -40,10 +40,10 @@
 ### A. 找题（趋势：从"评价一道题"到"按我的状态排题"）
 
 - **已有**：`evaluate_problem_fit`（只读工具）→ `ProblemEvaluator` + `CognitiveModel`，给 6 类判定 + 排序键 + 人话理由。
-- **缺**：① ~~控制层 `expected_gain`/反事实 `V(π)` 真正参与排序（现在只到判定）~~ **已进排序（轮次五十六）**：`ProblemEvaluator` 把 `FastPlanner` 的 `V(π)=ΔR/cost` 用作**同分档的次序与解释**（`compareByRank`：`rankKey` → `V(π)` → `problemId`），理由行带上"为什么排这里"；它**没有**并进 `rankKey`（加成与成本全部未标定，混进主键会让提示看起来像测量），`retention` 侧没有 `RetentionProbe` 时仍是"未模拟"（不是 0 增益）；
+- **缺**：① ~~控制层 `expected_gain`/反事实 `V(π)` 真正参与排序（现在只到判定）~~ **已进排序（轮次五十六）**：`ProblemEvaluator` 把 `FastPlanner` 的 `V(π)=ΔR/cost` 用作**同分档的次序与解释**（`compareByRank`：`rankKey` → `V(π)` → `problemId`），理由行带上"为什么排这里"；它**没有**并进 `rankKey`（加成与成本全部未标定，混进主键会让提示看起来像测量），`retention` 侧没有 `RetentionProbe` 时仍是"未模拟"（不是 0 增益）；~~`retention` 侧缺探针~~ **`retention` 侧已完成（轮次五十七–五十八：`FastMechanisms.memory` 按需装 `memory.dsr`，`dsrRetentionProbe()` 读同一个 bag，`ProblemEvaluator` 已把探针传进 `FastPlanner.plan`）**；
   ② 节律 α(τ) 决定"现在适合做难还是易"（读数与建议已完成轮次四十七；认知排序的精力项已完成轮次五十四）；③ 题目来源（组卷网 skill）与题源质量判据。
   （原列的"元认知危险区优先"已在轮次二十二实测后撤回：见下方"切片 3 的追加"。）
-- **落点**：`problem_evaluator.dart` 增加 `retention|reachability` 双度量排序；AI 工具输出里带上"为什么排这里" ✅ **`reachability` 侧已完成（轮次五十六）**，`retention` 侧等 `RetentionProbe` 接进 fast layer。
+- **落点**：`problem_evaluator.dart` 增加 `retention|reachability` 双度量排序；AI 工具输出里带上"为什么排这里" ✅ **`reachability` 侧已完成（轮次五十六）**，`retention` 侧的记忆层与探针已就位（轮次五十七：`memory.dsr` 可装进快层 + `dsrRetentionProbe()`），并已传进 `FastPlanner.plan`（轮次五十八）：`retention` 指令现在能给出真实价格（"复习能买回多少留存"），两种度量按 `V` 竞争、`metric` 随值一起上报。
 
 ### B. 闪存卡复习（趋势：把"评分"升级成"事件流"）
 
@@ -90,7 +90,7 @@
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
-| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"；`retention` 侧仍缺 `RetentionProbe`，是"未模拟"而不是 0）；还没做的是"今天做这几件事"的清单本身（把题目与闪存卡合成一个按 `V(π)` 排的日计划）** |
+| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；还没做的是"今天做这几件事"的清单本身（把题目与闪存卡合成一个按 `V(π)` 排的日计划）** |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
@@ -379,6 +379,38 @@ MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的�
 不可能描述两次不同的运行。证据：`problem_evaluator_test.dart` 13 例（含 3 例价格：有价格 / 关掉快层全空 /
 纯 tie-break 不越 `rankKey`）、`cognitive_tools_test.dart` 13 例（含"没得连就没有价格键"与
 "两个节点时给出 `reachability` 价格"）。`retention` 侧与"把题目和闪存卡合成一份按 `V(π)` 排的日计划"仍未做。
+
+**进展（轮次五十七）**：`retention` 侧的记忆层装上了 —— `FastMechanisms.memory`（`memory.dsr`）
+可以按需装进 `FastEngine`，装后 `FastEngine.review()` 真的会走 DSR（`srs/dsr_memory.dart` 那套移植），
+状态存在 `node.m['memory_dsr']` 这个 bag 里（`FastEngine.memoryBagKey`），并同步 `node.ms` /
+`node.lastReviewTime`（对应参考实现的 `synced()`）；生产探针 `dsrRetentionProbe()` 读的就是这个 bag
+（`app/lib/domain/services/cognitive/dsr_retention_probe.dart`）。为什么默认**不装**：conformance
+向量是没装的时候生成的，而参考实现的 `memory.dsr` 也不注册任何 `round.*` 钩子（它是 lazy 的
+`ensureState`/`synced()`）——所以"装"这件事对轮次数值是零改动，只对"能不能给一次复习定价"有影响。
+为什么参数来自 `DsrParams` 而不是 `FastParamSpec` 表：那张表只吃数值路径，而记忆层还有一个非数值参数
+（`decay_model`）；把它镜像进参数表是标定那一片的事。诚实边界：bag 目前是从 `node.ms` 懒建的
+（`R0 = min(1, ms)`，`S = legacy_k * R0`，`D` 取默认），也就是**先验价格**而不是这张卡自己的价格；
+调用方知道真实卡状态时先 `seedDsrState()` 塞进去，探针就会读它。证据：
+`app/test/domain/services/cognitive/dsr_memory_layer_test.dart` 7 例（不装就不记录任何东西 /
+装上后 `N`、`R0`、`S`、`Sigma` 与 `synced()` 都对 / 二次成功 `S` 再涨而 lapse 掉 `S` 保 `Sigma` /
+克隆各改各的 bag / 探针在同一 bag 上给出 `before < after` / 图外节点是 `null` 而不是 0 /
+塞了真实状态就压过 `ms`）。`ProblemEvaluator` 还没把探针传进 `FastPlanner.plan`（Q31b），
+"今天做这几件事"的清单仍未做。
+
+**进展（轮次五十八）**：探针接上了 —— `ProblemEvaluator._runFastLayer` 现在把 `memory.dsr` 一起装进
+快层（`FastMechanisms.memory`）并把 `dsrRetentionProbe(params: engine.memoryParams)` 交给
+`FastPlanner.plan`，所以 `strengthen_impression` / `interval_retrieval` / `lower_threshold` 这三条
+留存指令从"未模拟"变成"有价格"（"到明天能买回多少留存"）。常数来自引擎自己那份 `DsrParams`，
+不在评估器里重写一份。为什么这不是把两把尺子当一把：`V` 对两种度量都是"增益/成本"，但问的问题不同，
+所以价格与 `metric` 一起上报（`counterfactualMetric`），而且它**只当同分档的次序与解释**，
+永不并进 `rankKey`。实测一个诚实边界：当 `ms = 1.0`（上限）时 `R0 = 1.0`、`S = legacy_k × R0 = 24`，
+`u = hours + 24` 处 `t/S = 1` ⇒ `psi = 0.9` 精确，复习后的稳定性增益是 1.0（`R0` 已封顶）⇒
+`gain = 0.0` **精确**。零增益**不是价格**（它永远不会改变任何次序，而写个 `0.0` 出去像在测量
+"这道题一文不值"），所以 `_bestPlanEntry` 只收 `value > 0` 的条目：上限节点与"没装记忆层"一样
+都不报价格。两种"没有价格"在 planner 的 `simulated` 上分得很清楚（那才是"这个问题问过没有"的标记）。
+证据：`problem_evaluator_test.dart` 15 例（新增"有入边但没动量 ⇒ `retention` 价格 > 0"与
+"在上限 ⇒ 完全不报价格"，前者刻意用 `encodingStrength: 0.5`，因为 1.0 时增益恰好是 0）；`dsr_memory_layer_test.dart` 9 例（新增"给探针就模拟，报价 `cost`
+是 `costRetrieval`"与"不给探针就 `simulated: false`，永不是 0 增益"）。"今天做这几件事"的清单仍未做。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

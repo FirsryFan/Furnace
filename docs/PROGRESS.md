@@ -4,6 +4,86 @@
 
 ---
 
+## 2026-10-16 轮次五十八：留存探针接进题目排序（Q31b，Lead）
+
+**做了什么**：把轮次五十七做出的记忆层与探针接到找题的定价上（roadmap §2-A 缺① 的 `retention` 侧收尾）：
+
+- `app/lib/domain/services/cognitive/problem_evaluator.dart`：`_runFastLayer` 的机制列表加上
+  `FastMechanisms.memory`，`FastPlanner.plan(...)` 多传 `retentionProbe: dsrRetentionProbe(params: engine.memoryParams)`
+  —— 常数取引擎自己那份 `DsrParams`，不在评估器里重写一份；文件头第 5 条边界补一句"记忆层不注册
+  `round.*` 钩子，所以诊断逐位不变，变的只是留存指令能不能定价"。
+- `app/lib/domain/services/cognitive/dsr_retention_probe.dart`：`dsrRetentionProbe` 的 `params` 改成
+  可空（`{DsrParams? params}`，null = 引擎默认），这样调用方不必 import `srs/dsr_memory.dart`。
+- `_bestPlanEntry` 的 doc 写明：现在两种度量（`reachability` 开一条边 / `retention` 复习一个节点）
+  都会出现，`V` 对两者都是"增益/成本"，所以按 `value` 比，但问的问题不同 ⇒ 价格与 `metric` 一起上报
+  （`counterfactualMetric`），永不并进 `rankKey`。
+
+**一个诚实边界（实测）**：`ms = 1.0`（上限）时 `R0 = 1.0`、`S = legacy_k × R0 = 24`，在
+`u = hours + 24` 处 `t/S = 1` ⇒ `psi = 0.9` 精确，而复习后的稳定性增益是 1.0（`R0` 已封顶）⇒
+`gain = 0.0` **精确**。零增益**不是价格**：它永远不会改变任何次序，而写一个 `0.0` 出去像在测量
+"这道题一文不值"，其实只是撞到上限。所以 `_bestPlanEntry` 只收 `value > 0` 的条目 —— 上限节点
+和"没装记忆层"一样都不报价格；两者在 planner 的 `simulated` 上分得很清楚，那才是"这个问题
+问过没有"的标记。（这一条是被测试逼出来的：`cognitive_tools_test.dart` 里"孤立节点不报价格"
+那条断言在接线后先红，实测输出为 `{metric: retention, instruction: lower_threshold, value: 0.0,
+why: …24 小时后的留存 0.9 → 0.9}`，于是把"零增益也算有价"改成"零增益不报"。）
+
+**验收**：`app/test/domain/services/cognitive/problem_evaluator_test.dart` 15 例（新增 2 例：
+"有入边但没动量 ⇒ `retention` 价格 > 0"，刻意用 `encodingStrength: 0.5`，因为 1.0 时增益恰好是 0；
+"在上限 ⇒ 完全不报价格"）、`app/test/domain/services/cognitive/dsr_memory_layer_test.dart`
+9 例（新增 2 例：给探针就模拟并报 `cost = costRetrieval`；不给探针就 `simulated: false` 且值不是 0），
+全绿；`dart format` 5 文件 3 changed（仅行宽）；`dart analyze` 4 文件 `No issues found!`。
+
+**顺手排掉的一个 fixture 偶发（根因已定位）**：三目录连跑时 `cognitive_tools_test.dart` 的
+"a priced dead end…" 约 1/3 概率红（`Expected: not null / Actual: <null>`）。插桩定位到差别在
+**图的入边**：`CognitiveGraph.fromTags` 规则 4 让每一对顶层 tag（互为兄弟）只连一条有向边，
+方向 =（importance 降序，平手按 `id` 升序），而标签 id 由 `TagRepository` 生成为 `tag-<uuid>`
+⇒ 两个顶层标签谁在链头每次运行都可能翻转，只有链头才是 in=0（被判 `empty`、有 `add_in_edges`
+可定价），另一个是 in=1（被判 `weak`、无价）。排除过：点火随机（`T_ign` 固定 0，`_ignitionHit`
+在 (0,1) 内直接抛 `UnsupportedError`）、墙钟/预算（工具只有注入的 `clock`，无 `Stopwatch`）、
+`hashCode` 迭代序（两文件无此用法）。修法只动测试：给两个标签固定有序 id
+（`tag-a-island` < `tag-b-lit`），让 fixture 自己声明拓扑。生产代码未动 —— 引擎给定 id 的输出
+逐字节确定（文件 doc 也是这么写的），随机的是 fixture 生成的 uuid。
+
+**还剩的另一半**："今天做这几件事"的日计划（把题目与闪存卡合成一份按 `V(π)` 排的清单，
+roadmap §3 第 5 行验收）。
+
+---
+
+## 2026-10-16 轮次五十七：`memory.dsr` 装上快层 + 生产留存探针（Q31a，Lead）
+
+**做了什么**：roadmap §2-A 缺① 的另一半 —— 反事实规划器里 `retention` 类指令
+（`strengthen_impression` / `interval_retrieval` / `lower_threshold`）以前因为快层**没装记忆层**，
+永远算不出"复习一次到明天能多留住多少"，只能报"未模拟"。现在：
+
+- `app/lib/domain/services/cognitive/fast_engine.dart`：新增 `FastMechanisms.memory = 'memory.dsr'`，
+  按需安装（模板照 `rhythm.gate`：构造里 `mechanisms.isEnabled(...)` 才建）。装后
+  `FastEngine.review(nodeId, event)` 不再返回空钩子，而是走 DSR：`DsrState.fromJson`/`DsrState.initial`
+  懒建状态 → `DsrMemory.applyReview` → 写回 `node.m['memory_dsr']`（新公开常量
+  `FastEngine.memoryBagKey`）并同步 `node.ms` / `node.lastReviewTime`（参考实现的 `synced()`）。
+  新增 `FastEngine.dsrStateOf` / `dsrBagOf` / `dsrRetrievabilityOf` 三个静态方法，
+  `clone()` 复制 `_memoryParams`（bag 由 `graph.copy()` 深拷贝）。
+- `app/lib/domain/services/cognitive/dsr_retention_probe.dart`（新文件）：
+  `RetentionProbe dsrRetentionProbe({DsrParams params})` —— 图外节点返回 `null`（不是 0 增益），
+  其余走 `FastEngine.dsrRetrievabilityOf`；另有 `seedDsrState(node, state)` 供"知道真实卡状态"的调用方
+  先塞 bag。
+
+**为什么默认不装**：conformance 向量是在没装的时候生成的，而参考实现的 `memory.dsr` 也**不注册任何
+`round.*` 钩子**（它是 lazy `ensureState` + `synced()`），所以"装"对轮次数值是零改动 —— 它只改变
+"能不能给一次复习定价"。同理，`review()` 在没装时仍然返回空列表，而不是假装复习过。
+
+**诚实边界**：bag 目前是从 `node.ms` 懒建的（`R0 = min(1, ms)`、`S = legacy_k * R0`、`D` 取默认），
+也就是**先验价格**，不是这张卡自己的价格；参数来自 `DsrParams`（移植的 `PARAMS`）而不是引擎的
+`FastParamSpec` 表（那张表只吃数值路径，而记忆层有非数值参数 `decay_model`，镜像进表属于标定那一片）。
+
+**验收**：`app/test/domain/services/cognitive/dsr_memory_layer_test.dart` 7 例全绿；
+`dart format` 3 文件（1 changed）；`dart analyze` 三个文件 `No issues found!`。
+
+**当时还剩的另一半（已在轮次五十八完成）**：把探针传进 `ProblemEvaluator`（`FastPlanner.plan(retentionProbe: ...)`，并把
+`memory.dsr` 装进快层引擎），于是 `retention` 指令从"未模拟"变成有价格、`counterfactualMetric`
+会出现 `'retention'`（工具输出的键 Q30 已经加了）；再往后才是"今天做这几件事"的清单。
+
+---
+
 ## 2026-10-16 轮次五十六：反事实 `V(π)` 进入题目排序（Q30，Lead）
 
 **做了什么**：roadmap §2-A 缺① —— 控制层那个反事实规划器以前只负责"判定"，现在它的价格也参与

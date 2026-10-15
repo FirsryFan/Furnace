@@ -401,5 +401,77 @@ void main() {
         ['plain', 'paid'],
       );
     });
+
+    test('a point with a way in but no momentum is priced in retention', () {
+      // Q31b: the evaluator installs `memory.dsr` and hands the planner the
+      // production probe, so the one bottleneck the planner answers with a
+      // *retention* instruction (`weak`) now gets a real "how much does
+      // reviewing buy by tomorrow" price instead of "not simulated".
+      //
+      // The encoding strength is 0.5 on purpose: at 1.0 (the ceiling) the
+      // simulated gain is exactly zero, so no price is reported at all (next
+      // test) and this one could not tell "priced" from "not priced".
+      final report = ProblemEvaluator.evaluate(
+        candidates: [
+          problem('p1', kps: const ['kp-child'])
+        ],
+        tags: const [
+          CognitiveTag(id: 'kp-parent', name: 'kp-parent'),
+          CognitiveTag(id: 'kp-child', name: 'kp-child', parentId: 'kp-parent'),
+        ],
+        rowsByKnowledgePoint: {
+          'kp-parent':
+              rowOf(knowledgePointId: 'kp-parent', encodingStrength: 0.5),
+          'kp-child':
+              rowOf(knowledgePointId: 'kp-child', encodingStrength: 0.5),
+        },
+        model: model,
+        nowHours: nowHours,
+        startKnowledgePointIds: const ['kp-parent'],
+      );
+
+      final evaluation = report.evaluations.single;
+      expect(evaluation.diagnosisByKnowledgePoint, isNotEmpty,
+          reason: 'a parent -> child edge is a way in, so this is not a '
+              'no-entry dead end');
+      expect(evaluation.counterfactualMetric, 'retention');
+      expect(evaluation.counterfactualInstruction, 'strengthen_impression');
+      expect(evaluation.counterfactualValue, isNotNull);
+      expect(evaluation.counterfactualValue!, greaterThan(0),
+          reason: 'why was: ${evaluation.counterfactualWhy}');
+      expect(evaluation.counterfactualWhy, isNotEmpty);
+      expect(evaluation.reason, contains('retention'));
+    });
+
+    test('a review at the retrievability ceiling carries no price at all', () {
+      // R0 = 1.0 with S = legacy_k * R0: psi(24 / 24) = 0.9 exactly, and a
+      // success at R = 1 buys no stability at all, so the simulated gain is
+      // exactly zero. That is not a price: a `0.0` in the output would read like
+      // a measurement of worthlessness, and it can never reorder anything. The
+      // key is absent - the same way it is absent when the memory layer is not
+      // installed at all, which is why the planner's own `simulated` flag, not
+      // the presence of a price, is what says "this question was asked".
+      final report = ProblemEvaluator.evaluate(
+        candidates: [
+          problem('p1', kps: const ['kp-child'])
+        ],
+        tags: const [
+          CognitiveTag(id: 'kp-parent', name: 'kp-parent'),
+          CognitiveTag(id: 'kp-child', name: 'kp-child', parentId: 'kp-parent'),
+        ],
+        rowsByKnowledgePoint: {
+          'kp-parent': rowOf(knowledgePointId: 'kp-parent'),
+          'kp-child': rowOf(knowledgePointId: 'kp-child'),
+        },
+        model: model,
+        nowHours: nowHours,
+        startKnowledgePointIds: const ['kp-parent'],
+      );
+
+      final evaluation = report.evaluations.single;
+      expect(evaluation.counterfactualValue, isNull);
+      expect(evaluation.counterfactualMetric, isNull);
+      expect(evaluation.reason, isNot(contains('反事实')));
+    });
   });
 }

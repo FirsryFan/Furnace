@@ -31,7 +31,14 @@
 /// Everything else the JS engine offers that is **not** here, so a reader can
 /// tell "not ported" from "forgotten":
 ///
-/// * `memory.dsr`, `attention.inhibition`, `legacy_v1.js`
+/// * `memory.dsr` is **not installed by default** either, and for the same
+///   reason as `rhythm.gate`: the vectors were generated without it. Since then
+///   it is available as an opt-in ([FastMechanisms.memory]): it registers no
+///   `round.*` hook in the reference either, so an installed layer changes the
+///   round pipeline by exactly nothing - it only gives [FastEngine.review] a
+///   state to advance ([FastEngine.memoryBagKey]) and a retention probe a
+///   number to read;
+/// * `attention.inhibition`, `legacy_v1.js`
 ///   (the contract §6.1 lists these as out of scope for tierB);
 /// * `metacognition.belief` - its danger rows are *input* to
 ///   `fast_diagnosis.dart`, not computed here;
@@ -59,6 +66,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../srs/dsr_memory.dart';
 import 'rhythm_gate.dart';
 
 /// Node state, mirroring `STATE` in MindNet's `src/model.js`.
@@ -247,6 +255,18 @@ class FastMechanisms {
   /// leaving it out keeps `availability` at exactly 1 and the port bit-for-bit
   /// comparable (D3). See [RhythmGate] for what is ported and what is refused.
   static const String rhythm = 'rhythm.gate';
+
+  /// `memory.dsr` — the DSR memory layer (`mechanisms/memory.dsr.js`, ported in
+  /// `domain/services/srs/dsr_memory.dart`). Installed **on request only**, for
+  /// the same reason as [rhythm]: the conformance vectors were generated without
+  /// it, and the layer only runs where the JS runs it (the `review.on` slot).
+  ///
+  /// Installing it changes no round arithmetic: the reference's `memory.dsr`
+  /// registers no `round.*` hook either - it is lazy (`ensureState` on first
+  /// touch, `synced()` after a read). What it adds is a per-node state bag
+  /// ([FastEngine.memoryBagKey]) that [FastEngine.review] advances, which is
+  /// what a retention probe needs to price an intervention.
+  static const String memory = 'memory.dsr';
 
   bool isEnabled(String id) => ids.contains(id);
 
@@ -1130,6 +1150,7 @@ class FastEngine {
     Map<String, Object?> overrides = const <String, Object?>{},
     this.seed = 11,
     this.hours = 0,
+    DsrParams? memoryParams,
   }) : overrides = <String, Object?>{
           ...mechanisms.overrides,
           ...overrides,
@@ -1148,6 +1169,9 @@ class FastEngine {
               numberParam('${FastMechanisms.rhythm}.tau_vig_minutes'),
         ),
       );
+    }
+    if (mechanisms.isEnabled(FastMechanisms.memory)) {
+      _memoryParams = memoryParams ?? const DsrParams();
     }
   }
 
@@ -1176,6 +1200,24 @@ class FastEngine {
   /// The installed gate, for callers that want to read its clock/vigilance
   /// (the reference exposes the same numbers as `payload.rhythm`).
   RhythmGate? get rhythmGate => _rhythmGate;
+
+  /// The installed DSR parameters, or null when `memory.dsr` is not installed
+  /// (`reviews` are then an empty hook list, as in the reference).
+  ///
+  /// The numbers come from [DsrParams] - the ported `PARAMS` table of
+  /// `mechanisms/memory.dsr.js`, i.e. MindNet's declared defaults - rather than
+  /// from [mechanisms]: that table accepts numeric paths only, and the memory
+  /// layer also has a non-numeric parameter (`decay_model`). Mirroring it into
+  /// [FastParamSpec] is a calibration concern, not a wiring one.
+  DsrParams? _memoryParams;
+
+  /// True once `memory.dsr` is installed, i.e. once [review] advances state
+  /// instead of returning an empty hook list.
+  bool get memoryInstalled => _memoryParams != null;
+
+  /// The installed DSR parameters, for callers that want to build a matching
+  /// retention probe ([DsrParams] is the same object the engine reviews with).
+  DsrParams? get memoryParams => _memoryParams;
 
   /// Recorded for provenance (the vectors pin `seed`); unused this round:
   /// with `T_ign = 0` and no `rhythm.gate` there is no random draw to seed
@@ -2098,15 +2140,99 @@ class FastEngine {
 
   /// `kernel.review(nodeId, event)`: runs the `review.on` slot on this engine.
   ///
-  /// Returns nothing today because the tierB profile installs **no memory
-  /// mechanism** - the JS kernel with `memory.dsr` absent also runs an empty hook
-  /// list - so this is the seam where a wired memory layer would be called, not a
-  /// stub that pretends to have reviewed something.
+  /// With no memory mechanism installed the tierB profile returns an empty hook
+  /// list - the JS kernel with `memory.dsr` absent does the same - so the call
+  /// records nothing rather than pretending to have reviewed something. With
+  /// [FastMechanisms.memory] installed it advances the node's DSR state
+  /// (`mechanisms/memory.dsr.js`'s `review`, ported in [DsrMemory]) and keeps
+  /// `node.ms`/`node.lastReviewTime` in step with the bag, i.e. the reference's
+  /// `synced()`.
   List<Map<String, Object?>> review(String nodeId, Map<String, Object?> event) {
-    if (!graph.hasNode(nodeId)) {
+    final node = graph.nodes[nodeId];
+    if (node == null) {
       throw ArgumentError('review：节点 "$nodeId" 不存在');
     }
-    return const <Map<String, Object?>>[];
+    final params = _memoryParams;
+    if (params == null) {
+      return const <Map<String, Object?>>[];
+    }
+    final state = dsrStateOf(node, u: hours, params: params);
+    final outcome = DsrMemory.applyReview(
+      state,
+      hours,
+      DsrReviewEvent.fromJson(event),
+      params,
+    );
+    node.m[memoryBagKey] = state.toJson();
+    node.ms = outcome.rAfter;
+    node.lastReviewTime = state.lastReview;
+    return <Map<String, Object?>>[
+      <String, Object?>{
+        'mechanism': FastMechanisms.memory,
+        'kind': outcome.kind,
+        'R_at_review': outcome.rAtReview,
+        'R_after': outcome.rAfter,
+        'R0_after': outcome.r0After,
+        'S_after': outcome.sAfter,
+        'Sigma_after': outcome.sigmaAfter,
+        'D_after': outcome.dAfter,
+        'S_increase': outcome.sInc,
+      },
+    ];
+  }
+
+  /// Where the memory layer keeps a node's state, exactly as the reference does
+  /// (`node.m['memory_dsr']`). Public because a retention probe has to read the
+  /// same bag, and because `diagnosticFacts` reports `R0`/`S`/`D` from it.
+  static const String memoryBagKey = 'memory_dsr';
+
+  /// The DSR state of [node], lazily initialised from `node.ms` the way the
+  /// reference's `ensureState` does: `R0 = min(1, ms)` (0.8 for a missing or
+  /// non-positive `ms`), `S = legacy_k * R0`, `Sigma = R0`, `D = D0`, and
+  /// `lastReview = node.lastReviewTime ?? u`.
+  ///
+  /// Writes the bag when it has to create the state; a bag that is already
+  /// there is read as-is, so a caller that knows the real card state can seed
+  /// it first and this will not overwrite it.
+  static DsrState dsrStateOf(
+    FastNode node, {
+    required double u,
+    DsrParams params = const DsrParams(),
+  }) {
+    final existing = dsrBagOf(node);
+    if (existing != null) {
+      return DsrState.fromJson(existing);
+    }
+    final state = DsrState.initial(
+      now: u,
+      ms: node.ms,
+      params: params,
+      lastReview: node.lastReviewTime,
+    );
+    node.m[memoryBagKey] = state.toJson();
+    return state;
+  }
+
+  /// The node's memory bag, or null when the memory layer has never touched it.
+  static Map<String, Object?>? dsrBagOf(FastNode node) {
+    final raw = node.m[memoryBagKey];
+    return raw is Map ? raw.cast<String, Object?>() : null;
+  }
+
+  /// The node's retrievability at [u], with the reference's `synced()` side
+  /// effect (`node.ms` and `node.lastReviewTime` follow the bag, so the
+  /// diagnostic facts and the memory layer cannot disagree).
+  static double? dsrRetrievabilityOf(
+    FastNode node, {
+    required double u,
+    DsrParams params = const DsrParams(),
+  }) {
+    final state = dsrStateOf(node, u: u, params: params);
+    final r = DsrMemory.retrievability(state, u, params).r;
+    node.ms = r;
+    node.lastReviewTime = state.lastReview;
+    node.m[memoryBagKey] = state.toJson();
+    return r;
   }
 
   // ----------------------------------------------------------------- diagnosis
@@ -2196,6 +2322,10 @@ class FastEngine {
     // The rhythm clock is run state, not configuration: a counterfactual run
     // must start from the same "how long have we been on task" as the original.
     copy._rhythmGate = _rhythmGate?.copy();
+    // Same for the memory layer's parameters: a clone reviews with the numbers
+    // the original was configured with (the state bags are copied by
+    // `graph.copy()`).
+    copy._memoryParams = _memoryParams;
     copy.startDiffusion(
       List<String>.of(_startOrder),
       List<String>.of(_targets),

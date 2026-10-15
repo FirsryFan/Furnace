@@ -209,7 +209,11 @@ void main() {
       // "not provided".
       expect(payload['nodes_without_ms'], isNot(contains(sharedId)));
       // Nothing to link *from*: `add_in_edges` is not simulated, and "not
-      // simulated" must not be reported as a price of zero.
+      // simulated" must not be reported as a price of zero. Since Q31 the
+      // retention instructions *are* simulated on this node (the memory layer is
+      // wired), but the node sits at its retrievability ceiling, where a review
+      // gains exactly 0 - and a zero-gain price is not a price either, so the
+      // key stays absent.
       expect(entry.containsKey('counterfactual'), isFalse);
     });
 
@@ -220,17 +224,42 @@ void main() {
       // for `empty` and it is simulatable, so this candidate carries
       // `V(π) = ΔR / cost` - uncalibrated, and only a tie-break, but reported
       // instead of hidden.
+      //
+      // The two tags are inserted with ordered ids on purpose. Rule 4 of
+      // `CognitiveGraph.fromTags` gives every pair of top-level tags exactly one
+      // sibling edge, from the higher importance to the lower, ties broken by
+      // `id` ascending - so with generated `tag-<uuid>` ids the chain direction
+      // (and with it *which* of the two nodes carries an in-edge) is a coin flip
+      // per run: an island that lands downstream of the lit label is diagnosed
+      // `weak`, not `empty`, and has no `add_in_edges` price to report. Fixed ids
+      // state the topology this test is about.
+      const islandTagId = 'tag-a-island';
+      const litTagId = 'tag-b-lit';
       final pointId = await reviewedPoint('动量守恒');
       final islandId = await reviewedPoint('孤立知识点');
-      final lit = await tags.createTag(name: '力学');
-      final island = await tags.createTag(name: '光学');
+      await db.into(db.tags).insert(
+            TagsCompanion.insert(
+              id: islandTagId,
+              name: '光学',
+              createdAt: 1,
+              updatedAt: 1,
+            ),
+          );
+      await db.into(db.tags).insert(
+            TagsCompanion.insert(
+              id: litTagId,
+              name: '力学',
+              createdAt: 1,
+              updatedAt: 1,
+            ),
+          );
       await tags.addTagToObject(
-        tagId: lit.id,
+        tagId: litTagId,
         objectType: 'knowledge_point',
         objectId: pointId,
       );
       await tags.addTagToObject(
-        tagId: island.id,
+        tagId: islandTagId,
         objectType: 'knowledge_point',
         objectId: islandId,
       );

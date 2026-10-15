@@ -48,12 +48,18 @@
 ///   are [未标定], and folding an uncalibrated number into the primary key would
 ///   make a hint look like a measurement. A `retention` instruction without a
 ///   `RetentionProbe` is reported as *not simulated*, never as zero gain - so a
-///   candidate can legitimately carry no price at all.
+///   candidate can legitimately carry no price at all. The evaluator *does*
+///   install `memory.dsr` (on a fast layer that only runs when asked for) and
+///   hands the planner [dsrRetentionProbe], so retention instructions now get a
+///   real "how much does reviewing buy by tomorrow" number; the mechanism
+///   registers no round hook, so the diagnosis is bit-identical to a run without
+///   it.
 library;
 
 import '../../../data/database/database.dart';
 import 'cognitive_graph.dart';
 import 'cognitive_model.dart';
+import 'dsr_retention_probe.dart';
 import 'fast_diagnosis.dart';
 import 'fast_engine.dart';
 import 'knowledge_point_tag_bridge.dart';
@@ -435,7 +441,9 @@ abstract final class ProblemEvaluator {
     required int rounds,
   }) {
     // D3's random-source removal: only the four ported mechanisms, and
-    // `T_ign = 0` makes ignition a hard threshold that draws nothing.
+    // `T_ign = 0` makes ignition a hard threshold that draws nothing. The
+    // memory layer is installed too, so `retention` instructions can be priced;
+    // it registers no `round.*` hook, so this changes no per-round number.
     const overrides = <String, Object?>{'attention.ignition.T_ign': 0};
     final engine = FastEngine(
       graph: FastGraph.fromSpec(spec, currentRealTime: nowHours),
@@ -446,6 +454,7 @@ abstract final class ProblemEvaluator {
           FastMechanisms.capacity,
           FastMechanisms.ignition,
           FastMechanisms.goal,
+          FastMechanisms.memory,
         ],
         overrides: overrides,
       ),
@@ -459,14 +468,16 @@ abstract final class ProblemEvaluator {
     for (final bottleneck in bottlenecks) {
       out.putIfAbsent(bottleneck.node, () => bottleneck.type);
     }
-    return _FastRun(
-      diagnosis: out,
-      plan: FastPlanner.plan(
-        engine: engine,
-        bottlenecks: bottlenecks,
-        params: FastPlannerParams(simRounds: rounds),
-      ),
+    final plan = FastPlanner.plan(
+      engine: engine,
+      bottlenecks: bottlenecks,
+      params: FastPlannerParams(simRounds: rounds),
+      // The engine's own constants, so "before" and "after" are priced with
+      // what the review used. `review` itself stays an empty list for callers
+      // that never asked for the memory layer.
+      retentionProbe: dsrRetentionProbe(params: engine.memoryParams),
     );
+    return _FastRun(diagnosis: out, plan: plan);
   }
 
   /// Picks this candidate's price: the highest `V(π)` among the planner's
@@ -475,6 +486,18 @@ abstract final class ProblemEvaluator {
   /// Only simulated entries count - a `retention` instruction without a
   /// `RetentionProbe` is "the memory layer is not wired", not a zero. Ties go to
   /// the first target, so the choice does not depend on map iteration order.
+  ///
+  /// The price must also be **positive**. A simulated run can legitimately find
+  /// no gain (a node already at its retrievability ceiling buys nothing), and
+  /// reporting `0.0` there would read like a measurement of worthlessness while
+  /// it is really an artefact of the ceiling; a price that cannot reorder
+  /// anything is not reported at all.
+  ///
+  /// Two metrics can appear here now that the memory layer is installed
+  /// (`reachability` from opening an edge, `retention` from reviewing a node),
+  /// and `V` is gain per unit cost for both, so they are compared by value. The
+  /// two ask different questions - the winner is *a* price, not *the* price, and
+  /// [ProblemEvaluation.counterfactualMetric] says which question was answered.
   static FastPlanEntry? _bestPlanEntry(
     List<FastPlanEntry> plan,
     List<String> targets,
@@ -488,7 +511,7 @@ abstract final class ProblemEvaluator {
     };
     FastPlanEntry? best;
     for (final entry in plan) {
-      if (!entry.simulated || entry.metric == null) {
+      if (!entry.simulated || entry.metric == null || entry.value <= 0) {
         continue;
       }
       if (!targetSet.contains(entry.node)) {
