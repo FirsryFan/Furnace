@@ -555,6 +555,53 @@ class AppLocalizationsEn extends AppLocalizations {
       'The tag and everything under it count as this group.';
 
   @override
+  String get todayPlanTitle => 'Today\'s list';
+
+  @override
+  String get todayPlanUncalibrated =>
+      'The bonus is not calibrated: this order is a hint, not a measurement.';
+
+  @override
+  String get todayPlanEmpty =>
+      'Nothing is due today. That is not \"nothing to do\" - the due queue is just empty; which new cards to learn is your call, and this page will not invent them.';
+
+  @override
+  String todayPlanCount(int count) {
+    return '$count things to do today';
+  }
+
+  @override
+  String todayPlanOmitted(int count) {
+    return '$count more sit past this page\'s cap (the list is meant to be followed, not read as a directory).';
+  }
+
+  @override
+  String get todayPlanKindReview => 'Review';
+
+  @override
+  String get todayPlanKindPractice => 'Practice';
+
+  @override
+  String get todayPlanMetricRetention => 'retention';
+
+  @override
+  String get todayPlanMetricReachability => 'reachability';
+
+  @override
+  String todayPlanPrice(String metric, String value, String cost) {
+    return '$metric V=$value, cost $cost';
+  }
+
+  @override
+  String get todayPlanPracticeHint =>
+      'Problems are priced by the model (plan_today / evaluate_problem_fit); this page only lists due cards.';
+
+  @override
+  String todayPlanFailed(String error) {
+    return 'Could not read today\'s list: $error';
+  }
+
+  @override
   String get reviewPlanNewCardsPerDay => 'New cards per day';
 
   @override

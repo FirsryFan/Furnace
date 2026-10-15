@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../cognitive/presentation/today_plan_page.dart';
 import 'anki_manage_page.dart';
 import 'knowledge_insight_page.dart';
 import 'review_page.dart';
@@ -55,6 +56,17 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (context) => const KnowledgeInsightPage(),
+              ),
+            ),
+          ),
+          IconButton(
+            // 今日清单：把「今天做这几件事」摆到人面前（roadmap §1 控制层那
+            // 一行的界面面）。它只列到期的卡，候选题的价格要模型给。
+            tooltip: l10n.todayPlanTitle,
+            icon: const Icon(Icons.checklist),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const TodayPlanPage(),
               ),
             ),
           ),

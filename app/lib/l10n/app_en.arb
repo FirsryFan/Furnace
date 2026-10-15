@@ -188,6 +188,34 @@
     "placeholders": { "tag": { "type": "String" } }
   },
   "reviewPlanGroupBody": "The tag and everything under it count as this group.",
+  "todayPlanTitle": "Today's list",
+  "todayPlanUncalibrated": "The bonus is not calibrated: this order is a hint, not a measurement.",
+  "todayPlanEmpty": "Nothing is due today. That is not \"nothing to do\" - the due queue is just empty; which new cards to learn is your call, and this page will not invent them.",
+  "todayPlanCount": "{count} things to do today",
+  "@todayPlanCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayPlanOmitted": "{count} more sit past this page's cap (the list is meant to be followed, not read as a directory).",
+  "@todayPlanOmitted": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayPlanKindReview": "Review",
+  "todayPlanKindPractice": "Practice",
+  "todayPlanMetricRetention": "retention",
+  "todayPlanMetricReachability": "reachability",
+  "todayPlanPrice": "{metric} V={value}, cost {cost}",
+  "@todayPlanPrice": {
+    "placeholders": {
+      "metric": { "type": "String" },
+      "value": { "type": "String" },
+      "cost": { "type": "String" }
+    }
+  },
+  "todayPlanPracticeHint": "Problems are priced by the model (plan_today / evaluate_problem_fit); this page only lists due cards.",
+  "todayPlanFailed": "Could not read today's list: {error}",
+  "@todayPlanFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
   "reviewPlanNewCardsPerDay": "New cards per day",
   "reviewPlanReviewCardsPerDay": "Reviews per day",
   "reviewPlanZeroIsUnlimited": "0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.",

@@ -540,6 +540,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewPlanGroupBody => '这个标签以及它下面的所有标签都算作这个卡组。';
 
   @override
+  String get todayPlanTitle => '今日清单';
+
+  @override
+  String get todayPlanUncalibrated => '加成未标定：这份顺序是提示，不是测量。';
+
+  @override
+  String get todayPlanEmpty =>
+      '今天没有到期的卡。这不是「没事做」——只是到期队列空着；新卡该学什么是你自己挑的，这一页不会替你编。';
+
+  @override
+  String todayPlanCount(int count) {
+    return '今天 $count 件事';
+  }
+
+  @override
+  String todayPlanOmitted(int count) {
+    return '另有 $count 件排在这一页的上限之外（清单是给人照做的，不是名录）。';
+  }
+
+  @override
+  String get todayPlanKindReview => '复习';
+
+  @override
+  String get todayPlanKindPractice => '练习';
+
+  @override
+  String get todayPlanMetricRetention => '留存';
+
+  @override
+  String get todayPlanMetricReachability => '可达性';
+
+  @override
+  String todayPlanPrice(String metric, String value, String cost) {
+    return '$metric V=$value，成本 $cost';
+  }
+
+  @override
+  String get todayPlanPracticeHint =>
+      '候选题的价格来自模型（plan_today / evaluate_problem_fit）；这一页只列到期的卡。';
+
+  @override
+  String todayPlanFailed(String error) {
+    return '读不到今天的清单：$error';
+  }
+
+  @override
   String get reviewPlanNewCardsPerDay => '每天新卡';
 
   @override

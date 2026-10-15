@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-10-16 轮次六十一：界面上的今日清单（Q32c，Lead）
+
+**做了什么**：roadmap §1 控制层验收 / §3 第 5 行的最后一段 —— 轮次五十九 排好了序、轮次六十 交给了模型，
+这一轮把它摆到人面前。
+
+- **读法** `app/lib/features/cognitive/application/today_plan_reader.dart`：`readTodayPlan({ankiRepository,
+  moment, maxActions, horizonHours})` 只有一条路 —— `getDueCardStates(moment.millisecondsSinceEpoch)` +
+  `getKnowledgePoints()` 的 id→标题 → `TodayPlanner.build(..., nowHours: modelHoursOf(moment))`；到期判断与
+  `nowHours` 共用同一个 `moment`（否则同一张卡会在"到期"与"现在几点"之间被算到两个时刻）。一个
+  `todayPlanProvider`（`FutureProvider<TodayPlan>`）`watchDatabaseRevision()`：答完一张卡，这一页跟着变。
+- **页面** `app/lib/features/cognitive/presentation/today_plan_page.dart`：`TodayPlanPage`（AppBar = 标题 + 刷新）
+  与公开的 `TodayActionCard`（kind 标签 + 标题 + 价格行 + planner 给的人话理由）。顶部一行"加成未标定：这份顺序是
+  提示，不是测量。"，底部一行"候选题的价格来自模型（plan_today / evaluate_problem_fit）；这一页只列到期的卡。"。
+- **入口**：复习页 `app/lib/features/anki/presentation/knowledge_page.dart` AppBar 第 4 个按钮
+  （`Icons.checklist`，tooltip「今日清单」）。
+- **l10n**：`app/lib/l10n/app_en.arb` / `app_zh.arb` 新增 12 个 `todayPlan*` 键（`todayPlanCount`/`todayPlanOmitted`/
+  `todayPlanPrice`/`todayPlanFailed` 带占位符），`flutter gen-l10n` 重生成 3 个生成物。
+
+**刻意选择**（三条，理由都在代码注释里）：
+
+1. **没有价格的行不画价格行**：`TodayPlanner` 已经决定"零增益不是价格"，页面在这里补一个 `0.0` 就等于替它撒谎。
+2. **页面不重排、不重算**：顺序就是 `plan.actions` 的顺序，`V`/`cost` 只做 `toFixed(3)`/`toFixed(1)`，两种度量各自
+   带名字（`留存`/`可达性`）—— 不把两个数字当成同一个单位。
+3. **只列复习侧，并如实说明**：候选题目录目前只有模型能提，所以读法传一份空报告（`kNoProblemCandidates`）；
+   "没有题"与"题没有价格"是两件事，页末一行把这件事说明白。
+
+**证据**：`app/test/features/cognitive/presentation/today_plan_page_test.dart` 7 例全绿 —— 真库四例（空的一天明说空、
+到期卡进清单且带"留存 V="与理由、未到期的卡不进清单、刷新后新卡出现）+ 假清单三例（无价格不画价格行、两种度量
+分名且顺序就是 planner 的顺序、`considered: 3` 时报"另有 2 件"）。假清单用 `todayPlanProvider.overrideWith` 而不是
+造一堆卡：页面的契约是"照着 `TodayPlan` 排版"，价格算术归 `app/test/domain/services/scheduling/today_plan_test.dart` 管。
+
+**全量回归**：`flutter test --concurrency=1` → `+1678 ~2: All tests passed!`（exit 0）。轮次六十 后是 `+1671 ~2`，
+差值 7 = 这一页的 7 例；`dart analyze lib test` 仍是 95 issues（0 error / 0 warning）。
+
+**已知的没做**：`plan_today` 与这一页都只排"现在到期的卡"，不排未来几天（`horizon_hours` 只用于 ΔR 的窗口）；
+候选题在这页上永远缺席（要模型提）；清单页还没有"做完打勾"的回写 —— 那是复习页的事，这里只读。
+
+---
+
 ## 2026-10-16 轮次六十：日计划接进 AI 工具（Q32b，Lead）
 
 **做了什么**：roadmap §1 控制层验收 / §3 第 5 行的第二半 —— 轮次五十九 的纯逻辑核心有了调用方。
@@ -47,7 +86,7 @@
 **全量回归**：`flutter test --concurrency=1` → `+1671 ~2: All tests passed!`（exit 0）。轮次五十九 后是
 `+1655 ~2`，差值 16 = Q32a 的 9 例 + Q32b 的 7 例；`dart analyze lib test` 仍是 95 issues（0 error / 0 warning）。
 
-**已知的没做**：UI 上的清单页（Q32c）；`plan_today` 仍只会看"现在到期的卡"，不排未来几天的
+**已知的没做**：UI 上的清单页（Q32c，已在轮次六十一补上）；`plan_today` 仍只会看"现在到期的卡"，不排未来几天的
 （`horizon_hours` 只用于算 ΔR 的窗口，不用于挑卡）。
 
 ---

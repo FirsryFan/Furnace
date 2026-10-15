@@ -28,7 +28,7 @@
 | 幂等 `run_id` | IO §2.1 | 同一批事件重放不会重复生效 |
 | **节律层 α(τ)**：占空比/两态马尔可夫/θ 采样 + 警觉衰减 `G_vig` + **负荷自适应周期** `T_cycle=T0(1+λ_L·L_DAR/W_DAR)` + flow 正反馈带 `[θ,1.2C]` | MATH §5 | "信息一多就转不动"可计算；太难劝退、太易走神 |
 | **元认知层**：自信 `b_v`（只看流畅度/R0/近期曝光，**刻意不看 S**）→ **危险区**（以为会其实不会）/ **焦虑区**（会但不敢用）/ 校准度 κ | MATH §6 | 直接回答"该练什么、别再刷什么、我对自己认识准不准" |
-| **控制层 17 条指令库 + 反事实规划器** `V(π)=ΔR/cost`（分 `retention`/`reachability` 两种度量、克隆参数隔离、峰值驱动、曾点亮又回落单列） | MATH §7 | 输出"今天该做的练习清单"，按收益/成本排序 —— **日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，卡片侧 ΔR、题目侧 `V`、两种度量各自标出，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，日计划直接问得到，7 例）；UI 上的清单页未做（Q32c）** |
+| **控制层 17 条指令库 + 反事实规划器** `V(π)=ΔR/cost`（分 `retention`/`reachability` 两种度量、克隆参数隔离、峰值驱动、曾点亮又回落单列） | MATH §7 | 输出"今天该做的练习清单"，按收益/成本排序 —— **日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，卡片侧 ΔR、题目侧 `V`、两种度量各自标出，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，日计划直接问得到，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar「今日清单」→ `app/lib/features/cognitive/presentation/today_plan_page.dart`，7 例）** |
 | **参数标定协议**：6 个实验 → 把 `ls`/`W_DAR`/`β_goal`/`kappa_reach`/`T_ign` 等未标定参数标出来 | CALIBRATION §2 | 个性化真正的来源 |
 | **反馈微调**：更新律（一道题 1 bit）+ 与其它模块的接口 | FEEDBACK §1/§2/§5 | 用着用着自己变准 |
 | **材料摄取 INGEST**：`mindnet.material/1` 记号 → 提取 → 转化为节点/边/记忆记录 | INGEST §2–§4 | 资料进模型的正规入口 |
@@ -90,7 +90,7 @@
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
-| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；还没做的是 UI 上的清单页（Q32c）** |
+| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
@@ -434,7 +434,20 @@ MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的�
 ③ 空清单与"没有价格"分开说：前者是真的一天没事，后者仍列进清单只给理由（`TodayPlan.omitted` 报出被裁掉几件）。
 证据：`today_tools_test.dart` 7 例（空白天、到期卡进清单且 priced in `retention`、未到期卡不进、候选题经评估被
 `reachability` 定价、`max_actions` 报出"另有 N 件排在清单外"、`ToolRegistry.byName('plan_today')` 真的能取到）。
-**还没做**的是 UI 上的清单页（Q32c）。
+**还没做**的是 UI 上的清单页（Q32c）—— 已在轮次六十一补上，见下。
+
+**进展（轮次六十一）**：界面上的清单页（`app/lib/features/cognitive/presentation/today_plan_page.dart`，读法在
+`app/lib/features/cognitive/application/today_plan_reader.dart`）—— 从复习页 AppBar 的「今日清单」进入，把
+`TodayPlan` 逐条摆出来：每条一个 `kind` 标签 + 标题 + `metric`/`V`/成本 + planner 给的人话 `why`。读法只有一处：
+`readTodayPlan` 拿 `getDueCardStates(moment)` 与知识点名交给 `TodayPlanner.build`，`nowHours` 与到期判断共用同一个
+`moment`（否则同一张卡会在"到期"与"现在几点"之间被算到两个时刻）；候选题暂时传一份空报告
+（`kNoProblemCandidates`）—— 这一页只列复习侧，而"没有题"与"题没有价格"是两件事，末尾一行明说价格要模型给。
+三条刻意选择：① 没有价格的行**不画价格行**（`TodayPlanner` 已经说零增益不是价格，页面不在这里补一个 `0.0`）；
+② 页面不重排、不重算：顺序就是 `plan.actions` 的顺序，两种度量各自带名字（`留存`/`可达性`）；
+③ `omitted > 0` 时才提上限，并且每页都带一行"加成未标定"。
+证据：`app/test/features/cognitive/presentation/today_plan_page_test.dart` 7 例（真库：到期卡进清单且 priced in
+`retention`、未到期的卡不进、空的一天明说空、刷新重读；假清单：无价格不画价格行、两种度量分名、被裁件数如实报），
+全量回归 `flutter test --concurrency=1` → `+1678 ~2: All tests passed!`（轮次六十后是 `+1671 ~2`，差 7 = 这一页的 7 例）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

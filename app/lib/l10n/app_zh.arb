@@ -194,6 +194,34 @@
     "placeholders": { "tag": { "type": "String" } }
   },
   "reviewPlanGroupBody": "这个标签以及它下面的所有标签都算作这个卡组。",
+  "todayPlanTitle": "今日清单",
+  "todayPlanUncalibrated": "加成未标定：这份顺序是提示，不是测量。",
+  "todayPlanEmpty": "今天没有到期的卡。这不是「没事做」——只是到期队列空着；新卡该学什么是你自己挑的，这一页不会替你编。",
+  "todayPlanCount": "今天 {count} 件事",
+  "@todayPlanCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayPlanOmitted": "另有 {count} 件排在这一页的上限之外（清单是给人照做的，不是名录）。",
+  "@todayPlanOmitted": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "todayPlanKindReview": "复习",
+  "todayPlanKindPractice": "练习",
+  "todayPlanMetricRetention": "留存",
+  "todayPlanMetricReachability": "可达性",
+  "todayPlanPrice": "{metric} V={value}，成本 {cost}",
+  "@todayPlanPrice": {
+    "placeholders": {
+      "metric": { "type": "String" },
+      "value": { "type": "String" },
+      "cost": { "type": "String" }
+    }
+  },
+  "todayPlanPracticeHint": "候选题的价格来自模型（plan_today / evaluate_problem_fit）；这一页只列到期的卡。",
+  "todayPlanFailed": "读不到今天的清单：{error}",
+  "@todayPlanFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
   "reviewPlanNewCardsPerDay": "每天新卡",
   "reviewPlanReviewCardsPerDay": "每天复习",
   "reviewPlanZeroIsUnlimited": "每天复习填 0 或留空表示不限量。复习量用完之后，这个卡组当天不再抽新卡——今天答错的卡仍然会回来。",

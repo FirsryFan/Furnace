@@ -1136,6 +1136,78 @@ abstract class AppLocalizations {
   /// **'The tag and everything under it count as this group.'**
   String get reviewPlanGroupBody;
 
+  /// No description provided for @todayPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s list'**
+  String get todayPlanTitle;
+
+  /// No description provided for @todayPlanUncalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'The bonus is not calibrated: this order is a hint, not a measurement.'**
+  String get todayPlanUncalibrated;
+
+  /// No description provided for @todayPlanEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is due today. That is not \"nothing to do\" - the due queue is just empty; which new cards to learn is your call, and this page will not invent them.'**
+  String get todayPlanEmpty;
+
+  /// No description provided for @todayPlanCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} things to do today'**
+  String todayPlanCount(int count);
+
+  /// No description provided for @todayPlanOmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more sit past this page\'s cap (the list is meant to be followed, not read as a directory).'**
+  String todayPlanOmitted(int count);
+
+  /// No description provided for @todayPlanKindReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get todayPlanKindReview;
+
+  /// No description provided for @todayPlanKindPractice.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice'**
+  String get todayPlanKindPractice;
+
+  /// No description provided for @todayPlanMetricRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'retention'**
+  String get todayPlanMetricRetention;
+
+  /// No description provided for @todayPlanMetricReachability.
+  ///
+  /// In en, this message translates to:
+  /// **'reachability'**
+  String get todayPlanMetricReachability;
+
+  /// No description provided for @todayPlanPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'{metric} V={value}, cost {cost}'**
+  String todayPlanPrice(String metric, String value, String cost);
+
+  /// No description provided for @todayPlanPracticeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Problems are priced by the model (plan_today / evaluate_problem_fit); this page only lists due cards.'**
+  String get todayPlanPracticeHint;
+
+  /// No description provided for @todayPlanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read today\'s list: {error}'**
+  String todayPlanFailed(String error);
+
   /// No description provided for @reviewPlanNewCardsPerDay.
   ///
   /// In en, this message translates to:
