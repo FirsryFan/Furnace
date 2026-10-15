@@ -1139,5 +1139,27 @@
         "type": "int"
       }
     }
-  }
+  },
+  "questionPaperDifficultyLabel": "目标难度",
+  "questionPaperDifficultyAny": "不限难度",
+  "questionPaperDifficultyOption": "难度 {value}",
+  "@questionPaperDifficultyOption": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperDifficultyHint": "难度是偏好不是硬筛：越接近越靠前；题库里没填难度的题会按「半贴合」排后面，不会被排除。",
+  "questionPaperCapLabel": "每个知识点上限",
+  "questionPaperCapAuto": "自动",
+  "questionPaperCapOption": "最多 {cap} 道",
+  "@questionPaperCapOption": {
+    "placeholders": {
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperReset": "重置组卷条件"
 }

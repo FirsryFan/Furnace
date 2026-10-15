@@ -4561,6 +4561,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} card(s)'**
   String handwritingProposalCardCount(int count);
+
+  /// No description provided for @questionPaperDifficultyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target difficulty'**
+  String get questionPaperDifficultyLabel;
+
+  /// No description provided for @questionPaperDifficultyAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any difficulty'**
+  String get questionPaperDifficultyAny;
+
+  /// No description provided for @questionPaperDifficultyOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty {value}'**
+  String questionPaperDifficultyOption(String value);
+
+  /// No description provided for @questionPaperDifficultyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty is a preference, not a hard filter: closer questions rank higher, and questions with no difficulty value are treated as half-fit (ranked lower, never excluded).'**
+  String get questionPaperDifficultyHint;
+
+  /// No description provided for @questionPaperCapLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Per knowledge point cap'**
+  String get questionPaperCapLabel;
+
+  /// No description provided for @questionPaperCapAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get questionPaperCapAuto;
+
+  /// No description provided for @questionPaperCapOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {cap}'**
+  String questionPaperCapOption(int cap);
+
+  /// No description provided for @questionPaperReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset paper settings'**
+  String get questionPaperReset;
 }
 
 class _AppLocalizationsDelegate

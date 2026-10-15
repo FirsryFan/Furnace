@@ -32,6 +32,36 @@ const List<String> paperMinSourceLevelOptions = <String>[
   'personal',
 ];
 
+/// 目标难度下拉的候选：1.0–10.0、步长 0.5（"不限"是 `null`，单独一项）。
+///
+/// 难度在领域层是**偏好**不是硬筛（`PaperComposer._difficultyFit`：没有目标难度
+/// 时人人都拿 1.0；设了目标难度后，没填难度的题拿 0.5，只往后排、不会被排除），
+/// 所以这里的措辞是「越接近越靠前」，不说"只看这个难度"。
+const List<double> paperTargetDifficultyOptions = <double>[
+  1.0,
+  1.5,
+  2.0,
+  2.5,
+  3.0,
+  3.5,
+  4.0,
+  4.5,
+  5.0,
+  5.5,
+  6.0,
+  6.5,
+  7.0,
+  7.5,
+  8.0,
+  8.5,
+  9.0,
+  9.5,
+  10.0,
+];
+
+/// 每个知识点上限的候选（"自动"是 `null`，交由组卷器按候选分布算）。
+const List<int> paperPerKnowledgePointCapOptions = <int>[1, 2, 3, 4, 5];
+
 /// 组卷页。
 class QuestionPaperPage extends ConsumerWidget {
   const QuestionPaperPage({super.key});
@@ -66,9 +96,9 @@ class QuestionPaperPage extends ConsumerWidget {
   }
 }
 
-/// 控制区：目标题数 / 学科多选 / 来源下限。
+/// 控制区：目标题数 / 学科多选 / 来源下限 / 目标难度 / 每个知识点上限 / 重置。
 ///
-/// 三个控件都只调 `paperSpecProvider.notifier`，重算交给 `paperPlanProvider`
+/// 六个控件都只调 `paperSpecProvider.notifier`，重算交给 `paperPlanProvider`
 /// （它 `watchDatabaseRevision()` 且跟随 spec），本页不自己算、不自己 invalidate。
 class _PaperControls extends ConsumerWidget {
   const _PaperControls({required this.subjectOptions});
@@ -141,6 +171,60 @@ class _PaperControls extends ConsumerWidget {
               ],
               onChanged: (value) => notifier.setMinSourceLevel(
                 value == null || value.isEmpty ? null : value,
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<double>(
+              initialValue: spec.targetDifficulty,
+              decoration:
+                  InputDecoration(labelText: l10n.questionPaperDifficultyLabel),
+              items: [
+                DropdownMenuItem<double>(
+                  value: null,
+                  child: Text(l10n.questionPaperDifficultyAny),
+                ),
+                for (final value in paperTargetDifficultyOptions)
+                  DropdownMenuItem<double>(
+                    value: value,
+                    child: Text(
+                      l10n.questionPaperDifficultyOption(
+                        value.toStringAsFixed(1),
+                      ),
+                    ),
+                  ),
+              ],
+              onChanged: notifier.setTargetDifficulty,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.questionPaperDifficultyHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<int>(
+              initialValue: spec.perKnowledgePointCap,
+              decoration:
+                  InputDecoration(labelText: l10n.questionPaperCapLabel),
+              items: [
+                DropdownMenuItem<int>(
+                  value: null,
+                  child: Text(l10n.questionPaperCapAuto),
+                ),
+                for (final cap in paperPerKnowledgePointCapOptions)
+                  DropdownMenuItem<int>(
+                    value: cap,
+                    child: Text(l10n.questionPaperCapOption(cap)),
+                  ),
+              ],
+              onChanged: notifier.setPerKnowledgePointCap,
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: notifier.reset,
+                icon: const Icon(Icons.restart_alt),
+                label: Text(l10n.questionPaperReset),
               ),
             ),
           ],

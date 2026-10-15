@@ -2580,4 +2580,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String handwritingProposalCardCount(int count) {
     return '$count card(s)';
   }
+
+  @override
+  String get questionPaperDifficultyLabel => 'Target difficulty';
+
+  @override
+  String get questionPaperDifficultyAny => 'Any difficulty';
+
+  @override
+  String questionPaperDifficultyOption(String value) {
+    return 'Difficulty $value';
+  }
+
+  @override
+  String get questionPaperDifficultyHint =>
+      'Difficulty is a preference, not a hard filter: closer questions rank higher, and questions with no difficulty value are treated as half-fit (ranked lower, never excluded).';
+
+  @override
+  String get questionPaperCapLabel => 'Per knowledge point cap';
+
+  @override
+  String get questionPaperCapAuto => 'Auto';
+
+  @override
+  String questionPaperCapOption(int cap) {
+    return 'Up to $cap';
+  }
+
+  @override
+  String get questionPaperReset => 'Reset paper settings';
 }

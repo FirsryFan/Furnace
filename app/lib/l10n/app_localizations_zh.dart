@@ -2474,4 +2474,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String handwritingProposalCardCount(int count) {
     return '$count 张卡片';
   }
+
+  @override
+  String get questionPaperDifficultyLabel => '目标难度';
+
+  @override
+  String get questionPaperDifficultyAny => '不限难度';
+
+  @override
+  String questionPaperDifficultyOption(String value) {
+    return '难度 $value';
+  }
+
+  @override
+  String get questionPaperDifficultyHint =>
+      '难度是偏好不是硬筛：越接近越靠前；题库里没填难度的题会按「半贴合」排后面，不会被排除。';
+
+  @override
+  String get questionPaperCapLabel => '每个知识点上限';
+
+  @override
+  String get questionPaperCapAuto => '自动';
+
+  @override
+  String questionPaperCapOption(int cap) {
+    return '最多 $cap 道';
+  }
+
+  @override
+  String get questionPaperReset => '重置组卷条件';
 }

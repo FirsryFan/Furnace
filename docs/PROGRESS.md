@@ -4,7 +4,43 @@
 
 ---
 
-## 2026-10-16 轮次三十九：按知识点的留存率——把"哪些知识点真的在漏"算出来（Q18，Lead）
+## 2026-10-16 轮次四十：组卷页补三个 spec 控件——目标难度 / 每知识点上限 / 重置（Q17，teammate `question-intake`）
+
+**做了什么**
+- `app/lib/features/questions/presentation/question_paper_page.dart` 控制区补三控件：
+  目标难度 = 19 档下拉（1.0–10.0 步长 0.5）+「不限」→ `setTargetDifficulty`（不限 → null）；
+  每知识点上限 =「自动」+ 1–5 → `setPerKnowledgePointCap`；重置 = `OutlinedButton.icon(Icons.restart_alt)`
+  → `reset()`（目标题数/学科/来源下限/难度/上限一起回默认）。冻结接口是 `paperSpecProvider`，领域层未动。
+- `app/lib/l10n/app_zh.arb` + `app_en.arb` 各 +8 键（`questionPaperDifficultyLabel`/`Any`/`Option(String)`/`Hint`、
+  `questionPaperCapLabel`/`Auto`/`Option(int)`、`questionPaperReset`），zh/en 对称，带占位符的都有
+  `@key.placeholders`；`flutter gen-l10n` exit 0。
+- `app/test/features/questions/presentation/question_paper_page_test.dart` +5 条 testWidgets
+  （难度设置与回显、难度参与挑题、上限=1 时同知识点只进一道、重置回默认且回显同步、空题库不崩），
+  并修一处被新控件撞坏的旧断言（`DropdownButtonFormField<int>` 现在命中 2 个）。
+
+**为什么不这么做**
+- **界面 hint 明写"难度是偏好不是硬筛"**：`PaperComposer._difficultyFit` 在题没填难度时给 0.5（不是排除），
+  所以设了目标难度之后没填难度的题只是排后面、不会消失。不写清楚的话，用户会以为自己在筛题。
+- **用下拉而不是滑块**：19 档下拉更好点、也好断言；滑块在窄屏上难精确落档。
+- **「上限」只暴露到 5**：notifier 本身不限，但组卷的实际用途是"别让一个知识点刷屏"，
+  1–5 已经覆盖；需要更大值时再放开（不预先暴露没人调的旋钮）。
+- **测试不去读 `find.text` 判断选中项**：`DropdownButton` 把所有 items 挂进 `IndexedStack`，
+  「不限难度」永远在树上 → 改读 `FormField.initialValue`。
+
+**验收**
+- `dart format --output=none --set-exit-if-changed` 该 2 个 dart 文件 → `Formatted 2 files (0 changed)`；
+- `dart analyze lib test` → `94 issues found.`（0 error / 0 warning）；
+- `flutter test test/features/questions --concurrency=1` → `+90 All tests passed!`（基线 +85 + 5）。
+- Lead 独立复跑以上三条（不是只看 teammate 的原始输出），并确认页面只打 `paperSpecProvider`、
+  没有新增读库或复算分数。
+
+**下一步**
+- 拍照整理的提案仍只存在内存里（重启丢一次整理）；找相似题区块与拍照队列页还差折叠/缩略图等交互；
+  threadflow 与组卷的 `reasonZh` l10n。
+
+---
+
+
 
 **做了什么**
 - `app/lib/domain/services/cognitive/learning_metrics.dart`（只加不改）：

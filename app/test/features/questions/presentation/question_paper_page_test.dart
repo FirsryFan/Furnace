@@ -128,7 +128,14 @@ void main() {
     expect(find.text(zh.questionPaperHeadline(6, 10)), findsOneWidget);
 
     // 真实交互：打开目标题数下拉，选 5 道。
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    // 页面上有两个 `DropdownButtonFormField<int>`（目标题数 / 每个知识点上限），
+    // 所以按"当前显示的文案"定位这个下拉，而不是按类型（按类型会匹配到两个）。
+    await tester.tap(
+      find.widgetWithText(
+        DropdownButtonFormField<int>,
+        zh.questionPaperCountOption(10),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text(zh.questionPaperCountOption(5)).last);
@@ -379,6 +386,189 @@ void main() {
     expect(find.byType(QuestionPaperPage), findsOneWidget);
     expect(find.text(zh.questionPaperSubtitle), findsOneWidget);
   });
+
+  // -------------------------------------------------------------------------
+  // spec 控件（Q17）：目标难度 / 每个知识点上限 / 重置
+  // -------------------------------------------------------------------------
+
+  testWidgets('目标难度：下拉选一个值后 spec 与页面回显都跟着变，也能选回"不限"', (tester) async {
+    await _seedQuestion(db, id: 'q-1', stem: '第一题', subjectKey: 'math');
+    await _seedQuestion(db, id: 'q-2', stem: '第二题', subjectKey: 'math');
+
+    await _pumpPaperPage(tester, db: db);
+    final container = _container(tester);
+
+    // 默认"不限难度"。
+    expect(container.read(paperSpecProvider).targetDifficulty, isNull);
+    expect(_difficultyDropdownValue(), isNull);
+
+    await tester.tap(
+      find.widgetWithText(
+        DropdownButtonFormField<double>,
+        zh.questionPaperDifficultyAny,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text(zh.questionPaperDifficultyOption('5.5')).last);
+    // 菜单路由的退场动画要跑完：否则菜单项与输入框回显会同时命中同一段文字。
+    await tester.pump(const Duration(milliseconds: 600));
+    await _settle(tester);
+
+    expect(container.read(paperSpecProvider).targetDifficulty, 5.5);
+    // "不限难度"这一项始终在 DropdownButton 的 IndexedStack 里，不能靠文字判断选中，
+    // 只能看这个下拉当前的值。
+    expect(_difficultyDropdownValue(), 5.5);
+
+    // 选回"不限"：null 与"没改过"要靠下拉的取值区分开。
+    await tester.tap(
+      find.widgetWithText(
+        DropdownButtonFormField<double>,
+        zh.questionPaperDifficultyOption('5.5'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text(zh.questionPaperDifficultyAny).last);
+    await tester.pump(const Duration(milliseconds: 600));
+    await _settle(tester);
+
+    expect(container.read(paperSpecProvider).targetDifficulty, isNull);
+    expect(_difficultyDropdownValue(), isNull);
+  });
+
+  testWidgets('目标难度参与挑题：设了目标后，填了难度的候选排到没填难度的前面', (tester) async {
+    // 两条候选只有"填没填难度"不同（同一来源、无知识点、无 AI 质量分），
+    // 所以分数差异只可能来自难度贴合度：1.0 vs 0.5（没填难度＝半贴合，不排除）。
+    await _seedQuestion(db, id: 'q-1', stem: '没填难度', subjectKey: 'math');
+    await _seedQuestion(
+      db,
+      id: 'q-2',
+      stem: '难度刚好 5.0',
+      subjectKey: 'math',
+      difficulty: 5.0,
+    );
+
+    await _pumpPaperPage(tester, db: db);
+    final container = _container(tester);
+
+    container.read(paperSpecProvider.notifier).setTargetDifficulty(5.0);
+    await _settle(tester);
+    await tester.pump();
+
+    final plan = container.read(paperPlanProvider).value!;
+    expect(plan.items.length, 2);
+    expect(plan.items.first.questionId, 'q-2');
+    expect(plan.items.last.questionId, 'q-1');
+  });
+
+  testWidgets('每个知识点上限：设成 1 后同一个知识点只进一道', (tester) async {
+    await _seedKnowledgePoint(db, id: 'kp-a', title: '知识点甲', tagId: 'tag-a');
+    for (var i = 1; i <= 2; i++) {
+      await _seedQuestion(
+        db,
+        id: 'q-$i',
+        stem: '第 $i 题',
+        subjectKey: 'math',
+        sourceLevel: 'gaokao',
+      );
+      await _linkQuestionToTag(db, questionId: 'q-$i', tagId: 'tag-a');
+    }
+
+    await _pumpPaperPage(tester, db: db);
+    // 自动配额下两道都进卷。
+    expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget);
+
+    final container = _container(tester);
+    container.read(paperSpecProvider.notifier).setPerKnowledgePointCap(1);
+    await _settle(tester);
+
+    expect(container.read(paperSpecProvider).perKnowledgePointCap, 1);
+    expect(find.text(zh.questionPaperHeadline(1, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperItemIndex(2)), findsNothing);
+  });
+
+  testWidgets('重置：目标题数/学科/来源下限/难度/上限一起回到默认', (tester) async {
+    await _seedQuestion(
+      db,
+      id: 'q-1',
+      stem: '第一题',
+      subjectKey: 'math',
+      sourceLevel: 'gaokao',
+    );
+    await _seedQuestion(
+      db,
+      id: 'q-2',
+      stem: '第二题',
+      subjectKey: 'physics',
+      sourceLevel: 'personal',
+    );
+
+    await _pumpPaperPage(tester, db: db);
+    final container = _container(tester);
+    final notifier = container.read(paperSpecProvider.notifier);
+
+    // 五个条件全改掉：目标题数 / 学科 / 来源下限 / 难度 / 每点上限。
+    notifier.setTargetCount(5);
+    notifier.toggleSubject('math');
+    notifier.setMinSourceLevel('gaokao');
+    notifier.setTargetDifficulty(8.5);
+    notifier.setPerKnowledgePointCap(3);
+    await _settle(tester);
+
+    var spec = container.read(paperSpecProvider);
+    expect(spec.targetCount, 5);
+    expect(spec.subjectKeys, <String>{'math'});
+    expect(spec.minSourceLevel, 'gaokao');
+    expect(spec.targetDifficulty, 8.5);
+    expect(spec.perKnowledgePointCap, 3);
+    // 页面回显的也是改后的值。
+    expect(find.text(zh.questionPaperCountOption(5)), findsOneWidget);
+    expect(find.text(zh.questionPaperDifficultyOption('8.5')), findsOneWidget);
+    expect(find.text(zh.questionPaperCapOption(3)), findsOneWidget);
+
+    // 用户按「重置组卷条件」。
+    await tester.tap(find.text(zh.questionPaperReset));
+    await _settle(tester);
+
+    spec = container.read(paperSpecProvider);
+    expect(spec.targetCount, 10);
+    expect(spec.subjectKeys, isEmpty);
+    expect(spec.minSourceLevel, isNull);
+    expect(spec.targetDifficulty, isNull);
+    expect(spec.perKnowledgePointCap, isNull);
+    // 页面上显示的 spec 与默认一致。
+    expect(find.text(zh.questionPaperCountOption(10)), findsOneWidget);
+    expect(find.text(zh.questionPaperDifficultyAny), findsOneWidget);
+    expect(find.text(zh.questionPaperCapAuto), findsOneWidget);
+    expect(find.text(zh.questionPaperSourceLevelAny), findsOneWidget);
+  });
+
+  testWidgets('空题库：难度/上限/重置三个控件照常显示，改条件与重置都不崩', (tester) async {
+    await _pumpPaperPage(tester, db: db);
+
+    expect(find.text(zh.questionPaperDifficultyLabel), findsOneWidget);
+    expect(find.text(zh.questionPaperDifficultyAny), findsOneWidget);
+    expect(find.text(zh.questionPaperCapLabel), findsOneWidget);
+    expect(find.text(zh.questionPaperCapAuto), findsOneWidget);
+    expect(find.text(zh.questionPaperReset), findsOneWidget);
+    expect(find.text(zh.questionPaperEmptyBank), findsOneWidget);
+
+    final container = _container(tester);
+    container.read(paperSpecProvider.notifier).setTargetDifficulty(3.0);
+    container.read(paperSpecProvider.notifier).setPerKnowledgePointCap(2);
+    await _settle(tester);
+
+    // 空库上改条件：还是那句空态，不抛异常。
+    expect(find.text(zh.questionPaperEmptyBank), findsOneWidget);
+    expect(find.text(zh.questionPaperDifficultyOption('3.0')), findsOneWidget);
+
+    await tester.tap(find.text(zh.questionPaperReset));
+    await _settle(tester);
+    expect(container.read(paperSpecProvider).targetDifficulty, isNull);
+    expect(container.read(paperSpecProvider).perKnowledgePointCap, isNull);
+    expect(find.text(zh.questionPaperDifficultyAny), findsOneWidget);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -438,6 +628,7 @@ Future<void> _seedQuestion(
   String subjectKey = '',
   String sourceLevel = 'unknown',
   String? trapNote,
+  double? difficulty,
 }) {
   return db.into(db.questions).insert(
         QuestionsCompanion.insert(
@@ -448,6 +639,7 @@ Future<void> _seedQuestion(
           subjectKey: Value(subjectKey),
           sourceLevel: Value(sourceLevel),
           trapNote: Value(trapNote),
+          difficulty: Value(difficulty),
         ),
       );
 }
@@ -501,4 +693,18 @@ Future<void> _linkQuestionToTag(
           createdAt: _ts,
         ),
       );
+}
+
+/// "目标难度"下拉当前的值（`null` = 不限）。
+///
+/// `DropdownButton` 会把所有 items 都挂进 `IndexedStack`，"不限难度"这一项永远在树上，
+/// 所以不能用 `find.text` 判断"选中了哪一项"；只能读表单字段当前的值。
+double? _difficultyDropdownValue() {
+  final fields = find
+      .byWidgetPredicate((widget) => widget is DropdownButtonFormField<double>)
+      .evaluate()
+      .map((element) => element.widget as DropdownButtonFormField<double>)
+      .toList();
+  expect(fields, hasLength(1), reason: '页面上应该只有一个"目标难度"下拉');
+  return fields.single.initialValue;
 }

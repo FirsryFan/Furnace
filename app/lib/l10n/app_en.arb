@@ -1250,5 +1250,27 @@
         "type": "int"
       }
     }
-  }
+  },
+  "questionPaperDifficultyLabel": "Target difficulty",
+  "questionPaperDifficultyAny": "Any difficulty",
+  "questionPaperDifficultyOption": "Difficulty {value}",
+  "@questionPaperDifficultyOption": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperDifficultyHint": "Difficulty is a preference, not a hard filter: closer questions rank higher, and questions with no difficulty value are treated as half-fit (ranked lower, never excluded).",
+  "questionPaperCapLabel": "Per knowledge point cap",
+  "questionPaperCapAuto": "Auto",
+  "questionPaperCapOption": "Up to {cap}",
+  "@questionPaperCapOption": {
+    "placeholders": {
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperReset": "Reset paper settings"
 }
