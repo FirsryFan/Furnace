@@ -69,7 +69,8 @@
   ——**机制侧已完成（轮次四十五：`rhythm.gate` 作为 opt-in 机制装进 `fast_engine.dart`，默认关）**；
   **读数与建议已完成（轮次四十七：线程页顶部给出可用性百分比 + 已专注分钟 + 做难/做易/休息建议，
   带隐藏按钮与 AppBar 菜单开关，schema v15 持久化；`t_on` 由既有学习日志推导，是未标定代理）**；
-  仍缺的是 `thread_rank_service.dart` 的认知排序档位；
+  仍缺的是把认知排序档位**接进** `thread_rank_service.dart`：**算法核心已完成（轮次五十，
+  `app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例；接线/开关/UI 未做）**；
   ② `goal` 动作的**目标扩散**：目标集可达性排序（与 MindNet 的 `start_diffusion(starts, targets)` 对齐）；
   ③ 把"当前脑子里的东西"（刚复习/刚做错的节点）作为 `starts` 注入。
 - **落点**：`thread_rank_service.dart` 增加一个"认知排序"档位（与现有加权排序并存，可开关），输入 = 目标节点 + 刚活动节点 + α(τ)；
@@ -82,7 +83,7 @@
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
-| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；`thread_rank_service.dart` 的认知排序档位未做** |
+| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），接线（reader + 开关 + UI）未做** |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
@@ -203,6 +204,36 @@
 **证据**：`study_rhythm_test.dart`（17 例）、`study_rhythm_reader_test.dart`（6 例）、
 `test/data/database/v15_migration_test.dart`（2 例）、`thread_status_bar_test.dart`（4 例：
 有坐段就报数、没有坐段说"还没有足够记录"、点隐藏把开关落库且读数立刻消失、折叠后读数让位）。
+
+### 切片 4 的追加：认知排序档位的算法核心（已完成 轮次五十；接线未做）
+
+**缺口**：§2-D 的落点要求 Thread 排序用上"目标节点 + 刚活动节点 + α(τ)"。段落 A
+（`ThreadRanker` 的硬约束加权）与段落 B（`DomainBalanceRanker` 的领域均衡 + 有效性）都在跑，
+但两者都不看 α(τ)，也不看"刚复习/刚做错/刚读过"的节点和当前目标。
+
+**做了什么**：`app/lib/domain/services/scheduling/cognitive_rank.dart`（纯逻辑，不碰数据库）。
+输入 = `availability`（α(τ)，来自 `StudyRhythm` 的读数）+ 调用方算好的
+`知识点 id → (跳数 0/1/2, 来源 activity/goal)` + 每个候选的难度代理（0..1，可缺）；
+输出 = 重排后的次序 + 每个 hit 一条中文理由 + `uncalibrated: true`。
+`score = reachability × availabilityFactor`：距离 0/1/2 分别 ×1.6 / ×1.3 / ×1.1（超过 2 跳 = 1.0），
+精力分量在 `1 ± 0.25` 内摆动（注意力高给难的加分、低给容易的加分）。
+平手按 `baseIndex` → 输入序 → `taskId`（`List.sort` 不保证稳定，所以显式写完）。
+
+**三条刻意的选择**（都写在文件 doc 里）：
+
+- 加成常数**不是** D12 的 `1.8 / 1.3`：那一组是"答错之后给关联卡片加抽卡权重"
+  （§6.5 / D5），与"目标可达性"不是一回事，混用会让人以为这里有测量；两组常量名字刻意不同。
+- 难度读数为 null 时候选**不消失**、精力分量取中性 1.0，理由行如实写"缺难度读数"；
+  距离与难度**都缺**时理由行直说"没有认知读数，按默认次序"。
+- 什么都不知道时 `score` 全为 1.0 ⇒ 次序 == `baseIndex` 次序：接线之后忘了喂输入，
+  用户看到的仍是原来的列表，而不是一个悄悄乱掉的列表。这条由测试钉住。
+
+**证据**：`app/test/domain/services/scheduling/cognitive_rank_test.dart`（21 例：没输入等于没开 /
+距离加成 / 精力分量 / 越界与 NaN / 理由行与名字回退 / `toJson` 的 `uncalibrated`）。
+
+**还剩的另一半**：把输入接起来——`ThreadRankService.build()` 接受 `CognitiveRankInputs`、
+`ThreadFeed` 暴露认知次序与理由、开关落库（`ThreadRankSettings` 加列，需要一次 schema 迁移）、
+"刚活动节点"与目标节点到知识点上的距离（标签树 / `CognitiveGraph`）、以及 UI 上的呈现。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 

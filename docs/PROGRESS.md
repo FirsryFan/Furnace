@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-10-16 轮次五十：认知排序档位的算法核心（Q28，Lead）
+
+**做了什么**：新增 `app/lib/domain/services/scheduling/cognitive_rank.dart`（纯逻辑，不碰数据库）。
+它把 §2-D 落点要求的三个输入变成一种可选的排序：`availability`（α(τ)，来自 `StudyRhythm` 的读数）、
+调用方算好的 `知识点 id → (跳数 0/1/2, 来源 activity/goal)`、以及每个候选的难度代理（0..1，可缺）。
+`score = reachability × availabilityFactor`，距离 0/1/2 分别 ×1.6 / ×1.3 / ×1.1（超过 2 跳 = 1.0），
+精力分量在 `1 ± 0.25` 内摆动；输出是重排后的次序 + 每个 hit 一条中文理由 + `uncalibrated: true`。
+新增 `app/test/domain/services/scheduling/cognitive_rank_test.dart` 21 例。
+
+**为什么这么切**：段落 A（`ThreadRanker` 硬约束）与段落 B（`DomainBalanceRanker`）都已经在跑，
+这一层是**并存的可选档位**，不是替换。三个刻意的选择：
+
+- 加成常数与 `diffusion_boost.dart` 里 D12 的 `1.8 / 1.3` **刻意分开**：那一组是"答错之后给
+  关联卡片加抽卡权重"（`MINDNET_CONTRACT` §6.5 / D5），与"目标可达性"不是一回事，共用一组数
+  会让人以为这里有测量；两组常量名字不同、文件 doc 写明。
+- 难度读数缺失时候选**不消失**、精力分量取中性 1.0，理由行如实写"缺难度读数"；距离与难度
+  **都缺**时直说"没有认知读数，按默认次序"——缺数据不等于低价值。
+- 完全没有输入时 `score` 全为 1.0，次序**等于** `baseIndex` 次序：接线之后忘了喂输入，
+  用户看到的仍是原来的列表，而不是一个悄悄乱掉的列表。这条有测试钉住。
+
+**验收**：`flutter test test/domain/services/scheduling/cognitive_rank_test.dart --concurrency=1`
+→ `+21 All tests passed!`；`dart format` 0 changed；`dart analyze` 两个新文件 `No issues found!`。
+
+**还剩的另一半**：接线——`ThreadRankService.build()` 接受 `CognitiveRankInputs`、`ThreadFeed`
+暴露认知次序与理由、开关落库（`ThreadRankSettings` 加列 = 一次 schema 迁移）、把"刚活动节点"与
+目标节点的距离算出来（标签树 / `CognitiveGraph`）、UI 呈现。
+
 ## 2026-10-16 轮次四十九：自由挖空 + 错题强制绑定接进复习 UI（Q26，teammate threadflow-engine）
 
 **结论（先 recon 再动手）**：算法/表/队列车道早已在——`app/lib/domain/services/cloze/cloze_engine.dart`
