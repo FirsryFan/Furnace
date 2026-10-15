@@ -142,9 +142,11 @@ void main() {
         nowHours: modelHoursOf(moment),
       );
 
-      expect([for (final i in modelBand) i.cardState.id],
-          [for (final c in direct) c.row.id],
-          reason: 'the band order must be exactly what the model returns');
+      expect([
+        for (final i in modelBand) i.cardState.id
+      ], [
+        for (final c in direct) c.row.id
+      ], reason: 'the band order must be exactly what the model returns');
     });
   });
 
@@ -181,7 +183,8 @@ void main() {
       expect(after.stability, closeTo(expected.memory.stability, 1e-9));
       expect(after.difficulty, closeTo(expected.memory.difficulty, 1e-9));
       expect(after.dueAt, expected.dueAt.millisecondsSinceEpoch);
-      expect(after.intervalDays, closeTo(expected.scheduledDays.toDouble(), 1e-9));
+      expect(
+          after.intervalDays, closeTo(expected.scheduledDays.toDouble(), 1e-9));
       expect(outcome.nextDueAt, expected.dueAt);
 
       // …and the model wrote its own two columns, once, from the seam.

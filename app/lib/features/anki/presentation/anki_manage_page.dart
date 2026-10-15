@@ -144,7 +144,8 @@ class AnkiManagePage extends ConsumerWidget {
                           IconButton(
                             tooltip: l10n.commonEdit,
                             icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editKnowledgePoint(context, ref, kp),
+                            onPressed: () =>
+                                _editKnowledgePoint(context, ref, kp),
                           ),
                           IconButton(
                             tooltip: l10n.ankiNewTemplate,
@@ -154,7 +155,8 @@ class AnkiManagePage extends ConsumerWidget {
                           IconButton(
                             tooltip: l10n.commonDelete,
                             icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _deleteKnowledgePoint(context, ref, kp),
+                            onPressed: () =>
+                                _deleteKnowledgePoint(context, ref, kp),
                           ),
                         ],
                       ),
@@ -586,7 +588,9 @@ class AnkiManagePage extends ConsumerWidget {
         );
     ref.invalidate(ankiKnowledgePointsProvider);
     ref.invalidate(ankiStatsProvider);
-    return await ref.read(ankiRepositoryProvider).getCardTemplateById(template.id);
+    return await ref
+        .read(ankiRepositoryProvider)
+        .getCardTemplateById(template.id);
   }
 
   Future<void> _showTemplates(
@@ -625,11 +629,9 @@ class AnkiManagePage extends ConsumerWidget {
                       tooltip: l10n.commonAdd,
                       icon: const Icon(Icons.add),
                       onPressed: () async {
-                        final allTags = await ref
-                            .read(tagRepositoryProvider)
-                            .getAllTags();
-                        final existingIds =
-                            kpTags.map((t) => t.id).toSet();
+                        final allTags =
+                            await ref.read(tagRepositoryProvider).getAllTags();
+                        final existingIds = kpTags.map((t) => t.id).toSet();
                         final candidates = allTags
                             .where((t) => !existingIds.contains(t.id))
                             .toList();
@@ -650,9 +652,7 @@ class AnkiManagePage extends ConsumerWidget {
                           ),
                         );
                         if (selected != null) {
-                          await ref
-                              .read(tagRepositoryProvider)
-                              .addTagToObject(
+                          await ref.read(tagRepositoryProvider).addTagToObject(
                                 tagId: selected.id,
                                 objectType: 'knowledge_point',
                                 objectId: kp.id,

@@ -47,8 +47,10 @@ class KnowledgeInsightPage extends ConsumerWidget {
           if (summary.isEmpty) {
             return Center(child: Text(l10n.knowledgeInsightEmpty));
           }
-          final wrong = summary.entries.where((e) => e.kind == 'wrong').toList();
-          final boosts = summary.entries.where((e) => e.kind == 'boost').toList();
+          final wrong =
+              summary.entries.where((e) => e.kind == 'wrong').toList();
+          final boosts =
+              summary.entries.where((e) => e.kind == 'boost').toList();
 
           return ListView(
             padding: const EdgeInsets.only(bottom: 24),
@@ -187,9 +189,8 @@ class _LedgerTile extends StatelessWidget {
       dense: true,
       leading: Icon(
         entry.kind == 'wrong' ? Icons.cancel_outlined : Icons.arrow_upward,
-        color: entry.kind == 'wrong'
-            ? theme.colorScheme.error
-            : Colors.deepOrange,
+        color:
+            entry.kind == 'wrong' ? theme.colorScheme.error : Colors.deepOrange,
       ),
       title: Text(entry.ownerTitle ?? entry.knowledgePointTitle ?? '-'),
       subtitle: subtitleParts.isEmpty ? null : Text(subtitleParts.join(' · ')),

@@ -297,8 +297,7 @@ abstract final class ReviewAdvisory {
     ];
 
     final bandByCardStateId = <String, ReviewBand>{
-      for (final candidate in forced)
-        candidate.cardStateId: ReviewBand.forced,
+      for (final candidate in forced) candidate.cardStateId: ReviewBand.forced,
       for (final candidate in boosted)
         candidate.cardStateId: ReviewBand.boosted,
       for (final candidate in orderedModelBand)

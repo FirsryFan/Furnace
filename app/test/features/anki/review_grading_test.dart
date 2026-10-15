@@ -85,7 +85,8 @@ void main() {
     test('normalisation is the documented one', () {
       expect(ReviewService.normalizeForLenient('Ａ ＴＰ。'), 'atp');
       expect(ReviewService.normalizeForLenient('光合作用，场所'), '光合作用场所');
-      expect(ReviewService.normalizeForLenient('  Hello World  '), 'helloworld');
+      expect(
+          ReviewService.normalizeForLenient('  Hello World  '), 'helloworld');
     });
   });
 
@@ -134,8 +135,12 @@ void main() {
 
     test('an answer written as a letter finds its option', () {
       const withLetters = ['A. 线粒体', 'B、叶绿体', 'C) 细胞核'];
-      expect(ReviewService.correctOptionIndex(options: withLetters, answer: 'B'), 1);
-      expect(ReviewService.correctOptionIndex(options: withLetters, answer: 'c'), 2);
+      expect(
+          ReviewService.correctOptionIndex(options: withLetters, answer: 'B'),
+          1);
+      expect(
+          ReviewService.correctOptionIndex(options: withLetters, answer: 'c'),
+          2);
       expect(
         ReviewService.mcqMatch(
           options: withLetters,

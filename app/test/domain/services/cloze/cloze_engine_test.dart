@@ -10,14 +10,13 @@ void main() {
       final candidates = ClozeEngine.discoverCandidates(content);
       expect(candidates, isNotEmpty);
       final first = candidates.first;
-      expect(content.substring(first.start, first.start + first.length),
-          '叶绿体');
+      expect(content.substring(first.start, first.start + first.length), '叶绿体');
     });
 
     test('seed keywords (title/tags) are preferred', () {
       const content = '电动势等于非静电力做的功与电荷量的比值，单位是伏特。';
-      final candidates = ClozeEngine.discoverCandidates(content,
-          seedKeywords: const ['电动势']);
+      final candidates =
+          ClozeEngine.discoverCandidates(content, seedKeywords: const ['电动势']);
       expect(candidates.first.slotKey, 'c0');
       expect(candidates.first.answerIn(content), '电动势');
     });
@@ -25,17 +24,21 @@ void main() {
     test('numbers are candidates and slots do not overlap', () {
       const content = '万有引力常量约为6.674e-11，地球半径6371千米。';
       final candidates = ClozeEngine.discoverCandidates(content);
-      final spans = candidates.map((c) => (start: c.start, end: c.start + c.length)).toList();
+      final spans = candidates
+          .map((c) => (start: c.start, end: c.start + c.length))
+          .toList();
       for (var i = 0; i < spans.length; i++) {
         for (var j = i + 1; j < spans.length; j++) {
-          expect(spans[i].start >= spans[j].end || spans[j].start >= spans[i].end,
-              isTrue, reason: 'slots must not overlap');
+          expect(
+              spans[i].start >= spans[j].end || spans[j].start >= spans[i].end,
+              isTrue,
+              reason: 'slots must not overlap');
         }
       }
       // Numbers present in content should have candidates anchored on them.
       expect(
-        candidates.any((c) =>
-            RegExp(r'\d+(\.\d+)?').hasMatch(c.answerIn(content))),
+        candidates
+            .any((c) => RegExp(r'\d+(\.\d+)?').hasMatch(c.answerIn(content))),
         isTrue,
       );
     });
@@ -48,8 +51,7 @@ void main() {
           ClozeCandidate(slotKey: 'c2', start: 6, length: 2),
         ];
 
-    test('new blanks are drawn when probability triggers and unused exist',
-        () {
+    test('new blanks are drawn when probability triggers and unused exist', () {
       final random = Random(42);
       var sawNew = false;
       for (var i = 0; i < 200; i++) {

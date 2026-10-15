@@ -33,8 +33,7 @@ abstract final class DiffusionBoost {
   ///
   /// [nodes] may be a subtree fragment of one map; connectivity is derived
   /// from parent links plus sibling links within the same parent.
-  static int? distance(
-      List<MindNodeInfo> nodes, String a, String b) {
+  static int? distance(List<MindNodeInfo> nodes, String a, String b) {
     if (a == b) {
       return 0;
     }
@@ -47,7 +46,10 @@ abstract final class DiffusionBoost {
     final siblingsOf = <String, List<String>>{};
     for (final entry in childrenOf.entries) {
       for (final id in entry.value) {
-        siblingsOf[id] = [for (final other in entry.value) if (other != id) other];
+        siblingsOf[id] = [
+          for (final other in entry.value)
+            if (other != id) other
+        ];
       }
     }
 

@@ -342,8 +342,8 @@ void main() {
         diagnosisByKnowledgePoint: null,
       );
 
-      expect(first.zoneByKnowledgePoint.values.toSet(),
-          {ReviewZone.unavailable});
+      expect(
+          first.zoneByKnowledgePoint.values.toSet(), {ReviewZone.unavailable});
       expect(idsOf(first.ranked), idsOf(second.ranked));
     });
 
@@ -385,11 +385,10 @@ void main() {
       );
 
       expect(ran.zoneByKnowledgePoint['kp-empty'], ReviewZone.empty);
-      expect(ran.zoneByKnowledgePoint['kp-empty'],
-          isNot(ReviewZone.unavailable));
+      expect(
+          ran.zoneByKnowledgePoint['kp-empty'], isNot(ReviewZone.unavailable));
       expect(ran.zoneByKnowledgePoint['kp-danger'], ReviewZone.danger);
-      expect(ran.zoneByKnowledgePoint['kp-danger'],
-          isNot(ReviewZone.proximal));
+      expect(ran.zoneByKnowledgePoint['kp-danger'], isNot(ReviewZone.proximal));
       // The layer ran and produced no verdict for this node: it lit up, is on
       // target and has a way out. That is `healthy`, not `unavailable`.
       expect(ran.zoneByKnowledgePoint['kp-verdictless'], ReviewZone.healthy);
@@ -403,8 +402,8 @@ void main() {
         nowHours: nowHours,
         diagnosisByKnowledgePoint: null,
       );
-      expect(notRun.zoneByKnowledgePoint['kp-notasked'],
-          ReviewZone.unavailable);
+      expect(
+          notRun.zoneByKnowledgePoint['kp-notasked'], ReviewZone.unavailable);
       expect(notRun.zoneByKnowledgePoint['kp-notasked'],
           isNot(ReviewZone.healthy));
     });

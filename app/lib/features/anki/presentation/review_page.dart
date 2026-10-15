@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cloze/cloze_layout.dart';
+import '../../../domain/services/cloze/forced_loop.dart';
 import '../../../domain/services/srs/dsr_card_state.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
@@ -107,6 +109,19 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   ReviewOutcome? _outcome;
   _PendingWrong? _pendingWrong;
 
+  /// 与 [_queue] 一一对应的「时间下限」表：队列里第 i 张卡在这一刻之前不许出现。
+  ///
+  /// 只有会话内插回来的强制卡会带上它（`ForcedRedoPlan.notBefore`），其余位置是
+  /// null。用平行表而不是按对象查表，是因为同一张卡可以在本轮出现两次（立即重做
+  /// 时插回来的就是同一个实例），按对象查会让两次出现共享一个下限。
+  List<DateTime?> _floors = const [];
+
+  /// 本轮被强制绑定的单元（`知识点 id:单元键`）。
+  ///
+  /// 头部「待清」不能只看队列快照里的 `cardState.forced`：本轮答错产生的绑定写在
+  /// 数据库行上，而队列里的 [ReviewItem] 还是构建时的老快照。
+  final Set<String> _sessionForced = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -168,6 +183,10 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _shownAt = DateTime.now();
       _loading = false;
       _pendingWrong = null;
+      // 新建一次队列 = 新的一轮：下限表对齐新长度，本轮强制集合清空（数据库行里
+      // 的绑定会由 `cardState.forced` 重新带进来）。
+      _floors = List<DateTime?>.filled(queue.length, null, growable: true);
+      _sessionForced.clear();
     });
   }
 
@@ -360,6 +379,59 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _submitting = false;
       _outcome = outcome;
     });
+    await _reinsertForced(item: item, outcome: outcome);
+  }
+
+  /// 一张卡的单元身份（`知识点 id:单元键`），用于「本轮被强制绑定过的单元」计数。
+  String _unitKeyOf(ReviewItem item) =>
+      '${item.knowledgePointId}:${item.unitKey}';
+
+  /// 会话内强制重做闭环（D11）：按既有口径把刚作答的这张卡插回本轮队列。
+  ///
+  /// 规则本身一行都不在这里：位置与时间下限来自纯函数
+  /// [ForcedLoop.reinsertAfter]，它读的是同一次 `grade` 产出的
+  /// [ReviewOutcome.stillForced] / [ReviewOutcome.immediateRedo] /
+  /// [ReviewOutcome.nextDueAt]。这里只负责把计划落成队列里的一次插入。
+  ///
+  /// 插回去的是**重新读过行状态**的同一张卡（[ReviewService.refreshItem]）：
+  /// `grade` 的契约是「`item.cardState` 是本次作答之前的行」，而队列里的实例还停在
+  /// 答错之前的快照上，直接复用会让 D11 的「连续两次」永远数不到第二次。
+  Future<void> _reinsertForced({
+    required ReviewItem item,
+    required ReviewOutcome outcome,
+  }) async {
+    final key = _unitKeyOf(item);
+    if (!outcome.stillForced) {
+      // 绑定解除（或本来就没绑定）：本轮不再算它待清。
+      if (_sessionForced.remove(key)) {
+        setState(() {});
+      }
+      return;
+    }
+    final fresh = await ref.read(reviewServiceProvider).refreshItem(item);
+    if (!mounted) {
+      return;
+    }
+    final plan = ForcedLoop.reinsertAfter<ReviewItem>(
+      item: fresh,
+      stillForced: outcome.stillForced,
+      immediateRedo: outcome.immediateRedo,
+      nextDueAt: outcome.nextDueAt,
+      currentIndex: _index,
+      queueLength: _queue.length,
+      gap: ReviewService.relearnGapCards,
+    );
+    if (plan == null) {
+      return;
+    }
+    setState(() {
+      if (_floors.length != _queue.length) {
+        _floors = List<DateTime?>.filled(_queue.length, null, growable: true);
+      }
+      _sessionForced.add(key);
+      _queue.insert(plan.insertIndex, plan.item);
+      _floors.insert(plan.insertIndex, plan.notBefore);
+    });
   }
 
   /// Records the self-assessment and moves on.
@@ -439,8 +511,32 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _selectedOption = null;
       _shownAt = DateTime.now();
     });
+    _skipGatedCards();
     if (_scroll.hasClients) {
       _scroll.jumpTo(0);
+    }
+  }
+
+  /// 还没到时间下限的卡不占着队首堵住后面：把它们挪到队尾，先做能做的。
+  ///
+  /// 这是 `ForcedLoop` 的时间口径在队列上的落地——「约 10 分钟」意味着它不能被
+  /// 提前显示，但也不该把今天剩下的卡全挡在它后面。一张卡一轮最多被挪一次，
+  /// 所以循环必然结束；如果剩下每一张都还没到点，队首仍是它，build 会转成等待态。
+  void _skipGatedCards() {
+    final now = DateTime.now();
+    var moved = 0;
+    final remaining = _queue.length - _index;
+    while (moved < remaining) {
+      final floor = _index < _floors.length ? _floors[_index] : null;
+      if (floor == null || !now.isBefore(floor)) {
+        break;
+      }
+      _queue.add(_queue.removeAt(_index));
+      _floors.add(_floors.removeAt(_index));
+      moved++;
+    }
+    if (moved > 0) {
+      setState(() {});
     }
   }
 
@@ -473,7 +569,38 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       return _FinishedState(onReload: _load);
     }
 
-    final forcedCount = _queue.where((i) => i.cardState.forced == 1).length;
+    // 「待清」按**单元**去重，并把本轮新产生的绑定算进来：队列里的 cardState 是
+    // 构建时的快照，本轮答错的那张卡在它里面还是旧的 forced = 0。
+    final activeUnits = <String>{
+      for (final queued in _queue)
+        if (queued.cardState.forced == 1) _unitKeyOf(queued),
+      ..._sessionForced,
+    };
+    final forcedCount = activeUnits.length;
+
+    // 还没到时间下限（约 10 分钟）的卡不显示，也不让它把别的卡挡住：
+    // `_skipGatedCards` 已经把它挪到队尾，只有剩下每一张都还没到点时它才回到队首。
+    final floor = _index < _floors.length ? _floors[_index] : null;
+    final wait =
+        ForcedLoop.waitRemaining(now: DateTime.now(), notBefore: floor);
+    if (wait > Duration.zero) {
+      return Column(
+        children: [
+          _ProgressHeader(
+            remaining: _queue.length - _index,
+            total: _queue.length,
+            active: forcedCount,
+          ),
+          Expanded(
+            child: _ForcedWaitState(
+              minutes: wait.inMinutes,
+              onCheck: () => setState(() {}),
+            ),
+          ),
+        ],
+      );
+    }
+
     final hint = item.hint;
     // What the fast layer said about this card's knowledge point, as the 认知模型
     // page reports it. Only a real complaint becomes a chip: `healthy` ("ran,
@@ -495,6 +622,12 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             answer: item.answer,
           )
         : null;
+    // 挖空题：把空格留在它原来的位置。取不到位置（slotStart 为空 / 越界 /
+    // 对不上下划线）就是 null，页面回退到原来的整句 + 下划线渲染，绝不猜。
+    // 模板卡 / 选择题 / 论述题永远走 else 分支，呈现一个字都不变。
+    final cloze = item.clozeSlotKey == null
+        ? null
+        : ClozeLayout.of(question: item.question, slotStart: item.slotStart);
     return Column(
       children: [
         _ProgressHeader(
@@ -525,12 +658,26 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                SelectableText(
-                  item.question,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        height: 1.75,
-                      ),
-                ),
+                if (cloze != null) ...[
+                  if (item.isNew)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _ZoneChip(text: l10n.knowledgeNewBlank),
+                    ),
+                  _ClozeSentence(
+                    key: const ValueKey('cloze-sentence'),
+                    layout: cloze,
+                    // 揭示时把答案填回那个空：作答之后（对或错都一样）才算揭示，
+                    // 还没作答就只显示下划线。
+                    revealed: _feedback?.expected,
+                  ),
+                ] else
+                  SelectableText(
+                    item.question,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          height: 1.75,
+                        ),
+                  ),
                 // Never auto-revealed: the hint is there for the user who is
                 // stuck, not for the user who has not tried yet. The key makes
                 // every card start with its hint hidden again.
@@ -670,6 +817,98 @@ class _ZoneChip extends StatelessWidget {
             .textTheme
             .labelSmall
             ?.copyWith(color: scheme.onSecondaryContainer),
+      ),
+    );
+  }
+}
+
+/// 挖空题的原句：下划线留在它原来的位置，揭示时把答案填回那个位置。
+///
+/// 只在内容推导出来的空（[ReviewItem.clozeSlotKey] 非空）上使用；模板卡、选择题
+/// 和论述题仍然走原来的 `SelectableText(item.question)`，所以那三条呈现路径的
+/// 行为与文案一个字都没变。
+class _ClozeSentence extends StatelessWidget {
+  const _ClozeSentence({
+    super.key,
+    required this.layout,
+    required this.revealed,
+  });
+
+  final ClozeLayout layout;
+
+  /// 非空 = 已经可以揭示（作答后 / 自判 / 显示答案），把答案填回原句。
+  final String? revealed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final style = theme.textTheme.headlineSmall?.copyWith(height: 1.75);
+    final answer = revealed;
+    return SelectableText.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: layout.prefix),
+          if (answer == null || answer.isEmpty)
+            TextSpan(
+              text: layout.blank,
+              style: style?.copyWith(color: scheme.primary),
+            )
+          else
+            TextSpan(
+              text: answer,
+              style: style?.copyWith(
+                color: scheme.onPrimaryContainer,
+                backgroundColor: scheme.primaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          TextSpan(text: layout.suffix),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「这个空刚答对一次，还没到再出现的时间」。
+///
+/// 这个屏幕宁可说实话也不把没到点的卡提前放出来（D11 的「约 10 分钟」），按钮
+/// 只重新读一次时钟：到点后同一张卡原地出现，队列顺序一点都不变。
+class _ForcedWaitState extends StatelessWidget {
+  const _ForcedWaitState({required this.minutes, required this.onCheck});
+
+  final int minutes;
+  final VoidCallback onCheck;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.hourglass_bottom,
+              size: 40,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.knowledgeForcedWait(minutes),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onCheck,
+              child: Text(l10n.knowledgeForcedWaitCheck),
+            ),
+          ],
+        ),
       ),
     );
   }

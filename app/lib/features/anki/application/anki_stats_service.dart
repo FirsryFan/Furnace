@@ -28,9 +28,8 @@ class AnkiStatsService {
     final dueStates = await _repository.getDueCardStates(
       DateTime.now().millisecondsSinceEpoch,
     );
-    final weekAgo = DateTime.now()
-        .subtract(const Duration(days: 7))
-        .millisecondsSinceEpoch;
+    final weekAgo =
+        DateTime.now().subtract(const Duration(days: 7)).millisecondsSinceEpoch;
     final reviewCount7d = await _repository.countReviewsSince(weekAgo);
     final reviewCounts7d = await _repository.getReviewCountsPerDay(7);
     return AnkiStats(

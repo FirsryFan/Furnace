@@ -78,16 +78,12 @@ void main() {
       final withFar = [...nodes, far];
       expect(
         DiffusionBoost.boostFactor(
-            nodes: withFar,
-            wrongNodeIds: const ['a'],
-            candidateNodeId: 'far'),
+            nodes: withFar, wrongNodeIds: const ['a'], candidateNodeId: 'far'),
         1.0,
       );
       expect(
         DiffusionBoost.boostFactor(
-            nodes: nodes,
-            wrongNodeIds: const ['a'],
-            candidateNodeId: 'b2x'),
+            nodes: nodes, wrongNodeIds: const ['a'], candidateNodeId: 'b2x'),
         1.0,
       );
     });

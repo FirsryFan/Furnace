@@ -183,6 +183,77 @@ void main() {
       expect(states.single.forcedStreak, 0);
     });
 
+    test(
+        'a wrong answer is redone right away, and the redo grades from a '
+        'freshly read row', () async {
+      await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');
+      final item = (await service.buildQueue()).single;
+
+      final wrong = await service.grade(
+        item: item,
+        correct: false,
+        rating: FsrsRating.good,
+      );
+      expect(wrong.stillForced, isTrue);
+      expect(wrong.immediateRedo, isTrue, reason: 'D11: 答错立即重做，不是等到下一轮队列');
+
+      // 队列里这一份还是「答错之前」的行（grade 的契约），会话内重做要先读一遍。
+      final fresh = await service.refreshItem(item);
+      expect(fresh.cardState.forced, 1);
+      expect(fresh.cardState.forcedStreak, 0);
+      // 只有行被换掉：单元身份与题干都是队列给的那一份。
+      expect(fresh.unitKey, item.unitKey);
+      expect(fresh.question, item.question);
+      expect(fresh.answer, item.answer);
+      expect(fresh.clozeSlotKey, item.clozeSlotKey);
+      expect(fresh.slotStart, item.slotStart);
+
+      final first = await service.grade(
+        item: fresh,
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      expect(first.stillForced, isTrue);
+      expect(first.released, isFalse);
+      expect(first.immediateRedo, isFalse, reason: '答对一次只进强制期，不再立刻重做');
+
+      final second = await service.grade(
+        item: await service.refreshItem(fresh),
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      expect(second.released, isTrue);
+      expect(second.stillForced, isFalse);
+      expect(second.immediateRedo, isFalse);
+    });
+
+    test(
+        'grading the queue snapshot again cannot count the second correct '
+        'answer - which is why the redo refreshes the row', () async {
+      await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');
+      final item = (await service.buildQueue()).single;
+      await service.grade(
+        item: item,
+        correct: false,
+        rating: FsrsRating.good,
+      );
+
+      // 同一个老快照再判一次：grade 看到的还是「从来没被绑定过」的行，于是它认为
+      // 这次答对不需要继续强制，顺手把绑定写掉了——D11 的连续两次永远数不到第二次。
+      final stale = await service.grade(
+        item: item,
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      expect(stale.stillForced, isFalse);
+      expect(stale.released, isFalse);
+
+      final states =
+          await anki.unitStatesForKnowledgePoint(item.knowledgePointId);
+      expect(states.single.forced, 0,
+          reason: '老快照把绑定洗掉了：闭环必须先 ReviewService.refreshItem');
+    });
+
     test('a correct answer schedules through FSRS, not a fixed interval',
         () async {
       await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');

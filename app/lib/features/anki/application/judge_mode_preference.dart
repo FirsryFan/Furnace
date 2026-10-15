@@ -83,8 +83,7 @@ enum JudgeModePreference {
 /// Asynchronous because the value lives in SQLite. The screen reads it once, when
 /// it builds the queue; the per-answer control then owns the mode for the rest of
 /// the session, so a late-arriving read can never change an answer in progress.
-class JudgeModePreferenceController
-    extends AsyncNotifier<JudgeModePreference> {
+class JudgeModePreferenceController extends AsyncNotifier<JudgeModePreference> {
   @override
   Future<JudgeModePreference> build() =>
       ref.watch(reviewPlanRepositoryProvider).getJudgeModePreference();

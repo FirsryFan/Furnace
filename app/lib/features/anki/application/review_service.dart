@@ -131,6 +131,7 @@ class ReviewOutcome {
     required this.released,
     required this.stillForced,
     required this.boosted,
+    this.immediateRedo = false,
   });
 
   final bool correct;
@@ -143,6 +144,17 @@ class ReviewOutcome {
 
   /// The unit must come back inside today's queue.
   final bool stillForced;
+
+  /// The wrong answer must be redone **right away**, before the rest of the
+  /// queue - D11's 立即重做.
+  ///
+  /// [stillForced] is the "it comes back" half of the binding; this flag is the
+  /// "without waiting for the 10-minute floor" half. The two are decided by the
+  /// same `ForcedMachine.grade` call, and the in-session queue rule reads both
+  /// (`ForcedLoop.reinsertAfter`): a set [stillForced] with [immediateRedo]
+  /// re-inserts the card right behind the current one, while a set [stillForced]
+  /// without it inserts it `relearnGapCards` later and gates it on [nextDueAt].
+  final bool immediateRedo;
 
   /// Knowledge points lifted by tag diffusion because of this wrong answer.
   final List<BoostedItem> boosted;
@@ -1020,7 +1032,51 @@ class ReviewService {
       scheduledDays: schedule.scheduledDays,
       released: step.released,
       stillForced: step.forced,
+      immediateRedo: step.immediateRedo,
       boosted: boosted,
+    );
+  }
+
+  /// Reads the unit's row again and hands back the same item with the **current**
+  /// row in it.
+  ///
+  /// [grade]'s contract is "`item.cardState` is the row *before* this answer",
+  /// and a queue built once satisfies it. The in-session forced redo does not:
+  /// the card that goes back into the queue is the very item that was just
+  /// graded, so its snapshot still carries the pre-answer `forced` /
+  /// `forcedStreak` / `stability` / `difficulty`. Grading that snapshot again
+  /// would (a) leave D11's streak stuck at zero, so the binding could never be
+  /// released inside one session, and (b) schedule FSRS from the same baseline
+  /// twice, dropping the change the first answer just wrote.
+  ///
+  /// Only the row is replaced; every other field is the one the queue built. A
+  /// row that is no longer there (the unit was deleted from another screen)
+  /// returns the item unchanged instead of throwing - the practice screen must
+  /// not break on a data race.
+  Future<ReviewItem> refreshItem(ReviewItem item) async {
+    final fresh =
+        await ankiRepository.unitCardState(item.knowledgePointId, item.unitKey);
+    if (fresh == null) {
+      return item;
+    }
+    return ReviewItem(
+      knowledgePoint: item.knowledgePoint,
+      cardState: fresh,
+      unitKey: item.unitKey,
+      content: item.content,
+      question: item.question,
+      answer: item.answer,
+      kind: item.kind,
+      options: item.options,
+      hint: item.hint,
+      templateId: item.templateId,
+      clozeSlotKey: item.clozeSlotKey,
+      slotStart: item.slotStart,
+      slotLength: item.slotLength,
+      // 「新」跟着行走：答过一次之后它就不是新空了，插回队列的那一份也不该再
+      // 顶着「新空」的标签。`isNew` 的另一半（这次抽取本身是不是新空）只有队列
+      // 构建者知道，所以这里只能做减法，不会凭空造出一个新空。
+      isNew: item.isNew && fresh.repetitions == 0,
     );
   }
 

@@ -83,7 +83,8 @@ class CardGroupPlanCard extends ConsumerWidget {
               ],
             ),
             Text(
-              l10n.reviewPlanTarget(plan.newCardsPerDay, plan.reviewCardsPerDay),
+              l10n.reviewPlanTarget(
+                  plan.newCardsPerDay, plan.reviewCardsPerDay),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -103,7 +104,9 @@ class CardGroupPlanCard extends ConsumerWidget {
             Row(
               children: [
                 Icon(
-                  reached ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                  reached
+                      ? Icons.pause_circle_outline
+                      : Icons.play_circle_outline,
                   size: 16,
                   color: reached
                       ? theme.colorScheme.error
@@ -247,7 +250,8 @@ class ReviewPreferencesCard extends ConsumerWidget {
                 children: [
                   Icon(Icons.tune, size: 18, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
-                  Text(l10n.reviewPreferences, style: theme.textTheme.titleSmall),
+                  Text(l10n.reviewPreferences,
+                      style: theme.textTheme.titleSmall),
                 ],
               ),
               const SizedBox(height: 10),
@@ -494,8 +498,7 @@ class ReviewPlanPage extends ConsumerWidget {
       return;
     }
     final plans = await ref.read(reviewGroupPlansProvider.future);
-    final existing =
-        plans.where((p) => p.tagId == chosen.id).firstOrNull;
+    final existing = plans.where((p) => p.tagId == chosen.id).firstOrNull;
     if (!context.mounted) {
       return;
     }

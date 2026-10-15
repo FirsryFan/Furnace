@@ -65,7 +65,8 @@ void main() {
   }
 
   Future<void> logReviewToday(String knowledgePointId) async {
-    final state = await anki.getOrCreateUnitCardState(knowledgePointId, 'cloze:s1');
+    final state =
+        await anki.getOrCreateUnitCardState(knowledgePointId, 'cloze:s1');
     await anki.addReviewLog(
       cardStateId: state.id,
       cardTemplateId: state.unitKey ?? 'unit',
@@ -93,7 +94,8 @@ void main() {
       state.id,
       dueAt: moment.subtract(const Duration(days: 1)).millisecondsSinceEpoch,
       repetitions: 2,
-      lastReviewedAt: moment.subtract(const Duration(days: 3)).millisecondsSinceEpoch,
+      lastReviewedAt:
+          moment.subtract(const Duration(days: 3)).millisecondsSinceEpoch,
     );
     await logReviewToday(reviewed.id);
 
@@ -131,7 +133,8 @@ void main() {
       wrongState.id,
       dueAt: moment.millisecondsSinceEpoch,
       repetitions: 1,
-      lastReviewedAt: moment.subtract(const Duration(minutes: 30)).millisecondsSinceEpoch,
+      lastReviewedAt:
+          moment.subtract(const Duration(minutes: 30)).millisecondsSinceEpoch,
     );
     // The queue before any cap exists: the newly-bound card and the group's new
     // material are both drawn. That 导数 is present here is what makes the
@@ -164,7 +167,11 @@ void main() {
     final ids = [for (final entry in queue) entry.knowledgePointId];
     expect(ids, contains(wrong.id),
         reason: 'the forced retry is exempt from the cap, by design');
-    expect(queue.firstWhere((e) => e.knowledgePointId == wrong.id).cardState.forced,
+    expect(
+        queue
+            .firstWhere((e) => e.knowledgePointId == wrong.id)
+            .cardState
+            .forced,
         1);
     expect(ids, isNot(contains(unseen.id)),
         reason: 'the cap still holds back the new card');
@@ -189,7 +196,8 @@ void main() {
         reason: 'one review out of five does not stop the group');
   });
 
-  test('with nothing configured the queue is drawn exactly as before', () async {
+  test('with nothing configured the queue is drawn exactly as before',
+      () async {
     final tag = await tags.createTag(name: '化学');
     final point = await pointIn(tag.id, '水');
     await logReviewToday(point.id);
@@ -203,8 +211,7 @@ void main() {
       plan: await plans.loadDay(now: moment),
     );
     final withoutPlan = await queuedIds();
-    expect(withEmptyPlan, contains(point.id),
-        reason: 'no target means no cap');
+    expect(withEmptyPlan, contains(point.id), reason: 'no target means no cap');
     expect(withoutPlan, withEmptyPlan,
         reason: 'the plan argument is additive, never a behaviour change');
   });

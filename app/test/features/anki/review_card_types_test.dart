@@ -81,7 +81,8 @@ void main() {
       expect(item.kind, ReviewItemKind.mcq);
       expect(item.templateId, template.id);
       expect(item.options, ['线粒体', '叶绿体', '细胞核'],
-          reason: 'options are stored \\u0001-separated and must come out whole');
+          reason:
+              'options are stored \\u0001-separated and must come out whole');
       expect(item.answer, '叶绿体');
       expect(item.isNew, isTrue);
     });
@@ -234,7 +235,8 @@ void main() {
       );
 
       expect(await db.select(db.clozeHistory).get(), hasLength(1),
-          reason: 'the free-blank draw reads this history to pick its next slot');
+          reason:
+              'the free-blank draw reads this history to pick its next slot');
     });
 
     test('a template card writes no cloze history', () async {
