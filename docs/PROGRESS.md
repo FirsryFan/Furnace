@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-10-15 轮次二十八：推理管道接真模型 + 沿链卡点评估（Q4+Q5，Lead）
+
+- **Q4 管道**（`app/lib/features/questions/application/question_reasoning_service.dart`）：
+  `QuestionReasoningService` 的两个依赖（`QuestionRepository` + `ModelAdapter?`）都是注入的，测试塞
+  `FakeModelAdapter` 即可、不需要网络与 provider override。`solveAndDecompose(questionId, {modelId,
+  save = true})` 的固定顺序：`byId` → `optionsOf` → `solveThenDecompose(题干**原文直传**)` →
+  `adapter.runTurn(messages: …, tools: [])`（空工具表：这一步不需要工具）→ `parseChain` →
+  `saveChain(source: 'ai', model: modelId)`（同时把 `question.state` 置 `processed`）。
+  四种失败态（离线 / `ModelFailure` / `ReasoningParseException` / 题目不存在）一律返回
+  `ReasoningRunResult` 并带 `failureReason`，模型侧与解析失败都尽量带 `rawReply` 原文片段——**不抛异常**，
+  否则每个 UI 调用点都要写 try/catch，而且容易把栈直接显示给学生。
+- **Q5 卡点评估**（`app/lib/domain/services/reasoning/stuck_point_evaluator.dart`，纯逻辑：无 DB/时钟/
+  Flutter，`nowHours` 由调用方传入，与 `dsr_memory.dart` 同一约定）：`modelRisk`（模型的**群体**先验）
+  与 `stateRisk`（由 `DsrState` 算出的**个体**读数）分开存、分开暴露，`hasStateEvidence` 明说这一步
+  有没有个体证据；融合 `fusedRisk = 0.5·modelRisk + 0.5·stateRisk`（**0.5 是刻意的**：标定协议还没跑过，
+  偏向任一边都是无依据调参）；状态风险 `0.6·(1−R) + 0.4·(D−1)/9`（「忘」与「难」的干预手段不同，
+  所以两项都留）；`knowledgeHints` 两侧 trim 后**精确**匹配，查不到的进 `unmatchedHints` 并原样保留，
+  **绝不当成正面证据**。报告给出 `mostLikely`（平手取靠前步）、`byRisk`（排「先补哪一步」）、
+  `evidenceCoverage`（这份诊断有多少依据）；建议分档 `≥0.6` 先停下补 / `≥0.35` 自检 / 其余快过，
+  且**没有个体证据时每一档都追加「（暂无你的状态数据）」**。
+- 测试：新增 `app/test/domain/services/reasoning/stuck_point_evaluator_test.dart`（9 例）+
+  `app/test/features/questions/application/question_reasoning_service_test.dart`（7 例）= **+16**；
+  管道测试用内存 drift（`AppDatabase.forTesting(NativeDatabase.memory())`）+ `FakeModelAdapter`，
+  覆盖成功落库、`save:false`、离线、模型报错、回复不合契约、题目不存在、题干/选项原样进提示词。
+- 文档：`docs/REASONING_LAYER_DESIGN.md` 新增 §10（管道 Q4）与 §11（卡点评估 Q5）。
+- 证据：`dart analyze lib/domain/services/reasoning lib/features/questions/application
+  test/domain/services/reasoning test/features/questions/application` → `No issues found!`；
+  `flutter test test/domain/services/reasoning/stuck_point_evaluator_test.dart
+  test/features/questions/application/question_reasoning_service_test.dart` → `+16 All tests passed!`。
+- 过程中的三次修正（留痕）：① 「忘光了 + 高难度 → 高卡点」最初用 `stuckRisk 0.3` 断言融合 ≥ 0.6，
+  实测 **0.569** —— 是参数不够极端而不是逻辑错，改用 0.9 并补一条「状态证据会把低先验往上拉」的断言；
+  ② 「暂无你的状态数据」原本只加在高风险档，导致中等风险档的测试失败，改成**每档都追加**；
+  ③ `ChatMessage` 只有 `content`（`String?`）没有 `text`，测试按错字段写会编译失败。
+- 未做：Q2 收题页 B + Q3 拍照/选图入口已交给 teammate `question-intake`（task-4，进行中）；
+  Q6 threadflow 两段式接进 UI 仍未开始。
+- push 状态：commit `7c8a254` 之后 `git push` 连续两次失败（`curl 35 schannel: server closed abruptly`
+  与 `Recv failure: Connection was reset`），本地 `main` 领先 `origin/main` **1 个提交**，待网络恢复重试。
+
+---
+
 ## 2026-10-15 轮次二十七：题库地基 + 推理层 + threadflow 两段式（schema v12，三线并行）
 
 用户口径（本轮起点，历史记录）：认知模型是引擎，flashcard / threadflow / 组卷搜题是**同等重要**的应用领域；

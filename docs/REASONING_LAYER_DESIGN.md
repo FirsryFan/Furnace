@@ -187,3 +187,75 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
 
 `analysis_options.yaml` 采用 `package:flutter_lints/flutter.yaml` 并追加
 `prefer_single_quotes`、`sort_child_properties_last`；info 级 lint 在仓库里允许存在。
+
+## 10. 管道：从「链的对象」到「库里的一行」（Q4）
+
+文件：`app/lib/features/questions/application/question_reasoning_service.dart`。
+
+`QuestionReasoningService` 的两个依赖（`QuestionRepository` + `ModelAdapter?`）都是**注入**的，
+不依赖 Riverpod 容器，所以测试塞一个 `FakeModelAdapter` 就能跑，不需要网络也不需要 provider override。
+
+`solveAndDecompose(questionId, {modelId, save = true})` 的固定顺序：
+
+1. `byId` —— 题目不存在直接返回 `notFound`；
+2. `optionsOf` —— 选项按 `label. content` 顺序拼进 user 消息（label 为空时只用 content）；
+3. `solveThenDecompose(questionStem: question.stem, options: …, subjectKey: question.subjectKey)`
+   —— 题干**原文直传**，不摘要、不改写；
+4. `adapter.runTurn(messages: …, tools: [])` —— 传**空工具表**：这一步不需要工具，给空表比给一份
+   用不上的工具表更诚实（模型不会以为自己能做别的事）；
+5. `parseChain` → `saveChain(source: 'ai', model: modelId)`，并把 `question.state` 置 `processed`
+   （由 `saveChain` 内部完成）。
+
+**失败一律返回结果对象、不抛异常**，四种失败态都有 `failureReason`：
+
+| 情况 | 触发 | 是否带原文 |
+| --- | --- | --- |
+| 离线/未配置 | `adapter == null` | 否 |
+| 模型报错 | `ModelFailure(message)` | 有（已收到的增量） |
+| 回复不符合契约 | `ReasoningParseException` | 有（完整原文） |
+| 题目不存在 | `byId` 返回 null | 否 |
+
+理由：这条链路是 UI 同步等待的，抛异常意味着每个调用点都要写 try/catch，而且大概率有人把栈
+直接显示给学生。
+
+`questionReasoningServiceProvider` 把 `questionRepositoryProvider` 和 `modelAdapterProvider`
+接起来；后者可以是 `null`（离线是本 App 的默认态）。
+
+## 11. 卡点评估：模型先验 × 学生状态（Q5）
+
+文件：`app/lib/domain/services/reasoning/stuck_point_evaluator.dart`。纯逻辑：没有数据库、没有时钟、
+没有 Flutter；`nowHours`（自 Unix 纪元起的小时数）由调用方传入，与 `dsr_memory.dart` 的约定一致。
+
+两份证据**分开存、分开暴露**，不混成一个数：
+
+* `modelRisk`：模型声明的群体先验（`ParsedStep.stuckRisk`）——「一般学生最容易卡哪一步」；
+* `stateRisk`：由 `DsrState` 算出的个体读数——「这个学生在这些知识点上现在记得怎么样」；
+* `hasStateEvidence`：这一步到底有没有个体证据。**没有就明说没有**。
+
+融合：`fusedRisk = modelWeight * modelRisk + (1 - modelWeight) * stateRisk`，`modelWeight = 0.5`。
+**0.5 是刻意的**：两份证据谁更准还没有标定数据（`docs/CALIBRATION.md` 的协议还没跑过），
+偏向任何一边都是无依据调参；标定跑完之前，这个常量连同它「看起来不够聪明」这一点都是正确的选择。
+
+状态风险：`stateRisk = 0.6 * (1 - R) + 0.4 * (D - 1) / 9`，`R` 由 `DsrMemory.retrievability` 现算。
+两项都留是因为「难」和「忘了」的干预手段完全不同：难要多花时间讲，忘要及时复习。
+
+匹配规则：`knowledgeHints` 两侧 trim 后**精确**匹配状态表 key（不做模糊匹配——猜错的匹配比没有匹配
+更坏）；查不到的进 `unmatchedHints` 并原样保留，**绝不当成正面证据**：把「没有数据」读成「记得很好」
+是这一层最容易犯的错。
+
+输出 `StuckPointReport`：`steps`（按步号升序）、`mostLikely`（平手取步号小的）、`byRisk`
+（按融合风险降序，给「先补哪一步」排序）、`evidenceCoverage`（有证据的步数占比，UI 用它交代
+这份诊断有多少依据）。
+
+建议文案分三档（`suggestFor`）：`≥0.6` 先停下补这一步、`≥0.35` 做完用自检确认、其余可以快过；
+**没有个体证据时每一档都会追加「（暂无你的状态数据）」**，而不只是高风险那一档——低风险同样可能
+只是「这个学生没数据」。
+
+注意：提示词里仍然**不含**学生画像（`§7` 开放问题 3 未定，涉及隐私设计），所以 `modelRisk` 始终是
+群体先验，个体信息只在融合环节进入。
+
+验收：`dart analyze lib/domain/services/reasoning lib/features/questions/application
+test/domain/services/reasoning test/features/questions/application` → `No issues found!`；
+`flutter test test/domain/services/reasoning/stuck_point_evaluator_test.dart
+test/features/questions/application/question_reasoning_service_test.dart` → `+16 All tests passed!`
+（评估器 9 + 管道 7）。
