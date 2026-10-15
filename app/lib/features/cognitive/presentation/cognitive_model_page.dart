@@ -41,11 +41,9 @@ import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/assessment_prior.dart';
-import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
-import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/cognitive/learning_metrics.dart';
 import '../../../domain/services/cognitive/metacognition.dart';
@@ -53,6 +51,7 @@ import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
+import '../../cognitive/application/library_diagnosis_reader.dart';
 import 'zone_labels.dart';
 
 // The band/zone words are re-exported so every existing importer of this page
@@ -60,128 +59,14 @@ import 'zone_labels.dart';
 // while the review screen can import them without pulling in this whole page.
 export 'zone_labels.dart';
 
-/// One card as the observation surface sees it: the stored row plus what it
-/// belongs to. `isNew` is the review flow's own flag (D4), not a second
-/// definition derived from the row.
-class CognitiveObservedUnit {
-  const CognitiveObservedUnit({
-    required this.row,
-    required this.knowledgePointTitle,
-    required this.tagCount,
-    required this.isNew,
-  });
-
-  /// Reads one unit back from the probe's JSON handshake.
-  ///
-  /// The map is the CLI's read-only export of a `card_states` row plus the two
-  /// facts the model seam cannot see by itself (the title, the tag count). It is
-  /// parsed here - next to [CardState] - so the shape has one owner.
-  factory CognitiveObservedUnit.fromJson(Map<String, Object?> json) {
-    final row = (json['row'] as Map?)?.cast<String, Object?>() ?? const {};
-    return CognitiveObservedUnit(
-      row: CardState(
-        id: _jsonString(row['id']) ?? '',
-        cardTemplateId: _jsonString(row['cardTemplateId']),
-        dueAt: _jsonInt(row['dueAt']),
-        intervalDays: _jsonDouble(row['intervalDays']) ?? 0,
-        ease: _jsonDouble(row['ease']) ?? 2.5,
-        repetitions: _jsonInt(row['repetitions']) ?? 0,
-        lapses: _jsonInt(row['lapses']) ?? 0,
-        state: _jsonString(row['state']) ?? 'new',
-        lastReviewedAt: _jsonInt(row['lastReviewedAt']),
-        createdAt: _jsonInt(row['createdAt']) ?? 0,
-        updatedAt: _jsonInt(row['updatedAt']) ?? 0,
-        knowledgePointId: _jsonString(row['knowledgePointId']),
-        unitKey: _jsonString(row['unitKey']),
-        stability: _jsonDouble(row['stability']),
-        difficulty: _jsonDouble(row['difficulty']),
-        encodingStrength: _jsonDouble(row['encodingStrength']),
-        savings: _jsonDouble(row['savings']),
-        forced: _jsonInt(row['forced']) ?? 0,
-        forcedStreak: _jsonInt(row['forcedStreak']) ?? 0,
-      ),
-      knowledgePointTitle: _jsonString(json['knowledgePointTitle']) ?? '',
-      tagCount: _jsonInt(json['tagCount']) ?? 0,
-      isNew: json['isNew'] == true,
-    );
-  }
-
-  final CardState row;
-  final String knowledgePointTitle;
-  final int tagCount;
-  final bool isNew;
-
-  /// The only value that identifies exactly one unit: `unitKey` can repeat
-  /// across knowledge points (`'essay'` is the fallback for unblankable
-  /// content), so every lookup is keyed by this.
-  String get cardStateId => row.id;
-
-  String get knowledgePointId => row.knowledgePointId ?? '';
-
-  Map<String, Object?> toJson() => {
-        'knowledgePointTitle': knowledgePointTitle,
-        'tagCount': tagCount,
-        'isNew': isNew,
-        'row': {
-          'id': row.id,
-          'cardTemplateId': row.cardTemplateId,
-          'dueAt': row.dueAt,
-          'intervalDays': row.intervalDays,
-          'ease': row.ease,
-          'repetitions': row.repetitions,
-          'lapses': row.lapses,
-          'state': row.state,
-          'lastReviewedAt': row.lastReviewedAt,
-          'createdAt': row.createdAt,
-          'updatedAt': row.updatedAt,
-          'knowledgePointId': row.knowledgePointId,
-          'unitKey': row.unitKey,
-          'stability': row.stability,
-          'difficulty': row.difficulty,
-          'encodingStrength': row.encodingStrength,
-          'savings': row.savings,
-          'forced': row.forced,
-          'forcedStreak': row.forcedStreak,
-        },
-      };
-}
-
-/// Everything the page reads before any model call: the units and the (explicitly
-/// heuristic) diffusion boosts.
-class CognitiveObservationInputs {
-  const CognitiveObservationInputs({
-    required this.units,
-    this.boostFactorByKnowledgePoint = const {},
-  });
-
-  factory CognitiveObservationInputs.fromJson(Map<String, Object?> json) {
-    final units = (json['units'] as List?) ?? const [];
-    final boosts = (json['boostFactorByKnowledgePoint'] as Map?)
-            ?.cast<String, Object?>() ??
-        const {};
-    return CognitiveObservationInputs(
-      units: [
-        for (final unit in units)
-          CognitiveObservedUnit.fromJson((unit as Map).cast<String, Object?>()),
-      ],
-      boostFactorByKnowledgePoint: {
-        for (final entry in boosts.entries)
-          if (_jsonDouble(entry.value) case final factor?) entry.key: factor,
-      },
-    );
-  }
-
-  final List<CognitiveObservedUnit> units;
-
-  /// `DiffusionBoost` factors, keyed the way the review flow keys them (D5: a
-  /// heuristic, not a model quantity - it selects a band, never a score).
-  final Map<String, double> boostFactorByKnowledgePoint;
-
-  Map<String, Object?> toJson() => {
-        'units': [for (final unit in units) unit.toJson()],
-        'boostFactorByKnowledgePoint': boostFactorByKnowledgePoint,
-      };
-}
+// 观察层的读表 + 诊断跑动搬到了 `cognitive/application/library_diagnosis_reader.dart`
+// （Q13）：页面、AI 工具、CLI 探针共用同一份读法，不再各写一遍。两个观察类型与
+// 那个 start 上限仍从这里 re-export，既有 importer（页面测试、探针）不用改。
+export '../../cognitive/application/library_diagnosis_reader.dart'
+    show
+        CognitiveObservationInputs,
+        CognitiveObservedUnit,
+        cognitiveStartNodeLimit;
 
 /// One card's reading, in presentation order.
 class CognitiveCardReading {
@@ -604,65 +489,9 @@ int _suggestedIntervalDays(CardState row, DateTime now) {
 final cognitiveObservationInputsProvider =
     FutureProvider.autoDispose<CognitiveObservationInputs>((ref) async {
   ref.watchDatabaseRevision();
-  final db = ref.watch(appDatabaseProvider);
-
-  final points = await db.select(db.knowledgePoints).get();
-  final titles = {for (final point in points) point.id: point.title};
-
-  // Tag counts for knowledge points. Plain `select` + counting in Dart: this is
-  // the read-only observation surface, so it stays on the simplest drift calls
-  // the rest of the app uses.
-  final tagRows = await db.select(db.objectTags).get();
-  final tagCounts = <String, int>{};
-  for (final row in tagRows) {
-    if (row.objectType != 'knowledge_point') {
-      continue;
-    }
-    tagCounts[row.objectId] = (tagCounts[row.objectId] ?? 0) + 1;
-  }
-
-  final states = await db.select(db.cardStates).get();
-  final boosts = await db.select(db.boostEntries).get();
-
-  // A card state is only a card when its flashcard still exists, and the two
-  // shapes resolve that link differently: a template-backed state names the
-  // flashcard through its template, while a presentation unit
-  // (`cloze:…` / `essay:…`) names it directly. Rows that resolve to nothing are
-  // debris from a deletion performed before the cascade was complete - they are
-  // counted separately ([orphanCardStateCountProvider]) instead of being drawn
-  // as cards with no name, which is exactly how they were noticed.
-  final templates = await db.select(db.cardTemplates).get();
-  final flashcardOfTemplate = {
-    for (final template in templates) template.id: template.knowledgePointId,
-  };
-
-  final live = <(CardState, String)>[];
-  for (final state in states) {
-    final templateId = state.cardTemplateId;
-    final flashcardId = state.knowledgePointId ??
-        (templateId == null ? null : flashcardOfTemplate[templateId]);
-    if (flashcardId == null || !titles.containsKey(flashcardId)) {
-      continue;
-    }
-    live.add((state, flashcardId));
-  }
-
-  return CognitiveObservationInputs(
-    units: [
-      for (final (state, flashcardId) in live)
-        CognitiveObservedUnit(
-          row: state,
-          knowledgePointTitle: titles[flashcardId]!,
-          tagCount: tagCounts[flashcardId] ?? 0,
-          isNew: state.repetitions == 0,
-        ),
-    ],
-    boostFactorByKnowledgePoint: {
-      for (final boost in boosts)
-        if (titles.containsKey(boost.knowledgePointId))
-          boost.knowledgePointId: boost.factor,
-    },
-  );
+  // 读表本体在 `cognitive/application/library_diagnosis_reader.dart`（Q13）：
+  // 页面与 AI 工具读同一份，没有第二份"活卡判定"。
+  return readCognitiveObservationInputs(ref.watch(appDatabaseProvider));
 });
 
 /// How many card states belong to a flashcard that no longer exists.
@@ -718,16 +547,7 @@ final learningMetricsProvider =
 final knowledgePointTagIdsProvider =
     FutureProvider.autoDispose<Map<String, List<String>>>((ref) async {
   ref.watchDatabaseRevision();
-  final db = ref.watch(appDatabaseProvider);
-  final rows = await db.select(db.objectTags).get();
-  return KnowledgePointTagBridge.tagIdsByKnowledgePoint(<ObjectTagLink>[
-    for (final row in rows)
-      ObjectTagLink(
-        tagId: row.tagId,
-        objectType: row.objectType,
-        objectId: row.objectId,
-      ),
-  ]);
+  return readKnowledgePointTagIds(ref.watch(appDatabaseProvider));
 });
 
 /// The reading the page shows: the injected model's numbers, the advisor's
@@ -783,72 +603,14 @@ const int cognitiveStartNodeLimit = 5;
 final cognitiveLibraryDiagnosisProvider =
     FutureProvider.autoDispose<LibraryDiagnosis>((ref) async {
   ref.watchDatabaseRevision();
-  final db = ref.watch(appDatabaseProvider);
-  final inputs = await ref.watch(cognitiveObservationInputsProvider.future);
-  final model = ref.watch(cognitiveModelProvider);
-  final now = DateTime.now();
-  final nowHours = modelHoursOf(now);
-
-  final tags = [
-    for (final row in await db.select(db.tags).get()) CognitiveTag.fromTag(row),
-  ];
-  if (tags.isEmpty || inputs.units.isEmpty) {
-    return LibraryDiagnosis.notRun;
-  }
-
-  // One representative row per knowledge point, using the same rule as the AI
-  // tool (`representativeCardRow`) so the page and the tool cannot disagree.
-  final rowsByKnowledgePoint = <String, List<CardState>>{};
-  for (final unit in inputs.units) {
-    (rowsByKnowledgePoint[unit.knowledgePointId] ??= <CardState>[])
-        .add(unit.row);
-  }
-  final rows = <String, CardState>{};
-  for (final entry in rowsByKnowledgePoint.entries) {
-    final row = representativeCardRow(entry.value);
-    if (row != null) {
-      rows[entry.key] = row;
-    }
-  }
-
-  final reviewed = [
-    for (final entry in rows.entries)
-      if (entry.value.lastReviewedAt != null) entry,
-  ]..sort((a, b) {
-      final byReviewed =
-          b.value.lastReviewedAt!.compareTo(a.value.lastReviewedAt!);
-      return byReviewed != 0 ? byReviewed : a.key.compareTo(b.key);
-    });
-  final starts = [
-    for (final entry in reviewed.take(cognitiveStartNodeLimit)) entry.key,
-  ];
-
-  final nowMs = now.millisecondsSinceEpoch;
-  final targets = [
-    for (final entry in rows.entries)
-      if (entry.value.forced == 1 ||
-          (entry.value.dueAt != null && entry.value.dueAt! <= nowMs))
-        entry.key,
-  ];
-
-  // Everything above is keyed by **knowledge point** (`kp-…`) because that is
-  // what cards and observations hang off. The runner's graph is built from
-  // **tags** (`tag-…`), so we hand it the bridge and it translates in and out
-  // (`LibraryDiagnosisRunner.run`, Q8). Without that translation the runner
-  // silently drops every row and start, and the page shows "no diagnosis yet" no
-  // matter how much data there is - the bug documented in
-  // `docs/THREADFLOW_TWO_SEGMENT.md` §8.3.
-  final tagIdsByKnowledgePoint =
-      await ref.watch(knowledgePointTagIdsProvider.future);
-
-  return LibraryDiagnosisRunner.run(
-    tags: tags,
-    rowsByKnowledgePoint: rows,
-    model: model,
-    nowHours: nowHours,
-    startKnowledgePointIds: starts,
-    targetKnowledgePointIds: targets,
-    tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+  // 读表 + 跑 runner 都在 `cognitive/application/library_diagnosis_reader.dart`
+  // （Q13）：页面与 AI 工具的 `compose_paper` 调同一份函数，页面说"危险"的点，
+  // 组卷读数里也是危险（D2）。这里的 inputs 复用页面已经 watch 的那一份，
+  // 所以这次改造没有让同一屏多读一遍表。
+  return readLibraryDiagnosis(
+    ref.watch(appDatabaseProvider),
+    model: ref.watch(cognitiveModelProvider),
+    inputs: await ref.watch(cognitiveObservationInputsProvider.future),
   );
 });
 
@@ -1274,7 +1036,10 @@ class _LearningMetricsSection extends ConsumerWidget {
     }
 
     final retained = (data.retention * 100).round();
-    final shown = [for (final b in data.buckets) if (b.samples > 0) b];
+    final shown = [
+      for (final b in data.buckets)
+        if (b.samples > 0) b
+    ];
     return [
       Text(
         l10n.learningMetricsOverall(data.reviewedCount, retained),
@@ -1536,20 +1301,3 @@ class _ErrorNote extends StatelessWidget {
     );
   }
 }
-
-String? _jsonString(Object? value) => value == null ? null : value as String;
-
-int? _jsonInt(Object? value) => switch (value) {
-      null => null,
-      final int value => value,
-      final num value => value.toInt(),
-      final String value => int.tryParse(value),
-      _ => null,
-    };
-
-double? _jsonDouble(Object? value) => switch (value) {
-      null => null,
-      final num value => value.toDouble(),
-      final String value => double.tryParse(value),
-      _ => null,
-    };

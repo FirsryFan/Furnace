@@ -14,6 +14,7 @@ import '../tools/content_query_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
+import '../tools/paper_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -64,6 +65,11 @@ class ToolRegistry {
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
       // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。
       FindSimilarQuestionsTool(db: db),
+      // 用途 1 的另一半 (Q9/Q11/Q13): 「现在该练什么」——按危险/发展区读数从题库凑卷，
+      // 凑不齐就如实报缺哪些知识点。读数与页面同源
+      // (`cognitive/application/library_diagnosis_reader.dart`)，
+      // 所以同一个知识点不会这边说危险、那边说健康 (tools/paper_tools.dart)。
+      ComposePaperTool(db: db),
       // The write half of the photo flow: an attached page of notes becomes a
       // real knowledge point plus cards (see tools/knowledge_tools.dart).
       CreateKnowledgeCardsTool(anki),

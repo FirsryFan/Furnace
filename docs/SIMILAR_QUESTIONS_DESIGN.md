@@ -105,9 +105,10 @@ Q12 的能力不只给页面用——agent 也应该能"找题"而不是"编题"
   中文知识点名、`shared_action_types` + 中文动作标签、`cross_subject_transfer`、`reason`。
 - 题库为空、或**一道都不够像**时也返回 `ok: true` + 明确的中文说明（"我不会自己出题，要么去收题页补题，
   要么放宽条件"）——工具不许拿"看着像"的题凑数，也不许替模型生成题干。
-- **`compose_paper` 工具本轮不做**：组卷要喂认知读数，而读数目前只能从 Riverpod 的
-  `cognitiveLibraryDiagnosisProvider` 拿；不喂读数就组卷，"缺口"清单会永远是空的
-  （"没跑不等于健康"），那是让工具撒谎。抽一个非 Riverpod 的诊断读取是单独一个 slice。
+- **`compose_paper` 工具已补上**（原计划"本轮不做"，后由 `library_diagnosis_reader.dart` 把诊断抽成
+  非 Riverpod 读取后落地）：入参、`modelResult` 字段与"没凑够就直说"的摘要口径见
+  `docs/PAPER_COMPOSER_DESIGN.md` §9。`compose_paper` 与组卷页读的是**同一份** `readLibraryDiagnosis` /
+  `readPaperReadings`，所以同一个知识点不可能这边说危险、那边说健康。
 - 读表主体抽到 `app/lib/features/questions/application/question_corpus_reader.dart`
   （`readPaperCorpus` / `readChainActionTypes` / `readQuestionStems`，纯 Dart 无 Riverpod），
   两个 provider 变成瘦包装（仍各自 `ref.watchDatabaseRevision()`）；`paper_plan_provider.dart`

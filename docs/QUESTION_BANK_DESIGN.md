@@ -136,8 +136,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q9 | 组卷器（纯逻辑）：按薄弱/危险区精准凑题 + 每题理由/提升点/知识背景 | 已完成（`f46b731`） |
 | Q10 | 组卷页 UI（调 Q9，展示理由与缺口，不吃 ARB 之外的措辞） | 已完成（`a5f5e23`，teammate `question-intake` 交付） |
 | Q11 | 组卷 provider：题库 + 读数 → `PaperPlan`（本层唯一 IO 点） | 已完成（`d85e55b`） |
-| Q12 | 找相似题（纯逻辑 `similar_questions.dart` + 应用层 provider） | 本轮 |
-| Q13 | 组卷页之外：拍照整理的"三类待确认产物"队列（§7.4） | 待做 |
+| Q12 | 找相似题（纯逻辑 `similar_questions.dart` + 应用层 provider） | 已完成（`6df76e5`；UI `9be4350`，teammate `question-intake` 交付） |
+| Q13 | 组卷页之外：拍照整理的"三类待确认产物"队列（§7.4） | 待做（未开工） |
+| Q14 | AI 工具面：`find_similar_questions`（`0ec1798`）+ `compose_paper`（本轮）——agent 能调用同一套领域逻辑，但**只读、不编题**，读数与页面同源（`library_diagnosis_reader.dart`） | 已完成 |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

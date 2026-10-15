@@ -115,3 +115,32 @@
   `setPerKnowledgePointCap` 曾经**无条件**清空可空字段（`clearX: true` 恒真），等于三个 setter
   都只会把值设成 `null`；测试先失败，改成分支后转绿。
 - 全量：`flutter test --concurrency=1` → `+1321 ~2 All tests passed!`（见 `docs/PROGRESS.md` 轮次三十二）。
+
+## 9. AI 工具面：`compose_paper`（Q14）
+
+组卷能力不只给页面用：agent 也能"按薄弱点凑一份卷子"，但**只读、不编题**。
+`app/lib/features/ai/tools/paper_tools.dart` 的 `ComposePaperTool`（注册在 `ToolRegistry.forApp`）：
+
+| 入参 | 默认 | 说明 |
+| --- | --- | --- |
+| `target_count` | 10 | 想要几道；钳 1..50，真实生效值在 `modelResult.requested_count` |
+| `subject_keys` | 空 = 不限 | 只从这些学科凑 |
+| `min_source_level` | 不限 | 必须是 `kSourceLevelPriority` 的键（`gaokao` / `provincial_diagnostic` / `elite_school` / `school` / `personal` / `unknown`），否则失败并列出可用值 |
+| `per_knowledge_point_cap` | 不限 | 每个知识点最多几道；< 1 → 失败 |
+| `target_difficulty` | 不限 | 1..10；越界 → 失败 |
+
+- `readOnly => true`（测试用整库指纹证明），`riskFor => ToolRisk.write`（无 action 的中性值，ApprovalEngine 不逐条询问）。
+- 读数走 `library_diagnosis_reader.dart`（`readLibraryDiagnosis` + `readPaperReadings`）——**与组卷页同源**，
+  所以同一个知识点不会这边危险、那边健康；`diagnosis_ran == false` 时摘要明说"按没有读数处理，**不是**健康"。
+- `modelResult`：`requested_count` / `item_count` / `is_short` / `candidate_count` / `bank_size` / `overall_need` /
+  `diagnosis_ran` / `readings_used` / `uncovered_knowledge_point_ids`（带中文名）/ `deferred_knowledge_point_ids` /
+  `by_knowledge_point` / `items[]`（题号、知识点、学科、来源、`zone` + `zone_zh`、`need` / `quality` / `score`、
+  `reason` / `improvement_note` / `background`）。
+- 凑不够时**不生成题目**：摘要直说"题库不够，缺口去收题页补"，把未覆盖/被挤掉的清单原样回给模型。
+
+## 10. 验收记录（AI 工具面）
+
+- `app/test/features/ai/paper_tools_test.dart` → **12 例全绿**（见 `docs/PROGRESS.md` 轮次三十五）。
+- `app/test/features/cognitive/application/library_diagnosis_reader_test.dart` → **4 例全绿**，含一条 parity：
+  非 Riverpod 读取与页面三个 provider 逐字段一致。
+- 回归：`flutter test test/features/ai test/features/questions test/features/cognitive --concurrency=1` → **+430 全绿**。

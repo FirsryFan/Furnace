@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-16 轮次三十五：认知快层抽成非 Riverpod 读取 + `compose_paper` 工具（Lead）
+
+**做了什么**
+- 新 `app/lib/features/cognitive/application/library_diagnosis_reader.dart`（纯 Dart：无 Flutter、无 Riverpod，
+  只吃 `AppDatabase`）：`readCognitiveObservationInputs(db)` / `readKnowledgePointTagIds(db)` /
+  `readLibraryDiagnosis(db, {required model, now, inputs})` —— 把认知页那三个 provider 的读表主体**原样**搬出来
+  （活卡判定、孤儿行丢弃、`isNew`、标签只数知识点、starts 取最近复习 5 个、targets = `forced || dueAt <= now`
+  等语义一字未改）。`CognitiveObservedUnit` / `CognitiveObservationInputs` / `cognitiveStartNodeLimit` 随之下移，
+  页面继续 `export` 它们（既有 importer 路径不变），三个 provider 变成瘦包装（名字与 identity 不变）。
+  `inputs` 参数可选：页面把自己已经 watch 的那份传进来，避免同一个页面读两遍表。
+- `question_corpus_reader.dart` 新增 `readPaperReadings(db, {required coveredKnowledgePointIds, required diagnosis})`：
+  `fastLayerRan == false` → 空；否则取 `覆盖的点 ∪ 诊断出 danger/weak 的点` 的测评先验，过
+  `CognitiveReadingsAdapter`，再按"只有 danger/weak 才算结论"过滤。`paper_plan_provider.dart` 的 `_readingsFor`
+  改为调它 —— **组卷页与 AI 工具读的是同一份读数**。
+- 新 `app/lib/features/ai/tools/paper_tools.dart` 的 `ComposePaperTool`（`name == 'compose_paper'`，
+  注册进 `ToolRegistry.forApp`）：入参 `target_count`（默认 10，钳 1..50）/ `subject_keys` /
+  `min_source_level` / `per_knowledge_point_cap` / `target_difficulty`；内部
+  `readPaperCorpus` + `readLibraryDiagnosis` + `readPaperReadings` + `PaperComposer.compose`。
+- `docs/QUESTION_BANK_DESIGN.md` §9 补上工具面切片（记作 Q14，避免与"拍照整理队列（Q13）"撞号）。
+
+**为什么不这么做**
+- **先抽读取层，再做工具**：不抽就没法在 Riverpod 之外喂读数；不喂读数，"缺口"清单永远是空的
+  （"没跑不等于健康"），那是让工具撒谎。抽完之后工具与页面共用同一份诊断，不可能出现两套结论。
+- **越界参数一律失败并说清楚**：来源分级不在 `kSourceLevelPriority` 里 → 列出可用值；难度不在 1..10、
+  配额 < 1 → 各自报错；只有题量越界才钳位，且把真实生效值放进 `requested_count` 让模型看得见。
+- **没凑够就直说**：`is_short` / `uncovered_knowledge_point_ids` / `deferred_knowledge_point_ids` / `by_knowledge_point`
+  全部回给模型，摘要里明说"题库不够、缺口去收题页补，我不会自己出题"；`diagnosis_ran == false` 时明说
+  "所有知识点都按没有读数处理——**不是**健康"。
+
+**验收**
+- `app/test/features/ai/paper_tools_test.dart` **12 例全绿**（只读构造：任何权限模式都不逐条询问 + 调用前后**整库指纹相同**；
+  空库/脏行/学科筛空都"说实话"；无诊断结论 → `zone == unknown` 且摘要含"不是"；来源下限、`target_count` 钳位；
+  三个越界参数各自报错；注册与 schema）。`app/test/features/cognitive/application/library_diagnosis_reader_test.dart`
+  **4 例全绿**，其中一条是 **parity**：同一个内存库上直接调 `readXxx` 与读
+  `cognitiveObservationInputsProvider` / `knowledgePointTagIdsProvider` / `cognitiveLibraryDiagnosisProvider`
+  的结果逐字段一致 —— 这就是"抽出去没有改变页面所见"的证据。
+- 回归 `flutter test test/features/ai test/features/questions test/features/cognitive --concurrency=1` → **+430 全绿**。
+- `dart analyze lib test` → **94 info / 0 error / 0 warning**（= 基线）；`dart format` 后无未格式化文件。
+
+**下一步**
+- 标定协议（组卷与找相似题的权重、阈值仍是显式但未标定的取值）。
+- 切片表 §9 里唯一还没开工的：拍照整理的"三类待确认产物"队列（§7.4）。
+
+---
+
 ## 2026-10-16 轮次三十四：AI 工具面——agent 能"找题"，不能"编题"（Q12 工具面，Lead）
 
 **做了什么**

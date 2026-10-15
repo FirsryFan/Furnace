@@ -9,7 +9,9 @@
 ///   不在这里重算——页面上说"危险"的知识点，组卷必须也按危险处理，两边共用同一次
 ///   诊断（D2：一个数字一个来源）。这条跨 feature 的 import 方向是
 ///   `questions/application → cognitive/presentation`，与 Thread 那边（Q6）同源；
-///   观察层将来搬到 `cognitive/application/` 时改一行 import 即可。
+///   观察层的读表 + 跑 runner 已经搬到
+///   `cognitive/application/library_diagnosis_reader.dart`（Q13），所以 AI 工具
+///   （`compose_paper`）能和页面跑**同一份**诊断，不必各自复制读表逻辑。
 ///
 /// 一个刻意的取舍：**只有拿到诊断结论（`danger` / `weak`）的知识点才进打分读数**。
 /// `CognitiveReadingsAdapter` 会为"只有测评先验、没有诊断结论"的点也产出读数，而
@@ -23,12 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
-import '../../../data/repositories/repository_providers.dart';
-import '../../../domain/services/cognitive/fast_diagnosis.dart';
 import '../../../domain/services/paper/paper_composer.dart';
-import '../../../domain/services/scheduling/cognitive_readings.dart';
-import '../../../domain/services/scheduling/domain_balance.dart'
-    show KnowledgePointReading;
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
 import 'question_corpus_reader.dart';
@@ -162,46 +159,17 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
     for (final candidate in corpus.candidates)
       ...candidate.matchedKnowledgePointIds,
   };
+  final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
 
   return PaperComposer.compose(
     candidates: corpus.candidates,
     spec: spec,
-    readings: await _readingsFor(ref, coveredPointIds),
+    readings: await readPaperReadings(
+      ref.read(appDatabaseProvider),
+      coveredKnowledgePointIds: coveredPointIds,
+      diagnosis: diagnosis,
+    ),
     knowledgePointNames: corpus.knowledgePointNames,
     knowledgePointTagPaths: corpus.knowledgePointTagPaths,
   );
 });
-
-/// 诊断结论 + 先验 → 组卷读数（见文件头那条取舍）。
-///
-/// 读数覆盖**两类**知识点：题库里有候选的（用来打分），以及诊断出危险/发展区但题库
-/// 一道候选都没有的（组卷器要靠它把"该去收题"的点报进
-/// `PaperPlan.uncoveredKnowledgePointIds`——如果只喂有候选的点，这个清单永远是空的）。
-Future<List<KnowledgePointReading>> _readingsFor(
-  Ref ref,
-  Set<String> coveredPointIds,
-) async {
-  final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
-  // 快层没跑 = 没有结论 = 全部按未知，"没跑"不是"健康"。
-  if (!diagnosis.fastLayerRan) return const <KnowledgePointReading>[];
-  final verdicts = diagnosis.byKnowledgePoint;
-  final diagnosedIds = <String>{
-    for (final entry in verdicts.entries)
-      if (_isDiagnosed(entry.value)) entry.key,
-  };
-  final ids = <String>{...coveredPointIds, ...diagnosedIds};
-  if (ids.isEmpty) return const <KnowledgePointReading>[];
-  final priors =
-      await ref.watch(assessmentRepositoryProvider).priorEstimatesFor(ids);
-  return <KnowledgePointReading>[
-    for (final reading in CognitiveReadingsAdapter.readingsFor(
-      knowledgePointIds: ids,
-      diagnosisByKnowledgePoint: verdicts,
-      priors: priors,
-    ))
-      if (_isDiagnosed(verdicts[reading.knowledgePointId])) reading,
-  ];
-}
-
-bool _isDiagnosed(BottleneckType? verdict) =>
-    verdict == BottleneckType.danger || verdict == BottleneckType.weak;

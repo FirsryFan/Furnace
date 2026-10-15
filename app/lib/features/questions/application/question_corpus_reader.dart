@@ -15,8 +15,13 @@
 library;
 
 import '../../../data/database/database.dart';
+import '../../../data/repositories/assessment_repository.dart';
+import '../../../domain/services/cognitive/fast_diagnosis.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
+import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/scheduling/cognitive_readings.dart';
+import '../../../domain/services/scheduling/domain_balance.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
 
 /// 题库 + 知识点名字的一次读取快照：组卷、学科可选项、知识点名共用它，
@@ -179,3 +184,47 @@ Future<Map<String, String>> readQuestionStems(
       if (row.stem.trim().isNotEmpty) row.id: row.stem.trim(),
   };
 }
+
+/// 诊断结论 + 测评先验 → 组卷读数（Q11 的取舍，搬到这里好让 AI 工具复用）。
+///
+/// 读数覆盖**两类**知识点：题库里有候选的（用来打分），以及诊断出危险/发展区但题库
+/// 一道候选都没有的（组卷器要靠它把"该去收题"的点报进
+/// `PaperPlan.uncoveredKnowledgePointIds`——如果只喂有候选的点，这个清单永远是空的）。
+///
+/// 一个刻意的取舍：**只有拿到诊断结论（`danger` / `weak`）的知识点才进打分读数**。
+/// `CognitiveReadingsAdapter` 会为"只有测评先验、没有诊断结论"的点也产出读数，而
+/// 组卷器把"不是危险区、也不是发展区"的读数一律映射成 `PaperZone.healthy`
+/// （need 0.15，**低于**"未知"的 0.35）——直接喂进去等于把"没测过"当成"学得好"。
+/// 所以这里按结论过滤：没有结论的点按未知处理，先验仍作为已诊断点的 R0 补充
+/// （`PaperItem.reasonZh` 会带上 `R0=`）。
+///
+/// [diagnosis] 用 `LibraryDiagnosis`（而不是裸 map）是为了让
+/// "快层没跑"（`fastLayerRan == false`）与"跑了、没发现瓶颈"保持可区分：
+/// 前者返回空读数（"没跑"不是"健康"），后者才按结论过滤。
+Future<List<KnowledgePointReading>> readPaperReadings(
+  AppDatabase db, {
+  required Set<String> coveredKnowledgePointIds,
+  required LibraryDiagnosis diagnosis,
+}) async {
+  // 快层没跑 = 没有结论 = 全部按未知，"没跑"不是"健康"。
+  if (!diagnosis.fastLayerRan) return const <KnowledgePointReading>[];
+  final verdicts = diagnosis.byKnowledgePoint;
+  final diagnosedIds = <String>{
+    for (final entry in verdicts.entries)
+      if (_isDiagnosed(entry.value)) entry.key,
+  };
+  final ids = <String>{...coveredKnowledgePointIds, ...diagnosedIds};
+  if (ids.isEmpty) return const <KnowledgePointReading>[];
+  final priors = await AssessmentRepository(db).priorEstimatesFor(ids);
+  return <KnowledgePointReading>[
+    for (final reading in CognitiveReadingsAdapter.readingsFor(
+      knowledgePointIds: ids,
+      diagnosisByKnowledgePoint: verdicts,
+      priors: priors,
+    ))
+      if (_isDiagnosed(verdicts[reading.knowledgePointId])) reading,
+  ];
+}
+
+bool _isDiagnosed(BottleneckType? verdict) =>
+    verdict == BottleneckType.danger || verdict == BottleneckType.weak;
