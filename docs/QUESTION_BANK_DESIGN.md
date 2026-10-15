@@ -133,8 +133,11 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q6 | threadflow 两段式（可行域 + MindNet 有效性与领域配额） | 已完成（`b43f53a`） |
 | Q7 | 题目详情页：AI 解题 + 卡点叠加（把 Q4+Q5 接出 UI） | 已完成（teammate `question-intake` 交付） |
 | Q8 | 观察层键空间统一（知识点 id ↔ 标签 id 的桥进领域入口） | 已完成（`9671739`） |
-| Q9 | 组卷器（纯逻辑）：按薄弱/危险区精准凑题 + 每题理由/提升点/知识背景 | 本轮 |
-| Q10 | 组卷页 UI（调 Q9，展示理由与缺口）＋拍照整理待确认队列 | 待做 |
+| Q9 | 组卷器（纯逻辑）：按薄弱/危险区精准凑题 + 每题理由/提升点/知识背景 | 已完成（`f46b731`） |
+| Q10 | 组卷页 UI（调 Q9，展示理由与缺口，不吃 ARB 之外的措辞） | 已完成（`a5f5e23`，teammate `question-intake` 交付） |
+| Q11 | 组卷 provider：题库 + 读数 → `PaperPlan`（本层唯一 IO 点） | 已完成（`d85e55b`） |
+| Q12 | 找相似题（纯逻辑 `similar_questions.dart` + 应用层 provider） | 本轮 |
+| Q13 | 组卷页之外：拍照整理的"三类待确认产物"队列（§7.4） | 待做 |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

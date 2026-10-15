@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-16 轮次三十三：找相似题——AI 不出题，只找相似题（Q12，Lead）
+
+**做了什么**
+- 新 `app/lib/domain/services/paper/similar_questions.dart`（纯逻辑，无 IO）：`SimilarityFocus` /
+  `SimilarityCandidate` / `SimilarityWeights`（知识点 0.50、同型动作 0.30、学科 0.10、难度 0.10，
+  `normalized()`）/ `SimilarQuestion`（含四个 `components` 分量与 `toJson`）/ `SimilarQuestionFinder`
+  （`rank`、`knowledgePointOverlap`、`actionSequenceOverlap`），阈值 `kMinSimilarityScore = 0.25`。
+  四个信号各自归一到 [0,1]，**缺失取中性 0.5**（"不知道"不扣分）；动作比的是**最长公共子序列**
+  （顺序不同就是不同解法），链长上限 50；排序 score → 共用知识点 → 同型动作 → 来源分级 → 题号，
+  同输入必同输出（与候选顺序无关）。
+- 新 `app/lib/features/questions/application/similar_question_provider.dart`：`chainActionTypesProvider`
+  （`reasoning_chains` + `reasoning_steps` 各查一次，每题只认**最新一条链**的步骤动作序列）、
+  `similarCandidatesProvider`（复用 Q11 的 `paperCandidatesProvider`）、`similarQuestionFocusProvider(id)`
+  （候选里找不到就回落到直接读行）、`similarQuestionsProvider(id)`（接 Q11 的知识点标签桥 + 知识点名字）。
+- `reasonZh` 确定性中文模板：共用知识点（有名字用名字，最多列 2 个）→ 同型步骤（用词表中文标签，
+  词表外的 key **原样显示**不隐藏）→ 跨学科迁移 → 难度 → 来源分级；弱信号时兜底成
+  "同学科、难度接近，但还没有可对照的知识点或思维链"。
+- 新 `docs/SIMILAR_QUESTIONS_DESIGN.md`（冻结契约 §1–§5）；`docs/QUESTION_BANK_DESIGN.md` 切片表更新
+  （Q9/Q10/Q11 标已完成 + Q12 本轮 + Q13 拍照整理"三类待确认产物"队列）。
+
+**为什么不这么做**
+- 不出题：候选为空就返回空列表（`uncoveredKnowledgePointIds` 只报缺口、不补），模型不生成。
+- 不引向量库 / 不调模型：只用库里已有的结构化信号，可离线、可复现、可解释；题库量级（每天约 30 道）
+  远不够触发性能问题，先线性扫描，要快先加索引/缓存。
+- 相似结果不落库：它是读数不是事实（与 Q5 卡点评估同一规矩）。
+
+**验收**
+- `app/test/domain/services/paper/similar_questions_test.dart` **14 例全绿**：共用知识点排序与分量；
+  自己不推荐自己；跨学科同型 → 迁移标记；LCS 顺序（逆序分更低、空序列 0）；缺学科/缺难度取中性；
+  难度差越大分越低；弱信号不过阈值（阈值调低才进）；`limit` 语义；调权改变排序；tie-break 与输入顺序无关；
+  `reasonZh` 各段（含未知动作原样显示与兜底句）；输入清洗（空白/重复）；`toJson`；空候选不抛。
+- `app/test/features/questions/application/similar_question_provider_test.dart` **6 例全绿**：共享知识点 +
+  同型动作入榜且理由讲同型步骤；跨学科 → 迁移候选；没链时只用结构信号；**多条链只认最新**（旧链不算数，
+  两道结构分相同的题因此分出高下）；题干为空的脏行不进候选但仍能当基准题（回落读行）；不与自己配对 /
+  库内无相似题 / 不存在的题都返回空列表。
+- `dart analyze lib test` → **94 info / 0 error / 0 warning**（= 基线，无新增）；`dart format` 后
+  `flutter test test/domain/services/paper test/features/questions` → **+88 全绿**；全量 `flutter test`
+  → **+1351 ~2 全绿**（跑在格式化前的等价代码上，格式化只改空白）。
+
+**下一步**
+- Q12 的 UI（题目详情页「找相似题」区块）待做：只展示 `reasonZh`，空结果给收题入口，不拿"看着像"的题凑数。
+- 推送上轮遗留的 `d85e55b`（Q11）与本轮 commit。
+
+---
+
 ## 2026-10-16 轮次三十二：组卷 provider——题库接进组卷器（Q11，Lead）
 
 **做了什么**
