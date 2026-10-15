@@ -131,7 +131,14 @@ abstract class AssessmentInstrument {
   （最后一箱闭合到 1.0）。③纯逻辑在 `app/lib/domain/services/cognitive/learning_metrics.dart`，
   读数页的"学习效果"卡片是**唯一不读模型自己读数**的块（数字全来自 `review_logs`），
   没有预测样本时明说"校准曲线还没有样本"而不是画一条假设的曲线。
-  未做：按知识点聚合的留存率、把度量接进 AI 工具、把 `calibrated` 从 false 变 true（需要标定协议）。
+  未做：按知识点聚合的留存率；把 `calibrated` 从 false 变 true（**需要真实标定数据**，协议见
+  `docs/CALIBRATION.md`）。
+  已补（轮次三十七，Q16 标定协议 v1）：**把度量接进 AI 工具**（只读工具 `review_metrics`），
+  以及本地那一条协议的估计量——`app/lib/domain/services/cognitive/calibration.dart` 的二参数
+  logistic 重标定（全局偏置 `b` + 斜率 `a` + 标准误），带"样本不足/只有一类结果/拟合不收敛时
+  **拒绝给系数**"的诚实规则；读取层 `calibration_reader.dart` 与 AI 工具共用同一批
+  `retentionSamples`。`cognitive_priors.calibrated` 仍然写 0：这一层只*检验*预测，不把任何参数
+  写回模型。
 
 ## 8. 明确不做
 

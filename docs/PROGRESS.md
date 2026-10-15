@@ -4,6 +4,86 @@
 
 ---
 
+## 2026-10-16 轮次三十八：标定协议 v1——只检验预测，不写回参数（Q16，Lead）
+
+**做了什么**
+- 新 `app/lib/domain/services/cognitive/calibration.dart`（纯逻辑）：对 `review_logs.predicted_r`
+  做二参数 logistic 重标定 `p = σ(a·logit(R) + b)`，给出**全局偏置** `b`（低估自己 / 过度自信）、
+  **离散度斜率** `a`（预测太平 / 太极端）、两者标准误与显著性 `z`（95% 口径 1.96），全部用解析梯度
+  求解；起始点固定 `(1, 0)`，无随机 → 同输入必得同输出。
+- 五种结局 `CalibrationVerdict{noSamples, tooFewSamples, singleClass, notConverged, ok}`：门槛
+  `kMinCalibrationSamples = 30`、斜率可读门槛 `kMinSlopeSamplesForTrust = 200`（截距 30 条就有意义，
+  但要区分"太平/太极端"需要更多样本），拒绝时把**中文理由**带出来（`refusalReasonZh`）。
+- 新 `app/lib/features/cognitive/application/calibration_reader.dart`：**一次** `retentionSamples`
+  同时喂 M6 的留存/Brier/ECE 与本片的重标定——两半讲的是同一批复习。
+- 新 `app/lib/features/ai/tools/metrics_tools.dart`：只读工具 `review_metrics`（整体留存、最多 4 个
+  有样本的间隔桶、Brier/ECE、`report.summaryZh`），注册进 `tool_registry.dart`。
+- 文档：新 `docs/CALIBRATION.md`（把 `docs/REASONING_LAYER_DESIGN.md:236` 引用已久、但一直不存在的
+  本地协议补上）；`docs/ASSESSMENT_DESIGN.md` M6 的"未做"清单相应改写。
+
+**为什么不这么做**
+- **只检验、不写回**：`cognitive_priors.calibrated` 仍然写 0。模型参数改不改是显式动作，不能因为跑了一次
+  拟合就悄悄改掉；这一层是**全 app 唯一一条外部检查**（诊断读模型自己的状态，标定只读 `review_logs`）。
+- **"不算"是正当结论**：样本不足、只有一类结果、拟合不收敛时**拒绝给系数**，并把理由原样送到摘要、
+  `toJson().refusal` 与 AI 工具。硬报一个数比拒绝更坏。
+- **不给假精确**：数据"几乎可分"时最大似然估计不存在，系数与标准误一起冲到几十上百 → 量级守卫
+  （10.0）拒绝，而不是报 `b = 27 ± 15000`。
+- **`kLogitEpsilon = 1e-3`**：夹到 `1e-6` 会把 logit 推到 ±13.8、样本权重掉到 `1e-12`，信息矩阵退化 →
+  等于用实现细节否掉真实样本。"完全确定"读成 99.9% / 0.1% 是记忆预测该有的口径。
+- **不做逐知识点标定**（切完普遍不足 30 条）、**不给工具"建议改什么参数"**（需要先有结论，且改参数必须显式）。
+- 六个 MindNet 实验**不在本仓库做**：那批数据在外部只读文档 `E:\Document\MindNet\docs\CALIBRATION.md`。
+
+**验收**
+- 新增 `app/test/domain/services/cognitive/calibration_test.dart`（17 例：四种"不算"、过度自信/低估/
+  校准良好、斜率门槛、边界 0/1、确定性、`toJson` 契约）+
+  `app/test/features/ai/metrics_tools_test.dart`（12 例：只读两条证明、空库、无预测、样本不足、过度自信、
+  分桶、间隔分桶、时间窗、`limit`、非法参数、注册与 schema）。
+- 回归 `flutter test test/domain/services/cognitive test/features/ai test/features/cognitive --concurrency=1`
+  → `+569 All tests passed!`；`dart analyze lib test` → `94 issues found.`（0 error / 0 warning）。
+- 修掉三处真 bug（都写进文档）：梯度判据 1e-10 让已收敛的拟合**误报"没收敛"**；纯牛顿步在两端聚集的
+  数据上来回过冲（改为带回溯）；`kLogitEpsilon` 过小导致信息矩阵退化。
+
+**下一步**
+- 攒够带预测的样本（≥30 条）后跑一次 `review_metrics`，看偏置是否显著；
+- 组卷页缺的控件（目标难度 / 每知识点上限 / 重置）、threadflow 与组卷的 `reasonZh` l10n；D 抓取登录态。
+
+---
+
+## 2026-10-16 轮次三十七：拍照整理的待确认队列页（Q15 UI，teammate `question-intake`）
+
+**做了什么**
+- 新 `app/lib/features/questions/presentation/handwriting_queue_page.dart`（515 行）：照片 `ChoiceChip`
+  清单 → 「整理」+ 进度 → 失败原因 → 三类提案卡（标签 / 知识点 / 闪存卡）→ 逐条确认 + 全部确认 →
+  `detailZh` / `lastReport` 汇总 → `forget` → 空态给「去收题」入口。
+- 入口两处：收题页每张照片的「整理」动作、`settings_page.dart` 第二条 `ListTile`。
+- `app_zh.arb` / `app_en.arb` 各 +24 键（`handwritingQueue*` / `handwritingProposal*`），`flutter gen-l10n`
+  生成物一并提交。
+- 新 `app/test/features/questions/presentation/handwriting_queue_page_test.dart`（8 条 testWidgets）；
+  `FakeIntakeStore` 补**同步** `readBytes`（基类 `await file.readAsBytes()` 在 testWidgets 假时钟里
+  等不到回调，队列页会挂）。
+
+**为什么不这么做**
+- **不显示百分比**：`confidence` 只显示档位（≥0.75「较确定」/ ≥0.5「拿不准」/ <0.5「不太确定」）——
+  「0.83」会被读成「83% 正确」，而它其实是模型自评。
+- **页面不碰库**：只经 `handwritingQueueProvider` 的 notifier 走读（`refresh` / `analyze` /
+  `applyProposal` / `applyAll` / `forget`），不 import 任何仓储、不复算分数；`rationaleZh` /
+  `failureReason` / `detailZh` 全部原样展示。
+- **失败时不显示旧提案**（否则会让人以为整理成功了）；**已确认的提案不再渲染确认按钮**，避免写第二份。
+
+**验收**
+- `dart analyze lib test` → `94 issues found.`（0 error / 0 warning）；
+  `flutter test test/features/questions --concurrency=1` → `+85 All tests passed!`；
+  `dart format --set-exit-if-changed` → 0 changed（Lead 独立复跑）。
+- 基线修正：这条命令此前记的 `+88` 是错的（88 = 该套件 77 + `test/features/ai/question_tools_test.dart`
+  的 11），**今后用 +85**。
+- 提交 `63e04f0`（10 files changed +1356/-13），已推送 `0ef0fa0..63e04f0`。
+
+**下一步**
+- 折叠/展开与照片缩略图、「无待确认时禁用全部确认」的断言、settings 入口的 widget test；
+- 服务层 `rawReply` 是否要在页面上露出（目前只存 `failureReason`）。
+
+---
+
 ## 2026-10-16 轮次三十六：拍照 → 三类待确认产物——整理只出提案，确认才写库（Q13 领域层+应用层，Lead）
 
 **做了什么**
