@@ -40,7 +40,7 @@
 | `ThreadRanker` 加权排序 + 硬约束 | 🔴 R3 | ✅ 已实现（`domain/services/scheduling/thread_ranker.dart`，21 项测试） |
 | `TimeWindowEngine` 重复展开/占用/空闲窗口 | 🟡 | ✅ 已实现（含 8 项测试） |
 | FSRS 间隔重复（定稿 D9） | 🔴 R3 | ✅ 已实现（`domain/services/srs/fsrs_scheduler.dart`，FSRS-6，9 项测试） |
-| 自由挖空 + 错题强制绑定状态机 | 🔴 R3 | ✅ 算法已实现（`domain/services/cloze/cloze_engine.dart`）；**接入复习 UI 仍未做** |
+| 自由挖空 + 错题强制绑定状态机 | 🔴 R3 | ✅ 已实现并接入复习 UI（轮次四十九：`domain/services/cloze/cloze_engine.dart` 算法 + `cloze_layout.dart` 就地呈现 + `review_page.dart` 会话内强制闭环；纯逻辑 `forced_loop.dart` 12 例 + `cloze_layout.dart` 6 例 + 页面 3 例） |
 | Mindnet 图谱扩散提权 | 🔴 R3 | ✅ 算法已实现（`domain/services/cloze/diffusion_boost.dart`）；**独立复盘界面仍未做** |
 | `CompletionLogs` 完成历史 | 🔴 R3 | ✅ 已实现（含 v3 实际用时字段） |
 | 树形 Tag（parent_id + path） | 🔴 R3 | ✅ 已实现 |
@@ -113,8 +113,8 @@
 | 词条级 Markdown/JSON 导入导出（1.3.1） | 🔴 R5 | 现仅 `.kpak` 整体包；词条级编解码 R5（`features/packages/…` codec 扩展） |
 | 自由挖空运行时机制：概率决定创造新空位、历史未出现、无空位打标记转历史抽取（1.3.2） | 🟡 缺口：现为一次性自动挖空（管理页一键/导入时生成 fill_blank）→ 改造 R3 | `domain/services/cloze/cloze_generator.dart`（首批槽位推导沿用其逻辑增强，GAP §7 兼容） |
 | 五种题目形式：单选/填空/简答已有，补多选、有序多选与严格/非严格双模式（1.3.2） | 🟡 | 现有三题式复习流 `features/anki/presentation/anki_page.dart`；题型扩展核心 R3、UI R5（判分规则见 O5） |
-| 错题强制绑定：答错立即重做→约 10 分钟短间隔再出现→连续两次正确解除（1.3.2，D11） | 🔴 R3/R5 | 强制绑定状态机 R3（`learning_forced` 等状态入 CardStates）；复习流 UI R5 |
-| FSRS 间隔重复：完全本地、按历史复习动态调整（1.3.3，D9） | 🔴 R3 | 现 SM-2：`domain/services/srs/sm2_scheduler.dart`（存档、不再被调用）；Dart FSRS 替换接入点（`features/anki/application/anki_service.dart`），评分 忘记/模糊/记得 → Again/Hard/Good |
+| 错题强制绑定：答错立即重做→约 10 分钟短间隔再出现→连续两次正确解除（1.3.2，D11） | 🔴 R3/R5 | ✅ 已实现并接入复习流（轮次四十九：`domain/services/cloze/forced_loop.dart` 决定会话内重插位置与解除条件、`review_page.dart` 就地挖空 + 未到下限时的等待态；重插间隔沿用 `ReviewService.relearnGapCards = 3`，10 分钟下限取自 `ForcedStep.nextDueAt`） |
+| FSRS 间隔重复：完全本地、按历史复习动态调整（1.3.3，D9） | 🔴 R3 | ✅ 已接入 v2 复习流（`domain/services/srs/fsrs_scheduler.dart` + `features/anki/application/review_service.dart` 的 `grade()`/`updateUnitCardState`，评分 忘记/模糊/记得 → Again/Hard/Good）；遗留：旧入口 `features/anki/application/anki_service.dart:23`（被 `anki_page.dart:273` 调用）仍走 `sm2_scheduler.dart`） |
 | Mindnet 图谱扩散提权：答错词条取关联节点，距离 1 ×1.8 / 距离 2 ×1.3，3 次抽卡周期衰减（1.3.4，D12） | 🔴 R3 | `BoostEntries` 表（GAP §3）；提权并入抽卡/挖空队列权重 |
 | 复习队列与三种评分 UI（v0.1 能力，评分映射 FSRS 于 R3） | ✅ | `anki_page.dart`＋`anki_service.dart` |
 | 复习统计 / 7 天柱状图（GAP §7 保留，统计口径适配 FSRS） | ✅ | `features/anki/application/anki_stats_service.dart`＋`anki_manage_page.dart` |
