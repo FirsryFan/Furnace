@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-16 轮次三十一：题目详情页验收 + 组卷器纯逻辑（Q7 验收 / Q9，Lead）
+
+**Q7 验收（teammate `question-intake` 交付，Lead 独立跑过）**
+- 新增 `app/lib/features/questions/presentation/question_detail_page.dart`、`question_detail_providers.dart`、
+  `question_vocab_labels.dart` 与 `app/test/features/questions/presentation/question_detail_page_test.dart`；
+  `question_intake_page.dart` 加进入口；两份 ARB 新增所需键（`flutter gen-l10n` 已跑）。
+- 这一片把 Q4 管道与 Q5 卡点评估**接出 UI**：题目信息 → 「AI 解题 · 拆思维链」→ 步骤/能力动作/依据/
+  检验方式 → 叠加 `fusedRisk`/`suggestion`/整体风险/证据覆盖率/未匹配 hint（未匹配 = "没有你的读数"）。
+- Lead 独立验收：`dart analyze lib test` → 0 error / 0 warning / 94 info；
+  `flutter test --concurrency=1` → `+1296 ~2 All tests passed!`（交付前基线 `+1265 ~2`）。
+- 如实记未做：公式/手写 OCR、`rawReply` 的富文本展示（目前纯文本）、"找相似题"入口。
+
+**Q9 组卷器（纯逻辑，Lead）**
+- 新 `app/lib/domain/services/paper/paper_composer.dart` + `app/test/domain/services/paper/paper_composer_test.dart`（16 例全绿）。
+- 三步：过滤（学科白名单 / 来源分级下限）→ 打分（`need / quality / difficultyFit` 归一化）→
+  按知识点配额的贪心（缺省 caps = `ceil(targetCount / 有候选的知识点数)`，下限 1；一道题挂多点时每个点都算配额，
+  全部到顶才跳过）。`items` 的顺序就是贪心选择顺序，**界面不许按 `score` 重排**。
+- 读数口径复用 `KnowledgePointReading`（threadflow 的）：危险区 `1.0` > 发展区 `0.6` >
+  **没有读数 `0.35`** > 已知健康 `0.15`——"不知道"排在"已知健康"之前，与 D2「缺数据不许冒充好数据」一致。
+- 每题给"为什么是它"：`reasonZh`（危险区/发展区/健康/未知四档，有先验就带 `R0≈…、置信度 …` 后缀）、
+  `improvementNote`（含 `trapNote` 时附上已知坑）、`backgroundZh`（标签路径 → 知识点名 → 知识点 id → "未标注知识点"）。
+- **AI 不出题**：凑不出题的危险/发展区知识点进 `uncoveredKnowledgePointIds`（这就是"该去收题"的清单），
+  被数量/配额挤掉的进 `deferredKnowledgePointIds`。
+- 来源分级表 `kSourceLevelPriority` 与仓储 `kSourceLevelWeight` **同序**，单测把两张表钉在一起。
+- 文档：`docs/PAPER_COMPOSER_DESIGN.md`（新）+ `docs/QUESTION_BANK_DESIGN.md` §9 切片表补 Q7–Q10。
+- 刻意未标定：`PaperWeights(.55/.25/.20)`、来源档位间距、`kUnknownNeed = 0.35` 都是显式先验，等真实读数回填；
+  组卷页 UI、"找相似题"、拍照整理待确认队列仍是 Q10。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info（= 基线）；
+  `flutter test --concurrency=1` → `+1312 ~2 All tests passed!`。
+- 偏差留痕：task-9 描述里的文档名写的是 `PAPER_COMPOSITION_DESIGN.md`，实际落成 `PAPER_COMPOSER_DESIGN.md`。
+
+**提交**
+- Q7 一个提交（teammate 的详情页 + 收题页入口 + ARB + 测试），Q9 一个提交（组卷器 + 测试 + 两份文档）；
+  均由 Lead 推送（teammate 从不提交）。
+
+---
+
 ## 2026-10-16 轮次三十：观察层键空间统一（Q8，Lead）
 
 接轮次二十九发现的缺陷：快层的图节点是**标签**，而页面/题目手里是**知识点**。上一轮只在
