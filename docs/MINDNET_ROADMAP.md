@@ -241,9 +241,17 @@
 与纯逻辑 `CognitiveRankWiring.build(seed, candidates) → CognitiveRankInputs`，
 15 例测试用手搭的标签树钉住：0/1/2 跳、超过 2 跳或不连通一律不写 origin、
 同跳数"刚活动"优先于"目标"、候选挂多个标签取最近、顺序无关。
-还剩：从数据库读这几种素材（`review_logs`/`exposure_logs` → `card_states.knowledge_point_id`
-算"刚活动"，`Tags.parentId` 投影成图）、`ThreadRankService.build()` 接受 seed、
+还剩：`ThreadRankService.build()` 接受 seed、`ThreadFeed` 暴露次序与理由、
 开关落库 + UI。
+
+**进展（轮次五十二）**：从数据库读素材那一层也做完 ——
+`app/lib/features/thread/application/cognitive_rank_reader.dart` 把 `ThreadState.goalNodeId`、
+`Tags.parentId` 投影成的树、`review_logs` / `exposure_logs`（12 小时窗口、每侧最近 40 条）
+经 `card_states.knowledge_point_id` 落成"刚活动知识点"、知识点标签与名字、以及
+`StudyRhythmReader` 的 α，读成 `CognitiveRankSeed`；9 例测试钉住，其中包括
+"卡状态没有知识点就不说话"（v1 的 `getOrCreateCardState` 不写知识点，那种日志在认知排序
+眼里没有节点）。还剩：`ThreadRankService.build()` 接受 seed、`ThreadFeed` 暴露次序与理由、
+开关落库（`ThreadRankSettings` 加列 = 一次 schema 迁移）+ UI。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 

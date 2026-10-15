@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-10-16 轮次五十二：认知排序素材的数据库读取（Q29b，Lead）
+
+**做了什么**：新增 `app/lib/features/thread/application/cognitive_rank_reader.dart`，它是
+"数据库 → 认知排序素材"之间唯一的一跳，把前两轮的纯逻辑接到真实库上：
+
+- 目标节点 = `ThreadState.goalNodeId`；标签树 = `Tags.parentId` 投影成 `MindNodeInfo`
+  （显式按 id 排序，不依赖插入顺序）。
+- 刚活动 = `review_logs.reviewed_at` 与 `exposure_logs.exposed_at` 两侧各取最近 40 条、
+  只看 12 小时窗口（两个常量都标了 `[未标定]`），按时间倒序合并（同一毫秒用卡状态 id 兜底，
+  让同一份数据两次读出同一结果），再经 `card_states.knowledge_point_id` 落到知识点上，
+  去重保留最近的那次。
+- 知识点标签只认 `object_type = 'knowledge_point'`（任务自己的标签不是标签树上的节点）；
+  名字来自 `AnkiRepository.getKnowledgePoints`；α 来自 `StudyRhythmReader`，
+  **提示关掉时取中性 1**，不是 0 —— "没读数"和"注意力为零"是两件事。
+
+**踩到并钉住的一条旧形状**：v1 的 `getOrCreateCardState(cardTemplateId)`
+（`app/lib/data/repositories/anki_repository.dart:190-211`）只写 `card_template_id`、
+`knowledge_point_id` 留空。这种卡状态上的复习日志**没有知识点可落**，读取器就什么都不说
+（有一条用例专门造这种孤儿卡状态并断言活动列表为空）。写测试时第一版就是用这条路径写"正常复习"，
+于是三条用例先红了——正好说明这个读取器不会替旧数据编一个节点。真出现大批 v1 日志时的补救是
+回填 `knowledge_point_id` 或在迁移里解析模板，现在库里没有这种数据，机制也不依赖数据。
+
+**验收**：`flutter test test/features/thread/application/cognitive_rank_reader_test.dart --concurrency=1`
+→ `+9 All tests passed!`（空库中性 / 目标与树透传 / 复习日志的近因、去重与出窗 / 曝光合并 /
+孤儿卡状态不说话 / 知识点标签的分类与排序 / 名字 / α 开关 / 端到端：目标 2 跳写 goal、
+刚复习过写 activity）；`dart analyze` 两个新文件 `No issues found!`；全量 `flutter test` 见提交前一次跑。
+
+**还剩的另一半**：`ThreadRankService.build()` 接受 seed 并按开关决定是否应用认知次序、
+`ThreadFeed` 暴露次序与理由、开关落库（`ThreadRankSettings` 加列 = 一次 schema 迁移）+ UI。
+
 ## 2026-10-16 轮次五十一：认知排序档位的接线层（Q29a，Lead）
 
 **做了什么**：新增 `app/lib/domain/services/scheduling/cognitive_rank_inputs.dart`（纯逻辑）。
