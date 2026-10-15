@@ -194,3 +194,68 @@ inDangerZone, inDevelopmentZone, priorR0, priorConfidence }`。DB → 这个结�
 * `flutter test test/domain/services/scheduling`
   → `All tests passed!`（50 个用例，含 `thread_ranker_test.dart` 与
   `time_window_engine_test.dart` 的全部既有用例）。
+
+## 8. 接线：从数据库到 Thread feed（Q6）
+
+§6.3 说"DB → 纯数据的适配在调用方"。这一节就是那个调用方，写下来是因为**键空间**
+在这里出过一次真实的错。
+
+### 8.1 谁读表、谁排序
+
+| 层 | 文件 | 责任 |
+| --- | --- | --- |
+| 纯数据 | `app/lib/domain/services/scheduling/thread_balance_inputs.dart` | `ObjectTagLink`、任务→知识点解析（共享标签才算挂载）、`ThreadBalanceInputs` |
+| 纯投影 | `app/lib/domain/services/scheduling/cognitive_readings.dart` | 诊断/先验 → `KnowledgePointReading`（`danger`→危险区、`weak`→发展区、先验→`priorR0`） |
+| 读表 | `app/lib/features/thread/application/thread_balance_provider.dart` | 唯一 IO 点：`Tags`/`ObjectTags`/`KnowledgePoints` + 认知页的诊断 provider + 测评先验 |
+| 排序 | `app/lib/domain/services/scheduling/domain_balance.dart` | 段 A 可行域 + 段 B 有效性/配额/理由 |
+| 编排 | `app/lib/features/thread/application/thread_rank_service.dart` | `build()` 同时拿段 A 与段 B 结果，`ThreadFeed.balanced` / `reasonFor(taskId)` |
+| 展示 | `app/lib/features/thread/presentation/thread_page.dart` | 每张卡下面一行 `reasonZh`（不改 ARB） |
+
+### 8.2 一条纪律：段 A 的输出不动
+
+`ThreadFeed.ranked` 仍然是 `ThreadRanker.rank` 的结果，`readyTasks` 只在段 B 有结果时
+改用段 B 的顺序（段 B 缺人时按段 A 顺序补齐，绝不丢任务）。这样"红名单/超期桶由算法段
+决定"这条边界保留在**类型**上，而且 `thread_rank_service_test.dart` 既有的 5 个用例
+一行不用改。段 B 永远跑：空输入时它退化成中性排序，仍然给出领域配额与理由。
+
+### 8.3 键空间：`kp-…` 与 `tag-…` 不是一回事（真实缺陷，已实测）
+
+* `KnowledgePoints.id` = `_newId('kp')`（`app/lib/data/repositories/anki_repository.dart:25`）；
+  `Tags.id` = `_newId('tag')`（`app/lib/data/repositories/tag_repository.dart:27`）。
+* 快层的图节点是**标签**：`app/lib/domain/services/cognitive/cognitive_graph.dart:105`
+  的 `CognitiveTag.fromTag(Tag row)` 直接取 `row.id`。诊断也按 `tag.id` 去查
+  `rowsByKnowledgePoint`（`app/lib/domain/services/cognitive/library_diagnosis.dart:147-157`），
+  并且 `starts`/`targets` 会被"不在图里的 id 直接丢掉"（同文件 `:163-174`）。
+* 但 `app/lib/features/cognitive/presentation/cognitive_model_page.dart:768-810`
+  传进去的 `rowsByKnowledgePoint` / `starts` / `targets` 全是**知识点 id**。
+  在真实数据（含 `DemoDataService`）上两者不相等，于是三者全被丢掉。
+
+实测（临时探针，用真实仓储建 `tag-…` + `kp-…` 各一个、一行 `card_states`，跑的就是页面
+那条 provider）：
+
+```
+PROBE tagIds=[tag-15384e3e-…] kpId=kp-cbcb7d1a-…
+PROBE page        fastLayerRan=false byKnowledgePoint={} starts=[] targets=[] nodesWithoutMs=[3 个 tag]
+PROBE tag-keyed   fastLayerRan=true  byKnowledgePoint={tag-15384e3e-…: empty, tag-2839568a-…: empty}
+```
+
+同一份数据、同一时刻，只把键换成标签 id 就跑起来了：**病因是键，不是数据**。
+`library_diagnosis_test.dart` 没抓到它，因为它的 fixture 用 `kp-1` 同时当标签 id
+和知识点 id（`:50-51` 的 `tag('kp-1')`）。
+
+* **Q6 自己的处理**：`thread_balance_provider.dart` 先做 `kp → tags` 翻译
+  （`ObjectTags` 里 `objectType == 'knowledge_point'` 的行），一个知识点有多个标签时
+  取 id 最小且**有结论**的那个，保证确定性；理由行的名字另走
+  `KnowledgePoints.title`（`domain_balance.dart` 的 `knowledgePointNames`），
+  所以 UI 上不会出现 `kp-…` 这种裸 id。
+* **上游（M1 观察层）尚未修**：认知页与复习页仍按知识点 id 查标签键的结论。这是一条
+  独立缺陷，需要单独的切片（同一份 `kp → tag` 桥 + D2 口径），不能混在 Q6 里静默改掉。
+
+### 8.4 证据（本次实际运行）
+
+在 `app` 下：
+
+* `dart analyze lib test` → `error=0 warning=0 info=94`（与基线同数）。
+* `flutter test test/features/thread test/domain/services/scheduling`
+  → `All tests passed!`（81 个用例：段 A/B 领域 71 + Thread 服务 7 + 新增 provider 3）。
+

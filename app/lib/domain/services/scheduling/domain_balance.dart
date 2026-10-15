@@ -178,10 +178,12 @@ abstract final class DomainKeyResolver {
 
 /// 一个知识点上"现在做它有多大效果"的认知读数。
 ///
-/// 三个来源与调用方的映射（现成适配器见 `cognitive_readings.dart`）：
+/// 三个来源与调用方的映射（现成适配器：[CognitiveReadingsAdapter.readingsFor]
+/// 在 `cognitive_readings.dart`）：
 ///
-/// * [inDangerZone] ← `MetacognitionReading.danger`（自信高、实际提取不出来）；
-/// * [inDevelopmentZone] ← `FastDiagnosis` 的 `weak` 瓶颈（差点想起来，
+/// * [inDangerZone] ← `LibraryDiagnosis.byKnowledgePoint` 里的
+///   `BottleneckType.danger`（自信高、实际提取不出来）；
+/// * [inDevelopmentZone] ← 同一张表里的 `BottleneckType.weak`（差点想起来，
 ///   合意难度）；
 /// * [priorR0] / [priorConfidence] ← `AssessmentPriorEstimate.r0` /
 ///   `.confidence`。
@@ -444,6 +446,13 @@ abstract final class DomainBalanceRanker {
     /// `ObjectTags` 链接（`objectType == 'task'` 的才生效）。
     List<TaskTagLink> taskTagLinks = const [],
 
+    /// 知识点 id → 显示名（`KnowledgePoints.title`）。
+    ///
+    /// [taskKnowledgePoints] 里装的是知识点 **id**，而理由行要念出**名字**；
+    /// 知识点 id（`kp-…`）与标签 id（`tag-…`）不是同一个命名空间，所以名字
+    /// 只能单独传进来。缺名字时理由行回落到 id（可追溯优先于好看）。
+    Map<String, String> knowledgePointNames = const {},
+
     /// 段落 B 权重表。
     DomainBalanceWeights weights = const DomainBalanceWeights(),
 
@@ -479,6 +488,20 @@ abstract final class DomainBalanceRanker {
       tags: tags,
       links: taskTagLinks,
     );
+    // 理由行会念出知识点名字，所以这里把 id → name 先建好：排序用 id，说话用名字。
+    // 名字缺失（标签行被删）时回落到 id——可追溯优先于好看。
+    //
+    // 两张表合并：标签树给标签 id→名字（领域桶的显示名），
+    // [knowledgePointNames] 给知识点 id→名字（理由行里的「知识点「…」」）。
+    // 两个命名空间不重叠（`tag-…` / `kp-…`），合并不会互相覆盖。
+    final nameById = <String, String>{
+      for (final tag in tags)
+        if (tag.id.trim().isNotEmpty && (tag.name ?? '').trim().isNotEmpty)
+          tag.id: tag.name!.trim(),
+      for (final entry in knowledgePointNames.entries)
+        if (entry.key.trim().isNotEmpty && entry.value.trim().isNotEmpty)
+          entry.key.trim(): entry.value.trim(),
+    };
 
     final candidates = <_Candidate>[];
     for (var index = 0; index < ready.length; index++) {
@@ -556,6 +579,7 @@ abstract final class DomainBalanceRanker {
           chosen,
           used: used,
           quota: quotas[chosen.domain] ?? 1,
+          nameById: nameById,
         ),
       );
     }
@@ -592,6 +616,7 @@ abstract final class DomainBalanceRanker {
     _Candidate candidate, {
     required int used,
     required int quota,
+    required Map<String, String> nameById,
   }) {
     return BalancedTask(
       taskId: candidate.ranked.event.id,
@@ -602,7 +627,7 @@ abstract final class DomainBalanceRanker {
       goal: candidate.ranked.score.goalMatch,
       balanceBonus: candidate.balanceBonus,
       overQuotaPenaltyApplied: candidate.penaltyPoints,
-      reasonZh: _reasonZh(candidate),
+      reasonZh: _reasonZh(candidate, nameById: nameById),
       domainKey: candidate.domain,
       balanceNote: _balanceNote(candidate, used: used, quota: quota),
       domainQuota: quota,
@@ -664,10 +689,17 @@ abstract final class DomainBalanceRanker {
   }
 
   /// 一句话中文理由：只讲**主导**的那条依据，避免堆砌。
-  static String _reasonZh(_Candidate candidate) {
+  ///
+  /// 知识点用 [nameById] 里的名字说话（排序仍按 id）。名字查不到时回落到 id：
+  /// 这句话是要给人看的，但"哪个知识点"不能因此消失。
+  static String _reasonZh(
+    _Candidate candidate, {
+    required Map<String, String> nameById,
+  }) {
     final effect = candidate.effect;
     final kp = effect.matchedKnowledgePointId;
-    final subject = kp == null ? '这个任务' : '知识点「$kp」';
+    final kpName = kp == null ? null : (nameById[kp] ?? kp);
+    final subject = kpName == null ? '这个任务' : '知识点「$kpName」';
     if (effect.inDangerZone) {
       return '$subject 在危险区（自信高、实际提取不出来），现在练它收益最大，所以排在这里。';
     }

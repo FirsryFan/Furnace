@@ -164,21 +164,33 @@ class _EventStreamView extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 24),
       itemCount: tasks.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) => _EventTile(task: tasks[index]),
+      itemBuilder: (context, index) => _EventTile(
+        task: tasks[index],
+        reason: current.reasonFor(tasks[index].id),
+      ),
     );
   }
 }
 
 class _EventTile extends ConsumerWidget {
-  const _EventTile({required this.task});
+  const _EventTile({required this.task, this.reason});
 
   final Task task;
+
+  /// Segment B's "why is it here" line, when segment B produced one.
+  ///
+  /// The text comes from the ranking layer (`BalancedTask.reasonZh`) and is
+  /// Chinese-only today: the domain layer owns the wording, so the sentence can
+  /// never disagree with the number it explains. Localising it is a later round
+  /// (it would move the wording, not the rule).
+  final String? reason;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final status = ThreadStatus.of(task, DateTime.now());
+    final reasonText = reason;
     final details = <String>[
       if (task.estimateMinutes != null) '${task.estimateMinutes} min',
       if (task.energyRequired != null) '${l10n.threadEnergy} ${task.energyRequired}',
@@ -231,6 +243,29 @@ class _EventTile extends ConsumerWidget {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    ],
+                    if (reasonText != null && reasonText.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 13,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              reasonText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],

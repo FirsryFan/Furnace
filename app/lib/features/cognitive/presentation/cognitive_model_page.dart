@@ -743,8 +743,12 @@ const int cognitiveStartNodeLimit = 5;
 ///   this session is trying to push". Nodes outside that set can therefore be
 ///   reported as `off_goal` / `dead_end`, which is what those verdicts mean.
 ///
-/// `danger` cannot appear: it would need metacognition belief rows, and this app
-/// stores none (see `LibraryDiagnosisRunner`). The page says so in words.
+/// `danger` can appear here: it is the metacognition layer's verdict on a
+/// tagged point that has a representative card row and is not one of `starts` -
+/// `LibraryDiagnosisRunner._readMetacognition` derives the belief/reality gap
+/// from the stored rows, it does not need a belief table. A point with no card
+/// row (or no finite reading) is skipped there, so "absent" means "no data",
+/// not "healthy".
 final cognitiveLibraryDiagnosisProvider =
     FutureProvider.autoDispose<LibraryDiagnosis>((ref) async {
   ref.watchDatabaseRevision();

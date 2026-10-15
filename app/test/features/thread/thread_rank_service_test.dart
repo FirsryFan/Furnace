@@ -6,6 +6,8 @@ import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/thread_rank_repository.dart';
 import 'package:furnace/data/repositories/thread_state_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/domain/services/scheduling/domain_balance.dart';
+import 'package:furnace/domain/services/scheduling/thread_balance_inputs.dart';
 import 'package:furnace/features/thread/application/thread_rank_service.dart';
 
 /// End-to-end glue: stored events + schedule blocks + status bar + editable
@@ -144,5 +146,94 @@ void main() {
     expect(feed.ranked.overdue, isEmpty);
     expect(feed.ranked.ready.single.event.id, soon.id);
     expect(feed.ranked.ready.single.expectedNear, isTrue);
+  });
+
+  group('segment B through the service (Q6)', () {
+    test('a danger-zone reading lifts its task and a filled domain falls back',
+        () async {
+      final tags = TagRepository(db);
+      final math = await tags.createTag(name: '数学');
+      final chinese = await tags.createTag(name: '语文');
+      final moment = DateTime(2026, 9, 8, 20);
+      final soon =
+          moment.add(const Duration(hours: 1)).millisecondsSinceEpoch;
+
+      final first = await tasks.createTask(
+        title: '数学一',
+        estimateMinutes: 15,
+        dueAt: soon,
+      );
+      final second = await tasks.createTask(
+        title: '数学二',
+        estimateMinutes: 15,
+        dueAt: soon,
+      );
+      final other = await tasks.createTask(title: '语文', estimateMinutes: 15);
+      for (final task in [first, second]) {
+        await tags.addTagToObject(
+          tagId: math.id,
+          objectType: 'task',
+          objectId: task.id,
+        );
+      }
+      await tags.addTagToObject(
+        tagId: chinese.id,
+        objectType: 'task',
+        objectId: other.id,
+      );
+
+      final feed = await service.build(
+        now: moment,
+        balance: ThreadBalanceInputs(
+          taskKnowledgePoints: {first.id: [math.id]},
+          readings: [
+            KnowledgePointReading(
+              knowledgePointId: math.id,
+              inDangerZone: true,
+            ),
+          ],
+          tags: [
+            DomainTag(id: math.id, path: '数学', name: '数学'),
+            DomainTag(id: chinese.id, path: '语文', name: '语文'),
+          ],
+          windowSlots: 2,
+        ),
+      );
+
+      final ranked = feed.balanced!.ranked;
+      final position = {
+        for (var i = 0; i < ranked.length; i++) ranked[i].taskId: i,
+      };
+      expect(ranked.first.taskId, first.id,
+          reason: '危险区把有效性从 0.5 拉到 0.85');
+      expect(position[other.id]!, lessThan(position[second.id]!),
+          reason: '数学配额 1 已被占满，语文排在第二个数学任务之前');
+      expect(
+        ranked[position[second.id]!].baseScore,
+        greaterThan(ranked[position[other.id]!].baseScore),
+        reason: '被配额压后的那个任务基础分其实更高（这条断言就是"配额真的起作用"）',
+      );
+      expect(feed.balanced!.domainQuota, {'数学': 1, '语文': 1});
+      expect(feed.readyTasks.map((t) => t.id), ranked.map((r) => r.taskId),
+          reason: 'UI 顺序就是段落 B 的顺序');
+      expect(feed.reasonFor(first.id), contains('知识点「数学」'));
+      expect(feed.reasonFor(first.id), contains('危险区'));
+      expect(feed.balanceFor(first.id)!.inDangerZone, isTrue);
+    });
+
+    test('no personal inputs still ranks every ready task with a reason',
+        () async {
+      final a = await tasks.createTask(title: '甲', estimateMinutes: 15);
+      final b = await tasks.createTask(title: '乙', estimateMinutes: 15);
+
+      final feed = await service.build(balance: ThreadBalanceInputs.empty);
+
+      expect(feed.balanced, isNotNull);
+      expect(feed.balanced!.ranked.length, 2);
+      expect(feed.readyTasks.map((t) => t.id).toSet(), {a.id, b.id});
+      expect(feed.reasonFor(a.id), isNotNull,
+          reason: '中性输入也要有理由行（它说明这是按中性分数排的）');
+      expect(feed.balanceFor(a.id)!.domainKey, '未分类');
+    });
   });
 }

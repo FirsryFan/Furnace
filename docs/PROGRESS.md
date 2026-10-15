@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-15 轮次二十九：ThreadFlow 两段式接进 App + 发现观察层键空间缺陷（Q6，Lead）
+
+- **段 B 接线的四层**：纯数据 `app/lib/domain/services/scheduling/thread_balance_inputs.dart`
+  （`ObjectTagLink` + `TaskKnowledgePointResolver`：任务与知识点挂在**同一个标签**上才算
+  "这个任务在练这个点"）；纯投影 `app/lib/domain/services/scheduling/cognitive_readings.dart`
+  （`danger`→危险区、`weak`→发展区、先验→`priorR0`；没有任何信号的点**不产出**读数）；
+  唯一 IO 点 `app/lib/features/thread/application/thread_balance_provider.dart`（读 `Tags`/
+  `ObjectTags`/`KnowledgePoints` + 认知页**自己的**诊断 provider + 测评先验，D2 一个数字一个来源）；
+  编排 `app/lib/features/thread/application/thread_rank_service.dart`（`build()` 同时拿段 A 与段 B，
+  `ThreadFeed.balanced` / `reasonFor(taskId)`）。
+- **边界纪律**：`ThreadFeed.ranked` 仍是 `ThreadRanker.rank` 的输出，`readyTasks` 只在段 B 有结果时
+  改用段 B 顺序（缺人时按段 A 补齐，绝不丢任务）⇒ 既有的 5 个 `thread_rank_service_test.dart`
+  用例一字未改。段 B 永远跑，空输入退化成中性排序。
+- **UI**：`app/lib/features/thread/presentation/thread_page.dart` 每张卡下面一行 `reasonZh`
+  （灯泡图标 + 两行截断），**没有新 ARB 键**（本轮 `app_zh.arb`/`app_en.arb` 归 task-4，
+  避免文件级冲突）。已知缺口：`reasonZh` 目前只有中文，l10n 化留到下一轮。
+- **发现并实测了一条上游缺陷（观察层键空间）**：`KnowledgePoints.id` 是 `kp-…`
+  （`anki_repository.dart:25`），`Tags.id` 是 `tag-…`（`tag_repository.dart:27`），而快层的图节点
+  是**标签**（`cognitive_graph.dart:105` 直接取 `row.id`）、诊断也按 `tag.id` 查
+  `rowsByKnowledgePoint`（`library_diagnosis.dart:147-157`）。但
+  `cognitive_model_page.dart:768-810` 传进去的 `rowsByKnowledgePoint`/`starts`/`targets`
+  全是**知识点 id**，于是真实数据上三者全被"不在图里的 id 直接丢掉"，页面永远显示"没诊断"。
+  实测（临时探针：真实仓储建 `tag-…` + `kp-…` + 一行 `card_states`，跑页面那条 provider）：
+  `page fastLayerRan=false byKnowledgePoint={} starts=[] targets=[]`；同一份数据只把键换成标签 id
+  → `fastLayerRan=true byKnowledgePoint={tag-…: empty, tag-…: empty}`。**病因是键，不是数据**。
+  `library_diagnosis_test.dart:50-51` 用 `kp-1` 同时当标签 id 与知识点 id，所以既有测试没抓到。
+  Q6 只在自己的 provider 里做 `kp → tags` 翻译（取 id 最小且**有结论**的标签），理由行的名字另走
+  `KnowledgePoints.title`（`domain_balance.dart` 的 `knowledgePointNames`，UI 上不出现裸 id）；
+  **上游观察层没动**——它需要一条独立切片（同一份桥 + D2 口径），不能混在 Q6 里静默改掉。
+  详见 `docs/THREADFLOW_TWO_SEGMENT.md` §8.3。
+- **证据**：`dart analyze lib test` → `error=0 warning=0 info=94`（基线）；
+  `flutter test test/features/thread test/domain/services/scheduling` → `+81 All tests passed!`
+  （段 A/B 71 + Thread 服务 7 + 新增 provider 3）。
+- **未做**：`reasonZh` 的 l10n；观测层键空间修复（上游）；AE 权重标定（§3 的数是显式选定，非拟合）。
+
+---
+
 ## 2026-10-15 轮次二十八：推理管道接真模型 + 沿链卡点评估（Q4+Q5，Lead）
 
 - **Q4 管道**（`app/lib/features/questions/application/question_reasoning_service.dart`）：
