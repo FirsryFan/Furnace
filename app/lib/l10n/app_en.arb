@@ -1180,5 +1180,27 @@
   },
   "questionPaperItemReasonLabel": "Why it is here",
   "questionPaperItemImprovementLabel": "What it improves",
-  "questionPaperItemBackgroundLabel": "Background"
+  "questionPaperItemBackgroundLabel": "Background",
+  "questionSimilarTitle": "Similar questions",
+  "questionSimilarSubtitle": "Searches the existing question bank only. When nothing is similar it says so instead of padding the list.",
+  "questionSimilarLoading": "Scanning the question bank…",
+  "questionSimilarFailed": "Similar-question search failed: {error}",
+  "@questionSimilarFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionSimilarCount": "Found {count} similar question(s)",
+  "@questionSimilarCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionSimilarEmpty": "No similar questions in the bank yet.",
+  "questionSimilarGoIntake": "Add questions",
+  "questionSimilarCrossSubject": "Cross-subject transfer"
 }

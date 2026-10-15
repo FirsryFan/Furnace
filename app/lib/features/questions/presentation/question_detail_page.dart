@@ -22,13 +22,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
 import '../../../domain/services/srs/dsr_memory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/question_reasoning_service.dart';
+import '../application/similar_question_provider.dart';
 import 'question_detail_providers.dart';
+import 'question_intake_page.dart';
 import 'question_vocab_labels.dart';
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
@@ -98,6 +101,8 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             enabled: detail != null,
             onSolve: _solve,
           ),
+          const SizedBox(height: 16),
+          _SimilarQuestionsSection(questionId: widget.questionId),
         ],
       ),
     );
@@ -178,14 +183,16 @@ class _QuestionCard extends StatelessWidget {
                 ),
             ],
             if (answer.isNotEmpty)
-              _LabelledText(label: l10n.questionIntakeAnswerLabel, value: answer),
+              _LabelledText(
+                  label: l10n.questionIntakeAnswerLabel, value: answer),
             if (solution.isNotEmpty)
               _LabelledText(
                 label: l10n.questionIntakeSolutionLabel,
                 value: solution,
               ),
             if (trapNote.isNotEmpty)
-              _LabelledText(label: l10n.questionDetailTrapNote, value: trapNote),
+              _LabelledText(
+                  label: l10n.questionDetailTrapNote, value: trapNote),
             if (question.aiQuality != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -222,12 +229,12 @@ class _ReasoningSection extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
-    final stored = ref.watch(questionStoredChainProvider(questionId)).valueOrNull;
+    final stored =
+        ref.watch(questionStoredChainProvider(questionId)).valueOrNull;
     final statesAsync = ref.watch(questionKnowledgeStatesProvider);
-    final knowledgePointIds = ref
-            .watch(questionKnowledgePointIdsProvider(questionId))
-            .valueOrNull ??
-        const <String>[];
+    final knowledgePointIds =
+        ref.watch(questionKnowledgePointIdsProvider(questionId)).valueOrNull ??
+            const <String>[];
 
     // 本次运行的结果优先（它比库里的新）；没按过按钮就看库里最新那条。
     final chain = lastRun?.chain ?? stored?.chain;
@@ -264,8 +271,7 @@ class _ReasoningSection extends ConsumerWidget {
                 ),
               ),
             ),
-            if (lastRun != null && !lastRun!.ok)
-              _FailureCard(result: lastRun!),
+            if (lastRun != null && !lastRun!.ok) _FailureCard(result: lastRun!),
             if (knowledgePointIds.isNotEmpty)
               _KnowledgePointChips(
                 ids: knowledgePointIds,
@@ -290,7 +296,8 @@ class _ReasoningSection extends ConsumerWidget {
                     Text(l10n.questionDetailStatesLoading),
                   ],
                 ),
-                error: (error, _) => Text(l10n.questionDetailStatesFailed('$error')),
+                error: (error, _) =>
+                    Text(l10n.questionDetailStatesFailed('$error')),
                 data: (states) => _ChainView(
                   chain: chain,
                   states: states,
@@ -339,13 +346,15 @@ class _ChainView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (fromLibrary)
-          Text(l10n.questionDetailChainFromLibrary, style: theme.textTheme.bodySmall),
+          Text(l10n.questionDetailChainFromLibrary,
+              style: theme.textTheme.bodySmall),
         if (chain.summary.trim().isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(chain.summary, style: theme.textTheme.bodyLarge),
         ],
         const SizedBox(height: 8),
-        Text(l10n.questionDetailOverallRisk((report.overallRisk * 100).round())),
+        Text(
+            l10n.questionDetailOverallRisk((report.overallRisk * 100).round())),
         const SizedBox(height: 4),
         LinearProgressIndicator(value: report.overallRisk),
         if (mostLikely != null) ...[
@@ -419,7 +428,8 @@ class _StepCard extends StatelessWidget {
                 ),
               ),
             if (goal.isNotEmpty)
-              _LabelledText(label: l10n.questionDetailStepGoalLabel, value: goal),
+              _LabelledText(
+                  label: l10n.questionDetailStepGoalLabel, value: goal),
             if (justification.isNotEmpty)
               _LabelledText(
                 label: l10n.questionDetailStepJustificationLabel,
@@ -528,7 +538,9 @@ class _FailureCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             SelectableText(
-              rawReply.isNotEmpty ? rawReply : l10n.questionDetailRawReplyMissing,
+              rawReply.isNotEmpty
+                  ? rawReply
+                  : l10n.questionDetailRawReplyMissing,
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -667,5 +679,163 @@ String _originLabel(AppLocalizations l10n, String origin) => switch (origin) {
 /// 数值显示：整数不拖 `.0`，小数保留一位（难度 6 而不是 6.0）。
 String _number(double value) {
   final rounded = value.roundToDouble();
-  return rounded == value ? rounded.toInt().toString() : value.toStringAsFixed(1);
+  return rounded == value
+      ? rounded.toInt().toString()
+      : value.toStringAsFixed(1);
+}
+
+/// 找相似题：只从**已有题库**里找。领域层已经排好序、写好理由，这里不改顺序、
+/// 不复算分量、不把 `score` 当百分比——只画 `reasonZh` 与「跨学科迁移」角标。
+///
+/// 一道都不像时（空列表）只给空态 + 去收题入口：**不许拿"看着像"的题凑数**，
+/// 这是本片用户口径里最硬的一条。
+class _SimilarQuestionsSection extends ConsumerWidget {
+  const _SimilarQuestionsSection({required this.questionId});
+
+  final String questionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final similar = ref.watch(similarQuestionsProvider(questionId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.questionSimilarTitle, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(l10n.questionSimilarSubtitle,
+                style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            similar.when(
+              loading: () => Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(l10n.questionSimilarLoading),
+                ],
+              ),
+              error: (error, _) => Text(l10n.questionSimilarFailed('$error')),
+              data: (items) => items.isEmpty
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.questionSimilarEmpty),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => _openIntake(context),
+                            icon: const Icon(Icons.add),
+                            label: Text(l10n.questionSimilarGoIntake),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          l10n.questionSimilarCount(items.length),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        for (final item in items)
+                          _SimilarQuestionTile(similar: item),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 一条候选：题干摘要（点进它的详情页）+ 领域层给的理由原文。
+class _SimilarQuestionTile extends ConsumerWidget {
+  const _SimilarQuestionTile({required this.similar});
+
+  final SimilarQuestion similar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final detail = ref.watch(questionDetailProvider(similar.questionId));
+    final stem = detail.valueOrNull?.question.stem.trim();
+    final loadingStem = detail.isLoading && !detail.hasValue;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              loadingStem
+                  ? '…'
+                  : (stem == null || stem.isEmpty
+                      ? l10n.questionDetailQuestionMissing
+                      : stem),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (similar.crossSubjectTransfer) ...[
+            const SizedBox(width: 8),
+            _TransferBadge(label: l10n.questionSimilarCrossSubject),
+          ],
+        ],
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(similar.reasonZh, style: theme.textTheme.bodySmall),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) =>
+              QuestionDetailPage(questionId: similar.questionId),
+        ),
+      ),
+    );
+  }
+}
+
+/// 「跨学科迁移」角标：学科不同、但解题动作同型（`crossSubjectTransfer`）。
+class _TransferBadge extends StatelessWidget {
+  const _TransferBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+      ),
+    );
+  }
+}
+
+/// 空态里的「去收题」：AI 不出题，库里没有就去收。
+void _openIntake(BuildContext context) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (context) => const QuestionIntakePage()),
+  );
 }

@@ -1069,5 +1069,27 @@
   },
   "questionPaperItemReasonLabel": "为什么排它",
   "questionPaperItemImprovementLabel": "提升点",
-  "questionPaperItemBackgroundLabel": "知识背景"
+  "questionPaperItemBackgroundLabel": "知识背景",
+  "questionSimilarTitle": "找相似题",
+  "questionSimilarSubtitle": "只从已有题库里找；找不到就说没有，不拿看着像的凑数。",
+  "questionSimilarLoading": "正在翻题库…",
+  "questionSimilarFailed": "找相似题没算出来：{error}",
+  "@questionSimilarFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionSimilarCount": "库里找到 {count} 道相似题",
+  "@questionSimilarCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionSimilarEmpty": "库里还没有相似的题。",
+  "questionSimilarGoIntake": "去收题",
+  "questionSimilarCrossSubject": "跨学科迁移"
 }

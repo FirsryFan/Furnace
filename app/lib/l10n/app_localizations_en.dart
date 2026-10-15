@@ -2468,4 +2468,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionPaperItemBackgroundLabel => 'Background';
+
+  @override
+  String get questionSimilarTitle => 'Similar questions';
+
+  @override
+  String get questionSimilarSubtitle =>
+      'Searches the existing question bank only. When nothing is similar it says so instead of padding the list.';
+
+  @override
+  String get questionSimilarLoading => 'Scanning the question bank…';
+
+  @override
+  String questionSimilarFailed(String error) {
+    return 'Similar-question search failed: $error';
+  }
+
+  @override
+  String questionSimilarCount(int count) {
+    return 'Found $count similar question(s)';
+  }
+
+  @override
+  String get questionSimilarEmpty => 'No similar questions in the bank yet.';
+
+  @override
+  String get questionSimilarGoIntake => 'Add questions';
+
+  @override
+  String get questionSimilarCrossSubject => 'Cross-subject transfer';
 }

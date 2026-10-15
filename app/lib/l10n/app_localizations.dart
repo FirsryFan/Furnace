@@ -4369,6 +4369,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Background'**
   String get questionPaperItemBackgroundLabel;
+
+  /// No description provided for @questionSimilarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar questions'**
+  String get questionSimilarTitle;
+
+  /// No description provided for @questionSimilarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Searches the existing question bank only. When nothing is similar it says so instead of padding the list.'**
+  String get questionSimilarSubtitle;
+
+  /// No description provided for @questionSimilarLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning the question bank…'**
+  String get questionSimilarLoading;
+
+  /// No description provided for @questionSimilarFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar-question search failed: {error}'**
+  String questionSimilarFailed(String error);
+
+  /// No description provided for @questionSimilarCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} similar question(s)'**
+  String questionSimilarCount(int count);
+
+  /// No description provided for @questionSimilarEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No similar questions in the bank yet.'**
+  String get questionSimilarEmpty;
+
+  /// No description provided for @questionSimilarGoIntake.
+  ///
+  /// In en, this message translates to:
+  /// **'Add questions'**
+  String get questionSimilarGoIntake;
+
+  /// No description provided for @questionSimilarCrossSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Cross-subject transfer'**
+  String get questionSimilarCrossSubject;
 }
 
 class _AppLocalizationsDelegate

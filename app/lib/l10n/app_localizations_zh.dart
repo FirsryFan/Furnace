@@ -2368,4 +2368,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperItemBackgroundLabel => '知识背景';
+
+  @override
+  String get questionSimilarTitle => '找相似题';
+
+  @override
+  String get questionSimilarSubtitle => '只从已有题库里找；找不到就说没有，不拿看着像的凑数。';
+
+  @override
+  String get questionSimilarLoading => '正在翻题库…';
+
+  @override
+  String questionSimilarFailed(String error) {
+    return '找相似题没算出来：$error';
+  }
+
+  @override
+  String questionSimilarCount(int count) {
+    return '库里找到 $count 道相似题';
+  }
+
+  @override
+  String get questionSimilarEmpty => '库里还没有相似的题。';
+
+  @override
+  String get questionSimilarGoIntake => '去收题';
+
+  @override
+  String get questionSimilarCrossSubject => '跨学科迁移';
 }
