@@ -10,10 +10,11 @@
 ///    写法都照抄既有规矩：标签挂在**已有**路径下；知识点进 `knowledge_points`；
 ///    闪存卡建模板后**必须**建卡状态（否则卡片进不了复习队列）。
 ///
-/// 提案本身**只存在内存里**（[HandwritingQueueState]）：用户说"确认前不写库"，
-/// 那连"待确认的东西"也不该偷偷落盘。重启丢一次整理是可以接受的——照片还在
-/// 磁盘上（[HandwritingIntakeStore]），重新整理一次即可；要持久化提案得加一张
-/// 表（记为已知缺口，见 `docs/PROBLEM_INTAKE_DESIGN.md`）。
+/// 提案**不写学习数据**：用户说"确认前不写库"，指的是标签 / 知识点 / 闪存卡
+/// 三样东西。提案本身从 v13 起单独落两张表
+/// （[HandwritingProposalRepository]）：不落的话，拍三页整理出十二条提案、重启
+/// 就全没了，"哪条我已经确认过"也会跟着消失——确认过的东西再确认一次就是重复
+/// 写库。**只有这一层写提案表，学习数据仍然只在用户点确认之后才动。**
 library;
 
 import 'dart:convert';
@@ -24,6 +25,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/handwriting_proposal_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/intake/handwriting_proposals.dart';
@@ -48,6 +50,12 @@ final handwritingIntakeStoreProvider = Provider<HandwritingIntakeStore>((ref) {
     database: ref.watch(appDatabaseProvider),
     supportDirectory: ref.watch(questionIntakeSupportDirectoryProvider),
   );
+});
+
+/// 待确认队列时用的提案仓储（schema v13）。
+final handwritingProposalRepositoryProvider =
+    Provider<HandwritingProposalRepository>((ref) {
+  return HandwritingProposalRepository(ref.watch(appDatabaseProvider));
 });
 
 /// 一次「看照片 → 拿提案」的结果。永远可用，不需要 try/catch。
@@ -480,7 +488,8 @@ class HandwritingQueueState {
   /// 磁盘上的待整理照片。
   final List<PendingHandwritingImage> images;
 
-  /// 相对路径 → 已经整理出来的提案（**只在内存里**）。
+  /// 相对路径 → 已经整理出来的提案（`refresh()` 时从 v13 的表恢复，
+  /// `analyze()` 后写库；重启不丢）。
   final Map<String, HandwritingProposalSet> sets;
 
   /// 相对路径 → 整理失败的原因。
@@ -526,8 +535,11 @@ class HandwritingQueueState {
   }
 }
 
-/// 内存队列。写库走仓储（`DbWriteInterceptor` → `DataChangeBus`），
+/// 待确认队列。写库走仓储（`DbWriteInterceptor` → `DataChangeBus`），
 /// 所以刷新别的 provider 不需要这里做任何事。
+///
+/// 提案与"已确认到哪一条"落在 v13 的两张表里（[HandwritingProposalRepository]）：
+/// 重启后 [refresh] 会把它们读回来，页面不用知道区别。
 class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
   @override
   HandwritingQueueState build() => const HandwritingQueueState();
@@ -537,14 +549,40 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
 
   HandwritingIntakeStore get _store => ref.read(handwritingIntakeStoreProvider);
 
-  /// 重新读磁盘上的待整理清单。
+  HandwritingProposalRepository get _repository =>
+      ref.read(handwritingProposalRepositoryProvider);
+
+  /// 重新读磁盘上的待整理清单 + 库里的整理结果。
+  ///
+  /// 照片已经不在磁盘上的整理记录会被清掉（`deleteRun`）：那批提案指向的证据
+  /// 没了，留着只会让队列长出一片"整理过的幽灵"。
   Future<void> refresh() async {
     state = state.copyWith(loading: true);
     final images = await _store.pending();
-    state = state.copyWith(images: images, loading: false);
+    final onDisk = <String>{for (final image in images) image.relPath};
+
+    final sets = <String, HandwritingProposalSet>{};
+    final applied = <String>{};
+    for (final run in await _repository.runs()) {
+      if (!onDisk.contains(run.sourceRef)) {
+        await _repository.deleteRun(run.sourceRef);
+        continue;
+      }
+      sets[run.sourceRef] = run.proposalSet;
+      for (final proposalId in run.appliedProposalIds) {
+        applied.add('${run.sourceRef}#$proposalId');
+      }
+    }
+
+    state = state.copyWith(
+      images: images,
+      sets: sets,
+      appliedIds: applied,
+      loading: false,
+    );
   }
 
-  /// 整理一张照片（结果同时写进 state，方便页面直接渲染）。
+  /// 整理一张照片（结果同时写进 state 与库，方便页面直接渲染 / 重启后还在）。
   Future<HandwritingProposalRun> analyze(String relPath) async {
     state = state.copyWith(
       analyzing: <String>{...state.analyzing, relPath},
@@ -567,6 +605,15 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
       failures: failures,
       analyzing: <String>{...state.analyzing}..remove(relPath),
     );
+
+    if (run.ok) {
+      await _repository.saveRun(
+        set: run.set!,
+        analyzedAt: DateTime.now(),
+        rawReply: run.rawReply,
+      );
+      await _syncApplied(relPath);
+    }
     return run;
   }
 
@@ -584,7 +631,7 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     }
     state = state.copyWith(applying: <String>{...state.applying, relPath});
     final report = await _service.applyAll(set, onlyIds: <String>{proposalId});
-    return _finishApply(relPath, report);
+    return await _finishApply(relPath, report);
   }
 
   /// 确认这张照片上**还没确认过**的全部提案。
@@ -602,16 +649,22 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     }
     state = state.copyWith(applying: <String>{...state.applying, relPath});
     final report = await _service.applyAll(set, onlyIds: remaining);
-    return _finishApply(relPath, report);
+    return await _finishApply(relPath, report);
   }
 
-  HandwritingApplyReport _finishApply(
+  Future<HandwritingApplyReport> _finishApply(
     String relPath,
     HandwritingApplyReport report,
-  ) {
+  ) async {
     final applied = <String>{...state.appliedIds};
+    final moment = DateTime.now();
     for (final outcome in report.outcomes) {
       if (outcome.ok) {
+        await _repository.markApplied(
+          sourceRef: relPath,
+          proposalId: outcome.proposalId,
+          appliedAt: moment,
+        );
         applied.add('$relPath#${outcome.proposalId}');
       }
     }
@@ -623,13 +676,33 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     return report;
   }
 
-  /// 丢掉内存里的整理结果（照片还在，可以重新整理）。
-  void forget(String relPath) {
+  /// 用库里的确认状态覆盖内存里这条照片的那一部分（重新整理之后调用：
+  /// 内容逐字没变的那几条，用户之前的确认不该被抹掉）。
+  Future<void> _syncApplied(String relPath) async {
+    final stored = await _repository.runOf(relPath);
+    final prefix = '$relPath#';
+    final applied = <String>{
+      for (final id in state.appliedIds)
+        if (!id.startsWith(prefix)) id,
+      if (stored != null)
+        for (final id in stored.appliedProposalIds) '$prefix$id',
+    };
+    state = state.copyWith(appliedIds: applied);
+  }
+
+  /// 忘掉这张照片的整理结果（库里删掉提案与 run 行，**照片本身不动**）。
+  Future<void> forget(String relPath) async {
+    await _repository.deleteRun(relPath);
     final sets = Map<String, HandwritingProposalSet>.of(state.sets)
       ..remove(relPath);
+    final prefix = '$relPath#';
     state = state.copyWith(
       sets: sets,
       failures: _without(state.failures, relPath),
+      appliedIds: <String>{
+        for (final id in state.appliedIds)
+          if (!id.startsWith(prefix)) id,
+      },
       clearReport: true,
     );
   }

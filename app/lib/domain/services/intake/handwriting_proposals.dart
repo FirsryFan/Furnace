@@ -73,6 +73,31 @@ class HandwritingCardDraft {
   final String answer;
   final String type;
 
+  /// 从 [toJson] 的输出还原（持久化用）。
+  ///
+  /// 与解析模型回复同一套严格口径：缺 question/answer 或题型不在册就抛
+  /// [HandwritingProposalParseException]。库里存坏一张卡片时宁可报错，也不把
+  /// 它悄悄降级成默认题型——用户确认过的题型不能被改写。
+  factory HandwritingCardDraft.fromJson(Map<String, Object?> json) {
+    final question = json['question']?.toString().trim() ?? '';
+    final answer = json['answer']?.toString().trim() ?? '';
+    if (question.isEmpty || answer.isEmpty) {
+      throw const HandwritingProposalParseException('卡片缺少 question 或 answer');
+    }
+    final type = json['type']?.toString().trim() ?? '';
+    final resolved = type.isEmpty ? 'essay' : type;
+    if (!_cardTypes.contains(resolved)) {
+      throw HandwritingProposalParseException(
+        '卡片 type 未知：`$resolved`。可用：${_cardTypes.join(' / ')}',
+      );
+    }
+    return HandwritingCardDraft(
+      question: question,
+      answer: answer,
+      type: resolved,
+    );
+  }
+
   Map<String, Object?> toJson() => {
         'question': question,
         'answer': answer,
@@ -116,6 +141,31 @@ class HandwritingProposal {
   /// 来源照片的相对路径（`handwriting_intake/...`），用于回显与重跑。
   final String sourceRef;
 
+  /// 从 [toJson] 的输出还原（持久化用）。
+  ///
+  /// 与解析模型回复同一套严格口径：`kind`/`id`/`title` 缺一不可，`fields`、
+  /// `cards` 结构不对照样抛异常。存储层读回坏行时**不能**静默跳过——那会让
+  /// 用户看到"整理过了"却少了一条自己确认过的产物。
+  factory HandwritingProposal.fromJson(
+    Map<String, Object?> json, {
+    int index = 0,
+  }) {
+    final kind = HandwritingProposalKind.byKey(json['kind']?.toString());
+    if (kind == null) {
+      final raw = json['kind']?.toString().trim() ?? '';
+      throw HandwritingProposalParseException(
+        '`proposals[$index].kind` 未知：`$raw`。可用：${HandwritingProposalKind.keysLabel}',
+      );
+    }
+    final id = json['id']?.toString().trim() ?? '';
+    if (id.isEmpty) {
+      throw HandwritingProposalParseException(
+        '`proposals[$index]`（${kind.storageKey}）缺少 id',
+      );
+    }
+    return _proposalFrom(json, index, kind, id: id);
+  }
+
   Map<String, Object?> toJson() => {
         'id': id,
         'kind': kind.storageKey,
@@ -151,6 +201,31 @@ class HandwritingProposalSet {
   final List<HandwritingProposal> proposals;
 
   bool get isEmpty => proposals.isEmpty;
+
+  /// 从 [toJson] 的输出还原（持久化用）。
+  factory HandwritingProposalSet.fromJson(Map<String, Object?> json) {
+    final raw = json['proposals'];
+    if (raw is! List) {
+      throw const HandwritingProposalParseException(
+        '缺少 `proposals` 数组（没有可整理的内容时也要交回空数组）',
+      );
+    }
+    final proposals = <HandwritingProposal>[];
+    for (var i = 0; i < raw.length; i++) {
+      final entry = raw[i];
+      if (entry is! Map) {
+        throw HandwritingProposalParseException('`proposals[$i]` 不是对象');
+      }
+      proposals.add(
+        HandwritingProposal.fromJson(Map<String, Object?>.from(entry),
+            index: i),
+      );
+    }
+    return HandwritingProposalSet(
+      sourceRef: json['source_ref']?.toString() ?? '',
+      proposals: List<HandwritingProposal>.unmodifiable(proposals),
+    );
+  }
 
   int countOf(HandwritingProposalKind kind) =>
       proposals.where((proposal) => proposal.kind == kind).length;
@@ -299,13 +374,24 @@ HandwritingProposalSet parseHandwritingProposals(
 
 HandwritingProposal _parseOne(Map<String, Object?> entry, int index) {
   final kind = HandwritingProposalKind.byKey(entry['kind']?.toString());
-  final title = entry['title']?.toString().trim() ?? '';
   if (kind == null) {
     final raw = entry['kind']?.toString().trim() ?? '';
     throw HandwritingProposalParseException(
       '`proposals[$index].kind` 未知：`$raw`。可用：${HandwritingProposalKind.keysLabel}',
     );
   }
+  return _proposalFrom(entry, index, kind, id: '${kind.storageKey}-$index');
+}
+
+/// 解析模型回复与从库里还原**共用**的那一段：`kind` 已定、`id` 已定，
+/// 只负责剩下的字段校验。两处分开写迟早会出现"模型回复严、库里读回松"的裂缝。
+HandwritingProposal _proposalFrom(
+  Map<String, Object?> entry,
+  int index,
+  HandwritingProposalKind kind, {
+  required String id,
+}) {
+  final title = entry['title']?.toString().trim() ?? '';
   if (title.isEmpty) {
     throw HandwritingProposalParseException(
       '`proposals[$index]`（${kind.storageKey}）缺少 title',
@@ -332,7 +418,7 @@ HandwritingProposal _parseOne(Map<String, Object?> entry, int index) {
   _requireFields(kind, fields, index);
 
   return HandwritingProposal(
-    id: '${kind.storageKey}-$index',
+    id: id,
     kind: kind,
     titleZh: title,
     rationaleZh: entry['rationale']?.toString().trim() ?? '',

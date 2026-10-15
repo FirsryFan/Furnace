@@ -4,6 +4,49 @@
 
 ---
 
+## 2026-10-16 轮次四十一：拍照整理的待确认清单落地（schema v13）——重启不丢，确认状态按内容保留（Q19，Lead）
+
+**做了什么**
+- `app/lib/data/database/tables.dart` 加两张表：`handwriting_intake_runs`（`source_ref` PK /
+  `analyzed_at` / `raw_reply?` / `created_at`，**零提案也留一行**）、`handwriting_proposals`
+  （`id = <source_ref>#<proposal_id>` PK / `source_ref` / `proposal_id` / `sort_index` /
+  `kind` / `payload_json` / `applied_at?` / `created_at` / `updated_at`）。
+- `app/lib/data/database/database.dart`：`schemaVersion => 13`、`onUpgrade` 加 `_upgradeV12ToV13()`，
+  并在 `_ensureColumns()` 的表自愈块里补这两张表（文件已被盖成 v13 但表缺失时，读取会报
+  `no such table`，看起来像"从来没整理过"）。
+- 新仓储 `app/lib/data/repositories/handwriting_proposal_repository.dart`：`saveRun`（事务内删旧写新，
+  **`payload_json` 逐字相同的那几条保留 `applied_at`**）、`runs()` / `runOf()`、`markApplied`
+  （只更新 `applied_at IS NULL` 的行）、`deleteRun` / `deleteAll`（只删记录，**照片不动**）。
+- 领域层 `app/lib/domain/services/intake/handwriting_proposals.dart` 加 `fromJson`（提案/集合/卡片草稿），
+  解析模型回复与从库还原走**同一个严格口径**；JSON 契约只留 `toJson`/`fromJson` 一份。
+- 应用层 `app/lib/features/questions/application/handwriting_proposal_service.dart`：
+  `handwritingProposalRepositoryProvider`；`refresh()` 读磁盘清单 + 从库恢复（照片不在磁盘上的记录顺手清掉）；
+  `analyze()` 成功写库；`_finishApply` 对每条成功 outcome 落 `applied_at`；`forget()` 变成异步删记录。
+
+**为什么不这么做**
+- **按 `payload_json` 逐字相同保留 `applied_at`**：重新整理得到的新提案里，内容逐字没变的那条就是
+  用户确认过的同一条，清掉会让用户再确认一次、写出第二份标签/知识点；内容变了的是**新版本**，
+  用户没确认过它，确认状态必须清。
+- **两张表只存提案与确认状态，不碰学习数据**："确认前不写库"约束的是学习数据（标签/知识点/闪存卡），
+  不是"待确认清单"本身——否则重启一次整理就白做。
+- **`saveRun` 用 `sort_index` 而不是 id 排序**：按 id 排会按字典序把三类产物打散，用户看到的顺序
+  会和确认时不一致。
+- **不做"提案内容变了也保住已确认"**：那等于把用户没确认过的东西标成已写库。
+
+**验收**
+- `dart format --set-exit-if-changed`（改动的 6 个文件）→ 0 changed。
+- `dart analyze lib test` → `94 issues found.`，error / warning **0**（与 Q18 基线一致）。
+- `flutter test test/features/questions test/domain/services/intake test/data/database --concurrency=1`
+  → **`+171 All tests passed!`**（含新增 `v13_migration_test.dart` 2 例、
+  `handwriting_proposal_repository_test.dart` 5 例、领域 `fromJson` 4 例、服务层 4 例）。
+- **本机环境教训**：`build_runner` 默认 AOT 编译在本仓库失败（`Unable to write file:
+  ...一THREADRIPPER一....dart_tool\build\entrypoint\build.dart.aot`）——隔离验证后确认
+  **AOT 快照写不进含中文的路径**（同一命令写 `C:\tmp\...` 成功、写仓库内路径失败），
+  不是磁盘空间/缓存损坏；改用 `dart run build_runner build --delete-conflicting-outputs --force-jit` 成功
+  （`Built with build_runner/jit in 99s; wrote 651 outputs.`）。
+
+---
+
 ## 2026-10-16 轮次四十：组卷页补三个 spec 控件——目标难度 / 每知识点上限 / 重置（Q17，teammate `question-intake`）
 
 **做了什么**

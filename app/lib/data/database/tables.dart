@@ -1126,3 +1126,72 @@ class ReasoningSteps extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// 一次「拍照整理」的运行记录（`docs/HANDWRITING_INTAKE_DESIGN.md` §4）。
+///
+/// 一行 = 一张照片整理过一次。**零提案也要留这一行**：否则"整理过，但照片里没有
+/// 可整理的东西"在重启后会退回"还没整理"，用户会白跑一次模型，而且看到的状态是错的。
+@DataClassName('HandwritingIntakeRun')
+class HandwritingIntakeRuns extends Table {
+  @override
+  String get tableName => 'handwriting_intake_runs';
+
+  /// 照片的相对路径（`handwriting_intake/<id>/<原文件名>`）。
+  TextColumn get sourceRef => text()();
+
+  /// 整理完成的时刻（epoch ms）。
+  IntColumn get analyzedAt => integer()();
+
+  /// 模型这一轮的原始回复。可空：老行没有，离线失败也没有。
+  ///
+  /// 留着是为了事后能回答"当时模型到底说了什么"——提案是严格解析过的，
+  /// 但被拒收的那一轮回复只有这里才有。
+  TextColumn get rawReply => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {sourceRef};
+}
+
+/// 一条待确认产物（`docs/QUESTION_BANK_DESIGN.md` §7.3 的三类之一）。
+///
+/// 提案是**待确认的用户数据**，不是可再生的缓存：`appliedAt` 记住用户已经确认过，
+/// 重启后不该让他再确认一遍，更不该重复写一次库（同一张闪存卡写两遍就是两张卡）。
+@DataClassName('HandwritingProposalRow')
+class HandwritingProposals extends Table {
+  @override
+  String get tableName => 'handwriting_proposals';
+
+  /// `<sourceRef>#<proposalId>`：同一张照片重新整理时按来源整批替换，
+  /// 不同照片的同名提案（都叫 `tag-0`）不会互相覆盖。
+  TextColumn get id => text()();
+
+  /// 来源照片的相对路径，与 [HandwritingIntakeRuns] 的 `source_ref` 对应。
+  TextColumn get sourceRef => text()();
+
+  /// 领域层的提案 id（`tag-0` / `knowledge_point-1` / …），由 kind + 序号决定。
+  TextColumn get proposalId => text()();
+
+  /// 提案在那次整理结果里的次序。
+  ///
+  /// 不按 id 排序：id 以 kind 开头，字典序会把三类产物打散（flashcard 排到
+  /// tag 前面），用户看到的顺序就和他确认时的不一样了。
+  IntColumn get sortIndex => integer()();
+
+  /// `tag` / `knowledge_point` / `flashcard`。与 payload 冗余，便于按类统计与排查。
+  TextColumn get kind => text()();
+
+  /// 提案本体（`HandwritingProposal.toJson()`）。契约只留一份：还原走领域层
+  /// `HandwritingProposal.fromJson`，这里不另写一套反序列化。
+  TextColumn get payloadJson => text()();
+
+  /// 用户确认写库的时刻（epoch ms）。NULL = 还没确认。
+  IntColumn get appliedAt => integer().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

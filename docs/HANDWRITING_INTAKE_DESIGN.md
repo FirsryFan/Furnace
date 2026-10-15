@@ -53,10 +53,31 @@
 |---|---|
 | `HandwritingProposalService.proposeFor(relPath)` | 读照片 → 认格式 → 调模型 → 解析。返回 `HandwritingProposalRun{ok, set, failureReason, rawReply}`，**从不抛异常** |
 | `HandwritingProposalService.applyAll(set, {onlyIds})` | 只写被确认的那些提案，返回 `HandwritingApplyReport{outcomes, appliedCount, failedCount, allOk, appliedIds}` |
-| `HandwritingQueueState` | 内存队列：`images` / `sets` / `failures` / `analyzing` / `applying` / `appliedIds` / `lastReport`；`isApplied(relPath, proposalId)` 的键是 `'$relPath#$proposalId'` |
-| `HandwritingQueueNotifier` | `refresh()`（读磁盘清单）、`analyze(relPath)`、`applyProposal(relPath, proposalId)`、`applyAll(relPath)`、`forget(relPath)`（丢掉内存里的整理结果，照片还在，可以重跑） |
+| `HandwritingQueueState` | 队列状态：`images` / `sets` / `failures` / `analyzing` / `applying` / `appliedIds` / `lastReport`；`isApplied(relPath, proposalId)` 的键是 `'$relPath#$proposalId'` |
+| `HandwritingQueueNotifier` | `refresh()`（读磁盘清单 + 从库里恢复提案与确认状态；照片已不在磁盘的整理记录顺手清掉）、`analyze(relPath)`（成功后写库）、`applyProposal(relPath, proposalId)`、`applyAll(relPath)`、`forget(relPath)`（库里删掉整理记录，**照片本身不动**） |
 | `handwritingProposalServiceProvider` | store / tags / anki 来自既有 provider，adapter 来自 `modelAdapterProvider` |
+| `handwritingProposalRepositoryProvider` | `HandwritingProposalRepository(ref.watch(appDatabaseProvider))`（schema v13） |
 | `handwritingQueueProvider` | `NotifierProvider<HandwritingQueueNotifier, HandwritingQueueState>` |
+
+### 数据层（schema v13）
+
+| 表 | 列 |
+|---|---|
+| `handwriting_intake_runs` | `source_ref`（PK，照片相对路径）、`analyzed_at`、`raw_reply?`、`created_at`。**零提案也留一行**——「整理过但照片里没东西」重启后不能退回「没整理过」 |
+| `handwriting_proposals` | `id`（PK = `<source_ref>#<proposal_id>`）、`source_ref`、`proposal_id`、`sort_index`（不按 id 排，否则字典序把三类产物打散）、`kind`、`payload_json`（`HandwritingProposal.toJson()` 文本）、`applied_at?`（NULL = 未确认）、`created_at` / `updated_at` |
+
+`HandwritingProposalRepository`（`app/lib/data/repositories/handwriting_proposal_repository.dart`）：
+
+| 方法 | 口径 |
+|---|---|
+| `saveRun({set, analyzedAt, rawReply})` | 一张照片只有一条 run：删旧行再写新行。**按 `payload_json` 逐字相同的那几条保留 `applied_at`**，其余清成 NULL |
+| `runs()` / `runOf(sourceRef)` | run 行按 `analyzed_at` 倒序；提案行按 `sort_index` 正序；还原走领域层 `fromJson`（JSON 契约只有一份） |
+| `markApplied({sourceRef, proposalId, appliedAt})` | 只更新 `applied_at IS NULL` 的行——用户手滑点第二次不改第一次的时间 |
+| `deleteRun(sourceRef)` / `deleteAll()` | 删提案 + run 行；**照片不动** |
+
+`applied_at` 为什么按"逐字相同"保留：重新整理得到的新提案里，内容逐字没变的那条就是用户
+确认过的同一条（还清掉就变成"没确认过"，再确认一次会写出第二份知识点）；内容变了的则是
+**新版本**，用户没确认过它，确认状态必须清掉。
 
 `handwritingIntakeStoreProvider` 与 `questionIntakeSupportDirectoryProvider` 这一轮从
 `question_intake_providers.dart` 搬到了应用层（整理服务与收题页共用同一个 store），
@@ -78,12 +99,14 @@ presentation 侧用 `export` 保住了原来的 import 路径。
 
 ## 4. 刻意未做 / 已知缺口
 
-- **提案只存在内存里**（`handwritingQueueProvider`）。重启会丢掉一次整理结果；照片还在磁盘上，
-  重新 `analyze` 即可。要持久化"待确认"本身得加 schema v13 的表——本轮不做，
-  因为"确认前不写库"是这一片的用户口径，而待确认清单本身就是一种写库。
+- ~~**提案只存在内存里**~~ → 已补（schema v13，见上表）：提案与"已确认到哪一条"落在
+  `handwriting_intake_runs` + `handwriting_proposals` 两张表里，重启后 `refresh()` 恢复。
+  界线仍然清楚：**这三张表只存提案与确认状态，标签 / 知识点 / 闪存卡仍然只在用户点确认
+  之后才写**——"确认前不写库"说的是学习数据，不是"待确认清单"。
 - **一次只整理一张照片**：提示词只带一张图；多页连拍 / 一次多图未做。
 - **图片格式靠扩展名**（`HandwritingIntakeStore.mimeForName`）：认不出直接报"认不出…"。
-- **UI 未做**：队列页 + 入口 + ARB + widget 测试是独立切片（见 `docs/QUESTION_BANK_DESIGN.md` §9 的 Q15）。
+- **UI 已交付**（Q15，`63e04f0`）：`app/lib/features/questions/presentation/question_intake_page.dart` +
+  `handwriting_queue_page.dart`；`refresh()` 现在还会从库里把整理结果读回来。
 - **OCR 质量取决于模型**：解析严格意味着模型跑偏时用户看到的是"回复不符合契约"+原文，
   而不是一份残缺提案——这是有意的。
 

@@ -61,6 +61,9 @@ part 'database.g.dart';
     QuestionOptions,
     ReasoningChains,
     ReasoningSteps,
+    // v13 (handwriting intake proposals, docs/HANDWRITING_INTAKE_DESIGN.md §4)
+    HandwritingIntakeRuns,
+    HandwritingProposals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -75,11 +78,13 @@ class AppDatabase extends _$AppDatabase {
   /// the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5); v11 adds the
   /// pre-review prediction column on `review_logs` (M6 calibration); v12 adds
   /// the question bank and the reasoning-chain tables
-  /// (`docs/QUESTION_BANK_DESIGN.md` §1/§3). See [_upgradeV6ToV7] /
+  /// (`docs/QUESTION_BANK_DESIGN.md` §1/§3); v13 adds the two handwriting-intake
+  /// tables that keep "整理过但还没确认" alive across a restart
+  /// (`docs/HANDWRITING_INTAKE_DESIGN.md` §4). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
-  /// [_upgradeV10ToV11] / [_upgradeV11ToV12].
+  /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13].
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -120,6 +125,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 12) {
           await _upgradeV11ToV12();
+        }
+        if (from < 13) {
+          await _upgradeV12ToV13();
         }
       },
       beforeOpen: (details) async {
@@ -217,6 +225,15 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('reasoning_steps')) {
       await m.createTable(reasoningSteps);
+    }
+    // v13's two tables heal the same way: a file stamped v13 whose tables are
+    // missing (interrupted migration) would fail every 拍照整理 read with
+    // "no such table" - and the queue would look like "我从来没整理过".
+    if (!await _tableExists('handwriting_intake_runs')) {
+      await m.createTable(handwritingIntakeRuns);
+    }
+    if (!await _tableExists('handwriting_proposals')) {
+      await m.createTable(handwritingProposals);
     }
   }
 
@@ -399,6 +416,25 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('reasoning_steps')) {
       await m.createTable(reasoningSteps);
+    }
+  }
+
+  /// v12 -> v13: the handwriting-intake proposal tables
+  /// (`docs/HANDWRITING_INTAKE_DESIGN.md` §4).
+  ///
+  /// Two new tables, nothing touched on existing ones. Proposals used to live in
+  /// memory only: photograph three pages, sort them, restart the app - and the
+  /// twelve proposals were gone while the photos stayed on disk. They are
+  /// pending *user data*, not a cache: whether a row was already applied decides
+  /// whether confirming it again would write a second flashcard. Existence-
+  /// probed so the v12 (createAll) path is a no-op.
+  Future<void> _upgradeV12ToV13() async {
+    final m = Migrator(this);
+    if (!await _tableExists('handwriting_intake_runs')) {
+      await m.createTable(handwritingIntakeRuns);
+    }
+    if (!await _tableExists('handwriting_proposals')) {
+      await m.createTable(handwritingProposals);
     }
   }
 

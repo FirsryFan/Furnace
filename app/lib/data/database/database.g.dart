@@ -18955,6 +18955,789 @@ class ReasoningStepsCompanion extends UpdateCompanion<ReasoningStep> {
   }
 }
 
+class $HandwritingIntakeRunsTable extends HandwritingIntakeRuns
+    with TableInfo<$HandwritingIntakeRunsTable, HandwritingIntakeRun> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HandwritingIntakeRunsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceRefMeta =
+      const VerificationMeta('sourceRef');
+  @override
+  late final GeneratedColumn<String> sourceRef = GeneratedColumn<String>(
+      'source_ref', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _analyzedAtMeta =
+      const VerificationMeta('analyzedAt');
+  @override
+  late final GeneratedColumn<int> analyzedAt = GeneratedColumn<int>(
+      'analyzed_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _rawReplyMeta =
+      const VerificationMeta('rawReply');
+  @override
+  late final GeneratedColumn<String> rawReply = GeneratedColumn<String>(
+      'raw_reply', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [sourceRef, analyzedAt, rawReply, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'handwriting_intake_runs';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<HandwritingIntakeRun> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_ref')) {
+      context.handle(_sourceRefMeta,
+          sourceRef.isAcceptableOrUnknown(data['source_ref']!, _sourceRefMeta));
+    } else if (isInserting) {
+      context.missing(_sourceRefMeta);
+    }
+    if (data.containsKey('analyzed_at')) {
+      context.handle(
+          _analyzedAtMeta,
+          analyzedAt.isAcceptableOrUnknown(
+              data['analyzed_at']!, _analyzedAtMeta));
+    } else if (isInserting) {
+      context.missing(_analyzedAtMeta);
+    }
+    if (data.containsKey('raw_reply')) {
+      context.handle(_rawReplyMeta,
+          rawReply.isAcceptableOrUnknown(data['raw_reply']!, _rawReplyMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceRef};
+  @override
+  HandwritingIntakeRun map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HandwritingIntakeRun(
+      sourceRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_ref'])!,
+      analyzedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}analyzed_at'])!,
+      rawReply: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_reply']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $HandwritingIntakeRunsTable createAlias(String alias) {
+    return $HandwritingIntakeRunsTable(attachedDatabase, alias);
+  }
+}
+
+class HandwritingIntakeRun extends DataClass
+    implements Insertable<HandwritingIntakeRun> {
+  /// 照片的相对路径（`handwriting_intake/<id>/<原文件名>`）。
+  final String sourceRef;
+
+  /// 整理完成的时刻（epoch ms）。
+  final int analyzedAt;
+
+  /// 模型这一轮的原始回复。可空：老行没有，离线失败也没有。
+  ///
+  /// 留着是为了事后能回答"当时模型到底说了什么"——提案是严格解析过的，
+  /// 但被拒收的那一轮回复只有这里才有。
+  final String? rawReply;
+  final int createdAt;
+  const HandwritingIntakeRun(
+      {required this.sourceRef,
+      required this.analyzedAt,
+      this.rawReply,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_ref'] = Variable<String>(sourceRef);
+    map['analyzed_at'] = Variable<int>(analyzedAt);
+    if (!nullToAbsent || rawReply != null) {
+      map['raw_reply'] = Variable<String>(rawReply);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  HandwritingIntakeRunsCompanion toCompanion(bool nullToAbsent) {
+    return HandwritingIntakeRunsCompanion(
+      sourceRef: Value(sourceRef),
+      analyzedAt: Value(analyzedAt),
+      rawReply: rawReply == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rawReply),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory HandwritingIntakeRun.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HandwritingIntakeRun(
+      sourceRef: serializer.fromJson<String>(json['sourceRef']),
+      analyzedAt: serializer.fromJson<int>(json['analyzedAt']),
+      rawReply: serializer.fromJson<String?>(json['rawReply']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceRef': serializer.toJson<String>(sourceRef),
+      'analyzedAt': serializer.toJson<int>(analyzedAt),
+      'rawReply': serializer.toJson<String?>(rawReply),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  HandwritingIntakeRun copyWith(
+          {String? sourceRef,
+          int? analyzedAt,
+          Value<String?> rawReply = const Value.absent(),
+          int? createdAt}) =>
+      HandwritingIntakeRun(
+        sourceRef: sourceRef ?? this.sourceRef,
+        analyzedAt: analyzedAt ?? this.analyzedAt,
+        rawReply: rawReply.present ? rawReply.value : this.rawReply,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  HandwritingIntakeRun copyWithCompanion(HandwritingIntakeRunsCompanion data) {
+    return HandwritingIntakeRun(
+      sourceRef: data.sourceRef.present ? data.sourceRef.value : this.sourceRef,
+      analyzedAt:
+          data.analyzedAt.present ? data.analyzedAt.value : this.analyzedAt,
+      rawReply: data.rawReply.present ? data.rawReply.value : this.rawReply,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HandwritingIntakeRun(')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('analyzedAt: $analyzedAt, ')
+          ..write('rawReply: $rawReply, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceRef, analyzedAt, rawReply, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HandwritingIntakeRun &&
+          other.sourceRef == this.sourceRef &&
+          other.analyzedAt == this.analyzedAt &&
+          other.rawReply == this.rawReply &&
+          other.createdAt == this.createdAt);
+}
+
+class HandwritingIntakeRunsCompanion
+    extends UpdateCompanion<HandwritingIntakeRun> {
+  final Value<String> sourceRef;
+  final Value<int> analyzedAt;
+  final Value<String?> rawReply;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const HandwritingIntakeRunsCompanion({
+    this.sourceRef = const Value.absent(),
+    this.analyzedAt = const Value.absent(),
+    this.rawReply = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HandwritingIntakeRunsCompanion.insert({
+    required String sourceRef,
+    required int analyzedAt,
+    this.rawReply = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : sourceRef = Value(sourceRef),
+        analyzedAt = Value(analyzedAt),
+        createdAt = Value(createdAt);
+  static Insertable<HandwritingIntakeRun> custom({
+    Expression<String>? sourceRef,
+    Expression<int>? analyzedAt,
+    Expression<String>? rawReply,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceRef != null) 'source_ref': sourceRef,
+      if (analyzedAt != null) 'analyzed_at': analyzedAt,
+      if (rawReply != null) 'raw_reply': rawReply,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HandwritingIntakeRunsCompanion copyWith(
+      {Value<String>? sourceRef,
+      Value<int>? analyzedAt,
+      Value<String?>? rawReply,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return HandwritingIntakeRunsCompanion(
+      sourceRef: sourceRef ?? this.sourceRef,
+      analyzedAt: analyzedAt ?? this.analyzedAt,
+      rawReply: rawReply ?? this.rawReply,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceRef.present) {
+      map['source_ref'] = Variable<String>(sourceRef.value);
+    }
+    if (analyzedAt.present) {
+      map['analyzed_at'] = Variable<int>(analyzedAt.value);
+    }
+    if (rawReply.present) {
+      map['raw_reply'] = Variable<String>(rawReply.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HandwritingIntakeRunsCompanion(')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('analyzedAt: $analyzedAt, ')
+          ..write('rawReply: $rawReply, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $HandwritingProposalsTable extends HandwritingProposals
+    with TableInfo<$HandwritingProposalsTable, HandwritingProposalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HandwritingProposalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceRefMeta =
+      const VerificationMeta('sourceRef');
+  @override
+  late final GeneratedColumn<String> sourceRef = GeneratedColumn<String>(
+      'source_ref', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _proposalIdMeta =
+      const VerificationMeta('proposalId');
+  @override
+  late final GeneratedColumn<String> proposalId = GeneratedColumn<String>(
+      'proposal_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortIndexMeta =
+      const VerificationMeta('sortIndex');
+  @override
+  late final GeneratedColumn<int> sortIndex = GeneratedColumn<int>(
+      'sort_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _appliedAtMeta =
+      const VerificationMeta('appliedAt');
+  @override
+  late final GeneratedColumn<int> appliedAt = GeneratedColumn<int>(
+      'applied_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        sourceRef,
+        proposalId,
+        sortIndex,
+        kind,
+        payloadJson,
+        appliedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'handwriting_proposals';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<HandwritingProposalRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('source_ref')) {
+      context.handle(_sourceRefMeta,
+          sourceRef.isAcceptableOrUnknown(data['source_ref']!, _sourceRefMeta));
+    } else if (isInserting) {
+      context.missing(_sourceRefMeta);
+    }
+    if (data.containsKey('proposal_id')) {
+      context.handle(
+          _proposalIdMeta,
+          proposalId.isAcceptableOrUnknown(
+              data['proposal_id']!, _proposalIdMeta));
+    } else if (isInserting) {
+      context.missing(_proposalIdMeta);
+    }
+    if (data.containsKey('sort_index')) {
+      context.handle(_sortIndexMeta,
+          sortIndex.isAcceptableOrUnknown(data['sort_index']!, _sortIndexMeta));
+    } else if (isInserting) {
+      context.missing(_sortIndexMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(_appliedAtMeta,
+          appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  HandwritingProposalRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return HandwritingProposalRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      sourceRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_ref'])!,
+      proposalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}proposal_id'])!,
+      sortIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_index'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
+      appliedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}applied_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $HandwritingProposalsTable createAlias(String alias) {
+    return $HandwritingProposalsTable(attachedDatabase, alias);
+  }
+}
+
+class HandwritingProposalRow extends DataClass
+    implements Insertable<HandwritingProposalRow> {
+  /// `<sourceRef>#<proposalId>`：同一张照片重新整理时按来源整批替换，
+  /// 不同照片的同名提案（都叫 `tag-0`）不会互相覆盖。
+  final String id;
+
+  /// 来源照片的相对路径，与 [HandwritingIntakeRuns] 的 `source_ref` 对应。
+  final String sourceRef;
+
+  /// 领域层的提案 id（`tag-0` / `knowledge_point-1` / …），由 kind + 序号决定。
+  final String proposalId;
+
+  /// 提案在那次整理结果里的次序。
+  ///
+  /// 不按 id 排序：id 以 kind 开头，字典序会把三类产物打散（flashcard 排到
+  /// tag 前面），用户看到的顺序就和他确认时的不一样了。
+  final int sortIndex;
+
+  /// `tag` / `knowledge_point` / `flashcard`。与 payload 冗余，便于按类统计与排查。
+  final String kind;
+
+  /// 提案本体（`HandwritingProposal.toJson()`）。契约只留一份：还原走领域层
+  /// `HandwritingProposal.fromJson`，这里不另写一套反序列化。
+  final String payloadJson;
+
+  /// 用户确认写库的时刻（epoch ms）。NULL = 还没确认。
+  final int? appliedAt;
+  final int createdAt;
+  final int updatedAt;
+  const HandwritingProposalRow(
+      {required this.id,
+      required this.sourceRef,
+      required this.proposalId,
+      required this.sortIndex,
+      required this.kind,
+      required this.payloadJson,
+      this.appliedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['source_ref'] = Variable<String>(sourceRef);
+    map['proposal_id'] = Variable<String>(proposalId);
+    map['sort_index'] = Variable<int>(sortIndex);
+    map['kind'] = Variable<String>(kind);
+    map['payload_json'] = Variable<String>(payloadJson);
+    if (!nullToAbsent || appliedAt != null) {
+      map['applied_at'] = Variable<int>(appliedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  HandwritingProposalsCompanion toCompanion(bool nullToAbsent) {
+    return HandwritingProposalsCompanion(
+      id: Value(id),
+      sourceRef: Value(sourceRef),
+      proposalId: Value(proposalId),
+      sortIndex: Value(sortIndex),
+      kind: Value(kind),
+      payloadJson: Value(payloadJson),
+      appliedAt: appliedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory HandwritingProposalRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return HandwritingProposalRow(
+      id: serializer.fromJson<String>(json['id']),
+      sourceRef: serializer.fromJson<String>(json['sourceRef']),
+      proposalId: serializer.fromJson<String>(json['proposalId']),
+      sortIndex: serializer.fromJson<int>(json['sortIndex']),
+      kind: serializer.fromJson<String>(json['kind']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      appliedAt: serializer.fromJson<int?>(json['appliedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sourceRef': serializer.toJson<String>(sourceRef),
+      'proposalId': serializer.toJson<String>(proposalId),
+      'sortIndex': serializer.toJson<int>(sortIndex),
+      'kind': serializer.toJson<String>(kind),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'appliedAt': serializer.toJson<int?>(appliedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  HandwritingProposalRow copyWith(
+          {String? id,
+          String? sourceRef,
+          String? proposalId,
+          int? sortIndex,
+          String? kind,
+          String? payloadJson,
+          Value<int?> appliedAt = const Value.absent(),
+          int? createdAt,
+          int? updatedAt}) =>
+      HandwritingProposalRow(
+        id: id ?? this.id,
+        sourceRef: sourceRef ?? this.sourceRef,
+        proposalId: proposalId ?? this.proposalId,
+        sortIndex: sortIndex ?? this.sortIndex,
+        kind: kind ?? this.kind,
+        payloadJson: payloadJson ?? this.payloadJson,
+        appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  HandwritingProposalRow copyWithCompanion(HandwritingProposalsCompanion data) {
+    return HandwritingProposalRow(
+      id: data.id.present ? data.id.value : this.id,
+      sourceRef: data.sourceRef.present ? data.sourceRef.value : this.sourceRef,
+      proposalId:
+          data.proposalId.present ? data.proposalId.value : this.proposalId,
+      sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HandwritingProposalRow(')
+          ..write('id: $id, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sourceRef, proposalId, sortIndex, kind,
+      payloadJson, appliedAt, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is HandwritingProposalRow &&
+          other.id == this.id &&
+          other.sourceRef == this.sourceRef &&
+          other.proposalId == this.proposalId &&
+          other.sortIndex == this.sortIndex &&
+          other.kind == this.kind &&
+          other.payloadJson == this.payloadJson &&
+          other.appliedAt == this.appliedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class HandwritingProposalsCompanion
+    extends UpdateCompanion<HandwritingProposalRow> {
+  final Value<String> id;
+  final Value<String> sourceRef;
+  final Value<String> proposalId;
+  final Value<int> sortIndex;
+  final Value<String> kind;
+  final Value<String> payloadJson;
+  final Value<int?> appliedAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const HandwritingProposalsCompanion({
+    this.id = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.proposalId = const Value.absent(),
+    this.sortIndex = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HandwritingProposalsCompanion.insert({
+    required String id,
+    required String sourceRef,
+    required String proposalId,
+    required int sortIndex,
+    required String kind,
+    required String payloadJson,
+    this.appliedAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        sourceRef = Value(sourceRef),
+        proposalId = Value(proposalId),
+        sortIndex = Value(sortIndex),
+        kind = Value(kind),
+        payloadJson = Value(payloadJson),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<HandwritingProposalRow> custom({
+    Expression<String>? id,
+    Expression<String>? sourceRef,
+    Expression<String>? proposalId,
+    Expression<int>? sortIndex,
+    Expression<String>? kind,
+    Expression<String>? payloadJson,
+    Expression<int>? appliedAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceRef != null) 'source_ref': sourceRef,
+      if (proposalId != null) 'proposal_id': proposalId,
+      if (sortIndex != null) 'sort_index': sortIndex,
+      if (kind != null) 'kind': kind,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (appliedAt != null) 'applied_at': appliedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HandwritingProposalsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? sourceRef,
+      Value<String>? proposalId,
+      Value<int>? sortIndex,
+      Value<String>? kind,
+      Value<String>? payloadJson,
+      Value<int?>? appliedAt,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return HandwritingProposalsCompanion(
+      id: id ?? this.id,
+      sourceRef: sourceRef ?? this.sourceRef,
+      proposalId: proposalId ?? this.proposalId,
+      sortIndex: sortIndex ?? this.sortIndex,
+      kind: kind ?? this.kind,
+      payloadJson: payloadJson ?? this.payloadJson,
+      appliedAt: appliedAt ?? this.appliedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sourceRef.present) {
+      map['source_ref'] = Variable<String>(sourceRef.value);
+    }
+    if (proposalId.present) {
+      map['proposal_id'] = Variable<String>(proposalId.value);
+    }
+    if (sortIndex.present) {
+      map['sort_index'] = Variable<int>(sortIndex.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<int>(appliedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HandwritingProposalsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -19009,6 +19792,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReasoningChainsTable reasoningChains =
       $ReasoningChainsTable(this);
   late final $ReasoningStepsTable reasoningSteps = $ReasoningStepsTable(this);
+  late final $HandwritingIntakeRunsTable handwritingIntakeRuns =
+      $HandwritingIntakeRunsTable(this);
+  late final $HandwritingProposalsTable handwritingProposals =
+      $HandwritingProposalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -19052,7 +19839,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         questions,
         questionOptions,
         reasoningChains,
-        reasoningSteps
+        reasoningSteps,
+        handwritingIntakeRuns,
+        handwritingProposals
       ];
 }
 
@@ -28104,6 +28893,410 @@ typedef $$ReasoningStepsTableProcessedTableManager = ProcessedTableManager<
     ),
     ReasoningStep,
     PrefetchHooks Function()>;
+typedef $$HandwritingIntakeRunsTableCreateCompanionBuilder
+    = HandwritingIntakeRunsCompanion Function({
+  required String sourceRef,
+  required int analyzedAt,
+  Value<String?> rawReply,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$HandwritingIntakeRunsTableUpdateCompanionBuilder
+    = HandwritingIntakeRunsCompanion Function({
+  Value<String> sourceRef,
+  Value<int> analyzedAt,
+  Value<String?> rawReply,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$HandwritingIntakeRunsTableFilterComposer
+    extends Composer<_$AppDatabase, $HandwritingIntakeRunsTable> {
+  $$HandwritingIntakeRunsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rawReply => $composableBuilder(
+      column: $table.rawReply, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$HandwritingIntakeRunsTableOrderingComposer
+    extends Composer<_$AppDatabase, $HandwritingIntakeRunsTable> {
+  $$HandwritingIntakeRunsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rawReply => $composableBuilder(
+      column: $table.rawReply, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$HandwritingIntakeRunsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HandwritingIntakeRunsTable> {
+  $$HandwritingIntakeRunsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceRef =>
+      $composableBuilder(column: $table.sourceRef, builder: (column) => column);
+
+  GeneratedColumn<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get rawReply =>
+      $composableBuilder(column: $table.rawReply, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $HandwritingIntakeRunsTable,
+    HandwritingIntakeRun,
+    $$HandwritingIntakeRunsTableFilterComposer,
+    $$HandwritingIntakeRunsTableOrderingComposer,
+    $$HandwritingIntakeRunsTableAnnotationComposer,
+    $$HandwritingIntakeRunsTableCreateCompanionBuilder,
+    $$HandwritingIntakeRunsTableUpdateCompanionBuilder,
+    (
+      HandwritingIntakeRun,
+      BaseReferences<_$AppDatabase, $HandwritingIntakeRunsTable,
+          HandwritingIntakeRun>
+    ),
+    HandwritingIntakeRun,
+    PrefetchHooks Function()> {
+  $$HandwritingIntakeRunsTableTableManager(
+      _$AppDatabase db, $HandwritingIntakeRunsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HandwritingIntakeRunsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HandwritingIntakeRunsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HandwritingIntakeRunsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> sourceRef = const Value.absent(),
+            Value<int> analyzedAt = const Value.absent(),
+            Value<String?> rawReply = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              HandwritingIntakeRunsCompanion(
+            sourceRef: sourceRef,
+            analyzedAt: analyzedAt,
+            rawReply: rawReply,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String sourceRef,
+            required int analyzedAt,
+            Value<String?> rawReply = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              HandwritingIntakeRunsCompanion.insert(
+            sourceRef: sourceRef,
+            analyzedAt: analyzedAt,
+            rawReply: rawReply,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$HandwritingIntakeRunsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $HandwritingIntakeRunsTable,
+        HandwritingIntakeRun,
+        $$HandwritingIntakeRunsTableFilterComposer,
+        $$HandwritingIntakeRunsTableOrderingComposer,
+        $$HandwritingIntakeRunsTableAnnotationComposer,
+        $$HandwritingIntakeRunsTableCreateCompanionBuilder,
+        $$HandwritingIntakeRunsTableUpdateCompanionBuilder,
+        (
+          HandwritingIntakeRun,
+          BaseReferences<_$AppDatabase, $HandwritingIntakeRunsTable,
+              HandwritingIntakeRun>
+        ),
+        HandwritingIntakeRun,
+        PrefetchHooks Function()>;
+typedef $$HandwritingProposalsTableCreateCompanionBuilder
+    = HandwritingProposalsCompanion Function({
+  required String id,
+  required String sourceRef,
+  required String proposalId,
+  required int sortIndex,
+  required String kind,
+  required String payloadJson,
+  Value<int?> appliedAt,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$HandwritingProposalsTableUpdateCompanionBuilder
+    = HandwritingProposalsCompanion Function({
+  Value<String> id,
+  Value<String> sourceRef,
+  Value<String> proposalId,
+  Value<int> sortIndex,
+  Value<String> kind,
+  Value<String> payloadJson,
+  Value<int?> appliedAt,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$HandwritingProposalsTableFilterComposer
+    extends Composer<_$AppDatabase, $HandwritingProposalsTable> {
+  $$HandwritingProposalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortIndex => $composableBuilder(
+      column: $table.sortIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get appliedAt => $composableBuilder(
+      column: $table.appliedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$HandwritingProposalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $HandwritingProposalsTable> {
+  $$HandwritingProposalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortIndex => $composableBuilder(
+      column: $table.sortIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get appliedAt => $composableBuilder(
+      column: $table.appliedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$HandwritingProposalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HandwritingProposalsTable> {
+  $$HandwritingProposalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceRef =>
+      $composableBuilder(column: $table.sourceRef, builder: (column) => column);
+
+  GeneratedColumn<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => column);
+
+  GeneratedColumn<int> get sortIndex =>
+      $composableBuilder(column: $table.sortIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<int> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$HandwritingProposalsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $HandwritingProposalsTable,
+    HandwritingProposalRow,
+    $$HandwritingProposalsTableFilterComposer,
+    $$HandwritingProposalsTableOrderingComposer,
+    $$HandwritingProposalsTableAnnotationComposer,
+    $$HandwritingProposalsTableCreateCompanionBuilder,
+    $$HandwritingProposalsTableUpdateCompanionBuilder,
+    (
+      HandwritingProposalRow,
+      BaseReferences<_$AppDatabase, $HandwritingProposalsTable,
+          HandwritingProposalRow>
+    ),
+    HandwritingProposalRow,
+    PrefetchHooks Function()> {
+  $$HandwritingProposalsTableTableManager(
+      _$AppDatabase db, $HandwritingProposalsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HandwritingProposalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HandwritingProposalsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HandwritingProposalsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> sourceRef = const Value.absent(),
+            Value<String> proposalId = const Value.absent(),
+            Value<int> sortIndex = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> payloadJson = const Value.absent(),
+            Value<int?> appliedAt = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              HandwritingProposalsCompanion(
+            id: id,
+            sourceRef: sourceRef,
+            proposalId: proposalId,
+            sortIndex: sortIndex,
+            kind: kind,
+            payloadJson: payloadJson,
+            appliedAt: appliedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String sourceRef,
+            required String proposalId,
+            required int sortIndex,
+            required String kind,
+            required String payloadJson,
+            Value<int?> appliedAt = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              HandwritingProposalsCompanion.insert(
+            id: id,
+            sourceRef: sourceRef,
+            proposalId: proposalId,
+            sortIndex: sortIndex,
+            kind: kind,
+            payloadJson: payloadJson,
+            appliedAt: appliedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$HandwritingProposalsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $HandwritingProposalsTable,
+        HandwritingProposalRow,
+        $$HandwritingProposalsTableFilterComposer,
+        $$HandwritingProposalsTableOrderingComposer,
+        $$HandwritingProposalsTableAnnotationComposer,
+        $$HandwritingProposalsTableCreateCompanionBuilder,
+        $$HandwritingProposalsTableUpdateCompanionBuilder,
+        (
+          HandwritingProposalRow,
+          BaseReferences<_$AppDatabase, $HandwritingProposalsTable,
+              HandwritingProposalRow>
+        ),
+        HandwritingProposalRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -28185,4 +29378,8 @@ class $AppDatabaseManager {
       $$ReasoningChainsTableTableManager(_db, _db.reasoningChains);
   $$ReasoningStepsTableTableManager get reasoningSteps =>
       $$ReasoningStepsTableTableManager(_db, _db.reasoningSteps);
+  $$HandwritingIntakeRunsTableTableManager get handwritingIntakeRuns =>
+      $$HandwritingIntakeRunsTableTableManager(_db, _db.handwritingIntakeRuns);
+  $$HandwritingProposalsTableTableManager get handwritingProposals =>
+      $$HandwritingProposalsTableTableManager(_db, _db.handwritingProposals);
 }

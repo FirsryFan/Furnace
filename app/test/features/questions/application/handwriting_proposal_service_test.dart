@@ -374,10 +374,145 @@ void main() {
       expect(state.failures[relPath], contains('网络断了'));
       expect(state.analyzing, isEmpty);
 
-      notifier.forget(relPath);
+      await notifier.forget(relPath);
       state = container.read(handwritingQueueProvider);
       expect(state.failures, isEmpty);
       expect(state.lastReport, isNull);
+    });
+
+    test('重启后队列还在：提案与「已确认到哪一条」都从库恢复', () async {
+      final relPath = await seedPhoto();
+      await seedTagPath('文化课/物理/力学');
+
+      final before = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final first = before.read(handwritingQueueProvider.notifier);
+      await first.refresh();
+      await first.analyze(relPath);
+      await first.applyProposal(relPath, 'tag-0');
+      expect(
+        before.read(handwritingQueueProvider).isApplied(relPath, 'tag-0'),
+        isTrue,
+      );
+
+      // 重启：新容器、同一个库与磁盘目录。
+      final after = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final second = after.read(handwritingQueueProvider.notifier);
+      await second.refresh();
+
+      var state = after.read(handwritingQueueProvider);
+      expect(state.sets[relPath]!.proposals, hasLength(1));
+      expect(state.sets[relPath]!.proposals.single.titleZh, '动量守恒');
+      expect(state.isApplied(relPath, 'tag-0'), isTrue);
+
+      // 不重启也不会重复写第二份。
+      expect(await second.applyProposal(relPath, 'tag-0'), isNull);
+      expect(await tags.getAllTags(), hasLength(4));
+    });
+
+    test('重新整理：内容逐字没变的保留确认状态，内容变了的清掉', () async {
+      final relPath = await seedPhoto();
+      await seedTagPath('文化课/物理/力学');
+
+      final first = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final notifier = first.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+      await notifier.analyze(relPath);
+      await notifier.applyProposal(relPath, 'tag-0');
+
+      // 同一条提案重新整理（同样的 id、同样的字段）→ 仍视为已确认。
+      final same = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final sameNotifier = same.read(handwritingQueueProvider.notifier);
+      await sameNotifier.refresh();
+      await sameNotifier.analyze(relPath);
+      expect(
+        same.read(handwritingQueueProvider).isApplied(relPath, 'tag-0'),
+        isTrue,
+      );
+
+      // 字段变了（换了父路径）→ 用户没确认过这个版本，确认状态清掉。
+      const changed = '{"kind": "tag", "title": "动量守恒", '
+          '"fields": {"parent_path": "文化课/物理/力学/动量子项"}}';
+      final edited = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+          FakeModelAdapter.answer(reply(<String>[changed])),
+        ]),
+      );
+      final editedNotifier = edited.read(handwritingQueueProvider.notifier);
+      await editedNotifier.refresh();
+      await editedNotifier.analyze(relPath);
+      await editedNotifier.applyProposal(relPath, 'tag-0');
+      expect(
+        edited.read(handwritingQueueProvider).isApplied(relPath, 'tag-0'),
+        isTrue,
+      );
+      await editedNotifier.analyze(relPath);
+      expect(
+        edited.read(handwritingQueueProvider).isApplied(relPath, 'tag-0'),
+        isFalse,
+      );
+    });
+
+    test('forget 之后重启不会复活；照片本身留在磁盘上', () async {
+      final relPath = await seedPhoto();
+      final container = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+      await notifier.analyze(relPath);
+      expect(container.read(handwritingQueueProvider).sets, isNotEmpty);
+
+      await notifier.forget(relPath);
+
+      final restarted = containerWith(null);
+      await restarted.read(handwritingQueueProvider.notifier).refresh();
+      final state = restarted.read(handwritingQueueProvider);
+      expect(state.sets, isEmpty);
+      expect(state.images.map((image) => image.relPath), contains(relPath));
+    });
+
+    test('照片已经不在磁盘上：refresh 顺手清掉它的整理记录', () async {
+      final relPath = await seedPhoto();
+      final container = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+      await notifier.analyze(relPath);
+
+      // 用户在别处把照片删了（这里直接把文件与 attachments 行一起删）。
+      final image = (await store.pending()).single;
+      await store.delete(image);
+
+      final restarted = containerWith(null);
+      await restarted.read(handwritingQueueProvider.notifier).refresh();
+      expect(restarted.read(handwritingQueueProvider).sets, isEmpty);
+
+      // 库里的行也清掉了：换一个容器再看，还是没有。
+      final again = containerWith(null);
+      await again.read(handwritingQueueProvider.notifier).refresh();
+      expect(again.read(handwritingQueueProvider).sets, isEmpty);
     });
   });
 }

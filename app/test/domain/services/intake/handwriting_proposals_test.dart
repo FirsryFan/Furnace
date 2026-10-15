@@ -238,4 +238,184 @@ void main() {
       });
     });
   });
+
+  group('从库里读回（fromJson）', () {
+    HandwritingProposalSet sampleSet() => const HandwritingProposalSet(
+          sourceRef: 'handwriting_intake/hw-1',
+          proposals: <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'tag-0',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '动量守恒',
+              rationaleZh: '照片里反复出现',
+              confidence: 0.8,
+              fields: <String, String>{
+                'parent_path': '文化课/物理/力学',
+                'description': '定义',
+              },
+              sourceRef: 'handwriting_intake/hw-1',
+            ),
+            HandwritingProposal(
+              id: 'knowledge_point-1',
+              kind: HandwritingProposalKind.knowledgePoint,
+              titleZh: '动量守恒的条件',
+              fields: <String, String>{
+                'content': '合外力为零',
+                'tag_path': '文化课/物理/力学/动量守恒',
+              },
+              sourceRef: 'handwriting_intake/hw-1',
+            ),
+            HandwritingProposal(
+              id: 'flashcard-2',
+              kind: HandwritingProposalKind.flashcard,
+              titleZh: '动量守恒',
+              confidence: 0.9,
+              fields: <String, String>{'content': '正文'},
+              cards: <HandwritingCardDraft>[
+                HandwritingCardDraft(
+                  question: '条件是什么？',
+                  answer: '合外力为零。',
+                  type: 'fill_blank',
+                ),
+                HandwritingCardDraft(question: 'Q2', answer: 'A2'),
+              ],
+              sourceRef: 'handwriting_intake/hw-1',
+            ),
+          ],
+        );
+
+    test('toJson → fromJson 往返一字不差（三类产物、字段、卡片都在）', () {
+      final original = sampleSet();
+      final restored = HandwritingProposalSet.fromJson(original.toJson());
+
+      expect(restored.sourceRef, original.sourceRef);
+      expect(
+        restored.proposals.map((proposal) => proposal.id),
+        original.proposals.map((proposal) => proposal.id),
+      );
+      expect(
+        restored.proposals.map((proposal) => proposal.kind),
+        original.proposals.map((proposal) => proposal.kind),
+      );
+      expect(restored.toJson(), original.toJson());
+
+      final card = restored.proposals[2];
+      expect(card.cards, hasLength(2));
+      expect(card.cards.first.type, 'fill_blank');
+      expect(card.cards[1].type, 'essay');
+      expect(card.confidence, 0.9);
+      expect(restored.countOf(HandwritingProposalKind.tag), 1);
+    });
+
+    test('库里的坏行要报错，不静默跳过（kind / id / fields / cards）', () {
+      void expectThrows(Map<String, Object?> json, Object messagePart) {
+        expect(
+          () => HandwritingProposalSet.fromJson(json),
+          throwsA(
+            isA<HandwritingProposalParseException>().having(
+              (error) => error.message,
+              'message',
+              contains(messagePart.toString()),
+            ),
+          ),
+        );
+      }
+
+      expectThrows(<String, Object?>{'proposals': 1}, 'proposals');
+      expectThrows(
+        <String, Object?>{
+          'proposals': <Object?>[
+            <String, Object?>{'kind': 'tag', 'title': 'T'},
+          ],
+        },
+        '缺少 id',
+      );
+      expectThrows(
+        <String, Object?>{
+          'proposals': <Object?>[
+            <String, Object?>{'id': 'tag-0', 'kind': 'question', 'title': 'T'},
+          ],
+        },
+        'tag / knowledge_point / flashcard',
+      );
+      expectThrows(
+        <String, Object?>{
+          'proposals': <Object?>[
+            <String, Object?>{
+              'id': 'kp-0',
+              'kind': 'knowledge_point',
+              'title': 'T'
+            },
+          ],
+        },
+        'fields.content',
+      );
+      expectThrows(
+        <String, Object?>{
+          'proposals': <Object?>[
+            <String, Object?>{
+              'id': 'fc-0',
+              'kind': 'flashcard',
+              'title': 'T',
+              'fields': <String, Object?>{'content': 'C'},
+            },
+          ],
+        },
+        '复习队列',
+      );
+      expectThrows(
+        <String, Object?>{
+          'proposals': <Object?>[
+            <String, Object?>{
+              'id': 'tag-0',
+              'kind': 'tag',
+              'title': 'T',
+              'confidence': '高',
+            },
+          ],
+        },
+        'confidence',
+      );
+    });
+
+    test('卡片缺 answer / 题型不在册 → 报错；题型缺省是 essay', () {
+      expect(
+        () => HandwritingCardDraft.fromJson(<String, Object?>{
+          'question': 'Q',
+        }),
+        throwsA(isA<HandwritingProposalParseException>()),
+      );
+      expect(
+        () => HandwritingCardDraft.fromJson(<String, Object?>{
+          'question': 'Q',
+          'answer': 'A',
+          'type': 'true_false',
+        }),
+        throwsA(
+          isA<HandwritingProposalParseException>().having(
+            (error) => error.message,
+            'message',
+            contains('fill_blank / mcq / essay'),
+          ),
+        ),
+      );
+      expect(
+        HandwritingCardDraft.fromJson(<String, Object?>{
+          'question': 'Q',
+          'answer': 'A',
+        }).type,
+        'essay',
+      );
+    });
+
+    test('空提案集合往返仍然合法（照片里没有可整理的东西）', () {
+      const empty = HandwritingProposalSet(
+        sourceRef: 'handwriting_intake/hw-9',
+        proposals: <HandwritingProposal>[],
+      );
+      final restored = HandwritingProposalSet.fromJson(empty.toJson());
+      expect(restored.isEmpty, isTrue);
+      expect(restored.sourceRef, 'handwriting_intake/hw-9');
+    });
+  });
 }
