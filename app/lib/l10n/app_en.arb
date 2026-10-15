@@ -1202,5 +1202,53 @@
   },
   "questionSimilarEmpty": "No similar questions in the bank yet.",
   "questionSimilarGoIntake": "Add questions",
-  "questionSimilarCrossSubject": "Cross-subject transfer"
+  "questionSimilarCrossSubject": "Cross-subject transfer",
+  "handwritingQueueTitle": "Handwriting intake",
+  "handwritingQueueEntryHint": "Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written",
+  "handwritingQueueSubtitle": "The model only organises what is on the page; every item is written only after you confirm it.",
+  "handwritingQueueEmpty": "No photos yet. Take one on the intake page, then come back here.",
+  "handwritingQueueGoIntake": "Open intake page",
+  "handwritingQueuePhotosLabel": "Photos to organise",
+  "handwritingQueueOrganizeAction": "Organise this",
+  "handwritingQueueAnalyze": "Organise this photo",
+  "handwritingQueueAnalyzing": "Reading the photo...",
+  "handwritingQueueNotAnalyzed": "This photo has not been organised yet.",
+  "handwritingQueueNothingFound": "The model proposed nothing to organise: this page may have no tags, knowledge points or cards.",
+  "handwritingQueueFailureTitle": "This run failed",
+  "handwritingQueueForget": "Discard result",
+  "handwritingQueueProposalsLabel": "Proposals to confirm",
+  "handwritingQueueApplyAll": "Confirm all",
+  "handwritingQueueApplying": "Writing...",
+  "handwritingQueueReportSummary": "This confirmation: {applied} succeeded, {failed} failed",
+  "@handwritingQueueReportSummary": {
+    "placeholders": {
+      "applied": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingProposalApply": "Confirm",
+  "handwritingProposalApplied": "Confirmed",
+  "handwritingProposalConfidence": "Model confidence: {band}",
+  "@handwritingProposalConfidence": {
+    "placeholders": {
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingProposalConfidenceHigh": "fairly sure",
+  "handwritingProposalConfidenceMedium": "unsure",
+  "handwritingProposalConfidenceLow": "not sure",
+  "handwritingProposalCardCount": "{count} card(s)",
+  "@handwritingProposalCardCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

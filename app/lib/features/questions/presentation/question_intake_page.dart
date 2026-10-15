@@ -31,6 +31,7 @@ import '../../../l10n/app_localizations.dart';
 import '../data/handwriting_intake_store.dart';
 import 'question_detail_page.dart';
 import 'question_intake_providers.dart';
+import 'handwriting_queue_page.dart';
 import 'question_paper_page.dart';
 import 'question_vocab_labels.dart';
 
@@ -252,6 +253,18 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     );
   }
 
+  /// 打开拍照整理队列页，并直接选中这张照片。
+  ///
+  /// 只传 `relPath`：队列页自己读磁盘和数据库，这里给的是"用户点的是哪张"。
+  void _openQueue(PendingHandwritingImage image) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            HandwritingQueuePage(initialRelPath: image.relPath),
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(Question question) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -342,6 +355,7 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
             picking: _picking,
             onPick: _pickImages,
             onRemove: _removePhoto,
+            onOrganize: _openQueue,
           ),
           const SizedBox(height: 12),
           _IntakeLibrarySection(
@@ -547,8 +561,8 @@ class _IntakeFormCard extends StatelessWidget {
                         child: TextField(
                           controller: options[i].controller,
                           decoration: InputDecoration(
-                            labelText:
-                                l10n.questionIntakeOptionLabel(options[i].label),
+                            labelText: l10n
+                                .questionIntakeOptionLabel(options[i].label),
                             hintText: l10n.questionIntakeOptionContentHint,
                             isDense: true,
                             border: const OutlineInputBorder(),
@@ -610,7 +624,8 @@ class _IntakeFormCard extends StatelessWidget {
                   'personal',
                   'unknown',
                 ])
-                  DropdownMenuItem(value: level, child: Text(sourceLevelLabel(l10n, level))),
+                  DropdownMenuItem(
+                      value: level, child: Text(sourceLevelLabel(l10n, level))),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -691,11 +706,15 @@ class _HandwritingCard extends ConsumerWidget {
     required this.picking,
     required this.onPick,
     required this.onRemove,
+    required this.onOrganize,
   });
 
   final bool picking;
   final Future<void> Function() onPick;
   final Future<void> Function(PendingHandwritingImage image) onRemove;
+
+  /// 去拍照整理队列页整理这张照片（`docs/QUESTION_BANK_DESIGN.md` §7.4）。
+  final ValueChanged<PendingHandwritingImage> onOrganize;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -724,7 +743,9 @@ class _HandwritingCard extends ConsumerWidget {
                         )
                       : const Icon(Icons.photo_camera_outlined),
                   label: Text(
-                    picking ? l10n.questionIntakePicking : l10n.questionIntakePickImages,
+                    picking
+                        ? l10n.questionIntakePicking
+                        : l10n.questionIntakePickImages,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -761,10 +782,20 @@ class _HandwritingCard extends ConsumerWidget {
                                 image.extension,
                               ),
                             ),
-                            trailing: IconButton(
-                              tooltip: l10n.questionIntakeRemovePhoto,
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => onRemove(image),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: l10n.handwritingQueueOrganizeAction,
+                                  icon: const Icon(Icons.auto_fix_high),
+                                  onPressed: () => onOrganize(image),
+                                ),
+                                IconButton(
+                                  tooltip: l10n.questionIntakeRemovePhoto,
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => onRemove(image),
+                                ),
+                              ],
                             ),
                           ),
                       ],
@@ -890,7 +921,8 @@ class _IntakeLibrarySection extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          l10n.questionIntakeListLimitNote(questionLibraryLimit),
+                          l10n.questionIntakeListLimitNote(
+                              questionLibraryLimit),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         for (final entry in entries)
@@ -952,4 +984,3 @@ void _applyFilter(
 ) {
   ref.read(questionLibraryFilterProvider.notifier).state = filter;
 }
-

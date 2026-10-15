@@ -1091,5 +1091,53 @@
   },
   "questionSimilarEmpty": "库里还没有相似的题。",
   "questionSimilarGoIntake": "去收题",
-  "questionSimilarCrossSubject": "跨学科迁移"
+  "questionSimilarCrossSubject": "跨学科迁移",
+  "handwritingQueueTitle": "拍照整理",
+  "handwritingQueueEntryHint": "把拍好的照片整理成标签、知识点和闪存卡，逐条确认才写库",
+  "handwritingQueueSubtitle": "AI 只整理、不出题：每一条都要你点确认才会写进库里。",
+  "handwritingQueueEmpty": "还没有拍照或选图。先去收题页拍一张，再回来整理。",
+  "handwritingQueueGoIntake": "去收题页",
+  "handwritingQueuePhotosLabel": "待整理照片",
+  "handwritingQueueOrganizeAction": "整理这张",
+  "handwritingQueueAnalyze": "整理这张照片",
+  "handwritingQueueAnalyzing": "正在看照片…",
+  "handwritingQueueNotAnalyzed": "这张照片还没整理过。",
+  "handwritingQueueNothingFound": "模型没给出可整理的产物：这张照片里可能没有标签、知识点或卡片。",
+  "handwritingQueueFailureTitle": "这次整理失败了",
+  "handwritingQueueForget": "丢弃整理结果",
+  "handwritingQueueProposalsLabel": "待确认的产物",
+  "handwritingQueueApplyAll": "全部确认",
+  "handwritingQueueApplying": "正在写库…",
+  "handwritingQueueReportSummary": "本次确认：成功 {applied} 条，失败 {failed} 条",
+  "@handwritingQueueReportSummary": {
+    "placeholders": {
+      "applied": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingProposalApply": "确认",
+  "handwritingProposalApplied": "已确认",
+  "handwritingProposalConfidence": "模型自评：{band}",
+  "@handwritingProposalConfidence": {
+    "placeholders": {
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingProposalConfidenceHigh": "较确定",
+  "handwritingProposalConfidenceMedium": "拿不准",
+  "handwritingProposalConfidenceLow": "不太确定",
+  "handwritingProposalCardCount": "{count} 张卡片",
+  "@handwritingProposalCardCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

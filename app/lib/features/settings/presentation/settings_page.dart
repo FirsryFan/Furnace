@@ -16,6 +16,7 @@ import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
+import '../../questions/presentation/handwriting_queue_page.dart';
 import '../../questions/presentation/question_intake_page.dart';
 import '../../questions/presentation/question_paper_page.dart';
 import '../application/demo_data_service.dart';
@@ -125,6 +126,20 @@ class SettingsPage extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const QuestionPaperPage(),
+              ),
+            ),
+          ),
+          // 拍照整理的第二入口（`docs/QUESTION_BANK_DESIGN.md` §7.4）：主入口挂在
+          // 收题页的待整理清单里（每张照片一个「整理」），这里给一条能直接进来的路。
+          ListTile(
+            leading: const Icon(Icons.auto_fix_high),
+            title: Text(l10n.handwritingQueueTitle),
+            subtitle: Text(l10n.handwritingQueueEntryHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HandwritingQueuePage(),
               ),
             ),
           ),
@@ -266,7 +281,8 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _editProfileName(BuildContext context, WidgetRef ref) async {    final l10n = AppLocalizations.of(context);
+  Future<void> _editProfileName(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(
       text: ref.read(currentProfileProvider).valueOrNull?.displayName ?? '',
     );

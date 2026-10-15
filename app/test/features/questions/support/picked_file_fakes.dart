@@ -133,6 +133,17 @@ final class FakeIntakeStore extends HandwritingIntakeStore {
     );
   }
 
+  /// 同步读回字节：真 store 的 `readBytes` 是 `await file.readAsBytes()`，
+  /// 页面级测试跑在假时钟里等不到那个回调（见文件头注释）。
+  @override
+  Future<Uint8List?> readBytes(String relPath) async {
+    final file = File(p.joinAll([root.path, ...relPath.split('/')]));
+    if (!file.existsSync()) {
+      return null;
+    }
+    return file.readAsBytesSync();
+  }
+
   @override
   Future<void> delete(PendingHandwritingImage image) async {
     await (database.delete(database.attachments)

@@ -2396,4 +2396,82 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionSimilarCrossSubject => '跨学科迁移';
+
+  @override
+  String get handwritingQueueTitle => '拍照整理';
+
+  @override
+  String get handwritingQueueEntryHint => '把拍好的照片整理成标签、知识点和闪存卡，逐条确认才写库';
+
+  @override
+  String get handwritingQueueSubtitle => 'AI 只整理、不出题：每一条都要你点确认才会写进库里。';
+
+  @override
+  String get handwritingQueueEmpty => '还没有拍照或选图。先去收题页拍一张，再回来整理。';
+
+  @override
+  String get handwritingQueueGoIntake => '去收题页';
+
+  @override
+  String get handwritingQueuePhotosLabel => '待整理照片';
+
+  @override
+  String get handwritingQueueOrganizeAction => '整理这张';
+
+  @override
+  String get handwritingQueueAnalyze => '整理这张照片';
+
+  @override
+  String get handwritingQueueAnalyzing => '正在看照片…';
+
+  @override
+  String get handwritingQueueNotAnalyzed => '这张照片还没整理过。';
+
+  @override
+  String get handwritingQueueNothingFound => '模型没给出可整理的产物：这张照片里可能没有标签、知识点或卡片。';
+
+  @override
+  String get handwritingQueueFailureTitle => '这次整理失败了';
+
+  @override
+  String get handwritingQueueForget => '丢弃整理结果';
+
+  @override
+  String get handwritingQueueProposalsLabel => '待确认的产物';
+
+  @override
+  String get handwritingQueueApplyAll => '全部确认';
+
+  @override
+  String get handwritingQueueApplying => '正在写库…';
+
+  @override
+  String handwritingQueueReportSummary(int applied, int failed) {
+    return '本次确认：成功 $applied 条，失败 $failed 条';
+  }
+
+  @override
+  String get handwritingProposalApply => '确认';
+
+  @override
+  String get handwritingProposalApplied => '已确认';
+
+  @override
+  String handwritingProposalConfidence(String band) {
+    return '模型自评：$band';
+  }
+
+  @override
+  String get handwritingProposalConfidenceHigh => '较确定';
+
+  @override
+  String get handwritingProposalConfidenceMedium => '拿不准';
+
+  @override
+  String get handwritingProposalConfidenceLow => '不太确定';
+
+  @override
+  String handwritingProposalCardCount(int count) {
+    return '$count 张卡片';
+  }
 }

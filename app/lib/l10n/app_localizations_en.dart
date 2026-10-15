@@ -2497,4 +2497,87 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionSimilarCrossSubject => 'Cross-subject transfer';
+
+  @override
+  String get handwritingQueueTitle => 'Handwriting intake';
+
+  @override
+  String get handwritingQueueEntryHint =>
+      'Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written';
+
+  @override
+  String get handwritingQueueSubtitle =>
+      'The model only organises what is on the page; every item is written only after you confirm it.';
+
+  @override
+  String get handwritingQueueEmpty =>
+      'No photos yet. Take one on the intake page, then come back here.';
+
+  @override
+  String get handwritingQueueGoIntake => 'Open intake page';
+
+  @override
+  String get handwritingQueuePhotosLabel => 'Photos to organise';
+
+  @override
+  String get handwritingQueueOrganizeAction => 'Organise this';
+
+  @override
+  String get handwritingQueueAnalyze => 'Organise this photo';
+
+  @override
+  String get handwritingQueueAnalyzing => 'Reading the photo...';
+
+  @override
+  String get handwritingQueueNotAnalyzed =>
+      'This photo has not been organised yet.';
+
+  @override
+  String get handwritingQueueNothingFound =>
+      'The model proposed nothing to organise: this page may have no tags, knowledge points or cards.';
+
+  @override
+  String get handwritingQueueFailureTitle => 'This run failed';
+
+  @override
+  String get handwritingQueueForget => 'Discard result';
+
+  @override
+  String get handwritingQueueProposalsLabel => 'Proposals to confirm';
+
+  @override
+  String get handwritingQueueApplyAll => 'Confirm all';
+
+  @override
+  String get handwritingQueueApplying => 'Writing...';
+
+  @override
+  String handwritingQueueReportSummary(int applied, int failed) {
+    return 'This confirmation: $applied succeeded, $failed failed';
+  }
+
+  @override
+  String get handwritingProposalApply => 'Confirm';
+
+  @override
+  String get handwritingProposalApplied => 'Confirmed';
+
+  @override
+  String handwritingProposalConfidence(String band) {
+    return 'Model confidence: $band';
+  }
+
+  @override
+  String get handwritingProposalConfidenceHigh => 'fairly sure';
+
+  @override
+  String get handwritingProposalConfidenceMedium => 'unsure';
+
+  @override
+  String get handwritingProposalConfidenceLow => 'not sure';
+
+  @override
+  String handwritingProposalCardCount(int count) {
+    return '$count card(s)';
+  }
 }

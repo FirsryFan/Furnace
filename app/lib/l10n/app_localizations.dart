@@ -4417,6 +4417,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cross-subject transfer'**
   String get questionSimilarCrossSubject;
+
+  /// No description provided for @handwritingQueueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Handwriting intake'**
+  String get handwritingQueueTitle;
+
+  /// No description provided for @handwritingQueueEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written'**
+  String get handwritingQueueEntryHint;
+
+  /// No description provided for @handwritingQueueSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The model only organises what is on the page; every item is written only after you confirm it.'**
+  String get handwritingQueueSubtitle;
+
+  /// No description provided for @handwritingQueueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos yet. Take one on the intake page, then come back here.'**
+  String get handwritingQueueEmpty;
+
+  /// No description provided for @handwritingQueueGoIntake.
+  ///
+  /// In en, this message translates to:
+  /// **'Open intake page'**
+  String get handwritingQueueGoIntake;
+
+  /// No description provided for @handwritingQueuePhotosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos to organise'**
+  String get handwritingQueuePhotosLabel;
+
+  /// No description provided for @handwritingQueueOrganizeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Organise this'**
+  String get handwritingQueueOrganizeAction;
+
+  /// No description provided for @handwritingQueueAnalyze.
+  ///
+  /// In en, this message translates to:
+  /// **'Organise this photo'**
+  String get handwritingQueueAnalyze;
+
+  /// No description provided for @handwritingQueueAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the photo...'**
+  String get handwritingQueueAnalyzing;
+
+  /// No description provided for @handwritingQueueNotAnalyzed.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo has not been organised yet.'**
+  String get handwritingQueueNotAnalyzed;
+
+  /// No description provided for @handwritingQueueNothingFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The model proposed nothing to organise: this page may have no tags, knowledge points or cards.'**
+  String get handwritingQueueNothingFound;
+
+  /// No description provided for @handwritingQueueFailureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This run failed'**
+  String get handwritingQueueFailureTitle;
+
+  /// No description provided for @handwritingQueueForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard result'**
+  String get handwritingQueueForget;
+
+  /// No description provided for @handwritingQueueProposalsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Proposals to confirm'**
+  String get handwritingQueueProposalsLabel;
+
+  /// No description provided for @handwritingQueueApplyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm all'**
+  String get handwritingQueueApplyAll;
+
+  /// No description provided for @handwritingQueueApplying.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing...'**
+  String get handwritingQueueApplying;
+
+  /// No description provided for @handwritingQueueReportSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'This confirmation: {applied} succeeded, {failed} failed'**
+  String handwritingQueueReportSummary(int applied, int failed);
+
+  /// No description provided for @handwritingProposalApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get handwritingProposalApply;
+
+  /// No description provided for @handwritingProposalApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get handwritingProposalApplied;
+
+  /// No description provided for @handwritingProposalConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Model confidence: {band}'**
+  String handwritingProposalConfidence(String band);
+
+  /// No description provided for @handwritingProposalConfidenceHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'fairly sure'**
+  String get handwritingProposalConfidenceHigh;
+
+  /// No description provided for @handwritingProposalConfidenceMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'unsure'**
+  String get handwritingProposalConfidenceMedium;
+
+  /// No description provided for @handwritingProposalConfidenceLow.
+  ///
+  /// In en, this message translates to:
+  /// **'not sure'**
+  String get handwritingProposalConfidenceLow;
+
+  /// No description provided for @handwritingProposalCardCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} card(s)'**
+  String handwritingProposalCardCount(int count);
 }
 
 class _AppLocalizationsDelegate
