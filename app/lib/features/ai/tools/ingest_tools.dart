@@ -16,10 +16,40 @@ library;
 import 'dart:convert';
 
 import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/material_intake_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
 import '../domain/ai_tool.dart';
+
+/// 信封 → 转化 → 应用侧计划。
+///
+/// 两个工具共用这一段：`ingest_material` 只看结果，`apply_material_intake` 看完再落库。
+/// 复用不是为了省几行，而是为了**保证"确认的"就是"看到的"**：计划由内容确定（INGEST
+/// 契约），同一份信封算两次得到同一批提案 id，所以确认时只需要再走一遍同一条推导。
+({
+  MaterialEnvelope envelope,
+  MaterialConversion conversion,
+  MaterialIntakePlan plan
+}) buildMaterialPlan(
+  Map<String, Object?> json, {
+  required Set<String> existingTitles,
+  required DateTime moment,
+  bool includeTopicHubs = false,
+}) {
+  final envelope = MaterialEnvelope.fromJson(json);
+  final conversion = MaterialIngest.convert(
+    envelope,
+    nowHours: modelHoursOf(moment),
+  );
+  final plan = MaterialIntakePlanner.plan(
+    conversion,
+    envelope: envelope,
+    existingTitles: existingTitles,
+    includeTopicHubs: includeTopicHubs,
+  );
+  return (envelope: envelope, conversion: conversion, plan: plan);
+}
 
 /// 把 `mindnet.material/1` 信封变成应用侧的待确认提案。
 class IngestMaterialTool extends AiTool {
@@ -92,13 +122,14 @@ class IngestMaterialTool extends AiTool {
         nowMs == null ? _clock() : DateTime.fromMillisecondsSinceEpoch(nowMs);
     final includeTopicHubs = args.optBool('include_topic_hubs') ?? false;
 
-    final MaterialEnvelope envelope;
     final MaterialConversion conversion;
+    final MaterialIntakePlan plan;
     try {
-      envelope = MaterialEnvelope.fromJson(json);
-      conversion = MaterialIngest.convert(
-        envelope,
-        nowHours: modelHoursOf(moment),
+      (envelope: _, conversion: conversion, plan: plan) = buildMaterialPlan(
+        json,
+        existingTitles: await _existingTitles(),
+        moment: moment,
+        includeTopicHubs: includeTopicHubs,
       );
     } on MaterialIngestException catch (error) {
       return ToolResult.failure(
@@ -107,16 +138,6 @@ class IngestMaterialTool extends AiTool {
             '${error.message}',
       );
     }
-
-    final existingTitles = <String>{
-      for (final point in await _anki.getKnowledgePoints()) point.title,
-    };
-    final plan = MaterialIntakePlanner.plan(
-      conversion,
-      envelope: envelope,
-      existingTitles: existingTitles,
-      includeTopicHubs: includeTopicHubs,
-    );
 
     final check = MaterialIngest.checkRunRequest(conversion.runRequest);
     final modelResult = <String, Object?>{
@@ -164,29 +185,208 @@ class IngestMaterialTool extends AiTool {
     );
   }
 
-  /// `material` 参数：对象直接用；模型给 JSON 文本时解一次。
-  Map<String, Object?> _materialJson(Object? raw) {
-    if (raw is Map) {
-      return raw.cast<String, Object?>();
+  /// 库里现有知识点的标题（算 `exists` 用）。
+  Future<Set<String>> _existingTitles() async => <String>{
+        for (final point in await _anki.getKnowledgePoints()) point.title,
+      };
+}
+
+/// 用户确认之后：把提案落库（roadmap §2-C ① 的后半段）。
+///
+/// 参数里给的是**同一份信封**，不是"提案清单"：提案由它确定性推导出来（INGEST 契约），
+/// 所以"确认"只需要说清确认哪一批、哪几条。落库分两步走（`record` → `apply`），与界面上
+/// "先看到清单、再逐条确认"是同一条路 —— 差别只在于这里的"看到"发生在上一轮对话里。
+///
+/// **写**：`knowledge_points` 会真的多出几行。可撤销的理由是 `afterJson` 里带着新建的
+/// 知识点 id（与 `create_knowledge_cards` 同一个口径）。**连接不写**：资料与卡片是"线索
+/// 边"还是"包含边"还没定（roadmap §2-C ④），落点不存在的写入只能是编的，所以它们在结果
+/// 里如实报成 `deferred`，留在待办里等那个决定。
+class ApplyMaterialIntakeTool extends AiTool {
+  ApplyMaterialIntakeTool({
+    required MaterialIntakeRepository repository,
+    DateTime Function()? clock,
+  })  : _repository = repository,
+        _clock = clock ?? DateTime.now;
+
+  final MaterialIntakeRepository _repository;
+  final DateTime Function() _clock;
+
+  @override
+  String get name => 'apply_material_intake';
+
+  @override
+  String get description => '用户确认后，把一份材料信封推导出来的提案**真的写进库**：'
+      '新建知识点（标题/正文/出处进 `knowledge_points`，节点 id 进 `external_id`）。'
+      '入库是幂等的：批次主键就是信封的 `batch_id`，同一条提案确认两次不会建出两个知识点，'
+      '同名的也不会重复建（结果里如实报"已存在"）。**连接现在不写** —— 资料与卡片是'
+      '"线索边"还是"包含边"还没定（roadmap §2-C ④），没有落点，所以它们在结果里报成 '
+      '`deferred` 留在待办里。信封不合规就整份拒绝，绝不写半份。';
+
+  @override
+  Map<String, Object?> get parameters => <String, Object?>{
+        'type': 'object',
+        'properties': <String, Object?>{
+          'material': <String, Object?>{
+            'type': 'object',
+            'description': '**同一份** `mindnet.material/1` 信封（上一步 '
+                '`ingest_material` 用过的那一份）。也可以给它的 JSON 文本。',
+          },
+          'proposal_ids': <String, Object?>{
+            'type': 'array',
+            'items': <String, Object?>{'type': 'string'},
+            'description': '可选：只确认这几条（`kp:…` / `edge:…`）。默认处理这一批'
+                '还没处理的全部。',
+          },
+          'include_topic_hubs': <String, Object?>{
+            'type': 'boolean',
+            'description': '可选：与上一步保持一致。默认 false（主题分组不建）。',
+          },
+          'now': <String, Object?>{
+            'type': 'string',
+            'description': '可选 ISO-8601 时刻（入库的模型时间基）；默认当前时间',
+          },
+        },
+        'required': <String>['material'],
+      };
+
+  @override
+  ToolRisk riskFor(String action) => ToolRisk.write;
+
+  /// 可以不带用户那次输入就撤销：`afterJson` 里带着这一轮新建的知识点 id。
+  @override
+  bool reversibleFor(String action) => true;
+
+  @override
+  bool get availableOnCurrentPlatform => true;
+
+  @override
+  Future<ToolResult> run(ToolInvocation invocation) async {
+    final args = ToolArgs(invocation.arguments);
+    final json = _materialJson(invocation.arguments['material']);
+
+    final nowMs = args.optEpochMs('now');
+    final moment =
+        nowMs == null ? _clock() : DateTime.fromMillisecondsSinceEpoch(nowMs);
+    final includeTopicHubs = args.optBool('include_topic_hubs') ?? false;
+    final proposalIds = args.optStringList('proposal_ids');
+
+    final MaterialEnvelope envelope;
+    final MaterialConversion conversion;
+    final MaterialIntakePlan plan;
+    try {
+      (envelope: envelope, conversion: conversion, plan: plan) =
+          buildMaterialPlan(
+        json,
+        existingTitles: await _repository.existingTitles(),
+        moment: moment,
+        includeTopicHubs: includeTopicHubs,
+      );
+    } on MaterialIngestException catch (error) {
+      return ToolResult.failure(
+        error.message,
+        summary: '材料信封不合规，整份拒绝（材料入库是"要么整批进、要么不进"）：'
+            '${error.message}',
+      );
     }
-    if (raw is String) {
-      final decoded = _tryDecode(raw);
-      if (decoded != null) {
-        return decoded;
+
+    if (plan.isEmpty) {
+      return ToolResult(
+        ok: true,
+        summary: '这份材料没有要动的东西：${plan.skippedCount} 条留在清单外'
+            '（疑问/已知/提醒或被标为待归类，原因都在 payload 里），所以一行都没写。',
+        modelResult: <String, Object?>{'plan': plan.toJson()},
+      );
+    }
+
+    if (proposalIds != null) {
+      final known = {for (final proposal in plan.proposals) proposal.id};
+      final unknown = [
+        for (final id in proposalIds)
+          if (!known.contains(id)) id,
+      ];
+      if (unknown.isNotEmpty) {
+        return ToolResult.failure(
+          '这些提案 id 不在这一批里：${unknown.join('、')}；'
+          '这一批有：${known.join('、')}',
+        );
       }
-      throw ToolArgError('`material` 是字符串，但不是合法的 JSON 对象');
     }
-    throw ToolArgError(
-      '缺少 `material`：需要一份 `mindnet.material/1` 信封（对象或它的 JSON 文本）',
+
+    final batch = await _repository.record(
+      plan,
+      summaryText: conversion.summary.text,
+      analyzedAt: moment,
+      sourceKind: envelope.source?.kind,
+      capturedAtMs: DateTime.tryParse(envelope.source?.capturedAt ?? '')
+          ?.millisecondsSinceEpoch,
+    );
+    final MaterialApplyOutcome outcome;
+    try {
+      outcome = await _repository.apply(
+        batchId: batch.batchId,
+        proposalIds: proposalIds,
+        appliedAt: moment,
+      );
+    } on MaterialApplyException catch (error) {
+      return ToolResult.failure(error.message);
+    }
+
+    // payload 里的批次取**确认之后**的样子：`unapplied_count` 要能直接读出来还剩几条，
+    // 而不是记录那一刻的旧值。
+    final updated = await _repository.batch(batch.batchId) ?? batch;
+
+    final lines = <String>[
+      for (final point in outcome.created)
+        '- 建了知识点「${point.title}」'
+            '${point.nodeId == null ? '' : '（${point.nodeId}）'}',
+      if (outcome.existing.isNotEmpty)
+        '- 已存在，没重复建：${outcome.existing.join('、')}',
+      if (outcome.deferred.isNotEmpty)
+        '- 连接先不动：${outcome.deferred.join('、')}'
+            '（资料与卡片是"线索边"还是"包含边"还没定，roadmap §2-C ④）',
+    ];
+
+    return ToolResult(
+      ok: true,
+      summary: '${outcome.text}。\n${lines.join('\n')}\n'
+          '出处写在每个知识点的正文与 `source` 里，提案表里留着完整的 `evidence`。'
+          '${outcome.deferred.isEmpty ? '' : '连接还没落点，它们留在待确认清单里。'}',
+      modelResult: <String, Object?>{
+        'batch': updated.toJson(),
+        'outcome': outcome.toJson(),
+      },
+      afterJson: jsonEncode(<String, Object?>{
+        'batch_id': batch.batchId,
+        'knowledge_point_ids': [
+          for (final point in outcome.created) point.knowledgePointId,
+        ],
+      }),
     );
   }
+}
 
-  Map<String, Object?>? _tryDecode(String text) {
-    try {
-      final decoded = jsonDecode(text);
-      return decoded is Map ? decoded.cast<String, Object?>() : null;
-    } on FormatException {
-      return null;
+/// `material` 参数：对象直接用；模型给 JSON 文本时解一次。
+Map<String, Object?> _materialJson(Object? raw) {
+  if (raw is Map) {
+    return raw.cast<String, Object?>();
+  }
+  if (raw is String) {
+    final decoded = _tryDecode(raw);
+    if (decoded != null) {
+      return decoded;
     }
+    throw ToolArgError('`material` 是字符串，但不是合法的 JSON 对象');
+  }
+  throw ToolArgError(
+    '缺少 `material`：需要一份 `mindnet.material/1` 信封（对象或它的 JSON 文本）',
+  );
+}
+
+Map<String, Object?>? _tryDecode(String text) {
+  try {
+    final decoded = jsonDecode(text);
+    return decoded is Map ? decoded.cast<String, Object?>() : null;
+  } on FormatException {
+    return null;
   }
 }

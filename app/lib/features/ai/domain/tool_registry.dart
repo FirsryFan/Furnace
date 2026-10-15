@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/material_intake_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../../data/repositories/time_block_repository.dart';
@@ -79,6 +80,15 @@ class ToolRegistry {
       // "要建哪些知识点/连接、每条出处"的**待确认提案**。只读：写不写由用户确认
       // （与拍照整理那条通路同一条纪律）。
       IngestMaterialTool(ankiRepository: anki, clock: clock),
+      // 材料摄取的后半段（roadmap §2-C ①）：确认之后才真的写库 —— 批次主键就是信封的
+      // `batch_id`（INGEST 幂等键），同一条提案确认两次不会建出两个知识点；连接现在
+      // 不写（资料与卡片是"线索边"还是"包含边"未定，§2-C ④），在结果里如实报 deferred。
+      // 提案表 `material_intake_proposals` 是 v17（`data/database/tables.dart`）。
+      ApplyMaterialIntakeTool(
+        repository:
+            MaterialIntakeRepository(db, ankiRepository: anki, clock: clock),
+        clock: clock,
+      ),
       // 用途 1 的兄弟 (Q12): 「这道题还有哪些同型邻居」。同一个题库投影
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
       // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。

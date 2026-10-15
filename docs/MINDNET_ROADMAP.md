@@ -62,7 +62,10 @@
   `app/lib/domain/services/ingest/material_ingest.dart`，与 MindNet `src/ingest.js` 逐字段对拍，56 例）；
   "信封 → 要建哪些知识点/连接、每条出处"的提案层与只读 AI 工具已完成（轮次六十三：
   `material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；
-  把提案落到库与界面（"添加资料"入口 + `external_id` + 出处进 `evidence`）仍未做）**；
+  **落库与确认写入已完成（轮次六十四：schema v17 两张表（`material_intake_batches` /
+  `material_intake_proposals`）+ `apply_material_intake` 工具，20 例；批次主键就是信封的 `batch_id`：
+  同一条提案确认两次不会建出两个知识点，用户改过标题也认 `external_id`；连接没有落点，如实报 `deferred`
+  并留在待办里）**；"添加资料"界面入口还未做）**；
   ② `knowledge` 动作（新知识点、新连接）；
   ③ TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）；④ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5 已澄清语义差异）。
 - **落点**：新增"添加资料"入口 → 生成 `knowledge` 动作 +（可选）新卡片；把出处写到 `evidence`，进 `change_log`。
@@ -96,7 +99,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；把提案落库/上界面与 TRANSCRIBE 的照片→`run/1` 未做）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；"添加资料"界面入口与 TRANSCRIBE 的照片→`run/1` 未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -517,8 +520,42 @@ id/类型/名字、7 条边的顺序与权重、14 条动作与 `evidence`、汇
 body 里的释义/原文/出处、同名 `'  Rely   ON '` 归一化后 `exists`、`includeTopicHubs` 的两种计数、
 只含「问」时 `isEmpty`、工具侧 readOnly/缺参数/整份拒绝/同名不重复建/JSON 文本等价）。
 
-**还没做**：① 提案落库（`knowledge_points` + `external_id` + 出处进 `evidence`）与"添加资料"界面入口；
+**还没做**：① 把提案落库 —— **已在轮次六十四补上**（见下一节）；"添加资料"的界面入口仍未做；
 ② TRANSCRIBE 的"照片 → `run/1`"；③ 资料与卡片的关联类型。
+
+### 切片 6 的下一步（二）：提案落库与确认写入（轮次六十四）
+
+上一节把提案摆出来了，这一节把它**写下去**——但只在用户点头之后。写法照抄拍照整理通路：
+先落一张"批次 + 提案"的表，确认过的行才有 `applied_at`。
+
+- schema **v17** 两张表（`app/lib/data/database/tables.dart`）：`material_intake_batches`
+  （主键 `batchId`，就是信封的 `batch_id` —— INGEST 契约里的幂等键；`skipped_json` 单独一列，
+  因为"留在清单外"不是待确认产物）与 `material_intake_proposals`（主键 `<batchId>#<proposalId>`，
+  `sortIndex` 保留材料顺序、`payloadJson` 只留一份契约、`appliedAt` NULL = 还没确认）。
+  迁移是"加两张表"（`_upgradeV16ToV17`），并在 `_ensureColumns()` 里自愈 —— Drift 在
+  `user_version` 等于当前版本时跳过 `onUpgrade`，那一刻没有自愈，第一次写就会炸。
+- `MaterialIntakeRepository`（`app/lib/data/repositories/material_intake_repository.dart`）：
+  `record` 幂等（同一批重算只替换**未确认**的行，已确认的一个字不动 —— 重算覆盖人工决定比丢数据更坏）；
+  `apply` 把知识点写进 `knowledge_points`，两道去重：提案自己的 `exists`（同名）与 `external_id`
+  （用户改过标题之后同名判断就抓不住了，而 `external_id` 是材料决定的内容 id）。
+- `apply_material_intake` 工具（`app/lib/features/ai/tools/ingest_tools.dart`）：参数是**同一份信封**，
+  不是"提案清单" —— 提案由信封确定性推导，所以"确认"只需说清确认哪一批、哪几条；`proposal_ids`
+  越界直接拒绝（不许悄悄少写）。`redo` 的路径是"再跑一次同样的信封"。
+- **连接不写**：`why == 'topic'`（以及所有连接提案）现在没有落点（§2-C ④ 未定），写出来只能是编的；
+  它们在结果里如实报 `deferred`，并且**保持未确认**留在待办里，等那个决定。
+
+三条刻意选择：① **复核式确认**：工具重算一遍信封而不是接收一份"提案清单"，因为确定性来自内容，
+   这样"看到的"和"确认的"不可能不是同一份；② **连接宁可 deferred**：没有落点的写入不假装做完；
+   ③ **payload 里的批次取确认之后的样子**（`unapplied_count` 要能直接读出还剩几条，而不是记录那一刻的旧值）。
+
+证据：`app/test/data/repositories/material_intake_repository_test.dart` 9 例 +
+`app/test/features/ai/apply_material_intake_tool_test.dart` 8 例 + `app/test/data/database/v17_migration_test.dart` 2 例
+= 20 例（幂等记录/替换未确认/已确认不动、apply 的 external_id 与出处文案、同名与改过标题两种去重、
+确认两次幂等、`proposal_ids` 只处理选中项与越界拒绝、连接 deferred 且仍待办、未知批次报错、
+"被盖成 v17 却没有这两张表"的自愈）。
+
+**还没做**：① "添加资料"界面入口（AI 产出信封 → 这两步 → 用户逐条确认；现在只有 AI 工具的路径）；
+② TRANSCRIBE 的"照片 → `run/1`"；③ 资料与卡片的关联类型（连接落点就等它）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

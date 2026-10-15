@@ -1255,3 +1255,98 @@ class HandwritingProposals extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// 一次「材料摄取」的运行记录（`docs/MINDNET_ROADMAP.md` §2-C ①，轮次六十四）。
+///
+/// 一行 = 一份材料信封被算过一次。主键就是信封里的 `batch_id` —— 它是 INGEST
+/// 契约的**幂等键**（`mindnet.material/1` 的 `batch_id`），所以同一份材料重算
+/// 只会覆盖这一行，不会长出第二批提案。**零提案也留行**：否则"算过，但材料里
+/// 没有能进图的东西"在重启后会退回"还没算"，用户会白跑一次模型。
+@DataClassName('MaterialIntakeBatchRow')
+class MaterialIntakeBatches extends Table {
+  @override
+  String get tableName => 'material_intake_batches';
+
+  /// 信封的 `batch_id`：既是主键，也是幂等键。
+  TextColumn get batchId => text()();
+
+  /// 材料的主题（信封的 `topic`），主题 hub 的 id 就是从它算出来的。
+  TextColumn get topic => text().nullable()();
+
+  /// 出处：信封 `source.material`（人类可读的材料名/路径）。
+  TextColumn get sourceRef => text().nullable()();
+
+  /// 信封 `source.kind`（`page` / `book` / …），原样留着便于排查。
+  TextColumn get sourceKind => text().nullable()();
+
+  /// 信封 `source.captured_at`（epoch ms）。可空：材料没有拍照时间。
+  IntColumn get capturedAt => integer().nullable()();
+
+  /// 算出来的时刻（epoch ms）。
+  IntColumn get analyzedAt => integer()();
+
+  /// 转化汇总的一句话（`MaterialSummary.text`），界面直接显示。
+  TextColumn get summaryText => text()();
+
+  /// 不进图的条目与主题分组的跳过原因（`MaterialIntakeSkip` 的 JSON 数组）。
+  ///
+  /// 单独一列而不是散进提案行：这些**不是**待确认产物，是"为什么没动它"的
+  /// 说明，数量随材料而变，塞进提案行会让"待确认清单"里混进一堆不可确认项。
+  TextColumn get skippedJson => text()();
+
+  /// 这批提案的条数（含连接），冗余一列便于列表页不读 payload。
+  IntColumn get proposalCount => integer()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {batchId};
+}
+
+/// 一条待确认的材料摄取提案（知识点或连接）。
+///
+/// 与 `handwriting_proposals` 同一套纪律：提案是**待确认的用户数据**，不是可再生
+/// 的缓存 —— `appliedAt` 记住用户已经确认过，重启后不该再确认一遍，更不该重复写
+/// 一次库（同一个知识点写两遍就是两个节点）。
+@DataClassName('MaterialIntakeProposalRow')
+class MaterialIntakeProposals extends Table {
+  @override
+  String get tableName => 'material_intake_proposals';
+
+  /// `<batchId>#<proposalId>`：同一批重算时按批整批替换，不同批的同名提案
+  ///（都叫 `kp:en::w::rely-on`）不会互相覆盖。
+  TextColumn get id => text()();
+
+  /// 所属批次，与 [MaterialIntakeBatches.batchId] 对应。
+  TextColumn get batchId => text()();
+
+  /// 领域层的提案 id（`kp:<nodeId>` / `edge:<edgeId>`），复用的是 INGEST 算出来的
+  /// 确定性 id —— 以后它就是知识点的 `external_id`。
+  TextColumn get proposalId => text()();
+
+  /// 提案在这一批里的次序。
+  ///
+  /// 不按 id 排序：id 以 kind 开头，字典序会把知识点和连接打散，用户看到的顺序
+  /// 就和他确认时的不一样了。
+  IntColumn get sortIndex => integer()();
+
+  /// `knowledge_point` / `connection`。与 payload 冗余，便于按类统计与排查。
+  TextColumn get kind => text()();
+
+  /// 提案本体（`MaterialIntakeProposal.toJson()`）。契约只留一份：还原走领域层
+  /// `MaterialIntakeProposal.fromJson`，这里不另写一套反序列化。
+  TextColumn get payloadJson => text()();
+
+  /// 用户确认并处理完的时刻（epoch ms）。NULL = 还没处理。
+  ///
+  /// 连接现在**不会**被标上：资料与卡片是"线索边"还是"包含边"还没定
+  ///（roadmap §2-C ④），所以它留在待办里等那个决定，而不是假装做完了。
+  IntColumn get appliedAt => integer().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

@@ -66,6 +66,9 @@ part 'database.g.dart';
     HandwritingProposals,
     // v14 (exposure log, docs/MINDNET_ROADMAP.md §2 / docs/DATA_MODEL.md)
     ExposureLogs,
+    // v17 (material intake proposals, docs/MINDNET_ROADMAP.md §2-C ①)
+    MaterialIntakeBatches,
+    MaterialIntakeProposals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -86,12 +89,16 @@ class AppDatabase extends _$AppDatabase {
   /// table for MindNet's `exposure` action ("读了但没测", the last of the five
   /// `mindnet.run/1` actions the app could not express). v15 adds the
   /// attention-hint switch on `local_settings` (`docs/MINDNET_ROADMAP.md` §3
-  /// row 4). See [_upgradeV6ToV7] /
+  /// row 4). v16 adds the cognitive-rank switch on `thread_rank_settings`
+  /// (roadmap §2-D). v17 adds the two material-intake tables that keep
+  /// "算过但还没确认" alive across a restart and make applying a batch idempotent
+  /// (`docs/MINDNET_ROADMAP.md` §2-C ①). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
-  /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16].
+  /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
+  /// [_upgradeV16ToV17].
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration {
@@ -144,6 +151,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 16) {
           await _upgradeV15ToV16();
+        }
+        if (from < 17) {
+          await _upgradeV16ToV17();
         }
       },
       beforeOpen: (details) async {
@@ -260,6 +270,15 @@ class AppDatabase extends _$AppDatabase {
     // "no such table" - and the reading would look like it was never recorded.
     if (!await _tableExists('exposure_logs')) {
       await m.createTable(exposureLogs);
+    }
+    // v17's two tables heal the same way: a file stamped v17 whose tables are
+    // missing (interrupted migration) would fail every 材料摄取 read with
+    // "no such table" - and a confirmed batch would look like it never happened.
+    if (!await _tableExists('material_intake_batches')) {
+      await m.createTable(materialIntakeBatches);
+    }
+    if (!await _tableExists('material_intake_proposals')) {
+      await m.createTable(materialIntakeProposals);
     }
   }
 
@@ -509,6 +528,21 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'thread_rank_settings', threadRankSettings.cognitiveRankEnabled);
+  }
+
+  /// v16 -> v17：两张「材料摄取」表（`docs/MINDNET_ROADMAP.md` §2-C ①，轮次六十四）。
+  ///
+  /// 两张表都是纯新增，老行不动：`material_intake_batches` 的主键就是信封的
+  /// `batch_id`（INGEST 契约的幂等键），`material_intake_proposals` 记每条待确认
+  /// 提案与它的 `applied_at`。存在性探测让 v17 的 createAll 路径成为 no-op。
+  Future<void> _upgradeV16ToV17() async {
+    final m = Migrator(this);
+    if (!await _tableExists('material_intake_batches')) {
+      await m.createTable(materialIntakeBatches);
+    }
+    if (!await _tableExists('material_intake_proposals')) {
+      await m.createTable(materialIntakeProposals);
+    }
   }
 
   Future<void> _upgradeV4ToV5() async {

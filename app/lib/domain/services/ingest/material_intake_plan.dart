@@ -72,6 +72,28 @@ class MaterialIntakeEvidence {
         if (quote != null) 'quote': quote,
         'batch_id': batchId,
       };
+
+  /// 从 [toJson] 的输出还原（持久化用）。
+  ///
+  /// 缺 `region` / `batch_id` 就抛 [FormatException]：库里存坏一行时宁可报错，
+  /// 也不让一条不知道出处的提案混进清单 —— 出处正是材料摄取的意义所在。
+  factory MaterialIntakeEvidence.fromJson(Map<String, Object?> json) {
+    final region = json['region']?.toString().trim() ?? '';
+    final batchId = json['batch_id']?.toString().trim() ?? '';
+    if (region.isEmpty || batchId.isEmpty) {
+      throw const FormatException('提案出处缺少 region 或 batch_id');
+    }
+    return MaterialIntakeEvidence(
+      source: json['source']?.toString(),
+      page: switch (json['page']) {
+        final num value => value.toDouble(),
+        _ => null,
+      },
+      region: region,
+      quote: json['quote']?.toString(),
+      batchId: batchId,
+    );
+  }
 }
 
 /// 一条待确认的动作。
@@ -132,6 +154,44 @@ class MaterialIntakeProposal {
         'exists': exists,
         'evidence': evidence.toJson(),
       };
+
+  /// 从 [toJson] 的输出还原（持久化用）。
+  ///
+  /// 与入库同一套严格口径：缺 `id` / `title` / 认不出的 `kind` / 没有 `evidence`
+  /// 都抛 [FormatException]，而不是降级成一条空提案。
+  factory MaterialIntakeProposal.fromJson(Map<String, Object?> json) {
+    final id = json['id']?.toString().trim() ?? '';
+    final title = json['title']?.toString() ?? '';
+    final kindId = json['kind']?.toString().trim() ?? '';
+    MaterialIntakeKind? kind;
+    for (final candidate in MaterialIntakeKind.values) {
+      if (candidate.id == kindId) {
+        kind = candidate;
+        break;
+      }
+    }
+    final evidence = json['evidence'];
+    if (id.isEmpty || title.isEmpty || kind == null || evidence is! Map) {
+      throw FormatException('提案缺少 id/title/evidence 或 kind 不认识（kind=$kindId）');
+    }
+    return MaterialIntakeProposal(
+      id: id,
+      kind: kind,
+      title: title,
+      nodeId: json['node_id']?.toString(),
+      from: json['from']?.toString(),
+      to: json['to']?.toString(),
+      ls: switch (json['ls']) {
+        final num value => value.toDouble(),
+        _ => null,
+      },
+      body: json['body']?.toString() ?? '',
+      why: json['why']?.toString() ?? '',
+      exists: json['exists'] == true,
+      evidence:
+          MaterialIntakeEvidence.fromJson(evidence.cast<String, Object?>()),
+    );
+  }
 }
 
 /// 留在清单外的条目（与原因）。
@@ -148,6 +208,18 @@ class MaterialIntakeSkip {
         'ref': ref,
         'reason': reason,
       };
+
+  /// 从 [toJson] 的输出还原（持久化用）。
+  factory MaterialIntakeSkip.fromJson(Map<String, Object?> json) {
+    final ref = json['ref']?.toString().trim() ?? '';
+    if (ref.isEmpty) {
+      throw const FormatException('留在清单外的条目缺少 ref');
+    }
+    return MaterialIntakeSkip(
+      ref: ref,
+      reason: json['reason']?.toString() ?? '',
+    );
+  }
 }
 
 /// 一份材料的应用侧计划。

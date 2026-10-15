@@ -20180,6 +20180,1106 @@ class ExposureLogsCompanion extends UpdateCompanion<ExposureLog> {
   }
 }
 
+class $MaterialIntakeBatchesTable extends MaterialIntakeBatches
+    with TableInfo<$MaterialIntakeBatchesTable, MaterialIntakeBatchRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MaterialIntakeBatchesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _batchIdMeta =
+      const VerificationMeta('batchId');
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+      'batch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _topicMeta = const VerificationMeta('topic');
+  @override
+  late final GeneratedColumn<String> topic = GeneratedColumn<String>(
+      'topic', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceRefMeta =
+      const VerificationMeta('sourceRef');
+  @override
+  late final GeneratedColumn<String> sourceRef = GeneratedColumn<String>(
+      'source_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceKindMeta =
+      const VerificationMeta('sourceKind');
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+      'source_kind', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+      'captured_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _analyzedAtMeta =
+      const VerificationMeta('analyzedAt');
+  @override
+  late final GeneratedColumn<int> analyzedAt = GeneratedColumn<int>(
+      'analyzed_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _summaryTextMeta =
+      const VerificationMeta('summaryText');
+  @override
+  late final GeneratedColumn<String> summaryText = GeneratedColumn<String>(
+      'summary_text', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _skippedJsonMeta =
+      const VerificationMeta('skippedJson');
+  @override
+  late final GeneratedColumn<String> skippedJson = GeneratedColumn<String>(
+      'skipped_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _proposalCountMeta =
+      const VerificationMeta('proposalCount');
+  @override
+  late final GeneratedColumn<int> proposalCount = GeneratedColumn<int>(
+      'proposal_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        batchId,
+        topic,
+        sourceRef,
+        sourceKind,
+        capturedAt,
+        analyzedAt,
+        summaryText,
+        skippedJson,
+        proposalCount,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'material_intake_batches';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<MaterialIntakeBatchRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('batch_id')) {
+      context.handle(_batchIdMeta,
+          batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta));
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('topic')) {
+      context.handle(
+          _topicMeta, topic.isAcceptableOrUnknown(data['topic']!, _topicMeta));
+    }
+    if (data.containsKey('source_ref')) {
+      context.handle(_sourceRefMeta,
+          sourceRef.isAcceptableOrUnknown(data['source_ref']!, _sourceRefMeta));
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+          _sourceKindMeta,
+          sourceKind.isAcceptableOrUnknown(
+              data['source_kind']!, _sourceKindMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    }
+    if (data.containsKey('analyzed_at')) {
+      context.handle(
+          _analyzedAtMeta,
+          analyzedAt.isAcceptableOrUnknown(
+              data['analyzed_at']!, _analyzedAtMeta));
+    } else if (isInserting) {
+      context.missing(_analyzedAtMeta);
+    }
+    if (data.containsKey('summary_text')) {
+      context.handle(
+          _summaryTextMeta,
+          summaryText.isAcceptableOrUnknown(
+              data['summary_text']!, _summaryTextMeta));
+    } else if (isInserting) {
+      context.missing(_summaryTextMeta);
+    }
+    if (data.containsKey('skipped_json')) {
+      context.handle(
+          _skippedJsonMeta,
+          skippedJson.isAcceptableOrUnknown(
+              data['skipped_json']!, _skippedJsonMeta));
+    } else if (isInserting) {
+      context.missing(_skippedJsonMeta);
+    }
+    if (data.containsKey('proposal_count')) {
+      context.handle(
+          _proposalCountMeta,
+          proposalCount.isAcceptableOrUnknown(
+              data['proposal_count']!, _proposalCountMeta));
+    } else if (isInserting) {
+      context.missing(_proposalCountMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {batchId};
+  @override
+  MaterialIntakeBatchRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MaterialIntakeBatchRow(
+      batchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}batch_id'])!,
+      topic: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}topic']),
+      sourceRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_ref']),
+      sourceKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_kind']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}captured_at']),
+      analyzedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}analyzed_at'])!,
+      summaryText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}summary_text'])!,
+      skippedJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}skipped_json'])!,
+      proposalCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}proposal_count'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MaterialIntakeBatchesTable createAlias(String alias) {
+    return $MaterialIntakeBatchesTable(attachedDatabase, alias);
+  }
+}
+
+class MaterialIntakeBatchRow extends DataClass
+    implements Insertable<MaterialIntakeBatchRow> {
+  /// 信封的 `batch_id`：既是主键，也是幂等键。
+  final String batchId;
+
+  /// 材料的主题（信封的 `topic`），主题 hub 的 id 就是从它算出来的。
+  final String? topic;
+
+  /// 出处：信封 `source.material`（人类可读的材料名/路径）。
+  final String? sourceRef;
+
+  /// 信封 `source.kind`（`page` / `book` / …），原样留着便于排查。
+  final String? sourceKind;
+
+  /// 信封 `source.captured_at`（epoch ms）。可空：材料没有拍照时间。
+  final int? capturedAt;
+
+  /// 算出来的时刻（epoch ms）。
+  final int analyzedAt;
+
+  /// 转化汇总的一句话（`MaterialSummary.text`），界面直接显示。
+  final String summaryText;
+
+  /// 不进图的条目与主题分组的跳过原因（`MaterialIntakeSkip` 的 JSON 数组）。
+  ///
+  /// 单独一列而不是散进提案行：这些**不是**待确认产物，是"为什么没动它"的
+  /// 说明，数量随材料而变，塞进提案行会让"待确认清单"里混进一堆不可确认项。
+  final String skippedJson;
+
+  /// 这批提案的条数（含连接），冗余一列便于列表页不读 payload。
+  final int proposalCount;
+  final int createdAt;
+  final int updatedAt;
+  const MaterialIntakeBatchRow(
+      {required this.batchId,
+      this.topic,
+      this.sourceRef,
+      this.sourceKind,
+      this.capturedAt,
+      required this.analyzedAt,
+      required this.summaryText,
+      required this.skippedJson,
+      required this.proposalCount,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['batch_id'] = Variable<String>(batchId);
+    if (!nullToAbsent || topic != null) {
+      map['topic'] = Variable<String>(topic);
+    }
+    if (!nullToAbsent || sourceRef != null) {
+      map['source_ref'] = Variable<String>(sourceRef);
+    }
+    if (!nullToAbsent || sourceKind != null) {
+      map['source_kind'] = Variable<String>(sourceKind);
+    }
+    if (!nullToAbsent || capturedAt != null) {
+      map['captured_at'] = Variable<int>(capturedAt);
+    }
+    map['analyzed_at'] = Variable<int>(analyzedAt);
+    map['summary_text'] = Variable<String>(summaryText);
+    map['skipped_json'] = Variable<String>(skippedJson);
+    map['proposal_count'] = Variable<int>(proposalCount);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  MaterialIntakeBatchesCompanion toCompanion(bool nullToAbsent) {
+    return MaterialIntakeBatchesCompanion(
+      batchId: Value(batchId),
+      topic:
+          topic == null && nullToAbsent ? const Value.absent() : Value(topic),
+      sourceRef: sourceRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceRef),
+      sourceKind: sourceKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKind),
+      capturedAt: capturedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capturedAt),
+      analyzedAt: Value(analyzedAt),
+      summaryText: Value(summaryText),
+      skippedJson: Value(skippedJson),
+      proposalCount: Value(proposalCount),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MaterialIntakeBatchRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MaterialIntakeBatchRow(
+      batchId: serializer.fromJson<String>(json['batchId']),
+      topic: serializer.fromJson<String?>(json['topic']),
+      sourceRef: serializer.fromJson<String?>(json['sourceRef']),
+      sourceKind: serializer.fromJson<String?>(json['sourceKind']),
+      capturedAt: serializer.fromJson<int?>(json['capturedAt']),
+      analyzedAt: serializer.fromJson<int>(json['analyzedAt']),
+      summaryText: serializer.fromJson<String>(json['summaryText']),
+      skippedJson: serializer.fromJson<String>(json['skippedJson']),
+      proposalCount: serializer.fromJson<int>(json['proposalCount']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'batchId': serializer.toJson<String>(batchId),
+      'topic': serializer.toJson<String?>(topic),
+      'sourceRef': serializer.toJson<String?>(sourceRef),
+      'sourceKind': serializer.toJson<String?>(sourceKind),
+      'capturedAt': serializer.toJson<int?>(capturedAt),
+      'analyzedAt': serializer.toJson<int>(analyzedAt),
+      'summaryText': serializer.toJson<String>(summaryText),
+      'skippedJson': serializer.toJson<String>(skippedJson),
+      'proposalCount': serializer.toJson<int>(proposalCount),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  MaterialIntakeBatchRow copyWith(
+          {String? batchId,
+          Value<String?> topic = const Value.absent(),
+          Value<String?> sourceRef = const Value.absent(),
+          Value<String?> sourceKind = const Value.absent(),
+          Value<int?> capturedAt = const Value.absent(),
+          int? analyzedAt,
+          String? summaryText,
+          String? skippedJson,
+          int? proposalCount,
+          int? createdAt,
+          int? updatedAt}) =>
+      MaterialIntakeBatchRow(
+        batchId: batchId ?? this.batchId,
+        topic: topic.present ? topic.value : this.topic,
+        sourceRef: sourceRef.present ? sourceRef.value : this.sourceRef,
+        sourceKind: sourceKind.present ? sourceKind.value : this.sourceKind,
+        capturedAt: capturedAt.present ? capturedAt.value : this.capturedAt,
+        analyzedAt: analyzedAt ?? this.analyzedAt,
+        summaryText: summaryText ?? this.summaryText,
+        skippedJson: skippedJson ?? this.skippedJson,
+        proposalCount: proposalCount ?? this.proposalCount,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MaterialIntakeBatchRow copyWithCompanion(
+      MaterialIntakeBatchesCompanion data) {
+    return MaterialIntakeBatchRow(
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      topic: data.topic.present ? data.topic.value : this.topic,
+      sourceRef: data.sourceRef.present ? data.sourceRef.value : this.sourceRef,
+      sourceKind:
+          data.sourceKind.present ? data.sourceKind.value : this.sourceKind,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+      analyzedAt:
+          data.analyzedAt.present ? data.analyzedAt.value : this.analyzedAt,
+      summaryText:
+          data.summaryText.present ? data.summaryText.value : this.summaryText,
+      skippedJson:
+          data.skippedJson.present ? data.skippedJson.value : this.skippedJson,
+      proposalCount: data.proposalCount.present
+          ? data.proposalCount.value
+          : this.proposalCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeBatchRow(')
+          ..write('batchId: $batchId, ')
+          ..write('topic: $topic, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('analyzedAt: $analyzedAt, ')
+          ..write('summaryText: $summaryText, ')
+          ..write('skippedJson: $skippedJson, ')
+          ..write('proposalCount: $proposalCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      batchId,
+      topic,
+      sourceRef,
+      sourceKind,
+      capturedAt,
+      analyzedAt,
+      summaryText,
+      skippedJson,
+      proposalCount,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MaterialIntakeBatchRow &&
+          other.batchId == this.batchId &&
+          other.topic == this.topic &&
+          other.sourceRef == this.sourceRef &&
+          other.sourceKind == this.sourceKind &&
+          other.capturedAt == this.capturedAt &&
+          other.analyzedAt == this.analyzedAt &&
+          other.summaryText == this.summaryText &&
+          other.skippedJson == this.skippedJson &&
+          other.proposalCount == this.proposalCount &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MaterialIntakeBatchesCompanion
+    extends UpdateCompanion<MaterialIntakeBatchRow> {
+  final Value<String> batchId;
+  final Value<String?> topic;
+  final Value<String?> sourceRef;
+  final Value<String?> sourceKind;
+  final Value<int?> capturedAt;
+  final Value<int> analyzedAt;
+  final Value<String> summaryText;
+  final Value<String> skippedJson;
+  final Value<int> proposalCount;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const MaterialIntakeBatchesCompanion({
+    this.batchId = const Value.absent(),
+    this.topic = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.analyzedAt = const Value.absent(),
+    this.summaryText = const Value.absent(),
+    this.skippedJson = const Value.absent(),
+    this.proposalCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MaterialIntakeBatchesCompanion.insert({
+    required String batchId,
+    this.topic = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    required int analyzedAt,
+    required String summaryText,
+    required String skippedJson,
+    required int proposalCount,
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : batchId = Value(batchId),
+        analyzedAt = Value(analyzedAt),
+        summaryText = Value(summaryText),
+        skippedJson = Value(skippedJson),
+        proposalCount = Value(proposalCount),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<MaterialIntakeBatchRow> custom({
+    Expression<String>? batchId,
+    Expression<String>? topic,
+    Expression<String>? sourceRef,
+    Expression<String>? sourceKind,
+    Expression<int>? capturedAt,
+    Expression<int>? analyzedAt,
+    Expression<String>? summaryText,
+    Expression<String>? skippedJson,
+    Expression<int>? proposalCount,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (batchId != null) 'batch_id': batchId,
+      if (topic != null) 'topic': topic,
+      if (sourceRef != null) 'source_ref': sourceRef,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (analyzedAt != null) 'analyzed_at': analyzedAt,
+      if (summaryText != null) 'summary_text': summaryText,
+      if (skippedJson != null) 'skipped_json': skippedJson,
+      if (proposalCount != null) 'proposal_count': proposalCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MaterialIntakeBatchesCompanion copyWith(
+      {Value<String>? batchId,
+      Value<String?>? topic,
+      Value<String?>? sourceRef,
+      Value<String?>? sourceKind,
+      Value<int?>? capturedAt,
+      Value<int>? analyzedAt,
+      Value<String>? summaryText,
+      Value<String>? skippedJson,
+      Value<int>? proposalCount,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return MaterialIntakeBatchesCompanion(
+      batchId: batchId ?? this.batchId,
+      topic: topic ?? this.topic,
+      sourceRef: sourceRef ?? this.sourceRef,
+      sourceKind: sourceKind ?? this.sourceKind,
+      capturedAt: capturedAt ?? this.capturedAt,
+      analyzedAt: analyzedAt ?? this.analyzedAt,
+      summaryText: summaryText ?? this.summaryText,
+      skippedJson: skippedJson ?? this.skippedJson,
+      proposalCount: proposalCount ?? this.proposalCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (topic.present) {
+      map['topic'] = Variable<String>(topic.value);
+    }
+    if (sourceRef.present) {
+      map['source_ref'] = Variable<String>(sourceRef.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    if (analyzedAt.present) {
+      map['analyzed_at'] = Variable<int>(analyzedAt.value);
+    }
+    if (summaryText.present) {
+      map['summary_text'] = Variable<String>(summaryText.value);
+    }
+    if (skippedJson.present) {
+      map['skipped_json'] = Variable<String>(skippedJson.value);
+    }
+    if (proposalCount.present) {
+      map['proposal_count'] = Variable<int>(proposalCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeBatchesCompanion(')
+          ..write('batchId: $batchId, ')
+          ..write('topic: $topic, ')
+          ..write('sourceRef: $sourceRef, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('analyzedAt: $analyzedAt, ')
+          ..write('summaryText: $summaryText, ')
+          ..write('skippedJson: $skippedJson, ')
+          ..write('proposalCount: $proposalCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MaterialIntakeProposalsTable extends MaterialIntakeProposals
+    with TableInfo<$MaterialIntakeProposalsTable, MaterialIntakeProposalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MaterialIntakeProposalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _batchIdMeta =
+      const VerificationMeta('batchId');
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+      'batch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _proposalIdMeta =
+      const VerificationMeta('proposalId');
+  @override
+  late final GeneratedColumn<String> proposalId = GeneratedColumn<String>(
+      'proposal_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortIndexMeta =
+      const VerificationMeta('sortIndex');
+  @override
+  late final GeneratedColumn<int> sortIndex = GeneratedColumn<int>(
+      'sort_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _appliedAtMeta =
+      const VerificationMeta('appliedAt');
+  @override
+  late final GeneratedColumn<int> appliedAt = GeneratedColumn<int>(
+      'applied_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        batchId,
+        proposalId,
+        sortIndex,
+        kind,
+        payloadJson,
+        appliedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'material_intake_proposals';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<MaterialIntakeProposalRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(_batchIdMeta,
+          batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta));
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('proposal_id')) {
+      context.handle(
+          _proposalIdMeta,
+          proposalId.isAcceptableOrUnknown(
+              data['proposal_id']!, _proposalIdMeta));
+    } else if (isInserting) {
+      context.missing(_proposalIdMeta);
+    }
+    if (data.containsKey('sort_index')) {
+      context.handle(_sortIndexMeta,
+          sortIndex.isAcceptableOrUnknown(data['sort_index']!, _sortIndexMeta));
+    } else if (isInserting) {
+      context.missing(_sortIndexMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(_appliedAtMeta,
+          appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MaterialIntakeProposalRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MaterialIntakeProposalRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      batchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}batch_id'])!,
+      proposalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}proposal_id'])!,
+      sortIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_index'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
+      appliedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}applied_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MaterialIntakeProposalsTable createAlias(String alias) {
+    return $MaterialIntakeProposalsTable(attachedDatabase, alias);
+  }
+}
+
+class MaterialIntakeProposalRow extends DataClass
+    implements Insertable<MaterialIntakeProposalRow> {
+  /// `<batchId>#<proposalId>`：同一批重算时按批整批替换，不同批的同名提案
+  ///（都叫 `kp:en::w::rely-on`）不会互相覆盖。
+  final String id;
+
+  /// 所属批次，与 [MaterialIntakeBatches.batchId] 对应。
+  final String batchId;
+
+  /// 领域层的提案 id（`kp:<nodeId>` / `edge:<edgeId>`），复用的是 INGEST 算出来的
+  /// 确定性 id —— 以后它就是知识点的 `external_id`。
+  final String proposalId;
+
+  /// 提案在这一批里的次序。
+  ///
+  /// 不按 id 排序：id 以 kind 开头，字典序会把知识点和连接打散，用户看到的顺序
+  /// 就和他确认时的不一样了。
+  final int sortIndex;
+
+  /// `knowledge_point` / `connection`。与 payload 冗余，便于按类统计与排查。
+  final String kind;
+
+  /// 提案本体（`MaterialIntakeProposal.toJson()`）。契约只留一份：还原走领域层
+  /// `MaterialIntakeProposal.fromJson`，这里不另写一套反序列化。
+  final String payloadJson;
+
+  /// 用户确认并处理完的时刻（epoch ms）。NULL = 还没处理。
+  ///
+  /// 连接现在**不会**被标上：资料与卡片是"线索边"还是"包含边"还没定
+  ///（roadmap §2-C ④），所以它留在待办里等那个决定，而不是假装做完了。
+  final int? appliedAt;
+  final int createdAt;
+  final int updatedAt;
+  const MaterialIntakeProposalRow(
+      {required this.id,
+      required this.batchId,
+      required this.proposalId,
+      required this.sortIndex,
+      required this.kind,
+      required this.payloadJson,
+      this.appliedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['batch_id'] = Variable<String>(batchId);
+    map['proposal_id'] = Variable<String>(proposalId);
+    map['sort_index'] = Variable<int>(sortIndex);
+    map['kind'] = Variable<String>(kind);
+    map['payload_json'] = Variable<String>(payloadJson);
+    if (!nullToAbsent || appliedAt != null) {
+      map['applied_at'] = Variable<int>(appliedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  MaterialIntakeProposalsCompanion toCompanion(bool nullToAbsent) {
+    return MaterialIntakeProposalsCompanion(
+      id: Value(id),
+      batchId: Value(batchId),
+      proposalId: Value(proposalId),
+      sortIndex: Value(sortIndex),
+      kind: Value(kind),
+      payloadJson: Value(payloadJson),
+      appliedAt: appliedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MaterialIntakeProposalRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MaterialIntakeProposalRow(
+      id: serializer.fromJson<String>(json['id']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      proposalId: serializer.fromJson<String>(json['proposalId']),
+      sortIndex: serializer.fromJson<int>(json['sortIndex']),
+      kind: serializer.fromJson<String>(json['kind']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      appliedAt: serializer.fromJson<int?>(json['appliedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'batchId': serializer.toJson<String>(batchId),
+      'proposalId': serializer.toJson<String>(proposalId),
+      'sortIndex': serializer.toJson<int>(sortIndex),
+      'kind': serializer.toJson<String>(kind),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'appliedAt': serializer.toJson<int?>(appliedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  MaterialIntakeProposalRow copyWith(
+          {String? id,
+          String? batchId,
+          String? proposalId,
+          int? sortIndex,
+          String? kind,
+          String? payloadJson,
+          Value<int?> appliedAt = const Value.absent(),
+          int? createdAt,
+          int? updatedAt}) =>
+      MaterialIntakeProposalRow(
+        id: id ?? this.id,
+        batchId: batchId ?? this.batchId,
+        proposalId: proposalId ?? this.proposalId,
+        sortIndex: sortIndex ?? this.sortIndex,
+        kind: kind ?? this.kind,
+        payloadJson: payloadJson ?? this.payloadJson,
+        appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MaterialIntakeProposalRow copyWithCompanion(
+      MaterialIntakeProposalsCompanion data) {
+    return MaterialIntakeProposalRow(
+      id: data.id.present ? data.id.value : this.id,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      proposalId:
+          data.proposalId.present ? data.proposalId.value : this.proposalId,
+      sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeProposalRow(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, batchId, proposalId, sortIndex, kind,
+      payloadJson, appliedAt, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MaterialIntakeProposalRow &&
+          other.id == this.id &&
+          other.batchId == this.batchId &&
+          other.proposalId == this.proposalId &&
+          other.sortIndex == this.sortIndex &&
+          other.kind == this.kind &&
+          other.payloadJson == this.payloadJson &&
+          other.appliedAt == this.appliedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MaterialIntakeProposalsCompanion
+    extends UpdateCompanion<MaterialIntakeProposalRow> {
+  final Value<String> id;
+  final Value<String> batchId;
+  final Value<String> proposalId;
+  final Value<int> sortIndex;
+  final Value<String> kind;
+  final Value<String> payloadJson;
+  final Value<int?> appliedAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const MaterialIntakeProposalsCompanion({
+    this.id = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.proposalId = const Value.absent(),
+    this.sortIndex = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MaterialIntakeProposalsCompanion.insert({
+    required String id,
+    required String batchId,
+    required String proposalId,
+    required int sortIndex,
+    required String kind,
+    required String payloadJson,
+    this.appliedAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        batchId = Value(batchId),
+        proposalId = Value(proposalId),
+        sortIndex = Value(sortIndex),
+        kind = Value(kind),
+        payloadJson = Value(payloadJson),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<MaterialIntakeProposalRow> custom({
+    Expression<String>? id,
+    Expression<String>? batchId,
+    Expression<String>? proposalId,
+    Expression<int>? sortIndex,
+    Expression<String>? kind,
+    Expression<String>? payloadJson,
+    Expression<int>? appliedAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (batchId != null) 'batch_id': batchId,
+      if (proposalId != null) 'proposal_id': proposalId,
+      if (sortIndex != null) 'sort_index': sortIndex,
+      if (kind != null) 'kind': kind,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (appliedAt != null) 'applied_at': appliedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MaterialIntakeProposalsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? batchId,
+      Value<String>? proposalId,
+      Value<int>? sortIndex,
+      Value<String>? kind,
+      Value<String>? payloadJson,
+      Value<int?>? appliedAt,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return MaterialIntakeProposalsCompanion(
+      id: id ?? this.id,
+      batchId: batchId ?? this.batchId,
+      proposalId: proposalId ?? this.proposalId,
+      sortIndex: sortIndex ?? this.sortIndex,
+      kind: kind ?? this.kind,
+      payloadJson: payloadJson ?? this.payloadJson,
+      appliedAt: appliedAt ?? this.appliedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (proposalId.present) {
+      map['proposal_id'] = Variable<String>(proposalId.value);
+    }
+    if (sortIndex.present) {
+      map['sort_index'] = Variable<int>(sortIndex.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<int>(appliedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeProposalsCompanion(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('sortIndex: $sortIndex, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -20239,6 +21339,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $HandwritingProposalsTable handwritingProposals =
       $HandwritingProposalsTable(this);
   late final $ExposureLogsTable exposureLogs = $ExposureLogsTable(this);
+  late final $MaterialIntakeBatchesTable materialIntakeBatches =
+      $MaterialIntakeBatchesTable(this);
+  late final $MaterialIntakeProposalsTable materialIntakeProposals =
+      $MaterialIntakeProposalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -20285,7 +21389,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         reasoningSteps,
         handwritingIntakeRuns,
         handwritingProposals,
-        exposureLogs
+        exposureLogs,
+        materialIntakeBatches,
+        materialIntakeProposals
       ];
 }
 
@@ -29948,6 +31054,517 @@ typedef $$ExposureLogsTableProcessedTableManager = ProcessedTableManager<
     ),
     ExposureLog,
     PrefetchHooks Function()>;
+typedef $$MaterialIntakeBatchesTableCreateCompanionBuilder
+    = MaterialIntakeBatchesCompanion Function({
+  required String batchId,
+  Value<String?> topic,
+  Value<String?> sourceRef,
+  Value<String?> sourceKind,
+  Value<int?> capturedAt,
+  required int analyzedAt,
+  required String summaryText,
+  required String skippedJson,
+  required int proposalCount,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$MaterialIntakeBatchesTableUpdateCompanionBuilder
+    = MaterialIntakeBatchesCompanion Function({
+  Value<String> batchId,
+  Value<String?> topic,
+  Value<String?> sourceRef,
+  Value<String?> sourceKind,
+  Value<int?> capturedAt,
+  Value<int> analyzedAt,
+  Value<String> summaryText,
+  Value<String> skippedJson,
+  Value<int> proposalCount,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MaterialIntakeBatchesTableFilterComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeBatchesTable> {
+  $$MaterialIntakeBatchesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get topic => $composableBuilder(
+      column: $table.topic, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get summaryText => $composableBuilder(
+      column: $table.summaryText, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get skippedJson => $composableBuilder(
+      column: $table.skippedJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get proposalCount => $composableBuilder(
+      column: $table.proposalCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MaterialIntakeBatchesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeBatchesTable> {
+  $$MaterialIntakeBatchesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get topic => $composableBuilder(
+      column: $table.topic, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceRef => $composableBuilder(
+      column: $table.sourceRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get summaryText => $composableBuilder(
+      column: $table.summaryText, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get skippedJson => $composableBuilder(
+      column: $table.skippedJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get proposalCount => $composableBuilder(
+      column: $table.proposalCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MaterialIntakeBatchesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeBatchesTable> {
+  $$MaterialIntakeBatchesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get topic =>
+      $composableBuilder(column: $table.topic, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceRef =>
+      $composableBuilder(column: $table.sourceRef, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => column);
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get analyzedAt => $composableBuilder(
+      column: $table.analyzedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get summaryText => $composableBuilder(
+      column: $table.summaryText, builder: (column) => column);
+
+  GeneratedColumn<String> get skippedJson => $composableBuilder(
+      column: $table.skippedJson, builder: (column) => column);
+
+  GeneratedColumn<int> get proposalCount => $composableBuilder(
+      column: $table.proposalCount, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MaterialIntakeBatchesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MaterialIntakeBatchesTable,
+    MaterialIntakeBatchRow,
+    $$MaterialIntakeBatchesTableFilterComposer,
+    $$MaterialIntakeBatchesTableOrderingComposer,
+    $$MaterialIntakeBatchesTableAnnotationComposer,
+    $$MaterialIntakeBatchesTableCreateCompanionBuilder,
+    $$MaterialIntakeBatchesTableUpdateCompanionBuilder,
+    (
+      MaterialIntakeBatchRow,
+      BaseReferences<_$AppDatabase, $MaterialIntakeBatchesTable,
+          MaterialIntakeBatchRow>
+    ),
+    MaterialIntakeBatchRow,
+    PrefetchHooks Function()> {
+  $$MaterialIntakeBatchesTableTableManager(
+      _$AppDatabase db, $MaterialIntakeBatchesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MaterialIntakeBatchesTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MaterialIntakeBatchesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MaterialIntakeBatchesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> batchId = const Value.absent(),
+            Value<String?> topic = const Value.absent(),
+            Value<String?> sourceRef = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<int?> capturedAt = const Value.absent(),
+            Value<int> analyzedAt = const Value.absent(),
+            Value<String> summaryText = const Value.absent(),
+            Value<String> skippedJson = const Value.absent(),
+            Value<int> proposalCount = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MaterialIntakeBatchesCompanion(
+            batchId: batchId,
+            topic: topic,
+            sourceRef: sourceRef,
+            sourceKind: sourceKind,
+            capturedAt: capturedAt,
+            analyzedAt: analyzedAt,
+            summaryText: summaryText,
+            skippedJson: skippedJson,
+            proposalCount: proposalCount,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String batchId,
+            Value<String?> topic = const Value.absent(),
+            Value<String?> sourceRef = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<int?> capturedAt = const Value.absent(),
+            required int analyzedAt,
+            required String summaryText,
+            required String skippedJson,
+            required int proposalCount,
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MaterialIntakeBatchesCompanion.insert(
+            batchId: batchId,
+            topic: topic,
+            sourceRef: sourceRef,
+            sourceKind: sourceKind,
+            capturedAt: capturedAt,
+            analyzedAt: analyzedAt,
+            summaryText: summaryText,
+            skippedJson: skippedJson,
+            proposalCount: proposalCount,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MaterialIntakeBatchesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $MaterialIntakeBatchesTable,
+        MaterialIntakeBatchRow,
+        $$MaterialIntakeBatchesTableFilterComposer,
+        $$MaterialIntakeBatchesTableOrderingComposer,
+        $$MaterialIntakeBatchesTableAnnotationComposer,
+        $$MaterialIntakeBatchesTableCreateCompanionBuilder,
+        $$MaterialIntakeBatchesTableUpdateCompanionBuilder,
+        (
+          MaterialIntakeBatchRow,
+          BaseReferences<_$AppDatabase, $MaterialIntakeBatchesTable,
+              MaterialIntakeBatchRow>
+        ),
+        MaterialIntakeBatchRow,
+        PrefetchHooks Function()>;
+typedef $$MaterialIntakeProposalsTableCreateCompanionBuilder
+    = MaterialIntakeProposalsCompanion Function({
+  required String id,
+  required String batchId,
+  required String proposalId,
+  required int sortIndex,
+  required String kind,
+  required String payloadJson,
+  Value<int?> appliedAt,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$MaterialIntakeProposalsTableUpdateCompanionBuilder
+    = MaterialIntakeProposalsCompanion Function({
+  Value<String> id,
+  Value<String> batchId,
+  Value<String> proposalId,
+  Value<int> sortIndex,
+  Value<String> kind,
+  Value<String> payloadJson,
+  Value<int?> appliedAt,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MaterialIntakeProposalsTableFilterComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeProposalsTable> {
+  $$MaterialIntakeProposalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortIndex => $composableBuilder(
+      column: $table.sortIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get appliedAt => $composableBuilder(
+      column: $table.appliedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MaterialIntakeProposalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeProposalsTable> {
+  $$MaterialIntakeProposalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortIndex => $composableBuilder(
+      column: $table.sortIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get appliedAt => $composableBuilder(
+      column: $table.appliedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MaterialIntakeProposalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeProposalsTable> {
+  $$MaterialIntakeProposalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get proposalId => $composableBuilder(
+      column: $table.proposalId, builder: (column) => column);
+
+  GeneratedColumn<int> get sortIndex =>
+      $composableBuilder(column: $table.sortIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<int> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MaterialIntakeProposalsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MaterialIntakeProposalsTable,
+    MaterialIntakeProposalRow,
+    $$MaterialIntakeProposalsTableFilterComposer,
+    $$MaterialIntakeProposalsTableOrderingComposer,
+    $$MaterialIntakeProposalsTableAnnotationComposer,
+    $$MaterialIntakeProposalsTableCreateCompanionBuilder,
+    $$MaterialIntakeProposalsTableUpdateCompanionBuilder,
+    (
+      MaterialIntakeProposalRow,
+      BaseReferences<_$AppDatabase, $MaterialIntakeProposalsTable,
+          MaterialIntakeProposalRow>
+    ),
+    MaterialIntakeProposalRow,
+    PrefetchHooks Function()> {
+  $$MaterialIntakeProposalsTableTableManager(
+      _$AppDatabase db, $MaterialIntakeProposalsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MaterialIntakeProposalsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MaterialIntakeProposalsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MaterialIntakeProposalsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> batchId = const Value.absent(),
+            Value<String> proposalId = const Value.absent(),
+            Value<int> sortIndex = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> payloadJson = const Value.absent(),
+            Value<int?> appliedAt = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MaterialIntakeProposalsCompanion(
+            id: id,
+            batchId: batchId,
+            proposalId: proposalId,
+            sortIndex: sortIndex,
+            kind: kind,
+            payloadJson: payloadJson,
+            appliedAt: appliedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String batchId,
+            required String proposalId,
+            required int sortIndex,
+            required String kind,
+            required String payloadJson,
+            Value<int?> appliedAt = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MaterialIntakeProposalsCompanion.insert(
+            id: id,
+            batchId: batchId,
+            proposalId: proposalId,
+            sortIndex: sortIndex,
+            kind: kind,
+            payloadJson: payloadJson,
+            appliedAt: appliedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MaterialIntakeProposalsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $MaterialIntakeProposalsTable,
+        MaterialIntakeProposalRow,
+        $$MaterialIntakeProposalsTableFilterComposer,
+        $$MaterialIntakeProposalsTableOrderingComposer,
+        $$MaterialIntakeProposalsTableAnnotationComposer,
+        $$MaterialIntakeProposalsTableCreateCompanionBuilder,
+        $$MaterialIntakeProposalsTableUpdateCompanionBuilder,
+        (
+          MaterialIntakeProposalRow,
+          BaseReferences<_$AppDatabase, $MaterialIntakeProposalsTable,
+              MaterialIntakeProposalRow>
+        ),
+        MaterialIntakeProposalRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -30035,4 +31652,9 @@ class $AppDatabaseManager {
       $$HandwritingProposalsTableTableManager(_db, _db.handwritingProposals);
   $$ExposureLogsTableTableManager get exposureLogs =>
       $$ExposureLogsTableTableManager(_db, _db.exposureLogs);
+  $$MaterialIntakeBatchesTableTableManager get materialIntakeBatches =>
+      $$MaterialIntakeBatchesTableTableManager(_db, _db.materialIntakeBatches);
+  $$MaterialIntakeProposalsTableTableManager get materialIntakeProposals =>
+      $$MaterialIntakeProposalsTableTableManager(
+          _db, _db.materialIntakeProposals);
 }

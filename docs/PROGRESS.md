@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-16 轮次六十四：材料摄取落库（第四步：确认后才写，Lead）
+
+**做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第三步。上一轮（六十三）把信封摆成了
+"要建哪些知识点/连接、每条出自哪一页"的待确认提案，工具还是只读的；这一轮把"用户点头之后写库"
+这一段补上 —— 与拍照整理通路同一条纪律（提案表 + `applied_at` NULL = 还没确认）：
+
+- schema **v17** 两张表（`app/lib/data/database/tables.dart`）：`material_intake_batches`
+  （主键 `batchId` = 信封的 `batch_id`，INGEST 的幂等键；`skipped_json` 单独一列，因为"留在清单外"
+  不是待确认产物）与 `material_intake_proposals`（主键 `<batchId>#<proposalId>`、`sortIndex` 保留
+  材料顺序、`payloadJson` 只留一份契约、`appliedAt` NULL = 还没确认）。迁移 `_upgradeV16ToV17`
+  是"加两张表"，并在 `_ensureColumns()` 里自愈（Drift 在 `user_version` 已等于当前版本时跳过
+  `onUpgrade`，没有自愈的话第一次写就炸 —— v6/v7/v8… 那批踩过同一个坑）。
+- 新增 `app/lib/data/repositories/material_intake_repository.dart`：`record`（幂等：同一批重算只替换
+  **未确认**的行，已确认的一个字不动 —— 重算覆盖人工决定比丢数据更坏）、`batch`/`batches`/
+  `pendingProposals`/`proposals`、`apply`（写 `knowledge_points`，两道去重：提案自带的 `exists`
+  与 `external_id`）。
+- 新增 `apply_material_intake` 工具（`app/lib/features/ai/tools/ingest_tools.dart`）：参数是**同一份信封**
+  而不是"提案清单"—— 提案由信封确定性推导，所以"确认"只需说清确认哪一批、哪几条；`proposal_ids`
+  越界直接拒绝；payload 里的批次取确认之后的样子（`unapplied_count` 能直接读出还剩几条）。
+- 注册进 `tool_registry.dart`（在 `ingest_material` 之后），并把"信封 → 转化 → 提案"抽成共用函数
+  `buildMaterialPlan(...)`：两个工具走的是同一条推导，保证"看到的"和"确认的"是同一份。
+
+**刻意选择**：① **复核式确认** —— 工具重算一遍信封，`redo` 的路径就是"再跑一次同样的信封"；
+② **连接宁可 deferred** —— 资料与卡片是"线索边"还是"包含边"未定（§2-C ④），没有落点的写入不假装
+做完，它们如实进 `deferred` 并且**保持未确认**留在待办里；③ **认内容不认标题** —— 用户改过标题之后
+同名判断就抓不住了，`external_id`（`en::w::…`，材料决定的内容 id）是第二道去重。
+
+**证据**：20 例 —— `app/test/data/repositories/material_intake_repository_test.dart` 9 例（幂等记录、
+重算不动已确认、apply 的 `external_id` 与出处文案"材料：词汇书（第 12 页）"、同名与改过标题两种去重、
+确认两次幂等、`proposal_ids` 只处理选中项、未知批次报错、坏 payload 抛 `FormatException`）+
+`app/test/features/ai/apply_material_intake_tool_test.dart` 8 例（非只读且注册表拿得到、空信封一行不写
+且不留批次、信封不合规整份拒绝、好信封的 summary/payload/`afterJson`、确认两次幂等、`proposal_ids`
+越界拒绝、JSON 文本等价）+ `app/test/data/database/v17_migration_test.dart` 2 例（真实 v16 文件升级后
+两张表可用且老知识点还在、"被盖成 v17 却没有这两张表"靠自愈补上）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1775 ~2: All tests passed!`（exit 0）。轮次六十三 后是
+`+1755 ~2`，差值 20 正好是本轮新增的 20 例；`dart analyze lib test` 仍是 95 issues（0 error / 0 warning，
+都是既有的 `info`）；`dart run build_runner build --delete-conflicting-outputs` 重生成 drift 产物（513 → 466 outputs）。
+
+**已知的没做**：① "添加资料"的界面入口（现在只有 AI 工具的路径：模型调用 `ingest_material` 看提案、
+用户点头后调用 `apply_material_intake`）；② TRANSCRIBE 的"照片 → `run/1`"（§2-C ③）；③ 资料与卡片的
+关联类型（§2-C ④，连接的落点就等它）。
+
+---
+
 ## 2026-10-16 轮次六十三：材料信封 → 待确认提案（Lead）
 
 **做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第二步（第一步是轮次六十二的确定性转化）。
