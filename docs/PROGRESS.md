@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-16 轮次五十六：反事实 `V(π)` 进入题目排序（Q30，Lead）
+
+**做了什么**：roadmap §2-A 缺① —— 控制层那个反事实规划器以前只负责"判定"，现在它的价格也参与
+找题的次序。改动全在两个文件：
+
+- `app/lib/domain/services/cognitive/problem_evaluator.dart`：`ProblemEvaluation` 多四个可空字段
+  （`counterfactualValue` / `counterfactualMetric` / `counterfactualInstruction` / `counterfactualWhy`）；
+  `evaluate` 里 `_diagnose` 重构成 `_runFastLayer`，返回私有的 `_FastRun{diagnosis, plan}` ——
+  **诊断与价格取自同一个引擎**，不可能描述两次不同的运行；
+  `FastPlanner.plan(...)` 的 `List<FastPlanEntry>` 里只挑"模拟过、有 `metric`、节点就是本题目标"的那条
+  （`_bestPlanEntry`，同 `value` 取目标序靠前者），价格随后进 `_judge` → `_evaluation`，
+  理由行追加 `；反事实：<指令>（<度量> 增益 X / 成本 Y → V=Z；<为什么>）`（`_num` 三位小数）。
+  新增公开静态 `ProblemEvaluator.compareByRank`：`rankKey` 降序 → `V(π)` 降序（`null` 最末）→
+  `problemId` 升序；`_markRedundant` 重建条目时**复制**这四个字段（价格是题目自己那个节点的属性）。
+- `app/lib/features/ai/tools/cognitive_tools.dart`：`evaluate_problem_fit` 每条题目多一个
+  `counterfactual{metric,instruction,value,why}`；**不可模拟时整个键缺席**（不是 `value: 0`）。
+
+**为什么 `V(π)` 只当 tie-break 与解释，不并进 `rankKey`**：增益来自未标定的机制常数，成本
+1.0 / 2.0 / 0.2 同样是拍的；把它算进主键，等于让"提示"穿上"测量"的衣服。`FastPlanner` 对
+`retention` 类指令在没有 `RetentionProbe` 时明确是"未模拟"（`simulated: false`），所以
+"这道题没有价格"是合法状态，输出里就不该出现一个假的 0。同一原因，工具输出里的 `rank_key`
+仍然是唯一主键。
+
+**验收**：`dart format` 4 文件；`dart analyze lib test` → `95 issues found`，
+`error`/`warning` 各 0（与改动前同数）；`flutter test
+test/domain/services/cognitive/problem_evaluator_test.dart --concurrency=1` → `+13 All tests passed!`
+（新增 3 例：有价格 / 关掉快层四个字段全空且理由没有"反事实" / 纯 tie-break 不越过 `rankKey`）；
+`test/features/ai/cognitive_tools_test.dart --concurrency=1` → `+13 All tests passed!`
+（新增 1 例 priced dead end；既有那条"没有别的节点可连"补了 `counterfactual` 键缺席的断言）；
+全量 `flutter test --concurrency=1` → **`+1644 ~2: All tests passed!`**（上一片 `+1640 ~2`，+4 例）。
+
+**还剩的另一半**：`retention` 侧要先把记忆模块的 `RetentionProbe` 接进 fast layer，否则只有
+`reachability` 一种度量有价格；roadmap §3 第 5 行验收要的"今天做这几件事"的清单（把题目与闪存卡
+合成一份按 `V(π)` 排的日计划）仍未做。
+
+---
+
 ## 2026-10-16 轮次五十五：认知排序的开关与"未标定"标注上屏（Q29e，Lead）
 
 **做了什么**：认知排序档位（roadmap §2-D）从"服务里能跑"变成"用户能开、开了看得懂"。

@@ -40,10 +40,10 @@
 ### A. 找题（趋势：从"评价一道题"到"按我的状态排题"）
 
 - **已有**：`evaluate_problem_fit`（只读工具）→ `ProblemEvaluator` + `CognitiveModel`，给 6 类判定 + 排序键 + 人话理由。
-- **缺**：① 控制层 `expected_gain`/反事实 `V(π)` 真正参与排序（现在只到判定）；
-  ② 节律 α(τ) 决定"现在适合做难还是易"；③ 题目来源（组卷网 skill）与题源质量判据。
+- **缺**：① ~~控制层 `expected_gain`/反事实 `V(π)` 真正参与排序（现在只到判定）~~ **已进排序（轮次五十六）**：`ProblemEvaluator` 把 `FastPlanner` 的 `V(π)=ΔR/cost` 用作**同分档的次序与解释**（`compareByRank`：`rankKey` → `V(π)` → `problemId`），理由行带上"为什么排这里"；它**没有**并进 `rankKey`（加成与成本全部未标定，混进主键会让提示看起来像测量），`retention` 侧没有 `RetentionProbe` 时仍是"未模拟"（不是 0 增益）；
+  ② 节律 α(τ) 决定"现在适合做难还是易"（读数与建议已完成轮次四十七；认知排序的精力项已完成轮次五十四）；③ 题目来源（组卷网 skill）与题源质量判据。
   （原列的"元认知危险区优先"已在轮次二十二实测后撤回：见下方"切片 3 的追加"。）
-- **落点**：`problem_evaluator.dart` 增加 `retention|reachability` 双度量排序；AI 工具输出里带上"为什么排这里"。
+- **落点**：`problem_evaluator.dart` 增加 `retention|reachability` 双度量排序；AI 工具输出里带上"为什么排这里" ✅ **`reachability` 侧已完成（轮次五十六）**，`retention` 侧等 `RetentionProbe` 接进 fast layer。
 
 ### B. 闪存卡复习（趋势：把"评分"升级成"事件流"）
 
@@ -90,7 +90,7 @@
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
-| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
+| 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"；`retention` 侧仍缺 `RetentionProbe`，是"未模拟"而不是 0）；还没做的是"今天做这几件事"的清单本身（把题目与闪存卡合成一个按 `V(π)` 排的日计划）** |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
@@ -368,6 +368,17 @@ MindNet 第三层（`mechanisms/metacognition.belief.js`）说明"危险"缺的�
 - 若日后要做"先做最危险的题"，需要的不是同一张图的扩散结果，而是**与问题无关的**判定：
   例如"这张卡的 `R` 低于阈值而自评/编码强度高"——那要先有 `fluency` 的真实来源（自评或作答历史），
   现在没有，所以不做。
+
+**进展（轮次五十六）**：同一个工具的另一半做完了 —— `evaluate_problem_fit` 现在把控制层的反事实价格
+`V(π)=ΔR/cost` 用在**同分档的次序与解释**上（`ProblemEvaluator.compareByRank`：`rankKey` 降序 →
+`V(π)` 降序（`null` 最末）→ `problemId` 升序；理由行追加"反事实：<指令>（<度量> 增益 X / 成本 Y → V=Z；<为什么>）"；
+工具输出多一个 `counterfactual{metric,instruction,value,why}`，**不可模拟时整键缺席**，不是 0）。
+为什么**不**把它并进 `rankKey`：`V(π)` 的增益来自未标定的机制常数、成本 1.0/2.0/0.2 也是拍的，
+混进主键等于把"提示"当"测量"；`FastPlanner` 的 `retention` 指令在没有 `RetentionProbe` 时明确是
+"未模拟"（`simulated: false`），所以"没有价格"是合法状态。诊断与价格取自**同一个引擎**（`_FastRun`），
+不可能描述两次不同的运行。证据：`problem_evaluator_test.dart` 13 例（含 3 例价格：有价格 / 关掉快层全空 /
+纯 tie-break 不越 `rankKey`）、`cognitive_tools_test.dart` 13 例（含"没得连就没有价格键"与
+"两个节点时给出 `reachability` 价格"）。`retention` 侧与"把题目和闪存卡合成一份按 `V(π)` 排的日计划"仍未做。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

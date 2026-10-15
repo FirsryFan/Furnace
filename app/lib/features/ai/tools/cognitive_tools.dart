@@ -50,8 +50,7 @@ class EvaluateProblemFitTool extends AiTool {
   String get name => 'evaluate_problem_fit';
 
   @override
-  String get description =>
-      '评估一批候选题"现在值不值得做"，并给出推荐顺序。每道题得到判定（too_easy 已经会了 / '
+  String get description => '评估一批候选题"现在值不值得做"，并给出推荐顺序。每道题得到判定（too_easy 已经会了 / '
       'zpd 发展中区 / too_hard 现在做是硬啃 / out_of_scope 超纲或死角 / redundant 与另一题重复 / '
       'high_value 值得现在做）、排序键和人话理由。判定来自认知模型：闪存卡标签 → 认知图 → '
       '快层扩散诊断（"差点想起来"= 发展区、"进不去/走不下去"= 死角），并结合用户自己的复习状态。'
@@ -79,9 +78,8 @@ class EvaluateProblemFitTool extends AiTool {
                 },
                 'difficulty_hint': {
                   'type': 'number',
-                  'description':
-                      '题目自报难度 0..1。只在没有任何复习记录时作先验，'
-                          '**不会**作为模型的 difficulty（契约 §6.3）',
+                  'description': '题目自报难度 0..1。只在没有任何复习记录时作先验，'
+                      '**不会**作为模型的 difficulty（契约 §6.3）',
                 },
               },
               'required': <String>['id'],
@@ -90,9 +88,8 @@ class EvaluateProblemFitTool extends AiTool {
           'start_knowledge_point_ids': {
             'type': 'array',
             'items': {'type': 'string'},
-            'description':
-                '用户此刻在脑子里的闪存卡（通常是刚复习/刚做错的），可空；'
-                    '图外 id 会被忽略',
+            'description': '用户此刻在脑子里的闪存卡（通常是刚复习/刚做错的），可空；'
+                '图外 id 会被忽略',
           },
           'now': {
             'type': 'string',
@@ -218,13 +215,24 @@ class EvaluateProblemFitTool extends AiTool {
               'rank_key': evaluation.rankKey,
               'reason': evaluation.reason,
               'knowledge_point_ids': evaluation.knowledgePointIds,
-              'judged_knowledge_point_ids':
-                  evaluation.judgedKnowledgePointIds,
+              'judged_knowledge_point_ids': evaluation.judgedKnowledgePointIds,
               'diagnosis': {
-                for (final entry in evaluation.diagnosisByKnowledgePoint
-                    .entries)
+                for (final entry
+                    in evaluation.diagnosisByKnowledgePoint.entries)
                   entry.key: entry.value.id,
               },
+              // §2-A 缺①: the counterfactual line, in the model's own numbers.
+              // `value` is `V(π) = ΔR / cost`, an **uncalibrated** tie-break -
+              // `rank_key` stays the primary key - and it is absent when nothing
+              // could be simulated (a `retention` instruction needs the memory
+              // layer wired through `RetentionProbe`).
+              if (evaluation.counterfactualValue != null)
+                'counterfactual': {
+                  'metric': evaluation.counterfactualMetric,
+                  'instruction': evaluation.counterfactualInstruction,
+                  'value': evaluation.counterfactualValue,
+                  'why': evaluation.counterfactualWhy,
+                },
             },
         ],
       },

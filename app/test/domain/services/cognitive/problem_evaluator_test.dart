@@ -63,7 +63,9 @@ void main() {
   group('tierA alone (no graph, no fast layer)', () {
     test('a strong knowledge point reads as too easy', () {
       final report = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-strong'])],
+        candidates: [
+          problem('p1', kps: const ['kp-strong'])
+        ],
         tags: const [],
         rowsByKnowledgePoint: {
           'kp-strong': rowOf(
@@ -82,7 +84,9 @@ void main() {
 
     test('barely-retrievable and hard reads as too hard', () {
       final report = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-gone'])],
+        candidates: [
+          problem('p1', kps: const ['kp-gone'])
+        ],
         tags: const [],
         rowsByKnowledgePoint: {
           // MindNet's forgetting curve is a power curve, so "almost gone"
@@ -123,7 +127,9 @@ void main() {
       // With history, a "very hard" hint must not move the verdict: the model's
       // own numbers decide (§6.3 - the hint is never the model's `D`).
       final withHistory = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-strong'], hint: 0.99)],
+        candidates: [
+          problem('p1', kps: const ['kp-strong'], hint: 0.99)
+        ],
         tags: const [],
         rowsByKnowledgePoint: rows,
         model: model,
@@ -135,7 +141,9 @@ void main() {
       // Without history the hint *is* the only signal we have, and it is used
       // as a prior - which the verdict says out loud.
       final noHistory = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-unknown'], hint: 0.99)],
+        candidates: [
+          problem('p1', kps: const ['kp-unknown'], hint: 0.99)
+        ],
         tags: const [],
         rowsByKnowledgePoint: rows,
         model: model,
@@ -151,7 +159,9 @@ void main() {
       // One tag, no edges: nothing can drive into it, which is exactly
       // `empty` / `no_entry` (fast_diagnosis.dart's in-degree branch).
       final report = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-island'])],
+        candidates: [
+          problem('p1', kps: const ['kp-island'])
+        ],
         tags: [tag('kp-island')],
         rowsByKnowledgePoint: {
           'kp-island': rowOf(knowledgePointId: 'kp-island'),
@@ -170,7 +180,9 @@ void main() {
 
     test('tags without a card row are reported, never given 0.8', () {
       final report = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-has-row'])],
+        candidates: [
+          problem('p1', kps: const ['kp-has-row'])
+        ],
         tags: [tag('kp-has-row'), tag('kp-no-row')],
         rowsByKnowledgePoint: {
           'kp-has-row': rowOf(knowledgePointId: 'kp-has-row'),
@@ -202,13 +214,15 @@ void main() {
       expect(report.evaluations, hasLength(1));
       expect(report.evaluations.single.knowledgePointIds,
           ['kp-in-graph', 'kp-not-a-tag']);
-      expect(report.evaluations.single.judgedKnowledgePointIds,
-          ['kp-in-graph']);
+      expect(
+          report.evaluations.single.judgedKnowledgePointIds, ['kp-in-graph']);
     });
 
     test('runFastLayer: false keeps tierA usable with a graph present', () {
       final report = ProblemEvaluator.evaluate(
-        candidates: [problem('p1', kps: const ['kp-in-graph'])],
+        candidates: [
+          problem('p1', kps: const ['kp-in-graph'])
+        ],
         tags: [tag('kp-in-graph')],
         rowsByKnowledgePoint: {
           'kp-in-graph': rowOf(knowledgePointId: 'kp-in-graph', stability: 300),
@@ -280,6 +294,112 @@ void main() {
       final keys = [for (final e in forward.evaluations) e.rankKey];
       expect(keys, orderedEquals([...keys]..sort((a, b) => b.compareTo(a))),
           reason: 'sorted by rankKey descending');
+    });
+  });
+
+  group('the counterfactual price (§2-A 缺①)', () {
+    test('a dead end carries the price of opening it, with its metric', () {
+      // Two nodes: `kp-lit` is what the user is holding in mind, `kp-island`
+      // has no in-edge at all (`empty`). `add_in_edges` is the planner's
+      // preferred instruction for `empty` and it *is* simulatable, so this
+      // candidate gets a reachability price instead of a bare "dead end".
+      final report = ProblemEvaluator.evaluate(
+        candidates: [
+          problem('p1', kps: const ['kp-island'])
+        ],
+        tags: [tag('kp-lit'), tag('kp-island')],
+        rowsByKnowledgePoint: {
+          'kp-lit': rowOf(knowledgePointId: 'kp-lit'),
+          'kp-island': rowOf(knowledgePointId: 'kp-island'),
+        },
+        model: model,
+        nowHours: nowHours,
+        startKnowledgePointIds: const ['kp-lit'],
+      );
+
+      final evaluation = report.evaluations.single;
+      expect(report.fastLayerRan, isTrue);
+      expect(evaluation.verdict, ProblemVerdict.outOfScope,
+          reason: 'a node nothing can drive into is still a dead end');
+      expect(evaluation.counterfactualMetric, 'reachability');
+      expect(evaluation.counterfactualValue, isNotNull);
+      expect(evaluation.counterfactualValue!, greaterThan(0),
+          reason: 'adding the missing in-edge must buy something measurable');
+      expect(evaluation.counterfactualInstruction, 'add_in_edges');
+      expect(evaluation.counterfactualWhy, isNotEmpty);
+      expect(evaluation.reason, contains('反事实'));
+      expect(evaluation.reason, contains('reachability'));
+    });
+
+    test('tierA alone carries no price and appends no clause', () {
+      final report = ProblemEvaluator.evaluate(
+        candidates: [
+          problem('p1', kps: const ['kp-island'])
+        ],
+        tags: [tag('kp-lit'), tag('kp-island')],
+        rowsByKnowledgePoint: {
+          'kp-lit': rowOf(knowledgePointId: 'kp-lit'),
+          'kp-island': rowOf(knowledgePointId: 'kp-island'),
+        },
+        model: model,
+        nowHours: nowHours,
+        startKnowledgePointIds: const ['kp-lit'],
+        runFastLayer: false,
+      );
+
+      final evaluation = report.evaluations.single;
+      expect(report.fastLayerRan, isFalse);
+      expect(evaluation.counterfactualValue, isNull);
+      expect(evaluation.counterfactualMetric, isNull);
+      expect(evaluation.counterfactualInstruction, isNull);
+      expect(evaluation.reason, isNot(contains('反事实')));
+    });
+
+    test('the price is a tie-break: rankKey first, then value, then id', () {
+      ProblemEvaluation built({
+        required String id,
+        double rankKey = 1.0,
+        double? value,
+      }) =>
+          ProblemEvaluation(
+            problemId: id,
+            stem: '题干 $id',
+            verdict: ProblemVerdict.zpd,
+            rankKey: rankKey,
+            reason: '同分',
+            knowledgePointIds: const ['kp-a'],
+            judgedKnowledgePointIds: const ['kp-a'],
+            diagnosisByKnowledgePoint: const {},
+            counterfactualValue: value,
+          );
+
+      List<String> orderOf(List<ProblemEvaluation> evaluations) {
+        final sorted = [...evaluations]..sort(ProblemEvaluator.compareByRank);
+        return [for (final evaluation in sorted) evaluation.problemId];
+      }
+
+      // Equal rankKey: the price decides, and "no price" comes last.
+      expect(
+        orderOf([
+          built(id: 'none'),
+          built(id: 'small', value: 0.5),
+          built(id: 'big', value: 2.0),
+        ]),
+        ['big', 'small', 'none'],
+      );
+      // Same price: the id decides, so the order stays total.
+      expect(
+        orderOf([built(id: 'b', value: 1.0), built(id: 'a', value: 1.0)]),
+        ['a', 'b'],
+      );
+      // A price never outranks a higher rankKey.
+      expect(
+        orderOf([
+          built(id: 'paid', rankKey: 0.5, value: 9.0),
+          built(id: 'plain', rankKey: 2.0),
+        ]),
+        ['plain', 'paid'],
+      );
     });
   });
 }

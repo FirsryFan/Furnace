@@ -39,6 +39,16 @@
 ///   Danger stays a *context* reading (the readings page, where the metacognition
 ///   rows are folded into `FastDiagnosis.bottlenecks`), which is where it is
 ///   meaningful.
+/// * **the counterfactual price is a tie-break and an explanation, never a
+///   weight.** [FastPlanner.plan] prices each bottleneck's preferred
+///   instruction as `V(π) = ΔR / cost`, measured on a clone of *this problem's
+///   own* diffusion run (`fast_diagnosis.dart`). The evaluator attaches that
+///   price to the evaluation and uses it only to order candidates whose
+///   `rankKey` is equal: the costs and the intervention strengths behind `V(π)`
+///   are [未标定], and folding an uncalibrated number into the primary key would
+///   make a hint look like a measurement. A `retention` instruction without a
+///   `RetentionProbe` is reported as *not simulated*, never as zero gain - so a
+///   candidate can legitimately carry no price at all.
 library;
 
 import '../../../data/database/database.dart';
@@ -149,6 +159,10 @@ class ProblemEvaluation {
     required this.knowledgePointIds,
     required this.judgedKnowledgePointIds,
     required this.diagnosisByKnowledgePoint,
+    this.counterfactualValue,
+    this.counterfactualMetric,
+    this.counterfactualInstruction,
+    this.counterfactualWhy,
   });
 
   final String problemId;
@@ -172,6 +186,26 @@ class ProblemEvaluation {
   /// The fast layer's verdicts for this problem's knowledge points, from *this
   /// problem's own* diffusion run (`{}` when the fast layer did not run).
   final Map<String, BottleneckType> diagnosisByKnowledgePoint;
+
+  /// The counterfactual price of the planner's preferred instruction for this
+  /// problem's nodes: `V(π) = ΔR / cost` (`FastPlanner`).
+  ///
+  /// Null when the fast layer did not run, when no bottleneck had a simulatable
+  /// instruction, or when the only instruction for it needs the memory layer
+  /// (`retention` without a `RetentionProbe` is *not simulated*). An uncalibrated
+  /// number, used only for the tie-break in [ProblemEvaluator.compareByRank].
+  final double? counterfactualValue;
+
+  /// `reachability` / `retention`: the metric [counterfactualValue] was measured
+  /// in (`FastPlanEntry.metric`). Null whenever the value is.
+  final String? counterfactualMetric;
+
+  /// The instruction id the price belongs to (`add_in_edges`, ...).
+  final String? counterfactualInstruction;
+
+  /// The planner's own sentence for that entry - what was simulated and what
+  /// changed.
+  final String? counterfactualWhy;
 }
 
 /// The whole batch's result.
@@ -182,9 +216,10 @@ class ProblemEvaluationReport {
     required this.nodesWithoutMs,
   });
 
-  /// Ranked: `rankKey` descending, then problem id ascending, so the order is
-  /// total and independent of the input order. There is no danger-first tier -
-  /// see the boundary note at the top of this file.
+  /// Ranked: `rankKey` descending, then `counterfactualValue` descending (the
+  /// ones without a price last), then problem id ascending - see
+  /// [ProblemEvaluator.compareByRank]. There is no danger-first tier - see the
+  /// boundary note at the top of this file.
   final List<ProblemEvaluation> evaluations;
 
   /// Whether the fast layer actually ran (tierB). When false every verdict came
@@ -195,6 +230,18 @@ class ProblemEvaluationReport {
   /// supplied an encoding strength. "Not provided" - **not** 0.8
   /// (`CognitiveGraph.nodesWithoutMs`).
   final List<String> nodesWithoutMs;
+}
+
+/// One candidate's fast-layer run: the complaints and the counterfactual plan,
+/// both taken from the same engine.
+class _FastRun {
+  const _FastRun({required this.diagnosis, required this.plan});
+
+  /// Bottleneck type by graph node (`FastDiagnosis.bottlenecks`, first wins).
+  final Map<String, BottleneckType> diagnosis;
+
+  /// The planner's lines for the same run (`FastPlanner.plan`).
+  final List<FastPlanEntry> plan;
 }
 
 /// The evaluator. Pure: it reads what it is given and writes nothing.
@@ -225,8 +272,7 @@ abstract final class ProblemEvaluator {
     Map<String, double> importanceByTagId = const {},
     Map<String, Object?> moduleDefaults = const {},
     bool runFastLayer = true,
-    ProblemEvaluatorThresholds thresholds =
-        const ProblemEvaluatorThresholds(),
+    ProblemEvaluatorThresholds thresholds = const ProblemEvaluatorThresholds(),
   }) {
     final nodeIds = {for (final tag in tags) tag.id};
 
@@ -304,8 +350,9 @@ abstract final class ProblemEvaluator {
               tagIdsByKnowledgePoint,
             ).where(nodeIds.contains).toList();
       var diagnosis = const <String, BottleneckType>{};
+      FastPlanEntry? price;
       if (runFastLayer && tags.isNotEmpty && graphTargets.isNotEmpty) {
-        final tagDiagnosis = _diagnose(
+        final run = _runFastLayer(
           spec: spec,
           starts: starts,
           targets: graphTargets,
@@ -313,6 +360,8 @@ abstract final class ProblemEvaluator {
           moduleDefaults: moduleDefaults,
           rounds: thresholds.diffusionRounds,
         );
+        final tagDiagnosis = run.diagnosis;
+        price = _bestPlanEntry(run.plan, graphTargets);
         diagnosis = tagIdsByKnowledgePoint.isEmpty
             ? tagDiagnosis
             : KnowledgePointTagBridge.verdictsByKnowledgePoint(
@@ -327,6 +376,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: price,
         rows: rowsByKnowledgePoint,
         model: model,
         nowHours: nowHours,
@@ -336,10 +386,7 @@ abstract final class ProblemEvaluator {
 
     _markRedundant(evaluations);
 
-    evaluations.sort((a, b) {
-      final byRank = b.rankKey.compareTo(a.rankKey);
-      return byRank != 0 ? byRank : a.problemId.compareTo(b.problemId);
-    });
+    evaluations.sort(compareByRank);
 
     return ProblemEvaluationReport(
       evaluations: List.unmodifiable(evaluations),
@@ -348,9 +395,38 @@ abstract final class ProblemEvaluator {
     );
   }
 
+  /// The report's total order: `rankKey` descending, then the counterfactual
+  /// price descending (candidates without one come last), then problem id
+  /// ascending - so the order is total and does not depend on the input order.
+  ///
+  /// The price is only ever a *tie-break*: `rankKey` is the primary key, and
+  /// `V(π)`'s costs are [未标定] (see the header note). Public so the tie-break
+  /// itself is testable without building an engine.
+  static int compareByRank(ProblemEvaluation a, ProblemEvaluation b) {
+    final byRank = b.rankKey.compareTo(a.rankKey);
+    if (byRank != 0) {
+      return byRank;
+    }
+    final aValue = a.counterfactualValue;
+    final bValue = b.counterfactualValue;
+    if (aValue != null && bValue != null) {
+      final byValue = bValue.compareTo(aValue);
+      if (byValue != 0) {
+        return byValue;
+      }
+    } else if (aValue != null) {
+      return -1;
+    } else if (bValue != null) {
+      return 1;
+    }
+    return a.problemId.compareTo(b.problemId);
+  }
+
   /// Runs the tierB fast layer for one problem and returns what it complained
-  /// about, keyed by knowledge point.
-  static Map<String, BottleneckType> _diagnose({
+  /// about, keyed by knowledge point, together with the counterfactual prices
+  /// from **the same engine** - so the diagnosis and the price can never
+  /// describe two different runs.
+  static _FastRun _runFastLayer({
     required Map<String, Object?> spec,
     required List<String> starts,
     required List<String> targets,
@@ -378,11 +454,59 @@ abstract final class ProblemEvaluator {
     )..startDiffusion(starts, targets);
     engine.runRounds(rounds);
 
+    final bottlenecks = FastDiagnosis.bottlenecks(engine: engine);
     final out = <String, BottleneckType>{};
-    for (final bottleneck in FastDiagnosis.bottlenecks(engine: engine)) {
+    for (final bottleneck in bottlenecks) {
       out.putIfAbsent(bottleneck.node, () => bottleneck.type);
     }
-    return out;
+    return _FastRun(
+      diagnosis: out,
+      plan: FastPlanner.plan(
+        engine: engine,
+        bottlenecks: bottlenecks,
+        params: FastPlannerParams(simRounds: rounds),
+      ),
+    );
+  }
+
+  /// Picks this candidate's price: the highest `V(π)` among the planner's
+  /// **simulated** entries for the problem's own graph nodes.
+  ///
+  /// Only simulated entries count - a `retention` instruction without a
+  /// `RetentionProbe` is "the memory layer is not wired", not a zero. Ties go to
+  /// the first target, so the choice does not depend on map iteration order.
+  static FastPlanEntry? _bestPlanEntry(
+    List<FastPlanEntry> plan,
+    List<String> targets,
+  ) {
+    if (plan.isEmpty || targets.isEmpty) {
+      return null;
+    }
+    final targetSet = targets.toSet();
+    final targetIndex = <String, int>{
+      for (var i = 0; i < targets.length; i += 1) targets[i]: i,
+    };
+    FastPlanEntry? best;
+    for (final entry in plan) {
+      if (!entry.simulated || entry.metric == null) {
+        continue;
+      }
+      if (!targetSet.contains(entry.node)) {
+        continue;
+      }
+      if (best == null) {
+        best = entry;
+        continue;
+      }
+      final byValue = entry.value.compareTo(best.value);
+      if (byValue > 0) {
+        best = entry;
+      } else if (byValue == 0 &&
+          (targetIndex[entry.node] ?? 0) < (targetIndex[best.node] ?? 0)) {
+        best = entry;
+      }
+    }
+    return best;
   }
 
   /// The judgement for one candidate. Kept as one function so the precedence
@@ -392,6 +516,7 @@ abstract final class ProblemEvaluator {
     required List<String> knowledgePointIds,
     required List<String> judged,
     required Map<String, BottleneckType> diagnosis,
+    required FastPlanEntry? plan,
     required Map<String, CardState> rows,
     required CognitiveModel model,
     required double nowHours,
@@ -412,6 +537,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: plan,
         verdict: ProblemVerdict.outOfScope,
         rankKey: 0,
         reason: '没有闪存卡标签，模型无从判断',
@@ -423,6 +549,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: plan,
         verdict: ProblemVerdict.outOfScope,
         rankKey: 0,
         reason: '诊断全是 empty/dead_end：线索进不去或走不下去（死角或超纲）',
@@ -456,10 +583,10 @@ abstract final class ProblemEvaluator {
           knowledgePointIds: knowledgePointIds,
           judged: judged,
           diagnosis: diagnosis,
+          plan: plan,
           verdict: ProblemVerdict.tooHard,
           rankKey: 0.5,
-          reason:
-              '没有复习记录，按题目自报难度 ${_pct(hint)} 先判为偏难（未标定先验）',
+          reason: '没有复习记录，按题目自报难度 ${_pct(hint)} 先判为偏难（未标定先验）',
         );
       }
       final easy = hint != null && hint <= thresholds.hintEasy;
@@ -468,6 +595,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: plan,
         verdict: easy ? ProblemVerdict.tooEasy : ProblemVerdict.zpd,
         rankKey: easy ? 0.2 : 0.6,
         reason: easy
@@ -483,6 +611,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: plan,
         verdict: ProblemVerdict.tooEasy,
         rankKey: meanGain - 0.1,
         reason: '平均可提取度 ${_pct(meanRetrievability)}：已经会了，复习它收益很低',
@@ -495,6 +624,7 @@ abstract final class ProblemEvaluator {
         knowledgePointIds: knowledgePointIds,
         judged: judged,
         diagnosis: diagnosis,
+        plan: plan,
         verdict: ProblemVerdict.tooHard,
         rankKey: meanGain - 0.05,
         reason: '平均可提取度 ${_pct(meanRetrievability)}'
@@ -513,10 +643,10 @@ abstract final class ProblemEvaluator {
       knowledgePointIds: knowledgePointIds,
       judged: judged,
       diagnosis: diagnosis,
+      plan: plan,
       verdict: highValue ? ProblemVerdict.highValue : ProblemVerdict.zpd,
-      rankKey: meanGain +
-          0.05 * (judged.length - 1) +
-          (almostHadIt ? 0.15 : 0.0),
+      rankKey:
+          meanGain + 0.05 * (judged.length - 1) + (almostHadIt ? 0.15 : 0.0),
       reason: highValue
           ? '正在发展中（平均可提取度 ${_pct(meanRetrievability)}，模型增益 '
               '${meanGain.toStringAsFixed(2)}）：值得现在做'
@@ -550,10 +680,17 @@ abstract final class ProblemEvaluator {
           stem: current.stem,
           verdict: ProblemVerdict.redundant,
           rankKey: 0.1,
+          // The counterfactual price is a property of the problem's own nodes,
+          // so it survives the overwrite; the reason is replaced (and its
+          // price clause with it) because the verdict is now "duplicate".
           reason: '这些闪存卡已被另一道更全的题覆盖，重复练习',
           knowledgePointIds: current.knowledgePointIds,
           judgedKnowledgePointIds: current.judgedKnowledgePointIds,
           diagnosisByKnowledgePoint: current.diagnosisByKnowledgePoint,
+          counterfactualValue: current.counterfactualValue,
+          counterfactualMetric: current.counterfactualMetric,
+          counterfactualInstruction: current.counterfactualInstruction,
+          counterfactualWhy: current.counterfactualWhy,
         );
       }
     }
@@ -564,20 +701,48 @@ abstract final class ProblemEvaluator {
     required List<String> knowledgePointIds,
     required List<String> judged,
     required Map<String, BottleneckType> diagnosis,
+    required FastPlanEntry? plan,
     required ProblemVerdict verdict,
     required double rankKey,
     required String reason,
-  }) =>
-      ProblemEvaluation(
-        problemId: candidate.id,
-        stem: candidate.stem,
-        verdict: verdict,
-        rankKey: rankKey,
-        reason: reason,
-        knowledgePointIds: List.unmodifiable(knowledgePointIds),
-        judgedKnowledgePointIds: List.unmodifiable(judged),
-        diagnosisByKnowledgePoint: Map.unmodifiable(diagnosis),
-      );
+  }) {
+    // "Not simulated" is a statement about the engine, not a price of zero:
+    // such an entry carries no counterfactual field and adds no clause.
+    final price = plan != null && plan.simulated ? plan : null;
+    return ProblemEvaluation(
+      problemId: candidate.id,
+      stem: candidate.stem,
+      verdict: verdict,
+      rankKey: rankKey,
+      reason: _withPrice(reason, price),
+      knowledgePointIds: List.unmodifiable(knowledgePointIds),
+      judgedKnowledgePointIds: List.unmodifiable(judged),
+      diagnosisByKnowledgePoint: Map.unmodifiable(diagnosis),
+      counterfactualValue: price?.value,
+      counterfactualMetric: price?.metric,
+      counterfactualInstruction: price?.instruction,
+      counterfactualWhy: price?.why,
+    );
+  }
+
+  /// Appends the counterfactual line when the planner actually simulated one.
+  ///
+  /// The clause is in the domain layer's words, like the rest of the reason, and
+  /// it names the metric: a `reachability` gain is a claim about the graph, not
+  /// about this problem's own cards.
+  static String _withPrice(String reason, FastPlanEntry? plan) {
+    if (plan == null) {
+      return reason;
+    }
+    final metric = plan.metric ?? '未标定度量';
+    return '$reason；反事实：${plan.instructionName}'
+        '（$metric 增益 ${_num(plan.gain)} / 成本 ${_num(plan.cost)}'
+        ' → V=${_num(plan.value)}；${plan.why}）';
+  }
 }
+
+/// Three decimals: the planner's numbers are already rounded, and a reason line
+/// is not a data table.
+String _num(double value) => value.toStringAsFixed(3);
 
 String _pct(double value) => '${(value * 100).round()}%';

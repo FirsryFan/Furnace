@@ -90,15 +90,12 @@ void main() {
       for (final mode in AiPermissionMode.values) {
         final decision = const ApprovalEngine(mode: AiPermissionMode.plan)
             .forInvocation(tool, {'problems': <Object?>[]});
-        final inMode =
-            ApprovalEngine(mode: mode).forInvocation(tool, const {});
+        final inMode = ApprovalEngine(mode: mode).forInvocation(tool, const {});
         expect(inMode.risk, ToolRisk.write);
         expect(inMode.reversible, isTrue);
-        expect(inMode.disposition,
-            isNot(ToolDisposition.individualApproval),
+        expect(inMode.disposition, isNot(ToolDisposition.individualApproval),
             reason: 'mode ${mode.name} must not ask one by one for a read');
-        expect(decision.disposition,
-            isNot(ToolDisposition.individualApproval));
+        expect(decision.disposition, isNot(ToolDisposition.individualApproval));
       }
       expect(tool.riskFor(''), ToolRisk.write); // unused: no actions
       expect(tool.reversibleFor(''), isTrue);
@@ -111,7 +108,9 @@ void main() {
       final before = await _snapshot(db);
 
       final result = await tool.run(invoke({
-        'problems': [problem('p1', kps: [point])],
+        'problems': [
+          problem('p1', kps: [point])
+        ],
       }));
 
       expect(result.ok, isTrue);
@@ -143,8 +142,7 @@ void main() {
       final payload = result.modelResult! as Map<String, Object?>;
       final problems = payload['problems']! as List;
       final byId = {
-        for (final entry in problems)
-          (entry as Map)['id'] as String: entry,
+        for (final entry in problems) (entry as Map)['id'] as String: entry,
       };
       expect(byId.keys.toSet(), {'strong', 'gone'});
       expect(byId['strong']!['verdict'], 'too_easy');
@@ -197,7 +195,9 @@ void main() {
       );
 
       final result = await tool.run(invoke({
-        'problems': [problem('p1', kps: [sharedId])],
+        'problems': [
+          problem('p1', kps: [sharedId])
+        ],
       }));
 
       final payload = result.modelResult! as Map<String, Object?>;
@@ -208,9 +208,54 @@ void main() {
       // The node got its ms from the card row (R0), so it is not reported as
       // "not provided".
       expect(payload['nodes_without_ms'], isNot(contains(sharedId)));
+      // Nothing to link *from*: `add_in_edges` is not simulated, and "not
+      // simulated" must not be reported as a price of zero.
+      expect(entry.containsKey('counterfactual'), isFalse);
     });
 
-    test('a point reached through a real label runs, even though the label id is '
+    test('a priced dead end reports the counterfactual line (§2-A 缺①)',
+        () async {
+      // Two labels: one the user is holding in mind (the start), one with no
+      // in-edge at all. `add_in_edges` is the planner's preferred instruction
+      // for `empty` and it is simulatable, so this candidate carries
+      // `V(π) = ΔR / cost` - uncalibrated, and only a tie-break, but reported
+      // instead of hidden.
+      final pointId = await reviewedPoint('动量守恒');
+      final islandId = await reviewedPoint('孤立知识点');
+      final lit = await tags.createTag(name: '力学');
+      final island = await tags.createTag(name: '光学');
+      await tags.addTagToObject(
+        tagId: lit.id,
+        objectType: 'knowledge_point',
+        objectId: pointId,
+      );
+      await tags.addTagToObject(
+        tagId: island.id,
+        objectType: 'knowledge_point',
+        objectId: islandId,
+      );
+
+      final result = await tool.run(invoke({
+        'problems': [
+          problem('p1', kps: [islandId]),
+        ],
+        'start_knowledge_point_ids': [pointId],
+      }));
+
+      final payload = result.modelResult! as Map<String, Object?>;
+      expect(payload['fast_layer_ran'], isTrue);
+      final entry = (payload['problems']! as List).single as Map;
+      final price = entry['counterfactual'] as Map?;
+      expect(price, isNotNull, reason: 'add_in_edges had a lit node to link');
+      expect(price!['metric'], 'reachability');
+      expect(price['instruction'], 'add_in_edges');
+      expect(price['value'], isA<double>());
+      expect(price['why'], isA<String>());
+      expect(entry['reason'], contains('反事实'));
+    });
+
+    test(
+        'a point reached through a real label runs, even though the label id is '
         'not the point id (Q8)', () async {
       // The test above deliberately gives the label and the knowledge point the
       // SAME id, so it can never see the key-space defect: in real data the graph
@@ -227,7 +272,9 @@ void main() {
       expect(pointId, isNot(tag.id));
 
       final result = await tool.run(invoke({
-        'problems': [problem('p1', kps: [pointId])],
+        'problems': [
+          problem('p1', kps: [pointId])
+        ],
       }));
 
       final payload = result.modelResult! as Map<String, Object?>;
@@ -278,8 +325,8 @@ void main() {
       }));
 
       expect(result.ok, isTrue);
-      final entry = ((result.modelResult! as Map)['problems']! as List).single
-          as Map;
+      final entry =
+          ((result.modelResult! as Map)['problems']! as List).single as Map;
       expect(entry['knowledge_point_ids'], [point, 'not-a-tag']);
       expect(entry['judged_knowledge_point_ids'], [point]);
     });
@@ -292,12 +339,14 @@ void main() {
       );
 
       final result = await tool.run(invoke({
-        'problems': [problem('p1', kps: [point.id])],
+        'problems': [
+          problem('p1', kps: [point.id])
+        ],
       }));
 
       expect(result.ok, isTrue);
-      final entry = ((result.modelResult! as Map)['problems']! as List).single
-          as Map;
+      final entry =
+          ((result.modelResult! as Map)['problems']! as List).single as Map;
       expect(entry['judged_knowledge_point_ids'], isEmpty);
       expect(entry['verdict'], 'zpd');
     });
@@ -333,7 +382,8 @@ void main() {
 
       expect(appRegistry.byName('evaluate_problem_fit'),
           isA<EvaluateProblemFitTool>());
-      expect(appRegistry.forCurrentPlatform.map((registered) => registered.name),
+      expect(
+          appRegistry.forCurrentPlatform.map((registered) => registered.name),
           contains('evaluate_problem_fit'));
       final spec = appRegistry.modelSpecs
           .firstWhere((s) => s.name == 'evaluate_problem_fit');
