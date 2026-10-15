@@ -4,6 +4,101 @@
 
 ---
 
+## 2026-10-16 轮次四十七：注意力可用性上屏——线程页顶部第一次给出 α(τ) 读数（Q25，Lead）
+
+**做了什么**
+
+- schema v15：`app/lib/data/database/tables.dart` 的 `LocalSettings` 加
+  `BoolColumn get rhythmHintsEnabled => boolean().nullable()();`（**NULL = 用户从没选过**，
+  读作"显示"；迁移绝不替用户写值——这条与 v6 起 AI 列的既有约定一致）。
+  `app/lib/data/database/database.dart`：`schemaVersion` 14 → 15、
+  `onUpgrade` 追加 `if (from < 15) await _upgradeV14ToV15();`、
+  `_ensureColumns()` 的 `'local_settings'` 自愈列加这一列，新增 `_upgradeV14ToV15()`
+  （`_tableExists` 探针 + `Migrator.addColumn`）。
+  `app/lib/data/repositories/settings_repository.dart` 加
+  `updateRhythmHintsEnabled(bool)`。
+- 领域层 `app/lib/domain/services/cognitive/study_rhythm.dart`（轮次四十七之前的同一片）：
+  把 `rhythm.gate` 的参数接到"这次坐多久"上——`G_vig = exp(-t_on/τ_vig)`、
+  负荷自适应周期、duty 开窗都复用 `RhythmGate` 本身，不新造数学。
+  `kStudySessionGap = 15 分钟` 是**未标定代理**（本应用没有会话计时器，动作时间只能从
+  既有学习日志推导），所以它是一个命名常量 + 注释，而不是散在代码里的魔数。
+  没有坐段时返回 `null`：**不假装 α = 1**。
+- reader `app/lib/features/thread/application/study_rhythm_reader.dart`：`review_logs.reviewedAt`
+  与 `exposure_logs.exposedAt` 各取尾部 500 条当"学习动作"（曝光也算——"读了没测"同样是坐在桌前），
+  开关关掉时**不查库**直接返回 hidden。`load` 故意留 0：这屏没跑认知引擎，
+  编一个负荷就是把猜测装成测量。
+- UI：`app/lib/features/thread/presentation/widgets/thread_status_bar.dart` 里状态条由单行改为
+  两行（折叠时仍是一行），新增 `_AttentionHint`（可用性百分比 + 已专注分钟 + 建议 +
+  隐藏按钮 + "参数未标定"tooltip；加载中和开关关掉时整块 `SizedBox.shrink()`，
+  避免数字闪动）；`app/lib/features/thread/presentation/thread_page.dart` 的 AppBar 加
+  `_RhythmToggle` 菜单项（打勾 + 随时把提示请回来）。ARB zh/en 各 +8 键。
+
+**为什么**
+
+- 轮次四十五把 `rhythm.gate` 装进了引擎，但**没有一个界面读它**：`availability` 仍是
+  "只有对拍向量和测试看得到"的量（`docs/MINDNET_ROADMAP.md` §2-D 当时剩的另一半）。
+  这一片把读数送到用户眼前，并且**同时给建议**——只给一个百分比等于把解释责任推给用户。
+- **为什么不给开关默认值**：设置列 NULL 就是"从没选过"，默认显示是出厂行为、不是写进库的值。
+  写默认值会让"用户明确选择显示"与"用户从没管过"永远分不开（v6 起就守的规矩）。
+- **为什么隐藏按钮和 AppBar 菜单都要有**：隐藏后需要一个**不在读数本身里**的入口把它请回来，
+  否则用户一旦点掉就再也找不到（隐藏按钮自己就是那个入口的反例）。
+
+**验收 / 证据**
+
+- `flutter test test/domain/services/cognitive/study_rhythm_test.dart --concurrency=1` → `+17 All tests passed!`
+- `flutter test test/features/thread/application/study_rhythm_reader_test.dart
+  test/data/database/v15_migration_test.dart test/domain/services/cognitive/study_rhythm_test.dart --concurrency=1`
+  → **`+25 All tests passed!`**
+- `flutter test test/features/thread/presentation/thread_status_bar_test.dart --concurrency=1`
+  → **`+4 All tests passed!`**（日志里有坐段就报数；没有坐段说"还没有足够记录"；
+  点隐藏把开关落库且读数立刻消失、重进页面仍不显示；折叠后读数让位）
+- codegen：`dart run build_runner build --delete-conflicting-outputs --force-jit`
+  → `Built with build_runner/jit in 194s; wrote 467 outputs.`
+- **本机教训（第二次撞到）**：codegen 必须 `--force-jit`——AOT 快照写不进含
+  `一THREADRIPPER一` 的路径（`Unable to write file: …build.dart.aot`）。
+- **l10n 教训**：`app_en.arb` 是 `l10n.yaml` 的 template，新键必须**先出现在 en**，
+  否则生成物只缺 zh 的 getter（表现为一串 `undefined_getter`）。
+
+---
+
+## 2026-10-16 轮次四十六：日程冲突警告 + 一键顺延（任务侧）（Q23，teammate `question-intake`）
+
+**做了什么**
+
+- 新纯逻辑 `app/lib/domain/services/scheduling/schedule_conflict.dart`：
+  `ScheduleConflict.at/freeMoment/freeMomentBefore/freeMomentAfter/rangeBefore/rangeAfter`，
+  接上此前"只被自己的测试调用"的 `TimeWindowEngine.isBusyAt`（`time_window_engine.dart:202`）。
+- 新弹窗 `app/lib/features/tasks/presentation/widgets/schedule_conflict_dialog.dart`
+  （`ScheduleConflictChoice{before,after,keep}`），`task_detail_page.dart` 在改 `dueAt` 时接线
+  （`_resolveDueAtConflict` :224、`_scheduleBlocks` :256、:364）。ARB zh/en 各 +6 键。
+- 测试 17 条纯逻辑 + 6 条 UI（**先写、先红**：实现前 `Found 0 widgets with text "这段时间撞上了日程块"`）。
+
+**为什么**
+
+- 冲突判定用 `expand` 展开区间的真实边界，而**不用** `busyIntervals`——后者把区间裁到查询窗口，
+  而"移到块前/后"需要的正是窗口之外的边界。半开 `[start,end)`；`available==true` 不算占用；
+  ±1 分钟探测把 `ScheduleConflict.at` 与 `isBusyAt` 钉成逐点同真同假。
+- 读库失败不挡用户；找不到空闲区就返回 null + 按钮禁用（不硬造时刻）；上限 64 跳。
+
+**验收 / 证据（队友自报）**
+
+- `flutter test test/domain/services/scheduling test/features/tasks --concurrency=1` → `+95 All tests passed!`
+- 全量 `flutter test --concurrency=1` → `+1526 ~2: All tests passed!`（该次启动于轮次四十七改动之前）
+- `dart format` 5 文件 `0 changed`；它 5 个文件 `dart analyze` 0 error / 0 warning。
+
+**已知规格张力（Lead 裁决：按"哪一侧"拆，不算矛盾）**
+
+- `docs/DESIGN_BLUEPRINT.md:85`（用户16）说一键调整**只挪 `expected_at`、不动 deadline`；
+  `docs/FURNACE_SPEC.md:87` 说"仅弹窗警告"；`docs/GAP_ANALYSIS.md:54` 说"联动调整
+  expected/deadline 并保证 estimate 可完整放入空闲区"。三处指向**不同侧**：
+  本轮接的是**任务侧**（用户正在编辑的就是任务 `dueAt`，且由用户在弹窗里逐次选择，
+  不是静默改写），事件侧的 `expected_at`（`app/lib/features/thread/presentation/event_properties_page.dart`）
+  仍未接——这是本议题剩下的另一半，不是被推翻的决定。
+- 顺带更正 `docs/PROGRESS.md` 里"Time 冲突弹窗与『只挪期望时刻』一键调整未接入 UI"这句：
+  任务侧的弹窗与顺延**已接入**，事件侧仍未接。
+
+---
+
 ## 2026-10-16 轮次四十五：节律层 α(τ) 的确定性核心接进 fast_engine（Q24，Lead）
 
 **做了什么**
@@ -2262,7 +2357,8 @@ flutter run -d windows        # 开发调试（支持热重载）
 - **`.kpak` 词条级 Markdown/JSON 导入导出**未做。
 - **标签拖拽改层级**未做（当前靠“新建子标签”建层级；改名/删除已有）。
 - **Android 未做**：`app/android` 目录不存在，需 `flutter create --platforms=android .`；`flutter doctor` 显示 Android toolchain ✗。
-- **Time 冲突弹窗与“只挪期望时刻”一键调整**未接入 UI（`TimeWindowEngine.isBusyAt` 已具备）。
+- **Time 冲突弹窗与“只挪期望时刻”一键调整**：任务侧（改 `dueAt` 时弹窗警告 + 一键移到块前/后）
+  已接入（轮次四十六）；**事件侧 `expected_at` 仍未接**（`event_properties_page.dart`）。
 - 界面**未经肉眼检阅**：本会话只能确认“能编译、能启动、进程存活、有窗口”，**布局与交互手感需用户实机确认**。
 
 ---

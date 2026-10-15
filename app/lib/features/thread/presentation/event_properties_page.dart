@@ -120,9 +120,8 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final feed = ref.watch(threadFeedProvider).valueOrNull;
-    final ranked = feed?.ranked.all
-        .where((r) => r.event.id == widget.taskId)
-        .toList();
+    final ranked =
+        feed?.ranked.all.where((r) => r.event.id == widget.taskId).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -183,7 +182,8 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
                 _ParameterCard(
                   icon: Icons.schedule,
                   label: l10n.tasksExpectedAt,
-                  trailing: _clearButton(() => setState(() => _expectedAt = null),
+                  trailing: _clearButton(
+                      () => setState(() => _expectedAt = null),
                       enabled: _expectedAt != null),
                   child: _MomentField(
                     value: _expectedAt,
@@ -219,7 +219,8 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
                     ),
                   ),
                 ),
-                _AlgorithmSection(ranked: ranked?.isEmpty == false ? ranked!.first : null),
+                _AlgorithmSection(
+                    ranked: ranked?.isEmpty == false ? ranked!.first : null),
               ],
             ),
     );
@@ -350,8 +351,7 @@ class _AlgorithmSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             if (result == null)
-              Text(l10n.propAlgorithmNoData,
-                  style: theme.textTheme.bodySmall)
+              Text(l10n.propAlgorithmNoData, style: theme.textTheme.bodySmall)
             else ...[
               _ScoreMeter(
                 label: l10n.propUrgency,
@@ -423,7 +423,9 @@ class _AlgorithmSection extends ConsumerWidget {
                     tooltip: l10n.propResetWeights,
                     icon: const Icon(Icons.restart_alt),
                     onPressed: () async {
-                      await ref.read(threadRankRepositoryProvider).resetWeights();
+                      await ref
+                          .read(threadRankRepositoryProvider)
+                          .resetWeights();
                       ref.invalidate(currentWeightsProvider);
                       await ref.read(threadFeedProvider.notifier).sort();
                     },
@@ -534,15 +536,16 @@ class _WeightsDialogState extends ConsumerState<_WeightsDialog> {
           children: [
             _weightSlider(l10n.propUrgency, _urgency,
                 (v) => setState(() => _urgency = v)),
-            _weightSlider(l10n.propGoalMatch, _goal,
-                (v) => setState(() => _goal = v)),
+            _weightSlider(
+                l10n.propGoalMatch, _goal, (v) => setState(() => _goal = v)),
             _weightSlider(l10n.propFit, _fit, (v) => setState(() => _fit = v)),
             _weightSlider(l10n.propExpectedPressure, _expected,
                 (v) => setState(() => _expected = v)),
             _weightSlider(l10n.propFatigue, _fatigue,
                 (v) => setState(() => _fatigue = v)),
             const SizedBox(height: 8),
-            Text(l10n.propWeightsHint, style: Theme.of(context).textTheme.bodySmall),
+            Text(l10n.propWeightsHint,
+                style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -572,7 +575,8 @@ class _WeightsDialogState extends ConsumerState<_WeightsDialog> {
     );
   }
 
-  Widget _weightSlider(String label, double value, ValueChanged<double> onChanged) {
+  Widget _weightSlider(
+      String label, double value, ValueChanged<double> onChanged) {
     return Row(
       children: [
         SizedBox(width: 96, child: Text(label)),

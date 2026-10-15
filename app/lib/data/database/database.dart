@@ -84,12 +84,14 @@ class AppDatabase extends _$AppDatabase {
   /// tables that keep "整理过但还没确认" alive across a restart
   /// (`docs/HANDWRITING_INTAKE_DESIGN.md` §4); v14 adds `exposure_logs`, the one
   /// table for MindNet's `exposure` action ("读了但没测", the last of the five
-  /// `mindnet.run/1` actions the app could not express). See [_upgradeV6ToV7] /
+  /// `mindnet.run/1` actions the app could not express). v15 adds the
+  /// attention-hint switch on `local_settings` (`docs/MINDNET_ROADMAP.md` §3
+  /// row 4). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
-  /// [_upgradeV13ToV14].
+  /// [_upgradeV13ToV14] / [_upgradeV14ToV15].
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -137,6 +139,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 14) {
           await _upgradeV13ToV14();
         }
+        if (from < 15) {
+          await _upgradeV14ToV15();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -168,7 +173,8 @@ class AppDatabase extends _$AppDatabase {
       // v6: without these the generated mappers throw on existing rows when a
       // file is stamped v6 but was written by an older build.
       // v7: same reasoning for the agent loop's round cap and the two review
-      // preferences (judging mode, card type preference).
+      // preferences (judging mode, card type preference). v15: same reasoning
+      // again for the attention-hint switch.
       'local_settings': [
         localSettings.aiEnabled,
         localSettings.aiApiKey,
@@ -178,6 +184,7 @@ class AppDatabase extends _$AppDatabase {
         localSettings.aiMaxRounds,
         localSettings.ankiJudgeMode,
         localSettings.ankiCardTypePreference,
+        localSettings.rhythmHintsEnabled,
       ],
       'card_states': [
         cardStates.encodingStrength,
@@ -465,6 +472,24 @@ class AppDatabase extends _$AppDatabase {
     if (!await _tableExists('exposure_logs')) {
       await m.createTable(exposureLogs);
     }
+  }
+
+  /// v14 -> v15: the attention-hint switch on `local_settings`
+  /// (`docs/MINDNET_ROADMAP.md` §3 row 4).
+  ///
+  /// One nullable column, nothing else touched. NULL carries a real meaning
+  /// here - "the user never chose" - which the app resolves to the shipped
+  /// default (show the reading). The migration therefore writes no value at all:
+  /// an upgraded row keeps reading as "never chose" instead of being frozen to
+  /// today's default. Probed through [_addColumnIfMissing] so the v14
+  /// (createAll) path is a no-op.
+  Future<void> _upgradeV14ToV15() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.rhythmHintsEnabled);
   }
 
   Future<void> _upgradeV4ToV5() async {

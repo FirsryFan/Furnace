@@ -67,7 +67,9 @@
 - **已有**：`ThreadRanker` 加权公式（紧迫度/目标匹配/状态适配/期望压力/同类疲劳）+ 硬约束 + 疲劳惩罚。
 - **缺**：① **节律层 α(τ)**：警觉衰减、负荷自适应周期（`T_cycle`）、flow 带 → "现在该做难还是易、要不要切换/休息"
   ——**机制侧已完成（轮次四十五：`rhythm.gate` 作为 opt-in 机制装进 `fast_engine.dart`，默认关）**；
-  仍缺的是把它读出来给人看：线程页的"当前注意力可用性"与做难/做易/休息建议，以及 `thread_rank_service.dart` 的认知排序档位；
+  **读数与建议已完成（轮次四十七：线程页顶部给出可用性百分比 + 已专注分钟 + 做难/做易/休息建议，
+  带隐藏按钮与 AppBar 菜单开关，schema v15 持久化；`t_on` 由既有学习日志推导，是未标定代理）**；
+  仍缺的是 `thread_rank_service.dart` 的认知排序档位；
   ② `goal` 动作的**目标扩散**：目标集可达性排序（与 MindNet 的 `start_diffusion(starts, targets)` 对齐）；
   ③ 把"当前脑子里的东西"（刚复习/刚做错的节点）作为 `starts` 注入。
 - **落点**：`thread_rank_service.dart` 增加一个"认知排序"档位（与现有加权排序并存，可开关），输入 = 目标节点 + 刚活动节点 + α(τ)；
@@ -80,7 +82,7 @@
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
-| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；线程页读数与建议未做** |
+| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；`thread_rank_service.dart` 的认知排序档位未做** |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
@@ -173,8 +175,34 @@
 不装、`duty=0` 走到原本不可达的「完全不在」分支、τ_vig 调小后同轮 `availability` 下降、克隆保住时钟）；
 `flutter test test/domain/services/cognitive --concurrency=1` → `+211 All tests passed!`。
 
-**这一片还剩的另一半**（见 §2-D）：线程页显示"当前注意力可用性"与做难/做易/休息建议（带开关），
-以及 `thread_rank_service.dart` 的"认知排序"档位（输入 = 目标节点 + 刚活动节点 + α(τ)，未标定权重显式标注）。
+**这一片还剩的另一半**（见 §2-D）：线程页显示"当前注意力可用性"与做难/做易/休息建议（带开关）
+——**已完成，见下一节**；以及 `thread_rank_service.dart` 的"认知排序"档位（输入 = 目标节点 + 刚活动节点 + α(τ)，
+未标定权重显式标注）——仍未做。
+
+### 切片 4 的另一半：α(τ) 读数与建议上屏（已完成 轮次四十七）
+
+**缺口**：`rhythm.gate` 装进引擎之后，`availability` 只对测试和对拍向量可见——
+没有一个界面把它读出来，用户看不到"现在还剩多少注意力"，也拿不到"做难/做易/休息"的建议。
+
+**做了什么**：
+
+- 领域层 `app/lib/domain/services/cognitive/study_rhythm.dart`：把 `rhythm.gate` 的参数接到
+  "这次坐多久"上（`G_vig`、负荷自适应周期、duty 开窗全部复用 `RhythmGate` 本身，不新造数学）。
+  `t_on` 由**既有学习日志**推导（`review_logs` + `exposure_logs` 的动作时间，间隔 > 15 分钟算新一段）——
+  `kStudySessionGap = 15 分钟`被写成命名常量 + 注释，明说这是**未标定代理**（本应用没有会话计时器）。
+  没有坐段时返回 `null`，**不假装 α = 1**。
+- reader `app/lib/features/thread/application/study_rhythm_reader.dart`：取两侧日志尾部各 500 条；
+  开关关掉时**不查库**直接返回 hidden。`load` 留 0，因为这一屏没有跑认知引擎——编一个负荷
+  就是把猜测装成测量。
+- UI：`thread_status_bar.dart` 的状态条由单行改为两行（折叠时仍一行），`_AttentionHint` 显示
+  可用性百分比 + 已专注分钟 + 建议 + "参数未标定"tooltip + 隐藏按钮；`thread_page.dart` 的 AppBar
+  加 `_RhythmToggle` 菜单项（关掉之后还能把提示请回来）。
+- schema v15：`local_settings.rhythm_hints_enabled`（nullable = 用户从没选过 → 出厂默认显示；
+  迁移不替用户写值）。
+
+**证据**：`study_rhythm_test.dart`（17 例）、`study_rhythm_reader_test.dart`（6 例）、
+`test/data/database/v15_migration_test.dart`（2 例）、`thread_status_bar_test.dart`（4 例：
+有坐段就报数、没有坐段说"还没有足够记录"、点隐藏把开关落库且读数立刻消失、折叠后读数让位）。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 

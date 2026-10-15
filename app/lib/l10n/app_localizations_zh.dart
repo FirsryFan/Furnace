@@ -698,6 +698,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get threadSort => '更新与排序';
 
   @override
+  String threadRhythmReading(int percent, int minutes) {
+    return '注意力可用性 $percent% · 已专注 $minutes 分钟';
+  }
+
+  @override
+  String get threadRhythmAdviceHard => '现在适合做难的';
+
+  @override
+  String get threadRhythmAdviceModerate => '按普通节奏继续';
+
+  @override
+  String get threadRhythmAdviceRest => '该休息一下了';
+
+  @override
+  String get threadRhythmEmpty => '还没有足够的学习记录，先做几张卡再来看看';
+
+  @override
+  String get threadRhythmHide => '隐藏这个读数';
+
+  @override
+  String get threadRhythmUncalibrated => '节律参数未标定，这只是提示不是测量';
+
+  @override
+  String get threadRhythmToggle => '注意力可用性读数';
+
+  @override
   String get threadNeedsSort => '需要重新排序';
 
   @override
@@ -892,6 +918,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get knowledgeWillRepeat => '答错了：这个空会在今天之内再出现，直到连续两次答对。';
+
+  @override
+  String knowledgeForcedWait(int minutes) {
+    return '这个空刚答对一次，要过一会儿才再出现：还有 $minutes 分钟。';
+  }
+
+  @override
+  String get knowledgeForcedWaitCheck => '到点了，继续';
+
+  @override
+  String get knowledgeNewBlank => '新空';
 
   @override
   String knowledgeNextIn(int days) {

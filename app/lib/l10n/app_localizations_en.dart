@@ -719,6 +719,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadSort => 'Update & sort';
 
   @override
+  String threadRhythmReading(int percent, int minutes) {
+    return 'Attention $percent% · $minutes min in';
+  }
+
+  @override
+  String get threadRhythmAdviceHard => 'Good moment for the hard stuff';
+
+  @override
+  String get threadRhythmAdviceModerate => 'Keep the normal pace';
+
+  @override
+  String get threadRhythmAdviceRest => 'Time for a break';
+
+  @override
+  String get threadRhythmEmpty =>
+      'Not enough study history yet - do a few cards first';
+
+  @override
+  String get threadRhythmHide => 'Hide this reading';
+
+  @override
+  String get threadRhythmUncalibrated =>
+      'Rhythm parameters are uncalibrated; a hint, not a measurement';
+
+  @override
+  String get threadRhythmToggle => 'Attention availability';
+
+  @override
   String get threadNeedsSort => 'Needs re-sorting';
 
   @override
@@ -933,6 +961,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get knowledgeWillRepeat =>
       'Wrong: this blank will come back today until you get it right twice in a row.';
+
+  @override
+  String knowledgeForcedWait(int minutes) {
+    return 'You got this blank right once - it comes back in $minutes min.';
+  }
+
+  @override
+  String get knowledgeForcedWaitCheck => 'Check again';
+
+  @override
+  String get knowledgeNewBlank => 'New blank';
 
   @override
   String knowledgeNextIn(int days) {

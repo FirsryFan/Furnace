@@ -257,6 +257,17 @@
 
   "threadTitle": "Thread",
   "threadSort": "Update & sort",
+  "threadRhythmReading": "Attention {percent}% · {minutes} min in",
+  "@threadRhythmReading": {
+    "placeholders": { "percent": { "type": "int" }, "minutes": { "type": "int" } }
+  },
+  "threadRhythmAdviceHard": "Good moment for the hard stuff",
+  "threadRhythmAdviceModerate": "Keep the normal pace",
+  "threadRhythmAdviceRest": "Time for a break",
+  "threadRhythmEmpty": "Not enough study history yet - do a few cards first",
+  "threadRhythmHide": "Hide this reading",
+  "threadRhythmUncalibrated": "Rhythm parameters are uncalibrated; a hint, not a measurement",
+  "threadRhythmToggle": "Attention availability",
   "threadNeedsSort": "Needs re-sorting",
   "threadNoEvents": "No events yet",
   "threadGoal": "Main goal",
@@ -336,6 +347,12 @@
   },
   "knowledgeSessionDone": "This round is done",
   "knowledgeWillRepeat": "Wrong: this blank will come back today until you get it right twice in a row.",
+  "knowledgeForcedWait": "You got this blank right once - it comes back in {minutes} min.",
+  "@knowledgeForcedWait": {
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+  "knowledgeForcedWaitCheck": "Check again",
+  "knowledgeNewBlank": "New blank",
   "knowledgeNextIn": "Next review in {days} day(s)",
   "@knowledgeNextIn": {
     "placeholders": { "days": { "type": "int" } }

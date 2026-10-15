@@ -75,6 +75,21 @@ class LocalSettings extends Table {
   /// card every generator produced before the preference existed.
   TextColumn get ankiCardTypePreference => text().nullable()();
 
+  // --- v15: attention-availability hints on the thread status bar ---
+  //
+  // Same contract as the two v7 columns above: NULL means "the user never
+  // chose", which the app reads as the shipped default. Writing `true` during
+  // the migration would freeze today's default into every existing install and
+  // make a later change of that default unreachable for them.
+
+  /// Whether the thread status bar shows the attention-availability reading
+  /// derived from the study log (`docs/MINDNET_ROADMAP.md` §3 row 4).
+  ///
+  /// NULL reads as visible: the reading is informational, it says out loud that
+  /// its parameter is uncalibrated, and it can be hidden again in one tap - so a
+  /// fresh install shows it until the user says otherwise.
+  BoolColumn get rhythmHintsEnabled => boolean().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

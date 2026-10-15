@@ -1430,6 +1430,54 @@ abstract class AppLocalizations {
   /// **'Update & sort'**
   String get threadSort;
 
+  /// No description provided for @threadRhythmReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Attention {percent}% · {minutes} min in'**
+  String threadRhythmReading(int percent, int minutes);
+
+  /// No description provided for @threadRhythmAdviceHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Good moment for the hard stuff'**
+  String get threadRhythmAdviceHard;
+
+  /// No description provided for @threadRhythmAdviceModerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the normal pace'**
+  String get threadRhythmAdviceModerate;
+
+  /// No description provided for @threadRhythmAdviceRest.
+  ///
+  /// In en, this message translates to:
+  /// **'Time for a break'**
+  String get threadRhythmAdviceRest;
+
+  /// No description provided for @threadRhythmEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough study history yet - do a few cards first'**
+  String get threadRhythmEmpty;
+
+  /// No description provided for @threadRhythmHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this reading'**
+  String get threadRhythmHide;
+
+  /// No description provided for @threadRhythmUncalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Rhythm parameters are uncalibrated; a hint, not a measurement'**
+  String get threadRhythmUncalibrated;
+
+  /// No description provided for @threadRhythmToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Attention availability'**
+  String get threadRhythmToggle;
+
   /// No description provided for @threadNeedsSort.
   ///
   /// In en, this message translates to:
@@ -1801,6 +1849,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wrong: this blank will come back today until you get it right twice in a row.'**
   String get knowledgeWillRepeat;
+
+  /// No description provided for @knowledgeForcedWait.
+  ///
+  /// In en, this message translates to:
+  /// **'You got this blank right once - it comes back in {minutes} min.'**
+  String knowledgeForcedWait(int minutes);
+
+  /// No description provided for @knowledgeForcedWaitCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get knowledgeForcedWaitCheck;
+
+  /// No description provided for @knowledgeNewBlank.
+  ///
+  /// In en, this message translates to:
+  /// **'New blank'**
+  String get knowledgeNewBlank;
 
   /// No description provided for @knowledgeNextIn.
   ///

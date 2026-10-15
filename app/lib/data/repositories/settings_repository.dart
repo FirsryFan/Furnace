@@ -33,7 +33,8 @@ class SettingsRepository {
           ),
         );
 
-    return (await _db.select(_db.profiles)..where((t) => t.id.equals(id)))
+    return (await _db.select(_db.profiles)
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -68,7 +69,7 @@ class SettingsRepository {
         );
 
     return (await _db.select(_db.localSettings)
-            ..where((t) => t.id.equals(1)))
+          ..where((t) => t.id.equals(1)))
         .getSingle();
   }
 
@@ -98,6 +99,20 @@ class SettingsRepository {
     await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
         .write(LocalSettingsCompanion(
       themeMode: Value(themeMode),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
+  /// Persists the thread status bar's attention-hint switch (schema v15).
+  ///
+  /// `true` / `false` are the user's own choice; the column stays NULL until
+  /// they make one, and the app reads NULL as "show the reading"
+  /// (`docs/MINDNET_ROADMAP.md` §3 row 4). That is why this method never
+  /// writes a default on the user's behalf.
+  Future<void> updateRhythmHintsEnabled(bool enabled) async {
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      rhythmHintsEnabled: Value(enabled),
       updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
     ));
   }

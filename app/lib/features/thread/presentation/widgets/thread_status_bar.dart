@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/repositories/repository_providers.dart';
+import '../../../../domain/services/cognitive/study_rhythm.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../application/study_rhythm_reader.dart';
 import '../../application/thread_rank_service.dart';
 import 'energy_bar.dart';
 
@@ -118,65 +120,167 @@ class _ThreadStatusBarState extends ConsumerState<ThreadStatusBar> {
           horizontal: 12,
           vertical: _collapsed ? 4 : 10,
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!_collapsed) ...[
-              _GoalButton(
-                goalText: state.valueOrNull?.goalText,
-                onChanged: (text) async {
-                  await ref
-                      .read(threadStateRepositoryProvider)
-                      .updateState(goalText: text, clearGoal: text.isEmpty);
-                  ref.invalidate(threadStateProvider);
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
-            EnergyBar(
-              energy: state.valueOrNull?.energy,
-              compact: _collapsed,
-              onChanged: (value) async {
-                await ref
-                    .read(threadStateRepositoryProvider)
-                    .updateState(energy: value);
-                ref.invalidate(threadStateProvider);
-              },
-            ),
-            const Spacer(),
-            IconButton(
-              tooltip: _collapsed ? l10n.threadExpand : l10n.threadCollapse,
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                _collapsed
-                    ? Icons.unfold_more
-                    : Icons.unfold_less,
-              ),
-              onPressed: _loadedCollapsed ? _toggleCollapsed : null,
-            ),
-            IconButton(
-              tooltip: l10n.commonEdit,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.tune),
-              onPressed: widget.onOpenProperties,
-            ),
-            if (_sorting)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            Row(
+              children: [
+                if (!_collapsed) ...[
+                  _GoalButton(
+                    goalText: state.valueOrNull?.goalText,
+                    onChanged: (text) async {
+                      await ref
+                          .read(threadStateRepositoryProvider)
+                          .updateState(goalText: text, clearGoal: text.isEmpty);
+                      ref.invalidate(threadStateProvider);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                EnergyBar(
+                  energy: state.valueOrNull?.energy,
+                  compact: _collapsed,
+                  onChanged: (value) async {
+                    await ref
+                        .read(threadStateRepositoryProvider)
+                        .updateState(energy: value);
+                    ref.invalidate(threadStateProvider);
+                  },
                 ),
-              )
-            else
-              IconButton.filled(
-                tooltip: l10n.threadSort,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.refresh),
-                onPressed: _sort,
-              ),
+                const Spacer(),
+                IconButton(
+                  tooltip: _collapsed ? l10n.threadExpand : l10n.threadCollapse,
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    _collapsed ? Icons.unfold_more : Icons.unfold_less,
+                  ),
+                  onPressed: _loadedCollapsed ? _toggleCollapsed : null,
+                ),
+                IconButton(
+                  tooltip: l10n.commonEdit,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.tune),
+                  onPressed: widget.onOpenProperties,
+                ),
+                if (_sorting)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  IconButton.filled(
+                    tooltip: l10n.threadSort,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _sort,
+                  ),
+              ],
+            ),
+            // Collapsed, the strip is a single row by design: the reading is the
+            // first thing to go.
+            if (!_collapsed) const _AttentionHint(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The attention-availability reading plus its advice (roadmap §3 row 4).
+///
+/// Derived, not measured: [StudyRhythm] turns the app's own study log into
+/// "minutes into the current sitting" and asks the same uncalibrated
+/// `rhythm.gate` parameter the engine uses. So the widget prints the number and
+/// the advice together, says the parameter is uncalibrated in the tooltip, and
+/// vanishes when the user turns the switch off (no query, no number).
+class _AttentionHint extends ConsumerWidget {
+  const _AttentionHint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final snapshot = ref.watch(studyRhythmProvider).valueOrNull;
+    // While loading (or while the switch is off) show nothing: a placeholder
+    // that flickers into a number would read as if the number had changed.
+    if (snapshot == null || !snapshot.enabled) {
+      return const SizedBox.shrink();
+    }
+
+    final reading = snapshot.reading;
+    if (reading == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            Icon(
+              Icons.hourglass_empty,
+              size: 16,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                l10n.threadRhythmEmpty,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final advice = switch (reading.advice) {
+      StudyAdvice.hard => l10n.threadRhythmAdviceHard,
+      StudyAdvice.moderate => l10n.threadRhythmAdviceModerate,
+      StudyAdvice.rest => l10n.threadRhythmAdviceRest,
+      StudyAdvice.none => l10n.threadRhythmEmpty,
+    };
+    final text = l10n.threadRhythmReading(
+      reading.vigilancePercent,
+      reading.minutesOnRounded,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Tooltip(
+            message: l10n.threadRhythmUncalibrated,
+            child: Icon(
+              Icons.timelapse,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              '$text · $advice',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: l10n.threadRhythmHide,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.visibility_off, size: 18),
+            onPressed: () async {
+              await ref
+                  .read(settingsRepositoryProvider)
+                  .updateRhythmHintsEnabled(false);
+              ref.invalidate(studyRhythmProvider);
+              ref.invalidate(rhythmHintsEnabledProvider);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -201,7 +305,8 @@ class _GoalButton extends StatelessWidget {
       message: hasGoal ? text : l10n.threadGoalEmpty,
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => showGoalEditor(context, initial: text, onChanged: onChanged),
+        onTap: () =>
+            showGoalEditor(context, initial: text, onChanged: onChanged),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 180),
           child: Padding(

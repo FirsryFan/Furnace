@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/notifications/notification_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/scheduling/schedule_conflict.dart';
+import '../../../domain/services/scheduling/time_window_engine.dart';
 import '../application/task_scheduler_providers.dart';
+import 'widgets/schedule_conflict_dialog.dart';
 
 /// Task detail page: subtasks, dependencies, reminder.
 class TaskDetailPage extends ConsumerStatefulWidget {
@@ -148,8 +151,7 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
                         title: Text(dep.title),
                         trailing: IconButton(
                           icon: const Icon(Icons.link_off),
-                          onPressed: () =>
-                              _removeDependency(context, dep.id),
+                          onPressed: () => _removeDependency(context, dep.id),
                         ),
                       ),
                     const Divider(height: 16),
@@ -212,6 +214,60 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
         '${dt.minute.toString().padLeft(2, '0')}';
   }
 
+  /// 选完截止时刻后的冲突检查（Q23 / spec 1.2.3）。
+  ///
+  /// 撞上忙碌日程块就弹警告，让用户在「移到这块之前/之后」里选；返回要落下的
+  /// 时刻。返回 null = 用户点掉了警告，**放弃这次选择**（原来的截止时间不变）。
+  ///
+  /// 读日程块失败时不挡用户：当作查不到冲突，直接接受所选时刻——冲突检查是
+  /// 提醒不是门禁，不能因为一次读库失败就让人选不了时间。
+  Future<DateTime?> _resolveDueAtConflict(
+    BuildContext context,
+    DateTime chosen,
+  ) async {
+    final List<ScheduleBlock> blocks;
+    try {
+      blocks = await _scheduleBlocks();
+    } catch (_) {
+      return chosen;
+    }
+    final hit = ScheduleConflict.at(blocks: blocks, moment: chosen);
+    if (hit == null || !context.mounted) {
+      return chosen;
+    }
+    final before = ScheduleConflict.freeMomentBefore(blocks: blocks, hit: hit);
+    final after = ScheduleConflict.freeMomentAfter(blocks: blocks, hit: hit);
+    final choice = await showScheduleConflictWarning(
+      context: context,
+      hit: hit,
+      before: before,
+      after: after,
+    );
+    return switch (choice) {
+      ScheduleConflictChoice.before => before ?? chosen,
+      ScheduleConflictChoice.after => after ?? chosen,
+      ScheduleConflictChoice.keep => chosen,
+      null => null,
+    };
+  }
+
+  /// 把 `time_blocks` 行映射成引擎的 [ScheduleBlock]（与 thread_rank_service
+  /// 里那份映射同口径，只是这里在 presentation 层读表）。
+  Future<List<ScheduleBlock>> _scheduleBlocks() async {
+    final rows = await ref.read(timeBlockRepositoryProvider).getTimeBlocks();
+    return [
+      for (final row in rows)
+        ScheduleBlock(
+          id: row.id,
+          title: row.title,
+          startAt: DateTime.fromMillisecondsSinceEpoch(row.startAt),
+          endAt: DateTime.fromMillisecondsSinceEpoch(row.endAt),
+          available: row.available,
+          repeatRule: row.repeatRule,
+        ),
+    ];
+  }
+
   Future<void> _editTask(BuildContext context, Task task) async {
     final l10n = AppLocalizations.of(context);
     final titleController = TextEditingController(text: task.title);
@@ -241,7 +297,8 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
                 value: priority,
                 decoration: InputDecoration(labelText: l10n.tasksSuggestions),
                 items: [
-                  DropdownMenuItem(value: 0, child: Text(l10n.tasksPriorityLow)),
+                  DropdownMenuItem(
+                      value: 0, child: Text(l10n.tasksPriorityLow)),
                   DropdownMenuItem(
                       value: 1, child: Text(l10n.tasksPriorityMedium)),
                   DropdownMenuItem(
@@ -281,7 +338,8 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
                   final now = DateTime.now();
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: dueAt ?? DateTime(now.year, now.month, now.day),
+                    initialDate:
+                        dueAt ?? DateTime(now.year, now.month, now.day),
                     firstDate: DateTime(now.year - 1),
                     lastDate: DateTime(now.year + 5),
                   );
@@ -295,14 +353,20 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
                         : TimeOfDay.fromDateTime(dueAt!),
                   );
                   if (time != null) {
+                    final chosen = DateTime(
+                      date.year,
+                      date.month,
+                      date.day,
+                      time.hour,
+                      time.minute,
+                    );
+                    final resolved =
+                        await _resolveDueAtConflict(context, chosen);
+                    if (resolved == null || !context.mounted) {
+                      return;
+                    }
                     setState(() {
-                      dueAt = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        time.hour,
-                        time.minute,
-                      );
+                      dueAt = resolved;
                     });
                   }
                 },
@@ -348,7 +412,8 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
     final l10n = AppLocalizations.of(context);
     final allTags = await ref.read(tagRepositoryProvider).getAllTags();
     final existingIds = _tags.map((t) => t.id).toSet();
-    final candidates = allTags.where((t) => !existingIds.contains(t.id)).toList();
+    final candidates =
+        allTags.where((t) => !existingIds.contains(t.id)).toList();
     if (candidates.isEmpty) {
       return;
     }
@@ -504,9 +569,7 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
           remindAt: remindAt.millisecondsSinceEpoch,
         );
     final notificationId = task.id.hashCode & 0x7fffffff;
-    await ref
-        .read(notificationServiceProvider)
-        .cancelReminder(notificationId);
+    await ref.read(notificationServiceProvider).cancelReminder(notificationId);
     final scheduled =
         await ref.read(notificationServiceProvider).scheduleReminder(
               id: notificationId,

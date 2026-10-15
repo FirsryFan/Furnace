@@ -375,6 +375,15 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> ankiCardTypePreference =
       GeneratedColumn<String>('anki_card_type_preference', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rhythmHintsEnabledMeta =
+      const VerificationMeta('rhythmHintsEnabled');
+  @override
+  late final GeneratedColumn<bool> rhythmHintsEnabled = GeneratedColumn<bool>(
+      'rhythm_hints_enabled', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("rhythm_hints_enabled" IN (0, 1))'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -402,6 +411,7 @@ class $LocalSettingsTable extends LocalSettings
         aiMaxRounds,
         ankiJudgeMode,
         ankiCardTypePreference,
+        rhythmHintsEnabled,
         createdAt,
         updatedAt
       ];
@@ -478,6 +488,12 @@ class $LocalSettingsTable extends LocalSettings
           ankiCardTypePreference.isAcceptableOrUnknown(
               data['anki_card_type_preference']!, _ankiCardTypePreferenceMeta));
     }
+    if (data.containsKey('rhythm_hints_enabled')) {
+      context.handle(
+          _rhythmHintsEnabledMeta,
+          rhythmHintsEnabled.isAcceptableOrUnknown(
+              data['rhythm_hints_enabled']!, _rhythmHintsEnabledMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -526,6 +542,8 @@ class $LocalSettingsTable extends LocalSettings
       ankiCardTypePreference: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}anki_card_type_preference']),
+      rhythmHintsEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}rhythm_hints_enabled']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -591,6 +609,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// NULL means `mixed`, which resolves to the fill-blank fallback: exactly the
   /// card every generator produced before the preference existed.
   final String? ankiCardTypePreference;
+
+  /// Whether the thread status bar shows the attention-availability reading
+  /// derived from the study log (`docs/MINDNET_ROADMAP.md` §3 row 4).
+  ///
+  /// NULL reads as visible: the reading is informational, it says out loud that
+  /// its parameter is uncalibrated, and it can be hidden again in one tap - so a
+  /// fresh install shows it until the user says otherwise.
+  final bool? rhythmHintsEnabled;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -607,6 +633,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.aiMaxRounds,
       this.ankiJudgeMode,
       this.ankiCardTypePreference,
+      this.rhythmHintsEnabled,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -643,6 +670,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     if (!nullToAbsent || ankiCardTypePreference != null) {
       map['anki_card_type_preference'] =
           Variable<String>(ankiCardTypePreference);
+    }
+    if (!nullToAbsent || rhythmHintsEnabled != null) {
+      map['rhythm_hints_enabled'] = Variable<bool>(rhythmHintsEnabled);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -682,6 +712,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       ankiCardTypePreference: ankiCardTypePreference == null && nullToAbsent
           ? const Value.absent()
           : Value(ankiCardTypePreference),
+      rhythmHintsEnabled: rhythmHintsEnabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rhythmHintsEnabled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -705,6 +738,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       ankiJudgeMode: serializer.fromJson<String?>(json['ankiJudgeMode']),
       ankiCardTypePreference:
           serializer.fromJson<String?>(json['ankiCardTypePreference']),
+      rhythmHintsEnabled:
+          serializer.fromJson<bool?>(json['rhythmHintsEnabled']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -727,6 +762,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'ankiJudgeMode': serializer.toJson<String?>(ankiJudgeMode),
       'ankiCardTypePreference':
           serializer.toJson<String?>(ankiCardTypePreference),
+      'rhythmHintsEnabled': serializer.toJson<bool?>(rhythmHintsEnabled),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -746,6 +782,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<int?> aiMaxRounds = const Value.absent(),
           Value<String?> ankiJudgeMode = const Value.absent(),
           Value<String?> ankiCardTypePreference = const Value.absent(),
+          Value<bool?> rhythmHintsEnabled = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -768,6 +805,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         ankiCardTypePreference: ankiCardTypePreference.present
             ? ankiCardTypePreference.value
             : this.ankiCardTypePreference,
+        rhythmHintsEnabled: rhythmHintsEnabled.present
+            ? rhythmHintsEnabled.value
+            : this.rhythmHintsEnabled,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -795,6 +835,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       ankiCardTypePreference: data.ankiCardTypePreference.present
           ? data.ankiCardTypePreference.value
           : this.ankiCardTypePreference,
+      rhythmHintsEnabled: data.rhythmHintsEnabled.present
+          ? data.rhythmHintsEnabled.value
+          : this.rhythmHintsEnabled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -816,6 +859,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('aiMaxRounds: $aiMaxRounds, ')
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
+          ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -837,6 +881,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiMaxRounds,
       ankiJudgeMode,
       ankiCardTypePreference,
+      rhythmHintsEnabled,
       createdAt,
       updatedAt);
   @override
@@ -856,6 +901,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.aiMaxRounds == this.aiMaxRounds &&
           other.ankiJudgeMode == this.ankiJudgeMode &&
           other.ankiCardTypePreference == this.ankiCardTypePreference &&
+          other.rhythmHintsEnabled == this.rhythmHintsEnabled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -874,6 +920,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<int?> aiMaxRounds;
   final Value<String?> ankiJudgeMode;
   final Value<String?> ankiCardTypePreference;
+  final Value<bool?> rhythmHintsEnabled;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -890,6 +937,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiMaxRounds = const Value.absent(),
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
+    this.rhythmHintsEnabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -907,6 +955,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiMaxRounds = const Value.absent(),
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
+    this.rhythmHintsEnabled = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -925,6 +974,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<int>? aiMaxRounds,
     Expression<String>? ankiJudgeMode,
     Expression<String>? ankiCardTypePreference,
+    Expression<bool>? rhythmHintsEnabled,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -943,6 +993,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (ankiJudgeMode != null) 'anki_judge_mode': ankiJudgeMode,
       if (ankiCardTypePreference != null)
         'anki_card_type_preference': ankiCardTypePreference,
+      if (rhythmHintsEnabled != null)
+        'rhythm_hints_enabled': rhythmHintsEnabled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -962,6 +1014,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<int?>? aiMaxRounds,
       Value<String?>? ankiJudgeMode,
       Value<String?>? ankiCardTypePreference,
+      Value<bool?>? rhythmHintsEnabled,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -979,6 +1032,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       ankiJudgeMode: ankiJudgeMode ?? this.ankiJudgeMode,
       ankiCardTypePreference:
           ankiCardTypePreference ?? this.ankiCardTypePreference,
+      rhythmHintsEnabled: rhythmHintsEnabled ?? this.rhythmHintsEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1027,6 +1081,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       map['anki_card_type_preference'] =
           Variable<String>(ankiCardTypePreference.value);
     }
+    if (rhythmHintsEnabled.present) {
+      map['rhythm_hints_enabled'] = Variable<bool>(rhythmHintsEnabled.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1052,6 +1109,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('aiMaxRounds: $aiMaxRounds, ')
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
+          ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -20334,6 +20392,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<int?> aiMaxRounds,
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
+  Value<bool?> rhythmHintsEnabled,
   required int createdAt,
   required int updatedAt,
 });
@@ -20352,6 +20411,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<int?> aiMaxRounds,
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
+  Value<bool?> rhythmHintsEnabled,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -20404,6 +20464,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get ankiCardTypePreference => $composableBuilder(
       column: $table.ankiCardTypePreference,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get rhythmHintsEnabled => $composableBuilder(
+      column: $table.rhythmHintsEnabled,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
@@ -20465,6 +20529,10 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.ankiCardTypePreference,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get rhythmHintsEnabled => $composableBuilder(
+      column: $table.rhythmHintsEnabled,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -20520,6 +20588,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get ankiCardTypePreference => $composableBuilder(
       column: $table.ankiCardTypePreference, builder: (column) => column);
 
+  GeneratedColumn<bool> get rhythmHintsEnabled => $composableBuilder(
+      column: $table.rhythmHintsEnabled, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20566,6 +20637,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<int?> aiMaxRounds = const Value.absent(),
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
+            Value<bool?> rhythmHintsEnabled = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -20583,6 +20655,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiMaxRounds: aiMaxRounds,
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
+            rhythmHintsEnabled: rhythmHintsEnabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -20600,6 +20673,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<int?> aiMaxRounds = const Value.absent(),
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
+            Value<bool?> rhythmHintsEnabled = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -20617,6 +20691,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiMaxRounds: aiMaxRounds,
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
+            rhythmHintsEnabled: rhythmHintsEnabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

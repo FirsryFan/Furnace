@@ -5,6 +5,7 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
+import '../application/study_rhythm_reader.dart';
 import '../application/thread_rank_service.dart';
 import 'event_properties_page.dart';
 import 'widgets/energy_colors.dart';
@@ -65,6 +66,9 @@ class _ThreadPageState extends ConsumerState<ThreadPage> {
       appBar: AppBar(
         title: Text(l10n.threadTitle),
         actions: [
+          // Where the attention hint can be brought back after the reading's
+          // own hide button removed it (schema v15 switch, roadmap §3 row 4).
+          _RhythmToggle(enabledText: l10n.threadRhythmToggle),
           IconButton(
             tooltip: l10n.tasksNewTask,
             icon: const Icon(Icons.add),
@@ -193,7 +197,8 @@ class _EventTile extends ConsumerWidget {
     final reasonText = reason;
     final details = <String>[
       if (task.estimateMinutes != null) '${task.estimateMinutes} min',
-      if (task.energyRequired != null) '${l10n.threadEnergy} ${task.energyRequired}',
+      if (task.energyRequired != null)
+        '${l10n.threadEnergy} ${task.energyRequired}',
       if (task.dueAt != null) _formatMoment(task.dueAt!),
     ];
 
@@ -205,7 +210,8 @@ class _EventTile extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: theme.colorScheme.errorContainer,
-        child: Icon(Icons.delete_outline, color: theme.colorScheme.onErrorContainer),
+        child: Icon(Icons.delete_outline,
+            color: theme.colorScheme.onErrorContainer),
       ),
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => _delete(ref),
@@ -348,7 +354,8 @@ class _EventTile extends ConsumerWidget {
     // was never started still completes, it simply records no actual duration.
     if (task.startedAt == null) {
       await repo.startTask(task.id,
-          at: DateTime.now().subtract(Duration(minutes: task.estimateMinutes ?? 0)));
+          at: DateTime.now()
+              .subtract(Duration(minutes: task.estimateMinutes ?? 0)));
     }
     await repo.completeTask(
       task.id,
@@ -465,8 +472,8 @@ class _ArchivedTile extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: theme.colorScheme.errorContainer,
-        child:
-            Icon(Icons.delete_outline, color: theme.colorScheme.onErrorContainer),
+        child: Icon(Icons.delete_outline,
+            color: theme.colorScheme.onErrorContainer),
       ),
       confirmDismiss: (_) => showDialog<bool>(
         context: context,
@@ -675,5 +682,39 @@ class _NewEventDialogState extends ConsumerState<_NewEventDialog> {
     if (mounted) {
       Navigator.of(context).pop();
     }
+  }
+}
+
+/// The attention-hint switch, kept in the app bar so hiding the reading on the
+/// status bar itself is undoable even when no event is in focus.
+///
+/// The check mark shows the persisted choice; NULL (never chosen) reads as on,
+/// which is the shipped default (`docs/MINDNET_ROADMAP.md` §3 row 4).
+class _RhythmToggle extends ConsumerWidget {
+  const _RhythmToggle({required this.enabledText});
+
+  final String enabledText;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(rhythmHintsEnabledProvider).valueOrNull ?? true;
+    return PopupMenuButton<bool>(
+      tooltip: enabledText,
+      icon: const Icon(Icons.more_vert),
+      onSelected: (next) async {
+        await ref
+            .read(settingsRepositoryProvider)
+            .updateRhythmHintsEnabled(next);
+        ref.invalidate(rhythmHintsEnabledProvider);
+        ref.invalidate(studyRhythmProvider);
+      },
+      itemBuilder: (context) => [
+        CheckedPopupMenuItem<bool>(
+          value: !enabled,
+          checked: enabled,
+          child: Text(enabledText),
+        ),
+      ],
+    );
   }
 }

@@ -30,9 +30,8 @@ class EnergyBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final value = energy;
-    final label = value == null
-        ? l10n.threadEnergyEmpty
-        : '${l10n.threadEnergy} $value';
+    final label =
+        value == null ? l10n.threadEnergyEmpty : '${l10n.threadEnergy} $value';
     final size = compact ? const Size(56, 30) : const Size(68, 36);
 
     return Tooltip(
@@ -118,8 +117,7 @@ class _EnergyEditorSheetState extends State<_EnergyEditorSheet> {
               children: [
                 Icon(Icons.bolt, color: color),
                 const SizedBox(width: 8),
-                Text(l10n.threadEnergy,
-                    style: theme.textTheme.titleMedium),
+                Text(l10n.threadEnergy, style: theme.textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
                   tooltip: l10n.commonClose,
