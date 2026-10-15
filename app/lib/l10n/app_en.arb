@@ -1272,5 +1272,12 @@
       }
     }
   },
-  "questionPaperReset": "Reset paper settings"
+  "questionPaperReset": "Reset paper settings",
+  "questionPaperCopy": "Copy paper",
+  "questionPaperCopyDone": "Paper copied — paste it into Word or a print preview.",
+  "questionPaperCopyReasonLabel": "Reason",
+  "questionPaperCopyImprovementLabel": "Improvement",
+  "questionPaperCopyBackgroundLabel": "Background",
+  "questionPaperCopyUncoveredHeading": "Knowledge points with no candidates",
+  "questionPaperCopyDeferredHeading": "Knowledge points blocked by the cap"
 }

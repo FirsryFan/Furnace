@@ -4609,6 +4609,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset paper settings'**
   String get questionPaperReset;
+
+  /// No description provided for @questionPaperCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy paper'**
+  String get questionPaperCopy;
+
+  /// No description provided for @questionPaperCopyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper copied — paste it into Word or a print preview.'**
+  String get questionPaperCopyDone;
+
+  /// No description provided for @questionPaperCopyReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get questionPaperCopyReasonLabel;
+
+  /// No description provided for @questionPaperCopyImprovementLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Improvement'**
+  String get questionPaperCopyImprovementLabel;
+
+  /// No description provided for @questionPaperCopyBackgroundLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get questionPaperCopyBackgroundLabel;
+
+  /// No description provided for @questionPaperCopyUncoveredHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge points with no candidates'**
+  String get questionPaperCopyUncoveredHeading;
+
+  /// No description provided for @questionPaperCopyDeferredHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge points blocked by the cap'**
+  String get questionPaperCopyDeferredHeading;
 }
 
 class _AppLocalizationsDelegate

@@ -1161,5 +1161,12 @@
       }
     }
   },
-  "questionPaperReset": "重置组卷条件"
+  "questionPaperReset": "重置组卷条件",
+  "questionPaperCopy": "复制卷面",
+  "questionPaperCopyDone": "卷面已复制：粘到 Word 或打印预览就能用。",
+  "questionPaperCopyReasonLabel": "理由",
+  "questionPaperCopyImprovementLabel": "提升点",
+  "questionPaperCopyBackgroundLabel": "背景",
+  "questionPaperCopyUncoveredHeading": "未覆盖的知识点",
+  "questionPaperCopyDeferredHeading": "被上限挡下的知识点"
 }

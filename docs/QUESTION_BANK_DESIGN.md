@@ -151,6 +151,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q15 | 拍照整理 UI：待确认队列页（逐个确认 / 整批确认）+ 入口 + ARB + widget 测试 | 已完成（`63e04f0`，teammate `question-intake` 交付） |
 | Q17 | 组卷页补三个 spec 控件（目标难度 / 每知识点上限 / 重置） | 已完成（`fe1964a`，teammate `question-intake` 交付） |
 | Q19 | 拍照整理的待确认清单持久化（schema v13 两张表 + 仓储 + `refresh()` 恢复 + 迁移/仓储测试） | 已完成（本轮，Lead） |
+| Q20 | 组卷页「复制卷面」：卷面渲染成可打印纯文本（`renderPaperText`）+ 剪贴板 + ARB | 已完成（本轮，teammate `question-intake` 交付） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

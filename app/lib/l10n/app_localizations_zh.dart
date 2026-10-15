@@ -2503,4 +2503,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperReset => '重置组卷条件';
+
+  @override
+  String get questionPaperCopy => '复制卷面';
+
+  @override
+  String get questionPaperCopyDone => '卷面已复制：粘到 Word 或打印预览就能用。';
+
+  @override
+  String get questionPaperCopyReasonLabel => '理由';
+
+  @override
+  String get questionPaperCopyImprovementLabel => '提升点';
+
+  @override
+  String get questionPaperCopyBackgroundLabel => '背景';
+
+  @override
+  String get questionPaperCopyUncoveredHeading => '未覆盖的知识点';
+
+  @override
+  String get questionPaperCopyDeferredHeading => '被上限挡下的知识点';
 }

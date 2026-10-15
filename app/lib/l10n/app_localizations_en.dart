@@ -2609,4 +2609,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionPaperReset => 'Reset paper settings';
+
+  @override
+  String get questionPaperCopy => 'Copy paper';
+
+  @override
+  String get questionPaperCopyDone =>
+      'Paper copied — paste it into Word or a print preview.';
+
+  @override
+  String get questionPaperCopyReasonLabel => 'Reason';
+
+  @override
+  String get questionPaperCopyImprovementLabel => 'Improvement';
+
+  @override
+  String get questionPaperCopyBackgroundLabel => 'Background';
+
+  @override
+  String get questionPaperCopyUncoveredHeading =>
+      'Knowledge points with no candidates';
+
+  @override
+  String get questionPaperCopyDeferredHeading =>
+      'Knowledge points blocked by the cap';
 }

@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/services/paper/paper_composer.dart';
@@ -255,10 +256,22 @@ class _PaperBody extends ConsumerWidget {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(
-            bankEmpty
-                ? l10n.questionPaperEmptyBank
-                : l10n.questionPaperEmptyPlan,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                bankEmpty
+                    ? l10n.questionPaperEmptyBank
+                    : l10n.questionPaperEmptyPlan,
+              ),
+              const SizedBox(height: 8),
+              _copyButton(
+                context,
+                l10n,
+                knowledgePointNames,
+                enabled: false,
+              ),
+            ],
           ),
         ),
       );
@@ -267,9 +280,21 @@ class _PaperBody extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.questionPaperHeadline(plan.items.length, plan.requestedCount),
-          style: Theme.of(context).textTheme.titleMedium,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                // 第一个参数是"想要的题数"，第二个是"实际凑到的"：
+                // 短卷必须读成"想要 10 道，凑到 2 道"，不能反过来。
+                l10n.questionPaperHeadline(
+                  plan.requestedCount,
+                  plan.items.length,
+                ),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            _copyButton(context, l10n, knowledgePointNames, enabled: true),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -311,6 +336,51 @@ class _PaperBody extends ConsumerWidget {
             knowledgePointNames: knowledgePointNames,
           ),
       ],
+    );
+  }
+
+  /// 「复制卷面」按钮。空卷面时**禁用**，而不是复制出一个空壳。
+  ///
+  /// 选"禁用"而不是"点完弹提示"的理由：空卷是正常状态（题库还空 / 条件太窄），
+  /// 卡片里已经写明了是哪种空；禁用比再弹一条提示更安静，而且点不动就绝不会
+  /// 往剪贴板里写空文本——空文本粘进 Word 等于把用户剪贴板里原来的东西清掉。
+  Widget _copyButton(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<Map<String, String>> knowledgePointNames, {
+    required bool enabled,
+  }) {
+    return TextButton.icon(
+      onPressed:
+          enabled ? () => _copyPaper(context, l10n, knowledgePointNames) : null,
+      icon: const Icon(Icons.copy_all_outlined),
+      label: Text(l10n.questionPaperCopy),
+    );
+  }
+
+  /// 把当前卷面写进剪贴板，成功后提示。
+  ///
+  /// 文本由 [renderPaperText] 生成（纯函数，格式写在那个函数的注释里）；
+  /// 这里只负责"写"和"提示"，不重排、不复算分数。
+  Future<void> _copyPaper(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<Map<String, String>> knowledgePointNames,
+  ) async {
+    final names = knowledgePointNames.maybeWhen(
+      data: (map) => map,
+      orElse: () => const <String, String>{},
+    );
+    final text = renderPaperText(
+      l10n: l10n,
+      plan: plan,
+      knowledgePointNames: names,
+    );
+    if (text.isEmpty) return; // 兜底：空文本不污染剪贴板。
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.questionPaperCopyDone)),
     );
   }
 }
@@ -480,4 +550,92 @@ String knowledgePointNameOf(
     data: (map) => map[knowledgePointId] ?? knowledgePointId,
     orElse: () => knowledgePointId,
   );
+}
+
+/// 把卷面渲染成可打印的纯文本（「复制卷面」用的就是它；纯函数，便于断言）。
+///
+/// 格式（稳定，测试按这个断言）：
+/// ```
+/// 想要 N 道，凑到 M 道          ← questionPaperHeadline(requestedCount, items.length)
+///
+/// 1. [学科] [来源] [档位]
+/// 知识点名
+/// 理由：<PaperItem.reasonZh>
+/// 提升点：<improvementNote>     ← 非空才写
+/// 背景：<backgroundZh>          ← 非空才写
+///
+/// 未覆盖的知识点：              ← plan 里非空才写
+/// • 知识点名
+/// 被上限挡下的知识点：
+/// • 知识点名
+/// ```
+///
+/// 三条刻意的取舍：
+/// * **不放题面/答案**：把答案糊进卷面，对"打印出来拿纸做"是坏事；题面由收题页/
+///   详情页负责展示。这里只放"为什么排这道题"。
+/// * **不重排、不复算分数**：顺序与分数都是 [PaperPlan] 算好的，这里只做排版；
+///   `score`/`components` 也不进文本（裸分数对读者没有意义）。
+/// * **缺口如实写**：id 经 `knowledgePointNames` 变成可读名，查不到就原样显示 id，
+///   不猜、不隐藏。
+String renderPaperText({
+  required AppLocalizations l10n,
+  required PaperPlan plan,
+  required Map<String, String> knowledgePointNames,
+}) {
+  if (plan.items.isEmpty) return '';
+
+  final buffer = StringBuffer()
+    ..writeln(
+      // 第一个参数是"要凑几道"，第二个是"实际凑到几道"。
+      l10n.questionPaperHeadline(plan.requestedCount, plan.items.length),
+    );
+
+  for (var index = 0; index < plan.items.length; index++) {
+    final item = plan.items[index];
+    final pointId = item.knowledgePointId;
+    final pointText = pointId == null
+        ? l10n.questionPaperKnowledgePointNone
+        : (knowledgePointNames[pointId] ?? pointId);
+    buffer
+      ..writeln()
+      ..writeln(
+        '${index + 1}. '
+        '[${subjectLabelOf(l10n, item.subjectKey)}] '
+        '[${sourceLevelLabel(l10n, item.sourceLevel)}] '
+        '[${item.zone.labelZh}]',
+      )
+      ..writeln(pointText)
+      ..writeln('${l10n.questionPaperCopyReasonLabel}：${item.reasonZh}');
+    if (item.improvementNote.trim().isNotEmpty) {
+      buffer.writeln(
+        '${l10n.questionPaperCopyImprovementLabel}：${item.improvementNote}',
+      );
+    }
+    if (item.backgroundZh.trim().isNotEmpty) {
+      buffer.writeln(
+        '${l10n.questionPaperCopyBackgroundLabel}：${item.backgroundZh}',
+      );
+    }
+  }
+
+  void writeGaps(String heading, List<String> ids) {
+    if (ids.isEmpty) return;
+    buffer
+      ..writeln()
+      ..writeln('$heading：');
+    for (final id in ids) {
+      buffer.writeln('• ${knowledgePointNames[id] ?? id}');
+    }
+  }
+
+  writeGaps(
+    l10n.questionPaperCopyUncoveredHeading,
+    plan.uncoveredKnowledgePointIds,
+  );
+  writeGaps(
+    l10n.questionPaperCopyDeferredHeading,
+    plan.deferredKnowledgePointIds,
+  );
+
+  return buffer.toString().trimRight();
 }

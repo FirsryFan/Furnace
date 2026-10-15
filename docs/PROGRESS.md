@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-10-16 轮次四十二：组卷页「复制卷面」——卷面变成可打印纯文本（Q20，teammate `question-intake`）+ 修一处反序真 bug
+
+**做了什么**
+- `app/lib/features/questions/presentation/question_paper_page.dart`：卷面头部加「复制卷面」
+  `TextButton.icon`（空卷面**禁用**）；新增顶层纯函数 `renderPaperText({l10n, plan, knowledgePointNames})`
+  —— 首行「想要 N 道，凑到 M 道」，每题 `序号. [学科] [来源] [档位]` + 知识点名 + `理由：<reasonZh>`
+  （`improvementNote` / `backgroundZh` 非空才各加一行），末尾按 `uncoveredKnowledgePointIds` /
+  `deferredKnowledgePointIds` 列缺口（查不到名字就原样显示 id）。
+- `app/lib/l10n/app_zh.arb` + `app_en.arb` 各 +7 键（`questionPaperCopy` / `CopyDone` / `CopyReasonLabel` /
+  `CopyImprovementLabel` / `CopyBackgroundLabel` / `CopyUncoveredHeading` / `CopyDeferredHeading`），
+  带占位符的配了 `@key.placeholders`；`flutter gen-l10n` 生成物随之更新。
+- `app/test/features/questions/presentation/question_paper_page_test.dart` +5 条 testWidgets
+  （剪贴板内容逐段、短卷如实写"凑到几道"、缺口两段、空卷面禁用且不写剪贴板、文本里不放题面与答案），
+  文件共 20 条；用 `SystemChannels.platform` 的 mock handler 截住 `Clipboard.setData`。
+
+**为什么不这么做**
+- **空卷面禁用按钮而不是点完弹提示**：空文本粘进 Word 会把用户剪贴板里原来的东西清掉，而卡片里
+  已经写明是哪种空；禁用比再弹一条提示更安静。
+- **不放题面与答案**：卷面是"打印出来拿纸做"的底稿，把答案糊进去等于毁掉它；题面归收题页/详情页。
+- **不重排、不复算分数**：顺序与 `score` 都是 `PaperPlan` 算好的，`renderPaperText` 只做排版。
+- **只做剪贴板，不加 PDF/打印依赖**：`app/pubspec.yaml` 里没有 share/pdf 包，为这一片引依赖不值。
+
+**顺手修掉的一处真 bug（不是本片目标，但撞上了）**
+- `questionPaperHeadline(int want, int got)`（`app_zh.arb:1018`「想要 {want} 道，凑到 {got} 道」）
+  从 Q10a 起被调用成 `(plan.items.length, plan.requestedCount)`——**参数反了**：用户要 10 道、
+  只凑到 2 道时页面写「想要 2 道，凑到 10 道」。
+- 之所以一直全绿：旧测试把反序值当期望（`question_paper_page_test.dart` 9 处
+  `expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget)`），
+  所以断言和实现一起错了。现已改成 `(plan.requestedCount, plan.items.length)`，
+  并新增一条回归断言：文本里**不能**出现 `questionPaperHeadline(2, 10)` 这种反序读法。
+
+**验收**
+- `dart format --output=none --set-exit-if-changed`（页面 + 测试）→ `Formatted 2 files (0 changed)`。
+- `flutter gen-l10n` 后 `git diff app/lib/l10n` 与生成前**逐字相同** → 生成物与 ARB 一致。
+- `dart analyze lib test` → `94 issues found.`（0 error / 0 warning）。
+- `flutter test test/features/questions --concurrency=1` → **`+104 All tests passed!`**
+  （Q17 后基线 +90；+9 是轮次四十一 Q19 在同一测试树里新增的仓储/服务层用例）。
+
+**已知缺口**
+- 只有剪贴板，没有打印/PDF；复制出去的文本按契约**不含题干**，所以不能独立标识"这是哪道题"。
+- `Clipboard.setData` 平台抛错这条路径没有测试（实现里写成功才提示）。
+- 题头的标签分隔符是全角冒号硬编码（en 语言下也是全角）。
+- 目标题数下拉的 items 只有 5/10/15/20，而 `setTargetCount` 钳 1..200——本轮 UI 不可达，
+  但"恢复上次 spec/导入配置"这类路径一旦写进 1..4 会触发 Flutter 断言（详见下一轮）。
+
+---
+
 ## 2026-10-16 轮次四十一：拍照整理的待确认清单落地（schema v13）——重启不丢，确认状态按内容保留（Q19，Lead）
 
 **做了什么**

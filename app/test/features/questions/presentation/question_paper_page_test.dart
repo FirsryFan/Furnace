@@ -16,6 +16,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart' show NativeDatabase;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
@@ -108,7 +109,7 @@ void main() {
 
     await _pumpPaperPage(tester, db: db);
 
-    expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 2)), findsOneWidget);
     expect(
       find.text(
         '${zh.questionPaperCandidateCount(2)} · ${zh.questionPaperOverallNeed('0.35')}',
@@ -125,7 +126,7 @@ void main() {
     }
 
     await _pumpPaperPage(tester, db: db);
-    expect(find.text(zh.questionPaperHeadline(6, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 6)), findsOneWidget);
 
     // 真实交互：打开目标题数下拉，选 5 道。
     // 页面上有两个 `DropdownButtonFormField<int>`（目标题数 / 每个知识点上限），
@@ -177,13 +178,13 @@ void main() {
     );
 
     await _pumpPaperPage(tester, db: db);
-    expect(find.text(zh.questionPaperHeadline(4, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 4)), findsOneWidget);
 
     final container = _container(tester);
     container.read(paperSpecProvider.notifier).setMinSourceLevel('gaokao');
     await _settle(tester);
 
-    expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 2)), findsOneWidget);
     expect(find.text(zh.questionPaperShortNotice), findsOneWidget);
   });
 
@@ -192,14 +193,14 @@ void main() {
     await _seedQuestion(db, id: 'q-p', stem: '物理题', subjectKey: 'physics');
 
     await _pumpPaperPage(tester, db: db);
-    expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 2)), findsOneWidget);
     expect(find.widgetWithText(FilterChip, '数学'), findsOneWidget);
     expect(find.widgetWithText(FilterChip, '物理'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilterChip, '数学'));
     await _settle(tester);
 
-    expect(find.text(zh.questionPaperHeadline(1, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 1)), findsOneWidget);
   });
 
   testWidgets('注入的危险区/发展区结论决定档位 chip 与理由原文', (tester) async {
@@ -281,7 +282,7 @@ void main() {
     expect(find.text(zh.questionPaperUncoveredBody), findsOneWidget);
     expect(find.text('• Epsilon'), findsOneWidget);
     expect(find.text(zh.questionPaperDeferredTitle), findsNothing);
-    expect(find.text(zh.questionPaperHeadline(1, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 1)), findsOneWidget);
   });
 
   testWidgets('有候选但被配额挤掉 → 列进"这轮被挤掉"，不是"没有候选"', (tester) async {
@@ -477,14 +478,14 @@ void main() {
 
     await _pumpPaperPage(tester, db: db);
     // 自动配额下两道都进卷。
-    expect(find.text(zh.questionPaperHeadline(2, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 2)), findsOneWidget);
 
     final container = _container(tester);
     container.read(paperSpecProvider.notifier).setPerKnowledgePointCap(1);
     await _settle(tester);
 
     expect(container.read(paperSpecProvider).perKnowledgePointCap, 1);
-    expect(find.text(zh.questionPaperHeadline(1, 10)), findsOneWidget);
+    expect(find.text(zh.questionPaperHeadline(10, 1)), findsOneWidget);
     expect(find.text(zh.questionPaperItemIndex(2)), findsNothing);
   });
 
@@ -569,6 +570,210 @@ void main() {
     expect(container.read(paperSpecProvider).perKnowledgePointCap, isNull);
     expect(find.text(zh.questionPaperDifficultyAny), findsOneWidget);
   });
+
+  // -------------------------------------------------------------------------
+  // 「复制卷面」（Q20）：卷面变成可打印纯文本
+  // -------------------------------------------------------------------------
+
+  testWidgets('复制卷面：剪贴板里是逐题的序号/学科来源档位/理由，复制后有提示', (tester) async {
+    await _seedKnowledgePoint(db, id: 'kp-a', title: '二次函数', tagId: 'tag-a');
+    await _seedQuestion(
+      db,
+      id: 'q-1',
+      stem: '第一题',
+      subjectKey: 'math',
+      sourceLevel: 'gaokao',
+    );
+    await _linkQuestionToTag(db, questionId: 'q-1', tagId: 'tag-a');
+
+    await _pumpPaperPage(tester, db: db);
+    final clipboard = _captureClipboard(tester);
+
+    await tester.tap(_copyPaperButton());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final text = _copiedText(clipboard);
+    expect(text, isNotNull, reason: '点了复制就应该往剪贴板写东西');
+    // 第一行：想凑 10 道、凑到 1 道（顺序不能反）。
+    expect(text, contains(zh.questionPaperHeadline(10, 1)));
+    // 逐题一段：序号 + [学科] [来源] [档位]。
+    expect(text, contains('1. [数学] [高考真题] [没有读数]'));
+    // 知识点名单独一行。
+    expect(text, contains('二次函数'));
+    // 理由行是领域层原文，不在这里重写。
+    expect(text, contains('${zh.questionPaperCopyReasonLabel}：'));
+    expect(text, contains('还没有你的读数'));
+    // 复制成功有提示。
+    expect(find.text(zh.questionPaperCopyDone), findsOneWidget);
+  });
+
+  testWidgets('短卷：文本与页面都如实写"凑到几道"，不假装凑满', (tester) async {
+    await _seedQuestion(db, id: 'q-1', stem: '第一题', subjectKey: 'math');
+    await _seedQuestion(db, id: 'q-2', stem: '第二题', subjectKey: 'math');
+
+    await _pumpPaperPage(tester, db: db);
+    final clipboard = _captureClipboard(tester);
+    await tester.tap(_copyPaperButton());
+    await tester.pump();
+
+    final text = _copiedText(clipboard)!;
+    expect(text, contains(zh.questionPaperHeadline(10, 2)));
+    // 明确挡住"想要 2 道，凑到 10 道"这种反过来的读法（回归防线）。
+    expect(text.contains(zh.questionPaperHeadline(2, 10)), isFalse);
+    expect(find.text(zh.questionPaperHeadline(10, 2)), findsOneWidget);
+  });
+
+  testWidgets('缺口：文本末尾如实列出未覆盖与这轮被挡下的知识点', (tester) async {
+    // 四个危险区知识点，各有 2 道 gaokao 候选；第五个危险区知识点一道候选都没有。
+    for (final suffix in <String>['a', 'b', 'c', 'd']) {
+      final title = _gapPointTitle(suffix);
+      await _seedKnowledgePoint(
+        db,
+        id: 'kp-$suffix',
+        title: title,
+        tagId: 'tag-$suffix',
+      );
+      for (final n in <int>[1, 2]) {
+        await _seedQuestion(
+          db,
+          id: 'q-$suffix-$n',
+          stem: '$title 第 $n 题',
+          subjectKey: 'math',
+          sourceLevel: 'gaokao',
+        );
+        await _linkQuestionToTag(
+          db,
+          questionId: 'q-$suffix-$n',
+          tagId: 'tag-$suffix',
+        );
+      }
+    }
+    await _seedKnowledgePoint(db, id: 'kp-e', title: '知识点戊', tagId: 'tag-e');
+
+    await _pumpPaperPage(
+      tester,
+      db: db,
+      diagnosis: const LibraryDiagnosis(
+        byKnowledgePoint: <String, BottleneckType>{
+          'kp-a': BottleneckType.danger,
+          'kp-b': BottleneckType.danger,
+          'kp-c': BottleneckType.danger,
+          'kp-d': BottleneckType.danger,
+          'kp-e': BottleneckType.danger,
+        },
+        fastLayerRan: true,
+        rounds: 2,
+      ),
+    );
+    // 目标 5 道、四个点 → 每点上限 ceil(5/4)=2：前三个点 2+2+1 填满，
+    // 第四个点的候选全被挡下（deferred）；戊点没候选（uncovered）。
+    _container(tester).read(paperSpecProvider.notifier).setTargetCount(5);
+    await _settle(tester);
+
+    final clipboard = _captureClipboard(tester);
+    await tester.tap(_copyPaperButton());
+    await tester.pump();
+
+    final text = _copiedText(clipboard)!;
+    expect(text, contains('${zh.questionPaperCopyUncoveredHeading}：'));
+    expect(text, contains('知识点戊'));
+    expect(text, contains('${zh.questionPaperCopyDeferredHeading}：'));
+    expect(text, contains('知识点丁'));
+    // 进卷的知识点会在正文里；缺口段与正文两处都得如实出现名字。
+    expect(text.contains('知识点甲'), isTrue);
+    expect(text.contains('知识点乙'), isTrue);
+  });
+
+  testWidgets('空卷面：复制按钮禁用，点了不写剪贴板也不弹提示', (tester) async {
+    await _pumpPaperPage(tester, db: db);
+    final clipboard = _captureClipboard(tester);
+
+    expect(
+      _copyPaperButtonWidget(tester).onPressed,
+      isNull,
+      reason: '空卷面应该禁用复制，而不是复制出一个空壳',
+    );
+
+    await tester.tap(_copyPaperButton(), warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(_copiedText(clipboard), isNull);
+    expect(find.text(zh.questionPaperCopyDone), findsNothing);
+    // 空态文案还在（空卷是正常状态，不是错误）。
+    expect(find.text(zh.questionPaperEmptyBank), findsOneWidget);
+  });
+
+  testWidgets('文本里不放题面与答案：卷面是给人做的，不是答案页', (tester) async {
+    await _seedQuestion(
+      db,
+      id: 'q-1',
+      stem: '独一无二的题干：求二次函数的最小值',
+      subjectKey: 'math',
+      answer: '独一无二的答案：最小值 -1',
+    );
+
+    await _pumpPaperPage(tester, db: db);
+    final clipboard = _captureClipboard(tester);
+    await tester.tap(_copyPaperButton());
+    await tester.pump();
+
+    final text = _copiedText(clipboard)!;
+    expect(text.contains('独一无二的题干'), isFalse);
+    expect(text.contains('独一无二的答案'), isFalse);
+    // 但"为什么排它"这段领域层文案要在。
+    expect(text, contains('${zh.questionPaperCopyReasonLabel}：'));
+  });
+}
+
+/// 缺口用例里的知识点名：`a` → 知识点甲、`b` → 知识点乙……
+String _gapPointTitle(String suffix) {
+  const titles = <String, String>{
+    'a': '知识点甲',
+    'b': '知识点乙',
+    'c': '知识点丙',
+    'd': '知识点丁',
+  };
+  return titles[suffix]!;
+}
+
+/// 页面上的「复制卷面」按钮：卷面页只有这一个 `TextButton`。
+Finder _copyPaperButton() {
+  return find.byWidgetPredicate((widget) => widget is TextButton);
+}
+
+/// 取「复制卷面」按钮本体（用来断言"禁用"）。
+TextButton _copyPaperButtonWidget(WidgetTester tester) {
+  final finder = _copyPaperButton();
+  expect(finder, findsOneWidget, reason: '卷面页应该只有一个「复制卷面」按钮');
+  return tester.widget<TextButton>(finder);
+}
+
+/// 截住平台通道，收集写剪贴板的调用（`Clipboard.setData`）。
+List<MethodCall> _captureClipboard(WidgetTester tester) {
+  final calls = <MethodCall>[];
+  final messenger = tester.binding.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+    calls.add(call);
+    return null;
+  });
+  addTearDown(
+    () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+  );
+  return calls;
+}
+
+/// 最近一次写进剪贴板的文本；一次都没写过（或写的不是文本）返回 null。
+String? _copiedText(List<MethodCall> calls) {
+  final setData = calls
+      .where((call) => call.method == 'Clipboard.setData')
+      .toList(growable: false);
+  if (setData.isEmpty) return null;
+  final arguments = setData.last.arguments;
+  if (arguments is! Map) return null;
+  final text = arguments['text'];
+  return text is String ? text : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -629,6 +834,7 @@ Future<void> _seedQuestion(
   String sourceLevel = 'unknown',
   String? trapNote,
   double? difficulty,
+  String? answer,
 }) {
   return db.into(db.questions).insert(
         QuestionsCompanion.insert(
@@ -640,6 +846,7 @@ Future<void> _seedQuestion(
           sourceLevel: Value(sourceLevel),
           trapNote: Value(trapNote),
           difficulty: Value(difficulty),
+          answer: Value(answer),
         ),
       );
 }
