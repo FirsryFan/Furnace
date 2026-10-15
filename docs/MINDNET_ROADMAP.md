@@ -235,6 +235,16 @@
 `ThreadFeed` 暴露认知次序与理由、开关落库（`ThreadRankSettings` 加列，需要一次 schema 迁移）、
 "刚活动节点"与目标节点到知识点上的距离（标签树 / `CognitiveGraph`）、以及 UI 上的呈现。
 
+**进展（轮次五十一）**：距离那一层已经做完 ——
+`app/lib/domain/services/scheduling/cognitive_rank_inputs.dart` 给出
+`CognitiveRankSeed`（α + 标签树投影 + `goal_node_id` + 刚活动的知识点 + 知识点→标签 + 名字）
+与纯逻辑 `CognitiveRankWiring.build(seed, candidates) → CognitiveRankInputs`，
+15 例测试用手搭的标签树钉住：0/1/2 跳、超过 2 跳或不连通一律不写 origin、
+同跳数"刚活动"优先于"目标"、候选挂多个标签取最近、顺序无关。
+还剩：从数据库读这几种素材（`review_logs`/`exposure_logs` → `card_states.knowledge_point_id`
+算"刚活动"，`Tags.parentId` 投影成图）、`ThreadRankService.build()` 接受 seed、
+开关落库 + UI。
+
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 
 此前只有 AI 工具 `evaluate_problem_fit` 会跑快层，读数页自己声明"不跑 tierB ⇒ zone 恒为 unavailable"。

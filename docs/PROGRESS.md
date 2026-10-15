@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-10-16 轮次五十一：认知排序档位的接线层（Q29a，Lead）
+
+**做了什么**：新增 `app/lib/domain/services/scheduling/cognitive_rank_inputs.dart`（纯逻辑）。
+上一轮只做了"给定 inputs 怎么排"，这一轮做"inputs 从哪来"里的**距离**那一半：
+
+- `CognitiveRankSeed` = α + 标签树投影（`MindNodeInfo` 列表）+ `goalNodeId`（线程目标所在的标签）
+  + 刚活动的知识点 id + 知识点→标签 + 知识点名字。全是"读好的事实"，没有一个是这里推断的。
+- `CognitiveRankWiring.build(seed, candidates)` 在标签图上量候选任务挂着的知识点离起点的距离，
+  产出 `CognitiveRankInputs`。只对候选真正挂着的知识点跑 BFS（不为库里每个知识点跑一遍），
+  顺序全部显式排序。
+- 三条规则写进代码与测试：超过 `kCognitiveRankMaxHops` 跳、图上不连通、知识点没有标签、
+  标签图是空的 —— **一律不写 origin**（宁可什么都不说，也不猜一条近路）；
+  同跳数"刚活动"优先于"目标"（刚做过的事比远处目标更该影响现在做什么）；
+  候选挂多个标签时取最近的那个。
+
+**证据**：`app/test/domain/services/scheduling/cognitive_rank_inputs_test.dart` 15 例
+（手搭标签树 `phi─mech/mech2─sub─far`，覆盖 0/1/2/3 跳、空图、幽灵标签、无标签、
+同跳数来源优先、多标签/多活动取最近、顺序无关的确定性、名字与 α 透传后排序真的会动）；
+`flutter test test/domain/services/scheduling --concurrency=1` → `+125 All tests passed!`；
+`dart analyze` 两个新文件 `No issues found!`；`dart format` 0 changed。
+
+**写这一轮时踩的两条坑**（都改成规则了）：`DiffusionBoost.distance(x, x)` 对同一个字符串
+直接返回 0，哪怕它不在图里 —— 所以空图必须显式短路，否则"两个一样的字符串"会被当成
+"同一个节点"；理由行 0 跳那一档只说"刚活动过/就是当前目标"，`via` 的名字只出现在 1/2 跳
+的句子里，所以"名字有没有传进去"要用 1 跳的用例断言，不能用排在最前面的那条。
+
+**还剩的另一半**：从数据库读这几种素材（`review_logs` / `exposure_logs` → `card_states.
+knowledge_point_id` 算"刚活动"、`Tags.parentId` 投影成图）、`ThreadRankService.build()`
+接受 seed、开关落库（`ThreadRankSettings` 加列 = 一次 schema 迁移）+ UI。
+
 ## 2026-10-16 轮次五十：认知排序档位的算法核心（Q28，Lead）
 
 **做了什么**：新增 `app/lib/domain/services/scheduling/cognitive_rank.dart`（纯逻辑，不碰数据库）。
