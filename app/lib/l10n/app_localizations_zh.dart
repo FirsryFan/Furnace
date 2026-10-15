@@ -2273,4 +2273,99 @@ class AppLocalizationsZh extends AppLocalizations {
   String questionDetailStatesFailed(String error) {
     return '状态读数没读出来：$error';
   }
+
+  @override
+  String get questionPaperTitle => '组卷';
+
+  @override
+  String get questionPaperEntryHint => '按薄弱点和危险区，从题库里凑一份练习卷';
+
+  @override
+  String get questionPaperSubtitle => '只从你已有的题里选：优先危险区；缺口如实列出，AI 不会替你出题。';
+
+  @override
+  String get questionPaperTargetCountLabel => '目标题数';
+
+  @override
+  String questionPaperCountOption(int count) {
+    return '$count 道';
+  }
+
+  @override
+  String get questionPaperSubjectLabel => '学科';
+
+  @override
+  String get questionPaperSubjectAny => '不限学科';
+
+  @override
+  String get questionPaperSubjectNone => '未标注学科';
+
+  @override
+  String get questionPaperSourceLevelLabel => '来源下限';
+
+  @override
+  String get questionPaperSourceLevelAny => '不限来源';
+
+  @override
+  String questionPaperHeadline(int want, int got) {
+    return '想要 $want 道，凑到 $got 道';
+  }
+
+  @override
+  String questionPaperFailed(String error) {
+    return '组卷没算出来：$error';
+  }
+
+  @override
+  String get questionPaperShortNotice => '题库不够：这不是错误，是本地还没有足够的题。去收题再回来。';
+
+  @override
+  String questionPaperOverallNeed(String need) {
+    return '整体该练程度 $need';
+  }
+
+  @override
+  String questionPaperCandidateCount(int count) {
+    return '候选 $count 道';
+  }
+
+  @override
+  String get questionPaperEmptyBank => '题库还是空的：先去收题，再回来组卷。';
+
+  @override
+  String get questionPaperEmptyPlan => '按当前条件一道也凑不出：把学科或来源下限放宽一点。';
+
+  @override
+  String get questionPaperUncoveredTitle => '题库里没有候选 → 去收题';
+
+  @override
+  String get questionPaperUncoveredBody =>
+      '这些知识点在危险区，但题库里一道相关的题都没有。AI 不能自己出题，所以这里如实留空。';
+
+  @override
+  String get questionPaperDeferredTitle => '这轮被挤掉的知识点';
+
+  @override
+  String get questionPaperDeferredBody =>
+      '有候选，但受目标题数或每个知识点的配额限制没排进来；把目标题数调大一些。';
+
+  @override
+  String get questionPaperKnowledgePointLabel => '知识点';
+
+  @override
+  String get questionPaperKnowledgePointNone => '未标注知识点';
+
+  @override
+  String questionPaperItemIndex(int index) {
+    return '第 $index 题';
+  }
+
+  @override
+  String get questionPaperItemReasonLabel => '为什么排它';
+
+  @override
+  String get questionPaperItemImprovementLabel => '提升点';
+
+  @override
+  String get questionPaperItemBackgroundLabel => '知识背景';
 }

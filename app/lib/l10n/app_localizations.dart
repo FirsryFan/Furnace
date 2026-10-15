@@ -4207,6 +4207,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not read the state readings: {error}'**
   String questionDetailStatesFailed(String error);
+
+  /// No description provided for @questionPaperTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Build a paper'**
+  String get questionPaperTitle;
+
+  /// No description provided for @questionPaperEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Assemble a practice paper from your weak and at-risk points'**
+  String get questionPaperEntryHint;
+
+  /// No description provided for @questionPaperSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks only from questions you already have: at-risk points first, gaps listed honestly - AI never writes questions for you.'**
+  String get questionPaperSubtitle;
+
+  /// No description provided for @questionPaperTargetCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target question count'**
+  String get questionPaperTargetCountLabel;
+
+  /// No description provided for @questionPaperCountOption.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} questions'**
+  String questionPaperCountOption(int count);
+
+  /// No description provided for @questionPaperSubjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject'**
+  String get questionPaperSubjectLabel;
+
+  /// No description provided for @questionPaperSubjectAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any subject'**
+  String get questionPaperSubjectAny;
+
+  /// No description provided for @questionPaperSubjectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No subject'**
+  String get questionPaperSubjectNone;
+
+  /// No description provided for @questionPaperSourceLevelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum source level'**
+  String get questionPaperSourceLevelLabel;
+
+  /// No description provided for @questionPaperSourceLevelAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any source'**
+  String get questionPaperSourceLevelAny;
+
+  /// No description provided for @questionPaperHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Wanted {want}, assembled {got}'**
+  String questionPaperHeadline(int want, int got);
+
+  /// No description provided for @questionPaperFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not build the paper: {error}'**
+  String questionPaperFailed(String error);
+
+  /// No description provided for @questionPaperShortNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough questions locally - not an error, your bank simply does not have enough yet. Collect more and come back.'**
+  String get questionPaperShortNotice;
+
+  /// No description provided for @questionPaperOverallNeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall training need {need}'**
+  String questionPaperOverallNeed(String need);
+
+  /// No description provided for @questionPaperCandidateCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} candidates'**
+  String questionPaperCandidateCount(int count);
+
+  /// No description provided for @questionPaperEmptyBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Your question bank is empty: collect questions first, then come back.'**
+  String get questionPaperEmptyBank;
+
+  /// No description provided for @questionPaperEmptyPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches the current filters: loosen the subject or the source level.'**
+  String get questionPaperEmptyPlan;
+
+  /// No description provided for @questionPaperUncoveredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No candidates in your bank → collect questions'**
+  String get questionPaperUncoveredTitle;
+
+  /// No description provided for @questionPaperUncoveredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'These knowledge points are at risk but your bank has no related question. AI does not write questions, so this stays empty on purpose.'**
+  String get questionPaperUncoveredBody;
+
+  /// No description provided for @questionPaperDeferredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushed out this round'**
+  String get questionPaperDeferredTitle;
+
+  /// No description provided for @questionPaperDeferredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Candidates exist but were pushed out by the target count or the per-point cap; raise the target count.'**
+  String get questionPaperDeferredBody;
+
+  /// No description provided for @questionPaperKnowledgePointLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge point'**
+  String get questionPaperKnowledgePointLabel;
+
+  /// No description provided for @questionPaperKnowledgePointNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge point'**
+  String get questionPaperKnowledgePointNone;
+
+  /// No description provided for @questionPaperItemIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Question {index}'**
+  String questionPaperItemIndex(int index);
+
+  /// No description provided for @questionPaperItemReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Why it is here'**
+  String get questionPaperItemReasonLabel;
+
+  /// No description provided for @questionPaperItemImprovementLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What it improves'**
+  String get questionPaperItemImprovementLabel;
+
+  /// No description provided for @questionPaperItemBackgroundLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get questionPaperItemBackgroundLabel;
 }
 
 class _AppLocalizationsDelegate

@@ -1108,5 +1108,77 @@
         "type": "String"
       }
     }
-  }
+  },
+  "questionPaperTitle": "Build a paper",
+  "questionPaperEntryHint": "Assemble a practice paper from your weak and at-risk points",
+  "questionPaperSubtitle": "Picks only from questions you already have: at-risk points first, gaps listed honestly - AI never writes questions for you.",
+  "questionPaperTargetCountLabel": "Target question count",
+  "questionPaperCountOption": "{count} questions",
+  "@questionPaperCountOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperSubjectLabel": "Subject",
+  "questionPaperSubjectAny": "Any subject",
+  "questionPaperSubjectNone": "No subject",
+  "questionPaperSourceLevelLabel": "Minimum source level",
+  "questionPaperSourceLevelAny": "Any source",
+  "questionPaperHeadline": "Wanted {want}, assembled {got}",
+  "@questionPaperHeadline": {
+    "placeholders": {
+      "want": {
+        "type": "int"
+      },
+      "got": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperFailed": "Could not build the paper: {error}",
+  "@questionPaperFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperShortNotice": "Not enough questions locally - not an error, your bank simply does not have enough yet. Collect more and come back.",
+  "questionPaperOverallNeed": "Overall training need {need}",
+  "@questionPaperOverallNeed": {
+    "placeholders": {
+      "need": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperCandidateCount": "{count} candidates",
+  "@questionPaperCandidateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperEmptyBank": "Your question bank is empty: collect questions first, then come back.",
+  "questionPaperEmptyPlan": "Nothing matches the current filters: loosen the subject or the source level.",
+  "questionPaperUncoveredTitle": "No candidates in your bank → collect questions",
+  "questionPaperUncoveredBody": "These knowledge points are at risk but your bank has no related question. AI does not write questions, so this stays empty on purpose.",
+  "questionPaperDeferredTitle": "Pushed out this round",
+  "questionPaperDeferredBody": "Candidates exist but were pushed out by the target count or the per-point cap; raise the target count.",
+  "questionPaperKnowledgePointLabel": "Knowledge point",
+  "questionPaperKnowledgePointNone": "No knowledge point",
+  "questionPaperItemIndex": "Question {index}",
+  "@questionPaperItemIndex": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperItemReasonLabel": "Why it is here",
+  "questionPaperItemImprovementLabel": "What it improves",
+  "questionPaperItemBackgroundLabel": "Background"
 }

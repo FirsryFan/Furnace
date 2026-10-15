@@ -1,0 +1,399 @@
+/// 组卷页：把纯逻辑组卷器（`domain/services/paper/paper_composer.dart`）接到界面上。
+///
+/// 这一页只做三件事：给控制项、展示卷子、如实报缺口。
+///
+/// **属于领域层的措辞一律不在这里重写**：`reasonZh` / `improvementNote` /
+/// `backgroundZh` 与 [PaperZone.labelZh] 都是从 [PaperPlan] 里直接取出来的字符串，
+/// 页面只负责排版。理由/提升点的文案改在域层改，页面跟着就变。
+///
+/// 缺口不是错误：`uncoveredKnowledgePointIds` 是"题库里一道候选都没有"，
+/// 按用户口径（AI 不能自己出题）如实留空并引导去收题；
+/// `deferredKnowledgePointIds` 是"有候选但被数量/配额挤掉"，提示调大目标题数。
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/reasoning/capability_action.dart';
+import '../../../l10n/app_localizations.dart';
+import '../application/paper_plan_provider.dart';
+import 'question_vocab_labels.dart';
+
+/// 目标题数下拉的选项（本页冻结：5 / 10 / 15 / 20）。
+const List<int> paperTargetCountOptions = <int>[5, 10, 15, 20];
+
+/// 来源下限下拉的候选（不含"不限"，那是 `null`）。
+const List<String> paperMinSourceLevelOptions = <String>[
+  'gaokao',
+  'provincial_diagnostic',
+  'elite_school',
+  'school',
+  'personal',
+];
+
+/// 组卷页。
+class QuestionPaperPage extends ConsumerWidget {
+  const QuestionPaperPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final subjectOptions = ref.watch(paperSubjectOptionsProvider);
+    final plan = ref.watch(paperPlanProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.questionPaperTitle)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(l10n.questionPaperSubtitle),
+          const SizedBox(height: 12),
+          _PaperControls(subjectOptions: subjectOptions),
+          const SizedBox(height: 12),
+          plan.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => Text(l10n.questionPaperFailed('$error')),
+            data: (plan) =>
+                _PaperBody(plan: plan, subjectOptions: subjectOptions),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 控制区：目标题数 / 学科多选 / 来源下限。
+///
+/// 三个控件都只调 `paperSpecProvider.notifier`，重算交给 `paperPlanProvider`
+/// （它 `watchDatabaseRevision()` 且跟随 spec），本页不自己算、不自己 invalidate。
+class _PaperControls extends ConsumerWidget {
+  const _PaperControls({required this.subjectOptions});
+
+  final AsyncValue<List<String>> subjectOptions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final spec = ref.watch(paperSpecProvider);
+    final notifier = ref.read(paperSpecProvider.notifier);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<int>(
+              initialValue: spec.targetCount,
+              decoration: InputDecoration(
+                  labelText: l10n.questionPaperTargetCountLabel),
+              items: [
+                for (final count in paperTargetCountOptions)
+                  DropdownMenuItem<int>(
+                    value: count,
+                    child: Text(l10n.questionPaperCountOption(count)),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) notifier.setTargetCount(value);
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(l10n.questionPaperSubjectLabel),
+            const SizedBox(height: 6),
+            subjectOptions.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Text(l10n.questionPaperFailed('$error')),
+              data: (keys) => keys.isEmpty
+                  ? Text(l10n.questionPaperSubjectAny)
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final key in keys)
+                          FilterChip(
+                            label: Text(subjectLabelOf(l10n, key)),
+                            selected: spec.subjectKeys.contains(key),
+                            onSelected: (_) => notifier.toggleSubject(key),
+                          ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: spec.minSourceLevel ?? '',
+              decoration: InputDecoration(
+                  labelText: l10n.questionPaperSourceLevelLabel),
+              items: [
+                DropdownMenuItem<String>(
+                  value: '',
+                  child: Text(l10n.questionPaperSourceLevelAny),
+                ),
+                for (final level in paperMinSourceLevelOptions)
+                  DropdownMenuItem<String>(
+                    value: level,
+                    child: Text(sourceLevelLabel(l10n, level)),
+                  ),
+              ],
+              onChanged: (value) => notifier.setMinSourceLevel(
+                value == null || value.isEmpty ? null : value,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 卷面 + 缺口。
+class _PaperBody extends ConsumerWidget {
+  const _PaperBody({required this.plan, required this.subjectOptions});
+
+  final PaperPlan plan;
+  final AsyncValue<List<String>> subjectOptions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final knowledgePointNames = ref.watch(paperKnowledgePointLabelsProvider);
+
+    if (plan.items.isEmpty) {
+      // 题库空 vs 条件太窄：用"题库里有没有出现过任何学科"区分，别让两种空态说同一句话。
+      final bankEmpty = subjectOptions.maybeWhen(
+        data: (keys) => keys.isEmpty,
+        orElse: () => false,
+      );
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            bankEmpty
+                ? l10n.questionPaperEmptyBank
+                : l10n.questionPaperEmptyPlan,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.questionPaperHeadline(plan.items.length, plan.requestedCount),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${l10n.questionPaperCandidateCount(plan.candidateCount)} · '
+          '${l10n.questionPaperOverallNeed(plan.overallNeed.toStringAsFixed(2))}',
+        ),
+        if (plan.isShort) ...[
+          const SizedBox(height: 8),
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(l10n.questionPaperShortNotice),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        for (var index = 0; index < plan.items.length; index++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _PaperItemCard(
+              index: index + 1,
+              item: plan.items[index],
+              knowledgePointNames: knowledgePointNames,
+            ),
+          ),
+        if (plan.uncoveredKnowledgePointIds.isNotEmpty)
+          _GapSection(
+            title: l10n.questionPaperUncoveredTitle,
+            body: l10n.questionPaperUncoveredBody,
+            ids: plan.uncoveredKnowledgePointIds,
+            knowledgePointNames: knowledgePointNames,
+          ),
+        if (plan.deferredKnowledgePointIds.isNotEmpty)
+          _GapSection(
+            title: l10n.questionPaperDeferredTitle,
+            body: l10n.questionPaperDeferredBody,
+            ids: plan.deferredKnowledgePointIds,
+            knowledgePointNames: knowledgePointNames,
+          ),
+      ],
+    );
+  }
+}
+
+/// 一道题的卡片：序号 + 学科/来源/档位 + 知识点 + 领域层给的三段文案。
+class _PaperItemCard extends StatelessWidget {
+  const _PaperItemCard({
+    required this.index,
+    required this.item,
+    required this.knowledgePointNames,
+  });
+
+  final int index;
+  final PaperItem item;
+  final AsyncValue<Map<String, String>> knowledgePointNames;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final knowledgePointId = item.knowledgePointId;
+    final knowledgePointText = knowledgePointId == null
+        ? l10n.questionPaperKnowledgePointNone
+        : knowledgePointNameOf(knowledgePointNames, knowledgePointId);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  l10n.questionPaperItemIndex(index),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      _TagChip(label: subjectLabelOf(l10n, item.subjectKey)),
+                      _TagChip(label: sourceLevelLabel(l10n, item.sourceLevel)),
+                      _TagChip(label: item.zone.labelZh),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+                '${l10n.questionPaperKnowledgePointLabel}：$knowledgePointText'),
+            const SizedBox(height: 8),
+            _LabelledText(
+              label: l10n.questionPaperItemReasonLabel,
+              text: item.reasonZh,
+            ),
+            _LabelledText(
+              label: l10n.questionPaperItemImprovementLabel,
+              text: item.improvementNote,
+            ),
+            _LabelledText(
+              label: l10n.questionPaperItemBackgroundLabel,
+              text: item.backgroundZh,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 缺口清单：标题 + 为什么 + 逐个知识点。
+class _GapSection extends StatelessWidget {
+  const _GapSection({
+    required this.title,
+    required this.body,
+    required this.ids,
+    required this.knowledgePointNames,
+  });
+
+  final String title;
+  final String body;
+  final List<String> ids;
+  final AsyncValue<Map<String, String>> knowledgePointNames;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Text(body),
+            const SizedBox(height: 8),
+            for (final id in ids)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child:
+                    Text('• ${knowledgePointNameOf(knowledgePointNames, id)}'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 「标签 + 原文」两行。空字符串不渲染，免得出现一个没有内容的标题。
+class _LabelledText extends StatelessWidget {
+  const _LabelledText({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 2),
+          Text(text),
+        ],
+      ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+}
+
+/// 学科显示名：词表在 `CapabilityAction.subjectLabelsZh`（与收题页同一份），
+/// 空学科键说"未标注学科"，词表里没有的键原样显示（不静默归类）。
+String subjectLabelOf(AppLocalizations l10n, String subjectKey) {
+  final key = subjectKey.trim();
+  if (key.isEmpty) return l10n.questionPaperSubjectNone;
+  return CapabilityAction.subjectLabelsZh[key] ?? key;
+}
+
+/// 知识点 id → 可读名。名称还没读到（或库里没有这个点）时原样显示 id。
+String knowledgePointNameOf(
+  AsyncValue<Map<String, String>> names,
+  String knowledgePointId,
+) {
+  return names.maybeWhen(
+    data: (map) => map[knowledgePointId] ?? knowledgePointId,
+    orElse: () => knowledgePointId,
+  );
+}

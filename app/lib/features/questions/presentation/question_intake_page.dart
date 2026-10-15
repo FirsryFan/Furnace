@@ -31,6 +31,7 @@ import '../../../l10n/app_localizations.dart';
 import '../data/handwriting_intake_store.dart';
 import 'question_detail_page.dart';
 import 'question_intake_providers.dart';
+import 'question_paper_page.dart';
 import 'question_vocab_labels.dart';
 
 /// `QuestionDraft` 的字段是裸字符串（表里也是 `text()`），仓储没有导出常量，
@@ -290,7 +291,20 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.questionIntakeTitle)),
+      appBar: AppBar(
+        title: Text(l10n.questionIntakeTitle),
+        actions: [
+          IconButton(
+            tooltip: l10n.questionPaperTitle,
+            icon: const Icon(Icons.playlist_add_check),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const QuestionPaperPage(),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

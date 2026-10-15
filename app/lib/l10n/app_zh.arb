@@ -997,5 +997,77 @@
         "type": "String"
       }
     }
-  }
+  },
+  "questionPaperTitle": "组卷",
+  "questionPaperEntryHint": "按薄弱点和危险区，从题库里凑一份练习卷",
+  "questionPaperSubtitle": "只从你已有的题里选：优先危险区；缺口如实列出，AI 不会替你出题。",
+  "questionPaperTargetCountLabel": "目标题数",
+  "questionPaperCountOption": "{count} 道",
+  "@questionPaperCountOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperSubjectLabel": "学科",
+  "questionPaperSubjectAny": "不限学科",
+  "questionPaperSubjectNone": "未标注学科",
+  "questionPaperSourceLevelLabel": "来源下限",
+  "questionPaperSourceLevelAny": "不限来源",
+  "questionPaperHeadline": "想要 {want} 道，凑到 {got} 道",
+  "@questionPaperHeadline": {
+    "placeholders": {
+      "want": {
+        "type": "int"
+      },
+      "got": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperFailed": "组卷没算出来：{error}",
+  "@questionPaperFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperShortNotice": "题库不够：这不是错误，是本地还没有足够的题。去收题再回来。",
+  "questionPaperOverallNeed": "整体该练程度 {need}",
+  "@questionPaperOverallNeed": {
+    "placeholders": {
+      "need": {
+        "type": "String"
+      }
+    }
+  },
+  "questionPaperCandidateCount": "候选 {count} 道",
+  "@questionPaperCandidateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperEmptyBank": "题库还是空的：先去收题，再回来组卷。",
+  "questionPaperEmptyPlan": "按当前条件一道也凑不出：把学科或来源下限放宽一点。",
+  "questionPaperUncoveredTitle": "题库里没有候选 → 去收题",
+  "questionPaperUncoveredBody": "这些知识点在危险区，但题库里一道相关的题都没有。AI 不能自己出题，所以这里如实留空。",
+  "questionPaperDeferredTitle": "这轮被挤掉的知识点",
+  "questionPaperDeferredBody": "有候选，但受目标题数或每个知识点的配额限制没排进来；把目标题数调大一些。",
+  "questionPaperKnowledgePointLabel": "知识点",
+  "questionPaperKnowledgePointNone": "未标注知识点",
+  "questionPaperItemIndex": "第 {index} 题",
+  "@questionPaperItemIndex": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionPaperItemReasonLabel": "为什么排它",
+  "questionPaperItemImprovementLabel": "提升点",
+  "questionPaperItemBackgroundLabel": "知识背景"
 }

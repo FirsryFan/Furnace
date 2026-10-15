@@ -2367,4 +2367,105 @@ class AppLocalizationsEn extends AppLocalizations {
   String questionDetailStatesFailed(String error) {
     return 'Could not read the state readings: $error';
   }
+
+  @override
+  String get questionPaperTitle => 'Build a paper';
+
+  @override
+  String get questionPaperEntryHint =>
+      'Assemble a practice paper from your weak and at-risk points';
+
+  @override
+  String get questionPaperSubtitle =>
+      'Picks only from questions you already have: at-risk points first, gaps listed honestly - AI never writes questions for you.';
+
+  @override
+  String get questionPaperTargetCountLabel => 'Target question count';
+
+  @override
+  String questionPaperCountOption(int count) {
+    return '$count questions';
+  }
+
+  @override
+  String get questionPaperSubjectLabel => 'Subject';
+
+  @override
+  String get questionPaperSubjectAny => 'Any subject';
+
+  @override
+  String get questionPaperSubjectNone => 'No subject';
+
+  @override
+  String get questionPaperSourceLevelLabel => 'Minimum source level';
+
+  @override
+  String get questionPaperSourceLevelAny => 'Any source';
+
+  @override
+  String questionPaperHeadline(int want, int got) {
+    return 'Wanted $want, assembled $got';
+  }
+
+  @override
+  String questionPaperFailed(String error) {
+    return 'Could not build the paper: $error';
+  }
+
+  @override
+  String get questionPaperShortNotice =>
+      'Not enough questions locally - not an error, your bank simply does not have enough yet. Collect more and come back.';
+
+  @override
+  String questionPaperOverallNeed(String need) {
+    return 'Overall training need $need';
+  }
+
+  @override
+  String questionPaperCandidateCount(int count) {
+    return '$count candidates';
+  }
+
+  @override
+  String get questionPaperEmptyBank =>
+      'Your question bank is empty: collect questions first, then come back.';
+
+  @override
+  String get questionPaperEmptyPlan =>
+      'Nothing matches the current filters: loosen the subject or the source level.';
+
+  @override
+  String get questionPaperUncoveredTitle =>
+      'No candidates in your bank → collect questions';
+
+  @override
+  String get questionPaperUncoveredBody =>
+      'These knowledge points are at risk but your bank has no related question. AI does not write questions, so this stays empty on purpose.';
+
+  @override
+  String get questionPaperDeferredTitle => 'Pushed out this round';
+
+  @override
+  String get questionPaperDeferredBody =>
+      'Candidates exist but were pushed out by the target count or the per-point cap; raise the target count.';
+
+  @override
+  String get questionPaperKnowledgePointLabel => 'Knowledge point';
+
+  @override
+  String get questionPaperKnowledgePointNone => 'No knowledge point';
+
+  @override
+  String questionPaperItemIndex(int index) {
+    return 'Question $index';
+  }
+
+  @override
+  String get questionPaperItemReasonLabel => 'Why it is here';
+
+  @override
+  String get questionPaperItemImprovementLabel => 'What it improves';
+
+  @override
+  String get questionPaperItemBackgroundLabel => 'Background';
 }

@@ -17,6 +17,7 @@ import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../questions/presentation/question_intake_page.dart';
+import '../../questions/presentation/question_paper_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
 import 'about_page.dart';
@@ -112,6 +113,18 @@ class SettingsPage extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const QuestionIntakePage(),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.playlist_add_check),
+            title: Text(l10n.questionPaperTitle),
+            subtitle: Text(l10n.questionPaperEntryHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const QuestionPaperPage(),
               ),
             ),
           ),
