@@ -858,5 +858,140 @@
   "iconCategoryMedia": "Media",
   "iconCategoryPeople": "People",
   "iconCategoryAi": "AI",
-  "iconCategoryUi": "Interface"
+  "iconCategoryUi": "Interface",
+  "questionIntakeTitle": "Question intake",
+  "questionIntakeSubtitle": "Paste a question, photograph it, or browse the bank",
+  "questionIntakeEntryHint": "Paste, photograph, browse",
+  "questionIntakePasteSection": "Paste a question",
+  "questionIntakePhotoSection": "Photograph / pick images",
+  "questionIntakeLibrarySection": "Question bank",
+  "questionIntakeStemLabel": "Stem",
+  "questionIntakeStemHint": "Paste the stem as-is (formulas keep their LaTeX)",
+  "questionIntakeSubjectLabel": "Subject",
+  "questionIntakeSubjectNone": "Unlabelled",
+  "questionIntakeQuestionTypeLabel": "Question type",
+  "questionIntakeTypeSolution": "Solution",
+  "questionIntakeTypeSingleChoice": "Multiple choice",
+  "questionIntakeOptionsLabel": "Options",
+  "questionIntakeOptionLabel": "Option {label}",
+  "@questionIntakeOptionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeOptionContentHint": "Option text",
+  "questionIntakeAddOption": "Add an option",
+  "questionIntakeRemoveOption": "Remove this option",
+  "questionIntakeCorrectTooltip": "Mark as correct",
+  "questionIntakeAnswerLabel": "Answer",
+  "questionIntakeSolutionLabel": "Solution notes",
+  "questionIntakeSourceLevelLabel": "Source tier",
+  "questionIntakeSourceLabelLabel": "Source label",
+  "questionIntakeSourceLabelHint": "e.g. 2024 Hunan Normal University High School monthly exam",
+  "questionIntakeYearLabel": "Year",
+  "questionIntakeRegionLabel": "Region",
+  "questionIntakeDifficultyLabel": "Difficulty (1–10, optional)",
+  "questionIntakeSubmit": "Save to bank",
+  "questionIntakeSaved": "Saved: {stem}",
+  "@questionIntakeSaved": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeDuplicate": "This question is already in the bank (same fingerprint): {stem}",
+  "@questionIntakeDuplicate": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeStemRequired": "The stem cannot be empty",
+  "questionIntakeDifficultyInvalid": "Difficulty must be a number between 1 and 10",
+  "questionIntakePickImages": "Pick images / photograph",
+  "questionIntakePicking": "Saving…",
+  "questionIntakePhotoAdded": "Saved {count}; waiting for the AI to structure them",
+  "@questionIntakePhotoAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakePhotoFailed": "Picking images failed: {error}",
+  "@questionIntakePhotoFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakePhotoPending": "Images waiting",
+  "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into stems.",
+  "questionIntakePhotoSummary": "{mime} · .{extension}",
+  "@questionIntakePhotoSummary": {
+    "placeholders": {
+      "mime": {
+        "type": "String"
+      },
+      "extension": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakePhotoStem": "To recognise (image): {filename}",
+  "@questionIntakePhotoStem": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeRemovePhoto": "Remove from the list",
+  "questionIntakeNoQuestions": "The question bank is still empty",
+  "questionIntakeListLimitNote": "Showing at most the most recent {count}",
+  "@questionIntakeListLimitNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDelete": "Delete",
+  "questionIntakeDeleted": "Deleted: {stem}",
+  "@questionIntakeDeleted": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeDeleteConfirm": "Delete this question? It will not come back from sync.",
+  "questionIntakeCancel": "Cancel",
+  "questionIntakeSearchHint": "Search stems",
+  "questionIntakeFilterAll": "All",
+  "questionIntakeOptionCount": "{count} options",
+  "@questionIntakeOptionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeStateRaw": "Waiting",
+  "questionIntakeStateStructured": "Structured",
+  "questionIntakeStateProcessed": "Processed",
+  "questionIntakeOriginManual": "Manual",
+  "questionIntakeOriginAiScan": "Photo/scan",
+  "questionIntakeOriginFurnace": "Built in Furnace",
+  "questionIntakeSourceGaokao": "Gaokao paper",
+  "questionIntakeSourceProvincialDiagnostic": "Provincial/city diagnostic",
+  "questionIntakeSourceEliteSchool": "Elite school test",
+  "questionIntakeSourceSchool": "School test",
+  "questionIntakeSourcePersonal": "Self-made",
+  "questionIntakeSourceUnknown": "Unlabelled"
 }

@@ -96,7 +96,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 ## 6. 收题入口（B 优先：App 内粘贴/拖拽）
 
 一次收题的流程与不变量：
-1. 粘贴文本或拖入图片/截图 → 先落 `attachments`（`ownerType='question_intake'`）与 `state='raw'`。
+1. 粘贴文本或拖入图片/截图 → 先落 `attachments`（`ownerType='handwriting_intake'`）与 `state='raw'`。
 2. AI 结构化（题干/选项/答案/解析/来源/年份/学科）→ 给你一张**校对表**。
 3. **未点确认不入库**：校对表上的修改只在内存里，确认才写 `questions` / `question_options`。
 4. 入库时算指纹、查重复；重复则提示并跳转到既有题目。
@@ -105,6 +105,8 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 ## 7. 拍照 → 手写整理（用户选的第一条通路）
 
 1. 拍照 → `attachments`（`ownerType='handwriting_intake'`）。
+   §6 与本节共用**同一个** `ownerType`：进收题页的图片一律先当"待整理的手写/纸质材料"，
+   整理成什么（题目 / 闪存卡 / MindNet 节点）是**下一步的产出**，不是落盘时就要决定的分类。
 2. 视觉模型 OCR + 整理（复用 `features/ai/domain/vision_payload.dart` 与 `ai_attachment_store.dart`）。
 3. 产出**三类待确认产物**：① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）
    ③ MindNet 知识点节点（`knowledge_points` + 与标签的边）。

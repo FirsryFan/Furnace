@@ -2020,4 +2020,217 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get iconCategoryUi => 'Interface';
+
+  @override
+  String get questionIntakeTitle => 'Question intake';
+
+  @override
+  String get questionIntakeSubtitle =>
+      'Paste a question, photograph it, or browse the bank';
+
+  @override
+  String get questionIntakeEntryHint => 'Paste, photograph, browse';
+
+  @override
+  String get questionIntakePasteSection => 'Paste a question';
+
+  @override
+  String get questionIntakePhotoSection => 'Photograph / pick images';
+
+  @override
+  String get questionIntakeLibrarySection => 'Question bank';
+
+  @override
+  String get questionIntakeStemLabel => 'Stem';
+
+  @override
+  String get questionIntakeStemHint =>
+      'Paste the stem as-is (formulas keep their LaTeX)';
+
+  @override
+  String get questionIntakeSubjectLabel => 'Subject';
+
+  @override
+  String get questionIntakeSubjectNone => 'Unlabelled';
+
+  @override
+  String get questionIntakeQuestionTypeLabel => 'Question type';
+
+  @override
+  String get questionIntakeTypeSolution => 'Solution';
+
+  @override
+  String get questionIntakeTypeSingleChoice => 'Multiple choice';
+
+  @override
+  String get questionIntakeOptionsLabel => 'Options';
+
+  @override
+  String questionIntakeOptionLabel(String label) {
+    return 'Option $label';
+  }
+
+  @override
+  String get questionIntakeOptionContentHint => 'Option text';
+
+  @override
+  String get questionIntakeAddOption => 'Add an option';
+
+  @override
+  String get questionIntakeRemoveOption => 'Remove this option';
+
+  @override
+  String get questionIntakeCorrectTooltip => 'Mark as correct';
+
+  @override
+  String get questionIntakeAnswerLabel => 'Answer';
+
+  @override
+  String get questionIntakeSolutionLabel => 'Solution notes';
+
+  @override
+  String get questionIntakeSourceLevelLabel => 'Source tier';
+
+  @override
+  String get questionIntakeSourceLabelLabel => 'Source label';
+
+  @override
+  String get questionIntakeSourceLabelHint =>
+      'e.g. 2024 Hunan Normal University High School monthly exam';
+
+  @override
+  String get questionIntakeYearLabel => 'Year';
+
+  @override
+  String get questionIntakeRegionLabel => 'Region';
+
+  @override
+  String get questionIntakeDifficultyLabel => 'Difficulty (1–10, optional)';
+
+  @override
+  String get questionIntakeSubmit => 'Save to bank';
+
+  @override
+  String questionIntakeSaved(String stem) {
+    return 'Saved: $stem';
+  }
+
+  @override
+  String questionIntakeDuplicate(String stem) {
+    return 'This question is already in the bank (same fingerprint): $stem';
+  }
+
+  @override
+  String get questionIntakeStemRequired => 'The stem cannot be empty';
+
+  @override
+  String get questionIntakeDifficultyInvalid =>
+      'Difficulty must be a number between 1 and 10';
+
+  @override
+  String get questionIntakePickImages => 'Pick images / photograph';
+
+  @override
+  String get questionIntakePicking => 'Saving…';
+
+  @override
+  String questionIntakePhotoAdded(int count) {
+    return 'Saved $count; waiting for the AI to structure them';
+  }
+
+  @override
+  String questionIntakePhotoFailed(String error) {
+    return 'Picking images failed: $error';
+  }
+
+  @override
+  String get questionIntakePhotoPending => 'Images waiting';
+
+  @override
+  String get questionIntakeNoPhotos =>
+      'No photos yet. Picked images are stored locally until the AI turns them into stems.';
+
+  @override
+  String questionIntakePhotoSummary(String mime, String extension) {
+    return '$mime · .$extension';
+  }
+
+  @override
+  String questionIntakePhotoStem(String filename) {
+    return 'To recognise (image): $filename';
+  }
+
+  @override
+  String get questionIntakeRemovePhoto => 'Remove from the list';
+
+  @override
+  String get questionIntakeNoQuestions => 'The question bank is still empty';
+
+  @override
+  String questionIntakeListLimitNote(int count) {
+    return 'Showing at most the most recent $count';
+  }
+
+  @override
+  String get questionIntakeDelete => 'Delete';
+
+  @override
+  String questionIntakeDeleted(String stem) {
+    return 'Deleted: $stem';
+  }
+
+  @override
+  String get questionIntakeDeleteConfirm =>
+      'Delete this question? It will not come back from sync.';
+
+  @override
+  String get questionIntakeCancel => 'Cancel';
+
+  @override
+  String get questionIntakeSearchHint => 'Search stems';
+
+  @override
+  String get questionIntakeFilterAll => 'All';
+
+  @override
+  String questionIntakeOptionCount(int count) {
+    return '$count options';
+  }
+
+  @override
+  String get questionIntakeStateRaw => 'Waiting';
+
+  @override
+  String get questionIntakeStateStructured => 'Structured';
+
+  @override
+  String get questionIntakeStateProcessed => 'Processed';
+
+  @override
+  String get questionIntakeOriginManual => 'Manual';
+
+  @override
+  String get questionIntakeOriginAiScan => 'Photo/scan';
+
+  @override
+  String get questionIntakeOriginFurnace => 'Built in Furnace';
+
+  @override
+  String get questionIntakeSourceGaokao => 'Gaokao paper';
+
+  @override
+  String get questionIntakeSourceProvincialDiagnostic =>
+      'Provincial/city diagnostic';
+
+  @override
+  String get questionIntakeSourceEliteSchool => 'Elite school test';
+
+  @override
+  String get questionIntakeSourceSchool => 'School test';
+
+  @override
+  String get questionIntakeSourcePersonal => 'Self-made';
+
+  @override
+  String get questionIntakeSourceUnknown => 'Unlabelled';
 }

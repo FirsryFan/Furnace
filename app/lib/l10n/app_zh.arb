@@ -747,5 +747,140 @@
   "iconCategoryMedia": "媒体",
   "iconCategoryPeople": "人物",
   "iconCategoryAi": "智能",
-  "iconCategoryUi": "界面"
+  "iconCategoryUi": "界面",
+  "questionIntakeTitle": "收题",
+  "questionIntakeSubtitle": "粘贴建题、拍照存附件、题库列表",
+  "questionIntakeEntryHint": "粘贴、拍照、查题库",
+  "questionIntakePasteSection": "粘贴建题",
+  "questionIntakePhotoSection": "拍照 / 选图",
+  "questionIntakeLibrarySection": "题库列表",
+  "questionIntakeStemLabel": "题干",
+  "questionIntakeStemHint": "直接粘贴题干（公式保留 LaTeX 原样）",
+  "questionIntakeSubjectLabel": "学科",
+  "questionIntakeSubjectNone": "未标注",
+  "questionIntakeQuestionTypeLabel": "题型",
+  "questionIntakeTypeSolution": "解答题",
+  "questionIntakeTypeSingleChoice": "选择题",
+  "questionIntakeOptionsLabel": "选项",
+  "questionIntakeOptionLabel": "选项 {label}",
+  "@questionIntakeOptionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeOptionContentHint": "选项内容",
+  "questionIntakeAddOption": "加一个选项",
+  "questionIntakeRemoveOption": "删除这个选项",
+  "questionIntakeCorrectTooltip": "标为正确答案",
+  "questionIntakeAnswerLabel": "答案",
+  "questionIntakeSolutionLabel": "解析",
+  "questionIntakeSourceLevelLabel": "来源分级",
+  "questionIntakeSourceLabelLabel": "来源说明",
+  "questionIntakeSourceLabelHint": "例如：2024 湖南师大附中月考",
+  "questionIntakeYearLabel": "年份",
+  "questionIntakeRegionLabel": "地区",
+  "questionIntakeDifficultyLabel": "难度（1–10，可空）",
+  "questionIntakeSubmit": "入库",
+  "questionIntakeSaved": "已入库：{stem}",
+  "@questionIntakeSaved": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeDuplicate": "已存在同题（指纹重复）：{stem}",
+  "@questionIntakeDuplicate": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeStemRequired": "题干不能为空",
+  "questionIntakeDifficultyInvalid": "难度请填 1–10 之间的数字",
+  "questionIntakePickImages": "选图 / 拍照",
+  "questionIntakePicking": "正在保存…",
+  "questionIntakePhotoAdded": "已存 {count} 张，等 AI 整理",
+  "@questionIntakePhotoAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakePhotoFailed": "这次选图失败了：{error}",
+  "@questionIntakePhotoFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakePhotoPending": "待整理图片",
+  "questionIntakeNoPhotos": "还没有拍照。选中的图片会存在本地，等 AI 整理成题干。",
+  "questionIntakePhotoSummary": "{mime} · .{extension}",
+  "@questionIntakePhotoSummary": {
+    "placeholders": {
+      "mime": {
+        "type": "String"
+      },
+      "extension": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakePhotoStem": "待识别（图片）：{filename}",
+  "@questionIntakePhotoStem": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeRemovePhoto": "从清单移除",
+  "questionIntakeNoQuestions": "这个题库还是空的",
+  "questionIntakeListLimitNote": "最多显示最近 {count} 条",
+  "@questionIntakeListLimitNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDelete": "删除",
+  "questionIntakeDeleted": "已删除：{stem}",
+  "@questionIntakeDeleted": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      }
+    }
+  },
+  "questionIntakeDeleteConfirm": "删除这道题？它不会被同步回来。",
+  "questionIntakeCancel": "取消",
+  "questionIntakeSearchHint": "搜题干",
+  "questionIntakeFilterAll": "全部",
+  "questionIntakeOptionCount": "{count} 个选项",
+  "@questionIntakeOptionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeStateRaw": "待整理",
+  "questionIntakeStateStructured": "已结构化",
+  "questionIntakeStateProcessed": "已加工",
+  "questionIntakeOriginManual": "手工",
+  "questionIntakeOriginAiScan": "拍照/扫描",
+  "questionIntakeOriginFurnace": "Furnace 内建",
+  "questionIntakeSourceGaokao": "高考真题",
+  "questionIntakeSourceProvincialDiagnostic": "强省强市诊断",
+  "questionIntakeSourceEliteSchool": "名校测试",
+  "questionIntakeSourceSchool": "学校题",
+  "questionIntakeSourcePersonal": "自建",
+  "questionIntakeSourceUnknown": "未标注"
 }

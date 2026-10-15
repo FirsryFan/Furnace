@@ -1940,4 +1940,210 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get iconCategoryUi => '界面';
+
+  @override
+  String get questionIntakeTitle => '收题';
+
+  @override
+  String get questionIntakeSubtitle => '粘贴建题、拍照存附件、题库列表';
+
+  @override
+  String get questionIntakeEntryHint => '粘贴、拍照、查题库';
+
+  @override
+  String get questionIntakePasteSection => '粘贴建题';
+
+  @override
+  String get questionIntakePhotoSection => '拍照 / 选图';
+
+  @override
+  String get questionIntakeLibrarySection => '题库列表';
+
+  @override
+  String get questionIntakeStemLabel => '题干';
+
+  @override
+  String get questionIntakeStemHint => '直接粘贴题干（公式保留 LaTeX 原样）';
+
+  @override
+  String get questionIntakeSubjectLabel => '学科';
+
+  @override
+  String get questionIntakeSubjectNone => '未标注';
+
+  @override
+  String get questionIntakeQuestionTypeLabel => '题型';
+
+  @override
+  String get questionIntakeTypeSolution => '解答题';
+
+  @override
+  String get questionIntakeTypeSingleChoice => '选择题';
+
+  @override
+  String get questionIntakeOptionsLabel => '选项';
+
+  @override
+  String questionIntakeOptionLabel(String label) {
+    return '选项 $label';
+  }
+
+  @override
+  String get questionIntakeOptionContentHint => '选项内容';
+
+  @override
+  String get questionIntakeAddOption => '加一个选项';
+
+  @override
+  String get questionIntakeRemoveOption => '删除这个选项';
+
+  @override
+  String get questionIntakeCorrectTooltip => '标为正确答案';
+
+  @override
+  String get questionIntakeAnswerLabel => '答案';
+
+  @override
+  String get questionIntakeSolutionLabel => '解析';
+
+  @override
+  String get questionIntakeSourceLevelLabel => '来源分级';
+
+  @override
+  String get questionIntakeSourceLabelLabel => '来源说明';
+
+  @override
+  String get questionIntakeSourceLabelHint => '例如：2024 湖南师大附中月考';
+
+  @override
+  String get questionIntakeYearLabel => '年份';
+
+  @override
+  String get questionIntakeRegionLabel => '地区';
+
+  @override
+  String get questionIntakeDifficultyLabel => '难度（1–10，可空）';
+
+  @override
+  String get questionIntakeSubmit => '入库';
+
+  @override
+  String questionIntakeSaved(String stem) {
+    return '已入库：$stem';
+  }
+
+  @override
+  String questionIntakeDuplicate(String stem) {
+    return '已存在同题（指纹重复）：$stem';
+  }
+
+  @override
+  String get questionIntakeStemRequired => '题干不能为空';
+
+  @override
+  String get questionIntakeDifficultyInvalid => '难度请填 1–10 之间的数字';
+
+  @override
+  String get questionIntakePickImages => '选图 / 拍照';
+
+  @override
+  String get questionIntakePicking => '正在保存…';
+
+  @override
+  String questionIntakePhotoAdded(int count) {
+    return '已存 $count 张，等 AI 整理';
+  }
+
+  @override
+  String questionIntakePhotoFailed(String error) {
+    return '这次选图失败了：$error';
+  }
+
+  @override
+  String get questionIntakePhotoPending => '待整理图片';
+
+  @override
+  String get questionIntakeNoPhotos => '还没有拍照。选中的图片会存在本地，等 AI 整理成题干。';
+
+  @override
+  String questionIntakePhotoSummary(String mime, String extension) {
+    return '$mime · .$extension';
+  }
+
+  @override
+  String questionIntakePhotoStem(String filename) {
+    return '待识别（图片）：$filename';
+  }
+
+  @override
+  String get questionIntakeRemovePhoto => '从清单移除';
+
+  @override
+  String get questionIntakeNoQuestions => '这个题库还是空的';
+
+  @override
+  String questionIntakeListLimitNote(int count) {
+    return '最多显示最近 $count 条';
+  }
+
+  @override
+  String get questionIntakeDelete => '删除';
+
+  @override
+  String questionIntakeDeleted(String stem) {
+    return '已删除：$stem';
+  }
+
+  @override
+  String get questionIntakeDeleteConfirm => '删除这道题？它不会被同步回来。';
+
+  @override
+  String get questionIntakeCancel => '取消';
+
+  @override
+  String get questionIntakeSearchHint => '搜题干';
+
+  @override
+  String get questionIntakeFilterAll => '全部';
+
+  @override
+  String questionIntakeOptionCount(int count) {
+    return '$count 个选项';
+  }
+
+  @override
+  String get questionIntakeStateRaw => '待整理';
+
+  @override
+  String get questionIntakeStateStructured => '已结构化';
+
+  @override
+  String get questionIntakeStateProcessed => '已加工';
+
+  @override
+  String get questionIntakeOriginManual => '手工';
+
+  @override
+  String get questionIntakeOriginAiScan => '拍照/扫描';
+
+  @override
+  String get questionIntakeOriginFurnace => 'Furnace 内建';
+
+  @override
+  String get questionIntakeSourceGaokao => '高考真题';
+
+  @override
+  String get questionIntakeSourceProvincialDiagnostic => '强省强市诊断';
+
+  @override
+  String get questionIntakeSourceEliteSchool => '名校测试';
+
+  @override
+  String get questionIntakeSourceSchool => '学校题';
+
+  @override
+  String get questionIntakeSourcePersonal => '自建';
+
+  @override
+  String get questionIntakeSourceUnknown => '未标注';
 }

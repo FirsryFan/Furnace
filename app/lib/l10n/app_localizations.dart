@@ -3625,6 +3625,378 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Interface'**
   String get iconCategoryUi;
+
+  /// No description provided for @questionIntakeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Question intake'**
+  String get questionIntakeTitle;
+
+  /// No description provided for @questionIntakeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a question, photograph it, or browse the bank'**
+  String get questionIntakeSubtitle;
+
+  /// No description provided for @questionIntakeEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste, photograph, browse'**
+  String get questionIntakeEntryHint;
+
+  /// No description provided for @questionIntakePasteSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a question'**
+  String get questionIntakePasteSection;
+
+  /// No description provided for @questionIntakePhotoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Photograph / pick images'**
+  String get questionIntakePhotoSection;
+
+  /// No description provided for @questionIntakeLibrarySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Question bank'**
+  String get questionIntakeLibrarySection;
+
+  /// No description provided for @questionIntakeStemLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stem'**
+  String get questionIntakeStemLabel;
+
+  /// No description provided for @questionIntakeStemHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the stem as-is (formulas keep their LaTeX)'**
+  String get questionIntakeStemHint;
+
+  /// No description provided for @questionIntakeSubjectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject'**
+  String get questionIntakeSubjectLabel;
+
+  /// No description provided for @questionIntakeSubjectNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlabelled'**
+  String get questionIntakeSubjectNone;
+
+  /// No description provided for @questionIntakeQuestionTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Question type'**
+  String get questionIntakeQuestionTypeLabel;
+
+  /// No description provided for @questionIntakeTypeSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Solution'**
+  String get questionIntakeTypeSolution;
+
+  /// No description provided for @questionIntakeTypeSingleChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple choice'**
+  String get questionIntakeTypeSingleChoice;
+
+  /// No description provided for @questionIntakeOptionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get questionIntakeOptionsLabel;
+
+  /// No description provided for @questionIntakeOptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Option {label}'**
+  String questionIntakeOptionLabel(String label);
+
+  /// No description provided for @questionIntakeOptionContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Option text'**
+  String get questionIntakeOptionContentHint;
+
+  /// No description provided for @questionIntakeAddOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an option'**
+  String get questionIntakeAddOption;
+
+  /// No description provided for @questionIntakeRemoveOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this option'**
+  String get questionIntakeRemoveOption;
+
+  /// No description provided for @questionIntakeCorrectTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as correct'**
+  String get questionIntakeCorrectTooltip;
+
+  /// No description provided for @questionIntakeAnswerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer'**
+  String get questionIntakeAnswerLabel;
+
+  /// No description provided for @questionIntakeSolutionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Solution notes'**
+  String get questionIntakeSolutionLabel;
+
+  /// No description provided for @questionIntakeSourceLevelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source tier'**
+  String get questionIntakeSourceLevelLabel;
+
+  /// No description provided for @questionIntakeSourceLabelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Source label'**
+  String get questionIntakeSourceLabelLabel;
+
+  /// No description provided for @questionIntakeSourceLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 2024 Hunan Normal University High School monthly exam'**
+  String get questionIntakeSourceLabelHint;
+
+  /// No description provided for @questionIntakeYearLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get questionIntakeYearLabel;
+
+  /// No description provided for @questionIntakeRegionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get questionIntakeRegionLabel;
+
+  /// No description provided for @questionIntakeDifficultyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty (1–10, optional)'**
+  String get questionIntakeDifficultyLabel;
+
+  /// No description provided for @questionIntakeSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to bank'**
+  String get questionIntakeSubmit;
+
+  /// No description provided for @questionIntakeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved: {stem}'**
+  String questionIntakeSaved(String stem);
+
+  /// No description provided for @questionIntakeDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This question is already in the bank (same fingerprint): {stem}'**
+  String questionIntakeDuplicate(String stem);
+
+  /// No description provided for @questionIntakeStemRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The stem cannot be empty'**
+  String get questionIntakeStemRequired;
+
+  /// No description provided for @questionIntakeDifficultyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty must be a number between 1 and 10'**
+  String get questionIntakeDifficultyInvalid;
+
+  /// No description provided for @questionIntakePickImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick images / photograph'**
+  String get questionIntakePickImages;
+
+  /// No description provided for @questionIntakePicking.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get questionIntakePicking;
+
+  /// No description provided for @questionIntakePhotoAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count}; waiting for the AI to structure them'**
+  String questionIntakePhotoAdded(int count);
+
+  /// No description provided for @questionIntakePhotoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking images failed: {error}'**
+  String questionIntakePhotoFailed(String error);
+
+  /// No description provided for @questionIntakePhotoPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Images waiting'**
+  String get questionIntakePhotoPending;
+
+  /// No description provided for @questionIntakeNoPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'No photos yet. Picked images are stored locally until the AI turns them into stems.'**
+  String get questionIntakeNoPhotos;
+
+  /// No description provided for @questionIntakePhotoSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{mime} · .{extension}'**
+  String questionIntakePhotoSummary(String mime, String extension);
+
+  /// No description provided for @questionIntakePhotoStem.
+  ///
+  /// In en, this message translates to:
+  /// **'To recognise (image): {filename}'**
+  String questionIntakePhotoStem(String filename);
+
+  /// No description provided for @questionIntakeRemovePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from the list'**
+  String get questionIntakeRemovePhoto;
+
+  /// No description provided for @questionIntakeNoQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'The question bank is still empty'**
+  String get questionIntakeNoQuestions;
+
+  /// No description provided for @questionIntakeListLimitNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing at most the most recent {count}'**
+  String questionIntakeListLimitNote(int count);
+
+  /// No description provided for @questionIntakeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get questionIntakeDelete;
+
+  /// No description provided for @questionIntakeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted: {stem}'**
+  String questionIntakeDeleted(String stem);
+
+  /// No description provided for @questionIntakeDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this question? It will not come back from sync.'**
+  String get questionIntakeDeleteConfirm;
+
+  /// No description provided for @questionIntakeCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get questionIntakeCancel;
+
+  /// No description provided for @questionIntakeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search stems'**
+  String get questionIntakeSearchHint;
+
+  /// No description provided for @questionIntakeFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get questionIntakeFilterAll;
+
+  /// No description provided for @questionIntakeOptionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} options'**
+  String questionIntakeOptionCount(int count);
+
+  /// No description provided for @questionIntakeStateRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get questionIntakeStateRaw;
+
+  /// No description provided for @questionIntakeStateStructured.
+  ///
+  /// In en, this message translates to:
+  /// **'Structured'**
+  String get questionIntakeStateStructured;
+
+  /// No description provided for @questionIntakeStateProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'Processed'**
+  String get questionIntakeStateProcessed;
+
+  /// No description provided for @questionIntakeOriginManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get questionIntakeOriginManual;
+
+  /// No description provided for @questionIntakeOriginAiScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo/scan'**
+  String get questionIntakeOriginAiScan;
+
+  /// No description provided for @questionIntakeOriginFurnace.
+  ///
+  /// In en, this message translates to:
+  /// **'Built in Furnace'**
+  String get questionIntakeOriginFurnace;
+
+  /// No description provided for @questionIntakeSourceGaokao.
+  ///
+  /// In en, this message translates to:
+  /// **'Gaokao paper'**
+  String get questionIntakeSourceGaokao;
+
+  /// No description provided for @questionIntakeSourceProvincialDiagnostic.
+  ///
+  /// In en, this message translates to:
+  /// **'Provincial/city diagnostic'**
+  String get questionIntakeSourceProvincialDiagnostic;
+
+  /// No description provided for @questionIntakeSourceEliteSchool.
+  ///
+  /// In en, this message translates to:
+  /// **'Elite school test'**
+  String get questionIntakeSourceEliteSchool;
+
+  /// No description provided for @questionIntakeSourceSchool.
+  ///
+  /// In en, this message translates to:
+  /// **'School test'**
+  String get questionIntakeSourceSchool;
+
+  /// No description provided for @questionIntakeSourcePersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-made'**
+  String get questionIntakeSourcePersonal;
+
+  /// No description provided for @questionIntakeSourceUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlabelled'**
+  String get questionIntakeSourceUnknown;
 }
 
 class _AppLocalizationsDelegate
