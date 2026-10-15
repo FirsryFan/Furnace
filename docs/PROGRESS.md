@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-16 轮次六十三：材料信封 → 待确认提案（Lead）
+
+**做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第二步（第一步是轮次六十二的确定性转化）。
+上一轮把信封变成了"节点/边/`run/1` 请求"，那是**图**的语言；应用侧真正要的是"AI 读完材料，告诉用户要建什么、
+每条出自哪一页"，用户点头才写。这一轮把这一段做成纯逻辑 + 只读 AI 工具：
+
+- 新增 `app/lib/domain/services/ingest/material_intake_plan.dart`（纯 Dart，只 import `material_ingest.dart`）：
+  `MaterialIntakePlanner.plan(...)` 把 `MaterialConversion` 折成 `MaterialIntakePlan` —— 进图的条目变
+  `kp:<nodeId>` 知识点提案、图补丁的边变 `edge:<edgeId>` 连接提案，不进图的角色与重复项原样进 `skipped`；
+  每条提案带 `body`（释义/音标/原文/`出处：<材料>，第 N 页，页边：<margin_note>`）、`why`（人话）与 `evidence`。
+  提案 id 复用上游的确定性 id ⇒ 同一个信封算两次得到同一份提案（以后落库时它就是 `external_id`）。
+- 新增 `app/lib/features/ai/tools/ingest_tools.dart`：`ingest_material` 工具（`readOnly: true`）接受信封对象或
+  JSON 文本，跑转化 + 提案，返回 `plan`/`material`/`warnings`/`run_request`/`run_check` 与一段人话 summary。
+- `app/lib/features/ai/domain/tool_registry.dart` 注册（`PlanTodayTool` 之后）。
+
+**刻意选择**：① **同名标 `exists` 而不是硬拒**：材料里常有大量旧知识，"不重复建"这件事要能**看见**
+（`title` 与 `nodeId` 都留着，写库时才定按哪个认）；② **主题 hub 默认只报不建**：资料与卡片是"线索边"还是
+"包含边"还没定（MEMORY_RECORD §3.5 / §2-C ④），这一层不偷偷定，要 `include_topic_hubs: true` 才带上；
+③ **整份拒绝**：信封不合规就 `ToolResult.failure`，绝不产出半份提案（沿用上一轮的纪律）。
+
+**证据**：`app/test/domain/services/ingest/material_intake_plan_test.dart` 13 例 +
+`app/test/features/ai/ingest_tools_test.dart` 8 例 = 21 例全绿（三行小信封的提案数/跳过数、`kp:en::w::…` 的 id、
+body 里的释义/原文/出处、同名 `'  Rely   ON '` 归一化后 `exists`、`includeTopicHubs` 的两种计数、
+只含「问」时 `isEmpty`、工具侧 readOnly/缺参数/整份拒绝/同名不重复建/JSON 文本等价）。
+踩到的一个坑：`produce` 反向边不由 `contains` 自动生成，前置条件是条目上 `produce: true`（见
+`material_ingest.dart:1374-1399`）—— 测试 fixture 少了它就只有 contains 没有 produce。
+
+**全量回归**：`flutter test --concurrency=1` → `+1755 ~2: All tests passed!`（exit 0）。轮次六十二 后是
+`+1734 ~2`，差值 21 = 本轮的 21 例；`dart analyze lib test` 仍是 95 issues（0 error / 0 warning）。
+
+**已知的没做**：① 提案落库（`knowledge_points` + `external_id` + 出处进 `evidence`）与"添加资料"界面入口；
+② TRANSCRIBE 的"照片 → `run/1`"（§2-C ③）；③ 资料与卡片的关联类型（§2-C ④）。
+
 ## 2026-10-16 轮次六十二：材料摄取的确定性核心（INGEST 第③步 Dart 端口，Lead）
 
 **做了什么**：roadmap §2-C / §3 第 6 行「材料摄取」的第一步 —— 契约把 INGEST 分成三步（记号由人在页边写、

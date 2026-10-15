@@ -19,6 +19,7 @@ import '../tools/paper_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
+import '../tools/ingest_tools.dart';
 import '../tools/today_tools.dart';
 import '../tools/web_tools.dart';
 
@@ -73,6 +74,11 @@ class ToolRegistry {
         model: model,
         clock: clock,
       ),
+      // 材料摄取（roadmap §2-C ① / §3 第 6 行）：一份 `mindnet.material/1` 信封
+      // 经过确定性转化（`domain/services/ingest/material_ingest.dart`，Q33）变成
+      // "要建哪些知识点/连接、每条出处"的**待确认提案**。只读：写不写由用户确认
+      // （与拍照整理那条通路同一条纪律）。
+      IngestMaterialTool(ankiRepository: anki, clock: clock),
       // 用途 1 的兄弟 (Q12): 「这道题还有哪些同型邻居」。同一个题库投影
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
       // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。
