@@ -54,7 +54,8 @@
 - "找相似题"没有做：本层只在**已有候选**里选，缺口只报不补。
 - 中文文案（`reasonZh` / `improvementNote` / `backgroundZh`）是领域层的一部分，
   故意不放在 ARB：措辞要能跟着规则一起改，且界面不许另写一套。l10n 化留后轮（同 threadflow 的 `reasonZh`）。
-- 调用方（组卷页 UI）还没做：Q10。届时需要把 `question_repository.search` 的行 + 标签桥 + 读数拼成输入。
+- 调用方（组卷页 UI）还没做：Q10。它依赖的**输入拼装**已经做完（§7，Q11）：
+  `paperPlanProvider` 给出 `PaperPlan`，页面只负责渲染与改 `paperSpecProvider`。
 
 ## 5. 输出契约
 
@@ -74,3 +75,43 @@
   （含 `trapNote` 与 R0 后缀）、背景回退链（标签路径 → 名字 → id → "未标注知识点"）、
   空库不抛、`toJson`、以及"题目→知识点走 `kQuestionObjectType` 共享标签规则"的跨层一条。
 - 全量测试见 `docs/PROGRESS.md` 轮次三十一。
+
+## 7. 接线：从数据库到一份卷子（Q11）
+
+`app/lib/features/questions/application/paper_plan_provider.dart` 是本层唯一的 IO 点，
+顺序是**读表 → 拼候选 → 取读数 → 交给纯逻辑**：
+
+| provider | 作用 |
+| --- | --- |
+| `paperCorpusProvider` | 读一次题库：`Questions` → `PaperCandidate`；`KnowledgePoints` → 名字；`Tags.path` + `ObjectTags` → 知识点直挂的标签路径。**题干为空的题不进卷**（没有题干就没法出卷）。 |
+| `paperCandidatesProvider` / `paperKnowledgePointLabelsProvider` / `paperSubjectOptionsProvider` | 从语料投影出的三项，供页面显示候选数、名字与学科 chip——一个语料 provider，避免同一个页面读三次表。 |
+| `paperSpecProvider`（`PaperSpecNotifier`） | 用户手上的要求（题量 / 学科 / 来源下限 / 目标难度 / 每点上限），默认 10 题、不筛学科。 |
+| `paperPlanProvider` | 当前要求下的 `PaperPlan`；题库为空时给空卷（`items` 空、`candidateCount` 0），页面据此显示"题库还没有题"而不是报错。 |
+
+三条纪律：
+
+1. **题目 → 知识点走"共享标签"**：`TaskKnowledgePointResolver.resolveFromTagLinks(links, sourceObjectType: kQuestionObjectType)`。
+   同一标签既挂题目又挂知识点，才认为这道题覆盖那个点（`docs/QUESTION_BANK_DESIGN.md` §5）。
+2. **诊断复用认知页的那一次**（`cognitiveLibraryDiagnosisProvider`，D2：一个数字一个来源）。
+   `fastLayerRan == false` 是"这轮没跑"，传 `null` 给投影层，全部按未知处理——**不**当作健康。
+   键空间已由 Q8 在 `LibraryDiagnosisRunner.run` 的边界统一成知识点 id，这里不需要再翻译
+   （`domain/services/cognitive/knowledge_point_tag_bridge.dart`）。
+3. **只有诊断结论（`danger` / `weak`）才进打分读数**。`CognitiveReadingsAdapter` 会为"只有测评先验"
+   的点也产出读数，而组卷器把"不是危险区也不是发展区"读成 `healthy`（need 0.15，**低于**未知的 0.35）
+   ——直接喂进去等于把"没测过"当成"学得好"。过滤后：没有结论的点按未知，先验仍作为已诊断点的
+   R0 补充（理由行带 `R0≈…、置信度 …`）。
+
+已知的保守取值：除 `danger` / `weak` 之外的诊断结论（`empty` / `slow` / `overload` / `offGoal` /
+`deadEnd`）本轮也落进"未知"档（0.35），拿不到"健康"分。要不要给它们单独成档，等有真实读数再定。
+
+## 8. 验收记录（接线，Q11）
+
+- `app/test/features/questions/application/paper_plan_provider_test.dart` → **9 例全绿**：空库给空卷、
+  共享标签 → 危险区进卷且理由行念名字（断言里不含 `kp-`）、诊断没跑 → 未知而非健康、没挂点的题也进卷、
+  **只有先验的点不当作健康**（并留一条对照断言钉住"不过滤就会变健康"）、学科/题量/来源下限真的进卷、
+  目标难度生效、**危险区知识点库里没候选 → 进 `uncoveredKnowledgePointIds`**、
+  `PaperSpecNotifier` 的钳位/清空/二次点击取消/`reset()`。
+- 写这组测试时抓到并修掉一个真 bug：`setMinSourceLevel` / `setTargetDifficulty` /
+  `setPerKnowledgePointCap` 曾经**无条件**清空可空字段（`clearX: true` 恒真），等于三个 setter
+  都只会把值设成 `null`；测试先失败，改成分支后转绿。
+- 全量：`flutter test --concurrency=1` → `+1321 ~2 All tests passed!`（见 `docs/PROGRESS.md` 轮次三十二）。

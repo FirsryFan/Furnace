@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-16 轮次三十二：组卷 provider——题库接进组卷器（Q11，Lead）
+
+**做了什么**
+- 新 `app/lib/features/questions/application/paper_plan_provider.dart`（本层唯一的 IO 点）：
+  `paperCorpusProvider`（一次读 `Questions` + `KnowledgePoints` + `Tags` + `ObjectTags`，题干为空的题不进卷）
+  → `paperCandidatesProvider` / `paperKnowledgePointLabelsProvider` / `paperSubjectOptionsProvider`
+  → `paperSpecProvider`（`PaperSpecNotifier`）→ `paperPlanProvider`（`PaperComposer.compose`）。
+- 题目→知识点走**共享标签**：`TaskKnowledgePointResolver.resolveFromTagLinks(links, sourceObjectType: kQuestionObjectType)`。
+- 诊断复用认知页那一次（`cognitiveLibraryDiagnosisProvider`，D2）；键空间已由轮次三十在
+  `LibraryDiagnosisRunner.run` 边界统一，这里不再翻译。
+- 读数的一处刻意取舍：**只有诊断结论（`danger` / `weak`）才进打分读数**。`CognitiveReadingsAdapter`
+  会为"只有测评先验"的点也产出读数，而组卷器把"不是危险区也不是发展区"读成 `healthy`
+  （need 0.15，**低于**未知的 0.35）——直接喂进去等于把"没测过"当成"学得好"。先验仍作为已诊断点的
+  `R0≈…` 后缀出现在理由行。除 `danger`/`weak` 外的结论（`empty`/`slow`/…）本轮也落"未知"档，属保守取值。
+- 读数覆盖**两类**点：有候选的（打分用）+ 诊断出危险/发展区但库里没候选的（`uncoveredKnowledgePointIds`
+  = "该去收题"清单；只喂有候选的点会让这个清单永远为空）。
+
+**测试**
+- `app/test/features/questions/application/paper_plan_provider_test.dart` → **9 例全绿**（内存库 + 真实仓储造
+  题目/标签/知识点/`object_tags`/`cognitive_priors`）：空库给空卷；共享标签 → 危险区进卷且理由行念名字
+  （断言不含 `kp-`）；诊断没跑 → 未知而非健康；没挂点的题也进卷；**只有先验的点不当作健康**（附一条对照
+  断言：适配器确实产出了读数、组卷器确实会把它读成 healthy）；学科/题量/来源下限真的进卷；目标难度生效；
+  危险区无候选 → 进"该去收题"清单；`PaperSpecNotifier` 的钳位/清空/二次点击取消/`reset()`。
+- 写测试时抓到并修掉一个真 bug：`setMinSourceLevel` / `setTargetDifficulty` / `setPerKnowledgePointCap`
+  原本**无条件**清空可空字段（`clearX: true` 恒真）→ 三个 setter 都只会把值设成 `null`；
+  测试先失败（来源下限不生效、目标难度不生效），改成分支后转绿。
+
+**文档**
+- `docs/PAPER_COMPOSER_DESIGN.md` 追加 §7 接线（provider 表 + 三条纪律 + 保守取值）与 §8 验收记录；
+  §4 的"调用方没做"改成"输入拼装已完成（§7），页面只剩渲染"。
+
+**边界与偏差**
+- 只动了 `features/questions/application/**` 与两个测试/文档文件；`features/questions/presentation/**` 与
+  `lib/l10n/**` 留给 teammate `question-intake` 的 task-10（同轮并行，互不重叠）。
+- 偏差：task-11 原写"三个 provider 各读一次表"，实际落成一个 `paperCorpusProvider` + 三个投影；
+  另外多给了 `setTargetDifficulty` / `setPerKnowledgePointCap` / `clearSubjects` / `reset()` 四个 setter。
+
+**证据**
+- `dart analyze lib test` → 0 error / 0 warning / **94 info**（= 基线）。
+- 本片测试 `flutter test test/features/questions/application/paper_plan_provider_test.dart --concurrency=1` → `+9 All tests passed!`。
+- 全量 `flutter test --concurrency=1` → **`+1321 ~2 All tests passed!`**（上一轮基线 `+1312 ~2`，差额 9 = 本片新增用例；
+  跑在这一轮的树上，teammate 的 task-10 UI 测试尚未进入）。
+
+---
+
 ## 2026-10-16 轮次三十一：题目详情页验收 + 组卷器纯逻辑（Q7 验收 / Q9，Lead）
 
 **Q7 验收（teammate `question-intake` 交付，Lead 独立跑过）**
