@@ -65,7 +65,9 @@
 ### D. Thread 事件排序（趋势：用注意力与目标可达性排序，而不是只加权求和）
 
 - **已有**：`ThreadRanker` 加权公式（紧迫度/目标匹配/状态适配/期望压力/同类疲劳）+ 硬约束 + 疲劳惩罚。
-- **缺**：① **节律层 α(τ)**：警觉衰减、负荷自适应周期（`T_cycle`）、flow 带 → "现在该做难还是易、要不要切换/休息"；
+- **缺**：① **节律层 α(τ)**：警觉衰减、负荷自适应周期（`T_cycle`）、flow 带 → "现在该做难还是易、要不要切换/休息"
+  ——**机制侧已完成（轮次四十五：`rhythm.gate` 作为 opt-in 机制装进 `fast_engine.dart`，默认关）**；
+  仍缺的是把它读出来给人看：线程页的"当前注意力可用性"与做难/做易/休息建议，以及 `thread_rank_service.dart` 的认知排序档位；
   ② `goal` 动作的**目标扩散**：目标集可达性排序（与 MindNet 的 `start_diffusion(starts, targets)` 对齐）；
   ③ 把"当前脑子里的东西"（刚复习/刚做错的节点）作为 `starts` 注入。
 - **落点**：`thread_rank_service.dart` 增加一个"认知排序"档位（与现有加权排序并存，可开关），输入 = 目标节点 + 刚活动节点 + α(τ)；
@@ -78,7 +80,7 @@
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
-| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 |
+| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；线程页读数与建议未做** |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
@@ -107,7 +109,7 @@
   （同一 ripe 行 stability 20.31 vs 0.49）；而本应用自有的两列里，Σ 的 `effort = (1-R) + (1-closeness)`
   使 closeness 越大 Σ 增量越小（0.85 → 0.84，lapse 0.85），R0 两条路径都不动
   （只有 `retrieval_success` 抬 R0）。**断言必须建在"足够熟"的行上**：新卡 R≈0 时 `effort` 被钳到 1.0，两条路径的 Σ 完全相同。
-- 尚未做（切片 2 的另一半）：`exposure`（看了没测）入口——读书/看补充资料目前仍不进模型。
+- 切片 2 的另一半（`exposure`，读了没测）见下一节：**已完成（轮次四十四）**。
 
 ### 切片 2 的另一半：`exposure`（读了没测，已完成 轮次四十四）
 
@@ -133,6 +135,46 @@
   `exposure（读了但没测）`（`review_logs` 为空、FSRS 七列不变、模型两列写入且 R0 未抬）、
   `review_page_test.dart`（按钮只在揭示答案后出现；按下后写曝光、不动到期日）、
   `v14_migration_test.dart`（真实 v13 文件升级 + 老数据一行不少 + 自愈路径）。
+
+### 切片 4 的一半：节律层 α(τ)——`rhythm.gate` 装进 fast_engine（已完成 轮次四十五）
+
+**缺口**：`fast_engine.dart` 移植自 MindNet 快层时，D3 明确不移植 `rhythm.gate`，
+于是 `payload.availability` 恒为 1、`cycleTicks` 恒为 1——§4.1 那条
+`a₁ = a* + (a − a*)·e^(−k·α)` 里 α 的通道等于**常开**，时间维度整个没进模型。
+
+**做了什么**：
+
+- 新文件 `app/lib/domain/services/cognitive/rhythm_gate.dart`（纯 Dart，无 RNG）：
+  占空比门 `G_duty`（`duty`，默认 0.5、`T0` 1 s）、警觉衰减 `G_vig = exp(-t_on/τ_vig)`
+  （τ_vig 默认 20 分钟、半衰 ≈ 13.9 分钟）、负荷自适应周期 `T_cycle = T0·(1 + λ_L·load/4)`
+  （λ_L 默认 1，参考负荷 4 = DAR 容量）。`beginRound(load:)` 对应 `round.before`，
+  `blockReasonFor(tick:)` 对应 `tick.gate`（`off_phase` / `vigilance_low`）。
+- `fast_engine.dart`：新机制常量 `FastMechanisms.rhythm = 'rhythm.gate'`（**opt-in，默认不装**）、
+  七个 `calibrated: false` 参数、`step()` 的 round.before 按「激活 ≥ 自身阈值的节点之和」算负荷并定周期、
+  tick 循环逐个过门、`clone()` 复制节律时钟（反事实运行不该把警觉清零）。
+
+**为什么默认关**：对拍向量是在**没有**这个门的情况下生成的，默认装上就会改写所有 tierB 读数。
+它必须是"可装的机制"而不是"新的默认值"——这同时兑现了 §3 第 8 行「至少一个机制可开关」。
+不装时 `availability` 与 `cycleTicks` 与既有 43 条 tierA + B01 tierB 向量逐位一致。
+
+**两条拒收**（写进构造函数的 `UnsupportedError`，不是静默降级）：
+
+- `markov` 模式需要 `ctx.rng()`（mulberry32）做两态转移：PRNG 未移植，与本 port 在
+  `T_ign > 0` 时抛错是同一条纪律。
+- `theta` 模式只写在 `docs/MODEL_v2_MATH.md` §5.1 与 manifest 里，参考实现的
+  `openCountFor()` 实际只算 duty 与 markov（`mode === 'markov' ? cycle : round(duty·vig·cycle)`）；
+  按 duty 静默处理就是"同名不同模型"。
+
+另外 `α0` 与 `G_flow` 带在参考 hook 里**没有落地**，所以这里也不发明它们——文档里写清"参考实现没接"，
+而不是补一个没人接的因子。
+
+**证据**：`app/test/domain/services/cognitive/rhythm_gate_test.dart`（15 例：manifest 四条自检逐条移植 +
+引擎侧六条——不装时 `availability` 恰好 1、装上后 `availability = 3/5` 且 B 的激活不同、`duty=1` 消融逐位回到
+不装、`duty=0` 走到原本不可达的「完全不在」分支、τ_vig 调小后同轮 `availability` 下降、克隆保住时钟）；
+`flutter test test/domain/services/cognitive --concurrency=1` → `+211 All tests passed!`。
+
+**这一片还剩的另一半**（见 §2-D）：线程页显示"当前注意力可用性"与做难/做易/休息建议（带开关），
+以及 `thread_rank_service.dart` 的"认知排序"档位（输入 = 目标节点 + 刚活动节点 + α(τ)，未标定权重显式标注）。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 

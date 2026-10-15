@@ -15,9 +15,12 @@
 /// first port so the layer is bit-for-bit comparable, and team decision D3
 /// adopts that:
 ///
-/// * `rhythm.gate` is **not** installed, so `availability` is always 1 - the
-///   pipeline still computes it through the tick loop, there is simply no gate
-///   to close it;
+/// * `rhythm.gate` is **not installed by default**, so `availability` is always
+///   1 - the pipeline still computes it through the tick loop, there is simply
+///   no gate to close it. Since then it is available as an opt-in mechanism
+///   ([FastMechanisms.rhythm], ported in `rhythm_gate.dart`): the conformance
+///   vectors were generated without it, and the port stays bit-for-bit
+///   comparable as long as the default stays "off";
 /// * `attention.ignition` is ported whole, but when a temperature `T_ign > 0`
 ///   makes the ignition probability strictly between 0 and 1, this port
 ///   **throws** instead of drawing a number: MindNet uses a seeded mulberry32
@@ -28,7 +31,7 @@
 /// Everything else the JS engine offers that is **not** here, so a reader can
 /// tell "not ported" from "forgotten":
 ///
-/// * `memory.dsr`, `rhythm.gate`, `attention.inhibition`, `legacy_v1.js`
+/// * `memory.dsr`, `attention.inhibition`, `legacy_v1.js`
 ///   (the contract §6.1 lists these as out of scope for tierB);
 /// * `metacognition.belief` - its danger rows are *input* to
 ///   `fast_diagnosis.dart`, not computed here;
@@ -36,8 +39,8 @@
 ///   `kc_breakdown`) and `export_state` (file I/O);
 /// * the mechanism **registry** (`mechanisms/index.js` is Node-only, and §6.1
 ///   notes Dart does not need it): the installed set is the `mechanisms` field
-///   on [FastEngine], so the pipeline is a fixed sequence of four hooks rather
-///   than a plugin lookup.
+///   on [FastEngine], so the pipeline is a fixed sequence of the ported hooks
+///   rather than a plugin lookup.
 ///
 /// ## Units and ownership
 ///
@@ -55,6 +58,8 @@
 library;
 
 import 'dart:math' as math;
+
+import 'rhythm_gate.dart';
 
 /// Node state, mirroring `STATE` in MindNet's `src/model.js`.
 enum FastNodeState {
@@ -214,9 +219,8 @@ class FastMechanisms {
       final forMechanism =
           (moduleDefaults[spec.mechanism] as Map?)?.cast<String, Object?>();
       final fromVectors = forMechanism?[spec.key];
-      specs.add(fromVectors is num
-          ? spec.withDefault(fromVectors.toDouble())
-          : spec);
+      specs.add(
+          fromVectors is num ? spec.withDefault(fromVectors.toDouble()) : spec);
     }
     return FastMechanisms._(List<String>.unmodifiable(ids), specs, overrides);
   }
@@ -238,6 +242,12 @@ class FastMechanisms {
   static const String ignition = 'attention.ignition';
   static const String goal = 'context.goal';
 
+  /// `rhythm.gate` — the rhythm tier (`docs/MODEL_v2_MATH.md` §5). Installed
+  /// **on request only**: the conformance vectors were generated without it, so
+  /// leaving it out keeps `availability` at exactly 1 and the port bit-for-bit
+  /// comparable (D3). See [RhythmGate] for what is ported and what is refused.
+  static const String rhythm = 'rhythm.gate';
+
   bool isEnabled(String id) => ids.contains(id);
 
   FastParamSpec? specOf(String path) {
@@ -251,8 +261,10 @@ class FastMechanisms {
 
   /// Every declared parameter that is **未标定**, for the docs/UI that must
   /// say so (§6.4, §6.7 item 4).
-  List<FastParamSpec> get uncalibrated =>
-      [for (final spec in specs) if (!spec.calibrated) spec];
+  List<FastParamSpec> get uncalibrated => [
+        for (final spec in specs)
+          if (!spec.calibrated) spec
+      ];
 
   /// The transcribed `PARAMS` tables of the four ported mechanisms.
   ///
@@ -364,6 +376,79 @@ class FastMechanisms {
       calibrated: false,
       desc: 'fan 效应修正（0 = 关闭）',
       evidence: '未标定',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'T0_seconds',
+      defaultValue: 1.0,
+      min: 0.1,
+      max: 60,
+      unit: '秒',
+      calibrated: false,
+      desc: '基础节拍 T0：一个注意周期多长',
+      evidence: '未标定（§5.1 的自检取 1 s；magnitude-plausible 占位值）',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'tick_ms',
+      defaultValue: 250,
+      min: 1,
+      max: 5000,
+      unit: '毫秒',
+      calibrated: false,
+      desc: '一个 tick 多少毫秒（决定 T0 能表示成几个 tick）',
+      evidence: '未标定（manifest 四条自检都在 250 ms 上陈述）',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'duty',
+      defaultValue: 0.5,
+      min: 0,
+      max: 1,
+      calibrated: false,
+      desc: 'G_duty 的占空比 d（0.5 = 一半时间"在"）',
+      evidence: '未标定（§5.1 自检值；d=1 等价于关掉这个机制）',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'p_off',
+      defaultValue: 0.02,
+      min: 0,
+      max: 1,
+      calibrated: false,
+      desc: 'markov：P(专注→走神)（该模式未移植，仅转录）',
+      evidence: '未标定（与 p_on 一起给 20% 稳态走神占比，可调到 47% 对齐文献）',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'p_on',
+      defaultValue: 0.08,
+      min: 0,
+      max: 1,
+      calibrated: false,
+      desc: 'markov：P(走神→专注)（该模式未移植，仅转录）',
+      evidence: '未标定',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'lambda_load',
+      defaultValue: 1.0,
+      min: 0,
+      max: 5,
+      calibrated: false,
+      desc: '负荷自适应斜率 λ_L：T_cycle = T0·(1 + λ_L·load/4)',
+      evidence: '未标定（§5.3 自检：λ_L=1 时 load 0→4 对应 1.00→2.00 秒）',
+    ),
+    FastParamSpec(
+      mechanism: rhythm,
+      key: 'tau_vig_minutes',
+      defaultValue: 20.0,
+      min: 0.5,
+      max: 600,
+      unit: '分钟',
+      calibrated: false,
+      desc: '警觉衰减时间常数 τ_vig：G_vig = exp(-t_on/τ_vig)',
+      evidence: '未标定（默认 20 分钟 ⇒ 半衰 ≈ 13.9 分钟）',
     ),
   ];
 }
@@ -493,8 +578,7 @@ class FastEdge {
   /// projection (§6.4); the vectors supply their own values.
   final double ls;
 
-  Map<String, Object?> toJson() =>
-      {'id': id, 'from': from, 'to': to, 'ls': ls};
+  Map<String, Object?> toJson() => {'id': id, 'from': from, 'to': to, 'ls': ls};
 }
 
 /// MindNet's graph for the fast layer: insertion-ordered nodes, in/out edge
@@ -1051,6 +1135,20 @@ class FastEngine {
           ...overrides,
         } {
     _maxRounds = config.maxRounds;
+    if (mechanisms.isEnabled(FastMechanisms.rhythm)) {
+      _rhythmGate = RhythmGate(
+        params: RhythmGateParams(
+          t0Seconds: numberParam('${FastMechanisms.rhythm}.T0_seconds'),
+          tickMs: numberParam('${FastMechanisms.rhythm}.tick_ms'),
+          duty: numberParam('${FastMechanisms.rhythm}.duty'),
+          pOff: numberParam('${FastMechanisms.rhythm}.p_off'),
+          pOn: numberParam('${FastMechanisms.rhythm}.p_on'),
+          lambdaLoad: numberParam('${FastMechanisms.rhythm}.lambda_load'),
+          tauVigMinutes:
+              numberParam('${FastMechanisms.rhythm}.tau_vig_minutes'),
+        ),
+      );
+    }
   }
 
   /// The graph under simulation. Its `core['a']`/`core['q']` and node states
@@ -1066,6 +1164,18 @@ class FastEngine {
   /// engine: the counterfactual planner mutates a *clone's* overrides, never
   /// the original's (the JS kernel copies defensively for the same reason).
   final Map<String, Object?> overrides;
+
+  /// The rhythm gate, or null when `rhythm.gate` is not installed. Holds this
+  /// run's on-task clock (the reference's `store.onMinutes`).
+  RhythmGate? _rhythmGate;
+
+  /// True once `rhythm.gate` is installed, i.e. once `availability` can drop
+  /// below 1.
+  bool get rhythmInstalled => _rhythmGate != null;
+
+  /// The installed gate, for callers that want to read its clock/vigilance
+  /// (the reference exposes the same numbers as `payload.rhythm`).
+  RhythmGate? get rhythmGate => _rhythmGate;
 
   /// Recorded for provenance (the vectors pin `seed`); unused this round:
   /// with `T_ign = 0` and no `rhythm.gate` there is no random draw to seed
@@ -1274,17 +1384,37 @@ class FastEngine {
     final payload = _RoundPayload(round: _rounds)
       ..targets = List<String>.of(_targets);
 
-    // 1) round.before: tick length, budget, targets/context. No ported
-    //    mechanism hooks this slot, so cycleTicks stays 1 (rhythm.gate is not
-    //    installed, D3).
+    // 1) round.before: tick length, budget, targets/context. rhythm.gate is the
+    //    only ported mechanism that hooks this slot; without it cycleTicks
+    //    stays 1 and a "round" is a single tick.
+    final gate = _rhythmGate;
+    if (gate != null) {
+      // The reference's load: every node at or above its own ignition threshold
+      // contributes its activation ("how much is competing for attention now").
+      var load = 0.0;
+      for (final node in nodes) {
+        final a = node.activation;
+        if (a >= node.stOf(config)) {
+          load += a;
+        }
+      }
+      payload.cycleTicks = gate.cycleTicksFor(load: load);
+    }
     payload.cycleTicks = math.max(1, payload.cycleTicks.round());
 
-    // 2) tick loop: with no rhythm.gate every tick is open, so availability is
+    // 2) tick loop: without rhythm.gate every tick is open, so availability is
     //    exactly 1 - computed through the loop, not assumed.
     var openTicks = 0;
     for (var i = 0; i < payload.cycleTicks; i += 1) {
       tick += 1;
-      openTicks += 1; // tick.gate is not installed: never blocked
+      if (gate == null) {
+        openTicks += 1; // tick.gate is not installed: never blocked
+        continue;
+      }
+      gate.advanceTick();
+      if (gate.blockReasonFor(tick: tick) == null) {
+        openTicks += 1;
+      }
     }
     payload.availability = openTicks / payload.cycleTicks;
 
@@ -1508,7 +1638,11 @@ class FastEngine {
     final result = capacityAdmit(
       [
         for (final node in graph.nodes.values)
-          (id: node.id, score: payload.scores[node.id] ?? 0, a: node.activation),
+          (
+            id: node.id,
+            score: payload.scores[node.id] ?? 0,
+            a: node.activation
+          ),
       ],
       wDar: numberParam('${FastMechanisms.capacity}.W_DAR'),
       wFa: numberParam('${FastMechanisms.capacity}.W_FA'),
@@ -1518,8 +1652,7 @@ class FastEngine {
     payload.darUsed = result.used;
     payload.outcompeted = [
       for (final node in graph.nodes.values)
-        if (!result.dar.contains(node.id) &&
-            (payload.scores[node.id] ?? 0) > 0)
+        if (!result.dar.contains(node.id) && (payload.scores[node.id] ?? 0) > 0)
           node.id,
     ];
   }
@@ -1531,9 +1664,10 @@ class FastEngine {
     final subconscious = <String>[];
     final admitted = payload.admitted ?? const <String>[];
     payload.ignition.clear();
-    // Completely absent (availability = 0): no cue is strong enough. No ported
-    // module can produce this state (no rhythm.gate), but the branch is kept
-    // because it is the JS's semantics, not an implementation detail.
+    // Completely absent (availability = 0): no cue is strong enough. Only a
+    // rhythm.gate installed with duty = 0 produces this state (the default port
+    // never can), but the branch is kept because it is the JS's semantics, not
+    // an implementation detail.
     if (payload.availability <= 0) {
       for (final id in admitted) {
         final node = graph.nodes[id];
@@ -1685,7 +1819,11 @@ class FastEngine {
       fa.add(candidate.id);
       break; // the narrow focus holds one item at a time
     }
-    return (dar: [for (final candidate in dar) candidate.id], fa: fa, used: used);
+    return (
+      dar: [for (final candidate in dar) candidate.id],
+      fa: fa,
+      used: used
+    );
   }
 
   /// `P(ignite) = σ((score − ct) / T)`; `T = 0` degrades to the hard threshold
@@ -1938,16 +2076,16 @@ class FastEngine {
         drive: Map<String, double>.of(payload.drive),
         driveEdges: List<FastDriveEdge>.of(payload.driveEdges),
         scores: Map<String, double>.of(payload.scores),
-        admitted:
-            payload.admitted == null ? null : List<String>.of(payload.admitted!),
+        admitted: payload.admitted == null
+            ? null
+            : List<String>.of(payload.admitted!),
         focus: payload.focus,
         darUsed: payload.darUsed,
         outcompeted: payload.outcompeted == null
             ? null
             : List<String>.of(payload.outcompeted!),
         conscious: List<String>.of(payload.conscious ?? const <String>[]),
-        subconscious:
-            List<String>.of(payload.subconscious ?? const <String>[]),
+        subconscious: List<String>.of(payload.subconscious ?? const <String>[]),
         states: List<FastStateChange>.of(payload.stateChanges),
         a: {
           for (final node in graph.nodes.values) node.id: node.activation,
@@ -2008,12 +2146,16 @@ class FastEngine {
         r: round6(node.ms),
         // A missing/bogus memory field reads as 0 in the JS (`round6(undefined)`),
         // not as a crash - mirrored rather than "improved".
-        r0: memory == null ? null : round6((memory['R0'] as num?)?.toDouble() ?? 0),
-        s: memory == null ? null : round6((memory['S'] as num?)?.toDouble() ?? 0),
-        d: memory == null ? null : round6((memory['D'] as num?)?.toDouble() ?? 0),
-        f: memory == null
-            ? 0
-            : round6((memory['F'] as num?)?.toDouble() ?? 0),
+        r0: memory == null
+            ? null
+            : round6((memory['R0'] as num?)?.toDouble() ?? 0),
+        s: memory == null
+            ? null
+            : round6((memory['S'] as num?)?.toDouble() ?? 0),
+        d: memory == null
+            ? null
+            : round6((memory['D'] as num?)?.toDouble() ?? 0),
+        f: memory == null ? 0 : round6((memory['F'] as num?)?.toDouble() ?? 0),
       );
     }
     return facts;
@@ -2051,6 +2193,9 @@ class FastEngine {
       hours: hours,
     );
     copy.tick = tick;
+    // The rhythm clock is run state, not configuration: a counterfactual run
+    // must start from the same "how long have we been on task" as the original.
+    copy._rhythmGate = _rhythmGate?.copy();
     copy.startDiffusion(
       List<String>.of(_startOrder),
       List<String>.of(_targets),
@@ -2161,7 +2306,8 @@ class FastEngine {
 /// `JSON.parse(JSON.stringify(...))` clone so a counterfactual cannot write back
 /// into the original's memory state.
 Map<String, Object?> deepCopyMap(Map<String, Object?> source) => {
-      for (final entry in source.entries) entry.key: _deepCopyValue(entry.value),
+      for (final entry in source.entries)
+        entry.key: _deepCopyValue(entry.value),
     };
 
 Object? _deepCopyValue(Object? value) => switch (value) {

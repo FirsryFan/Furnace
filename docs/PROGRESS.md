@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-10-16 轮次四十五：节律层 α(τ) 的确定性核心接进 fast_engine（Q24，Lead）
+
+**做了什么**
+
+- 新文件 `app/lib/domain/services/cognitive/rhythm_gate.dart`：把 MindNet `mechanisms/rhythm.gate.js`
+  的确定性核心移植成纯 Dart —— `G_duty`（占空比 `d`）与 `G_vig = exp(-t_on/τ_vig)`，
+  外加 §5.3 的负荷自适应周期 `T_cycle = T0·(1 + λ_L·load/4)`（`referenceLoad = 4`，即 DAR 容量）。
+  `RhythmGate` 自己持有 on-task 时钟（参考实现的 `store.onMinutes`），
+  `beginRound(load:)`/`blockReasonFor(tick:)` 对应 `round.before` 与 `tick.gate`。
+- `app/lib/domain/services/cognitive/fast_engine.dart`：新增 opt-in 机制
+  `FastMechanisms.rhythm = 'rhythm.gate'`（**默认不装**，所以 43 条 tierA + B01 tierB 向量逐位不变），
+  以及 `rhythm.gate.*` 七个参数（全部 `calibrated: false`）。`step()` 里 `round.before` 按
+  「激活 ≥ 自身点火阈值的节点之和」算负荷、定周期，tick 循环逐个过门；`clone()` 复制节律时钟
+  （反事实运行不该把警觉清零）。装的唯一条件就是 `mechanisms` 列表里有它。
+- 测试 `app/test/domain/services/cognitive/rhythm_gate_test.dart`（15 例）：manifest 四条自检逐条移植，
+  外加引擎侧五条——默认不装时 `availability` 恰好 1；装上后同一张图 `availability = 3/5` 且 B 的激活
+  与不装时不同；`duty=1` 消融回到逐位相同；`duty=0` ⇒ `availability = 0`，
+  `fast_engine.dart` 里原本**不可达**的「完全不在」分支真的被走到（`conscious` 为空）；
+  `τ_vig` 调小后同一轮 `availability` 下降；克隆保住时钟。
+
+**为什么**
+
+- `docs/MINDNET_ROADMAP.md` §2-D 缺①：没有节律层，`fast_engine.dart` 的 `availability` 恒为 1，
+  4.1 节那个 `e^(−k·α)` 的通道等于常开。这不是"少一个可选模块"，而是时间维度整个没进模型。
+- **为什么默认关**：对拍向量是在没有这个门的情况下生成的（D3）。默认装上就会改写所有 tierB 读数，
+  所以它必须是"可装的机制"，而不是"新的默认值"——`docs/MINDNET_ROADMAP.md` §3 第 8 行
+  「至少一个机制可开关」的验收也正好落在这里。
+- **为什么拒收 markov 与 theta**：markov 需要 `ctx.rng()`（mulberry32）做两态转移，
+  与本 port 在 `T_ign > 0` 时抛错是同一条纪律；theta 只写在 §5.1 与 manifest 里，
+  参考实现的 `openCountFor()` 实际只算 duty 与 markov（`mode === 'markov' ? cycle : round(duty*vig*cycle)`），
+  把它当 duty 装进去就是"同名不同模型"。两种模式都在构造 `RhythmGate` 时抛 `UnsupportedError` 并写明理由。
+- **α0 与 flow 带**：§5 的 `α(τ) = α0·G_duty·G_vig·G_flow` 里，参考实现的 hook 只乘了 duty 与 vig
+  （`G_flow`、`α0` 没有出现在 `rhythm.gate.js` 里），所以这里也不发明它们：文档里写清"参考实现没接"，
+  而不是补一个没人接的因子。
+
+**验收 / 证据**
+
+- `flutter test test/domain/services/cognitive/rhythm_gate_test.dart --concurrency=1` → `+15 All tests passed!`
+- `dart analyze`（三个改动文件）→ `No issues found!`
+- 回归（`flutter test test/domain/services/cognitive --concurrency=1`，含 `mindnet_fast_conformance_test.dart`
+  的 43 条 tierA 向量与 `fast_diagnosis_conformance_test.dart` 的 B01 tierB）→ **`+211 All tests passed!`**：
+  只要不把 `FastMechanisms.rhythm` 放进 `mechanisms`，`availability` 与向量仍逐位一致——
+  这是"默认关"这次能成立的前提。（全量 `flutter test --concurrency=1` 本片跑过 `+1511 ~2`，但那次启动于本片改动之前，
+  提交后另跑一次才算这条的正式证据。）
+- 存档的一条**参考实现怪癖**（照抄不修）：`round.before` 用负荷定周期，而 `tick.gate`
+  只用 `T0` 重算相位周期（`max(1, round(T0·1000/tick_ms))`），所以负荷大时长轮次里
+  相位模式会自己重复；开口永远在周期开头。
+
+---
+
 ## 2026-10-16 轮次四十四：`exposure`（读了没测）——mindnet 五类动作里最后一个接上（Q22，Lead）
 
 **做了什么**
