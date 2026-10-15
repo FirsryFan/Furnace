@@ -438,3 +438,33 @@ Brier/ECE 会系统性地好看。因此：
 间隔、NULL 预测）、`app/test/features/anki/review_service_test.dart`（写入的预测与答对答错无关——
 这条断言就是"预测在判分之前算"的守卫）。
 
+## 11. v12：题库四张表（`docs/QUESTION_BANK_DESIGN.md`）
+
+题库是"组卷 / 搜题 / 加工"共同的地基。设计口径（用户）：**价值在选择题与加工题，不在来源数量**——
+来源分级只是排序权重，低价值题压后不删；AI **不出题**，只解题并交出自述思维链。
+
+| 表 | 关键列 | 语义 |
+| --- | --- | --- |
+| `questions` | `id` / `stem` / `answer`(NULL=后补) / `solution` / `subject_key` / `question_type` / `source_level`(`gaokao`\|`provincial_diagnostic`\|`elite_school`\|`school`\|`personal`\|`unknown`) / `source_label` / `year` / `region` / `difficulty` + `difficulty_source`(`prior`\|`ai`\|`manual`) / `stem_fingerprint` / `trap_note` / `state`(`raw`\|`structured`\|`processed`) / `ai_quality` + `ai_quality_note` / `origin`(`manual`\|`ai_scan`\|`furnace`) / `created_at` / `updated_at` | 题目实体。`state` 是**加工进度**不是质量；质量在 `ai_quality`。题干与选项**只追加**，加工只写 `state`/`trap_note`/`difficulty`/`ai_quality`（`QuestionRepository.updateProcessing`） |
+| `question_options` | `id` / `question_id` / `label` / `content` / `is_correct` / `sort_order` / `created_at` | 选择题选项。`questions.answer` 仍写正确答案，判分只读那一列（选项表不参与判分，免得两处真相） |
+| `reasoning_chains` | `id` / `question_id` / `source`(`ai`\|`user`) / `model`(NULL 可) / `summary` / `step_count` / `created_at` | 一条链 = 一次"AI 亲自解题"的产物。同题可多条（不同解法/模型）互不覆盖；链是**派生数据**，可随时重跑，故不参与跨设备合并 |
+| `reasoning_steps` | `id` / `chain_id` / `idx`(0 起) / `goal` / `action_type` / `justification` / `check_method` / `stuck_risk`(0–1，NULL 可) / `knowledge_hints`(JSON 文本) / `note` / `created_at` | 链内步骤。`action_type` 存**原串**（`domain/services/reasoning/capability_action.dart` 的词表 key），词表演进不丢历史数据 |
+
+指纹去重：`stemFingerprint()`（`lib/data/repositories/question_repository.dart`，纯 Dart FNV-1a 64 位）
+只挡"完全同一道题"（去空白 + 标点归一 + 小写后同哈希）；近似重复留给后续按考点链找相似题。
+同指纹入库返回既有题目（`ingest` 的 `created == false`），不是抛错。
+
+同步三分类：`questions` / `question_options` 归**只追加**（并集 + 按 id 去重）；
+`reasoning_chains` / `reasoning_steps` 归**派生**（导入后本地重跑或用本地副本，不合并）。
+
+迁移与自愈：`schemaVersion` 11 → 12，`_upgradeV11ToV12()` 建四张空表（全部只加不删——
+没人收过题就是空表，不开题库界面的安装行为与之前完全一致）；`_ensureColumns()` 同时做
+"版本号已是最新但表缺失"的自愈。
+
+> 与 v10 同一条教训：本项目生成的 schema **不带任何外键约束**，所以 `deleteQuestion` 必须显式
+> 删选项、标签边、链、步骤，`v12_migration_test` / `question_repository_test` 用断言把这条钉住。
+
+证据：`app/test/data/database/v12_migration_test.dart`（真实 v11 文件升级后老数据一行不少 + 四张新表
+可写可读 + 自愈路径）、`app/test/data/repositories/question_repository_test.dart`（指纹去重、空题干被拒、
+加工不改题干、来源/质量排序、检索过滤、删除级联、链与步骤往返与钳位）。
+

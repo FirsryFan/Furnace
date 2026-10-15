@@ -4,6 +4,54 @@
 
 ---
 
+## 2026-10-15 轮次二十七：题库地基 + 推理层 + threadflow 两段式（schema v12，三线并行）
+
+用户口径（本轮起点，历史记录）：认知模型是引擎，flashcard / threadflow / 组卷搜题是**同等重要**的应用领域；
+agent 是让"高个性化"不带来时间成本、让纸质工作与智能管理同步的工具；标签系统是三者的共同语言。
+方向由用户给定：价值在**选择题与加工题**而非来源数量（高价值来源 = 高考真题、部分名校测试、部分强省强市
+诊断的高质量模拟）；AI **不出题**，只解题并交出自述思维链，思维链拆成能力动作后喂给 MindNet 跑，
+看学生会在哪一步卡住；顺序我定，用 Agent Teams 并行。契约写在 `docs/QUESTION_BANK_DESIGN.md`。
+
+- **schema v12（Lead 单写者）**：`tables.dart` 追加 `questions`（题干/答案/解析/学科/题型/来源分级
+  `gaokao|provincial_diagnostic|elite_school|school|personal|unknown`/年份/地区/难度+难度来源/题干指纹/
+  易错点/加工状态 `raw|structured|processed`/AI 质量+理由/来源 `manual|ai_scan|furnace`）、`question_options`、
+  `reasoning_chains`、`reasoning_steps`（含 `action_type` 存词表**原串**、`stuck_risk` 0–1、
+  `knowledge_hints` JSON）。`database.dart`：`schemaVersion` 11→12、`_upgradeV11ToV12()` 建四张空表、
+  `_ensureColumns()` 登记"版本号已最新但表缺失"的自愈。`dart run build_runner build
+  --delete-conflicting-outputs --force-jit` → `Built with build_runner/jit in 190s; wrote 353 outputs.`
+- **`QuestionRepository`**（`lib/data/repositories/question_repository.dart` + provider）：纯 Dart FNV-1a
+  64 位题干指纹（去空白+标点归一+小写）挡"完全同一道题"，同指纹入库返回既有题目（`created == false`）；
+  检索排序 = 来源权重 → `ai_quality`（NULL 最后）→ 时间 → id，**低价值题只压后不删**；加工只写
+  `state`/`trap_note`/`difficulty`/`ai_quality`（题干只追加）；删除显式清选项、标签边、链、步骤
+  （本项目生成的 schema 实测无外键，v10 同一条教训）。
+- **推理核心（teammate `reasoning-core`，task-2）**：`domain/services/reasoning/capability_action.dart`
+  ——跨学科能力动作词表 27 条（key 稳定不本地化、`byKey` 未知返回 null 绝不抛）；`reasoning_prompt.dart`
+  ——`solveThenDecompose(...)` 生成"亲自解题并交出自述思维链"的消息、`parseChain(...)` 容错解析
+  （markdown 围栏/前后散文、未知 `actionType` 保留原串并标 `knownAction=false`、结构错误抛
+  `ReasoningParseException`）。文档 `docs/REASONING_LAYER_DESIGN.md`。**未验证**：没有真实模型输出跑过解析器
+  （本机离线），解析器只有手工构造的 JSON 用例覆盖。
+- **threadflow 两段式（teammate `threadflow-engine`，task-3）**：`domain/services/scheduling/domain_balance.dart`
+  ——段 A 仍是既有 `ThreadRanker.rank`（未改一行，直通入口 `DomainBalanceRanker.feasible` 有逐桶比对测试），
+  段 B 在可行域内按有效性（MindNet）与**学科配额**排序：权重 effectiveness 0.50 / urgency 0.25 / goal 0.10 /
+  balance 0.15 归一化，`overQuotaPenalty = 1.00` 故意留在归一化之外（配额内必然排在配额外之前）；
+  领域键 = 顶级标签祖先，配额 `max(1, ceil(windowSlots/domainCount))`；有效性
+  `clamp(0.5 + danger·0.35 + dev·0.20 + 0.30·(1−R0)·conf, 0, 1)`，无读数保持中性。文档
+  `docs/THREADFLOW_TWO_SEGMENT.md`。**未验证**：权重与整定值是显式但未标定的取值；DB→`DomainTag/
+  TaskTagLink/KnowledgePointReading` 的适配仍留给 UI/service 层。
+- 证据：`dart analyze lib test` → 0 error / 0 warning / 94 info（与基线同数）；`flutter test
+  test/domain/services/reasoning` → `+46`；`flutter test test/domain/services/scheduling` → `+50`（新 23 +
+  既有 27）；`flutter test test/data/database/v12_migration_test.dart
+  test/data/repositories/question_repository_test.dart` → `+9`；全量 `flutter test --concurrency=1` →
+  `+1207 ~2 All tests passed!`（基线 1131）。
+- 并行跑全量时观测到 **1 次偶发失败**（`review_service_test.dart` 的"a miss followed by the solution"，
+  断言两次写入的 `dueAt` 差 < 2000 ms；默认并发下负载把两次 `grade()` 拉开），该文件单独跑与
+  `--concurrency=1` 全量均为绿——按证据纪律记为"并发负载下的时间窗口偶发"，不是功能回归。
+- 未做（下一片）：Q2 收题页 B（应用内收题，用户要求"题库积累要尽早开始"）、Q3 拍照手写整理 →
+  补标签/闪存卡/MindNet 节点的任务、Q4 推理管道接 `ModelAdapter.runTurn`（把解析结果落库）、
+  Q5 沿链跑学生状态的卡点评估、Q6 threadflow 两段式接进 UI。
+
+---
+
 ## 2026-10-15 轮次二十六：M6 学习效果度量——留存率立刻可算，校准曲线从这一版开始积累
 
 用户：milestone ②「链接认知模型和 flashcard，我实际操作发现记忆效果好」。这句话在模型自己有度量之前只是感觉，

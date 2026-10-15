@@ -253,8 +253,7 @@ class KnowledgePoints extends Table {
 
 class CardTemplates extends Table {
   TextColumn get id => text()();
-  TextColumn get knowledgePointId =>
-      text().references(KnowledgePoints, #id)();
+  TextColumn get knowledgePointId => text().references(KnowledgePoints, #id)();
   TextColumn get type => text()();
   TextColumn get question => text()();
   TextColumn get answer => text()();
@@ -316,7 +315,7 @@ class CardStates extends Table {
   /// (10 min) relearning loop with the same unit is active.
   IntColumn get forced => integer().withDefault(const Constant(0))();
 
-/// v2: consecutive correct answers while forced; releases at 2.
+  /// v2: consecutive correct answers while forced; releases at 2.
   IntColumn get forcedStreak => integer().withDefault(const Constant(0))();
 
   @override
@@ -331,7 +330,8 @@ class CardStates extends Table {
 class ReviewLogs extends Table {
   TextColumn get id => text()();
   TextColumn get cardStateId => text().references(CardStates, #id)();
-  TextColumn get cardTemplateId => text().references(CardTemplates, #id).nullable()();
+  TextColumn get cardTemplateId =>
+      text().references(CardTemplates, #id).nullable()();
 
   /// v2: unit key snapshot at review time.
   TextColumn get unitKey => text().nullable()();
@@ -501,8 +501,7 @@ class ThreadRankSettings extends Table {
       boolean().withDefault(const Constant(false))();
 
   /// Global switch: may actual durations update the duration model?
-  BoolColumn get useActualTime =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get useActualTime => boolean().withDefault(const Constant(true))();
 
   IntColumn get updatedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
@@ -556,8 +555,7 @@ class DiffusionLogs extends Table {
 /// (spec 1.3.1/1.3.2). `definition` is JSON locating the blankable span.
 class ClozeSlots extends Table {
   TextColumn get id => text()();
-  TextColumn get knowledgePointId =>
-      text().references(KnowledgePoints, #id)();
+  TextColumn get knowledgePointId => text().references(KnowledgePoints, #id)();
   TextColumn get slotKey => text()();
   TextColumn get definition => text()();
   IntColumn get exhausted => integer().withDefault(const Constant(0))();
@@ -577,8 +575,7 @@ class ClozeSlots extends Table {
 /// correct. "New blank = never drawn before" is decided against this table.
 class ClozeHistory extends Table {
   TextColumn get id => text()();
-  TextColumn get knowledgePointId =>
-      text().references(KnowledgePoints, #id)();
+  TextColumn get knowledgePointId => text().references(KnowledgePoints, #id)();
   TextColumn get slotKey => text()();
   IntColumn get correct => integer().withDefault(const Constant(0))();
   IntColumn get usedAt => integer()();
@@ -592,8 +589,7 @@ class ClozeHistory extends Table {
 /// answered wrong; decays after `remainingCycles` draw cycles.
 class BoostEntries extends Table {
   TextColumn get id => text()();
-  TextColumn get knowledgePointId =>
-      text().references(KnowledgePoints, #id)();
+  TextColumn get knowledgePointId => text().references(KnowledgePoints, #id)();
   RealColumn get factor => real()();
   IntColumn get remainingCycles => integer().withDefault(const Constant(3))();
   IntColumn get createdAt => integer()();
@@ -671,7 +667,8 @@ class TimeViewSettings extends Table {
   IntColumn get id => integer()();
 
   /// Total length of the multi-year timeline, in days.
-  IntColumn get timelineSpanDays => integer().withDefault(const Constant(730))();
+  IntColumn get timelineSpanDays =>
+      integer().withDefault(const Constant(730))();
 
   /// Horizontal zoom of the timeline: pixels per day.
   RealColumn get timelinePxPerDay => real().withDefault(const Constant(6))();
@@ -976,4 +973,156 @@ class CognitivePriors extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {knowledgePointId, source};
+}
+
+/// 题库里的题目实体（`docs/QUESTION_BANK_DESIGN.md` §1）。
+///
+/// 来源的价值在**选择与加工**，不在数量：能进来的只有高价值题（高考真题 /
+/// 强省强市诊断 / 名校测试），每条带来源分级，排序时低价值题只压后、不删。
+///
+/// `state` 是加工进度（raw → structured → processed），不是质量评价；质量在
+/// `aiQuality`。题目入库后只追加：id 稳定、不原地改语义（同步三分类的"只追加"）。
+@DataClassName('Question')
+class Questions extends Table {
+  TextColumn get id => text()();
+
+  /// 题干（纯文本；公式保留 LaTeX 原样）。
+  TextColumn get stem => text()();
+
+  /// 参考答案。可空：收题时可以只存题干，答案后补。
+  TextColumn get answer => text().nullable()();
+
+  /// 解析文本。AI 解题产出的**思维链**另存 `reasoning_chains`，不挤在这一列。
+  TextColumn get solution => text().nullable()();
+
+  /// 学科，例如 `physics` / `chinese`。自由字符串，界面用标签树展示。
+  TextColumn get subjectKey => text().withDefault(const Constant(''))();
+
+  /// `single_choice` / `multi_choice` / `fill_blank` / `solution` / `open`。
+  TextColumn get questionType =>
+      text().withDefault(const Constant('solution'))();
+
+  /// 来源分级（决定排序权重与去重保留优先级）：`gaokao` 高考真题 /
+  /// `provincial_diagnostic` 强省强市诊断 / `elite_school` 名校测试 /
+  /// `school` 学校题 / `personal` 自建 / `unknown` 未标注。
+  TextColumn get sourceLevel => text().withDefault(const Constant('unknown'))();
+
+  /// 人可读来源，例如"2024 湖南师大附中月考"。
+  TextColumn get sourceLabel => text().withDefault(const Constant(''))();
+
+  IntColumn get year => integer().nullable()();
+  TextColumn get region => text().nullable()();
+
+  /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
+  RealColumn get difficulty => real().nullable()();
+
+  /// 上面那个难度是谁给的：`prior` / `ai` / `manual`。没有难度时 NULL。
+  TextColumn get difficultySource => text().nullable()();
+
+  /// 题干指纹（去空白 + 标点归一的 FNV-1a 64 位十六进制，纯 Dart 实现）。
+  /// 只挡"完全同一道题"；近似重复留给后续按考点链找相似题。
+  TextColumn get stemFingerprint => text().withDefault(const Constant(''))();
+
+  /// 易错点/常见错因（加工产物，可空）。
+  TextColumn get trapNote => text().nullable()();
+
+  /// `raw` 刚收进来 / `structured` 已结构化 / `processed` 已拆链并标注错因。
+  TextColumn get state => text().withDefault(const Constant('raw'))();
+
+  /// AI 预评分 0–1（来源等级、年份、考点覆盖、题干完整度）。不删低分题，只压后。
+  RealColumn get aiQuality => real().nullable()();
+
+  /// `aiQuality` 的理由，一行中文。
+  TextColumn get aiQualityNote => text().nullable()();
+
+  /// `manual` / `ai_scan`（拍照或文本扫描）/ `furnace`（App 内自建）。
+  TextColumn get origin => text().withDefault(const Constant('manual'))();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 选择题选项。`questions.answer` 仍写正确答案（判分只读那一列）。
+@DataClassName('QuestionOption')
+class QuestionOptions extends Table {
+  TextColumn get id => text()();
+  TextColumn get questionId => text().references(Questions, #id)();
+  TextColumn get label => text()();
+  TextColumn get content => text()();
+  BoolColumn get isCorrect => boolean().withDefault(const Constant(false))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一条思维链 = 一次"AI 亲自解题"的产物（`docs/QUESTION_BANK_DESIGN.md` §3）。
+///
+/// 同一道题可以有多条链（不同解法、不同模型），彼此不覆盖；链是**派生数据**，
+/// 可以随时由 AI 重跑，所以不参与跨设备合并。
+@DataClassName('ReasoningChain')
+class ReasoningChains extends Table {
+  TextColumn get id => text()();
+  TextColumn get questionId => text().references(Questions, #id)();
+
+  /// `ai` 模型产出 / `user` 手写录入。
+  TextColumn get source => text().withDefault(const Constant('ai'))();
+
+  /// 哪个模型解的（可空：模型名会变，链本身才是数据）。
+  TextColumn get model => text().nullable()();
+
+  /// 整条思路的一句话概括。
+  TextColumn get summary => text().withDefault(const Constant(''))();
+
+  /// 步骤数，冗余一份便于列表页不 JOIN。
+  IntColumn get stepCount => integer().withDefault(const Constant(0))();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 思维链里的一步。
+///
+/// `actionType` 是跨学科的**能力动作** key（见
+/// `domain/services/reasoning/capability_action.dart` 的词表），刻意不进标签树：
+/// 推理层的动作词表和应用层的标签体系是两套东西，混在一起检索会变糊。
+@DataClassName('ReasoningStep')
+class ReasoningSteps extends Table {
+  TextColumn get id => text()();
+  TextColumn get chainId => text().references(ReasoningChains, #id)();
+
+  /// 链内序号，从 0 起。
+  IntColumn get idx => integer()();
+
+  /// 这一步要达成什么。
+  TextColumn get goal => text()();
+
+  /// 能力动作 key（词表里的稳定标识，不本地化）。
+  TextColumn get actionType => text().withDefault(const Constant('unknown'))();
+
+  /// 为什么这样走。
+  TextColumn get justification => text().withDefault(const Constant(''))();
+
+  /// 怎么检验这一步（回代、量纲、极端值……）。
+  TextColumn get checkMethod => text().withDefault(const Constant(''))();
+
+  /// AI 判断的卡点风险 0–1：这一步最容易让人掉队的地方。
+  RealColumn get stuckRisk => real().nullable()();
+
+  /// 相关知识点 id 的 JSON 数组（文本，避免为多对多加连接表）。
+  TextColumn get knowledgeHints => text().withDefault(const Constant('[]'))();
+
+  /// 用户/评估留下的备注。
+  TextColumn get note => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }

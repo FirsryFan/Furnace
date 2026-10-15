@@ -11,6 +11,7 @@ import 'assessment_repository.dart';
 import 'diffusion_log_repository.dart';
 import 'mind_map_repository.dart';
 import 'package_repository.dart';
+import 'question_repository.dart';
 import 'review_plan_repository.dart';
 import 'settings_repository.dart';
 import 'tag_repository.dart';
@@ -69,6 +70,13 @@ final reviewPlanRepositoryProvider = Provider<ReviewPlanRepository>((ref) {
 /// 由两者派生的先验。
 final assessmentRepositoryProvider = Provider<AssessmentRepository>((ref) {
   return AssessmentRepository(ref.watch(appDatabaseProvider));
+});
+
+/// 题库的存储（`docs/QUESTION_BANK_DESIGN.md`）：题目、选项、标签边、推理链/步骤。
+///
+/// 只追加：题干与选项入库后不再改写，加工只写 state/trapNote/difficulty/aiQuality。
+final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
+  return QuestionRepository(ref.watch(appDatabaseProvider));
 });
 
 final ankiServiceProvider = Provider<AnkiService>((ref) {

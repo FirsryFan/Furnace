@@ -16653,6 +16653,2308 @@ class CognitivePriorsCompanion extends UpdateCompanion<CognitivePrior> {
   }
 }
 
+class $QuestionsTable extends Questions
+    with TableInfo<$QuestionsTable, Question> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuestionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stemMeta = const VerificationMeta('stem');
+  @override
+  late final GeneratedColumn<String> stem = GeneratedColumn<String>(
+      'stem', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _answerMeta = const VerificationMeta('answer');
+  @override
+  late final GeneratedColumn<String> answer = GeneratedColumn<String>(
+      'answer', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _solutionMeta =
+      const VerificationMeta('solution');
+  @override
+  late final GeneratedColumn<String> solution = GeneratedColumn<String>(
+      'solution', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subjectKeyMeta =
+      const VerificationMeta('subjectKey');
+  @override
+  late final GeneratedColumn<String> subjectKey = GeneratedColumn<String>(
+      'subject_key', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _questionTypeMeta =
+      const VerificationMeta('questionType');
+  @override
+  late final GeneratedColumn<String> questionType = GeneratedColumn<String>(
+      'question_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('solution'));
+  static const VerificationMeta _sourceLevelMeta =
+      const VerificationMeta('sourceLevel');
+  @override
+  late final GeneratedColumn<String> sourceLevel = GeneratedColumn<String>(
+      'source_level', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('unknown'));
+  static const VerificationMeta _sourceLabelMeta =
+      const VerificationMeta('sourceLabel');
+  @override
+  late final GeneratedColumn<String> sourceLabel = GeneratedColumn<String>(
+      'source_label', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _yearMeta = const VerificationMeta('year');
+  @override
+  late final GeneratedColumn<int> year = GeneratedColumn<int>(
+      'year', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _regionMeta = const VerificationMeta('region');
+  @override
+  late final GeneratedColumn<String> region = GeneratedColumn<String>(
+      'region', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _difficultyMeta =
+      const VerificationMeta('difficulty');
+  @override
+  late final GeneratedColumn<double> difficulty = GeneratedColumn<double>(
+      'difficulty', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _difficultySourceMeta =
+      const VerificationMeta('difficultySource');
+  @override
+  late final GeneratedColumn<String> difficultySource = GeneratedColumn<String>(
+      'difficulty_source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stemFingerprintMeta =
+      const VerificationMeta('stemFingerprint');
+  @override
+  late final GeneratedColumn<String> stemFingerprint = GeneratedColumn<String>(
+      'stem_fingerprint', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _trapNoteMeta =
+      const VerificationMeta('trapNote');
+  @override
+  late final GeneratedColumn<String> trapNote = GeneratedColumn<String>(
+      'trap_note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('raw'));
+  static const VerificationMeta _aiQualityMeta =
+      const VerificationMeta('aiQuality');
+  @override
+  late final GeneratedColumn<double> aiQuality = GeneratedColumn<double>(
+      'ai_quality', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _aiQualityNoteMeta =
+      const VerificationMeta('aiQualityNote');
+  @override
+  late final GeneratedColumn<String> aiQualityNote = GeneratedColumn<String>(
+      'ai_quality_note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('manual'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        stem,
+        answer,
+        solution,
+        subjectKey,
+        questionType,
+        sourceLevel,
+        sourceLabel,
+        year,
+        region,
+        difficulty,
+        difficultySource,
+        stemFingerprint,
+        trapNote,
+        state,
+        aiQuality,
+        aiQualityNote,
+        origin,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'questions';
+  @override
+  VerificationContext validateIntegrity(Insertable<Question> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('stem')) {
+      context.handle(
+          _stemMeta, stem.isAcceptableOrUnknown(data['stem']!, _stemMeta));
+    } else if (isInserting) {
+      context.missing(_stemMeta);
+    }
+    if (data.containsKey('answer')) {
+      context.handle(_answerMeta,
+          answer.isAcceptableOrUnknown(data['answer']!, _answerMeta));
+    }
+    if (data.containsKey('solution')) {
+      context.handle(_solutionMeta,
+          solution.isAcceptableOrUnknown(data['solution']!, _solutionMeta));
+    }
+    if (data.containsKey('subject_key')) {
+      context.handle(
+          _subjectKeyMeta,
+          subjectKey.isAcceptableOrUnknown(
+              data['subject_key']!, _subjectKeyMeta));
+    }
+    if (data.containsKey('question_type')) {
+      context.handle(
+          _questionTypeMeta,
+          questionType.isAcceptableOrUnknown(
+              data['question_type']!, _questionTypeMeta));
+    }
+    if (data.containsKey('source_level')) {
+      context.handle(
+          _sourceLevelMeta,
+          sourceLevel.isAcceptableOrUnknown(
+              data['source_level']!, _sourceLevelMeta));
+    }
+    if (data.containsKey('source_label')) {
+      context.handle(
+          _sourceLabelMeta,
+          sourceLabel.isAcceptableOrUnknown(
+              data['source_label']!, _sourceLabelMeta));
+    }
+    if (data.containsKey('year')) {
+      context.handle(
+          _yearMeta, year.isAcceptableOrUnknown(data['year']!, _yearMeta));
+    }
+    if (data.containsKey('region')) {
+      context.handle(_regionMeta,
+          region.isAcceptableOrUnknown(data['region']!, _regionMeta));
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+          _difficultyMeta,
+          difficulty.isAcceptableOrUnknown(
+              data['difficulty']!, _difficultyMeta));
+    }
+    if (data.containsKey('difficulty_source')) {
+      context.handle(
+          _difficultySourceMeta,
+          difficultySource.isAcceptableOrUnknown(
+              data['difficulty_source']!, _difficultySourceMeta));
+    }
+    if (data.containsKey('stem_fingerprint')) {
+      context.handle(
+          _stemFingerprintMeta,
+          stemFingerprint.isAcceptableOrUnknown(
+              data['stem_fingerprint']!, _stemFingerprintMeta));
+    }
+    if (data.containsKey('trap_note')) {
+      context.handle(_trapNoteMeta,
+          trapNote.isAcceptableOrUnknown(data['trap_note']!, _trapNoteMeta));
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('ai_quality')) {
+      context.handle(_aiQualityMeta,
+          aiQuality.isAcceptableOrUnknown(data['ai_quality']!, _aiQualityMeta));
+    }
+    if (data.containsKey('ai_quality_note')) {
+      context.handle(
+          _aiQualityNoteMeta,
+          aiQualityNote.isAcceptableOrUnknown(
+              data['ai_quality_note']!, _aiQualityNoteMeta));
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Question map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Question(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      stem: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stem'])!,
+      answer: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}answer']),
+      solution: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}solution']),
+      subjectKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subject_key'])!,
+      questionType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}question_type'])!,
+      sourceLevel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_level'])!,
+      sourceLabel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_label'])!,
+      year: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}year']),
+      region: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}region']),
+      difficulty: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}difficulty']),
+      difficultySource: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}difficulty_source']),
+      stemFingerprint: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}stem_fingerprint'])!,
+      trapNote: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trap_note']),
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      aiQuality: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}ai_quality']),
+      aiQualityNote: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ai_quality_note']),
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $QuestionsTable createAlias(String alias) {
+    return $QuestionsTable(attachedDatabase, alias);
+  }
+}
+
+class Question extends DataClass implements Insertable<Question> {
+  final String id;
+
+  /// 题干（纯文本；公式保留 LaTeX 原样）。
+  final String stem;
+
+  /// 参考答案。可空：收题时可以只存题干，答案后补。
+  final String? answer;
+
+  /// 解析文本。AI 解题产出的**思维链**另存 `reasoning_chains`，不挤在这一列。
+  final String? solution;
+
+  /// 学科，例如 `physics` / `chinese`。自由字符串，界面用标签树展示。
+  final String subjectKey;
+
+  /// `single_choice` / `multi_choice` / `fill_blank` / `solution` / `open`。
+  final String questionType;
+
+  /// 来源分级（决定排序权重与去重保留优先级）：`gaokao` 高考真题 /
+  /// `provincial_diagnostic` 强省强市诊断 / `elite_school` 名校测试 /
+  /// `school` 学校题 / `personal` 自建 / `unknown` 未标注。
+  final String sourceLevel;
+
+  /// 人可读来源，例如"2024 湖南师大附中月考"。
+  final String sourceLabel;
+  final int? year;
+  final String? region;
+
+  /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
+  final double? difficulty;
+
+  /// 上面那个难度是谁给的：`prior` / `ai` / `manual`。没有难度时 NULL。
+  final String? difficultySource;
+
+  /// 题干指纹（去空白 + 标点归一的 FNV-1a 64 位十六进制，纯 Dart 实现）。
+  /// 只挡"完全同一道题"；近似重复留给后续按考点链找相似题。
+  final String stemFingerprint;
+
+  /// 易错点/常见错因（加工产物，可空）。
+  final String? trapNote;
+
+  /// `raw` 刚收进来 / `structured` 已结构化 / `processed` 已拆链并标注错因。
+  final String state;
+
+  /// AI 预评分 0–1（来源等级、年份、考点覆盖、题干完整度）。不删低分题，只压后。
+  final double? aiQuality;
+
+  /// `aiQuality` 的理由，一行中文。
+  final String? aiQualityNote;
+
+  /// `manual` / `ai_scan`（拍照或文本扫描）/ `furnace`（App 内自建）。
+  final String origin;
+  final int createdAt;
+  final int updatedAt;
+  const Question(
+      {required this.id,
+      required this.stem,
+      this.answer,
+      this.solution,
+      required this.subjectKey,
+      required this.questionType,
+      required this.sourceLevel,
+      required this.sourceLabel,
+      this.year,
+      this.region,
+      this.difficulty,
+      this.difficultySource,
+      required this.stemFingerprint,
+      this.trapNote,
+      required this.state,
+      this.aiQuality,
+      this.aiQualityNote,
+      required this.origin,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['stem'] = Variable<String>(stem);
+    if (!nullToAbsent || answer != null) {
+      map['answer'] = Variable<String>(answer);
+    }
+    if (!nullToAbsent || solution != null) {
+      map['solution'] = Variable<String>(solution);
+    }
+    map['subject_key'] = Variable<String>(subjectKey);
+    map['question_type'] = Variable<String>(questionType);
+    map['source_level'] = Variable<String>(sourceLevel);
+    map['source_label'] = Variable<String>(sourceLabel);
+    if (!nullToAbsent || year != null) {
+      map['year'] = Variable<int>(year);
+    }
+    if (!nullToAbsent || region != null) {
+      map['region'] = Variable<String>(region);
+    }
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<double>(difficulty);
+    }
+    if (!nullToAbsent || difficultySource != null) {
+      map['difficulty_source'] = Variable<String>(difficultySource);
+    }
+    map['stem_fingerprint'] = Variable<String>(stemFingerprint);
+    if (!nullToAbsent || trapNote != null) {
+      map['trap_note'] = Variable<String>(trapNote);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || aiQuality != null) {
+      map['ai_quality'] = Variable<double>(aiQuality);
+    }
+    if (!nullToAbsent || aiQualityNote != null) {
+      map['ai_quality_note'] = Variable<String>(aiQualityNote);
+    }
+    map['origin'] = Variable<String>(origin);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  QuestionsCompanion toCompanion(bool nullToAbsent) {
+    return QuestionsCompanion(
+      id: Value(id),
+      stem: Value(stem),
+      answer:
+          answer == null && nullToAbsent ? const Value.absent() : Value(answer),
+      solution: solution == null && nullToAbsent
+          ? const Value.absent()
+          : Value(solution),
+      subjectKey: Value(subjectKey),
+      questionType: Value(questionType),
+      sourceLevel: Value(sourceLevel),
+      sourceLabel: Value(sourceLabel),
+      year: year == null && nullToAbsent ? const Value.absent() : Value(year),
+      region:
+          region == null && nullToAbsent ? const Value.absent() : Value(region),
+      difficulty: difficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficulty),
+      difficultySource: difficultySource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficultySource),
+      stemFingerprint: Value(stemFingerprint),
+      trapNote: trapNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trapNote),
+      state: Value(state),
+      aiQuality: aiQuality == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiQuality),
+      aiQualityNote: aiQualityNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiQualityNote),
+      origin: Value(origin),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Question.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Question(
+      id: serializer.fromJson<String>(json['id']),
+      stem: serializer.fromJson<String>(json['stem']),
+      answer: serializer.fromJson<String?>(json['answer']),
+      solution: serializer.fromJson<String?>(json['solution']),
+      subjectKey: serializer.fromJson<String>(json['subjectKey']),
+      questionType: serializer.fromJson<String>(json['questionType']),
+      sourceLevel: serializer.fromJson<String>(json['sourceLevel']),
+      sourceLabel: serializer.fromJson<String>(json['sourceLabel']),
+      year: serializer.fromJson<int?>(json['year']),
+      region: serializer.fromJson<String?>(json['region']),
+      difficulty: serializer.fromJson<double?>(json['difficulty']),
+      difficultySource: serializer.fromJson<String?>(json['difficultySource']),
+      stemFingerprint: serializer.fromJson<String>(json['stemFingerprint']),
+      trapNote: serializer.fromJson<String?>(json['trapNote']),
+      state: serializer.fromJson<String>(json['state']),
+      aiQuality: serializer.fromJson<double?>(json['aiQuality']),
+      aiQualityNote: serializer.fromJson<String?>(json['aiQualityNote']),
+      origin: serializer.fromJson<String>(json['origin']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'stem': serializer.toJson<String>(stem),
+      'answer': serializer.toJson<String?>(answer),
+      'solution': serializer.toJson<String?>(solution),
+      'subjectKey': serializer.toJson<String>(subjectKey),
+      'questionType': serializer.toJson<String>(questionType),
+      'sourceLevel': serializer.toJson<String>(sourceLevel),
+      'sourceLabel': serializer.toJson<String>(sourceLabel),
+      'year': serializer.toJson<int?>(year),
+      'region': serializer.toJson<String?>(region),
+      'difficulty': serializer.toJson<double?>(difficulty),
+      'difficultySource': serializer.toJson<String?>(difficultySource),
+      'stemFingerprint': serializer.toJson<String>(stemFingerprint),
+      'trapNote': serializer.toJson<String?>(trapNote),
+      'state': serializer.toJson<String>(state),
+      'aiQuality': serializer.toJson<double?>(aiQuality),
+      'aiQualityNote': serializer.toJson<String?>(aiQualityNote),
+      'origin': serializer.toJson<String>(origin),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  Question copyWith(
+          {String? id,
+          String? stem,
+          Value<String?> answer = const Value.absent(),
+          Value<String?> solution = const Value.absent(),
+          String? subjectKey,
+          String? questionType,
+          String? sourceLevel,
+          String? sourceLabel,
+          Value<int?> year = const Value.absent(),
+          Value<String?> region = const Value.absent(),
+          Value<double?> difficulty = const Value.absent(),
+          Value<String?> difficultySource = const Value.absent(),
+          String? stemFingerprint,
+          Value<String?> trapNote = const Value.absent(),
+          String? state,
+          Value<double?> aiQuality = const Value.absent(),
+          Value<String?> aiQualityNote = const Value.absent(),
+          String? origin,
+          int? createdAt,
+          int? updatedAt}) =>
+      Question(
+        id: id ?? this.id,
+        stem: stem ?? this.stem,
+        answer: answer.present ? answer.value : this.answer,
+        solution: solution.present ? solution.value : this.solution,
+        subjectKey: subjectKey ?? this.subjectKey,
+        questionType: questionType ?? this.questionType,
+        sourceLevel: sourceLevel ?? this.sourceLevel,
+        sourceLabel: sourceLabel ?? this.sourceLabel,
+        year: year.present ? year.value : this.year,
+        region: region.present ? region.value : this.region,
+        difficulty: difficulty.present ? difficulty.value : this.difficulty,
+        difficultySource: difficultySource.present
+            ? difficultySource.value
+            : this.difficultySource,
+        stemFingerprint: stemFingerprint ?? this.stemFingerprint,
+        trapNote: trapNote.present ? trapNote.value : this.trapNote,
+        state: state ?? this.state,
+        aiQuality: aiQuality.present ? aiQuality.value : this.aiQuality,
+        aiQualityNote:
+            aiQualityNote.present ? aiQualityNote.value : this.aiQualityNote,
+        origin: origin ?? this.origin,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Question copyWithCompanion(QuestionsCompanion data) {
+    return Question(
+      id: data.id.present ? data.id.value : this.id,
+      stem: data.stem.present ? data.stem.value : this.stem,
+      answer: data.answer.present ? data.answer.value : this.answer,
+      solution: data.solution.present ? data.solution.value : this.solution,
+      subjectKey:
+          data.subjectKey.present ? data.subjectKey.value : this.subjectKey,
+      questionType: data.questionType.present
+          ? data.questionType.value
+          : this.questionType,
+      sourceLevel:
+          data.sourceLevel.present ? data.sourceLevel.value : this.sourceLevel,
+      sourceLabel:
+          data.sourceLabel.present ? data.sourceLabel.value : this.sourceLabel,
+      year: data.year.present ? data.year.value : this.year,
+      region: data.region.present ? data.region.value : this.region,
+      difficulty:
+          data.difficulty.present ? data.difficulty.value : this.difficulty,
+      difficultySource: data.difficultySource.present
+          ? data.difficultySource.value
+          : this.difficultySource,
+      stemFingerprint: data.stemFingerprint.present
+          ? data.stemFingerprint.value
+          : this.stemFingerprint,
+      trapNote: data.trapNote.present ? data.trapNote.value : this.trapNote,
+      state: data.state.present ? data.state.value : this.state,
+      aiQuality: data.aiQuality.present ? data.aiQuality.value : this.aiQuality,
+      aiQualityNote: data.aiQualityNote.present
+          ? data.aiQualityNote.value
+          : this.aiQualityNote,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Question(')
+          ..write('id: $id, ')
+          ..write('stem: $stem, ')
+          ..write('answer: $answer, ')
+          ..write('solution: $solution, ')
+          ..write('subjectKey: $subjectKey, ')
+          ..write('questionType: $questionType, ')
+          ..write('sourceLevel: $sourceLevel, ')
+          ..write('sourceLabel: $sourceLabel, ')
+          ..write('year: $year, ')
+          ..write('region: $region, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('difficultySource: $difficultySource, ')
+          ..write('stemFingerprint: $stemFingerprint, ')
+          ..write('trapNote: $trapNote, ')
+          ..write('state: $state, ')
+          ..write('aiQuality: $aiQuality, ')
+          ..write('aiQualityNote: $aiQualityNote, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      stem,
+      answer,
+      solution,
+      subjectKey,
+      questionType,
+      sourceLevel,
+      sourceLabel,
+      year,
+      region,
+      difficulty,
+      difficultySource,
+      stemFingerprint,
+      trapNote,
+      state,
+      aiQuality,
+      aiQualityNote,
+      origin,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Question &&
+          other.id == this.id &&
+          other.stem == this.stem &&
+          other.answer == this.answer &&
+          other.solution == this.solution &&
+          other.subjectKey == this.subjectKey &&
+          other.questionType == this.questionType &&
+          other.sourceLevel == this.sourceLevel &&
+          other.sourceLabel == this.sourceLabel &&
+          other.year == this.year &&
+          other.region == this.region &&
+          other.difficulty == this.difficulty &&
+          other.difficultySource == this.difficultySource &&
+          other.stemFingerprint == this.stemFingerprint &&
+          other.trapNote == this.trapNote &&
+          other.state == this.state &&
+          other.aiQuality == this.aiQuality &&
+          other.aiQualityNote == this.aiQualityNote &&
+          other.origin == this.origin &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class QuestionsCompanion extends UpdateCompanion<Question> {
+  final Value<String> id;
+  final Value<String> stem;
+  final Value<String?> answer;
+  final Value<String?> solution;
+  final Value<String> subjectKey;
+  final Value<String> questionType;
+  final Value<String> sourceLevel;
+  final Value<String> sourceLabel;
+  final Value<int?> year;
+  final Value<String?> region;
+  final Value<double?> difficulty;
+  final Value<String?> difficultySource;
+  final Value<String> stemFingerprint;
+  final Value<String?> trapNote;
+  final Value<String> state;
+  final Value<double?> aiQuality;
+  final Value<String?> aiQualityNote;
+  final Value<String> origin;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const QuestionsCompanion({
+    this.id = const Value.absent(),
+    this.stem = const Value.absent(),
+    this.answer = const Value.absent(),
+    this.solution = const Value.absent(),
+    this.subjectKey = const Value.absent(),
+    this.questionType = const Value.absent(),
+    this.sourceLevel = const Value.absent(),
+    this.sourceLabel = const Value.absent(),
+    this.year = const Value.absent(),
+    this.region = const Value.absent(),
+    this.difficulty = const Value.absent(),
+    this.difficultySource = const Value.absent(),
+    this.stemFingerprint = const Value.absent(),
+    this.trapNote = const Value.absent(),
+    this.state = const Value.absent(),
+    this.aiQuality = const Value.absent(),
+    this.aiQualityNote = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuestionsCompanion.insert({
+    required String id,
+    required String stem,
+    this.answer = const Value.absent(),
+    this.solution = const Value.absent(),
+    this.subjectKey = const Value.absent(),
+    this.questionType = const Value.absent(),
+    this.sourceLevel = const Value.absent(),
+    this.sourceLabel = const Value.absent(),
+    this.year = const Value.absent(),
+    this.region = const Value.absent(),
+    this.difficulty = const Value.absent(),
+    this.difficultySource = const Value.absent(),
+    this.stemFingerprint = const Value.absent(),
+    this.trapNote = const Value.absent(),
+    this.state = const Value.absent(),
+    this.aiQuality = const Value.absent(),
+    this.aiQualityNote = const Value.absent(),
+    this.origin = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        stem = Value(stem),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<Question> custom({
+    Expression<String>? id,
+    Expression<String>? stem,
+    Expression<String>? answer,
+    Expression<String>? solution,
+    Expression<String>? subjectKey,
+    Expression<String>? questionType,
+    Expression<String>? sourceLevel,
+    Expression<String>? sourceLabel,
+    Expression<int>? year,
+    Expression<String>? region,
+    Expression<double>? difficulty,
+    Expression<String>? difficultySource,
+    Expression<String>? stemFingerprint,
+    Expression<String>? trapNote,
+    Expression<String>? state,
+    Expression<double>? aiQuality,
+    Expression<String>? aiQualityNote,
+    Expression<String>? origin,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (stem != null) 'stem': stem,
+      if (answer != null) 'answer': answer,
+      if (solution != null) 'solution': solution,
+      if (subjectKey != null) 'subject_key': subjectKey,
+      if (questionType != null) 'question_type': questionType,
+      if (sourceLevel != null) 'source_level': sourceLevel,
+      if (sourceLabel != null) 'source_label': sourceLabel,
+      if (year != null) 'year': year,
+      if (region != null) 'region': region,
+      if (difficulty != null) 'difficulty': difficulty,
+      if (difficultySource != null) 'difficulty_source': difficultySource,
+      if (stemFingerprint != null) 'stem_fingerprint': stemFingerprint,
+      if (trapNote != null) 'trap_note': trapNote,
+      if (state != null) 'state': state,
+      if (aiQuality != null) 'ai_quality': aiQuality,
+      if (aiQualityNote != null) 'ai_quality_note': aiQualityNote,
+      if (origin != null) 'origin': origin,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuestionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? stem,
+      Value<String?>? answer,
+      Value<String?>? solution,
+      Value<String>? subjectKey,
+      Value<String>? questionType,
+      Value<String>? sourceLevel,
+      Value<String>? sourceLabel,
+      Value<int?>? year,
+      Value<String?>? region,
+      Value<double?>? difficulty,
+      Value<String?>? difficultySource,
+      Value<String>? stemFingerprint,
+      Value<String?>? trapNote,
+      Value<String>? state,
+      Value<double?>? aiQuality,
+      Value<String?>? aiQualityNote,
+      Value<String>? origin,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return QuestionsCompanion(
+      id: id ?? this.id,
+      stem: stem ?? this.stem,
+      answer: answer ?? this.answer,
+      solution: solution ?? this.solution,
+      subjectKey: subjectKey ?? this.subjectKey,
+      questionType: questionType ?? this.questionType,
+      sourceLevel: sourceLevel ?? this.sourceLevel,
+      sourceLabel: sourceLabel ?? this.sourceLabel,
+      year: year ?? this.year,
+      region: region ?? this.region,
+      difficulty: difficulty ?? this.difficulty,
+      difficultySource: difficultySource ?? this.difficultySource,
+      stemFingerprint: stemFingerprint ?? this.stemFingerprint,
+      trapNote: trapNote ?? this.trapNote,
+      state: state ?? this.state,
+      aiQuality: aiQuality ?? this.aiQuality,
+      aiQualityNote: aiQualityNote ?? this.aiQualityNote,
+      origin: origin ?? this.origin,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (stem.present) {
+      map['stem'] = Variable<String>(stem.value);
+    }
+    if (answer.present) {
+      map['answer'] = Variable<String>(answer.value);
+    }
+    if (solution.present) {
+      map['solution'] = Variable<String>(solution.value);
+    }
+    if (subjectKey.present) {
+      map['subject_key'] = Variable<String>(subjectKey.value);
+    }
+    if (questionType.present) {
+      map['question_type'] = Variable<String>(questionType.value);
+    }
+    if (sourceLevel.present) {
+      map['source_level'] = Variable<String>(sourceLevel.value);
+    }
+    if (sourceLabel.present) {
+      map['source_label'] = Variable<String>(sourceLabel.value);
+    }
+    if (year.present) {
+      map['year'] = Variable<int>(year.value);
+    }
+    if (region.present) {
+      map['region'] = Variable<String>(region.value);
+    }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<double>(difficulty.value);
+    }
+    if (difficultySource.present) {
+      map['difficulty_source'] = Variable<String>(difficultySource.value);
+    }
+    if (stemFingerprint.present) {
+      map['stem_fingerprint'] = Variable<String>(stemFingerprint.value);
+    }
+    if (trapNote.present) {
+      map['trap_note'] = Variable<String>(trapNote.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (aiQuality.present) {
+      map['ai_quality'] = Variable<double>(aiQuality.value);
+    }
+    if (aiQualityNote.present) {
+      map['ai_quality_note'] = Variable<String>(aiQualityNote.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionsCompanion(')
+          ..write('id: $id, ')
+          ..write('stem: $stem, ')
+          ..write('answer: $answer, ')
+          ..write('solution: $solution, ')
+          ..write('subjectKey: $subjectKey, ')
+          ..write('questionType: $questionType, ')
+          ..write('sourceLevel: $sourceLevel, ')
+          ..write('sourceLabel: $sourceLabel, ')
+          ..write('year: $year, ')
+          ..write('region: $region, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('difficultySource: $difficultySource, ')
+          ..write('stemFingerprint: $stemFingerprint, ')
+          ..write('trapNote: $trapNote, ')
+          ..write('state: $state, ')
+          ..write('aiQuality: $aiQuality, ')
+          ..write('aiQualityNote: $aiQualityNote, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $QuestionOptionsTable extends QuestionOptions
+    with TableInfo<$QuestionOptionsTable, QuestionOption> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuestionOptionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _questionIdMeta =
+      const VerificationMeta('questionId');
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+      'question_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _isCorrectMeta =
+      const VerificationMeta('isCorrect');
+  @override
+  late final GeneratedColumn<bool> isCorrect = GeneratedColumn<bool>(
+      'is_correct', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_correct" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, questionId, label, content, isCorrect, sortOrder, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'question_options';
+  @override
+  VerificationContext validateIntegrity(Insertable<QuestionOption> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+          _questionIdMeta,
+          questionId.isAcceptableOrUnknown(
+              data['question_id']!, _questionIdMeta));
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('is_correct')) {
+      context.handle(_isCorrectMeta,
+          isCorrect.isAcceptableOrUnknown(data['is_correct']!, _isCorrectMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuestionOption map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuestionOption(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      questionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}question_id'])!,
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content'])!,
+      isCorrect: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_correct'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $QuestionOptionsTable createAlias(String alias) {
+    return $QuestionOptionsTable(attachedDatabase, alias);
+  }
+}
+
+class QuestionOption extends DataClass implements Insertable<QuestionOption> {
+  final String id;
+  final String questionId;
+  final String label;
+  final String content;
+  final bool isCorrect;
+  final int sortOrder;
+  final int createdAt;
+  const QuestionOption(
+      {required this.id,
+      required this.questionId,
+      required this.label,
+      required this.content,
+      required this.isCorrect,
+      required this.sortOrder,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['question_id'] = Variable<String>(questionId);
+    map['label'] = Variable<String>(label);
+    map['content'] = Variable<String>(content);
+    map['is_correct'] = Variable<bool>(isCorrect);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  QuestionOptionsCompanion toCompanion(bool nullToAbsent) {
+    return QuestionOptionsCompanion(
+      id: Value(id),
+      questionId: Value(questionId),
+      label: Value(label),
+      content: Value(content),
+      isCorrect: Value(isCorrect),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory QuestionOption.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuestionOption(
+      id: serializer.fromJson<String>(json['id']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+      label: serializer.fromJson<String>(json['label']),
+      content: serializer.fromJson<String>(json['content']),
+      isCorrect: serializer.fromJson<bool>(json['isCorrect']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'questionId': serializer.toJson<String>(questionId),
+      'label': serializer.toJson<String>(label),
+      'content': serializer.toJson<String>(content),
+      'isCorrect': serializer.toJson<bool>(isCorrect),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  QuestionOption copyWith(
+          {String? id,
+          String? questionId,
+          String? label,
+          String? content,
+          bool? isCorrect,
+          int? sortOrder,
+          int? createdAt}) =>
+      QuestionOption(
+        id: id ?? this.id,
+        questionId: questionId ?? this.questionId,
+        label: label ?? this.label,
+        content: content ?? this.content,
+        isCorrect: isCorrect ?? this.isCorrect,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  QuestionOption copyWithCompanion(QuestionOptionsCompanion data) {
+    return QuestionOption(
+      id: data.id.present ? data.id.value : this.id,
+      questionId:
+          data.questionId.present ? data.questionId.value : this.questionId,
+      label: data.label.present ? data.label.value : this.label,
+      content: data.content.present ? data.content.value : this.content,
+      isCorrect: data.isCorrect.present ? data.isCorrect.value : this.isCorrect,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionOption(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('label: $label, ')
+          ..write('content: $content, ')
+          ..write('isCorrect: $isCorrect, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, questionId, label, content, isCorrect, sortOrder, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuestionOption &&
+          other.id == this.id &&
+          other.questionId == this.questionId &&
+          other.label == this.label &&
+          other.content == this.content &&
+          other.isCorrect == this.isCorrect &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt);
+}
+
+class QuestionOptionsCompanion extends UpdateCompanion<QuestionOption> {
+  final Value<String> id;
+  final Value<String> questionId;
+  final Value<String> label;
+  final Value<String> content;
+  final Value<bool> isCorrect;
+  final Value<int> sortOrder;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const QuestionOptionsCompanion({
+    this.id = const Value.absent(),
+    this.questionId = const Value.absent(),
+    this.label = const Value.absent(),
+    this.content = const Value.absent(),
+    this.isCorrect = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuestionOptionsCompanion.insert({
+    required String id,
+    required String questionId,
+    required String label,
+    required String content,
+    this.isCorrect = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        questionId = Value(questionId),
+        label = Value(label),
+        content = Value(content),
+        createdAt = Value(createdAt);
+  static Insertable<QuestionOption> custom({
+    Expression<String>? id,
+    Expression<String>? questionId,
+    Expression<String>? label,
+    Expression<String>? content,
+    Expression<bool>? isCorrect,
+    Expression<int>? sortOrder,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (questionId != null) 'question_id': questionId,
+      if (label != null) 'label': label,
+      if (content != null) 'content': content,
+      if (isCorrect != null) 'is_correct': isCorrect,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuestionOptionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? questionId,
+      Value<String>? label,
+      Value<String>? content,
+      Value<bool>? isCorrect,
+      Value<int>? sortOrder,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return QuestionOptionsCompanion(
+      id: id ?? this.id,
+      questionId: questionId ?? this.questionId,
+      label: label ?? this.label,
+      content: content ?? this.content,
+      isCorrect: isCorrect ?? this.isCorrect,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (isCorrect.present) {
+      map['is_correct'] = Variable<bool>(isCorrect.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionOptionsCompanion(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('label: $label, ')
+          ..write('content: $content, ')
+          ..write('isCorrect: $isCorrect, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReasoningChainsTable extends ReasoningChains
+    with TableInfo<$ReasoningChainsTable, ReasoningChain> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReasoningChainsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _questionIdMeta =
+      const VerificationMeta('questionId');
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+      'question_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('ai'));
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+      'model', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _summaryMeta =
+      const VerificationMeta('summary');
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+      'summary', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _stepCountMeta =
+      const VerificationMeta('stepCount');
+  @override
+  late final GeneratedColumn<int> stepCount = GeneratedColumn<int>(
+      'step_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, questionId, source, model, summary, stepCount, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reasoning_chains';
+  @override
+  VerificationContext validateIntegrity(Insertable<ReasoningChain> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+          _questionIdMeta,
+          questionId.isAcceptableOrUnknown(
+              data['question_id']!, _questionIdMeta));
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+          _modelMeta, model.isAcceptableOrUnknown(data['model']!, _modelMeta));
+    }
+    if (data.containsKey('summary')) {
+      context.handle(_summaryMeta,
+          summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta));
+    }
+    if (data.containsKey('step_count')) {
+      context.handle(_stepCountMeta,
+          stepCount.isAcceptableOrUnknown(data['step_count']!, _stepCountMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReasoningChain map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReasoningChain(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      questionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}question_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      model: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}model']),
+      summary: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}summary'])!,
+      stepCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}step_count'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ReasoningChainsTable createAlias(String alias) {
+    return $ReasoningChainsTable(attachedDatabase, alias);
+  }
+}
+
+class ReasoningChain extends DataClass implements Insertable<ReasoningChain> {
+  final String id;
+  final String questionId;
+
+  /// `ai` 模型产出 / `user` 手写录入。
+  final String source;
+
+  /// 哪个模型解的（可空：模型名会变，链本身才是数据）。
+  final String? model;
+
+  /// 整条思路的一句话概括。
+  final String summary;
+
+  /// 步骤数，冗余一份便于列表页不 JOIN。
+  final int stepCount;
+  final int createdAt;
+  const ReasoningChain(
+      {required this.id,
+      required this.questionId,
+      required this.source,
+      this.model,
+      required this.summary,
+      required this.stepCount,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['question_id'] = Variable<String>(questionId);
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
+    map['summary'] = Variable<String>(summary);
+    map['step_count'] = Variable<int>(stepCount);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ReasoningChainsCompanion toCompanion(bool nullToAbsent) {
+    return ReasoningChainsCompanion(
+      id: Value(id),
+      questionId: Value(questionId),
+      source: Value(source),
+      model:
+          model == null && nullToAbsent ? const Value.absent() : Value(model),
+      summary: Value(summary),
+      stepCount: Value(stepCount),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ReasoningChain.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReasoningChain(
+      id: serializer.fromJson<String>(json['id']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+      source: serializer.fromJson<String>(json['source']),
+      model: serializer.fromJson<String?>(json['model']),
+      summary: serializer.fromJson<String>(json['summary']),
+      stepCount: serializer.fromJson<int>(json['stepCount']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'questionId': serializer.toJson<String>(questionId),
+      'source': serializer.toJson<String>(source),
+      'model': serializer.toJson<String?>(model),
+      'summary': serializer.toJson<String>(summary),
+      'stepCount': serializer.toJson<int>(stepCount),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ReasoningChain copyWith(
+          {String? id,
+          String? questionId,
+          String? source,
+          Value<String?> model = const Value.absent(),
+          String? summary,
+          int? stepCount,
+          int? createdAt}) =>
+      ReasoningChain(
+        id: id ?? this.id,
+        questionId: questionId ?? this.questionId,
+        source: source ?? this.source,
+        model: model.present ? model.value : this.model,
+        summary: summary ?? this.summary,
+        stepCount: stepCount ?? this.stepCount,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ReasoningChain copyWithCompanion(ReasoningChainsCompanion data) {
+    return ReasoningChain(
+      id: data.id.present ? data.id.value : this.id,
+      questionId:
+          data.questionId.present ? data.questionId.value : this.questionId,
+      source: data.source.present ? data.source.value : this.source,
+      model: data.model.present ? data.model.value : this.model,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      stepCount: data.stepCount.present ? data.stepCount.value : this.stepCount,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReasoningChain(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('source: $source, ')
+          ..write('model: $model, ')
+          ..write('summary: $summary, ')
+          ..write('stepCount: $stepCount, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, questionId, source, model, summary, stepCount, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReasoningChain &&
+          other.id == this.id &&
+          other.questionId == this.questionId &&
+          other.source == this.source &&
+          other.model == this.model &&
+          other.summary == this.summary &&
+          other.stepCount == this.stepCount &&
+          other.createdAt == this.createdAt);
+}
+
+class ReasoningChainsCompanion extends UpdateCompanion<ReasoningChain> {
+  final Value<String> id;
+  final Value<String> questionId;
+  final Value<String> source;
+  final Value<String?> model;
+  final Value<String> summary;
+  final Value<int> stepCount;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const ReasoningChainsCompanion({
+    this.id = const Value.absent(),
+    this.questionId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.model = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.stepCount = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReasoningChainsCompanion.insert({
+    required String id,
+    required String questionId,
+    this.source = const Value.absent(),
+    this.model = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.stepCount = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        questionId = Value(questionId),
+        createdAt = Value(createdAt);
+  static Insertable<ReasoningChain> custom({
+    Expression<String>? id,
+    Expression<String>? questionId,
+    Expression<String>? source,
+    Expression<String>? model,
+    Expression<String>? summary,
+    Expression<int>? stepCount,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (questionId != null) 'question_id': questionId,
+      if (source != null) 'source': source,
+      if (model != null) 'model': model,
+      if (summary != null) 'summary': summary,
+      if (stepCount != null) 'step_count': stepCount,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReasoningChainsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? questionId,
+      Value<String>? source,
+      Value<String?>? model,
+      Value<String>? summary,
+      Value<int>? stepCount,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return ReasoningChainsCompanion(
+      id: id ?? this.id,
+      questionId: questionId ?? this.questionId,
+      source: source ?? this.source,
+      model: model ?? this.model,
+      summary: summary ?? this.summary,
+      stepCount: stepCount ?? this.stepCount,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (stepCount.present) {
+      map['step_count'] = Variable<int>(stepCount.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReasoningChainsCompanion(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('source: $source, ')
+          ..write('model: $model, ')
+          ..write('summary: $summary, ')
+          ..write('stepCount: $stepCount, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReasoningStepsTable extends ReasoningSteps
+    with TableInfo<$ReasoningStepsTable, ReasoningStep> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReasoningStepsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chainIdMeta =
+      const VerificationMeta('chainId');
+  @override
+  late final GeneratedColumn<String> chainId = GeneratedColumn<String>(
+      'chain_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _idxMeta = const VerificationMeta('idx');
+  @override
+  late final GeneratedColumn<int> idx = GeneratedColumn<int>(
+      'idx', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _goalMeta = const VerificationMeta('goal');
+  @override
+  late final GeneratedColumn<String> goal = GeneratedColumn<String>(
+      'goal', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _actionTypeMeta =
+      const VerificationMeta('actionType');
+  @override
+  late final GeneratedColumn<String> actionType = GeneratedColumn<String>(
+      'action_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('unknown'));
+  static const VerificationMeta _justificationMeta =
+      const VerificationMeta('justification');
+  @override
+  late final GeneratedColumn<String> justification = GeneratedColumn<String>(
+      'justification', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _checkMethodMeta =
+      const VerificationMeta('checkMethod');
+  @override
+  late final GeneratedColumn<String> checkMethod = GeneratedColumn<String>(
+      'check_method', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _stuckRiskMeta =
+      const VerificationMeta('stuckRisk');
+  @override
+  late final GeneratedColumn<double> stuckRisk = GeneratedColumn<double>(
+      'stuck_risk', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _knowledgeHintsMeta =
+      const VerificationMeta('knowledgeHints');
+  @override
+  late final GeneratedColumn<String> knowledgeHints = GeneratedColumn<String>(
+      'knowledge_hints', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chainId,
+        idx,
+        goal,
+        actionType,
+        justification,
+        checkMethod,
+        stuckRisk,
+        knowledgeHints,
+        note,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reasoning_steps';
+  @override
+  VerificationContext validateIntegrity(Insertable<ReasoningStep> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chain_id')) {
+      context.handle(_chainIdMeta,
+          chainId.isAcceptableOrUnknown(data['chain_id']!, _chainIdMeta));
+    } else if (isInserting) {
+      context.missing(_chainIdMeta);
+    }
+    if (data.containsKey('idx')) {
+      context.handle(
+          _idxMeta, idx.isAcceptableOrUnknown(data['idx']!, _idxMeta));
+    } else if (isInserting) {
+      context.missing(_idxMeta);
+    }
+    if (data.containsKey('goal')) {
+      context.handle(
+          _goalMeta, goal.isAcceptableOrUnknown(data['goal']!, _goalMeta));
+    } else if (isInserting) {
+      context.missing(_goalMeta);
+    }
+    if (data.containsKey('action_type')) {
+      context.handle(
+          _actionTypeMeta,
+          actionType.isAcceptableOrUnknown(
+              data['action_type']!, _actionTypeMeta));
+    }
+    if (data.containsKey('justification')) {
+      context.handle(
+          _justificationMeta,
+          justification.isAcceptableOrUnknown(
+              data['justification']!, _justificationMeta));
+    }
+    if (data.containsKey('check_method')) {
+      context.handle(
+          _checkMethodMeta,
+          checkMethod.isAcceptableOrUnknown(
+              data['check_method']!, _checkMethodMeta));
+    }
+    if (data.containsKey('stuck_risk')) {
+      context.handle(_stuckRiskMeta,
+          stuckRisk.isAcceptableOrUnknown(data['stuck_risk']!, _stuckRiskMeta));
+    }
+    if (data.containsKey('knowledge_hints')) {
+      context.handle(
+          _knowledgeHintsMeta,
+          knowledgeHints.isAcceptableOrUnknown(
+              data['knowledge_hints']!, _knowledgeHintsMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReasoningStep map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReasoningStep(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chainId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chain_id'])!,
+      idx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}idx'])!,
+      goal: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}goal'])!,
+      actionType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action_type'])!,
+      justification: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}justification'])!,
+      checkMethod: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}check_method'])!,
+      stuckRisk: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}stuck_risk']),
+      knowledgeHints: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}knowledge_hints'])!,
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ReasoningStepsTable createAlias(String alias) {
+    return $ReasoningStepsTable(attachedDatabase, alias);
+  }
+}
+
+class ReasoningStep extends DataClass implements Insertable<ReasoningStep> {
+  final String id;
+  final String chainId;
+
+  /// 链内序号，从 0 起。
+  final int idx;
+
+  /// 这一步要达成什么。
+  final String goal;
+
+  /// 能力动作 key（词表里的稳定标识，不本地化）。
+  final String actionType;
+
+  /// 为什么这样走。
+  final String justification;
+
+  /// 怎么检验这一步（回代、量纲、极端值……）。
+  final String checkMethod;
+
+  /// AI 判断的卡点风险 0–1：这一步最容易让人掉队的地方。
+  final double? stuckRisk;
+
+  /// 相关知识点 id 的 JSON 数组（文本，避免为多对多加连接表）。
+  final String knowledgeHints;
+
+  /// 用户/评估留下的备注。
+  final String? note;
+  final int createdAt;
+  const ReasoningStep(
+      {required this.id,
+      required this.chainId,
+      required this.idx,
+      required this.goal,
+      required this.actionType,
+      required this.justification,
+      required this.checkMethod,
+      this.stuckRisk,
+      required this.knowledgeHints,
+      this.note,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chain_id'] = Variable<String>(chainId);
+    map['idx'] = Variable<int>(idx);
+    map['goal'] = Variable<String>(goal);
+    map['action_type'] = Variable<String>(actionType);
+    map['justification'] = Variable<String>(justification);
+    map['check_method'] = Variable<String>(checkMethod);
+    if (!nullToAbsent || stuckRisk != null) {
+      map['stuck_risk'] = Variable<double>(stuckRisk);
+    }
+    map['knowledge_hints'] = Variable<String>(knowledgeHints);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ReasoningStepsCompanion toCompanion(bool nullToAbsent) {
+    return ReasoningStepsCompanion(
+      id: Value(id),
+      chainId: Value(chainId),
+      idx: Value(idx),
+      goal: Value(goal),
+      actionType: Value(actionType),
+      justification: Value(justification),
+      checkMethod: Value(checkMethod),
+      stuckRisk: stuckRisk == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stuckRisk),
+      knowledgeHints: Value(knowledgeHints),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ReasoningStep.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReasoningStep(
+      id: serializer.fromJson<String>(json['id']),
+      chainId: serializer.fromJson<String>(json['chainId']),
+      idx: serializer.fromJson<int>(json['idx']),
+      goal: serializer.fromJson<String>(json['goal']),
+      actionType: serializer.fromJson<String>(json['actionType']),
+      justification: serializer.fromJson<String>(json['justification']),
+      checkMethod: serializer.fromJson<String>(json['checkMethod']),
+      stuckRisk: serializer.fromJson<double?>(json['stuckRisk']),
+      knowledgeHints: serializer.fromJson<String>(json['knowledgeHints']),
+      note: serializer.fromJson<String?>(json['note']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chainId': serializer.toJson<String>(chainId),
+      'idx': serializer.toJson<int>(idx),
+      'goal': serializer.toJson<String>(goal),
+      'actionType': serializer.toJson<String>(actionType),
+      'justification': serializer.toJson<String>(justification),
+      'checkMethod': serializer.toJson<String>(checkMethod),
+      'stuckRisk': serializer.toJson<double?>(stuckRisk),
+      'knowledgeHints': serializer.toJson<String>(knowledgeHints),
+      'note': serializer.toJson<String?>(note),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ReasoningStep copyWith(
+          {String? id,
+          String? chainId,
+          int? idx,
+          String? goal,
+          String? actionType,
+          String? justification,
+          String? checkMethod,
+          Value<double?> stuckRisk = const Value.absent(),
+          String? knowledgeHints,
+          Value<String?> note = const Value.absent(),
+          int? createdAt}) =>
+      ReasoningStep(
+        id: id ?? this.id,
+        chainId: chainId ?? this.chainId,
+        idx: idx ?? this.idx,
+        goal: goal ?? this.goal,
+        actionType: actionType ?? this.actionType,
+        justification: justification ?? this.justification,
+        checkMethod: checkMethod ?? this.checkMethod,
+        stuckRisk: stuckRisk.present ? stuckRisk.value : this.stuckRisk,
+        knowledgeHints: knowledgeHints ?? this.knowledgeHints,
+        note: note.present ? note.value : this.note,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ReasoningStep copyWithCompanion(ReasoningStepsCompanion data) {
+    return ReasoningStep(
+      id: data.id.present ? data.id.value : this.id,
+      chainId: data.chainId.present ? data.chainId.value : this.chainId,
+      idx: data.idx.present ? data.idx.value : this.idx,
+      goal: data.goal.present ? data.goal.value : this.goal,
+      actionType:
+          data.actionType.present ? data.actionType.value : this.actionType,
+      justification: data.justification.present
+          ? data.justification.value
+          : this.justification,
+      checkMethod:
+          data.checkMethod.present ? data.checkMethod.value : this.checkMethod,
+      stuckRisk: data.stuckRisk.present ? data.stuckRisk.value : this.stuckRisk,
+      knowledgeHints: data.knowledgeHints.present
+          ? data.knowledgeHints.value
+          : this.knowledgeHints,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReasoningStep(')
+          ..write('id: $id, ')
+          ..write('chainId: $chainId, ')
+          ..write('idx: $idx, ')
+          ..write('goal: $goal, ')
+          ..write('actionType: $actionType, ')
+          ..write('justification: $justification, ')
+          ..write('checkMethod: $checkMethod, ')
+          ..write('stuckRisk: $stuckRisk, ')
+          ..write('knowledgeHints: $knowledgeHints, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chainId, idx, goal, actionType,
+      justification, checkMethod, stuckRisk, knowledgeHints, note, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReasoningStep &&
+          other.id == this.id &&
+          other.chainId == this.chainId &&
+          other.idx == this.idx &&
+          other.goal == this.goal &&
+          other.actionType == this.actionType &&
+          other.justification == this.justification &&
+          other.checkMethod == this.checkMethod &&
+          other.stuckRisk == this.stuckRisk &&
+          other.knowledgeHints == this.knowledgeHints &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt);
+}
+
+class ReasoningStepsCompanion extends UpdateCompanion<ReasoningStep> {
+  final Value<String> id;
+  final Value<String> chainId;
+  final Value<int> idx;
+  final Value<String> goal;
+  final Value<String> actionType;
+  final Value<String> justification;
+  final Value<String> checkMethod;
+  final Value<double?> stuckRisk;
+  final Value<String> knowledgeHints;
+  final Value<String?> note;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const ReasoningStepsCompanion({
+    this.id = const Value.absent(),
+    this.chainId = const Value.absent(),
+    this.idx = const Value.absent(),
+    this.goal = const Value.absent(),
+    this.actionType = const Value.absent(),
+    this.justification = const Value.absent(),
+    this.checkMethod = const Value.absent(),
+    this.stuckRisk = const Value.absent(),
+    this.knowledgeHints = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReasoningStepsCompanion.insert({
+    required String id,
+    required String chainId,
+    required int idx,
+    required String goal,
+    this.actionType = const Value.absent(),
+    this.justification = const Value.absent(),
+    this.checkMethod = const Value.absent(),
+    this.stuckRisk = const Value.absent(),
+    this.knowledgeHints = const Value.absent(),
+    this.note = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chainId = Value(chainId),
+        idx = Value(idx),
+        goal = Value(goal),
+        createdAt = Value(createdAt);
+  static Insertable<ReasoningStep> custom({
+    Expression<String>? id,
+    Expression<String>? chainId,
+    Expression<int>? idx,
+    Expression<String>? goal,
+    Expression<String>? actionType,
+    Expression<String>? justification,
+    Expression<String>? checkMethod,
+    Expression<double>? stuckRisk,
+    Expression<String>? knowledgeHints,
+    Expression<String>? note,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chainId != null) 'chain_id': chainId,
+      if (idx != null) 'idx': idx,
+      if (goal != null) 'goal': goal,
+      if (actionType != null) 'action_type': actionType,
+      if (justification != null) 'justification': justification,
+      if (checkMethod != null) 'check_method': checkMethod,
+      if (stuckRisk != null) 'stuck_risk': stuckRisk,
+      if (knowledgeHints != null) 'knowledge_hints': knowledgeHints,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReasoningStepsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chainId,
+      Value<int>? idx,
+      Value<String>? goal,
+      Value<String>? actionType,
+      Value<String>? justification,
+      Value<String>? checkMethod,
+      Value<double?>? stuckRisk,
+      Value<String>? knowledgeHints,
+      Value<String?>? note,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return ReasoningStepsCompanion(
+      id: id ?? this.id,
+      chainId: chainId ?? this.chainId,
+      idx: idx ?? this.idx,
+      goal: goal ?? this.goal,
+      actionType: actionType ?? this.actionType,
+      justification: justification ?? this.justification,
+      checkMethod: checkMethod ?? this.checkMethod,
+      stuckRisk: stuckRisk ?? this.stuckRisk,
+      knowledgeHints: knowledgeHints ?? this.knowledgeHints,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chainId.present) {
+      map['chain_id'] = Variable<String>(chainId.value);
+    }
+    if (idx.present) {
+      map['idx'] = Variable<int>(idx.value);
+    }
+    if (goal.present) {
+      map['goal'] = Variable<String>(goal.value);
+    }
+    if (actionType.present) {
+      map['action_type'] = Variable<String>(actionType.value);
+    }
+    if (justification.present) {
+      map['justification'] = Variable<String>(justification.value);
+    }
+    if (checkMethod.present) {
+      map['check_method'] = Variable<String>(checkMethod.value);
+    }
+    if (stuckRisk.present) {
+      map['stuck_risk'] = Variable<double>(stuckRisk.value);
+    }
+    if (knowledgeHints.present) {
+      map['knowledge_hints'] = Variable<String>(knowledgeHints.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReasoningStepsCompanion(')
+          ..write('id: $id, ')
+          ..write('chainId: $chainId, ')
+          ..write('idx: $idx, ')
+          ..write('goal: $goal, ')
+          ..write('actionType: $actionType, ')
+          ..write('justification: $justification, ')
+          ..write('checkMethod: $checkMethod, ')
+          ..write('stuckRisk: $stuckRisk, ')
+          ..write('knowledgeHints: $knowledgeHints, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -16701,6 +19003,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AssessmentResponsesTable(this);
   late final $CognitivePriorsTable cognitivePriors =
       $CognitivePriorsTable(this);
+  late final $QuestionsTable questions = $QuestionsTable(this);
+  late final $QuestionOptionsTable questionOptions =
+      $QuestionOptionsTable(this);
+  late final $ReasoningChainsTable reasoningChains =
+      $ReasoningChainsTable(this);
+  late final $ReasoningStepsTable reasoningSteps = $ReasoningStepsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -16740,7 +19048,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         reviewGroupPlans,
         assessmentSessions,
         assessmentResponses,
-        cognitivePriors
+        cognitivePriors,
+        questions,
+        questionOptions,
+        reasoningChains,
+        reasoningSteps
       ];
 }
 
@@ -24721,6 +27033,1077 @@ typedef $$CognitivePriorsTableProcessedTableManager = ProcessedTableManager<
     ),
     CognitivePrior,
     PrefetchHooks Function()>;
+typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
+  required String id,
+  required String stem,
+  Value<String?> answer,
+  Value<String?> solution,
+  Value<String> subjectKey,
+  Value<String> questionType,
+  Value<String> sourceLevel,
+  Value<String> sourceLabel,
+  Value<int?> year,
+  Value<String?> region,
+  Value<double?> difficulty,
+  Value<String?> difficultySource,
+  Value<String> stemFingerprint,
+  Value<String?> trapNote,
+  Value<String> state,
+  Value<double?> aiQuality,
+  Value<String?> aiQualityNote,
+  Value<String> origin,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$QuestionsTableUpdateCompanionBuilder = QuestionsCompanion Function({
+  Value<String> id,
+  Value<String> stem,
+  Value<String?> answer,
+  Value<String?> solution,
+  Value<String> subjectKey,
+  Value<String> questionType,
+  Value<String> sourceLevel,
+  Value<String> sourceLabel,
+  Value<int?> year,
+  Value<String?> region,
+  Value<double?> difficulty,
+  Value<String?> difficultySource,
+  Value<String> stemFingerprint,
+  Value<String?> trapNote,
+  Value<String> state,
+  Value<double?> aiQuality,
+  Value<String?> aiQualityNote,
+  Value<String> origin,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$QuestionsTableFilterComposer
+    extends Composer<_$AppDatabase, $QuestionsTable> {
+  $$QuestionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stem => $composableBuilder(
+      column: $table.stem, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get answer => $composableBuilder(
+      column: $table.answer, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get solution => $composableBuilder(
+      column: $table.solution, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get questionType => $composableBuilder(
+      column: $table.questionType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceLevel => $composableBuilder(
+      column: $table.sourceLevel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceLabel => $composableBuilder(
+      column: $table.sourceLabel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get year => $composableBuilder(
+      column: $table.year, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get region => $composableBuilder(
+      column: $table.region, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get difficultySource => $composableBuilder(
+      column: $table.difficultySource,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stemFingerprint => $composableBuilder(
+      column: $table.stemFingerprint,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get trapNote => $composableBuilder(
+      column: $table.trapNote, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get aiQuality => $composableBuilder(
+      column: $table.aiQuality, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiQualityNote => $composableBuilder(
+      column: $table.aiQualityNote, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$QuestionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuestionsTable> {
+  $$QuestionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stem => $composableBuilder(
+      column: $table.stem, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get answer => $composableBuilder(
+      column: $table.answer, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get solution => $composableBuilder(
+      column: $table.solution, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get questionType => $composableBuilder(
+      column: $table.questionType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceLevel => $composableBuilder(
+      column: $table.sourceLevel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceLabel => $composableBuilder(
+      column: $table.sourceLabel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get year => $composableBuilder(
+      column: $table.year, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get region => $composableBuilder(
+      column: $table.region, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get difficultySource => $composableBuilder(
+      column: $table.difficultySource,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stemFingerprint => $composableBuilder(
+      column: $table.stemFingerprint,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get trapNote => $composableBuilder(
+      column: $table.trapNote, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get aiQuality => $composableBuilder(
+      column: $table.aiQuality, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiQualityNote => $composableBuilder(
+      column: $table.aiQualityNote,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$QuestionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuestionsTable> {
+  $$QuestionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get stem =>
+      $composableBuilder(column: $table.stem, builder: (column) => column);
+
+  GeneratedColumn<String> get answer =>
+      $composableBuilder(column: $table.answer, builder: (column) => column);
+
+  GeneratedColumn<String> get solution =>
+      $composableBuilder(column: $table.solution, builder: (column) => column);
+
+  GeneratedColumn<String> get subjectKey => $composableBuilder(
+      column: $table.subjectKey, builder: (column) => column);
+
+  GeneratedColumn<String> get questionType => $composableBuilder(
+      column: $table.questionType, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceLevel => $composableBuilder(
+      column: $table.sourceLevel, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceLabel => $composableBuilder(
+      column: $table.sourceLabel, builder: (column) => column);
+
+  GeneratedColumn<int> get year =>
+      $composableBuilder(column: $table.year, builder: (column) => column);
+
+  GeneratedColumn<String> get region =>
+      $composableBuilder(column: $table.region, builder: (column) => column);
+
+  GeneratedColumn<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => column);
+
+  GeneratedColumn<String> get difficultySource => $composableBuilder(
+      column: $table.difficultySource, builder: (column) => column);
+
+  GeneratedColumn<String> get stemFingerprint => $composableBuilder(
+      column: $table.stemFingerprint, builder: (column) => column);
+
+  GeneratedColumn<String> get trapNote =>
+      $composableBuilder(column: $table.trapNote, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<double> get aiQuality =>
+      $composableBuilder(column: $table.aiQuality, builder: (column) => column);
+
+  GeneratedColumn<String> get aiQualityNote => $composableBuilder(
+      column: $table.aiQualityNote, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$QuestionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $QuestionsTable,
+    Question,
+    $$QuestionsTableFilterComposer,
+    $$QuestionsTableOrderingComposer,
+    $$QuestionsTableAnnotationComposer,
+    $$QuestionsTableCreateCompanionBuilder,
+    $$QuestionsTableUpdateCompanionBuilder,
+    (Question, BaseReferences<_$AppDatabase, $QuestionsTable, Question>),
+    Question,
+    PrefetchHooks Function()> {
+  $$QuestionsTableTableManager(_$AppDatabase db, $QuestionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuestionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuestionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuestionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> stem = const Value.absent(),
+            Value<String?> answer = const Value.absent(),
+            Value<String?> solution = const Value.absent(),
+            Value<String> subjectKey = const Value.absent(),
+            Value<String> questionType = const Value.absent(),
+            Value<String> sourceLevel = const Value.absent(),
+            Value<String> sourceLabel = const Value.absent(),
+            Value<int?> year = const Value.absent(),
+            Value<String?> region = const Value.absent(),
+            Value<double?> difficulty = const Value.absent(),
+            Value<String?> difficultySource = const Value.absent(),
+            Value<String> stemFingerprint = const Value.absent(),
+            Value<String?> trapNote = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<double?> aiQuality = const Value.absent(),
+            Value<String?> aiQualityNote = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionsCompanion(
+            id: id,
+            stem: stem,
+            answer: answer,
+            solution: solution,
+            subjectKey: subjectKey,
+            questionType: questionType,
+            sourceLevel: sourceLevel,
+            sourceLabel: sourceLabel,
+            year: year,
+            region: region,
+            difficulty: difficulty,
+            difficultySource: difficultySource,
+            stemFingerprint: stemFingerprint,
+            trapNote: trapNote,
+            state: state,
+            aiQuality: aiQuality,
+            aiQualityNote: aiQualityNote,
+            origin: origin,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String stem,
+            Value<String?> answer = const Value.absent(),
+            Value<String?> solution = const Value.absent(),
+            Value<String> subjectKey = const Value.absent(),
+            Value<String> questionType = const Value.absent(),
+            Value<String> sourceLevel = const Value.absent(),
+            Value<String> sourceLabel = const Value.absent(),
+            Value<int?> year = const Value.absent(),
+            Value<String?> region = const Value.absent(),
+            Value<double?> difficulty = const Value.absent(),
+            Value<String?> difficultySource = const Value.absent(),
+            Value<String> stemFingerprint = const Value.absent(),
+            Value<String?> trapNote = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<double?> aiQuality = const Value.absent(),
+            Value<String?> aiQualityNote = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionsCompanion.insert(
+            id: id,
+            stem: stem,
+            answer: answer,
+            solution: solution,
+            subjectKey: subjectKey,
+            questionType: questionType,
+            sourceLevel: sourceLevel,
+            sourceLabel: sourceLabel,
+            year: year,
+            region: region,
+            difficulty: difficulty,
+            difficultySource: difficultySource,
+            stemFingerprint: stemFingerprint,
+            trapNote: trapNote,
+            state: state,
+            aiQuality: aiQuality,
+            aiQualityNote: aiQualityNote,
+            origin: origin,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$QuestionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $QuestionsTable,
+    Question,
+    $$QuestionsTableFilterComposer,
+    $$QuestionsTableOrderingComposer,
+    $$QuestionsTableAnnotationComposer,
+    $$QuestionsTableCreateCompanionBuilder,
+    $$QuestionsTableUpdateCompanionBuilder,
+    (Question, BaseReferences<_$AppDatabase, $QuestionsTable, Question>),
+    Question,
+    PrefetchHooks Function()>;
+typedef $$QuestionOptionsTableCreateCompanionBuilder = QuestionOptionsCompanion
+    Function({
+  required String id,
+  required String questionId,
+  required String label,
+  required String content,
+  Value<bool> isCorrect,
+  Value<int> sortOrder,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$QuestionOptionsTableUpdateCompanionBuilder = QuestionOptionsCompanion
+    Function({
+  Value<String> id,
+  Value<String> questionId,
+  Value<String> label,
+  Value<String> content,
+  Value<bool> isCorrect,
+  Value<int> sortOrder,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$QuestionOptionsTableFilterComposer
+    extends Composer<_$AppDatabase, $QuestionOptionsTable> {
+  $$QuestionOptionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isCorrect => $composableBuilder(
+      column: $table.isCorrect, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$QuestionOptionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuestionOptionsTable> {
+  $$QuestionOptionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isCorrect => $composableBuilder(
+      column: $table.isCorrect, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$QuestionOptionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuestionOptionsTable> {
+  $$QuestionOptionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCorrect =>
+      $composableBuilder(column: $table.isCorrect, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$QuestionOptionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $QuestionOptionsTable,
+    QuestionOption,
+    $$QuestionOptionsTableFilterComposer,
+    $$QuestionOptionsTableOrderingComposer,
+    $$QuestionOptionsTableAnnotationComposer,
+    $$QuestionOptionsTableCreateCompanionBuilder,
+    $$QuestionOptionsTableUpdateCompanionBuilder,
+    (
+      QuestionOption,
+      BaseReferences<_$AppDatabase, $QuestionOptionsTable, QuestionOption>
+    ),
+    QuestionOption,
+    PrefetchHooks Function()> {
+  $$QuestionOptionsTableTableManager(
+      _$AppDatabase db, $QuestionOptionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuestionOptionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuestionOptionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuestionOptionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> questionId = const Value.absent(),
+            Value<String> label = const Value.absent(),
+            Value<String> content = const Value.absent(),
+            Value<bool> isCorrect = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionOptionsCompanion(
+            id: id,
+            questionId: questionId,
+            label: label,
+            content: content,
+            isCorrect: isCorrect,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String questionId,
+            required String label,
+            required String content,
+            Value<bool> isCorrect = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionOptionsCompanion.insert(
+            id: id,
+            questionId: questionId,
+            label: label,
+            content: content,
+            isCorrect: isCorrect,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$QuestionOptionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $QuestionOptionsTable,
+    QuestionOption,
+    $$QuestionOptionsTableFilterComposer,
+    $$QuestionOptionsTableOrderingComposer,
+    $$QuestionOptionsTableAnnotationComposer,
+    $$QuestionOptionsTableCreateCompanionBuilder,
+    $$QuestionOptionsTableUpdateCompanionBuilder,
+    (
+      QuestionOption,
+      BaseReferences<_$AppDatabase, $QuestionOptionsTable, QuestionOption>
+    ),
+    QuestionOption,
+    PrefetchHooks Function()>;
+typedef $$ReasoningChainsTableCreateCompanionBuilder = ReasoningChainsCompanion
+    Function({
+  required String id,
+  required String questionId,
+  Value<String> source,
+  Value<String?> model,
+  Value<String> summary,
+  Value<int> stepCount,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$ReasoningChainsTableUpdateCompanionBuilder = ReasoningChainsCompanion
+    Function({
+  Value<String> id,
+  Value<String> questionId,
+  Value<String> source,
+  Value<String?> model,
+  Value<String> summary,
+  Value<int> stepCount,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$ReasoningChainsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReasoningChainsTable> {
+  $$ReasoningChainsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get model => $composableBuilder(
+      column: $table.model, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get summary => $composableBuilder(
+      column: $table.summary, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get stepCount => $composableBuilder(
+      column: $table.stepCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReasoningChainsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReasoningChainsTable> {
+  $$ReasoningChainsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get model => $composableBuilder(
+      column: $table.model, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+      column: $table.summary, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get stepCount => $composableBuilder(
+      column: $table.stepCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReasoningChainsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReasoningChainsTable> {
+  $$ReasoningChainsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<int> get stepCount =>
+      $composableBuilder(column: $table.stepCount, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ReasoningChainsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ReasoningChainsTable,
+    ReasoningChain,
+    $$ReasoningChainsTableFilterComposer,
+    $$ReasoningChainsTableOrderingComposer,
+    $$ReasoningChainsTableAnnotationComposer,
+    $$ReasoningChainsTableCreateCompanionBuilder,
+    $$ReasoningChainsTableUpdateCompanionBuilder,
+    (
+      ReasoningChain,
+      BaseReferences<_$AppDatabase, $ReasoningChainsTable, ReasoningChain>
+    ),
+    ReasoningChain,
+    PrefetchHooks Function()> {
+  $$ReasoningChainsTableTableManager(
+      _$AppDatabase db, $ReasoningChainsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReasoningChainsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReasoningChainsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReasoningChainsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> questionId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String?> model = const Value.absent(),
+            Value<String> summary = const Value.absent(),
+            Value<int> stepCount = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReasoningChainsCompanion(
+            id: id,
+            questionId: questionId,
+            source: source,
+            model: model,
+            summary: summary,
+            stepCount: stepCount,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String questionId,
+            Value<String> source = const Value.absent(),
+            Value<String?> model = const Value.absent(),
+            Value<String> summary = const Value.absent(),
+            Value<int> stepCount = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReasoningChainsCompanion.insert(
+            id: id,
+            questionId: questionId,
+            source: source,
+            model: model,
+            summary: summary,
+            stepCount: stepCount,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReasoningChainsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ReasoningChainsTable,
+    ReasoningChain,
+    $$ReasoningChainsTableFilterComposer,
+    $$ReasoningChainsTableOrderingComposer,
+    $$ReasoningChainsTableAnnotationComposer,
+    $$ReasoningChainsTableCreateCompanionBuilder,
+    $$ReasoningChainsTableUpdateCompanionBuilder,
+    (
+      ReasoningChain,
+      BaseReferences<_$AppDatabase, $ReasoningChainsTable, ReasoningChain>
+    ),
+    ReasoningChain,
+    PrefetchHooks Function()>;
+typedef $$ReasoningStepsTableCreateCompanionBuilder = ReasoningStepsCompanion
+    Function({
+  required String id,
+  required String chainId,
+  required int idx,
+  required String goal,
+  Value<String> actionType,
+  Value<String> justification,
+  Value<String> checkMethod,
+  Value<double?> stuckRisk,
+  Value<String> knowledgeHints,
+  Value<String?> note,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$ReasoningStepsTableUpdateCompanionBuilder = ReasoningStepsCompanion
+    Function({
+  Value<String> id,
+  Value<String> chainId,
+  Value<int> idx,
+  Value<String> goal,
+  Value<String> actionType,
+  Value<String> justification,
+  Value<String> checkMethod,
+  Value<double?> stuckRisk,
+  Value<String> knowledgeHints,
+  Value<String?> note,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$ReasoningStepsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReasoningStepsTable> {
+  $$ReasoningStepsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chainId => $composableBuilder(
+      column: $table.chainId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get idx => $composableBuilder(
+      column: $table.idx, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get goal => $composableBuilder(
+      column: $table.goal, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get justification => $composableBuilder(
+      column: $table.justification, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get stuckRisk => $composableBuilder(
+      column: $table.stuckRisk, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get knowledgeHints => $composableBuilder(
+      column: $table.knowledgeHints,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReasoningStepsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReasoningStepsTable> {
+  $$ReasoningStepsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chainId => $composableBuilder(
+      column: $table.chainId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get idx => $composableBuilder(
+      column: $table.idx, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get goal => $composableBuilder(
+      column: $table.goal, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get justification => $composableBuilder(
+      column: $table.justification,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get stuckRisk => $composableBuilder(
+      column: $table.stuckRisk, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get knowledgeHints => $composableBuilder(
+      column: $table.knowledgeHints,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReasoningStepsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReasoningStepsTable> {
+  $$ReasoningStepsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chainId =>
+      $composableBuilder(column: $table.chainId, builder: (column) => column);
+
+  GeneratedColumn<int> get idx =>
+      $composableBuilder(column: $table.idx, builder: (column) => column);
+
+  GeneratedColumn<String> get goal =>
+      $composableBuilder(column: $table.goal, builder: (column) => column);
+
+  GeneratedColumn<String> get actionType => $composableBuilder(
+      column: $table.actionType, builder: (column) => column);
+
+  GeneratedColumn<String> get justification => $composableBuilder(
+      column: $table.justification, builder: (column) => column);
+
+  GeneratedColumn<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => column);
+
+  GeneratedColumn<double> get stuckRisk =>
+      $composableBuilder(column: $table.stuckRisk, builder: (column) => column);
+
+  GeneratedColumn<String> get knowledgeHints => $composableBuilder(
+      column: $table.knowledgeHints, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ReasoningStepsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ReasoningStepsTable,
+    ReasoningStep,
+    $$ReasoningStepsTableFilterComposer,
+    $$ReasoningStepsTableOrderingComposer,
+    $$ReasoningStepsTableAnnotationComposer,
+    $$ReasoningStepsTableCreateCompanionBuilder,
+    $$ReasoningStepsTableUpdateCompanionBuilder,
+    (
+      ReasoningStep,
+      BaseReferences<_$AppDatabase, $ReasoningStepsTable, ReasoningStep>
+    ),
+    ReasoningStep,
+    PrefetchHooks Function()> {
+  $$ReasoningStepsTableTableManager(
+      _$AppDatabase db, $ReasoningStepsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReasoningStepsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReasoningStepsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReasoningStepsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chainId = const Value.absent(),
+            Value<int> idx = const Value.absent(),
+            Value<String> goal = const Value.absent(),
+            Value<String> actionType = const Value.absent(),
+            Value<String> justification = const Value.absent(),
+            Value<String> checkMethod = const Value.absent(),
+            Value<double?> stuckRisk = const Value.absent(),
+            Value<String> knowledgeHints = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReasoningStepsCompanion(
+            id: id,
+            chainId: chainId,
+            idx: idx,
+            goal: goal,
+            actionType: actionType,
+            justification: justification,
+            checkMethod: checkMethod,
+            stuckRisk: stuckRisk,
+            knowledgeHints: knowledgeHints,
+            note: note,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chainId,
+            required int idx,
+            required String goal,
+            Value<String> actionType = const Value.absent(),
+            Value<String> justification = const Value.absent(),
+            Value<String> checkMethod = const Value.absent(),
+            Value<double?> stuckRisk = const Value.absent(),
+            Value<String> knowledgeHints = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ReasoningStepsCompanion.insert(
+            id: id,
+            chainId: chainId,
+            idx: idx,
+            goal: goal,
+            actionType: actionType,
+            justification: justification,
+            checkMethod: checkMethod,
+            stuckRisk: stuckRisk,
+            knowledgeHints: knowledgeHints,
+            note: note,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReasoningStepsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ReasoningStepsTable,
+    ReasoningStep,
+    $$ReasoningStepsTableFilterComposer,
+    $$ReasoningStepsTableOrderingComposer,
+    $$ReasoningStepsTableAnnotationComposer,
+    $$ReasoningStepsTableCreateCompanionBuilder,
+    $$ReasoningStepsTableUpdateCompanionBuilder,
+    (
+      ReasoningStep,
+      BaseReferences<_$AppDatabase, $ReasoningStepsTable, ReasoningStep>
+    ),
+    ReasoningStep,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -24794,4 +28177,12 @@ class $AppDatabaseManager {
       $$AssessmentResponsesTableTableManager(_db, _db.assessmentResponses);
   $$CognitivePriorsTableTableManager get cognitivePriors =>
       $$CognitivePriorsTableTableManager(_db, _db.cognitivePriors);
+  $$QuestionsTableTableManager get questions =>
+      $$QuestionsTableTableManager(_db, _db.questions);
+  $$QuestionOptionsTableTableManager get questionOptions =>
+      $$QuestionOptionsTableTableManager(_db, _db.questionOptions);
+  $$ReasoningChainsTableTableManager get reasoningChains =>
+      $$ReasoningChainsTableTableManager(_db, _db.reasoningChains);
+  $$ReasoningStepsTableTableManager get reasoningSteps =>
+      $$ReasoningStepsTableTableManager(_db, _db.reasoningSteps);
 }

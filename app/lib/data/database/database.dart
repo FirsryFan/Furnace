@@ -56,6 +56,11 @@ part 'database.g.dart';
     AssessmentSessions,
     AssessmentResponses,
     CognitivePriors,
+    // v12 (question bank + reasoning layer, docs/QUESTION_BANK_DESIGN.md)
+    Questions,
+    QuestionOptions,
+    ReasoningChains,
+    ReasoningSteps,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -68,11 +73,13 @@ class AppDatabase extends _$AppDatabase {
   /// plus the two review-preference columns; v8 adds the per-group daily plan
   /// table; v9 adds the two failure-feedback columns on `review_logs`; v10 adds
   /// the three assessment tables (`docs/ASSESSMENT_DESIGN.md` §5); v11 adds the
-  /// pre-review prediction column on `review_logs` (M6 calibration). See
-  /// [_upgradeV6ToV7] / [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
-  /// [_upgradeV10ToV11].
+  /// pre-review prediction column on `review_logs` (M6 calibration); v12 adds
+  /// the question bank and the reasoning-chain tables
+  /// (`docs/QUESTION_BANK_DESIGN.md` §1/§3). See [_upgradeV6ToV7] /
+  /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
+  /// [_upgradeV10ToV11] / [_upgradeV11ToV12].
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -110,6 +117,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 11) {
           await _upgradeV10ToV11();
+        }
+        if (from < 12) {
+          await _upgradeV11ToV12();
         }
       },
       beforeOpen: (details) async {
@@ -193,6 +203,20 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('cognitive_priors')) {
       await m.createTable(cognitivePriors);
+    }
+    // v12's four tables heal the same way. A file stamped v12 whose tables are
+    // missing would fail every 组卷/推理 read with "no such table".
+    if (!await _tableExists('questions')) {
+      await m.createTable(questions);
+    }
+    if (!await _tableExists('question_options')) {
+      await m.createTable(questionOptions);
+    }
+    if (!await _tableExists('reasoning_chains')) {
+      await m.createTable(reasoningChains);
+    }
+    if (!await _tableExists('reasoning_steps')) {
+      await m.createTable(reasoningSteps);
     }
   }
 
@@ -351,10 +375,35 @@ class AppDatabase extends _$AppDatabase {
     if (!await _tableExists('review_logs')) {
       return;
     }
-    await _addColumnIfMissing(Migrator(this), 'review_logs', reviewLogs.predictedR);
+    await _addColumnIfMissing(
+        Migrator(this), 'review_logs', reviewLogs.predictedR);
   }
 
-  Future<void> _upgradeV4ToV5() async {    if (!await _tableExists('time_view_settings')) {
+  /// v11 -> v12: the question bank and the reasoning layer
+  /// (`docs/QUESTION_BANK_DESIGN.md`).
+  ///
+  /// Four new tables, nothing touched on existing ones: questions and their
+  /// options are append-only user data, the chains and steps are derived data
+  /// that the AI can regenerate. Existence-probed so the v1 -> v12 path (where
+  /// `createAll` already emitted the current schema) is a no-op.
+  Future<void> _upgradeV11ToV12() async {
+    final m = Migrator(this);
+    if (!await _tableExists('questions')) {
+      await m.createTable(questions);
+    }
+    if (!await _tableExists('question_options')) {
+      await m.createTable(questionOptions);
+    }
+    if (!await _tableExists('reasoning_chains')) {
+      await m.createTable(reasoningChains);
+    }
+    if (!await _tableExists('reasoning_steps')) {
+      await m.createTable(reasoningSteps);
+    }
+  }
+
+  Future<void> _upgradeV4ToV5() async {
+    if (!await _tableExists('time_view_settings')) {
       return;
     }
     // A database whose time_view_settings was created from the pre-v5 schema
@@ -794,7 +843,8 @@ File resolveDatabaseFileForTest(
 ///
 /// A candidate only counts when it actually holds a database, so an empty
 /// leftover directory never hijacks a fresh install.
-File? _firstLegacyDirectoryOutside(Directory current, [String? applicationDataDir]) {
+File? _firstLegacyDirectoryOutside(Directory current,
+    [String? applicationDataDir]) {
   final appData = applicationDataDir ?? Platform.environment['APPDATA'];
   final candidates = <String>[
     if (appData != null && appData.isNotEmpty)

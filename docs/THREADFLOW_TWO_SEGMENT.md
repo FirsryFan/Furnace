@@ -1,0 +1,196 @@
+# ThreadFlow 两段式：算法段 A 与 MindNet 段 B 的边界
+
+状态：段 B 已实现并测试通过（见文末「证据」）。
+代码：`app/lib/domain/services/scheduling/domain_balance.dart`
+测试：`app/test/domain/services/scheduling/domain_balance_test.dart`
+
+## 1. 为什么要分两段
+
+业主对 MindNet（认知模型）在**任务排序**里的职责定义得很窄：
+
+> 给一段时间，决定**做什么最有效**，并**把工作量摊到各个学科**。
+
+而下面这些问题被明确划给"普通算法"，**不允许** MindNet 参与：
+
+| 问题 | 归属 | 现成实现 |
+| --- | --- | --- |
+| 哪些时间窗可用 | 算法 | `app/lib/domain/services/scheduling/time_window_engine.dart` |
+| 时长够不够（estimate 塞不进 deadline 前） | 算法 | `app/lib/domain/services/scheduling/thread_ranker.dart:286-291` |
+| 截止时间是否已过 | 算法 | `app/lib/domain/services/scheduling/thread_ranker.dart:268-277` |
+| 是否被忙碌块占用 | 算法 | `app/lib/domain/services/scheduling/thread_ranker.dart:279-284` |
+| 该不该做它、先做哪个、各科怎么分配 | MindNet 语义 | `app/lib/domain/services/scheduling/domain_balance.dart` |
+
+所以本仓库里排序被拆成两段，**段 B 只吃段 A 的可行输出**：
+
+```
+RankEvent + RankContext
+        │
+        ▼
+【段 A】ThreadRanker.rank(...)            ← 纯算法，硬约束（红名单）
+        │  RankOutput{ ready, insufficient, overdue }
+        ▼
+   ready（可行候选）
+        │
+        ▼
+【段 B】DomainBalanceRanker.rank(...)     ← 语义段：有效性 + 学科均衡 + 中文理由
+        │  DomainBalanceOutput{ ranked, insufficient, overdue, domainQuota }
+        ▼
+   BalancedTask{ taskId, score, reasonZh, domainKey, balanceNote, ... }
+```
+
+关键点：**段 B 不能把红名单捞回来**。一个任务即便处在危险区，只要它塞不进
+deadline（段 A 判 `insufficient`），它就不会出现在 `ranked` 里；`insufficient`
+与 `overdue` 两个桶由段 B 原样带出（`domain_balance.dart` 里
+`DomainBalanceRanker.feasible` 直接转调 `ThreadRanker.rank`，**不复制、不覆盖**
+其逻辑）。
+
+## 2. 调用契约（UI / service 层要调的函数）
+
+```dart
+DomainBalanceOutput DomainBalanceRanker.rank({
+  required List<RankEvent> events,              // 同 thread_ranker.dart 的输入类型
+  required RankContext context,                 // now / energy / blocks / goal / weights
+  Map<String, List<String>> taskKnowledgePoints = const {}, // taskId -> 知识点 id
+  List<KnowledgePointReading> readings = const [],          // 危险区/发展区/先验
+  List<DomainTag> tags = const [],              // Tags 树（纯数据）
+  List<TaskTagLink> taskTagLinks = const [],    // ObjectTags 链接（objectType=='task'）
+  DomainBalanceWeights weights = const DomainBalanceWeights(),
+  EffectivenessTuning tuning = const EffectivenessTuning(),
+  int? windowSlots,                             // 本窗口能装几个任务（可空）
+  Map<String, int> explicitQuotas = const {},   // 按学科显式配额（正数才生效）
+});
+```
+
+返回值：
+
+```dart
+class DomainBalanceOutput {
+  final List<BalancedTask> ranked;   // 推荐顺序（贪心选择顺序，不一定等于 score 降序）
+  final List<RankedEvent> insufficient; // 段 A 红名单：塞不进 deadline
+  final List<RankedEvent> overdue;      // 段 A 红名单：deadline 已过
+  final Map<String, int> domainQuota;   // 每个学科的配额
+}
+```
+
+`ranked` 里每个 `BalancedTask` 都带 `score / baseScore / effectiveness /
+urgency / goal / balanceBonus / overQuotaPenaltyApplied / reasonZh /
+domainKey / balanceNote / domainQuota / domainOrderInWindow / source`，
+以及 `source`（原始 `RankedEvent`，含完整分数分解，供属性页展示）。
+
+认知读数的来源对象（纯数据）：`KnowledgePointReading{ knowledgePointId,
+inDangerZone, inDevelopmentZone, priorR0, priorConfidence }`。DB → 这个结构的
+适配是调用方的活（本文件不 import drift）。
+
+## 3. 权重：选了哪些数、为什么
+
+`DomainBalanceWeights`（默认值即实际生效值，全部显式暴露、可被 UI 编辑）：
+
+| 分量 | 权重 | 为什么 |
+| --- | --- | --- |
+| `effectiveness`（认知有效性，**MindNet 项**） | **0.50** | "做什么最有效"是这一段的主题，所以给最大的一项；但它**不能压过学科保底**（见 `overQuotaPenalty` 的取值论证）。 |
+| `urgency`（紧迫度） | 0.25 | 直接复用段 A 已经算好的 `RankScore.urgency`，不再自造一套。段 A 的 urgency 已经是"越近越高"的衰减值，段 B 只做加权。 |
+| `goal`（目标匹配） | 0.10 | 同样复用段 A 的 `RankScore.goalMatch`。业主明确说过目标是自由文本、不是 MindNet 节点，所以这里只给一个小权重。 |
+| `balance`（学科分散奖励） | 0.15 | 配额**内**的奖励，见下文配额设计。 |
+| `overQuotaPenalty`（超配额罚分） | 1.00 | 不在归一化里，是**硬性优先级保证**：`超过配额的任务` 一定排在 `配额内的任务` 之后，见下文。 |
+
+前四项在计算前用 `normalized()` 归一化到和为 1（默认本来就是 1.00：0.50+0.25+
+0.10+0.15），这样用户改任意一个权重都不会让分数跑出 [0,1]——沿用
+`thread_ranker.dart` 的 `RankWeights.normalized()` 同一条纪律。
+
+### 学科配额（dispersion / quota 项）
+
+* 领域键 = 任务的**顶层标签祖先**（不是叶子标签）。路径 `语文/阅读/文言文`
+  的领域键是 `语文`；一个任务挂了多个标签时，取"路径最短优先、同长度取字典
+  序最小顶层段"——规则写死、纯确定、偏保守（越靠近顶层越像学科）。
+* 没有标签（或标签解析不出来）→ 归入 `未分类` 这一组，不丢弃、不报错。
+* 配额：`quotaFor(windowSlots, domainCount) = max(1, ceil(windowSlots / domainCount))`。
+  * 只有一个学科时配额 = 全部槽位（单科不会因为配额被砍）。
+  * 学科越多，每科保底越少，但**永远不为 0**。
+  * `windowSlots` 为空/≤0 时按候选个数算。
+  * `explicitQuotas` 里给了正数的学科，覆盖自动配额。
+* 配额**内**：奖励 `1 - used/quota`（第 1 个 +1.00，第 2 个 +0.50……），乘以
+  `balance` 权重（0.15）。
+* 配额**外**：奖励归 0，并罚 `overQuotaPenalty × 超出者序号`（第 1 个超出者
+  罚 1.00，第 2 个罚 2.00……）。
+
+`overQuotaPenalty = 1.0` 的取值理由：归一化后的基础分 ≤ 1.0（四项权重和为 1、
+每个分量 ≤ 1），所以"罚 1.0"必然大于任何两个任务之间可能出现的基础分差。
+这等价于一条**可读的硬保证**：先给每个学科保底，再谈谁更有效。它和
+`balance` 一样是显式参数，不藏在代码里。
+
+### 认知有效性分量的整定值
+
+`EffectivenessTuning`：
+
+| 项 | 值 | 为什么 |
+| --- | --- | --- |
+| `neutral` | 0.50 | 没有任何读数时的中性分。**缺数据不等于低价值**——沿用 `thread_ranker.dart` 里 `_fitOf` 的同一条纪律（缺失分量不假装成一半匹配）。 |
+| `dangerBoost` | +0.35 | 危险区（自信高、实际提取不出来）是最该立刻练的，加成最大。 |
+| `developmentBoost` | +0.20 | 发展区（差点想起来，合意难度）收益高，但低于危险区。 |
+| `priorWeight` | 0.30 | 先验项 `0.30 × (1 - R0) × confidence`：编码越弱越该现在补；`confidence = 0` 时先验完全不参与。 |
+
+有效性 = `clamp(neutral + 加成, 0, 1)`，一个任务挂多个知识点时取**最有效**的
+那个（`max`），而不是平均。
+
+这三个数是**未标定**的粗映射（和仓库其它认知层一致：没有真实数据前不假装
+精确），集中放在 `EffectivenessTuning` 一处，标定之后只改一处。
+
+## 4. 中文理由与可解释性
+
+每个任务都带一句中文 `reasonZh`，只讲**主导**的那条依据，优先序：
+危险区 → 发展区 → 测评先验偏弱 → 无读数但紧迫度高 → 中性。
+
+例（与 `domain_balance.dart` 的 `_reasonZh` 输出逐字一致）：
+* `知识点「kp-danger」 在危险区（自信高、实际提取不出来），现在练它收益最大，所以排在这里。`
+* `测评先验显示 知识点「kp-weak」 的编码强度只有 R0=0.05（越弱越该现在补），所以排在这里。`
+
+`balanceNote` 讲领域维度：配额内 + 第几个 + 奖励多少；超配额则说明"配额已排满、
+这是第 N 个超出者、罚了多少分、排到配额内任务之后"。
+
+## 5. 确定性与退化输入
+
+* 选择过程是**贪心**：每轮重算"配额奖励/罚分"再取最优，因此 `ranked` 的顺序
+  是选择顺序，`score` 也会随着奖励变化而单调下降——**不要**拿 `ranked` 当
+  "score 降序"用（构建时就是对的，直接按顺序渲染即可）。
+* 平局比较（`DomainBalanceRanker._isBetter`）：`score` → `baseScore` →
+  `taskId` 字典序 → 原始下标。前两层决定排序，后两层保证"输入顺序不同也排得
+  一样"。这就是确定性 tie-break。
+* 空输入 → 空结果（`ranked/insufficient/overdue` 全空，`domainQuota` 空）。
+* 退化输入不抛：`readings` 里空/未知知识点、`priorR0` 超出 [0,1]（clamp）、
+  `windowSlots` 为负、`explicitQuotas` 给 0、标签 `parentId` 成环（上溯有
+  `byId.length + 1` 步的防环上限）——都有测试覆盖。
+
+## 6. 刻意**没有**做的事
+
+1. **没有改 `thread_ranker.dart`。** 段 B 只是转调它；`rank` 的既有行为、
+   既有测试一字未动（`DomainBalanceRanker.feasible` 有一个测试逐桶对比
+   `ThreadRanker.rank` 的输出，作为"段 A 没被碰过"的回归哨兵）。
+2. **没有引入疲劳/energy 的新逻辑。** 段 A 的 `fit`/`fatigue`/`expectedPressure`
+   仍然只通过 `RankScore` 被复用（当前只用 `urgency`/`goalMatch` 两个分量）；
+   段 B 不自己再算一遍，避免两处口径漂移。
+3. **没有连数据库。** 不 import drift、不读 `Tags`/`ObjectTags`/`Tasks` 表；
+   标签树与链接以 `DomainTag`/`TaskTagLink` 纯数据传入。DB → 纯数据的适配在
+   调用方（UI/service 层）。
+4. **没有碰认知引擎。** 不实例化 `FastDiagnosis`/`Metacognition`/`AssessmentPrior`，
+   只消费它们的**读数**（危险区 / 发展区 / 先验）。MindNet 的推理在哪里跑、
+   跑不跑，与本文件无关。
+5. **没有做时间窗切分/时长分配。** `windowSlots` 是调用方给的整数，段 B 不
+   计算"这段时间能塞几分钟"。
+6. **没有做跨窗口/长期计划。** 只排"这一个窗口内"的候选。
+7. **没有标定权重。** 上表数值是显式选定的粗映射，不是拟合结果。
+8. **没有写理由到多个字段/多段文案。** `reasonZh` 一句话，属性页要看分解就读
+   `BalancedTask` 上的数值字段。
+
+## 7. 证据（本次实际运行的命令与结果）
+
+在 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app` 下：
+
+* `dart analyze lib test`
+  → `0` 条 error、`0` 条 warning、`96` 条 info（`96 issues found.`）。
+  其中与 `scheduling` 相关的 4 条 info 全部落在**本就存在、本次未修改**的
+  `lib/domain/services/scheduling/thread_ranker.dart:503` 与
+  `test/domain/services/scheduling/thread_ranker_test.dart:309/372/406`；
+  新增的两个文件各自 `dart analyze` 均为 `No issues found!`。
+* `flutter test test/domain/services/scheduling`
+  → `All tests passed!`（50 个用例，含 `thread_ranker_test.dart` 与
+  `time_window_engine_test.dart` 的全部既有用例）。
