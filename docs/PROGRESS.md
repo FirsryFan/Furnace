@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-16 轮次四十三：目标题数下拉对任意合法值都不崩（Q20 带出的脆弱点，Lead）
+
+**做了什么**
+- `app/lib/features/questions/presentation/question_paper_page.dart`：新增顶层函数
+  `targetCountOptionsFor(int current)`——`current < 1` 或已在预设档位里时返回 `paperTargetCountOptions`，
+  否则返回「预设 + 当前值」并排序；下拉 items 改成 `for (final count in targetCountOptionsFor(spec.targetCount))`。
+- `app/test/features/questions/presentation/question_paper_page_test.dart` +1 条 testWidgets
+  （直接 `setTargetCount(3)` 后页面不抛异常、选中项显示 3、`initialValue == 3`；并断言
+  `targetCountOptionsFor` 的 4 种取值），文件共 21 条。
+
+**为什么**
+- 这是 teammate 在 Q20 报告里点出的脆弱点，我复现确认：下拉 items 只有 `[5,10,15,20]`，
+  而 `PaperSpecNotifier.setTargetCount` 收 **1..200**；值不在 items 里时 `DropdownButton`
+  直接断言崩溃 `There should be exactly one item with [DropdownButton]'s value: 3`
+  （`flutter/lib/src/material/dropdown.dart:1852`）→ 整页白屏。今天只有下拉能改题数，
+  所以走不到；但"恢复上次 spec / 导入配置 / 深链"任何一条写进 1..4 就会崩。
+- 宁可多列一档，也不让一个**合法的 spec 值**把页面打崩——这是个只有 3 行的硬化，
+  比"记下来以后小心"可靠。
+- **顺带纠正一条我自己的误判**：Q19 合并跑测试时那次单例失败（"缺口：文本末尾如实列出…"）
+  我当时判成"编译期竞态"；真实原因是那时 teammate 的用例正调 `setTargetCount(1)`，
+  撞的就是这个断言——不是竞态。
+
+**验收**
+- 修之前：`flutter test … --plain-name "目标题数不在预设档位里也不崩"` → `Failed assertion:
+  line 1852 pos 10: 'items == null ||` + `There should be exactly one item with [DropdownButton]'s value: 3`。
+- 修之后：同上命令 → 通过；`dart format --output=none --set-exit-if-changed`（2 个文件）→ 0 changed；
+  `dart analyze lib test` → `94 issues found.`（0 error / 0 warning）；
+  `flutter test test/features/questions --concurrency=1` → **`+105 All tests passed!`**（Q20 后 +104）。
+
+---
+
 ## 2026-10-16 轮次四十二：组卷页「复制卷面」——卷面变成可打印纯文本（Q20，teammate `question-intake`）+ 修一处反序真 bug
 
 **做了什么**

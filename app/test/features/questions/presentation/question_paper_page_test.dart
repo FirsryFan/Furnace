@@ -571,6 +571,38 @@ void main() {
     expect(find.text(zh.questionPaperDifficultyAny), findsOneWidget);
   });
 
+  testWidgets('目标题数不在预设档位里也不崩：当前值补进下拉（"恢复上次 spec"的防线）', (tester) async {
+    await _pumpPaperPage(tester, db: db);
+
+    // 不走下拉、直接改 spec —— 模拟"恢复上次 spec / 导入配置"这类路径。
+    // 预设档位只有 5/10/15/20，而 setTargetCount 收 1..200：值不在 items 里时
+    // DropdownButton 会直接断言崩溃（There should be exactly one item ...）。
+    _container(tester).read(paperSpecProvider.notifier).setTargetCount(3);
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+
+    // 当前值以"多出来的一档"出现在下拉里（关闭态只渲染选中项，所以只看 3）。
+    expect(find.text(zh.questionPaperCountOption(3)), findsOneWidget);
+    expect(
+      tester
+          .widget<DropdownButtonFormField<int>>(
+            find.widgetWithText(
+              DropdownButtonFormField<int>,
+              zh.questionPaperCountOption(3),
+            ),
+          )
+          .initialValue,
+      3,
+    );
+
+    // 选项列表本身：预设档位一个不少，当前值插进来且仍是有序的。
+    expect(targetCountOptionsFor(3), <int>[3, 5, 10, 15, 20]);
+    expect(targetCountOptionsFor(10), paperTargetCountOptions);
+    expect(targetCountOptionsFor(200), <int>[5, 10, 15, 20, 200]);
+    // 0 / 负数不是合法题数（setTargetCount 钳 1..200），不额外造一档。
+    expect(targetCountOptionsFor(0), paperTargetCountOptions);
+  });
+
   // -------------------------------------------------------------------------
   // 「复制卷面」（Q20）：卷面变成可打印纯文本
   // -------------------------------------------------------------------------

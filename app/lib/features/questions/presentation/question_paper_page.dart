@@ -24,6 +24,20 @@ import 'question_vocab_labels.dart';
 /// 目标题数下拉的选项（本页冻结：5 / 10 / 15 / 20）。
 const List<int> paperTargetCountOptions = <int>[5, 10, 15, 20];
 
+/// 下拉实际要列的选项：预设档位 +「当前值」（当它不在预设里）。
+///
+/// `PaperSpecNotifier.setTargetCount` 收 1..200，但下拉只列 4 档。值不在 `items` 里时
+/// `DropdownButton` 会直接断言崩溃（`There should be exactly one item with
+/// [DropdownButton]'s value`），整页白屏。今天只有下拉能改题数，所以走不到；
+/// 但只要将来有"恢复上次 spec / 导入配置 / 深链"写进 1..4，页面就会崩。
+/// 这里宁可多列一档，也不让一个合法的 spec 值把页面打崩。
+List<int> targetCountOptionsFor(int current) {
+  if (current < 1 || paperTargetCountOptions.contains(current)) {
+    return paperTargetCountOptions;
+  }
+  return <int>[...paperTargetCountOptions, current]..sort();
+}
+
 /// 来源下限下拉的候选（不含"不限"，那是 `null`）。
 const List<String> paperMinSourceLevelOptions = <String>[
   'gaokao',
@@ -123,7 +137,7 @@ class _PaperControls extends ConsumerWidget {
               decoration: InputDecoration(
                   labelText: l10n.questionPaperTargetCountLabel),
               items: [
-                for (final count in paperTargetCountOptions)
+                for (final count in targetCountOptionsFor(spec.targetCount))
                   DropdownMenuItem<int>(
                     value: count,
                     child: Text(l10n.questionPaperCountOption(count)),
