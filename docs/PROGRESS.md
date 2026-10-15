@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-10-16 轮次五十三：认知排序档位的开关落库（Q29c，Lead）
+
+**做了什么**：schema v16 给 `thread_rank_settings` 加一列 `cognitive_rank_enabled`
+（`app/lib/data/database/tables.dart`），**非空、默认 false** —— 现有加权排序的权重分是用户自己
+在事件属性页上定的，而认知排序的距离/精力加成全部 `[未标定]`；一个还没标定的次序不该默认替掉
+用户已经看惯的列表。仓储侧新增 `ThreadRankRepository.getCognitiveRankEnabled()` /
+`setCognitiveRankEnabled(bool)`（`app/lib/data/repositories/thread_rank_repository.dart`）。
+
+**迁移**（`app/lib/data/database/database.dart`）：`schemaVersion => 16`、`onUpgrade` 加
+`if (from < 16) await _upgradeV15ToV16();`、`_upgradeV15ToV16()` 走 `_addColumnIfMissing`、
+`_ensureColumns()` 的 `expected` 表加 `'thread_rank_settings'` 一项。同一趟顺手补了一处真会炸的
+漏洞：`_tableFor('thread_rank_settings')` 原本落到 `throw ArgumentError('unknown table ...')`，
+而 `_ensureColumns()` 与 `.tfpkg` 恢复路径都要按 SQL 表名解析这张表——v16 的自愈第一次打开就会
+踩到它，所以补了那个 case。
+
+**验收**：`app/test/data/database/v16_migration_test.dart` 2 例（真实 v15 文件升级后老权重一个
+不变、新开关读作默认关，且用户打开过才会落 true；被盖成 v16 却没有这一列的文件靠 `beforeOpen`
+自愈并能写进去）→ `+2 All tests passed!`；`dart format` 4 文件 0 changed；`dart analyze` 三个改动
+文件只剩 3 条**既有** info（`unnecessary_import` / `use_super_parameters` / `prefer_single_quotes`）。
+
+**生成代码**：`database.g.dart` 由 `build_runner` 重新生成（新增 `cognitive_rank_enabled` 列与
+Companion 字段，46 处引用）。本机 `dart compile aot-snapshot` 写不进含非 ASCII 的路径，
+`build_runner` 因此直接退出（exit 78）；绕法是建一个 ASCII 目录联接（junction）指向 `app/`，从联接
+路径跑 `dart run build_runner build`（日志：`Built with build_runner/aot in 69s; wrote 474 outputs`）。
+
+---
+
 ## 2026-10-16 轮次五十二：认知排序素材的数据库读取（Q29b，Lead）
 
 **做了什么**：新增 `app/lib/features/thread/application/cognitive_rank_reader.dart`，它是

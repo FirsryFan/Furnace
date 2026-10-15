@@ -555,6 +555,14 @@ class ThreadRankSettings extends Table {
   /// Global switch: may actual durations update the duration model?
   BoolColumn get useActualTime => boolean().withDefault(const Constant(true))();
 
+  /// v16: 认知排序档位开关（`docs/MINDNET_ROADMAP.md` §2-D）。
+  ///
+  /// 默认**关**：现有加权排序的权重分是用户自己在事件属性页上定的，而认知排序的
+  /// 距离/精力加成全部 `[未标定]`；一个还没标定的次序不该默认替掉用户已经看惯的列表。
+  /// 打开之后次序里会带 `uncalibrated`，UI 必须如实标出来。
+  BoolColumn get cognitiveRankEnabled =>
+      boolean().withDefault(const Constant(false))();
+
   IntColumn get updatedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
 

@@ -89,9 +89,9 @@ class AppDatabase extends _$AppDatabase {
   /// row 4). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
-  /// [_upgradeV13ToV14] / [_upgradeV14ToV15].
+  /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16].
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -142,6 +142,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 15) {
           await _upgradeV14ToV15();
         }
+        if (from < 16) {
+          await _upgradeV15ToV16();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -186,6 +189,8 @@ class AppDatabase extends _$AppDatabase {
         localSettings.ankiCardTypePreference,
         localSettings.rhythmHintsEnabled,
       ],
+      // v16: 认知排序档位的开关（非空、默认 false）。
+      'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
       'card_states': [
         cardStates.encodingStrength,
         cardStates.savings,
@@ -492,6 +497,20 @@ class AppDatabase extends _$AppDatabase {
         m, 'local_settings', localSettings.rhythmHintsEnabled);
   }
 
+  /// v15 -> v16：`thread_rank_settings.cognitive_rank_enabled`（认知排序档位的开关，
+  /// `docs/MINDNET_ROADMAP.md` §2-D）。
+  ///
+  /// 与 v15 那一列不同，这一列**非空且带默认 false**：迁移不能替用户打开一个还没
+  /// 标定的排序档位，老文件升级后读到的必须还是原来的加权次序。
+  Future<void> _upgradeV15ToV16() async {
+    if (!await _tableExists('thread_rank_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'thread_rank_settings', threadRankSettings.cognitiveRankEnabled);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -693,6 +712,10 @@ class AppDatabase extends _$AppDatabase {
       // file that claims v9 must be able to resolve the table by name.
       case 'review_logs':
         return reviewLogs;
+      // v16: the self-heal pass adds the cognitive-ranking switch, and the
+      // package dump/restore path resolves every user table by name.
+      case 'thread_rank_settings':
+        return threadRankSettings;
       default:
         throw ArgumentError('unknown table $name');
     }

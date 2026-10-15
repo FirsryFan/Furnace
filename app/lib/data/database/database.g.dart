@@ -11536,6 +11536,16 @@ class $ThreadRankSettingsTable extends ThreadRankSettings
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("use_actual_time" IN (0, 1))'),
       defaultValue: const Constant(true));
+  static const VerificationMeta _cognitiveRankEnabledMeta =
+      const VerificationMeta('cognitiveRankEnabled');
+  @override
+  late final GeneratedColumn<bool> cognitiveRankEnabled = GeneratedColumn<bool>(
+      'cognitive_rank_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("cognitive_rank_enabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -11558,6 +11568,7 @@ class $ThreadRankSettingsTable extends ThreadRankSettings
         wExpected,
         headerCollapsed,
         useActualTime,
+        cognitiveRankEnabled,
         updatedAt,
         createdAt
       ];
@@ -11606,6 +11617,12 @@ class $ThreadRankSettingsTable extends ThreadRankSettings
           useActualTime.isAcceptableOrUnknown(
               data['use_actual_time']!, _useActualTimeMeta));
     }
+    if (data.containsKey('cognitive_rank_enabled')) {
+      context.handle(
+          _cognitiveRankEnabledMeta,
+          cognitiveRankEnabled.isAcceptableOrUnknown(
+              data['cognitive_rank_enabled']!, _cognitiveRankEnabledMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -11641,6 +11658,8 @@ class $ThreadRankSettingsTable extends ThreadRankSettings
           .read(DriftSqlType.bool, data['${effectivePrefix}header_collapsed'])!,
       useActualTime: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}use_actual_time'])!,
+      cognitiveRankEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}cognitive_rank_enabled'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}updated_at']),
       createdAt: attachedDatabase.typeMapping
@@ -11668,6 +11687,13 @@ class ThreadRankSetting extends DataClass
 
   /// Global switch: may actual durations update the duration model?
   final bool useActualTime;
+
+  /// v16: 认知排序档位开关（`docs/MINDNET_ROADMAP.md` §2-D）。
+  ///
+  /// 默认**关**：现有加权排序的权重分是用户自己在事件属性页上定的，而认知排序的
+  /// 距离/精力加成全部 `[未标定]`；一个还没标定的次序不该默认替掉用户已经看惯的列表。
+  /// 打开之后次序里会带 `uncalibrated`，UI 必须如实标出来。
+  final bool cognitiveRankEnabled;
   final int? updatedAt;
   final int createdAt;
   const ThreadRankSetting(
@@ -11679,6 +11705,7 @@ class ThreadRankSetting extends DataClass
       required this.wExpected,
       required this.headerCollapsed,
       required this.useActualTime,
+      required this.cognitiveRankEnabled,
       this.updatedAt,
       required this.createdAt});
   @override
@@ -11692,6 +11719,7 @@ class ThreadRankSetting extends DataClass
     map['w_expected'] = Variable<double>(wExpected);
     map['header_collapsed'] = Variable<bool>(headerCollapsed);
     map['use_actual_time'] = Variable<bool>(useActualTime);
+    map['cognitive_rank_enabled'] = Variable<bool>(cognitiveRankEnabled);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<int>(updatedAt);
     }
@@ -11709,6 +11737,7 @@ class ThreadRankSetting extends DataClass
       wExpected: Value(wExpected),
       headerCollapsed: Value(headerCollapsed),
       useActualTime: Value(useActualTime),
+      cognitiveRankEnabled: Value(cognitiveRankEnabled),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
@@ -11728,6 +11757,8 @@ class ThreadRankSetting extends DataClass
       wExpected: serializer.fromJson<double>(json['wExpected']),
       headerCollapsed: serializer.fromJson<bool>(json['headerCollapsed']),
       useActualTime: serializer.fromJson<bool>(json['useActualTime']),
+      cognitiveRankEnabled:
+          serializer.fromJson<bool>(json['cognitiveRankEnabled']),
       updatedAt: serializer.fromJson<int?>(json['updatedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
@@ -11744,6 +11775,7 @@ class ThreadRankSetting extends DataClass
       'wExpected': serializer.toJson<double>(wExpected),
       'headerCollapsed': serializer.toJson<bool>(headerCollapsed),
       'useActualTime': serializer.toJson<bool>(useActualTime),
+      'cognitiveRankEnabled': serializer.toJson<bool>(cognitiveRankEnabled),
       'updatedAt': serializer.toJson<int?>(updatedAt),
       'createdAt': serializer.toJson<int>(createdAt),
     };
@@ -11758,6 +11790,7 @@ class ThreadRankSetting extends DataClass
           double? wExpected,
           bool? headerCollapsed,
           bool? useActualTime,
+          bool? cognitiveRankEnabled,
           Value<int?> updatedAt = const Value.absent(),
           int? createdAt}) =>
       ThreadRankSetting(
@@ -11769,6 +11802,7 @@ class ThreadRankSetting extends DataClass
         wExpected: wExpected ?? this.wExpected,
         headerCollapsed: headerCollapsed ?? this.headerCollapsed,
         useActualTime: useActualTime ?? this.useActualTime,
+        cognitiveRankEnabled: cognitiveRankEnabled ?? this.cognitiveRankEnabled,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -11786,6 +11820,9 @@ class ThreadRankSetting extends DataClass
       useActualTime: data.useActualTime.present
           ? data.useActualTime.value
           : this.useActualTime,
+      cognitiveRankEnabled: data.cognitiveRankEnabled.present
+          ? data.cognitiveRankEnabled.value
+          : this.cognitiveRankEnabled,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -11802,6 +11839,7 @@ class ThreadRankSetting extends DataClass
           ..write('wExpected: $wExpected, ')
           ..write('headerCollapsed: $headerCollapsed, ')
           ..write('useActualTime: $useActualTime, ')
+          ..write('cognitiveRankEnabled: $cognitiveRankEnabled, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -11809,8 +11847,18 @@ class ThreadRankSetting extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, wUrgency, wGoal, wFit, wFatigue,
-      wExpected, headerCollapsed, useActualTime, updatedAt, createdAt);
+  int get hashCode => Object.hash(
+      id,
+      wUrgency,
+      wGoal,
+      wFit,
+      wFatigue,
+      wExpected,
+      headerCollapsed,
+      useActualTime,
+      cognitiveRankEnabled,
+      updatedAt,
+      createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -11823,6 +11871,7 @@ class ThreadRankSetting extends DataClass
           other.wExpected == this.wExpected &&
           other.headerCollapsed == this.headerCollapsed &&
           other.useActualTime == this.useActualTime &&
+          other.cognitiveRankEnabled == this.cognitiveRankEnabled &&
           other.updatedAt == this.updatedAt &&
           other.createdAt == this.createdAt);
 }
@@ -11836,6 +11885,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
   final Value<double> wExpected;
   final Value<bool> headerCollapsed;
   final Value<bool> useActualTime;
+  final Value<bool> cognitiveRankEnabled;
   final Value<int?> updatedAt;
   final Value<int> createdAt;
   const ThreadRankSettingsCompanion({
@@ -11847,6 +11897,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
     this.wExpected = const Value.absent(),
     this.headerCollapsed = const Value.absent(),
     this.useActualTime = const Value.absent(),
+    this.cognitiveRankEnabled = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -11859,6 +11910,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
     this.wExpected = const Value.absent(),
     this.headerCollapsed = const Value.absent(),
     this.useActualTime = const Value.absent(),
+    this.cognitiveRankEnabled = const Value.absent(),
     this.updatedAt = const Value.absent(),
     required int createdAt,
   }) : createdAt = Value(createdAt);
@@ -11871,6 +11923,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
     Expression<double>? wExpected,
     Expression<bool>? headerCollapsed,
     Expression<bool>? useActualTime,
+    Expression<bool>? cognitiveRankEnabled,
     Expression<int>? updatedAt,
     Expression<int>? createdAt,
   }) {
@@ -11883,6 +11936,8 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
       if (wExpected != null) 'w_expected': wExpected,
       if (headerCollapsed != null) 'header_collapsed': headerCollapsed,
       if (useActualTime != null) 'use_actual_time': useActualTime,
+      if (cognitiveRankEnabled != null)
+        'cognitive_rank_enabled': cognitiveRankEnabled,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -11897,6 +11952,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
       Value<double>? wExpected,
       Value<bool>? headerCollapsed,
       Value<bool>? useActualTime,
+      Value<bool>? cognitiveRankEnabled,
       Value<int?>? updatedAt,
       Value<int>? createdAt}) {
     return ThreadRankSettingsCompanion(
@@ -11908,6 +11964,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
       wExpected: wExpected ?? this.wExpected,
       headerCollapsed: headerCollapsed ?? this.headerCollapsed,
       useActualTime: useActualTime ?? this.useActualTime,
+      cognitiveRankEnabled: cognitiveRankEnabled ?? this.cognitiveRankEnabled,
       updatedAt: updatedAt ?? this.updatedAt,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -11940,6 +11997,10 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
     if (useActualTime.present) {
       map['use_actual_time'] = Variable<bool>(useActualTime.value);
     }
+    if (cognitiveRankEnabled.present) {
+      map['cognitive_rank_enabled'] =
+          Variable<bool>(cognitiveRankEnabled.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
@@ -11960,6 +12021,7 @@ class ThreadRankSettingsCompanion extends UpdateCompanion<ThreadRankSetting> {
           ..write('wExpected: $wExpected, ')
           ..write('headerCollapsed: $headerCollapsed, ')
           ..write('useActualTime: $useActualTime, ')
+          ..write('cognitiveRankEnabled: $cognitiveRankEnabled, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -25700,6 +25762,7 @@ typedef $$ThreadRankSettingsTableCreateCompanionBuilder
   Value<double> wExpected,
   Value<bool> headerCollapsed,
   Value<bool> useActualTime,
+  Value<bool> cognitiveRankEnabled,
   Value<int?> updatedAt,
   required int createdAt,
 });
@@ -25713,6 +25776,7 @@ typedef $$ThreadRankSettingsTableUpdateCompanionBuilder
   Value<double> wExpected,
   Value<bool> headerCollapsed,
   Value<bool> useActualTime,
+  Value<bool> cognitiveRankEnabled,
   Value<int?> updatedAt,
   Value<int> createdAt,
 });
@@ -25750,6 +25814,10 @@ class $$ThreadRankSettingsTableFilterComposer
 
   ColumnFilters<bool> get useActualTime => $composableBuilder(
       column: $table.useActualTime, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get cognitiveRankEnabled => $composableBuilder(
+      column: $table.cognitiveRankEnabled,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -25793,6 +25861,10 @@ class $$ThreadRankSettingsTableOrderingComposer
       column: $table.useActualTime,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get cognitiveRankEnabled => $composableBuilder(
+      column: $table.cognitiveRankEnabled,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
@@ -25832,6 +25904,9 @@ class $$ThreadRankSettingsTableAnnotationComposer
 
   GeneratedColumn<bool> get useActualTime => $composableBuilder(
       column: $table.useActualTime, builder: (column) => column);
+
+  GeneratedColumn<bool> get cognitiveRankEnabled => $composableBuilder(
+      column: $table.cognitiveRankEnabled, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -25876,6 +25951,7 @@ class $$ThreadRankSettingsTableTableManager extends RootTableManager<
             Value<double> wExpected = const Value.absent(),
             Value<bool> headerCollapsed = const Value.absent(),
             Value<bool> useActualTime = const Value.absent(),
+            Value<bool> cognitiveRankEnabled = const Value.absent(),
             Value<int?> updatedAt = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
           }) =>
@@ -25888,6 +25964,7 @@ class $$ThreadRankSettingsTableTableManager extends RootTableManager<
             wExpected: wExpected,
             headerCollapsed: headerCollapsed,
             useActualTime: useActualTime,
+            cognitiveRankEnabled: cognitiveRankEnabled,
             updatedAt: updatedAt,
             createdAt: createdAt,
           ),
@@ -25900,6 +25977,7 @@ class $$ThreadRankSettingsTableTableManager extends RootTableManager<
             Value<double> wExpected = const Value.absent(),
             Value<bool> headerCollapsed = const Value.absent(),
             Value<bool> useActualTime = const Value.absent(),
+            Value<bool> cognitiveRankEnabled = const Value.absent(),
             Value<int?> updatedAt = const Value.absent(),
             required int createdAt,
           }) =>
@@ -25912,6 +25990,7 @@ class $$ThreadRankSettingsTableTableManager extends RootTableManager<
             wExpected: wExpected,
             headerCollapsed: headerCollapsed,
             useActualTime: useActualTime,
+            cognitiveRankEnabled: cognitiveRankEnabled,
             updatedAt: updatedAt,
             createdAt: createdAt,
           ),

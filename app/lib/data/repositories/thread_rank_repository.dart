@@ -103,6 +103,21 @@ class ThreadRankRepository {
   Future<bool> getUseActualTime() async =>
       (await ensureSettings()).useActualTime;
 
+  /// 认知排序档位开关（`docs/MINDNET_ROADMAP.md` §2-D）。默认关 = 保持原加权次序。
+  Future<bool> getCognitiveRankEnabled() async =>
+      (await ensureSettings()).cognitiveRankEnabled;
+
+  Future<void> setCognitiveRankEnabled(bool value) async {
+    await ensureSettings();
+    await (_db.update(_db.threadRankSettings)..where((t) => t.id.equals(1)))
+        .write(
+      ThreadRankSettingsCompanion(
+        cognitiveRankEnabled: Value(value),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
   Future<void> setUseActualTime(bool value) async {
     await ensureSettings();
     await (_db.update(_db.threadRankSettings)..where((t) => t.id.equals(1)))
