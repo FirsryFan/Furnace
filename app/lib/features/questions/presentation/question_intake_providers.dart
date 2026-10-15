@@ -3,37 +3,24 @@
 /// 只放在 presentation 下：`questionRepositoryProvider` 与
 /// `appDatabaseProvider` 都是既有的、冻结的 provider（前者在
 /// `data/repositories/repository_providers.dart`，后者在
-/// `data/database/app_database_provider.dart`），这里只做"本页需要什么"的组装，
-/// 以及让测试能替换 app support 目录。
+/// `data/database/app_database_provider.dart`），这里只做"本页需要什么"的组装。
+///
+/// 「照片落在哪儿」的两个 provider（support 目录 + store）已经下移到
+/// `application/handwriting_proposal_service.dart`：整理服务（拍照 → 三类待确认
+/// 产物，§7.3）和这一页共用**同一个** store——两个实例就是两套"文件在哪儿"的
+/// 想法。这里用 `export` 原样转发，页面与测试的 import 路径不变。
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/state/data_revision.dart';
-import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../application/handwriting_proposal_service.dart';
 import '../data/handwriting_intake_store.dart';
 
-/// app support 目录。单独成一个 provider，测试才能把它指到临时目录，
-/// 不去碰真实的 app 数据目录。
-final questionIntakeSupportDirectoryProvider =
-    Provider<Future<Directory> Function()>((ref) {
-  return getApplicationSupportDirectory;
-});
-
-/// 拍照/选图落到哪个 store。
-///
-/// 单一实例：页面写、清单读，两个实例就是两套"文件在哪儿"的想法。
-final handwritingIntakeStoreProvider = Provider<HandwritingIntakeStore>((ref) {
-  return HandwritingIntakeStore(
-    database: ref.watch(appDatabaseProvider),
-    supportDirectory: ref.watch(questionIntakeSupportDirectoryProvider),
-  );
-});
+export '../application/handwriting_proposal_service.dart'
+    show handwritingIntakeStoreProvider, questionIntakeSupportDirectoryProvider;
 
 /// 待整理图片清单。写库会走 `DbWriteInterceptor` → `DataChangeBus`，所以这里
 /// 只需要 watch 一下 revision 就能自动刷新，不需要页面手动 invalidate。
@@ -95,8 +82,8 @@ class QuestionLibraryFilter {
   int get hashCode => Object.hash(subjectKey, sourceLevel, state, stemContains);
 }
 
-final questionLibraryFilterProvider =
-    StateProvider<QuestionLibraryFilter>((ref) => const QuestionLibraryFilter());
+final questionLibraryFilterProvider = StateProvider<QuestionLibraryFilter>(
+    (ref) => const QuestionLibraryFilter());
 
 /// 题目 + 它自己的选项数量。
 class QuestionListEntry {
@@ -111,7 +98,8 @@ const int questionLibraryLimit = 200;
 
 /// 一条题在列表里就是一行：题干 + 选项数。一次把选项计数读出来，列表里就不用
 /// 为每行再查一次库。
-final questionLibraryProvider = FutureProvider<List<QuestionListEntry>>((ref) async {
+final questionLibraryProvider =
+    FutureProvider<List<QuestionListEntry>>((ref) async {
   ref.watchDatabaseRevision();
   final repository = ref.watch(questionRepositoryProvider);
   final filter = ref.watch(questionLibraryFilterProvider);
@@ -123,8 +111,7 @@ final questionLibraryProvider = FutureProvider<List<QuestionListEntry>>((ref) as
   } else {
     rows = await repository.search(
       subjectKey: filter.subjectKey,
-      sourceLevels:
-          filter.sourceLevel == null ? null : {filter.sourceLevel!},
+      sourceLevels: filter.sourceLevel == null ? null : {filter.sourceLevel!},
       states: filter.state == null ? null : {filter.state!},
       stemContains: filter.stemContains,
       limit: questionLibraryLimit,

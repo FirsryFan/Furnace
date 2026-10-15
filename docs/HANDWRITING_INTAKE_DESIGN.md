@@ -1,0 +1,103 @@
+# 拍照 → 三类待确认产物（手写整理）
+
+`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4 的落地设计。一句话：**一张手写照片进来，
+一份提案出去，用户点过之后才写库。**
+
+## 1. 它做什么 / 不做什么
+
+做什么：
+
+- 从磁盘上已经存在的照片（`HandwritingIntakeStore.pending()` 里那些 `relPath`）出发，
+  把「图 + 铁律 + 现在库里有什么」一起递给视觉模型；
+- 把模型回复解析成结构化提案：**标签 / 知识点 / 闪存卡**三类；
+- 用户逐个（或整批）确认后，按下面 §3 的规矩真正写库。
+
+不做什么（每条都有理由，不是"还没做"）：
+
+| 不做 | 为什么 |
+|---|---|
+| 不在整理阶段写任何东西 | §7.4「确认前不写库」。`proposeFor` 只读磁盘与库，测试用写库计数证明 |
+| 不做"部分成功"的静默降级 | 提案解析**严格**：结构性错误一律抛 `HandwritingProposalParseException`。少写一条而用户以为整理完了，比直接报错更糟 |
+| 不自己造标签树 | 父路径不存在 → 只报这一条。标签树是几个系统共用的语言（见 `docs/QUESTION_BANK_DESIGN.md` §5），凭空加一层会让别人的路径分类失效 |
+| 不做兜底猜测 | 图片格式认不出来就说"认不出"；模型没配就说"没有可用的模型适配器"；照片不在了就说"照片不在了" |
+| 本轮不持久化提案 | 见 §4 |
+
+## 2. 输入 / 输出契约
+
+### 领域层 `app/lib/domain/services/intake/handwriting_proposals.dart`
+
+纯 Dart（唯一外部依赖是 `ChatMessage`，先例：`reasoning_prompt.dart`），不碰 Riverpod、
+不碰数据库。
+
+| 符号 | 形状 |
+|---|---|
+| `HandwritingProposalKind` | `tag('tag','标签')` / `knowledgePoint('knowledge_point','知识点')` / `flashcard('flashcard','闪存卡')`，带 `storageKey` / `labelZh` |
+| `HandwritingProposal` | `id`（确定性 `'${kind.storageKey}-$index'`）、`kind`、`titleZh`、`rationaleZh`、`confidence`、`fields: Map<String,String>`、`cards`、`sourceRef` |
+| `HandwritingCardDraft` | `question`、`answer`、`type`（缺省 `essay`，只认 `fill_blank` / `mcq` / `essay`） |
+| `HandwritingProposalSet` | `sourceRef` + `proposals`，`isEmpty` / `countOf(kind)` |
+| 缺省置信度 | `defaultProposalConfidence = 0.5`——模型没说就是"不知道"，不是"很确定" |
+| `handwritingProposalMessages(...)` | 返回 `[system, user]`：system 写铁律 + JSON 契约 + 已有标签路径/知识点标题（各最多 60 条，超出注明省略数），user 带 `ChatImagePart` |
+| `parseHandwritingProposals(raw, {sourceRef})` | 取最外层 `{...}`（容忍 ```json 代码块与前后寒暄），空 `proposals` 合法 |
+
+必填字段（缺了就是异常，异常文案直接给用户看）：
+
+| kind | 必填 |
+|---|---|
+| `tag` | 无（可选 `fields.parent_path`） |
+| `knowledge_point` | `fields.content` |
+| `flashcard` | `fields.content` + `cards` 非空（每张卡要 `question` + `answer`） |
+
+### 应用层 `app/lib/features/questions/application/handwriting_proposal_service.dart`
+
+| 符号 | 作用 |
+|---|---|
+| `HandwritingProposalService.proposeFor(relPath)` | 读照片 → 认格式 → 调模型 → 解析。返回 `HandwritingProposalRun{ok, set, failureReason, rawReply}`，**从不抛异常** |
+| `HandwritingProposalService.applyAll(set, {onlyIds})` | 只写被确认的那些提案，返回 `HandwritingApplyReport{outcomes, appliedCount, failedCount, allOk, appliedIds}` |
+| `HandwritingQueueState` | 内存队列：`images` / `sets` / `failures` / `analyzing` / `applying` / `appliedIds` / `lastReport`；`isApplied(relPath, proposalId)` 的键是 `'$relPath#$proposalId'` |
+| `HandwritingQueueNotifier` | `refresh()`（读磁盘清单）、`analyze(relPath)`、`applyProposal(relPath, proposalId)`、`applyAll(relPath)`、`forget(relPath)`（丢掉内存里的整理结果，照片还在，可以重跑） |
+| `handwritingProposalServiceProvider` | store / tags / anki 来自既有 provider，adapter 来自 `modelAdapterProvider` |
+| `handwritingQueueProvider` | `NotifierProvider<HandwritingQueueNotifier, HandwritingQueueState>` |
+
+`handwritingIntakeStoreProvider` 与 `questionIntakeSupportDirectoryProvider` 这一轮从
+`question_intake_providers.dart` 搬到了应用层（整理服务与收题页共用同一个 store），
+presentation 侧用 `export` 保住了原来的 import 路径。
+
+## 3. 三类产物各怎么写库
+
+| 产物 | 写什么 | 规矩 |
+|---|---|---|
+| 标签 | `TagRepository.createTag(name:, parentId:, description:)` | 父路径必须**已经存在**；已经存在就直接采用（detail 里说明"没有新建"）；父路径不存在 → 这一条失败，别的条照写 |
+| 知识点 | `AnkiRepository.createKnowledgePoint(title:, content:, source: 'handwriting_intake')`，再可选 `addTagToObject(objectType: 'knowledge_point')` | `tag_path` 不存在时**点照建、只是没挂边**（detail 说明）——点本身是用户确认过的内容，比一条边重要 |
+| 闪存卡 | 先建知识点，再每张卡 `createTemplate(...)`，**然后逐张 `getOrCreateCardState(template.id)`** | 没有卡状态的模板在复习队列里不存在（同 `features/ai/tools/knowledge_tools.dart` 里那条注释），"建了卡但复习里看不到"等于没建 |
+
+三条横向规矩：
+
+1. **一条失败不影响其它条**：单条异常被收成 `HandwritingApplyOutcome(ok: false, failureReason: '写库失败：…')`；
+2. **确认过的不再写第二份**：`applyProposal` / `applyAll` 对已确认 id 返回 `null`，不重复建；
+3. **写库只在确认之后**：`proposeFor` 与 `analyze` 都不落库。
+
+## 4. 刻意未做 / 已知缺口
+
+- **提案只存在内存里**（`handwritingQueueProvider`）。重启会丢掉一次整理结果；照片还在磁盘上，
+  重新 `analyze` 即可。要持久化"待确认"本身得加 schema v13 的表——本轮不做，
+  因为"确认前不写库"是这一片的用户口径，而待确认清单本身就是一种写库。
+- **一次只整理一张照片**：提示词只带一张图；多页连拍 / 一次多图未做。
+- **图片格式靠扩展名**（`HandwritingIntakeStore.mimeForName`）：认不出直接报"认不出…"。
+- **UI 未做**：队列页 + 入口 + ARB + widget 测试是独立切片（见 `docs/QUESTION_BANK_DESIGN.md` §9 的 Q15）。
+- **OCR 质量取决于模型**：解析严格意味着模型跑偏时用户看到的是"回复不符合契约"+原文，
+  而不是一份残缺提案——这是有意的。
+
+## 5. 验收记录
+
+2026-10-16（Lead）：
+
+- `app/test/domain/services/intake/handwriting_proposals_test.dart`：11 例——提示词铁律
+  （"照片里没有的不许写"）、把已有标签路径/知识点标题带进提示词、超 60 条截断、
+  解析严格性（坏 kind / 缺 title / fields 非对象 / 卡片缺字段 / 非法 type / 非闪存卡带 cards）、
+  `confidence` 缺省 0.5 与越界钳位、id 确定性。
+- `app/test/features/questions/application/handwriting_proposal_service_test.dart`：15 例——
+  失败四态（文件不在 / 格式认不出 / 离线 / 回复不合契约）、三类产物的写库规矩、
+  `onlyIds` 只写确认过的、队列不重复写与 `forget`。
+- `flutter test test/domain/services/intake test/features/questions --concurrency=1` → `+88 All tests passed!`
+  （其中这 26 例是本轮新增，其余 62 例是既有 questions 回归）。
+- `dart analyze lib test` → `94 issues found.`（0 error / 0 warning，与本片之前的基线同数）。

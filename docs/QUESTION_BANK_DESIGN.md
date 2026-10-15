@@ -111,6 +111,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 3. 产出**三类待确认产物**：① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）
    ③ MindNet 知识点节点（`knowledge_points` + 与标签的边）。
 4. 全部走"待确认任务"清单，用户逐个确认；确认前不写库。
+5. **落地（本轮，Q13）**：§7.3–§7.4 的领域层与应用层已实现，设计与验收见
+   `docs/HANDWRITING_INTAKE_DESIGN.md`——`handwriting_proposals.dart`（三类提案 +
+   严格解析 + 提示词）、`handwriting_proposal_service.dart`（`proposeFor` / `applyAll`
+   + `handwritingQueueProvider` 内存队列）。界面尚未做（见 §9 的 Q15）。
 
 ## 8. 同步三分类（新增成员）
 
@@ -137,8 +141,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q10 | 组卷页 UI（调 Q9，展示理由与缺口，不吃 ARB 之外的措辞） | 已完成（`a5f5e23`，teammate `question-intake` 交付） |
 | Q11 | 组卷 provider：题库 + 读数 → `PaperPlan`（本层唯一 IO 点） | 已完成（`d85e55b`） |
 | Q12 | 找相似题（纯逻辑 `similar_questions.dart` + 应用层 provider） | 已完成（`6df76e5`；UI `9be4350`，teammate `question-intake` 交付） |
-| Q13 | 组卷页之外：拍照整理的"三类待确认产物"队列（§7.4） | 待做（未开工） |
+| Q13 | 拍照整理的"三类待确认产物"队列（§7.4）：领域层提案/严格解析/提示词 + 应用层服务 + 内存队列 provider | 已完成（本轮，Lead；设计见 `docs/HANDWRITING_INTAKE_DESIGN.md`） |
 | Q14 | AI 工具面：`find_similar_questions`（`0ec1798`）+ `compose_paper`（本轮）——agent 能调用同一套领域逻辑，但**只读、不编题**，读数与页面同源（`library_diagnosis_reader.dart`） | 已完成 |
+| Q15 | 拍照整理 UI：待确认队列页（逐个确认 / 整批确认）+ 入口 + ARB + widget 测试 | 待做（交给 teammate `question-intake`） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

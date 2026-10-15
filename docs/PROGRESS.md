@@ -4,6 +4,48 @@
 
 ---
 
+## 2026-10-16 轮次三十六：拍照 → 三类待确认产物——整理只出提案，确认才写库（Q13 领域层+应用层，Lead）
+
+**做了什么**
+- 新 `app/lib/domain/services/intake/handwriting_proposals.dart`（纯 Dart，唯一外部依赖 `ChatMessage`）：
+  三类产物的提案模型（`HandwritingProposalKind{tag, knowledgePoint, flashcard}`、`HandwritingProposal` /
+  `HandwritingCardDraft` / `HandwritingProposalSet`）、提示词构造 `handwritingProposalMessages(...)`
+  （system 写铁律 + JSON 契约 + 已有标签路径/知识点标题，各最多 60 条）、严格解析
+  `parseHandwritingProposals(raw, {sourceRef})`。
+- 新 `app/lib/features/questions/application/handwriting_proposal_service.dart`：
+  `HandwritingProposalService.proposeFor(relPath)`（读照片 → 认格式 → 调模型 → 解析；四态失败全部
+  返回结果对象，**从不抛异常**）、`applyAll(set, {onlyIds})`（三类产物各按既有领域规矩写库）、
+  内存队列 `HandwritingQueueState` / `HandwritingQueueNotifier`（`refresh` / `analyze` /
+  `applyProposal` / `applyAll` / `forget`）与两个 provider。
+- 把 `handwritingIntakeStoreProvider` / `questionIntakeSupportDirectoryProvider` 从 presentation
+  下移到应用层（整理服务与收题页共用同一个 store），presentation 用 `export` 保住原 import 路径。
+- 文档：新 `docs/HANDWRITING_INTAKE_DESIGN.md`（做什么/不做什么、契约、三类产物的写库规矩、已知缺口、验收）；
+  `docs/QUESTION_BANK_DESIGN.md` §7 补落地状态、§9 切片表把 Q13 标为已完成并新增 Q15（UI 切片）。
+
+**为什么不这么做**
+- **不在整理阶段写库**：§7.4 的口径是"确认前不写库"，`proposeFor` 只读磁盘与库——测试用写库计数证明。
+- **提案解析是严格的，不做静默降级**：少写一条而用户以为整理完了，比直接报错更糟；坏回复一律
+  报"回复不符合契约"并把原文带出来。
+- **不自己造标签树**：父路径不存在 → 只报这一条（标签树是几个系统共用的语言，凭空加一层会让别人失效）；
+  知识点则相反——`tag_path` 不存在时点照建、只是没挂边，因为点是用户确认过的内容，比一条边重要。
+- **闪存卡建模板后必须建卡状态**（`getOrCreateCardState`）：没有卡状态的模板在复习队列里不存在。
+- **本轮提案只存在内存里**：重启丢一次整理结果、照片还在磁盘可重跑；要持久化"待确认"本身得加
+  schema v13 的表，而"待确认清单"本身就是一种写库，与本片口径冲突。
+
+**验收**
+- 新增 `app/test/domain/services/intake/handwriting_proposals_test.dart`（11 例）+
+  `app/test/features/questions/application/handwriting_proposal_service_test.dart`（15 例）；
+  两个文件 `flutter test ... --concurrency=1` → `+26 All tests passed!`。
+- 回归 `flutter test test/domain/services/intake test/features/questions --concurrency=1` → `+88 All tests passed!`
+  （provider 下移没有破坏收题页/组卷页/详情页/找相似题区块）。
+- `dart analyze lib test` → `94 issues found.`（0 error / 0 warning，与基线同数）。
+
+**下一步**
+- Q15：拍照整理的待确认队列 UI（交给 teammate `question-intake`，消费本片冻结的 provider 面）；
+- 提案持久化（schema v13）与多图连拍；标定协议；threadflow/paper 的 `reasonZh` l10n。
+
+---
+
 ## 2026-10-16 轮次三十五：认知快层抽成非 Riverpod 读取 + `compose_paper` 工具（Lead）
 
 **做了什么**
