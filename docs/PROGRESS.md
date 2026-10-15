@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-16 轮次五十四：认知排序档位接进排序服务（Q29d，Lead）
+
+**做了什么**：`app/lib/features/thread/application/thread_rank_service.dart` 里三处改动——
+
+- `ThreadRankService.build()` 多两个参数：`CognitiveRankSeed cognitiveSeed`、
+  `bool cognitiveRankEnabled`。候选就是段落 B 的次序（`baseIndex` = 它在段落 B 里的位置），
+  所以这一档**只重排、不重算可行域**，与段落 B 对段落 A 的关系一致。
+- `ThreadFeed` 新增 `cognitiveRank`（`CognitiveRankOutput?`，null = 这一档没开）与
+  `cognitiveFor()` / `cognitiveReasonFor()`；`readyTasks` 在开关打开时先走认知次序，再拼段落 B、
+  最后段落 A 兜底——**永远不会丢任务**（实现拆成 `_balancedOrder()` + 认知前插两段）。
+- `ThreadFeedNotifier.sort()` 读库里的开关（`ThreadRankRepository.getCognitiveRankEnabled()`）与
+  素材（`cognitiveRankSeedReaderProvider`）：**开关读失败 = 保持关**（一次读失败不该把用户看惯的
+  加权次序换成一个未标定的次序），**素材读失败 = 退化成"没有读数"**，两者都不让整个排序失败。
+
+**难度代理定的口径**（`_difficultyFor`）：任务挂着的知识点里**最弱**的那块编码上限
+（`1 − min(priorR0)`），且只看 `priorConfidence > 0` 的读数——置信度 0 表示"只是先验、不参与加权"，
+一条没有信念的先验不该决定"这题难不难"。没有可用读数就返回 null（精力分量取中性 1.0）。
+
+**验收**：`app/test/features/thread/thread_rank_service_cognitive_test.dart` 5 例
+（关着完全不产出 / 开着但没有起点则一个都不动、理由行说「没有认知读数」/ 刚复习过的知识点
+0 跳 ×1.6 把任务提到最前并标 `movedUp` / 离目标 1 跳 ×1.3、图外的知识点什么都不给 /
+难度取最弱编码上限且 α=0 时把弱编码的任务换下去）→ `+5 All tests passed!`；
+`app/test/features/thread/thread_feed_notifier_test.dart` 2 例（开关关着没有这一档、库里打开之后
+排序结果真的带上它）→ `+2 All tests passed!`；`dart format` 3 文件 0 changed；
+`dart analyze lib test` 95 issues（与改动前同数，0 error / 0 warning）。
+
+**还剩的另一半**：UI 上的开关（线程页 AppBar 菜单 + ARB 文案 + widget 测试）与"这一档未标定"的
+可见标注；加成常数的标定仍属外部实验。
+
+---
+
 ## 2026-10-16 轮次五十三：认知排序档位的开关落库（Q29c，Lead）
 
 **做了什么**：schema v16 给 `thread_rank_settings` 加一列 `cognitive_rank_enabled`

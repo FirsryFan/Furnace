@@ -72,7 +72,9 @@
   仍缺的是把认知排序档位**接进** `thread_rank_service.dart`：**算法核心已完成（轮次五十，
   `app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例；素材读取已完成（轮次五十二），
   开关已落库（轮次五十三：schema v16 的 `thread_rank_settings.cognitive_rank_enabled`，默认关）；
-  接线 + UI 未做）**；
+  服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 `CognitiveRankSeed` + 开关，
+  `ThreadFeed` 暴露 `cognitiveRank` / `cognitiveFor` / `cognitiveReasonFor`，开关打开后
+  `readyTasks` 的次序真的会变；**UI 上的开关与"未标定"标注未做**）**；
   ② `goal` 动作的**目标扩散**：目标集可达性排序（与 MindNet 的 `start_diffusion(starts, targets)` 对齐）；
   ③ 把"当前脑子里的东西"（刚复习/刚做错的节点）作为 `starts` 注入。
 - **落点**：`thread_rank_service.dart` 增加一个"认知排序"档位（与现有加权排序并存，可开关），输入 = 目标节点 + 刚活动节点 + α(τ)；
@@ -85,7 +87,7 @@
 | 1 | **`run/1` 会话协议（tierA+B 全字段）+ 存档回退** | 它是其余一切的地基：没有事件流就没有元认知/标定/反馈 | 一次复习会话产出一份 `result`：`applied[]` 每条含前后值、`trace.rounds[]` 有轮次快照；`run_id` 幂等；回滚后 state_hash 复原 |
 | 2 | **`exposure`（看了没测）+ `wrong+reviewed_solution`/`closeness`** | 直接改变 R/S 走势（实测 25 倍差距），且给"补充资料"提供入口 | 读一次资料后 R/S 轨迹与只做错不同；两条路径有测试钉住 ✅ **已完成（轮次三十六 + 轮次四十四）** |
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
-| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），接线（服务 + UI）未做；素材读取（轮次五十二）与开关（轮次五十三：schema v16，默认关）已就位** |
+| 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；**UI 开关未做** |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
@@ -207,7 +209,7 @@
 `test/data/database/v15_migration_test.dart`（2 例）、`thread_status_bar_test.dart`（4 例：
 有坐段就报数、没有坐段说"还没有足够记录"、点隐藏把开关落库且读数立刻消失、折叠后读数让位）。
 
-### 切片 4 的追加：认知排序档位的算法核心（已完成 轮次五十；接线未做）
+### 切片 4 的追加：认知排序档位（已完成 轮次五十–五十四）
 
 **缺口**：§2-D 的落点要求 Thread 排序用上"目标节点 + 刚活动节点 + α(τ)"。段落 A
 （`ThreadRanker` 的硬约束加权）与段落 B（`DomainBalanceRanker` 的领域均衡 + 有效性）都在跑，
@@ -261,6 +263,27 @@
 `setCognitiveRankEnabled()` 读写它；`app/test/data/database/v16_migration_test.dart` 2 例钉住
 "真实 v15 文件升级后老权重不丢、新开关落成默认关"与"版本号跑在列前面靠 `beforeOpen` 自愈"。
 还剩：`ThreadRankService.build()` 接受 seed、`ThreadFeed` 暴露次序与理由 + UI 开关。
+
+**进展（轮次五十四）**：服务接线也做完了 —— `ThreadRankService.build()` 多两个参数
+（`CognitiveRankSeed cognitiveSeed`、`bool cognitiveRankEnabled`），候选就是段落 B 的次序
+（`baseIndex` = 它在段落 B 里的位置），所以这一档**只重排、不重算可行域**，与段落 B 对
+段落 A 的关系一致；`ThreadFeed` 新增 `cognitiveRank` 与 `cognitiveFor()` /
+`cognitiveReasonFor()`，`readyTasks` 在开关打开时先走认知次序、再拼段落 B、最后段落 A 兜底
+（**永远不会丢任务**）。`ThreadFeedNotifier.sort()` 读库里的开关：开关读失败 = 保持关，
+素材读失败 = 退化成"没有读数"，两者都不让整个排序失败。
+
+难度代理这一处定了口径：**任务挂着的知识点里最弱的那块编码上限**（
+`1 − min(priorR0)`），且只看 `priorConfidence > 0` 的读数 —— 置信度 0 表示"只是先验、
+不参与加权"，一条没有信念的先验不该决定"这题难不难"。
+
+**证据**：`app/test/features/thread/thread_rank_service_cognitive_test.dart`（5 例：开关关着
+完全不产出 / 开着但没有起点则一个都不动且理由行说"没有认知读数" / 刚复习过的知识点 0 跳
+×1.6 把任务提到最前并标 `movedUp` / 离目标 1 跳 ×1.3 且图外知识点什么都不给 /
+难度取最弱编码上限并且 α=0 时把弱编码的任务换下去）+ `thread_feed_notifier_test.dart`
+（2 例：开关关着没有这一档、库里打开之后排序结果真的带上它）。
+
+**还剩的另一半**：UI 上的开关（线程页 AppBar 菜单 + ARB 文案 + widget 测试）与"这一档
+未标定"的可见标注；以及这些加成常数的标定（外部，见 §4 末的标定实验）。
 
 ### 切片 1 的一半：`LibraryDiagnosisRunner`（把 tierB 真正跑起来，已完成）
 
