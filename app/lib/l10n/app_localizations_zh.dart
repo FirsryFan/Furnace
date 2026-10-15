@@ -2146,4 +2146,131 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionIntakeSourceUnknown => '未标注';
+
+  @override
+  String get questionDetailTitle => '题目详情';
+
+  @override
+  String get questionDetailQuestionMissing => '这道题已不在题库里（可能刚被删掉）。';
+
+  @override
+  String get questionDetailCorrectOption => '正确答案';
+
+  @override
+  String questionDetailYear(int year) {
+    return '$year 年';
+  }
+
+  @override
+  String questionDetailDifficulty(String value) {
+    return '难度 $value';
+  }
+
+  @override
+  String questionDetailAiQuality(String value) {
+    return 'AI 自评质量 $value';
+  }
+
+  @override
+  String get questionDetailTrapNote => '坑点';
+
+  @override
+  String get questionDetailReasoningSection => 'AI 解题与卡点评估';
+
+  @override
+  String get questionDetailSolveButton => 'AI 解题';
+
+  @override
+  String get questionDetailResolveButton => '再解一次';
+
+  @override
+  String get questionDetailSolving => '正在解题…';
+
+  @override
+  String get questionDetailNoChainYet => '还没有思维链。点上面的按钮让 AI 解一遍，链会存进本地题库。';
+
+  @override
+  String get questionDetailChainFromLibrary => '以下是最近一次解题存下来的链；再解一次会另存一条新的。';
+
+  @override
+  String get questionDetailRunFailedTitle => '这次解题没有成功';
+
+  @override
+  String get questionDetailFailureReasonLabel => '失败原因';
+
+  @override
+  String get questionDetailRawReplyLabel => '模型原始回复';
+
+  @override
+  String get questionDetailRawReplyMissing => '（没有留下原始回复）';
+
+  @override
+  String questionDetailOverallRisk(int percent) {
+    return '整条链的最高卡点风险：约 $percent%';
+  }
+
+  @override
+  String questionDetailMostLikelyStep(int index) {
+    return '最可能卡住的是第 $index 步';
+  }
+
+  @override
+  String questionDetailEvidenceCoverage(int covered, int total) {
+    return '其中 $covered/$total 步有你的状态读数';
+  }
+
+  @override
+  String questionDetailStepTitle(int index) {
+    return '第 $index 步';
+  }
+
+  @override
+  String questionDetailUnknownAction(String actionType) {
+    return '词表里没有这个动作：$actionType';
+  }
+
+  @override
+  String get questionDetailStepGoalLabel => '这一步要达成什么';
+
+  @override
+  String get questionDetailStepJustificationLabel => '为什么这样走';
+
+  @override
+  String get questionDetailStepCheckLabel => '怎么自检';
+
+  @override
+  String get questionDetailStepKnowledgeLabel => '涉及的知识点';
+
+  @override
+  String questionDetailModelRisk(int percent) {
+    return '模型判断的风险：约 $percent%';
+  }
+
+  @override
+  String questionDetailFusedRisk(int percent) {
+    return '合上你的状态读数：约 $percent%';
+  }
+
+  @override
+  String get questionDetailSuggestionLabel => '建议';
+
+  @override
+  String get questionDetailUnmatchedHintsTitle => '这些知识点还没有你的状态数据';
+
+  @override
+  String get questionDetailUnmatchedHintsBody => '这不代表它们没问题，只是本地还没有对应的记忆读数。';
+
+  @override
+  String get questionDetailKnowledgePointsLabel => '这道题挂载的知识点';
+
+  @override
+  String get questionDetailKnowledgePointNoReading => '暂无你的状态数据';
+
+  @override
+  String get questionDetailStatesLoading => '正在读你的学习状态…';
+
+  @override
+  String questionDetailStatesFailed(String error) {
+    return '状态读数没读出来：$error';
+  }
 }

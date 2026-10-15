@@ -3997,6 +3997,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlabelled'**
   String get questionIntakeSourceUnknown;
+
+  /// No description provided for @questionDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Question detail'**
+  String get questionDetailTitle;
+
+  /// No description provided for @questionDetailQuestionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This question is no longer in the library (it may have just been deleted).'**
+  String get questionDetailQuestionMissing;
+
+  /// No description provided for @questionDetailCorrectOption.
+  ///
+  /// In en, this message translates to:
+  /// **'correct'**
+  String get questionDetailCorrectOption;
+
+  /// No description provided for @questionDetailYear.
+  ///
+  /// In en, this message translates to:
+  /// **'{year}'**
+  String questionDetailYear(int year);
+
+  /// No description provided for @questionDetailDifficulty.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty {value}'**
+  String questionDetailDifficulty(String value);
+
+  /// No description provided for @questionDetailAiQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'AI self-rated quality {value}'**
+  String questionDetailAiQuality(String value);
+
+  /// No description provided for @questionDetailTrapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Trap'**
+  String get questionDetailTrapNote;
+
+  /// No description provided for @questionDetailReasoningSection.
+  ///
+  /// In en, this message translates to:
+  /// **'AI solving and stuck-point review'**
+  String get questionDetailReasoningSection;
+
+  /// No description provided for @questionDetailSolveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Solve with AI'**
+  String get questionDetailSolveButton;
+
+  /// No description provided for @questionDetailResolveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Solve again'**
+  String get questionDetailResolveButton;
+
+  /// No description provided for @questionDetailSolving.
+  ///
+  /// In en, this message translates to:
+  /// **'Solving…'**
+  String get questionDetailSolving;
+
+  /// No description provided for @questionDetailNoChainYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No reasoning chain yet. Use the button above to have the AI solve it; the chain is saved to your local library.'**
+  String get questionDetailNoChainYet;
+
+  /// No description provided for @questionDetailChainFromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Below is the chain saved by the most recent run; solving again saves a new one.'**
+  String get questionDetailChainFromLibrary;
+
+  /// No description provided for @questionDetailRunFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This run did not succeed'**
+  String get questionDetailRunFailedTitle;
+
+  /// No description provided for @questionDetailFailureReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get questionDetailFailureReasonLabel;
+
+  /// No description provided for @questionDetailRawReplyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw model reply'**
+  String get questionDetailRawReplyLabel;
+
+  /// No description provided for @questionDetailRawReplyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'(no raw reply was kept)'**
+  String get questionDetailRawReplyMissing;
+
+  /// No description provided for @questionDetailOverallRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest stuck-point risk in the chain: about {percent}%'**
+  String questionDetailOverallRisk(int percent);
+
+  /// No description provided for @questionDetailMostLikelyStep.
+  ///
+  /// In en, this message translates to:
+  /// **'The step you are most likely to get stuck on is step {index}'**
+  String questionDetailMostLikelyStep(int index);
+
+  /// No description provided for @questionDetailEvidenceCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'{covered} of {total} steps have your state readings'**
+  String questionDetailEvidenceCoverage(int covered, int total);
+
+  /// No description provided for @questionDetailStepTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {index}'**
+  String questionDetailStepTitle(int index);
+
+  /// No description provided for @questionDetailUnknownAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action not in the catalogue: {actionType}'**
+  String questionDetailUnknownAction(String actionType);
+
+  /// No description provided for @questionDetailStepGoalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What this step achieves'**
+  String get questionDetailStepGoalLabel;
+
+  /// No description provided for @questionDetailStepJustificationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Why it holds'**
+  String get questionDetailStepJustificationLabel;
+
+  /// No description provided for @questionDetailStepCheckLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'How to check'**
+  String get questionDetailStepCheckLabel;
+
+  /// No description provided for @questionDetailStepKnowledgeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge points involved'**
+  String get questionDetailStepKnowledgeLabel;
+
+  /// No description provided for @questionDetailModelRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Model\'s risk judgement: about {percent}%'**
+  String questionDetailModelRisk(int percent);
+
+  /// No description provided for @questionDetailFusedRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Combined with your state readings: about {percent}%'**
+  String questionDetailFusedRisk(int percent);
+
+  /// No description provided for @questionDetailSuggestionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get questionDetailSuggestionLabel;
+
+  /// No description provided for @questionDetailUnmatchedHintsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No state readings for these knowledge points'**
+  String get questionDetailUnmatchedHintsTitle;
+
+  /// No description provided for @questionDetailUnmatchedHintsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'That does not mean they are fine - it means no memory reading is stored for them yet.'**
+  String get questionDetailUnmatchedHintsBody;
+
+  /// No description provided for @questionDetailKnowledgePointsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge points linked to this question'**
+  String get questionDetailKnowledgePointsLabel;
+
+  /// No description provided for @questionDetailKnowledgePointNoReading.
+  ///
+  /// In en, this message translates to:
+  /// **'No state readings yet'**
+  String get questionDetailKnowledgePointNoReading;
+
+  /// No description provided for @questionDetailStatesLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your learning state…'**
+  String get questionDetailStatesLoading;
+
+  /// No description provided for @questionDetailStatesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the state readings: {error}'**
+  String questionDetailStatesFailed(String error);
 }
 
 class _AppLocalizationsDelegate

@@ -2233,4 +2233,138 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionIntakeSourceUnknown => 'Unlabelled';
+
+  @override
+  String get questionDetailTitle => 'Question detail';
+
+  @override
+  String get questionDetailQuestionMissing =>
+      'This question is no longer in the library (it may have just been deleted).';
+
+  @override
+  String get questionDetailCorrectOption => 'correct';
+
+  @override
+  String questionDetailYear(int year) {
+    return '$year';
+  }
+
+  @override
+  String questionDetailDifficulty(String value) {
+    return 'Difficulty $value';
+  }
+
+  @override
+  String questionDetailAiQuality(String value) {
+    return 'AI self-rated quality $value';
+  }
+
+  @override
+  String get questionDetailTrapNote => 'Trap';
+
+  @override
+  String get questionDetailReasoningSection =>
+      'AI solving and stuck-point review';
+
+  @override
+  String get questionDetailSolveButton => 'Solve with AI';
+
+  @override
+  String get questionDetailResolveButton => 'Solve again';
+
+  @override
+  String get questionDetailSolving => 'Solving…';
+
+  @override
+  String get questionDetailNoChainYet =>
+      'No reasoning chain yet. Use the button above to have the AI solve it; the chain is saved to your local library.';
+
+  @override
+  String get questionDetailChainFromLibrary =>
+      'Below is the chain saved by the most recent run; solving again saves a new one.';
+
+  @override
+  String get questionDetailRunFailedTitle => 'This run did not succeed';
+
+  @override
+  String get questionDetailFailureReasonLabel => 'Reason';
+
+  @override
+  String get questionDetailRawReplyLabel => 'Raw model reply';
+
+  @override
+  String get questionDetailRawReplyMissing => '(no raw reply was kept)';
+
+  @override
+  String questionDetailOverallRisk(int percent) {
+    return 'Highest stuck-point risk in the chain: about $percent%';
+  }
+
+  @override
+  String questionDetailMostLikelyStep(int index) {
+    return 'The step you are most likely to get stuck on is step $index';
+  }
+
+  @override
+  String questionDetailEvidenceCoverage(int covered, int total) {
+    return '$covered of $total steps have your state readings';
+  }
+
+  @override
+  String questionDetailStepTitle(int index) {
+    return 'Step $index';
+  }
+
+  @override
+  String questionDetailUnknownAction(String actionType) {
+    return 'Action not in the catalogue: $actionType';
+  }
+
+  @override
+  String get questionDetailStepGoalLabel => 'What this step achieves';
+
+  @override
+  String get questionDetailStepJustificationLabel => 'Why it holds';
+
+  @override
+  String get questionDetailStepCheckLabel => 'How to check';
+
+  @override
+  String get questionDetailStepKnowledgeLabel => 'Knowledge points involved';
+
+  @override
+  String questionDetailModelRisk(int percent) {
+    return 'Model\'s risk judgement: about $percent%';
+  }
+
+  @override
+  String questionDetailFusedRisk(int percent) {
+    return 'Combined with your state readings: about $percent%';
+  }
+
+  @override
+  String get questionDetailSuggestionLabel => 'Suggestion';
+
+  @override
+  String get questionDetailUnmatchedHintsTitle =>
+      'No state readings for these knowledge points';
+
+  @override
+  String get questionDetailUnmatchedHintsBody =>
+      'That does not mean they are fine - it means no memory reading is stored for them yet.';
+
+  @override
+  String get questionDetailKnowledgePointsLabel =>
+      'Knowledge points linked to this question';
+
+  @override
+  String get questionDetailKnowledgePointNoReading => 'No state readings yet';
+
+  @override
+  String get questionDetailStatesLoading => 'Reading your learning state…';
+
+  @override
+  String questionDetailStatesFailed(String error) {
+    return 'Could not read the state readings: $error';
+  }
 }

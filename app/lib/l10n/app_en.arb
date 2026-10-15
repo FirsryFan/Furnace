@@ -993,5 +993,120 @@
   "questionIntakeSourceEliteSchool": "Elite school test",
   "questionIntakeSourceSchool": "School test",
   "questionIntakeSourcePersonal": "Self-made",
-  "questionIntakeSourceUnknown": "Unlabelled"
+  "questionIntakeSourceUnknown": "Unlabelled",
+  "questionDetailTitle": "Question detail",
+  "questionDetailQuestionMissing": "This question is no longer in the library (it may have just been deleted).",
+  "questionDetailCorrectOption": "correct",
+  "questionDetailYear": "{year}",
+  "@questionDetailYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailDifficulty": "Difficulty {value}",
+  "@questionDetailDifficulty": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailAiQuality": "AI self-rated quality {value}",
+  "@questionDetailAiQuality": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailTrapNote": "Trap",
+  "questionDetailReasoningSection": "AI solving and stuck-point review",
+  "questionDetailSolveButton": "Solve with AI",
+  "questionDetailResolveButton": "Solve again",
+  "questionDetailSolving": "Solving…",
+  "questionDetailNoChainYet": "No reasoning chain yet. Use the button above to have the AI solve it; the chain is saved to your local library.",
+  "questionDetailChainFromLibrary": "Below is the chain saved by the most recent run; solving again saves a new one.",
+  "questionDetailRunFailedTitle": "This run did not succeed",
+  "questionDetailFailureReasonLabel": "Reason",
+  "questionDetailRawReplyLabel": "Raw model reply",
+  "questionDetailRawReplyMissing": "(no raw reply was kept)",
+  "questionDetailOverallRisk": "Highest stuck-point risk in the chain: about {percent}%",
+  "@questionDetailOverallRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailMostLikelyStep": "The step you are most likely to get stuck on is step {index}",
+  "@questionDetailMostLikelyStep": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailEvidenceCoverage": "{covered} of {total} steps have your state readings",
+  "@questionDetailEvidenceCoverage": {
+    "placeholders": {
+      "covered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailStepTitle": "Step {index}",
+  "@questionDetailStepTitle": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailUnknownAction": "Action not in the catalogue: {actionType}",
+  "@questionDetailUnknownAction": {
+    "placeholders": {
+      "actionType": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailStepGoalLabel": "What this step achieves",
+  "questionDetailStepJustificationLabel": "Why it holds",
+  "questionDetailStepCheckLabel": "How to check",
+  "questionDetailStepKnowledgeLabel": "Knowledge points involved",
+  "questionDetailModelRisk": "Model's risk judgement: about {percent}%",
+  "@questionDetailModelRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailFusedRisk": "Combined with your state readings: about {percent}%",
+  "@questionDetailFusedRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailSuggestionLabel": "Suggestion",
+  "questionDetailUnmatchedHintsTitle": "No state readings for these knowledge points",
+  "questionDetailUnmatchedHintsBody": "That does not mean they are fine - it means no memory reading is stored for them yet.",
+  "questionDetailKnowledgePointsLabel": "Knowledge points linked to this question",
+  "questionDetailKnowledgePointNoReading": "No state readings yet",
+  "questionDetailStatesLoading": "Reading your learning state…",
+  "questionDetailStatesFailed": "Could not read the state readings: {error}",
+  "@questionDetailStatesFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -29,7 +29,9 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/handwriting_intake_store.dart';
+import 'question_detail_page.dart';
 import 'question_intake_providers.dart';
+import 'question_vocab_labels.dart';
 
 /// `QuestionDraft` 的字段是裸字符串（表里也是 `text()`），仓储没有导出常量，
 /// 这里给本页用到的取值一个名字，免得字符串在页面里飘。
@@ -237,6 +239,18 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
 
   // ── 题库列表 ────────────────────────────────────────────────────────────────
 
+  /// 打开题目详情页（思维链 + 卡点评估）。
+  ///
+  /// 详情页自己按 id 读题目，所以这里只传 id：列表里的 `Question` 是列表那一刻
+  /// 的快照，详情页要多读 options 和 chains，不该复用这份快照。
+  void _openDetail(Question question) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => QuestionDetailPage(questionId: question.id),
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(Question question) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -325,6 +339,7 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
               _stemSearchController.clear();
               _setFilter((current) => current.copyWith(clearStem: true));
             },
+            onOpen: _openDetail,
             onDelete: _confirmDelete,
           ),
         ],
@@ -581,7 +596,7 @@ class _IntakeFormCard extends StatelessWidget {
                   'personal',
                   'unknown',
                 ])
-                  DropdownMenuItem(value: level, child: Text(_sourceLevelLabel(l10n, level))),
+                  DropdownMenuItem(value: level, child: Text(sourceLevelLabel(l10n, level))),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -754,12 +769,14 @@ class _IntakeLibrarySection extends ConsumerWidget {
     required this.searchController,
     required this.onSearchChanged,
     required this.onClearSearch,
+    required this.onOpen,
     required this.onDelete,
   });
 
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
+  final ValueChanged<Question> onOpen;
   final Future<void> Function(Question question) onDelete;
 
   @override
@@ -811,7 +828,7 @@ class _IntakeLibrarySection extends ConsumerWidget {
                 ),
                 for (final state in const ['raw', 'structured', 'processed'])
                   FilterChip(
-                    label: Text(_stateLabel(l10n, state)),
+                    label: Text(stateLabel(l10n, state)),
                     selected: filter.state == state,
                     onSelected: (selected) => _applyFilter(
                       context,
@@ -828,7 +845,7 @@ class _IntakeLibrarySection extends ConsumerWidget {
                   'school',
                 ])
                   FilterChip(
-                    label: Text(_sourceLevelLabel(l10n, level)),
+                    label: Text(sourceLevelLabel(l10n, level)),
                     selected: filter.sourceLevel == level,
                     onSelected: (selected) => _applyFilter(
                       context,
@@ -873,10 +890,17 @@ class _IntakeLibrarySection extends ConsumerWidget {
                             subtitle: Text(
                               _librarySubtitle(l10n, entry),
                             ),
-                            trailing: IconButton(
-                              tooltip: l10n.questionIntakeDelete,
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => onDelete(entry.question),
+                            onTap: () => onOpen(entry.question),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: l10n.questionIntakeDelete,
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => onDelete(entry.question),
+                                ),
+                                const Icon(Icons.chevron_right),
+                              ],
                             ),
                           ),
                       ],
@@ -897,8 +921,8 @@ class _IntakeLibrarySection extends ConsumerWidget {
     if (subject.isNotEmpty) {
       parts.add(CapabilityAction.subjectLabelsZh[subject] ?? subject);
     }
-    parts.add(_sourceLevelLabel(l10n, entry.question.sourceLevel));
-    parts.add(_stateLabel(l10n, entry.question.state));
+    parts.add(sourceLevelLabel(l10n, entry.question.sourceLevel));
+    parts.add(stateLabel(l10n, entry.question.state));
     if (entry.optionCount > 0) {
       parts.add(l10n.questionIntakeOptionCount(entry.optionCount));
     }
@@ -915,18 +939,3 @@ void _applyFilter(
   ref.read(questionLibraryFilterProvider.notifier).state = filter;
 }
 
-String _sourceLevelLabel(AppLocalizations l10n, String level) =>
-    switch (level) {
-      'gaokao' => l10n.questionIntakeSourceGaokao,
-      'provincial_diagnostic' => l10n.questionIntakeSourceProvincialDiagnostic,
-      'elite_school' => l10n.questionIntakeSourceEliteSchool,
-      'school' => l10n.questionIntakeSourceSchool,
-      'personal' => l10n.questionIntakeSourcePersonal,
-      _ => l10n.questionIntakeSourceUnknown,
-    };
-
-String _stateLabel(AppLocalizations l10n, String state) => switch (state) {
-      'structured' => l10n.questionIntakeStateStructured,
-      'processed' => l10n.questionIntakeStateProcessed,
-      _ => l10n.questionIntakeStateRaw,
-    };

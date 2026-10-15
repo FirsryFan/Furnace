@@ -882,5 +882,120 @@
   "questionIntakeSourceEliteSchool": "名校测试",
   "questionIntakeSourceSchool": "学校题",
   "questionIntakeSourcePersonal": "自建",
-  "questionIntakeSourceUnknown": "未标注"
+  "questionIntakeSourceUnknown": "未标注",
+  "questionDetailTitle": "题目详情",
+  "questionDetailQuestionMissing": "这道题已不在题库里（可能刚被删掉）。",
+  "questionDetailCorrectOption": "正确答案",
+  "questionDetailYear": "{year} 年",
+  "@questionDetailYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailDifficulty": "难度 {value}",
+  "@questionDetailDifficulty": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailAiQuality": "AI 自评质量 {value}",
+  "@questionDetailAiQuality": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailTrapNote": "坑点",
+  "questionDetailReasoningSection": "AI 解题与卡点评估",
+  "questionDetailSolveButton": "AI 解题",
+  "questionDetailResolveButton": "再解一次",
+  "questionDetailSolving": "正在解题…",
+  "questionDetailNoChainYet": "还没有思维链。点上面的按钮让 AI 解一遍，链会存进本地题库。",
+  "questionDetailChainFromLibrary": "以下是最近一次解题存下来的链；再解一次会另存一条新的。",
+  "questionDetailRunFailedTitle": "这次解题没有成功",
+  "questionDetailFailureReasonLabel": "失败原因",
+  "questionDetailRawReplyLabel": "模型原始回复",
+  "questionDetailRawReplyMissing": "（没有留下原始回复）",
+  "questionDetailOverallRisk": "整条链的最高卡点风险：约 {percent}%",
+  "@questionDetailOverallRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailMostLikelyStep": "最可能卡住的是第 {index} 步",
+  "@questionDetailMostLikelyStep": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailEvidenceCoverage": "其中 {covered}/{total} 步有你的状态读数",
+  "@questionDetailEvidenceCoverage": {
+    "placeholders": {
+      "covered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailStepTitle": "第 {index} 步",
+  "@questionDetailStepTitle": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailUnknownAction": "词表里没有这个动作：{actionType}",
+  "@questionDetailUnknownAction": {
+    "placeholders": {
+      "actionType": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailStepGoalLabel": "这一步要达成什么",
+  "questionDetailStepJustificationLabel": "为什么这样走",
+  "questionDetailStepCheckLabel": "怎么自检",
+  "questionDetailStepKnowledgeLabel": "涉及的知识点",
+  "questionDetailModelRisk": "模型判断的风险：约 {percent}%",
+  "@questionDetailModelRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailFusedRisk": "合上你的状态读数：约 {percent}%",
+  "@questionDetailFusedRisk": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailSuggestionLabel": "建议",
+  "questionDetailUnmatchedHintsTitle": "这些知识点还没有你的状态数据",
+  "questionDetailUnmatchedHintsBody": "这不代表它们没问题，只是本地还没有对应的记忆读数。",
+  "questionDetailKnowledgePointsLabel": "这道题挂载的知识点",
+  "questionDetailKnowledgePointNoReading": "暂无你的状态数据",
+  "questionDetailStatesLoading": "正在读你的学习状态…",
+  "questionDetailStatesFailed": "状态读数没读出来：{error}",
+  "@questionDetailStatesFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }
