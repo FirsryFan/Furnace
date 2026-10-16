@@ -1250,6 +1250,96 @@ abstract class AppLocalizations {
   /// **'Clear'**
   String get materialIntakeClear;
 
+  /// No description provided for @materialIntakePickPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a photo'**
+  String get materialIntakePickPhoto;
+
+  /// No description provided for @materialIntakePhotoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo goes to a vision model; its answer is read straight into a run request (checked, not executed, and nothing is written).'**
+  String get materialIntakePhotoHint;
+
+  /// No description provided for @materialIntakePhotoPickFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not pick a photo: {message}'**
+  String materialIntakePhotoPickFailed(String message);
+
+  /// No description provided for @materialIntakePhotoReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo did not read into a request: {message}'**
+  String materialIntakePhotoReadFailed(String message);
+
+  /// No description provided for @materialPhotoReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The request read from the photo'**
+  String get materialPhotoReportTitle;
+
+  /// No description provided for @materialPhotoReportValid.
+  ///
+  /// In en, this message translates to:
+  /// **'Structurally valid: no hard errors'**
+  String get materialPhotoReportValid;
+
+  /// No description provided for @materialPhotoReportInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Structurally invalid: the whole request is refused'**
+  String get materialPhotoReportInvalid;
+
+  /// No description provided for @materialPhotoReportSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Image sent: {width}×{height}'**
+  String materialPhotoReportSize(int width, int height);
+
+  /// No description provided for @materialPhotoReportCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{actions} actions · {evidence} with evidence'**
+  String materialPhotoReportCounts(int actions, int evidence);
+
+  /// No description provided for @materialPhotoReportErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard errors (each one refuses the whole request)'**
+  String get materialPhotoReportErrors;
+
+  /// No description provided for @materialPhotoReportPreviews.
+  ///
+  /// In en, this message translates to:
+  /// **'What it would do'**
+  String get materialPhotoReportPreviews;
+
+  /// No description provided for @materialPhotoReportWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions (not blocking)'**
+  String get materialPhotoReportWarnings;
+
+  /// No description provided for @materialPhotoReportRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'What the model said'**
+  String get materialPhotoReportRaw;
+
+  /// No description provided for @materialPhotoReportNoRaw.
+  ///
+  /// In en, this message translates to:
+  /// **'(no answer)'**
+  String get materialPhotoReportNoRaw;
+
+  /// No description provided for @materialPhotoReportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read it'**
+  String get materialPhotoReportFailed;
+
   /// No description provided for @materialIntakeTopicHubs.
   ///
   /// In en, this message translates to:

@@ -9,6 +9,11 @@
 ///  2. 勾选 → **确认入库**：写 `knowledge_points`（`external_id` = 材料决定的内容 id，
 ///     用户改过标题也认它）与 `knowledge_edges`（连接是线索边，两端都在才落，§2-C ④）。
 ///
+/// 入口有三个：**贴信封**（上面两步）、**从待确认清单恢复**、以及**选一张照片** ——
+/// 后者走 `photo_transcribe_service.dart`：照片与【图清单】一起发给有视觉能力的模型，
+/// 回话读成一份 `mindnet.run/1` 并自检（§2-C ③ 的"照片本身"）。它**只校验、不执行**，
+/// 也一个字都不写库，所以与下面两张单子无关。
+///
 /// 页面上下两张单子用的是同一份批次读数（`unapplied_count`）：**还没点头的**在"待确认清单"
 /// （关掉页面也还在，接着确认），**已经点头的**在"已经确认完的"（只读，回答"我上次到底建了什么"）。
 /// 一批只会出现在其中一张上 —— 还留着一条落不了的连接就不叫确认完。
@@ -19,6 +24,9 @@
 /// 呈现层（INGEST §4 的可选产物，本层不产出）。
 library;
 
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,8 +34,45 @@ import '../../../data/repositories/material_intake_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
+import '../../../domain/services/ingest/transcribe_run.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../ai/application/ai_providers.dart';
+import '../../ai/domain/vision_payload.dart';
 import '../application/material_intake_reader.dart';
+import '../application/photo_transcribe_service.dart';
+
+/// "选一张照片"这一步：返回照片字节，用户取消就是 `null`。
+///
+/// 做成 provider 是为了**测试**：widget 测试里换成假的，既不弹系统对话框，
+/// 也不碰真实文件系统（真实现只有 `pickPhotoBytes`）。
+typedef PhotoPicker = Future<Uint8List?> Function();
+
+final photoPickerProvider = Provider<PhotoPicker>((ref) => pickPhotoBytes);
+
+/// 压图/重编码（`vision_payload.dart`）。做成 provider 是为了 **widget 测试**：
+/// 那个假时钟下 `dart:ui` 的解码走不完，测试里换成不会真的解码的编码器。
+final visionEncoderProvider = Provider<VisionImageEncoder>(
+  (ref) => const VisionImageEncoder(),
+);
+
+/// 系统选图（`file_picker`）：只要图片扩展名，取第一张。
+Future<Uint8List?> pickPhotoBytes() async {
+  final picked = await FilePicker.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: const <String>[
+      'png',
+      'jpg',
+      'jpeg',
+      'webp',
+      'heic',
+      'bmp',
+    ],
+  );
+  if (picked.isEmpty) {
+    return null;
+  }
+  return picked.first.readAsBytes();
+}
 
 /// 材料入库页。
 class MaterialIntakePage extends ConsumerStatefulWidget {
@@ -222,6 +267,69 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
   }
 
+  /// 选一张照片：发出去、读回一份 `run/1`、把自检结果原样摆出来。
+  ///
+  /// **只读**：不写库、不执行请求 —— 照片这条路上到目前为止只有"读"，执行是另一件事。
+  /// 图清单与"图里已有的节点/边 id"都从库里现读（不许模型发明 id，`transcribe_run.dart`）。
+  /// 读失败不清空已经贴好的信封：两件事互不相干。
+  Future<void> _readPhoto() async {
+    final l10n = AppLocalizations.of(context);
+    final graph = ref.read(knowledgeEdgeRepositoryProvider);
+    final adapter = ref.read(modelAdapterProvider);
+    final pick = ref.read(photoPickerProvider);
+    Uint8List? bytes;
+    try {
+      bytes = await pick();
+    } catch (error) {
+      _notePhotoProblem(l10n.materialIntakePhotoPickFailed('$error'));
+      return;
+    }
+    if (bytes == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      // 清单与 id 白名单都来自库：模型看到的 id 是这一份，写回来的也只能是这一份。
+      final points = await graph.graphPoints();
+      final edges = await graph.all();
+      final result = await transcribePhoto(
+        adapter: adapter,
+        image: bytes,
+        encoder: ref.read(visionEncoderProvider),
+        inventory: <TranscribeInventoryEntry>[
+          for (final point in points) (id: point.externalId, name: point.title),
+        ],
+        existingNodeIds: <String>{for (final point in points) point.externalId},
+        existingEdgeIds: <String>{for (final edge in edges) edge.id},
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _busy = false);
+      await showDialog<void>(
+        context: context,
+        builder: (_) => _PhotoReportDialog(result: result),
+      );
+    } catch (error) {
+      _notePhotoProblem(l10n.materialIntakePhotoReadFailed('$error'));
+    }
+  }
+
+  /// 照片这条路出问题只改这一行提示（不动提案、不动批次）。
+  void _notePhotoProblem(String message) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _error = message;
+    });
+  }
+
   void _clear() {
     _envelopeController.clear();
     setState(() {
@@ -322,6 +430,17 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _readPhoto,
+                icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                label: Text(l10n.materialIntakePickPhoto),
+              ),
+            ],
+          ),
+          _Note(text: l10n.materialIntakePhotoHint),
           if (_pendingBatches.isNotEmpty) ...<Widget>[
             const SizedBox(height: 16),
             Text(
@@ -622,6 +741,134 @@ class _Success extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 照片读出来的东西：自检结果 + 会做什么 + 建议 + 模型原话。
+///
+/// 只读 —— 这里没有"执行"按钮：照片这条路目前只回答"读成了什么"，
+/// 要执行得先把这份请求拿去走 `run/1`（那是下一件事）。
+class _PhotoReportDialog extends StatelessWidget {
+  const _PhotoReportDialog({required this.result});
+
+  final PhotoTranscribeResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final report = switch (result) {
+      PhotoTranscribeReport() => result as PhotoTranscribeReport,
+      _ => null,
+    };
+    final failure = switch (result) {
+      PhotoTranscribeFailure() => result as PhotoTranscribeFailure,
+      _ => null,
+    };
+    return AlertDialog(
+      title: Text(l10n.materialPhotoReportTitle),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (report != null) ...<Widget>[
+                Text(
+                  report.report.ok
+                      ? l10n.materialPhotoReportValid
+                      : l10n.materialPhotoReportInvalid,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: report.report.ok
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _Note(
+                  text: <String>[
+                    l10n.materialPhotoReportSize(report.width, report.height),
+                    l10n.materialPhotoReportCounts(
+                      report.report.actionCount,
+                      report.report.evidenceCount,
+                    ),
+                  ].join(' · '),
+                ),
+                if (report.report.errors.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportErrors,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final error in report.report.errors)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.error_outline, size: 18),
+                      title: Text(error),
+                    ),
+                ],
+                if (report.report.previews.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportPreviews,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final preview in report.report.previews)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.play_arrow_outlined, size: 18),
+                      title: Text(preview),
+                    ),
+                ],
+                if (report.report.warnings.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportWarnings,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final warning in report.report.warnings)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.info_outline, size: 18),
+                      title: Text(warning),
+                    ),
+                ],
+              ],
+              if (failure != null) ...<Widget>[
+                Text(
+                  l10n.materialPhotoReportFailed,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _Problem(text: failure.message),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                l10n.materialPhotoReportRaw,
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 4),
+              SelectableText(result is PhotoTranscribeReport
+                  ? (result as PhotoTranscribeReport).rawText
+                  : ((result as PhotoTranscribeFailure).rawText ??
+                      l10n.materialPhotoReportNoRaw)),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonClose),
+        ),
+      ],
     );
   }
 }

@@ -223,6 +223,39 @@
   "materialIntakeEnvelopeHint": "protocol: mindnet.material/1 · batch_id: ... · items: [ ... ]",
   "materialIntakePreview": "See proposals",
   "materialIntakeClear": "Clear",
+  "materialIntakePickPhoto": "Pick a photo",
+  "materialIntakePhotoHint": "The photo goes to a vision model; its answer is read straight into a run request (checked, not executed, and nothing is written).",
+  "materialIntakePhotoPickFailed": "Could not pick a photo: {message}",
+  "@materialIntakePhotoPickFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "materialIntakePhotoReadFailed": "The photo did not read into a request: {message}",
+  "@materialIntakePhotoReadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "materialPhotoReportTitle": "The request read from the photo",
+  "materialPhotoReportValid": "Structurally valid: no hard errors",
+  "materialPhotoReportInvalid": "Structurally invalid: the whole request is refused",
+  "materialPhotoReportSize": "Image sent: {width}×{height}",
+  "@materialPhotoReportSize": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" }
+    }
+  },
+  "materialPhotoReportCounts": "{actions} actions · {evidence} with evidence",
+  "@materialPhotoReportCounts": {
+    "placeholders": {
+      "actions": { "type": "int" },
+      "evidence": { "type": "int" }
+    }
+  },
+  "materialPhotoReportErrors": "Hard errors (each one refuses the whole request)",
+  "materialPhotoReportPreviews": "What it would do",
+  "materialPhotoReportWarnings": "Suggestions (not blocking)",
+  "materialPhotoReportRaw": "What the model said",
+  "materialPhotoReportNoRaw": "(no answer)",
+  "materialPhotoReportFailed": "Could not read it",
   "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
   "materialIntakePendingTitle": "Pending list ({count} batches, survives closing the page)",
   "@materialIntakePendingTitle": {

@@ -11,6 +11,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -21,8 +22,28 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/material_intake_repository.dart';
 import 'package:furnace/features/cognitive/application/material_intake_reader.dart';
+import 'package:furnace/features/ai/application/ai_providers.dart';
+import 'package:furnace/features/ai/domain/model_adapter.dart';
+import 'package:furnace/features/ai/domain/vision_payload.dart';
+import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/cognitive/presentation/material_intake_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
+
+/// 只报尺寸、不真的解码的编码器：widget 测试的假时钟走不完 `dart:ui` 的解码
+/// （真编码在 `photo_transcribe_service_test.dart` 里验）。
+class _FakeEncoder implements VisionImageEncoder {
+  const _FakeEncoder();
+
+  @override
+  int get longSide => VisionImageEncoder.defaultLongSide;
+
+  @override
+  int get maxBytes => VisionImageEncoder.defaultMaxBytes;
+
+  @override
+  Future<VisionImageResult> encode(Uint8List raw) async =>
+      VisionImageReady(bytes: raw, width: 24, height: 12);
+}
 
 /// 三行材料：句（含词）+ 词（能造句）+ 问（不进图）。
 Map<String, Object?> envelopeJson({
@@ -84,6 +105,27 @@ List<Map<String, Object?>> questionOnly() => <Map<String, Object?>>[
         'margin_note': '先别建点',
       },
     ];
+
+/// 一份合法的 `mindnet.run/1`（那条 review 指着图里已有的 `kp`）。
+Map<String, Object?> runJson() => <String, Object?>{
+      'protocol': 'mindnet.run/1',
+      'run_id': 'run-1',
+      'time': const <String, Object?>{'model_hours': 480},
+      'actions': <Object?>[
+        <String, Object?>{
+          'kind': 'review',
+          'at': const <String, Object?>{'model_hours': 480},
+          'evidence': const <String, Object?>{
+            'source': 'page-1.jpg',
+            'region': '第 3 题',
+            'quote': 'x = 2',
+          },
+          'confidence': 0.8,
+          'node': 'kp',
+          'outcome': 'correct',
+        },
+      ],
+    };
 
 void main() {
   /// 提案列表是 `ListView`（懒构建）：屏幕太小的话后面的卡片根本不会 build，
@@ -155,8 +197,12 @@ void main() {
       await db.close();
     });
 
-    Widget harness() => ProviderScope(
-          overrides: <Override>[appDatabaseProvider.overrideWithValue(db)],
+    Widget harness({List<Override> overrides = const <Override>[]}) =>
+        ProviderScope(
+          overrides: <Override>[
+            appDatabaseProvider.overrideWithValue(db),
+            ...overrides,
+          ],
           child: const MaterialApp(
             locale: Locale('zh'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -475,6 +521,74 @@ void main() {
         applied.proposals.where((applied) => applied.alreadyExisted),
         isEmpty,
       );
+    });
+
+    testWidgets('选一张照片：读成请求、摆出自检结果、一个字都不写库', (WidgetTester tester) async {
+      bigSurface(tester);
+      // 图里已经有一个点：模型的清单与"已有的节点 id"都从库里现读。
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+
+      // 对话框：合不合法的自检 + 真正发出去的图（压过，不是原图）+ 模型原话。
+      expect(find.text(l10n.materialPhotoReportTitle), findsOneWidget);
+      expect(find.text(l10n.materialPhotoReportValid), findsOneWidget);
+      expect(
+        find.textContaining(l10n.materialPhotoReportSize(24, 12)),
+        findsOneWidget,
+      );
+      expect(find.textContaining('run-1'), findsOneWidget);
+
+      // 清单来自库：模型看到的 id 就是库里那个，图也跟着出去了。
+      expect(adapter.requests, hasLength(1));
+      final sent = adapter.requests.single.messages.single;
+      expect(sent.images, hasLength(1));
+      expect(sent.content, contains('kp → I relied on him.'));
+
+      // 照片这条路只读：不执行请求，也不写库。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+    });
+
+    testWidgets('照片读不成请求（没配模型）：说人话，还是一个字都不写', (WidgetTester tester) async {
+      bigSurface(tester);
+      final png = Uint8List.fromList(<int>[9, 9, 9]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(null),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportFailed), findsOneWidget);
+      expect(find.textContaining('设置'), findsOneWidget, reason: '要告诉用户去哪儿配模型');
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
     });
   });
 }

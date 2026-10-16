@@ -114,7 +114,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；**顺着线索边走已完成（轮次七十四：端点名字可点 —— `showKnowledgeEdgeWalk` 开一个只读对话框走到那一端，出边入边都站在那一端说方向，可一层层接着走；清单页与知识点详情两处同一走法，2 例新增）**；**成绩单落进历史已完成（轮次七十五：schema v19 的 `material_intake_proposals.already_existed` —— 确认那一刻"这条本来就有的"随提案落库，历史对话框里标"已存在，不重复建"，幂等重放不覆盖第一次的判断，2 例新增）**；**照片的调模型那半段已完成（轮次七十六：`app/lib/features/cognitive/application/photo_transcribe_service.dart` —— 压缩重编码 → 提示词 → 真的把照片发给视觉模型（工具列表为空）→ 回话解码 → 自检，失败六态全部返回人话结果对象、没到发图那一步一个请求都不发，12 例；界面入口未做）**；照片本身的界面入口与"把请求跑进引擎"未做）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；**顺着线索边走已完成（轮次七十四：端点名字可点 —— `showKnowledgeEdgeWalk` 开一个只读对话框走到那一端，出边入边都站在那一端说方向，可一层层接着走；清单页与知识点详情两处同一走法，2 例新增）**；**成绩单落进历史已完成（轮次七十五：schema v19 的 `material_intake_proposals.already_existed` —— 确认那一刻"这条本来就有的"随提案落库，历史对话框里标"已存在，不重复建"，幂等重放不覆盖第一次的判断，2 例新增）**；**照片的调模型那半段已完成（轮次七十六：`app/lib/features/cognitive/application/photo_transcribe_service.dart` —— 压缩重编码 → 提示词 → 真的把照片发给视觉模型（工具列表为空）→ 回话解码 → 自检，失败六态全部返回人话结果对象、没到发图那一步一个请求都不发，12 例；界面入口未做）**；**照片的界面入口已完成（轮次七十七：材料页上"选一张照片"按钮 + 只读报告对话框 —— 合不合法 / 真正发出去的图尺寸 / 动作与带出处条数 / 硬错 / 会做什么 / 建议 / 模型原话；`photoPickerProvider` 与 `visionEncoderProvider` 两个注入点让测试既不弹系统对话框也不解码图片；照片这条路不执行请求、一个字都不写库，2 例新增）**；把请求跑进引擎仍未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -1014,9 +1014,46 @@ test/features/anki/knowledge_point_edges_test.dart` → `+20: All tests passed!`
 `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1872 ~2`
 （轮次七十五是 `+1860 ~2`，差值 12）。
 
-**还没做**：① **界面入口**（材料页上"选一张照片"按钮 + 报告对话框）—— 服务层已经能跑，
-但用户在应用里还按不到它；② 把 `run/1` 真的跑进引擎（应用侧仍然只校验）；
+**还没做**：① **当时**：**界面入口**（材料页上"选一张照片"按钮 + 报告对话框）—— 服务层已经能跑，
+但用户在应用里还按不到它 —— **已在轮次七十七补上，见下一节**；
+② 把 `run/1` 真的跑进引擎（应用侧仍然只校验）；
 ③ `ls` 仍没有标定来源（§3 第 7 行）；④ 已确认完的批次不能撤销。
+
+### 切片 6 的下一步（十四）：照片的界面入口 —— "拍照那一步"现在按得到（轮次七十七）
+
+为什么要它：轮次七十六 把"照片 → `run/1`"的服务层做出来了（`transcribePhoto`），但**应用里没有任何地方
+调用它** —— 用户在材料页上按不到，那条链等于只活在测试里。这一轮只补入口：一个按钮、一个只读的对话框。
+
+这一轮做了什么：
+
+- `app/lib/features/cognitive/presentation/material_intake_page.dart` 上多一个"**选一张照片**"按钮
+  （`OutlinedButton.icon` + `Icons.photo_camera_outlined`）与 `_readPhoto()`：系统选图 → 图清单与
+  "已有的节点/边 id"**从库里现读** → `transcribePhoto(...)` → 弹出报告对话框。
+- 报告对话框（`_PhotoReportDialog`）：**合不合法**（`ok`）/ 真正发出去的图尺寸（压过的，不是原图）/
+  动作与带出处条数 / 硬错逐条 / "会做什么"逐条 / 建议逐条 / **模型原话**（`SelectableText`，能自己核对、
+  也能复制去别处）。
+- 两个注入点：`photoPickerProvider`（系统选图）与 `visionEncoderProvider`（压图重编码）。
+
+三条刻意选择：① **只读**：对话框里没有"执行"按钮 —— 照片这条路到目前为止只回答"读成了什么"，
+执行是另一件事（`run/1` 进引擎）；也一个字都不写库（零件、边、都不写）；② 照片这条路上出问题
+**只改那一行提示**，不清空已经贴好的信封（两件事互不相干）；③ 报告把"合不合法"和"模型答得好不好"
+分开说：`ok` 是结构自检，出处/置信度的提醒走"建议"，不混成一句"失败"。
+
+踩到的坑（记下来）：widget 测试的假时钟走不完 `dart:ui` 的解码 —— 第一版照片 widget 测试直接
+**10 分钟超时**（两次 `pumpAndSettle`/`toImage` 都卡住）。所以才有 `visionEncoderProvider` 这个注入点；
+测试里连 `paintPng` 都不能用（引擎驱动，假时钟下永不完成），picker 改成假字节 + 假编码器。
+真编码仍然在 `photo_transcribe_service_test.dart` 里用真图验。
+
+证据：`app/test/features/cognitive/presentation/material_intake_page_test.dart` 13 → **15 例**
+（"选一张照片：读成请求、摆出自检结果、一个字都不写库"：断言对话框标题/`结构上合法`/发出去的图尺寸/
+模型原话 `run-1`、`adapter.requests` 只有一轮且提示词含 `kp → I relied on him.`、`knowledge_edges` 与
+`material_intake_proposals` 都空；"照片读不成请求（没配模型）：说人话，还是一个字都不写"）；
+`dart format` 2 文件 `1 changed`；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
+全量 `flutter test --concurrency=1` → `+1874 ~2: All tests passed!`（轮次七十六是 `+1872 ~2`，差值 2）。
+
+**还没做**：① 把 `run/1` 真的跑进引擎（应用侧仍然只校验、不执行）；② 照片这条路上"换一张/重试"
+（现在读不成只能出去再按一次）；③ 历史里不显示"哪几条是这次落不了的"；
+④ `ls` 仍没有标定来源（§3 第 7 行）；⑤ 已确认完的批次不能撤销。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

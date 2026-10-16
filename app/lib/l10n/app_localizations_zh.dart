@@ -610,6 +610,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeClear => '清空';
 
   @override
+  String get materialIntakePickPhoto => '选一张照片';
+
+  @override
+  String get materialIntakePhotoHint =>
+      '照片发给有视觉能力的模型，回话直接读成一份 run 请求（只校验、不执行，也不写库）。';
+
+  @override
+  String materialIntakePhotoPickFailed(String message) {
+    return '没选成照片：$message';
+  }
+
+  @override
+  String materialIntakePhotoReadFailed(String message) {
+    return '照片没读成请求：$message';
+  }
+
+  @override
+  String get materialPhotoReportTitle => '照片读出来的请求';
+
+  @override
+  String get materialPhotoReportValid => '结构上合法：没有硬错';
+
+  @override
+  String get materialPhotoReportInvalid => '结构上不合法：整份会被拒绝';
+
+  @override
+  String materialPhotoReportSize(int width, int height) {
+    return '发出去的图：$width×$height';
+  }
+
+  @override
+  String materialPhotoReportCounts(int actions, int evidence) {
+    return '动作 $actions 条 · 带出处 $evidence 条';
+  }
+
+  @override
+  String get materialPhotoReportErrors => '硬错（每一条都会让整份被拒绝）';
+
+  @override
+  String get materialPhotoReportPreviews => '会做什么';
+
+  @override
+  String get materialPhotoReportWarnings => '建议（不拦）';
+
+  @override
+  String get materialPhotoReportRaw => '模型的原话';
+
+  @override
+  String get materialPhotoReportNoRaw => '（没有回话）';
+
+  @override
+  String get materialPhotoReportFailed => '没读出来';
+
+  @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
 
   @override

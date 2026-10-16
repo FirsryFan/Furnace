@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-10-17 轮次七十七：照片的界面入口 —— "拍照那一步"现在按得到（Lead）
+
+**做了什么**：轮次七十六把"照片 → `run/1`"的服务层做出来了（`transcribePhoto`），但应用里没有任何地方
+调用它 —— 用户在材料页上按不到，那条链只活在测试里。这一轮只补入口：一个按钮、一个只读对话框。
+
+- `app/lib/features/cognitive/presentation/material_intake_page.dart`：新增"**选一张照片**"按钮
+  （`OutlinedButton.icon` + `Icons.photo_camera_outlined`）与 `_readPhoto()` —— 系统选图 → 图清单与
+  "已有的节点/边 id"从库里现读 → `transcribePhoto(...)` → 报告对话框。
+- `_PhotoReportDialog`：**合不合法**（`ok`）/ 真正发出去的图尺寸（压过的，不是原图）/ 动作与带出处条数 /
+  硬错逐条 / "会做什么"逐条 / 建议逐条 / **模型原话**（`SelectableText`）。
+- 两个注入点：`photoPickerProvider`（系统选图）与 `visionEncoderProvider`（压图重编码）。
+- 新增 l10n 15 键（两个 ARB）：`materialIntakePickPhoto` / `materialIntakePhotoHint` /
+  `materialIntakePhotoPickFailed` / `materialIntakePhotoReadFailed` / `materialPhotoReportTitle` /
+  `…ReportValid` / `…ReportInvalid` / `…ReportSize` / `…ReportCounts` / `…ReportErrors` /
+  `…ReportPreviews` / `…ReportWarnings` / `…ReportRaw` / `…ReportNoRaw` / `…ReportFailed`。
+
+**三条刻意选择**：① **只读**：对话框里没有"执行"按钮 —— 照片这条路只回答"读成了什么"，
+也不写库（知识点、边、提案都不写）；② 照片这条路出问题**只改那一行提示**，不清空已经贴好的信封；
+③ 报告把"合不合法"与"模型答得好不好"分开说：`ok` 是结构自检，出处/置信度的提醒走"建议"。
+
+**踩到的坑（记下来）**：widget 测试的假时钟走不完 `dart:ui` 的解码 —— 第一版照片 widget 测试直接
+**10 分钟超时**（`toImage`/`pumpAndSettle` 都卡住）。因此新增 `visionEncoderProvider` 注入点；
+测试里连 `paintPng` 都不能用（引擎驱动，假时钟下永不完成），picker 改成假字节 + 假编码器。
+真编码仍在 `photo_transcribe_service_test.dart` 里用真图验。
+
+**证据**：`app/test/features/cognitive/presentation/material_intake_page_test.dart` 13 → **15 例**
+（"选一张照片：读成请求、摆出自检结果、一个字都不写库"断言对话框标题 / `结构上合法` / 发出去的图尺寸 /
+模型原话 `run-1` / `adapter.requests` 只有一轮且提示词含 `kp → I relied on him.` /
+`knowledge_edges` 与 `material_intake_proposals` 都空；"照片读不成请求（没配模型）：说人话，
+还是一个字都不写"）；`dart format` 2 文件 `1 changed`；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
+全量 `flutter test --concurrency=1` → `+1874 ~2: All tests passed!`（轮次七十六是 `+1872 ~2`，差值 2）。
+
+**已知的没做**：① 把 `run/1` 真的跑进引擎（应用侧仍然只校验、不执行）；② 照片这条路上"换一张/重试"；
+③ 历史里不显示"哪几条是这次落不了的"；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
+需要外部数据）；⑤ 已确认完的批次不能撤销。
+
+---
+
 ## 2026-10-17 轮次七十六：照片 → `run/1` 的调模型那半段 —— 那张照片终于真的发出去了（Lead）
 
 **做了什么**：轮次六十六做完了"照片 → `run/1`"这条链上除照片本身以外的全部（提示词由【图清单】生成、
@@ -32,7 +71,8 @@
 （**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1872 ~2: All tests passed!`
 （轮次七十五是 `+1860 ~2`，差值 12）。
 
-**已知的没做**：① **界面入口未做**（服务层能跑，但用户在应用里还按不到它）；
+**已知的没做**：① **当时**：**界面入口未做**（服务层能跑，但用户在应用里还按不到它）——
+**已在轮次七十七补上，见上一节**；
 ② 把 `run/1` 真的跑进引擎（应用侧仍然只校验）；③ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
 需要外部数据）；④ 已确认完的批次不能撤销。
 

@@ -626,6 +626,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeClear => 'Clear';
 
   @override
+  String get materialIntakePickPhoto => 'Pick a photo';
+
+  @override
+  String get materialIntakePhotoHint =>
+      'The photo goes to a vision model; its answer is read straight into a run request (checked, not executed, and nothing is written).';
+
+  @override
+  String materialIntakePhotoPickFailed(String message) {
+    return 'Could not pick a photo: $message';
+  }
+
+  @override
+  String materialIntakePhotoReadFailed(String message) {
+    return 'The photo did not read into a request: $message';
+  }
+
+  @override
+  String get materialPhotoReportTitle => 'The request read from the photo';
+
+  @override
+  String get materialPhotoReportValid => 'Structurally valid: no hard errors';
+
+  @override
+  String get materialPhotoReportInvalid =>
+      'Structurally invalid: the whole request is refused';
+
+  @override
+  String materialPhotoReportSize(int width, int height) {
+    return 'Image sent: $width×$height';
+  }
+
+  @override
+  String materialPhotoReportCounts(int actions, int evidence) {
+    return '$actions actions · $evidence with evidence';
+  }
+
+  @override
+  String get materialPhotoReportErrors =>
+      'Hard errors (each one refuses the whole request)';
+
+  @override
+  String get materialPhotoReportPreviews => 'What it would do';
+
+  @override
+  String get materialPhotoReportWarnings => 'Suggestions (not blocking)';
+
+  @override
+  String get materialPhotoReportRaw => 'What the model said';
+
+  @override
+  String get materialPhotoReportNoRaw => '(no answer)';
+
+  @override
+  String get materialPhotoReportFailed => 'Could not read it';
+
+  @override
   String get materialIntakeTopicHubs =>
       'Also create topic hubs (off by default: a topic groups things, it is not a card relation)';
 

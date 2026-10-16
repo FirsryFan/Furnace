@@ -229,6 +229,39 @@
   "materialIntakeEnvelopeHint": "protocol: mindnet.material/1 · batch_id: … · items: [ … ]",
   "materialIntakePreview": "看提案",
   "materialIntakeClear": "清空",
+  "materialIntakePickPhoto": "选一张照片",
+  "materialIntakePhotoHint": "照片发给有视觉能力的模型，回话直接读成一份 run 请求（只校验、不执行，也不写库）。",
+  "materialIntakePhotoPickFailed": "没选成照片：{message}",
+  "@materialIntakePhotoPickFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "materialIntakePhotoReadFailed": "照片没读成请求：{message}",
+  "@materialIntakePhotoReadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "materialPhotoReportTitle": "照片读出来的请求",
+  "materialPhotoReportValid": "结构上合法：没有硬错",
+  "materialPhotoReportInvalid": "结构上不合法：整份会被拒绝",
+  "materialPhotoReportSize": "发出去的图：{width}×{height}",
+  "@materialPhotoReportSize": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" }
+    }
+  },
+  "materialPhotoReportCounts": "动作 {actions} 条 · 带出处 {evidence} 条",
+  "@materialPhotoReportCounts": {
+    "placeholders": {
+      "actions": { "type": "int" },
+      "evidence": { "type": "int" }
+    }
+  },
+  "materialPhotoReportErrors": "硬错（每一条都会让整份被拒绝）",
+  "materialPhotoReportPreviews": "会做什么",
+  "materialPhotoReportWarnings": "建议（不拦）",
+  "materialPhotoReportRaw": "模型的原话",
+  "materialPhotoReportNoRaw": "（没有回话）",
+  "materialPhotoReportFailed": "没读出来",
   "materialIntakeTopicHubs": "顺便建主题分组（默认不建：分组不是卡片关系）",
   "materialIntakePendingTitle": "待确认清单（{count} 批，关掉页面也在）",
   "@materialIntakePendingTitle": {
