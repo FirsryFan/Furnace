@@ -11,6 +11,7 @@
 ///     不能编出一条边来（`MEMORY_RECORD.md` §3.5：包含语义只在标签树，线索才进图）。
 library;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
@@ -355,5 +356,213 @@ void main() {
       repository.pendingProposals('b-bad'),
       throwsA(isA<FormatException>()),
     );
+  });
+
+  // --- 撤回一次确认（roadmap §4（十六））-------------------------------------
+  //
+  // 撤回的边界只有一条：**只删这一批自己新建的行**。所以这里钉的是那几种"撤了就
+  // 会伤到别的东西"的情形 —— 卡片、标签、别人挂上来的边，一律整批不撤、理由交回界面。
+
+  /// 这一批全确认：2 个知识点 + 2 条线索边。
+  Future<MaterialApplyOutcome> applyAll() async {
+    await record(planOf());
+    return repository.apply(batchId: 'b1');
+  }
+
+  Future<KnowledgePoint> pointRow(String externalId) =>
+      (db.select(db.knowledgePoints)
+            ..where((t) => t.externalId.equals(externalId)))
+          .getSingle();
+
+  test('undoBatch：撤掉这一批新建的知识点与线索边，提案退回待确认', () async {
+    final applied = await applyAll();
+    expect(applied.created, hasLength(2));
+    expect(applied.createdEdges, hasLength(2));
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isTrue);
+    expect(outcome.blocked, isEmpty);
+    expect(outcome.removedPoints, hasLength(2));
+    expect(outcome.removedEdges, hasLength(2));
+    expect(outcome.restored, 4);
+    expect(outcome.text, contains('删掉 2 个知识点'));
+    // 库里真的空了：知识点与线索边都不剩。
+    expect(await db.select(db.knowledgePoints).get(), isEmpty);
+    expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+    // 提案回到待确认：两张单子上的读数跟着翻过去。
+    expect(await repository.appliedProposals('b1'), isEmpty);
+    expect(await repository.pendingProposals('b1'), hasLength(4));
+    final batch = (await repository.batch('b1'))!;
+    expect(batch.appliedCount, 0);
+    expect(batch.unappliedCount, 4);
+  });
+
+  test('undoBatch："本来就有的"只退提案，库里那行一个字段不动', () async {
+    final mine = await anki.createKnowledgePoint(
+      title: 'rely on（我自己建的）',
+      content: '释义：依靠',
+      externalId: 'en::w::rely-on',
+    );
+    await applyAll();
+    final rely = (await repository.appliedProposals('b1'))
+        .firstWhere((entry) => entry.proposal.nodeId == 'en::w::rely-on');
+    expect(rely.alreadyExisted, isTrue);
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isTrue);
+    expect(outcome.removedPoints, hasLength(1));
+    expect(outcome.removedPoints.single.nodeId, 'en::s::abc');
+    expect(outcome.restored, 4);
+    final rows = await db.select(db.knowledgePoints).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.id, mine.id);
+    expect(rows.single.title, 'rely on（我自己建的）');
+    expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+  });
+
+  test('undoBatch：知识点下面已经有卡片 —— 整批不撤，库里一个字没动', () async {
+    await applyAll();
+    final point = await pointRow('en::s::abc');
+    await anki.getOrCreateUnitCardState(point.id, 'essay:${point.id}');
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isFalse);
+    expect(outcome.restored, 0);
+    expect(outcome.blocked, hasLength(1));
+    expect(outcome.blocked.single.reason, contains('卡片'));
+    expect(outcome.text, contains('撤不了'));
+    expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+    expect(await repository.appliedProposals('b1'), hasLength(4));
+  });
+
+  test('undoBatch：卡片模板也算卡片（还没答题就撤不了）', () async {
+    await applyAll();
+    final point = await pointRow('en::s::abc');
+    await anki.createTemplate(
+      knowledgePointId: point.id,
+      type: 'basic',
+      question: 'I relied on him.',
+      answer: '我依靠了他。',
+    );
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isFalse);
+    expect(outcome.blocked.single.reason, contains('卡片'));
+  });
+
+  test('undoBatch：知识点上还挂着别的线索边 —— 撤不了', () async {
+    await applyAll();
+    await db.into(db.knowledgeEdges).insert(
+          KnowledgeEdgesCompanion.insert(
+            id: 'e_manual',
+            fromId: 'en::s::abc',
+            toId: 'en::w::other',
+            origin: 'manual',
+            ls: const Value(0.5),
+            createdAt: 1,
+            updatedAt: 1,
+          ),
+        );
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isFalse);
+    expect(outcome.blocked.single.reason, contains('别的线索边'));
+    // 这一批的两条边也留着：整批不撤是一条也不删。
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(3));
+    expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+  });
+
+  test('undoBatch：知识点已经打过标签 —— 撤不了', () async {
+    await applyAll();
+    final point = await pointRow('en::s::abc');
+    await db.into(db.tags).insert(
+          TagsCompanion.insert(
+            id: 't1',
+            name: '雅思核心',
+            createdAt: 1,
+            updatedAt: 1,
+          ),
+        );
+    await db.into(db.objectTags).insert(
+          ObjectTagsCompanion.insert(
+            id: 'ot1',
+            tagId: 't1',
+            objectType: 'knowledge_point',
+            objectId: point.id,
+            createdAt: 1,
+          ),
+        );
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isFalse);
+    expect(outcome.blocked.single.reason, contains('标签'));
+    expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+  });
+
+  test('undoBatch：边在库里但不是这一批建的 —— 撤不了', () async {
+    await applyAll();
+    await (db.update(db.knowledgeEdges)..where((t) => t.id.equals('e_1')))
+        .write(const KnowledgeEdgesCompanion(batchId: Value('other')));
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isFalse);
+    // 这条边一变成"别人的"，它挂着的两个知识点也同时被拦住了 —— 三条理由。
+    expect(
+      outcome.blocked.where((b) => b.reason.contains('不是这一批建的')),
+      hasLength(1),
+    );
+    expect(
+      outcome.blocked.where((b) => b.reason.contains('别的线索边')),
+      hasLength(2),
+    );
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+  });
+
+  test('undoBatch：行已经被手删掉 —— 不算拦路，只退提案', () async {
+    await record(planOf(withSentence: false, withConnections: false));
+    await repository.apply(batchId: 'b1');
+    await (db.delete(db.knowledgePoints)
+          ..where((t) => t.externalId.equals('en::w::rely-on')))
+        .go();
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isTrue);
+    expect(outcome.removedPoints, isEmpty);
+    expect(outcome.restored, 1);
+    expect(outcome.text, contains('没有自己新建的行'));
+    expect(await repository.pendingProposals('b1'), hasLength(1));
+  });
+
+  test('undoBatch：没确认过的一批 —— 什么都不删，也什么都不退', () async {
+    await record(planOf());
+
+    final outcome = await repository.undoBatch('b1');
+
+    expect(outcome.undone, isTrue);
+    expect(outcome.removedPoints, isEmpty);
+    expect(outcome.removedEdges, isEmpty);
+    expect(outcome.restored, 0);
+    expect(await repository.pendingProposals('b1'), hasLength(4));
+  });
+
+  test('undoBatch：撤了之后再确认，还是同一条边（幂等键没变）', () async {
+    await applyAll();
+    await repository.undoBatch('b1');
+
+    final again = await repository.apply(batchId: 'b1');
+
+    expect(again.created, hasLength(2));
+    expect(again.createdEdges, hasLength(2));
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+    expect(await db.select(db.knowledgePoints).get(), hasLength(2));
   });
 }

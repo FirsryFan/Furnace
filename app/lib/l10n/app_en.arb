@@ -288,6 +288,31 @@
     "placeholders": { "batch": { "type": "String" } }
   },
   "materialIntakeDoneNote": "These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.",
+  "materialIntakeUndo": "Undo this batch",
+  "materialIntakeUndoTitle": "Undo this batch?",
+  "materialIntakeUndoBody": "The knowledge points and clue edges this batch created will be deleted and the proposals go back to pending. Rows that were already in the library when you confirmed, plus any cards, tags or other clue edges, are left untouched. If even one row cannot be undone, the whole batch stays as it is and you get the reasons.",
+  "materialIntakeUndoConfirm": "Undo",
+  "materialIntakeUndone": "Undone: deleted {points} knowledge points and {edges} clue edges; {restored} proposals are back to pending.",
+  "@materialIntakeUndone": {
+    "placeholders": {
+      "points": { "type": "int" },
+      "edges": { "type": "int" },
+      "restored": { "type": "int" }
+    }
+  },
+  "materialIntakeUndoneNothing": "This batch created nothing of its own: {restored} proposals are back to pending.",
+  "@materialIntakeUndoneNothing": {
+    "placeholders": { "restored": { "type": "int" } }
+  },
+  "materialIntakeUndoBlockedTitle": "This batch cannot be undone",
+  "materialIntakeUndoBlockedNote": "Nothing was deleted. Undo only deletes what this batch created itself, and these rows have other things attached:",
+  "materialIntakeUndoBlockedRow": "{title} - {reason}",
+  "@materialIntakeUndoBlockedRow": {
+    "placeholders": {
+      "title": { "type": "String" },
+      "reason": { "type": "String" }
+    }
+  },
   "materialIntakeBadEnvelope": "Rejected as a whole: {error}",
   "@materialIntakeBadEnvelope": {
     "placeholders": { "error": { "type": "String" } }

@@ -729,6 +729,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.';
 
   @override
+  String get materialIntakeUndo => 'Undo this batch';
+
+  @override
+  String get materialIntakeUndoTitle => 'Undo this batch?';
+
+  @override
+  String get materialIntakeUndoBody =>
+      'The knowledge points and clue edges this batch created will be deleted and the proposals go back to pending. Rows that were already in the library when you confirmed, plus any cards, tags or other clue edges, are left untouched. If even one row cannot be undone, the whole batch stays as it is and you get the reasons.';
+
+  @override
+  String get materialIntakeUndoConfirm => 'Undo';
+
+  @override
+  String materialIntakeUndone(int points, int edges, int restored) {
+    return 'Undone: deleted $points knowledge points and $edges clue edges; $restored proposals are back to pending.';
+  }
+
+  @override
+  String materialIntakeUndoneNothing(int restored) {
+    return 'This batch created nothing of its own: $restored proposals are back to pending.';
+  }
+
+  @override
+  String get materialIntakeUndoBlockedTitle => 'This batch cannot be undone';
+
+  @override
+  String get materialIntakeUndoBlockedNote =>
+      'Nothing was deleted. Undo only deletes what this batch created itself, and these rows have other things attached:';
+
+  @override
+  String materialIntakeUndoBlockedRow(String title, String reason) {
+    return '$title - $reason';
+  }
+
+  @override
   String materialIntakeBadEnvelope(String error) {
     return 'Rejected as a whole: $error';
   }

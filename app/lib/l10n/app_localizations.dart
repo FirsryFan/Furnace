@@ -1406,6 +1406,60 @@ abstract class AppLocalizations {
   /// **'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.'**
   String get materialIntakeDoneNote;
 
+  /// No description provided for @materialIntakeUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo this batch'**
+  String get materialIntakeUndo;
+
+  /// No description provided for @materialIntakeUndoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo this batch?'**
+  String get materialIntakeUndoTitle;
+
+  /// No description provided for @materialIntakeUndoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The knowledge points and clue edges this batch created will be deleted and the proposals go back to pending. Rows that were already in the library when you confirmed, plus any cards, tags or other clue edges, are left untouched. If even one row cannot be undone, the whole batch stays as it is and you get the reasons.'**
+  String get materialIntakeUndoBody;
+
+  /// No description provided for @materialIntakeUndoConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get materialIntakeUndoConfirm;
+
+  /// No description provided for @materialIntakeUndone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone: deleted {points} knowledge points and {edges} clue edges; {restored} proposals are back to pending.'**
+  String materialIntakeUndone(int points, int edges, int restored);
+
+  /// No description provided for @materialIntakeUndoneNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'This batch created nothing of its own: {restored} proposals are back to pending.'**
+  String materialIntakeUndoneNothing(int restored);
+
+  /// No description provided for @materialIntakeUndoBlockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This batch cannot be undone'**
+  String get materialIntakeUndoBlockedTitle;
+
+  /// No description provided for @materialIntakeUndoBlockedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was deleted. Undo only deletes what this batch created itself, and these rows have other things attached:'**
+  String get materialIntakeUndoBlockedNote;
+
+  /// No description provided for @materialIntakeUndoBlockedRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} - {reason}'**
+  String materialIntakeUndoBlockedRow(String title, String reason);
+
   /// No description provided for @materialIntakeBadEnvelope.
   ///
   /// In en, this message translates to:

@@ -35,6 +35,45 @@
 
 **已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）；② 执行完怎么落库；
 ③ 撤销一次确认；④ 历史里不显示"哪几条是这次落不了的"；⑤ `ls` 仍没有标定来源（roadmap §3 第 7 行）。
+（③ **已在轮次七十九补上**。）
+
+---
+
+## 2026-10-17 轮次七十九：撤销一次确认 —— 反悔也能退（Lead）
+
+**做了什么**：历史那张单子（"已经确认完的"）以前只能看、不能改 —— 点错了只能去知识点管理页手删，
+那是**第三处删法**（漏删一条边、或误删掉"本来就有的"老行，界面上都不会有人拦）。这一轮给它一个反悔
+的入口，但**写仍然只有一个写者**：撤销走确认那一层的
+`MaterialIntakeRepository.undoBatch(batchId)`（`app/lib/data/repositories/material_intake_repository.dart`），
+界面入口放在材料页「看看确认了什么」对话框里。
+
+- **整批要么全撤、要么全不动**：先算完全部拦路项再动库 —— 只要有一条撤不干净，就一条也不删，
+  把理由逐条摆出来（`MaterialUndoOutcome.blocked`），不给"那就撤一半吧"的选项。
+- 拦路四种：点下面已经有卡片（`card_states` **或** `card_templates` —— 卡片模板也算卡片）、点已经打过
+  标签（`object_tags`，`object_type = 'knowledge_point'`）、这个点上挂着**别的**线索边
+  （`knowledge_edges.batch_id` 不等于本批）、提案没有内容 id（认不出它建的是哪一行）。
+- 本批自己建的边跟着点一起撤；行**已经被手删**不算拦路 —— 没什么可删的，只退提案。
+- 退提案时 `applied_at` 与 `already_existed` **一起清**：那句"它本来就有的"记的是上次点头那一刻的判断，
+  撤回之后不再成立（`record` 下一轮重算 `exists`），留着会让再确认时读到一句过期的话。
+- 界面：对话框多一个「撤回这一批」→ 先问一句（说清边界：本来就有的行 / 卡片 / 标签 / 别的边一个字不动）
+  → 成绩单说清"删掉几个知识点、几条边、退回几条提案"；撤不了时整批没动、理由**照原样**摆出来。
+
+**两条纪律由测试钉住**：① 撤了之后再确认，还是**同一条边**（边 id 就是提案 id 去掉前缀，幂等键没变）；
+② 没确认过的一批，什么都不删、也什么都不退。
+
+**证据**：`app/test/data/repositories/material_intake_repository_test.dart` 新增 **10 例**（10 → 20）；材料页
+`app/test/features/cognitive/presentation/material_intake_page_test.dart` 新增 **2 例**（15 → 17，新增"撤掉
+这次新建的"与"撤不掉时一条也不删"）；`dart format` 7 files 0 changed；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1898 ~2: All tests passed!`
+（轮次七十八是 `+1886 ~2`，差值 12 —— 正好是本轮新增的 10 + 2 例）。
+另记一次**并行跑的 flake**（不是本轮改动的锅）：`flutter test`（默认并发）那一次 `test/features/anki/review_service_test.dart`
+的 "a miss followed by the solution … leaves the FSRS schedule untouched" 失败，单跑该文件 17 例全绿、
+串行全量也全绿 —— 本轮只碰了材料摄取仓储与材料页，没碰复习服务。
+
+**已知的没做**：① 撤销**不记账**（库里没有"这批是什么时候撤的"，`applied_at` 清空是唯一痕迹）；
+② 撤销不进审计（`review_logs` 之类），所以"确认过又反悔"这件事在历史里看不到；③ 执行层仍没有调用者
+（谁决定"这份请求可以执行了"）；④ 历史里不显示"哪几条是这次落不了的"；⑤ `ls` 仍没有标定来源
+（roadmap §3 第 7 行）。
 
 ---
 

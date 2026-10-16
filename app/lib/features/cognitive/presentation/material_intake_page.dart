@@ -97,6 +97,10 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   List<MaterialIntakeBatch> _doneBatches = const <MaterialIntakeBatch>[];
 
   MaterialApplyOutcome? _outcome;
+
+  /// 上一次撤回的结果：删了什么、退回了多少条（撤回是写，成绩单要留下来）。
+  MaterialUndoOutcome? _undoOutcome;
+
   Set<String> _selected = <String>{};
   String? _error;
   bool _busy = false;
@@ -138,6 +142,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _busy = true;
       _error = null;
       _outcome = null;
+      _undoOutcome = null;
     });
     final moment = DateTime.now();
     final repository = ref.read(materialIntakeRepositoryProvider);
@@ -182,6 +187,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _busy = true;
       _error = null;
       _outcome = null;
+      _undoOutcome = null;
     });
     final repository = ref.read(materialIntakeRepositoryProvider);
     final pending = await readPendingBatch(
@@ -337,6 +343,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
       _outcome = null;
+      _undoOutcome = null;
       _selected = <String>{};
       _error = null;
     });
@@ -345,7 +352,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// 看这批当初确认了什么：读**已经写下去**的提案（不是打算建的那份）。
   ///
   /// 只读，不给勾选框：这几条已经在库里了，要改得去它们落地的地方（知识点在管理页，
-  /// 线索边在知识点详情里）—— 这里再造一个"改"的入口就是第三处写者。
+  /// 线索边在知识点详情里）—— 这里再造一个"改"的入口就是第三处写者。**撤回**不是第三处
+  /// 写者：它走的就是确认那一层的 `undoBatch`（同一处写者、同一份判断），所以这个入口
+  /// 开在这儿而不是知识点管理页。
   Future<void> _openApplied(MaterialIntakeBatch batch) async {
     final l10n = AppLocalizations.of(context);
     final applied = await readAppliedBatch(
@@ -376,6 +385,127 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                     _Note(text: l10n.materialIntakeDoneNote),
                   ],
                 ),
+        ),
+        actions: <Widget>[
+          if (applied.proposals.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _undo(batch);
+              },
+              child: Text(l10n.materialIntakeUndo),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 撤回这一批：先问一句，再让仓储层动手。
+  ///
+  /// 撤回是**删**，所以必须先问；撤不了（有卡片/标签/别的边）时一条也不删，
+  /// 理由逐条照说 —— 界面不替用户"猜"哪条能撤。
+  Future<void> _undo(MaterialIntakeBatch batch) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.materialIntakeUndoTitle),
+        content: SizedBox(
+          width: 420,
+          child: Text(l10n.materialIntakeUndoBody),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.materialIntakeUndoConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _outcome = null;
+      _undoOutcome = null;
+    });
+    final repository = ref.read(materialIntakeRepositoryProvider);
+    late final MaterialUndoOutcome outcome;
+    try {
+      outcome = await repository.undoBatch(batch.batchId);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _busy = false);
+      _fail(l10n.materialIntakeBadEnvelope('$error'));
+      return;
+    }
+    // 撤掉的那一批可能正是屏幕上开着的那批：读数要重新取，提案回到待确认。
+    final fresh = _batch?.batchId == batch.batchId
+        ? await readPendingBatch(repository: repository, batchId: batch.batchId)
+        : null;
+    final pending = await readPendingBatches(repository: repository);
+    final done = await readAppliedBatches(repository: repository);
+    if (!mounted) {
+      return;
+    }
+    if (!outcome.undone) {
+      setState(() => _busy = false);
+      await _showUndoBlocked(outcome);
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _undoOutcome = outcome;
+      _pendingBatches = pending;
+      _doneBatches = done;
+      if (fresh != null) {
+        _proposals = fresh.proposals;
+        _skipped = fresh.batch.skipped;
+        _batch = fresh.batch;
+        _selected = <String>{
+          for (final proposal in fresh.proposals) proposal.id,
+        };
+      }
+    });
+  }
+
+  /// 撤不了：整批没动，把每条原因照原样摆出来（不给"那就撤一半吧"的选项）。
+  Future<void> _showUndoBlocked(MaterialUndoOutcome outcome) async {
+    final l10n = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.materialIntakeUndoBlockedTitle),
+        content: SizedBox(
+          width: 480,
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              _Note(text: l10n.materialIntakeUndoBlockedNote),
+              for (final block in outcome.blocked)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.block, size: 18),
+                  title: Text(l10n.materialIntakeUndoBlockedRow(
+                    block.title,
+                    block.reason,
+                  )),
+                ),
+            ],
+          ),
         ),
         actions: <Widget>[
           TextButton(
@@ -504,6 +634,19 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                 _outcome!.deferred.length,
                 _outcome!.remaining,
               ),
+            ),
+          ],
+          if (_undoOutcome != null) ...<Widget>[
+            const SizedBox(height: 12),
+            _Success(
+              text: _undoOutcome!.removedPoints.isEmpty &&
+                      _undoOutcome!.removedEdges.isEmpty
+                  ? l10n.materialIntakeUndoneNothing(_undoOutcome!.restored)
+                  : l10n.materialIntakeUndone(
+                      _undoOutcome!.removedPoints.length,
+                      _undoOutcome!.removedEdges.length,
+                      _undoOutcome!.restored,
+                    ),
             ),
           ],
           if (_batch != null) ...<Widget>[

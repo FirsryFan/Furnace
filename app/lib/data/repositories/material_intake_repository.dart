@@ -225,6 +225,84 @@ class MaterialApplyOutcome {
       };
 }
 
+/// 一条撤不了的：哪条提案、为什么撤不了（理由是人话，界面照原样显示）。
+class MaterialUndoBlocked {
+  const MaterialUndoBlocked({
+    required this.proposalId,
+    required this.title,
+    required this.reason,
+  });
+
+  final String proposalId;
+
+  /// 提案的人话标题（读不出来时是提案 id）。
+  final String title;
+
+  final String reason;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'proposal_id': proposalId,
+        'title': title,
+        'reason': reason,
+      };
+}
+
+/// 一次 `undoBatch` 的结果：全撤了，还是被什么拦住了。
+class MaterialUndoOutcome {
+  const MaterialUndoOutcome({
+    required this.batchId,
+    required this.undone,
+    required this.removedPoints,
+    required this.removedEdges,
+    required this.blocked,
+    required this.restored,
+  });
+
+  final String batchId;
+
+  /// 整批全撤 = true。[blocked] 非空时它是 false，并且库里的行**一个字没动**。
+  final bool undone;
+
+  /// 真的删掉的知识点（只可能是这一批自己新建的）。
+  final List<MaterialAppliedPoint> removedPoints;
+
+  /// 真的删掉的线索边（同上）。
+  final List<MaterialAppliedEdge> removedEdges;
+
+  /// 拦路的原因（非空 = 整批没撤）。
+  final List<MaterialUndoBlocked> blocked;
+
+  /// 退回"待确认"的提案条数（`applied_at` 被清空）。
+  final int restored;
+
+  /// 人话一行（给工具/日志/提示条用）。
+  String get text {
+    if (!undone) {
+      return '批次 $batchId 撤不了：${blocked.map((b) => '${b.title} —— ${b.reason}').join('；')}';
+    }
+    if (removedPoints.isEmpty && removedEdges.isEmpty) {
+      return '批次 $batchId：这一批没有自己新建的行，'
+          '$restored 条提案退回待确认';
+    }
+    final parts = <String>[
+      if (removedPoints.isNotEmpty) '删掉 ${removedPoints.length} 个知识点',
+      if (removedEdges.isNotEmpty) '删掉 ${removedEdges.length} 条线索边',
+    ];
+    return '批次 $batchId：${parts.join('、')}；$restored 条提案退回待确认';
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'batch_id': batchId,
+        'undone': undone,
+        'removed_points': [for (final point in removedPoints) point.toJson()],
+        'removed_point_count': removedPoints.length,
+        'removed_edges': [for (final edge in removedEdges) edge.toJson()],
+        'removed_edge_count': removedEdges.length,
+        'blocked': [for (final block in blocked) block.toJson()],
+        'restored': restored,
+      };
+}
+
 /// `apply` 用不了时抛这个（批次不存在 / 提案 id 不认识）。
 class MaterialApplyException implements Exception {
   const MaterialApplyException(this.message);
@@ -478,6 +556,192 @@ class MaterialIntakeRepository {
       existingEdges: existingEdges,
       deferred: deferred,
       remaining: remaining,
+    );
+  }
+
+  /// 用户反悔：把这一批确认过的写入撤回，提案退回"待确认"。
+  ///
+  /// **整批要么全撤、要么全不动**：只要有一条撤不干净，就一条也不删，把拦路的理由
+  /// 交回界面（[MaterialUndoOutcome.blocked]）—— 撤一半会留下"提案待确认、行已经没了"
+  /// 或者反过来"提案说没确认、知识点已经在库里"的矛盾，比不撤更糟。
+  ///
+  /// 删的只有两样，而且都必须是**这一批自己新建的**（`already_existed == false`）：
+  /// `knowledge_points` 里那行、`knowledge_edges` 里那条。判断依据是写入时落下来的
+  /// `already_existed` 与边的 `batch_id` —— "本来就有的"只退提案，一个字段不动，
+  /// 取消一次确认不该碰用户先前的家当。
+  ///
+  /// 撤不了的情况（都会带理由）：
+  /// ① 知识点下面已经有卡片（`card_states` / `card_templates`）—— 删它就是连卡片一起删；
+  /// ② 知识点上还挂着**别的**线索边（不是这一批建的）；
+  /// ③ 知识点已经被打过标签（`object_tags`）；
+  /// ④ 提案没有内容 id（`external_id`），认不出它建的是哪一行；
+  /// ⑤ 同名的边在库里，但不是这一批建的。
+  /// 行**已经不在了**（手删过）不算拦路：没什么可删的，退回提案就行。
+  Future<MaterialUndoOutcome> undoBatch(String batchId) async {
+    final applied = await appliedProposals(batchId);
+    final removedPoints = <MaterialAppliedPoint>[];
+    final removedEdges = <MaterialAppliedEdge>[];
+    final blocked = <MaterialUndoBlocked>[];
+    final pointRows = <String>[];
+    final edgeRows = <String>[];
+
+    for (final entry in applied) {
+      final proposal = entry.proposal;
+      // "本来就有的"没建过任何行：只把提案退回待确认。
+      if (entry.alreadyExisted) {
+        continue;
+      }
+      if (proposal.kind == MaterialIntakeKind.connection) {
+        final edgeId = proposal.id.startsWith('edge:')
+            ? proposal.id.substring('edge:'.length)
+            : proposal.id;
+        final row = await (_db.select(_db.knowledgeEdges)
+              ..where((t) => t.id.equals(edgeId)))
+            .getSingleOrNull();
+        if (row == null) {
+          continue;
+        }
+        if (row.batchId != batchId) {
+          blocked.add(MaterialUndoBlocked(
+            proposalId: proposal.id,
+            title: proposal.title,
+            reason: '边 $edgeId 在库里，但不是这一批建的，不敢删',
+          ));
+          continue;
+        }
+        edgeRows.add(edgeId);
+        removedEdges.add(MaterialAppliedEdge(
+          proposalId: proposal.id,
+          edgeId: edgeId,
+          fromId: proposal.from ?? row.fromId,
+          toId: proposal.to ?? row.toId,
+          origin: proposal.origin ?? row.origin,
+        ));
+        continue;
+      }
+
+      final nodeId = proposal.nodeId;
+      if (nodeId == null) {
+        blocked.add(MaterialUndoBlocked(
+          proposalId: proposal.id,
+          title: proposal.title,
+          reason: '这条提案没有内容 id（external_id），认不出它建的是哪一行',
+        ));
+        continue;
+      }
+      final point = await (_db.select(_db.knowledgePoints)
+            ..where((t) => t.externalId.equals(nodeId))
+            ..limit(1))
+          .getSingleOrNull();
+      if (point == null) {
+        continue;
+      }
+      final card = await (_db.select(_db.cardStates)
+            ..where((t) => t.knowledgePointId.equals(point.id))
+            ..limit(1))
+          .getSingleOrNull();
+      if (card != null) {
+        blocked.add(MaterialUndoBlocked(
+          proposalId: proposal.id,
+          title: proposal.title,
+          reason: '这个知识点下面已经有卡片了，撤掉会连卡片一起删',
+        ));
+        continue;
+      }
+      final template = await (_db.select(_db.cardTemplates)
+            ..where((t) => t.knowledgePointId.equals(point.id))
+            ..limit(1))
+          .getSingleOrNull();
+      if (template != null) {
+        blocked.add(MaterialUndoBlocked(
+          proposalId: proposal.id,
+          title: proposal.title,
+          reason: '这个知识点下面已经有卡片了，撤掉会连卡片一起删',
+        ));
+        continue;
+      }
+      final tag = await (_db.select(_db.objectTags)
+            ..where((t) =>
+                t.objectType.equals('knowledge_point') &
+                t.objectId.equals(point.id))
+            ..limit(1))
+          .getSingleOrNull();
+      if (tag != null) {
+        blocked.add(MaterialUndoBlocked(
+          proposalId: proposal.id,
+          title: proposal.title,
+          reason: '这个知识点已经打过标签了，撤掉会把标签关系一起丢掉',
+        ));
+        continue;
+      }
+      final touching = await (_db.select(_db.knowledgeEdges)
+            ..where((t) => t.fromId.equals(nodeId) | t.toId.equals(nodeId)))
+          .get();
+      // 这一批自己建的边（`batch_id` 等于本批）跟着一起撤，不算"别人挂上来的"。
+      final others = [
+        for (final edge in touching)
+          if (edge.batchId != batchId) edge,
+      ];
+      if (others.isNotEmpty) {
+        blocked.add(MaterialUndoBlocked(
+          proposalId: proposal.id,
+          title: proposal.title,
+          reason: '这个知识点上还挂着 ${others.length} 条别的线索边，'
+              '（${others.map((e) => e.id).take(3).join('、')}'
+              '${others.length > 3 ? ' 等' : ''}）',
+        ));
+        continue;
+      }
+      pointRows.add(point.id);
+      removedPoints.add(MaterialAppliedPoint(
+        proposalId: proposal.id,
+        knowledgePointId: point.id,
+        title: point.title,
+        nodeId: nodeId,
+      ));
+    }
+
+    if (blocked.isNotEmpty) {
+      return MaterialUndoOutcome(
+        batchId: batchId,
+        undone: false,
+        removedPoints: const <MaterialAppliedPoint>[],
+        removedEdges: const <MaterialAppliedEdge>[],
+        blocked: blocked,
+        restored: 0,
+      );
+    }
+
+    final now = _clock().millisecondsSinceEpoch;
+    var restored = 0;
+    await _db.transaction(() async {
+      for (final id in edgeRows) {
+        await (_db.delete(_db.knowledgeEdges)..where((t) => t.id.equals(id)))
+            .go();
+      }
+      for (final id in pointRows) {
+        await (_db.delete(_db.knowledgePoints)..where((t) => t.id.equals(id)))
+            .go();
+      }
+      // 退回待确认：`applied_at` 清空，`already_existed` 也一起清 —— 那句判断
+      // 记的是"上一次点头时它本来有没有"，撤回之后它不再成立（下一轮 `record`
+      // 重算 `exists`），留着会让再确认时读到一句过期的话。
+      restored = await (_db.update(_db.materialIntakeProposals)
+            ..where((t) => t.batchId.equals(batchId) & t.appliedAt.isNotNull()))
+          .write(MaterialIntakeProposalsCompanion(
+        appliedAt: const Value(null),
+        alreadyExisted: const Value(null),
+        updatedAt: Value(now),
+      ));
+    });
+
+    return MaterialUndoOutcome(
+      batchId: batchId,
+      undone: true,
+      removedPoints: removedPoints,
+      removedEdges: removedEdges,
+      blocked: const <MaterialUndoBlocked>[],
+      restored: restored,
     );
   }
 

@@ -710,6 +710,41 @@ class AppLocalizationsZh extends AppLocalizations {
       '这些都进库了：知识点在 knowledge_points，连接是 knowledge_edges 里的线索边（ls 未标定）。标「已存在，不重复建」的那几条是确认时库里就有的，其余是这次才写下去的。';
 
   @override
+  String get materialIntakeUndo => '撤回这一批';
+
+  @override
+  String get materialIntakeUndoTitle => '撤回这一批？';
+
+  @override
+  String get materialIntakeUndoBody =>
+      '这一批自己新建的知识点与线索边会删掉，提案退回待确认。确认时库里就有的行、以及任何卡片 / 标签 / 别的线索边，一个字都不动。只要有一条撤不干净，整批都不撤，原因会告诉你。';
+
+  @override
+  String get materialIntakeUndoConfirm => '撤回';
+
+  @override
+  String materialIntakeUndone(int points, int edges, int restored) {
+    return '已撤回：删掉 $points 个知识点、$edges 条线索边，$restored 条提案退回待确认。';
+  }
+
+  @override
+  String materialIntakeUndoneNothing(int restored) {
+    return '这一批没有自己新建的行：$restored 条提案退回待确认。';
+  }
+
+  @override
+  String get materialIntakeUndoBlockedTitle => '这一批撤不了';
+
+  @override
+  String get materialIntakeUndoBlockedNote =>
+      '整批一条也没删。撤回只删这一批自己新建的东西，下面这些上面挂着别的：';
+
+  @override
+  String materialIntakeUndoBlockedRow(String title, String reason) {
+    return '$title —— $reason';
+  }
+
+  @override
   String materialIntakeBadEnvelope(String error) {
     return '整份拒绝：$error';
   }

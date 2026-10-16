@@ -421,6 +421,63 @@ void main() {
       expect(find.text(l10n.materialIntakeDoneNote), findsOneWidget);
     });
 
+    testWidgets('撤回这一批：删掉这次新建的，提案回到待确认', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+      await confirm(tester, 4);
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndo));
+      await tester.pumpAndSettle();
+      // 删之前先问一句，并说清边界：本来就有的、卡片、标签、别的边都不动。
+      expect(find.text(l10n.materialIntakeUndoTitle), findsOneWidget);
+      expect(find.text(l10n.materialIntakeUndoBody), findsOneWidget);
+
+      await tester.tap(find.text(l10n.materialIntakeUndoConfirm));
+      await tester.pumpAndSettle();
+
+      // 成绩单：删了两个知识点、两条线索边，四条提案退回待确认。
+      expect(find.text(l10n.materialIntakeUndone(2, 2, 4)), findsOneWidget);
+      expect(await anki.getKnowledgePoints(), isEmpty);
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      // 这一批又回到"待确认"那张单子上，而且提案重新上屏。
+      expect(find.text(l10n.materialIntakePendingTitle(1)), findsOneWidget);
+      expect(find.text(l10n.materialIntakeDoneTitle(1)), findsNothing);
+      expect(find.text('I relied on him.'), findsOneWidget);
+      expect(find.text(l10n.materialIntakeConfirm(4)), findsOneWidget);
+    });
+
+    testWidgets('撤回这一批：撤不掉时一条也不删，理由照说', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+      await confirm(tester, 4);
+
+      // 这条知识点已经长出卡片了：撤它就是连卡片一起删，所以整批不撤。
+      final point = (await anki.getKnowledgePoints())
+          .singleWhere((point) => point.title == 'I relied on him.');
+      await anki.getOrCreateUnitCardState(point.id, 'essay:${point.id}');
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndo));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndoConfirm));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialIntakeUndoBlockedTitle), findsOneWidget);
+      expect(find.text(l10n.materialIntakeUndoBlockedNote), findsOneWidget);
+      // 照原样摆出拦路理由（连"为什么拦"一起说），不是编一句"撤不了"。
+      expect(find.textContaining('这个知识点下面已经有卡片了'), findsOneWidget);
+      // 一个字没动：知识点、线索边、历史那张单子都还在原处。
+      expect(await anki.getKnowledgePoints(), hasLength(2));
+      expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+      expect(find.text(l10n.materialIntakeDoneTitle(1)), findsOneWidget);
+    });
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
       bigSurface(tester);
       await anki.createKnowledgePoint(title: 'rely on', content: '早就有了');
