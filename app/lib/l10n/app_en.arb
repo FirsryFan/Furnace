@@ -545,6 +545,14 @@
   "knowledgeEdgeDeleted": "deleted the hand-written edge",
   "knowledgeEdgeNotFound": "that edge is already gone",
   "knowledgeEdgeNotManual": "only hand-written edges can be deleted here (material edges belong to the material step)",
+  "knowledgeEdgeWalkTitle": "What this point connects to ({point})",
+  "@knowledgeEdgeWalkTitle": {
+    "placeholders": {
+      "point": { "type": "String" }
+    }
+  },
+  "knowledgeEdgeWalkHint": "Tap a name to keep walking this line: whichever end you go to, you see that end's edges (read-only, nothing is created or deleted).",
+  "knowledgeEdgeWalkTooltip": "Walk along this edge to this end",
 
   "settingsDemoData": "Load demo data",
   "settingsDemoDataHint": "Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.",

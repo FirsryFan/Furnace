@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-10-16 轮次七十四：顺着线索边走 —— 名字终于点得动（Lead）
+
+**做了什么**：轮次七十/七十一/七十三把那批线索边显示出来了，可名字只是名字：看到
+`rely on → I relied on him.` 想知道另一头还连着谁，只能自己回清单页里翻。这一轮让端点名字可点：
+走到哪一端就看哪一端的边（只读），而且能在同一层里继续走下去 —— 线索边本来就是给人顺着走的。
+
+- `app/lib/features/anki/presentation/knowledge_edge_page.dart`：新增 `KnowledgeEdgeEndpointRef`
+  （图里的 id + 显示名）与 `showKnowledgeEdgeWalk(context, endpoint:)` —— 开一个只读对话框，
+  里面就是那一端自己的 `KnowledgePointEdgesSection`，名字继续可点（内部递归），于是 A → B → C
+  可以一层层翻；清单页每一行的两端换成可点的 `_EndpointLink`（`_EdgeTile` 把"点的是哪一端"交给
+  页面回调）。缺端（`hasMissingEndpoint`）也能走：那一端在 `knowledge_points` 里没有行，可它的边
+  还在 `knowledge_edges` 里，走过去看得到"这个 id 还连着谁"。
+- `app/lib/features/anki/presentation/knowledge_point_edges.dart`：`KnowledgePointEdgesSection` 多一个
+  可选 `onOpenPoint`；给了回调那行"它指向谁 / 谁指向它"就带下划线可点（`Tooltip` 说明走法），
+  没给就还是纯文本。
+- `app/lib/features/anki/presentation/anki_manage_page.dart`：知识点详情里那一段接上同一个回调 ——
+  同一个走法两个入口。
+- 两条 l10n 键（`knowledgeEdgeWalkTitle`/`knowledgeEdgeWalkHint`/`knowledgeEdgeWalkTooltip`）两个 ARB
+  都加了，`flutter gen-l10n` 已重跑。
+
+**三条刻意选择**：① 只读的对话框，不是新页面 —— 走法是"看"不是"管理"，在这里能建边删边就等于又搬来
+一个写入口；② 回调给的是"另一端"的 id 与显示名 —— 走到哪一端，出边入边就站在那一端说方向，翻页时
+方向不会串；③ 一层层接着走、不做"返回上一层"的历史栈 —— 关掉就回到原来那一页，想回上一个点再点
+一次它的名字。
+
+**证据**：`flutter test test/features/anki/knowledge_edge_page_test.dart`
+`test/features/anki/knowledge_point_edges_test.dart` → `+16: All tests passed!`（新增 1 例 widget 走
+A → B → C；详情那一段新增 2 例：端点给出的是另一端的 id 与显示名、没给回调时只是文本；清单页三处
+标题断言改成"两端名字各自成立"）；`dart format` 5 文件 `0 changed`；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1857 ~2: All tests passed!`
+（轮次七十三 后是 `+1854 ~2`，差值 3）。
+
+**已知的没做**：① 历史里只有"确认了什么"，没有"哪些是本来就有的"（`apply` 的 `existing` 没有落库）；
+② `ls` 仍没有标定来源（§3 第 7 行那六条实验）；③ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1`
+真的跑进引擎。
+
+---
+
 ## 2026-10-16 轮次七十三：已经确认完的历史 —— 做过什么，页面上也看得见（Lead）
 
 **做了什么**：轮次六十九让"关掉页面之后那批还在"，可那只解决了**欠账**那一半 —— 页面只认

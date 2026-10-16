@@ -15,10 +15,19 @@ import 'knowledge_edge_page.dart';
 /// 从这里还能**手写**一条边（`origin: 'manual'`）与删掉手写的边：材料确认那条路负责
 /// "材料里写的连接"，这一段负责"用户自己看出来的连接"。删只放行手写的 ——
 /// 材料边删了，材料里写了什么就和库里对不上了。
+///
+/// [onOpenPoint] 非空时，边上的名字可点：顺着那条线走到另一端（只读地展开它的边）。
 class KnowledgePointEdgesSection extends ConsumerWidget {
-  const KnowledgePointEdgesSection({required this.externalId, super.key});
+  const KnowledgePointEdgesSection({
+    required this.externalId,
+    this.onOpenPoint,
+    super.key,
+  });
 
   final String? externalId;
+
+  /// 非空时端点名字可点：走到另一端（[KnowledgeEdgeEndpointRef]）。
+  final ValueChanged<KnowledgeEdgeEndpointRef>? onOpenPoint;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,6 +75,7 @@ class KnowledgePointEdgesSection extends ConsumerWidget {
                         _EdgeRow(
                           edge: edge,
                           pointId: id,
+                          onOpenPoint: onOpenPoint,
                           // 只有手写边能从这里删：材料边要回材料那一步。
                           onDelete: edge.origin == 'manual'
                               ? () => _delete(context, ref, id, edge)
@@ -300,11 +310,15 @@ class _EdgeRow extends StatelessWidget {
   const _EdgeRow({
     required this.edge,
     required this.pointId,
+    this.onOpenPoint,
     this.onDelete,
   });
 
   final KnowledgeEdgeView edge;
   final String pointId;
+
+  /// 非空时那句"它指向谁/谁指向它"可点：顺着这条边走到另一端。
+  final ValueChanged<KnowledgeEdgeEndpointRef>? onOpenPoint;
 
   /// 非空时才显示删除：只有手写边给得起这个回调（材料边要回材料那一步）。
   final VoidCallback? onDelete;
@@ -317,6 +331,20 @@ class _EdgeRow extends StatelessWidget {
     final other = outgoing
         ? knowledgeEdgeEndpointLabel(edge.toTitle, edge.toId)
         : knowledgeEdgeEndpointLabel(edge.fromTitle, edge.fromId);
+    final otherRef = (
+      externalId: outgoing ? edge.toId : edge.fromId,
+      label: other,
+    );
+    final direction = Text(
+      outgoing
+          ? l10n.knowledgePointEdgesOutgoing(other)
+          : l10n.knowledgePointEdgesIncoming(other),
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: onOpenPoint == null ? null : theme.colorScheme.primary,
+        decoration: onOpenPoint == null ? null : TextDecoration.underline,
+        decorationColor: theme.colorScheme.primary,
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(26, 2, 0, 2),
@@ -333,12 +361,16 @@ class _EdgeRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  outgoing
-                      ? l10n.knowledgePointEdgesOutgoing(other)
-                      : l10n.knowledgePointEdgesIncoming(other),
-                  style: theme.textTheme.bodyMedium,
-                ),
+                if (onOpenPoint == null)
+                  direction
+                else
+                  Tooltip(
+                    message: l10n.knowledgeEdgeWalkTooltip,
+                    child: InkWell(
+                      onTap: () => onOpenPoint!(otherRef),
+                      child: direction,
+                    ),
+                  ),
                 Text(
                   knowledgeEdgeOriginLabel(l10n, edge.origin),
                   style: theme.textTheme.bodySmall?.copyWith(

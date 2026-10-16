@@ -9,7 +9,9 @@
 ///  - 出边和入边都站在这个点的角度说方向（它指向谁 / 谁指向它），并带关系名；
 ///  - 手写一条边（`origin: 'manual'`）从这一段就能做，方向可选；同一个方向已有边就
 ///    如实说"已经有一条了（谁写的）"，不重复加；
-///  - 删除只给手写边：材料边那一行没有删除按钮。
+///  - 删除只给手写边：材料边那一行没有删除按钮；
+///  - 端点可点时才可点：给了 [KnowledgeEdgeEndpointRef] 回调就能顺着走到另一端，
+///    没给就只是文本（不假装能跳）。
 library;
 
 import 'package:drift/native.dart';
@@ -19,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/features/anki/presentation/knowledge_edge_page.dart';
 import 'package:furnace/features/anki/presentation/knowledge_point_edges.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -33,14 +36,21 @@ void main() {
 
   tearDown(() => db.close());
 
-  Widget harness({required String? externalId}) => ProviderScope(
+  Widget harness({
+    required String? externalId,
+    ValueChanged<KnowledgeEdgeEndpointRef>? onOpenPoint,
+  }) =>
+      ProviderScope(
         overrides: <Override>[appDatabaseProvider.overrideWithValue(db)],
         child: MaterialApp(
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: KnowledgePointEdgesSection(externalId: externalId),
+            body: KnowledgePointEdgesSection(
+              externalId: externalId,
+              onOpenPoint: onOpenPoint,
+            ),
           ),
         ),
       );
@@ -130,6 +140,72 @@ void main() {
     );
     expect(find.text(l10n.knowledgeEdgesOriginProduce), findsOneWidget);
     expect(find.text(l10n.knowledgeEdgesOriginContains), findsOneWidget);
+  });
+
+  testWidgets('端点名字可点：给出的是"另一端"的 id 与显示名', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+    await addPoint('depend on', 'en::w::depend-on');
+    await addEdge(
+      id: 'e_out',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+    );
+    await addEdge(
+      id: 'e_in',
+      fromId: 'en::w::depend-on',
+      toId: 'en::w::rely-on',
+      origin: 'contains',
+      createdAt: 2000,
+    );
+
+    final opened = <KnowledgeEdgeEndpointRef>[];
+    await tester.pumpWidget(
+      harness(externalId: 'en::w::rely-on', onOpenPoint: opened.add),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+    // 出边那一行点下去给的是终点；入边那一行给的是起点 —— 都是"另一端"。
+    await tester.tap(
+      find.text(l10n.knowledgePointEdgesOutgoing('I relied on him.')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text(l10n.knowledgePointEdgesIncoming('depend on')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(opened, [
+      (externalId: 'en::s::abc', label: 'I relied on him.'),
+      (externalId: 'en::w::depend-on', label: 'depend on'),
+    ]);
+  });
+
+  testWidgets('没给回调时那句话只是文本：不假装能点', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+    await addEdge(
+      id: 'e_out',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+    );
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+    expect(
+      find.text(l10n.knowledgePointEdgesOutgoing('I relied on him.')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip(l10n.knowledgeEdgeWalkTooltip), findsNothing);
   });
 
   Future<void> addManualEdge({

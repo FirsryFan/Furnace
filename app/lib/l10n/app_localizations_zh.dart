@@ -1264,6 +1264,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get knowledgeEdgeNotManual => '只有手写的边能这样删（材料确认来的边要回材料那一步）';
 
   @override
+  String knowledgeEdgeWalkTitle(String point) {
+    return '这个点连着谁（$point）';
+  }
+
+  @override
+  String get knowledgeEdgeWalkHint => '点名字可以顺着这条线接着走：走到哪一端，就看哪一端的边（只读，不建也不删）。';
+
+  @override
+  String get knowledgeEdgeWalkTooltip => '顺着这条边走到这一端';
+
+  @override
   String get settingsDemoData => '载入示例数据';
 
   @override

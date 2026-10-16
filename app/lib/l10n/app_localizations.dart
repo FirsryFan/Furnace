@@ -2403,6 +2403,24 @@ abstract class AppLocalizations {
   /// **'only hand-written edges can be deleted here (material edges belong to the material step)'**
   String get knowledgeEdgeNotManual;
 
+  /// No description provided for @knowledgeEdgeWalkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What this point connects to ({point})'**
+  String knowledgeEdgeWalkTitle(String point);
+
+  /// No description provided for @knowledgeEdgeWalkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a name to keep walking this line: whichever end you go to, you see that end\'s edges (read-only, nothing is created or deleted).'**
+  String get knowledgeEdgeWalkHint;
+
+  /// No description provided for @knowledgeEdgeWalkTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk along this edge to this end'**
+  String get knowledgeEdgeWalkTooltip;
+
   /// No description provided for @settingsDemoData.
   ///
   /// In en, this message translates to:

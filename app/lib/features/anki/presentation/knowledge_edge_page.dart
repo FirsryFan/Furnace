@@ -5,6 +5,7 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/repositories/knowledge_edge_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
+import 'knowledge_point_edges.dart';
 
 /// 全部线索边（新的在前）。写完就重读：边的写者在别处（材料确认、或是手写那一段），
 /// 所以这一页要靠数据库 revision 自己醒过来。
@@ -40,6 +41,56 @@ String knowledgeEdgeOriginLabel(AppLocalizations l10n, String origin) =>
       'material' => l10n.knowledgeEdgesOriginMaterial,
       _ => origin,
     };
+
+/// 顺着线索边走时"走到的那一端"：图里的 id（`knowledge_points.external_id`）与显示名。
+typedef KnowledgeEdgeEndpointRef = ({String externalId, String label});
+
+/// 顺着一条线走下去：开一个只读对话框，摆出这一端自己的线索边。
+///
+/// 名字可点 —— 点谁就走过去（在同一个对话框里展开下一层），所以"这条线连到哪儿"
+/// 可以一层层翻，不用先回管理页找那个知识点。这里只读：不建边、不删边、不改 `ls`。
+Future<void> showKnowledgeEdgeWalk(
+  BuildContext context, {
+  required KnowledgeEdgeEndpointRef endpoint,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      final l10n = AppLocalizations.of(dialogContext);
+      final theme = Theme.of(dialogContext);
+      return AlertDialog(
+        title: Text(l10n.knowledgeEdgeWalkTitle(endpoint.label)),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.knowledgeEdgeWalkHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                KnowledgePointEdgesSection(
+                  externalId: endpoint.externalId,
+                  onOpenPoint: (next) =>
+                      showKnowledgeEdgeWalk(dialogContext, endpoint: next),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      );
+    },
+  );
+}
 
 /// 线索边的只读清单（`knowledge_edges`；`docs/MINDNET_ROADMAP.md` §2-C ④）。
 ///
@@ -84,7 +135,12 @@ class KnowledgeEdgePage extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               _Header(count: edges.length, note: l10n.knowledgeEdgesIntro),
-              for (final edge in edges) _EdgeTile(edge: edge),
+              for (final edge in edges)
+                _EdgeTile(
+                  edge: edge,
+                  onOpen: (endpoint) =>
+                      showKnowledgeEdgeWalk(context, endpoint: endpoint),
+                ),
             ],
           );
         },
@@ -133,9 +189,12 @@ class _Header extends StatelessWidget {
 }
 
 class _EdgeTile extends StatelessWidget {
-  const _EdgeTile({required this.edge});
+  const _EdgeTile({required this.edge, required this.onOpen});
 
   final KnowledgeEdgeView edge;
+
+  /// 点哪一端就走过去：只读地展开那一端的线索边（可以一层层走下去）。
+  final ValueChanged<KnowledgeEdgeEndpointRef> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +211,8 @@ class _EdgeTile extends StatelessWidget {
         l10n.knowledgeEdgesNoLs,
       if (edge.hasMissingEndpoint) l10n.knowledgeEdgesMissingEnd,
     ];
+    final fromLabel = knowledgeEdgeEndpointLabel(edge.fromTitle, edge.fromId);
+    final toLabel = knowledgeEdgeEndpointLabel(edge.toTitle, edge.toId);
 
     return ListTile(
       dense: true,
@@ -160,11 +221,45 @@ class _EdgeTile extends StatelessWidget {
         size: 18,
         color: theme.colorScheme.primary,
       ),
-      title: Text(
-        '${knowledgeEdgeEndpointLabel(edge.fromTitle, edge.fromId)} → '
-        '${knowledgeEdgeEndpointLabel(edge.toTitle, edge.toId)}',
+      title: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _EndpointLink(
+            label: fromLabel,
+            onTap: () => onOpen((externalId: edge.fromId, label: fromLabel)),
+          ),
+          Text(' → ', style: theme.textTheme.bodyMedium),
+          _EndpointLink(
+            label: toLabel,
+            onTap: () => onOpen((externalId: edge.toId, label: toLabel)),
+          ),
+        ],
       ),
       subtitle: Text(parts.join(' · ')),
+    );
+  }
+}
+
+/// 清单里可点的端点名：点它就顺着这条线走到那一端。
+class _EndpointLink extends StatelessWidget {
+  const _EndpointLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Text(
+        label,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          decoration: TextDecoration.underline,
+          decorationColor: theme.colorScheme.primary,
+        ),
+      ),
     );
   }
 }

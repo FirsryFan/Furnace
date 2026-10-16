@@ -551,6 +551,14 @@
   "knowledgeEdgeDeleted": "已删掉这条手写边",
   "knowledgeEdgeNotFound": "这条边已经不在了",
   "knowledgeEdgeNotManual": "只有手写的边能这样删（材料确认来的边要回材料那一步）",
+  "knowledgeEdgeWalkTitle": "这个点连着谁（{point}）",
+  "@knowledgeEdgeWalkTitle": {
+    "placeholders": {
+      "point": { "type": "String" }
+    }
+  },
+  "knowledgeEdgeWalkHint": "点名字可以顺着这条线接着走：走到哪一端，就看哪一端的边（只读，不建也不删）。",
+  "knowledgeEdgeWalkTooltip": "顺着这条边走到这一端",
 
   "settingsDemoData": "载入示例数据",
   "settingsDemoDataHint": "生成一批示例标签、闪存卡、事件与日程块，方便先看界面效果。",

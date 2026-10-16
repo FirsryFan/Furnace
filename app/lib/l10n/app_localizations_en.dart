@@ -1321,6 +1321,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'only hand-written edges can be deleted here (material edges belong to the material step)';
 
   @override
+  String knowledgeEdgeWalkTitle(String point) {
+    return 'What this point connects to ($point)';
+  }
+
+  @override
+  String get knowledgeEdgeWalkHint =>
+      'Tap a name to keep walking this line: whichever end you go to, you see that end\'s edges (read-only, nothing is created or deleted).';
+
+  @override
+  String get knowledgeEdgeWalkTooltip => 'Walk along this edge to this end';
+
+  @override
   String get settingsDemoData => 'Load demo data';
 
   @override
