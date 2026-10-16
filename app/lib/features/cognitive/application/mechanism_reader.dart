@@ -1,0 +1,175 @@
+/// 机制面板要显示的读数：引擎的装配 + 每个机制的参数 + 未标定的那些。
+///
+/// 为什么要有这个文件：页面不该自己拼 `FastMechanisms` —— 怎么拼就是"装了哪些机制"，
+/// 页面另写一份就会和引擎漂移。这里只做一件事：把 `MechanismCatalog`（装配的事实）
+/// 和 `FastMechanisms`（参数的转录表）变成可以直接画的行，页面不做任何判断。
+///
+/// 值的口径：`value` 是这一跑实际用的值（覆盖 > `module_defaults` > 转录默认值），
+/// `transcribed` 是转录来的那一份（用空 `module_defaults` 单独读一遍，因为
+/// `fromModuleDefaults` 会把传进来的默认值写进 `FastParamSpec.defaultValue`），
+/// `overridden` 是 `FastMechanisms.overrides` 里写了这个路径 —— 应用只有一处覆盖：
+/// `attention.ignition.T_ign = 0`（D3 去随机源）。
+library;
+
+import '../../../domain/services/cognitive/fast_engine.dart';
+import '../../../domain/services/cognitive/mechanism_catalog.dart';
+
+/// 一个参数在面板上的一行。
+class MechanismParamRow {
+  const MechanismParamRow({
+    required this.path,
+    required this.key,
+    required this.value,
+    required this.transcribed,
+    required this.overridden,
+    required this.calibrated,
+    required this.unit,
+    required this.desc,
+    required this.evidence,
+    this.min,
+    this.max,
+  });
+
+  /// 内核的参数路径，如 `attention.capacity.W_DAR`。
+  final String path;
+  final String key;
+
+  /// 这一跑实际用的值（有覆盖就是覆盖值）。
+  final double value;
+
+  /// 转录来的默认值（`FastParamSpec.defaultValue`）。
+  final double transcribed;
+
+  final bool overridden;
+
+  /// `false` = **未标定**：没有标定来源，是量级合理的占位值。
+  final bool calibrated;
+
+  final String unit;
+  final double? min;
+  final double? max;
+  final String desc;
+  final String evidence;
+
+  String get valueText => _withUnit(value);
+
+  String get transcribedText => _withUnit(transcribed);
+
+  String get rangeText {
+    if (min == null && max == null) {
+      return '—';
+    }
+    final low = min == null ? '—' : _num(min!);
+    final high = max == null ? '—' : _num(max!);
+    return '$low ~ $high';
+  }
+
+  /// 没有量纲的参数（`unit == '-'`）只写数字，不拖一个空单位的尾巴。
+  String _withUnit(double raw) =>
+      unit == '-' ? _num(raw) : '${_num(raw)} $unit';
+}
+
+/// 一个机制在面板上的一段。
+class MechanismRow {
+  const MechanismRow({
+    required this.id,
+    required this.params,
+    required this.installedIn,
+  });
+
+  /// 机制 id，如 `memory.dsr`。
+  final String id;
+
+  /// 它声明的参数（`memory.dsr` 一个都没有 —— 它只维护状态袋）。
+  final List<MechanismParamRow> params;
+
+  /// 装了它的装配 id（空 = 不装进任何引擎）。
+  final List<String> installedIn;
+
+  bool get installed => installedIn.isNotEmpty;
+
+  int get uncalibratedCount =>
+      params.where((final param) => !param.calibrated).length;
+
+  int get overriddenCount =>
+      params.where((final param) => param.overridden).length;
+}
+
+/// 面板的全部读数。
+class MechanismPanel {
+  const MechanismPanel({
+    required this.setups,
+    required this.mechanisms,
+    required this.moduleDefaults,
+  });
+
+  final List<MechanismSetup> setups;
+  final List<MechanismRow> mechanisms;
+
+  /// 这一跑用的 `module_defaults`（应用传空表）。
+  final Map<String, Object?> moduleDefaults;
+
+  int get paramCount =>
+      mechanisms.fold(0, (sum, row) => sum + row.params.length);
+
+  int get uncalibratedCount =>
+      mechanisms.fold(0, (sum, row) => sum + row.uncalibratedCount);
+
+  int get overriddenCount =>
+      mechanisms.fold(0, (sum, row) => sum + row.overriddenCount);
+}
+
+/// 读一次面板：装配按 `MechanismCatalog`，参数按 `FastMechanisms` 的转录表。
+MechanismPanel readMechanismPanel({
+  Map<String, Object?> moduleDefaults = const <String, Object?>{},
+}) {
+  final mechanisms = FastMechanisms.fromModuleDefaults(
+    moduleDefaults,
+    ids: MechanismCatalog.allIds,
+    overrides: MechanismCatalog.transcribedIgnition,
+  );
+  // 转录默认值必须单独读一份：`fromModuleDefaults` 会把传进来的 `module_defaults`
+  // 写进 `defaultValue`，那一份读到的已经不是"转录"了。
+  final transcribed = FastMechanisms.fromModuleDefaults(
+    const <String, Object?>{},
+    ids: MechanismCatalog.allIds,
+  );
+  return MechanismPanel(
+    setups: MechanismCatalog.setups,
+    mechanisms: <MechanismRow>[
+      for (final id in MechanismCatalog.allIds)
+        MechanismRow(
+          id: id,
+          installedIn: MechanismCatalog.setupsInstalling(id),
+          params: <MechanismParamRow>[
+            for (final spec in mechanisms.specs)
+              if (spec.mechanism == id)
+                MechanismParamRow(
+                  path: spec.path,
+                  key: spec.key,
+                  value: _overrideValue(mechanisms.overrides, spec),
+                  transcribed: transcribed.specOf(spec.path)?.defaultValue ??
+                      spec.defaultValue,
+                  overridden: mechanisms.overrides.containsKey(spec.path),
+                  calibrated: spec.calibrated,
+                  unit: spec.unit,
+                  min: spec.min,
+                  max: spec.max,
+                  desc: spec.desc,
+                  evidence: spec.evidence,
+                ),
+          ],
+        ),
+    ],
+    moduleDefaults: moduleDefaults,
+  );
+}
+
+double _overrideValue(Map<String, Object?> overrides, FastParamSpec spec) {
+  final raw = overrides[spec.path];
+  return raw is num ? raw.toDouble() : spec.defaultValue;
+}
+
+/// 面板上的数字写法：整数不带小数点，其余照写（0.05 就写 0.05）。
+String _num(double value) =>
+    value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';

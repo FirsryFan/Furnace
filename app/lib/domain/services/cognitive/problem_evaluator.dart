@@ -63,6 +63,7 @@ import 'dsr_retention_probe.dart';
 import 'fast_diagnosis.dart';
 import 'fast_engine.dart';
 import 'knowledge_point_tag_bridge.dart';
+import 'mechanism_catalog.dart';
 
 /// What the evaluator concluded about one candidate problem.
 enum ProblemVerdict {
@@ -444,18 +445,14 @@ abstract final class ProblemEvaluator {
     // `T_ign = 0` makes ignition a hard threshold that draws nothing. The
     // memory layer is installed too, so `retention` instructions can be priced;
     // it registers no `round.*` hook, so this changes no per-round number.
-    const overrides = <String, Object?>{'attention.ignition.T_ign': 0};
+    // The id list and the override live in `MechanismCatalog`, so the mechanism
+    // panel cannot drift from what this run actually installs.
+    const overrides = MechanismCatalog.transcribedIgnition;
     final engine = FastEngine(
       graph: FastGraph.fromSpec(spec, currentRealTime: nowHours),
       mechanisms: FastMechanisms.fromModuleDefaults(
         moduleDefaults,
-        ids: const [
-          FastMechanisms.shunting,
-          FastMechanisms.capacity,
-          FastMechanisms.ignition,
-          FastMechanisms.goal,
-          FastMechanisms.memory,
-        ],
+        ids: MechanismCatalog.problemEvaluatorIds,
         overrides: overrides,
       ),
       overrides: overrides,

@@ -2110,6 +2110,97 @@ class AppLocalizationsEn extends AppLocalizations {
       'Read-only page: nothing here is written to the database';
 
   @override
+  @override
+  String get mechanismPanelTitle => 'Mechanisms and parameters';
+
+  @override
+  String get mechanismPanelSubtitle =>
+      'Which mechanisms the engines install, what each parameter is, and which values are not calibrated';
+
+  @override
+  String get mechanismPanelReadOnlyNote =>
+      'Read-only: the setups and parameters shown are the ones the engines actually run with';
+
+  @override
+  String get mechanismPanelSetupsHeader => 'The two engine setups';
+
+  @override
+  String mechanismPanelSetupCount(int count) {
+    return '$count mechanism(s) installed';
+  }
+
+  @override
+  String get mechanismPanelOverridesHeader =>
+      'Overrides (not the transcribed defaults):';
+
+  @override
+  String get mechanismPanelNoOverrides =>
+      'No overrides: every value is the transcribed default';
+
+  @override
+  String get mechanismPanelMechanismsHeader => 'Mechanisms';
+
+  @override
+  String get mechanismPanelInstalledIn => 'Installed in: ';
+
+  @override
+  String get mechanismPanelOnlyOutside =>
+      'Only inside the rhythm reading - not installed into an engine';
+
+  @override
+  String get mechanismPanelNoParams =>
+      'This layer declares no numeric parameters: it keeps a per-node state bag only';
+
+  @override
+  String get mechanismPanelUncalibrated => 'NOT CALIBRATED';
+
+  @override
+  String get mechanismPanelCalibrated => 'calibrated';
+
+  @override
+  String get mechanismPanelOverridden => 'overridden';
+
+  @override
+  String get mechanismPanelTranscribed => 'transcribed default';
+
+  @override
+  String get mechanismPanelRange => 'range';
+
+  @override
+  String mechanismPanelSummary(int params, int uncalibrated) {
+    return '$params parameters, $uncalibrated of them not calibrated';
+  }
+
+  @override
+  String get mechanismPanelNameSeparator => ', ';
+
+  @override
+  String get mechanismPanelOpen => 'Mechanisms and parameters';
+
+  @override
+  String get mechanismNameShunting => 'Shunting inhibition';
+
+  @override
+  String get mechanismNameCapacity => 'Attention capacity';
+
+  @override
+  String get mechanismNameIgnition => 'Ignition threshold';
+
+  @override
+  String get mechanismNameGoal => 'Goal context';
+
+  @override
+  String get mechanismNameRhythm => 'Rhythm gate';
+
+  @override
+  String get mechanismNameMemory => 'DSR memory layer';
+
+  @override
+  String get mechanismSetupLibraryDiagnosis => 'The library-diagnosis run';
+
+  @override
+  String get mechanismSetupProblemEvaluator => 'The problem-pricing run';
+
   String get cognitiveZoneNote =>
       'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".';
 

@@ -52,6 +52,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
+import 'mechanism_page.dart';
 import 'zone_labels.dart';
 
 // The band/zone words are re-exported so every existing importer of this page
@@ -625,7 +626,20 @@ class CognitiveModelPage extends ConsumerWidget {
     final readings = ref.watch(cognitiveReadingsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.cognitiveModelTitle)),
+      appBar: AppBar(
+        title: Text(l10n.cognitiveModelTitle),
+        actions: <Widget>[
+          IconButton(
+            tooltip: l10n.mechanismPanelOpen,
+            icon: const Icon(Icons.tune),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MechanismPage(),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: readings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ErrorNote(l10n: l10n, error: error),

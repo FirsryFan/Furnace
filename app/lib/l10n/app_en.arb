@@ -894,6 +894,50 @@
   "cognitiveUncalibratedWeights": "Weights such as ls are not calibrated",
   "cognitiveUncalibratedWeightsDetail": "The model's edge weights (ls and friends) have no calibration source, so this ordering is a heuristic, not a measurement.",
   "cognitiveReadOnlyNote": "Read-only page: nothing here is written to the database",
+  "mechanismPanelTitle": "Mechanisms and parameters",
+  "mechanismPanelSubtitle": "Which mechanisms the engines install, what each parameter is, and which values are not calibrated",
+  "mechanismPanelReadOnlyNote": "Read-only: the setups and parameters shown are the ones the engines actually run with",
+  "mechanismPanelSetupsHeader": "The two engine setups",
+  "mechanismPanelSetupCount": "{count} mechanism(s) installed",
+  "@mechanismPanelSetupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mechanismPanelOverridesHeader": "Overrides (not the transcribed defaults):",
+  "mechanismPanelNoOverrides": "No overrides: every value is the transcribed default",
+  "mechanismPanelMechanismsHeader": "Mechanisms",
+  "mechanismPanelInstalledIn": "Installed in: ",
+  "mechanismPanelOnlyOutside": "Only inside the rhythm reading - not installed into an engine",
+  "mechanismPanelNoParams": "This layer declares no numeric parameters: it keeps a per-node state bag only",
+  "mechanismPanelUncalibrated": "NOT CALIBRATED",
+  "mechanismPanelCalibrated": "calibrated",
+  "mechanismPanelOverridden": "overridden",
+  "mechanismPanelTranscribed": "transcribed default",
+  "mechanismPanelRange": "range",
+  "mechanismPanelSummary": "{params} parameters, {uncalibrated} of them not calibrated",
+  "@mechanismPanelSummary": {
+    "placeholders": {
+      "params": {
+        "type": "int"
+      },
+      "uncalibrated": {
+        "type": "int"
+      }
+    }
+  },
+  "mechanismPanelNameSeparator": ", ",
+  "mechanismPanelOpen": "Mechanisms and parameters",
+  "mechanismNameShunting": "Shunting inhibition",
+  "mechanismNameCapacity": "Attention capacity",
+  "mechanismNameIgnition": "Ignition threshold",
+  "mechanismNameGoal": "Goal context",
+  "mechanismNameRhythm": "Rhythm gate",
+  "mechanismNameMemory": "DSR memory layer",
+  "mechanismSetupLibraryDiagnosis": "The library-diagnosis run",
+  "mechanismSetupProblemEvaluator": "The problem-pricing run",
   "cognitiveZoneNote": "Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".",
   "cognitiveFastLayerNote": "Zones come from the tierB fast layer",
   "cognitiveFastLayerRanDetail": "It ran this time: each zone is the diffusion verdict on the tag graph (weak / empty / slow / overloaded / off-goal / dead-end). Starts are the most recently reviewed knowledge points, targets are the ones due today.",

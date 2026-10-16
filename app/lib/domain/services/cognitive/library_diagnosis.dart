@@ -47,6 +47,7 @@ import 'cognitive_model.dart';
 import 'fast_diagnosis.dart';
 import 'knowledge_point_tag_bridge.dart';
 import 'fast_engine.dart';
+import 'mechanism_catalog.dart';
 import 'metacognition.dart';
 
 /// The result of one whole-library run, including *whether* it ran: an empty
@@ -98,7 +99,8 @@ class LibraryDiagnosis {
         'targets': targets,
         'nodes_without_ms': nodesWithoutMs,
         'bottlenecks': {
-          for (final entry in byKnowledgePoint.entries) entry.key: entry.value.id,
+          for (final entry in byKnowledgePoint.entries)
+            entry.key: entry.value.id,
         },
         'metacognition': metacognition.toJson(),
       };
@@ -211,17 +213,14 @@ abstract final class LibraryDiagnosisRunner {
 
     // D3's random-source removal: only the four ported mechanisms run, and
     // `T_ign = 0` turns ignition into a hard threshold so nothing is drawn.
-    const overrides = <String, Object?>{'attention.ignition.T_ign': 0};
+    // The id list and the override live in `MechanismCatalog`, so the mechanism
+    // panel cannot drift from what this run actually installs.
+    const overrides = MechanismCatalog.transcribedIgnition;
     final engine = FastEngine(
       graph: FastGraph.fromSpec(graph.toJson(), currentRealTime: nowHours),
       mechanisms: FastMechanisms.fromModuleDefaults(
         moduleDefaults,
-        ids: const [
-          FastMechanisms.shunting,
-          FastMechanisms.capacity,
-          FastMechanisms.ignition,
-          FastMechanisms.goal,
-        ],
+        ids: MechanismCatalog.libraryDiagnosisIds,
         overrides: overrides,
       ),
       overrides: overrides,
@@ -332,7 +331,8 @@ abstract final class LibraryDiagnosisRunner {
             : reviewedAt == null
                 ? double.infinity
                 : nowHours -
-                    modelHoursOf(DateTime.fromMillisecondsSinceEpoch(reviewedAt)),
+                    modelHoursOf(
+                        DateTime.fromMillisecondsSinceEpoch(reviewedAt)),
         isStart: starts.contains(tag.id),
       ));
     }

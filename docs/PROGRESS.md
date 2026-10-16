@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-10-17 轮次八十四：机制面板 —— 引擎装了哪些机制、每个参数是多少、哪些还没标定（Lead）
+
+**做了什么**：这台机器有一条硬规矩 —— **所有算法参数对用户公开**（`docs/DESIGN_BLUEPRINT.md` 的 P5，
+也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半）。而在这一轮之前，"引擎装了哪些机制、
+每个数字是多少、哪些是未标定的占位值"只活在 `app/lib/domain/services/cognitive/fast_engine.dart`
+的转录表里：用户能看见"发展区/瓶颈"这些结论，看不见产生它们的那些数。这一轮把装法、参数、
+未标定标记搬到界面上（**只读**）。
+
+- **装配的事实收成一处**（`app/lib/domain/services/cognitive/mechanism_catalog.dart`）：
+  `library_diagnosis` 装四个机制（`dynamics.shunting` / `attention.capacity` / `attention.ignition` /
+  `context.goal`），`problem_evaluator` 多装一层 `memory.dsr`；两处唯一的覆盖是
+  `attention.ignition.T_ign = 0`（D3 去随机源：点火退化成硬阈值，不掷随机数）。原先这两处各写一份
+  id 清单 + 覆盖 map，现在都读这份常量 —— 面板**不可能**和引擎说的不一样（"面板"的老毛病就是抄一份
+  然后漂移）。
+- **读数纯函数**（`app/lib/features/cognitive/application/mechanism_reader.dart`）：
+  `readMechanismPanel({moduleDefaults})` 不碰数据库；`value` = 覆盖 > `module_defaults` > 转录默认值，
+  `transcribed` 必须用**空 defaults 单独读一遍** `FastMechanisms`（`fromModuleDefaults` 会把传进来的
+  默认值写进 `FastParamSpec.defaultValue`，那一份读到的已经不是"转录"了 —— 写测试时才发现）。
+- **页面**（`app/lib/features/cognitive/presentation/mechanism_page.dart`）：入口在
+  `cognitive_model_page.dart` 的 AppBar（`Icons.tune`）。两段装配卡 + 六段机制卡：内核 id
+  （`attention.capacity` 这种写法）+ 界面名 + "装在哪" + 每个参数一行（路径、值、
+  「未标定」/「已标定」、被覆盖时另给转录默认值、范围、`desc` 与 `evidence` 原话），末尾一句总数
+  "N 个参数，其中 M 个未标定"。
+- **两条如实说**：`rhythm.gate` 只活在节律读数里（`StudyRhythm.read` 直接建 `RhythmGate`），
+  **不装进任何引擎**，面板不说它"装了"；`memory.dsr` **一个号参数都没有**（只维护每个节点的状态袋
+  `node.m['memory_dsr']`），面板不空着、也不编参数。
+- **只读是刻意的**：这一页不写库、没有开关。"用户侧开关/滑块"（§3 第 8 行）要先把开关落库
+  （settings 列 + schema 迁移）并配一条可跑的验收契约，是另一轮的事。
+
+**测试钉住的纪律**：`app/test/features/cognitive/application/mechanism_reader_test.dart` **10 例**
+（面板列出的机制与参数逐条等于 `FastMechanisms` 的转录表、未标定个数与引擎同口径、两处装配的 id
+清单、`T_ign` 值 `0` 而转录 `0.05`、别的参数没被覆盖、`rhythm.gate` 不装进任何引擎、
+`memory.dsr` 没有号参数、`module_defaults` 传值时实际值变而转录默认值不变）；
+`app/test/features/cognitive/presentation/mechanism_page_test.dart` **7 例**（两处装配 + 六个机制名、
+点火阈值那行、记忆层那段、节律闸门那段、末尾总数与读数一致、"已标定"也出现、id 用内核写法）。
+写第一版时抓到两个真问题：读数没把覆盖传进 `FastMechanisms`（`T_ign` 显示成 `0.05`）、
+`transcribed` 拿了被 defaults 改写过的那份。
+
+**证据**：`flutter test test/domain/services/cognitive/ test/features/cognitive/` → `+337`；
+`dart format` 本轮 11 个 Dart 文件 4 changed（改完 0 changed；`.arb` 不能喂 `dart format`）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量
+`flutter test --concurrency=1` → `+1939 ~2`（轮次八十三 `+1922 ~2`，差值 17 = 10 例读数 + 7 例页面）。
+
+**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
+落库；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有
+"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）。
+
 ## 2026-10-17 轮次八十三：撤回流水点得开 —— 那一次撤掉了什么、为什么没撤成（Lead）
 
 **做了什么**：轮次八十二把"撤过"记成了流水，但界面上只有一行"这一批撤回过 N 次"—— 这行字说的是

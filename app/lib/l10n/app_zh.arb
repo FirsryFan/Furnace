@@ -903,6 +903,50 @@
   "cognitiveUncalibratedWeights": "ls 等边权未标定",
   "cognitiveUncalibratedWeightsDetail": "模型的边权（ls 等）没有标定来源，所以这个排序只是启发式参考，不是测量结果。",
   "cognitiveReadOnlyNote": "只读页面：不会写入数据库",
+  "mechanismPanelTitle": "机制与参数",
+  "mechanismPanelSubtitle": "引擎里装了哪些机制、每个参数是多少、哪些还没标定",
+  "mechanismPanelReadOnlyNote": "只读页面：不会写入数据库；装配和参数就是引擎正在用的那一份",
+  "mechanismPanelSetupsHeader": "引擎的两处装配",
+  "mechanismPanelSetupCount": "装了 {count} 个机制",
+  "@mechanismPanelSetupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mechanismPanelOverridesHeader": "覆盖（不是转录默认值）：",
+  "mechanismPanelNoOverrides": "没有覆盖：全部按转录默认值",
+  "mechanismPanelMechanismsHeader": "机制清单",
+  "mechanismPanelInstalledIn": "装在：",
+  "mechanismPanelOnlyOutside": "只在节律读数里，不装进引擎",
+  "mechanismPanelNoParams": "这一层没有号参数：它只维护每个节点的状态袋",
+  "mechanismPanelUncalibrated": "未标定",
+  "mechanismPanelCalibrated": "已标定",
+  "mechanismPanelOverridden": "被覆盖",
+  "mechanismPanelTranscribed": "转录默认值",
+  "mechanismPanelRange": "范围",
+  "mechanismPanelSummary": "{params} 个参数，其中 {uncalibrated} 个未标定",
+  "@mechanismPanelSummary": {
+    "placeholders": {
+      "params": {
+        "type": "int"
+      },
+      "uncalibrated": {
+        "type": "int"
+      }
+    }
+  },
+  "mechanismPanelNameSeparator": "、",
+  "mechanismPanelOpen": "机制与参数",
+  "mechanismNameShunting": "侧抑制（分流）",
+  "mechanismNameCapacity": "注意容量",
+  "mechanismNameIgnition": "点火阈值",
+  "mechanismNameGoal": "目标上下文",
+  "mechanismNameRhythm": "节律闸门",
+  "mechanismNameMemory": "DSR 记忆层",
+  "mechanismSetupLibraryDiagnosis": "库诊断那一跑",
+  "mechanismSetupProblemEvaluator": "题目定价那一跑",
   "cognitiveZoneNote": "发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。",
   "cognitiveFastLayerNote": "发展区来自快层诊断",
   "cognitiveFastLayerRanDetail": "这次跑过：取值来自标签图上的扩散结果（弱/空/慢/过载/偏离目标/死路）。起点=最近复习的几个知识点，目标=今天到期的那些。",

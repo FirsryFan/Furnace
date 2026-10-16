@@ -2019,6 +2019,91 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cognitiveReadOnlyNote => '只读页面：不会写入数据库';
 
   @override
+  @override
+  String get mechanismPanelTitle => '机制与参数';
+
+  @override
+  String get mechanismPanelSubtitle => '引擎里装了哪些机制、每个参数是多少、哪些还没标定';
+
+  @override
+  String get mechanismPanelReadOnlyNote => '只读页面：不会写入数据库；装配和参数就是引擎正在用的那一份';
+
+  @override
+  String get mechanismPanelSetupsHeader => '引擎的两处装配';
+
+  @override
+  String mechanismPanelSetupCount(int count) {
+    return '装了 $count 个机制';
+  }
+
+  @override
+  String get mechanismPanelOverridesHeader => '覆盖（不是转录默认值）：';
+
+  @override
+  String get mechanismPanelNoOverrides => '没有覆盖：全部按转录默认值';
+
+  @override
+  String get mechanismPanelMechanismsHeader => '机制清单';
+
+  @override
+  String get mechanismPanelInstalledIn => '装在：';
+
+  @override
+  String get mechanismPanelOnlyOutside => '只在节律读数里，不装进引擎';
+
+  @override
+  String get mechanismPanelNoParams => '这一层没有号参数：它只维护每个节点的状态袋';
+
+  @override
+  String get mechanismPanelUncalibrated => '未标定';
+
+  @override
+  String get mechanismPanelCalibrated => '已标定';
+
+  @override
+  String get mechanismPanelOverridden => '被覆盖';
+
+  @override
+  String get mechanismPanelTranscribed => '转录默认值';
+
+  @override
+  String get mechanismPanelRange => '范围';
+
+  @override
+  String mechanismPanelSummary(int params, int uncalibrated) {
+    return '$params 个参数，其中 $uncalibrated 个未标定';
+  }
+
+  @override
+  String get mechanismPanelNameSeparator => '、';
+
+  @override
+  String get mechanismPanelOpen => '机制与参数';
+
+  @override
+  String get mechanismNameShunting => '侧抑制（分流）';
+
+  @override
+  String get mechanismNameCapacity => '注意容量';
+
+  @override
+  String get mechanismNameIgnition => '点火阈值';
+
+  @override
+  String get mechanismNameGoal => '目标上下文';
+
+  @override
+  String get mechanismNameRhythm => '节律闸门';
+
+  @override
+  String get mechanismNameMemory => 'DSR 记忆层';
+
+  @override
+  String get mechanismSetupLibraryDiagnosis => '库诊断那一跑';
+
+  @override
+  String get mechanismSetupProblemEvaluator => '题目定价那一跑';
+
   String get cognitiveZoneNote =>
       '发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。';
 

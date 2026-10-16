@@ -3745,6 +3745,168 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".'**
+  /// No description provided for @mechanismPanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mechanisms and parameters'**
+  String get mechanismPanelTitle;
+
+  /// No description provided for @mechanismPanelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which mechanisms the engines install, what each parameter is, and which values are not calibrated'**
+  String get mechanismPanelSubtitle;
+
+  /// No description provided for @mechanismPanelReadOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only: the setups and parameters shown are the ones the engines actually run with'**
+  String get mechanismPanelReadOnlyNote;
+
+  /// No description provided for @mechanismPanelSetupsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'The two engine setups'**
+  String get mechanismPanelSetupsHeader;
+
+  /// No description provided for @mechanismPanelSetupCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} mechanism(s) installed'**
+  String mechanismPanelSetupCount(int count);
+
+  /// No description provided for @mechanismPanelOverridesHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Overrides (not the transcribed defaults):'**
+  String get mechanismPanelOverridesHeader;
+
+  /// No description provided for @mechanismPanelNoOverrides.
+  ///
+  /// In en, this message translates to:
+  /// **'No overrides: every value is the transcribed default'**
+  String get mechanismPanelNoOverrides;
+
+  /// No description provided for @mechanismPanelMechanismsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Mechanisms'**
+  String get mechanismPanelMechanismsHeader;
+
+  /// No description provided for @mechanismPanelInstalledIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed in: '**
+  String get mechanismPanelInstalledIn;
+
+  /// No description provided for @mechanismPanelOnlyOutside.
+  ///
+  /// In en, this message translates to:
+  /// **'Only inside the rhythm reading - not installed into an engine'**
+  String get mechanismPanelOnlyOutside;
+
+  /// No description provided for @mechanismPanelNoParams.
+  ///
+  /// In en, this message translates to:
+  /// **'This layer declares no numeric parameters: it keeps a per-node state bag only'**
+  String get mechanismPanelNoParams;
+
+  /// No description provided for @mechanismPanelUncalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'NOT CALIBRATED'**
+  String get mechanismPanelUncalibrated;
+
+  /// No description provided for @mechanismPanelCalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'calibrated'**
+  String get mechanismPanelCalibrated;
+
+  /// No description provided for @mechanismPanelOverridden.
+  ///
+  /// In en, this message translates to:
+  /// **'overridden'**
+  String get mechanismPanelOverridden;
+
+  /// No description provided for @mechanismPanelTranscribed.
+  ///
+  /// In en, this message translates to:
+  /// **'transcribed default'**
+  String get mechanismPanelTranscribed;
+
+  /// No description provided for @mechanismPanelRange.
+  ///
+  /// In en, this message translates to:
+  /// **'range'**
+  String get mechanismPanelRange;
+
+  /// No description provided for @mechanismPanelSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{params} parameters, {uncalibrated} of them not calibrated'**
+  String mechanismPanelSummary(int params, int uncalibrated);
+
+  /// No description provided for @mechanismPanelNameSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get mechanismPanelNameSeparator;
+
+  /// No description provided for @mechanismPanelOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Mechanisms and parameters'**
+  String get mechanismPanelOpen;
+
+  /// No description provided for @mechanismNameShunting.
+  ///
+  /// In en, this message translates to:
+  /// **'Shunting inhibition'**
+  String get mechanismNameShunting;
+
+  /// No description provided for @mechanismNameCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Attention capacity'**
+  String get mechanismNameCapacity;
+
+  /// No description provided for @mechanismNameIgnition.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignition threshold'**
+  String get mechanismNameIgnition;
+
+  /// No description provided for @mechanismNameGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal context'**
+  String get mechanismNameGoal;
+
+  /// No description provided for @mechanismNameRhythm.
+  ///
+  /// In en, this message translates to:
+  /// **'Rhythm gate'**
+  String get mechanismNameRhythm;
+
+  /// No description provided for @mechanismNameMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'DSR memory layer'**
+  String get mechanismNameMemory;
+
+  /// No description provided for @mechanismSetupLibraryDiagnosis.
+  ///
+  /// In en, this message translates to:
+  /// **'The library-diagnosis run'**
+  String get mechanismSetupLibraryDiagnosis;
+
+  /// No description provided for @mechanismSetupProblemEvaluator.
+  ///
+  /// In en, this message translates to:
+  /// **'The problem-pricing run'**
+  String get mechanismSetupProblemEvaluator;
+
   String get cognitiveZoneNote;
 
   /// No description provided for @cognitiveFastLayerNote.
