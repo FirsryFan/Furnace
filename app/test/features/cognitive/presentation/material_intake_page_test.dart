@@ -936,6 +936,81 @@ void main() {
       expect(await db.select(db.knowledgePoints).get(), hasLength(1));
     });
 
+    testWidgets('照片报告里"改一改再跑"：带着这份请求进可编辑的那张，跑的是改过的那份', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      MaterialRunRequest? rehearsed;
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) {
+              rehearsed = request;
+              return rehearseRun(
+                request: request,
+                db: db,
+                model: const MindNetCognitiveModel(),
+              );
+            }),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+
+      // "改一改再跑"把照片那张关掉，换成可编辑的那张 —— 框里就是这一份请求。
+      await tester.tap(find.text(l10n.materialPhotoReportEditAndRun));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.materialIntakeRunDialogTitleEdited),
+        findsOneWidget,
+      );
+      final field = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+      expect(field, findsOneWidget);
+      expect(
+          tester.widget<TextField>(field).controller!.text, contains('run-1'));
+      // 一进来就校验过一遍：用户看见的是"现在这份"，不用先按一次再看见。
+      expect(find.text(l10n.materialPhotoReportValid), findsOneWidget);
+
+      // 改一处（换掉 run_id），校验，再试跑 —— 跑的是改过的那份。
+      final edited = Map<String, Object?>.from(runJson())..['run_id'] = 'run-2';
+      await tester.enterText(field, jsonEncode(edited));
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialPhotoReportValid), findsOneWidget);
+
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+
+      expect(rehearsed, isNotNull);
+      expect(rehearsed!.runId, 'run-2');
+      expect(adapter.requests, hasLength(1), reason: '改请求不该再去读一遍照片');
+      // 还是只读：库一个字节都没变。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+    });
+
     testWidgets('试跑炸了也不带走报告：说人话，自检结果还在，还能再按一次', (
       WidgetTester tester,
     ) async {

@@ -650,6 +650,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Paste a run/1: check it, then dry-run it';
 
   @override
+  String get materialIntakeRunDialogTitleEdited =>
+      'Edit it and run it (the same run/1)';
+
+  @override
   String get materialIntakeRunHint => 'Paste a mindnet.run/1 request here';
 
   @override
@@ -711,6 +715,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get materialPhotoReportRehearse => 'Run it once (writes nothing)';
+
+  @override
+  String get materialPhotoReportEditAndRun => 'Edit it and run it';
 
   @override
   String get materialPhotoReportRehearseBusy => 'Running it through…';

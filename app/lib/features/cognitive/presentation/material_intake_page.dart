@@ -14,6 +14,9 @@
 /// 回话读成一份 `mindnet.run/1` 并自检（§2-C ③ 的"照片本身"）。它**只校验、不执行**，
 /// 也一个字都不写库，所以与下面两张单子无关；报告里那句「试跑一遍」是只读演练
 /// （`run_rehearsal.dart`）：把这份请求真的喂进引擎、看它走到哪一步，同样不写库。
+/// 报告里还有一句「改一改再跑」：把这一份请求带进下面那张**可编辑**的对话框
+/// （与"贴一份 `run/1`"共用同一张），改完就照改的那样重新校验、重新试跑 ——
+/// 照片读回来的那一份不该是只能看不能碰的死物。
 ///
 /// 页面上下两张单子用的是同一份批次读数（`unapplied_count`）：**还没点头的**在"待确认清单"
 /// （关掉页面也还在，接着确认），**已经点头的**在"已经确认完的"（只读，回答"我上次到底建了什么"）。
@@ -25,6 +28,7 @@
 /// 呈现层（INGEST §4 的可选产物，本层不产出）。
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -392,7 +396,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         return;
       }
       setState(() => _busy = false);
-      await showDialog<void>(
+      // 报告能反出来一个字符串：那是"改一改再跑" —— 用户在这份请求上按一下就带着
+      // 原文进到可编辑的那张对话框（两条路共用同一张，所以不用再写一遍编辑器）。
+      final editedText = await showDialog<String>(
         context: context,
         builder: (_) => _PhotoReportDialog(
           result: result,
@@ -401,6 +407,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
           onHandOver: ref.read(runIntakeRecorderProvider),
         ),
       );
+      if (editedText != null && mounted) {
+        await _openRunDialog(initialText: editedText);
+      }
     } catch (error) {
       _noteIntakeProblem(l10n.materialIntakePhotoReadFailed('$error'));
     }
@@ -412,7 +421,12 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// （别处的模型、AI 工具 `check_transcribe_run`、手写），读回来的是同一套自检
   /// （`reviewTranscribedRun`）和同一个只读演练（`rehearseRun`）。**不写库**。
   /// 图清单与"图里已有的节点/边 id"照照片那条路从库里现读（不许模型发明 id）。
-  Future<void> _pasteRun() async {
+  Future<void> _pasteRun() => _openRunDialog();
+
+  /// 打开那张可编辑的 `run/1` 对话框：剪贴板那条路空着进来，照片报告那条路带着原文进来。
+  ///
+  /// 两条路合到一个方法里，是因为"从哪来"只该影响框里一开始有什么字。
+  Future<void> _openRunDialog({String? initialText}) async {
     final l10n = AppLocalizations.of(context);
     final graph = ref.read(knowledgeEdgeRepositoryProvider);
     setState(() {
@@ -441,6 +455,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         existingEdgeIds: existingEdgeIds,
         onRehearse: ref.read(runRehearsalRunnerProvider),
         onHandOver: ref.read(runIntakeRecorderProvider),
+        initialText: initialText,
       ),
     );
   }
@@ -1367,6 +1382,13 @@ class _PhotoReportDialogState extends State<_PhotoReportDialog> {
         ),
       ),
       actions: <Widget>[
+        if (report != null)
+          TextButton.icon(
+            onPressed: () =>
+                Navigator.of(context).pop(jsonEncode(report.request.toJson())),
+            icon: const Icon(Icons.edit_note_outlined, size: 18),
+            label: Text(l10n.materialPhotoReportEditAndRun),
+          ),
         if (onRehearse != null && report != null && report.report.ok)
           TextButton.icon(
             onPressed: _rehearsing ? null : _rehearse,
@@ -1408,6 +1430,7 @@ class _RunRequestDialog extends StatefulWidget {
     required this.existingEdgeIds,
     this.onRehearse,
     this.onHandOver,
+    this.initialText,
   });
 
   /// 图里已有的节点/边 id：自检拿它判断"这条动作说的 id 库里有没有"。
@@ -1420,18 +1443,37 @@ class _RunRequestDialog extends StatefulWidget {
   /// 演练完那一下"把要新建的东西交给人确认"（只落待确认提案）。为空就没有。
   final RunIntakeRecorder? onHandOver;
 
+  /// 一进来框里就有的字：照片报告里「改一改再跑」把那一份请求原样带进来
+  /// （剪贴板那条路留空）。带字进来就顺手校验一遍 —— 用户要看见的是"现在这份"，
+  /// 不是一张空白框。
+  final String? initialText;
+
   @override
   State<_RunRequestDialog> createState() => _RunRequestDialogState();
 }
 
 class _RunRequestDialogState extends State<_RunRequestDialog> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialText ?? '');
   MaterialRunRequest? _request;
   TranscribeReport? _report;
   String? _problem;
   bool _rehearsing = false;
   RunRehearsal? _rehearsal;
   String? _rehearsalProblem;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialText != null) {
+      // 首帧之后再校验：`_check` 会 setState，而 `build` 期间不能改状态。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _check();
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -1507,7 +1549,11 @@ class _RunRequestDialogState extends State<_RunRequestDialog> {
     final theme = Theme.of(context);
     final report = _report;
     return AlertDialog(
-      title: Text(l10n.materialIntakeRunDialogTitle),
+      title: Text(
+        widget.initialText == null
+            ? l10n.materialIntakeRunDialogTitle
+            : l10n.materialIntakeRunDialogTitleEdited,
+      ),
       content: SizedBox(
         width: 560,
         child: SingleChildScrollView(

@@ -1286,6 +1286,12 @@ abstract class AppLocalizations {
   /// **'Paste a run/1: check it, then dry-run it'**
   String get materialIntakeRunDialogTitle;
 
+  /// No description provided for @materialIntakeRunDialogTitleEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit it and run it (the same run/1)'**
+  String get materialIntakeRunDialogTitleEdited;
+
   /// No description provided for @materialIntakeRunHint.
   ///
   /// In en, this message translates to:
@@ -1393,6 +1399,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Run it once (writes nothing)'**
   String get materialPhotoReportRehearse;
+
+  /// No description provided for @materialPhotoReportEditAndRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit it and run it'**
+  String get materialPhotoReportEditAndRun;
 
   /// No description provided for @materialPhotoReportRehearseBusy.
   ///

@@ -633,6 +633,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeRunDialogTitle => '贴一份 run/1：先校验，再试跑';
 
   @override
+  String get materialIntakeRunDialogTitleEdited => '改一改再跑（同一份 run/1）';
+
+  @override
   String get materialIntakeRunHint => '把一份 mindnet.run/1 请求贴在这里';
 
   @override
@@ -692,6 +695,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get materialPhotoReportRehearse => '试跑一遍（不落库）';
+
+  @override
+  String get materialPhotoReportEditAndRun => '改一改再跑';
 
   @override
   String get materialPhotoReportRehearseBusy => '正在试跑…';

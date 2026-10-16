@@ -274,6 +274,8 @@
   "materialPhotoReportPickAnother": "换一张",
   "materialPhotoReportRetry": "重试",
   "materialPhotoReportRehearse": "试跑一遍（不落库）",
+  "materialPhotoReportEditAndRun": "改一改再跑",
+  "materialIntakeRunDialogTitleEdited": "改一改再跑（同一份 run/1）",
   "materialPhotoReportRehearseBusy": "正在试跑…",
   "materialPhotoReportRehearseFailed": "试跑没跑完",
   "materialPhotoReportRehearseHeader": "试跑结果（只跑不落库）",

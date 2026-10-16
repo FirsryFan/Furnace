@@ -268,6 +268,8 @@
   "materialPhotoReportPickAnother": "Pick another",
   "materialPhotoReportRetry": "Try again",
   "materialPhotoReportRehearse": "Run it once (writes nothing)",
+  "materialPhotoReportEditAndRun": "Edit it and run it",
+  "materialIntakeRunDialogTitleEdited": "Edit it and run it (the same run/1)",
   "materialPhotoReportRehearseBusy": "Running it through…",
   "materialPhotoReportRehearseFailed": "The dry run stopped",
   "materialPhotoReportRehearseHeader": "Dry run (run only, nothing written)",
