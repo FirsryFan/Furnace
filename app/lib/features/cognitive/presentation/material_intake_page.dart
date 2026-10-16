@@ -353,6 +353,64 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
   }
 
+  /// 点头之前改一改这条提案的标题（只有知识点提案有这个口子）。
+  ///
+  /// 写的是提案本身（`payload_json` 里那个标题 + 跟着重算的"库里已经有同名的了"），
+  /// 不是知识点：知识点要等点头才建。规则（能不能改、空标题怎么办）在仓储那一层，
+  /// 这里只把人话摆出来。
+  Future<void> _rename(MaterialIntakeProposal proposal) async {
+    final batch = _batch;
+    if (batch == null) {
+      return;
+    }
+    final title = await showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(title: proposal.title),
+    );
+    if (title == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final repository = ref.read(materialIntakeRepositoryProvider);
+    try {
+      await repository.renamePointProposal(
+        batchId: batch.batchId,
+        proposalId: proposal.id,
+        title: title,
+      );
+      final pending = await readPendingBatch(
+        repository: repository,
+        batchId: batch.batchId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _proposals = pending?.proposals ?? const <MaterialIntakeProposal>[];
+        _batch = pending?.batch ?? _batch;
+        // 改完名字之后"哪几条连接还落不了"可能就变了（连接看的是一端在不在），
+        // 而且勾选要留在原地：用户没勾掉它，就别替他取消。
+        _selected = <String>{
+          for (final row in _proposals)
+            if (_selected.contains(row.id)) row.id,
+        };
+        _missing = _missingNow();
+        _busy = false;
+      });
+    } on MaterialApplyException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = error.message;
+        _busy = false;
+      });
+    }
+  }
+
   /// 选一张照片：发出去、读回一份 `run/1`、把自检结果原样摆出来。
   ///
   /// **只读**：读这一步不写库、不执行请求 —— 照片这条路上到目前为止只有"读"。
@@ -914,6 +972,10 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                   proposal: proposal,
                   missing: _missing[proposal.id],
                   selected: _selected.contains(proposal.id),
+                  onRename: _busy ||
+                          proposal.kind != MaterialIntakeKind.knowledgePoint
+                      ? null
+                      : () => _rename(proposal),
                   onChanged: _busy
                       ? null
                       : (bool? value) => setState(() {
@@ -955,12 +1017,16 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
 }
 
 /// 一条待确认提案：勾选、类型、出处、为什么。
+///
+/// 知识点提案还多一个铅笔：**点头之前**可以自己改一改名字（材料/照片读出来的标题难免
+/// 有出入）。连接的标题是按两端名字现算的，没有这个口子。
 class _ProposalTile extends StatelessWidget {
   const _ProposalTile({
     required this.proposal,
     this.missing,
     required this.selected,
     required this.onChanged,
+    this.onRename,
   });
 
   final MaterialIntakeProposal proposal;
@@ -970,6 +1036,9 @@ class _ProposalTile extends StatelessWidget {
 
   final bool selected;
   final ValueChanged<bool?>? onChanged;
+
+  /// 改一改这一条的标题（只有还没点头的知识点提案才有；null = 不给这个口子）。
+  final VoidCallback? onRename;
 
   @override
   Widget build(BuildContext context) {
@@ -1054,6 +1123,12 @@ class _ProposalTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (onRename != null)
+              IconButton(
+                onPressed: onRename,
+                tooltip: l10n.materialIntakeRename,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+              ),
           ],
         ),
       ),
@@ -1102,6 +1177,58 @@ class _AppliedTile extends StatelessWidget {
         ].join(' · '),
         style: theme.textTheme.bodySmall,
       ),
+    );
+  }
+}
+
+/// 改一改这一条提案的标题（点头之前）：一个框、一个存。
+///
+/// 只负责"要改成什么"；能不能改（已点头的、连接的）、空标题怎么办，都由仓储那一层
+/// 说人话，页面把话摆出来。
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.title});
+
+  final String title;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.title);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.materialIntakeRenameDialogTitle),
+      content: SizedBox(
+        width: 420,
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          decoration:
+              InputDecoration(labelText: l10n.materialIntakeRenameField),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: Text(l10n.materialIntakeRenameSave),
+        ),
+      ],
     );
   }
 }

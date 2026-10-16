@@ -917,6 +917,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeExisting => 'already exists - no duplicate';
 
   @override
+  String get materialIntakeRename => 'Edit this one\'s name';
+
+  @override
+  String get materialIntakeRenameDialogTitle =>
+      'Edit the name (not confirmed yet)';
+
+  @override
+  String get materialIntakeRenameField => 'Title';
+
+  @override
+  String get materialIntakeRenameSave => 'Save it';
+
+  @override
   String materialIntakeConfirm(int count) {
     return 'Confirm and write ($count)';
   }

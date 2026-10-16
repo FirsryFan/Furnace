@@ -892,6 +892,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeExisting => '已存在，不重复建';
 
   @override
+  String get materialIntakeRename => '改一改这一条的名字';
+
+  @override
+  String get materialIntakeRenameDialogTitle => '改一改名字（这一条还没点头）';
+
+  @override
+  String get materialIntakeRenameField => '标题';
+
+  @override
+  String get materialIntakeRenameSave => '存下来';
+
+  @override
   String materialIntakeConfirm(int count) {
     return '确认入库（$count 条）';
   }

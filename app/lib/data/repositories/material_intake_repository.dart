@@ -552,6 +552,62 @@ class MaterialIntakeRepository {
     return [for (final row in rows) _toProposal(row)];
   }
 
+  /// 用户点头之前改一条**知识点**提案的标题（自己起的名字）。
+  ///
+  /// 为什么只到这里：提案的其余字段都是上游算出来的（id、两端、`ls`、出处），改了它们
+  /// 就等于把"这条提案从哪来"改掉；连接的标题是按两端名字现算的，改它是在说假话。
+  /// `exists` 跟着新标题重算 —— 拿的还是计划层那份口径（[existingTitles] +
+  /// [MaterialIntakePlanner.normalizeTitle]），否则屏幕上会留着"已存在"这句过期的话，
+  /// 然后写入方再建一个同名的出来。
+  ///
+  /// 已经点头过的提案**不许改**：它是历史（`applied_at` 非空），要改名字请去改那个
+  /// 知识点本身。
+  Future<void> renamePointProposal({
+    required String batchId,
+    required String proposalId,
+    required String title,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw const MaterialApplyException(
+        '标题不能是空的 —— 改成一个字都没有的名字，等于把这一条悄悄删掉',
+      );
+    }
+    final row = await (_db.select(_db.materialIntakeProposals)
+          ..where(
+            (t) => t.batchId.equals(batchId) & t.proposalId.equals(proposalId),
+          ))
+        .getSingleOrNull();
+    if (row == null) {
+      throw MaterialApplyException('这一批里没有这条提案：$proposalId');
+    }
+    if (row.appliedAt != null) {
+      throw const MaterialApplyException(
+        '这一条已经点头过了（它是历史）—— 要改名字请去改那个知识点本身',
+      );
+    }
+    if (row.kind != MaterialIntakeKind.knowledgePoint.id) {
+      throw const MaterialApplyException('只有知识点的标题能改：连接的标题是按两端名字现算的');
+    }
+    final proposal = _toProposal(row);
+    // 与计划层同一条口径：两边都先归一（去空白、压空白、转小写）再比 —— 否则
+    // 大小写差一点就会把这句话说反：显示成"不会重复建"，落库时却当成新点建了。
+    final known = <String>{
+      for (final title in await existingTitles())
+        MaterialIntakePlanner.normalizeTitle(title),
+    };
+    final renamed = proposal.copyWith(
+      title: trimmed,
+      exists: known.contains(MaterialIntakePlanner.normalizeTitle(trimmed)),
+    );
+    await (_db.update(_db.materialIntakeProposals)
+          ..where((t) => t.id.equals(row.id)))
+        .write(MaterialIntakeProposalsCompanion(
+      payloadJson: Value(jsonEncode(renamed.toJson())),
+      updatedAt: Value(_clock().millisecondsSinceEpoch),
+    ));
+  }
+
   /// 用户确认：把还没处理的提案落到 `knowledge_points` 与 `knowledge_edges`。
   ///
   /// [proposalIds] 为空表示"这一批还没处理的全部"；给了就只处理这些（界面上的

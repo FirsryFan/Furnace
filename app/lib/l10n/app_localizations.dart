@@ -1688,6 +1688,30 @@ abstract class AppLocalizations {
   /// **'already exists - no duplicate'**
   String get materialIntakeExisting;
 
+  /// No description provided for @materialIntakeRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this one\'s name'**
+  String get materialIntakeRename;
+
+  /// No description provided for @materialIntakeRenameDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the name (not confirmed yet)'**
+  String get materialIntakeRenameDialogTitle;
+
+  /// No description provided for @materialIntakeRenameField.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get materialIntakeRenameField;
+
+  /// No description provided for @materialIntakeRenameSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save it'**
+  String get materialIntakeRenameSave;
+
   /// No description provided for @materialIntakeConfirm.
   ///
   /// In en, this message translates to:

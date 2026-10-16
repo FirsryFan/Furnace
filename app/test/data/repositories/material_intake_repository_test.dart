@@ -664,4 +664,143 @@ void main() {
     expect(rows, hasLength(2));
     expect(rows.first.id, lessThan(rows.last.id));
   });
+
+  group('点头之前能改一改（renamePointProposal）', () {
+    test('还没点头的知识点提案：名字改得动，连"库里已经有同名的了"一起重算', () async {
+      await record(planOf());
+      // 库里先有这么一个知识点：改成它的名字，这一条就该自己标上"已存在"。
+      await anki.createKnowledgePoint(
+          title: 'I relied on him.', content: '说过的一句话');
+
+      await repository.renamePointProposal(
+        batchId: 'b1',
+        proposalId: 'kp:en::w::rely-on',
+        title: '  I relied on him.  ',
+      );
+
+      var renamed = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(renamed.title, 'I relied on him.', reason: '首尾空白要剪掉');
+      expect(renamed.exists, isTrue, reason: '"已经有同名的了"这句话是现算的，改名之后要跟着变');
+
+      // 改回一个库里没有的名字：那个标记也得消失 —— 留着它就是骗人。
+      await repository.renamePointProposal(
+        batchId: 'b1',
+        proposalId: 'kp:en::w::rely-on',
+        title: 'rely upon',
+      );
+      renamed = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(renamed.title, 'rely upon');
+      expect(renamed.exists, isFalse);
+
+      // 别的提案一个字没动（改名不该顺手替用户做别的事）。
+      expect(
+        [
+          for (final proposal in await repository.pendingProposals('b1'))
+            proposal.id
+        ],
+        <String>[
+          'kp:en::s::abc',
+          'kp:en::w::rely-on',
+          'edge:e_1',
+          'edge:e_2',
+        ],
+      );
+      expect((await repository.batch('b1'))!.proposalCount, 4);
+      // 库里还是只有刚才那一个知识点：改名不写知识点。
+      expect((await anki.getKnowledgePoints()).length, 1);
+    });
+
+    test('已经点头过的不许改（它是历史），提案本身一个字不动', () async {
+      await record(planOf());
+      await repository.apply(
+        batchId: 'b1',
+        proposalIds: <String>['kp:en::w::rely-on'],
+      );
+      final before = (await repository.proposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+
+      await expectLater(
+        repository.renamePointProposal(
+          batchId: 'b1',
+          proposalId: 'kp:en::w::rely-on',
+          title: '别名',
+        ),
+        throwsA(
+          isA<MaterialApplyException>().having(
+            (error) => error.message,
+            'message',
+            contains('已经点头过'),
+          ),
+        ),
+      );
+
+      final after = (await repository.proposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(after.title, before.title);
+      expect(after.exists, before.exists);
+    });
+
+    test('连接的标题不给改：它是按两端名字现算的', () async {
+      await record(planOf());
+
+      await expectLater(
+        repository.renamePointProposal(
+          batchId: 'b1',
+          proposalId: 'edge:e_1',
+          title: '随便起的名字',
+        ),
+        throwsA(
+          isA<MaterialApplyException>().having(
+            (error) => error.message,
+            'message',
+            contains('只有知识点的标题能改'),
+          ),
+        ),
+      );
+    });
+
+    test('空标题（或只有空白）不许存：那等于把这一条悄悄删掉', () async {
+      await record(planOf());
+
+      await expectLater(
+        repository.renamePointProposal(
+          batchId: 'b1',
+          proposalId: 'kp:en::w::rely-on',
+          title: '   ',
+        ),
+        throwsA(
+          isA<MaterialApplyException>().having(
+            (error) => error.message,
+            'message',
+            contains('标题不能是空的'),
+          ),
+        ),
+      );
+
+      final proposal = (await repository.pendingProposals('b1'))
+          .firstWhere((row) => row.id == 'kp:en::w::rely-on');
+      expect(proposal.title, 'rely on');
+    });
+
+    test('这一批里没有这条提案：说人话，不装作改了', () async {
+      await record(planOf());
+
+      await expectLater(
+        repository.renamePointProposal(
+          batchId: 'b1',
+          proposalId: 'kp:en::w::nope',
+          title: 'x',
+        ),
+        throwsA(
+          isA<MaterialApplyException>().having(
+            (error) => error.message,
+            'message',
+            contains('没有这条提案'),
+          ),
+        ),
+      );
+    });
+  });
 }

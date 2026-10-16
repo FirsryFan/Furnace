@@ -1476,5 +1476,79 @@ void main() {
       expect(await db.select(db.materialIntakeBatches).get(), isEmpty);
       expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
     });
+
+    testWidgets('点头之前改一改名字：清单上就地改，点头时建的就是改过的那条', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      final l10n = l10nOf(tester);
+      // 两条知识点提案："I relied on him." 与 "rely on"。
+      expect(find.text('I relied on him.'), findsOneWidget);
+
+      // 只改词那一条（按标题找到它那张卡片上的铅笔）。
+      final renameButtons = find.byTooltip(l10n.materialIntakeRename);
+      expect(
+        renameButtons,
+        findsNWidgets(2),
+        reason: '只有知识点提案有改名字的口子：连接的标题是按两端的名字现算的',
+      );
+      await tester.tap(renameButtons.last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialIntakeRenameDialogTitle), findsOneWidget);
+      final field = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+      expect(
+        tester.widget<TextField>(field).controller?.text,
+        'rely on',
+        reason: '框里先摆着现在的名字，改是"接着改"，不是从空白起',
+      );
+      await tester.enterText(field, '  rely upon  ');
+      await tester.tap(find.text(l10n.materialIntakeRenameSave));
+      await tester.pumpAndSettle();
+
+      // 换个名字回来：清单上是改过的那个（首尾空白也剪掉了）。
+      expect(find.text('rely upon'), findsOneWidget);
+      expect(find.text('rely on'), findsNothing);
+
+      // 点头之后建出来的就是改过的名字 —— 改名不写知识点，等这一下。
+      await confirm(tester, 4);
+      final points = await anki.getKnowledgePoints();
+      expect(
+        points.map((point) => point.title),
+        containsAll(<String>['I relied on him.', 'rely upon']),
+      );
+      expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+    });
+
+    testWidgets('改名字被挡下来时，理由摆在页面上（不是悄悄不动）', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.byTooltip(l10n.materialIntakeRename).last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        '   ',
+      );
+      await tester.tap(find.text(l10n.materialIntakeRenameSave));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('标题不能是空的'), findsOneWidget);
+      // 原来的名字还在（挡下来就是真的一个字没动）。
+      expect(find.text('rely on'), findsOneWidget);
+    });
   });
 }

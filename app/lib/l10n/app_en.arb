@@ -387,6 +387,10 @@
   "materialIntakeKindConnection": "connection",
   "materialIntakeConnectionClue": "clue edge: strictly directed, ls uncalibrated",
   "materialIntakeExisting": "already exists - no duplicate",
+  "materialIntakeRename": "Edit this one's name",
+  "materialIntakeRenameDialogTitle": "Edit the name (not confirmed yet)",
+  "materialIntakeRenameField": "Title",
+  "materialIntakeRenameSave": "Save it",
   "materialIntakeCantLand": "cannot land yet: {reason} (get that end into the graph first)",
   "materialIntakeConfirm": "Confirm and write ({count})",
   "@materialIntakeConfirm": {
