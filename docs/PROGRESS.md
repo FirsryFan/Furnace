@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-17 轮次七十六：照片 → `run/1` 的调模型那半段 —— 那张照片终于真的发出去了（Lead）
+
+**做了什么**：轮次六十六做完了"照片 → `run/1`"这条链上除照片本身以外的全部（提示词由【图清单】生成、
+请求照 MindNet 的 `validateRequest` 逐条校验、输出与 `tools/io_check.js` 同构），可那张照片从头到尾
+没有任何一段代码碰过它：用户得自己把提示词复制到别的模型里，再把答案贴回来。这一轮补上"调模型"这一步。
+
+- 新文件 `app/lib/features/cognitive/application/photo_transcribe_service.dart`：`transcribePhoto(...)`
+  把四步串起来 —— ① 照片过 `VisionImageEncoder`（长边 1280、超 4 MiB 拒绝，宁可不发也不发半张）；
+  ② `buildTranscribePrompt(inventory: ...)` 连同补充说明组成提示词；③ `ChatMessage.user(prompt,
+  images: [ready.toPart()])` 交给 `ModelAdapter`（**工具列表为空**：这一步只让模型说话），累加
+  `ModelTextDelta`；④ `extractJsonObject`（AI 常把 JSON 包在围栏里）→ `decodeRunRequest` →
+  `reviewTranscribedRun`，出处与置信度的提醒走报告里的 `warnings`。
+- 结果是 sealed 结果集：`PhotoTranscribeReport`（报告 + 模型原话 + 真正发出去的图尺寸）或
+  `PhotoTranscribeFailure`（`notConfigured` / `imageTooLarge` / `imageUnreadable` / `modelFailed` /
+  `emptyAnswer` / `unreadableAnswer`，每条一句人话）。**失败不抛异常**，`ModelFailure` 也变成人话。
+
+**三条刻意选择**：① **只读** —— 不写库、不执行请求（把 `run/1` 真的跑进引擎是另一件事）；
+② **没配模型就不发**：`adapter == null` 直接说"发不出去，先去设置里配"，绝不偷偷联网；
+③ **模型原话留全文** —— 读不成请求时把原文一起留给用户，比只报"解析失败"有用。
+
+**证据**：`app/test/features/cognitive/application/photo_transcribe_service_test.dart` 12 例（没模型 /
+图读不了 / 压过还是太大 —— 三态都断言**一个请求都没发**；照片+提示词一起发出去（工具列表为空、
+提示词含图清单行、`image/png` 部件在）；模型没走完但半句回话留着；什么都没写；回话里没有对象；
+对象读出来但请求不合法 `ok false`；"没写 confidence""没有 evidence"两条建议都在；`extractJsonObject`
+三例）；`dart format` 2 文件 `0 changed`；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1872 ~2: All tests passed!`
+（轮次七十五是 `+1860 ~2`，差值 12）。
+
+**已知的没做**：① **界面入口未做**（服务层能跑，但用户在应用里还按不到它）；
+② 把 `run/1` 真的跑进引擎（应用侧仍然只校验）；③ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
+需要外部数据）；④ 已确认完的批次不能撤销。
+
+---
+
 ## 2026-10-17 轮次七十五：成绩单落进历史 —— "本来就有的"这句话存下来了（Lead）
 
 **做了什么**：轮次七十三做出"已经确认完的历史"，但那份历史只会念"当初确认了什么"。成绩单上那句
