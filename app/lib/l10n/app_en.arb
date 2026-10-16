@@ -306,6 +306,10 @@
   "@materialIntakeUndoneNothing": {
     "placeholders": { "restored": { "type": "int" } }
   },
+  "materialIntakeUndoLogLine": "This batch has been undone {count} time(s) before.",
+  "@materialIntakeUndoLogLine": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "materialIntakeUndoBlockedTitle": "This batch cannot be undone",
   "materialIntakeUndoBlockedNote": "Nothing was deleted. Undo only deletes what this batch created itself, and these rows have other things attached:",
   "materialIntakeUndoBlockedRow": "{title} - {reason}",

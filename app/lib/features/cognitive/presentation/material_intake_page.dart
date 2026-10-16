@@ -101,6 +101,11 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// 上一次撤回的结果：删了什么、退回了多少条（撤回是写，成绩单要留下来）。
   MaterialUndoOutcome? _undoOutcome;
 
+  /// 屏幕上这批被撤回过几次（撤回流水，`material_intake_undo_logs`）。
+  ///
+  /// 撤回把行删掉了，屏幕上只看得到"这批又回到待确认"——流水是唯一还剩的痕迹。
+  int _undoCount = 0;
+
   /// 这批里哪几条连接现在落不了（提案 id → 缺哪一端的那句话）。
   ///
   /// 屏幕上每块一摆好就算一次（`_missingNow`），勾选框一变就重算：它是"库里现在的样子 ×
@@ -186,6 +191,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       final done = await readAppliedBatches(repository: repository);
       final knownNodes = await repository.knownExternalNodeIds();
       final knownEdges = await repository.knownEdgeIds();
+      final undoCount = (await repository.undoLogs(batch.batchId)).length;
       if (!mounted) {
         return;
       }
@@ -197,6 +203,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _doneBatches = done;
         _knownNodes = knownNodes;
         _knownEdges = knownEdges;
+        _undoCount = undoCount;
         _selected = <String>{
           for (final proposal in draft.plan.proposals) proposal.id,
         };
@@ -234,6 +241,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
     final knownNodes = await repository.knownExternalNodeIds();
     final knownEdges = await repository.knownEdgeIds();
+    final undoCount = (await repository.undoLogs(batch.batchId)).length;
     if (!mounted) {
       return;
     }
@@ -243,6 +251,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _batch = pending.batch;
       _knownNodes = knownNodes;
       _knownEdges = knownEdges;
+      _undoCount = undoCount;
       _selected = <String>{
         for (final proposal in pending.proposals) proposal.id,
       };
@@ -261,6 +270,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
       _missing = const <String, String>{};
+      _undoCount = 0;
       _selected = <String>{};
       _busy = false;
     });
@@ -390,6 +400,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _batch = null;
       _outcome = null;
       _undoOutcome = null;
+      _undoCount = 0;
       _selected = <String>{};
       _error = null;
     });
@@ -506,6 +517,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     // 撤回删掉了行，所以"库里现在有什么"要重新取（不然清单上的说法会停在撤回之前）。
     final knownNodes = await repository.knownExternalNodeIds();
     final knownEdges = await repository.knownEdgeIds();
+    // 这一批的撤回流水：刚撤的这一笔也已经在里面了。
+    final undoCount = (await repository.undoLogs(batch.batchId)).length;
     if (!mounted) {
       return;
     }
@@ -521,6 +534,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _doneBatches = done;
       _knownNodes = knownNodes;
       _knownEdges = knownEdges;
+      _undoCount = undoCount;
       if (fresh != null) {
         _proposals = fresh.proposals;
         _skipped = fresh.batch.skipped;
@@ -713,6 +727,12 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                   l10n.materialIntakePending(_batch!.unappliedCount),
               ].join(' · '),
             ),
+            // 撤回把行删了，屏幕上只剩"又回到待确认"这一步 —— 流水是唯一的痕迹：
+            // 撤过几次说清楚，"怎么又冒出来了"就不是谜。
+            if (_undoCount > 0) ...<Widget>[
+              const SizedBox(height: 8),
+              _Note(text: l10n.materialIntakeUndoLogLine(_undoCount)),
+            ],
             if (_proposals.isEmpty) ...<Widget>[
               const SizedBox(height: 12),
               _Note(text: l10n.materialIntakeNothingToDo),

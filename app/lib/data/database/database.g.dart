@@ -21859,6 +21859,518 @@ class KnowledgeEdgesCompanion extends UpdateCompanion<KnowledgeEdgeRow> {
   }
 }
 
+class $MaterialIntakeUndoLogsTable extends MaterialIntakeUndoLogs
+    with TableInfo<$MaterialIntakeUndoLogsTable, MaterialIntakeUndoLogRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MaterialIntakeUndoLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _batchIdMeta =
+      const VerificationMeta('batchId');
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+      'batch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _requestedAtMeta =
+      const VerificationMeta('requestedAt');
+  @override
+  late final GeneratedColumn<int> requestedAt = GeneratedColumn<int>(
+      'requested_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _undoneMeta = const VerificationMeta('undone');
+  @override
+  late final GeneratedColumn<bool> undone = GeneratedColumn<bool>(
+      'undone', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("undone" IN (0, 1))'));
+  static const VerificationMeta _removedPointsJsonMeta =
+      const VerificationMeta('removedPointsJson');
+  @override
+  late final GeneratedColumn<String> removedPointsJson =
+      GeneratedColumn<String>('removed_points_json', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _removedEdgesJsonMeta =
+      const VerificationMeta('removedEdgesJson');
+  @override
+  late final GeneratedColumn<String> removedEdgesJson = GeneratedColumn<String>(
+      'removed_edges_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _restoredCountMeta =
+      const VerificationMeta('restoredCount');
+  @override
+  late final GeneratedColumn<int> restoredCount = GeneratedColumn<int>(
+      'restored_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _blockedCountMeta =
+      const VerificationMeta('blockedCount');
+  @override
+  late final GeneratedColumn<int> blockedCount = GeneratedColumn<int>(
+      'blocked_count', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _blockedReasonMeta =
+      const VerificationMeta('blockedReason');
+  @override
+  late final GeneratedColumn<String> blockedReason = GeneratedColumn<String>(
+      'blocked_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        batchId,
+        requestedAt,
+        undone,
+        removedPointsJson,
+        removedEdgesJson,
+        restoredCount,
+        blockedCount,
+        blockedReason
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'material_intake_undo_logs';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<MaterialIntakeUndoLogRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(_batchIdMeta,
+          batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta));
+    } else if (isInserting) {
+      context.missing(_batchIdMeta);
+    }
+    if (data.containsKey('requested_at')) {
+      context.handle(
+          _requestedAtMeta,
+          requestedAt.isAcceptableOrUnknown(
+              data['requested_at']!, _requestedAtMeta));
+    } else if (isInserting) {
+      context.missing(_requestedAtMeta);
+    }
+    if (data.containsKey('undone')) {
+      context.handle(_undoneMeta,
+          undone.isAcceptableOrUnknown(data['undone']!, _undoneMeta));
+    } else if (isInserting) {
+      context.missing(_undoneMeta);
+    }
+    if (data.containsKey('removed_points_json')) {
+      context.handle(
+          _removedPointsJsonMeta,
+          removedPointsJson.isAcceptableOrUnknown(
+              data['removed_points_json']!, _removedPointsJsonMeta));
+    } else if (isInserting) {
+      context.missing(_removedPointsJsonMeta);
+    }
+    if (data.containsKey('removed_edges_json')) {
+      context.handle(
+          _removedEdgesJsonMeta,
+          removedEdgesJson.isAcceptableOrUnknown(
+              data['removed_edges_json']!, _removedEdgesJsonMeta));
+    } else if (isInserting) {
+      context.missing(_removedEdgesJsonMeta);
+    }
+    if (data.containsKey('restored_count')) {
+      context.handle(
+          _restoredCountMeta,
+          restoredCount.isAcceptableOrUnknown(
+              data['restored_count']!, _restoredCountMeta));
+    } else if (isInserting) {
+      context.missing(_restoredCountMeta);
+    }
+    if (data.containsKey('blocked_count')) {
+      context.handle(
+          _blockedCountMeta,
+          blockedCount.isAcceptableOrUnknown(
+              data['blocked_count']!, _blockedCountMeta));
+    } else if (isInserting) {
+      context.missing(_blockedCountMeta);
+    }
+    if (data.containsKey('blocked_reason')) {
+      context.handle(
+          _blockedReasonMeta,
+          blockedReason.isAcceptableOrUnknown(
+              data['blocked_reason']!, _blockedReasonMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MaterialIntakeUndoLogRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MaterialIntakeUndoLogRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      batchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}batch_id'])!,
+      requestedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}requested_at'])!,
+      undone: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}undone'])!,
+      removedPointsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}removed_points_json'])!,
+      removedEdgesJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}removed_edges_json'])!,
+      restoredCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}restored_count'])!,
+      blockedCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}blocked_count'])!,
+      blockedReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}blocked_reason']),
+    );
+  }
+
+  @override
+  $MaterialIntakeUndoLogsTable createAlias(String alias) {
+    return $MaterialIntakeUndoLogsTable(attachedDatabase, alias);
+  }
+}
+
+class MaterialIntakeUndoLogRow extends DataClass
+    implements Insertable<MaterialIntakeUndoLogRow> {
+  final int id;
+
+  /// 撤的是哪一批（`material_intake_batches.batch_id`）。
+  final String batchId;
+
+  /// 这次撤回请求发生的时刻（epoch ms）。
+  final int requestedAt;
+
+  /// true = 真的撤了；false = 被拦住了，库里的行一个字没动。
+  final bool undone;
+
+  /// 真的删掉的知识点 / 线索边（`MaterialAppliedPoint` / `MaterialAppliedEdge`
+  /// 的 JSON 数组）。撤成的那些行只活在这一格和这次调用的返回值里。
+  final String removedPointsJson;
+  final String removedEdgesJson;
+
+  /// 退回"待确认"的提案条数（`applied_at` 被清空的行数）。
+  final int restoredCount;
+
+  /// 拦路的原因条数（`undone == false` 时大于 0）。
+  final int blockedCount;
+
+  /// 第一句拦路的理由（人话，照原样显示，不用再算一遍）。
+  final String? blockedReason;
+  const MaterialIntakeUndoLogRow(
+      {required this.id,
+      required this.batchId,
+      required this.requestedAt,
+      required this.undone,
+      required this.removedPointsJson,
+      required this.removedEdgesJson,
+      required this.restoredCount,
+      required this.blockedCount,
+      this.blockedReason});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['batch_id'] = Variable<String>(batchId);
+    map['requested_at'] = Variable<int>(requestedAt);
+    map['undone'] = Variable<bool>(undone);
+    map['removed_points_json'] = Variable<String>(removedPointsJson);
+    map['removed_edges_json'] = Variable<String>(removedEdgesJson);
+    map['restored_count'] = Variable<int>(restoredCount);
+    map['blocked_count'] = Variable<int>(blockedCount);
+    if (!nullToAbsent || blockedReason != null) {
+      map['blocked_reason'] = Variable<String>(blockedReason);
+    }
+    return map;
+  }
+
+  MaterialIntakeUndoLogsCompanion toCompanion(bool nullToAbsent) {
+    return MaterialIntakeUndoLogsCompanion(
+      id: Value(id),
+      batchId: Value(batchId),
+      requestedAt: Value(requestedAt),
+      undone: Value(undone),
+      removedPointsJson: Value(removedPointsJson),
+      removedEdgesJson: Value(removedEdgesJson),
+      restoredCount: Value(restoredCount),
+      blockedCount: Value(blockedCount),
+      blockedReason: blockedReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(blockedReason),
+    );
+  }
+
+  factory MaterialIntakeUndoLogRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MaterialIntakeUndoLogRow(
+      id: serializer.fromJson<int>(json['id']),
+      batchId: serializer.fromJson<String>(json['batchId']),
+      requestedAt: serializer.fromJson<int>(json['requestedAt']),
+      undone: serializer.fromJson<bool>(json['undone']),
+      removedPointsJson: serializer.fromJson<String>(json['removedPointsJson']),
+      removedEdgesJson: serializer.fromJson<String>(json['removedEdgesJson']),
+      restoredCount: serializer.fromJson<int>(json['restoredCount']),
+      blockedCount: serializer.fromJson<int>(json['blockedCount']),
+      blockedReason: serializer.fromJson<String?>(json['blockedReason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'batchId': serializer.toJson<String>(batchId),
+      'requestedAt': serializer.toJson<int>(requestedAt),
+      'undone': serializer.toJson<bool>(undone),
+      'removedPointsJson': serializer.toJson<String>(removedPointsJson),
+      'removedEdgesJson': serializer.toJson<String>(removedEdgesJson),
+      'restoredCount': serializer.toJson<int>(restoredCount),
+      'blockedCount': serializer.toJson<int>(blockedCount),
+      'blockedReason': serializer.toJson<String?>(blockedReason),
+    };
+  }
+
+  MaterialIntakeUndoLogRow copyWith(
+          {int? id,
+          String? batchId,
+          int? requestedAt,
+          bool? undone,
+          String? removedPointsJson,
+          String? removedEdgesJson,
+          int? restoredCount,
+          int? blockedCount,
+          Value<String?> blockedReason = const Value.absent()}) =>
+      MaterialIntakeUndoLogRow(
+        id: id ?? this.id,
+        batchId: batchId ?? this.batchId,
+        requestedAt: requestedAt ?? this.requestedAt,
+        undone: undone ?? this.undone,
+        removedPointsJson: removedPointsJson ?? this.removedPointsJson,
+        removedEdgesJson: removedEdgesJson ?? this.removedEdgesJson,
+        restoredCount: restoredCount ?? this.restoredCount,
+        blockedCount: blockedCount ?? this.blockedCount,
+        blockedReason:
+            blockedReason.present ? blockedReason.value : this.blockedReason,
+      );
+  MaterialIntakeUndoLogRow copyWithCompanion(
+      MaterialIntakeUndoLogsCompanion data) {
+    return MaterialIntakeUndoLogRow(
+      id: data.id.present ? data.id.value : this.id,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      requestedAt:
+          data.requestedAt.present ? data.requestedAt.value : this.requestedAt,
+      undone: data.undone.present ? data.undone.value : this.undone,
+      removedPointsJson: data.removedPointsJson.present
+          ? data.removedPointsJson.value
+          : this.removedPointsJson,
+      removedEdgesJson: data.removedEdgesJson.present
+          ? data.removedEdgesJson.value
+          : this.removedEdgesJson,
+      restoredCount: data.restoredCount.present
+          ? data.restoredCount.value
+          : this.restoredCount,
+      blockedCount: data.blockedCount.present
+          ? data.blockedCount.value
+          : this.blockedCount,
+      blockedReason: data.blockedReason.present
+          ? data.blockedReason.value
+          : this.blockedReason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeUndoLogRow(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('requestedAt: $requestedAt, ')
+          ..write('undone: $undone, ')
+          ..write('removedPointsJson: $removedPointsJson, ')
+          ..write('removedEdgesJson: $removedEdgesJson, ')
+          ..write('restoredCount: $restoredCount, ')
+          ..write('blockedCount: $blockedCount, ')
+          ..write('blockedReason: $blockedReason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      batchId,
+      requestedAt,
+      undone,
+      removedPointsJson,
+      removedEdgesJson,
+      restoredCount,
+      blockedCount,
+      blockedReason);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MaterialIntakeUndoLogRow &&
+          other.id == this.id &&
+          other.batchId == this.batchId &&
+          other.requestedAt == this.requestedAt &&
+          other.undone == this.undone &&
+          other.removedPointsJson == this.removedPointsJson &&
+          other.removedEdgesJson == this.removedEdgesJson &&
+          other.restoredCount == this.restoredCount &&
+          other.blockedCount == this.blockedCount &&
+          other.blockedReason == this.blockedReason);
+}
+
+class MaterialIntakeUndoLogsCompanion
+    extends UpdateCompanion<MaterialIntakeUndoLogRow> {
+  final Value<int> id;
+  final Value<String> batchId;
+  final Value<int> requestedAt;
+  final Value<bool> undone;
+  final Value<String> removedPointsJson;
+  final Value<String> removedEdgesJson;
+  final Value<int> restoredCount;
+  final Value<int> blockedCount;
+  final Value<String?> blockedReason;
+  const MaterialIntakeUndoLogsCompanion({
+    this.id = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.requestedAt = const Value.absent(),
+    this.undone = const Value.absent(),
+    this.removedPointsJson = const Value.absent(),
+    this.removedEdgesJson = const Value.absent(),
+    this.restoredCount = const Value.absent(),
+    this.blockedCount = const Value.absent(),
+    this.blockedReason = const Value.absent(),
+  });
+  MaterialIntakeUndoLogsCompanion.insert({
+    this.id = const Value.absent(),
+    required String batchId,
+    required int requestedAt,
+    required bool undone,
+    required String removedPointsJson,
+    required String removedEdgesJson,
+    required int restoredCount,
+    required int blockedCount,
+    this.blockedReason = const Value.absent(),
+  })  : batchId = Value(batchId),
+        requestedAt = Value(requestedAt),
+        undone = Value(undone),
+        removedPointsJson = Value(removedPointsJson),
+        removedEdgesJson = Value(removedEdgesJson),
+        restoredCount = Value(restoredCount),
+        blockedCount = Value(blockedCount);
+  static Insertable<MaterialIntakeUndoLogRow> custom({
+    Expression<int>? id,
+    Expression<String>? batchId,
+    Expression<int>? requestedAt,
+    Expression<bool>? undone,
+    Expression<String>? removedPointsJson,
+    Expression<String>? removedEdgesJson,
+    Expression<int>? restoredCount,
+    Expression<int>? blockedCount,
+    Expression<String>? blockedReason,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (batchId != null) 'batch_id': batchId,
+      if (requestedAt != null) 'requested_at': requestedAt,
+      if (undone != null) 'undone': undone,
+      if (removedPointsJson != null) 'removed_points_json': removedPointsJson,
+      if (removedEdgesJson != null) 'removed_edges_json': removedEdgesJson,
+      if (restoredCount != null) 'restored_count': restoredCount,
+      if (blockedCount != null) 'blocked_count': blockedCount,
+      if (blockedReason != null) 'blocked_reason': blockedReason,
+    });
+  }
+
+  MaterialIntakeUndoLogsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? batchId,
+      Value<int>? requestedAt,
+      Value<bool>? undone,
+      Value<String>? removedPointsJson,
+      Value<String>? removedEdgesJson,
+      Value<int>? restoredCount,
+      Value<int>? blockedCount,
+      Value<String?>? blockedReason}) {
+    return MaterialIntakeUndoLogsCompanion(
+      id: id ?? this.id,
+      batchId: batchId ?? this.batchId,
+      requestedAt: requestedAt ?? this.requestedAt,
+      undone: undone ?? this.undone,
+      removedPointsJson: removedPointsJson ?? this.removedPointsJson,
+      removedEdgesJson: removedEdgesJson ?? this.removedEdgesJson,
+      restoredCount: restoredCount ?? this.restoredCount,
+      blockedCount: blockedCount ?? this.blockedCount,
+      blockedReason: blockedReason ?? this.blockedReason,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (requestedAt.present) {
+      map['requested_at'] = Variable<int>(requestedAt.value);
+    }
+    if (undone.present) {
+      map['undone'] = Variable<bool>(undone.value);
+    }
+    if (removedPointsJson.present) {
+      map['removed_points_json'] = Variable<String>(removedPointsJson.value);
+    }
+    if (removedEdgesJson.present) {
+      map['removed_edges_json'] = Variable<String>(removedEdgesJson.value);
+    }
+    if (restoredCount.present) {
+      map['restored_count'] = Variable<int>(restoredCount.value);
+    }
+    if (blockedCount.present) {
+      map['blocked_count'] = Variable<int>(blockedCount.value);
+    }
+    if (blockedReason.present) {
+      map['blocked_reason'] = Variable<String>(blockedReason.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MaterialIntakeUndoLogsCompanion(')
+          ..write('id: $id, ')
+          ..write('batchId: $batchId, ')
+          ..write('requestedAt: $requestedAt, ')
+          ..write('undone: $undone, ')
+          ..write('removedPointsJson: $removedPointsJson, ')
+          ..write('removedEdgesJson: $removedEdgesJson, ')
+          ..write('restoredCount: $restoredCount, ')
+          ..write('blockedCount: $blockedCount, ')
+          ..write('blockedReason: $blockedReason')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -21923,6 +22435,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MaterialIntakeProposalsTable materialIntakeProposals =
       $MaterialIntakeProposalsTable(this);
   late final $KnowledgeEdgesTable knowledgeEdges = $KnowledgeEdgesTable(this);
+  late final $MaterialIntakeUndoLogsTable materialIntakeUndoLogs =
+      $MaterialIntakeUndoLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -21972,7 +22486,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         exposureLogs,
         materialIntakeBatches,
         materialIntakeProposals,
-        knowledgeEdges
+        knowledgeEdges,
+        materialIntakeUndoLogs
       ];
 }
 
@@ -32413,6 +32928,247 @@ typedef $$KnowledgeEdgesTableProcessedTableManager = ProcessedTableManager<
     ),
     KnowledgeEdgeRow,
     PrefetchHooks Function()>;
+typedef $$MaterialIntakeUndoLogsTableCreateCompanionBuilder
+    = MaterialIntakeUndoLogsCompanion Function({
+  Value<int> id,
+  required String batchId,
+  required int requestedAt,
+  required bool undone,
+  required String removedPointsJson,
+  required String removedEdgesJson,
+  required int restoredCount,
+  required int blockedCount,
+  Value<String?> blockedReason,
+});
+typedef $$MaterialIntakeUndoLogsTableUpdateCompanionBuilder
+    = MaterialIntakeUndoLogsCompanion Function({
+  Value<int> id,
+  Value<String> batchId,
+  Value<int> requestedAt,
+  Value<bool> undone,
+  Value<String> removedPointsJson,
+  Value<String> removedEdgesJson,
+  Value<int> restoredCount,
+  Value<int> blockedCount,
+  Value<String?> blockedReason,
+});
+
+class $$MaterialIntakeUndoLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeUndoLogsTable> {
+  $$MaterialIntakeUndoLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get requestedAt => $composableBuilder(
+      column: $table.requestedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get undone => $composableBuilder(
+      column: $table.undone, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get removedPointsJson => $composableBuilder(
+      column: $table.removedPointsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get removedEdgesJson => $composableBuilder(
+      column: $table.removedEdgesJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get restoredCount => $composableBuilder(
+      column: $table.restoredCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get blockedCount => $composableBuilder(
+      column: $table.blockedCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get blockedReason => $composableBuilder(
+      column: $table.blockedReason, builder: (column) => ColumnFilters(column));
+}
+
+class $$MaterialIntakeUndoLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeUndoLogsTable> {
+  $$MaterialIntakeUndoLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get requestedAt => $composableBuilder(
+      column: $table.requestedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get undone => $composableBuilder(
+      column: $table.undone, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get removedPointsJson => $composableBuilder(
+      column: $table.removedPointsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get removedEdgesJson => $composableBuilder(
+      column: $table.removedEdgesJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get restoredCount => $composableBuilder(
+      column: $table.restoredCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get blockedCount => $composableBuilder(
+      column: $table.blockedCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get blockedReason => $composableBuilder(
+      column: $table.blockedReason,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$MaterialIntakeUndoLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MaterialIntakeUndoLogsTable> {
+  $$MaterialIntakeUndoLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<int> get requestedAt => $composableBuilder(
+      column: $table.requestedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get undone =>
+      $composableBuilder(column: $table.undone, builder: (column) => column);
+
+  GeneratedColumn<String> get removedPointsJson => $composableBuilder(
+      column: $table.removedPointsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get removedEdgesJson => $composableBuilder(
+      column: $table.removedEdgesJson, builder: (column) => column);
+
+  GeneratedColumn<int> get restoredCount => $composableBuilder(
+      column: $table.restoredCount, builder: (column) => column);
+
+  GeneratedColumn<int> get blockedCount => $composableBuilder(
+      column: $table.blockedCount, builder: (column) => column);
+
+  GeneratedColumn<String> get blockedReason => $composableBuilder(
+      column: $table.blockedReason, builder: (column) => column);
+}
+
+class $$MaterialIntakeUndoLogsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MaterialIntakeUndoLogsTable,
+    MaterialIntakeUndoLogRow,
+    $$MaterialIntakeUndoLogsTableFilterComposer,
+    $$MaterialIntakeUndoLogsTableOrderingComposer,
+    $$MaterialIntakeUndoLogsTableAnnotationComposer,
+    $$MaterialIntakeUndoLogsTableCreateCompanionBuilder,
+    $$MaterialIntakeUndoLogsTableUpdateCompanionBuilder,
+    (
+      MaterialIntakeUndoLogRow,
+      BaseReferences<_$AppDatabase, $MaterialIntakeUndoLogsTable,
+          MaterialIntakeUndoLogRow>
+    ),
+    MaterialIntakeUndoLogRow,
+    PrefetchHooks Function()> {
+  $$MaterialIntakeUndoLogsTableTableManager(
+      _$AppDatabase db, $MaterialIntakeUndoLogsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MaterialIntakeUndoLogsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MaterialIntakeUndoLogsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MaterialIntakeUndoLogsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> batchId = const Value.absent(),
+            Value<int> requestedAt = const Value.absent(),
+            Value<bool> undone = const Value.absent(),
+            Value<String> removedPointsJson = const Value.absent(),
+            Value<String> removedEdgesJson = const Value.absent(),
+            Value<int> restoredCount = const Value.absent(),
+            Value<int> blockedCount = const Value.absent(),
+            Value<String?> blockedReason = const Value.absent(),
+          }) =>
+              MaterialIntakeUndoLogsCompanion(
+            id: id,
+            batchId: batchId,
+            requestedAt: requestedAt,
+            undone: undone,
+            removedPointsJson: removedPointsJson,
+            removedEdgesJson: removedEdgesJson,
+            restoredCount: restoredCount,
+            blockedCount: blockedCount,
+            blockedReason: blockedReason,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String batchId,
+            required int requestedAt,
+            required bool undone,
+            required String removedPointsJson,
+            required String removedEdgesJson,
+            required int restoredCount,
+            required int blockedCount,
+            Value<String?> blockedReason = const Value.absent(),
+          }) =>
+              MaterialIntakeUndoLogsCompanion.insert(
+            id: id,
+            batchId: batchId,
+            requestedAt: requestedAt,
+            undone: undone,
+            removedPointsJson: removedPointsJson,
+            removedEdgesJson: removedEdgesJson,
+            restoredCount: restoredCount,
+            blockedCount: blockedCount,
+            blockedReason: blockedReason,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MaterialIntakeUndoLogsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $MaterialIntakeUndoLogsTable,
+        MaterialIntakeUndoLogRow,
+        $$MaterialIntakeUndoLogsTableFilterComposer,
+        $$MaterialIntakeUndoLogsTableOrderingComposer,
+        $$MaterialIntakeUndoLogsTableAnnotationComposer,
+        $$MaterialIntakeUndoLogsTableCreateCompanionBuilder,
+        $$MaterialIntakeUndoLogsTableUpdateCompanionBuilder,
+        (
+          MaterialIntakeUndoLogRow,
+          BaseReferences<_$AppDatabase, $MaterialIntakeUndoLogsTable,
+              MaterialIntakeUndoLogRow>
+        ),
+        MaterialIntakeUndoLogRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -32507,4 +33263,7 @@ class $AppDatabaseManager {
           _db, _db.materialIntakeProposals);
   $$KnowledgeEdgesTableTableManager get knowledgeEdges =>
       $$KnowledgeEdgesTableTableManager(_db, _db.knowledgeEdges);
+  $$MaterialIntakeUndoLogsTableTableManager get materialIntakeUndoLogs =>
+      $$MaterialIntakeUndoLogsTableTableManager(
+          _db, _db.materialIntakeUndoLogs);
 }

@@ -758,6 +758,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String materialIntakeUndoLogLine(int count) {
+    return 'This batch has been undone $count time(s) before.';
+  }
+
+  @override
   String get materialIntakeUndoBlockedTitle => 'This batch cannot be undone';
 
   @override

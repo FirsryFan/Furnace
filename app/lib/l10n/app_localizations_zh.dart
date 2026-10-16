@@ -739,6 +739,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String materialIntakeUndoLogLine(int count) {
+    return '这一批被撤回过 $count 次（撤回是删行，流水留着）。';
+  }
+
+  @override
   String get materialIntakeUndoBlockedTitle => '这一批撤不了';
 
   @override

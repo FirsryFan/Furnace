@@ -11,7 +11,7 @@
 ///     不能编出一条边来（`MEMORY_RECORD.md` §3.5：包含语义只在标签树，线索才进图）。
 library;
 
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
@@ -564,5 +564,104 @@ void main() {
     expect(again.createdEdges, hasLength(2));
     expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
     expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+  });
+
+  test('撤回流水：撤成的留下删掉了什么（行删了就只剩这一格）', () async {
+    await applyAll();
+    expect(await repository.undoLogs('b1'), isEmpty);
+
+    final outcome = await repository.undoBatch('b1');
+    final logs = await repository.undoLogs('b1');
+
+    expect(logs, hasLength(1));
+    final log = logs.single;
+    expect(log.batchId, 'b1');
+    expect(log.undone, isTrue);
+    expect(log.requestedAt, 1789000000000);
+    expect(log.restored, outcome.restored);
+    expect(log.blockedCount, 0);
+    expect(log.blockedReason, isNull);
+    // 删掉的行点名点姓地留着：以后要回答"我上次撤了什么"，读的就是它。
+    expect(
+      [for (final point in log.removedPoints) point.nodeId],
+      containsAll(<String>['en::s::abc', 'en::w::rely-on']),
+    );
+    expect(
+      [for (final edge in log.removedEdges) edge.edgeId],
+      containsAll(<String>['e_1', 'e_2']),
+    );
+    expect(log.removedPoints.first.title, isNotEmpty);
+    expect(log.text, contains('撤过一次'));
+    expect(log.text, contains('删掉 2 个知识点'));
+    // 知识点与边真的没了，流水还在。
+    expect(await db.select(db.knowledgePoints).get(), isEmpty);
+    expect(await repository.undoLogs('b1'), hasLength(1));
+  });
+
+  test('撤回流水：没撤成也记一笔 —— 被什么拦住了要回答得出来', () async {
+    await applyAll();
+    final point = await pointRow('en::s::abc');
+    await anki.getOrCreateUnitCardState(point.id, 'essay:${point.id}');
+
+    final outcome = await repository.undoBatch('b1');
+    final log = (await repository.undoLogs('b1')).single;
+
+    expect(outcome.undone, isFalse);
+    expect(log.undone, isFalse);
+    expect(log.removedPoints, isEmpty);
+    expect(log.removedEdges, isEmpty);
+    expect(log.restored, 0);
+    expect(log.blockedCount, 1);
+    expect(log.blockedReason, contains('卡片'));
+    expect(log.text, contains('没撤成'));
+    expect(log.text, contains('卡片'));
+    // 记账没动库：点和边都还在。
+    expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+  });
+
+  test('撤回流水：撤两次记两行，按时间正序读回来', () async {
+    await applyAll();
+    await repository.undoBatch('b1');
+    await repository.apply(batchId: 'b1');
+    await repository.undoBatch('b1');
+
+    final logs = await repository.undoLogs('b1');
+
+    expect(logs, hasLength(2));
+    expect([for (final log in logs) log.undone], everyElement(isTrue));
+    expect([for (final log in logs) log.removedPoints.length], [2, 2]);
+    // 流水不按批次汇总：别人的账不串进这一批。
+    expect(await repository.undoLogs('b2'), isEmpty);
+  });
+
+  test('撤回流水：没确认过的批次也留一行（撤了，但本来就没建过什么）', () async {
+    await record(planOf());
+
+    await repository.undoBatch('b1');
+    final log = (await repository.undoLogs('b1')).single;
+
+    expect(log.undone, isTrue);
+    expect(log.removedPoints, isEmpty);
+    expect(log.removedEdges, isEmpty);
+    expect(log.restored, 0);
+    expect(log.text, contains('没有自己新建的行'));
+  });
+
+  test('撤回流水：同一毫秒的两次也按写入次序读（不靠时间戳排）', () async {
+    await applyAll();
+    await repository.undoBatch('b1');
+    await repository.apply(batchId: 'b1');
+    await repository.undoBatch('b1');
+
+    // 时钟是固定的：两行 requestedAt 一样，排序得靠自增 id。
+    final logs = await repository.undoLogs('b1');
+    expect([for (final log in logs) log.requestedAt],
+        [1789000000000, 1789000000000]);
+    final rows = await (db.select(db.materialIntakeUndoLogs)
+          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+        .get();
+    expect(rows, hasLength(2));
+    expect(rows.first.id, lessThan(rows.last.id));
   });
 }

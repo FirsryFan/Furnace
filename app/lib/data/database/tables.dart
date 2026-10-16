@@ -1358,7 +1358,46 @@ class MaterialIntakeProposals extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// 一条线索边（clue edge）：`docs/MINDNET_ROADMAP.md` §2-C ④，轮次六十八。
+/// 一次「撤回这一批」的记账：`docs/MINDNET_ROADMAP.md` §2-C ⑦，轮次八十二。
+///
+/// 为什么要有它：撤回会把点/边**删掉**——那些行是唯一的物证，删完就再没有别的
+/// 记录说"这里曾经建过什么、什么时候又撤了"。这张表是 append-only 的流水：每次
+/// 调用 `undoBatch` 都留一行（撤成的、被拦住的都留），删掉的行以 JSON 原样抄下来，
+/// 以后要做"撤错了再放回去"靠的就是这两格。
+///
+/// 它不是状态列：某个批次现在是不是"待确认"仍然只看 `material_intake_proposals.applied_at`
+/// （一张表的一列只有一个写者，D1–D6）。
+@DataClassName('MaterialIntakeUndoLogRow')
+class MaterialIntakeUndoLogs extends Table {
+  @override
+  String get tableName => 'material_intake_undo_logs';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 撤的是哪一批（`material_intake_batches.batch_id`）。
+  TextColumn get batchId => text()();
+
+  /// 这次撤回请求发生的时刻（epoch ms）。
+  IntColumn get requestedAt => integer()();
+
+  /// true = 真的撤了；false = 被拦住了，库里的行一个字没动。
+  BoolColumn get undone => boolean()();
+
+  /// 真的删掉的知识点 / 线索边（`MaterialAppliedPoint` / `MaterialAppliedEdge`
+  /// 的 JSON 数组）。撤成的那些行只活在这一格和这次调用的返回值里。
+  TextColumn get removedPointsJson => text()();
+  TextColumn get removedEdgesJson => text()();
+
+  /// 退回"待确认"的提案条数（`applied_at` 被清空的行数）。
+  IntColumn get restoredCount => integer()();
+
+  /// 拦路的原因条数（`undone == false` 时大于 0）。
+  IntColumn get blockedCount => integer()();
+
+  /// 第一句拦路的理由（人话，照原样显示，不用再算一遍）。
+  TextColumn get blockedReason => text().nullable()();
+}
+
 ///
 /// 为什么要单独一张表：MindNet 的边是**线索**语义（严格有向、权重 `ls`、不自动反向），
 /// 而应用里标签树的父子边是**包含**语义（`tags.parent_id`，父子是层级）。

@@ -71,6 +71,8 @@ part 'database.g.dart';
     MaterialIntakeProposals,
     // v18 (clue edges, docs/MINDNET_ROADMAP.md §2-C ④)
     KnowledgeEdges,
+    // v20 (undo ledger for material intake batches, §2-C ⑦)
+    MaterialIntakeUndoLogs,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -102,9 +104,10 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
-  /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19].
+  /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
+  /// [_upgradeV19ToV20].
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration {
@@ -166,6 +169,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 19) {
           await _upgradeV18ToV19();
+        }
+        if (from < 20) {
+          await _upgradeV19ToV20();
         }
       },
       beforeOpen: (details) async {
@@ -592,6 +598,18 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'material_intake_proposals', materialIntakeProposals.alreadyExisted);
+  }
+
+  /// v19 -> v20：撤回流水（`material_intake_undo_logs`，轮次八十二）。
+  ///
+  /// 纯新增表，老行不动。撤回会**删掉**点/边，删完就再没有别的物证说"这里曾经
+  /// 建过什么、什么时候撤的"——这张 append-only 的表把每次撤回请求（撤成的、
+  /// 被拦住的）连同删掉的行一起记下来。
+  Future<void> _upgradeV19ToV20() async {
+    final m = Migrator(this);
+    if (!await _tableExists('material_intake_undo_logs')) {
+      await m.createTable(materialIntakeUndoLogs);
+    }
   }
 
   Future<void> _upgradeV4ToV5() async {

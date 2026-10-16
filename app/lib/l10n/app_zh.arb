@@ -312,6 +312,10 @@
   "@materialIntakeUndoneNothing": {
     "placeholders": { "restored": { "type": "int" } }
   },
+  "materialIntakeUndoLogLine": "这一批被撤回过 {count} 次（撤回是删行，流水留着）。",
+  "@materialIntakeUndoLogLine": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "materialIntakeUndoBlockedTitle": "这一批撤不了",
   "materialIntakeUndoBlockedNote": "整批一条也没删。撤回只删这一批自己新建的东西，下面这些上面挂着别的：",
   "materialIntakeUndoBlockedRow": "{title} —— {reason}",

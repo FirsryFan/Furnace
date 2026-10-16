@@ -533,6 +533,40 @@ void main() {
       expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
       expect(find.text(l10n.materialIntakeDoneTitle(1)), findsOneWidget);
     });
+
+    testWidgets('撤回流水：撤过之后，屏幕上说得清"这批被撤过几次"', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      final l10n = l10nOf(tester);
+      // 还没撤过：这句话不该出现。
+      expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsNothing);
+
+      await confirm(tester, 4);
+      expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsNothing);
+
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndo));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndoConfirm));
+      await tester.pumpAndSettle();
+
+      // 撤回把行删了，屏幕上只剩"又回到待确认"——这笔账由流水说，当场 +1。
+      expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsOneWidget);
+      expect(await db.select(db.materialIntakeUndoLogs).get(), hasLength(1));
+
+      // 把这批放下再"从清单恢复"回来：账跟着这一批（它落在库里，不看内存）。
+      await tester.tap(find.text(l10n.materialIntakeClear));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsNothing);
+
+      await tester.tap(find.text(l10n.materialIntakeRestore));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsOneWidget);
+    });
+
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
       bigSurface(tester);
       await anki.createKnowledgePoint(title: 'rely on', content: '早就有了');

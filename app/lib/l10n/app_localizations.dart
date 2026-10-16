@@ -1454,6 +1454,12 @@ abstract class AppLocalizations {
   /// **'This batch created nothing of its own: {restored} proposals are back to pending.'**
   String materialIntakeUndoneNothing(int restored);
 
+  /// No description provided for @materialIntakeUndoLogLine.
+  ///
+  /// In en, this message translates to:
+  /// **'This batch has been undone {count} time(s) before.'**
+  String materialIntakeUndoLogLine(int count);
+
   /// No description provided for @materialIntakeUndoBlockedTitle.
   ///
   /// In en, this message translates to:

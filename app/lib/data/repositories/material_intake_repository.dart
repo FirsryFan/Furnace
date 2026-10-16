@@ -303,6 +303,74 @@ class MaterialUndoOutcome {
       };
 }
 
+/// 一次撤回的流水（`material_intake_undo_logs` 的一行）。
+///
+/// 撤回会把点/边删掉 —— 那些行是唯一的物证。这条流水是 append-only 的：
+/// 撤成的、被拦住的都留一行，删掉的行以 JSON 原样抄下来（以后要"撤错了再放回去"、
+/// 或者回答"我上次到底撤了什么"，读的就是它）。
+class MaterialUndoLog {
+  const MaterialUndoLog({
+    required this.batchId,
+    required this.requestedAt,
+    required this.undone,
+    required this.removedPoints,
+    required this.removedEdges,
+    required this.restored,
+    required this.blockedCount,
+    this.blockedReason,
+  });
+
+  final String batchId;
+
+  /// 这次撤回请求发生的时刻（epoch ms）。
+  final int requestedAt;
+
+  /// true = 真的撤了；false = 被拦住了，库里的行一个字没动。
+  final bool undone;
+
+  /// 真的删掉的知识点。
+  final List<MaterialAppliedPoint> removedPoints;
+
+  /// 真的删掉的线索边。
+  final List<MaterialAppliedEdge> removedEdges;
+
+  /// 退回"待确认"的提案条数。
+  final int restored;
+
+  /// 拦路的原因条数。
+  final int blockedCount;
+
+  /// 第一句拦路的理由（被拦住时非空，人话，照原样显示）。
+  final String? blockedReason;
+
+  /// 人话一行（界面/工具/日志都用它）。
+  String get text {
+    if (!undone) {
+      return '撤过一次但没撤成（$blockedCount 条拦路）：'
+          '${blockedReason ?? '没说原因'}';
+    }
+    final parts = <String>[
+      if (removedPoints.isNotEmpty) '删掉 ${removedPoints.length} 个知识点',
+      if (removedEdges.isNotEmpty) '删掉 ${removedEdges.length} 条线索边',
+      if (restored > 0) '$restored 条提案退回待确认',
+    ];
+    return parts.isEmpty ? '撤过一次：这一批没有自己新建的行' : '撤过一次：${parts.join('、')}';
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'batch_id': batchId,
+        'requested_at_ms': requestedAt,
+        'undone': undone,
+        'removed_points': [for (final point in removedPoints) point.toJson()],
+        'removed_point_count': removedPoints.length,
+        'removed_edges': [for (final edge in removedEdges) edge.toJson()],
+        'removed_edge_count': removedEdges.length,
+        'restored': restored,
+        'blocked_count': blockedCount,
+        if (blockedReason != null) 'blocked_reason': blockedReason,
+      };
+}
+
 /// `apply` 用不了时抛这个（批次不存在 / 提案 id 不认识）。
 class MaterialApplyException implements Exception {
   const MaterialApplyException(this.message);
@@ -594,6 +662,7 @@ class MaterialIntakeRepository {
   /// ⑤ 同名的边在库里，但不是这一批建的。
   /// 行**已经不在了**（手删过）不算拦路：没什么可删的，退回提案就行。
   Future<MaterialUndoOutcome> undoBatch(String batchId) async {
+    final now = _clock().millisecondsSinceEpoch;
     final applied = await appliedProposals(batchId);
     final removedPoints = <MaterialAppliedPoint>[];
     final removedEdges = <MaterialAppliedEdge>[];
@@ -718,7 +787,8 @@ class MaterialIntakeRepository {
     }
 
     if (blocked.isNotEmpty) {
-      return MaterialUndoOutcome(
+      // 撤不成也记一笔：拦路是事实，"我试过撤、被挡在哪"以后要回答得出来。
+      final outcome = MaterialUndoOutcome(
         batchId: batchId,
         undone: false,
         removedPoints: const <MaterialAppliedPoint>[],
@@ -726,11 +796,12 @@ class MaterialIntakeRepository {
         blocked: blocked,
         restored: 0,
       );
+      await _writeUndoLog(batchId: batchId, requestedAt: now, outcome: outcome);
+      return outcome;
     }
 
-    final now = _clock().millisecondsSinceEpoch;
     var restored = 0;
-    await _db.transaction(() async {
+    return _db.transaction(() async {
       for (final id in edgeRows) {
         await (_db.delete(_db.knowledgeEdges)..where((t) => t.id.equals(id)))
             .go();
@@ -749,16 +820,104 @@ class MaterialIntakeRepository {
         alreadyExisted: const Value(null),
         updatedAt: Value(now),
       ));
-    });
 
-    return MaterialUndoOutcome(
-      batchId: batchId,
-      undone: true,
-      removedPoints: removedPoints,
-      removedEdges: removedEdges,
-      blocked: const <MaterialUndoBlocked>[],
-      restored: restored,
+      final outcome = MaterialUndoOutcome(
+        batchId: batchId,
+        undone: true,
+        removedPoints: removedPoints,
+        removedEdges: removedEdges,
+        blocked: const <MaterialUndoBlocked>[],
+        restored: restored,
+      );
+      // 记账和删行在**同一个事务**里：审计说"删了这些"，那就得真删了这些。
+      await _writeUndoLog(batchId: batchId, requestedAt: now, outcome: outcome);
+      return outcome;
+    });
+  }
+
+  /// 这一批的撤回流水，按时间正序（最早的一次在前；同一毫秒按写入次序）。
+  Future<List<MaterialUndoLog>> undoLogs(String batchId) async {
+    final rows = await (_db.select(_db.materialIntakeUndoLogs)
+          ..where((t) => t.batchId.equals(batchId))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.requestedAt),
+            (t) => OrderingTerm.asc(t.id),
+          ]))
+        .get();
+    return [for (final row in rows) _toUndoLog(row)];
+  }
+
+  /// 把一次撤回写进流水（撤成的、被拦住的都写）。
+  Future<void> _writeUndoLog({
+    required String batchId,
+    required int requestedAt,
+    required MaterialUndoOutcome outcome,
+  }) async {
+    await _db.into(_db.materialIntakeUndoLogs).insert(
+          MaterialIntakeUndoLogsCompanion.insert(
+            batchId: batchId,
+            requestedAt: requestedAt,
+            undone: outcome.undone,
+            removedPointsJson: jsonEncode(
+              [for (final point in outcome.removedPoints) point.toJson()],
+            ),
+            removedEdgesJson: jsonEncode(
+              [for (final edge in outcome.removedEdges) edge.toJson()],
+            ),
+            restoredCount: outcome.restored,
+            blockedCount: outcome.blocked.length,
+            blockedReason: Value(
+              outcome.blocked.isEmpty ? null : outcome.blocked.first.reason,
+            ),
+          ),
+        );
+  }
+
+  /// 一行流水 → 领域对象（JSON 两格解回来；坏数据当作空，不让一条脏行炸掉整页）。
+  MaterialUndoLog _toUndoLog(MaterialIntakeUndoLogRow row) {
+    return MaterialUndoLog(
+      batchId: row.batchId,
+      requestedAt: row.requestedAt,
+      undone: row.undone,
+      removedPoints: [
+        for (final item in _decodeJsonList(row.removedPointsJson))
+          MaterialAppliedPoint(
+            proposalId: item['proposal_id'] as String? ?? '',
+            knowledgePointId: item['knowledge_point_id'] as String? ?? '',
+            title: item['title'] as String? ?? '',
+            nodeId: item['node_id'] as String?,
+          ),
+      ],
+      removedEdges: [
+        for (final item in _decodeJsonList(row.removedEdgesJson))
+          MaterialAppliedEdge(
+            proposalId: item['proposal_id'] as String? ?? '',
+            edgeId: item['edge_id'] as String? ?? '',
+            fromId: item['from'] as String? ?? '',
+            toId: item['to'] as String? ?? '',
+            origin: item['origin'] as String?,
+          ),
+      ],
+      restored: row.restoredCount,
+      blockedCount: row.blockedCount,
+      blockedReason: row.blockedReason,
     );
+  }
+
+  static List<Map<String, Object?>> _decodeJsonList(String raw) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return const <Map<String, Object?>>[];
+    }
+    if (decoded is! List) {
+      return const <Map<String, Object?>>[];
+    }
+    return [
+      for (final item in decoded)
+        if (item is Map) item.cast<String, Object?>(),
+    ];
   }
 
   /// 标上"确认过了"，并记下"它本来就有的还是这次新建的"。
