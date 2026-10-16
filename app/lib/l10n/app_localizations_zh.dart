@@ -586,6 +586,92 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get materialIntakeTitle => '添加资料';
+
+  @override
+  String get materialIntakeEntryHint =>
+      '把 AI 读出来的 mindnet.material/1 信封贴进来：先看会建什么，再点头';
+
+  @override
+  String get materialIntakeIntro =>
+      '纸上的材料由 AI 读成 mindnet.material/1 信封，这一页做后面两步：贴进来 → 看提案（每条都带出自哪一页哪一行）→ 点头。确认之前一个知识点都不写；连接先不动（资料与卡片是线索边还是包含边还没定，roadmap §2-C ④）。';
+
+  @override
+  String get materialIntakeEnvelopeLabel => '信封（mindnet.material/1）';
+
+  @override
+  String get materialIntakeEnvelopeHint =>
+      'protocol: mindnet.material/1 · batch_id: … · items: [ … ]';
+
+  @override
+  String get materialIntakePreview => '看提案';
+
+  @override
+  String get materialIntakeClear => '清空';
+
+  @override
+  String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
+
+  @override
+  String materialIntakeBadEnvelope(String error) {
+    return '整份拒绝：$error';
+  }
+
+  @override
+  String materialIntakeProposals(int count) {
+    return '$count 条提案';
+  }
+
+  @override
+  String materialIntakeSkipped(int count) {
+    return '$count 条留在清单外';
+  }
+
+  @override
+  String materialIntakePending(int count) {
+    return '已登记为待确认（$count 条）：关掉页面也不会丢';
+  }
+
+  @override
+  String get materialIntakeNothingToDo => '这份材料没有要动的东西：每条都留在图外，原因逐条写在下面。';
+
+  @override
+  String get materialIntakeKindPoint => '知识点';
+
+  @override
+  String get materialIntakeKindConnection => '连接';
+
+  @override
+  String get materialIntakeConnectionDeferred => '先不动：资料与卡片的关系还没定（§2-C ④）';
+
+  @override
+  String get materialIntakeExisting => '已存在，不重复建';
+
+  @override
+  String materialIntakeConfirm(int count) {
+    return '确认入库（$count 条）';
+  }
+
+  @override
+  String materialIntakeApplied(
+      int created, int existing, int deferred, int remaining) {
+    return '写入 $created 个知识点（$existing 个已存在）、$deferred 条连接先不动、还剩 $remaining 条待确认';
+  }
+
+  @override
+  String materialIntakeFrom(String source, String region) {
+    return '出处：$source · $region';
+  }
+
+  @override
+  String materialIntakeQuote(String quote) {
+    return '页边：「$quote」';
+  }
+
+  @override
+  String get materialIntakeNoSource => '未标出处';
+
+  @override
   String get reviewPlanNewCardsPerDay => '每天新卡';
 
   @override

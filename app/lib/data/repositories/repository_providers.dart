@@ -10,6 +10,7 @@ import 'anki_repository.dart';
 import 'assessment_repository.dart';
 import 'diffusion_log_repository.dart';
 import 'mind_map_repository.dart';
+import 'material_intake_repository.dart';
 import 'package_repository.dart';
 import 'question_repository.dart';
 import 'review_plan_repository.dart';
@@ -49,13 +50,22 @@ final threadRankRepositoryProvider = Provider<ThreadRankRepository>((ref) {
 });
 
 /// Daily study ledger for the separate review-insight screen (blueprint 4.4).
-final diffusionLogRepositoryProvider =
-    Provider<DiffusionLogRepository>((ref) {
+final diffusionLogRepositoryProvider = Provider<DiffusionLogRepository>((ref) {
   return DiffusionLogRepository(ref.watch(appDatabaseProvider));
 });
 
 final ankiRepositoryProvider = Provider<AnkiRepository>((ref) {
   return AnkiRepository(ref.watch(appDatabaseProvider));
+});
+
+/// 材料入库的待确认清单（`docs/MINDNET_ROADMAP.md` §2-C ①）：批次 + 提案，
+/// `applied_at` NULL = 还没确认。确认之前不写知识点。
+final materialIntakeRepositoryProvider =
+    Provider<MaterialIntakeRepository>((ref) {
+  return MaterialIntakeRepository(
+    ref.watch(appDatabaseProvider),
+    ankiRepository: ref.watch(ankiRepositoryProvider),
+  );
 });
 
 /// Review preferences and the per-group daily plan ("每天各个卡组的任务量").
@@ -82,7 +92,6 @@ final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
 final ankiServiceProvider = Provider<AnkiService>((ref) {
   return AnkiService(ref.watch(ankiRepositoryProvider));
 });
-
 
 final ankiStatsServiceProvider = Provider<AnkiStatsService>((ref) {
   return AnkiStatsService(ref.watch(ankiRepositoryProvider));

@@ -1208,6 +1208,139 @@ abstract class AppLocalizations {
   /// **'Could not read today\'s list: {error}'**
   String todayPlanFailed(String error);
 
+  /// No description provided for @materialIntakeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add material'**
+  String get materialIntakeTitle;
+
+  /// No description provided for @materialIntakeEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the AI\'s mindnet.material/1 envelope: see what would be created, then confirm'**
+  String get materialIntakeEntryHint;
+
+  /// No description provided for @materialIntakeIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm, and connections wait until the material-card relation is decided (roadmap §2-C ④).'**
+  String get materialIntakeIntro;
+
+  /// No description provided for @materialIntakeEnvelopeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Envelope (mindnet.material/1)'**
+  String get materialIntakeEnvelopeLabel;
+
+  /// No description provided for @materialIntakeEnvelopeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'protocol: mindnet.material/1 · batch_id: ... · items: [ ... ]'**
+  String get materialIntakeEnvelopeHint;
+
+  /// No description provided for @materialIntakePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'See proposals'**
+  String get materialIntakePreview;
+
+  /// No description provided for @materialIntakeClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get materialIntakeClear;
+
+  /// No description provided for @materialIntakeTopicHubs.
+  ///
+  /// In en, this message translates to:
+  /// **'Also create topic hubs (off by default: a topic groups things, it is not a card relation)'**
+  String get materialIntakeTopicHubs;
+
+  /// No description provided for @materialIntakeBadEnvelope.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected as a whole: {error}'**
+  String materialIntakeBadEnvelope(String error);
+
+  /// No description provided for @materialIntakeProposals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} proposals'**
+  String materialIntakeProposals(int count);
+
+  /// No description provided for @materialIntakeSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stayed outside the list'**
+  String materialIntakeSkipped(int count);
+
+  /// No description provided for @materialIntakePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as pending ({count} rows); closing this page does not lose them'**
+  String materialIntakePending(int count);
+
+  /// No description provided for @materialIntakeNothingToDo.
+  ///
+  /// In en, this message translates to:
+  /// **'This batch has nothing to change: every item stayed outside the graph, and each skipped row says why.'**
+  String get materialIntakeNothingToDo;
+
+  /// No description provided for @materialIntakeKindPoint.
+  ///
+  /// In en, this message translates to:
+  /// **'knowledge point'**
+  String get materialIntakeKindPoint;
+
+  /// No description provided for @materialIntakeKindConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'connection'**
+  String get materialIntakeKindConnection;
+
+  /// No description provided for @materialIntakeConnectionDeferred.
+  ///
+  /// In en, this message translates to:
+  /// **'deferred: the material-card relation is not decided (§2-C ④)'**
+  String get materialIntakeConnectionDeferred;
+
+  /// No description provided for @materialIntakeExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'already exists - no duplicate'**
+  String get materialIntakeExisting;
+
+  /// No description provided for @materialIntakeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm and write ({count})'**
+  String materialIntakeConfirm(int count);
+
+  /// No description provided for @materialIntakeApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrote {created} knowledge points ({existing} already existed), {deferred} connections deferred, {remaining} still pending'**
+  String materialIntakeApplied(
+      int created, int existing, int deferred, int remaining);
+
+  /// No description provided for @materialIntakeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {source} · {region}'**
+  String materialIntakeFrom(String source, String region);
+
+  /// No description provided for @materialIntakeQuote.
+  ///
+  /// In en, this message translates to:
+  /// **'margin: “{quote}”'**
+  String materialIntakeQuote(String quote);
+
+  /// No description provided for @materialIntakeNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'no source recorded'**
+  String get materialIntakeNoSource;
+
   /// No description provided for @reviewPlanNewCardsPerDay.
   ///
   /// In en, this message translates to:

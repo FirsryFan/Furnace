@@ -216,6 +216,60 @@
   "@todayPlanFailed": {
     "placeholders": { "error": { "type": "String" } }
   },
+  "materialIntakeTitle": "Add material",
+  "materialIntakeEntryHint": "Paste the AI's mindnet.material/1 envelope: see what would be created, then confirm",
+  "materialIntakeIntro": "Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm, and connections wait until the material-card relation is decided (roadmap §2-C ④).",
+  "materialIntakeEnvelopeLabel": "Envelope (mindnet.material/1)",
+  "materialIntakeEnvelopeHint": "protocol: mindnet.material/1 · batch_id: ... · items: [ ... ]",
+  "materialIntakePreview": "See proposals",
+  "materialIntakeClear": "Clear",
+  "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
+  "materialIntakeBadEnvelope": "Rejected as a whole: {error}",
+  "@materialIntakeBadEnvelope": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "materialIntakeProposals": "{count} proposals",
+  "@materialIntakeProposals": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeSkipped": "{count} stayed outside the list",
+  "@materialIntakeSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakePending": "Saved as pending ({count} rows); closing this page does not lose them",
+  "@materialIntakePending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeNothingToDo": "This batch has nothing to change: every item stayed outside the graph, and each skipped row says why.",
+  "materialIntakeKindPoint": "knowledge point",
+  "materialIntakeKindConnection": "connection",
+  "materialIntakeConnectionDeferred": "deferred: the material-card relation is not decided (§2-C ④)",
+  "materialIntakeExisting": "already exists - no duplicate",
+  "materialIntakeConfirm": "Confirm and write ({count})",
+  "@materialIntakeConfirm": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeApplied": "Wrote {created} knowledge points ({existing} already existed), {deferred} connections deferred, {remaining} still pending",
+  "@materialIntakeApplied": {
+    "placeholders": {
+      "created": { "type": "int" },
+      "existing": { "type": "int" },
+      "deferred": { "type": "int" },
+      "remaining": { "type": "int" }
+    }
+  },
+  "materialIntakeFrom": "Source: {source} · {region}",
+  "@materialIntakeFrom": {
+    "placeholders": {
+      "source": { "type": "String" },
+      "region": { "type": "String" }
+    }
+  },
+  "materialIntakeQuote": "margin: “{quote}”",
+  "@materialIntakeQuote": {
+    "placeholders": { "quote": { "type": "String" } }
+  },
+  "materialIntakeNoSource": "no source recorded",
   "reviewPlanNewCardsPerDay": "New cards per day",
   "reviewPlanReviewCardsPerDay": "Reviews per day",
   "reviewPlanZeroIsUnlimited": "0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.",

@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-10-16 轮次六十五：材料入库的界面入口（Lead）
+
+**做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第五步，也是这条链第一次离开 AI 工具。
+轮次六十二～六十四 把机械部分都做好了（信封 → 标准清单/图补丁/`run/1` 请求 → 待确认提案 →
+确认后写库），但能动它的入口只有模型。这一轮在设置页加「添加资料」：用户自己贴一份
+`mindnet.material/1` 信封，看清要建哪些知识点与连接、每条出自哪一页哪一行，勾选之后才写库。
+
+- 新 `app/lib/features/cognitive/application/material_intake_reader.dart`（纯逻辑，不写库）：
+  `decodeMaterialEnvelope`（对象或 JSON 文本；空串/非 JSON/别的类型各给人话错误）+
+  `readMaterialPlan`（解码 → `MaterialIngest.convert` → `MaterialIntakePlanner.plan`，
+  `existingTitles` 取自仓储）+ `recordMaterialPlan`（把这一批落成"待确认"）。
+  读法只有一处：页面与 AI 工具走的是同一段推导。
+- 新 `app/lib/features/cognitive/presentation/material_intake_page.dart`：多行等宽输入框 →「看提案」
+  （边看边记下这一批）→ 提案清单（知识点可勾、连接标"先不动"）→「确认」（只写选中的）。
+  页面上同时显示 `N 条提案 · S 条留在清单外 · 已登记（U 条）`；`U` 取确认**之后**的批次读数。
+- `repository_providers.dart` 新增 `materialIntakeRepositoryProvider`；`settings_page.dart` 新增入口
+  （`Icons.library_add_outlined`，指向 roadmap §2-C ①）。
+- l10n 两个 ARB 各加 22 个 `materialIntake*` 键并 `flutter gen-l10n`。
+
+**刻意选择**：① **连接不给勾选框** —— 勾不动胜过点了没反应（连接落点未定，§2-C ④）；
+② **"清单外"留在页面上** —— 疑问/已知/提醒不静默丢弃，条数与每条原因都在；
+③ **这一步不做 AI 提取** —— 只吃信封；"从照片/文本产出信封"是 TRANSCRIBE 与提示词那一步的事。
+
+**证据**：`app/test/features/cognitive/presentation/material_intake_page_test.dart` 8 例
+（解码四种输入 4 例 + 页面 4 例：确认后知识点进库而连接勾不动、同名标"已存在"且只写 1 个、
+协议错整份拒绝且一行不写、只有「问」的材料明说没有要动的东西）。
+两个 widget 用例第一次红都不是逻辑错：一是页面把几个片段 join 成一个 `Text`（精确匹配找不到，
+改 `textContaining`），二是 `ListView` 懒构建（默认画布下后面的卡片根本不 build，测试改用
+1400×2600 画布）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1783 ~2: All tests passed!`（exit 0）。
+轮次六十四 后是 `+1775 ~2`，差值 8 = 本轮 8 例；`dart analyze lib test` 仍是
+`95 issues found`（0 error / 0 warning）。
+
+**已知的没做**：① 从"待确认清单"恢复的界面（仓储已有 `batches()`/`pendingProposals()`，
+页面只认刚贴的这一批）；② TRANSCRIBE 的"照片 → `run/1`"（§2-C ③）；
+③ 资料与卡片的关联类型（线索边 vs 包含边，§2-C ④ —— 连接落点就等它）。
+
 ## 2026-10-16 轮次六十四：材料摄取落库（第四步：确认后才写，Lead）
 
 **做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第三步。上一轮（六十三）把信封摆成了

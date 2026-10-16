@@ -222,6 +222,60 @@
   "@todayPlanFailed": {
     "placeholders": { "error": { "type": "String" } }
   },
+  "materialIntakeTitle": "添加资料",
+  "materialIntakeEntryHint": "把 AI 读出来的 mindnet.material/1 信封贴进来：先看会建什么，再点头",
+  "materialIntakeIntro": "纸上的材料由 AI 读成 mindnet.material/1 信封，这一页做后面两步：贴进来 → 看提案（每条都带出自哪一页哪一行）→ 点头。确认之前一个知识点都不写；连接先不动（资料与卡片是线索边还是包含边还没定，roadmap §2-C ④）。",
+  "materialIntakeEnvelopeLabel": "信封（mindnet.material/1）",
+  "materialIntakeEnvelopeHint": "protocol: mindnet.material/1 · batch_id: … · items: [ … ]",
+  "materialIntakePreview": "看提案",
+  "materialIntakeClear": "清空",
+  "materialIntakeTopicHubs": "顺便建主题分组（默认不建：分组不是卡片关系）",
+  "materialIntakeBadEnvelope": "整份拒绝：{error}",
+  "@materialIntakeBadEnvelope": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "materialIntakeProposals": "{count} 条提案",
+  "@materialIntakeProposals": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeSkipped": "{count} 条留在清单外",
+  "@materialIntakeSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakePending": "已登记为待确认（{count} 条）：关掉页面也不会丢",
+  "@materialIntakePending": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeNothingToDo": "这份材料没有要动的东西：每条都留在图外，原因逐条写在下面。",
+  "materialIntakeKindPoint": "知识点",
+  "materialIntakeKindConnection": "连接",
+  "materialIntakeConnectionDeferred": "先不动：资料与卡片的关系还没定（§2-C ④）",
+  "materialIntakeExisting": "已存在，不重复建",
+  "materialIntakeConfirm": "确认入库（{count} 条）",
+  "@materialIntakeConfirm": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeApplied": "写入 {created} 个知识点（{existing} 个已存在）、{deferred} 条连接先不动、还剩 {remaining} 条待确认",
+  "@materialIntakeApplied": {
+    "placeholders": {
+      "created": { "type": "int" },
+      "existing": { "type": "int" },
+      "deferred": { "type": "int" },
+      "remaining": { "type": "int" }
+    }
+  },
+  "materialIntakeFrom": "出处：{source} · {region}",
+  "@materialIntakeFrom": {
+    "placeholders": {
+      "source": { "type": "String" },
+      "region": { "type": "String" }
+    }
+  },
+  "materialIntakeQuote": "页边：「{quote}」",
+  "@materialIntakeQuote": {
+    "placeholders": { "quote": { "type": "String" } }
+  },
+  "materialIntakeNoSource": "未标出处",
   "reviewPlanNewCardsPerDay": "每天新卡",
   "reviewPlanReviewCardsPerDay": "每天复习",
   "reviewPlanZeroIsUnlimited": "每天复习填 0 或留空表示不限量。复习量用完之后，这个卡组当天不再抽新卡——今天答错的卡仍然会回来。",

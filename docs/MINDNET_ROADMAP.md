@@ -65,7 +65,8 @@
   **落库与确认写入已完成（轮次六十四：schema v17 两张表（`material_intake_batches` /
   `material_intake_proposals`）+ `apply_material_intake` 工具，20 例；批次主键就是信封的 `batch_id`：
   同一条提案确认两次不会建出两个知识点，用户改过标题也认 `external_id`；连接没有落点，如实报 `deferred`
-  并留在待办里）**；"添加资料"界面入口还未做）**；
+  并留在待办里）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案 → 勾选确认，
+  22 个 l10n 键 + `material_intake_reader.dart` + 页面，8 例））**；
   ② `knowledge` 动作（新知识点、新连接）；
   ③ TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）；④ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5 已澄清语义差异）。
 - **落点**：新增"添加资料"入口 → 生成 `knowledge` 动作 +（可选）新卡片；把出处写到 `evidence`，进 `change_log`。
@@ -99,7 +100,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；"添加资料"界面入口与 TRANSCRIBE 的照片→`run/1` 未做）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；TRANSCRIBE 的照片→`run/1` 未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -554,8 +555,37 @@ body 里的释义/原文/出处、同名 `'  Rely   ON '` 归一化后 `exists`�
 确认两次幂等、`proposal_ids` 只处理选中项与越界拒绝、连接 deferred 且仍待办、未知批次报错、
 "被盖成 v17 却没有这两张表"的自愈）。
 
-**还没做**：① "添加资料"界面入口（AI 产出信封 → 这两步 → 用户逐条确认；现在只有 AI 工具的路径）；
+**还没做**：① "添加资料"界面入口（AI 产出信封 → 这两步 → 用户逐条确认；现在只有 AI 工具的路径）
+—— 已在轮次六十五补上，见下一节；
 ② TRANSCRIBE 的"照片 → `run/1`"；③ 资料与卡片的关联类型（连接落点就等它）。
+
+### 切片 6 的下一步（三）：界面上的"添加资料"（轮次六十五）
+
+为什么要它：轮次六十二～六十四 把这条链的机械部分都做好了（信封 → 标准清单/图补丁/`run/1` 请求 →
+待确认提案 → 确认后写库），但**只有一个能动它的入口是 AI 工具**。用户在"设置 → 添加资料"里能自己贴一份
+信封、看清要建哪些知识点与连接、每条出自哪页哪行，勾选之后才写 —— 这才让"纸质工作和智能管理同步"这条
+使用路径闭合，也让"确认前不写库"从纪律变成界面上看得见的事实。
+
+界面上的三步与 AI 工具完全同构（读法只有一处：`app/lib/features/cognitive/application/material_intake_reader.dart`）：
+
+- **贴信封**：`decodeMaterialEnvelope` 收对象或 JSON 文本（空串、非 JSON、别的类型各给人话错误）。
+- **看提案**：`readMaterialPlan` = 解码 → `MaterialIngest.convert` → `MaterialIntakePlanner.plan`
+  （`existingTitles: await repository.existingTitles()`，看提案和写提案用同一份标题）；
+  页面**立刻** `recordMaterialPlan` 把这一批落成"待确认"，所以"看过了"这件事本身不留悬念。
+- **勾选确认**：只有知识点可勾（连接没有落点，勾不动，如实显示"先不动"）；
+  `apply(batchId:, proposalIds:, appliedAt:)` 之后刷新批次读数 —— 因此 `unapplied_count` 是确认**之后**的值。
+
+三条刻意选择：① **连接不给勾选框**：能点的控件就应该能做成，勾不动胜过点了没反应；
+② **提案与批次读数都在同一页**（`N 条提案 · S 条留在清单外 · 已登记（U 条）`），
+"清单外"不是悄悄丢掉；③ **不做 AI 提取**：这一步只吃 `mindnet.material/1` 信封，
+"从照片/文本产出信封"是 TRANSCRIBE 与提示词那一步的事，界面不假装会。
+
+证据：`app/test/features/cognitive/presentation/material_intake_page_test.dart` 8 例
+（解码的四种输入 4 例 + 页面 4 例：看提案→确认后知识点进库而连接勾不动、同名标"已存在"且只写 1 个、
+协议错整份拒绝且一行不写、只有「问」的材料明说没有要动的东西）。
+
+**还没做**：① 从"待确认清单"恢复的界面（仓储已有 `batches()`/`pendingProposals()`，页面目前只认刚贴的这一批）；
+② TRANSCRIBE 的"照片 → `run/1`"；③ 资料与卡片的关联类型（连接落点等它）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

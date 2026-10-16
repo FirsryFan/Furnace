@@ -602,6 +602,95 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get materialIntakeTitle => 'Add material';
+
+  @override
+  String get materialIntakeEntryHint =>
+      'Paste the AI\'s mindnet.material/1 envelope: see what would be created, then confirm';
+
+  @override
+  String get materialIntakeIntro =>
+      'Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm, and connections wait until the material-card relation is decided (roadmap §2-C ④).';
+
+  @override
+  String get materialIntakeEnvelopeLabel => 'Envelope (mindnet.material/1)';
+
+  @override
+  String get materialIntakeEnvelopeHint =>
+      'protocol: mindnet.material/1 · batch_id: ... · items: [ ... ]';
+
+  @override
+  String get materialIntakePreview => 'See proposals';
+
+  @override
+  String get materialIntakeClear => 'Clear';
+
+  @override
+  String get materialIntakeTopicHubs =>
+      'Also create topic hubs (off by default: a topic groups things, it is not a card relation)';
+
+  @override
+  String materialIntakeBadEnvelope(String error) {
+    return 'Rejected as a whole: $error';
+  }
+
+  @override
+  String materialIntakeProposals(int count) {
+    return '$count proposals';
+  }
+
+  @override
+  String materialIntakeSkipped(int count) {
+    return '$count stayed outside the list';
+  }
+
+  @override
+  String materialIntakePending(int count) {
+    return 'Saved as pending ($count rows); closing this page does not lose them';
+  }
+
+  @override
+  String get materialIntakeNothingToDo =>
+      'This batch has nothing to change: every item stayed outside the graph, and each skipped row says why.';
+
+  @override
+  String get materialIntakeKindPoint => 'knowledge point';
+
+  @override
+  String get materialIntakeKindConnection => 'connection';
+
+  @override
+  String get materialIntakeConnectionDeferred =>
+      'deferred: the material-card relation is not decided (§2-C ④)';
+
+  @override
+  String get materialIntakeExisting => 'already exists - no duplicate';
+
+  @override
+  String materialIntakeConfirm(int count) {
+    return 'Confirm and write ($count)';
+  }
+
+  @override
+  String materialIntakeApplied(
+      int created, int existing, int deferred, int remaining) {
+    return 'Wrote $created knowledge points ($existing already existed), $deferred connections deferred, $remaining still pending';
+  }
+
+  @override
+  String materialIntakeFrom(String source, String region) {
+    return 'Source: $source · $region';
+  }
+
+  @override
+  String materialIntakeQuote(String quote) {
+    return 'margin: “$quote”';
+  }
+
+  @override
+  String get materialIntakeNoSource => 'no source recorded';
+
+  @override
   String get reviewPlanNewCardsPerDay => 'New cards per day';
 
   @override
