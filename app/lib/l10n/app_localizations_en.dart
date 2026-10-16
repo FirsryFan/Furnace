@@ -1176,6 +1176,54 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get knowledgeEdges => 'Clue edges';
+
+  @override
+  String get knowledgeEdgesIntro =>
+      'Connections from your material land here once you confirm them: strictly directed (A → B does not mean B → A), ls has no calibration source so it is always marked uncalibrated, and an end that is not in the library is shown by id.';
+
+  @override
+  String get knowledgeEdgesEmpty =>
+      'No clue edges yet — connections from material only land here after you confirm them under \"Add material\".';
+
+  @override
+  String knowledgeEdgesCount(int count) {
+    return '$count clue edges';
+  }
+
+  @override
+  String get knowledgeEdgesOriginContains => 'the material stated containment';
+
+  @override
+  String get knowledgeEdgesOriginProduce => 'the material stated production';
+
+  @override
+  String get knowledgeEdgesOriginTopic => 'topic grouping';
+
+  @override
+  String get knowledgeEdgesOriginManual => 'hand-written';
+
+  @override
+  String get knowledgeEdgesOriginMaterial => 'material (relation not stated)';
+
+  @override
+  String knowledgeEdgesLs(String ls) {
+    return 'ls $ls (uncalibrated)';
+  }
+
+  @override
+  String knowledgeEdgesLsCalibrated(String ls) {
+    return 'ls $ls';
+  }
+
+  @override
+  String get knowledgeEdgesNoLs => 'the material gave no ls (none is claimed)';
+
+  @override
+  String get knowledgeEdgesMissingEnd =>
+      'one end is not in the library, shown by id';
+
+  @override
   String get settingsDemoData => 'Load demo data';
 
   @override

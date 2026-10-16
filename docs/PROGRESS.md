@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-16 轮次七十：线索边的读法 —— 那张表终于有人读它（Lead）
+
+**做了什么**：轮次六十八让资料里的连接**能落库**（`knowledge_edges`），可那张表**一个读者都没有** ——
+确认之后边进了库，界面上再也见不到。有写者没读者的表，等于把"资料进图"这件事藏进库里：
+用户既看不到线，也没法判断它是空、是错、还是自己确认过的。这一轮补的是**读法**。
+
+- `app/lib/data/repositories/knowledge_edge_repository.dart`（新）：只读快照 `KnowledgeEdgeView`
+  （两端 id / 两端标题 / `origin` / `source` / `ls` / `lsCalibrated` / `createdAt`），
+  `all()` 新的在前；两端标题按 `knowledge_points.external_id` 解出来，**那一端不在库里就是 null**，
+  界面按 id 显示 —— 读法不替图编造节点。同一个 `external_id` 有多行时取第一个（读法要确定）。
+- `app/lib/features/anki/presentation/knowledge_edge_page.dart`（新）+ 知识模块 AppBar 入口
+  （`Icons.hub_outlined`，挨着"今日复盘"）：一条边一行，`A → B` + 关系人话 + 材料出处 +
+  `ls 0.60（未标定）`；缺一端时另说一句；材料没给 `ls` 就说"没给"（不显示 0，也不假装有未标定权重）；
+  空库明说"还没有线索边"，而不是摆一个空列表。
+- 这一层**只读**：不建边、不删边、不改 `ls`。边的写者仍然只有材料摄取那一处（确认过的连接）。
+- 顺手把 `KnowledgeEdges.origin` 的 doc 与实际写入对齐（材料关系 `contains`/`produce`/`topic`、
+  手写边 `manual`、材料没写清时 `material`）。
+
+**刻意选择**：① **先给全量，不按知识点分页** —— 这一页回答的是"图里现在有什么线"；按点筛选要先把入口
+定在管理页哪一行，先做就等于先猜用户想从哪个点看；② **缺端照实显示 id** —— 编一个"未知知识点"看着体面，
+却把"图不完整"藏起来了：缺端是数据状态，不是显示问题；③ **认不出的 `origin` 照实显示原文** ——
+不硬塞进"材料"那一类，否则上游给了新关系也没人会发现。
+
+**证据**：`flutter test test/data/repositories/knowledge_edge_repository_test.dart
+test/features/anki/knowledge_edge_page_test.dart` → `+8: All tests passed!`
+（4 例读法：两端解名与次序、缺端、`ls` 未给、空表；4 例页面：空说、整条、缺端、没给 `ls`）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1837 ~2: All tests passed!`（exit 0）。
+轮次六十九 后是 `+1829 ~2`，差值 8 = 本轮新增的两个测试文件。
+
+**已知没做**：① 按知识点看它自己的线索边（先要定入口放在管理页哪一行）；② 手写/删除边的界面
+（写入路径仍只有材料确认那一条）；③ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）；
+④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1` 真的跑进引擎。
+
+---
+
 ## 2026-10-16 轮次六十九：从"待确认清单"恢复 —— 关掉页面之后那批还在（Lead）
 
 **做了什么**：roadmap §2-C ① 遗留的最后一条"从待确认清单恢复的界面"。轮次六十五给这条路开了界面入口，

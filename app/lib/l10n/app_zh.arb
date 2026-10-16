@@ -483,6 +483,29 @@
     "placeholders": { "factor": { "type": "String" } }
   },
 
+  "knowledgeEdges": "线索边",
+  "knowledgeEdgesIntro": "资料里的连接在你点头之后落在这里：严格有向（A → B 不代表 B → A），ls 没有标定来源、一律标未标定，有一端不在库里就按 id 显示。",
+  "knowledgeEdgesEmpty": "还没有线索边 —— 材料里的连接要在「添加资料」里确认之后才会落在这里。",
+  "knowledgeEdgesCount": "{count} 条线索边",
+  "@knowledgeEdgesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "knowledgeEdgesOriginContains": "材料里写了包含关系",
+  "knowledgeEdgesOriginProduce": "材料里写了产出关系",
+  "knowledgeEdgesOriginTopic": "主题分组",
+  "knowledgeEdgesOriginManual": "手写",
+  "knowledgeEdgesOriginMaterial": "材料（没写是哪种关系）",
+  "knowledgeEdgesLs": "ls {ls}（未标定）",
+  "@knowledgeEdgesLs": {
+    "placeholders": { "ls": { "type": "String" } }
+  },
+  "knowledgeEdgesLsCalibrated": "ls {ls}",
+  "@knowledgeEdgesLsCalibrated": {
+    "placeholders": { "ls": { "type": "String" } }
+  },
+  "knowledgeEdgesNoLs": "材料没给 ls（不假装有）",
+  "knowledgeEdgesMissingEnd": "有一端不在库里，按 id 显示",
+
   "settingsDemoData": "载入示例数据",
   "settingsDemoDataHint": "生成一批示例标签、闪存卡、事件与日程块，方便先看界面效果。",
   "settingsDemoDataConfirm": "把示例数据加进当前工作区？",

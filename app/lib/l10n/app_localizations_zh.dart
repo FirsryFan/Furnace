@@ -1128,6 +1128,52 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get knowledgeEdges => '线索边';
+
+  @override
+  String get knowledgeEdgesIntro =>
+      '资料里的连接在你点头之后落在这里：严格有向（A → B 不代表 B → A），ls 没有标定来源、一律标未标定，有一端不在库里就按 id 显示。';
+
+  @override
+  String get knowledgeEdgesEmpty => '还没有线索边 —— 材料里的连接要在「添加资料」里确认之后才会落在这里。';
+
+  @override
+  String knowledgeEdgesCount(int count) {
+    return '$count 条线索边';
+  }
+
+  @override
+  String get knowledgeEdgesOriginContains => '材料里写了包含关系';
+
+  @override
+  String get knowledgeEdgesOriginProduce => '材料里写了产出关系';
+
+  @override
+  String get knowledgeEdgesOriginTopic => '主题分组';
+
+  @override
+  String get knowledgeEdgesOriginManual => '手写';
+
+  @override
+  String get knowledgeEdgesOriginMaterial => '材料（没写是哪种关系）';
+
+  @override
+  String knowledgeEdgesLs(String ls) {
+    return 'ls $ls（未标定）';
+  }
+
+  @override
+  String knowledgeEdgesLsCalibrated(String ls) {
+    return 'ls $ls';
+  }
+
+  @override
+  String get knowledgeEdgesNoLs => '材料没给 ls（不假装有）';
+
+  @override
+  String get knowledgeEdgesMissingEnd => '有一端不在库里，按 id 显示';
+
+  @override
   String get settingsDemoData => '载入示例数据';
 
   @override

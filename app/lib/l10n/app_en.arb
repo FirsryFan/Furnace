@@ -477,6 +477,29 @@
     "placeholders": { "factor": { "type": "String" } }
   },
 
+  "knowledgeEdges": "Clue edges",
+  "knowledgeEdgesIntro": "Connections from your material land here once you confirm them: strictly directed (A → B does not mean B → A), ls has no calibration source so it is always marked uncalibrated, and an end that is not in the library is shown by id.",
+  "knowledgeEdgesEmpty": "No clue edges yet — connections from material only land here after you confirm them under \"Add material\".",
+  "knowledgeEdgesCount": "{count} clue edges",
+  "@knowledgeEdgesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "knowledgeEdgesOriginContains": "the material stated containment",
+  "knowledgeEdgesOriginProduce": "the material stated production",
+  "knowledgeEdgesOriginTopic": "topic grouping",
+  "knowledgeEdgesOriginManual": "hand-written",
+  "knowledgeEdgesOriginMaterial": "material (relation not stated)",
+  "knowledgeEdgesLs": "ls {ls} (uncalibrated)",
+  "@knowledgeEdgesLs": {
+    "placeholders": { "ls": { "type": "String" } }
+  },
+  "knowledgeEdgesLsCalibrated": "ls {ls}",
+  "@knowledgeEdgesLsCalibrated": {
+    "placeholders": { "ls": { "type": "String" } }
+  },
+  "knowledgeEdgesNoLs": "the material gave no ls (none is claimed)",
+  "knowledgeEdgesMissingEnd": "one end is not in the library, shown by id",
+
   "settingsDemoData": "Load demo data",
   "settingsDemoDataHint": "Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.",
   "settingsDemoDataConfirm": "Add the demo data to the current workspace?",

@@ -8,6 +8,7 @@ import '../database/app_database_provider.dart';
 import 'anki_repository.dart';
 import 'assessment_repository.dart';
 import 'diffusion_log_repository.dart';
+import 'knowledge_edge_repository.dart';
 import 'mind_map_repository.dart';
 import 'material_intake_repository.dart';
 import 'package_repository.dart';
@@ -55,6 +56,13 @@ final diffusionLogRepositoryProvider = Provider<DiffusionLogRepository>((ref) {
 
 final ankiRepositoryProvider = Provider<AnkiRepository>((ref) {
   return AnkiRepository(ref.watch(appDatabaseProvider));
+});
+
+/// 线索边的读法（`knowledge_edges`，轮次六十八定案；轮次七十给它一个界面）。
+/// 只读：边的写入只有材料摄取那一条路。
+final knowledgeEdgeRepositoryProvider =
+    Provider<KnowledgeEdgeRepository>((ref) {
+  return KnowledgeEdgeRepository(ref.watch(appDatabaseProvider));
 });
 
 /// 材料入库的待确认清单（`docs/MINDNET_ROADMAP.md` §2-C ①）：批次 + 提案，

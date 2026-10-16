@@ -1372,7 +1372,8 @@ class KnowledgeEdges extends Table {
   TextColumn get fromId => text()();
   TextColumn get toId => text()();
 
-  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic` / `manual`。
+  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic`（材料里写的关系），
+  /// 手写边记 `manual`，材料没写清关系时记 `material`。
   ///
   /// 只是出处，不是权重：线的方向与含义由 [fromId] → [toId] 定，反过来要另建一条。
   TextColumn get origin => text()();

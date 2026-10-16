@@ -2175,6 +2175,84 @@ abstract class AppLocalizations {
   /// **'x{factor}'**
   String knowledgeInsightFactor(String factor);
 
+  /// No description provided for @knowledgeEdges.
+  ///
+  /// In en, this message translates to:
+  /// **'Clue edges'**
+  String get knowledgeEdges;
+
+  /// No description provided for @knowledgeEdgesIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Connections from your material land here once you confirm them: strictly directed (A → B does not mean B → A), ls has no calibration source so it is always marked uncalibrated, and an end that is not in the library is shown by id.'**
+  String get knowledgeEdgesIntro;
+
+  /// No description provided for @knowledgeEdgesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No clue edges yet — connections from material only land here after you confirm them under \"Add material\".'**
+  String get knowledgeEdgesEmpty;
+
+  /// No description provided for @knowledgeEdgesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} clue edges'**
+  String knowledgeEdgesCount(int count);
+
+  /// No description provided for @knowledgeEdgesOriginContains.
+  ///
+  /// In en, this message translates to:
+  /// **'the material stated containment'**
+  String get knowledgeEdgesOriginContains;
+
+  /// No description provided for @knowledgeEdgesOriginProduce.
+  ///
+  /// In en, this message translates to:
+  /// **'the material stated production'**
+  String get knowledgeEdgesOriginProduce;
+
+  /// No description provided for @knowledgeEdgesOriginTopic.
+  ///
+  /// In en, this message translates to:
+  /// **'topic grouping'**
+  String get knowledgeEdgesOriginTopic;
+
+  /// No description provided for @knowledgeEdgesOriginManual.
+  ///
+  /// In en, this message translates to:
+  /// **'hand-written'**
+  String get knowledgeEdgesOriginManual;
+
+  /// No description provided for @knowledgeEdgesOriginMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'material (relation not stated)'**
+  String get knowledgeEdgesOriginMaterial;
+
+  /// No description provided for @knowledgeEdgesLs.
+  ///
+  /// In en, this message translates to:
+  /// **'ls {ls} (uncalibrated)'**
+  String knowledgeEdgesLs(String ls);
+
+  /// No description provided for @knowledgeEdgesLsCalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'ls {ls}'**
+  String knowledgeEdgesLsCalibrated(String ls);
+
+  /// No description provided for @knowledgeEdgesNoLs.
+  ///
+  /// In en, this message translates to:
+  /// **'the material gave no ls (none is claimed)'**
+  String get knowledgeEdgesNoLs;
+
+  /// No description provided for @knowledgeEdgesMissingEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'one end is not in the library, shown by id'**
+  String get knowledgeEdgesMissingEnd;
+
   /// No description provided for @settingsDemoData.
   ///
   /// In en, this message translates to:

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/today_plan_page.dart';
 import 'anki_manage_page.dart';
+import 'knowledge_edge_page.dart';
 import 'knowledge_insight_page.dart';
 import 'review_page.dart';
 import 'review_plan_page.dart';
@@ -47,6 +48,17 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (context) => const ReviewPlanPage(),
+              ),
+            ),
+          ),
+          IconButton(
+            // 线索边：资料里的连接确认之后落在 `knowledge_edges` 里，这一页是它们
+            // 唯一的读法（一份只读清单 —— 有写者没读者等于没落地）。
+            tooltip: l10n.knowledgeEdges,
+            icon: const Icon(Icons.hub_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const KnowledgeEdgePage(),
               ),
             ),
           ),
