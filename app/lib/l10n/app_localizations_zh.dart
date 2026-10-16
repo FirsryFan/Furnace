@@ -594,7 +594,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get materialIntakeIntro =>
-      '纸上的材料由 AI 读成 mindnet.material/1 信封，这一页做后面两步：贴进来 → 看提案（每条都带出自哪一页哪一行）→ 点头。确认之前一个知识点都不写；连接先不动（资料与卡片是线索边还是包含边还没定，roadmap §2-C ④）。';
+      '纸上的材料由 AI 读成 mindnet.material/1 信封，这一页做后面两步：贴进来 → 看提案（每条都带出自哪一页哪一行）→ 点头。确认之前一个知识点都不写；连接落成 knowledge_edges 的线索边（严格有向、ls 未标定，两端都在才落）。';
 
   @override
   String get materialIntakeEnvelopeLabel => '信封（mindnet.material/1）';
@@ -611,6 +611,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
+
+  @override
+  String materialIntakePendingTitle(int count) {
+    return '待确认清单（$count 批，关掉页面也在）';
+  }
+
+  @override
+  String get materialIntakePendingHint =>
+      '这些都是看过、还没点头的：接着看就是当初那一份（不重算），确认之后才会写知识点与线索边。';
+
+  @override
+  String materialIntakePendingBatch(int count, String batch) {
+    return '$batch：$count 条待确认';
+  }
+
+  @override
+  String get materialIntakeRestore => '接着确认';
 
   @override
   String materialIntakeBadEnvelope(String error) {

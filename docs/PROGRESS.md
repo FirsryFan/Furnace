@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-16 轮次六十九：从"待确认清单"恢复 —— 关掉页面之后那批还在（Lead）
+
+**做了什么**：roadmap §2-C ① 遗留的最后一条"从待确认清单恢复的界面"。轮次六十五给这条路开了界面入口，
+但入口只在"刚贴完那一批"上活着：仓储早就把"算过但还没点头"存住了（`material_intake_batches` +
+`material_intake_proposals`，`applied_at` NULL），可关掉页面之后那批就没人能接着确认 ——
+库里存着规矩、界面上看不见，等于把"确认前不写"做成了"确认前不写，除非你别关页面"。
+
+- `app/lib/features/cognitive/application/material_intake_reader.dart` 多两个入口：
+  `readPendingBatches({repository})`（`repository.batches()` 里只留 `unappliedCount > 0`，新的在前）与
+  `readPendingBatch({repository, batchId})`（批次不存在给 `null`，否则读 `pendingProposals`）。
+  **它们不重算**，只把当初登记的提案按原顺序读回来 —— 所以"接着看的就是当初那一份"不是承诺，是同一条记录。
+- 页面（`app/lib/features/cognitive/presentation/material_intake_page.dart`）打开就刷清单，
+  `_restore(batch)` 把那批读回来接着勾；状态从 `_draft` 换成"提案 + 跳过项 + 批次"三样，
+  于是**贴信封与恢复共用同一条渲染与确认路径**。
+- 确认之后同时刷**批次读数**与清单：落不了的连接照旧没确认（`deferred` 不标 `applied_at`），
+  所以成绩单上的"还剩 N 条"与清单上的"待确认 N 条"是同一个数；都确认完了就不再念"待确认 0 条"。
+- 顺手改掉两处过期文案：`app_zh.arb` / `app_en.arb` 的 `materialIntakeIntro`（原来写"连接先不动……
+  还没定"，现在写"连接落成 `knowledge_edges` 的线索边，两端都在才落"）、
+  `material_intake_repository.dart` 里 `unappliedCount` 的 doc。
+
+**刻意选择**：① **恢复不重算** —— 重算意味着"看到的"可能已经不是"库里那份"，而这条纪律的全部价值就是两者一致；
+② **清单只列有欠账的批次**（`unappliedCount > 0`）—— 一个"都是 0 的清单"没有信息量；
+③ **入口不新增页面** —— 恢复是"看提案"的同一件事，多一个页面就多一处能走偏的渲染。
+
+**证据**：`flutter test test/features/cognitive/presentation/material_intake_page_test.dart` →
+`+11: All tests passed!`（原 8 例；新增"从待确认清单恢复：接着确认的就是当初那一份"——
+预登记一批 → 新页面看到清单 → 恢复 → 确认 4 条后知识点 2 行、线索边 2 行、清单不再出现；
+"确认一部分之后，清单里剩下的接着等着"——只确认 3 条时成绩单的"还剩 3 条"与清单读数一致；
+`readPendingBatch` 对不存在的批次返回 `null` 一例）；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1829 ~2: All tests passed!`（exit 0）。
+轮次六十八 后是 `+1826 ~2`，差值 3 = 本轮新增的三例。
+
+**已知的没做**：① 清单只显示"还没确认完"的批次，**已确认完的历史**没有地方可看；
+② TRANSCRIBE 的照片本身（§2-C ③）；③ 把 `run/1` 真的跑进引擎；④ 落下来的线索边还没有界面读它。
+
 ## 2026-10-16 轮次六十八：线索边落库 —— 资料与卡片的关联类型定案（Lead）
 
 **做了什么**：roadmap §2-C ④「资料与卡片的关联类型（线索边 vs 包含边）+ 连接落点」。

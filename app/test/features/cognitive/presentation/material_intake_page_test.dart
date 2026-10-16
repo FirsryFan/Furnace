@@ -2,8 +2,10 @@
 ///
 /// 钉的是这一页的唯一价值：**看到的就是会写的**。
 ///
-///  - 贴信封 → 提案上屏（知识点 + 出处），连接如实标"先不动"；
-///  - 勾选 → 确认之后知识点真的进 `knowledge_points`，同名的不重复建；
+///  - 贴信封 → 提案上屏（知识点 + 出处），连接标清它们是线索边（严格有向、ls 未标定）；
+///  - 勾选 → 确认之后知识点真的进 `knowledge_points`、连接进 `knowledge_edges`，
+///    同名的不重复建、缺端的不编边；
+///  - 关掉页面之后，那批还没点头的提案还在"待确认清单"里，接着确认的就是当初那一份；
 ///  - 不合规的信封整份拒绝，且一行都不写（材料入库是"要么整批进、要么不进"）；
 ///  - 只有"问"的材料不算"没事做了一半"：明说没有要动的东西。
 library;
@@ -17,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/material_intake_repository.dart';
 import 'package:furnace/features/cognitive/application/material_intake_reader.dart';
 import 'package:furnace/features/cognitive/presentation/material_intake_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -216,6 +219,84 @@ void main() {
       expect(edges.map((edge) => edge.lsCalibrated), everyElement(isFalse));
     });
 
+    testWidgets('从待确认清单恢复：接着确认的就是当初那一份', (WidgetTester tester) async {
+      bigSurface(tester);
+      // 先"看过一次提案"（登记成待确认），然后像关掉页面一样把它丢下。
+      final repository = MaterialIntakeRepository(db);
+      final moment = DateTime(2026, 10, 16, 12);
+      final draft = await readMaterialPlan(
+        repository: repository,
+        raw: envelopeJson(),
+        moment: moment,
+      );
+      await recordMaterialPlan(
+        repository: repository,
+        draft: draft,
+        moment: moment,
+      );
+
+      // 重新打开页面：那批还没点头的还在清单里等着（关掉页面不会丢）。
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+      final l10n = l10nOf(tester);
+      expect(find.text(l10n.materialIntakePendingTitle(1)), findsOneWidget);
+      expect(find.textContaining('b-page'), findsWidgets);
+      expect(find.text(l10n.materialIntakeRestore), findsOneWidget);
+      // 还没恢复：提案没上屏。
+      expect(find.text('I relied on him.'), findsNothing);
+      expect(await anki.getKnowledgePoints(), isEmpty);
+
+      await tester.tap(find.text(l10n.materialIntakeRestore));
+      await tester.pumpAndSettle();
+
+      // 恢复出来的是当初那四条：两条知识点 + 两条线索边（不重算，直接读库）。
+      expect(find.text('I relied on him.'), findsOneWidget);
+      expect(find.text('rely on'), findsWidgets);
+      expect(
+        find.textContaining(l10n.materialIntakeConnectionClue),
+        findsNWidgets(2),
+      );
+
+      await confirm(tester, 4);
+      expect(find.textContaining('写入 4 条'), findsOneWidget);
+
+      final points = await anki.getKnowledgePoints();
+      expect(
+        points.map((point) => point.title),
+        containsAll(<String>['I relied on him.', 'rely on']),
+      );
+      expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+      // 欠账还清了，清单就不再出现。
+      expect(find.text(l10n.materialIntakePendingTitle(1)), findsNothing);
+      expect(find.text(l10n.materialIntakeRestore), findsNothing);
+    });
+
+    testWidgets('确认一部分之后，清单里剩下的接着等着', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      // 把"句"那条知识点取消勾选，剩下三条（另一条知识点 + 两条连接）确认。
+      // 两条连接都指向没被建出来的那条知识点，所以它们如实报"落不了"；
+      // 取消勾选的那一条留在待办里 —— 这一批因此还在清单上。
+      // 注意第 0 个 `Checkbox` 是"顺便建主题分组"那个开关，提案从第 1 个开始。
+      await tester.tap(find.byType(Checkbox).at(1));
+      await tester.pumpAndSettle();
+
+      await confirm(tester, 3);
+      // 落不了的两条连接**也算没确认**（`deferred` 不标 `applied_at`），
+      // 所以"还剩"是 1（没勾的那条知识点）+ 2（两条连接）= 3，与清单读数一致。
+      expect(find.textContaining('写入 1 条'), findsOneWidget);
+      expect(find.textContaining('2 条连接落不了'), findsOneWidget);
+      expect(find.textContaining('还剩 3 条待确认'), findsOneWidget);
+      expect(find.textContaining('已登记为待确认（3 条）'), findsOneWidget);
+      expect(
+        find.text(l10nOf(tester).materialIntakePendingTitle(1)),
+        findsOneWidget,
+        reason: '还剩 3 条没确认，这一批应当留在待确认清单里',
+      );
+    });
+
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
       bigSurface(tester);
       await anki.createKnowledgePoint(title: 'rely on', content: '早就有了');
@@ -260,6 +341,14 @@ void main() {
       );
       expect(find.text(l10nOf(tester).materialIntakeConfirm(0)), findsNothing);
       expect(await anki.getKnowledgePoints(), isEmpty);
+    });
+    test('清单只念库里真有的批次：没有的批次读回 null', () async {
+      final repository = MaterialIntakeRepository(db);
+      expect(
+        await readPendingBatch(repository: repository, batchId: '没有这批'),
+        isNull,
+      );
+      expect(await readPendingBatches(repository: repository), isEmpty);
     });
   });
 }

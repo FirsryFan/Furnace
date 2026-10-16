@@ -1223,7 +1223,7 @@ abstract class AppLocalizations {
   /// No description provided for @materialIntakeIntro.
   ///
   /// In en, this message translates to:
-  /// **'Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm, and connections wait until the material-card relation is decided (roadmap §2-C ④).'**
+  /// **'Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm; connections land as clue edges in knowledge_edges (strictly directed, ls uncalibrated, only when both ends exist).'**
   String get materialIntakeIntro;
 
   /// No description provided for @materialIntakeEnvelopeLabel.
@@ -1255,6 +1255,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Also create topic hubs (off by default: a topic groups things, it is not a card relation)'**
   String get materialIntakeTopicHubs;
+
+  /// No description provided for @materialIntakePendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending list ({count} batches, survives closing the page)'**
+  String materialIntakePendingTitle(int count);
+
+  /// No description provided for @materialIntakePendingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These were looked at but never confirmed: resuming shows exactly the batch you saw (nothing is recomputed), and knowledge points and clue edges are written only after you confirm.'**
+  String get materialIntakePendingHint;
+
+  /// No description provided for @materialIntakePendingBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{batch}: {count} pending'**
+  String materialIntakePendingBatch(int count, String batch);
+
+  /// No description provided for @materialIntakeRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get materialIntakeRestore;
 
   /// No description provided for @materialIntakeBadEnvelope.
   ///

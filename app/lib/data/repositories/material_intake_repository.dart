@@ -60,7 +60,7 @@ class MaterialIntakeBatch {
 
   final int proposalCount;
 
-  /// 还没处理的提案数（连接算在内 —— 它们要等 §2-C ④）。
+  /// 还没处理的提案数（知识点与连接都算：连接要等两端都在库里，见 §2-C ④）。
   final int unappliedCount;
 
   bool get isEmpty => proposalCount == 0;

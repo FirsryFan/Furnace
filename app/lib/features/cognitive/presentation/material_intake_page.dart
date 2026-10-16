@@ -7,10 +7,11 @@
 ///  1. 贴信封 → **看提案**：会建哪些知识点、哪些连接，每条出自哪一页哪一行；
 ///     同名知识点标"已存在"（不重复建），不进图的角色留在清单外并写原因。
 ///  2. 勾选 → **确认入库**：写 `knowledge_points`（`external_id` = 材料决定的内容 id，
-///     用户改过标题也认它），连接**先不动**（资料与卡片的关联类型还没定，§2-C ④）。
+///     用户改过标题也认它）与 `knowledge_edges`（连接是线索边，两端都在才落，§2-C ④）。
 ///
-/// 纪律：确认前不写知识点；"待确认清单"落库（`applied_at` NULL），关掉页面不会丢，
-/// 关掉之后想再确认就再贴一次同一份信封 —— 信封定了提案就定了，`record` 是幂等的。
+/// 两个入口做的是同一件事：**贴信封**（现算现登记）与**从待确认清单恢复**
+/// （把当初登记的那批读回来，不重算）。纪律：确认前不写知识点；"待确认清单"落库
+/// （`applied_at` NULL），所以关掉页面不会丢，再打开时清单里还等着。
 ///
 /// 本页不做 AI 提取（那是模型侧的活，工具 `ingest_material` 已在），也不做卡片的
 /// 呈现层（INGEST §4 的可选产物，本层不产出）。
@@ -37,8 +38,14 @@ class MaterialIntakePage extends ConsumerStatefulWidget {
 class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   final TextEditingController _envelopeController = TextEditingController();
 
-  MaterialIntakeDraft? _draft;
+  /// 屏幕上正在看的那批提案（贴信封算出来的，或从清单恢复回来的）。
+  List<MaterialIntakeProposal> _proposals = const <MaterialIntakeProposal>[];
+  List<MaterialIntakeSkip> _skipped = const <MaterialIntakeSkip>[];
   MaterialIntakeBatch? _batch;
+
+  /// 还没有欠账的批次（关掉页面之后回来的入口）。
+  List<MaterialIntakeBatch> _pendingBatches = const <MaterialIntakeBatch>[];
+
   MaterialApplyOutcome? _outcome;
   Set<String> _selected = <String>{};
   String? _error;
@@ -46,9 +53,26 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   bool _includeTopicHubs = false;
 
   @override
+  void initState() {
+    super.initState();
+    _refreshPendingBatches();
+  }
+
+  @override
   void dispose() {
     _envelopeController.dispose();
     super.dispose();
+  }
+
+  /// 重新读一遍"待确认清单"（看提案/确认/清空之后都要刷）。
+  Future<void> _refreshPendingBatches() async {
+    final batches = await readPendingBatches(
+      repository: ref.read(materialIntakeRepositoryProvider),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _pendingBatches = batches);
   }
 
   /// 看提案：推导一遍，并把这份提案登记成"待确认"（幂等）。
@@ -73,12 +97,15 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         draft: draft,
         moment: moment,
       );
+      final pending = await readPendingBatches(repository: repository);
       if (!mounted) {
         return;
       }
       setState(() {
-        _draft = draft;
+        _proposals = draft.plan.proposals;
+        _skipped = draft.plan.skipped;
         _batch = batch;
+        _pendingBatches = pending;
         _selected = <String>{
           for (final proposal in draft.plan.proposals) proposal.id,
         };
@@ -91,13 +118,50 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
   }
 
+  /// 从清单恢复：把那批还没确认的提案读回来接着看/接着确认（不重算）。
+  Future<void> _restore(MaterialIntakeBatch batch) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _outcome = null;
+    });
+    final repository = ref.read(materialIntakeRepositoryProvider);
+    final pending = await readPendingBatch(
+      repository: repository,
+      batchId: batch.batchId,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (pending == null) {
+      setState(() {
+        _busy = false;
+        _pendingBatches = <MaterialIntakeBatch>[
+          for (final item in _pendingBatches)
+            if (item.batchId != batch.batchId) item,
+        ];
+      });
+      return;
+    }
+    setState(() {
+      _proposals = pending.proposals;
+      _skipped = pending.batch.skipped;
+      _batch = pending.batch;
+      _selected = <String>{
+        for (final proposal in pending.proposals) proposal.id,
+      };
+      _busy = false;
+    });
+  }
+
   void _fail(String message) {
     if (!mounted) {
       return;
     }
     setState(() {
       _error = message;
-      _draft = null;
+      _proposals = const <MaterialIntakeProposal>[];
+      _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
       _selected = <String>{};
       _busy = false;
@@ -108,25 +172,32 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   ///
   /// 落不了的连接（有一端还不在库里）由 `apply` 如实报成 `deferred`，留在待办里。
   Future<void> _apply() async {
-    final draft = _draft;
-    if (draft == null) {
+    final batch = _batch;
+    if (batch == null) {
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
     });
+    final repository = ref.read(materialIntakeRepositoryProvider);
     try {
-      final outcome = await ref.read(materialIntakeRepositoryProvider).apply(
-            batchId: draft.plan.batchId,
-            proposalIds: _selected.toList()..sort(),
-            appliedAt: DateTime.now(),
-          );
+      final outcome = await repository.apply(
+        batchId: batch.batchId,
+        proposalIds: _selected.toList()..sort(),
+        appliedAt: DateTime.now(),
+      );
+      // 确认之后的读数要取"现在"的：落不了的连接照旧没确认，所以 `unapplied_count`
+      // 必须和成绩单上的"还剩"是同一个数（否则同一页上两个数字会互相打脸）。
+      final fresh = await repository.batch(batch.batchId);
+      final pending = await readPendingBatches(repository: repository);
       if (!mounted) {
         return;
       }
       setState(() {
         _outcome = outcome;
+        _batch = fresh ?? _batch;
+        _pendingBatches = pending;
         _busy = false;
       });
     } on MaterialApplyException catch (error) {
@@ -143,7 +214,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   void _clear() {
     _envelopeController.clear();
     setState(() {
-      _draft = null;
+      _proposals = const <MaterialIntakeProposal>[];
+      _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
       _outcome = null;
       _selected = <String>{};
@@ -154,7 +226,6 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final draft = _draft;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.materialIntakeTitle)),
       body: ListView(
@@ -195,6 +266,31 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               ),
             ],
           ),
+          if (_pendingBatches.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(
+              l10n.materialIntakePendingTitle(_pendingBatches.length),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            _Note(text: l10n.materialIntakePendingHint),
+            for (final batch in _pendingBatches)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.hourglass_empty, size: 18),
+                title: Text(
+                  l10n.materialIntakePendingBatch(
+                    batch.unappliedCount,
+                    batch.batchId,
+                  ),
+                ),
+                subtitle: Text(batch.summaryText),
+                trailing: TextButton(
+                  onPressed: _busy ? null : () => _restore(batch),
+                  child: Text(l10n.materialIntakeRestore),
+                ),
+              ),
+          ],
           if (_error != null) ...<Widget>[
             const SizedBox(height: 12),
             _Problem(text: _error!),
@@ -210,23 +306,24 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               ),
             ),
           ],
-          if (draft != null) ...<Widget>[
+          if (_batch != null) ...<Widget>[
             const SizedBox(height: 12),
             _Note(
               text: <String>[
-                l10n.materialIntakeProposals(draft.plan.proposals.length),
-                if (draft.plan.skippedCount > 0)
-                  l10n.materialIntakeSkipped(draft.plan.skippedCount),
-                if (_batch != null)
+                l10n.materialIntakeProposals(_proposals.length),
+                if (_skipped.isNotEmpty)
+                  l10n.materialIntakeSkipped(_skipped.length),
+                // 都确认完了就不再念"待确认 0 条"：欠账还清这件事由成绩单说。
+                if (_batch!.unappliedCount > 0)
                   l10n.materialIntakePending(_batch!.unappliedCount),
               ].join(' · '),
             ),
-            if (draft.plan.isEmpty) ...<Widget>[
+            if (_proposals.isEmpty) ...<Widget>[
               const SizedBox(height: 12),
               _Note(text: l10n.materialIntakeNothingToDo),
             ] else ...<Widget>[
               const SizedBox(height: 8),
-              for (final proposal in draft.plan.proposals)
+              for (final proposal in _proposals)
                 _ProposalTile(
                   proposal: proposal,
                   selected: _selected.contains(proposal.id),
@@ -246,13 +343,13 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                 child: Text(l10n.materialIntakeConfirm(_selected.length)),
               ),
             ],
-            if (draft.plan.skipped.isNotEmpty) ...<Widget>[
+            if (_skipped.isNotEmpty) ...<Widget>[
               const SizedBox(height: 16),
               Text(
-                l10n.materialIntakeSkipped(draft.plan.skippedCount),
+                l10n.materialIntakeSkipped(_skipped.length),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              for (final skip in draft.plan.skipped)
+              for (final skip in _skipped)
                 ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,

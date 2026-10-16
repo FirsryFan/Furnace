@@ -7,8 +7,12 @@
 ///
 /// 纪律（和拍照整理同一条）：**确认前不写知识点**。"待确认清单"本身要落库 ——
 /// 否则关掉页面就不知道刚才摆的是什么；落的是 `material_intake_batches` +
-/// `material_intake_proposals`（`applied_at` NULL = 还没确认），写知识点只在
+/// `material_intake_proposals`（`applied_at` NULL = 还没确认），写知识点/线索边只在
 /// `MaterialIntakeRepository.apply` 里发生，本层不碰。
+///
+/// 入口有两个：**贴信封**（[readMaterialPlan] → [recordMaterialPlan]）与
+/// **从清单恢复**（[readPendingBatches] → [readPendingBatch]）—— 后者不重算，
+/// 只是把当初登记的提案读回来。
 library;
 
 import 'dart:convert';
@@ -88,4 +92,38 @@ Future<MaterialIntakeBatch> recordMaterialPlan({
     capturedAtMs:
         DateTime.tryParse(source?.capturedAt ?? '')?.millisecondsSinceEpoch,
   );
+}
+
+/// 从"待确认清单"恢复出来的一批：批次读数 + 还没确认的提案。
+typedef MaterialIntakePending = ({
+  MaterialIntakeBatch batch,
+  List<MaterialIntakeProposal> proposals,
+});
+
+/// 关掉页面之后的入口：把库里还没确认的那批提案读回来。
+///
+/// 与"贴信封看提案"共用同一条纪律的后半段 —— 提案在**看提案**那一刻就已经落库了
+/// （`applied_at` NULL），这里不做任何重算，只是把它按原顺序读回来。所以恢复出来的提案
+/// 与当初在屏幕上看到的那份逐字相同；`record` 的幂等也意味着拿同一份信封再贴一次，
+/// 得到的还是同一批。
+Future<MaterialIntakePending?> readPendingBatch({
+  required MaterialIntakeRepository repository,
+  required String batchId,
+}) async {
+  final batch = await repository.batch(batchId);
+  if (batch == null) {
+    return null;
+  }
+  return (batch: batch, proposals: await repository.pendingProposals(batchId));
+}
+
+/// 还有哪几批没确认完（新的在前）。空列表 = 没有欠账。
+Future<List<MaterialIntakeBatch>> readPendingBatches({
+  required MaterialIntakeRepository repository,
+}) async {
+  final all = await repository.batches();
+  return <MaterialIntakeBatch>[
+    for (final batch in all)
+      if (batch.unappliedCount > 0) batch,
+  ];
 }

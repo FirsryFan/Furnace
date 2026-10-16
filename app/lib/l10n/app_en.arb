@@ -218,12 +218,25 @@
   },
   "materialIntakeTitle": "Add material",
   "materialIntakeEntryHint": "Paste the AI's mindnet.material/1 envelope: see what would be created, then confirm",
-  "materialIntakeIntro": "Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm, and connections wait until the material-card relation is decided (roadmap §2-C ④).",
+  "materialIntakeIntro": "Paper material -> the AI reads it into a mindnet.material/1 envelope -> this page does the last steps: paste it, look at the proposals (each with the page and line it came from), then confirm. Nothing is written into knowledge points before you confirm; connections land as clue edges in knowledge_edges (strictly directed, ls uncalibrated, only when both ends exist).",
   "materialIntakeEnvelopeLabel": "Envelope (mindnet.material/1)",
   "materialIntakeEnvelopeHint": "protocol: mindnet.material/1 · batch_id: ... · items: [ ... ]",
   "materialIntakePreview": "See proposals",
   "materialIntakeClear": "Clear",
   "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
+  "materialIntakePendingTitle": "Pending list ({count} batches, survives closing the page)",
+  "@materialIntakePendingTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakePendingHint": "These were looked at but never confirmed: resuming shows exactly the batch you saw (nothing is recomputed), and knowledge points and clue edges are written only after you confirm.",
+  "materialIntakePendingBatch": "{batch}: {count} pending",
+  "@materialIntakePendingBatch": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "batch": { "type": "String" }
+    }
+  },
+  "materialIntakeRestore": "Resume",
   "materialIntakeBadEnvelope": "Rejected as a whole: {error}",
   "@materialIntakeBadEnvelope": {
     "placeholders": { "error": { "type": "String" } }
