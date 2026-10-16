@@ -254,7 +254,7 @@
   "@materialIntakeDoneDialogTitle": {
     "placeholders": { "batch": { "type": "String" } }
   },
-  "materialIntakeDoneNote": "These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).",
+  "materialIntakeDoneNote": "These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.",
   "materialIntakeBadEnvelope": "Rejected as a whole: {error}",
   "@materialIntakeBadEnvelope": {
     "placeholders": { "error": { "type": "String" } }

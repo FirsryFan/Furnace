@@ -670,7 +670,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get materialIntakeDoneNote =>
-      'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).';
+      'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.';
 
   @override
   String materialIntakeBadEnvelope(String error) {

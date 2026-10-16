@@ -234,6 +234,16 @@ void main() {
     expect(outcome.deferred, hasLength(2));
     expect(await db.select(db.knowledgePoints).get(), hasLength(2));
     expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+
+    // 历史那边读得出来：这一条是"本来就有的"（成绩单只活在这次调用里）。
+    // 落不了的两条边没被标 `applied_at`，所以不在这份名单里。
+    final applied = await repository.appliedProposals('b1');
+    expect(applied, hasLength(2));
+    final byId = <String, bool>{
+      for (final row in applied) row.proposal.id: row.alreadyExisted,
+    };
+    expect(byId['kp:en::w::rely-on'], isTrue);
+    expect(byId['kp:en::s::abc'], isFalse);
   });
 
   test('apply：用户改过标题也能认出来（external_id 是材料决定的内容 id）', () async {
@@ -265,6 +275,16 @@ void main() {
     expect(second.remaining, 0, reason: '第一遍已经把这一批全部处理完了');
     expect(await db.select(db.knowledgePoints).get(), hasLength(2));
     expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+
+    // 第二遍"发现它们都存在"，但历史记的是**第一次点头时**的判断：
+    // 这几条是那时新建的，不该被改写成"本来就有的"。
+    final applied = await repository.appliedProposals('b1');
+    expect(applied, hasLength(4));
+    expect(
+      applied.where((row) => row.alreadyExisted),
+      isEmpty,
+      reason: '第一次确认时它们都是新建的，再确认一次不覆盖这句历史',
+    );
   });
 
   test('apply(proposalIds:)：只处理选中的那几条', () async {

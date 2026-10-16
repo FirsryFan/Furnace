@@ -20826,6 +20826,15 @@ class $MaterialIntakeProposalsTable extends MaterialIntakeProposals
   late final GeneratedColumn<int> appliedAt = GeneratedColumn<int>(
       'applied_at', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _alreadyExistedMeta =
+      const VerificationMeta('alreadyExisted');
+  @override
+  late final GeneratedColumn<bool> alreadyExisted = GeneratedColumn<bool>(
+      'already_existed', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("already_existed" IN (0, 1))'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -20847,6 +20856,7 @@ class $MaterialIntakeProposalsTable extends MaterialIntakeProposals
         kind,
         payloadJson,
         appliedAt,
+        alreadyExisted,
         createdAt,
         updatedAt
       ];
@@ -20904,6 +20914,12 @@ class $MaterialIntakeProposalsTable extends MaterialIntakeProposals
       context.handle(_appliedAtMeta,
           appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta));
     }
+    if (data.containsKey('already_existed')) {
+      context.handle(
+          _alreadyExistedMeta,
+          alreadyExisted.isAcceptableOrUnknown(
+              data['already_existed']!, _alreadyExistedMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -20940,6 +20956,8 @@ class $MaterialIntakeProposalsTable extends MaterialIntakeProposals
           .read(DriftSqlType.string, data['${effectivePrefix}payload_json'])!,
       appliedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}applied_at']),
+      alreadyExisted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}already_existed']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -20984,6 +21002,13 @@ class MaterialIntakeProposalRow extends DataClass
   /// 知识点与连接都会被标上：连接现在是**线索边**，落在 `knowledge_edges` 里
   ///（roadmap §2-C ④，轮次六十八定了这个口径）。
   final int? appliedAt;
+
+  /// 确认时"它是不是本来就在库里"（NULL = 还没确认）。
+  ///
+  /// 成绩单（`MaterialApplyOutcome.existing`）只活在那一次调用里，重启就没了 ——
+  /// 可"已经确认完的历史"要说清每一行是**这次新建的**还是**本来就有的（没重复建）**，
+  /// 所以这句话得跟着提案本身落库（轮次七十五）。
+  final bool? alreadyExisted;
   final int createdAt;
   final int updatedAt;
   const MaterialIntakeProposalRow(
@@ -20994,6 +21019,7 @@ class MaterialIntakeProposalRow extends DataClass
       required this.kind,
       required this.payloadJson,
       this.appliedAt,
+      this.alreadyExisted,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -21007,6 +21033,9 @@ class MaterialIntakeProposalRow extends DataClass
     map['payload_json'] = Variable<String>(payloadJson);
     if (!nullToAbsent || appliedAt != null) {
       map['applied_at'] = Variable<int>(appliedAt);
+    }
+    if (!nullToAbsent || alreadyExisted != null) {
+      map['already_existed'] = Variable<bool>(alreadyExisted);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -21024,6 +21053,9 @@ class MaterialIntakeProposalRow extends DataClass
       appliedAt: appliedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(appliedAt),
+      alreadyExisted: alreadyExisted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(alreadyExisted),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -21040,6 +21072,7 @@ class MaterialIntakeProposalRow extends DataClass
       kind: serializer.fromJson<String>(json['kind']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
       appliedAt: serializer.fromJson<int?>(json['appliedAt']),
+      alreadyExisted: serializer.fromJson<bool?>(json['alreadyExisted']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -21055,6 +21088,7 @@ class MaterialIntakeProposalRow extends DataClass
       'kind': serializer.toJson<String>(kind),
       'payloadJson': serializer.toJson<String>(payloadJson),
       'appliedAt': serializer.toJson<int?>(appliedAt),
+      'alreadyExisted': serializer.toJson<bool?>(alreadyExisted),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -21068,6 +21102,7 @@ class MaterialIntakeProposalRow extends DataClass
           String? kind,
           String? payloadJson,
           Value<int?> appliedAt = const Value.absent(),
+          Value<bool?> alreadyExisted = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       MaterialIntakeProposalRow(
@@ -21078,6 +21113,8 @@ class MaterialIntakeProposalRow extends DataClass
         kind: kind ?? this.kind,
         payloadJson: payloadJson ?? this.payloadJson,
         appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
+        alreadyExisted:
+            alreadyExisted.present ? alreadyExisted.value : this.alreadyExisted,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -21093,6 +21130,9 @@ class MaterialIntakeProposalRow extends DataClass
       payloadJson:
           data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
       appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+      alreadyExisted: data.alreadyExisted.present
+          ? data.alreadyExisted.value
+          : this.alreadyExisted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -21108,6 +21148,7 @@ class MaterialIntakeProposalRow extends DataClass
           ..write('kind: $kind, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('appliedAt: $appliedAt, ')
+          ..write('alreadyExisted: $alreadyExisted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -21116,7 +21157,7 @@ class MaterialIntakeProposalRow extends DataClass
 
   @override
   int get hashCode => Object.hash(id, batchId, proposalId, sortIndex, kind,
-      payloadJson, appliedAt, createdAt, updatedAt);
+      payloadJson, appliedAt, alreadyExisted, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -21128,6 +21169,7 @@ class MaterialIntakeProposalRow extends DataClass
           other.kind == this.kind &&
           other.payloadJson == this.payloadJson &&
           other.appliedAt == this.appliedAt &&
+          other.alreadyExisted == this.alreadyExisted &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -21141,6 +21183,7 @@ class MaterialIntakeProposalsCompanion
   final Value<String> kind;
   final Value<String> payloadJson;
   final Value<int?> appliedAt;
+  final Value<bool?> alreadyExisted;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -21152,6 +21195,7 @@ class MaterialIntakeProposalsCompanion
     this.kind = const Value.absent(),
     this.payloadJson = const Value.absent(),
     this.appliedAt = const Value.absent(),
+    this.alreadyExisted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -21164,6 +21208,7 @@ class MaterialIntakeProposalsCompanion
     required String kind,
     required String payloadJson,
     this.appliedAt = const Value.absent(),
+    this.alreadyExisted = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -21183,6 +21228,7 @@ class MaterialIntakeProposalsCompanion
     Expression<String>? kind,
     Expression<String>? payloadJson,
     Expression<int>? appliedAt,
+    Expression<bool>? alreadyExisted,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -21195,6 +21241,7 @@ class MaterialIntakeProposalsCompanion
       if (kind != null) 'kind': kind,
       if (payloadJson != null) 'payload_json': payloadJson,
       if (appliedAt != null) 'applied_at': appliedAt,
+      if (alreadyExisted != null) 'already_existed': alreadyExisted,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -21209,6 +21256,7 @@ class MaterialIntakeProposalsCompanion
       Value<String>? kind,
       Value<String>? payloadJson,
       Value<int?>? appliedAt,
+      Value<bool?>? alreadyExisted,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -21220,6 +21268,7 @@ class MaterialIntakeProposalsCompanion
       kind: kind ?? this.kind,
       payloadJson: payloadJson ?? this.payloadJson,
       appliedAt: appliedAt ?? this.appliedAt,
+      alreadyExisted: alreadyExisted ?? this.alreadyExisted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -21250,6 +21299,9 @@ class MaterialIntakeProposalsCompanion
     if (appliedAt.present) {
       map['applied_at'] = Variable<int>(appliedAt.value);
     }
+    if (alreadyExisted.present) {
+      map['already_existed'] = Variable<bool>(alreadyExisted.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -21272,6 +21324,7 @@ class MaterialIntakeProposalsCompanion
           ..write('kind: $kind, ')
           ..write('payloadJson: $payloadJson, ')
           ..write('appliedAt: $appliedAt, ')
+          ..write('alreadyExisted: $alreadyExisted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -21468,7 +21521,8 @@ class KnowledgeEdgeRow extends DataClass
   final String fromId;
   final String toId;
 
-  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic` / `manual`。
+  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic`（材料里写的关系），
+  /// 手写边记 `manual`，材料没写清关系时记 `material`。
   ///
   /// 只是出处，不是权重：线的方向与含义由 [fromId] → [toId] 定，反过来要另建一条。
   final String origin;
@@ -31861,6 +31915,7 @@ typedef $$MaterialIntakeProposalsTableCreateCompanionBuilder
   required String kind,
   required String payloadJson,
   Value<int?> appliedAt,
+  Value<bool?> alreadyExisted,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -31874,6 +31929,7 @@ typedef $$MaterialIntakeProposalsTableUpdateCompanionBuilder
   Value<String> kind,
   Value<String> payloadJson,
   Value<int?> appliedAt,
+  Value<bool?> alreadyExisted,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -31908,6 +31964,10 @@ class $$MaterialIntakeProposalsTableFilterComposer
 
   ColumnFilters<int> get appliedAt => $composableBuilder(
       column: $table.appliedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get alreadyExisted => $composableBuilder(
+      column: $table.alreadyExisted,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -31946,6 +32006,10 @@ class $$MaterialIntakeProposalsTableOrderingComposer
   ColumnOrderings<int> get appliedAt => $composableBuilder(
       column: $table.appliedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get alreadyExisted => $composableBuilder(
+      column: $table.alreadyExisted,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -31982,6 +32046,9 @@ class $$MaterialIntakeProposalsTableAnnotationComposer
 
   GeneratedColumn<int> get appliedAt =>
       $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get alreadyExisted => $composableBuilder(
+      column: $table.alreadyExisted, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -32028,6 +32095,7 @@ class $$MaterialIntakeProposalsTableTableManager extends RootTableManager<
             Value<String> kind = const Value.absent(),
             Value<String> payloadJson = const Value.absent(),
             Value<int?> appliedAt = const Value.absent(),
+            Value<bool?> alreadyExisted = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -32040,6 +32108,7 @@ class $$MaterialIntakeProposalsTableTableManager extends RootTableManager<
             kind: kind,
             payloadJson: payloadJson,
             appliedAt: appliedAt,
+            alreadyExisted: alreadyExisted,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -32052,6 +32121,7 @@ class $$MaterialIntakeProposalsTableTableManager extends RootTableManager<
             required String kind,
             required String payloadJson,
             Value<int?> appliedAt = const Value.absent(),
+            Value<bool?> alreadyExisted = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -32064,6 +32134,7 @@ class $$MaterialIntakeProposalsTableTableManager extends RootTableManager<
             kind: kind,
             payloadJson: payloadJson,
             appliedAt: appliedAt,
+            alreadyExisted: alreadyExisted,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

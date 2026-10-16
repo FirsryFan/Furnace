@@ -1313,7 +1313,7 @@ abstract class AppLocalizations {
   /// No description provided for @materialIntakeDoneNote.
   ///
   /// In en, this message translates to:
-  /// **'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).'**
+  /// **'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated). Rows marked \"already exists - no duplicate\" were in the library when you confirmed; the rest were written just now.'**
   String get materialIntakeDoneNote;
 
   /// No description provided for @materialIntakeBadEnvelope.

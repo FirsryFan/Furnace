@@ -1344,6 +1344,13 @@ class MaterialIntakeProposals extends Table {
   ///（roadmap §2-C ④，轮次六十八定了这个口径）。
   IntColumn get appliedAt => integer().nullable()();
 
+  /// 确认时"它是不是本来就在库里"（NULL = 还没确认）。
+  ///
+  /// 成绩单（`MaterialApplyOutcome.existing`）只活在那一次调用里，重启就没了 ——
+  /// 可"已经确认完的历史"要说清每一行是**这次新建的**还是**本来就有的（没重复建）**，
+  /// 所以这句话得跟着提案本身落库（轮次七十五）。
+  BoolColumn get alreadyExisted => boolean().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

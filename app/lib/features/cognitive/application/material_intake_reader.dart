@@ -129,10 +129,11 @@ Future<List<MaterialIntakeBatch>> readPendingBatches({
   ];
 }
 
-/// 已经从"待确认清单"里读回来、并且已经点过头的某一批：批次读数 + 已确认的提案。
+/// 已经被点名过、并且已经确认完的某一批：批次读数 + 已确认的提案
+/// （每条带"这次新建的 / 本来就有的"）。
 typedef MaterialIntakeApplied = ({
   MaterialIntakeBatch batch,
-  List<MaterialIntakeProposal> proposals,
+  List<MaterialAppliedProposal> proposals,
 });
 
 /// 已经确认完的批次（新的在前）：这批点名过、没有欠账。

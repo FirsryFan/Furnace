@@ -653,7 +653,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get materialIntakeDoneNote =>
-      '这些都进库了：知识点在 knowledge_points，连接是 knowledge_edges 里的线索边（ls 未标定）。';
+      '这些都进库了：知识点在 knowledge_points，连接是 knowledge_edges 里的线索边（ls 未标定）。标「已存在，不重复建」的那几条是确认时库里就有的，其余是这次才写下去的。';
 
   @override
   String materialIntakeBadEnvelope(String error) {

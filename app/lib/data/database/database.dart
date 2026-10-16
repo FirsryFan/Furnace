@@ -102,9 +102,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
-  /// [_upgradeV16ToV17] / [_upgradeV17ToV18].
+  /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19].
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration {
@@ -164,6 +164,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 18) {
           await _upgradeV17ToV18();
         }
+        if (from < 19) {
+          await _upgradeV18ToV19();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -222,6 +225,12 @@ class AppDatabase extends _$AppDatabase {
         reviewLogs.reviewedSolution,
         reviewLogs.closeness,
         reviewLogs.predictedR,
+      ],
+      // v19: "这条提案确认时是不是本来就有的"。 A file stamped v19 whose
+      // proposals table predates the column would make the history dialog throw
+      // on the first read - the same failure mode as the columns above.
+      'material_intake_proposals': [
+        materialIntakeProposals.alreadyExisted,
       ],
     };
     final m = Migrator(this);
@@ -572,6 +581,19 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// v18 -> v19：`material_intake_proposals.already_existed`（轮次七十五）。
+  ///
+  /// 纯新增一列，老行不动。它让"已经确认完的历史"能说清每一行是这次新建的、
+  /// 还是确认时库里就有的（原来的成绩单只活在那一次调用里，重启就没了）。
+  Future<void> _upgradeV18ToV19() async {
+    if (!await _tableExists('material_intake_proposals')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'material_intake_proposals', materialIntakeProposals.alreadyExisted);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -777,6 +799,10 @@ class AppDatabase extends _$AppDatabase {
       // package dump/restore path resolves every user table by name.
       case 'thread_rank_settings':
         return threadRankSettings;
+      // v19: the self-heal pass adds the "was it already there" column, so a
+      // file claiming v19 must be able to resolve the table by name.
+      case 'material_intake_proposals':
+        return materialIntakeProposals;
       default:
         throw ArgumentError('unknown table $name');
     }

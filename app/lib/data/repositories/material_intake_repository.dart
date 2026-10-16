@@ -113,6 +113,22 @@ class MaterialAppliedPoint {
       };
 }
 
+/// 一条**已经确认过**的提案，以及"这次是新建的，还是本来就有的"。
+///
+/// 成绩单（[MaterialApplyOutcome]）只活在那一次调用里；要让"已经确认完的历史"
+/// 说清这件事，就得把它落在提案行上（`already_existed`，轮次七十五）。
+class MaterialAppliedProposal {
+  const MaterialAppliedProposal({
+    required this.proposal,
+    required this.alreadyExisted,
+  });
+
+  final MaterialIntakeProposal proposal;
+
+  /// true = 确认时库里已经有了（没重复建）；false = 这次才写下去的。
+  final bool alreadyExisted;
+}
+
 /// `apply` 建出来的一条**线索边**（`knowledge_edges`）。
 class MaterialAppliedEdge {
   const MaterialAppliedEdge({
@@ -346,16 +362,23 @@ class MaterialIntakeRepository {
     return [for (final row in rows) _toProposal(row)];
   }
 
-  /// 一批里已经确认过的提案（`applied_at` 非空），按记录时的次序。
+  /// 一批里已经确认过的提案（`applied_at` 非空），按记录时的次序，
+  /// 每条带上"这次新建的 / 本来就有的"。
   ///
   /// "确认过"就是"写过库"：知识点与线索边各自落成，缺端的连接根本没标 `applied_at`
   /// （它们还在 `pendingProposals` 里），所以这份名单里不会出现"其实没落"的条目。
-  Future<List<MaterialIntakeProposal>> appliedProposals(String batchId) async {
+  Future<List<MaterialAppliedProposal>> appliedProposals(String batchId) async {
     final rows = await (_db.select(_db.materialIntakeProposals)
           ..where((t) => t.batchId.equals(batchId) & t.appliedAt.isNotNull())
           ..orderBy([(t) => OrderingTerm.asc(t.sortIndex)]))
         .get();
-    return [for (final row in rows) _toProposal(row)];
+    return [
+      for (final row in rows)
+        MaterialAppliedProposal(
+          proposal: _toProposal(row),
+          alreadyExisted: row.alreadyExisted ?? false,
+        ),
+    ];
   }
 
   /// 一批里的全部提案（含已确认的），按记录时的次序。
@@ -429,7 +452,7 @@ class MaterialIntakeRepository {
           } else {
             existingEdges.add(proposal.id);
           }
-          await _markApplied(proposalRow, now);
+          await _markApplied(proposalRow, now, alreadyExisted: !edge.created);
           continue;
         }
         if (!picked) {
@@ -443,7 +466,7 @@ class MaterialIntakeRepository {
         } else {
           existing.add(proposal.id);
         }
-        await _markApplied(proposalRow, now);
+        await _markApplied(proposalRow, now, alreadyExisted: !point.created);
       }
     });
 
@@ -458,11 +481,24 @@ class MaterialIntakeRepository {
     );
   }
 
-  Future<void> _markApplied(MaterialIntakeProposalRow row, int now) async {
+  /// 标上"确认过了"，并记下"它本来就有的还是这次新建的"。
+  ///
+  /// 这句判断只在此刻成立（成绩单只活在这次调用里），所以随提案一起落库 ——
+  /// 历史那里读的是[appliedProposals]。已经确认过的行**不覆盖**这句历史：
+  /// 第一次点头时的判断才是"我上次建了什么"的答案，再确认一次不该把它改成
+  /// "本来就有的"。
+  Future<void> _markApplied(
+    MaterialIntakeProposalRow row,
+    int now, {
+    required bool alreadyExisted,
+  }) async {
+    final firstTime = row.appliedAt == null;
     await (_db.update(_db.materialIntakeProposals)
           ..where((t) => t.id.equals(row.id)))
         .write(MaterialIntakeProposalsCompanion(
       appliedAt: Value(now),
+      alreadyExisted:
+          Value(firstTime ? alreadyExisted : (row.alreadyExisted ?? false)),
       updatedAt: Value(now),
     ));
   }

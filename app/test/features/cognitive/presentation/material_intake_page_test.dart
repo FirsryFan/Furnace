@@ -340,6 +340,41 @@ void main() {
       );
     });
 
+    testWidgets('历史里说清哪几条是"本来就有的"', (WidgetTester tester) async {
+      bigSurface(tester);
+      // 带 external_id 的老点：升级/重贴同一份材料时它就是"本来就有的"。
+      await anki.createKnowledgePoint(
+        title: 'rely on（先有的）',
+        content: '早就有了',
+        externalId: 'en::w::rely-on',
+      );
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+      await confirm(tester, 4);
+
+      final l10n = l10nOf(tester);
+      // 一条老的 + 这次新建的一条点与两条边 ⇒ 全落地，整批挪进历史。
+      expect(find.textContaining('写入 3 条'), findsOneWidget);
+      expect(find.textContaining('1 条已存在'), findsOneWidget);
+      expect(find.text(l10n.materialIntakeDoneTitle(1)), findsOneWidget);
+
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      // 那一条被标出来："已存在，不重复建"；其余是这次才写下去的。
+      // 只数那一条提案的副标题 —— 页面背后那批提案也带着同一个标记，
+      // 而对话框末尾的说明里也会提到这几个字。
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.textContaining(
+              '${l10n.materialIntakeKindPoint} · ${l10n.materialIntakeExisting}'),
+        ),
+        findsOneWidget,
+        reason: '成绩单只活在那一次调用里，这句历史随提案落库了',
+      );
+      expect(find.text(l10n.materialIntakeDoneNote), findsOneWidget);
+    });
+
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
       bigSurface(tester);
       await anki.createKnowledgePoint(title: 'rely on', content: '早就有了');
@@ -432,8 +467,13 @@ void main() {
       expect(applied, isNotNull);
       expect(applied!.proposals, hasLength(4));
       expect(
-        applied.proposals.map((proposal) => proposal.title),
+        applied.proposals.map((applied) => applied.proposal.title),
         containsAll(<String>['I relied on him.', 'rely on']),
+      );
+      // 全新建（库里本来没有）：成绩单上那句"这次新建的"随提案一起落库。
+      expect(
+        applied.proposals.where((applied) => applied.alreadyExisted),
+        isEmpty,
       );
     });
   });

@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-10-17 轮次七十五：成绩单落进历史 —— "本来就有的"这句话存下来了（Lead）
+
+**做了什么**：轮次七十三做出"已经确认完的历史"，但那份历史只会念"当初确认了什么"。成绩单上那句
+"哪几条是本来就有的（没重复建）"只活在 `apply` 那一次调用里 —— 关掉页面、重启应用就没了；同一份
+材料重贴两次，历史里两条长得一模一样，看不出"这条其实是上次就有的，系统没重复建"。这一轮把这句
+**只有确认那一刻知道**的判断（`_createPoint`/`_createEdge` 刚刚查过库）随提案一起落库。
+
+- `app/lib/data/database/tables.dart` + `database.dart`：新列 `material_intake_proposals.already_existed`
+  （**v19**）—— `_upgradeV18ToV19` 走 `_addColumnIfMissing`，`_ensureColumns` 的 `expected` 里也补上
+  （加的是列不是表，靠列自愈），`_tableFor` 补 `case 'material_intake_proposals'`（这个洞是第一次跑
+  v19 迁移测试时红出来的：自愈路径解析不到表名，直接 `unknown table`）。
+- `app/lib/data/repositories/material_intake_repository.dart`：新增 `MaterialAppliedProposal`
+  （提案 + `alreadyExisted`）；`appliedProposals()` 改读这一对；`_markApplied` 多一个
+  `alreadyExisted` 参数 —— **已经确认过的行不覆盖这句历史**（第一次点头的判断才是"我上次建了什么"
+  的答案，幂等重放不该把它改写成"本来就有的"）。
+- `app/lib/features/cognitive/application/material_intake_reader.dart`：`MaterialIntakeApplied.proposals`
+  的类型跟着换成 `List<MaterialAppliedProposal>`（读者只有它一个）。
+- `app/lib/features/cognitive/presentation/material_intake_page.dart`：历史对话框那一行多一句
+  "**已存在，不重复建**"；`materialIntakeDoneNote` 两个 ARB 都改了，说清标了这句的那几条是确认时
+  库里就有的、其余是这次才写下去的。
+
+**三条刻意选择**：① 句子存在**提案行**上，不另建"成绩单"表 —— 它描述的就是那一条提案的那一次确认；
+② 只记"是不是本来就有的"，不记时间戳/旧 id —— 历史要回答的是"我上次建了什么"，不是审计；
+③ 没有 `applied_at` 的行（缺端的连接）一律不出现在历史里，所以"这句话"和"它确实进库了"永远同真。
+
+**证据**：`app/test/data/database/v19_migration_test.dart` 2 例（真 v18 文件升级、被盖成 v19 缺列靠
+自愈；造法是 `ALTER TABLE ... DROP COLUMN already_existed` 再把 `user_version` 压回 18）；
+`app/test/data/repositories/material_intake_repository_test.dart` 两处补断言（"同名已存在"那条读得出
+`alreadyExisted: true`、幂等重放后四行仍全是 `false`）；`app/test/features/cognitive/presentation/
+material_intake_page_test.dart` 新增 1 例 widget（历史对话框里那一条被标出来）；`dart analyze lib test`
+→ `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` →
+`+1860 ~2: All tests passed!`（轮次七十四是 `+1857 ~2`，差值 3）。
+
+**已知的没做**：① 已确认完的批次仍然只看得到、改不了（不能撤销/回滚一次确认）；② 历史里不显示
+"哪几条是这次落不了的"（缺端的连接根本没进历史，只在待确认那张单子上）；③ `ls` 仍没有标定来源
+（roadmap §3 第 7 行那六条实验，需要外部数据）；④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1`
+真的跑进引擎。
+
+---
+
 ## 2026-10-16 轮次七十四：顺着线索边走 —— 名字终于点得动（Lead）
 
 **做了什么**：轮次七十/七十一/七十三把那批线索边显示出来了，可名字只是名字：看到

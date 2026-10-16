@@ -262,8 +262,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               : ListView(
                   shrinkWrap: true,
                   children: <Widget>[
-                    for (final proposal in applied.proposals)
-                      _AppliedTile(proposal: proposal),
+                    for (final applied in applied.proposals)
+                      _AppliedTile(applied: applied),
                     const SizedBox(height: 8),
                     _Note(text: l10n.materialIntakeDoneNote),
                   ],
@@ -526,15 +526,19 @@ class _ProposalTile extends StatelessWidget {
 }
 
 /// 一条**已经确认**的提案（历史只读）：没有勾选框 —— 它已经写进库里了。
+///
+/// 每行还带一句"这次新建的 / 本来就有的（没重复建）"：成绩单只活在那一次调用里，
+/// 所以这句话是确认时落在提案行上的（`already_existed`，轮次七十五）。
 class _AppliedTile extends StatelessWidget {
-  const _AppliedTile({required this.proposal});
+  const _AppliedTile({required this.applied});
 
-  final MaterialIntakeProposal proposal;
+  final MaterialAppliedProposal applied;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final proposal = applied.proposal;
     final isPoint = proposal.kind == MaterialIntakeKind.knowledgePoint;
     final evidence = proposal.evidence;
     final source = evidence.source?.trim();
@@ -552,6 +556,7 @@ class _AppliedTile extends StatelessWidget {
               ? l10n.materialIntakeKindPoint
               : l10n.materialIntakeKindConnection,
           if (!isPoint) l10n.materialIntakeConnectionClue,
+          if (applied.alreadyExisted) l10n.materialIntakeExisting,
           l10n.materialIntakeFrom(
             (source == null || source.isEmpty)
                 ? l10n.materialIntakeNoSource
