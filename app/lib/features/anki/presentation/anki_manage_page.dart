@@ -8,6 +8,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/entities/knowledge_point.dart' as domain;
 import '../application/anki_stats_service.dart';
 import '../application/card_type_preference.dart';
+import 'knowledge_point_edges.dart';
 
 final ankiKnowledgePointsProvider = FutureProvider<List<KnowledgePoint>>((ref) {
   ref.watchDatabaseRevision();
@@ -738,6 +739,9 @@ class AnkiManagePage extends ConsumerWidget {
                   ),
                 if (templates.isEmpty)
                   ListTile(title: Text(l10n.ankiNoDueCards)),
+                // 这个点在图里的线索边（出边 + 入边）：材料确认过的连接落在这里，
+                // 于是"资料进图"在知识点详情里第一次看得见。
+                KnowledgePointEdgesSection(externalId: kp.externalId),
               ],
             ),
           ),

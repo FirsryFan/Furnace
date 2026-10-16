@@ -2253,6 +2253,30 @@ abstract class AppLocalizations {
   /// **'one end is not in the library, shown by id'**
   String get knowledgeEdgesMissingEnd;
 
+  /// No description provided for @knowledgePointEdgesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'this knowledge point has no clue edges yet (they appear once a material connection is confirmed)'**
+  String get knowledgePointEdgesEmpty;
+
+  /// No description provided for @knowledgePointEdgesNotInGraph.
+  ///
+  /// In en, this message translates to:
+  /// **'this knowledge point is not in the material graph (no external_id), so there are no edges to show'**
+  String get knowledgePointEdgesNotInGraph;
+
+  /// No description provided for @knowledgePointEdgesOutgoing.
+  ///
+  /// In en, this message translates to:
+  /// **'points at: {other}'**
+  String knowledgePointEdgesOutgoing(String other);
+
+  /// No description provided for @knowledgePointEdgesIncoming.
+  ///
+  /// In en, this message translates to:
+  /// **'pointed at by: {other}'**
+  String knowledgePointEdgesIncoming(String other);
+
   /// No description provided for @settingsDemoData.
   ///
   /// In en, this message translates to:

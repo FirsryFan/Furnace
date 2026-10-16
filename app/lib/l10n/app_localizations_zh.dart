@@ -1174,6 +1174,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get knowledgeEdgesMissingEnd => '有一端不在库里，按 id 显示';
 
   @override
+  String get knowledgePointEdgesEmpty => '这个知识点还没有线索边（材料里的连接确认之后才会有）';
+
+  @override
+  String get knowledgePointEdgesNotInGraph =>
+      '这个知识点不在材料图里（没有 external_id），所以没有边可看';
+
+  @override
+  String knowledgePointEdgesOutgoing(String other) {
+    return '它指向：$other';
+  }
+
+  @override
+  String knowledgePointEdgesIncoming(String other) {
+    return '指向它：$other';
+  }
+
+  @override
   String get settingsDemoData => '载入示例数据';
 
   @override

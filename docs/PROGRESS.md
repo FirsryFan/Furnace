@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-10-16 轮次七十一：按知识点看线索边 —— 详情里第一次看得见图（Lead）
+
+**做了什么**：轮次七十给 `knowledge_edges` 配了清单页，回答"图里现在有什么线"；可用户真正会问的是
+反过来的一句 —— **"这个词 / 这句话在图里连着谁？"** 清单页能翻，但它把方向冲淡了：同一条边在清单里
+只是 `A → B`，站在某个点的详情里应当是两句话。这一轮把读法从"图的角度"补到"点的角度"。
+
+- `app/lib/data/repositories/knowledge_edge_repository.dart`：新增 `forPoint(externalId)` —— 一个点的
+  **出边和入边一起**读回来（`fromId == id | toId == id`），次序沿用清单页那一条（新的在前）。
+  方向留给调用方判断："谁指向谁"是显示层的事，仓库不替它挑一边。`all()` 与 `forPoint()` 共用
+  `_selectEdgeRows()` / `_viewsOf()`，两种读法的解名与次序不许分叉。
+- `app/lib/features/anki/presentation/knowledge_point_edges.dart`（新 widget `KnowledgePointEdgesSection`）：
+  标题行 + 每条边一行，站在**这个点**的角度说话 —— 出边 `它指向：X`、入边 `指向它：X`，各带自己的箭头，
+  关系名复用清单页那套人话（`knowledgeEdgeOriginLabel` / `knowledgeEdgeEndpointLabel` 从页面私有提成
+  公开顶层函数，两处读同一份口径）。
+- `app/lib/features/anki/presentation/anki_manage_page.dart`：知识点详情对话框（点一个知识点打开的那个）
+  的 ListView 末尾加三行接线 —— 材料确认过的连接落在这里，于是"资料进图"在详情里第一次看得见。
+- **两种"没有"说两句话**：手写的知识点没有 `external_id`（`KnowledgePoints.externalId` 是 nullable 的）
+  ⇒ 说"这个知识点不在材料图里（没有 external_id），所以没有边可看"；在图里但库里没有边 ⇒
+  说"还没有线索边（材料里的连接确认之后才会有）"。拿一个空列表冒充"它没有边"，
+  就是把"我从没进过图"说成"我查过了，确实没有"。
+
+**刻意选择**：① **入口不往 tile 上加第 5 个图标** —— 管理页每个 tile 的 trailing 已经有四个
+（autoBlank / edit / add_card / delete），再加一个会把"这个点是什么"和"它连着谁"挤在同一行；
+对话框本来就是这个点的详情，加一段比加一个按钮更贴题；② **出边入边都算它自己的** —— 只看"它指向谁"
+会漏掉"谁指向它"，而后者恰是"这句话为什么出现在这张卡上"的答案；③ **不在那个 804 行的大页里测新 UI** ——
+新逻辑拆成独立 widget 单独测（那一页此前没有 widget 测试，也不为了这个补一整套）。
+
+**证据**：`flutter test test/data/repositories/knowledge_edge_repository_test.dart
+test/features/anki/knowledge_point_edges_test.dart` → `+9: All tests passed!`
+（2 例新增读法：出边入边都算且别人的边不混进来、查无此点为空；3 例 widget：没有 `external_id` ⇒
+说不在图里、在图里没边 ⇒ 说还没有、一出一入 ⇒ 方向与关系名都在）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1842 ~2: All tests passed!`（exit 0）。
+轮次七十 后是 `+1837 ~2`，差值 5 = 本轮新增的 2 例读法 + 3 例 widget。
+
+**已知没做**：① 点开一条边跳到另一端的知识点（现在只显示名字，不能跳）；② 手写/删除边的界面
+（写入路径仍只有材料确认那一条）；③ 已确认完的历史无处可看；④ `ls` 仍没有标定来源
+（roadmap §3 第 7 行那六条实验，需要外部数据）。
+
 ## 2026-10-16 轮次七十：线索边的读法 —— 那张表终于有人读它（Lead）
 
 **做了什么**：轮次六十八让资料里的连接**能落库**（`knowledge_edges`），可那张表**一个读者都没有** ——

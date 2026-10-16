@@ -13,6 +13,27 @@ final knowledgeEdgesProvider = FutureProvider<List<KnowledgeEdgeView>>((ref) {
   return ref.watch(knowledgeEdgeRepositoryProvider).all();
 });
 
+/// 某个知识点自己的线索边（出边 + 入边）。键是 `knowledge_points.external_id`。
+final knowledgePointEdgesProvider =
+    FutureProvider.family<List<KnowledgeEdgeView>, String>((ref, externalId) {
+  ref.watchDatabaseRevision();
+  return ref.watch(knowledgeEdgeRepositoryProvider).forPoint(externalId);
+});
+
+/// 端点的显示名：库里有点就用标题，没有就照实显示 id（不编一个名字）。
+String knowledgeEdgeEndpointLabel(String? title, String id) => title ?? id;
+
+/// `origin` 是人话，认不出来的关系名照实显示（不硬塞进"材料"那一类）。
+String knowledgeEdgeOriginLabel(AppLocalizations l10n, String origin) =>
+    switch (origin) {
+      'contains' => l10n.knowledgeEdgesOriginContains,
+      'produce' => l10n.knowledgeEdgesOriginProduce,
+      'topic' => l10n.knowledgeEdgesOriginTopic,
+      'manual' => l10n.knowledgeEdgesOriginManual,
+      'material' => l10n.knowledgeEdgesOriginMaterial,
+      _ => origin,
+    };
+
 /// 线索边的只读清单（`knowledge_edges`；`docs/MINDNET_ROADMAP.md` §2-C ④）。
 ///
 /// 轮次六十八让连接**能落库**，这一页让它们**能被看见** —— 一张只有写者、
@@ -114,7 +135,7 @@ class _EdgeTile extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final parts = <String>[
-      _originLabel(l10n, edge.origin),
+      knowledgeEdgeOriginLabel(l10n, edge.origin),
       if (edge.source != null && edge.source!.isNotEmpty) edge.source!,
       if (edge.ls != null)
         edge.lsCalibrated
@@ -133,24 +154,10 @@ class _EdgeTile extends StatelessWidget {
         color: theme.colorScheme.primary,
       ),
       title: Text(
-        '${_label(edge.fromTitle, edge.fromId)} → '
-        '${_label(edge.toTitle, edge.toId)}',
+        '${knowledgeEdgeEndpointLabel(edge.fromTitle, edge.fromId)} → '
+        '${knowledgeEdgeEndpointLabel(edge.toTitle, edge.toId)}',
       ),
       subtitle: Text(parts.join(' · ')),
     );
   }
-
-  /// 端点的显示名：库里有点就用标题，没有就照实显示 id。
-  static String _label(String? title, String id) => title ?? id;
-
-  /// `origin` 是人话，认不出来的关系名照实显示（不硬塞进"材料"那一类）。
-  static String _originLabel(AppLocalizations l10n, String origin) =>
-      switch (origin) {
-        'contains' => l10n.knowledgeEdgesOriginContains,
-        'produce' => l10n.knowledgeEdgesOriginProduce,
-        'topic' => l10n.knowledgeEdgesOriginTopic,
-        'manual' => l10n.knowledgeEdgesOriginManual,
-        'material' => l10n.knowledgeEdgesOriginMaterial,
-        _ => origin,
-      };
 }

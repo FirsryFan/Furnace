@@ -5,7 +5,9 @@
 ///  - 两端的标题按 `knowledge_points.external_id` 解出来，新的边在前；
 ///  - 有一端不在库里就如实留空（界面按 id 显示），不替图编一个名字；
 ///  - `ls` 与 `ls_calibrated` 原样带出来 —— 读法不许把"未标定"洗掉，
-///    也不许把"材料没给 ls"读成 0。
+///    也不许把"材料没给 ls"读成 0；
+///  - `forPoint(id)` 把一个点的出边和入边一起读回来（方向留给调用方判断），
+///    别人的边不许混进来。
 library;
 
 // drift 也导出 `isNull`（那是 SQL 的），测试里要的是 matcher 的那个。
@@ -128,5 +130,44 @@ void main() {
 
   test('没有边就是空，不报错', () async {
     expect(await edges.all(), isEmpty);
+  });
+
+  test('forPoint：出边和入边都算它自己的，别处的边不许混进来', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+    await addPoint(title: 'I relied on him.', externalId: 'en::s::abc');
+    await addPoint(title: 'depend on', externalId: 'en::w::depend-on');
+    await addEdge(
+      id: 'e_out',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+    );
+    await addEdge(
+      id: 'e_in',
+      fromId: 'en::s::abc',
+      toId: 'en::w::rely-on',
+      createdAt: 2000,
+      origin: 'contains',
+    );
+    await addEdge(
+      id: 'e_other',
+      fromId: 'en::w::depend-on',
+      toId: 'en::s::abc',
+      createdAt: 3000,
+    );
+
+    final mine = await edges.forPoint('en::w::rely-on');
+
+    expect(mine.map((e) => e.id), <String>['e_in', 'e_out']);
+    expect(mine.map((e) => e.fromId), <String>['en::s::abc', 'en::w::rely-on']);
+    // 另一端解出名字：出边看 to、入边看 from —— 详情里要按这个说方向。
+    expect(mine.first.toTitle, 'rely on');
+    expect(mine.last.toTitle, 'I relied on him.');
+  });
+
+  test('forPoint：端点查无此点就是空，不替它编身份', () async {
+    await addEdge(id: 'e_1', fromId: 'en::w::rely-on', toId: 'x', createdAt: 1);
+
+    expect(await edges.forPoint('没有这个点'), isEmpty);
   });
 }

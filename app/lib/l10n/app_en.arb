@@ -499,6 +499,16 @@
   },
   "knowledgeEdgesNoLs": "the material gave no ls (none is claimed)",
   "knowledgeEdgesMissingEnd": "one end is not in the library, shown by id",
+  "knowledgePointEdgesEmpty": "this knowledge point has no clue edges yet (they appear once a material connection is confirmed)",
+  "knowledgePointEdgesNotInGraph": "this knowledge point is not in the material graph (no external_id), so there are no edges to show",
+  "knowledgePointEdgesOutgoing": "points at: {other}",
+  "@knowledgePointEdgesOutgoing": {
+    "placeholders": { "other": { "type": "String" } }
+  },
+  "knowledgePointEdgesIncoming": "pointed at by: {other}",
+  "@knowledgePointEdgesIncoming": {
+    "placeholders": { "other": { "type": "String" } }
+  },
 
   "settingsDemoData": "Load demo data",
   "settingsDemoDataHint": "Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.",

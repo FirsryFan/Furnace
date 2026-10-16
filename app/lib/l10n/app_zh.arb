@@ -505,6 +505,16 @@
   },
   "knowledgeEdgesNoLs": "材料没给 ls（不假装有）",
   "knowledgeEdgesMissingEnd": "有一端不在库里，按 id 显示",
+  "knowledgePointEdgesEmpty": "这个知识点还没有线索边（材料里的连接确认之后才会有）",
+  "knowledgePointEdgesNotInGraph": "这个知识点不在材料图里（没有 external_id），所以没有边可看",
+  "knowledgePointEdgesOutgoing": "它指向：{other}",
+  "@knowledgePointEdgesOutgoing": {
+    "placeholders": { "other": { "type": "String" } }
+  },
+  "knowledgePointEdgesIncoming": "指向它：{other}",
+  "@knowledgePointEdgesIncoming": {
+    "placeholders": { "other": { "type": "String" } }
+  },
 
   "settingsDemoData": "载入示例数据",
   "settingsDemoDataHint": "生成一批示例标签、闪存卡、事件与日程块，方便先看界面效果。",

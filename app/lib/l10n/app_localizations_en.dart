@@ -1224,6 +1224,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'one end is not in the library, shown by id';
 
   @override
+  String get knowledgePointEdgesEmpty =>
+      'this knowledge point has no clue edges yet (they appear once a material connection is confirmed)';
+
+  @override
+  String get knowledgePointEdgesNotInGraph =>
+      'this knowledge point is not in the material graph (no external_id), so there are no edges to show';
+
+  @override
+  String knowledgePointEdgesOutgoing(String other) {
+    return 'points at: $other';
+  }
+
+  @override
+  String knowledgePointEdgesIncoming(String other) {
+    return 'pointed at by: $other';
+  }
+
+  @override
   String get settingsDemoData => 'Load demo data';
 
   @override

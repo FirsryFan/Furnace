@@ -63,12 +63,33 @@ class KnowledgeEdgeRepository {
 
   /// 全部线索边，新的在前；两端的标题按 `knowledge_points.external_id` 解出来。
   Future<List<KnowledgeEdgeView>> all() async {
-    final rows = await (_db.select(_db.knowledgeEdges)
-          ..orderBy(<OrderClauseGenerator<$KnowledgeEdgesTable>>[
-            (t) => OrderingTerm.desc(t.createdAt),
-            (t) => OrderingTerm.asc(t.id),
-          ]))
+    final rows = await _selectEdgeRows().get();
+    return _viewsOf(rows);
+  }
+
+  /// 与某个知识点相连的线索边（**出边和入边都在里面**；方向由调用方按 id 判断）。
+  ///
+  /// [externalId] 就是 `knowledge_points.external_id`（材料节点 id）。手写的知识点
+  /// 没有 `external_id`，它们本来就不在图里 —— 那种情况调用方要自己说清楚，
+  /// 不要拿一个空列表冒充"它没有边"。
+  Future<List<KnowledgeEdgeView>> forPoint(String externalId) async {
+    final rows = await (_selectEdgeRows()
+          ..where(
+              (t) => t.fromId.equals(externalId) | t.toId.equals(externalId)))
         .get();
+    return _viewsOf(rows);
+  }
+
+  /// 一张表的两种读法共用同一套次序：新的在前，同一个时间戳按 id 定序。
+  SimpleSelectStatement<$KnowledgeEdgesTable, KnowledgeEdgeRow>
+      _selectEdgeRows() => _db.select(_db.knowledgeEdges)
+        ..orderBy(<OrderClauseGenerator<$KnowledgeEdgesTable>>[
+          (t) => OrderingTerm.desc(t.createdAt),
+          (t) => OrderingTerm.asc(t.id),
+        ]);
+
+  /// 把库里那些行翻译成读法：两端的标题按 `knowledge_points.external_id` 解出来。
+  Future<List<KnowledgeEdgeView>> _viewsOf(List<KnowledgeEdgeRow> rows) async {
     if (rows.isEmpty) {
       return const <KnowledgeEdgeView>[];
     }
