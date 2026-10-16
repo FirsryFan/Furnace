@@ -682,6 +682,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialPhotoReportFailed => 'Could not read it';
 
   @override
+  String get materialPhotoReportPickAnother => 'Pick another';
+
+  @override
+  String get materialPhotoReportRetry => 'Try again';
+
+  @override
   String get materialIntakeTopicHubs =>
       'Also create topic hubs (off by default: a topic groups things, it is not a card relation)';
 

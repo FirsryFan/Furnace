@@ -700,7 +700,107 @@ void main() {
 
       expect(find.text(l10n.materialPhotoReportFailed), findsOneWidget);
       expect(find.textContaining('设置'), findsOneWidget, reason: '要告诉用户去哪儿配模型');
+      expect(
+        find.text(l10n.materialPhotoReportRetry),
+        findsNothing,
+        reason: '模型都没配好，按"重试"还是同一句话：不摆这个按钮',
+      );
       expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+    });
+
+    testWidgets('照片报告里"换一张"：不用先关掉对话框，原地再读一张', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      // 请求里 `review` 指向的那个点得先在图里，不然整份会被判不合法。
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      var picks = 0;
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('第一张：\n```json\n${jsonEncode(runJson())}\n```'),
+        FakeModelAdapter.answer('第二张：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async {
+              picks++;
+              return png;
+            }),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialPhotoReportTitle), findsOneWidget);
+      expect(picks, 1);
+
+      await tester.tap(find.text(l10n.materialPhotoReportPickAnother));
+      await tester.pumpAndSettle();
+
+      expect(picks, 2, reason: '按一下就直接再选一张，不用退出去找那个按钮');
+      expect(find.text(l10n.materialPhotoReportTitle), findsOneWidget);
+      expect(find.text(l10n.materialPhotoReportValid), findsOneWidget);
+      expect(adapter.requests, hasLength(2), reason: '第二张也真的发出去了');
+      // 两次都只读：一个字都没写库。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+    });
+
+    testWidgets('照片读不成（模型跑偏）：对话框里"重试"，第二次读成就算数', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[9, 9, 9]);
+      var picks = 0;
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('这张照片我看不清。'),
+        FakeModelAdapter.answer(
+            '再看一眼：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async {
+              picks++;
+              return png;
+            }),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialPhotoReportFailed), findsOneWidget);
+      expect(picks, 1);
+
+      await tester.tap(find.text(l10n.materialPhotoReportRetry));
+      await tester.pumpAndSettle();
+
+      expect(picks, 2);
+      expect(
+        find.text(l10n.materialPhotoReportValid),
+        findsOneWidget,
+        reason: '第二次读成了，摆的就是第二次的结果',
+      );
+      expect(find.text(l10n.materialPhotoReportFailed), findsNothing);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
     });
   });
 }

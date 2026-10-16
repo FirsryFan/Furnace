@@ -262,6 +262,8 @@
   "materialPhotoReportRaw": "模型的原话",
   "materialPhotoReportNoRaw": "（没有回话）",
   "materialPhotoReportFailed": "没读出来",
+  "materialPhotoReportPickAnother": "换一张",
+  "materialPhotoReportRetry": "重试",
   "materialIntakeTopicHubs": "顺便建主题分组（默认不建：分组不是卡片关系）",
   "materialIntakePendingTitle": "待确认清单（{count} 批，关掉页面也在）",
   "@materialIntakePendingTitle": {

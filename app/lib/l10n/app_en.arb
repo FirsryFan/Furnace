@@ -256,6 +256,8 @@
   "materialPhotoReportRaw": "What the model said",
   "materialPhotoReportNoRaw": "(no answer)",
   "materialPhotoReportFailed": "Could not read it",
+  "materialPhotoReportPickAnother": "Pick another",
+  "materialPhotoReportRetry": "Try again",
   "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
   "materialIntakePendingTitle": "Pending list ({count} batches, survives closing the page)",
   "@materialIntakePendingTitle": {

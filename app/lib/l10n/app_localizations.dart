@@ -1340,6 +1340,18 @@ abstract class AppLocalizations {
   /// **'Could not read it'**
   String get materialPhotoReportFailed;
 
+  /// No description provided for @materialPhotoReportPickAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick another'**
+  String get materialPhotoReportPickAnother;
+
+  /// No description provided for @materialPhotoReportRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get materialPhotoReportRetry;
+
   /// No description provided for @materialIntakeTopicHubs.
   ///
   /// In en, this message translates to:

@@ -363,7 +363,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       setState(() => _busy = false);
       await showDialog<void>(
         context: context,
-        builder: (_) => _PhotoReportDialog(result: result),
+        builder: (_) =>
+            _PhotoReportDialog(result: result, onAnother: _readPhoto),
       );
     } catch (error) {
       _notePhotoProblem(l10n.materialIntakePhotoReadFailed('$error'));
@@ -974,10 +975,16 @@ class _Success extends StatelessWidget {
 ///
 /// 只读 —— 这里没有"执行"按钮：照片这条路目前只回答"读成了什么"，
 /// 要执行得先把这份请求拿去走 `run/1`（那是下一件事）。
+/// 但可以**原地再来一张**（[onAnother]）：读不成、或者想换一张重读，都只按一下 ——
+/// 不用先关掉这一个对话框、再出去找那个按钮。
 class _PhotoReportDialog extends StatelessWidget {
-  const _PhotoReportDialog({required this.result});
+  const _PhotoReportDialog({required this.result, this.onAnother});
 
   final PhotoTranscribeResult result;
+
+  /// 再来一张：关掉本对话框后重新选照片、重新读一遍。为空就没有这个按钮
+  /// （对话框只当纯报告用）。
+  final VoidCallback? onAnother;
 
   @override
   Widget build(BuildContext context) {
@@ -991,6 +998,10 @@ class _PhotoReportDialog extends StatelessWidget {
       PhotoTranscribeFailure() => result as PhotoTranscribeFailure,
       _ => null,
     };
+    // "没配模型"这一种再来一张没有意义（按一次还是同一句话）：不摆这个按钮，
+    // 免得用户按了又看到同一句 —— 那句话本身已经说了该去哪儿配。
+    final canAnother = failure == null ||
+        failure.problem != PhotoTranscribeProblem.notConfigured;
     return AlertDialog(
       title: Text(l10n.materialPhotoReportTitle),
       content: SizedBox(
@@ -1089,6 +1100,22 @@ class _PhotoReportDialog extends StatelessWidget {
         ),
       ),
       actions: <Widget>[
+        if (onAnother != null && canAnother)
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onAnother!.call();
+            },
+            icon: Icon(
+              failure != null ? Icons.refresh : Icons.photo_camera_outlined,
+              size: 18,
+            ),
+            label: Text(
+              failure != null
+                  ? l10n.materialPhotoReportRetry
+                  : l10n.materialPhotoReportPickAnother,
+            ),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.commonClose),

@@ -664,6 +664,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialPhotoReportFailed => '没读出来';
 
   @override
+  String get materialPhotoReportPickAnother => '换一张';
+
+  @override
+  String get materialPhotoReportRetry => '重试';
+
+  @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
 
   @override
