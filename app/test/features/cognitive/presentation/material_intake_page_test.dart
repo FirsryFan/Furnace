@@ -557,6 +557,30 @@ void main() {
       expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsOneWidget);
       expect(await db.select(db.materialIntakeUndoLogs).get(), hasLength(1));
 
+      // 点一下看得见那一次撤掉了什么（流水只读：删掉的行不会因为看得见就回来）。
+      await tester.tap(find.text(l10n.materialIntakeUndoLogLine(1)));
+      await tester.pumpAndSettle();
+      // 只看对话框里那几条：屏幕上（对话框背后）也摆着同一份成绩单。
+      final dialog = find.byType(AlertDialog);
+      Finder inside(Finder matching) =>
+          find.descendant(of: dialog, matching: matching);
+      expect(
+          inside(find.text(l10n.materialIntakeUndoLogTitle)), findsOneWidget);
+      expect(
+        inside(find.textContaining(' · ${l10n.materialIntakeUndoLogDone}')),
+        findsOneWidget,
+      );
+      expect(inside(find.text(l10n.materialIntakeUndone(2, 2, 4))),
+          findsOneWidget);
+      expect(inside(find.text('· I relied on him.')), findsOneWidget);
+      expect(inside(find.text('· rely on')), findsOneWidget);
+      // 删掉的两条线索边按"从 → 到"摆出来。
+      expect(inside(find.textContaining(' → ')), findsNWidgets(2));
+      await tester.tap(find.text(l10n.commonClose));
+      await tester.pumpAndSettle();
+      // 看完还是"没确认"：流水不是回放。
+      expect(find.text(l10n.materialIntakeConfirm(4)), findsOneWidget);
+
       // 把这批放下再"从清单恢复"回来：账跟着这一批（它落在库里，不看内存）。
       await tester.tap(find.text(l10n.materialIntakeClear));
       await tester.pumpAndSettle();
@@ -565,6 +589,78 @@ void main() {
       await tester.tap(find.text(l10n.materialIntakeRestore));
       await tester.pumpAndSettle();
       expect(find.text(l10n.materialIntakeUndoLogLine(1)), findsOneWidget);
+    });
+
+    testWidgets('撤回流水：没撤成的那一次也留着，理由照说', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+      await confirm(tester, 4);
+
+      // 这条知识点已经长出卡片了：这次撤回会被拦住（库里一个字不动）。
+      final point = (await anki.getKnowledgePoints())
+          .singleWhere((point) => point.title == 'I relied on him.');
+      await anki.getOrCreateUnitCardState(point.id, 'essay:${point.id}');
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndo));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndoConfirm));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeUndoBlockedTitle), findsOneWidget);
+      await tester.tap(find.text(l10n.commonClose));
+      await tester.pumpAndSettle();
+
+      // "点过撤回"这件事留下了：`undone = false` + 第一条理由。
+      final rows = await db.select(db.materialIntakeUndoLogs).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.undone, isFalse);
+      expect(rows.single.restoredCount, 0);
+      expect(rows.single.blockedReason, contains('卡片'));
+
+      // 卡片挪走之后再撤一次：这次撤成 —— 两次都在这批的流水里。
+      await (db.delete(db.cardStates)).go();
+      await (db.delete(db.cardTemplates)).go();
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndo));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialIntakeUndoConfirm));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeUndoLogLine(2)), findsOneWidget);
+
+      await tester.tap(find.text(l10n.materialIntakeUndoLogLine(2)));
+      await tester.pumpAndSettle();
+      final dialog = find.byType(AlertDialog);
+      Finder inside(Finder matching) =>
+          find.descendant(of: dialog, matching: matching);
+      expect(
+          inside(find.text(l10n.materialIntakeUndoLogTitle)), findsOneWidget);
+      // 没撤成那一次留下的是"为什么"（而且说清当时一共几条理由）。
+      expect(
+        inside(find.textContaining(' · ${l10n.materialIntakeUndoLogNotDone}')),
+        findsOneWidget,
+      );
+      expect(
+        inside(find.text(l10n.materialIntakeUndoLogBlocked(
+          '这个知识点下面已经有卡片了，撤掉会连卡片一起删',
+          1,
+        ))),
+        findsOneWidget,
+      );
+      // 撤成那一次留下的是"删了什么"。
+      expect(
+        inside(find.textContaining(' · ${l10n.materialIntakeUndoLogDone}')),
+        findsOneWidget,
+      );
+      expect(
+        inside(find.text(l10n.materialIntakeUndone(2, 2, 4))),
+        findsOneWidget,
+      );
+      await tester.tap(find.text(l10n.commonClose));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {

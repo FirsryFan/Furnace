@@ -1460,6 +1460,36 @@ abstract class AppLocalizations {
   /// **'This batch has been undone {count} time(s) before.'**
   String materialIntakeUndoLogLine(int count);
 
+  /// No description provided for @materialIntakeUndoLogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo log'**
+  String get materialIntakeUndoLogTitle;
+
+  /// No description provided for @materialIntakeUndoLogNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Every undo attempt leaves an entry: what it deleted, or why it did not (nothing in the library changed).'**
+  String get materialIntakeUndoLogNote;
+
+  /// No description provided for @materialIntakeUndoLogDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get materialIntakeUndoLogDone;
+
+  /// No description provided for @materialIntakeUndoLogNotDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not undone'**
+  String get materialIntakeUndoLogNotDone;
+
+  /// No description provided for @materialIntakeUndoLogBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason} ({count} reason(s) at the time)'**
+  String materialIntakeUndoLogBlocked(String reason, int count);
+
   /// No description provided for @materialIntakeUndoBlockedTitle.
   ///
   /// In en, this message translates to:

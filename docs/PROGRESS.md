@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-10-17 轮次八十三：撤回流水点得开 —— 那一次撤掉了什么、为什么没撤成（Lead）
+
+**做了什么**：轮次八十二把"撤过"记成了流水，但界面上只有一行"这一批撤回过 N 次"—— 这行字说的是
+**有**这回事，看不出**是哪回事**（轮次八十二把它记成「还没做 ③」）。而流水落库时记下的恰恰是那两样
+东西。这一轮把那一行变成入口：点开一个只读对话框，把已经躺在库里的东西按倒序摆出来。
+**不新增任何落库、不加任何写路径。**
+
+- **撤成那次摆原件原话**：`· <知识点标题>`（`MaterialAppliedPoint.title`）与
+  `· <fromId> → <toId>`（`MaterialAppliedEdge` 的两端）—— 都是撤回那一刻从库里读出来的行内容，
+  所以"那次到底删了什么"不靠回忆；没有自己新建的行时照实说"这一批没有自己新建的行"。
+- **没撤成那次摆"为什么"**：`没能撤：<第一条理由>（当时 N 条理由）`。只有第一条理由落库（轮次八十二
+  的明确不做），`N` 也是那时数出来的 —— 所以这里说得出"当时一共几条"、说不出每一条；完整清单在
+  下一次点撤回时照样逐条给。
+- **流水不是回放**：对话框只读，关掉之后这一批仍然是"待确认"（`applied_at` 照旧为空），不会因为
+  "看得见"就把行变回来。时刻是 `MM-dd HH:mm`，每行 `Icons.undo` / `Icons.block` 各对一半。
+- **l10n 5 个新键**（zh/en 的 ARB + 手改三个生成文件，没跑 gen-l10n）：`materialIntakeUndoLogTitle`
+  （撤回流水）、`materialIntakeUndoLogNote`（撤成记什么、没撤成记什么）、`materialIntakeUndoLogDone`
+  （撤成了）、`materialIntakeUndoLogNotDone`（没撤成）、`materialIntakeUndoLogBlocked(reason, count)`。
+- **明确不做**：不做"撤销的撤销"（看流水不改流水）、不把完整理由列表存进流水、不进 `review_logs`。
+
+**测试钉住的纪律**（`app/test/features/cognitive/presentation/material_intake_page_test.dart`
+21 → **22 例**）：① 撤回之后那行点开，看得见"删掉了什么"（2 个知识点 + 2 条线索边）与
+`已撤回：…`一行；② 看完还是"没确认"（流水不是回放）；③ 清空再恢复，那行跟着回来（账在库里）；
+④ 没撤成那次也点得开，看得见理由与"当时 N 条理由"，卡片挪走后再撤一次成功 —— 两次都在这批的
+流水里。两个踩到的坑：新断言必须用 `find.descendant(of: find.byType(AlertDialog), …)` 收窄
+（对话框背后还摆着同一份成绩单，`find.text` 会撞 2 个）；`materialIntakeUndoLogNote` 的正文里
+含"撤成了/没撤成"，所以标题断言要写成 `' · ${l10n.materialIntakeUndoLogDone}'`。
+
+**证据**：`dart format` 本轮文件 1 changed（改完 0 changed；`.arb` 不能喂 `dart format`）；`dart analyze
+lib test` → `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` →
+`+1922 ~2`（轮次八十二 `+1921 ~2`，差值 1）；页面测试单跑 `+22: All tests passed!`。
+
+**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
+落库；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
+
+---
+
 ## 2026-10-17 轮次八十二：撤过就有痕迹 —— 撤回记账（Lead）
 
 **做了什么**：轮次七十九的「撤销一次确认」把行删了、把 `applied_at` 清空 —— 这是它**唯一**留下的
@@ -36,8 +73,8 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 `+1915 ~2`，差值 6）；两文件合跑 `+46: All tests passed!`。
 
 **已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
-落库；③ 撤回流水只有"撤过几次"这一行，还没有点开看"那次撤掉了什么、为什么没撤成"的入口；
-④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
+落库；③ 撤回流水只有"撤过几次"这一行，还没有点开看"那次撤掉了什么、为什么没撤成"的入口
+（**已在轮次八十三补上**）；④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
 ---
 

@@ -104,7 +104,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// 屏幕上这批被撤回过几次（撤回流水，`material_intake_undo_logs`）。
   ///
   /// 撤回把行删掉了，屏幕上只看得到"这批又回到待确认"——流水是唯一还剩的痕迹。
-  int _undoCount = 0;
+  List<MaterialUndoLog> _undoLogs = const <MaterialUndoLog>[];
 
   /// 这批里哪几条连接现在落不了（提案 id → 缺哪一端的那句话）。
   ///
@@ -191,7 +191,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       final done = await readAppliedBatches(repository: repository);
       final knownNodes = await repository.knownExternalNodeIds();
       final knownEdges = await repository.knownEdgeIds();
-      final undoCount = (await repository.undoLogs(batch.batchId)).length;
+      final undoLogs = await repository.undoLogs(batch.batchId);
       if (!mounted) {
         return;
       }
@@ -203,7 +203,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _doneBatches = done;
         _knownNodes = knownNodes;
         _knownEdges = knownEdges;
-        _undoCount = undoCount;
+        _undoLogs = undoLogs;
         _selected = <String>{
           for (final proposal in draft.plan.proposals) proposal.id,
         };
@@ -241,7 +241,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
     final knownNodes = await repository.knownExternalNodeIds();
     final knownEdges = await repository.knownEdgeIds();
-    final undoCount = (await repository.undoLogs(batch.batchId)).length;
+    final undoLogs = await repository.undoLogs(batch.batchId);
     if (!mounted) {
       return;
     }
@@ -251,7 +251,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _batch = pending.batch;
       _knownNodes = knownNodes;
       _knownEdges = knownEdges;
-      _undoCount = undoCount;
+      _undoLogs = undoLogs;
       _selected = <String>{
         for (final proposal in pending.proposals) proposal.id,
       };
@@ -270,7 +270,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
       _missing = const <String, String>{};
-      _undoCount = 0;
+      _undoLogs = const <MaterialUndoLog>[];
       _selected = <String>{};
       _busy = false;
     });
@@ -400,7 +400,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _batch = null;
       _outcome = null;
       _undoOutcome = null;
-      _undoCount = 0;
+      _undoLogs = const <MaterialUndoLog>[];
       _selected = <String>{};
       _error = null;
     });
@@ -518,12 +518,16 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     final knownNodes = await repository.knownExternalNodeIds();
     final knownEdges = await repository.knownEdgeIds();
     // 这一批的撤回流水：刚撤的这一笔也已经在里面了。
-    final undoCount = (await repository.undoLogs(batch.batchId)).length;
+    final undoLogs = await repository.undoLogs(batch.batchId);
     if (!mounted) {
       return;
     }
     if (!outcome.undone) {
-      setState(() => _busy = false);
+      // 没撤成也是"点过一次撤回"：流水跟着更新，只是库里的行一个字没动。
+      setState(() {
+        _busy = false;
+        _undoLogs = undoLogs;
+      });
       await _showUndoBlocked(outcome);
       return;
     }
@@ -534,7 +538,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _doneBatches = done;
       _knownNodes = knownNodes;
       _knownEdges = knownEdges;
-      _undoCount = undoCount;
+      _undoLogs = undoLogs;
       if (fresh != null) {
         _proposals = fresh.proposals;
         _skipped = fresh.batch.skipped;
@@ -581,6 +585,81 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         ],
       ),
     );
+  }
+
+  /// 点开那一行：这一批每一次点撤回都在这儿 —— 撤成了的说清删了哪几行，没撤成的照原样说理由。
+  ///
+  /// 只读流水（`material_intake_undo_logs`），不回放也不改库：撤回删掉的行不会因为看得见就
+  /// 回来（想回来得再确认一次）。
+  Future<void> _showUndoLogs() async {
+    final l10n = AppLocalizations.of(context);
+    final logs = _undoLogs;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.materialIntakeUndoLogTitle),
+        content: SizedBox(
+          width: 520,
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              _Note(text: l10n.materialIntakeUndoLogNote),
+              for (final log in logs) ...<Widget>[
+                const SizedBox(height: 12),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    log.undone ? Icons.undo : Icons.block,
+                    size: 18,
+                  ),
+                  title: Text(
+                    '${_stampOf(log.requestedAt)} · '
+                    '${log.undone ? l10n.materialIntakeUndoLogDone : l10n.materialIntakeUndoLogNotDone}',
+                  ),
+                ),
+                if (log.undone) ...<Widget>[
+                  _Note(
+                    text: log.removedPoints.isEmpty && log.removedEdges.isEmpty
+                        ? l10n.materialIntakeUndoneNothing(log.restored)
+                        : l10n.materialIntakeUndone(
+                            log.removedPoints.length,
+                            log.removedEdges.length,
+                            log.restored,
+                          ),
+                  ),
+                  // "那次撤掉了什么"要看得见：原件都是库里当时那一行的原话。
+                  for (final point in log.removedPoints)
+                    _Note(text: '· ${point.title}'),
+                  for (final edge in log.removedEdges)
+                    _Note(text: '· ${edge.fromId} → ${edge.toId}'),
+                ] else
+                  _Note(
+                    text: l10n.materialIntakeUndoLogBlocked(
+                      log.blockedReason ?? '',
+                      log.blockedCount,
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 流水的时刻：本地时区、`MM-dd HH:mm`（够看清"哪一次"，不引新依赖）。
+  static String _stampOf(int epochMs) {
+    final moment = DateTime.fromMillisecondsSinceEpoch(epochMs);
+    String two(int value) => value < 10 ? '0$value' : '$value';
+    return '${two(moment.month)}-${two(moment.day)} '
+        '${two(moment.hour)}:${two(moment.minute)}';
   }
 
   @override
@@ -728,10 +807,15 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               ].join(' · '),
             ),
             // 撤回把行删了，屏幕上只剩"又回到待确认"这一步 —— 流水是唯一的痕迹：
-            // 撤过几次说清楚，"怎么又冒出来了"就不是谜。
-            if (_undoCount > 0) ...<Widget>[
+            // 撤过几次说清楚，"怎么又冒出来了"就不是谜。点一下看得见那几次各撤了什么。
+            if (_undoLogs.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
-              _Note(text: l10n.materialIntakeUndoLogLine(_undoCount)),
+              InkWell(
+                onTap: _showUndoLogs,
+                child: _Note(
+                  text: l10n.materialIntakeUndoLogLine(_undoLogs.length),
+                ),
+              ),
             ],
             if (_proposals.isEmpty) ...<Widget>[
               const SizedBox(height: 12),

@@ -744,6 +744,31 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get materialIntakeUndoLogTitle {
+    return '撤回记录';
+  }
+
+  @override
+  String get materialIntakeUndoLogNote {
+    return '点过撤回就留一笔：撤成了记删了什么，没撤成记为什么（那时库里一个字没动）。';
+  }
+
+  @override
+  String get materialIntakeUndoLogDone {
+    return '撤成了';
+  }
+
+  @override
+  String get materialIntakeUndoLogNotDone {
+    return '没撤成';
+  }
+
+  @override
+  String materialIntakeUndoLogBlocked(String reason, int count) {
+    return '理由：$reason（当时一共 $count 条理由）';
+  }
+
+  @override
   String get materialIntakeUndoBlockedTitle => '这一批撤不了';
 
   @override

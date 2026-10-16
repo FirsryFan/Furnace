@@ -310,6 +310,17 @@
   "@materialIntakeUndoLogLine": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "materialIntakeUndoLogTitle": "Undo log",
+  "materialIntakeUndoLogNote": "Every undo attempt leaves an entry: what it deleted, or why it did not (nothing in the library changed).",
+  "materialIntakeUndoLogDone": "Undone",
+  "materialIntakeUndoLogNotDone": "Not undone",
+  "materialIntakeUndoLogBlocked": "Reason: {reason} ({count} reason(s) at the time)",
+  "@materialIntakeUndoLogBlocked": {
+    "placeholders": {
+      "reason": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
   "materialIntakeUndoBlockedTitle": "This batch cannot be undone",
   "materialIntakeUndoBlockedNote": "Nothing was deleted. Undo only deletes what this batch created itself, and these rows have other things attached:",
   "materialIntakeUndoBlockedRow": "{title} - {reason}",

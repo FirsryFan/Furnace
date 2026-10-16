@@ -763,6 +763,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get materialIntakeUndoLogTitle {
+    return 'Undo log';
+  }
+
+  @override
+  String get materialIntakeUndoLogNote {
+    return 'Every undo attempt leaves an entry: what it deleted, or why it did not (nothing in the library changed).';
+  }
+
+  @override
+  String get materialIntakeUndoLogDone {
+    return 'Undone';
+  }
+
+  @override
+  String get materialIntakeUndoLogNotDone {
+    return 'Not undone';
+  }
+
+  @override
+  String materialIntakeUndoLogBlocked(String reason, int count) {
+    return 'Reason: $reason ($count reason(s) at the time)';
+  }
+
+  @override
   String get materialIntakeUndoBlockedTitle => 'This batch cannot be undone';
 
   @override

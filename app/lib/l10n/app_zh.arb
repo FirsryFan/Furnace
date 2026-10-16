@@ -316,6 +316,17 @@
   "@materialIntakeUndoLogLine": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "materialIntakeUndoLogTitle": "撤回记录",
+  "materialIntakeUndoLogNote": "点过撤回就留一笔：撤成了记删了什么，没撤成记为什么（那时库里一个字没动）。",
+  "materialIntakeUndoLogDone": "撤成了",
+  "materialIntakeUndoLogNotDone": "没撤成",
+  "materialIntakeUndoLogBlocked": "理由：{reason}（当时一共 {count} 条理由）",
+  "@materialIntakeUndoLogBlocked": {
+    "placeholders": {
+      "reason": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
   "materialIntakeUndoBlockedTitle": "这一批撤不了",
   "materialIntakeUndoBlockedNote": "整批一条也没删。撤回只删这一批自己新建的东西，下面这些上面挂着别的：",
   "materialIntakeUndoBlockedRow": "{title} —— {reason}",
