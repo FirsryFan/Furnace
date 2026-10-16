@@ -4,6 +4,10 @@
 /// 容易出事的几件事：工具是**只读**的（审批引擎直接执行，不打扰用户）、缺 `request` 要报
 /// 参数错、不合规的请求要整份拒绝（不"挑能跑的先跑"）、图清单来自库里的 `external_id`
 /// （所以 `review` 指向真实存在的知识点就能过），以及提示词与图清单能一起要出来。
+///
+/// `execute: true` 之后的**演练**（Q56）也在这里钉两件事：真的把动作 apply 进引擎而
+/// **库一个字不动**；以及"校验说合法"≠"引擎真能跑"——仿真图是从库里摆出来的，库里没有
+/// 的节点会让演练如实停在第一条。它也是 `run_executor.dart` 的第一个调用者。
 library;
 
 import 'dart:convert';
@@ -58,6 +62,7 @@ void main() {
     anki = AnkiRepository(db);
     tool = CheckTranscribeRunTool(
       repository: MaterialIntakeRepository(db, ankiRepository: anki),
+      database: db,
     );
   });
 
@@ -69,6 +74,7 @@ void main() {
     Object? request, {
     List<String>? existingNodeIds,
     bool includePrompt = false,
+    bool execute = false,
   }) =>
       ToolInvocation(
         toolName: 'check_transcribe_run',
@@ -77,6 +83,7 @@ void main() {
           'request': request,
           if (existingNodeIds != null) 'existing_node_ids': existingNodeIds,
           if (includePrompt) 'include_prompt': true,
+          if (execute) 'execute': true,
         },
       );
 
@@ -196,5 +203,81 @@ void main() {
     expect(result.ok, isFalse);
     expect(result.error, contains('protocol 必须是 "mindnet.run/1"'));
     expect(reportOf(result)['previews'], hasLength(1));
+  });
+
+  test('不写 `execute` ⇒ 校验完就停，payload 里没有演练', () async {
+    await anki.createKnowledgePoint(
+      title: 'rely on',
+      content: '依靠',
+      externalId: 'en::w::rely-on',
+    );
+
+    final result = await tool.run(invocationOf(runJson()));
+
+    expect(result.ok, isTrue);
+    final payload = result.modelResult! as Map<String, Object?>;
+    expect(payload.containsKey('rehearsal'), isFalse);
+    expect(result.summary, contains('还没有被执行'));
+  });
+
+  test('`execute: true` ⇒ 真的跑进引擎：图摆好、动作应用、库一个字没动', () async {
+    await anki.createKnowledgePoint(
+      title: 'rely on',
+      content: '依靠',
+      externalId: 'en::w::rely-on',
+    );
+
+    final result = await tool.run(invocationOf(runJson(), execute: true));
+
+    expect(result.ok, isTrue, reason: result.summary);
+    expect(result.summary, contains('演练（只跑不落库）'));
+    expect(result.summary, contains('全部跑完'));
+    expect(result.summary, contains('真的动了机制'));
+    // 这条知识点还没有卡片，所以读不出 ms —— 演练如实说出来，不替它编数字。
+    expect(result.summary, contains('1 个节点没有 ms'));
+
+    final payload = result.modelResult! as Map<String, Object?>;
+    final rehearsal = payload['rehearsal']! as Map<String, Object?>;
+    expect(rehearsal['seed_node_ids'], <String>['en::w::rely-on']);
+    expect(rehearsal['seed_edge_ids'], isEmpty);
+    expect(rehearsal['nodes_without_ms'], <String>['en::w::rely-on']);
+    expect(rehearsal['unknown_node_ids'], isEmpty);
+
+    final report = rehearsal['report']! as Map<String, Object?>;
+    expect(report['ok'], isTrue);
+    final traces = report['traces']! as List<Object?>;
+    expect(traces, hasLength(1));
+    final delta = (traces.first! as Map<String, Object?>)['delta']!
+        as Map<String, Object?>;
+    // 装了 `memory.dsr`，所以一次 wrong + 对答案真的动了袋子。
+    expect(delta['mechanism'], 'memory.dsr');
+    expect(delta['R_after'], isA<num>());
+
+    // 只跑不落库：知识点还是一行，卡片与记忆态没有任何新行。
+    expect(await anki.getKnowledgePoints(), hasLength(1));
+    expect(await db.select(db.cardStates).get(), isEmpty);
+    expect(await db.select(db.cardTemplates).get(), isEmpty);
+    expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+  });
+
+  test('校验说合法，演练也可能真的跑不动：库里没有那个节点 ⇒ 停在第一条', () async {
+    // 显式给了图清单 ⇒ 校验过；但库里一个字都没有 ⇒ 仿真图是空的。
+    final result = await tool.run(
+      invocationOf(
+        runJson(),
+        existingNodeIds: <String>['en::w::rely-on'],
+        execute: true,
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.error, isNotNull);
+    expect(result.summary, contains('演练（只跑不落库）'));
+    expect(result.summary, contains('停在'));
+
+    final payload = result.modelResult! as Map<String, Object?>;
+    final rehearsal = payload['rehearsal']! as Map<String, Object?>;
+    expect(rehearsal['seed_node_ids'], isEmpty);
+    expect(rehearsal['unknown_node_ids'], <String>['en::w::rely-on']);
   });
 }

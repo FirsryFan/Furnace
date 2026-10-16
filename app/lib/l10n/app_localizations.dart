@@ -3907,6 +3907,12 @@ abstract class AppLocalizations {
   /// **'The problem-pricing run'**
   String get mechanismSetupProblemEvaluator;
 
+  /// No description provided for @mechanismSetupRunRehearsal.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript-request rehearsal'**
+  String get mechanismSetupRunRehearsal;
+
   String get cognitiveZoneNote;
 
   /// No description provided for @cognitiveFastLayerNote.

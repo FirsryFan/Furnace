@@ -947,6 +947,7 @@
   "mechanismNameMemory": "DSR 记忆层",
   "mechanismSetupLibraryDiagnosis": "库诊断那一跑",
   "mechanismSetupProblemEvaluator": "题目定价那一跑",
+  "mechanismSetupRunRehearsal": "转写请求演练那一跑",
   "cognitiveZoneNote": "发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。",
   "cognitiveFastLayerNote": "发展区来自快层诊断",
   "cognitiveFastLayerRanDetail": "这次跑过：取值来自标签图上的扩散结果（弱/空/慢/过载/偏离目标/死路）。起点=最近复习的几个知识点，目标=今天到期的那些。",

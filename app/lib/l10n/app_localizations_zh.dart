@@ -2104,6 +2104,9 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get mechanismSetupProblemEvaluator => '题目定价那一跑';
 
+  @override
+  String get mechanismSetupRunRehearsal => '转写请求演练那一跑';
+
   String get cognitiveZoneNote =>
       '发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。';
 

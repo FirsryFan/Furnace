@@ -1,7 +1,7 @@
 /// 机制面板这一页（roadmap 切片 6 的下一步（十九）：参数公开）。
 ///
 /// 页面只做展示：读数由 `readMechanismPanel()` 现算（纯函数）。这里钉的是
-/// "用户看得见"的那几条：两处装配、六个机制、点火阈值那行写清"被覆盖 + 转录默认值"、
+/// "用户看得见"的那几条：三处装配、六个机制、点火阈值那行写清"被覆盖 + 转录默认值"、
 /// 记忆层那段如实说"没有号参数"、节律闸门那段如实说"不装进引擎"、末尾那句总数。
 library;
 
@@ -30,7 +30,7 @@ AppLocalizations l10nOf(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(MechanismPage)));
 
 void main() {
-  testWidgets('页面把两处装配和六个机制都写出来', (final tester) async {
+  testWidgets('页面把三处装配和六个机制都写出来', (final tester) async {
     bigSurface(tester);
     await tester.pumpWidget(harness());
     final l10n = l10nOf(tester);
@@ -38,19 +38,23 @@ void main() {
     expect(find.text(l10n.mechanismPanelMechanismsHeader), findsOneWidget);
     expect(find.text(l10n.mechanismSetupLibraryDiagnosis), findsOneWidget);
     expect(find.text(l10n.mechanismSetupProblemEvaluator), findsOneWidget);
+    expect(find.text(l10n.mechanismSetupRunRehearsal), findsOneWidget);
     for (final name in <String>[
       l10n.mechanismNameShunting,
       l10n.mechanismNameCapacity,
       l10n.mechanismNameIgnition,
       l10n.mechanismNameGoal,
       l10n.mechanismNameRhythm,
-      l10n.mechanismNameMemory,
     ]) {
       expect(find.text(name), findsOneWidget, reason: name);
     }
-    // 两处装配各一行"装了 N 个机制"。
+    // 记忆层这一条会出现两次：机制卡片一次，演练那一跑只装了它一个，那行名字就是它
+    // 自己（另两处装配的名字是拼在一起的，所以整串匹配只会命中机制卡片）。
+    expect(find.text(l10n.mechanismNameMemory), findsNWidgets(2));
+    // 三处装配各一行"装了 N 个机制"。
     expect(find.text(l10n.mechanismPanelSetupCount(4)), findsOneWidget);
     expect(find.text(l10n.mechanismPanelSetupCount(5)), findsOneWidget);
+    expect(find.text(l10n.mechanismPanelSetupCount(1)), findsOneWidget);
   });
 
   testWidgets('点火阈值那行：写清被覆盖、值 0、转录默认值 0.05', (final tester) async {
@@ -64,8 +68,8 @@ void main() {
       find.text('${l10n.mechanismPanelTranscribed} 0.05'),
       findsWidgets,
     );
-    // 覆盖只此一处：装配卡片上的覆盖清单里也写着它。
-    expect(find.text(l10n.mechanismPanelOverridesHeader), findsNWidgets(2));
+    // 覆盖只此一处：装配卡片上的覆盖清单里也写着它（三处装配都用同一份覆盖）。
+    expect(find.text(l10n.mechanismPanelOverridesHeader), findsNWidgets(3));
   });
 
   testWidgets('记忆层那段如实说：没有号参数', (final tester) async {

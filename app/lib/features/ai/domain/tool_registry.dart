@@ -92,10 +92,15 @@ class ToolRegistry {
       // 转写规程的确定性那一半（roadmap §2-C ③）：照片转写出的 `mindnet.run/1` 请求
       // 先过一遍自检（`domain/services/ingest/transcribe_run.dart`，Q37）——只校验、
       // 不执行，说清"错在哪"与"它会做什么"。图清单来自库里知识点的 `external_id`，
-      // 所以模型不会去发明节点 id。
+      // 所以模型不会去发明节点 id。`execute: true` 时走一步**演练**：把库里已有的
+      // 节点按 `ms` 摆进仿真图、真的 apply 一遍动作，只跑不落库
+      // （`cognitive/application/run_rehearsal.dart`，Q56）。
       CheckTranscribeRunTool(
         repository:
             MaterialIntakeRepository(db, ankiRepository: anki, clock: clock),
+        database: db,
+        model: model,
+        clock: clock,
       ),
       // 用途 1 的兄弟 (Q12): 「这道题还有哪些同型邻居」。同一个题库投影
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，

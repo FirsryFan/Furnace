@@ -15,12 +15,14 @@ library;
 
 import 'dart:convert';
 
+import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/material_intake_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
 import '../../../domain/services/ingest/transcribe_run.dart';
+import '../../cognitive/application/run_rehearsal.dart';
 import '../domain/ai_tool.dart';
 
 /// 信封 → 转化 → 应用侧计划。
@@ -377,32 +379,50 @@ class ApplyMaterialIntakeTool extends AiTool {
   }
 }
 
-/// 转写规程（照片 → `mindnet.run/1`）的只读自检工具（roadmap §2-C ③）。
+/// 转写规程（照片 → `mindnet.run/1`）的自检工具（roadmap §2-C ③）。
 ///
 /// 与 MindNet 的 `tools/io_check.js` 是同一件事：**只校验、不执行**。把上游 AI 从照片
 /// 产出的 run 请求过一遍，回答两个问题："错在哪"与"它会做什么"（每条动作落到哪条机制
 /// 路径）。图清单默认从库里查（`knowledge_points.external_id`）—— `review` / `exposure` /
 /// `goal` 只能指向图里已有的节点，而"图"在应用侧的真实来源就是这一列。
 ///
+/// 要 `execute: true` 时多走一步**演练**（`rehearseRun`）：把请求提到的、库里已有的
+/// 节点按 `ms` 摆进仿真图、只装记忆层，然后让 `executeRun` 真的把动作 apply 一遍 ——
+/// **只跑不落库**（库里的知识点、边、卡片状态、记忆态一个字都不动）。这一步就是执行层
+/// （轮次七十八写好的 `run_executor.dart`）的调用者。
+///
 /// 与 `apply_material_intake` 同一条纪律：不合规就整份拒绝，不修修补补地"挑能跑的先跑"。
 class CheckTranscribeRunTool extends AiTool {
-  CheckTranscribeRunTool({required MaterialIntakeRepository repository})
-      : _repository = repository;
+  CheckTranscribeRunTool({
+    required MaterialIntakeRepository repository,
+    required AppDatabase database,
+    CognitiveModel model = const MindNetCognitiveModel(),
+    DateTime Function()? clock,
+  })  : _repository = repository,
+        _database = database,
+        _model = model,
+        _clock = clock ?? DateTime.now;
 
   final MaterialIntakeRepository _repository;
+  final AppDatabase _database;
+  final CognitiveModel _model;
+  final DateTime Function() _clock;
 
   @override
   String get name => 'check_transcribe_run';
 
   @override
   String get description => '自检一份（从照片/文本转写出的）`mindnet.run/1` 请求：'
-      '**只校验、不执行**。逐条说明"错在哪"（协议、幂等键、时间基、动作字段、'
+      '**只校验、不执行**（默认）。逐条说明"错在哪"（协议、幂等键、时间基、动作字段、'
       '图里有没有这个节点、同一节点有没有矛盾的结论）与"它会做什么"'
       '（每条动作落到哪条机制路径：复习的三种 outcome、失败后对答案的学习路径、'
       '再读、建节点/边、重开扩散、时间前进）。另按 TRANSCRIBE 规程给出**不拦**的建议：'
       '每条都该带 evidence 与 confidence、`review` 的 quote 不该空、'
       '`reviewed_solution` 只对 wrong 有意义。需要的话把给上游模型的转写提示词'
-      '（含【图清单】）一起返回。';
+      '（含【图清单】）一起返回。'
+      '`execute: true` 时再走一步**演练**：把请求提到、库里已有的节点摆进仿真图'
+      '（`ms` 用库里代表卡片的模型读数）并真的把动作 apply 一遍 —— 只跑不落库，'
+      '库里的知识点/边/卡片状态/记忆态都不变。';
 
   @override
   Map<String, Object?> get parameters => <String, Object?>{
@@ -428,6 +448,11 @@ class CheckTranscribeRunTool extends AiTool {
           'note': <String, Object?>{
             'type': 'string',
             'description': '可选：提示词末尾的补充说明。',
+          },
+          'execute': <String, Object?>{
+            'type': 'boolean',
+            'description': '可选：是否再走一步"演练"——把动作真的 apply 进仿真引擎'
+                '（只跑不落库）。默认 false（只校验）。',
           },
         },
         'required': <String>['request'],
@@ -498,13 +523,40 @@ class CheckTranscribeRunTool extends AiTool {
       );
     }
 
-    return ToolResult(
-      ok: true,
-      summary: '${report.text}\n'
-          '只读：这份请求还没有被执行（应用侧目前只校验、不跑引擎）。'
-          '图清单来自库里的 ${existingNodeIds.length} 个节点。'
+    final execute = args.optBool('execute') ?? false;
+    if (!execute) {
+      return ToolResult(
+        ok: true,
+        summary: '${report.text}\n'
+            '只读：这份请求还没有被执行（要真的跑一遍，给 `execute: true`）。'
+            '图清单来自库里的 ${existingNodeIds.length} 个节点。'
+            '${prompt == null ? '' : '转写提示词（含图清单）在 payload 的 `prompt` 里。'}',
+        modelResult: modelResult,
+      );
+    }
+
+    final rehearsal = await rehearseRun(
+      request: request,
+      db: _database,
+      model: _model,
+      now: _clock(),
+    );
+    modelResult['rehearsal'] = rehearsal.toJson();
+
+    final lines = <String>[
+      '演练（只跑不落库）：${rehearsal.text}',
+      '图清单来自库里的 ${existingNodeIds.length} 个节点；'
+          '其中 ${rehearsal.seedNodeIds.length} 个在库、被摆进了仿真图'
+          '${rehearsal.seedEdgeIds.isEmpty ? '' : '（另有 ${rehearsal.seedEdgeIds.length} 条库里已有的边）'}。'
           '${prompt == null ? '' : '转写提示词（含图清单）在 payload 的 `prompt` 里。'}',
+      for (final trace in rehearsal.report.traces) '· ${trace.text}',
+    ];
+
+    return ToolResult(
+      ok: rehearsal.report.ok,
+      summary: lines.join('\n'),
       modelResult: modelResult,
+      error: rehearsal.report.failure?.error,
     );
   }
 }

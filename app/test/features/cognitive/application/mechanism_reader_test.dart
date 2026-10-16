@@ -46,14 +46,17 @@ void main() {
     expect(panel.uncalibratedCount, greaterThan(0));
   });
 
-  test('两处装配装的东西：库诊断四个、题目定价多一层记忆', () {
+  test('三处装配装的东西：库诊断四个、题目定价多一层记忆、演练只装记忆', () {
     final panel = readMechanismPanel();
     final byId = <String, MechanismRow>{
       for (final row in panel.mechanisms) row.id: row,
     };
     expect(
       byId[FastMechanisms.memory]!.installedIn,
-      <String>[MechanismCatalog.problemEvaluator],
+      <String>[
+        MechanismCatalog.problemEvaluator,
+        MechanismCatalog.runRehearsal,
+      ],
     );
     expect(
       byId[FastMechanisms.goal]!.installedIn,

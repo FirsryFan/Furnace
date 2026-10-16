@@ -40,6 +40,10 @@ abstract final class MechanismCatalog {
   /// 题目定价那一跑（`ProblemEvaluator`）。
   static const String problemEvaluator = 'problem_evaluator';
 
+  /// 请求演练那一跑（`rehearseRun` → `executeRun`）：把一份 `mindnet.run/1`
+  /// 请求真的 apply 进引擎。
+  static const String runRehearsal = 'run_rehearsal';
+
   /// 点火阈值退化成硬阈值（D3）：不掷随机数，才和一致性向量逐位可比。
   static const Map<String, Object?> transcribedIgnition = <String, Object?>{
     'attention.ignition.T_ign': 0,
@@ -61,6 +65,12 @@ abstract final class MechanismCatalog {
     FastMechanisms.memory,
   ];
 
+  /// 请求演练只 **apply** 动作、不跑轮次（`executeRun` 不调 `runRounds`），所以
+  /// 四个逐轮机制在这里一个也用不上：只有复习/再读要动记忆袋，所以只装记忆层。
+  static const List<String> runRehearsalIds = <String>[
+    FastMechanisms.memory,
+  ];
+
   static const List<MechanismSetup> setups = <MechanismSetup>[
     MechanismSetup(
       id: libraryDiagnosis,
@@ -70,6 +80,11 @@ abstract final class MechanismCatalog {
     MechanismSetup(
       id: problemEvaluator,
       installedIds: problemEvaluatorIds,
+      overrides: transcribedIgnition,
+    ),
+    MechanismSetup(
+      id: runRehearsal,
+      installedIds: runRehearsalIds,
       overrides: transcribedIgnition,
     ),
   ];

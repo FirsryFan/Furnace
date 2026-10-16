@@ -275,6 +275,7 @@ String mechanismName(AppLocalizations l10n, String id) => switch (id) {
 String setupName(AppLocalizations l10n, String id) => switch (id) {
       MechanismCatalog.libraryDiagnosis => l10n.mechanismSetupLibraryDiagnosis,
       MechanismCatalog.problemEvaluator => l10n.mechanismSetupProblemEvaluator,
+      MechanismCatalog.runRehearsal => l10n.mechanismSetupRunRehearsal,
       _ => id,
     };
 

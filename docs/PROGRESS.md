@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-10-17 轮次八十五：演练 —— 那份 `run/1` 请求真的跑进引擎（Lead）
+
+**做了什么**：`run_executor.dart`（轮次七十八）把"请求 → 引擎"修到了头，可从那天起它**没有调用者**——
+"谁来决定这份请求可以执行了"一直挂在"已知的没做"①上。这一轮不碰那个判断（那是设计问题），只回答
+它下面那半句更小的：**谁去装配那个引擎**。答案用的是已经存在的只读工具 `check_transcribe_run`：
+它原本只校验，现在多一个 `execute` 参数，给了就在校验通过之后顺手把请求真的跑一遍。
+
+- **新层**（`app/lib/features/cognitive/application/run_rehearsal.dart`）：
+  `rehearseRun({request, db, model, now, anchor})` → `RunRehearsal{report, seedNodeIds,
+  seedEdgeIds, nodesWithoutMs, unknownNodeIds}`，`report` 就是 `executeRun` 的报告。
+- **图先摆好**：请求提到的节点（`review`/`exposure` 的 node、`goal` 的 starts/targets、边提到的
+  那两端）按请求自己的 id 空间摆进仿真图，节点 `ms` 用库里那张代表卡片的模型读数
+  （`representativeCardRow` + `CognitiveModel.modelReadingOf(row, nowHours:).r0`）——与库诊断同一个
+  来源；读不出来就**省略**（引擎按 0.8），并记进 `nodesWithoutMs`，不替它编一个数。请求自己会建的
+  节点（`knowledge` 动作）**不先摆**：重复建同一个 id 会抛，那是真实行为，让执行报告如实报出来。
+- **边也摆好**：`knowledge_edges` 里两端都已经进图的那些边才接过来（一端不在，那条边在演练里也走不通）。
+- **只装记忆层**：`executeRun` 只 apply 动作、不跑轮次，逐轮那四个机制一个也用不上，所以
+  `MechanismCatalog.runRehearsalIds = [memory.dsr]` —— 机制面板因此如实多列第三处装配。
+- **只跑不落库**（刻意）：`knowledge_points` / `knowledge_edges` / `card_states` / 记忆态一个字都不动。
+  把演练结果落库是另一件事（已知的没做②）。
+- 诚实的边界写进 library doc：库里的复习历史**没有**变成记忆袋（仿真图上的袋子从默认状态起算，`ms`
+  只决定节点自己的读数起点），所以演练回答的是"这份请求会落在哪条机制路径上、动到哪些数"，不是
+  "你的真实进度会变成多少"。
+- 工具那一侧（`app/lib/features/ai/tools/ingest_tools.dart` 的 `CheckTranscribeRunTool`）：`execute`
+  缺省 `false`（结果里只有原来那份校验 + 一句"要真的跑一遍，给 `execute: true`"）；给了才跑，结果多
+  一个 `rehearsal` 对象（`report` + 图里摆了什么 + 哪些节点没有 `ms` + 哪些节点库里没有），`ok` 跟
+  执行报告的 `ok` 走，`error` 用停在的那条动作的原话（比如 `review` 没给 `at` 就是"缺少时间基…"）。
+  `ToolRegistry.forApp` 把 `db`/`model`/`clock` 一起传进这个工具。
+
+**测试钉住的纪律**：`app/test/features/cognitive/application/run_rehearsal_test.dart` **12 例**
+（先建后复习时 `changedCount 2` 而 `touchedMechanisms 1`（建节点不算动机制）、没有卡片就省略 `ms`
+并记进 `nodesWithoutMs`、边两端都在才接过来、请求自己的 `time.model_hours` 就是锚点、只给 `at.wall`
+没有锚点就如实停在第一条、"没有模型读数"是校验层的事（执行层只活到第一条）、演练不写库）；
+`app/test/features/ai/check_transcribe_run_tool_test.dart` 8 → **11 例**（不给 `execute` 就不会有
+`rehearsal` 键、给了就真跑且库不动、空库时第一条就停在 `unknown_node_ids`）；
+`app/test/features/cognitive/presentation/mechanism_page_test.dart` **7 例**（三处装配的 id 清单与名字）。
+三个文件合跑 `+30`。写第一版时抓到一处名不副实：`touchedMechanisms` 原本按"增量非空"算，而建节点/
+建边/推时钟都算增量 —— 改成只有增量里带着机制名（`mechanism: 'memory.dsr'`）才算"动了机制"，另加
+`changedCount` 如实说"留下了增量"。
+
+**证据**：`flutter test test/features/cognitive/application/run_rehearsal_test.dart
+test/features/cognitive/presentation/mechanism_page_test.dart test/features/ai/check_transcribe_run_tool_test.dart`
+→ `+30`；`dart format` 本轮 11 个 Dart 文件 2 changed（改完 0 changed）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1954 ~2`
+（轮次八十四 `+1939 ~2`，差值 15）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"—— 现在**有调用者了，但不是判断者**：`execute` 是用户
+在对话里给的参数，没有任何一层替用户下"这批复习可以执行"的结论；② 执行完怎么落库（演练刻意不写，
+包括记忆袋）；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有
+"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）。
+
 ## 2026-10-17 轮次八十四：机制面板 —— 引擎装了哪些机制、每个参数是多少、哪些还没标定（Lead）
 
 **做了什么**：这台机器有一条硬规矩 —— **所有算法参数对用户公开**（`docs/DESIGN_BLUEPRINT.md` 的 P5，
@@ -47,7 +98,7 @@
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量
 `flutter test --concurrency=1` → `+1939 ~2`（轮次八十三 `+1922 ~2`，差值 17 = 10 例读数 + 7 例页面）。
 
-**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
+**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；② 执行完怎么
 落库；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有
 "用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）。
 
@@ -83,7 +134,7 @@
 lib test` → `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` →
 `+1922 ~2`（轮次八十二 `+1921 ~2`，差值 1）；页面测试单跑 `+22: All tests passed!`。
 
-**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
+**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；② 执行完怎么
 落库；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
 ---
@@ -119,7 +170,7 @@ lib test` → `94 issues found`（**0 error / 0 warning**）；全量 `flutter t
 found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1921 ~2`（轮次八十一
 `+1915 ~2`，差值 6）；两文件合跑 `+46: All tests passed!`。
 
-**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）；② 执行完怎么
+**已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；② 执行完怎么
 落库；③ 撤回流水只有"撤过几次"这一行，还没有点开看"那次撤掉了什么、为什么没撤成"的入口
 （**已在轮次八十三补上**）；④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
@@ -154,7 +205,7 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1`
 → `+1915 ~2: All tests passed!`（轮次八十 `+1913 ~2`，差值 2）。
 
-**已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了" —— 执行层仍然没有调用者（轮次七十八 ①）；
+**已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了" —— 执行层仍然没有调用者（轮次七十八 ①）—— **已在轮次八十五补上调用者，"判断者"仍缺**；
 ② 执行完怎么落库；③ 撤销不记账、也不进审计（轮次七十九 ①②）—— **已在轮次八十二补上**（撤回
 流水 `material_intake_undo_logs`，撤成与没撤成都留一笔）；④ `ls` 仍没有标定来源（roadmap §3
 第 7 行那六条实验，需要外部数据）；⑤ 本轮只在"照片 → 报告"这条路上做了，纸质流程的其它入口没动。
@@ -196,7 +247,7 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 全量 `flutter test --concurrency=1` → `+1913 ~2: All tests passed!`（轮次七十九是 `+1898 ~2`，差值 15
 —— 正好是本轮新增的 14 + 1 例）。
 
-**已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）；
+**已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者，"判断者"仍缺**；
 ② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤销**不记账**、也不进审计
 （轮次七十九 ①②）—— **已在轮次八十二补上自家的撤回流水，见轮次八十二那条**（`review_logs`
 仍然不进）；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）。
@@ -237,7 +288,7 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 **已知的没做**：① 撤销**不记账**（库里没有"这批是什么时候撤的"，`applied_at` 清空是唯一痕迹）
 —— **已在轮次八十二补上**（改记流水 `material_intake_undo_logs`：撤成与没撤成都留一笔）；
 ② 撤销不进审计（`review_logs` 之类），所以"确认过又反悔"这件事在历史里看不到 —— **已部分补上**
-（轮次八十二：进了自家的撤回流水，仍不进 `review_logs`）；③ 执行层仍没有调用者
+（轮次八十二：进了自家的撤回流水，仍不进 `review_logs`）；③ 执行层仍没有调用者 —— **已在轮次八十五补上调用者**
 （谁决定"这份请求可以执行了"）；④ 历史里不显示"哪几条是这次落不了的" —— **已在轮次八十补上**（补的是**待确认那张单子**：
 落不了的连接本来就不进历史，所以这句话该在它停留的地方逐条说清楚）；⑤ `ls` 仍没有标定来源
 （roadmap §3 第 7 行）。
@@ -273,7 +324,7 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 （**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1886 ~2: All tests passed!`
 （轮次七十七是 `+1874 ~2`，差值 12）。
 
-**已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）；② 执行完怎么落库；
+**已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）—— **已在轮次八十五补上调用者，"判断者"仍缺**；② 执行完怎么落库；
 ③ 撤销一次确认；④ 历史里不显示"哪几条是这次落不了的" —— **已在轮次八十补上**（补的是**待确认那张单子**：
 落不了的连接本来就不进历史，所以这句话该在它停留的地方逐条说清楚）；⑤ `ls` 仍没有标定来源（roadmap §3 第 7 行）。
 （③ **已在轮次七十九补上**。）

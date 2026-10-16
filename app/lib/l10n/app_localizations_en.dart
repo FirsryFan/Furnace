@@ -2201,6 +2201,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mechanismSetupProblemEvaluator => 'The problem-pricing run';
 
+  @override
+  String get mechanismSetupRunRehearsal => 'The transcript-request rehearsal';
+
   String get cognitiveZoneNote =>
       'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".';
 

@@ -938,6 +938,7 @@
   "mechanismNameMemory": "DSR memory layer",
   "mechanismSetupLibraryDiagnosis": "The library-diagnosis run",
   "mechanismSetupProblemEvaluator": "The problem-pricing run",
+  "mechanismSetupRunRehearsal": "The transcript-request rehearsal",
   "cognitiveZoneNote": "Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".",
   "cognitiveFastLayerNote": "Zones come from the tierB fast layer",
   "cognitiveFastLayerRanDetail": "It ran this time: each zone is the diffusion verdict on the tag graph (weak / empty / slow / overloaded / off-goal / dead-end). Starts are the most recently reviewed knowledge points, targets are the ones due today.",
