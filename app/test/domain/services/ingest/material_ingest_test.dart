@@ -1001,7 +1001,8 @@ void main() {
           ),
         ).errors,
         containsAll(<String>[
-          '第 1 条 action（goal）缺少时间基：至少要 at.model_hours',
+          '第 1 条 action（goal）缺少时间基：至少要 at.model_hours'
+              '（time 动作也可以用 elapsed_hours）',
           '第 1 条 action（goal）的目标 "a" 不在图里',
         ]),
       );

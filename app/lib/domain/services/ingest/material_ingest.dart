@@ -548,9 +548,14 @@ class MaterialRunAction {
   const MaterialRunAction({
     required this.kind,
     this.node,
+    this.nodeId,
     this.edge,
     this.targets,
     this.starts,
+    this.outcome,
+    this.reviewedSolution,
+    this.closeness,
+    this.elapsedHours,
     this.modelHours,
     this.wall,
     this.confidence,
@@ -562,6 +567,12 @@ class MaterialRunAction {
   /// `knowledge` 的新节点（与 [edge] 二选一）。
   final Map<String, Object?>? node;
 
+  /// `review` / `exposure` 指向的节点 id。
+  ///
+  /// 协议里这两类动作的 `node` 是一个**字符串**（图里已有的 id），
+  /// 与 [node] 那个"要新建的节点对象"是两种形状 —— 别混（`run.js` 也是分开校验的）。
+  final String? nodeId;
+
   /// `knowledge` 的新边。
   final Map<String, Object?>? edge;
 
@@ -570,6 +581,20 @@ class MaterialRunAction {
 
   /// `goal` 的起点（沿用扩散起点时为 null）。
   final List<String>? starts;
+
+  /// `review` 的观察结论：`correct` / `wrong` / `blank`（见 [MaterialIngest.reviewOutcomeTypes]）。
+  final String? outcome;
+
+  /// `review`：做错但**随后看到订正/解析**（走"失败后对答案"的学习路径）。
+  ///
+  /// 只有真的看见订正才该写 —— 这是 `docs/archive/TRANSCRIBE.md` §2 反复强调的那条。
+  final bool? reviewedSolution;
+
+  /// `review` 的"差一点想起来"程度（0–1，可选）。
+  final double? closeness;
+
+  /// `time` 动作的推进量（小时）；给了它就用它，否则用 `at`。
+  final double? elapsedHours;
 
   /// 时间基：模型小时（Unix 纪元起算的小时数，见 `MindNetProtocol.clockUnit`）。
   final double? modelHours;
@@ -582,9 +607,14 @@ class MaterialRunAction {
   Map<String, Object?> toJson() => <String, Object?>{
         'kind': kind,
         if (node != null) 'node': node,
+        if (nodeId != null) 'node': nodeId,
         if (edge != null) 'edge': edge,
         if (targets != null) 'targets': targets,
         if (starts != null) 'starts': starts,
+        if (outcome != null) 'outcome': outcome,
+        if (reviewedSolution != null) 'reviewed_solution': reviewedSolution,
+        if (closeness != null) 'closeness': closeness,
+        if (elapsedHours != null) 'elapsed_hours': elapsedHours,
         'at': <String, Object?>{
           if (modelHours != null)
             'model_hours': MaterialIngest.integral(modelHours),
@@ -597,10 +627,18 @@ class MaterialRunAction {
 
 /// `mindnet.run/1` 的时间块。
 class MaterialRunTime {
-  const MaterialRunTime({required this.modelHours, this.wall});
+  const MaterialRunTime({
+    required this.modelHours,
+    this.wall,
+    this.provided = true,
+  });
 
   final double modelHours;
   final String? wall;
+
+  /// 请求里到底写没写 `time` 块 —— 不写是合法的（每条动作自带 `at` 就够），
+  /// 写了才校验里面的值（与 `run.js` 的 `if (request.time && …)` 对齐）。
+  final bool provided;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'model_hours': MaterialIngest.integral(modelHours),
@@ -615,6 +653,9 @@ class MaterialRunRequest {
     required this.runId,
     required this.time,
     required this.actions,
+    this.actionsNotArray = false,
+    this.hadSteps = false,
+    this.steps,
     this.meta = const <String, Object?>{},
   });
 
@@ -630,6 +671,7 @@ class MaterialRunRequest {
             ? (MaterialIngest.numberOrNull(time['model_hours']) ?? double.nan)
             : double.nan,
         wall: time is Map && time['wall'] != null ? '${time['wall']}' : null,
+        provided: time is Map && time['model_hours'] != null,
       ),
       actions: actions is List
           ? <MaterialRunAction>[
@@ -639,6 +681,9 @@ class MaterialRunRequest {
                     kind: action['kind'] == null ? '' : '${action['kind']}',
                     node: action['node'] is Map
                         ? (action['node'] as Map).cast<String, Object?>()
+                        : null,
+                    nodeId: action['node'] is String
+                        ? action['node'] as String
                         : null,
                     edge: action['edge'] is Map
                         ? (action['edge'] as Map).cast<String, Object?>()
@@ -655,6 +700,20 @@ class MaterialRunRequest {
                               '$start',
                           ]
                         : null,
+                    outcome: action['outcome'] == null
+                        ? null
+                        : '${action['outcome']}',
+                    reviewedSolution: action['reviewed_solution'] is bool
+                        ? action['reviewed_solution'] as bool
+                        : null,
+                    // `run.js` 对这些可选数字用的是 `!== undefined`（键在不在），
+                    // 不是 `Number(x)` 的"null 算 0"—— 所以键缺席必须是 null。
+                    closeness: action.containsKey('closeness')
+                        ? MaterialIngest.numberOrNull(action['closeness'])
+                        : null,
+                    elapsedHours: action.containsKey('elapsed_hours')
+                        ? MaterialIngest.numberOrNull(action['elapsed_hours'])
+                        : null,
                     modelHours: action['at'] is Map
                         ? MaterialIngest.numberOrNull(
                             (action['at'] as Map)['model_hours'],
@@ -664,8 +723,9 @@ class MaterialRunRequest {
                             (action['at'] as Map)['wall'] != null
                         ? '${(action['at'] as Map)['wall']}'
                         : null,
-                    confidence:
-                        MaterialIngest.numberOrNull(action['confidence']),
+                    confidence: action.containsKey('confidence')
+                        ? MaterialIngest.numberOrNull(action['confidence'])
+                        : null,
                     evidence: action['evidence'] is Map
                         ? (action['evidence'] as Map).cast<String, Object?>()
                         : null,
@@ -675,6 +735,9 @@ class MaterialRunRequest {
       meta: meta is Map
           ? meta.cast<String, Object?>()
           : const <String, Object?>{},
+      actionsNotArray: actions != null && actions is! List,
+      hadSteps: json.containsKey('steps'),
+      steps: MaterialIngest.numberOrNull(json['steps']),
     );
   }
 
@@ -682,12 +745,21 @@ class MaterialRunRequest {
   final String runId;
   final MaterialRunTime time;
   final List<MaterialRunAction> actions;
+
+  /// 给了 `actions` 但它不是数组（`run.js` 会整份拒绝；空数组是合法的）。
+  final bool actionsNotArray;
+
+  /// 请求里写了 `steps`（必须是 ≥0 的整数）。
+  final bool hadSteps;
+  final double? steps;
+
   final Map<String, Object?> meta;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'protocol': protocol,
         'run_id': runId,
         'time': time.toJson(),
+        if (hadSteps) 'steps': steps,
         'actions': <Object?>[for (final action in actions) action.toJson()],
         'meta': meta,
       };
@@ -771,6 +843,22 @@ abstract final class MaterialIngest {
 
   /// 请求的协议号。
   static const String runProtocol = 'mindnet.run/1';
+
+  /// `review` 的三种观察结论 → 机制路径（对齐 `src/io/run.js` 的 `REVIEW_MAP`）。
+  ///
+  /// `correct` 走成功提取；`wrong` 与 `blank` 都走遗忘路径 —— 两者的区别要在**有没有看到订正**
+  /// 上体现（见 [reviewedSolutionMechanism]），这正是 `docs/archive/TRANSCRIBE.md` §2 那张表。
+  static const Map<String, String> reviewOutcomeMechanisms = <String, String>{
+    'correct': 'retrieval_success',
+    'wrong': 'lapse',
+    'blank': 'lapse',
+  };
+
+  /// 做错但**随后看到订正/解析**时改走的学习路径（`REVIEW_MAP_AFTER_FEEDBACK`）。
+  static const String reviewedSolutionMechanism = 'retrieval_failure_feedback';
+
+  /// `run.js` 对"做错且看到订正"的默认 closeness。
+  static const double reviewedSolutionCloseness = 0.5;
 
   /// 节点名人话截断长度（JS 用 `slice(0, 80)`）。
   static const int nodeNameLimit = 80;
@@ -1640,14 +1728,16 @@ abstract final class MaterialIngest {
   // -------------------------------------------------- `io_check` 类结构校验
 
   /// 请求自检（**只校验、不执行**）：对齐 `tools/io_check.js` + `src/io/run.js` 的
-  /// `validateRequest`，覆盖协议/幂等键/时间基/动作字段/影子图端点自洽。
+  /// `validateRequest`，覆盖协议/幂等键/`steps`/时间基/动作字段/影子图端点自洽，
+  /// 以及 `review` 的 `outcome` 白名单与"同一节点两个矛盾结论"。
   ///
   /// 影子图是这份校验的关键：同一份请求里"先建节点、再建边、再把它们设为目标"是
   /// 材料批量入库的正常形态，所以本批次将要新建的节点/边算作"已存在"
   /// （JS 源码里写着"实测踩到过"）。[existingNodeIds] / [existingEdgeIds] 是库里已有的。
   ///
-  /// 这里**不预报机制路径**（JS 的 `preview` 会打印每条动作落到哪条机制）——
-  /// 那需要引擎，属于 MindNet 侧的事。
+  /// `previews` 是"这份请求会做什么"的人话预告（io_check 的那一面）：五种动作的机制路径
+  /// 都是纯映射，`review` 的 `wrong + reviewed_solution` 也照实写成学习路径
+  /// （见 [reviewMechanismOf]）—— 所以这里**不再**需要引擎。
   static MaterialRunCheck checkRunRequest(
     MaterialRunRequest request, {
     Set<String> existingNodeIds = const <String>{},
@@ -1663,12 +1753,32 @@ abstract final class MaterialIngest {
     if (request.runId.isEmpty) {
       errors.add('run 请求缺少 run_id（幂等键）');
     }
-    if (!request.time.modelHours.isFinite) {
-      errors.add('run 请求的 time.model_hours 必须是数字');
+    if (request.actionsNotArray) {
+      errors.add('run 请求的 actions 必须是数组（空数组合法，"不是数组"整份拒绝）');
+    }
+    if (request.hadSteps) {
+      final steps = request.steps;
+      if (steps == null ||
+          !steps.isFinite ||
+          steps < 0 ||
+          steps != steps.floorToDouble()) {
+        errors.add('run 请求的 steps 必须是 ≥0 的整数');
+      }
+    }
+    // `time` 块可以整体不写（每条动作自带 `at` 就够）—— 写了才校验它。
+    if (request.time.provided) {
+      if (!request.time.modelHours.isFinite) {
+        errors.add('run 请求的 time.model_hours 必须是数字');
+      }
+      if (request.time.wall != null &&
+          DateTime.tryParse(request.time.wall!) == null) {
+        errors.add('run 请求的 time.wall 不可解析：${request.time.wall}');
+      }
     }
 
     final shadowNodes = <String>{...existingNodeIds};
     final shadowEdges = <String>{...existingEdgeIds};
+    final seenOutcomes = <String, String>{};
 
     for (var i = 0; i < request.actions.length; i += 1) {
       final action = request.actions[i];
@@ -1681,9 +1791,14 @@ abstract final class MaterialIngest {
             .add('$at 的 kind 必须是 ${actionKinds.join(' / ')}，实际 ${action.kind}');
         continue;
       }
-      if (action.modelHours == null) {
-        errors.add('$at（${action.kind}）缺少时间基：至少要 at.model_hours');
-      } else if (!action.modelHours!.isFinite) {
+      // 时间基：`at.model_hours` / `at.wall` 二选一；`time` 动作还可以只用 `elapsed_hours`。
+      final hasTimeBase = action.modelHours != null ||
+          action.wall != null ||
+          (action.kind == 'time' && action.elapsedHours != null);
+      if (!hasTimeBase) {
+        errors.add('$at（${action.kind}）缺少时间基：至少要 at.model_hours'
+            '（time 动作也可以用 elapsed_hours）');
+      } else if (action.modelHours != null && !action.modelHours!.isFinite) {
         errors.add('$at 的 at.model_hours 不是数字');
       }
       switch (action.kind) {
@@ -1763,19 +1878,54 @@ abstract final class MaterialIngest {
             previews.add('$at [goal] 目标 ${targets?.join('、')}');
           }
         case 'review':
+          {
+            final nodeId = action.nodeId;
+            if (nodeId == null || nodeId.isEmpty) {
+              errors.add('$at（review）缺少 node');
+            } else if (!shadowNodes.contains(nodeId)) {
+              errors.add('$at（review）指向图里不存在的节点 "$nodeId"');
+            }
+            final outcome = action.outcome;
+            if (outcome == null ||
+                !reviewOutcomeMechanisms.containsKey(outcome)) {
+              errors.add('$at（review）的 outcome 必须是 '
+                  '${reviewOutcomeMechanisms.keys.join(' / ')}，实际 $outcome');
+            } else {
+              final prev = seenOutcomes[nodeId ?? ''];
+              if (prev != null && prev != outcome) {
+                errors.add('同一个 run 里节点 "$nodeId" 同时出现了 "$prev" 与 "$outcome"：'
+                    '互相矛盾的观察请拆成两次请求（或先确认到底哪个对）');
+              }
+              seenOutcomes[nodeId ?? ''] = outcome;
+            }
+            previews.add('$at [review] $nodeId → ${reviewMechanismOf(action)}'
+                '（S 由机制改）');
+          }
         case 'exposure':
           {
-            // 材料批次不产出这两类；校验规则仍与 io_run 对齐，免得工具误报"合法"。
-            final nodeId = action.node?['id'];
-            if (nodeId is! String || nodeId.isEmpty) {
-              errors.add('$at（${action.kind}）缺少 node');
+            final nodeId = action.nodeId;
+            if (nodeId == null || nodeId.isEmpty) {
+              errors.add('$at（exposure）缺少 node');
             } else if (!shadowNodes.contains(nodeId)) {
-              errors.add('$at（${action.kind}）指向图里不存在的节点 "$nodeId"');
+              errors.add('$at（exposure）指向不存在的节点 "$nodeId"');
             }
-            previews.add('$at [${action.kind}] $nodeId');
+            previews.add('$at [exposure] $nodeId → reread（只算再读增益）');
           }
         case 'time':
-          previews.add('$at [time] 时间前进');
+          {
+            final elapsed = action.elapsedHours;
+            if (elapsed != null) {
+              if (!elapsed.isFinite || elapsed < 0) {
+                errors.add('$at（time）的 elapsed_hours 必须是非负数');
+              }
+              previews.add(
+                '$at [time] 时间前进 $elapsed 小时（同步所有节点的可提取度）',
+              );
+            } else {
+              previews
+                  .add('$at [time] 时间设为 ${action.modelHours ?? action.wall}');
+            }
+          }
       }
     }
 
@@ -1785,5 +1935,17 @@ abstract final class MaterialIngest {
       previews: previews,
       evidenceCount: evidenceCount,
     );
+  }
+
+  /// `review` 落到哪条机制路径：做错但**看到订正**时走学习路径
+  /// （[reviewedSolutionMechanism]），其余按 [reviewOutcomeMechanisms]。
+  ///
+  /// 与 `src/io/run.js` 的 `reviewPlan(action)` 同义 —— 那是个纯映射，不需要引擎，
+  /// 所以这里的 preview 是全保真的。
+  static String reviewMechanismOf(MaterialRunAction action) {
+    if (action.outcome == 'wrong' && action.reviewedSolution == true) {
+      return reviewedSolutionMechanism;
+    }
+    return reviewOutcomeMechanisms[action.outcome] ?? '(未知 outcome)';
   }
 }

@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-16 轮次六十六：转写规程的确定性那一半（Lead）
+
+**做了什么**：roadmap §2-C ③「TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）」的确定性那一半。
+`docs/archive/TRANSCRIBE.md` 的规程一半是"上游 AI 看图写字"、另一半是确定性代码（校验、说人话、
+预告机制路径）—— MindNet 里后者是 `tools/io_check.js`。这一轮把它补齐，并把给上游模型的提示词
+（含【图清单】）一起生成出来，于是这条链上**除了照片本身**都已经能对着规程自检。
+
+- `MaterialIngest.checkRunRequest`（`app/lib/domain/services/ingest/material_ingest.dart`）扩到与
+  `src/io/run.js` 的 `validateRequest` 逐条对齐：协议 / `run_id` / `actions` 是否为数组 /
+  `steps` 是否 ≥0 整数 / `time` 块可整体不写 / 每条动作的时间基 / `outcome` 白名单 /
+  **同一节点两个矛盾结论** / 影子图端点（同一份请求里先建节点、再引用它算"已存在"）/
+  `goal` 目标 / `time` 的 `elapsed_hours ≥ 0`；`previews` 全保真（不再需要引擎）。
+- 新 `app/lib/domain/services/ingest/transcribe_run.dart`：`decodeRunRequest`（对象或 JSON 文本）→
+  `reviewTranscribedRun`（硬错与建议分开；每条动作预告落到哪条机制路径）→
+  `buildTranscribePrompt`（§6 提示词 + 【图清单】）。
+- `MaterialIntakeRepository.externalNodeInventory()`：图清单来自 `knowledge_points.external_id`
+  （`review`/`exposure`/`goal` 只能指向图里已有的节点，而"图"在应用侧的真实来源就是这一列）。
+- 新只读工具 `check_transcribe_run`（`app/lib/features/ai/tools/ingest_tools.dart` + 注册表：
+  与 `io_check` 同一件事 —— **只校验、不执行**）。
+
+**顺手改掉的两处真保真问题**（都是"照文档写"抓不到的）：① `src/io/run.js` 对可选数字用的是
+`!== undefined`（**键在不在**），而 Dart 的 `numberOrNull` 照 JS `Number()` 语义把 `null` 算 0 ——
+`closeness` / `elapsed_hours` / `confidence` 因此改成按"键在不在"解析，否则 `time` 动作少写
+`elapsed_hours` 会被预告成"时间前进 0 小时"（测试第一跑就抓到了这条）；② `time` 动作可以只用
+`elapsed_hours`，其余动作必须有 `at`（决定"缺时间基"的判定，也决定 `time` 块可以整体不写）。
+
+**刻意选择**：① **只校验、不执行** —— 应用侧暂时不跑引擎，所以只说"会做什么"，绝不说"已经做了"；
+② **建议不拦** —— 规程说"建议全带"，但缺一条 `confidence` 不该让整份请求作废，只有硬错才整份拒绝；
+③ **图清单从库里查** —— "不许发明节点 id"（§1 第 2 条）必须有真实依据，不能靠 AI 自觉。
+
+**证据**：`app/test/domain/services/ingest/transcribe_run_test.dart` 32 例（解码 4 型 + 硬错族 15 例 +
+建议族 4 类 + 五种动作的预告文案 + `report.text`/`toJson` 3 例 + 提示词 3 例）；
+`app/test/features/ai/check_transcribe_run_tool_test.dart` 8 例（只读且注册表里拿得到、缺 `request`
+与非法 JSON 都是参数错、好请求给机制路径与出处统计、节点不在图 → `ok false` 整份拒绝、
+图清单默认来自库里 `external_id`、JSON 文本与对象等价、协议错也照给预览便于定位）。
+分组跑绿：`flutter test test/domain/services/ingest/` → `+101`；
+`flutter test test/features/ai/ test/domain/services/ingest/ test/data/repositories/` → `+599`。
+
+**全量回归**：`flutter test --concurrency=1` → `+1823 ~2: All tests passed!`（exit 0）。
+轮次六十五 后是 `+1783 ~2`，差值 40 = 本轮 32 + 8 例；`dart analyze lib test` 仍是
+`95 issues found`（0 error / 0 warning）。
+
+**已知的没做**：① 照片本身（视觉模型 → 信封/请求，含出处与置信度）；② 把 `run/1` 真的跑进引擎
+（应用侧目前只校验）；③ 资料与卡片的关联类型（线索边 vs 包含边，§2-C ④）。
+
 ## 2026-10-16 轮次六十五：材料入库的界面入口（Lead）
 
 **做了什么**：roadmap §2-C ① / §3 第 6 行「材料摄取」的第五步，也是这条链第一次离开 AI 工具。

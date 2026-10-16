@@ -89,6 +89,14 @@ class ToolRegistry {
             MaterialIntakeRepository(db, ankiRepository: anki, clock: clock),
         clock: clock,
       ),
+      // 转写规程的确定性那一半（roadmap §2-C ③）：照片转写出的 `mindnet.run/1` 请求
+      // 先过一遍自检（`domain/services/ingest/transcribe_run.dart`，Q37）——只校验、
+      // 不执行，说清"错在哪"与"它会做什么"。图清单来自库里知识点的 `external_id`，
+      // 所以模型不会去发明节点 id。
+      CheckTranscribeRunTool(
+        repository:
+            MaterialIntakeRepository(db, ankiRepository: anki, clock: clock),
+      ),
       // 用途 1 的兄弟 (Q12): 「这道题还有哪些同型邻居」。同一个题库投影
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
       // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。

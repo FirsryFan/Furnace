@@ -20,6 +20,7 @@ import '../../../data/repositories/material_intake_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
+import '../../../domain/services/ingest/transcribe_run.dart';
 import '../domain/ai_tool.dart';
 
 /// 信封 → 转化 → 应用侧计划。
@@ -361,6 +362,138 @@ class ApplyMaterialIntakeTool extends AiTool {
           for (final point in outcome.created) point.knowledgePointId,
         ],
       }),
+    );
+  }
+}
+
+/// 转写规程（照片 → `mindnet.run/1`）的只读自检工具（roadmap §2-C ③）。
+///
+/// 与 MindNet 的 `tools/io_check.js` 是同一件事：**只校验、不执行**。把上游 AI 从照片
+/// 产出的 run 请求过一遍，回答两个问题："错在哪"与"它会做什么"（每条动作落到哪条机制
+/// 路径）。图清单默认从库里查（`knowledge_points.external_id`）—— `review` / `exposure` /
+/// `goal` 只能指向图里已有的节点，而"图"在应用侧的真实来源就是这一列。
+///
+/// 与 `apply_material_intake` 同一条纪律：不合规就整份拒绝，不修修补补地"挑能跑的先跑"。
+class CheckTranscribeRunTool extends AiTool {
+  CheckTranscribeRunTool({required MaterialIntakeRepository repository})
+      : _repository = repository;
+
+  final MaterialIntakeRepository _repository;
+
+  @override
+  String get name => 'check_transcribe_run';
+
+  @override
+  String get description => '自检一份（从照片/文本转写出的）`mindnet.run/1` 请求：'
+      '**只校验、不执行**。逐条说明"错在哪"（协议、幂等键、时间基、动作字段、'
+      '图里有没有这个节点、同一节点有没有矛盾的结论）与"它会做什么"'
+      '（每条动作落到哪条机制路径：复习的三种 outcome、失败后对答案的学习路径、'
+      '再读、建节点/边、重开扩散、时间前进）。另按 TRANSCRIBE 规程给出**不拦**的建议：'
+      '每条都该带 evidence 与 confidence、`review` 的 quote 不该空、'
+      '`reviewed_solution` 只对 wrong 有意义。需要的话把给上游模型的转写提示词'
+      '（含【图清单】）一起返回。';
+
+  @override
+  Map<String, Object?> get parameters => <String, Object?>{
+        'type': 'object',
+        'properties': <String, Object?>{
+          'request': <String, Object?>{
+            'type': 'object',
+            'description': '一份 `mindnet.run/1` 请求。也可以给它的 JSON 文本。',
+          },
+          'existing_node_ids': <String, Object?>{
+            'type': 'array',
+            'items': <String, Object?>{'type': 'string'},
+            'description': '可选：图里已有的节点 id。默认从库里知识点的 `external_id` 查。',
+          },
+          'include_prompt': <String, Object?>{
+            'type': 'boolean',
+            'description': '可选：是否把转写提示词（含【图清单】）一起返回。默认 false。',
+          },
+          'graph_name': <String, Object?>{
+            'type': 'string',
+            'description': '可选：提示词里的图名。',
+          },
+          'note': <String, Object?>{
+            'type': 'string',
+            'description': '可选：提示词末尾的补充说明。',
+          },
+        },
+        'required': <String>['request'],
+      };
+
+  @override
+  ToolRisk riskFor(String action) => ToolRisk.write; // unused: no actions
+
+  @override
+  bool reversibleFor(String action) => true;
+
+  @override
+  bool get readOnly => true;
+
+  @override
+  bool get availableOnCurrentPlatform => true;
+
+  @override
+  Future<ToolResult> run(ToolInvocation invocation) async {
+    final args = ToolArgs(invocation.arguments);
+    final raw = invocation.arguments['request'];
+    if (raw == null) {
+      throw ToolArgError(
+        '缺少 `request`：需要一份 `mindnet.run/1` 请求（对象或它的 JSON 文本）',
+      );
+    }
+    final MaterialRunRequest request;
+    try {
+      request = decodeRunRequest(raw);
+    } on FormatException catch (error) {
+      throw ToolArgError(error.message);
+    }
+
+    final inventory = await _repository.externalNodeInventory();
+    final provided = args.optStringList('existing_node_ids');
+    final existingNodeIds = provided == null
+        ? <String>{for (final entry in inventory) entry.id}
+        : provided.toSet();
+
+    final report = reviewTranscribedRun(
+      request,
+      existingNodeIds: existingNodeIds,
+    );
+
+    final includePrompt = args.optBool('include_prompt') ?? false;
+    final prompt = includePrompt
+        ? buildTranscribePrompt(
+            inventory: inventory,
+            graphName: args.optString('graph_name'),
+            note: args.optString('note'),
+          )
+        : null;
+
+    final modelResult = <String, Object?>{
+      'report': report.toJson(),
+      'graph_nodes': existingNodeIds.length,
+      if (prompt != null) 'prompt': prompt,
+    };
+
+    if (!report.ok) {
+      return ToolResult(
+        ok: false,
+        summary: '${report.text}\n'
+            '这份请求不能执行：整份拒绝（与材料入库同一条纪律 —— "要么整批进、要么不进"）。'
+            '图清单来自库里的 ${existingNodeIds.length} 个节点。',
+        modelResult: modelResult,
+        error: report.errors.join('；'),
+      );
+    }
+
+    return ToolResult(
+      ok: true,
+      summary: '${report.text}\n'
+          '只读：这份请求还没有被执行（应用侧目前只校验、不跑引擎）。'
+          '图清单来自库里的 ${existingNodeIds.length} 个节点。'
+          '${prompt == null ? '' : '转写提示词（含图清单）在 payload 的 `prompt` 里。'}',
+      modelResult: modelResult,
     );
   }
 }

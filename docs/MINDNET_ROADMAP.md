@@ -68,7 +68,13 @@
   并留在待办里）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案 → 勾选确认，
   22 个 l10n 键 + `material_intake_reader.dart` + 页面，8 例））**；
   ② `knowledge` 动作（新知识点、新连接）；
-  ③ TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）；④ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5 已澄清语义差异）。
+  ③ TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）—— **确定性那一半已完成（轮次六十六：
+  `app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，
+  40 例；`checkRunRequest` 已与 MindNet `src/io/run.js` 的 `validateRequest` 逐条对齐，
+  输出与 `tools/io_check.js` 同构：硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；
+  给上游模型的提示词（含【图清单】）由库里知识点的 `external_id` 生成 —— 所以模型不许发明
+  节点 id。照片本身与"把请求真的跑进引擎"未做）**；
+  ④ 资料与卡片的关联类型（线索边 vs 包含边，MEMORY_RECORD §3.5 已澄清语义差异）。
 - **落点**：新增"添加资料"入口 → 生成 `knowledge` 动作 +（可选）新卡片；把出处写到 `evidence`，进 `change_log`。
 
 ### D. Thread 事件排序（趋势：用注意力与目标可达性排序，而不是只加权求和）
@@ -100,7 +106,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；TRANSCRIBE 的照片→`run/1` 未做）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；照片本身与"把请求跑进引擎"未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -585,7 +591,49 @@ body 里的释义/原文/出处、同名 `'  Rely   ON '` 归一化后 `exists`�
 协议错整份拒绝且一行不写、只有「问」的材料明说没有要动的东西）。
 
 **还没做**：① 从"待确认清单"恢复的界面（仓储已有 `batches()`/`pendingProposals()`，页面目前只认刚贴的这一批）；
-② TRANSCRIBE 的"照片 → `run/1`"；③ 资料与卡片的关联类型（连接落点等它）。
+② TRANSCRIBE 的"照片 → `run/1`"（确定性那一半已在轮次六十六补上，见下一节；照片本身未做）；
+③ 资料与卡片的关联类型（连接落点等它）。
+
+### 切片 6 的下一步（四）：转写规程的确定性那一半（轮次六十六）
+
+为什么要它：`docs/archive/TRANSCRIBE.md` 的规程一半是"上游 AI 看图写字"，另一半是**确定性代码**
+（校验、说人话、预告机制路径）—— MindNet 里那一半是 `tools/io_check.js`（在克隆引擎上试跑）。
+应用侧在此之前只有一个 `MaterialIngest.checkRunRequest`（结构校验），既没对齐 `src/io/run.js` 的
+全部规则，也不说"这份请求会做什么"。这一轮把那一半补齐，并把给上游模型的提示词（含【图清单】）
+一起生成出来 —— 于是"照片 → `run/1`"这条链上，**除了照片本身**都已经能对着规程自检了。
+
+三层，越往下越"我们说了算"（`app/lib/domain/services/ingest/transcribe_run.dart`）：
+
+- `decodeRunRequest`：对象或 JSON 文本 → `MaterialRunRequest`（空/非 JSON/别的类型各给人话错误）。
+- `reviewTranscribedRun`：**只校验、不执行**。硬错（整份拒绝）与建议（不拦）分开：
+  硬错覆盖协议、`run_id`、`actions` 不是数组、`steps` 非 ≥0 整数、缺时间基、`outcome` 白名单、
+  **同一节点两个矛盾结论**、图里没有这个节点、边端点缺失、`goal` 目标缺失；
+  建议覆盖缺 `evidence`、`review` 的 `quote` 空、缺 `confidence`、`confidence` 不在 0–1、
+  `reviewed_solution` 只对 `wrong` 有意义。每条动作还给一行机制路径预告
+  （`correct→retrieval_success`、`wrong`/`blank→lapse`、`wrong + reviewed_solution→retrieval_failure_feedback`、
+  `exposure→reread`、`knowledge→新增节点/边`、`goal→目标`、`time→时间前进/时间设为`）。
+- `buildTranscribePrompt`：§6 的提示词全文，【图清单】由 `knowledge_points.external_id` 生成 ——
+  "不许发明节点 id"这条约束因此有真实依据，而不是靠 AI 自觉。
+
+这一轮顺带在两处**真保真问题**上改了代码（都是"照文档写"抓不到的那类）：① `src/io/run.js` 对可选数字
+用的是 `!== undefined`（**键在不在**），而 Dart 的 `numberOrNull` 照 JS `Number()` 语义把 `null` 算 0 ——
+`closeness` / `elapsed_hours` / `confidence` 因此改成按"键在不在"解析，否则 `time` 动作少写
+`elapsed_hours` 会被预告成"时间前进 0 小时"；② `time` 动作可以只用 `elapsed_hours`，其余动作必须有 `at`
+（这条决定了"缺时间基"的判定，也决定 `time` 块可以整体不写）。
+
+三条刻意选择：① **只校验、不执行**：应用侧暂时不跑引擎，所以这里像 `io_check` 一样只说"会做什么"，
+绝不说"已经做了"；② **建议不拦**：规程说"建议全带"，但缺一条 `confidence` 不该让整份请求作废 ——
+只有硬错才整份拒绝；③ **图清单从库里查**：`review`/`exposure`/`goal` 只能指向图里已有的节点，
+而"图"在应用侧的真实来源就是 `external_id` 这一列。
+
+证据：`app/test/domain/services/ingest/transcribe_run_test.dart` 32 例（解码 4 型 + 硬错族 15 例 +
+建议族 4 类 + 五种动作的预告文案 + `report.text`/`toJson` 3 例 + 提示词的图清单/空清单/补充说明）、
+`app/test/features/ai/check_transcribe_run_tool_test.dart` 8 例（只读且注册表里拿得到、缺 `request`
+与非法 JSON 都是参数错、好请求给机制路径与出处统计、节点不在图 → `ok false` 整份拒绝、
+图清单默认来自库里 `external_id`、JSON 文本与对象等价、协议错也照给预览便于定位）。
+
+**还没做**：① 照片本身（视觉模型 → 信封/请求，含出处与置信度）；② 把 `run/1` 真的跑进引擎
+（应用侧目前只校验）；③ 资料与卡片的关联类型（§2-C ④）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

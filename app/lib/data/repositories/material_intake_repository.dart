@@ -26,6 +26,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../domain/services/ingest/material_intake_plan.dart';
+import '../../domain/services/ingest/transcribe_run.dart';
 import '../database/database.dart';
 import 'anki_repository.dart';
 
@@ -238,6 +239,26 @@ class MaterialIntakeRepository {
   Future<Set<String>> existingTitles() async => <String>{
         for (final point in await _anki.getKnowledgePoints()) point.title,
       };
+
+  /// 库里已知的 MindNet 节点（材料入库时写在 `knowledge_points.external_id` 上）。
+  ///
+  /// 转写规程要用它填【图清单】：`review`/`exposure`/`goal` 只能指向图里已有的节点，
+  /// 而"图"在应用侧的真实来源就是这一列 —— 让 AI 猜 id 是 TRANSCRIBE §1 第 2 条
+  /// 明令禁止的事，所以清单必须从库里查。
+  Future<List<TranscribeInventoryEntry>> externalNodeInventory() async {
+    final rows = await (_db.select(_db.knowledgePoints)
+          ..where((t) => t.externalId.isNotNull()))
+        .get();
+    final inventory = <TranscribeInventoryEntry>[];
+    for (final row in rows) {
+      final id = row.externalId;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+      inventory.add((id: id, name: row.title));
+    }
+    return inventory;
+  }
 
   /// 一个批次（读不到返回 null）。
   Future<MaterialIntakeBatch?> batch(String batchId) async {
