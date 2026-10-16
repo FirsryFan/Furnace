@@ -1340,9 +1340,57 @@ class MaterialIntakeProposals extends Table {
 
   /// 用户确认并处理完的时刻（epoch ms）。NULL = 还没处理。
   ///
-  /// 连接现在**不会**被标上：资料与卡片是"线索边"还是"包含边"还没定
-  ///（roadmap §2-C ④），所以它留在待办里等那个决定，而不是假装做完了。
+  /// 知识点与连接都会被标上：连接现在是**线索边**，落在 `knowledge_edges` 里
+  ///（roadmap §2-C ④，轮次六十八定了这个口径）。
   IntColumn get appliedAt => integer().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一条线索边（clue edge）：`docs/MINDNET_ROADMAP.md` §2-C ④，轮次六十八。
+///
+/// 为什么要单独一张表：MindNet 的边是**线索**语义（严格有向、权重 `ls`、不自动反向），
+/// 而应用里标签树的父子边是**包含**语义（`tags.parent_id`，父子是层级）。
+/// `E:\Document\MindNet\docs\MEMORY_RECORD.md` §3.5 把这两件事分开写明了，
+/// 所以资料里的 `contains`（句 → 词）与 `produce`（词 → 句）进来时**都**是线索边：
+/// `origin` 只负责记住它是材料里的哪种关系，包含语义仍然只有标签树那一处。
+@DataClassName('KnowledgeEdgeRow')
+class KnowledgeEdges extends Table {
+  @override
+  String get tableName => 'knowledge_edges';
+
+  /// 边的确定性 id（INGEST 算出来的 `e_<from>__<to>`，或手写边自己的 id）。
+  ///
+  /// 它同时是**幂等键**：同一份材料确认两次，不会长出第二条边。
+  TextColumn get id => text()();
+
+  /// 起点 / 终点的节点 id（材料节点的 id 同时是 `knowledge_points.external_id`）。
+  TextColumn get fromId => text()();
+  TextColumn get toId => text()();
+
+  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic` / `manual`。
+  ///
+  /// 只是出处，不是权重：线的方向与含义由 [fromId] → [toId] 定，反过来要另建一条。
+  TextColumn get origin => text()();
+
+  /// 线索强度 `ls`。可空：没有来源的边不许编一个数。
+  RealColumn get ls => real().nullable()();
+
+  /// `ls` 有没有标定来源（`MEMORY_RECORD.md` §3.5：边权 `ls` 目前**没有**标定来源）。
+  ///
+  /// 默认 false —— 于是"未标定"是库里的事实，不是文档里的口号；
+  /// 界面/工具要显示权重时必须把它一起显示出来。
+  BoolColumn get lsCalibrated => boolean().withDefault(const Constant(false))();
+
+  /// 这一批材料（`material_intake_batches.batch_id`）。手写的边为空。
+  TextColumn get batchId => text().nullable()();
+
+  /// 出处那一行（与 `knowledge_points.source` 同一套文案）。
+  TextColumn get source => text().nullable()();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();

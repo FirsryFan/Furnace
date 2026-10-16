@@ -4,6 +4,55 @@
 
 ---
 
+## 2026-10-16 轮次六十八：线索边落库 —— 资料与卡片的关联类型定案（Lead）
+
+**做了什么**：roadmap §2-C ④「资料与卡片的关联类型（线索边 vs 包含边）+ 连接落点」。
+在此之前材料里的连接一律**不能落**（`apply` 如实报 `deferred`，界面上的连接勾选框直接置灰），
+因为"标签树的父子边"与"MindNet 的边"是两种语义。定案依据是
+`E:\Document\MindNet\docs\MEMORY_RECORD.md` §3.5（`:102-103`）：**标签树的父子边是"包含"语义，
+MindNet 的边是"线索"语义 —— 严格有向、不自动反向；边权 `ls` 目前没有标定来源**。
+这一轮把"关联类型"与"连接落点"一起定下并落库（schema v18）。
+
+- 新表 `knowledge_edges`（`app/lib/data/database/tables.dart`）：`id`(PK，就是 INGEST 那条边的
+  id 去掉 `edge:` 前缀 ⇒ 幂等键) / `from_id` / `to_id` / `origin` / `ls`(可空) /
+  `ls_calibrated`(默认 `false`) / `batch_id` / `source` / `created_at` / `updated_at`；
+  `app/lib/data/database/database.dart` 侧是 `_upgradeV17ToV18`（加一张表）+ `_ensureColumns()` 自愈
+  （Drift 在 `user_version` 等于当前版本时跳过 `onUpgrade`，那一刻没有自愈第一次写就会炸）。
+- **两种语义各归各家**：包含语义仍然只有标签树父子边一处（`tags.parent_id`），线索边不复制它；
+  线索边严格有向，`from → to` 与 `to → from` 是两条不同的边。
+- **两端都在才落**（`MaterialIntakeRepository._createEdge`）：端点按 `knowledge_points.external_id`
+  认（本批刚建的或库里已有的都算）；缺一端就 `deferred` + 人话原因（"起点/终点/两端还不在库里"），
+  **不建边、不标 `applied_at`**，留在待办里等端点补齐 —— 与 MindNet `validateRequest` 的影子图规则同构。
+- `apply` 先按 `kind.index` 排序（知识点在前）再逐条处理，于是"同一批里刚建的点"立刻能当端点；
+  `MaterialApplyOutcome` 分成 `created` / `createdEdges` / `existing` / `existingEdges` / `deferred` /
+  `remaining`，`toJson()` 给出 `created_edges` / `created_edge_count` / `existing_edges`。
+- 落边的 `ls` 照抄提案，但 `ls_calibrated` 一律 `false`（§3.5 说它没有标定来源，就不假装有）；
+  `origin` 记它来自材料里的哪种关系（`contains` / `produce` / `topic`，缺省 `material`）。
+- 界面：连接不再置灰（`materialIntakeConnectionClue` 取代 `materialIntakeConnectionDeferred`），
+  默认与知识点一起选中；成绩单把两类合计着说（"写入 N 条（知识点与线索边）…N 条连接落不了"）。
+- 工具：`apply_material_intake` 的 summary 多了"建了连接 A → B（origin）"与"连接落不了（有一端还不在库里）"，
+  `afterJson` 多了 `edge_ids`。
+
+**刻意选择**：① **不建通用边表** —— 此前那 33 张表里没有通用边表（`ObjectTags` 是 tag↔object），
+硬造一张"什么边都能装"的表正是 §3.5 警告的语义混淆；② **`origin` 存关系名而不是"材料 id"** ——
+材料已经在 `batch_id`/`source` 里，`origin` 要回答"这条边凭什么存在"（含/产/主题），标定 `ls` 时用得上的就是它；
+③ **缺端就 defer，绝不编边** —— 一条只有一端的边写进库比不写更糟，它会被后续图算法当成事实。
+
+**证据**：`flutter test test/domain/services/ingest/material_intake_plan_test.dart
+test/data/repositories/material_intake_repository_test.dart
+test/features/ai/apply_material_intake_tool_test.dart
+test/features/cognitive/presentation/material_intake_page_test.dart
+test/data/database/v18_migration_test.dart` → `+41: All tests passed!`（新文件
+`app/test/data/database/v18_migration_test.dart` 照 v17 那篇写：真 v17 文件升级、被盖成 v18 缺表靠自愈）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1826 ~2: All tests passed!`（exit 0）。
+轮次六十七 后是 `+1824 ~2`，差值 2 = 新的 v18 迁移测试两例。
+
+**已知的没做**：① `ls` 仍**没有标定来源**（标定实验是 roadmap §3 第 7 行那六条，需要外部数据）；
+② 落下来的边**还没有界面读它**（数据在库里，知识点页/图视图都还没画）；
+③ TRANSCRIBE 的照片本身（§2-C ③）；④ 把 `run/1` 真的跑进引擎。
+
 ## 2026-10-16 轮次六十七：SM-2 只剩存档 —— 到期日真的只有一个权威（Lead）
 
 **做了什么**：把 roadmap 第 3 节末尾那条纪律（"FSRS 仍是到期日唯一权威""一张表的一列只有一个写者"）

@@ -198,10 +198,11 @@ class IngestMaterialTool extends AiTool {
 /// 所以"确认"只需要说清确认哪一批、哪几条。落库分两步走（`record` → `apply`），与界面上
 /// "先看到清单、再逐条确认"是同一条路 —— 差别只在于这里的"看到"发生在上一轮对话里。
 ///
-/// **写**：`knowledge_points` 会真的多出几行。可撤销的理由是 `afterJson` 里带着新建的
-/// 知识点 id（与 `create_knowledge_cards` 同一个口径）。**连接不写**：资料与卡片是"线索
-/// 边"还是"包含边"还没定（roadmap §2-C ④），落点不存在的写入只能是编的，所以它们在结果
-/// 里如实报成 `deferred`，留在待办里等那个决定。
+/// **写**：`knowledge_points` 会真的多出几行，选中的连接也会落成 `knowledge_edges`
+/// 里的**线索边**（严格有向、`origin` 记住它是材料里的哪种关系，`ls` 带"未标定"标记）。
+/// 可撤销的理由是 `afterJson` 里带着新建的知识点 id（与 `create_knowledge_cards` 同一个
+/// 口径）。连接的两端必须都在库里（本批刚建的或原有的）—— 缺一端就落不了，如实报
+/// `deferred` 并留在待办里，绝不编一条边出来。
 class ApplyMaterialIntakeTool extends AiTool {
   ApplyMaterialIntakeTool({
     required MaterialIntakeRepository repository,
@@ -217,11 +218,13 @@ class ApplyMaterialIntakeTool extends AiTool {
 
   @override
   String get description => '用户确认后，把一份材料信封推导出来的提案**真的写进库**：'
-      '新建知识点（标题/正文/出处进 `knowledge_points`，节点 id 进 `external_id`）。'
-      '入库是幂等的：批次主键就是信封的 `batch_id`，同一条提案确认两次不会建出两个知识点，'
-      '同名的也不会重复建（结果里如实报"已存在"）。**连接现在不写** —— 资料与卡片是'
-      '"线索边"还是"包含边"还没定（roadmap §2-C ④），没有落点，所以它们在结果里报成 '
-      '`deferred` 留在待办里。信封不合规就整份拒绝，绝不写半份。';
+      '新建知识点（标题/正文/出处进 `knowledge_points`，节点 id 进 `external_id`），'
+      '选中的连接落成 `knowledge_edges` 里的**线索边**（严格有向；`origin` 记住它是材料里'
+      '的哪种关系，`ls` 带未标定标记）。'
+      '入库是幂等的：批次主键就是信封的 `batch_id`，同一条提案确认两次不会建出两个知识点'
+      '或两条边，同名的也不会重复建（结果里如实报"已存在"）。连接的**两端都必须已经在库里**'
+      '（本批刚建的或原有的）—— 缺一端就落不了，报成 `deferred` 留在待办里，绝不编一条边。'
+      '信封不合规就整份拒绝，绝不写半份。';
 
   @override
   Map<String, Object?> get parameters => <String, Object?>{
@@ -340,18 +343,23 @@ class ApplyMaterialIntakeTool extends AiTool {
       for (final point in outcome.created)
         '- 建了知识点「${point.title}」'
             '${point.nodeId == null ? '' : '（${point.nodeId}）'}',
+      for (final edge in outcome.createdEdges)
+        '- 建了连接 ${edge.fromId} → ${edge.toId}'
+            '${edge.origin == null ? '' : '（${edge.origin}）'}',
       if (outcome.existing.isNotEmpty)
         '- 已存在，没重复建：${outcome.existing.join('、')}',
+      if (outcome.existingEdges.isNotEmpty)
+        '- 连接已存在，没重复建：${outcome.existingEdges.join('、')}',
       if (outcome.deferred.isNotEmpty)
-        '- 连接先不动：${outcome.deferred.join('、')}'
-            '（资料与卡片是"线索边"还是"包含边"还没定，roadmap §2-C ④）',
+        '- 连接落不了（有一端还不在库里）：${outcome.deferred.join('、')}',
     ];
 
     return ToolResult(
       ok: true,
       summary: '${outcome.text}。\n${lines.join('\n')}\n'
-          '出处写在每个知识点的正文与 `source` 里，提案表里留着完整的 `evidence`。'
-          '${outcome.deferred.isEmpty ? '' : '连接还没落点，它们留在待确认清单里。'}',
+          '出处写在每个知识点的正文与 `source` 里，提案表里留着完整的 `evidence`；'
+          '线索边的 `ls` 带"未标定"标记（没有标定来源的数不许当真）。'
+          '${outcome.deferred.isEmpty ? '' : '落不了的连接留在待确认清单里，等端点补齐。'}',
       modelResult: <String, Object?>{
         'batch': updated.toJson(),
         'outcome': outcome.toJson(),
@@ -360,6 +368,9 @@ class ApplyMaterialIntakeTool extends AiTool {
         'batch_id': batch.batchId,
         'knowledge_point_ids': [
           for (final point in outcome.created) point.knowledgePointId,
+        ],
+        'edge_ids': [
+          for (final edge in outcome.createdEdges) edge.edgeId,
         ],
       }),
     );

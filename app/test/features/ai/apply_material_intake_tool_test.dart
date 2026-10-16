@@ -2,8 +2,9 @@
 ///
 /// `ingest_material` 只读、只摆提案；用户点头之后由这个工具落库。这里钉的是"写"这条
 /// 路上最容易出事的几件事：**不是只读**（审批引擎得看得见）、信封不合规时**一行都不写**、
-/// 同一份信封确认两次**不会建出两个知识点**、参数里的 `proposal_ids` 越界要拒绝而不是
-/// 悄悄少写、以及**连接现在不写**（落点未定，§2-C ④）—— 它必须如实报成 `deferred`。
+/// 同一份信封确认两次**不会建出两个知识点或两条边**、参数里的 `proposal_ids` 越界要拒绝
+/// 而不是悄悄少写、以及选中的连接**真的落成线索边**（`knowledge_edges`，严格有向、`ls`
+/// 带未标定标记）—— 端点不齐的才如实报 `deferred`。
 library;
 
 import 'dart:convert';
@@ -153,25 +154,27 @@ void main() {
     expect(await repository.batches(), isEmpty);
   });
 
-  test('好信封 ⇒ 知识点落库、连接 deferred、afterJson 带 id', () async {
+  test('好信封 ⇒ 知识点与线索边落库、afterJson 带两类 id', () async {
     final result = await tool.run(invocationOf(envelopeJson()));
 
     expect(result.ok, isTrue);
     expect(result.summary, contains('新建 2 个知识点'));
+    expect(result.summary, contains('新建 2 条连接'));
     expect(result.summary, contains('「rely on」'));
     expect(result.summary, contains('en::w::rely-on'));
-    expect(result.summary, contains('连接先不动'));
+    expect(result.summary, contains('未标定'));
 
     final outcome = payloadOf(result)['outcome']! as Map<String, Object?>;
     expect(outcome['batch_id'], 'b-apply');
     expect(outcome['created'], hasLength(2));
-    expect(outcome['deferred'], hasLength(2));
-    expect(outcome['remaining'], 2);
+    expect(outcome['created_edges'], hasLength(2));
+    expect(outcome['deferred'], isEmpty);
+    expect(outcome['remaining'], 0);
 
     final batch = payloadOf(result)['batch']! as Map<String, Object?>;
     expect(batch['summary'], contains('批次 b-apply'));
     expect(batch['proposal_count'], 4);
-    expect(batch['unapplied_count'], 2);
+    expect(batch['unapplied_count'], 0);
 
     final rows = await db.select(db.knowledgePoints).get();
     expect(rows, hasLength(2));
@@ -180,20 +183,28 @@ void main() {
       '材料：词汇书（第 12 页）',
     );
 
+    final edges = await db.select(db.knowledgeEdges).get();
+    expect(edges, hasLength(2));
+    expect(edges.first.lsCalibrated, isFalse);
+    expect(edges.first.batchId, 'b-apply');
+
     final after = jsonDecode(result.afterJson!) as Map<String, Object?>;
     expect(after['batch_id'], 'b-apply');
     expect(after['knowledge_point_ids'], hasLength(2));
+    expect(after['edge_ids'], hasLength(2));
   });
 
-  test('确认两次是幂等的：第二次不建新点，也不报错', () async {
+  test('确认两次是幂等的：第二次不建新点新边，也不报错', () async {
     await tool.run(invocationOf(envelopeJson()));
     final again = await tool.run(invocationOf(envelopeJson()));
 
     expect(again.ok, isTrue);
     final outcome = payloadOf(again)['outcome']! as Map<String, Object?>;
     expect(outcome['created'], isEmpty);
-    expect(outcome['remaining'], 2);
+    expect(outcome['created_edges'], isEmpty);
+    expect(outcome['remaining'], 0);
     expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
   });
 
   test('proposal_ids 只确认选中那几条', () async {

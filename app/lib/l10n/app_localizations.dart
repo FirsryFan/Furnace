@@ -1298,11 +1298,11 @@ abstract class AppLocalizations {
   /// **'connection'**
   String get materialIntakeKindConnection;
 
-  /// No description provided for @materialIntakeConnectionDeferred.
+  /// No description provided for @materialIntakeConnectionClue.
   ///
   /// In en, this message translates to:
-  /// **'deferred: the material-card relation is not decided (§2-C ④)'**
-  String get materialIntakeConnectionDeferred;
+  /// **'clue edge: strictly directed, ls uncalibrated'**
+  String get materialIntakeConnectionClue;
 
   /// No description provided for @materialIntakeExisting.
   ///
@@ -1319,7 +1319,7 @@ abstract class AppLocalizations {
   /// No description provided for @materialIntakeApplied.
   ///
   /// In en, this message translates to:
-  /// **'Wrote {created} knowledge points ({existing} already existed), {deferred} connections deferred, {remaining} still pending'**
+  /// **'Wrote {created} rows (knowledge points and clue edges), {existing} already existed, {deferred} connections could not land, {remaining} still pending'**
   String materialIntakeApplied(
       int created, int existing, int deferred, int remaining);
 

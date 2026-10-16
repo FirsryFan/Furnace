@@ -180,6 +180,8 @@ void main() {
       expect(containsEdge.from, startsWith('en::s::'));
       expect(containsEdge.to, 'en::w::rely-on');
       expect(containsEdge.ls, 0.6);
+      expect(containsEdge.origin, 'contains',
+          reason: '落库时进 knowledge_edges.origin');
       expect(containsEdge.exists, isFalse);
       expect(containsEdge.evidence.region, '边：contains');
 
@@ -187,16 +189,17 @@ void main() {
           connections.firstWhere((c) => c.why.contains('用它造出这句话'));
       expect(produceEdge.from, 'en::w::rely-on');
       expect(produceEdge.to, startsWith('en::s::'));
+      expect(produceEdge.origin, 'produce');
       expect(produceEdge.evidence.region, '边：produce');
     });
 
-    test('主题边默认只报不建，原因写明关联类型未定', () {
+    test('主题边默认只报不建，原因写明"主题分组默认不建"', () {
       final plan = planOf(envelopeJson());
       final topicSkips =
-          plan.skipped.where((s) => s.reason.contains('关联类型未定')).toList();
+          plan.skipped.where((s) => s.reason.contains('主题分组默认不建')).toList();
 
       expect(topicSkips.length, 2, reason: 'hub → 句子、hub → 词，两条主题边');
-      expect(topicSkips.first.reason, contains('roadmap §2-C ④'));
+      expect(topicSkips.first.reason, contains('includeTopicHubs'));
       expect(
         plan.proposals.any((p) =>
             p.kind == MaterialIntakeKind.connection && p.why.contains('主题分组')),

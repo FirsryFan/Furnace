@@ -642,7 +642,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeKindConnection => '连接';
 
   @override
-  String get materialIntakeConnectionDeferred => '先不动：资料与卡片的关系还没定（§2-C ④）';
+  String get materialIntakeConnectionClue => '线索边：严格有向，ls 未标定';
 
   @override
   String get materialIntakeExisting => '已存在，不重复建';
@@ -655,7 +655,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String materialIntakeApplied(
       int created, int existing, int deferred, int remaining) {
-    return '写入 $created 个知识点（$existing 个已存在）、$deferred 条连接先不动、还剩 $remaining 条待确认';
+    return '写入 $created 条（知识点与线索边）、$existing 条已存在、$deferred 条连接落不了、还剩 $remaining 条待确认';
   }
 
   @override

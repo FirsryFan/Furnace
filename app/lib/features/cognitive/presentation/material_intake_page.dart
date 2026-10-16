@@ -80,8 +80,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _draft = draft;
         _batch = batch;
         _selected = <String>{
-          for (final proposal in draft.plan.proposals)
-            if (proposal.kind == MaterialIntakeKind.knowledgePoint) proposal.id,
+          for (final proposal in draft.plan.proposals) proposal.id,
         };
         _busy = false;
       });
@@ -105,7 +104,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     });
   }
 
-  /// 确认入库：只写被勾中的知识点；连接如实报成 deferred。
+  /// 确认入库：知识点进 `knowledge_points`，连接落成 `knowledge_edges` 的线索边。
+  ///
+  /// 落不了的连接（有一端还不在库里）由 `apply` 如实报成 `deferred`，留在待办里。
   Future<void> _apply() async {
     final draft = _draft;
     if (draft == null) {
@@ -202,8 +203,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
             const SizedBox(height: 12),
             _Success(
               text: l10n.materialIntakeApplied(
-                _outcome!.created.length,
-                _outcome!.existing.length,
+                _outcome!.created.length + _outcome!.createdEdges.length,
+                _outcome!.existing.length + _outcome!.existingEdges.length,
                 _outcome!.deferred.length,
                 _outcome!.remaining,
               ),
@@ -295,8 +296,7 @@ class _ProposalTile extends StatelessWidget {
           children: <Widget>[
             Checkbox(
               value: selected,
-              // 连接没有落点（§2-C ④），勾了也不会写：如实置灰。
-              onChanged: isPoint ? onChanged : null,
+              onChanged: onChanged,
             ),
             Expanded(
               child: Column(
@@ -313,7 +313,7 @@ class _ProposalTile extends StatelessWidget {
                       isPoint
                           ? l10n.materialIntakeKindPoint
                           : l10n.materialIntakeKindConnection,
-                      if (!isPoint) l10n.materialIntakeConnectionDeferred,
+                      if (!isPoint) l10n.materialIntakeConnectionClue,
                       if (proposal.exists) l10n.materialIntakeExisting,
                     ].join(' · '),
                     style: theme.textTheme.labelSmall,

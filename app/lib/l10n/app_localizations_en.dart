@@ -660,8 +660,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeKindConnection => 'connection';
 
   @override
-  String get materialIntakeConnectionDeferred =>
-      'deferred: the material-card relation is not decided (§2-C ④)';
+  String get materialIntakeConnectionClue =>
+      'clue edge: strictly directed, ls uncalibrated';
 
   @override
   String get materialIntakeExisting => 'already exists - no duplicate';
@@ -674,7 +674,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String materialIntakeApplied(
       int created, int existing, int deferred, int remaining) {
-    return 'Wrote $created knowledge points ($existing already existed), $deferred connections deferred, $remaining still pending';
+    return 'Wrote $created rows (knowledge points and clue edges), $existing already existed, $deferred connections could not land, $remaining still pending';
   }
 
   @override

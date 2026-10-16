@@ -106,12 +106,45 @@ class MaterialAppliedPoint {
       };
 }
 
+/// `apply` 建出来的一条**线索边**（`knowledge_edges`）。
+class MaterialAppliedEdge {
+  const MaterialAppliedEdge({
+    required this.proposalId,
+    required this.edgeId,
+    required this.fromId,
+    required this.toId,
+    this.origin,
+  });
+
+  final String proposalId;
+
+  /// 边自己的 id（INGEST 的 `e_<from>__<to>`），同时是幂等键。
+  final String edgeId;
+
+  /// 两端（材料节点 id = `knowledge_points.external_id`）。
+  final String fromId;
+  final String toId;
+
+  /// 材料里的关系（`contains` / `produce` / `topic`）。
+  final String? origin;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'proposal_id': proposalId,
+        'edge_id': edgeId,
+        'from': fromId,
+        'to': toId,
+        if (origin != null) 'origin': origin,
+      };
+}
+
 /// 一次 `apply` 的结果：建了什么、什么已存在、什么还等着。
 class MaterialApplyOutcome {
   const MaterialApplyOutcome({
     required this.batchId,
     required this.created,
+    required this.createdEdges,
     required this.existing,
+    required this.existingEdges,
     required this.deferred,
     required this.remaining,
   });
@@ -121,10 +154,16 @@ class MaterialApplyOutcome {
   /// 真的新建出来的知识点。
   final List<MaterialAppliedPoint> created;
 
+  /// 真的新建出来的线索边（`knowledge_edges`）。
+  final List<MaterialAppliedEdge> createdEdges;
+
   /// 同名或同一个 `external_id` 已在库里的提案（去重，没有重复写）。
   final List<String> existing;
 
-  /// 连接提案：还没落点（§2-C ④），如实留着。
+  /// 已经在库里的边（同一条边 id，没有重复写）。
+  final List<String> existingEdges;
+
+  /// 连接提案：两端不齐，落不了 —— 如实留着，并把缺的那一端写进理由。
   final List<String> deferred;
 
   /// 处理完以后这一批还剩多少条没动。
@@ -132,13 +171,19 @@ class MaterialApplyOutcome {
 
   /// 人话一行（给工具/日志用）。
   String get text {
-    if (created.isEmpty && existing.isEmpty && deferred.isEmpty) {
+    if (created.isEmpty &&
+        createdEdges.isEmpty &&
+        existing.isEmpty &&
+        existingEdges.isEmpty &&
+        deferred.isEmpty) {
       return '批次 $batchId 没有待确认的提案';
     }
     final parts = <String>[
       if (created.isNotEmpty) '新建 ${created.length} 个知识点',
-      if (existing.isNotEmpty) '${existing.length} 个已存在（没重复建）',
-      if (deferred.isNotEmpty) '${deferred.length} 条连接先不动（资料与卡片的关系还没定）',
+      if (createdEdges.isNotEmpty) '新建 ${createdEdges.length} 条连接',
+      if (existing.isNotEmpty || existingEdges.isNotEmpty)
+        '${existing.length + existingEdges.length} 条已存在（没重复建）',
+      if (deferred.isNotEmpty) '${deferred.length} 条连接落不了（有一端还不在库里）',
     ];
     final left = remaining > 0 ? '；还剩 $remaining 条待确认' : '';
     return '批次 $batchId：${parts.join('、')}$left';
@@ -148,7 +193,10 @@ class MaterialApplyOutcome {
         'batch_id': batchId,
         'created': [for (final point in created) point.toJson()],
         'created_count': created.length,
+        'created_edges': [for (final edge in createdEdges) edge.toJson()],
+        'created_edge_count': createdEdges.length,
         'existing': existing,
+        'existing_edges': existingEdges,
         'deferred': deferred,
         'remaining': remaining,
       };
@@ -300,11 +348,12 @@ class MaterialIntakeRepository {
     return [for (final row in rows) _toProposal(row)];
   }
 
-  /// 用户确认：把还没处理的提案落到 `knowledge_points`。
+  /// 用户确认：把还没处理的提案落到 `knowledge_points` 与 `knowledge_edges`。
   ///
   /// [proposalIds] 为空表示"这一批还没处理的全部"；给了就只处理这些（界面上的
-  /// 逐条确认）。返回的三份名单互相不重叠：`created` 真建了、`existing` 因为同名或
-  /// 同 `external_id` 而没重复建、`deferred` 是连接（§2-C ④ 未定，落点不存在）。
+  /// 逐条确认）。返回的名单按"建了 / 已存在 / 落不了"分开：知识点与连接各自计数，
+  /// `deferred` 只装连接 —— 连接的**两端必须都在**（本批刚建的或库里已有的节点 id），
+  /// 否则落不了，如实留在待办里（与 MindNet `validateRequest` 的影子图同一条规则）。
   Future<MaterialApplyOutcome> apply({
     required String batchId,
     List<String>? proposalIds,
@@ -320,7 +369,9 @@ class MaterialIntakeRepository {
     final now = (appliedAt ?? _clock()).millisecondsSinceEpoch;
 
     final created = <MaterialAppliedPoint>[];
+    final createdEdges = <MaterialAppliedEdge>[];
     final existing = <String>[];
+    final existingEdges = <String>[];
     final deferred = <String>[];
     var remaining = 0;
 
@@ -329,15 +380,37 @@ class MaterialIntakeRepository {
             ..where((t) => t.batchId.equals(batchId) & t.appliedAt.isNull())
             ..orderBy([(t) => OrderingTerm.asc(t.sortIndex)]))
           .get();
-      for (final proposalRow in rows) {
-        final proposal = _toProposal(proposalRow);
+      // 先处理知识点：连接的两端可能正是这一批刚建出来的（影子图规则）。
+      final pending =
+          <({MaterialIntakeProposal proposal, MaterialIntakeProposalRow row})>[
+        for (final row in rows) (proposal: _toProposal(row), row: row),
+      ];
+      pending.sort((a, b) {
+        final byKind = a.proposal.kind.index.compareTo(b.proposal.kind.index);
+        return byKind != 0
+            ? byKind
+            : a.row.sortIndex.compareTo(b.row.sortIndex);
+      });
+      for (final entry in pending) {
+        final proposal = entry.proposal;
+        final proposalRow = entry.row;
         final picked = requested == null || requested.contains(proposal.id);
         if (proposal.kind == MaterialIntakeKind.connection) {
-          if (picked) {
-            // 落点没有，先不写 —— 但也不算"选了却没做"：它照旧留在待办里。
-            deferred.add(proposal.id);
+          if (!picked) {
+            remaining++;
+            continue;
           }
-          remaining++;
+          final edge = await _createEdge(proposal, batchId, now);
+          if (edge.created) {
+            createdEdges.add(edge.edge!);
+          } else if (edge.missingEndpoint != null) {
+            deferred.add(proposal.id);
+            remaining++;
+            continue;
+          } else {
+            existingEdges.add(proposal.id);
+          }
+          await _markApplied(proposalRow, now);
           continue;
         }
         if (!picked) {
@@ -351,22 +424,99 @@ class MaterialIntakeRepository {
         } else {
           existing.add(proposal.id);
         }
-        await (_db.update(_db.materialIntakeProposals)
-              ..where((t) => t.id.equals(proposalRow.id)))
-            .write(MaterialIntakeProposalsCompanion(
-          appliedAt: Value(now),
-          updatedAt: Value(now),
-        ));
+        await _markApplied(proposalRow, now);
       }
     });
 
     return MaterialApplyOutcome(
       batchId: batchId,
       created: created,
+      createdEdges: createdEdges,
       existing: existing,
+      existingEdges: existingEdges,
       deferred: deferred,
       remaining: remaining,
     );
+  }
+
+  Future<void> _markApplied(MaterialIntakeProposalRow row, int now) async {
+    await (_db.update(_db.materialIntakeProposals)
+          ..where((t) => t.id.equals(row.id)))
+        .write(MaterialIntakeProposalsCompanion(
+      appliedAt: Value(now),
+      updatedAt: Value(now),
+    ));
+  }
+
+  /// 建一条**线索边**，或者因为端点不齐 / 已经在库里而不建。
+  ///
+  /// 三条规则：① 两端都必须在（本批刚建的知识点有 `external_id`，库里原有的也算）——
+  /// 缺一端就落不了，返回 `missingEndpoint` 让调用方如实报 `deferred`；
+  /// ② 幂等看边 id（INGEST 算的 `e_<from>__<to>`），重复确认不长第二条；
+  /// ③ 严格有向：一条边只从 [MaterialIntakeProposal.from] 指向 [to]，反向要另建。
+  Future<
+      ({
+        bool created,
+        MaterialAppliedEdge? edge,
+        String? missingEndpoint,
+      })> _createEdge(
+    MaterialIntakeProposal proposal,
+    String batchId,
+    int now,
+  ) async {
+    final from = proposal.from;
+    final to = proposal.to;
+    if (from == null || to == null) {
+      return (created: false, edge: null, missingEndpoint: '边缺端点');
+    }
+    final edgeId = proposal.id.startsWith('edge:')
+        ? proposal.id.substring('edge:'.length)
+        : proposal.id;
+    final existingRow = await (_db.select(_db.knowledgeEdges)
+          ..where((t) => t.id.equals(edgeId)))
+        .getSingleOrNull();
+    if (existingRow != null) {
+      return (created: false, edge: null, missingEndpoint: null);
+    }
+    final fromKnown = await _nodeExists(from);
+    final toKnown = await _nodeExists(to);
+    if (!fromKnown || !toKnown) {
+      final missing = !fromKnown && !toKnown
+          ? '两端都还不在库里'
+          : (!fromKnown ? '起点 $from 还不在库里' : '终点 $to 还不在库里');
+      return (created: false, edge: null, missingEndpoint: missing);
+    }
+    await _db.into(_db.knowledgeEdges).insert(KnowledgeEdgesCompanion.insert(
+          id: edgeId,
+          fromId: from,
+          toId: to,
+          origin: proposal.origin ?? 'material',
+          ls: Value(proposal.ls),
+          batchId: Value(batchId),
+          source: Value(_sourceLabel(proposal.evidence)),
+          createdAt: now,
+          updatedAt: now,
+        ));
+    return (
+      created: true,
+      edge: MaterialAppliedEdge(
+        proposalId: proposal.id,
+        edgeId: edgeId,
+        fromId: from,
+        toId: to,
+        origin: proposal.origin,
+      ),
+      missingEndpoint: null,
+    );
+  }
+
+  /// 这个节点 id 是不是已经在库里（`knowledge_points.external_id`）。
+  Future<bool> _nodeExists(String nodeId) async {
+    final found = await (_db.select(_db.knowledgePoints)
+          ..where((t) => t.externalId.equals(nodeId))
+          ..limit(1))
+        .getSingleOrNull();
+    return found != null;
   }
 
   /// 建一个知识点，或者发现"已经在库里"。

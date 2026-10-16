@@ -17,8 +17,8 @@
 ///  * **不进图 ≠ 丢弃**：`question` / `known` / `note` / 不认识的记号原样留在 [MaterialIntakePlan.skipped]
 ///    里并带原因（INGEST §5 第三条不变量）。
 ///  * **没定的事不偷偷定**：主题 hub（`en::topic::…`）是分组而不是知识点，默认只进
-///    `skipped` 并写明"资料与卡片的关联类型未定（§2-C ④）"；想让审计看到它请显式传
-///    [MaterialIntakePlanner.plan] 的 `includeTopicHubs: true`。
+///    `skipped` 并写明"主题分组默认不建"（会把每个节点都连到同一个 hub）；想让审计看到它
+///    请显式传 [MaterialIntakePlanner.plan] 的 `includeTopicHubs: true`。
 ///
 /// 幂等来自上游：节点 id 内容确定（`en::w::resilient`），所以提案 id（`kp:<nodeId>` /
 /// `edge:<edgeId>`）同一页拍两次完全一样。
@@ -31,7 +31,7 @@ enum MaterialIntakeKind {
   /// 在 `knowledge_points` 里建一个知识点。
   knowledgePoint('knowledge_point'),
 
-  /// 建一条连接（两个知识点之间的边；本仓库的连接形态见 §2-C ④）。
+  /// 建一条连接（两个知识点之间的**线索边**，落在 `knowledge_edges`；见 §2-C ④）。
   connection('connection');
 
   const MaterialIntakeKind(this.id);
@@ -106,6 +106,7 @@ class MaterialIntakeProposal {
     this.from,
     this.to,
     this.ls,
+    this.origin,
     required this.body,
     required this.why,
     required this.exists,
@@ -130,6 +131,12 @@ class MaterialIntakeProposal {
   /// 连接强度（**未标定**，INGEST §3.1）。
   final double? ls;
 
+  /// 连接提案：这条边来自材料里的哪种关系（`contains` / `produce` / `topic`）。
+  ///
+  /// 只是出处，不是语义类别 —— 落库时它进 `knowledge_edges.origin`，
+  /// 而"线索 vs 包含"的分工由表本身定（roadmap §2-C ④）。
+  final String? origin;
+
   /// 知识点提案的正文（释义 / 音标 / 原文 / 出处），直接可以当 `content`。
   final String body;
 
@@ -149,6 +156,7 @@ class MaterialIntakeProposal {
         if (from != null) 'from': from,
         if (to != null) 'to': to,
         if (ls != null) 'ls': MaterialIngest.integral(ls),
+        if (origin != null) 'origin': origin,
         'body': body,
         'why': why,
         'exists': exists,
@@ -185,6 +193,7 @@ class MaterialIntakeProposal {
         final num value => value.toDouble(),
         _ => null,
       },
+      origin: json['origin']?.toString(),
       body: json['body']?.toString() ?? '',
       why: json['why']?.toString() ?? '',
       exists: json['exists'] == true,
@@ -305,8 +314,8 @@ abstract final class MaterialIntakePlanner {
   /// 把图补丁翻译成"要建什么"。
   ///
   /// [existingTitles] 是库里已有的知识点标题（**调用方给原文即可**，这里自己归一）。
-  /// [includeTopicHubs] 默认 `false`：主题是分组，不是知识点，而且"资料挂在卡片上算线索边
-  /// 还是包含边"还没定（roadmap §2-C ④）—— 默认只报出来，不建。
+  /// [includeTopicHubs] 默认 `false`：主题是分组，不是知识点；它会把每个节点都连到
+  /// 同一个 hub，而"这批材料属于同一主题"通常看一眼标题就够了 —— 默认只报出来，不建。
   static MaterialIntakePlan plan(
     MaterialConversion conversion, {
     required MaterialEnvelope envelope,
@@ -339,8 +348,8 @@ abstract final class MaterialIntakePlanner {
           title: title,
           nodeId: node.id,
           body: '主题分组（材料里写了 `#${envelope.topic ?? ''}`）',
-          why: '这一轮显式要求把主题也当知识点（默认不建：资料与卡片的关联类型未定，'
-              'roadmap §2-C ④）',
+          why: '这一轮显式要求把主题也当知识点（默认不建：主题分组不落成知识点，'
+              '只把每个节点连到 hub）',
           exists: known.contains(normalizeTitle(title)),
           evidence: _evidenceOf(envelope, null, '主题分组', null),
         ));
@@ -371,8 +380,8 @@ abstract final class MaterialIntakePlanner {
       if (edge.why == 'topic' && !includeTopicHubs) {
         skipped.add(MaterialIntakeSkip(
           ref: edge.id,
-          reason: '主题分组不进提案：资料与卡片的关联类型未定（线索边 vs 包含边，'
-              'roadmap §2-C ④），这一层先不建',
+          reason: '主题分组默认不建：它会把每个节点都连到同一个 hub，'
+              '而"这批材料属于同一主题"通常看一眼标题就够了；要建就打开 includeTopicHubs',
         ));
         continue;
       }
@@ -386,6 +395,7 @@ abstract final class MaterialIntakePlanner {
         from: edge.from,
         to: edge.to,
         ls: edge.ls,
+        origin: edge.why,
         body: '',
         why: _edgeWhyOf(edge.why),
         // 连接的幂等要靠边 id（上游内容确定）；库里的去重留给写入方，这里不假装知道。

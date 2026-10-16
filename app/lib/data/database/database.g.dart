@@ -20981,8 +20981,8 @@ class MaterialIntakeProposalRow extends DataClass
 
   /// 用户确认并处理完的时刻（epoch ms）。NULL = 还没处理。
   ///
-  /// 连接现在**不会**被标上：资料与卡片是"线索边"还是"包含边"还没定
-  ///（roadmap §2-C ④），所以它留在待办里等那个决定，而不是假装做完了。
+  /// 知识点与连接都会被标上：连接现在是**线索边**，落在 `knowledge_edges` 里
+  ///（roadmap §2-C ④，轮次六十八定了这个口径）。
   final int? appliedAt;
   final int createdAt;
   final int updatedAt;
@@ -21280,6 +21280,531 @@ class MaterialIntakeProposalsCompanion
   }
 }
 
+class $KnowledgeEdgesTable extends KnowledgeEdges
+    with TableInfo<$KnowledgeEdgesTable, KnowledgeEdgeRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeEdgesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _fromIdMeta = const VerificationMeta('fromId');
+  @override
+  late final GeneratedColumn<String> fromId = GeneratedColumn<String>(
+      'from_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _toIdMeta = const VerificationMeta('toId');
+  @override
+  late final GeneratedColumn<String> toId = GeneratedColumn<String>(
+      'to_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+      'origin', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _lsMeta = const VerificationMeta('ls');
+  @override
+  late final GeneratedColumn<double> ls = GeneratedColumn<double>(
+      'ls', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _lsCalibratedMeta =
+      const VerificationMeta('lsCalibrated');
+  @override
+  late final GeneratedColumn<bool> lsCalibrated = GeneratedColumn<bool>(
+      'ls_calibrated', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("ls_calibrated" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _batchIdMeta =
+      const VerificationMeta('batchId');
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+      'batch_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        fromId,
+        toId,
+        origin,
+        ls,
+        lsCalibrated,
+        batchId,
+        source,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_edges';
+  @override
+  VerificationContext validateIntegrity(Insertable<KnowledgeEdgeRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('from_id')) {
+      context.handle(_fromIdMeta,
+          fromId.isAcceptableOrUnknown(data['from_id']!, _fromIdMeta));
+    } else if (isInserting) {
+      context.missing(_fromIdMeta);
+    }
+    if (data.containsKey('to_id')) {
+      context.handle(
+          _toIdMeta, toId.isAcceptableOrUnknown(data['to_id']!, _toIdMeta));
+    } else if (isInserting) {
+      context.missing(_toIdMeta);
+    }
+    if (data.containsKey('origin')) {
+      context.handle(_originMeta,
+          origin.isAcceptableOrUnknown(data['origin']!, _originMeta));
+    } else if (isInserting) {
+      context.missing(_originMeta);
+    }
+    if (data.containsKey('ls')) {
+      context.handle(_lsMeta, ls.isAcceptableOrUnknown(data['ls']!, _lsMeta));
+    }
+    if (data.containsKey('ls_calibrated')) {
+      context.handle(
+          _lsCalibratedMeta,
+          lsCalibrated.isAcceptableOrUnknown(
+              data['ls_calibrated']!, _lsCalibratedMeta));
+    }
+    if (data.containsKey('batch_id')) {
+      context.handle(_batchIdMeta,
+          batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeEdgeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeEdgeRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      fromId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}from_id'])!,
+      toId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_id'])!,
+      origin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin'])!,
+      ls: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}ls']),
+      lsCalibrated: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}ls_calibrated'])!,
+      batchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}batch_id']),
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $KnowledgeEdgesTable createAlias(String alias) {
+    return $KnowledgeEdgesTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeEdgeRow extends DataClass
+    implements Insertable<KnowledgeEdgeRow> {
+  /// 边的确定性 id（INGEST 算出来的 `e_<from>__<to>`，或手写边自己的 id）。
+  ///
+  /// 它同时是**幂等键**：同一份材料确认两次，不会长出第二条边。
+  final String id;
+
+  /// 起点 / 终点的节点 id（材料节点的 id 同时是 `knowledge_points.external_id`）。
+  final String fromId;
+  final String toId;
+
+  /// 这条边是从哪种材料关系来的：`contains` / `produce` / `topic` / `manual`。
+  ///
+  /// 只是出处，不是权重：线的方向与含义由 [fromId] → [toId] 定，反过来要另建一条。
+  final String origin;
+
+  /// 线索强度 `ls`。可空：没有来源的边不许编一个数。
+  final double? ls;
+
+  /// `ls` 有没有标定来源（`MEMORY_RECORD.md` §3.5：边权 `ls` 目前**没有**标定来源）。
+  ///
+  /// 默认 false —— 于是"未标定"是库里的事实，不是文档里的口号；
+  /// 界面/工具要显示权重时必须把它一起显示出来。
+  final bool lsCalibrated;
+
+  /// 这一批材料（`material_intake_batches.batch_id`）。手写的边为空。
+  final String? batchId;
+
+  /// 出处那一行（与 `knowledge_points.source` 同一套文案）。
+  final String? source;
+  final int createdAt;
+  final int updatedAt;
+  const KnowledgeEdgeRow(
+      {required this.id,
+      required this.fromId,
+      required this.toId,
+      required this.origin,
+      this.ls,
+      required this.lsCalibrated,
+      this.batchId,
+      this.source,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['from_id'] = Variable<String>(fromId);
+    map['to_id'] = Variable<String>(toId);
+    map['origin'] = Variable<String>(origin);
+    if (!nullToAbsent || ls != null) {
+      map['ls'] = Variable<double>(ls);
+    }
+    map['ls_calibrated'] = Variable<bool>(lsCalibrated);
+    if (!nullToAbsent || batchId != null) {
+      map['batch_id'] = Variable<String>(batchId);
+    }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  KnowledgeEdgesCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeEdgesCompanion(
+      id: Value(id),
+      fromId: Value(fromId),
+      toId: Value(toId),
+      origin: Value(origin),
+      ls: ls == null && nullToAbsent ? const Value.absent() : Value(ls),
+      lsCalibrated: Value(lsCalibrated),
+      batchId: batchId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(batchId),
+      source:
+          source == null && nullToAbsent ? const Value.absent() : Value(source),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory KnowledgeEdgeRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeEdgeRow(
+      id: serializer.fromJson<String>(json['id']),
+      fromId: serializer.fromJson<String>(json['fromId']),
+      toId: serializer.fromJson<String>(json['toId']),
+      origin: serializer.fromJson<String>(json['origin']),
+      ls: serializer.fromJson<double?>(json['ls']),
+      lsCalibrated: serializer.fromJson<bool>(json['lsCalibrated']),
+      batchId: serializer.fromJson<String?>(json['batchId']),
+      source: serializer.fromJson<String?>(json['source']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'fromId': serializer.toJson<String>(fromId),
+      'toId': serializer.toJson<String>(toId),
+      'origin': serializer.toJson<String>(origin),
+      'ls': serializer.toJson<double?>(ls),
+      'lsCalibrated': serializer.toJson<bool>(lsCalibrated),
+      'batchId': serializer.toJson<String?>(batchId),
+      'source': serializer.toJson<String?>(source),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  KnowledgeEdgeRow copyWith(
+          {String? id,
+          String? fromId,
+          String? toId,
+          String? origin,
+          Value<double?> ls = const Value.absent(),
+          bool? lsCalibrated,
+          Value<String?> batchId = const Value.absent(),
+          Value<String?> source = const Value.absent(),
+          int? createdAt,
+          int? updatedAt}) =>
+      KnowledgeEdgeRow(
+        id: id ?? this.id,
+        fromId: fromId ?? this.fromId,
+        toId: toId ?? this.toId,
+        origin: origin ?? this.origin,
+        ls: ls.present ? ls.value : this.ls,
+        lsCalibrated: lsCalibrated ?? this.lsCalibrated,
+        batchId: batchId.present ? batchId.value : this.batchId,
+        source: source.present ? source.value : this.source,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  KnowledgeEdgeRow copyWithCompanion(KnowledgeEdgesCompanion data) {
+    return KnowledgeEdgeRow(
+      id: data.id.present ? data.id.value : this.id,
+      fromId: data.fromId.present ? data.fromId.value : this.fromId,
+      toId: data.toId.present ? data.toId.value : this.toId,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      ls: data.ls.present ? data.ls.value : this.ls,
+      lsCalibrated: data.lsCalibrated.present
+          ? data.lsCalibrated.value
+          : this.lsCalibrated,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
+      source: data.source.present ? data.source.value : this.source,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEdgeRow(')
+          ..write('id: $id, ')
+          ..write('fromId: $fromId, ')
+          ..write('toId: $toId, ')
+          ..write('origin: $origin, ')
+          ..write('ls: $ls, ')
+          ..write('lsCalibrated: $lsCalibrated, ')
+          ..write('batchId: $batchId, ')
+          ..write('source: $source, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, fromId, toId, origin, ls, lsCalibrated,
+      batchId, source, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeEdgeRow &&
+          other.id == this.id &&
+          other.fromId == this.fromId &&
+          other.toId == this.toId &&
+          other.origin == this.origin &&
+          other.ls == this.ls &&
+          other.lsCalibrated == this.lsCalibrated &&
+          other.batchId == this.batchId &&
+          other.source == this.source &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class KnowledgeEdgesCompanion extends UpdateCompanion<KnowledgeEdgeRow> {
+  final Value<String> id;
+  final Value<String> fromId;
+  final Value<String> toId;
+  final Value<String> origin;
+  final Value<double?> ls;
+  final Value<bool> lsCalibrated;
+  final Value<String?> batchId;
+  final Value<String?> source;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const KnowledgeEdgesCompanion({
+    this.id = const Value.absent(),
+    this.fromId = const Value.absent(),
+    this.toId = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.ls = const Value.absent(),
+    this.lsCalibrated = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeEdgesCompanion.insert({
+    required String id,
+    required String fromId,
+    required String toId,
+    required String origin,
+    this.ls = const Value.absent(),
+    this.lsCalibrated = const Value.absent(),
+    this.batchId = const Value.absent(),
+    this.source = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        fromId = Value(fromId),
+        toId = Value(toId),
+        origin = Value(origin),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<KnowledgeEdgeRow> custom({
+    Expression<String>? id,
+    Expression<String>? fromId,
+    Expression<String>? toId,
+    Expression<String>? origin,
+    Expression<double>? ls,
+    Expression<bool>? lsCalibrated,
+    Expression<String>? batchId,
+    Expression<String>? source,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (fromId != null) 'from_id': fromId,
+      if (toId != null) 'to_id': toId,
+      if (origin != null) 'origin': origin,
+      if (ls != null) 'ls': ls,
+      if (lsCalibrated != null) 'ls_calibrated': lsCalibrated,
+      if (batchId != null) 'batch_id': batchId,
+      if (source != null) 'source': source,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeEdgesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? fromId,
+      Value<String>? toId,
+      Value<String>? origin,
+      Value<double?>? ls,
+      Value<bool>? lsCalibrated,
+      Value<String?>? batchId,
+      Value<String?>? source,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return KnowledgeEdgesCompanion(
+      id: id ?? this.id,
+      fromId: fromId ?? this.fromId,
+      toId: toId ?? this.toId,
+      origin: origin ?? this.origin,
+      ls: ls ?? this.ls,
+      lsCalibrated: lsCalibrated ?? this.lsCalibrated,
+      batchId: batchId ?? this.batchId,
+      source: source ?? this.source,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (fromId.present) {
+      map['from_id'] = Variable<String>(fromId.value);
+    }
+    if (toId.present) {
+      map['to_id'] = Variable<String>(toId.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (ls.present) {
+      map['ls'] = Variable<double>(ls.value);
+    }
+    if (lsCalibrated.present) {
+      map['ls_calibrated'] = Variable<bool>(lsCalibrated.value);
+    }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEdgesCompanion(')
+          ..write('id: $id, ')
+          ..write('fromId: $fromId, ')
+          ..write('toId: $toId, ')
+          ..write('origin: $origin, ')
+          ..write('ls: $ls, ')
+          ..write('lsCalibrated: $lsCalibrated, ')
+          ..write('batchId: $batchId, ')
+          ..write('source: $source, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -21343,6 +21868,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $MaterialIntakeBatchesTable(this);
   late final $MaterialIntakeProposalsTable materialIntakeProposals =
       $MaterialIntakeProposalsTable(this);
+  late final $KnowledgeEdgesTable knowledgeEdges = $KnowledgeEdgesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -21391,7 +21917,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         handwritingProposals,
         exposureLogs,
         materialIntakeBatches,
-        materialIntakeProposals
+        materialIntakeProposals,
+        knowledgeEdges
       ];
 }
 
@@ -31565,6 +32092,256 @@ typedef $$MaterialIntakeProposalsTableProcessedTableManager
         ),
         MaterialIntakeProposalRow,
         PrefetchHooks Function()>;
+typedef $$KnowledgeEdgesTableCreateCompanionBuilder = KnowledgeEdgesCompanion
+    Function({
+  required String id,
+  required String fromId,
+  required String toId,
+  required String origin,
+  Value<double?> ls,
+  Value<bool> lsCalibrated,
+  Value<String?> batchId,
+  Value<String?> source,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$KnowledgeEdgesTableUpdateCompanionBuilder = KnowledgeEdgesCompanion
+    Function({
+  Value<String> id,
+  Value<String> fromId,
+  Value<String> toId,
+  Value<String> origin,
+  Value<double?> ls,
+  Value<bool> lsCalibrated,
+  Value<String?> batchId,
+  Value<String?> source,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$KnowledgeEdgesTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeEdgesTable> {
+  $$KnowledgeEdgesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fromId => $composableBuilder(
+      column: $table.fromId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toId => $composableBuilder(
+      column: $table.toId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get ls => $composableBuilder(
+      column: $table.ls, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get lsCalibrated => $composableBuilder(
+      column: $table.lsCalibrated, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$KnowledgeEdgesTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeEdgesTable> {
+  $$KnowledgeEdgesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fromId => $composableBuilder(
+      column: $table.fromId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toId => $composableBuilder(
+      column: $table.toId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+      column: $table.origin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get ls => $composableBuilder(
+      column: $table.ls, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get lsCalibrated => $composableBuilder(
+      column: $table.lsCalibrated,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+      column: $table.batchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$KnowledgeEdgesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeEdgesTable> {
+  $$KnowledgeEdgesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get fromId =>
+      $composableBuilder(column: $table.fromId, builder: (column) => column);
+
+  GeneratedColumn<String> get toId =>
+      $composableBuilder(column: $table.toId, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<double> get ls =>
+      $composableBuilder(column: $table.ls, builder: (column) => column);
+
+  GeneratedColumn<bool> get lsCalibrated => $composableBuilder(
+      column: $table.lsCalibrated, builder: (column) => column);
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$KnowledgeEdgesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $KnowledgeEdgesTable,
+    KnowledgeEdgeRow,
+    $$KnowledgeEdgesTableFilterComposer,
+    $$KnowledgeEdgesTableOrderingComposer,
+    $$KnowledgeEdgesTableAnnotationComposer,
+    $$KnowledgeEdgesTableCreateCompanionBuilder,
+    $$KnowledgeEdgesTableUpdateCompanionBuilder,
+    (
+      KnowledgeEdgeRow,
+      BaseReferences<_$AppDatabase, $KnowledgeEdgesTable, KnowledgeEdgeRow>
+    ),
+    KnowledgeEdgeRow,
+    PrefetchHooks Function()> {
+  $$KnowledgeEdgesTableTableManager(
+      _$AppDatabase db, $KnowledgeEdgesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeEdgesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KnowledgeEdgesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KnowledgeEdgesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> fromId = const Value.absent(),
+            Value<String> toId = const Value.absent(),
+            Value<String> origin = const Value.absent(),
+            Value<double?> ls = const Value.absent(),
+            Value<bool> lsCalibrated = const Value.absent(),
+            Value<String?> batchId = const Value.absent(),
+            Value<String?> source = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              KnowledgeEdgesCompanion(
+            id: id,
+            fromId: fromId,
+            toId: toId,
+            origin: origin,
+            ls: ls,
+            lsCalibrated: lsCalibrated,
+            batchId: batchId,
+            source: source,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String fromId,
+            required String toId,
+            required String origin,
+            Value<double?> ls = const Value.absent(),
+            Value<bool> lsCalibrated = const Value.absent(),
+            Value<String?> batchId = const Value.absent(),
+            Value<String?> source = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              KnowledgeEdgesCompanion.insert(
+            id: id,
+            fromId: fromId,
+            toId: toId,
+            origin: origin,
+            ls: ls,
+            lsCalibrated: lsCalibrated,
+            batchId: batchId,
+            source: source,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$KnowledgeEdgesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $KnowledgeEdgesTable,
+    KnowledgeEdgeRow,
+    $$KnowledgeEdgesTableFilterComposer,
+    $$KnowledgeEdgesTableOrderingComposer,
+    $$KnowledgeEdgesTableAnnotationComposer,
+    $$KnowledgeEdgesTableCreateCompanionBuilder,
+    $$KnowledgeEdgesTableUpdateCompanionBuilder,
+    (
+      KnowledgeEdgeRow,
+      BaseReferences<_$AppDatabase, $KnowledgeEdgesTable, KnowledgeEdgeRow>
+    ),
+    KnowledgeEdgeRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -31657,4 +32434,6 @@ class $AppDatabaseManager {
   $$MaterialIntakeProposalsTableTableManager get materialIntakeProposals =>
       $$MaterialIntakeProposalsTableTableManager(
           _db, _db.materialIntakeProposals);
+  $$KnowledgeEdgesTableTableManager get knowledgeEdges =>
+      $$KnowledgeEdgesTableTableManager(_db, _db.knowledgeEdges);
 }

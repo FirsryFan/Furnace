@@ -180,7 +180,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('看提案 → 确认：知识点进库，连接先不动', (WidgetTester tester) async {
+    testWidgets('看提案 → 确认：知识点与线索边都进库', (WidgetTester tester) async {
       bigSurface(tester);
       await tester.pumpWidget(harness());
       await preview(tester, envelopeJson());
@@ -194,22 +194,26 @@ void main() {
         find.textContaining(l10n.materialIntakeProposals(4)),
         findsOneWidget,
       );
-      // 两条连接：如实标"先不动"，而且勾不动（没有落点）。
+      // 两条连接：标清它们是线索边（严格有向、ls 未标定），而且**可以勾**。
       expect(
-        find.textContaining(l10n.materialIntakeConnectionDeferred),
+        find.textContaining(l10n.materialIntakeConnectionClue),
         findsNWidgets(2),
       );
       final boxes = tester.widgetList<Checkbox>(find.byType(Checkbox)).toList();
-      expect(boxes.where((box) => box.onChanged == null).length, 2);
+      expect(boxes.where((box) => box.onChanged == null), isEmpty);
 
-      await confirm(tester, 2);
-      expect(find.textContaining('写入 2 个知识点'), findsOneWidget);
+      await confirm(tester, 4);
+      expect(find.textContaining('写入 4 条'), findsOneWidget);
 
       final points = await anki.getKnowledgePoints();
       expect(
         points.map((point) => point.title),
         containsAll(<String>['I relied on him.', 'rely on']),
       );
+      final edges = await db.select(db.knowledgeEdges).get();
+      expect(edges, hasLength(2));
+      expect(edges.map((edge) => edge.origin), everyElement(isNotNull));
+      expect(edges.map((edge) => edge.lsCalibrated), everyElement(isFalse));
     });
 
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
@@ -223,13 +227,16 @@ void main() {
         findsOneWidget,
       );
 
-      await confirm(tester, 2);
-      expect(find.textContaining('写入 1 个知识点'), findsOneWidget);
-      expect(find.textContaining('1 个已存在'), findsOneWidget);
+      await confirm(tester, 4);
+      expect(find.textContaining('写入 1 条'), findsOneWidget);
+      expect(find.textContaining('1 条已存在'), findsOneWidget);
+      expect(find.textContaining('2 条连接落不了'), findsOneWidget);
 
       final points = await anki.getKnowledgePoints();
       expect(points.length, 2);
       expect(points.where((point) => point.title == 'rely on').length, 1);
+      // 那条老行没有 `external_id`，所以两条边都落不了：如实报 deferred，不编边。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
     });
 
     testWidgets('不合规的信封整份拒绝，一行都不写', (WidgetTester tester) async {

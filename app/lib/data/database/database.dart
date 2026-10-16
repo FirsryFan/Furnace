@@ -69,6 +69,8 @@ part 'database.g.dart';
     // v17 (material intake proposals, docs/MINDNET_ROADMAP.md §2-C ①)
     MaterialIntakeBatches,
     MaterialIntakeProposals,
+    // v18 (clue edges, docs/MINDNET_ROADMAP.md §2-C ④)
+    KnowledgeEdges,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -92,13 +94,17 @@ class AppDatabase extends _$AppDatabase {
   /// row 4). v16 adds the cognitive-rank switch on `thread_rank_settings`
   /// (roadmap §2-D). v17 adds the two material-intake tables that keep
   /// "算过但还没确认" alive across a restart and make applying a batch idempotent
-  /// (`docs/MINDNET_ROADMAP.md` §2-C ①). See [_upgradeV6ToV7] /
+  /// (`docs/MINDNET_ROADMAP.md` §2-C ①). v18 adds `knowledge_edges`: the material
+  /// connections that used to be deferred now land as **clue edges** (strictly
+  /// directed, `ls` kept but flagged uncalibrated), which is the §2-C ④ decision
+  /// (`E:\Document\MindNet\docs\MEMORY_RECORD.md` §3.5 keeps containment in the
+  /// tag tree and clues in the graph). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
-  /// [_upgradeV16ToV17].
+  /// [_upgradeV16ToV17] / [_upgradeV17ToV18].
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration {
@@ -154,6 +160,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 17) {
           await _upgradeV16ToV17();
+        }
+        if (from < 18) {
+          await _upgradeV17ToV18();
         }
       },
       beforeOpen: (details) async {
@@ -279,6 +288,12 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('material_intake_proposals')) {
       await m.createTable(materialIntakeProposals);
+    }
+    // v18's clue-edge table heals the same way: a file stamped v18 without it
+    // would fail every material connection write with "no such table" - and a
+    // confirmed connection would look like it was never made.
+    if (!await _tableExists('knowledge_edges')) {
+      await m.createTable(knowledgeEdges);
     }
   }
 
@@ -542,6 +557,18 @@ class AppDatabase extends _$AppDatabase {
     }
     if (!await _tableExists('material_intake_proposals')) {
       await m.createTable(materialIntakeProposals);
+    }
+  }
+
+  /// v17 -> v18：线索边表（`docs/MINDNET_ROADMAP.md` §2-C ④，轮次六十八）。
+  ///
+  /// 纯新增，老行不动。在此之前资料的连接一律只报 `deferred`（没有落点）；
+  /// 这张表定了口径：材料的连接是**线索边**（严格有向、`ls` 带未标定标记），
+  /// 包含语义仍然只有标签树父子边那一处（`MEMORY_RECORD.md` §3.5）。
+  Future<void> _upgradeV17ToV18() async {
+    final m = Migrator(this);
+    if (!await _tableExists('knowledge_edges')) {
+      await m.createTable(knowledgeEdges);
     }
   }
 
