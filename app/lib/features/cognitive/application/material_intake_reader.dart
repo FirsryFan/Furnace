@@ -168,3 +168,71 @@ Future<MaterialIntakeApplied?> readAppliedBatch({
     proposals: await repository.appliedProposals(batchId),
   );
 }
+
+/// 一条还没落地的连接"为什么落不了"：提案 id → 人话（能落的没有条目）。
+typedef MaterialIntakeMissingEndpoints = Map<String, String>;
+
+/// 这条连接会不会落不了 —— 与确认时的成绩单**逐条对齐**的三件事：
+///
+/// ① 提案自己没带端点（`from`/`to` 为空）→ `noEndpointsNote`；
+/// ② 边已经在库里（`knownEdgeIds` 里有它）→ 不算落不了，确认时会说"已存在"；
+/// ③ 两端都得在影子图里 —— 库里已有的 `external_id`，加上**这一批的点提案**将要建出来
+///    的 id（同一次 `apply` 里先点后边，所以本批的点算数）。
+///
+/// 两个刻意的选择：
+/// ① **不在库里存"落不了"这件事**。它是"现在这一刻库里的样子"的函数：缺的那一端后来
+/// 补进图里（本批的点被确认、或用户手建一个），这条连接就该能落 —— 存下来就会变成一句
+/// 过期的话（对比 `already_existed`：那句只在点头那一刻成立，所以它才必须落库）。
+/// ② 点提案里"同名已存在"（`exists`）的不算数：`_createPoint` 对它**不写行**，
+/// 于是它的 `external_id` 也不会出现在库里，连着它的边照样落不了。
+MaterialIntakeMissingEndpoints pendingMissingEndpointsOf({
+  required List<MaterialIntakeProposal> proposals,
+  required Set<String> knownNodeIds,
+  required Set<String> knownEdgeIds,
+}) {
+  // 这一批的点提案会把哪些 id 送进图里（`_createPoint` 的判据照抄一遍）。
+  final shadow = <String>{
+    ...knownNodeIds,
+    for (final proposal in proposals)
+      if (proposal.kind == MaterialIntakeKind.knowledgePoint &&
+          proposal.nodeId != null &&
+          !proposal.exists &&
+          !knownNodeIds.contains(proposal.nodeId))
+        proposal.nodeId!,
+  };
+  return <String, String>{
+    for (final proposal in proposals)
+      if (proposal.kind == MaterialIntakeKind.connection)
+        if (proposal.from == null || proposal.to == null)
+          proposal.id: MaterialIntakeRepository.noEndpointsNote
+        else if (!knownEdgeIds.contains(edgeIdOf(proposal.id)) &&
+            (!shadow.contains(proposal.from) || !shadow.contains(proposal.to)))
+          proposal.id: MaterialIntakeRepository.missingEndpointNote(
+            from: proposal.from!,
+            to: proposal.to!,
+            fromKnown: shadow.contains(proposal.from),
+            toKnown: shadow.contains(proposal.to),
+          ),
+  };
+}
+
+/// 提案 id → 落库时的边 id（`record` 存的提案 id 带 `edge:` 前缀，边表不带）。
+String edgeIdOf(String proposalId) => proposalId.startsWith('edge:')
+    ? proposalId.substring('edge:'.length)
+    : proposalId;
+
+/// 从库里读这一批还没落地的提案，再算一遍上面那份"缺哪一端"。
+Future<MaterialIntakeMissingEndpoints> readPendingMissingEndpoints({
+  required MaterialIntakeRepository repository,
+  required String batchId,
+}) async {
+  final pending = await repository.pendingProposals(batchId);
+  if (pending.isEmpty) {
+    return const <String, String>{};
+  }
+  return pendingMissingEndpointsOf(
+    proposals: pending,
+    knownNodeIds: await repository.knownExternalNodeIds(),
+    knownEdgeIds: await repository.knownEdgeIds(),
+  );
+}

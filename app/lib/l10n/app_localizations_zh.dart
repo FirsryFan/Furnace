@@ -796,6 +796,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String materialIntakeCantLand(String reason) {
+    return '这条现在落不了：$reason（先让缺的那一端进图）';
+  }
+
+  @override
   String materialIntakeQuote(String quote) {
     return '页边：「$quote」';
   }

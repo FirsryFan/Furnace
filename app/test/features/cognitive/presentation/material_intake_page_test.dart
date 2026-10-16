@@ -21,6 +21,7 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/material_intake_repository.dart';
+import 'package:furnace/domain/services/ingest/material_intake_plan.dart';
 import 'package:furnace/features/cognitive/application/material_intake_reader.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
@@ -322,12 +323,22 @@ void main() {
       await tester.pumpWidget(harness());
       await preview(tester, envelopeJson());
 
+      // 四条都勾着的时候两条边都落得了：谁也不喊缺（还没点头就先说清不是白说）。
+      expect(
+        find.byIcon(Icons.link_off),
+        findsNothing,
+        reason: '两端都在这一批里，现在没有落不了的边',
+      );
+
       // 把"句"那条知识点取消勾选，剩下三条（另一条知识点 + 两条连接）确认。
       // 两条连接都指向没被建出来的那条知识点，所以它们如实报"落不了"；
       // 取消勾选的那一条留在待办里 —— 这一批因此还在清单上。
       // 注意第 0 个 `Checkbox` 是"顺便建主题分组"那个开关，提案从第 1 个开始。
       await tester.tap(find.byType(Checkbox).at(1));
       await tester.pumpAndSettle();
+
+      // 勾一去掉，两条边当场说"落不了"：不用等确认完才在成绩单上看到（轮次八十）。
+      expect(find.byIcon(Icons.link_off), findsNWidgets(2));
 
       await confirm(tester, 3);
       // 落不了的两条连接**也算没确认**（`deferred` 不标 `applied_at`），
@@ -336,6 +347,8 @@ void main() {
       expect(find.textContaining('2 条连接落不了'), findsOneWidget);
       expect(find.textContaining('还剩 3 条待确认'), findsOneWidget);
       expect(find.textContaining('已登记为待确认（3 条）'), findsOneWidget);
+      // 确认之后那两句话还在（而且现在它们说的事已经写在成绩单上了）。
+      expect(find.byIcon(Icons.link_off), findsNWidgets(2));
       expect(
         find.text(l10nOf(tester).materialIntakePendingTitle(1)),
         findsOneWidget,
@@ -347,6 +360,48 @@ void main() {
         findsNothing,
         reason: '这一批还有 3 条没落地，不能说它确认完了',
       );
+    });
+
+    testWidgets('缺的那一端补进图里之后，这句话自己消失（它是现算的，不落库）', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      // 先造出"缺一端"的局面：勾掉"句"，只确认另一条知识点 → 两条边落不了。
+      await tester.tap(find.byType(Checkbox).at(1));
+      await tester.pumpAndSettle();
+      await confirm(tester, 3);
+      expect(find.byIcon(Icons.link_off), findsNWidgets(2));
+
+      // 把缺的那一端（"句"的 external_id）自己在库里建出来。
+      final repository = MaterialIntakeRepository(db);
+      final proposals = await repository.proposals('b-page');
+      final sentence = proposals.firstWhere(
+        (proposal) =>
+            proposal.kind == MaterialIntakeKind.knowledgePoint &&
+            proposal.title == 'I relied on him.',
+      );
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '整句要能说出来',
+        externalId: sentence.nodeId,
+      );
+
+      // 再恢复一次这一批：那句话不该还在（它算的是"库里现在缺不缺"）。
+      await tester.tap(find.text(l10nOf(tester).materialIntakeRestore));
+      await tester.pumpAndSettle();
+      expect(
+        find.byIcon(Icons.link_off),
+        findsNothing,
+        reason: '缺的那一端已经进图了，这时再说"落不了"就是瞎说',
+      );
+
+      // 而且真落得下去：再确认一次，两条边都写进去。
+      await confirm(tester, 3);
+      expect(find.textContaining('2 条连接落不了'), findsNothing);
+      expect(find.textContaining('写入 2 条'), findsOneWidget);
     });
 
     testWidgets('确认完之后，这批从"待确认"挪到"已经确认完的"', (WidgetTester tester) async {

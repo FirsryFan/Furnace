@@ -817,6 +817,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String materialIntakeCantLand(String reason) {
+    return 'cannot land yet: $reason (get that end into the graph first)';
+  }
+
+  @override
   String materialIntakeQuote(String quote) {
     return 'margin: “$quote”';
   }

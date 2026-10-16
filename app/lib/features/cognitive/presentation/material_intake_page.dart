@@ -101,6 +101,17 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// 上一次撤回的结果：删了什么、退回了多少条（撤回是写，成绩单要留下来）。
   MaterialUndoOutcome? _undoOutcome;
 
+  /// 这批里哪几条连接现在落不了（提案 id → 缺哪一端的那句话）。
+  ///
+  /// 屏幕上每块一摆好就算一次（`_missingNow`），勾选框一变就重算：它是"库里现在的样子 ×
+  /// 现在勾着的这些"的函数，不落库 —— 所以缺的那一端补进图里、或把勾去掉之后，这句话
+  /// 会自己变得不该出现。
+  MaterialIntakeMissingEndpoints _missing = const <String, String>{};
+
+  /// 算这句话要看的两份库读数（屏幕上摆着的这批里，库那边现在有什么）。
+  Set<String> _knownNodes = const <String>{};
+  Set<String> _knownEdges = const <String>{};
+
   Set<String> _selected = <String>{};
   String? _error;
   bool _busy = false;
@@ -135,6 +146,19 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     });
   }
 
+  /// 按"现在勾着的这些 + 库里现在有什么"算一遍：哪几条连接会落不了。
+  ///
+  /// 只看**勾着的**提案，是因为 `apply` 也只收到勾着的那些：勾掉一个知识点，连着的边
+  /// 当场就该喊"缺这一端"，而不是等确认完之后才在成绩单上看到。
+  MaterialIntakeMissingEndpoints _missingNow() => pendingMissingEndpointsOf(
+        proposals: <MaterialIntakeProposal>[
+          for (final proposal in _proposals)
+            if (_selected.contains(proposal.id)) proposal,
+        ],
+        knownNodeIds: _knownNodes,
+        knownEdgeIds: _knownEdges,
+      );
+
   /// 看提案：推导一遍，并把这份提案登记成"待确认"（幂等）。
   Future<void> _preview() async {
     final l10n = AppLocalizations.of(context);
@@ -160,6 +184,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       );
       final pending = await readPendingBatches(repository: repository);
       final done = await readAppliedBatches(repository: repository);
+      final knownNodes = await repository.knownExternalNodeIds();
+      final knownEdges = await repository.knownEdgeIds();
       if (!mounted) {
         return;
       }
@@ -169,9 +195,12 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _batch = batch;
         _pendingBatches = pending;
         _doneBatches = done;
+        _knownNodes = knownNodes;
+        _knownEdges = knownEdges;
         _selected = <String>{
           for (final proposal in draft.plan.proposals) proposal.id,
         };
+        _missing = _missingNow();
         _busy = false;
       });
     } on FormatException catch (error) {
@@ -203,13 +232,21 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       await _refreshBatches();
       return;
     }
+    final knownNodes = await repository.knownExternalNodeIds();
+    final knownEdges = await repository.knownEdgeIds();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _proposals = pending.proposals;
       _skipped = pending.batch.skipped;
       _batch = pending.batch;
+      _knownNodes = knownNodes;
+      _knownEdges = knownEdges;
       _selected = <String>{
         for (final proposal in pending.proposals) proposal.id,
       };
+      _missing = _missingNow();
       _busy = false;
     });
   }
@@ -223,6 +260,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _proposals = const <MaterialIntakeProposal>[];
       _skipped = const <MaterialIntakeSkip>[];
       _batch = null;
+      _missing = const <String, String>{};
       _selected = <String>{};
       _busy = false;
     });
@@ -252,6 +290,10 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       final fresh = await repository.batch(batch.batchId);
       final pending = await readPendingBatches(repository: repository);
       final done = await readAppliedBatches(repository: repository);
+      // 刚才写下去的知识点现在在库里了，所以"哪几条连接还落不了"要重算一遍：
+      // 落下去的那些不再算缺端点，剩下的照旧。
+      final knownNodes = await repository.knownExternalNodeIds();
+      final knownEdges = await repository.knownEdgeIds();
       if (!mounted) {
         return;
       }
@@ -260,6 +302,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _batch = fresh ?? _batch;
         _pendingBatches = pending;
         _doneBatches = done;
+        _knownNodes = knownNodes;
+        _knownEdges = knownEdges;
+        _missing = _missingNow();
         _busy = false;
       });
     } on MaterialApplyException catch (error) {
@@ -457,6 +502,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         : null;
     final pending = await readPendingBatches(repository: repository);
     final done = await readAppliedBatches(repository: repository);
+    // 撤回删掉了行，所以"库里现在有什么"要重新取（不然清单上的说法会停在撤回之前）。
+    final knownNodes = await repository.knownExternalNodeIds();
+    final knownEdges = await repository.knownEdgeIds();
     if (!mounted) {
       return;
     }
@@ -470,6 +518,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _undoOutcome = outcome;
       _pendingBatches = pending;
       _doneBatches = done;
+      _knownNodes = knownNodes;
+      _knownEdges = knownEdges;
       if (fresh != null) {
         _proposals = fresh.proposals;
         _skipped = fresh.batch.skipped;
@@ -478,6 +528,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
           for (final proposal in fresh.proposals) proposal.id,
         };
       }
+      _missing = _missingNow();
     });
   }
 
@@ -669,6 +720,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
               for (final proposal in _proposals)
                 _ProposalTile(
                   proposal: proposal,
+                  missing: _missing[proposal.id],
                   selected: _selected.contains(proposal.id),
                   onChanged: _busy
                       ? null
@@ -678,6 +730,8 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                             } else {
                               _selected.remove(proposal.id);
                             }
+                            // 勾选变了，"哪几条连接落不了"就变了（勾掉一端，边当场喊缺）。
+                            _missing = _missingNow();
                           }),
                 ),
               const SizedBox(height: 8),
@@ -712,11 +766,16 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
 class _ProposalTile extends StatelessWidget {
   const _ProposalTile({
     required this.proposal,
+    this.missing,
     required this.selected,
     required this.onChanged,
   });
 
   final MaterialIntakeProposal proposal;
+
+  /// 这条连接现在落不了的话，缺哪一端（能落 = null）。
+  final String? missing;
+
   final bool selected;
   final ValueChanged<bool?>? onChanged;
 
@@ -777,6 +836,29 @@ class _ProposalTile extends StatelessWidget {
                   ],
                   const SizedBox(height: 4),
                   Text(proposal.why, style: theme.textTheme.bodySmall),
+                  // 还没点头就先说清"这条落不了、缺的是哪一端"：等确认之后再知道，
+                  // 用户已经白点了一次（说法与确认时的成绩单共用一处）。
+                  if (missing != null) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Icon(
+                          Icons.link_off,
+                          size: 14,
+                          color: theme.colorScheme.error,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            l10n.materialIntakeCantLand(missing!),
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: theme.colorScheme.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

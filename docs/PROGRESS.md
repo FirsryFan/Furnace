@@ -4,38 +4,44 @@
 
 ---
 
-## 2026-10-17 轮次七十八：把 `run/1` 真的跑进引擎 —— 路修到头了（Lead）
+## 2026-10-17 轮次八十：落不了的连接看得见 —— 点头之前就知道（Lead）
 
-**做了什么**：MindNet 的 `src/io/run.js` 有两半 —— `validateRequest`（这份请求合法吗）与
-`applyOne`（真的改引擎）。应用侧此前只搬了前半（轮次六十六）与"把照片变成请求"（轮次七十六）。
-这一轮补上后半：新文件 `app/lib/domain/services/ingest/run_executor.dart`，入口
-`executeRun(MaterialRunRequest request, {required FastEngine engine, RunAnchor? anchor})`。
+**做了什么**：上一轮回答"点错了怎么办"，这一轮回答更早的那一步 —— **别白点**。"这条连接落不了"
+（有一端不在图里）以前只有确认**之后**的成绩单才会说（"N 条连接落不了"），那时用户已经按过一次；
+更别扭的是这种连接**永远不会进历史**（它没被写下去），所以"哪几条是这次落不了的"在界面上根本没有
+地方看。这一轮把这句话放回它该在的地方：**待确认清单**上逐条标出来。
 
-- 五种动作各自落到预告里那条机制路径：`time` → `hours.advance`（推进时钟 + 同步已有记忆态节点的
-  `ms`）、`review` → `retrieval_success` / `lapse` / `retrieval_failure_feedback`、`exposure` →
-  `reread`、`knowledge` → `graph.add_node` / `graph.add_edge`、`goal` → `start_diffusion`。
-- `RunActionTrace` 记下每条的时间前后、机制路径、增量与人话；`RunExecutionReport` 记 `assumptions`
-  / `stoppedAt` / `text` / `toJson`。
-- **时间基**（`resolveAt`）：`at.model_hours` 优先；只给 `at.wall` 用锚点换算，并把换算记进
-  `assumptions`；两个都没有就停在那一条 —— 不默默用"现在"。
-- 失败不抛异常、已跑过的不撤销；没装记忆机制时说"没改状态"，`delta` 为空、不编假增量。
-- 顺手修掉一个真 bug：`MaterialRunAction.modelHours` 少了 `containsKey` 守卫，而
-  `numberOrNull(null) == 0` ⇒ "只给 `at.wall`"被当成"模型时刻 0"（时钟倒回纪元、复习时间戳错到 0）。
+- **判据是一处，不是两处**：`MaterialIntakeRepository.missingEndpointNote(...)`（起点 / 终点 / 两端
+  三种说法）与 `noEndpointsNote`（提案自己没带端点）放在仓储层，界面与成绩单**共用** —— 同一件事
+  不许说成两句不同的话。
+- 读数是**现算的派生量，不落库**（`app/lib/features/cognitive/application/material_intake_reader.dart`
+  的 `pendingMissingEndpointsOf` / `readPendingMissingEndpoints`）：它是"现在这一刻库里的样子"的函数 ——
+  缺的那一端后来补进图里（本批的点被确认、或用户手建一个），这条连接就该能落；存下来会变成一句
+  过期的话（对比 `already_existed`：那句只在点头那一刻成立，所以它才必须落库）。
+- **与确认时的判据逐条对齐**：① 两端都要在**影子图**里（库里已有的 `external_id` + 这一批的点提案
+  将要送进去的 id —— 同一次 `apply` 先点后边）；② 边**已经在库里**的不算落不了（确认时会说"已存在"）；
+  ③ 点提案里"同名已存在"（`exists`）的**不算数**（`_createPoint` 对它不写行，它的 `external_id`
+  也就不会出现在库里）。三条不一致都会让界面说一句确认时不会应验的话。
+- **跟着勾选变**：算的是"现在勾着的这些"，因为 `apply` 也只收到勾着的那些 —— 把一端取消勾选，
+  连着的边**当场**喊缺（`_missingNow` 在勾选框变化时重算），不用等成绩单。
+- 界面：提案卡片上多一行（`Icons.link_off` + "这条现在落不了：<缺哪一端>（先让缺的那一端进图）"）；
+  确认之后这行还在（它说的事已经写在成绩单上了），直到那一端真的进图。
 
-**三条刻意选择**：① 只动内存里的图与模拟时钟，不读写库、不调 AI（写库是别的层的事）；
-② 执行层仍然再拦一次上游该拦的（缺时间基、节点不在图里、未知 kind）；
-③ `time` 只同步已经有记忆态的节点，一个新节点也不替它编状态，并如实写"同步 N/M 个"。
+**证据**：新 `app/test/features/cognitive/application/material_intake_reader_test.dart` **14 例**
+（10 例纯函数：三种缺法、"同名已存在"不算、没有 `nodeId` 不算、边已在库里也不算、提案自己缺端点、
+知识点不在这张单子上、本批的点算数；4 例真写库：还没确认就读得到、确认之后那把话与成绩单一致、
+缺的一端补进图里之后这句话**自己消失并且真的落得下去**、两端都在本批时确认前不喊缺且确认后真落下去）；
+材料页 `app/test/features/cognitive/presentation/material_intake_page_test.dart` 17 → **18 例**
+（新增"缺的那一端补进图里之后，这句话自己消失"，并在"确认一部分"那一例里钉住 `link_off` 0 → 2 → 2 个）；
+`dart format` 本轮文件 0 changed（**只格式化本轮文件** —— 整树 `dart format lib test` 会重排 155 个
+跟本轮无关的文件，这个仓库的基线在当前 formatter 下并不干净，别再来一次）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
+全量 `flutter test --concurrency=1` → `+1913 ~2: All tests passed!`（轮次七十九是 `+1898 ~2`，差值 15
+—— 正好是本轮新增的 14 + 1 例）。
 
-**证据**：`app/test/domain/services/ingest/run_executor_test.dart` 新增 **12 例**（空请求；两条时间基
-与锚点换算；没有锚点就停住；三条 outcome 各走各的机制与方向；`exposure` → `reread`；没装机制；
-`knowledge` 先点后边、端点缺失；`goal`；未知动作；**预告与执行逐条对账**）；
-`flutter test test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issues found`
-（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1886 ~2: All tests passed!`
-（轮次七十七是 `+1874 ~2`，差值 12）。
-
-**已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）；② 执行完怎么落库；
-③ 撤销一次确认；④ 历史里不显示"哪几条是这次落不了的"；⑤ `ls` 仍没有标定来源（roadmap §3 第 7 行）。
-（③ **已在轮次七十九补上**。）
+**已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）；
+② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤销**不记账**、也不进审计
+（轮次七十九 ①②）；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）。
 
 ---
 
@@ -72,8 +78,45 @@
 
 **已知的没做**：① 撤销**不记账**（库里没有"这批是什么时候撤的"，`applied_at` 清空是唯一痕迹）；
 ② 撤销不进审计（`review_logs` 之类），所以"确认过又反悔"这件事在历史里看不到；③ 执行层仍没有调用者
-（谁决定"这份请求可以执行了"）；④ 历史里不显示"哪几条是这次落不了的"；⑤ `ls` 仍没有标定来源
+（谁决定"这份请求可以执行了"）；④ 历史里不显示"哪几条是这次落不了的" —— **已在轮次八十补上**（补的是**待确认那张单子**：
+落不了的连接本来就不进历史，所以这句话该在它停留的地方逐条说清楚）；⑤ `ls` 仍没有标定来源
 （roadmap §3 第 7 行）。
+
+---
+
+## 2026-10-17 轮次七十八：把 `run/1` 真的跑进引擎 —— 路修到头了（Lead）
+
+**做了什么**：MindNet 的 `src/io/run.js` 有两半 —— `validateRequest`（这份请求合法吗）与
+`applyOne`（真的改引擎）。应用侧此前只搬了前半（轮次六十六）与"把照片变成请求"（轮次七十六）。
+这一轮补上后半：新文件 `app/lib/domain/services/ingest/run_executor.dart`，入口
+`executeRun(MaterialRunRequest request, {required FastEngine engine, RunAnchor? anchor})`。
+
+- 五种动作各自落到预告里那条机制路径：`time` → `hours.advance`（推进时钟 + 同步已有记忆态节点的
+  `ms`）、`review` → `retrieval_success` / `lapse` / `retrieval_failure_feedback`、`exposure` →
+  `reread`、`knowledge` → `graph.add_node` / `graph.add_edge`、`goal` → `start_diffusion`。
+- `RunActionTrace` 记下每条的时间前后、机制路径、增量与人话；`RunExecutionReport` 记 `assumptions`
+  / `stoppedAt` / `text` / `toJson`。
+- **时间基**（`resolveAt`）：`at.model_hours` 优先；只给 `at.wall` 用锚点换算，并把换算记进
+  `assumptions`；两个都没有就停在那一条 —— 不默默用"现在"。
+- 失败不抛异常、已跑过的不撤销；没装记忆机制时说"没改状态"，`delta` 为空、不编假增量。
+- 顺手修掉一个真 bug：`MaterialRunAction.modelHours` 少了 `containsKey` 守卫，而
+  `numberOrNull(null) == 0` ⇒ "只给 `at.wall`"被当成"模型时刻 0"（时钟倒回纪元、复习时间戳错到 0）。
+
+**三条刻意选择**：① 只动内存里的图与模拟时钟，不读写库、不调 AI（写库是别的层的事）；
+② 执行层仍然再拦一次上游该拦的（缺时间基、节点不在图里、未知 kind）；
+③ `time` 只同步已经有记忆态的节点，一个新节点也不替它编状态，并如实写"同步 N/M 个"。
+
+**证据**：`app/test/domain/services/ingest/run_executor_test.dart` 新增 **12 例**（空请求；两条时间基
+与锚点换算；没有锚点就停住；三条 outcome 各走各的机制与方向；`exposure` → `reread`；没装机制；
+`knowledge` 先点后边、端点缺失；`goal`；未知动作；**预告与执行逐条对账**）；
+`flutter test test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1886 ~2: All tests passed!`
+（轮次七十七是 `+1874 ~2`，差值 12）。
+
+**已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）；② 执行完怎么落库；
+③ 撤销一次确认；④ 历史里不显示"哪几条是这次落不了的" —— **已在轮次八十补上**（补的是**待确认那张单子**：
+落不了的连接本来就不进历史，所以这句话该在它停留的地方逐条说清楚）；⑤ `ls` 仍没有标定来源（roadmap §3 第 7 行）。
+（③ **已在轮次七十九补上**。）
 
 ---
 
@@ -112,8 +155,8 @@
 
 **已知的没做**：① 把 `run/1` 真的跑进引擎（应用侧仍然只校验、不执行）—— **已在轮次七十八补上**；
 ② 照片这条路上"换一张/重试"；
-③ 历史里不显示"哪几条是这次落不了的"；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
-需要外部数据）；⑤ 已确认完的批次不能撤销。
+③ 历史里不显示"哪几条是这次落不了的" —— **已在轮次八十补上**（补的是**待确认那张单子**）；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
+需要外部数据）；⑤ 已确认完的批次不能撤销 —— **已在轮次七十九补上**。
 
 ---
 
@@ -185,8 +228,8 @@ material_intake_page_test.dart` 新增 1 例 widget（历史对话框里那一�
 → `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` →
 `+1860 ~2: All tests passed!`（轮次七十四是 `+1857 ~2`，差值 3）。
 
-**已知的没做**：① 已确认完的批次仍然只看得到、改不了（不能撤销/回滚一次确认）；② 历史里不显示
-"哪几条是这次落不了的"（缺端的连接根本没进历史，只在待确认那张单子上）；③ `ls` 仍没有标定来源
+**已知的没做**：① 已确认完的批次仍然只看得到、改不了（不能撤销/回滚一次确认）—— **已在轮次七十九补上**；② 历史里不显示
+"哪几条是这次落不了的"（缺端的连接根本没进历史，只在待确认那张单子上）—— **已在轮次八十补上**（就在那张单子上逐条说清缺哪一端）；③ `ls` 仍没有标定来源
 （roadmap §3 第 7 行那六条实验，需要外部数据）；④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1`
 真的跑进引擎。
 

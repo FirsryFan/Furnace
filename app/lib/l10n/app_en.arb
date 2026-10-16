@@ -334,6 +334,7 @@
   "materialIntakeKindConnection": "connection",
   "materialIntakeConnectionClue": "clue edge: strictly directed, ls uncalibrated",
   "materialIntakeExisting": "already exists - no duplicate",
+  "materialIntakeCantLand": "cannot land yet: {reason} (get that end into the graph first)",
   "materialIntakeConfirm": "Confirm and write ({count})",
   "@materialIntakeConfirm": {
     "placeholders": { "count": { "type": "int" } }

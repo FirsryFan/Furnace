@@ -1533,6 +1533,12 @@ abstract class AppLocalizations {
   /// **'Source: {source} · {region}'**
   String materialIntakeFrom(String source, String region);
 
+  /// No description provided for @materialIntakeCantLand.
+  ///
+  /// In en, this message translates to:
+  /// **'cannot land yet: {reason} (get that end into the graph first)'**
+  String materialIntakeCantLand(String reason);
+
   /// No description provided for @materialIntakeQuote.
   ///
   /// In en, this message translates to:

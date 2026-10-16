@@ -409,6 +409,22 @@ class MaterialIntakeRepository {
     return inventory;
   }
 
+  /// 库里已知的 MindNet 节点 id 集合（[externalNodeInventory] 只要 id 的那一半）。
+  ///
+  /// 线索边要落库，两端都得在这张单子上：待确认清单用它算"这条连接现在缺哪一端"。
+  Future<Set<String>> knownExternalNodeIds() async => <String>{
+        for (final entry in await externalNodeInventory()) entry.id,
+      };
+
+  /// 库里已有的线索边 id 集合（`knowledge_edges.id`，不带 `edge:` 前缀）。
+  ///
+  /// 与"缺端点"并列的第二条判据：边已经在库里的话，再点一次确认会说"已存在"，
+  /// 不会说"落不了" —— 待确认清单上的说法必须和确认时的成绩单一致。
+  Future<Set<String>> knownEdgeIds() async {
+    final rows = await _db.select(_db.knowledgeEdges).get();
+    return <String>{for (final row in rows) row.id};
+  }
+
   /// 一个批次（读不到返回 null）。
   Future<MaterialIntakeBatch?> batch(String batchId) async {
     final row = await (_db.select(_db.materialIntakeBatches)
@@ -767,6 +783,29 @@ class MaterialIntakeRepository {
     ));
   }
 
+  /// 连接落不了时的说法：缺的是哪一端，说得让人能去补。
+  ///
+  /// 与 [_createEdge] 是**同一处**：界面在还没点头的时候就也要能说清同一条连接为什么
+  /// 落不了（`readPendingMissingEndpoints`），两处必须一个说法，否则用户会看到两句不同的话。
+  static String missingEndpointNote({
+    required String from,
+    required String to,
+    required bool fromKnown,
+    required bool toKnown,
+  }) {
+    if (!fromKnown && !toKnown) {
+      return '两端都还不在库里';
+    }
+    return !fromKnown ? '起点 $from 还不在库里' : '终点 $to 还不在库里';
+  }
+
+  /// 提案自己没带端点（连都连不起来）时的说法。
+  ///
+  /// 正常计划里不会出现（`MaterialIntakePlanner` 建连接时两端必填），但提案是从库里的
+  /// `payload_json` 回来的，所以这一格照样要有话说 —— 与 [missingEndpointNote] 一起
+  /// 构成"落不了"的两种说法，界面与成绩单共用。
+  static const String noEndpointsNote = '边缺端点';
+
   /// 建一条**线索边**，或者因为端点不齐 / 已经在库里而不建。
   ///
   /// 三条规则：① 两端都必须在（本批刚建的知识点有 `external_id`，库里原有的也算）——
@@ -786,7 +825,7 @@ class MaterialIntakeRepository {
     final from = proposal.from;
     final to = proposal.to;
     if (from == null || to == null) {
-      return (created: false, edge: null, missingEndpoint: '边缺端点');
+      return (created: false, edge: null, missingEndpoint: noEndpointsNote);
     }
     final edgeId = proposal.id.startsWith('edge:')
         ? proposal.id.substring('edge:'.length)
@@ -800,10 +839,16 @@ class MaterialIntakeRepository {
     final fromKnown = await _nodeExists(from);
     final toKnown = await _nodeExists(to);
     if (!fromKnown || !toKnown) {
-      final missing = !fromKnown && !toKnown
-          ? '两端都还不在库里'
-          : (!fromKnown ? '起点 $from 还不在库里' : '终点 $to 还不在库里');
-      return (created: false, edge: null, missingEndpoint: missing);
+      return (
+        created: false,
+        edge: null,
+        missingEndpoint: missingEndpointNote(
+          from: from,
+          to: to,
+          fromKnown: fromKnown,
+          toKnown: toKnown,
+        ),
+      );
     }
     await _db.into(_db.knowledgeEdges).insert(KnowledgeEdgesCompanion.insert(
           id: edgeId,
