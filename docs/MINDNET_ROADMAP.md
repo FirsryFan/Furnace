@@ -114,7 +114,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；**顺着线索边走已完成（轮次七十四：端点名字可点 —— `showKnowledgeEdgeWalk` 开一个只读对话框走到那一端，出边入边都站在那一端说方向，可一层层接着走；清单页与知识点详情两处同一走法，2 例新增）**；**成绩单落进历史已完成（轮次七十五：schema v19 的 `material_intake_proposals.already_existed` —— 确认那一刻"这条本来就有的"随提案落库，历史对话框里标"已存在，不重复建"，幂等重放不覆盖第一次的判断，2 例新增）**；**照片的调模型那半段已完成（轮次七十六：`app/lib/features/cognitive/application/photo_transcribe_service.dart` —— 压缩重编码 → 提示词 → 真的把照片发给视觉模型（工具列表为空）→ 回话解码 → 自检，失败六态全部返回人话结果对象、没到发图那一步一个请求都不发，12 例；界面入口未做）**；**照片的界面入口已完成（轮次七十七：材料页上"选一张照片"按钮 + 只读报告对话框 —— 合不合法 / 真正发出去的图尺寸 / 动作与带出处条数 / 硬错 / 会做什么 / 建议 / 模型原话；`photoPickerProvider` 与 `visionEncoderProvider` 两个注入点让测试既不弹系统对话框也不解码图片；照片这条路不执行请求、一个字都不写库，2 例新增）**；**把 `run/1` 真的跑进引擎已完成（轮次七十八：`app/lib/domain/services/ingest/run_executor.dart` 的 `executeRun` —— 五种动作各自落到预告里那条机制路径（`retrieval_success`/`lapse`/`retrieval_failure_feedback`/`reread`/`graph.add_node`/`graph.add_edge`/`start_diffusion`/`hours.advance`），痕迹与预告同构所以能直接对账；时间基 `at.model_hours` 优先，只给 `at.wall` 用锚点换算并把换算记进 `assumptions`，都没有就停在那一条 —— 不默默用"现在"；失败不抛异常、已跑过的不撤销；顺手修掉 `MaterialRunAction.modelHours` 把"只给 `at.wall`"当成"模型时刻 0"的真 bug，12 例新增）**；**撤销一次确认已完成（轮次七十九：`MaterialIntakeRepository.undoBatch(batchId)` —— 反悔也能退，撤的是"这一批自己写下的"知识点与线索边，"本来就有的"行 / 卡片（含模板）/ 标签 / 别的线索边任一存在就**整批不撤**并逐条说明理由；行已被手删不算拦路；退提案时 `applied_at` 与 `already_existed` 一起清，`record` 下一轮重算；入口在「看看确认了什么」对话框里，写者仍然只有确认那一层，10 例新增）**；**落不了的连接看得见已完成（轮次八十：待确认清单上每条还没落地的连接直接标出缺哪一端 —— `pendingMissingEndpointsOf` 现算、不落库，判据与确认时的成绩单逐条对齐（影子图 / 边已在库里不算 / "同名已存在"的点不算），勾选一变就重算，缺的那一端进图之后这句话自己消失；仓储层的 `missingEndpointNote` 是两处共用的同一句话，14 例读数 + 1 例页面）**；**照片读完能原地再来一张已完成（轮次八十一：报告对话框里多一个「换一张」（读成了）/「重试」（没读成）—— 不用先关掉对话框再出去找那个按钮；"模型都没配好"那一种不摆这个按钮，因为按了还是同一句话；照片这条路照旧一个字都不写库，2 例新增）**；**撤过就有痕迹（撤回记账）已完成（轮次八十二：schema v20 新表 `material_intake_undo_logs` —— 撤回**成与不成**都留一笔（没撤成记 `blockedCount` + 第一条理由，`undone = false`），记成流水而不是状态列（同一批可以撤很多次）；写者只有 `undoBatch` 自己（删行与记账同一事务），页面只读数出"这一批撤回过 N 次"；5 例仓储 + 1 例页面新增）**；**撤回流水点得开已完成（轮次八十三：把"这一批撤回过 N 次"那一行变成入口 —— 只读对话框按倒序列出每一次撤回（`MM-dd HH:mm` + 撤成了 / 没撤成），撤成那次摆出**原件原话**（删掉的知识点标题、线索边的"从 → 到"），没撤成那次摆出第一条理由与"当时 N 条理由"；只读、不回放（关掉仍是待确认），不新增任何落库，1 例新增）**；**机制面板（"参数公开"那一半）已完成（轮次八十四：`app/lib/domain/services/cognitive/mechanism_catalog.dart` 把两处引擎装配的 id 清单与唯一覆盖（`attention.ignition.T_ign = 0`）收成一份常量、`library_diagnosis.dart` 与 `problem_evaluator.dart` 两处调用点都读它（面板因此不可能和引擎漂移），`app/lib/features/cognitive/application/mechanism_reader.dart` 把转录表读成面板行（`transcribed` 用空 defaults 单独读一遍），设置页 → 认知模型页 AppBar「机制与参数」进只读页：六个机制各有多少参数、哪些**未标定**、哪个被覆盖（值 `0`、转录默认值 `0.05`）、`rhythm.gate` 如实说"只在节律读数里，不装进引擎"、`memory.dsr` 如实说"这一层没有号参数"、末尾给总数；10 例读数 + 7 例页面新增）**；**演练已完成（轮次八十五：`app/lib/features/cognitive/application/run_rehearsal.dart` 把"谁去装配引擎"这个问题答了 —— 请求提到的节点按 `knowledge_points.external_id` 摆进仿真图、`ms` 用代表卡片的 `modelReadingOf(row).r0`（读不出来就省略并如实列进 `nodesWithoutMs`，不编数）、两端都进图的 `knowledge_edges` 才接过来、请求自己的 `time.model_hours` 就是锚点、只装 `memory.dsr`（不跑轮次，逐轮那四个机制用不上）、**只跑不落库**；既有只读工具 `check_transcribe_run` 多一个 `execute` 参数（缺省 false），给了就在校验通过之后真的跑一遍，结果多一个 `rehearsal` 对象，`ok`/`error` 跟执行报告走 —— 执行层从轮次七十八起第一次有了调用者；机制面板因此如实多列第三处装配；12 例演练 + 4 例工具 + 页面例数不变）**；**照片报告里能直接试跑已完成（轮次八十七：读完一张照片、自检合法之后，报告里多一个「试跑一遍（不落库）」——`PhotoTranscribeReport` 自己带着解码出来的 `request`（界面不把模型原话再解一遍），按一下走 `rehearseRun`（只读、不落库），把引擎对每条动作的原话、读不出 `r0` 的节点、库里没有的 id 分三处摆出来；不合法的那一份不摆这个入口，试跑失败只说人话、不带走报告；3 例新增）**；**`run/1` 也能贴进来已完成（轮次八十八：材料摄取页第二条只读入口 —— 把一份 `mindnet.run/1` 贴进对话框，按「校验这份请求」走与照片那条路同一个 `reviewTranscribedRun`（id 白名单照旧从库里现读），合法才摆「试跑一遍」，跑的是同一个 `rehearseRun`；读不成（`FormatException`）与不合法分开说，两者都不给试跑入口；一个字都不写库；3 例新增）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；**顺着线索边走已完成（轮次七十四：端点名字可点 —— `showKnowledgeEdgeWalk` 开一个只读对话框走到那一端，出边入边都站在那一端说方向，可一层层接着走；清单页与知识点详情两处同一走法，2 例新增）**；**成绩单落进历史已完成（轮次七十五：schema v19 的 `material_intake_proposals.already_existed` —— 确认那一刻"这条本来就有的"随提案落库，历史对话框里标"已存在，不重复建"，幂等重放不覆盖第一次的判断，2 例新增）**；**照片的调模型那半段已完成（轮次七十六：`app/lib/features/cognitive/application/photo_transcribe_service.dart` —— 压缩重编码 → 提示词 → 真的把照片发给视觉模型（工具列表为空）→ 回话解码 → 自检，失败六态全部返回人话结果对象、没到发图那一步一个请求都不发，12 例；界面入口未做）**；**照片的界面入口已完成（轮次七十七：材料页上"选一张照片"按钮 + 只读报告对话框 —— 合不合法 / 真正发出去的图尺寸 / 动作与带出处条数 / 硬错 / 会做什么 / 建议 / 模型原话；`photoPickerProvider` 与 `visionEncoderProvider` 两个注入点让测试既不弹系统对话框也不解码图片；照片这条路不执行请求、一个字都不写库，2 例新增）**；**把 `run/1` 真的跑进引擎已完成（轮次七十八：`app/lib/domain/services/ingest/run_executor.dart` 的 `executeRun` —— 五种动作各自落到预告里那条机制路径（`retrieval_success`/`lapse`/`retrieval_failure_feedback`/`reread`/`graph.add_node`/`graph.add_edge`/`start_diffusion`/`hours.advance`），痕迹与预告同构所以能直接对账；时间基 `at.model_hours` 优先，只给 `at.wall` 用锚点换算并把换算记进 `assumptions`，都没有就停在那一条 —— 不默默用"现在"；失败不抛异常、已跑过的不撤销；顺手修掉 `MaterialRunAction.modelHours` 把"只给 `at.wall`"当成"模型时刻 0"的真 bug，12 例新增）**；**撤销一次确认已完成（轮次七十九：`MaterialIntakeRepository.undoBatch(batchId)` —— 反悔也能退，撤的是"这一批自己写下的"知识点与线索边，"本来就有的"行 / 卡片（含模板）/ 标签 / 别的线索边任一存在就**整批不撤**并逐条说明理由；行已被手删不算拦路；退提案时 `applied_at` 与 `already_existed` 一起清，`record` 下一轮重算；入口在「看看确认了什么」对话框里，写者仍然只有确认那一层，10 例新增）**；**落不了的连接看得见已完成（轮次八十：待确认清单上每条还没落地的连接直接标出缺哪一端 —— `pendingMissingEndpointsOf` 现算、不落库，判据与确认时的成绩单逐条对齐（影子图 / 边已在库里不算 / "同名已存在"的点不算），勾选一变就重算，缺的那一端进图之后这句话自己消失；仓储层的 `missingEndpointNote` 是两处共用的同一句话，14 例读数 + 1 例页面）**；**照片读完能原地再来一张已完成（轮次八十一：报告对话框里多一个「换一张」（读成了）/「重试」（没读成）—— 不用先关掉对话框再出去找那个按钮；"模型都没配好"那一种不摆这个按钮，因为按了还是同一句话；照片这条路照旧一个字都不写库，2 例新增）**；**撤过就有痕迹（撤回记账）已完成（轮次八十二：schema v20 新表 `material_intake_undo_logs` —— 撤回**成与不成**都留一笔（没撤成记 `blockedCount` + 第一条理由，`undone = false`），记成流水而不是状态列（同一批可以撤很多次）；写者只有 `undoBatch` 自己（删行与记账同一事务），页面只读数出"这一批撤回过 N 次"；5 例仓储 + 1 例页面新增）**；**撤回流水点得开已完成（轮次八十三：把"这一批撤回过 N 次"那一行变成入口 —— 只读对话框按倒序列出每一次撤回（`MM-dd HH:mm` + 撤成了 / 没撤成），撤成那次摆出**原件原话**（删掉的知识点标题、线索边的"从 → 到"），没撤成那次摆出第一条理由与"当时 N 条理由"；只读、不回放（关掉仍是待确认），不新增任何落库，1 例新增）**；**机制面板（"参数公开"那一半）已完成（轮次八十四：`app/lib/domain/services/cognitive/mechanism_catalog.dart` 把两处引擎装配的 id 清单与唯一覆盖（`attention.ignition.T_ign = 0`）收成一份常量、`library_diagnosis.dart` 与 `problem_evaluator.dart` 两处调用点都读它（面板因此不可能和引擎漂移），`app/lib/features/cognitive/application/mechanism_reader.dart` 把转录表读成面板行（`transcribed` 用空 defaults 单独读一遍），设置页 → 认知模型页 AppBar「机制与参数」进只读页：六个机制各有多少参数、哪些**未标定**、哪个被覆盖（值 `0`、转录默认值 `0.05`）、`rhythm.gate` 如实说"只在节律读数里，不装进引擎"、`memory.dsr` 如实说"这一层没有号参数"、末尾给总数；10 例读数 + 7 例页面新增）**；**演练已完成（轮次八十五：`app/lib/features/cognitive/application/run_rehearsal.dart` 把"谁去装配引擎"这个问题答了 —— 请求提到的节点按 `knowledge_points.external_id` 摆进仿真图、`ms` 用代表卡片的 `modelReadingOf(row).r0`（读不出来就省略并如实列进 `nodesWithoutMs`，不编数）、两端都进图的 `knowledge_edges` 才接过来、请求自己的 `time.model_hours` 就是锚点、只装 `memory.dsr`（不跑轮次，逐轮那四个机制用不上）、**只跑不落库**；既有只读工具 `check_transcribe_run` 多一个 `execute` 参数（缺省 false），给了就在校验通过之后真的跑一遍，结果多一个 `rehearsal` 对象，`ok`/`error` 跟执行报告走 —— 执行层从轮次七十八起第一次有了调用者；机制面板因此如实多列第三处装配；12 例演练 + 4 例工具 + 页面例数不变）**；**照片报告里能直接试跑已完成（轮次八十七：读完一张照片、自检合法之后，报告里多一个「试跑一遍（不落库）」——`PhotoTranscribeReport` 自己带着解码出来的 `request`（界面不把模型原话再解一遍），按一下走 `rehearseRun`（只读、不落库），把引擎对每条动作的原话、读不出 `r0` 的节点、库里没有的 id 分三处摆出来；不合法的那一份不摆这个入口，试跑失败只说人话、不带走报告；3 例新增）**；**`run/1` 也能贴进来已完成（轮次八十八：材料摄取页第二条只读入口 —— 把一份 `mindnet.run/1` 贴进对话框，按「校验这份请求」走与照片那条路同一个 `reviewTranscribedRun`（id 白名单照旧从库里现读），合法才摆「试跑一遍」，跑的是同一个 `rehearseRun`；读不成（`FormatException`）与不合法分开说，两者都不给试跑入口；一个字都不写库；3 例新增）**；**演练完能交给人确认已完成（轮次九十一：一跑要建的节点/线索边落成**待确认提案** —— 只写 `material_intake_batches` / `material_intake_proposals` 两张清单表，知识点与边一个字不写；人点头那一下走材料入库页那条老路（`apply`，带 undo 记录），所以这条路从"只看"走到了"能落地"；`check_transcribe_run` 多一个 `record`（须与 `execute: true` 一起）；领域层 7 例 + 应用层 5 例 + 工具 3 例 + 页面 2 例）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 —— **"参数公开"那一半已完成（轮次八十四：只读的机制面板 —— 六个机制各有多少参数、哪些未标定、哪个被覆盖、`rhythm.gate` 不装进引擎、`memory.dsr` 没有号参数；装配与参数的来源收成 `mechanism_catalog.dart` 一处，面板不会和引擎漂移）。"用户侧开关/滑块"这一半仍未做：开关要落库（settings 列 + schema 迁移）并配可跑的验收契约；**轮次八十五又多了第三处装配（演练那一跑：只装 `memory.dsr`），面板已如实列出**；**第一个开关已完成（轮次八十六：库诊断那一跑装不装目标机制，schema v21 `local_settings.goal_mechanism_enabled`（NULL = 装），翻开关真的落库、那一跑真的少装 `context.goal`、读数与 JSON 都如实写 `mechanism_ids`**；**第一个滑块也已完成（轮次八十九：`context.goal.beta_goal`，schema v22 `local_settings.goal_beta`（可空 REAL，NULL = 用转录默认值 0.3），两端与出厂位置取自内核参数表 `[0, 3]`，用户调的值经 `moduleDefaults` 真的进装配、库诊断读数 `module_defaults` 如实带出，面板分开标"你调的"与"被覆盖"并给"回到出厂值"）**；**轮次九十把这个数接进"装了目标机制的每一跑"：题目定价那一跑（`evaluate_problem_fit` / `plan_today` 共用那一处装配）也读同一份设置，读数 `module_defaults` 如实带出来 —— 用户拖的值不再只在库诊断那一跑生效** —— 别的机制的开关语义、其余参数的滑块仍未做**）** |
 
@@ -1102,7 +1102,7 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 
 **还没做**：① 谁来决定"这份请求可以执行了"—— 执行层现在**还没有调用者**（照片那条路已经从"只读到
 报告为止"走到"报告里按一下就能试跑"，轮次八十七）—— **已在轮次八十五补上调用者：`check_transcribe_run` 的 `execute` 参数会装配引擎并真的
-跑一遍（只读、不落库），但"判断者"仍缺 —— 见切片 6 的下一步（二十二）**；② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ **当时**：
+跑一遍（只读、不落库），但"判断者"仍缺 —— 见切片 6 的下一步（二十二）**；② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）—— **已在轮次九十一做了前半段**：一跑要建的先落成待确认提案（`material_intake_batches` / `proposals`），人点头那一下走材料入库页那条老路（`apply`）；只读演练本身仍然一个字不写库；③ **当时**：
 撤销一次确认 —— **已在轮次七十九补上，见下一节**；④ `ls` 仍没有标定来源（§3 第 7 行）。
 
 ### 切片 6 的下一步（十六）：撤销一次确认 —— 反悔也能退（轮次七十九）
@@ -1135,7 +1135,7 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 —— **已在轮次八十二补上，见切片 6 的下一步（十九）**（改记流水：`material_intake_undo_logs`，
 撤成与没撤成都留一笔）；② 撤销不进审计（`review_logs` 之类），所以"确认过又反悔"这件事在历史里
 看不到 —— **已部分补上（轮次八十二：进了自家的撤回流水，仍不进 `review_logs`）**；③ 谁来决定
-"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（上一节 ①）—— **已在轮次八十五补上调用者，仍缺"判断者"**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；④ `ls` 仍没有标定
+"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（上一节 ①）—— **已在轮次八十五补上调用者，仍缺"判断者"**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；④ `ls` 仍没有标定
 来源（§3 第 7 行）。
 
 ### 切片 6 的下一步（十七）：落不了的连接看得见 —— 点头之前就知道（轮次八十）
@@ -1170,8 +1170,8 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
 全量 `flutter test --concurrency=1` → `+1913 ~2: All tests passed!`（轮次七十九是 `+1898 ~2`，差值 15）。
 
-**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；
-② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤销**不记账**、也不进审计
+**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；
+② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）—— **已在轮次九十一做了前半段**：一跑要建的先落成待确认提案（`material_intake_batches` / `proposals`），人点头那一下走材料入库页那条老路（`apply`）；只读演练本身仍然一个字不写库；③ 撤销**不记账**、也不进审计
 （**已在轮次八十二补上自家的撤回流水，见切片 6 的下一步（十九）**；`review_logs` 仍然不进）
 （轮次七十九 ①②）；④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
@@ -1198,8 +1198,8 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 （**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1915 ~2: All tests passed!`
 （轮次八十是 `+1913 ~2`，差值 2）。
 
-**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；
-② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤销**不记账**、也不进审计
+**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；
+② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）—— **已在轮次九十一做了前半段**：一跑要建的先落成待确认提案（`material_intake_batches` / `proposals`），人点头那一下走材料入库页那条老路（`apply`）；只读演练本身仍然一个字不写库；③ 撤销**不记账**、也不进审计
 （**已在轮次八十二补上自家的撤回流水，见切片 6 的下一步（十九）**；`review_logs` 仍然不进）
 （轮次七十九 ①②）；④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
@@ -1237,8 +1237,8 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 0 changed）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量
 `flutter test --concurrency=1` → `+1921 ~2`（轮次八十一 `+1915 ~2`，差值 6）。
 
-**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；
-② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤回流水只有"撤过几次"
+**还没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（只读工具的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；
+② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）—— **已在轮次九十一做了前半段**：一跑要建的先落成待确认提案（`material_intake_batches` / `proposals`），人点头那一下走材料入库页那条老路（`apply`）；只读演练本身仍然一个字不写库；③ 撤回流水只有"撤过几次"
 这一行，还没有点开看"那次撤掉了什么、为什么没撤成"的入口（**已在轮次八十三补上，见切片 6 的
 下一步（二十）**）；④ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）。
 
@@ -1272,7 +1272,7 @@ test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issue
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量
 `flutter test --concurrency=1` → `+1922 ~2`（轮次八十二 `+1921 ~2`，差值 1）。
 
-**还没做**：① 执行层（`run_executor.dart`）仍然没有调用者 —— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；② 执行完怎么落库；③ `ls` 仍没有标定来源
+**还没做**：① 执行层（`run_executor.dart`）仍然没有调用者 —— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；② 执行完怎么落库；③ `ls` 仍没有标定来源
 （§3 第 7 行那六条实验，需要外部数据）。
 
 ### 切片 6 的下一步（二十一）：机制面板 —— 引擎装了哪些机制、每个参数是多少、哪些还没标定（轮次八十四）
@@ -1316,7 +1316,7 @@ P5；也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半
 → `+337`；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；`dart format` 本轮
 11 个 Dart 文件 4 changed（改完 0 changed）；全量 `flutter test --concurrency=1` → `+1939 ~2`（轮次八十三 `+1922 ~2`，差值 17）。
 
-**还没做**：① 执行层（`run_executor.dart`）仍然没有调用者 —— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；② 执行完怎么落库；③ `ls` 仍没有标定
+**还没做**：① 执行层（`run_executor.dart`）仍然没有调用者 —— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）；**轮次九十一起，演练完能「交给人确认」—— 一跑要建的知识点/线索边落成待确认提案（只写那两张清单表），人点头那一下走材料入库页那条老路（`apply`）**；② 执行完怎么落库；③ `ls` 仍没有标定
 来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有"用户侧开关/滑块"（§3 第 8 行
 的另一半，要落库 + 验收契约）—— **已在轮次八十六补上第一个开关（目标机制，落库 + 验收契约都在），
 并在轮次八十九补上第一个滑块（`context.goal.beta_goal`，schema v22，同样落库 + 验收契约）**。
@@ -1565,6 +1565,46 @@ Dart 文件 0 changed；`dart analyze lib test` → `94 issues found`（**0 erro
 **还没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在按按钮的仍是人）；② 执行完怎么落库；
 ③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 其余 18 个参数还没有滑块（而且滑块**不该**
 铺开：19 个参数里只有 2 个写着"有出处"，先要的是标定，不是更多旋钮）；⑤ 报告里不能"就地改一改再跑"。
+
+### 切片 6 的下一步（二十八）：执行完怎么落库（第一半）—— 一跑要建的东西先交给人确认（轮次九十一）
+
+为什么要有它：轮次八十五起，`run/1` 请求能真的跑进引擎（`executeRun`），轮次八十七、八十八又把这件事
+摆到了照片报告与"贴一份 `run/1`"两个入口上。可那一跑留下的 `knowledge` 增量（`added: node` /
+`added: edge`）一直没有出口 —— 读数看得见，库里什么也没有，§2-C 的 ②「执行完怎么落库」就这么空着。
+这一轮只做**前半段**：把一跑想建的东西落成**待确认提案**（走已有的 `material_intake_batches` /
+`material_intake_proposals` 两张清单表），`knowledge_points` / `knowledge_edges` 一个字不写。判断者（①）
+仍然缺，所以这一步的终点是"交到人手上"，不是自动确认。
+
+- **领域层是纯函数**（`run_knowledge_plan.dart`）：`planRunKnowledge({report, existingNodeIds,
+  existingTitles, sourceRef})` 从 traces 的 `delta['added']` 取增量 —— 节点 → `knowledge_point` 提案
+  （`nodeId` + 标题 + 引用说清来自第几条动作）、边 → `connection` 提案（`from`/`to` + `ls`）；库里已有的
+  id/标题照旧标 `exists`；不是 knowledge 动作、动作没回报增量、以及**整份没跑完**（`stoppedAt != null`）
+  都进 `skipped` 并说清原因。不碰库、不读设置 —— 于是它可以用真 sqlite 之外的方式验。
+- **应用层薄到只剩接缝**（`run_intake.dart`）：`recordRunKnowledge({report, db, anki, now, sourceRef})`
+  走仓库现成的 `record`；幂等由仓库保证（同一个 `run_id` 记两次还是那一批、还是那几条）。清单为空时抛
+  人话异常，**不编一批空提案出来**（"看提案"那张单子上不该凭空多一行）。`RunIntakeRecorder` /
+  `runIntakeRecorderProvider` 是界面与工具共用的那一个接缝。
+- **界面与工具同一条路**：照片报告与"贴一份 `run/1`"两个对话框的演练读数下面多一个「交给人确认」
+  （只在演练真的跑完时按得动，按完说清批次号与条数）；AI 工具 `check_transcribe_run` 多了 `record`
+  （必须与 `execute: true` 一起，否则直接回人话），读数里 `recorded_batch` / `record_problem`。两处都
+  只写那两张清单表。
+- **后半段不用新界面**：确认那一下走的是材料入库页那条老路（待确认清单 + 「确认入库」→
+  `MaterialIntakeRepository.apply`）。清单是按"还有欠账的批次"读的（`readPendingBatches` 只挑
+  `unappliedCount > 0`），所以这一轮记下的批次会自己出现在那张单子上 —— 演练 → 交给人确认 → 人点头 →
+  知识点与线索边真的建起来（带 `undo` 记录），这条路现在是通的，且两头都有测试钉着。
+
+**证据**：`app/test/domain/services/ingest/run_knowledge_plan_test.dart` 7 例、
+`app/test/features/cognitive/application/run_intake_test.dart` +5 例（真 sqlite：落成清单且知识点一行
+没建 / 同一跑记两次还是那一批 / **清单上点头之后真的建出来** —— `created` 2 条、`createdEdges` 1 条、
+`lsCalibrated` false；空清单说人话；没跑完整份不算）、`material_intake_page_test.dart` 28 → 30 例、
+`check_transcribe_run_tool_test.dart` 11 → 14 例。本轮 `dart format` 11 个 Dart 文件 3 changed；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1`
+→ **+2018 ~2**（轮次九十 `+2001 ~2`，差值 17：+7 +5 +2 +3）。
+
+**还没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在"交给人确认"和"人点头"都还是人）；
+② `review` / `goal` / `time` 的读数仍然没有出口（它们本来就不建东西）；③ `ls` 仍没有标定来源（§3 第 7
+行那六条实验，需要外部数据）；④ 其余 18 个参数还没有滑块；⑤ 报告里不能"就地改一改再跑"；⑥ 边提案的
+`ls` 照抄增量、`lsCalibrated` 一律 false。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

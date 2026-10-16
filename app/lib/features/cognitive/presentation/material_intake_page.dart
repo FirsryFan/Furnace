@@ -43,6 +43,7 @@ import '../../ai/application/ai_providers.dart';
 import '../../ai/domain/vision_payload.dart';
 import '../application/material_intake_reader.dart';
 import '../application/photo_transcribe_service.dart';
+import '../application/run_intake.dart';
 import '../application/run_rehearsal.dart';
 
 /// "选一张照片"这一步：返回照片字节，用户取消就是 `null`。
@@ -397,6 +398,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
           result: result,
           onAnother: _readPhoto,
           onRehearse: ref.read(runRehearsalRunnerProvider),
+          onHandOver: ref.read(runIntakeRecorderProvider),
         ),
       );
     } catch (error) {
@@ -438,6 +440,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         existingNodeIds: existingNodeIds,
         existingEdgeIds: existingEdgeIds,
         onRehearse: ref.read(runRehearsalRunnerProvider),
+        onHandOver: ref.read(runIntakeRecorderProvider),
       ),
     );
   }
@@ -1153,6 +1156,7 @@ class _PhotoReportDialog extends StatefulWidget {
     required this.result,
     this.onAnother,
     this.onRehearse,
+    this.onHandOver,
   });
 
   final PhotoTranscribeResult result;
@@ -1164,6 +1168,9 @@ class _PhotoReportDialog extends StatefulWidget {
   /// 试跑一遍：把这份请求喂进引擎走一遍（`rehearseRun`，只读、不写库）。
   /// 为空就没有这个按钮。
   final RunRehearsalRunner? onRehearse;
+
+  /// 演练完那一下"把要新建的东西交给人确认"（只落待确认提案）。为空就没有。
+  final RunIntakeRecorder? onHandOver;
 
   @override
   State<_PhotoReportDialog> createState() => _PhotoReportDialogState();
@@ -1318,7 +1325,10 @@ class _PhotoReportDialogState extends State<_PhotoReportDialog> {
                   ),
                 ],
                 if (_rehearsal != null)
-                  _RehearsalReading(rehearsal: _rehearsal!),
+                  _RehearsalReading(
+                    rehearsal: _rehearsal!,
+                    onHandOver: widget.onHandOver,
+                  ),
                 if (_rehearsalProblem != null) ...<Widget>[
                   const SizedBox(height: 12),
                   Text(
@@ -1397,6 +1407,7 @@ class _RunRequestDialog extends StatefulWidget {
     required this.existingNodeIds,
     required this.existingEdgeIds,
     this.onRehearse,
+    this.onHandOver,
   });
 
   /// 图里已有的节点/边 id：自检拿它判断"这条动作说的 id 库里有没有"。
@@ -1405,6 +1416,9 @@ class _RunRequestDialog extends StatefulWidget {
 
   /// 试跑一遍（`rehearseRun`，只读、不写库）。为空就没有这个按钮。
   final RunRehearsalRunner? onRehearse;
+
+  /// 演练完那一下"把要新建的东西交给人确认"（只落待确认提案）。为空就没有。
+  final RunIntakeRecorder? onHandOver;
 
   @override
   State<_RunRequestDialog> createState() => _RunRequestDialogState();
@@ -1601,7 +1615,10 @@ class _RunRequestDialogState extends State<_RunRequestDialog> {
                   ),
                 ],
                 if (_rehearsal != null)
-                  _RehearsalReading(rehearsal: _rehearsal!),
+                  _RehearsalReading(
+                    rehearsal: _rehearsal!,
+                    onHandOver: widget.onHandOver,
+                  ),
                 if (_rehearsalProblem != null) ...<Widget>[
                   const SizedBox(height: 12),
                   Text(
@@ -1638,16 +1655,62 @@ class _RunRequestDialogState extends State<_RunRequestDialog> {
 /// 一条动作一行 —— 引擎对每条动作的原话（`RunActionTrace.text`）比我在这里
 /// 编的转述可信：它说的是"这一条实际做了什么/为什么停在这"。没有增量的条目
 /// 也照摆（"跑过但什么都没改"本身是信息）。
-class _RehearsalReading extends StatelessWidget {
-  const _RehearsalReading({required this.rehearsal});
+class _RehearsalReading extends StatefulWidget {
+  const _RehearsalReading({required this.rehearsal, this.onHandOver});
 
   final RunRehearsal rehearsal;
+
+  /// 「把要新建的东西交给人确认」那一下（轮次九十一）：只落待确认提案。
+  /// 不给缝（`null`）就不摆这个按钮 —— 和"试跑"一样，能注入才好测。
+  final RunIntakeRecorder? onHandOver;
+
+  @override
+  State<_RehearsalReading> createState() => _RehearsalReadingState();
+}
+
+class _RehearsalReadingState extends State<_RehearsalReading> {
+  bool _handingOver = false;
+  MaterialIntakeBatch? _handedOver;
+  String? _handOverProblem;
+
+  /// 按一下「交给人确认」：把这一跑要新建的东西落成待确认提案。
+  ///
+  /// 落的只有两张清单表 —— `knowledge_points` / `knowledge_edges` 一行不动，
+  /// 那是清单页上"确认"那一步的事。失败了就把人话摆在这里，演练读数留着。
+  Future<void> _handOver() async {
+    final recorder = widget.onHandOver;
+    if (recorder == null || _handingOver) {
+      return;
+    }
+    setState(() {
+      _handingOver = true;
+      _handOverProblem = null;
+    });
+    try {
+      final batch = await recorder(widget.rehearsal.report);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _handedOver = batch;
+        _handingOver = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _handOverProblem = '$error';
+        _handingOver = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final traces = rehearsal.report.traces;
+    final traces = widget.rehearsal.report.traces;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -1657,7 +1720,7 @@ class _RehearsalReading extends StatelessWidget {
           style: theme.textTheme.titleSmall,
         ),
         const SizedBox(height: 4),
-        Text(rehearsal.text),
+        Text(widget.rehearsal.text),
         const SizedBox(height: 4),
         _Note(text: l10n.materialPhotoReportRehearseNote),
         if (traces.isNotEmpty) ...<Widget>[
@@ -1678,28 +1741,61 @@ class _RehearsalReading extends StatelessWidget {
               title: Text(trace.text),
             ),
         ],
-        if (rehearsal.nodesWithoutMs.isNotEmpty)
+        if (widget.rehearsal.nodesWithoutMs.isNotEmpty)
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.help_outline, size: 18),
             title: Text(
               l10n.materialPhotoReportRehearseNoMs(
-                rehearsal.nodesWithoutMs.join('、'),
+                widget.rehearsal.nodesWithoutMs.join('、'),
               ),
             ),
           ),
-        if (rehearsal.unknownNodeIds.isNotEmpty)
+        if (widget.rehearsal.unknownNodeIds.isNotEmpty)
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.report_gmailerrorred_outlined, size: 18),
             title: Text(
               l10n.materialPhotoReportRehearseUnknown(
-                rehearsal.unknownNodeIds.join('、'),
+                widget.rehearsal.unknownNodeIds.join('、'),
               ),
             ),
           ),
+        if (widget.onHandOver != null) ...<Widget>[
+          const SizedBox(height: 12),
+          _Note(text: l10n.materialPhotoReportHandOverNote),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: _handingOver ? null : _handOver,
+              icon: const Icon(
+                Icons.playlist_add_check_circle_outlined,
+                size: 18,
+              ),
+              label: Text(
+                _handingOver
+                    ? l10n.materialPhotoReportHandOverBusy
+                    : l10n.materialPhotoReportHandOver,
+              ),
+            ),
+          ),
+          if (_handedOver != null)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle_outline, size: 18),
+              title: Text(
+                l10n.materialPhotoReportHandOverDone(_handedOver!.batchId),
+              ),
+            ),
+          if (_handOverProblem != null)
+            _Problem(
+              text: l10n.materialPhotoReportHandOverFailed(_handOverProblem!),
+            ),
+        ],
       ],
     );
   }

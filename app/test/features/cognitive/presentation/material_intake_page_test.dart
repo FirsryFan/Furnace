@@ -24,7 +24,9 @@ import 'package:furnace/data/repositories/material_intake_repository.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/ingest/material_ingest.dart';
 import 'package:furnace/domain/services/ingest/material_intake_plan.dart';
+import 'package:furnace/domain/services/ingest/run_executor.dart';
 import 'package:furnace/features/cognitive/application/material_intake_reader.dart';
+import 'package:furnace/features/cognitive/application/run_intake.dart';
 import 'package:furnace/features/cognitive/application/run_rehearsal.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
@@ -130,6 +132,58 @@ Map<String, Object?> runJson() => <String, Object?>{
         },
       ],
     };
+
+/// 一份演练读数：两个节点 + 一条边（就是"交给人确认"要落成提案的那三样）。
+///
+/// [stoppedAt] 给了就是"没跑完"的一跑（那一跑的整份都不算）。
+RunRehearsal rehearsalOf({int? stoppedAt}) => RunRehearsal(
+      report: RunExecutionReport(
+        runId: 'run-1',
+        traces: <RunActionTrace>[
+          for (final node in <List<String>>[
+            <String>['en::w::a', 'alpha'],
+            <String>['en::w::b', 'beta'],
+          ])
+            RunActionTrace(
+              index: 0,
+              kind: 'knowledge',
+              mechanism: 'graph.add_node',
+              summary: '新增节点 ${node[0]}',
+              delta: <String, Object?>{
+                'added': 'node',
+                'node': <String, Object?>{
+                  'id': node[0],
+                  'name': node[1],
+                  'type': 'word',
+                },
+              },
+            ),
+          const RunActionTrace(
+            index: 2,
+            kind: 'knowledge',
+            mechanism: 'graph.add_edge',
+            summary: '新增边 en::w::a → en::w::b',
+            delta: <String, Object?>{
+              'added': 'edge',
+              'edge': <String, Object?>{
+                'id': 'e_3_a__b',
+                'from': 'en::w::a',
+                'to': 'en::w::b',
+                'ls': 0.8,
+              },
+            },
+          ),
+        ],
+        assumptions: const <String>[],
+        hoursBefore: 0,
+        hoursAfter: 0,
+        stoppedAt: stoppedAt,
+      ),
+      seedNodeIds: const <String>[],
+      seedEdgeIds: const <String>[],
+      nodesWithoutMs: const <String>[],
+      unknownNodeIds: const <String>[],
+    );
 
 void main() {
   /// 提案列表是 `ListView`（懒构建）：屏幕太小的话后面的卡片根本不会 build，
@@ -1210,6 +1264,135 @@ void main() {
         findsNothing,
         reason: '不合法的整份会被拒绝：先修它，别急着跑',
       );
+    });
+
+    testWidgets('试跑完按"交给人确认"：落成待确认清单，知识点一行都还没建', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      // `runJson()` 里那条 review 指着 `kp`：库里得有它，整份才算合法。
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              return rehearsalOf();
+            }),
+            // 用真的那一层：同一个库、同一个 anki —— 钉的是"这一步到底写了哪几张表"。
+            runIntakeRecorderProvider.overrideWithValue(
+              (RunExecutionReport report) => recordRunKnowledge(
+                report: report,
+                db: db,
+                anki: anki,
+                now: DateTime(2026, 10, 17, 13),
+                sourceRef: '贴进来的 run/1',
+              ),
+            ),
+          ],
+        ),
+      );
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        jsonEncode(runJson()),
+      );
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportHandOver), findsOneWidget);
+      await tester.tap(find.text(l10n.materialPhotoReportHandOver));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.materialPhotoReportHandOverDone('run-1')),
+        findsOneWidget,
+        reason: '幂等键就是这一跑的 run_id',
+      );
+
+      final batches = await db.select(db.materialIntakeBatches).get();
+      expect(batches, hasLength(1));
+      expect(batches.single.sourceKind, 'run');
+      final proposals = await db.select(db.materialIntakeProposals).get();
+      expect(proposals, hasLength(3));
+      expect(proposals.where((row) => row.kind == 'connection'), hasLength(1));
+
+      // 这一步只写清单：线索边一行都没有，知识点还是测试自己建的那一个。
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+
+      // 再按一次：同一跑落的还是那一批，不翻倍。
+      await tester.tap(find.text(l10n.materialPhotoReportHandOver));
+      await tester.pumpAndSettle();
+      expect(await db.select(db.materialIntakeBatches).get(), hasLength(1));
+      expect(await db.select(db.materialIntakeProposals).get(), hasLength(3));
+    });
+
+    testWidgets('没跑完的一跑：交给人确认说人话，清单一行都不落', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              return rehearsalOf(stoppedAt: 2);
+            }),
+            runIntakeRecorderProvider.overrideWithValue(
+              (RunExecutionReport report) => recordRunKnowledge(
+                report: report,
+                db: db,
+                anki: anki,
+              ),
+            ),
+          ],
+        ),
+      );
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        jsonEncode(runJson()),
+      );
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportHandOver));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(l10n.materialPhotoReportHandOverFailed('')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('没跑完'), findsOneWidget);
+      expect(await db.select(db.materialIntakeBatches).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
     });
   });
 }

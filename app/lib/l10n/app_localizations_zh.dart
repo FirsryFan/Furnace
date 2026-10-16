@@ -720,6 +720,26 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get materialPhotoReportHandOver => '把要新建的东西交给人确认（只落清单）';
+
+  @override
+  String get materialPhotoReportHandOverBusy => '正在记…';
+
+  @override
+  String get materialPhotoReportHandOverNote =>
+      '这一步只落两张清单表（`material_intake_batches` / `material_intake_proposals`）：`knowledge_points` / `knowledge_edges` 一行都不动 —— 去「添加资料」那一页点头，才真的建。同一跑再按一次，落的还是那一批。';
+
+  @override
+  String materialPhotoReportHandOverDone(String batchId) {
+    return '已经记成一批待确认提案（$batchId）——去「添加资料」那一页看看。';
+  }
+
+  @override
+  String materialPhotoReportHandOverFailed(String message) {
+    return '没记成：$message';
+  }
+
+  @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
 
   @override

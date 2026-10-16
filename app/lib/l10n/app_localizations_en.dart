@@ -740,6 +740,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get materialPhotoReportHandOver =>
+      'Hand the new things over for confirmation (list only)';
+
+  @override
+  String get materialPhotoReportHandOverBusy => 'Recording…';
+
+  @override
+  String get materialPhotoReportHandOverNote =>
+      'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — the things are only really created when you confirm them on the "Add material" page. Pressing it again for the same run yields the same batch.';
+
+  @override
+  String materialPhotoReportHandOverDone(String batchId) {
+    return 'Recorded as a pending batch ($batchId) — open the "Add material" page to review it.';
+  }
+
+  @override
+  String materialPhotoReportHandOverFailed(String message) {
+    return 'Could not record it: $message';
+  }
+
+  @override
   String get materialIntakeTopicHubs =>
       'Also create topic hubs (off by default: a topic groups things, it is not a card relation)';
 

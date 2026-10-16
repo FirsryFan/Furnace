@@ -1436,6 +1436,36 @@ abstract class AppLocalizations {
   /// **'These node ids are not in the library and no action creates them: {ids}'**
   String materialPhotoReportRehearseUnknown(String ids);
 
+  /// No description provided for @materialPhotoReportHandOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand the new things over for confirmation (list only)'**
+  String get materialPhotoReportHandOver;
+
+  /// No description provided for @materialPhotoReportHandOverBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording…'**
+  String get materialPhotoReportHandOverBusy;
+
+  /// No description provided for @materialPhotoReportHandOverNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — the things are only really created when you confirm them on the "Add material" page. Pressing it again for the same run yields the same batch.'**
+  String get materialPhotoReportHandOverNote;
+
+  /// No description provided for @materialPhotoReportHandOverDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded as a pending batch ({batchId}) — open the "Add material" page to review it.'**
+  String materialPhotoReportHandOverDone(String batchId);
+
+  /// No description provided for @materialPhotoReportHandOverFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not record it: {message}'**
+  String materialPhotoReportHandOverFailed(String message);
+
   /// No description provided for @materialIntakeTopicHubs.
   ///
   /// In en, this message translates to:

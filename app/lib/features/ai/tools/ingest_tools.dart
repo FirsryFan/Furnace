@@ -21,7 +21,9 @@ import '../../../data/repositories/material_intake_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
+import '../../../domain/services/ingest/run_knowledge_plan.dart';
 import '../../../domain/services/ingest/transcribe_run.dart';
+import '../../cognitive/application/run_intake.dart';
 import '../../cognitive/application/run_rehearsal.dart';
 import '../domain/ai_tool.dart';
 
@@ -422,7 +424,9 @@ class CheckTranscribeRunTool extends AiTool {
       '（含【图清单】）一起返回。'
       '`execute: true` 时再走一步**演练**：把请求提到、库里已有的节点摆进仿真图'
       '（`ms` 用库里代表卡片的模型读数）并真的把动作 apply 一遍 —— 只跑不落库，'
-      '库里的知识点/边/卡片状态/记忆态都不变。';
+      '库里的知识点/边/卡片状态/记忆态都不变。'
+      '`record: true`（要连同 `execute: true`）时，演练完把这一跑要新建的节点/边'
+      '交给人确认：落成待确认提案（两张清单表），仍然不建任何知识点或边。';
 
   @override
   Map<String, Object?> get parameters => <String, Object?>{
@@ -453,6 +457,15 @@ class CheckTranscribeRunTool extends AiTool {
             'type': 'boolean',
             'description': '可选：是否再走一步"演练"——把动作真的 apply 进仿真引擎'
                 '（只跑不落库）。默认 false（只校验）。',
+          },
+          'record': <String, Object?>{
+            'type': 'boolean',
+            'description': '可选：演练完之后，把这一跑**要新建的东西**（`knowledge` 动作'
+                '的节点/边）落成**待确认提案**（`material_intake_batches` / '
+                '`material_intake_proposals` 两张清单表）。`knowledge_points` / '
+                '`knowledge_edges` 一行都不动 —— 那是「添加资料」页上点头那一步的事。'
+                '要比对得像样的东西才落得下来；只有 review/exposure/goal/time 的一跑'
+                '没有可确认的东西，这一项会说人话拒绝。默认 false。',
           },
         },
         'required': <String>['request'],
@@ -524,6 +537,16 @@ class CheckTranscribeRunTool extends AiTool {
     }
 
     final execute = args.optBool('execute') ?? false;
+    final record = args.optBool('record') ?? false;
+    if (record && !execute) {
+      return ToolResult(
+        ok: false,
+        summary: '`record: true` 要跟 `execute: true` 一起用：先真的跑一遍，才知道'
+            '这一跑要新建什么。',
+        modelResult: modelResult,
+        error: '`record` 需要 `execute: true`',
+      );
+    }
     if (!execute) {
       return ToolResult(
         ok: true,
@@ -543,6 +566,34 @@ class CheckTranscribeRunTool extends AiTool {
     );
     modelResult['rehearsal'] = rehearsal.toJson();
 
+    // 交给人确认那一步（`record: true`）：只落待确认提案，知识点/边一行不动。
+    // 只有 review/exposure/goal/time 的一跑没有可确认的东西 —— 如实说，不编空清单。
+    MaterialIntakeBatch? recorded;
+    String? recordProblem;
+    if (record) {
+      try {
+        recorded = await recordRunKnowledge(
+          report: rehearsal.report,
+          db: _database,
+          anki: AnkiRepository(_database),
+          now: _clock(),
+          sourceRef: 'AI 工具 check_transcribe_run',
+        );
+      } on RunKnowledgeException catch (error) {
+        recordProblem = error.message;
+      }
+    }
+    if (recorded != null) {
+      modelResult['recorded_batch'] = <String, Object?>{
+        'batch_id': recorded.batchId,
+        'proposal_count': recorded.proposalCount,
+        'source_kind': recorded.sourceKind,
+      };
+    }
+    if (recordProblem != null) {
+      modelResult['record_problem'] = recordProblem;
+    }
+
     final lines = <String>[
       '演练（只跑不落库）：${rehearsal.text}',
       '图清单来自库里的 ${existingNodeIds.length} 个节点；'
@@ -550,13 +601,20 @@ class CheckTranscribeRunTool extends AiTool {
           '${rehearsal.seedEdgeIds.isEmpty ? '' : '（另有 ${rehearsal.seedEdgeIds.length} 条库里已有的边）'}。'
           '${prompt == null ? '' : '转写提示词（含图清单）在 payload 的 `prompt` 里。'}',
       for (final trace in rehearsal.report.traces) '· ${trace.text}',
+      if (recorded != null)
+        '已交给人确认：这一跑要新建的 ${recorded.proposalCount} 样东西落成了待确认提案'
+            '（批次 `${recorded.batchId}`）—— 只写了那两张清单表，'
+            '`knowledge_points` / `knowledge_edges` 一行都没动；'
+            '去「添加资料」那一页点头，才真的建。'
+            '同一跑再记一次，落的还是这一批。',
+      if (recordProblem != null) '没记成：$recordProblem',
     ];
 
     return ToolResult(
-      ok: rehearsal.report.ok,
+      ok: rehearsal.report.ok && recordProblem == null,
       summary: lines.join('\n'),
       modelResult: modelResult,
-      error: rehearsal.report.failure?.error,
+      error: rehearsal.report.failure?.error ?? recordProblem,
     );
   }
 }

@@ -4,7 +4,53 @@
 
 ---
 
-## 2026-10-17 轮次九十：用户拖的那个数，在装了目标机制的每一跑里都算数（Lead）
+## 2026-10-17 轮次九十一：执行完怎么落库（第一半）—— 一跑要建的东西先交给人确认（Lead）
+
+**做了什么**：轮次八十五起，`run/1` 请求能真的跑进引擎（`executeRun`）；轮次八十七、八十八把这件事摆到了
+照片报告与"贴一份 `run/1`"两个入口上。可那一跑留下的 `knowledge` 增量（`added: node` / `added: edge`）
+一直没有出口 —— 读数看得见，库里什么也没有，roadmap §2-C 的 ②「执行完怎么落库」就这么空着。这一轮只做
+**前半段**：把一跑想建的东西落成**待确认提案**（走已有的 `material_intake_batches` /
+`material_intake_proposals` 两张清单表），`knowledge_points` / `knowledge_edges` 一个字不写。判断者（①）
+仍然缺，所以这一步的终点是"交到人手上"，不是自动确认。
+
+- **领域层是纯函数**：`run_knowledge_plan.dart` 的
+  `planRunKnowledge({report, existingNodeIds, existingTitles, sourceRef})` 只读一跑的 traces 与两张
+  id/标题集合，产出 `MaterialIntakePlan` —— 节点 → `knowledge_point` 提案（`nodeId` + 标题 + 引用说清
+  来自第几条动作）、边 → `connection` 提案（`from`/`to` + `ls`）；库里已有的 id/标题照旧标 `exists`；
+  不是 knowledge 动作、动作没回报增量、以及**整份没跑完**（`stoppedAt != null`）都进 `skipped` 并说清
+  原因。不碰库、不读设置。
+- **应用层薄到只剩接缝**：`run_intake.dart` 的 `recordRunKnowledge({report, db, anki, now, sourceRef})`
+  走仓库现成的 `record`（**幂等**：同一个 `run_id` 记两次还是那一批、还是那几条）；清单为空时抛人话
+  异常，不编一批空提案出来。`RunIntakeRecorder` / `runIntakeRecorderProvider` 是界面与工具共用的那一个
+  接缝。
+- **界面：两条只读路都多一个「交给人确认」**：照片报告与"贴一份 `run/1`"两个对话框的演练读数下面，
+  演练真的跑完时按得动，按完说清批次号与条数；按不动、失败都给人话（`_RehearsalReading` 从纯读数变成
+  能按的读数）。**这一下仍然只写那两张清单表。**
+- **工具同口径**：`check_transcribe_run` 多了 `record`（必须与 `execute: true` 一起，否则直接回人话
+  `record 需要 execute: true`），读数里 `recorded_batch`（批次号 + 条数 + 来源）与 `record_problem`，
+  摘要说清"这一跑要新建的 N 样东西落成了待确认提案"。AI 在对话里做的是同一件事。
+- **后半段不用新界面**：确认那一下走的是材料入库页那条老路（待确认清单 + 「确认入库」→
+  `MaterialIntakeRepository.apply`），而清单是按"还有欠账的批次"读的（`readPendingBatches`），所以这一轮
+  记下的批次会自己出现在那张单子上 —— 演练 → 交给人确认 → 人点头 → 知识点与线索边真的建起来，这条路
+  现在是通的。
+
+**证据**：`app/test/domain/services/ingest/run_knowledge_plan_test.dart` 7 例（轮次九十已落）；
+`app/test/features/cognitive/application/run_intake_test.dart` +5 例（真 sqlite：落成清单且知识点一行
+没建 / 同一跑记两次还是那一批 / **清单上点头之后真的建出来** —— `created` 2 条、`createdEdges` 1 条、
+`lsCalibrated` false；空清单说人话；没跑完整份不算）；`material_intake_page_test.dart` 28 → 30 例
+（试跑完按"交给人确认" → 落成待确认清单、知识点一行都还没建 / 没跑完的一跑说人话、清单一行不落）；
+`check_transcribe_run_tool_test.dart` 11 → 14 例。本轮 `dart format` 11 个 Dart 文件 3 changed（改完复查
+0 changed）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与八十六～九十同基线）；
+全量 `flutter test --concurrency=1` → **+2018 ~2**（轮次九十 `+2001 ~2`，差值 17：+7 +5 +2 +3）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在"交给人确认"和"人点头"都还是人）；
+② `review` / `goal` / `time` 的读数仍然没有出口（它们本来就不建东西）；③ `ls` 仍没有标定来源；
+④ 其余 18 个参数还没有滑块；⑤ 报告里不能"就地改一改再跑"；⑥ 边提案的 `ls` 照抄增量，`lsCalibrated`
+一律 false（"线索边的强度还没有来源"这件事没被这一轮掩盖）。
+
+---
+
+## 2026-10-17 轮次九十：用户拖的那个数，在装了目标机制的每一跑里算数（Lead）
 
 **做了什么**：轮次八十九让用户能拖 `context.goal.beta_goal`，可那个数只走到库诊断那一跑。机制面板上
 写着目标机制装在**两处**（库诊断 + 题目定价），卡片上又写着"你调的 1.2" —— 两句话同时成立就成了谎：
@@ -454,7 +500,7 @@ found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → 
 —— 正好是本轮新增的 14 + 1 例）。
 
 **已知的没做**：① 谁来决定"这份请求（`run/1`）可以执行了"—— 执行层仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者，"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；
-② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）；③ 撤销**不记账**、也不进审计
+② 执行完怎么落库（`knowledge_points` / `knowledge_edges` 的写入路径）—— **已在轮次九十一做了前半段**：一跑要建的先落成待确认提案（`material_intake_batches` / `proposals`），人点头那一下走材料入库页那条老路（`apply`）；只读演练本身仍然一个字不写库；③ 撤销**不记账**、也不进审计
 （轮次七十九 ①②）—— **已在轮次八十二补上自家的撤回流水，见轮次八十二那条**（`review_logs`
 仍然不进）；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）。
 

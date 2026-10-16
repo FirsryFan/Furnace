@@ -39,6 +39,21 @@ Map<String, Object?> reviewAction(String nodeId) => <String, Object?>{
       'confidence': 0.7,
     };
 
+/// 一条 `knowledge` 动作：自己声明要建一个节点（演练会留下 `added: node` 的增量）。
+Map<String, Object?> knowledgeAction(String id, String name) =>
+    <String, Object?>{
+      'kind': 'knowledge',
+      'at': <String, Object?>{'model_hours': 497321.25},
+      'node': <String, Object?>{'id': id, 'name': name, 'type': 'word'},
+    };
+
+/// 一条 `knowledge` 动作：把两个节点连起来（`ls` 没标定）。
+Map<String, Object?> edgeAction(String from, String to) => <String, Object?>{
+      'kind': 'knowledge',
+      'at': <String, Object?>{'model_hours': 497321.25},
+      'edge': <String, Object?>{'from': from, 'to': to},
+    };
+
 Map<String, Object?> runJson({
   Object? protocol = 'mindnet.run/1',
   Object? runId = 'run-2026-10-16-0007',
@@ -75,6 +90,7 @@ void main() {
     List<String>? existingNodeIds,
     bool includePrompt = false,
     bool execute = false,
+    bool record = false,
   }) =>
       ToolInvocation(
         toolName: 'check_transcribe_run',
@@ -84,6 +100,7 @@ void main() {
           if (existingNodeIds != null) 'existing_node_ids': existingNodeIds,
           if (includePrompt) 'include_prompt': true,
           if (execute) 'execute': true,
+          if (record) 'record': true,
         },
       );
 
@@ -279,5 +296,88 @@ void main() {
     final rehearsal = payload['rehearsal']! as Map<String, Object?>;
     expect(rehearsal['seed_node_ids'], isEmpty);
     expect(rehearsal['unknown_node_ids'], <String>['en::w::rely-on']);
+  });
+
+  test('`record: true` ⇒ 演练完把要新建的东西交给人确认（只落清单）', () async {
+    final result = await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[
+            knowledgeAction('en::w::alpha', 'alpha'),
+            knowledgeAction('en::w::beta', 'beta'),
+            edgeAction('en::w::alpha', 'en::w::beta'),
+          ],
+        ),
+        execute: true,
+        record: true,
+      ),
+    );
+
+    expect(result.ok, isTrue, reason: result.summary);
+    expect(result.summary, contains('已交给人确认'));
+
+    final payload = result.modelResult! as Map<String, Object?>;
+    final recorded = payload['recorded_batch']! as Map<String, Object?>;
+    final batchId = recorded['batch_id'] as String;
+    expect(batchId, 'run-2026-10-16-0007', reason: '幂等键是这一跑的 run_id');
+    expect(recorded['proposal_count'], 3);
+    expect(recorded['source_kind'], 'run');
+
+    // 只写两张清单表：知识点与线索边一行都没有。
+    final batches = await db.select(db.materialIntakeBatches).get();
+    expect(batches, hasLength(1));
+    expect(await db.select(db.materialIntakeProposals).get(), hasLength(3));
+    expect(await anki.getKnowledgePoints(), isEmpty);
+    expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+
+    // 同一跑再记一次：落的还是那一批。
+    await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[
+            knowledgeAction('en::w::alpha', 'alpha'),
+            knowledgeAction('en::w::beta', 'beta'),
+            edgeAction('en::w::alpha', 'en::w::beta'),
+          ],
+        ),
+        execute: true,
+        record: true,
+      ),
+    );
+    expect(await db.select(db.materialIntakeBatches).get(), hasLength(1));
+    expect(await db.select(db.materialIntakeProposals).get(), hasLength(3));
+  });
+
+  test('`record` 没跟 `execute` ⇒ 说清怎么用，不是装作记了', () async {
+    final result = await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[knowledgeAction('en::w::a', 'a')],
+        ),
+        record: true,
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.error, contains('`record` 需要 `execute: true`'));
+    expect(await db.select(db.materialIntakeBatches).get(), isEmpty);
+  });
+
+  test('只有 review 的一跑：没有可确认的东西 ⇒ 说人话，不编空清单', () async {
+    await anki.createKnowledgePoint(
+      title: 'rely on',
+      content: '依靠',
+      externalId: 'en::w::rely-on',
+    );
+
+    final result =
+        await tool.run(invocationOf(runJson(), execute: true, record: true));
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('没记成'));
+    final payload = result.modelResult! as Map<String, Object?>;
+    expect(payload.containsKey('recorded_batch'), isFalse);
+    expect(payload['record_problem'], contains('没有要新建的东西'));
+    expect(await db.select(db.materialIntakeBatches).get(), isEmpty);
   });
 }
