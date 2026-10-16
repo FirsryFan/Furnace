@@ -21,7 +21,9 @@ import '../../../data/repositories/material_intake_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
+import '../../../domain/services/ingest/run_executor.dart';
 import '../../../domain/services/ingest/run_knowledge_plan.dart';
+import '../../../domain/services/ingest/run_reading.dart';
 import '../../../domain/services/ingest/transcribe_run.dart';
 import '../../cognitive/application/run_intake.dart';
 import '../../cognitive/application/run_rehearsal.dart';
@@ -600,7 +602,7 @@ class CheckTranscribeRunTool extends AiTool {
           '其中 ${rehearsal.seedNodeIds.length} 个在库、被摆进了仿真图'
           '${rehearsal.seedEdgeIds.isEmpty ? '' : '（另有 ${rehearsal.seedEdgeIds.length} 条库里已有的边）'}。'
           '${prompt == null ? '' : '转写提示词（含图清单）在 payload 的 `prompt` 里。'}',
-      for (final trace in rehearsal.report.traces) '· ${trace.text}',
+      for (final trace in rehearsal.report.traces) _traceLine(trace),
       if (recorded != null)
         '已交给人确认：这一跑要新建的 ${recorded.proposalCount} 样东西落成了待确认提案'
             '（批次 `${recorded.batchId}`）—— 只写了那两张清单表，'
@@ -617,6 +619,13 @@ class CheckTranscribeRunTool extends AiTool {
       error: rehearsal.report.failure?.error ?? recordProblem,
     );
   }
+}
+
+/// 一条动作那一行：引擎自己那句 `text`，缩进一行摆它**回报的读数**（改了什么）。
+/// 没装机制（空增量）或这一条没跑成时没有第二行 —— 不编。
+String _traceLine(RunActionTrace trace) {
+  final reading = traceReadingOf(trace);
+  return reading.isEmpty ? '· ${trace.text}' : '· ${trace.text}\n  $reading';
 }
 
 /// `material` 参数：对象直接用；模型给 JSON 文本时解一次。

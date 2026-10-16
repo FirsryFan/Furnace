@@ -930,6 +930,13 @@ void main() {
         find.textContaining(l10n.materialPhotoReportRehearseNoMs('kp')),
         findsOneWidget,
       );
+      // 每条动作不只说"做了什么"，还摆引擎回报的读数（这一条到底改了什么）：
+      // 装了记忆层，所以 review 那一条有 R/S 的前后。
+      expect(
+        find.textContaining('记忆层读数（'),
+        findsOneWidget,
+        reason: '引擎回报的增量得有出口，不能只留一句 summary',
+      );
       // 只读：演练真的跑了，库还是一个字节都没变。
       expect(await db.select(db.knowledgeEdges).get(), isEmpty);
       expect(await db.select(db.materialIntakeProposals).get(), isEmpty);

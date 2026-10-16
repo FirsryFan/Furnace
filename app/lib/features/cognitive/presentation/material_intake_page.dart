@@ -41,6 +41,8 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
+import '../../../domain/services/ingest/run_executor.dart';
+import '../../../domain/services/ingest/run_reading.dart';
 import '../../../domain/services/ingest/transcribe_run.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../ai/application/ai_providers.dart';
@@ -1775,17 +1777,7 @@ class _RehearsalReadingState extends State<_RehearsalReading> {
             l10n.materialPhotoReportRehearseTrails,
             style: theme.textTheme.labelLarge,
           ),
-          for (final trace in traces)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                trace.ok ? Icons.check_circle_outline : Icons.error_outline,
-                size: 18,
-                color: trace.ok ? null : theme.colorScheme.error,
-              ),
-              title: Text(trace.text),
-            ),
+          for (final trace in traces) _TraceTile(trace: trace),
         ],
         if (widget.rehearsal.nodesWithoutMs.isNotEmpty)
           ListTile(
@@ -1843,6 +1835,33 @@ class _RehearsalReadingState extends State<_RehearsalReading> {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// 一条动作的痕迹：引擎自己那句 `text`，加上它**回报的读数**（这一条到底改了什么）。
+///
+/// 读数由 [traceReadingOf] 折出来：没装机制（空增量）或这一条没跑成时是空串，那就
+/// 只有 `text` 一行 —— 不给一句"看起来像变化"的话。
+class _TraceTile extends StatelessWidget {
+  const _TraceTile({required this.trace});
+
+  final RunActionTrace trace;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reading = traceReadingOf(trace);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        trace.ok ? Icons.check_circle_outline : Icons.error_outline,
+        size: 18,
+        color: trace.ok ? null : theme.colorScheme.error,
+      ),
+      title: Text(trace.text),
+      subtitle: reading.isEmpty ? null : Text(reading),
     );
   }
 }

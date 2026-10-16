@@ -266,6 +266,9 @@ void main() {
     expect(traces, hasLength(1));
     final delta = (traces.first! as Map<String, Object?>)['delta']!
         as Map<String, Object?>;
+    // 每条动作不只说"做了什么"，还缩进摆引擎回报的读数（这一条改了什么）。
+    expect(result.summary, contains('记忆层读数（'));
+    expect(result.summary, contains('R '));
     // 装了 `memory.dsr`，所以一次 wrong + 对答案真的动了袋子。
     expect(delta['mechanism'], 'memory.dsr');
     expect(delta['R_after'], isA<num>());
@@ -315,6 +318,9 @@ void main() {
 
     expect(result.ok, isTrue, reason: result.summary);
     expect(result.summary, contains('已交给人确认'));
+    // 新建那两条动作的读数也摆出来（引擎回报的节点形状）。
+    expect(result.summary, contains('新增节点 en::w::alpha'));
+    expect(result.summary, contains('新增边 en::w::alpha → en::w::beta'));
 
     final payload = result.modelResult! as Map<String, Object?>;
     final recorded = payload['recorded_batch']! as Map<String, Object?>;
