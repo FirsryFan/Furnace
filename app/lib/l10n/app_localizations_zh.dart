@@ -630,6 +630,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeRestore => '接着确认';
 
   @override
+  String materialIntakeDoneTitle(int count) {
+    return '已经确认完的（$count 批）';
+  }
+
+  @override
+  String get materialIntakeDoneHint =>
+      '这些都不用再点头了：想改就去它们落地的地方 —— 知识点在知识模块的管理页，线索边在知识点详情里。';
+
+  @override
+  String materialIntakeDoneBatch(int count, String batch) {
+    return '$batch：$count 条已确认';
+  }
+
+  @override
+  String get materialIntakeDoneOpen => '看看确认了什么';
+
+  @override
+  String materialIntakeDoneDialogTitle(String batch) {
+    return '这批确认了什么（$batch）';
+  }
+
+  @override
+  String get materialIntakeDoneNote =>
+      '这些都进库了：知识点在 knowledge_points，连接是 knowledge_edges 里的线索边（ls 未标定）。';
+
+  @override
   String materialIntakeBadEnvelope(String error) {
     return '整份拒绝：$error';
   }

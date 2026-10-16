@@ -112,7 +112,7 @@
 | 3 | **元认知层（危险区/焦虑区/校准度）** | 用户能直接看懂、直接指导复习与找题 | 读数页新增危险区/焦虑区清单与 κ（已完成轮次二十一）；`evaluate_problem_fit` 把危险区排前——**试过，实测不成立，已撤回**（轮次二十二） |
 | 4 | **节律层 α(τ)（含负荷自适应周期与 flow 带）** | Thread 排序与"何时休息/切换"需要它 | 线程页出现"当前注意力可用性"与建议（做难/做易/休息），有开关可关 —— **机制侧已完成（轮次四十五：`FastMechanisms.rhythm` 可开关、默认关，装后 `availability` 真的 < 1）；读数与建议已完成（轮次四十七：线程页顶部读数 + `_RhythmToggle` 开关，schema v15 持久化，`app/test/features/thread/presentation/thread_status_bar_test.dart` 4 例钉住"开关关掉就不显示"）；**认知排序档位的算法核心已完成（轮次五十：`app/lib/domain/services/scheduling/cognitive_rank.dart`，21 例，纯逻辑；与 D12 的 1.8/1.3 刻意分成两组常量），素材读取（轮次五十二：`app/lib/features/thread/application/cognitive_rank_reader.dart`，9 例）与开关（轮次五十三：schema v16，默认关）已就位；服务接线已完成（轮次五十四：`ThreadRankService.build()` 吃 seed + 开关，`ThreadFeed` 暴露认知次序与理由，7 例钉住「关着完全不动 / 有读数才越位 / 难度只认置信度 > 0 的先验」）；UI 开关与"未标定"标注已完成（轮次五十五：AppBar 菜单开关 + 列表上方说明行，widget 测试钉住开关落库与标注出现/消失） |
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
-| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；照片本身与"把请求跑进引擎"未做）** |
+| 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；照片本身与"把请求跑进引擎"未做）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
 | 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 |
 
@@ -755,7 +755,8 @@ test/data/database/v18_migration_test.dart` → `+41: All tests passed!`；
 成绩单的"还剩 3 条"与清单读数一致；另有 `readPendingBatch` 对不存在的批次返回 `null` 一例）。
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）。
 
-**还没做**（当时）：① 清单只显示"还没确认完"的批次，**已确认完的历史**没有地方可看；
+**还没做**（当时）：① 清单只显示"还没确认完"的批次，**已确认完的历史**没有地方可看 ——
+**轮次七十三补上，见后面那一节**；
 ② TRANSCRIBE 的照片本身（§2-C ③）；③ 把 `run/1` 真的跑进引擎；
 ④ 落下来的线索边还没有界面读它 —— **已在轮次七十补上，见下一节**。
 
@@ -863,8 +864,42 @@ test/features/anki/knowledge_point_edges_test.dart` → `+20: All tests passed!`
 祖先后回到基线，`RadioListTile.groupValue/onChanged` 那 4 条 deprecation info 不再出现）；
 全量 `flutter test --concurrency=1` → `+1853 ~2: All tests passed!`（轮次七十一是 `+1842 ~2`，差值 11 = 本轮新增的 5 + 6）。
 
-**还没做**：① 点开一条边跳到另一端的知识点；② 已确认完的历史无处可看；
+**还没做**：① 点开一条边跳到另一端的知识点；② 已确认完的历史无处可看 —— **轮次七十三补上，见下一节**；
 ③ `ls` 仍没有标定来源（§3 第 7 行那六条实验）；④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1` 真的跑进引擎。
+
+### 切片 6 的下一步（十）：已经确认完的历史（轮次七十三）
+
+为什么要它：轮次六十九让"关掉页面之后那批还在"，可那只解决了**欠账**那一半 ——
+页面只认"还没确认完"的批次，一旦点过头，这一批就从屏幕上消失了。于是"我上次到底建了什么"
+只剩库里那几行可查：用户看不到自己做过的事，也就没法判断某条边是哪次材料带进来的。
+这一轮把同一张单子的**另一半**补上：已经确认完的批次留在页面上，点开能看当初确认了哪几条。
+
+- `MaterialIntakeBatch` 多了 `appliedCount`（`_toBatch` 一次查询把两边的数都数出来，不再只数没确认的），
+  `toJson` 也带上 `applied_count`；`MaterialIntakeRepository.appliedProposals(batchId)` 读**已写下去**的那些
+  （`applied_at` 非空，按记录次序）—— 缺端的连接根本没标 `applied_at`，所以这份名单里不会出现"其实没落"的条目。
+- 读法（`material_intake_reader.dart`）多两个入口：`readAppliedBatches()`（`!batch.isEmpty && unappliedCount == 0`）
+  与 `readAppliedBatch(batchId)`（批次读数 + 已确认的提案）。
+- 页面（`material_intake_page.dart`）多一段"已经确认完的（N 批）"：每批一行 `批次：N 条已确认` + 转化汇总那句话，
+  点"看看确认了什么"开一个**只读**对话框（没有勾选框）：知识点与线索边各一行，带各自的出处；
+  底下说明"这些都进库了：知识点在 `knowledge_points`，连接是 `knowledge_edges` 里的线索边"。
+
+三条刻意选择：① **判据是库里现在的数，不是"当初登记过多少条"** —— 还留着一条落不了的连接
+（`unapplied_count > 0`）就不叫确认完，只能待在待确认清单里；否则同一批挂在两张单子上，
+用户以为它做完了，其实还有一条没落地；② **历史只读、不给勾选框** —— 这几条已经在库里了，
+要改得去它们落地的地方（知识点在管理页、线索边在知识点详情里），这里再造一个"改"的入口就是第三处写者；
+③ **历史读的是"已经写下去"的提案，不是"当初打算建"的那份** —— 后者在待确认清单里看；
+题目既然是"我上次建了什么"，答案就不能是"我上次想做多少"。
+
+证据：`flutter test test/features/cognitive/presentation/material_intake_page_test.dart` → `+12: All tests passed!`
+（新增 1 例 widget：确认完之后这批从"待确认"挪到"已经确认完的"、点开只读对话框看得见两类条目；
+另把"确认一部分"那例补上"还有欠账的批次不许同时挂在已确认那张单子上"；
+一例普通测试钉住两张单子按库里现在的数分：登记后 applied 0 / pending 4，`apply` 之后 pending 空 / applied 4
+且 `readAppliedBatch` 读回的正是那 4 条）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
+全量 `flutter test --concurrency=1` → `+1854 ~2: All tests passed!`（轮次七十二是 `+1853 ~2`，差值 1）。
+
+**还没做**：① 点开一条边跳到另一端的知识点；② 历史里只有"确认了什么"，没有"哪些是本来就有的"
+（`apply` 的 `existing` 没有落库）；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验）；
+④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1` 真的跑进引擎。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

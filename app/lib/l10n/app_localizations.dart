@@ -1280,6 +1280,42 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get materialIntakeRestore;
 
+  /// No description provided for @materialIntakeDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed ({count} batches)'**
+  String materialIntakeDoneTitle(int count);
+
+  /// No description provided for @materialIntakeDoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing left to confirm here; to change them go where they landed — knowledge points in the manage page, clue edges in a point\'s detail.'**
+  String get materialIntakeDoneHint;
+
+  /// No description provided for @materialIntakeDoneBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{batch}: {count} confirmed'**
+  String materialIntakeDoneBatch(int count, String batch);
+
+  /// No description provided for @materialIntakeDoneOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'See what was confirmed'**
+  String get materialIntakeDoneOpen;
+
+  /// No description provided for @materialIntakeDoneDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What this batch confirmed ({batch})'**
+  String materialIntakeDoneDialogTitle(String batch);
+
+  /// No description provided for @materialIntakeDoneNote.
+  ///
+  /// In en, this message translates to:
+  /// **'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).'**
+  String get materialIntakeDoneNote;
+
   /// No description provided for @materialIntakeBadEnvelope.
   ///
   /// In en, this message translates to:

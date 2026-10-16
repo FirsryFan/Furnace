@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-10-16 轮次七十三：已经确认完的历史 —— 做过什么，页面上也看得见（Lead）
+
+**做了什么**：轮次六十九让"关掉页面之后那批还在"，可那只解决了**欠账**那一半 —— 页面只认
+"还没确认完"的批次，一旦点过头，这一批就从屏幕上消失了。于是"我上次到底建了什么"只剩库里
+那几行可查：用户看不到自己做过的事，也没法判断某条边是哪次材料带进来的。这一轮把同一张单子的
+**另一半**补上。
+
+- `app/lib/data/repositories/material_intake_repository.dart`：`MaterialIntakeBatch` 多一个
+  `appliedCount`（`_toBatch` 一次查询把两边都数出来，不再只数没确认的），`toJson` 带上
+  `applied_count`；新增 `appliedProposals(batchId)` —— 读**已经写下去**的那些（`applied_at` 非空，
+  按记录次序）。顺手把那段过期的类 doc 改掉（它还写着"连接现在不落库 / 关系还没定"，
+  轮次六十八就已经落在 `knowledge_edges` 了）。
+- `app/lib/features/cognitive/application/material_intake_reader.dart`：多两个入口 ——
+  `readAppliedBatches()`（`!isEmpty && unappliedCount == 0`）与 `readAppliedBatch(batchId)`。
+- `app/lib/features/cognitive/presentation/material_intake_page.dart`：多一段"已经确认完的（N 批）"，
+  每批一行 `批次：N 条已确认` + 转化汇总那句话；点"看看确认了什么"开一个**只读**对话框
+  （没有勾选框）：知识点与线索边各一行、带出处，底下写清"这些都进库了"。两张单子共用同一份批次读数，
+  看提案/恢复/确认/清空之后一起刷。
+
+**刻意选择**：① **判据是库里现在的数，不是"当初登记过多少条"** —— 还留着一条落不了的连接
+（`unapplied_count > 0`）就不叫确认完，只能待在待确认清单里；否则同一批挂在两张单子上，用户以为
+它做完了，其实还有一条没落地；② **历史只读、不给勾选框** —— 这几条已经在库里了，要改得去它们
+落地的地方（知识点在管理页、线索边在知识点详情里），在这里再造一个"改"的入口就是第三处写者；
+③ **历史读的是"已经写下去"的提案，不是"当初打算建"的那份** —— 后者在待确认清单里看。
+
+**证据**：`flutter test test/features/cognitive/presentation/material_intake_page_test.dart` →
+`+12: All tests passed!`（新增 1 例 widget：确认完之后这批从"待确认"挪到"已经确认完的"、点开只读
+对话框看得见两类条目；"确认一部分"那例补上"还有欠账的批次不许同时挂在已确认那张单子上"；
+一例普通测试钉住两张单子按库里现在的数分：登记后 applied 0 / pending 4，`apply` 之后 pending 空 /
+applied 4 且 `readAppliedBatch` 读回的正是那 4 条）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1854 ~2: All tests passed!`（exit 0）。轮次七十二 后是 `+1853 ~2`，差值 1。
+
+**已知没做**：① 点开一条边跳到另一端的知识点；② 历史里只有"确认了什么"，没有"哪些是本来就有的"
+（`apply` 的 `existing` 没有落库）；③ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）；
+④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1` 真的跑进引擎。
+
+---
+
 ## 2026-10-16 轮次七十二：手写/删除边 —— 那条路现在也能自己走（Lead）
 
 **做了什么**：清单页和知识点详情里都已经在**读** `knowledge_edges`，写它的却只有"材料确认"那一条路 ——

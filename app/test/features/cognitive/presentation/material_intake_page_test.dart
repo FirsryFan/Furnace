@@ -295,6 +295,49 @@ void main() {
         findsOneWidget,
         reason: '还剩 3 条没确认，这一批应当留在待确认清单里',
       );
+      // 还有欠账的批次不许同时挂到"已经确认完的"那张单子上。
+      expect(
+        find.text(l10nOf(tester).materialIntakeDoneTitle(1)),
+        findsNothing,
+        reason: '这一批还有 3 条没落地，不能说它确认完了',
+      );
+    });
+
+    testWidgets('确认完之后，这批从"待确认"挪到"已经确认完的"', (WidgetTester tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+      await confirm(tester, 4);
+
+      final l10n = l10nOf(tester);
+      expect(find.textContaining('写入 4 条'), findsOneWidget);
+      // 欠账还清：待确认那张单子上不再有它，历史那张单子上出现它。
+      expect(find.text(l10n.materialIntakePendingTitle(1)), findsNothing);
+      expect(find.text(l10n.materialIntakeDoneTitle(1)), findsOneWidget);
+      expect(
+          find.text(l10n.materialIntakeDoneBatch(4, 'b-page')), findsOneWidget);
+
+      // 点开看：当初确认的四条都在（两条知识点 + 两条线索边），只读。
+      await tester.tap(find.text(l10n.materialIntakeDoneOpen));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(l10n.materialIntakeDoneDialogTitle('b-page')),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.materialIntakeDoneNote), findsOneWidget);
+      expect(find.textContaining(l10n.materialIntakeKindPoint), findsWidgets);
+      expect(
+        find.textContaining(l10n.materialIntakeKindConnection),
+        findsWidgets,
+      );
+      // 历史里没有勾选框：这些都是已经写下去的东西（页面背后那批提案还在，别数它们）。
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(Checkbox),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('同名知识点标"已存在"，确认时不重复建', (WidgetTester tester) async {
@@ -342,13 +385,56 @@ void main() {
       expect(find.text(l10nOf(tester).materialIntakeConfirm(0)), findsNothing);
       expect(await anki.getKnowledgePoints(), isEmpty);
     });
-    test('清单只念库里真有的批次：没有的批次读回 null', () async {
+    test('两张单子按库里现在的数分：没点头的在待确认，点头了的进历史', () async {
       final repository = MaterialIntakeRepository(db);
+      final moment = DateTime(2026, 10, 16, 12);
+
+      // 没有这批。
       expect(
         await readPendingBatch(repository: repository, batchId: '没有这批'),
         isNull,
       );
       expect(await readPendingBatches(repository: repository), isEmpty);
+      expect(await readAppliedBatches(repository: repository), isEmpty);
+      expect(
+        await readAppliedBatch(repository: repository, batchId: '没有这批'),
+        isNull,
+      );
+
+      // 登记成待确认（一个都没点头）：只在待确认那张单子上。
+      final draft = await readMaterialPlan(
+        repository: repository,
+        raw: envelopeJson(),
+        moment: moment,
+      );
+      await recordMaterialPlan(
+        repository: repository,
+        draft: draft,
+        moment: moment,
+      );
+      final pending = await readPendingBatches(repository: repository);
+      expect(pending, hasLength(1));
+      expect(pending.single.unappliedCount, 4);
+      expect(pending.single.appliedCount, 0);
+      expect(await readAppliedBatches(repository: repository), isEmpty);
+
+      // 全部点头：挪到历史，而且历史里读得到的正是**已经写下去**的那四条。
+      await repository.apply(batchId: 'b-page', appliedAt: moment);
+      expect(await readPendingBatches(repository: repository), isEmpty);
+      final done = await readAppliedBatches(repository: repository);
+      expect(done, hasLength(1));
+      expect(done.single.appliedCount, 4);
+      expect(done.single.unappliedCount, 0);
+      final applied = await readAppliedBatch(
+        repository: repository,
+        batchId: 'b-page',
+      );
+      expect(applied, isNotNull);
+      expect(applied!.proposals, hasLength(4));
+      expect(
+        applied.proposals.map((proposal) => proposal.title),
+        containsAll(<String>['I relied on him.', 'rely on']),
+      );
     });
   });
 }

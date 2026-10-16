@@ -16,9 +16,10 @@
 ///    `<batchId>#<proposalId>`（id 由内容决定）。同一份材料重算 → 覆盖未确认的提案，
 ///    不会长出第二批；同一条提案确认两次 → 第二次看到 `applied_at` 就不动了，更不会
 ///    建出两个知识点。
-///  * **没定的事不假装做完**：连接（`edge:…`）现在**不落库** —— 资料与卡片是"线索边"
-///    还是"包含边"还没定（roadmap §2-C ④），落点不存在的写入只能是编的。它们留在
-///    待办里，`apply` 的结果里如实报成 `deferred`。
+///  * **没定的事不假装做完**：落不了的连接（有一端还不在库里）留在待办里，
+///    `apply` 的结果里如实报成 `deferred` —— 编一条连不上两端的边比不写更坏。
+///    连接落在 `knowledge_edges`（线索边，严格有向；`ls` 带 `ls_calibrated: false`
+///    的未标定标记），包含语义仍只在标签树的父子边里（`tags.parent_id`）。
 library;
 
 import 'dart:convert';
@@ -43,6 +44,7 @@ class MaterialIntakeBatch {
     required this.skipped,
     required this.proposalCount,
     required this.unappliedCount,
+    required this.appliedCount,
   });
 
   final String batchId;
@@ -63,6 +65,10 @@ class MaterialIntakeBatch {
   /// 还没处理的提案数（知识点与连接都算：连接要等两端都在库里，见 §2-C ④）。
   final int unappliedCount;
 
+  /// 已经点过头的提案数（`applied_at` 非空）。`unappliedCount == 0` 且这批不是空的
+  /// ⇒ 这批"确认完了"，界面把它从待确认挪到"已经确认完的"。
+  final int appliedCount;
+
   bool get isEmpty => proposalCount == 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -74,6 +80,7 @@ class MaterialIntakeBatch {
         'summary': summaryText,
         'proposal_count': proposalCount,
         'unapplied_count': unappliedCount,
+        'applied_count': appliedCount,
         'skipped_count': skipped.length,
         'skipped': [for (final item in skipped) item.toJson()],
       };
@@ -339,6 +346,18 @@ class MaterialIntakeRepository {
     return [for (final row in rows) _toProposal(row)];
   }
 
+  /// 一批里已经确认过的提案（`applied_at` 非空），按记录时的次序。
+  ///
+  /// "确认过"就是"写过库"：知识点与线索边各自落成，缺端的连接根本没标 `applied_at`
+  /// （它们还在 `pendingProposals` 里），所以这份名单里不会出现"其实没落"的条目。
+  Future<List<MaterialIntakeProposal>> appliedProposals(String batchId) async {
+    final rows = await (_db.select(_db.materialIntakeProposals)
+          ..where((t) => t.batchId.equals(batchId) & t.appliedAt.isNotNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.sortIndex)]))
+        .get();
+    return [for (final row in rows) _toProposal(row)];
+  }
+
   /// 一批里的全部提案（含已确认的），按记录时的次序。
   Future<List<MaterialIntakeProposal>> proposals(String batchId) async {
     final rows = await (_db.select(_db.materialIntakeProposals)
@@ -573,9 +592,19 @@ class MaterialIntakeRepository {
   }
 
   Future<MaterialIntakeBatch> _toBatch(MaterialIntakeBatchRow row) async {
-    final unapplied = await (_db.select(_db.materialIntakeProposals)
-          ..where((t) => t.batchId.equals(row.batchId) & t.appliedAt.isNull()))
+    // 一次查询把两边的数都数出来：待确认（给"待确认清单"）与已确认（给历史）。
+    final rows = await (_db.select(_db.materialIntakeProposals)
+          ..where((t) => t.batchId.equals(row.batchId)))
         .get();
+    var unapplied = 0;
+    var applied = 0;
+    for (final proposal in rows) {
+      if (proposal.appliedAt == null) {
+        unapplied++;
+      } else {
+        applied++;
+      }
+    }
     return MaterialIntakeBatch(
       batchId: row.batchId,
       topic: row.topic,
@@ -586,7 +615,8 @@ class MaterialIntakeRepository {
       summaryText: row.summaryText,
       skipped: _skippedOf(row.skippedJson),
       proposalCount: row.proposalCount,
-      unappliedCount: unapplied.length,
+      unappliedCount: unapplied,
+      appliedCount: applied,
     );
   }
 

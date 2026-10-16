@@ -237,6 +237,24 @@
     }
   },
   "materialIntakeRestore": "Resume",
+  "materialIntakeDoneTitle": "Confirmed ({count} batches)",
+  "@materialIntakeDoneTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "materialIntakeDoneHint": "Nothing left to confirm here; to change them go where they landed — knowledge points in the manage page, clue edges in a point's detail.",
+  "materialIntakeDoneBatch": "{batch}: {count} confirmed",
+  "@materialIntakeDoneBatch": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "batch": { "type": "String" }
+    }
+  },
+  "materialIntakeDoneOpen": "See what was confirmed",
+  "materialIntakeDoneDialogTitle": "What this batch confirmed ({batch})",
+  "@materialIntakeDoneDialogTitle": {
+    "placeholders": { "batch": { "type": "String" } }
+  },
+  "materialIntakeDoneNote": "These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).",
   "materialIntakeBadEnvelope": "Rejected as a whole: {error}",
   "@materialIntakeBadEnvelope": {
     "placeholders": { "error": { "type": "String" } }

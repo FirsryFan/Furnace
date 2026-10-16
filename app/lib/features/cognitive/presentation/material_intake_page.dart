@@ -9,9 +9,11 @@
 ///  2. 勾选 → **确认入库**：写 `knowledge_points`（`external_id` = 材料决定的内容 id，
 ///     用户改过标题也认它）与 `knowledge_edges`（连接是线索边，两端都在才落，§2-C ④）。
 ///
-/// 两个入口做的是同一件事：**贴信封**（现算现登记）与**从待确认清单恢复**
-/// （把当初登记的那批读回来，不重算）。纪律：确认前不写知识点；"待确认清单"落库
-/// （`applied_at` NULL），所以关掉页面不会丢，再打开时清单里还等着。
+/// 页面上下两张单子用的是同一份批次读数（`unapplied_count`）：**还没点头的**在"待确认清单"
+/// （关掉页面也还在，接着确认），**已经点头的**在"已经确认完的"（只读，回答"我上次到底建了什么"）。
+/// 一批只会出现在其中一张上 —— 还留着一条落不了的连接就不叫确认完。
+///
+/// 纪律：确认前不写知识点；"待确认清单"落库（`applied_at` NULL），所以关掉页面不会丢。
 ///
 /// 本页不做 AI 提取（那是模型侧的活，工具 `ingest_material` 已在），也不做卡片的
 /// 呈现层（INGEST §4 的可选产物，本层不产出）。
@@ -46,6 +48,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   /// 还没有欠账的批次（关掉页面之后回来的入口）。
   List<MaterialIntakeBatch> _pendingBatches = const <MaterialIntakeBatch>[];
 
+  /// 已经确认完的批次（同一张单子的另一半：做过什么，看这里）。
+  List<MaterialIntakeBatch> _doneBatches = const <MaterialIntakeBatch>[];
+
   MaterialApplyOutcome? _outcome;
   Set<String> _selected = <String>{};
   String? _error;
@@ -55,7 +60,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
   @override
   void initState() {
     super.initState();
-    _refreshPendingBatches();
+    _refreshBatches();
   }
 
   @override
@@ -64,15 +69,21 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     super.dispose();
   }
 
-  /// 重新读一遍"待确认清单"（看提案/确认/清空之后都要刷）。
-  Future<void> _refreshPendingBatches() async {
-    final batches = await readPendingBatches(
-      repository: ref.read(materialIntakeRepositoryProvider),
-    );
+  /// 重新读两张单子：还没点头的（待确认）与已经写下去的（已确认完）。
+  ///
+  /// 两张单子用的是同一份批次读数（`unapplied_count`），所以一批只会在其中一张上出现：
+  /// 看提案/恢复/确认/清空之后都要刷，免得一批同时挂在两边。
+  Future<void> _refreshBatches() async {
+    final repository = ref.read(materialIntakeRepositoryProvider);
+    final pending = await readPendingBatches(repository: repository);
+    final done = await readAppliedBatches(repository: repository);
     if (!mounted) {
       return;
     }
-    setState(() => _pendingBatches = batches);
+    setState(() {
+      _pendingBatches = pending;
+      _doneBatches = done;
+    });
   }
 
   /// 看提案：推导一遍，并把这份提案登记成"待确认"（幂等）。
@@ -98,6 +109,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         moment: moment,
       );
       final pending = await readPendingBatches(repository: repository);
+      final done = await readAppliedBatches(repository: repository);
       if (!mounted) {
         return;
       }
@@ -106,6 +118,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _skipped = draft.plan.skipped;
         _batch = batch;
         _pendingBatches = pending;
+        _doneBatches = done;
         _selected = <String>{
           for (final proposal in draft.plan.proposals) proposal.id,
         };
@@ -134,13 +147,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       return;
     }
     if (pending == null) {
-      setState(() {
-        _busy = false;
-        _pendingBatches = <MaterialIntakeBatch>[
-          for (final item in _pendingBatches)
-            if (item.batchId != batch.batchId) item,
-        ];
-      });
+      // 库里没有这一批（或它已经被写下去了）：别让一张过期的单子留在屏幕上。
+      setState(() => _busy = false);
+      await _refreshBatches();
       return;
     }
     setState(() {
@@ -191,6 +200,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       // 必须和成绩单上的"还剩"是同一个数（否则同一页上两个数字会互相打脸）。
       final fresh = await repository.batch(batch.batchId);
       final pending = await readPendingBatches(repository: repository);
+      final done = await readAppliedBatches(repository: repository);
       if (!mounted) {
         return;
       }
@@ -198,6 +208,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         _outcome = outcome;
         _batch = fresh ?? _batch;
         _pendingBatches = pending;
+        _doneBatches = done;
         _busy = false;
       });
     } on MaterialApplyException catch (error) {
@@ -221,6 +232,51 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       _selected = <String>{};
       _error = null;
     });
+  }
+
+  /// 看这批当初确认了什么：读**已经写下去**的提案（不是打算建的那份）。
+  ///
+  /// 只读，不给勾选框：这几条已经在库里了，要改得去它们落地的地方（知识点在管理页，
+  /// 线索边在知识点详情里）—— 这里再造一个"改"的入口就是第三处写者。
+  Future<void> _openApplied(MaterialIntakeBatch batch) async {
+    final l10n = AppLocalizations.of(context);
+    final applied = await readAppliedBatch(
+      repository: ref.read(materialIntakeRepositoryProvider),
+      batchId: batch.batchId,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (applied == null) {
+      await _refreshBatches();
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.materialIntakeDoneDialogTitle(batch.batchId)),
+        content: SizedBox(
+          width: 480,
+          child: applied.proposals.isEmpty
+              ? Text(l10n.materialIntakeNothingToDo)
+              : ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    for (final proposal in applied.proposals)
+                      _AppliedTile(proposal: proposal),
+                    const SizedBox(height: 8),
+                    _Note(text: l10n.materialIntakeDoneNote),
+                  ],
+                ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -288,6 +344,31 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                 trailing: TextButton(
                   onPressed: _busy ? null : () => _restore(batch),
                   child: Text(l10n.materialIntakeRestore),
+                ),
+              ),
+          ],
+          if (_doneBatches.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(
+              l10n.materialIntakeDoneTitle(_doneBatches.length),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            _Note(text: l10n.materialIntakeDoneHint),
+            for (final batch in _doneBatches)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.check_circle_outline, size: 18),
+                title: Text(
+                  l10n.materialIntakeDoneBatch(
+                    batch.appliedCount,
+                    batch.batchId,
+                  ),
+                ),
+                subtitle: Text(batch.summaryText),
+                trailing: TextButton(
+                  onPressed: _busy ? null : () => _openApplied(batch),
+                  child: Text(l10n.materialIntakeDoneOpen),
                 ),
               ),
           ],
@@ -444,9 +525,48 @@ class _ProposalTile extends StatelessWidget {
   }
 }
 
+/// 一条**已经确认**的提案（历史只读）：没有勾选框 —— 它已经写进库里了。
+class _AppliedTile extends StatelessWidget {
+  const _AppliedTile({required this.proposal});
+
+  final MaterialIntakeProposal proposal;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final isPoint = proposal.kind == MaterialIntakeKind.knowledgePoint;
+    final evidence = proposal.evidence;
+    final source = evidence.source?.trim();
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        isPoint ? Icons.school_outlined : Icons.hub_outlined,
+        size: 18,
+      ),
+      title: Text(proposal.title),
+      subtitle: Text(
+        <String>[
+          isPoint
+              ? l10n.materialIntakeKindPoint
+              : l10n.materialIntakeKindConnection,
+          if (!isPoint) l10n.materialIntakeConnectionClue,
+          l10n.materialIntakeFrom(
+            (source == null || source.isEmpty)
+                ? l10n.materialIntakeNoSource
+                : source,
+            evidence.region,
+          ),
+        ].join(' · '),
+        style: theme.textTheme.bodySmall,
+      ),
+    );
+  }
+}
+
 class _Note extends StatelessWidget {
   const _Note({required this.text});
-
   final String text;
 
   @override

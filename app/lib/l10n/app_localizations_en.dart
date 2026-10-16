@@ -647,6 +647,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeRestore => 'Resume';
 
   @override
+  String materialIntakeDoneTitle(int count) {
+    return 'Confirmed ($count batches)';
+  }
+
+  @override
+  String get materialIntakeDoneHint =>
+      'Nothing left to confirm here; to change them go where they landed — knowledge points in the manage page, clue edges in a point\'s detail.';
+
+  @override
+  String materialIntakeDoneBatch(int count, String batch) {
+    return '$batch: $count confirmed';
+  }
+
+  @override
+  String get materialIntakeDoneOpen => 'See what was confirmed';
+
+  @override
+  String materialIntakeDoneDialogTitle(String batch) {
+    return 'What this batch confirmed ($batch)';
+  }
+
+  @override
+  String get materialIntakeDoneNote =>
+      'These are in the database: knowledge points in knowledge_points, connections as clue edges in knowledge_edges (ls uncalibrated).';
+
+  @override
   String materialIntakeBadEnvelope(String error) {
     return 'Rejected as a whole: $error';
   }

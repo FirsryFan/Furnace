@@ -10,9 +10,10 @@
 /// `material_intake_proposals`（`applied_at` NULL = 还没确认），写知识点/线索边只在
 /// `MaterialIntakeRepository.apply` 里发生，本层不碰。
 ///
-/// 入口有两个：**贴信封**（[readMaterialPlan] → [recordMaterialPlan]）与
-/// **从清单恢复**（[readPendingBatches] → [readPendingBatch]）—— 后者不重算，
-/// 只是把当初登记的提案读回来。
+/// 入口有三个：**贴信封**（[readMaterialPlan] → [recordMaterialPlan]）、
+/// **从清单恢复**（[readPendingBatches] → [readPendingBatch]）与
+/// **看已经确认完的**（[readAppliedBatches] → [readAppliedBatch]）—— 后两个都不重算，
+/// 只是把当初登记的那份读回来（一个读还没点头的，一个读已经写下去的）。
 library;
 
 import 'dart:convert';
@@ -126,4 +127,43 @@ Future<List<MaterialIntakeBatch>> readPendingBatches({
     for (final batch in all)
       if (batch.unappliedCount > 0) batch,
   ];
+}
+
+/// 已经从"待确认清单"里读回来、并且已经点过头的某一批：批次读数 + 已确认的提案。
+typedef MaterialIntakeApplied = ({
+  MaterialIntakeBatch batch,
+  List<MaterialIntakeProposal> proposals,
+});
+
+/// 已经确认完的批次（新的在前）：这批点名过、没有欠账。
+///
+/// 判据是**库里现在的数**，不是"当初登记过多少条"：还留着一条落不了的连接
+/// （`unapplied_count > 0`）就算欠账，只能待在待确认清单里 —— 否则同一批会同时
+/// 出现在两张单子上，用户以为它做完了，其实还有一条没落地。
+Future<List<MaterialIntakeBatch>> readAppliedBatches({
+  required MaterialIntakeRepository repository,
+}) async {
+  final all = await repository.batches();
+  return <MaterialIntakeBatch>[
+    for (final batch in all)
+      if (!batch.isEmpty && batch.unappliedCount == 0) batch,
+  ];
+}
+
+/// 这批当初确认了什么（读不到返回 null）。
+///
+/// 读的是**已经写下去**的那些提案（`applied_at` 非空）：题目是"我上次到底建了什么"，
+/// 不是"我上次打算建什么"——后者要在待确认清单里看。
+Future<MaterialIntakeApplied?> readAppliedBatch({
+  required MaterialIntakeRepository repository,
+  required String batchId,
+}) async {
+  final batch = await repository.batch(batchId);
+  if (batch == null) {
+    return null;
+  }
+  return (
+    batch: batch,
+    proposals: await repository.appliedProposals(batchId),
+  );
 }
