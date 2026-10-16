@@ -66,6 +66,7 @@ class LibraryDiagnosis {
     this.targets = const <String>[],
     this.rounds = 0,
     this.mechanismIds = const <String>[],
+    this.moduleDefaults = const <String, Object?>{},
   });
 
   /// One verdict per complaining node, keyed by knowledge point (= tag) id.
@@ -94,6 +95,15 @@ class LibraryDiagnosis {
   /// built (nothing was installed).
   final List<String> mechanismIds;
 
+  /// The `module_defaults` this run actually handed to the parameter set.
+  ///
+  /// It is here for the same reason as [mechanismIds]: the reading has to carry
+  /// the user's own settings instead of letting a caller (or a test) guess them
+  /// back from the numbers. Empty when nothing was passed - and when the run
+  /// never built an engine, [notRun] leaves it empty too, because then nothing
+  /// was used.
+  final Map<String, Object?> moduleDefaults;
+
   /// The honest "nothing ran" value.
   static const LibraryDiagnosis notRun = LibraryDiagnosis(
     byKnowledgePoint: <String, BottleneckType>{},
@@ -108,6 +118,7 @@ class LibraryDiagnosis {
         'targets': targets,
         'nodes_without_ms': nodesWithoutMs,
         'mechanism_ids': mechanismIds,
+        'module_defaults': moduleDefaults,
         'bottlenecks': {
           for (final entry in byKnowledgePoint.entries)
             entry.key: entry.value.id,
@@ -289,6 +300,7 @@ abstract final class LibraryDiagnosisRunner {
       targets: targets,
       rounds: rounds,
       mechanismIds: mechanismIds,
+      moduleDefaults: moduleDefaults,
     );
   }
 

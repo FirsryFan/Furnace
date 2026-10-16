@@ -124,7 +124,11 @@ const Map<BottleneckType, List<String>> kBottleneckPrescriptions = {
     'chunk_problem',
     'capture_thought',
   ],
-  BottleneckType.offGoal: ['correct_error', 'commit_temp_links', 'boost_clarity'],
+  BottleneckType.offGoal: [
+    'correct_error',
+    'commit_temp_links',
+    'boost_clarity'
+  ],
   BottleneckType.danger: [
     'interval_retrieval',
     'boost_random_access',
@@ -322,7 +326,8 @@ abstract final class FastDiagnosis {
   }
 
   /// Reverse reachability: which nodes can walk to a target along out-edges.
-  static Map<String, bool> reachableToTargets(FastGraph graph, List<String> targets) {
+  static Map<String, bool> reachableToTargets(
+      FastGraph graph, List<String> targets) {
     final ok = <String, bool>{};
     final queue = <String>[];
     for (final target in targets) {
@@ -386,10 +391,9 @@ abstract final class FastDiagnosis {
                     : ''),
         closeness: verdict.closeness,
         note: verdict.note,
-        severity: FastEngine.round6(
-            node.weight * deficit * params.severityWeight),
-        prescriptions:
-            List<String>.of(kBottleneckPrescriptions[verdict.type]!),
+        severity:
+            FastEngine.round6(node.weight * deficit * params.severityWeight),
+        prescriptions: List<String>.of(kBottleneckPrescriptions[verdict.type]!),
         evidence: {
           'state': fact.state.id,
           'peak_drive': fact.peakDrive,
@@ -408,8 +412,8 @@ abstract final class FastDiagnosis {
       if (node == null) {
         continue;
       }
-      if (out.any((b) =>
-          b.node == row.node && b.type == BottleneckType.danger)) {
+      if (out
+          .any((b) => b.node == row.node && b.type == BottleneckType.danger)) {
         continue;
       }
       out.add(FastBottleneck(
@@ -420,7 +424,8 @@ abstract final class FastDiagnosis {
         note: '自信 ${jsNumber(row.belief)} 而实际可提取度只有 ${jsNumber(row.r)}',
         severity: FastEngine.round6(
             node.weight * math.max(0.05, row.diff) * params.severityWeight),
-        prescriptions: List<String>.of(kBottleneckPrescriptions[BottleneckType.danger]!),
+        prescriptions:
+            List<String>.of(kBottleneckPrescriptions[BottleneckType.danger]!),
         evidence: {'belief': row.belief, 'R': row.r, 'diff': row.diff},
         hasSubtypeKey: false,
         hasAlsoKey: false,
@@ -808,9 +813,8 @@ abstract final class FastPlanner {
   }) {
     final baselineReach = engine.reachability();
     final plan = <FastPlanEntry>[];
-    final top = bottlenecks
-        .take(math.max(1, params.maxCandidates.round()))
-        .toList();
+    final top =
+        bottlenecks.take(math.max(1, params.maxCandidates.round())).toList();
 
     for (final bottleneck in top) {
       final preferred = primary[bottleneck.type];
@@ -848,10 +852,10 @@ abstract final class FastPlanner {
               entry.cost = outcome.cost;
               final horizon = params.retentionHorizonHours;
               if (outcome.metric == 'retention') {
-                final before =
-                    retentionProbe?.call(engine, bottleneck.node, engine.hours + horizon);
-                final after = retentionProbe
-                    ?.call(clone, bottleneck.node, clone.hours + horizon);
+                final before = retentionProbe?.call(
+                    engine, bottleneck.node, engine.hours + horizon);
+                final after = retentionProbe?.call(
+                    clone, bottleneck.node, clone.hours + horizon);
                 if (before == null || after == null) {
                   entry.simulated = false;
                   entry.why = '未装载记忆模块，无法预测留存增益';
@@ -862,13 +866,16 @@ abstract final class FastPlanner {
                       '${FastEngine.round6(before)} → ${FastEngine.round6(after)}';
                 }
               } else {
-                for (var i = 0; i < params.simRounds && !clone.stopped; i += 1) {
+                for (var i = 0;
+                    i < params.simRounds && !clone.stopped;
+                    i += 1) {
                   clone.step();
                 }
                 final after = clone.reachability();
                 entry.metric = 'reachability';
                 entry.gain = FastEngine.round6(after - baselineReach);
-                entry.why = '${outcome.why}；模拟 ${jsNumber(params.simRounds.toDouble())} 轮后'
+                entry.why =
+                    '${outcome.why}；模拟 ${jsNumber(params.simRounds.toDouble())} 轮后'
                     '目标可达性 ${jsNumber(baselineReach)} → ${jsNumber(after)}';
               }
               if (entry.simulated) {

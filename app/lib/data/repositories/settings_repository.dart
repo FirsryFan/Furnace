@@ -134,5 +134,23 @@ class SettingsRepository {
     ));
   }
 
+  /// Persists the first slider of the mechanism panel (schema v22): how strongly
+  /// the goal mechanism pulls (`context.goal.beta_goal`).
+  ///
+  /// Same rule as the two switches above, extended to a continuous value: the
+  /// column stays NULL until the user moves the slider, NULL reads as the
+  /// transcribed value, and passing `null` here is how the panel's "back to the
+  /// shipped value" button puts the row back. The app never writes the shipped
+  /// value into the column - that would freeze today's number into every install
+  /// and make a later change of it unreachable
+  /// (`docs/MINDNET_ROADMAP.md` §3 row 8).
+  Future<void> updateGoalBeta(double? beta) async {
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      goalBeta: Value(beta),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

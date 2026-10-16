@@ -201,4 +201,64 @@ void main() {
       expect(off.overriddenCount, on.overriddenCount);
     });
   });
+
+  group('用户拖了第一个滑块（local_settings.goal_beta）', () {
+    MechanismParamRow betaRowOf(MechanismPanel panel) => panel.mechanisms
+        .singleWhere((final row) => row.id == FastMechanisms.goal)
+        .params
+        .singleWhere(
+            (final param) => param.path == MechanismCatalog.goalBetaPath);
+
+    test('没调过：值就是转录默认值，标"出厂值"', () {
+      final panel = readMechanismPanel();
+      expect(panel.goalBeta, isNull);
+      final row = betaRowOf(panel);
+      expect(row.value, row.transcribed);
+      expect(row.fromSetting, isFalse);
+      expect(row.overridden, isFalse, reason: '滑块不是 overrides，是用户设置');
+    });
+
+    test('调过：值跟着走，转录默认值不变，标"你调的"', () {
+      final panel = readMechanismPanel(goalBeta: 1.2);
+      expect(panel.goalBeta, 1.2);
+      final row = betaRowOf(panel);
+      expect(row.value, 1.2);
+      expect(row.transcribed, 0.3, reason: '转录默认值不该被设置改写');
+      expect(row.fromSetting, isTrue);
+      expect(row.overridden, isFalse);
+    });
+
+    test('滑块只动这一个参数：别的行一个字不改', () {
+      final plain = readMechanismPanel();
+      final tuned = readMechanismPanel(goalBeta: 1.2);
+      final plainOther = <String, double>{
+        for (final row in plain.mechanisms)
+          for (final param in row.params)
+            if (param.path != MechanismCatalog.goalBetaPath)
+              param.path: param.value,
+      };
+      final tunedOther = <String, double>{
+        for (final row in tuned.mechanisms)
+          for (final param in row.params)
+            if (param.path != MechanismCatalog.goalBetaPath)
+              param.path: param.value,
+      };
+      expect(tunedOther, plainOther);
+      expect(
+        tuned.moduleDefaults[FastMechanisms.goal],
+        <String, Object?>{MechanismCatalog.goalBetaKey: 1.2},
+      );
+    });
+
+    test('滑块和开关互不干扰：关掉机制也照样读得到用户调的值', () {
+      final panel = readMechanismPanel(
+        goalMechanismEnabled: false,
+        goalBeta: 2.5,
+      );
+      expect(betaRowOf(panel).value, 2.5);
+      final goal = panel.mechanisms
+          .singleWhere((final row) => row.id == FastMechanisms.goal);
+      expect(goal.disabledBySetting, isTrue);
+    });
+  });
 }

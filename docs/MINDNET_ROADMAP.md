@@ -116,7 +116,7 @@
 | 5 | **控制层指令库 + 反事实规划器排序** | 从"诊断"升级到"今天做这几件事" | 每月/每日计划输出按 `V(π)` 排序的练习清单，含 `retention/reachability` 度量标注 —— **`reachability` 侧已进入找题排序（轮次五十六：`evaluate_problem_fit` 的次序在同分档内按 `V(π)` 排，输出 `counterfactual{metric,instruction,value,why}` 与理由行"为什么排这里"）；`retention` 侧的记忆层与生产探针已就位（轮次五十七：`memory.dsr` 按需装进 `FastEngine`，`dsrRetentionProbe()` 读 `node.m['memory_dsr']`，默认不装所以轮次数值不变），并已传进 `FastPlanner.plan`（轮次五十八）**；日计划的纯逻辑核心已完成（轮次五十九：`app/lib/domain/services/scheduling/today_plan.dart`，把到期卡与已定价的题目合成一份按 `V(π)` 排的清单，9 例）；接进 AI 工具已完成（轮次六十：`plan_today`，模型可直接问出这份清单，每条带 `metric`/`V`/人话理由，7 例）；界面上的清单页也已完成（轮次六十一：复习页 AppBar → `app/lib/features/cognitive/presentation/today_plan_page.dart` + 读法 `application/today_plan_reader.dart`，到期卡逐条给 `metric`/`V`/人话理由、没有价格的行不编 0.0、被上限挡住的件数如实报，7 例）** |
 | 6 | **材料摄取（INGEST/TRANSCRIBE）** | 补资料→进图，照片→run/1 | 一份材料生成节点/边 + `evidence`；照片流程产出合法 `run/1` 并过 `io_check` 类校验 —— **一半已完成（轮次六十二：材料信封 → 标准清单 + 图补丁 + `mindnet.run/1` 请求的 Dart 端口，`PARITY OK`（6 节点 / 7 边 / 14 动作），56 例）；"信封 → 待确认提案（知识点/连接 + 每条出处）"的纯逻辑与只读 AI 工具已完成（轮次六十三：`material_intake_plan.dart` + `ingest_material` 工具，21 例；同名知识点标"不重复建"、主题分组默认只报不建）；**落库与确认写入已完成（轮次六十四：schema v17 + `apply_material_intake`，20 例；幂等键是信封的 `batch_id`，`external_id` 认得出改过标题的点，连接如实报 `deferred`）**；界面入口已完成（轮次六十五：设置页「添加资料」→ 贴信封 → 看提案（知识点/连接 + 出处）→ 勾选确认，确认前仍不写知识点，8 例）；**TRANSCRIBE 的确定性那一半已完成（轮次六十六：`app/lib/domain/services/ingest/transcribe_run.dart` + `check_transcribe_run` 只读工具，40 例；校验与 `src/io/run.js` 的 `validateRequest` 逐条对齐，输出与 `tools/io_check.js` 同构 —— 硬错整份拒绝、建议不拦、每条动作预告落到哪条机制路径；提示词含由库里 `external_id` 生成的【图清单】）**；**关联类型与连接落点已完成（轮次六十八：schema v18 的 `knowledge_edges` 线索边表 —— 严格有向、`ls` 带 `ls_calibrated: false` 未标定标记、`origin` 记关系；包含语义仍只在标签树 `tags.parent_id`；两端都在才落，缺端报 `deferred` 不编边；连接在界面上不再置灰；全量 `+1826 ~2`）**；**从"待确认清单"恢复已完成（轮次六十九：`readPendingBatches`/`readPendingBatch` 不重算、把那批还没点头的读回来接着确认，确认后"还剩 N 条"与清单读数一致，页面 11 例）**；**线索边的读法已完成（轮次七十：`KnowledgeEdgeRepository.all()` 按 `knowledge_points.external_id` 解出两端标题、缺端照实显示 id、`ls` 一律带"未标定"，知识模块 AppBar 进只读清单页，8 例）**；**按知识点看线索边已完成（轮次七十一：`KnowledgeEdgeRepository.forPoint()` 把出边入边一起读回来，`KnowledgePointEdgesSection` 站在这个点的角度说"它指向谁 / 谁指向它"，手写的点没有 `external_id` ⇒ 说"不在图里"而不是"没有边"，5 例新增）**；**手写/删除边已完成（轮次七十二：`KnowledgeEdgeRepository.createManualEdge`/`deleteManualEdge`/`graphPoints` —— 第二个写者，`origin: 'manual'`、`ls` 留空；两端都必须在图里、同一方向只留一条不管谁写的、只有手写边能这样删；详情里"加一条线索边"与仅对手写边出现的删除按钮，11 例新增）**；**已经确认完的历史已完成（轮次七十三：`MaterialIntakeBatch.appliedCount` + `appliedProposals()`，页面"已经确认完的（N 批）"只读对话框回答"我上次到底建了什么"；判据是库里现在的数 —— 还有落不了的连接就不叫确认完，1 例新增）**；**顺着线索边走已完成（轮次七十四：端点名字可点 —— `showKnowledgeEdgeWalk` 开一个只读对话框走到那一端，出边入边都站在那一端说方向，可一层层接着走；清单页与知识点详情两处同一走法，2 例新增）**；**成绩单落进历史已完成（轮次七十五：schema v19 的 `material_intake_proposals.already_existed` —— 确认那一刻"这条本来就有的"随提案落库，历史对话框里标"已存在，不重复建"，幂等重放不覆盖第一次的判断，2 例新增）**；**照片的调模型那半段已完成（轮次七十六：`app/lib/features/cognitive/application/photo_transcribe_service.dart` —— 压缩重编码 → 提示词 → 真的把照片发给视觉模型（工具列表为空）→ 回话解码 → 自检，失败六态全部返回人话结果对象、没到发图那一步一个请求都不发，12 例；界面入口未做）**；**照片的界面入口已完成（轮次七十七：材料页上"选一张照片"按钮 + 只读报告对话框 —— 合不合法 / 真正发出去的图尺寸 / 动作与带出处条数 / 硬错 / 会做什么 / 建议 / 模型原话；`photoPickerProvider` 与 `visionEncoderProvider` 两个注入点让测试既不弹系统对话框也不解码图片；照片这条路不执行请求、一个字都不写库，2 例新增）**；**把 `run/1` 真的跑进引擎已完成（轮次七十八：`app/lib/domain/services/ingest/run_executor.dart` 的 `executeRun` —— 五种动作各自落到预告里那条机制路径（`retrieval_success`/`lapse`/`retrieval_failure_feedback`/`reread`/`graph.add_node`/`graph.add_edge`/`start_diffusion`/`hours.advance`），痕迹与预告同构所以能直接对账；时间基 `at.model_hours` 优先，只给 `at.wall` 用锚点换算并把换算记进 `assumptions`，都没有就停在那一条 —— 不默默用"现在"；失败不抛异常、已跑过的不撤销；顺手修掉 `MaterialRunAction.modelHours` 把"只给 `at.wall`"当成"模型时刻 0"的真 bug，12 例新增）**；**撤销一次确认已完成（轮次七十九：`MaterialIntakeRepository.undoBatch(batchId)` —— 反悔也能退，撤的是"这一批自己写下的"知识点与线索边，"本来就有的"行 / 卡片（含模板）/ 标签 / 别的线索边任一存在就**整批不撤**并逐条说明理由；行已被手删不算拦路；退提案时 `applied_at` 与 `already_existed` 一起清，`record` 下一轮重算；入口在「看看确认了什么」对话框里，写者仍然只有确认那一层，10 例新增）**；**落不了的连接看得见已完成（轮次八十：待确认清单上每条还没落地的连接直接标出缺哪一端 —— `pendingMissingEndpointsOf` 现算、不落库，判据与确认时的成绩单逐条对齐（影子图 / 边已在库里不算 / "同名已存在"的点不算），勾选一变就重算，缺的那一端进图之后这句话自己消失；仓储层的 `missingEndpointNote` 是两处共用的同一句话，14 例读数 + 1 例页面）**；**照片读完能原地再来一张已完成（轮次八十一：报告对话框里多一个「换一张」（读成了）/「重试」（没读成）—— 不用先关掉对话框再出去找那个按钮；"模型都没配好"那一种不摆这个按钮，因为按了还是同一句话；照片这条路照旧一个字都不写库，2 例新增）**；**撤过就有痕迹（撤回记账）已完成（轮次八十二：schema v20 新表 `material_intake_undo_logs` —— 撤回**成与不成**都留一笔（没撤成记 `blockedCount` + 第一条理由，`undone = false`），记成流水而不是状态列（同一批可以撤很多次）；写者只有 `undoBatch` 自己（删行与记账同一事务），页面只读数出"这一批撤回过 N 次"；5 例仓储 + 1 例页面新增）**；**撤回流水点得开已完成（轮次八十三：把"这一批撤回过 N 次"那一行变成入口 —— 只读对话框按倒序列出每一次撤回（`MM-dd HH:mm` + 撤成了 / 没撤成），撤成那次摆出**原件原话**（删掉的知识点标题、线索边的"从 → 到"），没撤成那次摆出第一条理由与"当时 N 条理由"；只读、不回放（关掉仍是待确认），不新增任何落库，1 例新增）**；**机制面板（"参数公开"那一半）已完成（轮次八十四：`app/lib/domain/services/cognitive/mechanism_catalog.dart` 把两处引擎装配的 id 清单与唯一覆盖（`attention.ignition.T_ign = 0`）收成一份常量、`library_diagnosis.dart` 与 `problem_evaluator.dart` 两处调用点都读它（面板因此不可能和引擎漂移），`app/lib/features/cognitive/application/mechanism_reader.dart` 把转录表读成面板行（`transcribed` 用空 defaults 单独读一遍），设置页 → 认知模型页 AppBar「机制与参数」进只读页：六个机制各有多少参数、哪些**未标定**、哪个被覆盖（值 `0`、转录默认值 `0.05`）、`rhythm.gate` 如实说"只在节律读数里，不装进引擎"、`memory.dsr` 如实说"这一层没有号参数"、末尾给总数；10 例读数 + 7 例页面新增）**；**演练已完成（轮次八十五：`app/lib/features/cognitive/application/run_rehearsal.dart` 把"谁去装配引擎"这个问题答了 —— 请求提到的节点按 `knowledge_points.external_id` 摆进仿真图、`ms` 用代表卡片的 `modelReadingOf(row).r0`（读不出来就省略并如实列进 `nodesWithoutMs`，不编数）、两端都进图的 `knowledge_edges` 才接过来、请求自己的 `time.model_hours` 就是锚点、只装 `memory.dsr`（不跑轮次，逐轮那四个机制用不上）、**只跑不落库**；既有只读工具 `check_transcribe_run` 多一个 `execute` 参数（缺省 false），给了就在校验通过之后真的跑一遍，结果多一个 `rehearsal` 对象，`ok`/`error` 跟执行报告走 —— 执行层从轮次七十八起第一次有了调用者；机制面板因此如实多列第三处装配；12 例演练 + 4 例工具 + 页面例数不变）**；**照片报告里能直接试跑已完成（轮次八十七：读完一张照片、自检合法之后，报告里多一个「试跑一遍（不落库）」——`PhotoTranscribeReport` 自己带着解码出来的 `request`（界面不把模型原话再解一遍），按一下走 `rehearseRun`（只读、不落库），把引擎对每条动作的原话、读不出 `r0` 的节点、库里没有的 id 分三处摆出来；不合法的那一份不摆这个入口，试跑失败只说人话、不带走报告；3 例新增）**；**`run/1` 也能贴进来已完成（轮次八十八：材料摄取页第二条只读入口 —— 把一份 `mindnet.run/1` 贴进对话框，按「校验这份请求」走与照片那条路同一个 `reviewTranscribedRun`（id 白名单照旧从库里现读），合法才摆「试跑一遍」，跑的是同一个 `rehearseRun`；读不成（`FormatException`）与不合法分开说，两者都不给试跑入口；一个字都不写库；3 例新增）** |
 | 7 | **标定（CALIBRATION 六实验）+ 反馈微调（FEEDBACK）** | 个性化真正的来源，但要 1–6 的数据积累 | 6 个实验各自可跑、产出参数与置信说明；反馈更新律有界且可回滚 |
-| 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 —— **"参数公开"那一半已完成（轮次八十四：只读的机制面板 —— 六个机制各有多少参数、哪些未标定、哪个被覆盖、`rhythm.gate` 不装进引擎、`memory.dsr` 没有号参数；装配与参数的来源收成 `mechanism_catalog.dart` 一处，面板不会和引擎漂移）。"用户侧开关/滑块"这一半仍未做：开关要落库（settings 列 + schema 迁移）并配可跑的验收契约；**轮次八十五又多了第三处装配（演练那一跑：只装 `memory.dsr`），面板已如实列出**；**第一个开关已完成（轮次八十六：库诊断那一跑装不装目标机制，schema v21 `local_settings.goal_mechanism_enabled`（NULL = 装），翻开关真的落库、那一跑真的少装 `context.goal`、读数与 JSON 都如实写 `mechanism_ids`；"滑块"与别的机制的可开关化仍未做**）** |
+| 8 | **机制插件化（PLUGIN_ARCHITECTURE）** | 覆盖全面的长期结构 | 至少一个机制实现为可开关模块，用户侧有开关/滑块，验收契约可跑 —— **"参数公开"那一半已完成（轮次八十四：只读的机制面板 —— 六个机制各有多少参数、哪些未标定、哪个被覆盖、`rhythm.gate` 不装进引擎、`memory.dsr` 没有号参数；装配与参数的来源收成 `mechanism_catalog.dart` 一处，面板不会和引擎漂移）。"用户侧开关/滑块"这一半仍未做：开关要落库（settings 列 + schema 迁移）并配可跑的验收契约；**轮次八十五又多了第三处装配（演练那一跑：只装 `memory.dsr`），面板已如实列出**；**第一个开关已完成（轮次八十六：库诊断那一跑装不装目标机制，schema v21 `local_settings.goal_mechanism_enabled`（NULL = 装），翻开关真的落库、那一跑真的少装 `context.goal`、读数与 JSON 都如实写 `mechanism_ids`**；**第一个滑块也已完成（轮次八十九：`context.goal.beta_goal`，schema v22 `local_settings.goal_beta`（可空 REAL，NULL = 用转录默认值 0.3），两端与出厂位置取自内核参数表 `[0, 3]`，用户调的值经 `moduleDefaults` 真的进装配、库诊断读数 `module_defaults` 如实带出，面板分开标"你调的"与"被覆盖"并给"回到出厂值"）—— 别的机制的开关语义、其余参数的滑块仍未做**）** |
 
 > 纪律（沿用已定 D1–D6）：FSRS 仍是到期日唯一权威；一张表的一列只有一个写者；
 > 未标定参数一律显式标注，不进默认值叙事；对拍与守卫（43 条 tierA + B01 tierB）不得放松。
@@ -1319,7 +1319,7 @@ P5；也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半
 **还没做**：① 执行层（`run_executor.dart`）仍然没有调用者 —— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；**轮次八十七起这条演练在照片报告里也按得到（只读、仍不落库）**；**轮次八十八起，贴一份 `run/1` 进来也能先校验、再试跑（同一个只读演练、同样不落库）**；② 执行完怎么落库；③ `ls` 仍没有标定
 来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有"用户侧开关/滑块"（§3 第 8 行
 的另一半，要落库 + 验收契约）—— **已在轮次八十六补上第一个开关（目标机制，落库 + 验收契约都在），
-"滑块"仍缺**。
+并在轮次八十九补上第一个滑块（`context.goal.beta_goal`，schema v22，同样落库 + 验收契约）**。
 
 ### 切片 6 的下一步（二十二）：演练 —— 那份 `run/1` 请求真的跑进引擎（轮次八十五）
 
@@ -1368,7 +1368,8 @@ P5；也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半
 **还没做**：① 谁来决定"这份请求可以执行了"—— 现在有调用者了，但**不是判断者**：`execute` 是用户
 在对话里给的参数，没有任何一层替用户下"这批复习可以执行"的结论；② 执行完怎么落库（演练刻意不写，
 包括记忆袋）；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，
-没有"用户侧开关/滑块" —— **已在轮次八十六补上第一个开关（目标机制）；"滑块"仍没做**。
+没有"用户侧开关/滑块" —— **已在轮次八十六补上第一个开关（目标机制），轮次八十九补上第一个滑块
+（`context.goal.beta_goal`）；别的机制的开关语义与其余参数的滑块仍没做**。
 
 ### 切片 6 的下一步（二十三）：机制开关 —— 用户说"不装目标机制"，引擎就真的不装（轮次八十六）
 
@@ -1417,7 +1418,8 @@ P5；也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半
 **还没做**：① 谁来决定"这份请求可以执行了"（同上一轮，判断者仍缺）；② 执行完怎么落库；③ `ls` 仍
 没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"只做了**一个**开关（目标
 机制）—— 别的机制还没有开关语义（分流/容量/点火撑着那一跑本身，关掉就是让读数撒谎），滑块
-（连续参数的用户侧调节）也还没有设计。
+（连续参数的用户侧调节）当时也还没有设计 —— **这个缺口已在轮次八十九补上第一个滑块
+（`context.goal.beta_goal`）**。
 
 ### 切片 6 的下一步（二十四）：照片报告里「试跑一遍」—— 演练从工具走到界面（轮次八十七）
 
@@ -1449,7 +1451,8 @@ P5；也是 roadmap §3 第 8 行「机制插件化」里"用户侧"的那一半
 
 **还没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在按按钮的仍是人）；② 执行完怎么落库；
 ③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"只做了一个开关
-（目标机制），滑块没有设计；⑤ 演练只接进了**照片**这一条路 —— 贴信封那条路还看不到"这份信封跑起来
+（目标机制），滑块**已在轮次八十九补上第一个（`context.goal.beta_goal`）**；⑤ 演练只接进了**照片**
+这一条路 —— 贴信封那条路还看不到"这份信封跑起来
 会怎样"，报告里也还不能改一改再跑（要改就得回去改原话）。
 
 ### 切片 6 的下一步（二十五）：`run/1` 也能贴进来 —— 同一条只读路，第二个入口（轮次八十八）
@@ -1480,8 +1483,46 @@ Dart 文件 0 changed；`dart analyze lib test` → `94 issues found`（**0 erro
 
 **还没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在按按钮的仍是人）；② 执行完怎么落库；
 ③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"只做了一个开关
-（目标机制），滑块没有设计；⑤ **报告里不能"就地改一改再跑"**：贴进来的这一条可以改文本再校验一次，
+（目标机制），滑块**已在轮次八十九补上第一个（`context.goal.beta_goal`）**；⑤ **报告里不能"就地改一改再跑"**：贴进来的这一条可以改文本再校验一次，
 照片那条路只能回去改模型原话 —— 没有结构化的字段级编辑入口。
+
+### 切片 6 的下一步（二十六）：第一个滑块 —— 目标机制的牵引强度（轮次八十九）
+
+为什么要有它：轮次八十六给了用户一个开关（装不装目标机制），可"装"只有两档。机制参数表里那 19 个
+数字用户一个也碰不到 —— 面板只把"被覆盖/未标定"摆出来看。这一轮开了第一个**滑块**：
+`context.goal.beta_goal`（目标偏置强度）用户可以拖；与开关一样只写一行设置、只在装配时生效，
+**引擎真的读它**，读数里带得出来。
+
+- **两端不是我们编的**：`FastParamSpec` 本来就带 `min`/`max`/`defaultValue`/`desc`/`evidence`。
+  `beta_goal` = 默认 `0.3`、范围 `[0, 3]`、`desc: '目标偏置强度'`、`evidence: '未标定（Application_Protocol §15）'`
+  —— 滑块的下界、上界、出厂位置全部来自内核参数表（`MechanismCatalog.goalBetaPath` / `goalBetaKey` /
+  `transcribedGoalBeta`），页面不自己编一个"看起来合理"的区间。
+- **NULL = 没调过**：`local_settings.goal_beta`（可空 REAL，schema v21 → **v22**）为 NULL 时读作"用转录
+  默认值"。`_upgradeV21ToV22` 走与 v21 那列同一条链（`_addColumnIfMissing` + `_ensureColumns` 自愈）。
+- **进引擎走本来就有的通道**：装配一直有 `moduleDefaults`（`overrides > moduleDefaults > 转录默认值`）。
+  `MechanismCatalog.libraryDiagnosisDefaults(goalBeta: v)` 只在调过时给出 `{context.goal: {beta_goal: v}}`；
+  库诊断那一跑（`LibraryDiagnosisRunner.run(moduleDefaults: …)`）真拿它装配，读数 `module_defaults`
+  照实带出来（没调过、或那次没跑起来 → 空）。
+- **面板说清三件事**：卡片上"你调的 1.2" + 「回到出厂值」（写回 NULL）；参数行徽标 `fromSetting`
+  与 `overridden` **分开**（被装配覆盖 ≠ 被你调）；转录默认值那行不动。
+- **开关与滑块互不干扰**：关掉机制 ≠ 抹掉你拖的值 —— 滑块禁用、位置保留，`OffNote` 明说"关的是装不装，
+  不是值"。
+- **只读边界没变**：这一轮加的是"引擎用哪个数字"，演练与诊断仍然一个字都不写库。
+
+证据：`test/features/cognitive/presentation/mechanism_page_test.dart` 11 → **17 例**（出厂位置 0.3 / 两端
+0 与 3 来自参数表；调过之后标"你调的"且转录默认值不变；拖一下只回调一次且页面当场按新值画；「回到
+出厂值」回调收到 `null`；机制关掉时滑块禁用但位置保留；真库那条钉"拖了落库、写回 NULL"）；
+`mechanism_reader_test.dart` +4；`test/domain/services/cognitive/library_diagnosis_test.dart` +4；
+`test/features/cognitive/application/library_diagnosis_reader_test.dart` +3；新建
+`app/test/data/database/v22_migration_test.dart` **2 例**（真 v21 文件升级后新列可用、老设置一行不少；
+被盖成 v22 却没有这一列的文件靠自愈补上并能写进去）；6 个新 l10n 键（zh/en + 三个生成文件手改）。
+`dart analyze lib test` → `94 issues found`（0 error / 0 warning）；全量 `flutter test --concurrency=1` →
+**+1996 ~2**（轮次八十八 `+1977 ~2`，差值 19）。
+
+**还没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 执行完怎么落库；③ `ls` 仍没有标定来源
+（§3 第 7 行那六条实验，需要外部数据）；④ 开关/滑块各只有一个（目标机制），其余 18 个参数还没有滑块
+—— 而且滑块**不该**铺开：19 个参数里只有 2 个写着"有出处"，给用户一个没出处的旋钮与"面板如实说"
+是同一件事的两面，先要的是标定；⑤ 报告里不能"就地改一改再跑"。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

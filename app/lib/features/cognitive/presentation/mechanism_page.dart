@@ -8,9 +8,11 @@
 /// 装配共用同一份常量（见 `mechanism_catalog.dart` 的 library doc），所以面板不会和
 /// 引擎漂移。
 ///
-/// 这个页面**只写一个设置**（`local_settings.goal_mechanism_enabled`，roadmap §3
-/// 第 8 行"用户侧开关"的第一个）：库诊断那一跑装不装目标机制。别的都不写。
-/// 页面上的读数跟着这个开关变 —— 用户关掉之后，面板不能还声称装了它。
+/// 这个页面写**两个**设置（roadmap §3 第 8 行的前两件：开关 + 滑块）：
+/// `local_settings.goal_mechanism_enabled`（库诊断那一跑装不装目标机制）与
+/// `local_settings.goal_beta`（装了的话牵引多强）。别的都不写。
+/// 页面上的读数跟着这两个设置变 —— 用户关掉之后，面板不能还声称装了它；
+/// 用户拖了滑块，参数行上的数字必须就是他拖到的那个。
 library;
 
 import 'package:flutter/material.dart';
@@ -24,12 +26,13 @@ import '../application/mechanism_reader.dart';
 
 /// 当前设置下的面板读数：装配按 `MechanismCatalog`，参数按 `FastMechanisms`。
 ///
-/// 开关一翻就 invalidate 它，面板当场重画 —— 与线程页那个注意力读数开关
+/// 开关一翻、滑块一动就 invalidate 它，面板当场重画 —— 与线程页那个注意力读数开关
 /// （`studyRhythmProvider`）同一个做法。
 final mechanismPanelProvider = FutureProvider<MechanismPanel>((ref) async {
   final settings = await ref.watch(settingsRepositoryProvider).getSettings();
   return readMechanismPanel(
     goalMechanismEnabled: settings?.goalMechanismEnabled ?? true,
+    goalBeta: settings?.goalBeta,
   );
 });
 
@@ -40,11 +43,18 @@ final goalMechanismEnabledProvider = FutureProvider<bool>((ref) async {
   return settings?.goalMechanismEnabled ?? true;
 });
 
+/// 第一个滑块当前的值。NULL（用户从没调过）读作"出厂值"，面板据此显示"出厂"。
+final goalBetaProvider = FutureProvider<double?>((ref) async {
+  final settings = await ref.watch(settingsRepositoryProvider).getSettings();
+  return settings?.goalBeta;
+});
+
 class MechanismPage extends ConsumerStatefulWidget {
   const MechanismPage({
     super.key,
     this.panel,
     this.onGoalMechanismChanged,
+    this.onGoalBetaChanged,
   });
 
   /// 测试可以直接塞一份读数；默认现读（`mechanismPanelProvider`）。
@@ -52,6 +62,9 @@ class MechanismPage extends ConsumerStatefulWidget {
 
   /// 测试钩子：给了就不写库，只回调（注入的读数由调用方决定怎么变）。
   final Future<void> Function(bool enabled)? onGoalMechanismChanged;
+
+  /// 滑块那一半的测试钩子：`null` = 用户点了"回到出厂值"。
+  final Future<void> Function(double? beta)? onGoalBetaChanged;
 
   @override
   ConsumerState<MechanismPage> createState() => _MechanismPageState();
@@ -61,6 +74,11 @@ class _MechanismPageState extends ConsumerState<MechanismPage> {
   /// 用户刚翻的那个值。写库是异步的、读回来还要一次往返，先把它画出来，
   /// 免得开关自己弹回去；写入失败也不静默 —— 库里没落值，下一次读还是旧值。
   bool? _picked;
+
+  /// 用户刚拖到的那个值，同上。`_betaTouched` 是必须的：滑块上 `null`（回到出厂值）
+  /// 是一个真实的选择，不能和"用户还没动过"共用一个 null。
+  double? _pickedBeta;
+  bool _betaTouched = false;
 
   Future<void> _setGoalMechanismEnabled(bool enabled) async {
     setState(() => _picked = enabled);
@@ -80,6 +98,25 @@ class _MechanismPageState extends ConsumerState<MechanismPage> {
     ref.invalidate(mechanismPanelProvider);
   }
 
+  /// [beta] 为 null = 用户点了"回到出厂值"：写回 NULL（不是把今天的出厂值写死）。
+  Future<void> _setGoalBeta(double? beta) async {
+    setState(() {
+      _pickedBeta = beta;
+      _betaTouched = true;
+    });
+    final hook = widget.onGoalBetaChanged;
+    if (hook != null) {
+      await hook(beta);
+      return;
+    }
+    if (widget.panel != null) {
+      return;
+    }
+    await ref.read(settingsRepositoryProvider).updateGoalBeta(beta);
+    ref.invalidate(goalBetaProvider);
+    ref.invalidate(mechanismPanelProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -89,6 +126,7 @@ class _MechanismPageState extends ConsumerState<MechanismPage> {
         l10n,
         injected,
         _picked ?? injected.goalMechanismEnabled,
+        _betaTouched ? _pickedBeta : injected.goalBeta,
       );
     }
     final async = ref.watch(mechanismPanelProvider);
@@ -103,13 +141,19 @@ class _MechanismPageState extends ConsumerState<MechanismPage> {
         ),
       );
     }
-    return _scaffold(l10n, reading, _picked ?? reading.goalMechanismEnabled);
+    return _scaffold(
+      l10n,
+      reading,
+      _picked ?? reading.goalMechanismEnabled,
+      _betaTouched ? _pickedBeta : reading.goalBeta,
+    );
   }
 
   Widget _scaffold(
     AppLocalizations l10n,
     MechanismPanel reading,
     bool goalEnabled,
+    double? goalBeta,
   ) {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.mechanismPanelTitle)),
@@ -124,6 +168,14 @@ class _MechanismPageState extends ConsumerState<MechanismPage> {
             l10n: l10n,
             enabled: goalEnabled,
             onChanged: _setGoalMechanismEnabled,
+          ),
+          const SizedBox(height: 8),
+          _GoalBetaCard(
+            l10n: l10n,
+            panel: reading,
+            goalEnabled: goalEnabled,
+            beta: goalBeta,
+            onChanged: _setGoalBeta,
           ),
           const SizedBox(height: 12),
           _SectionTitle(text: l10n.mechanismPanelSetupsHeader),
@@ -174,6 +226,135 @@ class _GoalSwitch extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 第一个滑块：目标机制的牵引强度（`context.goal.beta_goal`，roadmap §3 第 8 行）。
+///
+/// 范围不在这里编：滑块的两端来自参数行自己的 `min`/`max`（内核的参数表是唯一事实
+/// 来源，和面板上印的那个范围是同一个数）。目标机制没装的时候滑块禁用并说明 ——
+/// 这个值这一跑用不上，能拖就是一个骗人的控件。
+class _GoalBetaCard extends StatefulWidget {
+  const _GoalBetaCard({
+    required this.l10n,
+    required this.panel,
+    required this.goalEnabled,
+    required this.beta,
+    required this.onChanged,
+  });
+
+  final AppLocalizations l10n;
+  final MechanismPanel panel;
+  final bool goalEnabled;
+
+  /// 当前设置（null = 出厂值）。
+  final double? beta;
+
+  /// `null` = 用户点了"回到出厂值"。
+  final ValueChanged<double?> onChanged;
+
+  @override
+  State<_GoalBetaCard> createState() => _GoalBetaCardState();
+}
+
+class _GoalBetaCardState extends State<_GoalBetaCard> {
+  /// 拖动过程中的位置。写库只在松手时发生（`onChangeEnd`），否则一次拖动会把
+  /// 每一帧都写成一次 UPDATE。
+  double? _drag;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final theme = Theme.of(context);
+    final row = _goalBetaRow(widget.panel);
+    if (row == null) {
+      return const SizedBox.shrink();
+    }
+    final low = row.min ?? 0;
+    final high = row.max ?? 1;
+    final current = (widget.beta ?? row.transcribed).clamp(low, high);
+    final value = (_drag ?? current).clamp(low, high);
+    // 步长取内核参数表量级的一个十分之一：0..3 的 beta_goal 是 0.05 一档。
+    const step = 0.05;
+    final divisions = ((high - low) / step).round();
+    final text = row.unit == '-' ? _num(value) : '${_num(value)} ${row.unit}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.mechanismGoalBetaTitle,
+                style: theme.textTheme.titleSmall),
+            const SizedBox(height: 2),
+            Text(l10n.mechanismGoalBetaBody, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: value,
+                    min: low,
+                    max: high,
+                    divisions: divisions > 0 ? divisions : null,
+                    label: text,
+                    onChanged: widget.goalEnabled
+                        ? (final raw) => setState(() => _drag = raw)
+                        : null,
+                    onChangeEnd: widget.goalEnabled
+                        ? (final raw) => widget.onChanged(raw)
+                        : null,
+                  ),
+                ),
+                Text(text, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _Badge(
+                  text: widget.beta == null
+                      ? l10n.mechanismGoalBetaShipped
+                      : l10n.mechanismGoalBetaFromSetting,
+                  tone: widget.beta == null ? _Tone.ok : _Tone.info,
+                ),
+                Text(
+                  '${l10n.mechanismPanelRange} ${row.rangeText}',
+                  style: theme.textTheme.bodySmall,
+                ),
+                Text(
+                  '${l10n.mechanismPanelTranscribed} ${row.transcribedText}',
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (widget.beta != null)
+                  TextButton(
+                    onPressed: () => widget.onChanged(null),
+                    child: Text(l10n.mechanismGoalBetaReset),
+                  ),
+              ],
+            ),
+            if (!widget.goalEnabled) _Note(text: l10n.mechanismGoalBetaOffNote),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 面板上那个滑块对应的参数行；参数表里没有它就什么都不画（不编一个默认范围）。
+MechanismParamRow? _goalBetaRow(MechanismPanel panel) {
+  for (final mechanism in panel.mechanisms) {
+    if (mechanism.id != FastMechanisms.goal) {
+      continue;
+    }
+    for (final param in mechanism.params) {
+      if (param.path == MechanismCatalog.goalBetaPath) {
+        return param;
+      }
+    }
+  }
+  return null;
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -341,6 +522,11 @@ class _ParamTile extends StatelessWidget {
               if (param.overridden)
                 _Badge(
                   text: l10n.mechanismPanelOverridden,
+                  tone: _Tone.info,
+                ),
+              if (param.fromSetting)
+                _Badge(
+                  text: l10n.mechanismGoalBetaFromSetting,
                   tone: _Tone.info,
                 ),
               if (param.overridden)

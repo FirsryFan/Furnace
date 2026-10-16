@@ -393,6 +393,12 @@ class $LocalSettingsTable extends LocalSettings
       requiredDuringInsert: false,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("goal_mechanism_enabled" IN (0, 1))'));
+  static const VerificationMeta _goalBetaMeta =
+      const VerificationMeta('goalBeta');
+  @override
+  late final GeneratedColumn<double> goalBeta = GeneratedColumn<double>(
+      'goal_beta', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -422,6 +428,7 @@ class $LocalSettingsTable extends LocalSettings
         ankiCardTypePreference,
         rhythmHintsEnabled,
         goalMechanismEnabled,
+        goalBeta,
         createdAt,
         updatedAt
       ];
@@ -510,6 +517,10 @@ class $LocalSettingsTable extends LocalSettings
           goalMechanismEnabled.isAcceptableOrUnknown(
               data['goal_mechanism_enabled']!, _goalMechanismEnabledMeta));
     }
+    if (data.containsKey('goal_beta')) {
+      context.handle(_goalBetaMeta,
+          goalBeta.isAcceptableOrUnknown(data['goal_beta']!, _goalBetaMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -562,6 +573,8 @@ class $LocalSettingsTable extends LocalSettings
           DriftSqlType.bool, data['${effectivePrefix}rhythm_hints_enabled']),
       goalMechanismEnabled: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}goal_mechanism_enabled']),
+      goalBeta: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}goal_beta']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -647,6 +660,13 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// starts/targets to pull towards), so the panel states that next to the
   /// switch instead of presenting the two states as equal.
   final bool? goalMechanismEnabled;
+
+  /// v22: 用户给 `context.goal` 的目标偏置强度（`beta_goal`）调的值 ——
+  /// roadmap §3 第 8 行的第一个滑块（"装不装"是本表上面那个开关，"牵引多强"是这一列）。
+  ///
+  /// NULL 读作转录表里的值（今天 0.3，`calibrated: false`，即未标定的占位值）。
+  /// 用户能调的范围由内核的参数表给（`FastParamSpec.min/max`），页面不另编一套。
+  final double? goalBeta;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -665,6 +685,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.ankiCardTypePreference,
       this.rhythmHintsEnabled,
       this.goalMechanismEnabled,
+      this.goalBeta,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -707,6 +728,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || goalMechanismEnabled != null) {
       map['goal_mechanism_enabled'] = Variable<bool>(goalMechanismEnabled);
+    }
+    if (!nullToAbsent || goalBeta != null) {
+      map['goal_beta'] = Variable<double>(goalBeta);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -752,6 +776,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       goalMechanismEnabled: goalMechanismEnabled == null && nullToAbsent
           ? const Value.absent()
           : Value(goalMechanismEnabled),
+      goalBeta: goalBeta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(goalBeta),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -779,6 +806,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           serializer.fromJson<bool?>(json['rhythmHintsEnabled']),
       goalMechanismEnabled:
           serializer.fromJson<bool?>(json['goalMechanismEnabled']),
+      goalBeta: serializer.fromJson<double?>(json['goalBeta']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -803,6 +831,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           serializer.toJson<String?>(ankiCardTypePreference),
       'rhythmHintsEnabled': serializer.toJson<bool?>(rhythmHintsEnabled),
       'goalMechanismEnabled': serializer.toJson<bool?>(goalMechanismEnabled),
+      'goalBeta': serializer.toJson<double?>(goalBeta),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -824,6 +853,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> ankiCardTypePreference = const Value.absent(),
           Value<bool?> rhythmHintsEnabled = const Value.absent(),
           Value<bool?> goalMechanismEnabled = const Value.absent(),
+          Value<double?> goalBeta = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -852,6 +882,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         goalMechanismEnabled: goalMechanismEnabled.present
             ? goalMechanismEnabled.value
             : this.goalMechanismEnabled,
+        goalBeta: goalBeta.present ? goalBeta.value : this.goalBeta,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -885,6 +916,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       goalMechanismEnabled: data.goalMechanismEnabled.present
           ? data.goalMechanismEnabled.value
           : this.goalMechanismEnabled,
+      goalBeta: data.goalBeta.present ? data.goalBeta.value : this.goalBeta,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -908,6 +940,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
+          ..write('goalBeta: $goalBeta, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -931,6 +964,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       ankiCardTypePreference,
       rhythmHintsEnabled,
       goalMechanismEnabled,
+      goalBeta,
       createdAt,
       updatedAt);
   @override
@@ -952,6 +986,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.ankiCardTypePreference == this.ankiCardTypePreference &&
           other.rhythmHintsEnabled == this.rhythmHintsEnabled &&
           other.goalMechanismEnabled == this.goalMechanismEnabled &&
+          other.goalBeta == this.goalBeta &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -972,6 +1007,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> ankiCardTypePreference;
   final Value<bool?> rhythmHintsEnabled;
   final Value<bool?> goalMechanismEnabled;
+  final Value<double?> goalBeta;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -990,6 +1026,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
     this.goalMechanismEnabled = const Value.absent(),
+    this.goalBeta = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1009,6 +1046,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
     this.goalMechanismEnabled = const Value.absent(),
+    this.goalBeta = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1029,6 +1067,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? ankiCardTypePreference,
     Expression<bool>? rhythmHintsEnabled,
     Expression<bool>? goalMechanismEnabled,
+    Expression<double>? goalBeta,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1051,6 +1090,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
         'rhythm_hints_enabled': rhythmHintsEnabled,
       if (goalMechanismEnabled != null)
         'goal_mechanism_enabled': goalMechanismEnabled,
+      if (goalBeta != null) 'goal_beta': goalBeta,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1072,6 +1112,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? ankiCardTypePreference,
       Value<bool?>? rhythmHintsEnabled,
       Value<bool?>? goalMechanismEnabled,
+      Value<double?>? goalBeta,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1091,6 +1132,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ankiCardTypePreference ?? this.ankiCardTypePreference,
       rhythmHintsEnabled: rhythmHintsEnabled ?? this.rhythmHintsEnabled,
       goalMechanismEnabled: goalMechanismEnabled ?? this.goalMechanismEnabled,
+      goalBeta: goalBeta ?? this.goalBeta,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1146,6 +1188,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       map['goal_mechanism_enabled'] =
           Variable<bool>(goalMechanismEnabled.value);
     }
+    if (goalBeta.present) {
+      map['goal_beta'] = Variable<double>(goalBeta.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1173,6 +1218,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
+          ..write('goalBeta: $goalBeta, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -22721,6 +22767,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
   Value<bool?> goalMechanismEnabled,
+  Value<double?> goalBeta,
   required int createdAt,
   required int updatedAt,
 });
@@ -22741,6 +22788,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
   Value<bool?> goalMechanismEnabled,
+  Value<double?> goalBeta,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -22802,6 +22850,9 @@ class $$LocalSettingsTableFilterComposer
   ColumnFilters<bool> get goalMechanismEnabled => $composableBuilder(
       column: $table.goalMechanismEnabled,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get goalBeta => $composableBuilder(
+      column: $table.goalBeta, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -22870,6 +22921,9 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.goalMechanismEnabled,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get goalBeta => $composableBuilder(
+      column: $table.goalBeta, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -22931,6 +22985,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<bool> get goalMechanismEnabled => $composableBuilder(
       column: $table.goalMechanismEnabled, builder: (column) => column);
 
+  GeneratedColumn<double> get goalBeta =>
+      $composableBuilder(column: $table.goalBeta, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -22979,6 +23036,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
             Value<bool?> goalMechanismEnabled = const Value.absent(),
+            Value<double?> goalBeta = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -22998,6 +23056,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
             goalMechanismEnabled: goalMechanismEnabled,
+            goalBeta: goalBeta,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -23017,6 +23076,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
             Value<bool?> goalMechanismEnabled = const Value.absent(),
+            Value<double?> goalBeta = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -23036,6 +23096,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
             goalMechanismEnabled: goalMechanismEnabled,
+            goalBeta: goalBeta,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

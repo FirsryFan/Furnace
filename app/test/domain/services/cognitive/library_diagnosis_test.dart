@@ -350,4 +350,56 @@ void main() {
       expect(noStart.mechanismIds, isEmpty);
     });
   });
+
+  group('目标机制的第一个滑块（roadmap §3 第 8 行第一个用户侧滑块）', () {
+    LibraryDiagnosis run({double? goalBeta}) => LibraryDiagnosisRunner.run(
+          tags: [tag('root'), tag('target', parentId: 'root')],
+          rowsByKnowledgePoint: {
+            'root': rowOf('root'),
+            'target': rowOf('target'),
+          },
+          model: model,
+          nowHours: nowHours,
+          startKnowledgePointIds: const ['root'],
+          targetKnowledgePointIds: const ['target'],
+          moduleDefaults:
+              MechanismCatalog.libraryDiagnosisDefaults(goalBeta: goalBeta),
+        );
+
+    test('用户没调过（NULL）：这一次跑一个默认值都不传', () {
+      final result = run();
+      expect(result.moduleDefaults, isEmpty);
+      expect(result.toJson()['module_defaults'], isEmpty);
+    });
+
+    test('用户调过：只有 context.goal.beta_goal 那一个键进去，读数带出来', () {
+      final result = run(goalBeta: 1.2);
+      expect(
+        result.moduleDefaults,
+        <String, Object?>{
+          FastMechanisms.goal: <String, Object?>{'beta_goal': 1.2},
+        },
+      );
+      expect(result.toJson()['module_defaults'], result.moduleDefaults);
+    });
+
+    test('滑块不改装了什么：机制清单与不调时一字不差', () {
+      expect(run(goalBeta: 1.2).mechanismIds, run().mechanismIds);
+      expect(
+        run(goalBeta: 1.2).mechanismIds,
+        MechanismCatalog.libraryDiagnosisIds,
+      );
+    });
+
+    test('没跑起来的那两次：module_defaults 也是空的（没用的东西不写进读数）', () {
+      final noGraph = LibraryDiagnosisRunner.run(
+        tags: const [],
+        rowsByKnowledgePoint: const {},
+        model: model,
+        nowHours: nowHours,
+        moduleDefaults: MechanismCatalog.libraryDiagnosisDefaults(goalBeta: 2),
+      );
+      expect(noGraph.moduleDefaults, isEmpty);
+    });
+  });
 }

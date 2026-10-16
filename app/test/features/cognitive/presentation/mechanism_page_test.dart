@@ -1,12 +1,14 @@
-/// 机制面板这一页（roadmap 切片 6 的下一步（十九）：参数公开；（二十二）：目标机制开关）。
+/// 机制面板这一页（roadmap 切片 6 的下一步（十九）：参数公开；（二十二）：目标机制开关；
+/// （二十六）：第一个滑块）。
 ///
 /// 页面只做展示：读数由 `readMechanismPanel()` 现算（纯函数），所以这些用例
-/// 把读数直接注入进去。唯一会写库的是目标机制那个开关 —— 它写一行设置
-/// （`local_settings.goal_mechanism_enabled`），那一条单独用真库钉。
+/// 把读数直接注入进去。会写库的是目标机制那个开关和那一根滑块 —— 它们各写一行设置
+/// （`local_settings.goal_mechanism_enabled` / `local_settings.goal_beta`），
+/// 那两条单独用真库钉。
 ///
 /// 这里钉的是"用户看得见"的那几条：三处装配、六个机制、点火阈值那行写清"被覆盖 +
 /// 转录默认值"、记忆层那段如实说"没有号参数"、节律闸门那段如实说"不装进引擎"、
-/// 末尾那句总数，以及开关翻过去之后面板跟着改口。
+/// 末尾那句总数、开关翻过去之后面板跟着改口，以及滑块拖过/回到出厂值的改口。
 library;
 
 import 'package:drift/native.dart';
@@ -31,7 +33,9 @@ void bigSurface(WidgetTester tester) {
 Widget harness({
   MechanismPanel? panel,
   Future<void> Function(bool enabled)? onGoalMechanismChanged,
+  Future<void> Function(double? beta)? onGoalBetaChanged,
   bool goalMechanismEnabled = true,
+  double? goalBeta,
 }) =>
     ProviderScope(
       child: MaterialApp(
@@ -43,8 +47,10 @@ Widget harness({
           panel: panel ??
               readMechanismPanel(
                 goalMechanismEnabled: goalMechanismEnabled,
+                goalBeta: goalBeta,
               ),
           onGoalMechanismChanged: onGoalMechanismChanged,
+          onGoalBetaChanged: onGoalBetaChanged,
         ),
       ),
     );
@@ -232,6 +238,150 @@ void main() {
         find.textContaining(l10n.mechanismDisabledBySetting),
         findsOneWidget,
       );
+    });
+  });
+
+  group('目标机制的第一个滑块（roadmap §3 第 8 行第一个用户侧滑块）', () {
+    Slider sliderOf(WidgetTester tester) =>
+        tester.widget<Slider>(find.byType(Slider));
+
+    testWidgets('默认画成"出厂值"：位置就是转录默认值，两端来自参数表', (final tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      final l10n = l10nOf(tester);
+
+      expect(find.byType(Slider), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaTitle), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaBody), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaShipped), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaFromSetting), findsNothing);
+      expect(find.text(l10n.mechanismGoalBetaReset), findsNothing);
+
+      final slider = sliderOf(tester);
+      expect(slider.value, 0.3, reason: '没调过就是转录默认值');
+      expect(slider.min, 0);
+      expect(slider.max, 3);
+      expect(slider.onChanged, isNotNull);
+      // 出厂值这一句与参数行上的值都在，所以至少两处写着 0.3。
+      expect(find.text('0.3'), findsWidgets);
+    });
+
+    testWidgets('调过之后：位置跟着走，标"你调的"，还给一个"回到出厂值"', (final tester) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness(goalBeta: 1.2));
+      final l10n = l10nOf(tester);
+
+      expect(sliderOf(tester).value, 1.2);
+      expect(find.text(l10n.mechanismGoalBetaFromSetting), findsWidgets);
+      expect(find.text(l10n.mechanismGoalBetaShipped), findsNothing);
+      expect(find.text(l10n.mechanismGoalBetaReset), findsOneWidget);
+      expect(find.text('1.2'), findsWidgets);
+      // 转录默认值那行还在（滑块不改转录默认值）。
+      expect(
+        find.text('${l10n.mechanismPanelTranscribed} 0.3'),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('拖一下：回调收到新值，页面当场按新值画（不等写库往返）', (final tester) async {
+      bigSurface(tester);
+      final picked = <double?>[];
+      await tester.pumpWidget(
+        harness(
+          onGoalBetaChanged: (final beta) async {
+            picked.add(beta);
+          },
+        ),
+      );
+      final l10n = l10nOf(tester);
+      expect(sliderOf(tester).value, 0.3);
+
+      final finder = find.byType(Slider);
+      await tester.tapAt(tester.getCenter(finder) + const Offset(80, 0));
+      await tester.pumpAndSettle();
+
+      expect(picked, hasLength(1), reason: '拖完才回调一次（onChangeEnd）');
+      expect(picked.single, greaterThan(0.3));
+      expect(sliderOf(tester).value, picked.single,
+          reason: '注入的读数没变，但用户刚拖过就要先画出来');
+      expect(find.text(l10n.mechanismGoalBetaFromSetting), findsWidgets);
+      expect(find.text(l10n.mechanismGoalBetaReset), findsOneWidget);
+    });
+
+    testWidgets('点"回到出厂值"：回调收到 null（不是 0.3）', (final tester) async {
+      bigSurface(tester);
+      final picked = <double?>[];
+      await tester.pumpWidget(
+        harness(
+          goalBeta: 1.2,
+          onGoalBetaChanged: (final beta) async {
+            picked.add(beta);
+          },
+        ),
+      );
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.mechanismGoalBetaReset));
+      await tester.pumpAndSettle();
+
+      expect(picked, <double?>[null]);
+      expect(sliderOf(tester).value, 0.3);
+      expect(find.text(l10n.mechanismGoalBetaShipped), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaReset), findsNothing);
+    });
+
+    testWidgets('机制被关掉时滑块禁用，并说清"关的是装不装，不是值"', (final tester) async {
+      bigSurface(tester);
+      await tester
+          .pumpWidget(harness(goalMechanismEnabled: false, goalBeta: 1.2));
+      final l10n = l10nOf(tester);
+
+      expect(sliderOf(tester).value, 1.2, reason: '关掉机制不等于把用户调的值抹掉');
+      expect(sliderOf(tester).onChanged, isNull);
+      expect(find.text(l10n.mechanismGoalBetaOffNote), findsOneWidget);
+      expect(find.text(l10n.mechanismSwitchGoalTitle), findsOneWidget);
+    });
+
+    testWidgets('拖了真的落库；点"回到出厂值"写回 NULL，重画后面板跟着改口', (final tester) async {
+      bigSurface(tester);
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(1.2);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MechanismPage(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final l10n = l10nOf(tester);
+      expect(sliderOf(tester).value, 1.2);
+      expect(find.text(l10n.mechanismGoalBetaFromSetting), findsWidgets);
+
+      // 拖一下：库里落的是回调收到的那一个值。
+      final finder = find.byType(Slider);
+      await tester.tapAt(tester.getCenter(finder) + const Offset(80, 0));
+      await tester.pumpAndSettle();
+      final stored = (await settings.getSettings())!.goalBeta;
+      expect(stored, isNotNull);
+      expect(stored, greaterThan(1.2));
+      expect(sliderOf(tester).value, stored);
+
+      // 回到出厂值：写回 NULL，面板重读后没有"你调的"了。
+      await tester.tap(find.text(l10n.mechanismGoalBetaReset));
+      await tester.pumpAndSettle();
+      expect((await settings.getSettings())!.goalBeta, isNull);
+      expect(find.text(l10n.mechanismGoalBetaShipped), findsOneWidget);
+      expect(find.text(l10n.mechanismGoalBetaFromSetting), findsNothing);
     });
   });
 }

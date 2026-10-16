@@ -4,7 +4,52 @@
 
 ---
 
-## 2026-10-17 轮次八十八：`run/1` 也能贴进来 —— 同一条只读路，第二个入口（Lead）
+## 2026-10-17 轮次八十九：第一个滑块 —— 目标机制的牵引强度（Lead）
+
+**做了什么**：轮次八十六给了用户一个开关（装不装目标机制），可"装"只有两个档：开或关。机制参数表里
+那十九个数字，用户一个都碰不到 —— 面板只把"被覆盖/未标定"摆出来给人看。这一轮开了第一个**滑块**：
+`context.goal.beta_goal`（目标偏置强度）可以由用户拖。与开关一样，只写一行设置、只在装配时生效，
+**引擎真的读它**，读数里带得出来。
+
+- **两端不是我们编的**：`FastParamSpec` 本来就带 `min`/`max`/`defaultValue`/`desc`/`evidence`。
+  `beta_goal` 是默认 `0.3`、范围 `[0, 3]`、`desc: '目标偏置强度'`、`evidence: '未标定（Application_Protocol §15）'`
+  —— 滑块的下界上界、出厂位置全部来自内核参数表（`MechanismCatalog.goalBetaPath` / `goalBetaKey` /
+  `transcribedGoalBeta` 也都从这里来），页面不自己编一个"看起来合理"的区间。
+- **NULL = 没调过**：`local_settings.goal_beta` 是可空的 REAL（schema v21 → **v22**），NULL 读作"用转录
+  默认值"。`_upgradeV21ToV22` 走的是与 v21 那列同一条链（`_addColumnIfMissing` + `_ensureColumns`
+  自愈），升级上来的老库不会因为多一列而丢设置。
+- **进引擎走的是本来就有的那条通道**：机制装配一直有 `moduleDefaults`（`overrides > moduleDefaults >
+  转录默认值`）。`MechanismCatalog.libraryDiagnosisDefaults(goalBeta: v)` 只有在调过的时候才给出
+  `{context.goal: {beta_goal: v}}`；库诊断那一跑（`LibraryDiagnosisRunner.run(moduleDefaults: …)`）
+  真拿它去装配，读数 `module_defaults` 照实带出来 —— 没调过的那次是空的（一个默认值都不传），
+  没跑起来的那次也是空的（没用的东西不写进读数）。
+- **面板同时说清三件事**：卡片上是"你调的 1.2"（还给一个「回到出厂值」写回 NULL）；参数行上的徽标是
+  `fromSetting`（与 `overridden` 分开 —— 被装配覆盖和被你调不是一回事），转录默认值那行**不动**。
+- **开关与滑块互不干扰**：把机制关掉不等于抹掉你拖的值 —— 滑块禁用但位置还在（`OffNote` 明说"关的是
+  装不装，不是值"），关着的时候读数里照样是你调过的数。
+- **只读边界没变**：这一轮加的是"引擎用哪个数字"，演练与诊断仍然一个字都不写库。
+
+**证据**：`app/test/features/cognitive/presentation/mechanism_page_test.dart` 11 → **17 例**（出厂位置
+0.3 / 两端 0/3 来自参数表；调过之后标"你调的"且转录默认值不变；拖一下只回调一次且页面当场按新值画；
+「回到出厂值」回调收到 `null` 而不是 0.3；机制关掉时滑块禁用但位置保留；真库那条钉"拖了落库、写回
+NULL"）；`mechanism_reader_test.dart` +4 例（`goalBeta` 进 `moduleDefaults` 且只多这一个键；转录默认值
+不被设置改写；开关与滑块互不干扰；参数总数一个不少）；`test/domain/services/cognitive/library_diagnosis_test.dart`
++4 例（没调过不传默认值 / 调过只传那一个键且 `mechanism_ids` 不变 / 没跑起来时 `module_defaults` 为空）；
+`test/features/cognitive/application/library_diagnosis_reader_test.dart` +3 例（NULL = 出厂值；调过之后
+读数里就是那个值且机制清单不变；写回 NULL 之后键就没了）；新建
+`app/test/data/database/v22_migration_test.dart` **2 例**（真 v21 文件升级后新列可用、老设置一行不少；
+被盖成 v22 却没有这一列的文件靠自愈补上并能写进去）；6 个新 l10n 键（zh/en + 三个生成文件手改）。
+本轮 `dart format` 17 个 Dart 文件 7 changed（改完 `--set-exit-if-changed` exit 0）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**，与轮次八十六/八十七/八十八同一条基线）；全量
+`flutter test --concurrency=1` → **+1996 ~2**（轮次八十八 `+1977 ~2`，差值 19：+6 +4 +4 +3 +2）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在按按钮的仍是人）；② 执行完怎么落库；
+③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"到此才各有一个
+（目标机制），其余十八个参数还没有滑块 —— 而且滑块**不该**铺开：参数表里 17 个写着"未标定"，
+给用户一个没出处的旋钮与"面板如实说"是同一件事的两面，先要的是标定，不是更多旋钮；⑤ 报告里不能
+"就地改一改再跑"。
+
+---
 
 **做了什么**：轮次八十七把演练接进了照片那条路，可 `run/1` 请求不是照片的专属产物 —— AI 工具
 `check_transcribe_run` 会产、别处的模型会话会产、用户自己也可能手写一份。这些请求在界面上没有落脚处：

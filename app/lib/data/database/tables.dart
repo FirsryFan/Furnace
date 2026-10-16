@@ -102,6 +102,18 @@ class LocalSettings extends Table {
   /// switch instead of presenting the two states as equal.
   BoolColumn get goalMechanismEnabled => boolean().nullable()();
 
+  // --- v22: 目标机制的连续参数（第一个滑块）---
+  //
+  // 与上面两个"装不装"的开关同一个契约：列可空、NULL 读作出厂值，应用绝不替用户
+  // 写默认值 —— 否则今天的出厂值会被冻进每一台已有安装，以后改出厂值就达不到了。
+
+  /// v22: 用户给 `context.goal` 的目标偏置强度（`beta_goal`）调的值 ——
+  /// roadmap §3 第 8 行的第一个滑块（"装不装"是本表上面那个开关，"牵引多强"是这一列）。
+  ///
+  /// NULL 读作转录表里的值（今天 0.3，`calibrated: false`，即未标定的占位值）。
+  /// 用户能调的范围由内核的参数表给（`FastParamSpec.min/max`），页面不另编一套。
+  RealColumn get goalBeta => real().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

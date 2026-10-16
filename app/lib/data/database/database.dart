@@ -105,9 +105,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
-  /// [_upgradeV19ToV20] / [_upgradeV20ToV21].
+  /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22].
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration {
@@ -176,6 +176,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 21) {
           await _upgradeV20ToV21();
         }
+        if (from < 22) {
+          await _upgradeV21ToV22();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -223,6 +226,9 @@ class AppDatabase extends _$AppDatabase {
         // 时，Drift 会跳过 onUpgrade，映射器会在第一次读设置时抛错 —— 与上面
         // 那批列同一个失败模式。
         localSettings.goalMechanismEnabled,
+        // v22: 第一个滑块（目标机制的 `beta_goal`）。同一个失败模式：老文件被盖成
+        // v22 却没有这一列时，Drift 跳过 onUpgrade，映射器第一次读设置就抛错。
+        localSettings.goalBeta,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -628,6 +634,16 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'local_settings', localSettings.goalMechanismEnabled);
+  }
+
+  /// v21 -> v22：`local_settings.goal_beta`（轮次八十九）。
+  ///
+  /// 纯新增一列，老行不动。这是 roadmap §3 第 8 行"用户侧滑块"的第一个：目标机制
+  /// 的牵引强度（`context.goal.beta_goal`）。列可空、NULL 读作转录表里的出厂值，
+  /// 所以升级过来的库那一跑用的数字**一个都不变**，直到用户自己拖动滑块。
+  Future<void> _upgradeV21ToV22() async {
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'local_settings', localSettings.goalBeta);
   }
 
   Future<void> _upgradeV4ToV5() async {

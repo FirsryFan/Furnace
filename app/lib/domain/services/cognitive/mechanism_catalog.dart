@@ -49,6 +49,41 @@ abstract final class MechanismCatalog {
     'attention.ignition.T_ign': 0,
   };
 
+  /// 目标机制里那个"牵引多强"的参数（`context.goal.beta_goal`）—— roadmap §3
+  /// 第 8 行的**第一个滑块**。
+  ///
+  /// Q57 那个开关说的是"装不装这个机制"，这个滑块说的是"装的话牵引多强"：
+  /// 0 = 完全不牵引，0.3 是转录表里的值（`calibrated: false`，即未标定的占位值）。
+  static const String goalBetaKey = 'beta_goal';
+
+  /// 参数全路径（内核按 `机制.key` 寻值）。
+  static const String goalBetaPath = '${FastMechanisms.goal}.$goalBetaKey';
+
+  /// 库诊断那一跑要用的 `module_defaults`：把用户滑块上的值写进
+  /// `context.goal.beta_goal`。
+  ///
+  /// [goalBeta] 为 null = 用户从没调过，原样返回 [moduleDefaults]（出厂行为一个字
+  /// 不变）。有值就只补这一个键：别的机制没有滑块，也不该在这里被悄悄改掉。
+  ///
+  /// 走 `module_defaults` 而不是 `overrides`：覆盖那一层是**应用自己**为 D3
+  /// （去随机源）钉的死值，面板把"应用覆盖"和"用户调的"分开说，混在一起就再也
+  /// 分不出一个值是谁定的。
+  static Map<String, Object?> libraryDiagnosisDefaults({
+    Map<String, Object?> moduleDefaults = const <String, Object?>{},
+    double? goalBeta,
+  }) {
+    if (goalBeta == null) {
+      return moduleDefaults;
+    }
+    final goal = (moduleDefaults[FastMechanisms.goal] as Map?)
+            ?.cast<String, Object?>() ??
+        const <String, Object?>{};
+    return <String, Object?>{
+      ...moduleDefaults,
+      FastMechanisms.goal: <String, Object?>{...goal, goalBetaKey: goalBeta},
+    };
+  }
+
   static const List<String> libraryDiagnosisIds = <String>[
     FastMechanisms.shunting,
     FastMechanisms.capacity,

@@ -3844,7 +3844,7 @@ abstract class AppLocalizations {
   /// No description provided for @mechanismPanelReadOnlyNote.
   ///
   /// In en, this message translates to:
-  /// **'This panel writes exactly one setting and nothing else; the setups and parameters shown are the ones the engines actually run with'**
+  /// **'This panel writes exactly two settings (the switch and the slider below) and nothing else; the setups and parameters shown are the ones the engines actually run with'**
   String get mechanismPanelReadOnlyNote;
 
   /// No description provided for @mechanismSwitchGoalTitle.
@@ -3858,6 +3858,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When off, the library-diagnosis run no longer installs it, so the diffusion has no starts/targets to pull towards and its readings change. The problem-pricing run still installs it (that path prices starts/targets). Never chosen = installed.'**
   String get mechanismSwitchGoalBody;
+
+  /// No description provided for @mechanismGoalBetaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal bias strength (context.goal.beta_goal)'**
+  String get mechanismGoalBetaTitle;
+
+  /// No description provided for @mechanismGoalBetaBody.
+  ///
+  /// In en, this message translates to:
+  /// **'How hard the goal pulls the diffusion towards starts/targets: 0 = no pull at all, and the shipped value is the transcribed default written below (an uncalibrated placeholder). It changes this one number and nothing about what is installed.'**
+  String get mechanismGoalBetaBody;
+
+  /// No description provided for @mechanismGoalBetaShipped.
+  ///
+  /// In en, this message translates to:
+  /// **'shipped value'**
+  String get mechanismGoalBetaShipped;
+
+  /// No description provided for @mechanismGoalBetaFromSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'yours'**
+  String get mechanismGoalBetaFromSetting;
+
+  /// No description provided for @mechanismGoalBetaReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the shipped value'**
+  String get mechanismGoalBetaReset;
+
+  /// No description provided for @mechanismGoalBetaOffNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The goal mechanism is not installed (the switch above is off), so this value is not used by that run.'**
+  String get mechanismGoalBetaOffNote;
 
   /// No description provided for @mechanismDisabledBySetting.
   ///

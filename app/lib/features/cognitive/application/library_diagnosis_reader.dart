@@ -18,6 +18,7 @@ import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
+import '../../../domain/services/cognitive/mechanism_catalog.dart';
 
 /// How many recently reviewed knowledge points seed the diffusion ("what the
 /// user is holding in mind right now", §6.3). A product rule, not a calibrated
@@ -325,6 +326,13 @@ Future<LibraryDiagnosis> readLibraryDiagnosis(
   final settings = await SettingsRepository(db).getSettings();
   final goalMechanismEnabled = settings?.goalMechanismEnabled ?? true;
 
+  // 第一个滑块（roadmap §3 第 8 行）：目标机制的牵引强度。NULL = 用户没调过，
+  // 折成空表 —— 这一跑用的数字与出厂一字不差。有值就只补 `context.goal.beta_goal`
+  // 一个键（见 `MechanismCatalog.libraryDiagnosisDefaults`），并把这份表交给读数带出去。
+  final moduleDefaults = MechanismCatalog.libraryDiagnosisDefaults(
+    goalBeta: settings?.goalBeta,
+  );
+
   return LibraryDiagnosisRunner.run(
     tags: tags,
     rowsByKnowledgePoint: rows,
@@ -333,6 +341,7 @@ Future<LibraryDiagnosis> readLibraryDiagnosis(
     startKnowledgePointIds: starts,
     targetKnowledgePointIds: targets,
     tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+    moduleDefaults: moduleDefaults,
     goalMechanismEnabled: goalMechanismEnabled,
   );
 }

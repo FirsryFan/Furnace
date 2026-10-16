@@ -2076,7 +2076,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mechanismPanelSubtitle => '引擎里装了哪些机制、每个参数是多少、哪些还没标定';
 
   @override
-  String get mechanismPanelReadOnlyNote => '面板只写这一个开关，不写别的表；装配和参数就是引擎正在用的那一份';
+  String get mechanismPanelReadOnlyNote =>
+      '面板只写这两个设置（下面那个开关和这个滑块），不写别的表；装配和参数就是引擎正在用的那一份';
 
   @override
   String get mechanismSwitchGoalTitle => '装目标机制（context.goal）';
@@ -2084,6 +2085,25 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get mechanismSwitchGoalBody =>
       '关掉之后：库诊断那一跑不再装它，扩散没有起点/目标可拉，读数会变；题目定价那一跑仍然装它（那一路要用起点/目标定价）。没选过 = 装。';
+
+  @override
+  String get mechanismGoalBetaTitle => '目标偏置强度（context.goal.beta_goal）';
+
+  @override
+  String get mechanismGoalBetaBody =>
+      '目标把扩散往起点/目标拉多用力：0 = 完全不牵引，出厂值就是下面写的转录默认值（未标定的占位值）。它只改这一个数字，不改装了什么。';
+
+  @override
+  String get mechanismGoalBetaShipped => '出厂值';
+
+  @override
+  String get mechanismGoalBetaFromSetting => '你调的';
+
+  @override
+  String get mechanismGoalBetaReset => '回到出厂值';
+
+  @override
+  String get mechanismGoalBetaOffNote => '目标机制没有装（上面那个开关关着），这个值这一跑用不上。';
 
   @override
   String get mechanismDisabledBySetting => '你关掉了（出厂会装）';

@@ -8,7 +8,8 @@
 /// `transcribed` 是转录来的那一份（用空 `module_defaults` 单独读一遍，因为
 /// `fromModuleDefaults` 会把传进来的默认值写进 `FastParamSpec.defaultValue`），
 /// `overridden` 是 `FastMechanisms.overrides` 里写了这个路径 —— 应用只有一处覆盖：
-/// `attention.ignition.T_ign = 0`（D3 去随机源）。
+/// `attention.ignition.T_ign = 0`（D3 去随机源）。`fromSetting` 是另一回事：用户自己
+/// 在滑块上调过的值（`local_settings.goal_beta`），它走 `module_defaults` 进来。
 library;
 
 import '../../../domain/services/cognitive/fast_engine.dart';
@@ -26,6 +27,7 @@ class MechanismParamRow {
     required this.unit,
     required this.desc,
     required this.evidence,
+    this.fromSetting = false,
     this.min,
     this.max,
   });
@@ -41,6 +43,10 @@ class MechanismParamRow {
   final double transcribed;
 
   final bool overridden;
+
+  /// `true` = 这个值是**用户自己调的**（`local_settings.goal_beta`），不是转录来的
+  /// 默认值。和 [overridden] 分开：覆盖是应用为 D3 钉的死值，这个是用户的滑块。
+  final bool fromSetting;
 
   /// `false` = **未标定**：没有标定来源，是量级合理的占位值。
   final bool calibrated;
@@ -110,17 +116,25 @@ class MechanismPanel {
     required this.mechanisms,
     required this.moduleDefaults,
     this.goalMechanismEnabled = true,
+    this.goalBeta,
   });
 
   final List<MechanismSetup> setups;
   final List<MechanismRow> mechanisms;
 
-  /// 这一跑用的 `module_defaults`（应用传空表）。
+  /// 这一跑用的 `module_defaults`（应用传空表；用户调过滑块时里面只有
+  /// `context.goal.beta_goal` 一个键）。
   final Map<String, Object?> moduleDefaults;
 
   /// 读这一份面板时生效的开关值（`local_settings.goal_mechanism_enabled`
   /// 的 NULL 已在读取处折成 true）。面板自己把它画出来，页面不再猜。
   final bool goalMechanismEnabled;
+
+  /// 读这一份面板时生效的滑块值（`local_settings.goal_beta`）。
+  ///
+  /// `null` = 用户从没调过，这一跑用的是转录表里的出厂值（[MechanismParamRow.transcribed]）。
+  /// 页面据此画滑块的位置和"出厂 / 你调的"两种状态，不去反推。
+  final double? goalBeta;
 
   int get paramCount =>
       mechanisms.fold(0, (sum, row) => sum + row.params.length);
@@ -137,12 +151,21 @@ class MechanismPanel {
 /// [goalMechanismEnabled] 就是 `local_settings.goal_mechanism_enabled` 折成
 /// 布尔之后的值（NULL → true）。它只改一件事：库诊断那一跑装不装目标机制。
 /// 读数必须跟着它变，否则用户关掉之后面板还在说"装了"。
+///
+/// [goalBeta] 是另一个设置（`local_settings.goal_beta`，NULL = 出厂值）。它不改变
+/// 装了什么，只改 `context.goal.beta_goal` 的数字，所以它折进 [moduleDefaults]
+/// 之后再走同一个参数表 —— 页面上的 `value` 就是引擎真的会用的那个值。
 MechanismPanel readMechanismPanel({
   Map<String, Object?> moduleDefaults = const <String, Object?>{},
   bool goalMechanismEnabled = true,
+  double? goalBeta,
 }) {
+  final effectiveDefaults = MechanismCatalog.libraryDiagnosisDefaults(
+    moduleDefaults: moduleDefaults,
+    goalBeta: goalBeta,
+  );
   final mechanisms = FastMechanisms.fromModuleDefaults(
-    moduleDefaults,
+    effectiveDefaults,
     ids: MechanismCatalog.allIds,
     overrides: MechanismCatalog.transcribedIgnition,
   );
@@ -157,6 +180,7 @@ MechanismPanel readMechanismPanel({
       goalMechanismEnabled: goalMechanismEnabled,
     ),
     goalMechanismEnabled: goalMechanismEnabled,
+    goalBeta: goalBeta,
     mechanisms: <MechanismRow>[
       for (final id in MechanismCatalog.allIds)
         MechanismRow(
@@ -179,6 +203,8 @@ MechanismPanel readMechanismPanel({
                   transcribed: transcribed.specOf(spec.path)?.defaultValue ??
                       spec.defaultValue,
                   overridden: mechanisms.overrides.containsKey(spec.path),
+                  fromSetting: goalBeta != null &&
+                      spec.path == MechanismCatalog.goalBetaPath,
                   calibrated: spec.calibrated,
                   unit: spec.unit,
                   min: spec.min,
@@ -189,7 +215,7 @@ MechanismPanel readMechanismPanel({
           ],
         ),
     ],
-    moduleDefaults: moduleDefaults,
+    moduleDefaults: effectiveDefaults,
   );
 }
 

@@ -242,6 +242,57 @@ void main() {
     });
   });
 
+  group('第一个滑块（local_settings.goal_beta）一路传到诊断读数里', () {
+    test('没调过（列是 NULL）＝出厂值：一个默认值都不传', () async {
+      await seedObservedLibrary();
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(diagnosis.moduleDefaults, isEmpty);
+      expect(diagnosis.toJson()['module_defaults'], isEmpty);
+    });
+
+    test('用户拖过之后：读数里带的就是那个值，且只多这一个键', () async {
+      await seedObservedLibrary();
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(1.2);
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(
+        diagnosis.moduleDefaults,
+        <String, Object?>{
+          FastMechanisms.goal: <String, Object?>{'beta_goal': 1.2},
+        },
+      );
+      expect(diagnosis.toJson()['module_defaults'], diagnosis.moduleDefaults);
+      // 滑块不改装了什么：清单还是出厂那份。
+      expect(diagnosis.mechanismIds, MechanismCatalog.libraryDiagnosisIds);
+    });
+
+    test('回到出厂值（写回 NULL）之后读数里就没有那个键了', () async {
+      await seedObservedLibrary();
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(1.2);
+      await settings.updateGoalBeta(null);
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(diagnosis.moduleDefaults, isEmpty);
+    });
+  });
+
   group('与页面 provider 同源', () {
     test('观测输入、标签 id、诊断结论三样逐字段一致', () async {
       await seedObservedLibrary();
