@@ -688,6 +688,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialPhotoReportRetry => 'Try again';
 
   @override
+  String get materialPhotoReportRehearse => 'Run it once (writes nothing)';
+
+  @override
+  String get materialPhotoReportRehearseBusy => 'Running it through…';
+
+  @override
+  String get materialPhotoReportRehearseFailed => 'The dry run stopped';
+
+  @override
+  String get materialPhotoReportRehearseHeader =>
+      'Dry run (run only, nothing written)';
+
+  @override
+  String get materialPhotoReportRehearseNote =>
+      'Read-only: no knowledge points, no edges and no review records are touched. Actually applying this request is a different step.';
+
+  @override
+  String get materialPhotoReportRehearseTrails => 'Where each action landed';
+
+  @override
+  String materialPhotoReportRehearseNoMs(String ids) {
+    return 'No model reading for these nodes (the engine assumes the 0.8 default): $ids';
+  }
+
+  @override
+  String materialPhotoReportRehearseUnknown(String ids) {
+    return 'These node ids are not in the library and no action creates them: $ids';
+  }
+
+  @override
   String get materialIntakeTopicHubs =>
       'Also create topic hubs (off by default: a topic groups things, it is not a card relation)';
 

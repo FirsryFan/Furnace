@@ -12,7 +12,8 @@
 /// 入口有三个：**贴信封**（上面两步）、**从待确认清单恢复**、以及**选一张照片** ——
 /// 后者走 `photo_transcribe_service.dart`：照片与【图清单】一起发给有视觉能力的模型，
 /// 回话读成一份 `mindnet.run/1` 并自检（§2-C ③ 的"照片本身"）。它**只校验、不执行**，
-/// 也一个字都不写库，所以与下面两张单子无关。
+/// 也一个字都不写库，所以与下面两张单子无关；报告里那句「试跑一遍」是只读演练
+/// （`run_rehearsal.dart`）：把这份请求真的喂进引擎、看它走到哪一步，同样不写库。
 ///
 /// 页面上下两张单子用的是同一份批次读数（`unapplied_count`）：**还没点头的**在"待确认清单"
 /// （关掉页面也还在，接着确认），**已经点头的**在"已经确认完的"（只读，回答"我上次到底建了什么"）。
@@ -30,8 +31,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/material_intake_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/ingest/material_ingest.dart';
 import '../../../domain/services/ingest/material_intake_plan.dart';
 import '../../../domain/services/ingest/transcribe_run.dart';
@@ -40,6 +43,7 @@ import '../../ai/application/ai_providers.dart';
 import '../../ai/domain/vision_payload.dart';
 import '../application/material_intake_reader.dart';
 import '../application/photo_transcribe_service.dart';
+import '../application/run_rehearsal.dart';
 
 /// "选一张照片"这一步：返回照片字节，用户取消就是 `null`。
 ///
@@ -54,6 +58,20 @@ final photoPickerProvider = Provider<PhotoPicker>((ref) => pickPhotoBytes);
 final visionEncoderProvider = Provider<VisionImageEncoder>(
   (ref) => const VisionImageEncoder(),
 );
+
+/// 把一份 `run/1` **试跑一遍**（`rehearseRun`：只读演练，一个字都不写库）。
+typedef RunRehearsalRunner = Future<RunRehearsal> Function(
+  MaterialRunRequest request,
+);
+
+/// 试跑这件事的做法本身。做成 provider 有两个理由：测试里塞一份假读数就不必
+/// 造一整个知识图；"用哪个模型、哪个时钟"也收在一处，不与页面其他部分纠缠。
+final runRehearsalRunnerProvider = Provider<RunRehearsalRunner>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final model = ref.watch(cognitiveModelProvider);
+  return (MaterialRunRequest request) =>
+      rehearseRun(request: request, db: db, model: model);
+});
 
 /// 系统选图（`file_picker`）：只要图片扩展名，取第一张。
 Future<Uint8List?> pickPhotoBytes() async {
@@ -330,7 +348,9 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
 
   /// 选一张照片：发出去、读回一份 `run/1`、把自检结果原样摆出来。
   ///
-  /// **只读**：不写库、不执行请求 —— 照片这条路上到目前为止只有"读"，执行是另一件事。
+  /// **只读**：读这一步不写库、不执行请求 —— 照片这条路上到目前为止只有"读"。
+  /// 报告里可以按「试跑一遍」，那是 `rehearseRun` 的只读演练（同样一个字都不写库），
+  /// 不是执行：落库执行是另一件事。
   /// 图清单与"图里已有的节点/边 id"都从库里现读（不许模型发明 id，`transcribe_run.dart`）。
   /// 读失败不清空已经贴好的信封：两件事互不相干。
   Future<void> _readPhoto() async {
@@ -373,8 +393,11 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       setState(() => _busy = false);
       await showDialog<void>(
         context: context,
-        builder: (_) =>
-            _PhotoReportDialog(result: result, onAnother: _readPhoto),
+        builder: (_) => _PhotoReportDialog(
+          result: result,
+          onAnother: _readPhoto,
+          onRehearse: ref.read(runRehearsalRunnerProvider),
+        ),
       );
     } catch (error) {
       _notePhotoProblem(l10n.materialIntakePhotoReadFailed('$error'));
@@ -1081,8 +1104,12 @@ class _Success extends StatelessWidget {
 /// 要执行得先把这份请求拿去走 `run/1`（那是下一件事）。
 /// 但可以**原地再来一张**（[onAnother]）：读不成、或者想换一张重读，都只按一下 ——
 /// 不用先关掉这一个对话框、再出去找那个按钮。
-class _PhotoReportDialog extends StatelessWidget {
-  const _PhotoReportDialog({required this.result, this.onAnother});
+class _PhotoReportDialog extends StatefulWidget {
+  const _PhotoReportDialog({
+    required this.result,
+    this.onAnother,
+    this.onRehearse,
+  });
 
   final PhotoTranscribeResult result;
 
@@ -1090,16 +1117,70 @@ class _PhotoReportDialog extends StatelessWidget {
   /// （对话框只当纯报告用）。
   final VoidCallback? onAnother;
 
+  /// 试跑一遍：把这份请求喂进引擎走一遍（`rehearseRun`，只读、不写库）。
+  /// 为空就没有这个按钮。
+  final RunRehearsalRunner? onRehearse;
+
+  @override
+  State<_PhotoReportDialog> createState() => _PhotoReportDialogState();
+}
+
+class _PhotoReportDialogState extends State<_PhotoReportDialog> {
+  bool _rehearsing = false;
+  RunRehearsal? _rehearsal;
+  String? _rehearsalProblem;
+
+  /// 按一下「试跑一遍」：跑完把读数就摆在这个对话框里（不另开一个）。
+  ///
+  /// 抛了就说人话、把原话留下：演练失败不该把这个报告一起带走 ——
+  /// "这份请求合不合法"和"引擎跑得完跑不完"是两件事。
+  Future<void> _rehearse() async {
+    final runner = widget.onRehearse;
+    final request = switch (widget.result) {
+      PhotoTranscribeReport(:final request) => request,
+      _ => null,
+    };
+    if (runner == null || request == null || _rehearsing) {
+      return;
+    }
+    setState(() {
+      _rehearsing = true;
+      _rehearsalProblem = null;
+    });
+    try {
+      final rehearsal = await runner(request);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _rehearsal = rehearsal;
+        _rehearsing = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _rehearsalProblem = '$error';
+        _rehearsing = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 页面其余部分照旧按 `result` / `onAnother` 读：这里只把三处状态接上。
+    final result = widget.result;
+    final onAnother = widget.onAnother;
+    final onRehearse = widget.onRehearse;
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final report = switch (result) {
-      PhotoTranscribeReport() => result as PhotoTranscribeReport,
+      PhotoTranscribeReport() => result,
       _ => null,
     };
     final failure = switch (result) {
-      PhotoTranscribeFailure() => result as PhotoTranscribeFailure,
+      PhotoTranscribeFailure() => result,
       _ => null,
     };
     // "没配模型"这一种再来一张没有意义（按一次还是同一句话）：不摆这个按钮，
@@ -1178,6 +1259,33 @@ class _PhotoReportDialog extends StatelessWidget {
                       title: Text(warning),
                     ),
                 ],
+                if (_rehearsing) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(l10n.materialPhotoReportRehearseBusy),
+                    ],
+                  ),
+                ],
+                if (_rehearsal != null)
+                  _RehearsalReading(rehearsal: _rehearsal!),
+                if (_rehearsalProblem != null) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportRehearseFailed,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _Problem(text: _rehearsalProblem!),
+                ],
               ],
               if (failure != null) ...<Widget>[
                 Text(
@@ -1195,20 +1303,27 @@ class _PhotoReportDialog extends StatelessWidget {
                 style: theme.textTheme.titleSmall,
               ),
               const SizedBox(height: 4),
-              SelectableText(result is PhotoTranscribeReport
-                  ? (result as PhotoTranscribeReport).rawText
-                  : ((result as PhotoTranscribeFailure).rawText ??
-                      l10n.materialPhotoReportNoRaw)),
+              SelectableText(switch (result) {
+                PhotoTranscribeReport() => result.rawText,
+                PhotoTranscribeFailure() =>
+                  result.rawText ?? l10n.materialPhotoReportNoRaw,
+              }),
             ],
           ),
         ),
       ),
       actions: <Widget>[
+        if (onRehearse != null && report != null && report.report.ok)
+          TextButton.icon(
+            onPressed: _rehearsing ? null : _rehearse,
+            icon: const Icon(Icons.science_outlined, size: 18),
+            label: Text(l10n.materialPhotoReportRehearse),
+          ),
         if (onAnother != null && canAnother)
           TextButton.icon(
             onPressed: () {
               Navigator.of(context).pop();
-              onAnother!.call();
+              onAnother.call();
             },
             icon: Icon(
               failure != null ? Icons.refresh : Icons.photo_camera_outlined,
@@ -1224,6 +1339,78 @@ class _PhotoReportDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.commonClose),
         ),
+      ],
+    );
+  }
+}
+
+/// 演练读数：这份请求真的跑起来之后，到底走到了哪一步。
+///
+/// 一条动作一行 —— 引擎对每条动作的原话（`RunActionTrace.text`）比我在这里
+/// 编的转述可信：它说的是"这一条实际做了什么/为什么停在这"。没有增量的条目
+/// 也照摆（"跑过但什么都没改"本身是信息）。
+class _RehearsalReading extends StatelessWidget {
+  const _RehearsalReading({required this.rehearsal});
+
+  final RunRehearsal rehearsal;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final traces = rehearsal.report.traces;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SizedBox(height: 12),
+        Text(
+          l10n.materialPhotoReportRehearseHeader,
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 4),
+        Text(rehearsal.text),
+        const SizedBox(height: 4),
+        _Note(text: l10n.materialPhotoReportRehearseNote),
+        if (traces.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 8),
+          Text(
+            l10n.materialPhotoReportRehearseTrails,
+            style: theme.textTheme.labelLarge,
+          ),
+          for (final trace in traces)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                trace.ok ? Icons.check_circle_outline : Icons.error_outline,
+                size: 18,
+                color: trace.ok ? null : theme.colorScheme.error,
+              ),
+              title: Text(trace.text),
+            ),
+        ],
+        if (rehearsal.nodesWithoutMs.isNotEmpty)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.help_outline, size: 18),
+            title: Text(
+              l10n.materialPhotoReportRehearseNoMs(
+                rehearsal.nodesWithoutMs.join('、'),
+              ),
+            ),
+          ),
+        if (rehearsal.unknownNodeIds.isNotEmpty)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.report_gmailerrorred_outlined, size: 18),
+            title: Text(
+              l10n.materialPhotoReportRehearseUnknown(
+                rehearsal.unknownNodeIds.join('、'),
+              ),
+            ),
+          ),
       ],
     );
   }

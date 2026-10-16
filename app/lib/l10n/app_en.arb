@@ -258,6 +258,20 @@
   "materialPhotoReportFailed": "Could not read it",
   "materialPhotoReportPickAnother": "Pick another",
   "materialPhotoReportRetry": "Try again",
+  "materialPhotoReportRehearse": "Run it once (writes nothing)",
+  "materialPhotoReportRehearseBusy": "Running it through…",
+  "materialPhotoReportRehearseFailed": "The dry run stopped",
+  "materialPhotoReportRehearseHeader": "Dry run (run only, nothing written)",
+  "materialPhotoReportRehearseNote": "Read-only: no knowledge points, no edges and no review records are touched. Actually applying this request is a different step.",
+  "materialPhotoReportRehearseTrails": "Where each action landed",
+  "materialPhotoReportRehearseNoMs": "No model reading for these nodes (the engine assumes the 0.8 default): {ids}",
+  "@materialPhotoReportRehearseNoMs": {
+    "placeholders": { "ids": { "type": "String" } }
+  },
+  "materialPhotoReportRehearseUnknown": "These node ids are not in the library and no action creates them: {ids}",
+  "@materialPhotoReportRehearseUnknown": {
+    "placeholders": { "ids": { "type": "String" } }
+  },
   "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
   "materialIntakePendingTitle": "Pending list ({count} batches, survives closing the page)",
   "@materialIntakePendingTitle": {

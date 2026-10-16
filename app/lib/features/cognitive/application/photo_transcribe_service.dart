@@ -49,11 +49,17 @@ sealed class PhotoTranscribeResult {
 /// 读出来了：`report.ok` 说的是这份请求**合不合法**，不是"模型答得好不好"。
 class PhotoTranscribeReport extends PhotoTranscribeResult {
   const PhotoTranscribeReport({
+    required this.request,
     required this.report,
     required this.rawText,
     required this.width,
     required this.height,
   });
+
+  /// 解码出来的原件 —— 界面要能拿它去试跑一遍（只读演练，
+  /// `rehearseRun`）。带上它，是为了让"这份请求"只有一处解析：
+  /// 界面不该把 [rawText] 再解一遍（`D2`：两次解析两份真相）。
+  final MaterialRunRequest request;
 
   /// `io_check` 的输出 + TRANSCRIBE 自己的建议（出处、置信度的提醒在
   /// `report.warnings` 里）。
@@ -175,6 +181,7 @@ Future<PhotoTranscribeResult> transcribePhoto({
   }
 
   return PhotoTranscribeReport(
+    request: request,
     report: reviewTranscribedRun(
       request,
       existingNodeIds: existingNodeIds,

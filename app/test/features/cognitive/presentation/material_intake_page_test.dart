@@ -21,8 +21,11 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/material_intake_repository.dart';
+import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
+import 'package:furnace/domain/services/ingest/material_ingest.dart';
 import 'package:furnace/domain/services/ingest/material_intake_plan.dart';
 import 'package:furnace/features/cognitive/application/material_intake_reader.dart';
+import 'package:furnace/features/cognitive/application/run_rehearsal.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/domain/vision_payload.dart';
@@ -809,6 +812,152 @@ void main() {
       // 照片这条路只读：不执行请求，也不写库。
       expect(await db.select(db.knowledgeEdges).get(), isEmpty);
       expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+    });
+
+    testWidgets('照片报告里"试跑一遍"：真的跑进引擎，还是一个字节都不写库', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      MaterialRunRequest? rehearsed;
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+            // 用真的那种跑法（同一个库、同一个模型），只把"跑的是哪一份"记下来。
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) {
+              rehearsed = request;
+              return rehearseRun(
+                request: request,
+                db: db,
+                model: const MindNetCognitiveModel(),
+                now: DateTime(2026, 10, 17, 12),
+              );
+            }),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+
+      // 合法的那一份才摆这个按钮：按一下才知道引擎会走到哪一步。
+      expect(find.text(l10n.materialPhotoReportRehearse), findsOneWidget);
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+
+      expect(
+        rehearsed?.runId,
+        'run-1',
+        reason: '试跑的就是刚才那份请求本身，不是把模型原话再解一遍',
+      );
+      expect(find.text(l10n.materialPhotoReportRehearseHeader), findsOneWidget);
+      expect(find.textContaining('演练（只跑不落库'), findsOneWidget);
+      expect(
+        find.text(l10n.materialPhotoReportRehearseTrails),
+        findsOneWidget,
+        reason: '一条动作一行：引擎的原话摆出来，不是我在这里转述',
+      );
+      // `kp` 在库里没有卡片：模型读不出 r0，引擎按默认 0.8 算 —— 这件事要说出来。
+      expect(
+        find.textContaining(l10n.materialPhotoReportRehearseNoMs('kp')),
+        findsOneWidget,
+      );
+      // 只读：演练真的跑了，库还是一个字节都没变。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+    });
+
+    testWidgets('试跑炸了也不带走报告：说人话，自检结果还在，还能再按一次', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              throw StateError('引擎没装好');
+            }),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportRehearseFailed), findsOneWidget);
+      expect(find.textContaining('引擎没装好'), findsOneWidget);
+      expect(
+        find.text(l10n.materialPhotoReportValid),
+        findsOneWidget,
+        reason: '合不合法跟跑不跑得完是两件事：报告本身不许被带走',
+      );
+      expect(
+        find.text(l10n.materialPhotoReportRehearse),
+        findsOneWidget,
+        reason: '还能再按一次',
+      );
+    });
+
+    testWidgets('不合法的请求不摆"试跑一遍"：没得跑', (WidgetTester tester) async {
+      bigSurface(tester);
+      // 故意不建 `kp`：review 指着一个图里没有的点，整份判不合法。
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              fail('不合法的请求不该被拿去试跑');
+            }),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportInvalid), findsOneWidget);
+      expect(find.text(l10n.materialPhotoReportRehearse), findsNothing);
     });
 
     testWidgets('照片读不成请求（没配模型）：说人话，还是一个字都不写', (WidgetTester tester) async {

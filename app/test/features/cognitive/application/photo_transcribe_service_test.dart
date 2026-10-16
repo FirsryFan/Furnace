@@ -120,6 +120,9 @@ void main() {
     expect(ok.rawText, fenced.trim(), reason: '模型原话留全文，用户能自己核对');
     expect(ok.width, 24);
     expect(ok.height, 12);
+    // 报告里带着解码出来的原件：界面要拿它去试跑，不该把原话再解一遍。
+    expect(ok.request.runId, 'run-1');
+    expect(ok.request.actions, hasLength(1));
 
     final request = adapter.requests.single;
     expect(request.tools, isEmpty, reason: '这一步只让模型说话，不给它工具');

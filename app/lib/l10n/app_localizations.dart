@@ -1352,6 +1352,54 @@ abstract class AppLocalizations {
   /// **'Try again'**
   String get materialPhotoReportRetry;
 
+  /// No description provided for @materialPhotoReportRehearse.
+  ///
+  /// In en, this message translates to:
+  /// **'Run it once (writes nothing)'**
+  String get materialPhotoReportRehearse;
+
+  /// No description provided for @materialPhotoReportRehearseBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Running it through…'**
+  String get materialPhotoReportRehearseBusy;
+
+  /// No description provided for @materialPhotoReportRehearseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The dry run stopped'**
+  String get materialPhotoReportRehearseFailed;
+
+  /// No description provided for @materialPhotoReportRehearseHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Dry run (run only, nothing written)'**
+  String get materialPhotoReportRehearseHeader;
+
+  /// No description provided for @materialPhotoReportRehearseNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only: no knowledge points, no edges and no review records are touched. Actually applying this request is a different step.'**
+  String get materialPhotoReportRehearseNote;
+
+  /// No description provided for @materialPhotoReportRehearseTrails.
+  ///
+  /// In en, this message translates to:
+  /// **'Where each action landed'**
+  String get materialPhotoReportRehearseTrails;
+
+  /// No description provided for @materialPhotoReportRehearseNoMs.
+  ///
+  /// In en, this message translates to:
+  /// **'No model reading for these nodes (the engine assumes the 0.8 default): {ids}'**
+  String materialPhotoReportRehearseNoMs(String ids);
+
+  /// No description provided for @materialPhotoReportRehearseUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'These node ids are not in the library and no action creates them: {ids}'**
+  String materialPhotoReportRehearseUnknown(String ids);
+
   /// No description provided for @materialIntakeTopicHubs.
   ///
   /// In en, this message translates to:

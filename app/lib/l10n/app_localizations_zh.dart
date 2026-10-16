@@ -670,6 +670,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialPhotoReportRetry => '重试';
 
   @override
+  String get materialPhotoReportRehearse => '试跑一遍（不落库）';
+
+  @override
+  String get materialPhotoReportRehearseBusy => '正在试跑…';
+
+  @override
+  String get materialPhotoReportRehearseFailed => '试跑没跑完';
+
+  @override
+  String get materialPhotoReportRehearseHeader => '试跑结果（只跑不落库）';
+
+  @override
+  String get materialPhotoReportRehearseNote =>
+      '只读演练：不写知识点、不写边、不动复习记录。要真的把这份请求落库执行，是另一件事。';
+
+  @override
+  String get materialPhotoReportRehearseTrails => '每条动作走到哪一步';
+
+  @override
+  String materialPhotoReportRehearseNoMs(String ids) {
+    return '这些节点没有模型读数（引擎按默认 0.8 算）：$ids';
+  }
+
+  @override
+  String materialPhotoReportRehearseUnknown(String ids) {
+    return '这些节点库里没有、也没有动作去建它：$ids';
+  }
+
+  @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
 
   @override

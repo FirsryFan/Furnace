@@ -264,6 +264,20 @@
   "materialPhotoReportFailed": "没读出来",
   "materialPhotoReportPickAnother": "换一张",
   "materialPhotoReportRetry": "重试",
+  "materialPhotoReportRehearse": "试跑一遍（不落库）",
+  "materialPhotoReportRehearseBusy": "正在试跑…",
+  "materialPhotoReportRehearseFailed": "试跑没跑完",
+  "materialPhotoReportRehearseHeader": "试跑结果（只跑不落库）",
+  "materialPhotoReportRehearseNote": "只读演练：不写知识点、不写边、不动复习记录。要真的把这份请求落库执行，是另一件事。",
+  "materialPhotoReportRehearseTrails": "每条动作走到哪一步",
+  "materialPhotoReportRehearseNoMs": "这些节点没有模型读数（引擎按默认 0.8 算）：{ids}",
+  "@materialPhotoReportRehearseNoMs": {
+    "placeholders": { "ids": { "type": "String" } }
+  },
+  "materialPhotoReportRehearseUnknown": "这些节点库里没有、也没有动作去建它：{ids}",
+  "@materialPhotoReportRehearseUnknown": {
+    "placeholders": { "ids": { "type": "String" } }
+  },
   "materialIntakeTopicHubs": "顺便建主题分组（默认不建：分组不是卡片关系）",
   "materialIntakePendingTitle": "待确认清单（{count} 批，关掉页面也在）",
   "@materialIntakePendingTitle": {
