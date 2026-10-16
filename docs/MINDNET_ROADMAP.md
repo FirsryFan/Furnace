@@ -635,6 +635,38 @@ body 里的释义/原文/出处、同名 `'  Rely   ON '` 归一化后 `exists`�
 **还没做**：① 照片本身（视觉模型 → 信封/请求，含出处与置信度）；② 把 `run/1` 真的跑进引擎
 （应用侧目前只校验）；③ 资料与卡片的关联类型（§2-C ④）。
 
+### 纪律落地：SM-2 只剩存档（轮次六十七）
+
+第 3 节末尾那条纪律（"FSRS 仍是到期日唯一权威""一张表的一列只有一个写者"）在代码里一直差最后一步：
+`docs/GAP_ANALYSIS.md` 的 D9 把 SM-2 定成"模块保留为存档文件、**不再被调用**"，
+`docs/FEATURE_MATRIX.md` 也一直记着这条遗留 —— 旧入口 `features/anki/application/anki_service.dart:23`
+被 `features/anki/presentation/anki_page.dart:273` 调用，仍然走 `sm2_scheduler.dart`。
+这一轮把它清掉：
+
+- 删掉 `app/lib/features/anki/presentation/anki_page.dart`（333 行）与
+  `app/lib/features/anki/application/anki_service.dart`（64 行），以及只服务于前者的
+  `ankiServiceProvider`（`app/lib/data/repositories/repository_providers.dart`）。
+  两个文件都**没有任何入口**：全仓引用只剩它们自己（`ops_grep anki_page|AnkiPage` 的命中只有
+  自身 + 三份文档），v2 复习流早就换成了 `knowledge_page.dart` → `review_page.dart` →
+  `review_service.dart` 的 `FsrsScheduler.schedule`。
+- `app/lib/domain/services/srs/sm2_scheduler.dart` **留着**（D9 要的是"存档"而不是删除），它的单测也照跑。
+- 新守门测试 `app/test/domain/services/srs/single_scheduler_authority_test.dart`：扫 `lib/`，
+  除存档文件本身外不许有任何 `.dart` 文件提到 `Sm2Scheduler` —— 于是"不再被调用"从文档承诺变成可执行事实。
+
+三条刻意选择：① **删调用点而不是改算法** —— 把旧页也迁到 FSRS 等于给一个没有入口的页面续命，
+真正的问题是"第二个写者存在"；② **存档文件保留** —— D9 与 `docs/MILESTONES.md` 都写明
+"模块保留、测试删/迁"，删它得先改文档，所以留着并加守卫；③ **守卫用源码扫描** ——
+这条纪律是"代码里不许出现某个调用"，领域测试证明不了它，只能扫源码（测试里对 `Directory('lib')`
+有 `existsSync` 断言，工作目录跑偏时会给理由，而不是静默通过）。
+
+证据：`flutter test test/domain/services/srs/` → `+51`（含新守卫与存档模块自己的 3 例）；
+`dart analyze lib test` → `94 issues found`（删掉的文件少了 1 条既有 info，**0 error / 0 warning**）；
+全量 `flutter test --concurrency=1` → `+1824 ~2: All tests passed!`。
+
+**还没做**：① `docs/PROGRESS.md` 里 v0.1 时代的 SM-2/AnkiService 记录是历史，不改；
+② `home_shell.dart` 仍是 6 个旧页（`docs/DESIGN_BLUEPRINT.md` 记的 R4/R5 UI 接线）；
+③ 其余纪律项（未标定参数显式标注、43 条 tierA + B01 守卫）由各自的测试守着，不受本轮影响。
+
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 
 为什么要有它：MindNet 的 `R0`/`D` 在 Furnace 里一直只有两个来源——FSRS 存下来的观测值，或

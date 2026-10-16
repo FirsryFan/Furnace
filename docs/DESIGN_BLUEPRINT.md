@@ -12,7 +12,7 @@
 - **R2 数据层已完成**：Drift schema v2、树形 Tag(parent_id/path)、ThreadStates、CompletionLogs、TaskTemplates、ClozeSlots/ClozeHistory、BoostEntries、Themes、Attachments、v1→v2 迁移。
 - **R3 核心算法已完成**：`ThreadRanker`、`TimeWindowEngine`、`FurnaceDefaults`、`FsrsScheduler`（FSRS-6）、`ClozeEngine`+`ForcedMachine`、`DiffusionBoost`。
 - 环境：Flutter 3.47.2 / Dart 3.13.2。此目录**不是 git 仓库**。
-- 缺的是 R4/R5 UI 接线：`home_shell.dart` 仍是 6 个旧页；Thread 页无顶栏/无排序入口；`anki_page.dart` 仍走 SM-2。
+- 缺的是 R4/R5 UI 接线：`home_shell.dart` 仍是 6 个旧页；Thread 页无顶栏/无排序入口；~~`anki_page.dart` 仍走 SM-2~~（**轮次六十七已删除**：那个旧页与它的 `AnkiService` 都没有任何入口，到期日现在只剩 FSRS 一个写者）。
 - ⚠️ `docs/PROGRESS.md`、`docs/FEATURE_MATRIX.md` 把 R3 标为"未实现"，**已过期**。
 - **【本轮新验证】** `flutter pub outdated` 成功返回版本表 → **pub.dev 网络可达**（V1 部分结案）。
 - **【本轮新验证】** `app/android` 目录 **不存在**（`Test-Path` = False）→ 安卓平台目录尚未生成，`flutter build apk` 现在必然失败（V3 结案）。

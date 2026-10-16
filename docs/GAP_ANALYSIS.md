@@ -193,7 +193,7 @@
 ## 7. 保留 / 兼容 / 弃用
 
 - 保留：子任务、依赖、提醒（本地通知）、.kpak 班级分享、任务建议清单（降级为显式辅助）、复习统计（适配 FSRS）、标签/模板/知识点管理、设置档案与备份 .db。
-- 弃用（代码保留存档，UI 下线）：无 — PRD 时代无与定稿硬冲突的功能；SM-2 保留为 `srs/sm2_scheduler.dart` 存档文件但不再被调用。
+- 弃用（代码保留存档，UI 下线）：无 — PRD 时代无与定稿硬冲突的功能；SM-2 保留为 `srs/sm2_scheduler.dart` 存档文件但不再被调用（轮次六十七落实：最后两个调用点 `features/anki/application/anki_service.dart` 与 `features/anki/presentation/anki_page.dart`、以及 `ankiServiceProvider` 已删除 —— 旧复习流没有入口，v2 复习流走 `review_service.dart` 的 `FsrsScheduler.schedule`；`app/test/domain/services/srs/single_scheduler_authority_test.dart` 钉住"lib/ 里不再有人提 Sm2Scheduler"）。
 - 兼容：导入 .kpak 时旧模板照常生成 CardState（preset 卡）；新自由挖空从现有 content 自动推导首批槽位（沿用 ClozeGenerator 逻辑增强）。
 
 ## 8. 待决问题（默认决定延续“无反馈按默认执行”风格）

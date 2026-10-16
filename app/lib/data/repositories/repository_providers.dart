@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/anki/application/anki_service.dart';
 import '../../features/anki/application/anki_stats_service.dart';
 import '../../features/packages/application/package_export_service.dart';
 import '../../features/packages/application/package_import_service.dart';
@@ -87,10 +86,6 @@ final assessmentRepositoryProvider = Provider<AssessmentRepository>((ref) {
 /// 只追加：题干与选项入库后不再改写，加工只写 state/trapNote/difficulty/aiQuality。
 final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
   return QuestionRepository(ref.watch(appDatabaseProvider));
-});
-
-final ankiServiceProvider = Provider<AnkiService>((ref) {
-  return AnkiService(ref.watch(ankiRepositoryProvider));
 });
 
 final ankiStatsServiceProvider = Provider<AnkiStatsService>((ref) {

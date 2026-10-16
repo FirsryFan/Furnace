@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-10-16 轮次六十七：SM-2 只剩存档 —— 到期日真的只有一个权威（Lead）
+
+**做了什么**：把 roadmap 第 3 节末尾那条纪律（"FSRS 仍是到期日唯一权威""一张表的一列只有一个写者"）
+落到代码里。`docs/GAP_ANALYSIS.md` 的 D9 早就把 SM-2 定成"模块保留为存档文件、**不再被调用**"，
+但旧入口 `features/anki/application/anki_service.dart:23`（被 `features/anki/presentation/anki_page.dart:273`
+调用）仍走 `sm2_scheduler.dart`，`card_states.due_at` 因此一直有第二个写者。
+
+- 删 `app/lib/features/anki/presentation/anki_page.dart`（333 行）与
+  `app/lib/features/anki/application/anki_service.dart`（64 行），以及只服务于前者的
+  `ankiServiceProvider`（`app/lib/data/repositories/repository_providers.dart`）。
+  两个文件都**没有任何入口**：全仓引用只剩它们自己（`anki_page|AnkiPage` 的命中只有自身
+  与三份文档），v2 复习流早就是 `knowledge_page.dart` → `review_page.dart` →
+  `review_service.dart` 的 `FsrsScheduler.schedule`。
+- `app/lib/domain/services/srs/sm2_scheduler.dart` **留着**（D9 要的是"存档"而不是删除），
+  它的单测也照跑。
+- 新守门测试 `app/test/domain/services/srs/single_scheduler_authority_test.dart`：扫 `lib/`，
+  除存档文件本身外不许有任何 `.dart` 文件提到 `Sm2Scheduler` —— 于是"不再被调用"从文档承诺
+  变成可执行事实（对 `Directory('lib')` 有 `existsSync` 断言，工作目录跑偏会给理由而不是静默通过）。
+
+**刻意选择**：① **删调用点，而不是把旧页迁到 FSRS** —— 给一个没有入口的页面续命不是修问题，
+"存在第二个写者"才是；② **存档文件保留** —— `docs/GAP_ANALYSIS.md` 与 `docs/MILESTONES.md`
+都写明"模块保留、测试删/迁"，删它得先改文档；③ **守卫用源码扫描** —— 这条纪律是
+"代码里不许出现某个调用"，领域测试证明不了它。
+
+**证据**：`flutter test test/domain/services/srs/` → `+51: All tests passed!`（含新守卫与存档模块
+自己的 3 例）；`dart analyze lib test` → `94 issues found`（删掉的文件少了 1 条既有 info，
+**0 error / 0 warning**）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1824 ~2: All tests passed!`（exit 0）。
+轮次六十六 后是 `+1823 ~2`，差值 1 = 本轮新增的守门测试。
+
+**已知的没做**：① `home_shell.dart` 仍是 6 个旧页（`docs/DESIGN_BLUEPRINT.md` 记的 R4/R5 UI 接线）；
+② `docs/PROGRESS.md` 里 v0.1 时代的 SM-2 / AnkiService 记录是历史，不改；
+③ TRANSCRIBE 的照片本身与"把 `run/1` 真的跑进引擎"仍未做（§2-C ③）。
+
 ## 2026-10-16 轮次六十六：转写规程的确定性那一半（Lead）
 
 **做了什么**：roadmap §2-C ③「TRANSCRIBE 的"照片 → `run/1`"（含出处/置信度）」的确定性那一半。
