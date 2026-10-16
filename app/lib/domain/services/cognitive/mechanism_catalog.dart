@@ -59,8 +59,10 @@ abstract final class MechanismCatalog {
   /// 参数全路径（内核按 `机制.key` 寻值）。
   static const String goalBetaPath = '${FastMechanisms.goal}.$goalBetaKey';
 
-  /// 库诊断那一跑要用的 `module_defaults`：把用户滑块上的值写进
-  /// `context.goal.beta_goal`。
+  /// 用户滑块上的值要不要进这一跑的 `module_defaults`。
+  ///
+  /// [installedIds] 是这一跑**实际**要装的机制清单：只有装了 `context.goal`
+  /// 的跑才谈得上"牵引多强"（演练那一跑只装记忆层，给它这个键就是撒谎）。
   ///
   /// [goalBeta] 为 null = 用户从没调过，原样返回 [moduleDefaults]（出厂行为一个字
   /// 不变）。有值就只补这一个键：别的机制没有滑块，也不该在这里被悄悄改掉。
@@ -68,11 +70,12 @@ abstract final class MechanismCatalog {
   /// 走 `module_defaults` 而不是 `overrides`：覆盖那一层是**应用自己**为 D3
   /// （去随机源）钉的死值，面板把"应用覆盖"和"用户调的"分开说，混在一起就再也
   /// 分不出一个值是谁定的。
-  static Map<String, Object?> libraryDiagnosisDefaults({
+  static Map<String, Object?> goalBetaDefaults({
+    required List<String> installedIds,
     Map<String, Object?> moduleDefaults = const <String, Object?>{},
     double? goalBeta,
   }) {
-    if (goalBeta == null) {
+    if (goalBeta == null || !installedIds.contains(FastMechanisms.goal)) {
       return moduleDefaults;
     }
     final goal = (moduleDefaults[FastMechanisms.goal] as Map?)
@@ -83,6 +86,19 @@ abstract final class MechanismCatalog {
       FastMechanisms.goal: <String, Object?>{...goal, goalBetaKey: goalBeta},
     };
   }
+
+  /// 题目定价那一跑（`ProblemEvaluator`）用的 `module_defaults`：按它**实际**装的
+  /// 清单（[problemEvaluatorIds]，里面有 `context.goal`）折一遍 —— 与库诊断那一跑
+  /// **同一条**规则（[goalBetaDefaults]），不是各写一份。
+  static Map<String, Object?> problemEvaluatorDefaults({
+    Map<String, Object?> moduleDefaults = const <String, Object?>{},
+    double? goalBeta,
+  }) =>
+      goalBetaDefaults(
+        installedIds: problemEvaluatorIds,
+        moduleDefaults: moduleDefaults,
+        goalBeta: goalBeta,
+      );
 
   static const List<String> libraryDiagnosisIds = <String>[
     FastMechanisms.shunting,

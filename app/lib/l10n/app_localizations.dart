@@ -3889,10 +3889,16 @@ abstract class AppLocalizations {
   /// **'Back to the shipped value'**
   String get mechanismGoalBetaReset;
 
+  /// No description provided for @mechanismGoalBetaApplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Every run that installs the goal mechanism reads this number: the library-diagnosis run (the reading above on this page) and the problem-pricing run (the V(π) ordering behind evaluate_problem_fit / plan_today). The tools' module_defaults carries exactly it - empty when you have never tuned it (the shipped value untouched).'**
+  String get mechanismGoalBetaApplies;
+
   /// No description provided for @mechanismGoalBetaOffNote.
   ///
   /// In en, this message translates to:
-  /// **'The goal mechanism is not installed (the switch above is off), so this value is not used by that run.'**
+  /// **'The goal mechanism is not installed (the switch above is off), so the runs that would install it do not use this value; the number stays for when you turn it back on.'**
   String get mechanismGoalBetaOffNote;
 
   /// No description provided for @mechanismDisabledBySetting.

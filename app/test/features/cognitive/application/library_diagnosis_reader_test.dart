@@ -291,6 +291,24 @@ void main() {
 
       expect(diagnosis.moduleDefaults, isEmpty);
     });
+
+    test('机制被关掉时，拖过的值也不进去：那一跑连 context.goal 都没有', () async {
+      await seedObservedLibrary();
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(1.2);
+      await settings.updateGoalMechanismEnabled(false);
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(diagnosis.mechanismIds, isNot(contains(FastMechanisms.goal)));
+      expect(diagnosis.moduleDefaults, isEmpty, reason: '没装的机制不该有参数');
+      // 用户的值还在库里，只是这一跑用不上它。
+      expect((await settings.getSettings())!.goalBeta, 1.2);
+    });
   });
 
   group('与页面 provider 同源', () {

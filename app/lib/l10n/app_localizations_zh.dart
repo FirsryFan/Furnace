@@ -2103,7 +2103,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mechanismGoalBetaReset => '回到出厂值';
 
   @override
-  String get mechanismGoalBetaOffNote => '目标机制没有装（上面那个开关关着），这个值这一跑用不上。';
+  String get mechanismGoalBetaApplies =>
+      '装了目标机制的每一跑都读这个数：库诊断那一跑（本页上面那份读数），以及题目定价那一跑（evaluate_problem_fit / plan_today 的 V(π) 排序）。工具读数里的 module_defaults 带的就是它 —— 没调过的时候是空的（出厂值一个字没动）。';
+
+  @override
+  String get mechanismGoalBetaOffNote =>
+      '目标机制没有装（上面那个开关关着），所以装了它的那些跑都不会用这个值；数字还留着，等你再打开。';
 
   @override
   String get mechanismDisabledBySetting => '你关掉了（出厂会装）';

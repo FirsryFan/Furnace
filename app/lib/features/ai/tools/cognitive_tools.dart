@@ -14,12 +14,14 @@ library;
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/settings_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart'
     show representativeCardRow;
+import '../../../domain/services/cognitive/mechanism_catalog.dart';
 import '../../../domain/services/cognitive/problem_evaluator.dart';
 import '../domain/ai_tool.dart';
 
@@ -28,15 +30,22 @@ class EvaluateProblemFitTool extends AiTool {
   EvaluateProblemFitTool({
     required AnkiRepository ankiRepository,
     required TagRepository tagRepository,
+    required AppDatabase database,
     CognitiveModel model = const MindNetCognitiveModel(),
     DateTime Function()? clock,
   })  : _anki = ankiRepository,
         _tags = tagRepository,
+        _database = database,
         _model = model,
         _clock = clock ?? DateTime.now;
 
   final AnkiRepository _anki;
   final TagRepository _tags;
+
+  /// Where the user's tuned parameters live (`local_settings.goal_beta`).
+  /// Injected rather than read globally: this tool stays a seam that a test can
+  /// point at an in-memory库, and it never touches the DB except to read.
+  final AppDatabase _database;
   final CognitiveModel _model;
 
   /// Injected so a test can pin "now" and get the same ranking twice.
@@ -150,6 +159,7 @@ class EvaluateProblemFitTool extends AiTool {
     final report = await evaluateProblems(
       ankiRepository: _anki,
       tagRepository: _tags,
+      database: _database,
       model: _model,
       candidates: limited,
       moment: moment,
@@ -167,12 +177,16 @@ class EvaluateProblemFitTool extends AiTool {
       ok: true,
       summary: '评估了 ${report.evaluations.length} 道题（'
           '${counts.entries.map((e) => '${e.key} ${e.value}').join(' / ')}）'
-          '${report.fastLayerRan ? '，诊断层已运行' : '，仅用记忆层（无诊断）'}',
+          '${report.fastLayerRan ? '，诊断层已运行' : '，仅用记忆层（无诊断）'}'
+          '${tunedParametersNote(report.moduleDefaults)}',
       modelResult: {
         'returned': report.evaluations.length,
         'truncated': candidates.length > limited.length,
         'fast_layer_ran': report.fastLayerRan,
         'nodes_without_ms': report.nodesWithoutMs,
+        // 这一跑用的数字（空 = 转录默认值一个字没动）。与机制面板上写着的是同一份
+        // —— 读数里带出来，"定价跟着用户拖的值走"才是可验收的。
+        'module_defaults': report.moduleDefaults,
         'problems': [
           for (final evaluation in report.evaluations)
             {
@@ -223,9 +237,15 @@ class EvaluateProblemFitTool extends AiTool {
 /// Extracted rather than copied so `evaluate_problem_fit` and `plan_today`
 /// cannot drift into two different pictures of the same user state; it reads
 /// through the repositories and writes nothing.
+///
+/// It also reads the user's tuned parameters ([database] → `local_settings`) and
+/// folds them in through [MechanismCatalog.problemEvaluatorDefaults]: 题目定价
+/// 那一跑装着 `context.goal`，所以库诊断面板上那个滑块在这里同样算数 —— 用户拖过
+/// 的数字只有**一处**读、一处折，两个工具不会一个用 0.3 一个用 1.2。
 Future<ProblemEvaluationReport> evaluateProblems({
   required AnkiRepository ankiRepository,
   required TagRepository tagRepository,
+  required AppDatabase database,
   required CognitiveModel model,
   required List<ProblemCandidate> candidates,
   required DateTime moment,
@@ -263,6 +283,14 @@ Future<ProblemEvaluationReport> evaluateProblems({
     }
   }
 
+  // 用户拖过的那个数（roadmap §3 第 8 行第一个滑块）在这里生效：设置读一处、
+  // 折一处（`MechanismCatalog.problemEvaluatorDefaults`），两个 §2-A 工具都走这条
+  // 共享装配，不会一个用 0.3 一个用 1.2。没调过就是空表 —— 出厂行为一字不变。
+  final settings = await SettingsRepository(database).getSettings();
+  final moduleDefaults = MechanismCatalog.problemEvaluatorDefaults(
+    goalBeta: settings?.goalBeta,
+  );
+
   return ProblemEvaluator.evaluate(
     candidates: candidates,
     tags: tags,
@@ -270,11 +298,34 @@ Future<ProblemEvaluationReport> evaluateProblems({
     model: model,
     nowHours: modelHoursOf(moment),
     startKnowledgePointIds: startKnowledgePointIds,
+    moduleDefaults: moduleDefaults,
     // Same boundary as the page: the evaluator translates into the graph's tag
     // key space and reports back in knowledge-point ids (Q8).
     tagIdsByKnowledgePoint:
         KnowledgePointTagBridge.tagIdsByKnowledgePoint(links),
   );
+}
+
+/// 把"这一跑用的参数"写成一句人话给模型看（空表 → 空串）。
+///
+/// 读数里带的是原始表（`module_defaults`）；摘要里这一句是为了不让模型把
+/// "用户调过的定价"当成出厂值 —— 数字一样要说清它是谁定的。
+String tunedParametersNote(Map<String, Object?> moduleDefaults) {
+  if (moduleDefaults.isEmpty) {
+    return '';
+  }
+  final parts = <String>[];
+  for (final entry in moduleDefaults.entries) {
+    final params = entry.value;
+    if (params is Map) {
+      for (final param in params.entries) {
+        parts.add('${entry.key}.${param.key}=${param.value}');
+      }
+    } else {
+      parts.add('${entry.key}=$params');
+    }
+  }
+  return '（这一跑用的是用户调过的参数：${parts.join(' / ')}）';
 }
 
 /// Parses the `problems` argument both §2-A tools accept. A malformed entry is

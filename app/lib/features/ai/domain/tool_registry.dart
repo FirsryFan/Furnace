@@ -62,6 +62,7 @@ class ToolRegistry {
       EvaluateProblemFitTool(
         ankiRepository: anki,
         tagRepository: tags,
+        database: db,
         model: model,
         clock: clock,
       ),
@@ -72,6 +73,7 @@ class ToolRegistry {
       PlanTodayTool(
         ankiRepository: anki,
         tagRepository: tags,
+        database: db,
         model: model,
         clock: clock,
       ),

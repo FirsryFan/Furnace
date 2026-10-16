@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
@@ -35,6 +36,7 @@ void main() {
     tool = PlanTodayTool(
       ankiRepository: anki,
       tagRepository: tags,
+      database: db,
       clock: () => moment,
     );
   });
@@ -227,5 +229,21 @@ void main() {
     expect(actionsOf(result), hasLength(1));
     expect(payload['considered'], 2);
     expect(result.summary, contains('另有 1 件排在清单外'));
+  });
+
+  test('用户拖过的定价参数（§3 第 8 行第一个滑块）在 plan_today 里也算数', () async {
+    await duePoint('动量守恒');
+    final settings = SettingsRepository(db);
+    await settings.ensureSettings(language: 'zh');
+    await settings.updateGoalBeta(1.2);
+
+    final result = await tool.run(invoke({
+      'problems': [problem('p1')],
+    }));
+
+    // 定价这一跑与 `evaluate_problem_fit` 走的是同一条装配，用户拖的值
+    // 就在这里生效；摘要里说清它是谁定的，别把用户调过的数当出厂值。
+    expect(result.summary, contains('用户调过的参数'));
+    expect(result.summary, contains('context.goal.beta_goal=1.2'));
   });
 }

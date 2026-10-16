@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-10-17 轮次九十：用户拖的那个数，在装了目标机制的每一跑里都算数（Lead）
+
+**做了什么**：轮次八十九让用户能拖 `context.goal.beta_goal`，可那个数只走到库诊断那一跑。机制面板上
+写着目标机制装在**两处**（库诊断 + 题目定价），卡片上又写着"你调的 1.2" —— 两句话同时成立就成了谎：
+题目定价那一跑（`evaluate_problem_fit` / `plan_today` 背后的 `ProblemEvaluator`）仍在用出厂 0.3 算
+`V(π)`。这一轮把用户调的值接到"装了它的每一跑"，并让读数说出这一跑用了什么。
+
+- **一条规则**：`MechanismCatalog.goalBetaDefaults({installedIds, moduleDefaults, goalBeta})` ——
+  只有 `installedIds` 里真有 `context.goal` 才补那一个键，否则原样返回。库诊断那一跑按
+  `libraryDiagnosisIdsFor(goalEnabled:)` 折（开关管着），题目定价那一跑按 `problemEvaluatorIds` 折。
+  原先那个 `libraryDiagnosisDefaults` 包装函数**删掉了** —— 它默认"目标机制一定装着"，正是这一轮要堵的谎。
+- **工具层只有一处读设置**：`evaluateProblems`（两个 §2-A 工具共用的装配）自己读
+  `SettingsRepository(database).getSettings()`、自己折；`EvaluateProblemFitTool` 与 `PlanTodayTool`
+  的构造因此多了 `required AppDatabase database`（注册处传 `db`）。"一个用 0.3、一个用 1.2"在结构上不可能。
+- **读数要能验收**：`ProblemEvaluationReport` 多了 `moduleDefaults`（空 = 转录默认值一个字没动），
+  `evaluate_problem_fit` 的 `modelResult['module_defaults']` 直接带出去；摘要另加一句人话
+  （`tunedParametersNote`，"这一跑用的是用户调过的参数：context.goal.beta_goal=1.2"）—— 数字一样要说清
+  是谁定的，否则模型会把用户调过的定价当出厂值。`plan_today` 的计划协议（`toJson`）不动，那句人话照加。
+- **关掉机制 ≠ 抹掉你调的值**：开关关掉后库诊断那一跑折出来的表是空的（没装的机制不该有参数），
+  但数字还留在库里（滑块禁用、位置保留）。
+- **面板补一句"这一个数谁会读"**（`mechanismGoalBetaApplies`）：库诊断那一跑与题目定价那一跑都读它，
+  工具读数里的 `module_defaults` 就是它（没调过时是空的）。
+
+**证据**：`app/test/features/ai/cognitive_tools_test.dart` +3 例（没调过 → `module_defaults` 为空、摘要
+一个字不多说；调过 1.2 → 读数就是 `{'context.goal': {'beta_goal': 1.2}}` 且摘要写
+`context.goal.beta_goal=1.2`；**拖到 0 也算"调过"**）；`today_tools_test.dart` +1 例（`plan_today` 的摘要
+同口径）；`library_diagnosis_reader_test.dart` +1 例（机制关掉 + 拖过值 → 那一跑 `module_defaults` 为空、
+`mechanism_ids` 里没有 `context.goal`，而库里的值还在）；`mechanism_page_test.dart` 的滑块用例多钉一句
+"面板写着这一个数谁会读"；`library_diagnosis_test.dart` 两处改用 `goalBetaDefaults(installedIds: …)`。
+本轮 `dart format` 16 个 Dart 文件 1 changed（改完复查 0 changed）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**，与八十六～八十九同一条基线）；全量 `flutter test --concurrency=1`
+→ **+2001 ~2**（轮次八十九 `+1996 ~2`，差值 5：+3 +1 +1）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 执行完怎么落库；③ `ls` 仍没有标定来源；
+④ 其余 18 个参数还没有滑块（而且不该铺开：19 个参数里只有 2 个写着"有出处"，先要的是标定，不是更多旋钮）；
+⑤ 报告里不能"就地改一改再跑"。
+
+---
+
 ## 2026-10-17 轮次八十九：第一个滑块 —— 目标机制的牵引强度（Lead）
 
 **做了什么**：轮次八十六给了用户一个开关（装不装目标机制），可"装"只有两个档：开或关。机制参数表里
@@ -47,7 +86,8 @@ NULL"）；`mechanism_reader_test.dart` +4 例（`goalBeta` 进 `moduleDefaults`
 ③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"到此才各有一个
 （目标机制），其余十八个参数还没有滑块 —— 而且滑块**不该**铺开：参数表里 17 个写着"未标定"，
 给用户一个没出处的旋钮与"面板如实说"是同一件事的两面，先要的是标定，不是更多旋钮；⑤ 报告里不能
-"就地改一改再跑"。
+"就地改一改再跑"；⑥ 当时这个数**只在库诊断那一跑生效**，题目定价那一跑（`evaluate_problem_fit` /
+`plan_today`）还没读设置 —— **已在轮次九十补上（同一处装配读同一份设置，读数带 `module_defaults`）**。
 
 ---
 

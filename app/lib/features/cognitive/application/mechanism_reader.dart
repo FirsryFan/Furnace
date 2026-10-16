@@ -160,7 +160,10 @@ MechanismPanel readMechanismPanel({
   bool goalMechanismEnabled = true,
   double? goalBeta,
 }) {
-  final effectiveDefaults = MechanismCatalog.libraryDiagnosisDefaults(
+  // 这一处是**显示**：`allIds` 里带着 `context.goal`，所以用户拖过的值一律折进来
+  // —— 机制被关掉之后也照显示（开关管的是装不装，不是把用户调的数字抹掉）。
+  final effectiveDefaults = MechanismCatalog.goalBetaDefaults(
+    installedIds: MechanismCatalog.allIds,
     moduleDefaults: moduleDefaults,
     goalBeta: goalBeta,
   );

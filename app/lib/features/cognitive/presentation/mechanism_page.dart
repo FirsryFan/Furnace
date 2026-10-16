@@ -335,6 +335,9 @@ class _GoalBetaCardState extends State<_GoalBetaCard> {
               ],
             ),
             if (!widget.goalEnabled) _Note(text: l10n.mechanismGoalBetaOffNote),
+            // "这一个数到底谁会读"必须写出来：滑块不是只给本页那份读数用的 ——
+            // 题目定价那一跑也走同一条折法（轮次九十）。
+            _Note(text: l10n.mechanismGoalBetaApplies),
           ],
         ),
       ),

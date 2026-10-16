@@ -14,6 +14,7 @@
 /// in and a sentence saying why each item is on it.
 library;
 
+import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
@@ -28,15 +29,22 @@ class PlanTodayTool extends AiTool {
   PlanTodayTool({
     required AnkiRepository ankiRepository,
     required TagRepository tagRepository,
+    required AppDatabase database,
     CognitiveModel model = const MindNetCognitiveModel(),
     DateTime Function()? clock,
   })  : _anki = ankiRepository,
         _tags = tagRepository,
+        _database = database,
         _model = model,
         _clock = clock ?? DateTime.now;
 
   final AnkiRepository _anki;
   final TagRepository _tags;
+
+  /// The same shared assembly `evaluate_problem_fit` uses ([evaluateProblems])
+  /// reads the user's tuned parameters from here - one place, so `plan_today`'s
+  /// prices cannot be computed with a different `beta_goal` than that tool's.
+  final AppDatabase _database;
   final CognitiveModel _model;
 
   /// Injected so a test can pin "now" and get the same list twice.
@@ -146,6 +154,7 @@ class PlanTodayTool extends AiTool {
         : await evaluateProblems(
             ankiRepository: _anki,
             tagRepository: _tags,
+            database: _database,
             model: _model,
             candidates: candidates,
             moment: moment,
@@ -175,7 +184,8 @@ class PlanTodayTool extends AiTool {
       return ToolResult(
         ok: true,
         summary: '今天没有到期要复习的卡，也没有可排的题：清单是空的'
-            '（这不是"没事做"，只是到期队列与候选题都空着）',
+            '（这不是"没事做"，只是到期队列与候选题都空着）'
+            '${tunedParametersNote(report.moduleDefaults)}',
         modelResult: plan.toJson(),
       );
     }
@@ -195,7 +205,8 @@ class PlanTodayTool extends AiTool {
       ok: true,
       summary: '今天做这几件事（${plan.actions.length} 件$omitted）：\n'
           '${lines.join('\n')}\n'
-          '加成未标定：这份顺序是提示，不是测量。',
+          '加成未标定：这份顺序是提示，不是测量。'
+          '${tunedParametersNote(report.moduleDefaults)}',
       modelResult: plan.toJson(),
     );
   }

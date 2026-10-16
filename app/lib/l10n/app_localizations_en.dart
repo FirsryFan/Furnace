@@ -2199,8 +2199,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mechanismGoalBetaReset => 'Back to the shipped value';
 
   @override
+  String get mechanismGoalBetaApplies =>
+      'Every run that installs the goal mechanism reads this number: the library-diagnosis run (the reading above on this page) and the problem-pricing run (the V(π) ordering behind evaluate_problem_fit / plan_today). The tools\' module_defaults carries exactly it - empty when you have never tuned it (the shipped value untouched).';
+
+  @override
   String get mechanismGoalBetaOffNote =>
-      'The goal mechanism is not installed (the switch above is off), so this value is not used by that run.';
+      'The goal mechanism is not installed (the switch above is off), so the runs that would install it do not use this value; the number stays for when you turn it back on.';
 
   @override
   String get mechanismDisabledBySetting =>

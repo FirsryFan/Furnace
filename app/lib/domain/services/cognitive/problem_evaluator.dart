@@ -221,6 +221,7 @@ class ProblemEvaluationReport {
     required this.evaluations,
     required this.fastLayerRan,
     required this.nodesWithoutMs,
+    this.moduleDefaults = const <String, Object?>{},
   });
 
   /// Ranked: `rankKey` descending, then `counterfactualValue` descending (the
@@ -237,6 +238,12 @@ class ProblemEvaluationReport {
   /// supplied an encoding strength. "Not provided" - **not** 0.8
   /// (`CognitiveGraph.nodesWithoutMs`).
   final List<String> nodesWithoutMs;
+
+  /// The `module_defaults` this run actually assembled with (the user's tuned
+  /// parameters, when any). Carried out so a caller can say - and a test can
+  /// pin - which numbers the prices came from; empty means "the transcribed
+  /// table, untouched".
+  final Map<String, Object?> moduleDefaults;
 }
 
 /// One candidate's fast-layer run: the complaints and the counterfactual plan,
@@ -399,6 +406,7 @@ abstract final class ProblemEvaluator {
       evaluations: List.unmodifiable(evaluations),
       fastLayerRan: fastLayerRan,
       nodesWithoutMs: graph.nodesWithoutMs,
+      moduleDefaults: moduleDefaults,
     );
   }
 

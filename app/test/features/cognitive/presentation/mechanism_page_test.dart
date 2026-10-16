@@ -253,6 +253,8 @@ void main() {
       expect(find.byType(Slider), findsOneWidget);
       expect(find.text(l10n.mechanismGoalBetaTitle), findsOneWidget);
       expect(find.text(l10n.mechanismGoalBetaBody), findsOneWidget);
+      // "这一个数谁会读"必须写出来：题目定价那一跑也走同一条折法。
+      expect(find.text(l10n.mechanismGoalBetaApplies), findsOneWidget);
       expect(find.text(l10n.mechanismGoalBetaShipped), findsOneWidget);
       expect(find.text(l10n.mechanismGoalBetaFromSetting), findsNothing);
       expect(find.text(l10n.mechanismGoalBetaReset), findsNothing);

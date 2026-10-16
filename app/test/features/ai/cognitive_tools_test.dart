@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
@@ -35,6 +36,7 @@ void main() {
     tool = EvaluateProblemFitTool(
       ankiRepository: anki,
       tagRepository: tags,
+      database: db,
       clock: () => moment,
     );
   });
@@ -443,6 +445,67 @@ void main() {
       final properties = parameters['properties']! as Map;
       expect(properties.keys.toSet(),
           {'problems', 'start_knowledge_point_ids', 'now', 'limit'});
+    });
+  });
+
+  group('用户拖的那个数（roadmap §3 第 8 行第一个滑块）：题目定价这一跑也读它', () {
+    test('没调过：读数里 module_defaults 是空的，一个字都不多说', () async {
+      await anki.createKnowledgePoint(title: '动量守恒', content: '不受外力时守恒。');
+
+      final result = await tool.run(
+        invoke({
+          'problems': [
+            problem('p1', kps: const ['kp'])
+          ],
+        }),
+      );
+
+      expect(result.ok, isTrue);
+      expect((result.modelResult! as Map)['module_defaults'], isEmpty,
+          reason: '没调过就是出厂值：这一跑不该凭空多出一个参数');
+      expect(result.summary, isNot(contains('用户调过的参数')));
+    });
+
+    test('调过之后：读数带的是那个数，摘要里说清它是谁定的', () async {
+      final point = await anki.createKnowledgePoint(
+        title: '动量守恒',
+        content: '不受外力时守恒。',
+      );
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(1.2);
+
+      final result = await tool.run(
+        invoke({
+          'problems': [
+            problem('p1', kps: [point.id])
+          ],
+        }),
+      );
+
+      expect(result.ok, isTrue);
+      expect((result.modelResult! as Map)['module_defaults'], {
+        'context.goal': {'beta_goal': 1.2},
+      });
+      // 摘要里也得说 —— 否则模型会把"用户调过的定价"当成出厂值。
+      expect(result.summary, contains('用户调过的参数'));
+      expect(result.summary, contains('context.goal.beta_goal=1.2'));
+    });
+
+    test('用户拖到 0 也是一个值：不算"没调过"', () async {
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalBeta(0);
+
+      final result = await tool.run(
+        invoke({
+          'problems': [problem('p1')],
+        }),
+      );
+
+      expect((result.modelResult! as Map)['module_defaults'], {
+        'context.goal': {'beta_goal': 0.0},
+      });
     });
   });
 }

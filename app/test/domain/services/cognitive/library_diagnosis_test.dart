@@ -362,8 +362,10 @@ void main() {
           nowHours: nowHours,
           startKnowledgePointIds: const ['root'],
           targetKnowledgePointIds: const ['target'],
-          moduleDefaults:
-              MechanismCatalog.libraryDiagnosisDefaults(goalBeta: goalBeta),
+          moduleDefaults: MechanismCatalog.goalBetaDefaults(
+            installedIds: MechanismCatalog.libraryDiagnosisIds,
+            goalBeta: goalBeta,
+          ),
         );
 
     test('用户没调过（NULL）：这一次跑一个默认值都不传', () {
@@ -397,7 +399,10 @@ void main() {
         rowsByKnowledgePoint: const {},
         model: model,
         nowHours: nowHours,
-        moduleDefaults: MechanismCatalog.libraryDiagnosisDefaults(goalBeta: 2),
+        moduleDefaults: MechanismCatalog.goalBetaDefaults(
+          installedIds: MechanismCatalog.libraryDiagnosisIds,
+          goalBeta: 2,
+        ),
       );
       expect(noGraph.moduleDefaults, isEmpty);
     });

@@ -328,8 +328,13 @@ Future<LibraryDiagnosis> readLibraryDiagnosis(
 
   // 第一个滑块（roadmap §3 第 8 行）：目标机制的牵引强度。NULL = 用户没调过，
   // 折成空表 —— 这一跑用的数字与出厂一字不差。有值就只补 `context.goal.beta_goal`
-  // 一个键（见 `MechanismCatalog.libraryDiagnosisDefaults`），并把这份表交给读数带出去。
-  final moduleDefaults = MechanismCatalog.libraryDiagnosisDefaults(
+  // 一个键（见 `MechanismCatalog.goalBetaDefaults`），并把这份表交给读数带出去。
+  // 按**这一跑实际装的清单**折：用户把目标机制关掉之后，这一跑连 `context.goal`
+  // 都没有，还给它参数就是读数在撒谎。
+  final moduleDefaults = MechanismCatalog.goalBetaDefaults(
+    installedIds: MechanismCatalog.libraryDiagnosisIdsFor(
+      goalEnabled: goalMechanismEnabled,
+    ),
     goalBeta: settings?.goalBeta,
   );
 
