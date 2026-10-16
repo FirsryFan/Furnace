@@ -1191,6 +1191,53 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get knowledgeEdgeAdd => '加一条线索边';
+
+  @override
+  String get knowledgeEdgeAddTitle => '手写一条线索边';
+
+  @override
+  String get knowledgeEdgeDirectionOutgoing => '它指向……';
+
+  @override
+  String get knowledgeEdgeDirectionIncoming => '……指向它';
+
+  @override
+  String get knowledgeEdgePickOther => '另一端';
+
+  @override
+  String get knowledgeEdgeNoOtherPoints => '图里还没有别的知识点可以连（手写的知识点没有图内的 id，连不了边）';
+
+  @override
+  String get knowledgeEdgeCreated => '已加一条手写线索边（ls 为空 —— 没有标定来源就不假装有）';
+
+  @override
+  String knowledgeEdgeAlreadyExists(String origin) {
+    return '这个方向已经有一条边了（$origin），没重复加';
+  }
+
+  @override
+  String get knowledgeEdgeEndpointMissing => '两端都必须已经在图里，这一条没加';
+
+  @override
+  String get knowledgeEdgeSamePoint => '起点和终点是同一个点，这一条没加';
+
+  @override
+  String get knowledgeEdgeDeleteTooltip => '删掉这条手写边';
+
+  @override
+  String get knowledgeEdgeDeleteConfirm => '删掉这条手写线索边？';
+
+  @override
+  String get knowledgeEdgeDeleted => '已删掉这条手写边';
+
+  @override
+  String get knowledgeEdgeNotFound => '这条边已经不在了';
+
+  @override
+  String get knowledgeEdgeNotManual => '只有手写的边能这样删（材料确认来的边要回材料那一步）';
+
+  @override
   String get settingsDemoData => '载入示例数据';
 
   @override

@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-10-16 轮次七十二：手写/删除边 —— 那条路现在也能自己走（Lead）
+
+**做了什么**：清单页和知识点详情里都已经在**读** `knowledge_edges`，写它的却只有"材料确认"那一条路 ——
+`manual`（"手写"）这个关系名早就会说人话，却没有任何界面能造出一条这样的边。可资料进图给的只是材料里
+明写着的连接；用户自己看出来的那一条（"B 那句话其实是在解释 A"），以前只能等下一份材料顺带提到它。
+这一轮把**第二个写者**补上：仓库给出手写边的 API，详情里能加能删，同时把"只能删自己写的"钉死。
+
+- `app/lib/data/repositories/knowledge_edge_repository.dart`：类 doc 从"这一层不写（只读是刻意的）"
+  改成"读法 + 唯一的第二个写者（`origin: 'manual'`）"，并写明分工：材料确认那条路 = 材料里写的连接，
+  这里 = 用户自己看出来的连接。新增 `graphPoints()`（图里的点 = `external_id` 非空、去重、按标题再按 id 排）、
+  `createManualEdge({fromId, toId, now})`、`deleteManualEdge(edgeId)`，以及
+  `KnowledgeEdgeEndpoint` / `ManualEdgeOutcome`{created, alreadyExists, unknownEndpoint, samePoint} /
+  `ManualEdgeResult` / `ManualEdgeDeleteOutcome`{deleted, notFound, notManual}。
+- `app/lib/features/anki/presentation/knowledge_point_edges.dart`：线索边那一节末尾永远有"加一条线索边"
+  （方向：它指向 / 指向它 + 另一端下拉，候选里剔除自己）；每一行只有 `origin == 'manual'` 时才出现
+  删除按钮，删之前先问一次。`_refresh` 显式 invalidate 三个 provider（这个点的边、候选点、清单页）——
+  这一段刚动过那张表，不等数据库 revision 兜一圈。
+- `app/lib/features/anki/presentation/knowledge_edge_page.dart`：新增 `knowledgeEdgeEndpointsProvider`
+  （候选点）—— 放这儿不放管理页，否则与 `anki_manage_page.dart` 成环。
+
+**刻意选择**：① **"同一个方向只留一条"按方向判，不按作者判** —— 图说的是"这两点之间有一条线索"这个事实，
+不是"谁写的那条线索"；再来一条会把同一个事实说两遍，所以报"已经有了（材料确认来的）"而不是偷偷加第二条；
+② **写完自己重读** —— `AppDatabase.forTesting` 不带写拦截器（`DbWriteInterceptor` 只在
+`database.dart:946` 那条连接里装），测试里 revision 本来就不会动；显式 invalidate 既让界面不多等一拍、
+也让这条线在测试里能被钉住；③ **手写边一律不给 `ls`** —— 没有标定来源就不假装有，读法那边照旧显示"没有 ls"。
+
+**证据**：`flutter test test/data/repositories/knowledge_edge_repository_test.dart
+test/features/anki/knowledge_point_edges_test.dart` → `+20: All tests passed!`
+（5 例新增仓库例：`graphPoints` 只收有 `external_id` 的点、手写边的形状（`manual:from->to`、`ls`/`source`/`batchId`
+皆空、反向另算一条）、同方向已有材料边 ⇒ `alreadyExists` 且库里仍 1 行、缺端点与自连、删除三种 outcome；
+6 例新增 widget：手写出边／入边各落对方向且界面立刻看得见、已有边不重复加、图里只有自己时确认钮不可按、
+材料边没有删除按钮、手写边删除全流程）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**；方向选择改用 `RadioGroup<String>` 祖先后
+回到基线，`RadioListTile.groupValue/onChanged` 那 4 条 deprecation info 不再出现）。
+
+**全量回归**：`flutter test --concurrency=1` → `+1853 ~2: All tests passed!`（exit 0）。
+轮次七十一 后是 `+1842 ~2`，差值 11 = 本轮新增的 5 例仓库 + 6 例 widget。
+
+**已知没做**：① 点开一条边跳到另一端的知识点（现在只显示名字，不能跳）；② 已确认完的历史无处可看；
+③ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，需要外部数据）；
+④ TRANSCRIBE 的照片本身（§2-C ③）与把 `run/1` 真的跑进引擎。
+
+---
+
 ## 2026-10-16 轮次七十一：按知识点看线索边 —— 详情里第一次看得见图（Lead）
 
 **做了什么**：轮次七十给 `knowledge_edges` 配了清单页，回答"图里现在有什么线"；可用户真正会问的是

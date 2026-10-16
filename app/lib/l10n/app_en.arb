@@ -509,6 +509,24 @@
   "@knowledgePointEdgesIncoming": {
     "placeholders": { "other": { "type": "String" } }
   },
+  "knowledgeEdgeAdd": "Add a clue edge",
+  "knowledgeEdgeAddTitle": "Hand-write a clue edge",
+  "knowledgeEdgeDirectionOutgoing": "it points at…",
+  "knowledgeEdgeDirectionIncoming": "…points at it",
+  "knowledgeEdgePickOther": "the other end",
+  "knowledgeEdgeNoOtherPoints": "no other knowledge point in the graph to connect to (hand-written points have no in-graph id)",
+  "knowledgeEdgeCreated": "added a hand-written clue edge (ls stays empty — no calibration source, so none is claimed)",
+  "knowledgeEdgeAlreadyExists": "this direction already has an edge ({origin}); nothing was added",
+  "@knowledgeEdgeAlreadyExists": {
+    "placeholders": { "origin": { "type": "String" } }
+  },
+  "knowledgeEdgeEndpointMissing": "both ends must already be in the graph; nothing was added",
+  "knowledgeEdgeSamePoint": "start and end are the same point; nothing was added",
+  "knowledgeEdgeDeleteTooltip": "delete this hand-written edge",
+  "knowledgeEdgeDeleteConfirm": "Delete this hand-written clue edge?",
+  "knowledgeEdgeDeleted": "deleted the hand-written edge",
+  "knowledgeEdgeNotFound": "that edge is already gone",
+  "knowledgeEdgeNotManual": "only hand-written edges can be deleted here (material edges belong to the material step)",
 
   "settingsDemoData": "Load demo data",
   "settingsDemoDataHint": "Creates sample tags, flashcards, events and schedule blocks so the UI can be inspected right away.",

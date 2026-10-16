@@ -2277,6 +2277,96 @@ abstract class AppLocalizations {
   /// **'pointed at by: {other}'**
   String knowledgePointEdgesIncoming(String other);
 
+  /// No description provided for @knowledgeEdgeAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a clue edge'**
+  String get knowledgeEdgeAdd;
+
+  /// No description provided for @knowledgeEdgeAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand-write a clue edge'**
+  String get knowledgeEdgeAddTitle;
+
+  /// No description provided for @knowledgeEdgeDirectionOutgoing.
+  ///
+  /// In en, this message translates to:
+  /// **'it points at…'**
+  String get knowledgeEdgeDirectionOutgoing;
+
+  /// No description provided for @knowledgeEdgeDirectionIncoming.
+  ///
+  /// In en, this message translates to:
+  /// **'…points at it'**
+  String get knowledgeEdgeDirectionIncoming;
+
+  /// No description provided for @knowledgeEdgePickOther.
+  ///
+  /// In en, this message translates to:
+  /// **'the other end'**
+  String get knowledgeEdgePickOther;
+
+  /// No description provided for @knowledgeEdgeNoOtherPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'no other knowledge point in the graph to connect to (hand-written points have no in-graph id)'**
+  String get knowledgeEdgeNoOtherPoints;
+
+  /// No description provided for @knowledgeEdgeCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'added a hand-written clue edge (ls stays empty — no calibration source, so none is claimed)'**
+  String get knowledgeEdgeCreated;
+
+  /// No description provided for @knowledgeEdgeAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'this direction already has an edge ({origin}); nothing was added'**
+  String knowledgeEdgeAlreadyExists(String origin);
+
+  /// No description provided for @knowledgeEdgeEndpointMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'both ends must already be in the graph; nothing was added'**
+  String get knowledgeEdgeEndpointMissing;
+
+  /// No description provided for @knowledgeEdgeSamePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'start and end are the same point; nothing was added'**
+  String get knowledgeEdgeSamePoint;
+
+  /// No description provided for @knowledgeEdgeDeleteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'delete this hand-written edge'**
+  String get knowledgeEdgeDeleteTooltip;
+
+  /// No description provided for @knowledgeEdgeDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this hand-written clue edge?'**
+  String get knowledgeEdgeDeleteConfirm;
+
+  /// No description provided for @knowledgeEdgeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'deleted the hand-written edge'**
+  String get knowledgeEdgeDeleted;
+
+  /// No description provided for @knowledgeEdgeNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'that edge is already gone'**
+  String get knowledgeEdgeNotFound;
+
+  /// No description provided for @knowledgeEdgeNotManual.
+  ///
+  /// In en, this message translates to:
+  /// **'only hand-written edges can be deleted here (material edges belong to the material step)'**
+  String get knowledgeEdgeNotManual;
+
   /// No description provided for @settingsDemoData.
   ///
   /// In en, this message translates to:

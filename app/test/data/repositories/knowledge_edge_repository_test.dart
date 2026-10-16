@@ -7,7 +7,9 @@
 ///  - `ls` 与 `ls_calibrated` 原样带出来 —— 读法不许把"未标定"洗掉，
 ///    也不许把"材料没给 ls"读成 0；
 ///  - `forPoint(id)` 把一个点的出边和入边一起读回来（方向留给调用方判断），
-///    别人的边不许混进来。
+///    别人的边不许混进来；
+///  - 手写边（`origin: 'manual'`）那几条硬约束：两端必须在图里、同一个方向只留一条
+///    （材料写过的不再手写一条平行的）、`ls` 留空、只能删手写的。
 library;
 
 // drift 也导出 `isNull`（那是 SQL 的），测试里要的是 matcher 的那个。
@@ -169,5 +171,123 @@ void main() {
     await addEdge(id: 'e_1', fromId: 'en::w::rely-on', toId: 'x', createdAt: 1);
 
     expect(await edges.forPoint('没有这个点'), isEmpty);
+  });
+
+  test('graphPoints：只有图里有 id 的点能当端点，重复 id 只算一个，按标题排', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+    await addPoint(title: 'dedupe me', externalId: 'en::w::rely-on');
+    await addPoint(title: 'I relied on him.', externalId: 'en::s::abc');
+    // 手写的知识点：没有 external_id，连不了边，所以不在候选里。
+    await anki.createKnowledgePoint(title: '手写的', content: '手写的');
+
+    final points = await edges.graphPoints();
+
+    expect(points.map((p) => p.externalId),
+        <String>['en::s::abc', 'en::w::rely-on']);
+    expect(points.first.title, 'I relied on him.');
+    // 同一个 external_id 取第一个（与解标题同一套规则）。
+    expect(points.last.title, 'rely on');
+  });
+
+  test('手写一条边：origin 是 manual、ls 留空、严格有向不自动反向', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+    await addPoint(title: 'I relied on him.', externalId: 'en::s::abc');
+
+    final created = await edges.createManualEdge(
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      now: 5000,
+    );
+    expect(created.outcome, ManualEdgeOutcome.created);
+    expect(created.edgeId, 'manual:en::w::rely-on->en::s::abc');
+
+    final row = await db.select(db.knowledgeEdges).getSingle();
+    expect(row.origin, 'manual');
+    expect(row.ls, isNull);
+    expect(row.lsCalibrated, isFalse);
+    expect(row.source, isNull);
+    expect(row.batchId, isNull);
+    expect(row.createdAt, 5000);
+
+    // 反方向是另一条边（严格有向）：手写一条不算反向也写了。
+    final reversed = await edges.createManualEdge(
+      fromId: 'en::s::abc',
+      toId: 'en::w::rely-on',
+      now: 5001,
+    );
+    expect(reversed.outcome, ManualEdgeOutcome.created);
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+  });
+
+  test('同一个方向已经有一条边（不管谁写的）：手写不再加一条平行的', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+    await addPoint(title: 'I relied on him.', externalId: 'en::s::abc');
+    await addEdge(
+      id: 'e_material',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+      origin: 'produce',
+    );
+
+    final result = await edges.createManualEdge(
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      now: 5000,
+    );
+
+    expect(result.outcome, ManualEdgeOutcome.alreadyExists);
+    expect(result.edgeId, 'e_material');
+    expect(result.existingOrigin, 'produce');
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(1));
+  });
+
+  test('手写边：缺端点不加、自己连自己不加', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+
+    final missing = await edges.createManualEdge(
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      now: 5000,
+    );
+    expect(missing.outcome, ManualEdgeOutcome.unknownEndpoint);
+
+    final same = await edges.createManualEdge(
+      fromId: 'en::w::rely-on',
+      toId: 'en::w::rely-on',
+      now: 5000,
+    );
+    expect(same.outcome, ManualEdgeOutcome.samePoint);
+    expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+  });
+
+  test('删手写边：删得掉；材料边与不存在的 id 都不删', () async {
+    await addPoint(title: 'rely on', externalId: 'en::w::rely-on');
+    await addPoint(title: 'I relied on him.', externalId: 'en::s::abc');
+    await addEdge(
+      id: 'e_material',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+      origin: 'produce',
+    );
+    await edges.createManualEdge(
+      fromId: 'en::s::abc',
+      toId: 'en::w::rely-on',
+      now: 5000,
+    );
+
+    expect(await edges.deleteManualEdge('e_material'),
+        ManualEdgeDeleteOutcome.notManual);
+    expect(
+        await edges.deleteManualEdge('没有这条'), ManualEdgeDeleteOutcome.notFound);
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
+
+    expect(
+      await edges.deleteManualEdge('manual:en::s::abc->en::w::rely-on'),
+      ManualEdgeDeleteOutcome.deleted,
+    );
+    final left = await db.select(db.knowledgeEdges).get();
+    expect(left.single.id, 'e_material');
   });
 }

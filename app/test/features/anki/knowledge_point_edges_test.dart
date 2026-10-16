@@ -6,7 +6,10 @@
 ///  - 这个点没有 `external_id`（手写的知识点，从没进过图）⇒ 说"它不在图里"，
 ///    不说"它没有边"——后者听起来像"查过了，确实没有"；
 ///  - 进了图但库里没有边 ⇒ 说"还没有线索边（确认之后才会有）"；
-///  - 出边和入边都站在这个点的角度说方向（它指向谁 / 谁指向它），并带关系名。
+///  - 出边和入边都站在这个点的角度说方向（它指向谁 / 谁指向它），并带关系名；
+///  - 手写一条边（`origin: 'manual'`）从这一段就能做，方向可选；同一个方向已有边就
+///    如实说"已经有一条了（谁写的）"，不重复加；
+///  - 删除只给手写边：材料边那一行没有删除按钮。
 library;
 
 import 'package:drift/native.dart';
@@ -127,5 +130,191 @@ void main() {
     );
     expect(find.text(l10n.knowledgeEdgesOriginProduce), findsOneWidget);
     expect(find.text(l10n.knowledgeEdgesOriginContains), findsOneWidget);
+  });
+
+  Future<void> addManualEdge({
+    required String fromId,
+    required String toId,
+    required String id,
+  }) async {
+    await db.into(db.knowledgeEdges).insert(
+          KnowledgeEdgesCompanion.insert(
+            id: id,
+            fromId: fromId,
+            toId: toId,
+            origin: 'manual',
+            createdAt: 3000,
+            updatedAt: 3000,
+          ),
+        );
+  }
+
+  /// 打开"加一条线索边"，选另一端与方向，然后确认。
+  Future<void> addEdgeThroughUi(
+    WidgetTester tester,
+    AppLocalizations l10n, {
+    required String other,
+    bool incoming = false,
+  }) async {
+    await tester.tap(find.text(l10n.knowledgeEdgeAdd));
+    await tester.pumpAndSettle();
+    if (incoming) {
+      await tester.tap(find.text(l10n.knowledgeEdgeDirectionIncoming));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(other).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.commonConfirm));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('手写一条边：它指向 X —— 落库成 manual，界面也立刻看得见', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    await addEdgeThroughUi(tester, l10n, other: 'I relied on him.');
+
+    expect(find.text(l10n.knowledgeEdgeCreated), findsOneWidget);
+    final row = await db.select(db.knowledgeEdges).getSingle();
+    expect(row.id, 'manual:en::w::rely-on->en::s::abc');
+    expect(row.origin, 'manual');
+    expect(row.fromId, 'en::w::rely-on');
+    expect(row.toId, 'en::s::abc');
+    expect(row.ls, isNull);
+    // 写完就重读：这一段现在显示这条边（手写边带删除按钮）。
+    expect(
+      find.text(l10n.knowledgePointEdgesOutgoing('I relied on him.')),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip(l10n.knowledgeEdgeDeleteTooltip),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('手写一条边也可以反过来：X 指向它', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('depend on', 'en::w::depend-on');
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    await addEdgeThroughUi(
+      tester,
+      l10n,
+      other: 'depend on',
+      incoming: true,
+    );
+
+    final row = await db.select(db.knowledgeEdges).getSingle();
+    expect(row.fromId, 'en::w::depend-on');
+    expect(row.toId, 'en::w::rely-on');
+    expect(
+      find.text(l10n.knowledgePointEdgesIncoming('depend on')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('这个方向已经有一条边：说清是谁写的，不重复加', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+    await addEdge(
+      id: 'e_material',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+    );
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    await addEdgeThroughUi(tester, l10n, other: 'I relied on him.');
+
+    expect(
+      find.text(
+        l10n.knowledgeEdgeAlreadyExists(l10n.knowledgeEdgesOriginProduce),
+      ),
+      findsOneWidget,
+    );
+    expect(await db.select(db.knowledgeEdges).get(), hasLength(1));
+  });
+
+  testWidgets('图里只有它自己：说没有可连的另一端，确认钮不可按', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    await tester.tap(find.text(l10n.knowledgeEdgeAdd));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.knowledgeEdgeNoOtherPoints), findsOneWidget);
+    final confirm = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, l10n.commonConfirm),
+    );
+    expect(confirm.onPressed, isNull);
+  });
+
+  testWidgets('删除只给手写边：材料边那一行没有删除按钮', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+    await addEdge(
+      id: 'e_material',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+      createdAt: 1000,
+    );
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    expect(find.byTooltip(l10n.knowledgeEdgeDeleteTooltip), findsNothing);
+  });
+
+  testWidgets('手写边删得掉：先问一次，再真的删', (tester) async {
+    await addPoint('rely on', 'en::w::rely-on');
+    await addPoint('I relied on him.', 'en::s::abc');
+    await addManualEdge(
+      id: 'manual:en::w::rely-on->en::s::abc',
+      fromId: 'en::w::rely-on',
+      toId: 'en::s::abc',
+    );
+
+    await tester.pumpWidget(harness(externalId: 'en::w::rely-on'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(KnowledgePointEdgesSection)),
+    );
+
+    await tester.tap(find.byTooltip(l10n.knowledgeEdgeDeleteTooltip));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.knowledgeEdgeDeleteConfirm), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, l10n.commonDelete));
+    await tester.pumpAndSettle();
+
+    expect(find.text(l10n.knowledgeEdgeDeleted), findsOneWidget);
+    expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+    expect(find.text(l10n.knowledgePointEdgesEmpty), findsOneWidget);
   });
 }

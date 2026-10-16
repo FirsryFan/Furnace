@@ -6,8 +6,8 @@ import '../../../data/repositories/knowledge_edge_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
 
-/// 全部线索边（新的在前）。写完就重读：边的写者只有材料摄取那一处，
-/// 但它是别的页面写的，所以这一页要靠数据库 revision 自己醒过来。
+/// 全部线索边（新的在前）。写完就重读：边的写者在别处（材料确认、或是手写那一段），
+/// 所以这一页要靠数据库 revision 自己醒过来。
 final knowledgeEdgesProvider = FutureProvider<List<KnowledgeEdgeView>>((ref) {
   ref.watchDatabaseRevision();
   return ref.watch(knowledgeEdgeRepositoryProvider).all();
@@ -18,6 +18,13 @@ final knowledgePointEdgesProvider =
     FutureProvider.family<List<KnowledgeEdgeView>, String>((ref, externalId) {
   ref.watchDatabaseRevision();
   return ref.watch(knowledgeEdgeRepositoryProvider).forPoint(externalId);
+});
+
+/// 图里的端点（有 `external_id` 的知识点）：手写边那个选择框的候选。
+final knowledgeEdgeEndpointsProvider =
+    FutureProvider<List<KnowledgeEdgeEndpoint>>((ref) {
+  ref.watchDatabaseRevision();
+  return ref.watch(knowledgeEdgeRepositoryProvider).graphPoints();
 });
 
 /// 端点的显示名：库里有点就用标题，没有就照实显示 id（不编一个名字）。

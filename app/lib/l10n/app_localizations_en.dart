@@ -1242,6 +1242,59 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get knowledgeEdgeAdd => 'Add a clue edge';
+
+  @override
+  String get knowledgeEdgeAddTitle => 'Hand-write a clue edge';
+
+  @override
+  String get knowledgeEdgeDirectionOutgoing => 'it points at…';
+
+  @override
+  String get knowledgeEdgeDirectionIncoming => '…points at it';
+
+  @override
+  String get knowledgeEdgePickOther => 'the other end';
+
+  @override
+  String get knowledgeEdgeNoOtherPoints =>
+      'no other knowledge point in the graph to connect to (hand-written points have no in-graph id)';
+
+  @override
+  String get knowledgeEdgeCreated =>
+      'added a hand-written clue edge (ls stays empty — no calibration source, so none is claimed)';
+
+  @override
+  String knowledgeEdgeAlreadyExists(String origin) {
+    return 'this direction already has an edge ($origin); nothing was added';
+  }
+
+  @override
+  String get knowledgeEdgeEndpointMissing =>
+      'both ends must already be in the graph; nothing was added';
+
+  @override
+  String get knowledgeEdgeSamePoint =>
+      'start and end are the same point; nothing was added';
+
+  @override
+  String get knowledgeEdgeDeleteTooltip => 'delete this hand-written edge';
+
+  @override
+  String get knowledgeEdgeDeleteConfirm =>
+      'Delete this hand-written clue edge?';
+
+  @override
+  String get knowledgeEdgeDeleted => 'deleted the hand-written edge';
+
+  @override
+  String get knowledgeEdgeNotFound => 'that edge is already gone';
+
+  @override
+  String get knowledgeEdgeNotManual =>
+      'only hand-written edges can be deleted here (material edges belong to the material step)';
+
+  @override
   String get settingsDemoData => 'Load demo data';
 
   @override
