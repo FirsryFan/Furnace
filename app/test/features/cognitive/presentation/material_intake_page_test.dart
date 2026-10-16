@@ -1081,5 +1081,135 @@ void main() {
       expect(find.text(l10n.materialPhotoReportFailed), findsNothing);
       expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
     });
+
+    testWidgets('贴一份 run/1：校验成、原地试跑，还是一个字节都不写库', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      // 图里已经有一个点：贴进来的那份请求指着它，`reviewTranscribedRun` 才认得出。
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      MaterialRunRequest? rehearsed;
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) {
+              rehearsed = request;
+              return rehearseRun(
+                request: request,
+                db: db,
+                model: const MindNetCognitiveModel(),
+                now: DateTime(2026, 10, 17, 12),
+              );
+            }),
+          ],
+        ),
+      );
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeRunDialogTitle), findsOneWidget);
+
+      // 还没校验之前：没有结论、也没有试跑按钮（先看合不合法，再谈跑）。
+      // 页面上还有一个贴信封的 `TextField`：只认对话框里那一个。
+      final field = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(field, jsonEncode(runJson()));
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportValid), findsOneWidget);
+      // 清单来自库：那份请求指着 `kp`，库里正好有它，于是"会做什么"摆得出来。
+      expect(find.text(l10n.materialPhotoReportPreviews), findsOneWidget);
+
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+
+      expect(
+        rehearsed?.runId,
+        'run-1',
+        reason: '试跑的就是贴进来那一份请求本身，不是重新解一遍文本',
+      );
+      expect(find.text(l10n.materialPhotoReportRehearseHeader), findsOneWidget);
+      expect(find.textContaining('演练（只跑不落库'), findsOneWidget);
+      // 只读：真的跑进引擎了，库还是一个字节都没变。
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+      expect(await db.select(db.materialIntakeProposals).get(), isEmpty);
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+    });
+
+    testWidgets('贴的东西读不成 run/1：说解码器那句人话，不给试跑按钮', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        '这不是信封',
+      );
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('不是合法的 JSON 文本'), findsOneWidget);
+      expect(find.text(l10n.materialPhotoReportValid), findsNothing);
+      expect(
+        find.text(l10n.materialPhotoReportRehearse),
+        findsNothing,
+        reason: '读都没读成，谈不上试跑',
+      );
+    });
+
+    testWidgets('贴的 run/1 结构上不合法：硬错摆出来，也不给试跑按钮', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+
+      // `unknown` 不是允许的动作种类：`decodeRunRequest` 会认出它、自检会判它不合法。
+      final broken = runJson();
+      broken['actions'] = <Object?>[
+        <String, Object?>{
+          'kind': 'unknown',
+          'at': const <String, Object?>{'model_hours': 480},
+        },
+      ];
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        jsonEncode(broken),
+      );
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.materialPhotoReportInvalid), findsOneWidget);
+      expect(find.text(l10n.materialPhotoReportErrors), findsOneWidget);
+      expect(
+        find.text(l10n.materialPhotoReportRehearse),
+        findsNothing,
+        reason: '不合法的整份会被拒绝：先修它，别急着跑',
+      );
+    });
   });
 }

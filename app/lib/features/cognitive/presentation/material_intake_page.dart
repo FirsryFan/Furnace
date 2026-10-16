@@ -362,7 +362,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     try {
       bytes = await pick();
     } catch (error) {
-      _notePhotoProblem(l10n.materialIntakePhotoPickFailed('$error'));
+      _noteIntakeProblem(l10n.materialIntakePhotoPickFailed('$error'));
       return;
     }
     if (bytes == null || !mounted) {
@@ -400,12 +400,50 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         ),
       );
     } catch (error) {
-      _notePhotoProblem(l10n.materialIntakePhotoReadFailed('$error'));
+      _noteIntakeProblem(l10n.materialIntakePhotoReadFailed('$error'));
     }
   }
 
-  /// 照片这条路出问题只改这一行提示（不动提案、不动批次）。
-  void _notePhotoProblem(String message) {
+  /// 贴一份 `run/1`：先校验，再（可选）试跑一遍 —— 全在同一张对话框里。
+  ///
+  /// 照片那条路要一张图和会看图的模型；这一条只要剪贴板：请求可以来自任何地方
+  /// （别处的模型、AI 工具 `check_transcribe_run`、手写），读回来的是同一套自检
+  /// （`reviewTranscribedRun`）和同一个只读演练（`rehearseRun`）。**不写库**。
+  /// 图清单与"图里已有的节点/边 id"照照片那条路从库里现读（不许模型发明 id）。
+  Future<void> _pasteRun() async {
+    final l10n = AppLocalizations.of(context);
+    final graph = ref.read(knowledgeEdgeRepositoryProvider);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final Set<String> existingNodeIds;
+    final Set<String> existingEdgeIds;
+    try {
+      final points = await graph.graphPoints();
+      final edges = await graph.all();
+      existingNodeIds = <String>{for (final point in points) point.externalId};
+      existingEdgeIds = <String>{for (final edge in edges) edge.id};
+    } catch (error) {
+      _noteIntakeProblem(l10n.materialIntakeRunGraphFailed('$error'));
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _RunRequestDialog(
+        existingNodeIds: existingNodeIds,
+        existingEdgeIds: existingEdgeIds,
+        onRehearse: ref.read(runRehearsalRunnerProvider),
+      ),
+    );
+  }
+
+  /// 两条只读入口（照片 / 贴 `run/1`）出问题都只改这一行提示（不动提案、不动批次）。
+  void _noteIntakeProblem(String message) {
     if (!mounted) {
       return;
     }
@@ -735,6 +773,12 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                 onPressed: _busy ? null : _readPhoto,
                 icon: const Icon(Icons.photo_camera_outlined, size: 18),
                 label: Text(l10n.materialIntakePickPhoto),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _pasteRun,
+                icon: const Icon(Icons.content_paste_go_outlined, size: 18),
+                label: Text(l10n.materialIntakePasteRun),
               ),
             ],
           ),
@@ -1344,8 +1388,253 @@ class _PhotoReportDialogState extends State<_PhotoReportDialog> {
   }
 }
 
-/// 演练读数：这份请求真的跑起来之后，到底走到了哪一步。
+/// 贴一份 `run/1`：校验 + 试跑，和照片那条路同一套自检与同一个演练。
 ///
+/// 两条路唯一的差别是请求从哪来：那边是照片 → 模型读回来，这边是剪贴板。
+/// **只读**：这里没有"执行"按钮，试跑走的是 `rehearseRun`（一个字都不写库）。
+class _RunRequestDialog extends StatefulWidget {
+  const _RunRequestDialog({
+    required this.existingNodeIds,
+    required this.existingEdgeIds,
+    this.onRehearse,
+  });
+
+  /// 图里已有的节点/边 id：自检拿它判断"这条动作说的 id 库里有没有"。
+  final Set<String> existingNodeIds;
+  final Set<String> existingEdgeIds;
+
+  /// 试跑一遍（`rehearseRun`，只读、不写库）。为空就没有这个按钮。
+  final RunRehearsalRunner? onRehearse;
+
+  @override
+  State<_RunRequestDialog> createState() => _RunRequestDialogState();
+}
+
+class _RunRequestDialogState extends State<_RunRequestDialog> {
+  final TextEditingController _controller = TextEditingController();
+  MaterialRunRequest? _request;
+  TranscribeReport? _report;
+  String? _problem;
+  bool _rehearsing = false;
+  RunRehearsal? _rehearsal;
+  String? _rehearsalProblem;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 校验这份请求：读不成（`FormatException`）就说解码器那句人话；
+  /// 读得成就把自检结果摆出来（包括不合法的那一份 —— 错在哪本身是信息）。
+  void _check() {
+    try {
+      final request = decodeRunRequest(extractJsonObject(_controller.text));
+      final report = reviewTranscribedRun(
+        request,
+        existingNodeIds: widget.existingNodeIds,
+        existingEdgeIds: widget.existingEdgeIds,
+      );
+      setState(() {
+        _request = request;
+        _report = report;
+        _problem = null;
+        _rehearsal = null;
+        _rehearsalProblem = null;
+      });
+    } on FormatException catch (error) {
+      setState(() {
+        _request = null;
+        _report = null;
+        _problem = error.message;
+        _rehearsal = null;
+        _rehearsalProblem = null;
+      });
+    }
+  }
+
+  /// 按一下「试跑一遍」：跑完把读数就摆在这张对话框里。
+  ///
+  /// 抛了就说人话、把原话留下：演练失败不该把这份请求的校验结果一起带走 ——
+  /// "这份请求合不合法"和"引擎跑得完跑不完"是两件事。
+  Future<void> _rehearse() async {
+    final runner = widget.onRehearse;
+    final request = _request;
+    if (runner == null || request == null || _rehearsing) {
+      return;
+    }
+    setState(() {
+      _rehearsing = true;
+      _rehearsalProblem = null;
+    });
+    try {
+      final rehearsal = await runner(request);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _rehearsal = rehearsal;
+        _rehearsing = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _rehearsalProblem = '$error';
+        _rehearsing = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final report = _report;
+    return AlertDialog(
+      title: Text(l10n.materialIntakeRunDialogTitle),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              TextField(
+                controller: _controller,
+                minLines: 4,
+                maxLines: 10,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                decoration: InputDecoration(
+                  labelText: l10n.materialIntakeRunHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _Note(text: l10n.materialIntakeRunNote),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton(
+                  onPressed: _rehearsing ? null : _check,
+                  child: Text(l10n.materialIntakeRunCheck),
+                ),
+              ),
+              if (_problem != null) ...<Widget>[
+                const SizedBox(height: 12),
+                _Problem(text: _problem!),
+              ],
+              if (report != null) ...<Widget>[
+                const SizedBox(height: 12),
+                Text(
+                  report.ok
+                      ? l10n.materialPhotoReportValid
+                      : l10n.materialPhotoReportInvalid,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: report.ok
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _Note(
+                  text: l10n.materialPhotoReportCounts(
+                    report.actionCount,
+                    report.evidenceCount,
+                  ),
+                ),
+                if (report.errors.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportErrors,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final error in report.errors)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.error_outline, size: 18),
+                      title: Text(error),
+                    ),
+                ],
+                if (report.previews.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportPreviews,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final preview in report.previews)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.play_arrow_outlined, size: 18),
+                      title: Text(preview),
+                    ),
+                ],
+                if (report.warnings.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportWarnings,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  for (final warning in report.warnings)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.info_outline, size: 18),
+                      title: Text(warning),
+                    ),
+                ],
+                if (_rehearsing) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(l10n.materialPhotoReportRehearseBusy),
+                    ],
+                  ),
+                ],
+                if (_rehearsal != null)
+                  _RehearsalReading(rehearsal: _rehearsal!),
+                if (_rehearsalProblem != null) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.materialPhotoReportRehearseFailed,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _Problem(text: _rehearsalProblem!),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        if (widget.onRehearse != null && report != null && report.ok)
+          TextButton.icon(
+            onPressed: _rehearsing ? null : _rehearse,
+            icon: const Icon(Icons.science_outlined, size: 18),
+            label: Text(l10n.materialPhotoReportRehearse),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonClose),
+        ),
+      ],
+    );
+  }
+}
+
+/// 演练读数：这份请求真的跑起来之后，到底走到了哪一步。
 /// 一条动作一行 —— 引擎对每条动作的原话（`RunActionTrace.text`）比我在这里
 /// 编的转述可信：它说的是"这一条实际做了什么/为什么停在这"。没有增量的条目
 /// 也照摆（"跑过但什么都没改"本身是信息）。

@@ -1274,6 +1274,42 @@ abstract class AppLocalizations {
   /// **'The photo did not read into a request: {message}'**
   String materialIntakePhotoReadFailed(String message);
 
+  /// No description provided for @materialIntakePasteRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a run/1'**
+  String get materialIntakePasteRun;
+
+  /// No description provided for @materialIntakeRunDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a run/1: check it, then dry-run it'**
+  String get materialIntakeRunDialogTitle;
+
+  /// No description provided for @materialIntakeRunHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a mindnet.run/1 request here'**
+  String get materialIntakeRunHint;
+
+  /// No description provided for @materialIntakeRunCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check this request'**
+  String get materialIntakeRunCheck;
+
+  /// No description provided for @materialIntakeRunNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked and dry-run only, nothing is written; a valid request gets the dry run button. The photo path and this one look at the same checks.'**
+  String get materialIntakeRunNote;
+
+  /// No description provided for @materialIntakeRunGraphFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the graph inventory: {message} (it says which ids already exist)'**
+  String materialIntakeRunGraphFailed(String message);
+
   /// No description provided for @materialPhotoReportTitle.
   ///
   /// In en, this message translates to:

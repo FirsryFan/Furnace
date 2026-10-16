@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-17 轮次八十八：`run/1` 也能贴进来 —— 同一条只读路，第二个入口（Lead）
+
+**做了什么**：轮次八十七把演练接进了照片那条路，可 `run/1` 请求不是照片的专属产物 —— AI 工具
+`check_transcribe_run` 会产、别处的模型会话会产、用户自己也可能手写一份。这些请求在界面上没有落脚处：
+"先校验，再试跑"藏在照相机后面。这一轮给材料摄取页加了第二条只读入口：**把一份 `mindnet.run/1` 贴进去**，
+校验与试跑走的是与照片那条路同一套（`reviewTranscribedRun` / `rehearseRun`），一个字都不写库。
+
+- **两个入口，一套判定**：`_RunRequestDialog`（`material_intake_page.dart`）只做三件事 —— 贴文本、按
+  「校验这份请求」、合法就按「试跑一遍」。解码 `decodeRunRequest(extractJsonObject(text))`、自检
+  `reviewTranscribedRun(request, existingNodeIds:, existingEdgeIds:)`，与照片那条路**同函数同口径**：
+  两条路的差别只是"请求从哪来"，不是"怎么判"（`D2`）。
+- **图清单照旧从库里现读**：按按钮时先读 `graphPoints()`/`all()` 拿"已有的节点/边 id"——"这条动作说的
+  id 库里有没有"必须按真实的图判；读不出来就说人话（新键 `materialIntakeRunGraphFailed`）。
+- **读不成 vs 不合法，分开说**：`FormatException` 是读不成（摆解码器那句人话、没有试跑按钮）；读得成
+  但不合法是硬错（照摆 `errors`，也没有按钮）—— 先修它，别急着跑。
+- **只读的按钮在不在，本身是读数**：与照片那条路一致，`report.ok` 才有「试跑一遍」；跑的是同一个
+  `runRehearsalRunnerProvider` 接缝（测试注入真 `rehearseRun`：同一个库、同一个 `CognitiveModel`）。
+- **一处改名**：`_notePhotoProblem` → `_noteIntakeProblem`（两条只读入口共用一行提示）。
+
+**证据**：`app/test/features/cognitive/presentation/material_intake_page_test.dart` 25 → **28 例**
+（贴一份合法请求 → 合法 + 会做什么 → 试跑真的进引擎且 `knowledge_edges`/`material_intake_proposals`
+都空、`knowledge_points` 仍 1 条；贴"这不是信封" → 只说解码器那句、不给按钮；贴一份 `kind: unknown`
+的请求 → 摆硬错、不给按钮）；6 个新 l10n 键（zh/en + 三个生成文件手改）。本轮 `dart format` 5 个 Dart
+文件 0 changed；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与轮次八十六/
+八十七同一条基线）；全量 `flutter test --concurrency=1` → **+1977 ~2**（轮次八十七 `+1974 ~2`，
+差值 3：页面 +3）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺：现在按按钮的仍是人）；② 执行完怎么落库；
+③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"只做了一个开关
+（目标机制），滑块还没有设计；⑤ **报告里不能"就地改一改再跑"** —— 贴进来的这一条可以改文本再校验一次，
+照片那条路只能回去改模型原话，没有结构化的字段级编辑入口。
+
+---
+
 ## 2026-10-17 轮次八十七：照片报告里「试跑一遍」—— 演练从工具走到界面（Lead）
 
 **做了什么**：演练层（轮次八十五）把"谁去装配引擎"答了，可从那天起它只有一个入口：AI 工具

@@ -643,6 +643,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get materialIntakePasteRun => 'Paste a run/1';
+
+  @override
+  String get materialIntakeRunDialogTitle =>
+      'Paste a run/1: check it, then dry-run it';
+
+  @override
+  String get materialIntakeRunHint => 'Paste a mindnet.run/1 request here';
+
+  @override
+  String get materialIntakeRunCheck => 'Check this request';
+
+  @override
+  String get materialIntakeRunNote =>
+      'Checked and dry-run only, nothing is written; a valid request gets the dry run button. The photo path and this one look at the same checks.';
+
+  @override
+  String materialIntakeRunGraphFailed(String message) {
+    return 'Could not read the graph inventory: $message (it says which ids already exist)';
+  }
+
+  @override
   String get materialPhotoReportTitle => 'The request read from the photo';
 
   @override

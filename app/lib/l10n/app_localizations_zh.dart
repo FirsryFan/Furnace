@@ -627,6 +627,27 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get materialIntakePasteRun => '贴一份 run/1';
+
+  @override
+  String get materialIntakeRunDialogTitle => '贴一份 run/1：先校验，再试跑';
+
+  @override
+  String get materialIntakeRunHint => '把一份 mindnet.run/1 请求贴在这里';
+
+  @override
+  String get materialIntakeRunCheck => '校验这份请求';
+
+  @override
+  String get materialIntakeRunNote =>
+      '只校验、只试跑，不写库；合法的那份才有「试跑一遍」。照片那条路与这一条看的是同一套自检。';
+
+  @override
+  String materialIntakeRunGraphFailed(String message) {
+    return '读图清单失败：$message（要拿它判断哪些 id 是库里已有的）';
+  }
+
+  @override
   String get materialPhotoReportTitle => '照片读出来的请求';
 
   @override

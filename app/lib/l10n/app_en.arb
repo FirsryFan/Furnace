@@ -233,6 +233,15 @@
   "@materialIntakePhotoReadFailed": {
     "placeholders": { "message": { "type": "String" } }
   },
+  "materialIntakePasteRun": "Paste a run/1",
+  "materialIntakeRunDialogTitle": "Paste a run/1: check it, then dry-run it",
+  "materialIntakeRunHint": "Paste a mindnet.run/1 request here",
+  "materialIntakeRunCheck": "Check this request",
+  "materialIntakeRunNote": "Checked and dry-run only, nothing is written; a valid request gets the dry run button. The photo path and this one look at the same checks.",
+  "materialIntakeRunGraphFailed": "Could not read the graph inventory: {message} (it says which ids already exist)",
+  "@materialIntakeRunGraphFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
   "materialPhotoReportTitle": "The request read from the photo",
   "materialPhotoReportValid": "Structurally valid: no hard errors",
   "materialPhotoReportInvalid": "Structurally invalid: the whole request is refused",
