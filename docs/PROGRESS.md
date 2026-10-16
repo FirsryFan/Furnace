@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-17 轮次七十八：把 `run/1` 真的跑进引擎 —— 路修到头了（Lead）
+
+**做了什么**：MindNet 的 `src/io/run.js` 有两半 —— `validateRequest`（这份请求合法吗）与
+`applyOne`（真的改引擎）。应用侧此前只搬了前半（轮次六十六）与"把照片变成请求"（轮次七十六）。
+这一轮补上后半：新文件 `app/lib/domain/services/ingest/run_executor.dart`，入口
+`executeRun(MaterialRunRequest request, {required FastEngine engine, RunAnchor? anchor})`。
+
+- 五种动作各自落到预告里那条机制路径：`time` → `hours.advance`（推进时钟 + 同步已有记忆态节点的
+  `ms`）、`review` → `retrieval_success` / `lapse` / `retrieval_failure_feedback`、`exposure` →
+  `reread`、`knowledge` → `graph.add_node` / `graph.add_edge`、`goal` → `start_diffusion`。
+- `RunActionTrace` 记下每条的时间前后、机制路径、增量与人话；`RunExecutionReport` 记 `assumptions`
+  / `stoppedAt` / `text` / `toJson`。
+- **时间基**（`resolveAt`）：`at.model_hours` 优先；只给 `at.wall` 用锚点换算，并把换算记进
+  `assumptions`；两个都没有就停在那一条 —— 不默默用"现在"。
+- 失败不抛异常、已跑过的不撤销；没装记忆机制时说"没改状态"，`delta` 为空、不编假增量。
+- 顺手修掉一个真 bug：`MaterialRunAction.modelHours` 少了 `containsKey` 守卫，而
+  `numberOrNull(null) == 0` ⇒ "只给 `at.wall`"被当成"模型时刻 0"（时钟倒回纪元、复习时间戳错到 0）。
+
+**三条刻意选择**：① 只动内存里的图与模拟时钟，不读写库、不调 AI（写库是别的层的事）；
+② 执行层仍然再拦一次上游该拦的（缺时间基、节点不在图里、未知 kind）；
+③ `time` 只同步已经有记忆态的节点，一个新节点也不替它编状态，并如实写"同步 N/M 个"。
+
+**证据**：`app/test/domain/services/ingest/run_executor_test.dart` 新增 **12 例**（空请求；两条时间基
+与锚点换算；没有锚点就停住；三条 outcome 各走各的机制与方向；`exposure` → `reread`；没装机制；
+`knowledge` 先点后边、端点缺失；`goal`；未知动作；**预告与执行逐条对账**）；
+`flutter test test/domain/services/ingest/` → `+113`；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → `+1886 ~2: All tests passed!`
+（轮次七十七是 `+1874 ~2`，差值 12）。
+
+**已知的没做**：① 执行层现在还没有调用者（谁决定"这份请求可以执行了"）；② 执行完怎么落库；
+③ 撤销一次确认；④ 历史里不显示"哪几条是这次落不了的"；⑤ `ls` 仍没有标定来源（roadmap §3 第 7 行）。
+
+---
+
 ## 2026-10-17 轮次七十七：照片的界面入口 —— "拍照那一步"现在按得到（Lead）
 
 **做了什么**：轮次七十六把"照片 → `run/1`"的服务层做出来了（`transcribePhoto`），但应用里没有任何地方
@@ -37,7 +71,8 @@
 `dart analyze lib test` → `94 issues found`（**0 error / 0 warning**）；
 全量 `flutter test --concurrency=1` → `+1874 ~2: All tests passed!`（轮次七十六是 `+1872 ~2`，差值 2）。
 
-**已知的没做**：① 把 `run/1` 真的跑进引擎（应用侧仍然只校验、不执行）；② 照片这条路上"换一张/重试"；
+**已知的没做**：① 把 `run/1` 真的跑进引擎（应用侧仍然只校验、不执行）—— **已在轮次七十八补上**；
+② 照片这条路上"换一张/重试"；
 ③ 历史里不显示"哪几条是这次落不了的"；④ `ls` 仍没有标定来源（roadmap §3 第 7 行那六条实验，
 需要外部数据）；⑤ 已确认完的批次不能撤销。
 

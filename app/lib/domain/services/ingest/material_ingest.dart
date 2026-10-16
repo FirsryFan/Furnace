@@ -714,7 +714,11 @@ class MaterialRunRequest {
                     elapsedHours: action.containsKey('elapsed_hours')
                         ? MaterialIngest.numberOrNull(action['elapsed_hours'])
                         : null,
-                    modelHours: action['at'] is Map
+                    // 同上：`at.model_hours` 缺席必须是 null，不能落进
+                    // `Number(null) == 0` —— 否则"只给了 at.wall"会被当成
+                    // "模型时刻 0"，时钟直接倒回纪元（轮次七十八的测试抓到的）。
+                    modelHours: action['at'] is Map &&
+                            (action['at'] as Map).containsKey('model_hours')
                         ? MaterialIngest.numberOrNull(
                             (action['at'] as Map)['model_hours'],
                           )
