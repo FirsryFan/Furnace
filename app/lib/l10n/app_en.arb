@@ -896,8 +896,11 @@
   "cognitiveReadOnlyNote": "Read-only page: nothing here is written to the database",
   "mechanismPanelTitle": "Mechanisms and parameters",
   "mechanismPanelSubtitle": "Which mechanisms the engines install, what each parameter is, and which values are not calibrated",
-  "mechanismPanelReadOnlyNote": "Read-only: the setups and parameters shown are the ones the engines actually run with",
-  "mechanismPanelSetupsHeader": "The two engine setups",
+  "mechanismPanelReadOnlyNote": "This panel writes exactly one setting and nothing else; the setups and parameters shown are the ones the engines actually run with",
+  "mechanismSwitchGoalTitle": "Install the goal mechanism (context.goal)",
+  "mechanismSwitchGoalBody": "When off, the library-diagnosis run no longer installs it, so the diffusion has no starts/targets to pull towards and its readings change. The problem-pricing run still installs it (that path prices starts/targets). Never chosen = installed.",
+  "mechanismDisabledBySetting": "you turned it off (it ships installed)",
+  "mechanismPanelSetupsHeader": "The three engine setups",
   "mechanismPanelSetupCount": "{count} mechanism(s) installed",
   "@mechanismPanelSetupCount": {
     "placeholders": {

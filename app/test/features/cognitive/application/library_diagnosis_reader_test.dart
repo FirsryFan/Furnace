@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_graph.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
+import 'package:furnace/domain/services/cognitive/fast_engine.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
+import 'package:furnace/domain/services/cognitive/mechanism_catalog.dart';
 import 'package:furnace/features/cognitive/application/library_diagnosis_reader.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/question_corpus_reader.dart';
@@ -179,6 +182,63 @@ void main() {
           isTrue,
         );
       }
+    });
+  });
+
+  group('目标机制开关一路传到诊断读数里', () {
+    test('没选过（列是 NULL）＝装：读数里就是出厂那份清单', () async {
+      await seedObservedLibrary();
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(diagnosis.fastLayerRan, isTrue, reason: '这个夹具应该让快层跑起来');
+      expect(diagnosis.mechanismIds, MechanismCatalog.libraryDiagnosisIds);
+      expect(diagnosis.toJson()['mechanism_ids'],
+          MechanismCatalog.libraryDiagnosisIds);
+    });
+
+    test('用户关掉之后：同一次读里目标机制就不在清单里了', () async {
+      await seedObservedLibrary();
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalMechanismEnabled(false);
+
+      final diagnosis = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+
+      expect(diagnosis.mechanismIds, isNot(contains(FastMechanisms.goal)));
+      expect(diagnosis.mechanismIds,
+          MechanismCatalog.libraryDiagnosisIdsFor(goalEnabled: false));
+      // 关掉一个机制不等于"没跑"：读数还是读数。
+      expect(diagnosis.fastLayerRan, isTrue);
+    });
+
+    test('页面 provider 与工具走的是同一个开关：读数逐字段一致', () async {
+      await seedObservedLibrary();
+      final settings = SettingsRepository(db);
+      await settings.ensureSettings(language: 'zh');
+      await settings.updateGoalMechanismEnabled(false);
+
+      final container = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+      ]);
+      addTearDown(container.dispose);
+
+      final tool = await readLibraryDiagnosis(
+        db,
+        model: const MindNetCognitiveModel(),
+      );
+      final page =
+          await container.read(cognitiveLibraryDiagnosisProvider.future);
+
+      expect(page.mechanismIds, tool.mechanismIds);
+      expect(page.byKnowledgePoint, tool.byKnowledgePoint);
+      expect(page.fastLayerRan, tool.fastLayerRan);
     });
   });
 

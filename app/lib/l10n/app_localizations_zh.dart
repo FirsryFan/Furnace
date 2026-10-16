@@ -2026,10 +2026,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mechanismPanelSubtitle => '引擎里装了哪些机制、每个参数是多少、哪些还没标定';
 
   @override
-  String get mechanismPanelReadOnlyNote => '只读页面：不会写入数据库；装配和参数就是引擎正在用的那一份';
+  String get mechanismPanelReadOnlyNote => '面板只写这一个开关，不写别的表；装配和参数就是引擎正在用的那一份';
 
   @override
-  String get mechanismPanelSetupsHeader => '引擎的两处装配';
+  String get mechanismSwitchGoalTitle => '装目标机制（context.goal）';
+
+  @override
+  String get mechanismSwitchGoalBody =>
+      '关掉之后：库诊断那一跑不再装它，扩散没有起点/目标可拉，读数会变；题目定价那一跑仍然装它（那一路要用起点/目标定价）。没选过 = 装。';
+
+  @override
+  String get mechanismDisabledBySetting => '你关掉了（出厂会装）';
+
+  @override
+  String get mechanismPanelSetupsHeader => '引擎的三处装配';
 
   @override
   String mechanismPanelSetupCount(int count) {

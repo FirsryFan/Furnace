@@ -3760,13 +3760,31 @@ abstract class AppLocalizations {
   /// No description provided for @mechanismPanelReadOnlyNote.
   ///
   /// In en, this message translates to:
-  /// **'Read-only: the setups and parameters shown are the ones the engines actually run with'**
+  /// **'This panel writes exactly one setting and nothing else; the setups and parameters shown are the ones the engines actually run with'**
   String get mechanismPanelReadOnlyNote;
+
+  /// No description provided for @mechanismSwitchGoalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the goal mechanism (context.goal)'**
+  String get mechanismSwitchGoalTitle;
+
+  /// No description provided for @mechanismSwitchGoalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'When off, the library-diagnosis run no longer installs it, so the diffusion has no starts/targets to pull towards and its readings change. The problem-pricing run still installs it (that path prices starts/targets). Never chosen = installed.'**
+  String get mechanismSwitchGoalBody;
+
+  /// No description provided for @mechanismDisabledBySetting.
+  ///
+  /// In en, this message translates to:
+  /// **'you turned it off (it ships installed)'**
+  String get mechanismDisabledBySetting;
 
   /// No description provided for @mechanismPanelSetupsHeader.
   ///
   /// In en, this message translates to:
-  /// **'The two engine setups'**
+  /// **'The three engine setups'**
   String get mechanismPanelSetupsHeader;
 
   /// No description provided for @mechanismPanelSetupCount.

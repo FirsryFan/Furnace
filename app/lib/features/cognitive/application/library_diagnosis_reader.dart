@@ -13,6 +13,7 @@
 library;
 
 import '../../../data/database/database.dart';
+import '../../../data/repositories/settings_repository.dart';
 import '../../../domain/services/cognitive/cognitive_graph.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
@@ -316,6 +317,14 @@ Future<LibraryDiagnosis> readLibraryDiagnosis(
   // `docs/THREADFLOW_TWO_SEGMENT.md` §8.3.
   final tagIdsByKnowledgePoint = await readKnowledgePointTagIds(db);
 
+  // 用户侧开关（roadmap §3 第 8 行第一个）：库诊断那一跑装不装目标机制。
+  // 读在这里、而不是让每个调用方自己读，是因为页面和 AI 工具都会调这个函数，
+  // 两处各读一遍就是 Q8 那个"同一件事有两处实现"的翻版（D2）。列可空、NULL
+  // 读作"装"，所以升级过来的库行为不变；这个函数仍然只吃 `AppDatabase`
+  // （`SettingsRepository` 是数据层，不带 Riverpod）。
+  final settings = await SettingsRepository(db).getSettings();
+  final goalMechanismEnabled = settings?.goalMechanismEnabled ?? true;
+
   return LibraryDiagnosisRunner.run(
     tags: tags,
     rowsByKnowledgePoint: rows,
@@ -324,6 +333,7 @@ Future<LibraryDiagnosis> readLibraryDiagnosis(
     startKnowledgePointIds: starts,
     targetKnowledgePointIds: targets,
     tagIdsByKnowledgePoint: tagIdsByKnowledgePoint,
+    goalMechanismEnabled: goalMechanismEnabled,
   );
 }
 

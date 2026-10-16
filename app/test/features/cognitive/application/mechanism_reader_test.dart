@@ -134,4 +134,71 @@ void main() {
     );
     expect(first.paramCount, second.paramCount);
   });
+
+  group('用户关掉目标机制（local_settings.goal_mechanism_enabled）', () {
+    test('库诊断那一跑少装一个：清单里没有 context.goal，别的机制一处不改', () {
+      final on = readMechanismPanel();
+      final off = readMechanismPanel(goalMechanismEnabled: false);
+      final onLibrary = on.setups.singleWhere(
+          (final setup) => setup.id == MechanismCatalog.libraryDiagnosis);
+      final offLibrary = off.setups.singleWhere(
+          (final setup) => setup.id == MechanismCatalog.libraryDiagnosis);
+
+      expect(onLibrary.installedIds, MechanismCatalog.libraryDiagnosisIds);
+      expect(offLibrary.installedIds, hasLength(3));
+      expect(offLibrary.installedIds, isNot(contains(FastMechanisms.goal)));
+      expect(
+        [for (final setup in off.setups) setup.id],
+        [for (final setup in on.setups) setup.id],
+        reason: '三处装配还在，只是其中一处少装了一个机制',
+      );
+      expect(
+        [
+          for (final setup in off.setups)
+            if (setup.id != MechanismCatalog.libraryDiagnosis)
+              setup.installedIds,
+        ],
+        [
+          for (final setup in on.setups)
+            if (setup.id != MechanismCatalog.libraryDiagnosis)
+              setup.installedIds,
+        ],
+        reason: '开关只管目标机制，别的装配不该跟着变',
+      );
+    });
+
+    test('目标机制那一段：只说库诊断那一处被关掉，题目定价仍然装着它', () {
+      final off = readMechanismPanel(goalMechanismEnabled: false);
+      final goal = off.mechanisms
+          .singleWhere((final row) => row.id == FastMechanisms.goal);
+      expect(goal.installedIn, <String>[MechanismCatalog.problemEvaluator]);
+      expect(goal.disabledIn, <String>[MechanismCatalog.libraryDiagnosis]);
+      expect(goal.disabledBySetting, isTrue);
+      expect(off.goalMechanismEnabled, isFalse);
+      expect(readMechanismPanel().goalMechanismEnabled, isTrue);
+    });
+
+    test('没被关掉的机制不许乱标"你关掉了"', () {
+      for (final panel in <MechanismPanel>[
+        readMechanismPanel(),
+        readMechanismPanel(goalMechanismEnabled: false),
+      ]) {
+        for (final row in panel.mechanisms) {
+          if (row.id == FastMechanisms.goal && !panel.goalMechanismEnabled) {
+            continue;
+          }
+          expect(row.disabledIn, isEmpty, reason: row.id);
+          expect(row.disabledBySetting, isFalse, reason: row.id);
+        }
+      }
+    });
+
+    test('关掉之后参数一个不少：开关管的是装不装，不是改数字', () {
+      final on = readMechanismPanel();
+      final off = readMechanismPanel(goalMechanismEnabled: false);
+      expect(off.paramCount, on.paramCount);
+      expect(off.uncalibratedCount, on.uncalibratedCount);
+      expect(off.overriddenCount, on.overriddenCount);
+    });
+  });
 }

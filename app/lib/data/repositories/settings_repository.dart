@@ -117,5 +117,22 @@ class SettingsRepository {
     ));
   }
 
+  /// Persists the mechanism panel's first user-side switch (schema v21): whether
+  /// the library-diagnosis run installs the goal mechanism (`context.goal`).
+  ///
+  /// Same rule as [updateRhythmHintsEnabled]: the column stays NULL until the
+  /// user makes a choice, and the app reads NULL as "install it", which is the
+  /// behaviour every build before this switch had. This method therefore never
+  /// writes a default on the user's behalf - a user who never touches the panel
+  /// keeps exactly the engine they had
+  /// (`docs/MINDNET_ROADMAP.md` §3 row 8).
+  Future<void> updateGoalMechanismEnabled(bool enabled) async {
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      goalMechanismEnabled: Value(enabled),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

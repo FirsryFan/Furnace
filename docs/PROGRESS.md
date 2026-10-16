@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-17 轮次八十六：机制开关 —— 用户说"不装目标机制"，引擎就真的不装（Lead）
+
+**做了什么**：机制面板（轮次八十四）把"引擎装了哪些机制"公开了，但它是只读的 —— "可插拔"只有
+一半。这一轮补上 §3 第 8 行要的另一半里的第一个开关：**库诊断那一跑装不装目标机制**
+（`context.goal`）。选它是因为这一处关掉之后读数仍然是读数（起点/目标是用户给的，没有目标机制
+只是"拉不过去"），而另外三个机制撑着那一跑本身，关掉就是让读数撒谎。开关只作用于**一处装配**：
+题目定价那一跑仍然装它。
+
+- **落库**：`local_settings.goal_mechanism_enabled`（可空 bool），schema **v21**。**NULL = 用户从
+  没选过 = 装** —— 这个开关出现之前所有版本都这么跑，迁移不许替用户把引擎换掉（与
+  `rhythm_hints_enabled` 同一条规矩）。`_upgradeV20ToV21` 只加列，`_ensureColumns` 负责
+  "版本号跑在列前面"的自愈。面板文案也写明这一条："没选过 = 装"。
+- **一个来源**：`MechanismCatalog.libraryDiagnosisIdsFor({required bool goalEnabled})` 是唯一的
+  算法（关掉只去掉 `context.goal`）；`LibraryDiagnosisRunner.run()` 多了 `goalMechanismEnabled`，
+  把**这一次真的装了哪几个**写进读数 `mechanismIds` 与 JSON `mechanism_ids`。没跑起来的那两次
+  （没有图 / 没有可用起点）写空清单，不是"装了默认的"。
+- **读数自己说得清**：`readLibraryDiagnosis` 自己读设置（页面 provider 与 AI 工具走同一条路，
+  不会有人忘了传）；`readMechanismPanel(goalMechanismEnabled:)` 给每个机制行加了
+  `disabledIn`/`disabledBySetting`，把"你关掉了（出厂会装）"和"本来就没装"分开说。**开关打开时
+  这份清单必须是空的** —— 这条抓到一个真 bug：读数忘了把开关传给 `setupsDisabledBySetting`，
+  于是开关开着时卡片仍然声称"你关掉了"。
+- **面板能翻**：`mechanism_page.dart` 从无状态变 `ConsumerStatefulWidget`，读数走
+  `mechanismPanelProvider`、开关值走 `goalMechanismEnabledProvider`；翻一下只写这一行设置，然后
+  invalidate 两个 provider。用户刚翻的值先用 `_picked` 画出来（写库是一次往返，开关不能自己弹
+  回去）。原来那句"面板只读"改成"面板只写这一个开关，不写别的表"。
+- **两句话都要说**：目标机制仍然装在题目定价那一跑里，所以卡片既写"装在哪几处"，也另起一行写
+  "你关掉了 · 库诊断那一跑" —— 只写前半句，用户翻开关时看不到自己拿掉了什么。
+
+**证据**：`app/test/data/database/v21_migration_test.dart` **2 例**（真实 v20 文件升级后老设置一行
+不少、新列落成 NULL，用户选了之后两个方向都写得进去；被盖成 v21 却缺列的文件靠 `beforeOpen`
+自愈）；`app/test/domain/services/cognitive/library_diagnosis_test.dart` **+4 例**；
+`app/test/features/cognitive/application/mechanism_reader_test.dart` 12 → **16 例**；
+`app/test/features/cognitive/application/library_diagnosis_reader_test.dart` **+3 例**；
+`app/test/features/cognitive/presentation/mechanism_page_test.dart` 7 → **11 例**（含**真 sqlite**
+那条：翻开关把 `local_settings` 写成 false，面板重读后那一跑只剩 3 个机制）。
+`dart format` 本轮 16 个 Dart 文件 2 changed（改完 0 changed）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**）；全量 `flutter test --concurrency=1` → **+1971 ~2**
+（轮次八十五 `+1954 ~2`，差值 17：库诊断 +4、面板读数 +4、诊断读数 +3、面板页 +4、迁移 +2）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 执行完怎么落库；③ `ls` 仍没有
+标定来源（§3 第 7 行那六条实验，需要外部数据）；④ "用户侧开关/滑块"只做了一个开关（目标机制），
+别的机制还没有开关语义，滑块也还没有设计。
+
+---
+
 ## 2026-10-17 轮次八十五：演练 —— 那份 `run/1` 请求真的跑进引擎（Lead）
 
 **做了什么**：`run_executor.dart`（轮次七十八）把"请求 → 引擎"修到了头，可从那天起它**没有调用者**——
@@ -53,7 +98,8 @@ test/features/cognitive/presentation/mechanism_page_test.dart test/features/ai/c
 **已知的没做**：① 谁来决定"这份请求可以执行了"—— 现在**有调用者了，但不是判断者**：`execute` 是用户
 在对话里给的参数，没有任何一层替用户下"这批复习可以执行"的结论；② 执行完怎么落库（演练刻意不写，
 包括记忆袋）；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有
-"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）。
+"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）—— **已在轮次八十六补上第一个开关
+（目标机制，落库 + 验收契约都在），"滑块"仍缺**。
 
 ## 2026-10-17 轮次八十四：机制面板 —— 引擎装了哪些机制、每个参数是多少、哪些还没标定（Lead）
 
@@ -82,7 +128,8 @@ test/features/cognitive/presentation/mechanism_page_test.dart test/features/ai/c
   **不装进任何引擎**，面板不说它"装了"；`memory.dsr` **一个号参数都没有**（只维护每个节点的状态袋
   `node.m['memory_dsr']`），面板不空着、也不编参数。
 - **只读是刻意的**：这一页不写库、没有开关。"用户侧开关/滑块"（§3 第 8 行）要先把开关落库
-  （settings 列 + schema 迁移）并配一条可跑的验收契约，是另一轮的事。
+  （settings 列 + schema 迁移）并配一条可跑的验收契约，是另一轮的事 —— **轮次八十六做了这件事：
+  面板多了目标机制开关（schema v21 `local_settings.goal_mechanism_enabled`）**。
 
 **测试钉住的纪律**：`app/test/features/cognitive/application/mechanism_reader_test.dart` **10 例**
 （面板列出的机制与参数逐条等于 `FastMechanisms` 的转录表、未标定个数与引擎同口径、两处装配的 id
@@ -100,7 +147,8 @@ test/features/cognitive/presentation/mechanism_page_test.dart test/features/ai/c
 
 **已知的没做**：① 执行层（`run_executor.dart`）仍然**没有调用者**（轮次七十八 ①）—— **已在轮次八十五补上调用者（`check_transcribe_run` 的 `execute`），"判断者"仍缺**；② 执行完怎么
 落库；③ `ls` 仍没有标定来源（§3 第 7 行那六条实验，需要外部数据）；④ 机制面板只有读，没有
-"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）。
+"用户侧开关/滑块"（§3 第 8 行的另一半，要落库 + 验收契约）—— **已在轮次八十六补上第一个开关
+（目标机制），"滑块"仍缺**。
 
 ## 2026-10-17 轮次八十三：撤回流水点得开 —— 那一次撤掉了什么、为什么没撤成（Lead）
 

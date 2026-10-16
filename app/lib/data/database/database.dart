@@ -105,9 +105,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
-  /// [_upgradeV19ToV20].
+  /// [_upgradeV19ToV20] / [_upgradeV20ToV21].
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration {
@@ -173,6 +173,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 20) {
           await _upgradeV19ToV20();
         }
+        if (from < 21) {
+          await _upgradeV20ToV21();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -216,6 +219,10 @@ class AppDatabase extends _$AppDatabase {
         localSettings.ankiJudgeMode,
         localSettings.ankiCardTypePreference,
         localSettings.rhythmHintsEnabled,
+        // v21: 机制面板上那个"装目标机制"的开关。老文件被盖成 v21 却没有这一列
+        // 时，Drift 会跳过 onUpgrade，映射器会在第一次读设置时抛错 —— 与上面
+        // 那批列同一个失败模式。
+        localSettings.goalMechanismEnabled,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -610,6 +617,17 @@ class AppDatabase extends _$AppDatabase {
     if (!await _tableExists('material_intake_undo_logs')) {
       await m.createTable(materialIntakeUndoLogs);
     }
+  }
+
+  /// v20 -> v21：`local_settings.goal_mechanism_enabled`（轮次八十六）。
+  ///
+  /// 纯新增一列，老行不动。这是 roadmap §3 第 8 行"用户侧开关"的第一个：
+  /// 库诊断那一跑要不要装目标机制（`context.goal`）。列可空、NULL 读作"装"，
+  /// 所以升级过来的库行为**一个字不变**，直到用户自己关掉。
+  Future<void> _upgradeV20ToV21() async {
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.goalMechanismEnabled);
   }
 
   Future<void> _upgradeV4ToV5() async {

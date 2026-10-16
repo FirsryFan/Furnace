@@ -2119,10 +2119,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mechanismPanelReadOnlyNote =>
-      'Read-only: the setups and parameters shown are the ones the engines actually run with';
+      'This panel writes exactly one setting and nothing else; the setups and parameters shown are the ones the engines actually run with';
 
   @override
-  String get mechanismPanelSetupsHeader => 'The two engine setups';
+  String get mechanismSwitchGoalTitle =>
+      'Install the goal mechanism (context.goal)';
+
+  @override
+  String get mechanismSwitchGoalBody =>
+      'When off, the library-diagnosis run no longer installs it, so the diffusion has no starts/targets to pull towards and its readings change. The problem-pricing run still installs it (that path prices starts/targets). Never chosen = installed.';
+
+  @override
+  String get mechanismDisabledBySetting =>
+      'you turned it off (it ships installed)';
+
+  @override
+  String get mechanismPanelSetupsHeader => 'The three engine setups';
 
   @override
   String mechanismPanelSetupCount(int count) {

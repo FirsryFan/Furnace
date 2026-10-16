@@ -90,6 +90,18 @@ class LocalSettings extends Table {
   /// fresh install shows it until the user says otherwise.
   BoolColumn get rhythmHintsEnabled => boolean().nullable()();
 
+  /// v21: whether the library-diagnosis run installs the goal mechanism
+  /// (`context.goal`) - the first user-side switch of
+  /// `docs/MINDNET_ROADMAP.md` §3 row 8.
+  ///
+  /// NULL reads as **installed**: a fresh install and an upgraded row keep the
+  /// behaviour they had before this switch existed, and the app never writes a
+  /// default on the user's behalf - the same rule as [rhythmHintsEnabled].
+  /// Turning it off is a real behaviour change (the diffusion no longer has
+  /// starts/targets to pull towards), so the panel states that next to the
+  /// switch instead of presenting the two states as equal.
+  BoolColumn get goalMechanismEnabled => boolean().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

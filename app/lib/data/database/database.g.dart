@@ -384,6 +384,15 @@ class $LocalSettingsTable extends LocalSettings
       requiredDuringInsert: false,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("rhythm_hints_enabled" IN (0, 1))'));
+  static const VerificationMeta _goalMechanismEnabledMeta =
+      const VerificationMeta('goalMechanismEnabled');
+  @override
+  late final GeneratedColumn<bool> goalMechanismEnabled = GeneratedColumn<bool>(
+      'goal_mechanism_enabled', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("goal_mechanism_enabled" IN (0, 1))'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -412,6 +421,7 @@ class $LocalSettingsTable extends LocalSettings
         ankiJudgeMode,
         ankiCardTypePreference,
         rhythmHintsEnabled,
+        goalMechanismEnabled,
         createdAt,
         updatedAt
       ];
@@ -494,6 +504,12 @@ class $LocalSettingsTable extends LocalSettings
           rhythmHintsEnabled.isAcceptableOrUnknown(
               data['rhythm_hints_enabled']!, _rhythmHintsEnabledMeta));
     }
+    if (data.containsKey('goal_mechanism_enabled')) {
+      context.handle(
+          _goalMechanismEnabledMeta,
+          goalMechanismEnabled.isAcceptableOrUnknown(
+              data['goal_mechanism_enabled']!, _goalMechanismEnabledMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -544,6 +560,8 @@ class $LocalSettingsTable extends LocalSettings
           data['${effectivePrefix}anki_card_type_preference']),
       rhythmHintsEnabled: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}rhythm_hints_enabled']),
+      goalMechanismEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}goal_mechanism_enabled']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -617,6 +635,18 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// its parameter is uncalibrated, and it can be hidden again in one tap - so a
   /// fresh install shows it until the user says otherwise.
   final bool? rhythmHintsEnabled;
+
+  /// v21: whether the library-diagnosis run installs the goal mechanism
+  /// (`context.goal`) - the first user-side switch of
+  /// `docs/MINDNET_ROADMAP.md` §3 row 8.
+  ///
+  /// NULL reads as **installed**: a fresh install and an upgraded row keep the
+  /// behaviour they had before this switch existed, and the app never writes a
+  /// default on the user's behalf - the same rule as [rhythmHintsEnabled].
+  /// Turning it off is a real behaviour change (the diffusion no longer has
+  /// starts/targets to pull towards), so the panel states that next to the
+  /// switch instead of presenting the two states as equal.
+  final bool? goalMechanismEnabled;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -634,6 +664,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.ankiJudgeMode,
       this.ankiCardTypePreference,
       this.rhythmHintsEnabled,
+      this.goalMechanismEnabled,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -673,6 +704,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || rhythmHintsEnabled != null) {
       map['rhythm_hints_enabled'] = Variable<bool>(rhythmHintsEnabled);
+    }
+    if (!nullToAbsent || goalMechanismEnabled != null) {
+      map['goal_mechanism_enabled'] = Variable<bool>(goalMechanismEnabled);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -715,6 +749,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       rhythmHintsEnabled: rhythmHintsEnabled == null && nullToAbsent
           ? const Value.absent()
           : Value(rhythmHintsEnabled),
+      goalMechanismEnabled: goalMechanismEnabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(goalMechanismEnabled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -740,6 +777,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           serializer.fromJson<String?>(json['ankiCardTypePreference']),
       rhythmHintsEnabled:
           serializer.fromJson<bool?>(json['rhythmHintsEnabled']),
+      goalMechanismEnabled:
+          serializer.fromJson<bool?>(json['goalMechanismEnabled']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -763,6 +802,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'ankiCardTypePreference':
           serializer.toJson<String?>(ankiCardTypePreference),
       'rhythmHintsEnabled': serializer.toJson<bool?>(rhythmHintsEnabled),
+      'goalMechanismEnabled': serializer.toJson<bool?>(goalMechanismEnabled),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -783,6 +823,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> ankiJudgeMode = const Value.absent(),
           Value<String?> ankiCardTypePreference = const Value.absent(),
           Value<bool?> rhythmHintsEnabled = const Value.absent(),
+          Value<bool?> goalMechanismEnabled = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -808,6 +849,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         rhythmHintsEnabled: rhythmHintsEnabled.present
             ? rhythmHintsEnabled.value
             : this.rhythmHintsEnabled,
+        goalMechanismEnabled: goalMechanismEnabled.present
+            ? goalMechanismEnabled.value
+            : this.goalMechanismEnabled,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -838,6 +882,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       rhythmHintsEnabled: data.rhythmHintsEnabled.present
           ? data.rhythmHintsEnabled.value
           : this.rhythmHintsEnabled,
+      goalMechanismEnabled: data.goalMechanismEnabled.present
+          ? data.goalMechanismEnabled.value
+          : this.goalMechanismEnabled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -860,6 +907,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
+          ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -882,6 +930,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       ankiJudgeMode,
       ankiCardTypePreference,
       rhythmHintsEnabled,
+      goalMechanismEnabled,
       createdAt,
       updatedAt);
   @override
@@ -902,6 +951,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.ankiJudgeMode == this.ankiJudgeMode &&
           other.ankiCardTypePreference == this.ankiCardTypePreference &&
           other.rhythmHintsEnabled == this.rhythmHintsEnabled &&
+          other.goalMechanismEnabled == this.goalMechanismEnabled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -921,6 +971,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> ankiJudgeMode;
   final Value<String?> ankiCardTypePreference;
   final Value<bool?> rhythmHintsEnabled;
+  final Value<bool?> goalMechanismEnabled;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -938,6 +989,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
+    this.goalMechanismEnabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -956,6 +1008,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
+    this.goalMechanismEnabled = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -975,6 +1028,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? ankiJudgeMode,
     Expression<String>? ankiCardTypePreference,
     Expression<bool>? rhythmHintsEnabled,
+    Expression<bool>? goalMechanismEnabled,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -995,6 +1049,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
         'anki_card_type_preference': ankiCardTypePreference,
       if (rhythmHintsEnabled != null)
         'rhythm_hints_enabled': rhythmHintsEnabled,
+      if (goalMechanismEnabled != null)
+        'goal_mechanism_enabled': goalMechanismEnabled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1015,6 +1071,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? ankiJudgeMode,
       Value<String?>? ankiCardTypePreference,
       Value<bool?>? rhythmHintsEnabled,
+      Value<bool?>? goalMechanismEnabled,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1033,6 +1090,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       ankiCardTypePreference:
           ankiCardTypePreference ?? this.ankiCardTypePreference,
       rhythmHintsEnabled: rhythmHintsEnabled ?? this.rhythmHintsEnabled,
+      goalMechanismEnabled: goalMechanismEnabled ?? this.goalMechanismEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1084,6 +1142,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (rhythmHintsEnabled.present) {
       map['rhythm_hints_enabled'] = Variable<bool>(rhythmHintsEnabled.value);
     }
+    if (goalMechanismEnabled.present) {
+      map['goal_mechanism_enabled'] =
+          Variable<bool>(goalMechanismEnabled.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1110,6 +1172,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
+          ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -22657,6 +22720,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
+  Value<bool?> goalMechanismEnabled,
   required int createdAt,
   required int updatedAt,
 });
@@ -22676,6 +22740,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
+  Value<bool?> goalMechanismEnabled,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -22732,6 +22797,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<bool> get rhythmHintsEnabled => $composableBuilder(
       column: $table.rhythmHintsEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get goalMechanismEnabled => $composableBuilder(
+      column: $table.goalMechanismEnabled,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
@@ -22797,6 +22866,10 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.rhythmHintsEnabled,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get goalMechanismEnabled => $composableBuilder(
+      column: $table.goalMechanismEnabled,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -22855,6 +22928,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<bool> get rhythmHintsEnabled => $composableBuilder(
       column: $table.rhythmHintsEnabled, builder: (column) => column);
 
+  GeneratedColumn<bool> get goalMechanismEnabled => $composableBuilder(
+      column: $table.goalMechanismEnabled, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -22902,6 +22978,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
+            Value<bool?> goalMechanismEnabled = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -22920,6 +22997,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
+            goalMechanismEnabled: goalMechanismEnabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -22938,6 +23016,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
+            Value<bool?> goalMechanismEnabled = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -22956,6 +23035,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
+            goalMechanismEnabled: goalMechanismEnabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

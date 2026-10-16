@@ -4,7 +4,9 @@ import 'package:furnace/domain/services/cognitive/cognitive_graph.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
     show BottleneckType;
+import 'package:furnace/domain/services/cognitive/fast_engine.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
+import 'package:furnace/domain/services/cognitive/mechanism_catalog.dart';
 
 /// The whole-library tierB run is a pure function of its inputs, so these tests
 /// need no database: tags and rows are plain values.
@@ -282,5 +284,70 @@ void main() {
     expect(metacognition['schema'], 'mindnet.metacognition/1');
     expect(metacognition['calibration'], isA<double>());
     expect(metacognition['rows'], isA<List<Object?>>());
+  });
+
+  group('目标机制开关（roadmap §3 第 8 行第一个用户侧开关）', () {
+    LibraryDiagnosis run({required bool goalMechanismEnabled}) =>
+        LibraryDiagnosisRunner.run(
+          tags: [tag('root'), tag('target', parentId: 'root')],
+          rowsByKnowledgePoint: {
+            'root': rowOf('root'),
+            'target': rowOf('target'),
+          },
+          model: model,
+          nowHours: nowHours,
+          startKnowledgePointIds: const ['root'],
+          targetKnowledgePointIds: const ['target'],
+          goalMechanismEnabled: goalMechanismEnabled,
+        );
+
+    test('默认（用户没选过）：装目标机制，读数里写着它', () {
+      final result = run(goalMechanismEnabled: true);
+      expect(result.mechanismIds, MechanismCatalog.libraryDiagnosisIds);
+      expect(result.mechanismIds, contains(FastMechanisms.goal));
+      expect(result.fastLayerRan, isTrue);
+    });
+
+    test('关掉之后：这一次跑真的没有装它（读数自己说得清）', () {
+      final result = run(goalMechanismEnabled: false);
+      expect(result.mechanismIds, hasLength(3));
+      expect(result.mechanismIds, isNot(contains(FastMechanisms.goal)));
+      expect(result.mechanismIds, isNot(contains(FastMechanisms.memory)));
+      // 关掉目标机制不改"跑没跑"：起点还在，扩散照跑。
+      expect(result.fastLayerRan, isTrue);
+      expect(result.starts, const ['root']);
+      expect(result.targets, const ['target']);
+    });
+
+    test('JSON 里也写着这一次装了哪些机制', () {
+      expect(
+        run(goalMechanismEnabled: false).toJson()['mechanism_ids'],
+        MechanismCatalog.libraryDiagnosisIdsFor(goalEnabled: false),
+      );
+      expect(
+        run(goalMechanismEnabled: true).toJson()['mechanism_ids'],
+        MechanismCatalog.libraryDiagnosisIds,
+      );
+    });
+
+    test('没跑起来的那两次：什么都没装，清单是空的（不是"装了默认的"）', () {
+      final noGraph = LibraryDiagnosisRunner.run(
+        tags: const [],
+        rowsByKnowledgePoint: const {},
+        model: model,
+        nowHours: nowHours,
+        targetKnowledgePointIds: const ['kp-1'],
+      );
+      final noStart = LibraryDiagnosisRunner.run(
+        tags: [tag('kp-1')],
+        rowsByKnowledgePoint: {'kp-1': rowOf('kp-1')},
+        model: model,
+        nowHours: nowHours,
+        startKnowledgePointIds: const ['nope'],
+        targetKnowledgePointIds: const ['also-nope'],
+      );
+      expect(noGraph.mechanismIds, isEmpty);
+      expect(noStart.mechanismIds, isEmpty);
+    });
   });
 }

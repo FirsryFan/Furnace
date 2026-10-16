@@ -75,6 +75,7 @@ class MechanismRow {
     required this.id,
     required this.params,
     required this.installedIn,
+    this.disabledIn = const <String>[],
   });
 
   /// 机制 id，如 `memory.dsr`。
@@ -86,7 +87,14 @@ class MechanismRow {
   /// 装了它的装配 id（空 = 不装进任何引擎）。
   final List<String> installedIn;
 
+  /// 出厂会装、但**被用户开关关掉**的装配 id。它不在 [installedIn] 里，
+  /// 两个清单分开列，面板才能把"你关掉了"和"本来就没装"分开说。
+  final List<String> disabledIn;
+
   bool get installed => installedIn.isNotEmpty;
+
+  /// 用户把这个机制关掉了（出厂会装，现在不装）。
+  bool get disabledBySetting => disabledIn.isNotEmpty;
 
   int get uncalibratedCount =>
       params.where((final param) => !param.calibrated).length;
@@ -101,6 +109,7 @@ class MechanismPanel {
     required this.setups,
     required this.mechanisms,
     required this.moduleDefaults,
+    this.goalMechanismEnabled = true,
   });
 
   final List<MechanismSetup> setups;
@@ -108,6 +117,10 @@ class MechanismPanel {
 
   /// 这一跑用的 `module_defaults`（应用传空表）。
   final Map<String, Object?> moduleDefaults;
+
+  /// 读这一份面板时生效的开关值（`local_settings.goal_mechanism_enabled`
+  /// 的 NULL 已在读取处折成 true）。面板自己把它画出来，页面不再猜。
+  final bool goalMechanismEnabled;
 
   int get paramCount =>
       mechanisms.fold(0, (sum, row) => sum + row.params.length);
@@ -120,8 +133,13 @@ class MechanismPanel {
 }
 
 /// 读一次面板：装配按 `MechanismCatalog`，参数按 `FastMechanisms` 的转录表。
+///
+/// [goalMechanismEnabled] 就是 `local_settings.goal_mechanism_enabled` 折成
+/// 布尔之后的值（NULL → true）。它只改一件事：库诊断那一跑装不装目标机制。
+/// 读数必须跟着它变，否则用户关掉之后面板还在说"装了"。
 MechanismPanel readMechanismPanel({
   Map<String, Object?> moduleDefaults = const <String, Object?>{},
+  bool goalMechanismEnabled = true,
 }) {
   final mechanisms = FastMechanisms.fromModuleDefaults(
     moduleDefaults,
@@ -135,12 +153,22 @@ MechanismPanel readMechanismPanel({
     ids: MechanismCatalog.allIds,
   );
   return MechanismPanel(
-    setups: MechanismCatalog.setups,
+    setups: MechanismCatalog.setupsWith(
+      goalMechanismEnabled: goalMechanismEnabled,
+    ),
+    goalMechanismEnabled: goalMechanismEnabled,
     mechanisms: <MechanismRow>[
       for (final id in MechanismCatalog.allIds)
         MechanismRow(
           id: id,
-          installedIn: MechanismCatalog.setupsInstalling(id),
+          installedIn: MechanismCatalog.setupsInstalling(
+            id,
+            goalMechanismEnabled: goalMechanismEnabled,
+          ),
+          disabledIn: MechanismCatalog.setupsDisabledBySetting(
+            id,
+            goalMechanismEnabled: goalMechanismEnabled,
+          ),
           params: <MechanismParamRow>[
             for (final spec in mechanisms.specs)
               if (spec.mechanism == id)

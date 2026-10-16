@@ -65,6 +65,7 @@ class LibraryDiagnosis {
     this.starts = const <String>[],
     this.targets = const <String>[],
     this.rounds = 0,
+    this.mechanismIds = const <String>[],
   });
 
   /// One verdict per complaining node, keyed by knowledge point (= tag) id.
@@ -85,6 +86,14 @@ class LibraryDiagnosis {
   final List<String> targets;
   final int rounds;
 
+  /// The mechanisms this run actually installed, in install order.
+  ///
+  /// It is here so the reading itself carries the user-side switch: when
+  /// `context.goal` is off, this list simply does not contain it, and nothing
+  /// has to guess the setting back from the numbers. Empty when no engine was
+  /// built (nothing was installed).
+  final List<String> mechanismIds;
+
   /// The honest "nothing ran" value.
   static const LibraryDiagnosis notRun = LibraryDiagnosis(
     byKnowledgePoint: <String, BottleneckType>{},
@@ -98,6 +107,7 @@ class LibraryDiagnosis {
         'starts': starts,
         'targets': targets,
         'nodes_without_ms': nodesWithoutMs,
+        'mechanism_ids': mechanismIds,
         'bottlenecks': {
           for (final entry in byKnowledgePoint.entries)
             entry.key: entry.value.id,
@@ -141,6 +151,7 @@ abstract final class LibraryDiagnosisRunner {
         const <String, List<String>>{},
     Map<String, Object?> moduleDefaults = const <String, Object?>{},
     int rounds = 4,
+    bool goalMechanismEnabled = true,
   }) {
     if (tags.isEmpty) {
       return LibraryDiagnosis.notRun;
@@ -214,13 +225,19 @@ abstract final class LibraryDiagnosisRunner {
     // D3's random-source removal: only the four ported mechanisms run, and
     // `T_ign = 0` turns ignition into a hard threshold so nothing is drawn.
     // The id list and the override live in `MechanismCatalog`, so the mechanism
-    // panel cannot drift from what this run actually installs.
+    // panel cannot drift from what this run actually installs. The goal
+    // mechanism is the one mechanism the user can turn off
+    // (`local_settings.goal_mechanism_enabled`), and the list handed to the
+    // engine is the list reported back in `mechanismIds`.
     const overrides = MechanismCatalog.transcribedIgnition;
+    final mechanismIds = MechanismCatalog.libraryDiagnosisIdsFor(
+      goalEnabled: goalMechanismEnabled,
+    );
     final engine = FastEngine(
       graph: FastGraph.fromSpec(graph.toJson(), currentRealTime: nowHours),
       mechanisms: FastMechanisms.fromModuleDefaults(
         moduleDefaults,
-        ids: MechanismCatalog.libraryDiagnosisIds,
+        ids: mechanismIds,
         overrides: overrides,
       ),
       overrides: overrides,
@@ -271,6 +288,7 @@ abstract final class LibraryDiagnosisRunner {
       starts: starts,
       targets: targets,
       rounds: rounds,
+      mechanismIds: mechanismIds,
     );
   }
 

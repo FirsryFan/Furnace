@@ -56,6 +56,19 @@ abstract final class MechanismCatalog {
     FastMechanisms.goal,
   ];
 
+  /// 库诊断那一跑**实际**会装的 id —— 目标机制那一个是用户可关的
+  /// （`local_settings.goal_mechanism_enabled`，roadmap §3 第 8 行的第一个用户侧开关）。
+  ///
+  /// [goalEnabled] 为 false 时只去掉 `context.goal` 一个：别的机制没开关，
+  /// 也不该在这里悄悄跟着变。
+  static List<String> libraryDiagnosisIdsFor({required bool goalEnabled}) =>
+      goalEnabled
+          ? libraryDiagnosisIds
+          : <String>[
+              for (final id in libraryDiagnosisIds)
+                if (id != FastMechanisms.goal) id,
+            ];
+
   /// 比库诊断多一层记忆：它不注册 `round.*` 钩子，逐轮数值不变。
   static const List<String> problemEvaluatorIds = <String>[
     FastMechanisms.shunting,
@@ -103,8 +116,57 @@ abstract final class MechanismCatalog {
   ];
 
   /// 装了这个机制的那几处装配（空 = 只在引擎之外活着）。
-  static List<String> setupsInstalling(String mechanismId) => <String>[
-        for (final setup in setups)
+  ///
+  /// [goalMechanismEnabled] 是**当前设置**：库诊断那一跑装不装目标机制由用户
+  /// 说了算，所以"面板说装在哪几处"和"引擎真的装了哪几个"必须用同一个入参，
+  /// 否则面板会在用户关掉之后继续声称装了它。
+  static List<String> setupsInstalling(
+    String mechanismId, {
+    bool goalMechanismEnabled = true,
+  }) =>
+      <String>[
+        for (final setup
+            in setupsWith(goalMechanismEnabled: goalMechanismEnabled))
           if (setup.installedIds.contains(mechanismId)) setup.id,
       ];
+
+  /// 出厂会装、但被**当前设置**关掉的那几处装配（用来在面板上把"你关掉了"和
+  /// "本来就没装"分开说 —— 两者结论一样、原因不一样）。
+  ///
+  /// 它说的是**此刻**的差别：开关打开时这份清单是空的（用户没有关掉任何东西，
+  /// 面板就不该再挂着"你关掉了"）。所以入参必须传当前设置，不能默认成"关"。
+  static List<String> setupsDisabledBySetting(
+    String mechanismId, {
+    bool goalMechanismEnabled = true,
+  }) {
+    final shipped = setupsInstalling(mechanismId);
+    final current = setupsInstalling(
+      mechanismId,
+      goalMechanismEnabled: goalMechanismEnabled,
+    );
+    return <String>[
+      for (final id in shipped)
+        if (!current.contains(id)) id,
+    ];
+  }
+
+  /// 当前设置下的三处装配。今天只有库诊断那一跑会变，别的原样返回。
+  static List<MechanismSetup> setupsWith({
+    required bool goalMechanismEnabled,
+  }) {
+    if (goalMechanismEnabled) {
+      return setups;
+    }
+    return <MechanismSetup>[
+      for (final setup in setups)
+        if (setup.id != libraryDiagnosis)
+          setup
+        else
+          MechanismSetup(
+            id: setup.id,
+            installedIds: libraryDiagnosisIdsFor(goalEnabled: false),
+            overrides: setup.overrides,
+          ),
+    ];
+  }
 }
