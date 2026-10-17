@@ -603,6 +603,48 @@ void main() {
     expect(targetCountOptionsFor(0), paperTargetCountOptions);
   });
 
+  testWidgets('能力动作画像：有开关与说明，关掉后加成消失、说明行也消失', (tester) async {
+    // 两道条件完全相同的题，差别只在"有没有链、链里是什么动作"。
+    await _seedQuestion(db,
+        id: 'q-no-chain', stem: '没有链的题', subjectKey: 'math');
+    await _seedQuestion(db,
+        id: 'q-with-chain', stem: '有链的题', subjectKey: 'math');
+    await _seedChain(db, questionId: 'q-with-chain');
+
+    final container = await _pumpPaperPage(tester, db: db);
+
+    // 未标定的排序加成必须显式标注、能关：开关 + 说明 + "这一卷按什么排过"。
+    expect(find.text(zh.questionPaperActionProfileLabel), findsOneWidget);
+    expect(find.text(zh.questionPaperActionProfileHint), findsOneWidget);
+    expect(
+      find.text(zh.questionPaperActionProfileNote('分类讨论')),
+      findsOneWidget,
+    );
+    final on = container.read(paperPlanProvider).value!;
+    expect(on.preferredActionTypes, <String>['case_split']);
+    expect(on.items.first.questionId, 'q-with-chain');
+
+    // 关掉：加成没了、说明行消失，次序回到"没有画像"的样子（按 id 兜底）。
+    container
+        .read(paperSpecProvider.notifier)
+        .setPreferCapabilityActions(false);
+    await _settle(tester);
+
+    expect(
+      find.text(zh.questionPaperActionProfileNote('分类讨论')),
+      findsNothing,
+    );
+    final off = container.read(paperPlanProvider).value!;
+    expect(off.preferredActionTypes, isEmpty);
+    expect(off.items.first.questionId, 'q-no-chain');
+    expect(container.read(paperSpecProvider).preferCapabilityActions, isFalse);
+
+    // 重置把开关也带回默认。
+    await tester.tap(find.text(zh.questionPaperReset));
+    await _settle(tester);
+    expect(container.read(paperSpecProvider).preferCapabilityActions, isTrue);
+  });
+
   // -------------------------------------------------------------------------
   // 「复制卷面」（Q20）：卷面变成可打印纯文本
   // -------------------------------------------------------------------------
@@ -881,6 +923,35 @@ Future<void> _seedQuestion(
           answer: Value(answer),
         ),
       );
+}
+
+/// 给一道题落一条链：链上两步都是 `case_split`（平均风险 0.85，过 0.6 的线）。
+Future<void> _seedChain(
+  AppDatabase db, {
+  required String questionId,
+}) async {
+  await db.into(db.reasoningChains).insert(
+        ReasoningChainsCompanion.insert(
+          id: 'chain-$questionId',
+          questionId: questionId,
+          createdAt: _ts,
+          summary: const Value('两步'),
+          stepCount: const Value(2),
+        ),
+      );
+  for (var i = 0; i < 2; i++) {
+    await db.into(db.reasoningSteps).insert(
+          ReasoningStepsCompanion.insert(
+            id: 'step-$questionId-$i',
+            chainId: 'chain-$questionId',
+            idx: i,
+            goal: '第 $i 步',
+            actionType: const Value('case_split'),
+            stuckRisk: const Value(0.85),
+            createdAt: _ts,
+          ),
+        );
+  }
 }
 
 Future<void> _seedKnowledgePoint(

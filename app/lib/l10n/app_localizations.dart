@@ -5853,6 +5853,24 @@ abstract class AppLocalizations {
   /// **'Reset paper settings'**
   String get questionPaperReset;
 
+  /// No description provided for @questionPaperActionProfileLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Order by capability profile (uncalibrated)'**
+  String get questionPaperActionProfileLabel;
+
+  /// No description provided for @questionPaperActionProfileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions that hit the moves you struggle with move up a little; does nothing when you have no solved chains, and can be turned off.'**
+  String get questionPaperActionProfileHint;
+
+  /// No description provided for @questionPaperActionProfileNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This paper was ordered by your "{actions}" moves (uncalibrated, can be turned off)'**
+  String questionPaperActionProfileNote(String actions);
+
   /// No description provided for @questionPaperCopy.
   ///
   /// In en, this message translates to:

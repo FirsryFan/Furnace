@@ -166,6 +166,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q21 | 来源元信息事后可改：`QuestionRepository.updateSource`（四列白名单）+ 详情页「改来源」对话框 + ARB + 仓储/页面测试 | 已完成（轮次一百零一，Lead） |
 | Q22 | 能力动作画像：`capability_profile.dart`（按动作聚合卡点风险，纯逻辑）+ `capabilityProfileProvider`（唯一 IO）+ 认知模型页卡片 | 已完成（轮次一百零二，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §12） |
 | Q23 | 画像 → 组卷联动：候选带链上动作序列、组卷器加"最该练动作"透明加成、理由行说出来；页面 provider 与 `compose_paper` 同源 | 已完成（轮次一百零三，Lead；口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11） |
+| Q24 | 画像加成可见且可关：组卷页开关 + `PaperSpec.preferCapabilityActions` + `PaperPlan.preferredActionTypes` 回报 + 工具 `use_capability_profile` | 已完成（轮次一百零四，Lead；口径见 `docs/PAPER_COMPOSER_DESIGN.md` §12） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

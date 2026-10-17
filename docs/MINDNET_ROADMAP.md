@@ -1920,10 +1920,14 @@ en::w::a`，关掉就消失）；新增 `v23_migration_test.dart` 2 例（真实
 AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11：**只加成、不过滤**——
 过滤会把"没解过链的题"整体排除，那就不是练得准而是只练解过的题。
 
+**轮次一百零四：加成可见且可关**（组卷页开关「按能力动作画像排（未标定）」+`PaperSpec.preferCapabilityActions`
++ `PaperPlan.preferredActionTypes` 回报 + 工具 `use_capability_profile`；关掉后卷子与"没有画像"逐字段一致）。
+口径见 `docs/PAPER_COMPOSER_DESIGN.md` §12。
+
 **仍未做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，要么引 `desktop_drop` 一类依赖、
 要么只走"粘贴 + 选文件"——需用户拍板）；② 能力动作词表用户可编辑（设计上留到 v13）；
 ③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层导航（当前刻意挂在设置页，见
-`settings_page.dart` 的注释）。
+`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

@@ -43,7 +43,9 @@ class ComposePaperTool extends AiTool {
       '凑不齐时如实列出"缺哪些知识点"（`uncovered_knowledge_point_ids`）让人去收题。'
       '用在你需要"现在该练什么"的时候。**只读**：不写数据、不生成题干、不落库——'
       '它只从库里挑已有的题，挑不出来就说挑不出来，绝不自己编一道题填空。'
-      '这不是随机抽题：它按诊断读数排序，并受学科/来源/每知识点配额约束。';
+      '这不是随机抽题：它按诊断读数排序，并受学科/来源/每知识点配额约束。'
+      '默认还会参考"我最该练的动作"（能力动作画像，未标定，可用 '
+      '`use_capability_profile: false` 关掉）。';
 
   @override
   Map<String, Object?> get parameters => {
@@ -71,6 +73,12 @@ class ComposePaperTool extends AiTool {
             'type': 'number',
             'description': '目标难度 1..10；不给 = 难度分量取中性（不惩罚"不知道"）。',
           },
+          'use_capability_profile': {
+            'type': 'boolean',
+            'description': '可选：组卷时要不要参考"我最该练的动作"（能力动作画像，'
+                '**未标定**的先验；命中只把题往前排一点，不做过滤）。默认 true；'
+                '给 false 就完全不参考，卷子与没有画像时一致。',
+          },
         },
         'required': <String>[],
       };
@@ -94,6 +102,8 @@ class ComposePaperTool extends AiTool {
     try {
       final args = ToolArgs(invocation.arguments);
       final spec = _specOf(args);
+      final useCapabilityProfile =
+          args.optBool('use_capability_profile') ?? true;
 
       final corpus = await readPaperCorpus(_db);
       // 诊断与页面同源：模型用默认的 `MindNetCognitiveModel`（与 `ToolRegistry.forApp`
@@ -127,12 +137,14 @@ class ComposePaperTool extends AiTool {
             stuckRisk: step.stuckRisk,
           ),
       ]);
-      final preferredActions = <String>[
-        for (final reading in profile)
-          if (reading.avgStuckRisk != null &&
-              reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
-            reading.actionType,
-      ].take(kPreferredActionLimit).toList();
+      final preferredActions = !useCapabilityProfile
+          ? const <String>[]
+          : <String>[
+              for (final reading in profile)
+                if (reading.avgStuckRisk != null &&
+                    reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
+                  reading.actionType,
+            ].take(kPreferredActionLimit).toList();
       final candidates = <PaperCandidate>[
         for (final candidate in corpus.candidates)
           PaperCandidate(
@@ -175,6 +187,7 @@ class ComposePaperTool extends AiTool {
           'diagnosis_ran': diagnosis.fastLayerRan,
           'readings_used': readings.length,
           'preferred_action_types': preferredActions,
+          'capability_profile_used': preferredActions.isNotEmpty,
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,
           'uncovered_knowledge_points': [
             for (final id in plan.uncoveredKnowledgePointIds)

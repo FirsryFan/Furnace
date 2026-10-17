@@ -161,6 +161,43 @@ void main() {
     expect(second.reasonZh, isNot(contains('能力动作画像')));
   });
 
+  test('关掉能力动作偏好：加成消失，卷子与"没有画像"逐项一致', () async {
+    final tagId = (await tags.createTag(name: '统计')).id;
+    final pointId = await seedKnowledgePoint('抽样分布');
+    // 按 id 兜底时 q-a 在前；有链的是 q-b —— 只有加成能把 q-b 推到前面。
+    final withoutChain = await seedQuestion(stem: 'a 没链的题', subjectKey: '数学');
+    final withChain = await seedQuestion(stem: 'b 有链的题', subjectKey: '数学');
+    await link(tagId: tagId, pointId: pointId, questionId: withoutChain);
+    await link(tagId: tagId, pointId: pointId, questionId: withChain);
+    await seedChain(
+      questionId: withChain,
+      steps: <({String action, double? risk})>[
+        (action: 'case_split', risk: 0.9),
+      ],
+    );
+
+    final container = containerWith(ran({pointId: BottleneckType.danger}));
+    container
+        .read(paperSpecProvider.notifier)
+        .setPreferCapabilityActions(false);
+    final plan = await container.read(paperPlanProvider.future);
+
+    expect(plan.preferredActionTypes, isEmpty);
+    expect(
+      plan.items.map((item) => item.questionId).toSet(),
+      <String>{withoutChain, withChain},
+      reason: '两道题都进卷，只是不再按动作偏好排序',
+    );
+    expect(
+      plan.items.every((item) => item.matchedPreferredActions.isEmpty),
+      isTrue,
+    );
+    expect(
+      plan.items.every((item) => !item.reasonZh.contains('能力动作画像')),
+      isTrue,
+    );
+  });
+
   test('题库为空：给出空卷，不抛异常', () async {
     final container = containerWith(LibraryDiagnosis.notRun);
     final plan = await container.read(paperPlanProvider.future);

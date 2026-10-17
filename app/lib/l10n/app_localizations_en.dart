@@ -3399,6 +3399,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionPaperReset => 'Reset paper settings';
 
   @override
+  String get questionPaperActionProfileLabel =>
+      'Order by capability profile (uncalibrated)';
+
+  @override
+  String get questionPaperActionProfileHint =>
+      'Questions that hit the moves you struggle with move up a little; '
+      'does nothing when you have no solved chains, and can be turned off.';
+
+  @override
+  String questionPaperActionProfileNote(String actions) {
+    return 'This paper was ordered by your "$actions" moves '
+        '(uncalibrated, can be turned off)';
+  }
+
+  @override
   String get questionPaperCopy => 'Copy paper';
 
   @override

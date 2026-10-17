@@ -1668,6 +1668,12 @@
     }
   },
   "questionPaperReset": "Reset paper settings",
+  "questionPaperActionProfileLabel": "Order by capability profile (uncalibrated)",
+  "questionPaperActionProfileHint": "Questions that hit the moves you struggle with move up a little; does nothing when you have no solved chains, and can be turned off.",
+  "questionPaperActionProfileNote": "This paper was ordered by your \"{actions}\" moves (uncalibrated, can be turned off)",
+  "@questionPaperActionProfileNote": {
+    "placeholders": { "actions": { "type": "String" } }
+  },
   "questionPaperCopy": "Copy paper",
   "questionPaperCopyDone": "Paper copied — paste it into Word or a print preview.",
   "questionPaperCopyReasonLabel": "Reason",

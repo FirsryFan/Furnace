@@ -92,8 +92,12 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
   /// 清空学科筛选（空集 = 不限学科）。
   void clearSubjects() => _update(subjectKeys: const <String>{});
 
-  /// 回到默认要求（10 题、不筛学科、不设难度/来源下限/每点上限）。
+  /// 回到默认要求（10 题、不筛学科、不设难度/来源下限/每点上限、参考能力动作画像）。
   void reset() => state = const PaperSpec(targetCount: 10);
+
+  /// 组卷时要不要参考"我最该练的动作"（未标定，默认开、可关）。
+  void setPreferCapabilityActions(bool value) =>
+      _update(preferCapabilityActions: value);
 
   /// 来源分级下限（`gaokao` / `provincial_diagnostic` / …）；null 或空串 = 不限。
   void setMinSourceLevel(String? level) {
@@ -132,6 +136,7 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
     bool clearTargetDifficulty = false,
     String? minSourceLevel,
     bool clearMinSourceLevel = false,
+    bool? preferCapabilityActions,
   }) {
     final current = state;
     state = PaperSpec(
@@ -146,6 +151,8 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
       minSourceLevel: clearMinSourceLevel
           ? null
           : (minSourceLevel ?? current.minSourceLevel),
+      preferCapabilityActions:
+          preferCapabilityActions ?? current.preferCapabilityActions,
     );
   }
 }
@@ -163,16 +170,18 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
   };
   final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
 
-  // 「我最该练的动作」来自能力动作画像（推理层读数）；没解过链的库这里是空表，
-  // 组卷行为与之前完全一致。取"平均风险过线（>= 0.6）"的前几个，顺序就是画像的
-  // 排序（最该练的在前）。
+  // 「我最该练的动作」来自能力动作画像（推理层读数）；没解过链的库这里是空表。
+  // 用户可以在组卷页关掉它（`PaperSpec.preferCapabilityActions`）—— 加成本身是
+  // 未标定先验，必须能关；关掉之后组卷结果与"没有画像"逐字段一致。
   final profile = await ref.watch(capabilityProfileProvider.future);
-  final preferredActions = <String>[
-    for (final reading in profile)
-      if (reading.avgStuckRisk != null &&
-          reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
-        reading.actionType,
-  ].take(kPreferredActionLimit).toList();
+  final preferredActions = spec.preferCapabilityActions
+      ? <String>[
+          for (final reading in profile)
+            if (reading.avgStuckRisk != null &&
+                reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
+              reading.actionType,
+        ].take(kPreferredActionLimit).toList()
+      : const <String>[];
 
   // 每道题最新一条链的动作序列：候选带上它，组卷器才能算"命中比例"。
   final chainActions =

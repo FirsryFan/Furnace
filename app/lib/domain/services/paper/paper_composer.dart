@@ -193,6 +193,7 @@ class PaperSpec {
     this.perKnowledgePointCap,
     this.targetDifficulty,
     this.minSourceLevel,
+    this.preferCapabilityActions = true,
   });
 
   /// 想要几道题。
@@ -209,6 +210,13 @@ class PaperSpec {
 
   /// 来源分级下限（含）；`null` = 不限。
   final String? minSourceLevel;
+
+  /// 组卷时要不要参考"我最该练的动作"（能力动作画像，未标定）。
+  ///
+  /// 默认 `true`，但**必须可关**：加成本身是未标定的先验（[kPreferredActionBoost]），
+  /// 与仓库其它未标定读数同一条纪律——显式标注、能关掉。关掉之后 `compose` 收到的
+  /// 偏好为空，卷子与"没有画像"时逐字段一致。
+  final bool preferCapabilityActions;
 }
 
 /// 卷子上的一道题，带"为什么是它"。
@@ -288,6 +296,7 @@ class PaperPlan {
     required this.requestedCount,
     required this.overallNeed,
     required this.weights,
+    this.preferredActionTypes = const [],
   });
 
   /// 选中的题（**贪心选择顺序**，与每知识点配额有关，不是单纯的分数降序）。
@@ -313,6 +322,11 @@ class PaperPlan {
 
   final PaperWeights weights;
 
+  /// 这一份卷子实际参考的"我最该练的动作"（空 = 没参考：关掉了或没有画像）。
+  ///
+  /// 界面据此显示"本卷按「…」这类动作排过（未标定，可关）"；工具把它放进 `modelResult`。
+  final List<String> preferredActionTypes;
+
   /// 没凑够（题库不足或过滤太严）。
   bool get isShort => items.length < requestedCount;
 
@@ -329,6 +343,8 @@ class PaperPlan {
         'is_short': isShort,
         'overall_need': DsrMemory.round6(overallNeed),
         'weights': weights.toMap(),
+        if (preferredActionTypes.isNotEmpty)
+          'preferred_action_types': preferredActionTypes,
       };
 }
 
@@ -460,6 +476,7 @@ abstract final class PaperComposer {
       requestedCount: spec.targetCount,
       overallNeed: overallNeed,
       weights: normalized,
+      preferredActionTypes: List<String>.unmodifiable(preferred),
     );
   }
 

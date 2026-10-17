@@ -233,7 +233,18 @@ class _PaperControls extends ConsumerWidget {
               ],
               onChanged: notifier.setPerKnowledgePointCap,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            // 未标定的排序加成必须显式标注、能关：这一行就是"你在用一条还没标定的
+            // 先验"的说明 + 开关（与节律/认知排序那几个开关同一条纪律）。
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: spec.preferCapabilityActions,
+              onChanged: notifier.setPreferCapabilityActions,
+              title: Text(l10n.questionPaperActionProfileLabel),
+              subtitle: Text(l10n.questionPaperActionProfileHint),
+            ),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
@@ -315,6 +326,20 @@ class _PaperBody extends ConsumerWidget {
           '${l10n.questionPaperCandidateCount(plan.candidateCount)} · '
           '${l10n.questionPaperOverallNeed(plan.overallNeed.toStringAsFixed(2))}',
         ),
+        // 这份卷子参考了哪些"该练的动作"：只在真的参考了的时候才说 —— 关掉开关
+        // 或库里没有画像时不摆一行"按画像排过"的空话。
+        if (plan.preferredActionTypes.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            l10n.questionPaperActionProfileNote(
+              plan.preferredActionTypes
+                  .map((action) =>
+                      CapabilityAction.byKey(action)?.labelZh ?? action)
+                  .join('、'),
+            ),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         if (plan.isShort) ...[
           const SizedBox(height: 8),
           Card(

@@ -3251,6 +3251,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionPaperReset => '重置组卷条件';
 
   @override
+  String get questionPaperActionProfileLabel => '按能力动作画像排（未标定）';
+
+  @override
+  String get questionPaperActionProfileHint =>
+      '命中「你最该练的动作」的题往前排一点；没有解题链时不起作用，可以关。';
+
+  @override
+  String questionPaperActionProfileNote(String actions) {
+    return '这一卷按「$actions」这类动作排过（未标定，可关）';
+  }
+
+  @override
   String get questionPaperCopy => '复制卷面';
 
   @override

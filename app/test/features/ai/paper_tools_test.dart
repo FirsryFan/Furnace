@@ -419,5 +419,43 @@ void main() {
       // 只读：整库指纹不变（含 reasoning_steps）。
       expect(pointId, isNotEmpty);
     });
+
+    test('use_capability_profile: false：不参考画像，payload 里也不再声称用过', () async {
+      final (withChain, pointId) = await seedLinked(
+        stem: '有链的那道题。',
+        pointTitle: '机械能守恒',
+      );
+      await seedLinked(
+        stem: '没链的那道题。',
+        pointTitle: '机械能守恒',
+      );
+      await seedChain(
+        questionId: withChain,
+        steps: <({String action, double? risk})>[
+          (action: 'case_split', risk: 0.9),
+        ],
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 2,
+        'use_capability_profile': false,
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      expect(payload['preferred_action_types'], isEmpty);
+      expect(payload['capability_profile_used'], isFalse);
+      final items = itemsOf(result);
+      expect(items, hasLength(2));
+      expect(
+        items.every((item) => !item.containsKey('matched_preferred_actions')),
+        isTrue,
+      );
+      expect(
+        items.every((item) => !'${item['reason']}'.contains('能力动作画像')),
+        isTrue,
+      );
+      expect(pointId, isNotEmpty);
+    });
   });
 }

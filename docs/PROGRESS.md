@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-18 轮次一百零四：让那条加成看得见、也关得掉 —— 未标定的先验不该偷偷生效（Lead）
+
+**做了什么**：轮次一百零三的"按我最该练的动作排"是**自动生效**的：用户看不到这一卷被一条没标定的先验
+排过，也没有开关 —— 这违反仓库对未标定参数的一贯纪律（显式标注、能关掉，见节律/认知排序那几个开关）。
+这一轮补齐两件事：**看得见**、**关得掉**。
+
+- **开关**：`PaperSpec.preferCapabilityActions`（默认 `true`）→ `paperSpecProvider.setPreferCapabilityActions`
+  → 组卷页多一个 `SwitchListTile`「按能力动作画像排（未标定）」，副标题说明"命中「你最该练的动作」的题往前
+  排一点；没有解题链时不起作用，可以关"。关掉时 provider 传空偏好列表，卷子与"没有画像"逐字段一致。
+  「重置组卷条件」把开关也带回默认。
+- **可见（说清用了什么）**：`PaperPlan.preferredActionTypes` 如实回报这一卷参考了哪些动作；页面只在非空时
+  显示"这一卷按「分类讨论」这类动作排过（未标定，可关）"——空的时候不摆一行空话。动作 key 用词表的
+  `labelZh` 说人话，词表外的原样显示。
+- **工具同源**：`compose_paper` 多一个 `use_capability_profile`（默认 true），`modelResult` 里
+  `preferred_action_types` 与 `capability_profile_used` 如实反映用没用；关掉时 payload 里连"命中字段"都不出现。
+  `PaperPlan.toJson()` 也只在真的参考过时带 `preferred_action_types`。
+
+**证据**：`app/test/features/questions/presentation/question_paper_page_test.dart` 21 → **22 例**（开关/说明/
+说明行都在；关掉后说明行消失、次序回到"按 id 兜底"、`spec.preferCapabilityActions == false`；按重置后开关
+回到 true）；`app/test/features/questions/application/paper_plan_provider_test.dart` 10 → **11 例**（关掉后
+`preferredActionTypes` 空、所有 `matchedPreferredActions` 空、理由行不再提"能力动作画像"）；
+`app/test/features/ai/paper_tools_test.dart` 13 → **14 例**（`use_capability_profile: false` →
+`preferred_action_types` 空、`capability_profile_used == false`、items 里没有命中字段）。本轮 `dart format`
+只格式化本轮 7 个 Dart 文件（1 changed，复查 0 changed）；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**，与八十六～一百零三同基线）；全量 `flutter test --concurrency=1` → **+2078 ~2**
+（轮次一百零三 `+2075 ~2`，差值 3）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ `kPreferredActionBoost = 0.15` 仍是未标定先验
+（开关与标注有了，数值等标定）；④ 组卷页的"画像说明行"没有点开看详情（目前只有一行字，没有跳去认知模型页
+的入口）；⑤ 题库入口是否升为顶层导航。
+
+---
+
 ## 2026-10-18 轮次一百零三：把画像接进组卷 —— 「这份卷子练到我最该练的动作」（Lead）
 
 **做了什么**：轮次一百零二把"我卡在哪种动作上"算出来了、摆在认知模型页上；但那是**读**，没有出口 ——

@@ -45,6 +45,10 @@
      `actionFit = 命中数 / 偏好数`，总分乘 `1 + kPreferredActionBoost * actionFit`（`kPreferredActionBoost = 0.15`）。
      命中的动作会写进 `PaperItem.matchedPreferredActions`，理由行补一句"这题会练到「分类讨论」这类动作"。
      没有偏好时乘数恒为 1，历史行为一个字节不变。
+   - **可关（轮次一百零四）**：`PaperSpec.preferCapabilityActions`（默认 `true`）。组卷页给一个
+     `SwitchListTile`（标题带"未标定"、副标题说明"没有解题链时不起作用"），关掉后 provider 传空的偏好列表，
+     卷子与"没有画像"逐字段一致；`PaperPlan.preferredActionTypes` 如实回报这一卷到底参考了哪些动作
+     （空 = 没参考），页面据此显示/隐藏"这一卷按「…」这类动作排过（未标定，可关）"那一行。
 3. **配额 + 贪心**：`perKnowledgePointCap` 缺省时按 `ceil(targetCount / 有候选的知识点数)` 自动算，
    下限 1。按分数降序选（tie-break：分数 → 来源分级 → AI 质量 → 题目 id），
    候选挂的每个知识点都算过配额；**全部**挂载点都到配额才跳过它。`items` 的顺序就是贪心选择顺序
@@ -72,7 +76,7 @@
 - `uncoveredKnowledgePointIds`：危险/发展区**但题库里一道候选都没有**的知识点 → 这是"该去收题"的清单。
 - `deferredKnowledgePointIds`：有候选但这轮没排进来（数量/配额限制）。
 - `byKnowledgePoint`：每个知识点实际排了几道（含被第二知识点"顺带覆盖"的）。
-- `candidateCount`、`requestedCount`、`isShort`、`overallNeed`、`weights`。
+- `candidateCount`、`requestedCount`、`isShort`、`overallNeed`、`weights`、`preferredActionTypes`（这一卷参考了哪些"最该练的动作"，空 = 没参考）。
 - `toJson()` schema `mindnet.paper_plan/1`，所有 double 过 `DsrMemory.round6`。
 
 ## 6. 验收记录（本轮）
@@ -136,6 +140,7 @@
 | `min_source_level` | 不限 | 必须是 `kSourceLevelPriority` 的键（`gaokao` / `provincial_diagnostic` / `elite_school` / `school` / `personal` / `unknown`），否则失败并列出可用值 |
 | `per_knowledge_point_cap` | 不限 | 每个知识点最多几道；< 1 → 失败 |
 | `target_difficulty` | 不限 | 1..10；越界 → 失败 |
+| `use_capability_profile` | `true` | 要不要参考"我最该练的动作"（未标定）；`false` 时卷子与没有画像一致 |
 
 - `readOnly => true`（测试用整库指纹证明），`riskFor => ToolRisk.write`（无 action 的中性值，ApprovalEngine 不逐条询问）。
 - 读数走 `library_diagnosis_reader.dart`（`readLibraryDiagnosis` + `readPaperReadings`）——**与组卷页同源**，
@@ -167,3 +172,21 @@
 - 验收：`paper_composer_test.dart` **18 例**（含"偏好只影响次序不过滤""命中两个 > 命中一个"、
   "没有偏好时同分"）；`paper_plan_provider_test.dart` **10 例**（含真库链 → 页面 provider 的排序与理由）；
   `paper_tools_test.dart` **13 例**。
+
+## 12. 可关 + 可见（轮次一百零四）
+
+轮次一百零三的加成是**自动生效**的：用户看不到"这一卷被一条没标定的先验排过"，也没法关掉。这一轮补齐
+两件事（与仓库对未标定参数的一贯纪律一致：显式标注、能关）：
+
+- **开关**：组卷页多一个 `SwitchListTile`「按能力动作画像排（未标定）」，副标题说明"命中「你最该练的动作」
+  的题往前排一点；没有解题链时不起作用，可以关"。`PaperSpec.preferCapabilityActions`（默认 true）经
+  `paperSpecProvider` 进入 `paperPlanProvider`；关掉时偏好列表为空，卷子与"没有画像"逐字段一致。
+  「重置组卷条件」把开关也带回默认。
+- **可见**：`PaperPlan.preferredActionTypes` 如实回报这一卷参考了哪些动作；页面只在非空时显示
+  "这一卷按「分类讨论」这类动作排过（未标定，可关）"那一行——空的时候不摆空话。
+- **工具同源**：`compose_paper` 多一个 `use_capability_profile`（默认 true），`modelResult` 里
+  `preferred_action_types` 与 `capability_profile_used` 如实反映用没用；关掉时 payload 里不再出现
+  命中字段。
+- 验收：`question_paper_page_test.dart` 21 → **22 例**（开关/说明/说明行都在；关掉后说明行消失、
+  次序回到按 id 兜底、重置把开关带回默认）；`paper_plan_provider_test.dart` 10 → **11 例**（关掉后
+  `preferredActionTypes` 空、命中项全空、理由行不再提画像）；`paper_tools_test.dart` 13 → **14 例**。
