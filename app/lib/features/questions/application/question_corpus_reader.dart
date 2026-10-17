@@ -167,6 +167,7 @@ class CapabilityQuestionRow {
     required this.subjectKey,
     required this.sourceLevel,
     required this.actionTypes,
+    this.matchedActionTypes = const [],
   });
 
   final String questionId;
@@ -174,8 +175,46 @@ class CapabilityQuestionRow {
   final String subjectKey;
   final String sourceLevel;
 
-  /// 这一题**最新一条链**的全部动作（含命中的那个）。没解过链的题不会出现在这张表里。
+  /// 这一题**最新一条链**的全部动作（含命中的那些）。没解过链的题不会出现在这张表里。
   final List<String> actionTypes;
+
+  /// 这一次查询**命中**的动作（按查询里的顺序）；没按动作筛时是空表。
+  ///
+  /// 与 [actionTypes] 分开：前者是"我为什么被选中"，后者是"这条链长什么样"。
+  final List<String> matchedActionTypes;
+}
+
+/// 「按能力动作找题」的查询条件。
+///
+/// 单动作是最常见的问法（画像点开的那一行），但对话里经常是组合问法：
+/// "我一碰到**分类讨论**和**回代检验**就卡，给我两道两道都得用上的题"（`requireAll`），
+/// 或者"分类讨论类的**物理**题还有几道"（[subjectKey]）。
+class CapabilityQuestionQuery {
+  const CapabilityQuestionQuery({
+    this.actionTypes = const <String>[],
+    this.subjectKey = '',
+    this.requireAll = false,
+  });
+
+  /// 要筛的动作 key（去空、去重；空 = 不按动作筛，只按学科）。
+  final List<String> actionTypes;
+
+  /// 只要这个学科（空 = 不限）。
+  final String subjectKey;
+
+  /// `true` = 最新链里**每个**动作都得出现；`false` = 命中一个就算。
+  final bool requireAll;
+
+  /// 归一化后的查询：去空/去重，学科 trim。
+  CapabilityQuestionQuery normalized() => CapabilityQuestionQuery(
+        actionTypes: actionTypes
+            .map((action) => action.trim())
+            .where((action) => action.isNotEmpty)
+            .toSet()
+            .toList(),
+        subjectKey: subjectKey.trim(),
+        requireAll: requireAll,
+      );
 }
 
 /// 按能力动作找题：题目最新一条链的动作序列里含 [actionType] 的题。
@@ -189,33 +228,66 @@ class CapabilityQuestionRow {
 Future<List<CapabilityQuestionRow>> readQuestionsForAction(
   AppDatabase db,
   String actionType,
+) =>
+    readQuestionsForCapabilities(
+      db,
+      CapabilityQuestionQuery(actionTypes: <String>[actionType]),
+    );
+
+/// 组合查询：按一组动作（任一 / 全部）+ 学科筛题库里解过链的题。
+///
+/// 三条纪律：
+/// 1. **动作与学科都不能为空**：两个都空就没有"问的是什么" —— 返回空表，不把整个
+///    解过链的题库倒出来（那不是查询，那是导出）。
+/// 2. **只认最新一条链**（与 [readQuestionsForAction] 同一份口径）。
+/// 3. **命中项如实回报**（[CapabilityQuestionRow.matchedActionTypes]）：模型/界面得能
+///    区分"我因为哪几个动作被选中"，而不是只看到"链上有一堆动作"。
+Future<List<CapabilityQuestionRow>> readQuestionsForCapabilities(
+  AppDatabase db,
+  CapabilityQuestionQuery query,
 ) async {
-  final wanted = actionType.trim();
-  if (wanted.isEmpty) {
+  final wanted = query.normalized();
+  if (wanted.actionTypes.isEmpty && wanted.subjectKey.isEmpty) {
     return const <CapabilityQuestionRow>[];
   }
+
   final actionsByQuestion = await readChainActionTypes(db);
-  final matchedIds = <String>[
-    for (final entry in actionsByQuestion.entries)
-      if (entry.value.contains(wanted)) entry.key,
-  ];
-  if (matchedIds.isEmpty) {
+  final matched = <String, List<String>>{};
+  for (final entry in actionsByQuestion.entries) {
+    final chainActions = entry.value;
+    final hit = <String>[
+      for (final action in wanted.actionTypes)
+        if (chainActions.contains(action)) action,
+    ];
+    if (wanted.actionTypes.isNotEmpty) {
+      final ok = wanted.requireAll
+          ? hit.length == wanted.actionTypes.length
+          : hit.isNotEmpty;
+      if (!ok) continue;
+    }
+    matched[entry.key] = hit;
+  }
+  if (matched.isEmpty) {
     return const <CapabilityQuestionRow>[];
   }
 
   final rows = await (db.select(db.questions)
-        ..where((t) => t.id.isIn(matchedIds)))
+        ..where((t) => t.id.isIn(matched.keys.toList())))
       .get();
   final byId = {for (final row in rows) row.id: row};
   final result = <CapabilityQuestionRow>[
-    for (final id in matchedIds)
-      if (byId[id] != null && byId[id]!.stem.trim().isNotEmpty)
+    for (final entry in matched.entries)
+      if (byId[entry.key] != null &&
+          byId[entry.key]!.stem.trim().isNotEmpty &&
+          (wanted.subjectKey.isEmpty ||
+              byId[entry.key]!.subjectKey.trim() == wanted.subjectKey))
         CapabilityQuestionRow(
-          questionId: id,
-          stem: byId[id]!.stem.trim(),
-          subjectKey: byId[id]!.subjectKey,
-          sourceLevel: byId[id]!.sourceLevel,
-          actionTypes: actionsByQuestion[id]!,
+          questionId: entry.key,
+          stem: byId[entry.key]!.stem.trim(),
+          subjectKey: byId[entry.key]!.subjectKey,
+          sourceLevel: byId[entry.key]!.sourceLevel,
+          actionTypes: actionsByQuestion[entry.key]!,
+          matchedActionTypes: List<String>.unmodifiable(entry.value),
         ),
   ];
   result.sort((a, b) {

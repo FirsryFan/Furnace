@@ -298,12 +298,16 @@ class FindSimilarQuestionsTool extends AiTool {
   }
 }
 
-/// 按能力动作找题：链上出现过某个跨学科动作的题（`docs/REASONING_LAYER_DESIGN.md` §13 的工具面）。
+/// 按能力动作找题：链上出现过某个（或某几个）跨学科动作的题
+/// （`docs/REASONING_LAYER_DESIGN.md` §13 的工具面）。
 ///
-/// 与页面上那一条同源（`readQuestionsForAction`，同一个"只认最新一条链"口径）：页面给
+/// 与页面上那一条同源（`readQuestionsForCapabilities`，同一个"只认最新一条链"口径）：页面给
 /// 用户点，工具给模型问。为什么模型需要它：聊到"我老是在分类讨论这一步卡住"时，
 /// 模型要能**直接查到**哪几道题会练到这个动作，而不是让用户自己去题库里翻；但它仍然
 /// 只从已有题库里找，**不出题**。
+///
+/// 组合问法（轮次一百零七）：`action_types` + `match`（任一 / 全部）+ `subject_key`
+/// —— "分类讨论和回代检验都得用上的题""分类讨论类的物理题还剩几道"都能问。
 class FindQuestionsByCapabilityTool extends AiTool {
   FindQuestionsByCapabilityTool({required AppDatabase db}) : _db = db;
 
@@ -320,9 +324,10 @@ class FindQuestionsByCapabilityTool extends AiTool {
 
   @override
   String get description => '按**能力动作**（跨学科思维动作，如分类讨论 / 回代检验 / 极端化）在用户已有的题库里找题：'
-      '返回链上出现过这个动作的题（题干摘要 + 学科 + 来源 + 链上全部动作）。'
+      '返回链上出现过这些动作的题（题干摘要 + 学科 + 来源 + 命中动作 + 链上全部动作）。'
       '用在"我在某个动作上反复卡住，该练哪几道"的时候；配套的读数在认知模型页的'
       '「能力动作画像」（那条画像回答"哪个动作最该练"，这个工具回答"练哪几道"）。'
+      '可以组合：给多个 `action_types` + `match`（`any` 任一 / `all` 全部）+ `subject_key` 学科。'
       '**只读**：不写数据、不生成题干、不落库——只报库里已有的题，没有就说没有。'
       '口径：只认每道题**最新一条**解题链的动作序列；没解过链的题不会出现在结果里。';
 
@@ -330,17 +335,33 @@ class FindQuestionsByCapabilityTool extends AiTool {
   Map<String, Object?> get parameters => {
         'type': 'object',
         'properties': {
+          'action_types': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': '能力动作 key 列表（词表里的稳定标识，如 `case_split`）。'
+                '与 `action_type` 二选一或一起给（合并去重）；都不给时必须给 `subject_key`。'
+                '不认识的 key 会失败并列出可用值。',
+          },
           'action_type': {
             'type': 'string',
-            'description': '能力动作 key（词表里的稳定标识，如 `case_split`）。'
-                '不认识的 key 会失败并列出可用值。',
+            'description': '单个能力动作 key（`action_types` 的简写，给一个动作时用）。',
+          },
+          'match': {
+            'type': 'string',
+            'enum': <String>['any', 'all'],
+            'description': '多个动作时怎么算命中：`any`（默认，命中一个就算）或 `all`'
+                '（每个动作都要出现在最新一条链里）。',
+          },
+          'subject_key': {
+            'type': 'string',
+            'description': '只在这个学科里找（如 `math` / `physics`）；不给 = 不限学科。',
           },
           'limit': {
             'type': 'integer',
             'description': '最多返回几条，默认 $defaultLimit（上限 $maxLimit）',
           },
         },
-        'required': <String>['action_type'],
+        'required': <String>[],
       };
 
   /// 只读、无 action：与 `find_similar_questions` / `evaluate_problem_fit` 同一个中性组合。
@@ -359,38 +380,55 @@ class FindQuestionsByCapabilityTool extends AiTool {
   @override
   Future<ToolResult> run(ToolInvocation invocation) async {
     final args = ToolArgs(invocation.arguments);
-    final raw = invocation.arguments['action_type'];
-    if (raw == null) {
-      throw ToolArgError('缺少 `action_type`：给一个能力动作 key（如 `case_split`）');
+    final single = (args.optString('action_type') ?? '').trim();
+    final actions = <String>{
+      for (final raw in args.optStringList('action_types') ?? const <String>[])
+        if (raw.trim().isNotEmpty) raw.trim(),
+      if (single.isNotEmpty) single,
+    }.toList();
+    final subjectKey = (args.optString('subject_key') ?? '').trim();
+    final match = (args.optString('match') ?? 'any').trim();
+
+    if (match != 'any' && match != 'all') {
+      throw ToolArgError('`match` 只能是 `any` 或 `all`（收到 `$match`）');
     }
-    final actionType = raw.toString().trim();
-    if (actionType.isEmpty) {
-      throw ToolArgError('`action_type` 不能是空的');
+    if (actions.isEmpty && subjectKey.isEmpty) {
+      throw ToolArgError(
+        '缺少查询条件：至少给一个 `action_types`（数组）/ `action_type`（单个）'
+        '或 `subject_key`',
+      );
     }
-    if (!CapabilityAction.isKnownKey(actionType)) {
+    final unknown = <String>[
+      for (final action in actions)
+        if (!CapabilityAction.isKnownKey(action)) action,
+    ];
+    if (unknown.isNotEmpty) {
       final available = CapabilityAction.catalog
           .map((action) => '`${action.key}`（${action.labelZh}）')
           .join(' / ');
       return ToolResult.failure(
-        '不认识的能力动作 `$actionType`。可用：$available',
+        '不认识的能力动作 ${unknown.map((key) => '`$key`').join('、')}。可用：$available',
       );
     }
-    final action = CapabilityAction.byKey(actionType)!;
-    final limit = _limitOf(args);
 
-    final rows = await readQuestionsForAction(_db, actionType);
+    final query = CapabilityQuestionQuery(
+      actionTypes: actions,
+      subjectKey: subjectKey,
+      requireAll: match == 'all',
+    );
+    final rows = await readQuestionsForCapabilities(_db, query);
+    final limit = _limitOf(args);
     final shown = rows.take(limit).toList(growable: false);
 
     if (rows.isEmpty) {
       return ToolResult(
         ok: true,
-        summary: '题库里还没有解过含「${action.labelZh}」的题——我不会自己出题；'
-            '先去某道题的详情页按一次「AI 解题」，让它落一条解题链，之后这里才有东西可找。',
+        summary: _emptySummary(actions, subjectKey),
         modelResult: {
-          'action_type': action.key,
-          'action_label_zh': action.labelZh,
+          'query': _queryJson(query),
           'returned': 0,
           'candidates': 0,
+          'rule': 'latest_chain_only',
           'questions': <Object?>[],
         },
       );
@@ -398,10 +436,9 @@ class FindQuestionsByCapabilityTool extends AiTool {
 
     return ToolResult(
       ok: true,
-      summary: _summaryOfCapability(shown, rows.length, action),
+      summary: _summaryOfCapability(shown, rows.length, query),
       modelResult: {
-        'action_type': action.key,
-        'action_label_zh': action.labelZh,
+        'query': _queryJson(query),
         'returned': shown.length,
         'candidates': rows.length,
         'rule': 'latest_chain_only',
@@ -411,14 +448,12 @@ class FindQuestionsByCapabilityTool extends AiTool {
               'id': row.questionId,
               'stem': previewStem(row.stem),
               'subject_key': row.subjectKey,
-              'subject': CapabilityAction.subjectLabelsZh[row.subjectKey] ??
-                  row.subjectKey,
+              'subject': _subjectOf(row.subjectKey),
               'source_level': row.sourceLevel,
+              'matched_action_types': row.matchedActionTypes,
+              'matched_actions_zh': _labelsOf(row.matchedActionTypes),
               'action_types': row.actionTypes,
-              'action_labels_zh': [
-                for (final key in row.actionTypes)
-                  CapabilityAction.byKey(key)?.labelZh ?? key,
-              ],
+              'action_labels_zh': _labelsOf(row.actionTypes),
             },
         ],
       },
@@ -433,20 +468,64 @@ class FindQuestionsByCapabilityTool extends AiTool {
     return raw > maxLimit ? maxLimit : raw;
   }
 
+  Map<String, Object?> _queryJson(CapabilityQuestionQuery query) {
+    final normalized = query.normalized();
+    return {
+      'action_types': normalized.actionTypes,
+      'action_labels_zh': _labelsOf(normalized.actionTypes),
+      'subject_key': normalized.subjectKey,
+      'subject': _subjectOf(normalized.subjectKey),
+      'match': normalized.requireAll ? 'all' : 'any',
+    };
+  }
+
+  String _emptySummary(List<String> actions, String subjectKey) {
+    final subject = subjectKey.isEmpty ? '' : '「${_subjectOf(subjectKey)}」';
+    if (actions.isEmpty) {
+      return '题库里还没有解过链的$subject题——我不会自己出题；先去某道题的详情页按一次'
+          '「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
+    }
+    final labels = _labelsOf(actions).map((label) => '「$label」').join('、');
+    return '题库里还没有解过含$labels的$subject题——我不会自己出题；先去某道题的详情页按一次'
+        '「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
+  }
+
   String _summaryOfCapability(
     List<CapabilityQuestionRow> shown,
     int total,
-    CapabilityAction action,
+    CapabilityQuestionQuery query,
   ) {
+    final normalized = query.normalized();
+    final labels = _labelsOf(normalized.actionTypes);
+    final subject = normalized.subjectKey.isEmpty
+        ? ''
+        : '「${_subjectOf(normalized.subjectKey)}」里的';
+    final String rule;
+    if (labels.isEmpty) {
+      rule = '解过链的$subject';
+    } else if (normalized.requireAll) {
+      rule = '最新链同时含${labels.map((label) => '「$label」').join('、')}的$subject';
+    } else {
+      rule = '最新链含${labels.map((label) => '「$label」').join('或')}的$subject';
+    }
     final top = shown.take(3).map((row) {
-      final subject = CapabilityAction.subjectLabelsZh[row.subjectKey] ??
-          (row.subjectKey.isEmpty ? '未标注学科' : row.subjectKey);
-      return '${previewStem(row.stem)}（$subject）';
+      return '${previewStem(row.stem)}（${_subjectOf(row.subjectKey)}）';
     }).join('；');
     final more =
         total > shown.length ? '（共 $total 道，这里只给 ${shown.length} 道）' : '';
-    return '链上出现过「${action.labelZh}」的题 $total 道$more：$top。'
+    return '$rule题 $total 道$more：$top。'
         '只算每道题最新一条解题链；这些是题库里已有的题，不是我出的。';
+  }
+
+  List<String> _labelsOf(List<String> keys) => <String>[
+        for (final key in keys) CapabilityAction.byKey(key)?.labelZh ?? key,
+      ];
+
+  String _subjectOf(String subjectKey) {
+    if (subjectKey.trim().isEmpty) {
+      return '';
+    }
+    return CapabilityAction.subjectLabelsZh[subjectKey] ?? subjectKey;
   }
 }
 

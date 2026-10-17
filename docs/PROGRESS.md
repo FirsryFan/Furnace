@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-10-18 轮次一百零七：组合查询 —— "分类讨论和回代检验都得用上的题"也能问（Lead）
+
+**做了什么**：轮次一百零五～一百零六的"按能力动作找题"一次只能问**一个**动作。但真实问法是组合的：
+"我一碰到分类讨论和回代检验就卡，给我两道两个都得用上的题""分类讨论类的物理题还剩几道"。这一轮把
+读表与工具都扩成组合查询（纯逻辑，不碰 schema）：
+
+- **查询对象**：`CapabilityQuestionQuery`（`question_corpus_reader.dart`）—— `actionTypes` 一组动作 +
+  `requireAll`（任一 / 全部）+ `subjectKey`；`normalized()` 去空/去重/trim。
+- **读表**：`readQuestionsForCapabilities(db, query)`；单动作的 `readQuestionsForAction` 变成它的简写
+  （页面无需改动，口径仍然只有一份）。三条纪律：动作与学科**都空返回空表**（不把解过链的题库整个倒
+  出来）、只认**最新一条链**、**命中项如实回报**（`CapabilityQuestionRow.matchedActionTypes` 与
+  `actionTypes` 分开：前者是"为什么选中我"，后者是"这条链长什么样"）。
+- **工具**：`find_questions_by_capability` 的入参升级为 `action_types`（数组）/ `action_type`（单个，
+  向后兼容）/ `match`（`any`|`all`）/ `subject_key` / `limit`；两个条件都空 → 参数错；`match` 非法 →
+  参数错；词表外 key（含数组里任意一个）→ 失败并列出可用值。`modelResult` 多了 `query`（归一化后的
+  动作 + 中文名 + 学科 + match）和每行的 `matched_action_types` / `matched_actions_zh`；摘要按问法说
+  人话（"最新链同时含「分类讨论」「回代检验」的题 3 道…" / "解过链的「数学」题 2 道…"）。
+- **不越界**：仍然只从已有题库里找，AI 不出题；空结果如实说没有。
+
+**证据**：`app/test/features/questions/application/capability_action_questions_reader_test.dart`
+3 → **4 例**（新增组合查询：任一命中 3 道、`requireAll` 只剩 1 道、命中项如实回报、学科筛选、只按
+学科、空条件返回空）；`app/test/features/ai/find_questions_by_capability_tool_test.dart` 7 → **8 例**
+（新增组合查询：`match=all` / `any` 默认 / 动作+学科 / 只按学科 / 两个条件都空 → 参数错 / `match` 非法
+→ 参数错）。既有 7 例的 payload 断言随 `modelResult` 结构更新（`action_type` → `query.action_types`）。
+本轮 `dart format` 只格式化本轮改动的 5 个 Dart 文件；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**，与八十六～一百零六同基线）；全量 `flutter test --concurrency=1` →
+**+2093 ~2**（轮次一百零六 `+2091 ~2`，差值 2）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ `kPreferredActionBoost = 0.15` 仍属未标定
+先验；④ **组合查询目前只在工具面**：页面上还是"从画像点进来只看一个动作"，没有"选多个动作 / 学科筛"
+的控件；⑤ 组卷/相似题的措辞与配额打磨；⑥ 题库入口是否升顶层导航。
+
+---
+
 ## 2026-10-18 轮次一百零六：同一个问法给模型 —— `find_questions_by_capability`（Lead）
 
 **做了什么**：轮次一百零五给用户加了「按能力动作找题」页；但对话里的模型还问不到同一个问题 —— 它只能

@@ -135,4 +135,85 @@ void main() {
     expect(await readQuestionsForAction(db, '  '), isEmpty);
     expect(await readQuestionsForAction(db, 'not_a_move'), isEmpty);
   });
+
+  test('组合查询：任一 / 全部 / 学科 / 空条件', () async {
+    await seedQuestion(id: 'q-both', sourceLevel: 'gaokao');
+    await seedQuestion(id: 'q-split', sourceLevel: 'gaokao');
+    await seedQuestion(id: 'q-phys', sourceLevel: 'gaokao');
+    await seedQuestion(id: 'q-nochain', sourceLevel: 'gaokao');
+    await seedChain(
+      questionId: 'q-both',
+      chainId: 'chain-both',
+      createdAt: 10,
+      actions: const <String>['case_split', 'sanity_check'],
+    );
+    await seedChain(
+      questionId: 'q-split',
+      chainId: 'chain-split',
+      createdAt: 10,
+      actions: const <String>['case_split'],
+    );
+    await seedChain(
+      questionId: 'q-phys',
+      chainId: 'chain-phys',
+      createdAt: 10,
+      actions: const <String>['case_split'],
+    );
+    // 只给物理那道标学科（seedQuestion 默认 school/无学科，这里单独改）。
+    await (db.update(db.questions)..where((t) => t.id.equals('q-phys')))
+        .write(const QuestionsCompanion(subjectKey: Value('physics')));
+
+    // 任一命中：三道。
+    final any = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(
+        actionTypes: <String>['case_split', 'sanity_check'],
+      ),
+    );
+    expect(any.map((row) => row.questionId).toSet(), <String>{
+      'q-both',
+      'q-split',
+      'q-phys',
+    });
+    // 命中项如实回报：q-split 只命中 case_split，q-both 两个都命中。
+    final split = any.firstWhere((row) => row.questionId == 'q-split');
+    expect(split.matchedActionTypes, <String>['case_split']);
+    final both = any.firstWhere((row) => row.questionId == 'q-both');
+    expect(both.matchedActionTypes, <String>['case_split', 'sanity_check']);
+
+    // 全部命中：只有 q-both。
+    final all = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(
+        actionTypes: <String>['case_split', 'sanity_check'],
+        requireAll: true,
+      ),
+    );
+    expect(all.map((row) => row.questionId).toList(), <String>['q-both']);
+
+    // 学科筛选（可与动作组合，也可单独用）。
+    final physics = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(
+        actionTypes: <String>['case_split'],
+        subjectKey: 'physics',
+      ),
+    );
+    expect(physics.map((row) => row.questionId).toList(), <String>['q-phys']);
+    final physicsOnly = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(subjectKey: 'physics'),
+    );
+    expect(
+      physicsOnly.map((row) => row.questionId).toList(),
+      <String>['q-phys'],
+    );
+    expect(physicsOnly.single.matchedActionTypes, isEmpty);
+
+    // 动作与学科都空：不把整个题库倒出来。
+    expect(
+      await readQuestionsForCapabilities(db, const CapabilityQuestionQuery()),
+      isEmpty,
+    );
+  });
 }

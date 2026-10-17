@@ -299,9 +299,11 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 
 画像只回答"我最该练哪个动作"，用户看完还是得回题库自己翻。这一节把"动作 → 题目"接上：
 
-- **读表**：`readQuestionsForAction(db, actionType)`（`question_corpus_reader.dart`，纯 Dart）——
-  复用 `readChainActionTypes` 的**"只认最新一条链"**口径，筛出链上含该动作的题；排序 = 来源分级
-  高的在前、平手按题目 id（同一份库刷两次顺序一样）；空动作 / 没命中返回空表。
+- **读表**：`readQuestionsForCapabilities(db, CapabilityQuestionQuery(...))`（`question_corpus_reader.dart`，
+  纯 Dart；单动作走简写 `readQuestionsForAction(db, actionType)`）—— 复用 `readChainActionTypes` 的
+  **"只认最新一条链"**口径，筛出链上含动作的题；查询可以组合：一组动作（`requireAll` 任一 / 全部）+
+  学科；排序 = 来源分级高的在前、平手按题目 id（同一份库刷两次顺序一样）；动作与学科都空返回空表
+  （不把整个题库倒出来）；命中项写进 `CapabilityQuestionRow.matchedActionTypes`，与"链上有什么"分开。
 - **页面**：`CapabilityActionQuestionsPage`（`features/questions/presentation/`）—— 标题用词表
   `labelZh`（词表外原样）；每行是题干 + "学科 · 来源 · 链上动作"；点一行进题目详情页（那里有
   AI 解题与卡点评估）。只读，不写任何表。
@@ -314,12 +316,25 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 （命中/旧链不算/排序与空输入）、`test/features/questions/presentation/capability_action_questions_page_test.dart`
 2 例（题干 + 元信息 + 点进详情页；空态）、认知模型页 +1 例（画像行点得开 → 到那一页）。
 
-**工具面（轮次一百零六）**：`find_questions_by_capability`（`features/ai/tools/question_tools.dart`，
-注册在 `ToolRegistry.forApp`）—— 与页面**同一份读表函数**（`readQuestionsForAction`），所以
-"页面上查到的"与"模型查到的"不会分叉。入参 `action_type`（必填，词表外的 key 直接失败并列出可用值）
-+ `limit`（默认 10、上限 50）；`readOnly => true`，`ApprovalEngine` 两种权限模式下都不逐条询问。
-`modelResult` 里带 `action_type` / `action_label_zh` / `returned` / `candidates` /
-`rule: 'latest_chain_only'` / `questions[]`（id、题干摘要、学科 key + 中文名、来源分级、
-链上全部动作 key + 中文名）。空结果如实说"还没有解过含这个动作的题，我不会自己出题"。
-验收：`test/features/ai/find_questions_by_capability_tool_test.dart` **7 例**（注册与审批、未知动作、
-参数错、命中 + 只认最新链、空结果、`limit` 钳位、整库指纹只读）。
+**工具面（轮次一百零六，轮次一百零七扩成组合查询）**：`find_questions_by_capability`
+（`features/ai/tools/question_tools.dart`，注册在 `ToolRegistry.forApp`）—— 与页面**同一份读表函数**
+（`readQuestionsForCapabilities`；页面用的 `readQuestionsForAction` 是它的单动作简写），所以
+"页面上查到的"与"模型查到的"不会分叉。入参：
+
+| 入参 | 说明 |
+| --- | --- |
+| `action_types`（数组）/ `action_type`（单个） | 动作 key，可只给一个；词表外的 key 直接失败并列出可用值 |
+| `match` | `any`（默认，命中一个就算）/ `all`（每个动作都得出现在最新链里） |
+| `subject_key` | 只要这个学科；与动作组合，或单独用（"解过链的物理题"） |
+| `limit` | 默认 10、上限 50 |
+
+- 两个条件都空 → 参数错（不把整个题库倒出来）；`readOnly => true`，`ApprovalEngine` 两种权限模式下
+  都不逐条询问。
+- `modelResult`：`query`（归一化后的动作/学科/match + 中文名）、`returned`、`candidates`、
+  `rule: 'latest_chain_only'`、`questions[]`（id、题干摘要、学科 key + 中文名、来源分级、
+  **命中动作** `matched_action_types`/`matched_actions_zh`、链上全部动作 key + 中文名）。
+  空结果如实说"还没有解过含这个动作的题，我不会自己出题"。
+- 验收：`test/features/ai/find_questions_by_capability_tool_test.dart` **8 例**（注册与审批、未知动作、
+  参数错、命中 + 只认最新链、空结果、`limit` 钳位、整库指纹只读、组合查询 any/all/学科/空条件）；
+  `test/features/questions/application/capability_action_questions_reader_test.dart` **4 例**
+  （含组合查询：命中项如实回报、`requireAll`、学科筛选、空条件返回空）。

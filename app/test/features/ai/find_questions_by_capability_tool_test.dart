@@ -166,8 +166,10 @@ void main() {
     expect(result.summary, contains('数学'));
 
     final payload = result.modelResult! as Map<String, Object?>;
-    expect(payload['action_type'], 'case_split');
-    expect(payload['action_label_zh'], '分类讨论');
+    final query = payload['query']! as Map<String, Object?>;
+    expect(query['action_types'], <String>['case_split']);
+    expect(query['action_labels_zh'], <String>['分类讨论']);
+    expect(query['match'], 'any');
     expect(payload['returned'], 1);
     expect(payload['candidates'], 1);
     expect(payload['rule'], 'latest_chain_only');
@@ -177,6 +179,8 @@ void main() {
     expect(row['stem'], '抽取两次，求条件概率。');
     expect(row['subject'], '数学');
     expect(row['source_level'], 'gaokao');
+    expect(row['matched_action_types'], <String>['case_split']);
+    expect(row['matched_actions_zh'], <String>['分类讨论']);
     expect(row['action_labels_zh'], <String>['分类讨论', '回代检验']);
 
     // 旧链里出现过 induction，但最新链没有 → 不被算作命中。
@@ -241,5 +245,88 @@ void main() {
 
     expect(result.ok, isTrue);
     expect(await snapshot(), before);
+  });
+
+  test('组合查询：match=all 要求每个动作都在最新链里，subject_key 再筛学科', () async {
+    final both = await seedQuestion(stem: '两个动作都用上的数学题。');
+    final splitOnly = await seedQuestion(stem: '只用分类讨论的数学题。');
+    final physics =
+        await seedQuestion(stem: '只用分类讨论的物理题。', subjectKey: 'physics');
+    await seedChain(
+      questionId: both,
+      chainId: 'chain-both',
+      createdAt: 10,
+      actions: const <String>['case_split', 'sanity_check'],
+    );
+    await seedChain(
+      questionId: splitOnly,
+      chainId: 'chain-split',
+      createdAt: 10,
+      actions: const <String>['case_split'],
+    );
+    await seedChain(
+      questionId: physics,
+      chainId: 'chain-phys',
+      createdAt: 10,
+      actions: const <String>['case_split'],
+    );
+
+    // all：两个动作都得在最新链里 → 只有 both。
+    final all = await tool.run(invoke({
+      'action_types': <String>['case_split', 'sanity_check'],
+      'match': 'all',
+    }));
+    final allPayload = all.modelResult! as Map<String, Object?>;
+    expect(
+      [
+        for (final row in allPayload['questions']! as List<Object?>)
+          (row! as Map<String, Object?>)['id']
+      ],
+      <String>[both],
+    );
+    expect(all.summary, contains('同时含'));
+    expect(allPayload['candidates'], 1);
+
+    // any（默认）：三道都算。
+    final any = await tool.run(invoke({
+      'action_types': <String>['case_split', 'sanity_check'],
+    }));
+    expect(
+      (any.modelResult! as Map<String, Object?>)['candidates'],
+      3,
+    );
+
+    // 动作 + 学科：只剩物理那道。
+    final bySubject = await tool.run(invoke({
+      'action_type': 'case_split',
+      'subject_key': 'physics',
+    }));
+    final subjectPayload = bySubject.modelResult! as Map<String, Object?>;
+    expect(
+      [
+        for (final row in subjectPayload['questions']! as List<Object?>)
+          (row! as Map<String, Object?>)['id']
+      ],
+      <String>[physics],
+    );
+    expect((subjectPayload['query']! as Map<String, Object?>)['subject'], '物理');
+
+    // 只按学科（不按动作）：数学两道都解过链，都算。
+    final mathOnly = await tool.run(invoke({'subject_key': 'math'}));
+    expect((mathOnly.modelResult! as Map<String, Object?>)['candidates'], 2);
+    expect(mathOnly.summary, contains('解过链的「数学」'));
+
+    // 两个条件都空 → 参数错；match 非法 → 参数错。
+    expect(
+      () => tool.run(invoke(const <String, Object?>{})),
+      throwsA(isA<ToolArgError>()),
+    );
+    expect(
+      () => tool.run(invoke({
+        'action_type': 'case_split',
+        'match': 'sometimes',
+      })),
+      throwsA(isA<ToolArgError>()),
+    );
   });
 }

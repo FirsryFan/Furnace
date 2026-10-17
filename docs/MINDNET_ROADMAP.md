@@ -1932,10 +1932,16 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 `readQuestionsForAction`；词表外的 key 直接失败并列出可用值；`limit` 默认 10/上限 50；空结果如实说
 "还没有解过含这个动作的题，我不会自己出题"）。口径见 `docs/REASONING_LAYER_DESIGN.md` §13 工具面。
 
+**轮次一百零七：组合查询**（`CapabilityQuestionQuery`：一组动作 + `match` 任一/全部 + 学科；
+`readQuestionsForCapabilities` 与 `readQuestionsForAction` 共用同一份口径；工具参数升级为
+`action_types` / `match` / `subject_key` 并如实回报 `matched_action_types`；两个条件都空 → 参数错，
+不把题库倒出来）。口径同上 §13。
+
 **仍未做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，要么引 `desktop_drop` 一类依赖、
 要么只走"粘贴 + 选文件"——需用户拍板）；② 能力动作词表用户可编辑（设计上留到 v13）；
 ③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层导航（当前刻意挂在设置页，见
-`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）。
+`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）；
+⑥ 「按能力动作找题」页还没有组合查询的控件（组合查询目前只在工具面）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 
