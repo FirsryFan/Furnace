@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-10-18 轮次一百零三：把画像接进组卷 —— 「这份卷子练到我最该练的动作」（Lead）
+
+**做了什么**：轮次一百零二把"我卡在哪种动作上"算出来了、摆在认知模型页上；但那是**读**，没有出口 ——
+用户看完还是不知道该做哪几道题。这一轮把它接进组卷：候选题目带上自己**最新一条解题链的动作序列**，
+组卷器拿到"我最该练的动作"（画像里平均风险 ≥ 0.6 的前 3 个）后，给命中的题一个**透明的分数加成**，
+并在理由行里说出来（"这题会练到「分类讨论」这类动作"）。
+
+- **领域层（纯逻辑）**：`PaperCandidate.actionTypes` + `compose(preferredActionTypes:)`；命中比例
+  `actionFit = 命中数 / 偏好数`，总分乘 `1 + kPreferredActionBoost * actionFit`，`kPreferredActionBoost = 0.15`
+  —— 刻意保守、**只加成不过滤**（当成过滤会把"没解过链的题"整体排除，那就不是练得准，而是只练解过的题）。
+  命中动作写进 `PaperItem.matchedPreferredActions`（`toJson` 也有），理由行补一句人话（词表外的 key 原样显示）。
+  没有偏好时乘数恒为 1 —— 历史行为逐字段不变。
+- **页面**：`paperPlanProvider` 读能力动作画像 + `readChainActionTypes(db)` 给每个候选补动作序列，再一起
+  交给 `compose`；画像为空（没解过链）时行为与之前完全一致。
+- **AI 工具**：`compose_paper` 走同一份纯函数（`CapabilityProfile.of` + `readChainActionTypes`），
+  `modelResult.preferred_action_types` 与 `items[].matched_preferred_actions` 如实带出 —— 页面与工具同源，
+  同一份库挑出来的卷子一致（D2）。
+
+**证据**：`app/test/domain/services/paper/paper_composer_test.dart` 16 → **18 例**（偏好只影响次序不过滤、
+没偏好时同分且命中列表为空；命中两个动作 > 命中一个、理由行说人话且词表外 key 原样）；
+`app/test/features/questions/application/paper_plan_provider_test.dart` 9 → **10 例**（真内存库：一道有链
+`case_split`、一道没链，条件完全相同 → 有链的排第一、`matchedPreferredActions == ['case_split']`、理由含
+"分类讨论"与"能力动作画像"；没链的照旧进卷且无命中项）；`app/test/features/ai/paper_tools_test.dart` 12 → **13 例**
+（工具面同样出现 `preferred_action_types` 与 `matched_preferred_actions`，且整库指纹不变）。本轮 `dart format`
+只格式化本轮 5 个 Dart 文件（2 changed，复查 0 changed）；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**，与八十六～一百零二同基线）；全量 `flutter test --concurrency=1` → **+2075 ~2**
+（轮次一百零二 `+2071 ~2`，差值 4）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ 画像还没有"按学科轨道/按题型"的切面，
+也没有把"该练动作"做成组卷页上的可见开关（当前是自动生效，用户看不见"为什么这道排前面"以外的信息 ——
+理由行里能看到，但没有开关）；④ 题库入口是否升为顶层导航；⑤ `kPreferredActionBoost = 0.15` 未标定。
+
+---
+
 ## 2026-10-18 轮次一百零二：能力动作画像 —— 「我卡在哪种动作上」（Lead）
 
 **做了什么**：轮次一百零一验收五片时记下的下一个口子：推理层已经有"这道题这一步他能不能走下去"

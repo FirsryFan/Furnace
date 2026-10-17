@@ -40,6 +40,11 @@
    - `quality = sourcePriority * 0.7 + qualityScore * 0.3`（来源分级为主，AI 加工质量为辅）。
    - `difficultyFit`：给了 `targetDifficulty` 才区分（`1 - |d - target| / 9`），否则恒为中性 `1.0`。
    - 一道题挂多个知识点时：`need` 取**最该练的那个**，它就是这道题的 `knowledgePointId`（"最主要在补哪个点"）。
+   - **能力动作偏好（轮次一百零三）**：候选带着"最新一条解题链的动作序列"（`PaperCandidate.actionTypes`），
+     调用方再传"我最该练的动作"（`preferredActionTypes`，来自能力动作画像，最多取 3 个）。命中比例
+     `actionFit = 命中数 / 偏好数`，总分乘 `1 + kPreferredActionBoost * actionFit`（`kPreferredActionBoost = 0.15`）。
+     命中的动作会写进 `PaperItem.matchedPreferredActions`，理由行补一句"这题会练到「分类讨论」这类动作"。
+     没有偏好时乘数恒为 1，历史行为一个字节不变。
 3. **配额 + 贪心**：`perKnowledgePointCap` 缺省时按 `ceil(targetCount / 有候选的知识点数)` 自动算，
    下限 1。按分数降序选（tie-break：分数 → 来源分级 → AI 质量 → 题目 id），
    候选挂的每个知识点都算过配额；**全部**挂载点都到配额才跳过它。`items` 的顺序就是贪心选择顺序
@@ -54,13 +59,16 @@
 - "找相似题"没有做：本层只在**已有候选**里选，缺口只报不补。
 - 中文文案（`reasonZh` / `improvementNote` / `backgroundZh`）是领域层的一部分，
   故意不放在 ARB：措辞要能跟着规则一起改，且界面不许另写一套。l10n 化留后轮（同 threadflow 的 `reasonZh`）。
+- **能力动作加成 `kPreferredActionBoost = 0.15` 也是未标定的**：刻意保守（只让命中项排前面一点），
+  不做硬过滤——当成过滤会把"没解过链的题"整体排除，那就不是"练得准"，而是"只练解过的题"。
+  命中上限 3 个动作：再多会让整份卷子被同一类动作占满，挤掉"按薄弱知识点凑题"这条更硬的依据。
 - 调用方（组卷页 UI）还没做：Q10。它依赖的**输入拼装**已经做完（§7，Q11）：
   `paperPlanProvider` 给出 `PaperPlan`，页面只负责渲染与改 `paperSpecProvider`。
 
 ## 5. 输出契约
 
 `PaperPlan`：
-- `items`：`PaperItem{questionId, subjectKey, sourceLevel, questionType, knowledgePointId?, matchedKnowledgePointIds, zone, need, quality, score, reasonZh, improvementNote, backgroundZh}`。
+- `items`：`PaperItem{questionId, subjectKey, sourceLevel, questionType, knowledgePointId?, matchedKnowledgePointIds, zone, need, quality, score, reasonZh, improvementNote, backgroundZh, matchedPreferredActions}`（最后一项 = 命中的"最该练的动作"，空 = 没命中）。
 - `uncoveredKnowledgePointIds`：危险/发展区**但题库里一道候选都没有**的知识点 → 这是"该去收题"的清单。
 - `deferredKnowledgePointIds`：有候选但这轮没排进来（数量/配额限制）。
 - `byKnowledgePoint`：每个知识点实际排了几道（含被第二知识点"顺带覆盖"的）。
@@ -133,14 +141,29 @@
 - 读数走 `library_diagnosis_reader.dart`（`readLibraryDiagnosis` + `readPaperReadings`）——**与组卷页同源**，
   所以同一个知识点不会这边危险、那边健康；`diagnosis_ran == false` 时摘要明说"按没有读数处理，**不是**健康"。
 - `modelResult`：`requested_count` / `item_count` / `is_short` / `candidate_count` / `bank_size` / `overall_need` /
-  `diagnosis_ran` / `readings_used` / `uncovered_knowledge_point_ids`（带中文名）/ `deferred_knowledge_point_ids` /
+  `diagnosis_ran` / `readings_used` / `preferred_action_types`（能力动作偏好，轮次一百零三）/
+  `uncovered_knowledge_point_ids`（带中文名）/ `deferred_knowledge_point_ids` /
   `by_knowledge_point` / `items[]`（题号、知识点、学科、来源、`zone` + `zone_zh`、`need` / `quality` / `score`、
-  `reason` / `improvement_note` / `background`）。
+  `reason` / `improvement_note` / `background`、命中时的 `matched_preferred_actions`）。
 - 凑不够时**不生成题目**：摘要直说"题库不够，缺口去收题页补"，把未覆盖/被挤掉的清单原样回给模型。
 
 ## 10. 验收记录（AI 工具面）
 
-- `app/test/features/ai/paper_tools_test.dart` → **12 例全绿**（见 `docs/PROGRESS.md` 轮次三十五）。
+- `app/test/features/ai/paper_tools_test.dart` → **13 例全绿**（见 `docs/PROGRESS.md` 轮次三十五；轮次一百零三
+  加 1 例：工具挑卷子同样用能力动作偏好，`preferred_action_types` 与 `items[].matched_preferred_actions` 都摆出来）。
 - `app/test/features/cognitive/application/library_diagnosis_reader_test.dart` → **4 例全绿**，含一条 parity：
   非 Riverpod 读取与页面三个 provider 逐字段一致。
 - 回归：`flutter test test/features/ai test/features/questions test/features/cognitive --concurrency=1` → **+430 全绿**。
+
+## 11. 能力动作偏好接线（轮次一百零三）
+
+页面与工具**同源**地接上了"我最该练的动作"：
+
+- **页面**：`paperPlanProvider` 读 `capabilityProfileProvider`（推理层画像）取"平均风险 ≥ 0.6"的前 3 个动作，
+  再从 `readChainActionTypes(db)` 给每个候选补 `actionTypes`，一起传给 `compose(preferredActionTypes:)`。
+- **工具**：`ComposePaperTool` 走同一份纯函数（`CapabilityProfile.of` + `readChainActionTypes`），
+  `modelResult.preferred_action_types` 与 `items[].matched_preferred_actions` 都如实带出。
+- **没画像时**：偏好为空 → 乘数恒为 1 → 卷子与轮次一百零二之前逐字段一致（有回归测试钉住）。
+- 验收：`paper_composer_test.dart` **18 例**（含"偏好只影响次序不过滤""命中两个 > 命中一个"、
+  "没有偏好时同分"）；`paper_plan_provider_test.dart` **10 例**（含真库链 → 页面 provider 的排序与理由）；
+  `paper_tools_test.dart` **13 例**。

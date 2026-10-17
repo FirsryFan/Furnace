@@ -26,8 +26,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
+import 'capability_profile_provider.dart';
 import 'question_corpus_reader.dart';
 
 /// `PaperCorpus` 的公开路径保持在这里：组卷页与找相似题都从这个文件导入它，
@@ -161,8 +163,37 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
   };
   final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
 
+  // 「我最该练的动作」来自能力动作画像（推理层读数）；没解过链的库这里是空表，
+  // 组卷行为与之前完全一致。取"平均风险过线（>= 0.6）"的前几个，顺序就是画像的
+  // 排序（最该练的在前）。
+  final profile = await ref.watch(capabilityProfileProvider.future);
+  final preferredActions = <String>[
+    for (final reading in profile)
+      if (reading.avgStuckRisk != null &&
+          reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
+        reading.actionType,
+  ].take(kPreferredActionLimit).toList();
+
+  // 每道题最新一条链的动作序列：候选带上它，组卷器才能算"命中比例"。
+  final chainActions =
+      await readChainActionTypes(ref.read(appDatabaseProvider));
+  final candidates = <PaperCandidate>[
+    for (final candidate in corpus.candidates)
+      PaperCandidate(
+        questionId: candidate.questionId,
+        subjectKey: candidate.subjectKey,
+        sourceLevel: candidate.sourceLevel,
+        questionType: candidate.questionType,
+        difficulty: candidate.difficulty,
+        aiQuality: candidate.aiQuality,
+        trapNote: candidate.trapNote,
+        matchedKnowledgePointIds: candidate.matchedKnowledgePointIds,
+        actionTypes: chainActions[candidate.questionId] ?? const <String>[],
+      ),
+  ];
+
   return PaperComposer.compose(
-    candidates: corpus.candidates,
+    candidates: candidates,
     spec: spec,
     readings: await readPaperReadings(
       ref.read(appDatabaseProvider),
@@ -171,5 +202,6 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
     ),
     knowledgePointNames: corpus.knowledgePointNames,
     knowledgePointTagPaths: corpus.knowledgePointTagPaths,
+    preferredActionTypes: preferredActions,
   );
 });

@@ -1915,6 +1915,11 @@ en::w::a`，关掉就消失）；新增 `v23_migration_test.dart` 2 例（真实
 `capabilityProfileProvider` 是唯一 IO，认知模型页多一张卡片）。口径见
 `docs/REASONING_LAYER_DESIGN.md` §12：只信真有的读数、未知动作原样显示、空样本说空、评估派生不落库。
 
+**轮次一百零三：画像接进组卷**（`PaperCandidate.actionTypes` + `compose(preferredActionTypes:)` 的透明加成
+`kPreferredActionBoost = 0.15`，理由行补一句"这题会练到「分类讨论」这类动作"；页面 `paperPlanProvider` 与
+AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11：**只加成、不过滤**——
+过滤会把"没解过链的题"整体排除，那就不是练得准而是只练解过的题。
+
 **仍未做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，要么引 `desktop_drop` 一类依赖、
 要么只走"粘贴 + 选文件"——需用户拍板）；② 能力动作词表用户可编辑（设计上留到 v13）；
 ③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层导航（当前刻意挂在设置页，见

@@ -287,3 +287,10 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 验收：`test/domain/services/reasoning/capability_profile_test.dart` 7 例（归并/只信真读数/
 无读数垫底/排序/未知动作原样/空输入/`toJson`）+ 认知模型页 1 例（真库两条步骤聚合出
 "分类讨论：2 步，其中 1 步高风险，平均风险 0.50"，未知动作原样出现）。
+
+**与组卷的接线（轮次一百零三）**：画像取"平均风险 ≥ 0.6"的前 3 个动作，作为组卷器的
+`preferredActionTypes`；候选带着自己最新一条链的动作序列（`PaperCandidate.actionTypes`），
+命中比例只**乘一个 0.15 的透明加成**（不做过滤——过滤会把"没解过链的题"整体排除，
+那就不是练得准而是只练解过的题）。命中的动作写进 `PaperItem.matchedPreferredActions`，
+理由行补一句"这题会练到「分类讨论」这类动作"。页面（`paperPlanProvider`）与 AI 工具
+（`compose_paper`）走同一份纯函数，口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11。

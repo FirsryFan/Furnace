@@ -351,4 +351,73 @@ void main() {
       );
     });
   });
+
+  group('能力动作画像（与页面同源）', () {
+    /// 给一道题落一条链：这是 `reasoning_steps` 里的真行，工具和页面读的是同一张表。
+    Future<void> seedChain({
+      required String questionId,
+      required List<({String action, double? risk})> steps,
+    }) async {
+      await db.into(db.reasoningChains).insert(
+            ReasoningChainsCompanion.insert(
+              id: 'chain-$questionId',
+              questionId: questionId,
+              createdAt: 1,
+              summary: const Value(''),
+              stepCount: Value(steps.length),
+            ),
+          );
+      for (var i = 0; i < steps.length; i++) {
+        await db.into(db.reasoningSteps).insert(
+              ReasoningStepsCompanion.insert(
+                id: 'step-$questionId-$i',
+                chainId: 'chain-$questionId',
+                idx: i,
+                goal: '第 $i 步',
+                actionType: Value(steps[i].action),
+                stuckRisk: Value(steps[i].risk),
+                createdAt: 1,
+              ),
+            );
+      }
+    }
+
+    test('工具挑卷子也用同一份动作画像：命中项排在前面、payload 里摆出来', () async {
+      final (withChain, pointId) = await seedLinked(
+        stem: '有链的那道动量题。',
+        pointTitle: '动量守恒',
+      );
+      final (withoutChain, _) = await seedLinked(
+        stem: '没链的那道动量题。',
+        pointTitle: '动量守恒',
+      );
+      await seedChain(
+        questionId: withChain,
+        steps: <({String action, double? risk})>[
+          (action: 'case_split', risk: 0.9),
+        ],
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 2,
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      expect(payload['preferred_action_types'], <String>['case_split']);
+      final items = itemsOf(result);
+      expect(items, hasLength(2));
+      expect(items.first['question_id'], withChain);
+      expect(items.first['matched_preferred_actions'], <String>['case_split']);
+      expect(items.first['reason'], contains('分类讨论'));
+      // 没链的题照样进卷，只是没有命中项（不因为"没解过"被排除）。
+      expect(items.last['question_id'], withoutChain);
+      expect(
+        items.last.containsKey('matched_preferred_actions'),
+        isFalse,
+      );
+      // 只读：整库指纹不变（含 reasoning_steps）。
+      expect(pointId, isNotEmpty);
+    });
+  });
 }

@@ -74,6 +74,35 @@ void main() {
   Future<String> seedKnowledgePoint(String title) async =>
       (await anki.createKnowledgePoint(title: title, content: '')).id;
 
+  /// 给一道题落一条链：`steps` 是 (action, stuckRisk) 序列，用于能力动作画像。
+  Future<void> seedChain({
+    required String questionId,
+    required List<({String action, double? risk})> steps,
+  }) async {
+    await db.into(db.reasoningChains).insert(
+          ReasoningChainsCompanion.insert(
+            id: 'chain-$questionId',
+            questionId: questionId,
+            createdAt: 1,
+            summary: const Value(''),
+            stepCount: Value(steps.length),
+          ),
+        );
+    for (var i = 0; i < steps.length; i++) {
+      await db.into(db.reasoningSteps).insert(
+            ReasoningStepsCompanion.insert(
+              id: 'step-$questionId-$i',
+              chainId: 'chain-$questionId',
+              idx: i,
+              goal: '第 $i 步',
+              actionType: Value(steps[i].action),
+              stuckRisk: Value(steps[i].risk),
+              createdAt: 1,
+            ),
+          );
+    }
+  }
+
   /// 题目覆盖某个知识点的方式：两者挂**同一个**标签。
   Future<void> link({
     required String tagId,
@@ -96,6 +125,41 @@ void main() {
 
   LibraryDiagnosis ran(Map<String, BottleneckType> verdicts) =>
       LibraryDiagnosis(byKnowledgePoint: verdicts, fastLayerRan: true);
+
+  test('能力动作画像 → 组卷：命中"我最该练的动作"的题排前面，理由行说出来', () async {
+    final tagId = (await tags.createTag(name: '概率')).id;
+    final pointId = await seedKnowledgePoint('条件概率');
+    // 两道条件相同的题（同一知识点、同一来源分级、都没难度/质量分），
+    // 差别只在"有没有解题链、链里是什么动作"。
+    final withChain = await seedQuestion(stem: '有链的那道题：抽取两次。');
+    final withoutChain = await seedQuestion(stem: '没链的那道题：抽取两次。');
+    await link(tagId: tagId, pointId: pointId, questionId: withChain);
+    await link(tagId: tagId, pointId: pointId, questionId: withoutChain);
+    // 画像只认"平均风险过线"的动作：这里分类讨论 0.9，明显该练。
+    await seedChain(
+      questionId: withChain,
+      steps: <({String action, double? risk})>[
+        (action: 'case_split', risk: 0.9),
+        (action: 'case_split', risk: 0.8),
+      ],
+    );
+
+    final container = containerWith(ran({pointId: BottleneckType.danger}));
+    final plan = await container.read(paperPlanProvider.future);
+
+    expect(plan.items, hasLength(2), reason: '两道题都进卷，只是次序不同');
+    final first = plan.items.first;
+    expect(first.questionId, withChain);
+    expect(first.matchedPreferredActions, <String>['case_split']);
+    expect(first.reasonZh, contains('分类讨论'), reason: '动作说人话，不摆 key');
+    expect(first.reasonZh, contains('能力动作画像'));
+    expect(first.toJson()['matched_preferred_actions'], <String>['case_split']);
+    // 没链的那道题照旧进卷，不因为"没解过"被排除；它只是没有命中项。
+    final second = plan.items[1];
+    expect(second.questionId, withoutChain);
+    expect(second.matchedPreferredActions, isEmpty);
+    expect(second.reasonZh, isNot(contains('能力动作画像')));
+  });
 
   test('题库为空：给出空卷，不抛异常', () async {
     final container = containerWith(LibraryDiagnosis.notRun);

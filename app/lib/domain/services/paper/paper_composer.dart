@@ -10,8 +10,23 @@
 /// `object_tags` 的题目↔知识点关系读成 [PaperCandidate]，谁就能拿到一份可解释的卷子。
 library;
 
+import '../reasoning/capability_action.dart' show CapabilityAction;
 import '../scheduling/domain_balance.dart' show KnowledgePointReading;
 import '../srs/dsr_memory.dart';
+
+/// **未标定**：一道题如果命中"我最该练的动作"，分数乘上 `1 + 这个系数 × 命中比例`。
+///
+/// 0.15 是刻意的保守值：能力动作画像本身是派生读数（`capability_profile.dart`），
+/// 把它当硬过滤会把"没解过链的题"整体排除，那不是"练得准"，那是"只练解过的题"。
+/// 这里只让"命中的排前面一点"，卷子里仍然会混进没链的题。标定之后（`docs/CALIBRATION.md`）
+/// 再谈把它变成权重之一。
+const double kPreferredActionBoost = 0.15;
+
+/// 一次最多拿几个"最该练的动作"参与排序。
+///
+/// 3 个：再多就会让整份卷子被同一类动作占满，反而丢掉"按薄弱知识点精准凑题"这条
+/// 更硬的排序依据。
+const int kPreferredActionLimit = 3;
 
 /// 来源分级的优先级（`gaokao` 最高，`unknown` 最低）。
 ///
@@ -126,6 +141,7 @@ class PaperCandidate {
     this.aiQuality,
     this.trapNote,
     this.matchedKnowledgePointIds = const [],
+    this.actionTypes = const [],
   });
 
   final String questionId;
@@ -150,6 +166,13 @@ class PaperCandidate {
   /// 这道题挂到的知识点（由「题目与知识点共享同一标签」推出，
   /// 见 `TaskKnowledgePointResolver.resolveFromTagLinks`，`sourceObjectType: kQuestionObjectType`）。
   final List<String> matchedKnowledgePointIds;
+
+  /// 这道题**最新一条**解题链上的能力动作序列（`reasoning_steps.action_type`，
+  /// 见 `readChainActionTypes`）；没有链就是空表。
+  ///
+  /// 组卷用它回答"这道题能不能练到我最该练的那类动作"——动作词表是跨学科的，所以
+  /// 这一维可以在数学卷上被物理题命中（`docs/REASONING_LAYER_DESIGN.md` §3）。
+  final List<String> actionTypes;
 
   /// 来源分级优先级。
   double get sourcePriority => kSourceLevelPriority[sourceLevel.trim()] ?? 0.0;
@@ -204,6 +227,7 @@ class PaperItem {
     required this.reasonZh,
     required this.improvementNote,
     required this.backgroundZh,
+    this.matchedPreferredActions = const [],
   });
 
   final String questionId;
@@ -218,6 +242,12 @@ class PaperItem {
   final double need;
   final double quality;
   final double score;
+
+  /// 这道题的链里**命中"我最该练的动作"**的那几个 key（排序、去重；空 = 没命中）。
+  ///
+  /// 只有能力动作画像给出了"最该练"的动作时才可能非空；它只是排序时的透明度，
+  /// 不是能力评估结论（画像本身也是派生读数，见 `capability_profile.dart`）。
+  final List<String> matchedPreferredActions;
 
   /// 为什么排它（中文，可解释；措辞归领域层，界面不许另写一套）。
   final String reasonZh;
@@ -242,6 +272,8 @@ class PaperItem {
         'reason': reasonZh,
         'improvement_note': improvementNote,
         'background': backgroundZh,
+        if (matchedPreferredActions.isNotEmpty)
+          'matched_preferred_actions': matchedPreferredActions,
       };
 }
 
@@ -312,11 +344,19 @@ abstract final class PaperComposer {
     Map<String, String> knowledgePointNames = const {},
     Map<String, List<String>> knowledgePointTagPaths = const {},
     PaperWeights weights = const PaperWeights(),
+    List<String> preferredActionTypes = const [],
   }) {
     final readingsById = {
       for (final reading in readings) reading.knowledgePointId: reading,
     };
     final normalized = weights.normalized();
+    // 去空、去重、保序（画像是按"最该练"排好序的），最多取前 3 个。
+    final preferred = preferredActionTypes
+        .map((action) => action.trim())
+        .where((action) => action.isNotEmpty)
+        .toSet()
+        .take(kPreferredActionLimit)
+        .toList();
 
     final usable = [
       for (final candidate in candidates)
@@ -325,7 +365,7 @@ abstract final class PaperComposer {
 
     final scored = [
       for (final candidate in usable)
-        _score(candidate, readingsById, normalized, spec),
+        _score(candidate, readingsById, normalized, spec, preferred),
     ];
 
     final pointsWithCandidates = <String>{
@@ -341,7 +381,8 @@ abstract final class PaperComposer {
     for (final entry in scored) {
       if (picked.length >= spec.targetCount) break;
       final atCap = entry.coveredPoints.isNotEmpty &&
-          entry.coveredPoints.every((point) => (usedPerPoint[point] ?? 0) >= cap);
+          entry.coveredPoints
+              .every((point) => (usedPerPoint[point] ?? 0) >= cap);
       if (atCap) continue;
       picked.add(entry);
       for (final point in entry.coveredPoints) {
@@ -371,6 +412,7 @@ abstract final class PaperComposer {
             ),
             zone: entry.zone,
             reading: readingsById[entry.primaryPointId],
+            matchedPreferredActions: entry.matchedPreferredActions,
           ),
           improvementNote: _improvementNote(entry.candidate, entry.zone),
           backgroundZh: _backgroundZh(
@@ -378,6 +420,7 @@ abstract final class PaperComposer {
             knowledgePointNames,
             knowledgePointTagPaths,
           ),
+          matchedPreferredActions: entry.matchedPreferredActions,
         ),
     ];
 
@@ -438,6 +481,7 @@ abstract final class PaperComposer {
     Map<String, KnowledgePointReading> readingsById,
     PaperWeights weights,
     PaperSpec spec,
+    List<String> preferred,
   ) {
     final points = candidate.matchedKnowledgePointIds
         .map((id) => id.trim())
@@ -461,10 +505,23 @@ abstract final class PaperComposer {
 
     final quality =
         candidate.sourcePriority * 0.7 + candidate.qualityScore * 0.3;
-    final difficultyFit = _difficultyFit(candidate.difficulty, spec.targetDifficulty);
-    final score = weights.need * need +
+    final difficultyFit =
+        _difficultyFit(candidate.difficulty, spec.targetDifficulty);
+    final rawScore = weights.need * need +
         weights.quality * quality +
         weights.difficultyFit * difficultyFit;
+
+    // 「我最该练的动作」只做透明加成：命中比例 × 一个保守系数，乘在总分上。
+    // 没有偏好（preferred 空）时乘数恒为 1，历史行为一个字节都不变。
+    final actions =
+        candidate.actionTypes.map((action) => action.trim()).toSet();
+    final matched = <String>[
+      for (final action in preferred)
+        if (actions.contains(action)) action,
+    ];
+    final actionFit =
+        preferred.isEmpty ? 0.0 : matched.length / preferred.length;
+    final score = rawScore * (1 + kPreferredActionBoost * actionFit);
 
     return _Scored(
       candidate: candidate,
@@ -475,6 +532,7 @@ abstract final class PaperComposer {
       quality: quality,
       difficultyFit: difficultyFit,
       score: score,
+      matchedPreferredActions: matched,
     );
   }
 
@@ -495,9 +553,11 @@ abstract final class PaperComposer {
   static int _byScoreThenProvenance(_Scored a, _Scored b) {
     final byScore = b.score.compareTo(a.score);
     if (byScore != 0) return byScore;
-    final bySource = b.candidate.sourcePriority.compareTo(a.candidate.sourcePriority);
+    final bySource =
+        b.candidate.sourcePriority.compareTo(a.candidate.sourcePriority);
     if (bySource != 0) return bySource;
-    final byQuality = b.candidate.qualityScore.compareTo(a.candidate.qualityScore);
+    final byQuality =
+        b.candidate.qualityScore.compareTo(a.candidate.qualityScore);
     if (byQuality != 0) return byQuality;
     return a.candidate.questionId.compareTo(b.candidate.questionId);
   }
@@ -507,24 +567,32 @@ abstract final class PaperComposer {
     required String pointLabel,
     required PaperZone zone,
     required KnowledgePointReading? reading,
+    List<String> matchedPreferredActions = const [],
   }) {
+    final preferredNote = matchedPreferredActions.isEmpty
+        ? ''
+        : ' 这题会练到「${matchedPreferredActions.map(_actionLabel).join('、')}」'
+            '这类动作（来自你的能力动作画像）。';
     if (pointId == null) {
-      return '这道题还没有挂知识点，先按未知处理（未知不当作健康）。';
+      return '这道题还没有挂知识点，先按未知处理（未知不当作健康）。$preferredNote';
     }
     final readingNote = reading?.priorR0 == null
         ? ''
         : '目前先验 R0≈${_two(reading!.priorR0!)}、置信度 ${_two(reading.priorConfidence)}；';
-    return switch (zone) {
+    final base = switch (zone) {
       PaperZone.danger =>
         '$readingNote知识点「$pointLabel」在危险区（自信高、实际提取不出来），这份卷先练它。',
       PaperZone.development =>
         '$readingNote知识点「$pointLabel」在发展区（有读数但还偏弱），现在练收益最大。',
-      PaperZone.healthy =>
-        '$readingNote知识点「$pointLabel」目前读数是健康的，作为保温/巩固排进来。',
-      PaperZone.unknown =>
-        '知识点「$pointLabel」还没有你的读数，按未知处理（未知不当作健康）。',
+      PaperZone.healthy => '$readingNote知识点「$pointLabel」目前读数是健康的，作为保温/巩固排进来。',
+      PaperZone.unknown => '知识点「$pointLabel」还没有你的读数，按未知处理（未知不当作健康）。',
     };
+    return '$base$preferredNote';
   }
+
+  /// 动作 key → 中文名；词表外的 key 原样返回（不硬塞一个"未知动作"）。
+  static String _actionLabel(String key) =>
+      CapabilityAction.byKey(key)?.labelZh ?? key;
 
   static String _improvementNote(PaperCandidate candidate, PaperZone zone) {
     final base = switch (zone) {
@@ -580,6 +648,7 @@ class _Scored {
     required this.quality,
     required this.difficultyFit,
     required this.score,
+    required this.matchedPreferredActions,
   });
 
   final PaperCandidate candidate;
@@ -590,4 +659,5 @@ class _Scored {
   final double quality;
   final double difficultyFit;
   final double score;
+  final List<String> matchedPreferredActions;
 }

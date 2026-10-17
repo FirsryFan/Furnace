@@ -14,8 +14,10 @@
 library;
 
 import '../../../data/database/database.dart';
+import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
@@ -113,12 +115,46 @@ class ComposePaperTool extends AiTool {
         diagnosis: diagnosis,
       );
 
+      // 与页面同源：能力动作画像（推理层读数）+ 每道题最新链的动作序列。
+      // 页面走 `capabilityProfileProvider` / `paperPlanProvider`，工具走同一份纯函数，
+      // 所以同一份库两边挑出来的卷子一致（D2：一个数字一个来源）。
+      final chainActions = await readChainActionTypes(_db);
+      final capabilitySteps = await QuestionRepository(_db).allReasoningSteps();
+      final profile = CapabilityProfile.of(<CapabilityStepSample>[
+        for (final step in capabilitySteps)
+          CapabilityStepSample(
+            actionType: step.actionType,
+            stuckRisk: step.stuckRisk,
+          ),
+      ]);
+      final preferredActions = <String>[
+        for (final reading in profile)
+          if (reading.avgStuckRisk != null &&
+              reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
+            reading.actionType,
+      ].take(kPreferredActionLimit).toList();
+      final candidates = <PaperCandidate>[
+        for (final candidate in corpus.candidates)
+          PaperCandidate(
+            questionId: candidate.questionId,
+            subjectKey: candidate.subjectKey,
+            sourceLevel: candidate.sourceLevel,
+            questionType: candidate.questionType,
+            difficulty: candidate.difficulty,
+            aiQuality: candidate.aiQuality,
+            trapNote: candidate.trapNote,
+            matchedKnowledgePointIds: candidate.matchedKnowledgePointIds,
+            actionTypes: chainActions[candidate.questionId] ?? const <String>[],
+          ),
+      ];
+
       final plan = PaperComposer.compose(
-        candidates: corpus.candidates,
+        candidates: candidates,
         spec: spec,
         readings: readings,
         knowledgePointNames: corpus.knowledgePointNames,
         knowledgePointTagPaths: corpus.knowledgePointTagPaths,
+        preferredActionTypes: preferredActions,
       );
 
       return ToolResult(
@@ -138,6 +174,7 @@ class ComposePaperTool extends AiTool {
           'weights': plan.weights.toMap(),
           'diagnosis_ran': diagnosis.fastLayerRan,
           'readings_used': readings.length,
+          'preferred_action_types': preferredActions,
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,
           'uncovered_knowledge_points': [
             for (final id in plan.uncoveredKnowledgePointIds)
@@ -167,6 +204,8 @@ class ComposePaperTool extends AiTool {
                 'reason': item.reasonZh,
                 'improvement_note': item.improvementNote,
                 'background': item.backgroundZh,
+                if (item.matchedPreferredActions.isNotEmpty)
+                  'matched_preferred_actions': item.matchedPreferredActions,
               },
           ],
         },
