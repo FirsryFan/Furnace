@@ -105,9 +105,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
-  /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22].
+  /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23].
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration {
@@ -179,6 +179,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 22) {
           await _upgradeV21ToV22();
         }
+        if (from < 23) {
+          await _upgradeV22ToV23();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -248,8 +251,13 @@ class AppDatabase extends _$AppDatabase {
       // v19: "这条提案确认时是不是本来就有的"。 A file stamped v19 whose
       // proposals table predates the column would make the history dialog throw
       // on the first read - the same failure mode as the columns above.
+      // v23: 同一批次的"这一跑做了什么"（`detail_text`）也heal一下：老文件被盖成
+      // v23 却没有这一列时，Drift 跳过 onUpgrade，读批次列表就会抛错。
       'material_intake_proposals': [
         materialIntakeProposals.alreadyExisted,
+      ],
+      'material_intake_batches': [
+        materialIntakeBatches.detailText,
       ],
     };
     final m = Migrator(this);
@@ -646,6 +654,23 @@ class AppDatabase extends _$AppDatabase {
     await _addColumnIfMissing(m, 'local_settings', localSettings.goalBeta);
   }
 
+  /// v22 -> v23：`material_intake_batches.detail_text`（轮次一百）。
+  ///
+  /// 纯新增一列，老行不动。`run/1` 那条路落提案时把"这一跑到底做了什么"（每条动作的
+  /// 引擎原话 + 它回报的读数）一起存下来 —— 演练本身不落库，但这句话要留得住：
+  /// 人过几天回来点头时，还看得见当时跑的是什么。材料信封那条路不写这一列（NULL）。
+  Future<void> _upgradeV22ToV23() async {
+    // 被盖成 v23 却没有这两张表的老文件（v17 那种"表还没建"的状态）会走到这里：
+    // 没有表就什么都别加 —— 建表是 `_ensureColumns` 自愈那一步的事，在这里碰它会让
+    // Drift 的映射器抛 `unknown table`（`_upgradeV4ToV5` 同一个道理）。
+    if (!await _tableExists('material_intake_batches')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'material_intake_batches', materialIntakeBatches.detailText);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -855,6 +880,10 @@ class AppDatabase extends _$AppDatabase {
       // file claiming v19 must be able to resolve the table by name.
       case 'material_intake_proposals':
         return materialIntakeProposals;
+      // v23: 自愈那一趟要给批次表补 `detail_text`（"这一跑做了什么"），所以一个
+      // 声称 v23 的文件必须能按名字解析到这张表 —— 否则自愈会抛 unknown table。
+      case 'material_intake_batches':
+        return materialIntakeBatches;
       default:
         throw ArgumentError('unknown table $name');
     }

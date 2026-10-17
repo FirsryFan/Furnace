@@ -304,6 +304,8 @@
   "@materialPhotoReportHandOverFailed": {
     "placeholders": { "message": { "type": "String" } }
   },
+  "materialIntakeRunDetailLink": "这一跑当时做了什么",
+  "materialIntakeRunDetailTitle": "这一跑当时做了什么（只读）",
   "materialIntakeTopicHubs": "顺便建主题分组（默认不建：分组不是卡片关系）",
   "materialIntakePendingTitle": "待确认清单（{count} 批，关掉页面也在）",
   "@materialIntakePendingTitle": {

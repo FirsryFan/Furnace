@@ -20348,6 +20348,12 @@ class $MaterialIntakeBatchesTable extends MaterialIntakeBatches
   late final GeneratedColumn<int> proposalCount = GeneratedColumn<int>(
       'proposal_count', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _detailTextMeta =
+      const VerificationMeta('detailText');
+  @override
+  late final GeneratedColumn<String> detailText = GeneratedColumn<String>(
+      'detail_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -20371,6 +20377,7 @@ class $MaterialIntakeBatchesTable extends MaterialIntakeBatches
         summaryText,
         skippedJson,
         proposalCount,
+        detailText,
         createdAt,
         updatedAt
       ];
@@ -20443,6 +20450,12 @@ class $MaterialIntakeBatchesTable extends MaterialIntakeBatches
     } else if (isInserting) {
       context.missing(_proposalCountMeta);
     }
+    if (data.containsKey('detail_text')) {
+      context.handle(
+          _detailTextMeta,
+          detailText.isAcceptableOrUnknown(
+              data['detail_text']!, _detailTextMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -20482,6 +20495,8 @@ class $MaterialIntakeBatchesTable extends MaterialIntakeBatches
           .read(DriftSqlType.string, data['${effectivePrefix}skipped_json'])!,
       proposalCount: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}proposal_count'])!,
+      detailText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}detail_text']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -20526,6 +20541,13 @@ class MaterialIntakeBatchRow extends DataClass
 
   /// 这批提案的条数（含连接），冗余一列便于列表页不读 payload。
   final int proposalCount;
+
+  /// **这一跑到底做了什么**（人话，纯文本；schema v23）。
+  ///
+  /// 只有 `run/1` 那条路会写：每一条动作一句"引擎原话 + 它回报的读数"（`traceReadingOf`），
+  /// 落成提案时一起存下来 —— 演练本身不落库，但"我对这一跑点头的时候，它当时做了什么"
+  /// 这句话得留得住，重启之后还看得见。材料信封那条路没有这个（它不是"跑"出来的）。
+  final String? detailText;
   final int createdAt;
   final int updatedAt;
   const MaterialIntakeBatchRow(
@@ -20538,6 +20560,7 @@ class MaterialIntakeBatchRow extends DataClass
       required this.summaryText,
       required this.skippedJson,
       required this.proposalCount,
+      this.detailText,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -20560,6 +20583,9 @@ class MaterialIntakeBatchRow extends DataClass
     map['summary_text'] = Variable<String>(summaryText);
     map['skipped_json'] = Variable<String>(skippedJson);
     map['proposal_count'] = Variable<int>(proposalCount);
+    if (!nullToAbsent || detailText != null) {
+      map['detail_text'] = Variable<String>(detailText);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -20583,6 +20609,9 @@ class MaterialIntakeBatchRow extends DataClass
       summaryText: Value(summaryText),
       skippedJson: Value(skippedJson),
       proposalCount: Value(proposalCount),
+      detailText: detailText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(detailText),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -20601,6 +20630,7 @@ class MaterialIntakeBatchRow extends DataClass
       summaryText: serializer.fromJson<String>(json['summaryText']),
       skippedJson: serializer.fromJson<String>(json['skippedJson']),
       proposalCount: serializer.fromJson<int>(json['proposalCount']),
+      detailText: serializer.fromJson<String?>(json['detailText']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -20618,6 +20648,7 @@ class MaterialIntakeBatchRow extends DataClass
       'summaryText': serializer.toJson<String>(summaryText),
       'skippedJson': serializer.toJson<String>(skippedJson),
       'proposalCount': serializer.toJson<int>(proposalCount),
+      'detailText': serializer.toJson<String?>(detailText),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -20633,6 +20664,7 @@ class MaterialIntakeBatchRow extends DataClass
           String? summaryText,
           String? skippedJson,
           int? proposalCount,
+          Value<String?> detailText = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       MaterialIntakeBatchRow(
@@ -20645,6 +20677,7 @@ class MaterialIntakeBatchRow extends DataClass
         summaryText: summaryText ?? this.summaryText,
         skippedJson: skippedJson ?? this.skippedJson,
         proposalCount: proposalCount ?? this.proposalCount,
+        detailText: detailText.present ? detailText.value : this.detailText,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -20667,6 +20700,8 @@ class MaterialIntakeBatchRow extends DataClass
       proposalCount: data.proposalCount.present
           ? data.proposalCount.value
           : this.proposalCount,
+      detailText:
+          data.detailText.present ? data.detailText.value : this.detailText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -20684,6 +20719,7 @@ class MaterialIntakeBatchRow extends DataClass
           ..write('summaryText: $summaryText, ')
           ..write('skippedJson: $skippedJson, ')
           ..write('proposalCount: $proposalCount, ')
+          ..write('detailText: $detailText, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -20701,6 +20737,7 @@ class MaterialIntakeBatchRow extends DataClass
       summaryText,
       skippedJson,
       proposalCount,
+      detailText,
       createdAt,
       updatedAt);
   @override
@@ -20716,6 +20753,7 @@ class MaterialIntakeBatchRow extends DataClass
           other.summaryText == this.summaryText &&
           other.skippedJson == this.skippedJson &&
           other.proposalCount == this.proposalCount &&
+          other.detailText == this.detailText &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -20731,6 +20769,7 @@ class MaterialIntakeBatchesCompanion
   final Value<String> summaryText;
   final Value<String> skippedJson;
   final Value<int> proposalCount;
+  final Value<String?> detailText;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -20744,6 +20783,7 @@ class MaterialIntakeBatchesCompanion
     this.summaryText = const Value.absent(),
     this.skippedJson = const Value.absent(),
     this.proposalCount = const Value.absent(),
+    this.detailText = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -20758,6 +20798,7 @@ class MaterialIntakeBatchesCompanion
     required String summaryText,
     required String skippedJson,
     required int proposalCount,
+    this.detailText = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -20778,6 +20819,7 @@ class MaterialIntakeBatchesCompanion
     Expression<String>? summaryText,
     Expression<String>? skippedJson,
     Expression<int>? proposalCount,
+    Expression<String>? detailText,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -20792,6 +20834,7 @@ class MaterialIntakeBatchesCompanion
       if (summaryText != null) 'summary_text': summaryText,
       if (skippedJson != null) 'skipped_json': skippedJson,
       if (proposalCount != null) 'proposal_count': proposalCount,
+      if (detailText != null) 'detail_text': detailText,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -20808,6 +20851,7 @@ class MaterialIntakeBatchesCompanion
       Value<String>? summaryText,
       Value<String>? skippedJson,
       Value<int>? proposalCount,
+      Value<String?>? detailText,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -20821,6 +20865,7 @@ class MaterialIntakeBatchesCompanion
       summaryText: summaryText ?? this.summaryText,
       skippedJson: skippedJson ?? this.skippedJson,
       proposalCount: proposalCount ?? this.proposalCount,
+      detailText: detailText ?? this.detailText,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -20857,6 +20902,9 @@ class MaterialIntakeBatchesCompanion
     if (proposalCount.present) {
       map['proposal_count'] = Variable<int>(proposalCount.value);
     }
+    if (detailText.present) {
+      map['detail_text'] = Variable<String>(detailText.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -20881,6 +20929,7 @@ class MaterialIntakeBatchesCompanion
           ..write('summaryText: $summaryText, ')
           ..write('skippedJson: $skippedJson, ')
           ..write('proposalCount: $proposalCount, ')
+          ..write('detailText: $detailText, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -32302,6 +32351,7 @@ typedef $$MaterialIntakeBatchesTableCreateCompanionBuilder
   required String summaryText,
   required String skippedJson,
   required int proposalCount,
+  Value<String?> detailText,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -32317,6 +32367,7 @@ typedef $$MaterialIntakeBatchesTableUpdateCompanionBuilder
   Value<String> summaryText,
   Value<String> skippedJson,
   Value<int> proposalCount,
+  Value<String?> detailText,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -32357,6 +32408,9 @@ class $$MaterialIntakeBatchesTableFilterComposer
 
   ColumnFilters<int> get proposalCount => $composableBuilder(
       column: $table.proposalCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get detailText => $composableBuilder(
+      column: $table.detailText, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -32402,6 +32456,9 @@ class $$MaterialIntakeBatchesTableOrderingComposer
       column: $table.proposalCount,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get detailText => $composableBuilder(
+      column: $table.detailText, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -32444,6 +32501,9 @@ class $$MaterialIntakeBatchesTableAnnotationComposer
 
   GeneratedColumn<int> get proposalCount => $composableBuilder(
       column: $table.proposalCount, builder: (column) => column);
+
+  GeneratedColumn<String> get detailText => $composableBuilder(
+      column: $table.detailText, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -32492,6 +32552,7 @@ class $$MaterialIntakeBatchesTableTableManager extends RootTableManager<
             Value<String> summaryText = const Value.absent(),
             Value<String> skippedJson = const Value.absent(),
             Value<int> proposalCount = const Value.absent(),
+            Value<String?> detailText = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -32506,6 +32567,7 @@ class $$MaterialIntakeBatchesTableTableManager extends RootTableManager<
             summaryText: summaryText,
             skippedJson: skippedJson,
             proposalCount: proposalCount,
+            detailText: detailText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -32520,6 +32582,7 @@ class $$MaterialIntakeBatchesTableTableManager extends RootTableManager<
             required String summaryText,
             required String skippedJson,
             required int proposalCount,
+            Value<String?> detailText = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -32534,6 +32597,7 @@ class $$MaterialIntakeBatchesTableTableManager extends RootTableManager<
             summaryText: summaryText,
             skippedJson: skippedJson,
             proposalCount: proposalCount,
+            detailText: detailText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

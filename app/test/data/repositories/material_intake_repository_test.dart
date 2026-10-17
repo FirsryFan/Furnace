@@ -179,6 +179,23 @@ void main() {
     expect(batches.first.summaryText, '新的');
   });
 
+  test('record：能带一段"这一跑当时做了什么"，下次重记不带它就不再留', () async {
+    await repository.record(
+      planOf(),
+      summaryText: '从一份 `run/1` 里读出来的待确认提案',
+      analyzedAt: DateTime.fromMillisecondsSinceEpoch(1789000000000),
+      detailText: '1 [knowledge] 新增节点 a\n  新增节点 a（alpha / word）',
+    );
+
+    final batch = (await repository.batch('b1'))!;
+    expect(batch.detailText, contains('新增节点 a（alpha / word）'));
+
+    // 材料信封那条路不带这段话（`record(plan)` 走的就是它）：重记时这一列回到 null，
+    // 不把上一轮的旧话留在那儿冒充"这一跑做了什么"。
+    await record(planOf());
+    expect((await repository.batch('b1'))!.detailText, isNull);
+  });
+
   test('apply：知识点进库，连接落成线索边（严格有向、ls 未标定）', () async {
     await record(planOf());
     final outcome = await repository.apply(batchId: 'b1');

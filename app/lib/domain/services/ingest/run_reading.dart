@@ -1,5 +1,17 @@
 import 'run_executor.dart';
 
+/// 把整份演练折成一段人话：每条动作一行 `text`，下面缩进一行为它的读数（没有读数就
+/// 只有那行）。
+///
+/// `run/1` 那条路落提案时把这段一起存进批次（schema v23 的 `detail_text`）——
+/// 演练本身不落库，但"我对这一跑点头时它当时做了什么"这句话得留得住。
+String runDetailTextOf(RunExecutionReport report) => <String>[
+      for (final trace in report.traces)
+        traceReadingOf(trace).isEmpty
+            ? trace.text
+            : '${trace.text}\n  ${traceReadingOf(trace)}',
+    ].join('\n');
+
 /// 把一条动作**回报的增量**（`RunActionTrace.delta`）折成人话一行。
 ///
 /// 存在的理由：执行层每一条动作都把"改了什么"回报进了 `delta` —— 记忆层是那段

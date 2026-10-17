@@ -298,6 +298,8 @@
   "@materialPhotoReportHandOverFailed": {
     "placeholders": { "message": { "type": "String" } }
   },
+  "materialIntakeRunDetailLink": "What that run actually did",
+  "materialIntakeRunDetailTitle": "What that run actually did (read only)",
   "materialIntakeTopicHubs": "Also create topic hubs (off by default: a topic groups things, it is not a card relation)",
   "materialIntakePendingTitle": "Pending list ({count} batches, survives closing the page)",
   "@materialIntakePendingTitle": {

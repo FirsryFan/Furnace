@@ -103,6 +103,17 @@ void main() {
       pending.batch.summaryText,
       contains('从一份 `run/1` 里读出来的待确认提案'),
     );
+    // 演练不落库，但"这一跑当时做了什么"跟着批次存下来了（schema v23）：
+    // 每条动作一行引擎原话，下面缩进它的读数。过几天回来点头时还看得见。
+    expect(pending.batch.detailText, isNotNull);
+    expect(
+      pending.batch.detailText,
+      contains('1 [knowledge] 新增节点 en::w::a（alpha / word）'),
+    );
+    expect(
+      pending.batch.detailText,
+      contains('3 [knowledge] 新增边 en::w::a → en::w::b（ls 0.8）'),
+    );
 
     // 关键断言：这一步只写清单，知识点与线索边一行都没有。
     expect(await db.select(db.knowledgePoints).get(), isEmpty);

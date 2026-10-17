@@ -1694,6 +1694,18 @@ abstract class AppLocalizations {
   /// **'already exists - no duplicate'**
   String get materialIntakeExisting;
 
+  /// No description provided for @materialIntakeRunDetailLink.
+  ///
+  /// In en, this message translates to:
+  /// **'What that run actually did'**
+  String get materialIntakeRunDetailLink;
+
+  /// No description provided for @materialIntakeRunDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What that run actually did (read only)'**
+  String get materialIntakeRunDetailTitle;
+
   /// No description provided for @materialIntakeRename.
   ///
   /// In en, this message translates to:

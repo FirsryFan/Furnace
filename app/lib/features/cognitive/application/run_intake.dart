@@ -19,6 +19,7 @@ import '../../../data/repositories/material_intake_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/ingest/run_executor.dart';
 import '../../../domain/services/ingest/run_knowledge_plan.dart';
+import '../../../domain/services/ingest/run_reading.dart';
 
 /// 把一次演练里"要新建的东西"落成待确认提案，返回那一批。
 ///
@@ -55,6 +56,9 @@ Future<MaterialIntakeBatch> recordRunKnowledge({
     summaryText: '从一份 `run/1` 里读出来的待确认提案：这一跑跑了 '
         '${report.traces.length} 条动作，其中 ${plan.proposals.length} 样'
         '是要新建的东西（节点/线索边）—— 确认之后才真的建。',
+    // 演练本身不落库，但"这一跑当时做了什么"（每条动作的原话 + 读数）跟着提案一起
+    // 留在批次上（schema v23）：过几天回来点头时还看得见。
+    detailText: runDetailTextOf(report),
     analyzedAt: now ?? DateTime.now(),
     sourceKind: 'run',
   );

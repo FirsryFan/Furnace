@@ -1656,6 +1656,19 @@ void main() {
         reason: '连接的两端优先说名字（这一跑自己建的节点），没有名字才退回 id',
       );
       expect(find.text(l10n.materialIntakeConfirm(3)), findsOneWidget);
+
+      // 这一跑当时做了什么：跟着批次留下来的一段人话（每条动作 + 读数），点得开。
+      await tester.tap(find.text(l10n.materialIntakeRunDetailLink));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeRunDetailTitle), findsOneWidget);
+      expect(
+        find.textContaining('1 [knowledge] 新增节点 en::w::a'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text(l10n.commonClose));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.materialIntakeRunDetailTitle), findsNothing);
+
       // 还是只落清单：知识点一个都没多，线索边一行都没有。
       expect(await db.select(db.knowledgePoints).get(), hasLength(1));
       expect(await db.select(db.knowledgeEdges).get(), isEmpty);

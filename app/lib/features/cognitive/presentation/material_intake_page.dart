@@ -758,6 +758,33 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     );
   }
 
+  /// 「这一跑当时做了什么」（`run/1` 那条路才有的走法）：落提案时把演练的每条动作原话
+  /// 与它回报的读数一起存进了批次（schema v23 的 `detail_text`），这里只读原样摆出来 ——
+  /// 过几天回来点头时，还看得见当时跑的是什么。
+  Future<void> _showRunDetail() async {
+    final detail = (_batch?.detailText ?? '').trim();
+    if (detail.isEmpty) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.materialIntakeRunDetailTitle),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(child: Text(detail)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 点开那一行：这一批每一次点撤回都在这儿 —— 撤成了的说清删了哪几行，没撤成的照原样说理由。
   ///
   /// 只读流水（`material_intake_undo_logs`），不回放也不改库：撤回删掉的行不会因为看得见就
@@ -983,6 +1010,15 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                   l10n.materialIntakePending(_batch!.unappliedCount),
               ].join(' · '),
             ),
+            // 这一批要是有"当时那一跑做了什么"（`run/1` 那条路才写），就给一个入口：
+            // 演练不落库，可这句话跟着批次存下来了 —— 过几天回来点头时还看得见。
+            if ((_batch!.detailText ?? '').trim().isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _showRunDetail,
+                child: _Note(text: l10n.materialIntakeRunDetailLink),
+              ),
+            ],
             // 撤回把行删了，屏幕上只剩"又回到待确认"这一步 —— 流水是唯一的痕迹：
             // 撤过几次说清楚，"怎么又冒出来了"就不是谜。点一下看得见那几次各撤了什么。
             if (_undoLogs.isNotEmpty) ...<Widget>[

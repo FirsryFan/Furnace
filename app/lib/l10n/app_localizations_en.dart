@@ -922,6 +922,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeExisting => 'already exists - no duplicate';
 
   @override
+  String get materialIntakeRunDetailLink => 'What that run actually did';
+
+  @override
+  String get materialIntakeRunDetailTitle =>
+      'What that run actually did (read only)';
+
+  @override
   String get materialIntakeRename => 'Edit this one';
 
   @override

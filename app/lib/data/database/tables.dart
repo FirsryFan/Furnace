@@ -1321,6 +1321,13 @@ class MaterialIntakeBatches extends Table {
   /// 这批提案的条数（含连接），冗余一列便于列表页不读 payload。
   IntColumn get proposalCount => integer()();
 
+  /// **这一跑到底做了什么**（人话，纯文本；schema v23）。
+  ///
+  /// 只有 `run/1` 那条路会写：每一条动作一句"引擎原话 + 它回报的读数"（`traceReadingOf`），
+  /// 落成提案时一起存下来 —— 演练本身不落库，但"我对这一跑点头的时候，它当时做了什么"
+  /// 这句话得留得住，重启之后还看得见。材料信封那条路没有这个（它不是"跑"出来的）。
+  TextColumn get detailText => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

@@ -45,6 +45,7 @@ class MaterialIntakeBatch {
     required this.proposalCount,
     required this.unappliedCount,
     required this.appliedCount,
+    this.detailText,
   });
 
   final String batchId;
@@ -69,6 +70,12 @@ class MaterialIntakeBatch {
   /// ⇒ 这批"确认完了"，界面把它从待确认挪到"已经确认完的"。
   final int appliedCount;
 
+  /// **这一跑到底做了什么**（人话；只有 `run/1` 那条路会写，schema v23）。
+  ///
+  /// 演练本身不落库，但"我对这一跑点头时它当时做了什么"这句话跟着提案一起留住了 ——
+  /// 重启之后还看得见。材料信封那条路是 null。
+  final String? detailText;
+
   bool get isEmpty => proposalCount == 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -78,6 +85,7 @@ class MaterialIntakeBatch {
         if (sourceKind != null) 'source_kind': sourceKind,
         'analyzed_at_ms': analyzedAtMs,
         'summary': summaryText,
+        if (detailText != null) 'detail': detailText,
         'proposal_count': proposalCount,
         'unapplied_count': unappliedCount,
         'applied_count': appliedCount,
@@ -405,6 +413,7 @@ class MaterialIntakeRepository {
     required DateTime analyzedAt,
     String? sourceKind,
     int? capturedAtMs,
+    String? detailText,
   }) async {
     final now = _clock().millisecondsSinceEpoch;
     await _db.transaction(() async {
@@ -441,6 +450,7 @@ class MaterialIntakeRepository {
               skippedJson:
                   jsonEncode([for (final skip in plan.skipped) skip.toJson()]),
               proposalCount: plan.proposals.length,
+              detailText: Value(detailText),
               createdAt: now,
               updatedAt: now,
             ),
@@ -1203,6 +1213,7 @@ class MaterialIntakeRepository {
       proposalCount: row.proposalCount,
       unappliedCount: unapplied,
       appliedCount: applied,
+      detailText: row.detailText,
     );
   }
 

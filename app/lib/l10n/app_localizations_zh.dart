@@ -897,6 +897,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeExisting => '已存在，不重复建';
 
   @override
+  String get materialIntakeRunDetailLink => '这一跑当时做了什么';
+
+  @override
+  String get materialIntakeRunDetailTitle => '这一跑当时做了什么（只读）';
+
+  @override
   String get materialIntakeRename => '改一改这一条';
 
   @override
