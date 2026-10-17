@@ -755,11 +755,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get materialPhotoReportHandOverNote =>
-      'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — the things are only really created when you confirm them on the "Add material" page. Pressing it again for the same run yields the same batch.';
+      'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — they are only really created when you confirm them in the pending list right below on this page. Pressing it again for the same run yields the same batch.';
 
   @override
   String materialPhotoReportHandOverDone(String batchId) {
-    return 'Recorded as a pending batch ($batchId) — open the "Add material" page to review it.';
+    return 'Recorded as a pending batch ($batchId) — it is right below on this page.';
+  }
+
+  @override
+  String materialPhotoReportHandOverOpen(int count) {
+    return 'Go see that batch ($count waiting)';
   }
 
   @override

@@ -733,11 +733,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get materialPhotoReportHandOverNote =>
-      '这一步只落两张清单表（`material_intake_batches` / `material_intake_proposals`）：`knowledge_points` / `knowledge_edges` 一行都不动 —— 去「添加资料」那一页点头，才真的建。同一跑再按一次，落的还是那一批。';
+      '这一步只落两张清单表（`material_intake_batches` / `material_intake_proposals`）：`knowledge_points` / `knowledge_edges` 一行都不动 —— 就在**这一页下面的待确认清单**里点头，才真的建。同一跑再按一次，落的还是那一批。';
 
   @override
   String materialPhotoReportHandOverDone(String batchId) {
-    return '已经记成一批待确认提案（$batchId）——去「添加资料」那一页看看。';
+    return '已经记成一批待确认提案（$batchId）—— 就在这一页下面。';
+  }
+
+  @override
+  String materialPhotoReportHandOverOpen(int count) {
+    return '去看看这一批（$count 条待确认）';
   }
 
   @override

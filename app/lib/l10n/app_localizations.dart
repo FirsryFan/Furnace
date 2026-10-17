@@ -1463,14 +1463,20 @@ abstract class AppLocalizations {
   /// No description provided for @materialPhotoReportHandOverNote.
   ///
   /// In en, this message translates to:
-  /// **'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — the things are only really created when you confirm them on the "Add material" page. Pressing it again for the same run yields the same batch.'**
+  /// **'This step writes exactly two list tables (`material_intake_batches` / `material_intake_proposals`): `knowledge_points` / `knowledge_edges` are not touched — they are only really created when you confirm them in the pending list right below on this page. Pressing it again for the same run yields the same batch.'**
   String get materialPhotoReportHandOverNote;
 
   /// No description provided for @materialPhotoReportHandOverDone.
   ///
   /// In en, this message translates to:
-  /// **'Recorded as a pending batch ({batchId}) — open the "Add material" page to review it.'**
+  /// **'Recorded as a pending batch ({batchId}) — it is right below on this page.'**
   String materialPhotoReportHandOverDone(String batchId);
+
+  /// No description provided for @materialPhotoReportHandOverOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Go see that batch ({count} waiting)'**
+  String materialPhotoReportHandOverOpen(int count);
 
   /// No description provided for @materialPhotoReportHandOverFailed.
   ///

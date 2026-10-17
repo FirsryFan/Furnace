@@ -456,19 +456,27 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
         return;
       }
       setState(() => _busy = false);
-      // 报告能反出来一个字符串：那是"改一改再跑" —— 用户在这份请求上按一下就带着
-      // 原文进到可编辑的那张对话框（两条路共用同一张，所以不用再写一遍编辑器）。
-      final editedText = await showDialog<String>(
+      // 报告那张能反出来两件事：一个字符串（"改一改再跑" —— 带着原文进可编辑的那张），
+      // 或者一批刚记下的待确认提案（"去看看这一批" —— 原地把清单摆出来）。
+      final outcome = await showDialog<_PhotoReportOutcome>(
         context: context,
         builder: (_) => _PhotoReportDialog(
           result: result,
           onAnother: _readPhoto,
           onRehearse: ref.read(runRehearsalRunnerProvider),
-          onHandOver: ref.read(runIntakeRecorderProvider),
+          onHandOver: _handOverAndRefresh,
         ),
       );
-      if (editedText != null && mounted) {
-        await _openRunDialog(initialText: editedText);
+      if (!mounted) {
+        return;
+      }
+      switch (outcome) {
+        case _EditAndRun(:final text):
+          await _openRunDialog(initialText: text);
+        case _OpenBatch(:final batch):
+          await _openHandedOverBatch(batch);
+        case null:
+          break;
       }
     } catch (error) {
       _noteIntakeProblem(l10n.materialIntakePhotoReadFailed('$error'));
@@ -508,16 +516,36 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
       return;
     }
     setState(() => _busy = false);
-    await showDialog<void>(
+    final batch = await showDialog<MaterialIntakeBatch>(
       context: context,
       builder: (_) => _RunRequestDialog(
         existingNodeIds: existingNodeIds,
         existingEdgeIds: existingEdgeIds,
         onRehearse: ref.read(runRehearsalRunnerProvider),
-        onHandOver: ref.read(runIntakeRecorderProvider),
+        onHandOver: _handOverAndRefresh,
         initialText: initialText,
       ),
     );
+    if (batch != null && mounted) {
+      await _openHandedOverBatch(batch);
+    }
+  }
+
+  /// 交给人确认那一下由对话框按下，可"记成一批"是**这一页**的事：记完立刻把两张单子
+  /// 刷一遍 —— 用户关掉对话框时那一批就在单子上，不用自己再去找。
+  Future<MaterialIntakeBatch> _handOverAndRefresh(
+      RunExecutionReport report) async {
+    final batch = await ref.read(runIntakeRecorderProvider)(report);
+    await _refreshBatches();
+    return batch;
+  }
+
+  /// 就地去看刚记下的那一批：把它摆到待确认清单上（与「看提案」同一个视图）。
+  Future<void> _openHandedOverBatch(MaterialIntakeBatch batch) async {
+    await _restore(batch);
+    if (mounted) {
+      await _refreshBatches();
+    }
   }
 
   /// 两条只读入口（照片 / 贴 `run/1`）出问题都只改这一行提示（不动提案、不动批次）。
@@ -1472,6 +1500,9 @@ class _PhotoReportDialogState extends State<_PhotoReportDialog> {
                   _RehearsalReading(
                     rehearsal: _rehearsal!,
                     onHandOver: widget.onHandOver,
+                    // 这一批就在**这一页**下面：按一下把报告关掉、把那一批摆出来。
+                    onOpenBatch: (batch) =>
+                        Navigator.of(context).pop(_OpenBatch(batch)),
                   ),
                 if (_rehearsalProblem != null) ...<Widget>[
                   const SizedBox(height: 12),
@@ -1513,8 +1544,8 @@ class _PhotoReportDialogState extends State<_PhotoReportDialog> {
       actions: <Widget>[
         if (report != null)
           TextButton.icon(
-            onPressed: () =>
-                Navigator.of(context).pop(jsonEncode(report.request.toJson())),
+            onPressed: () => Navigator.of(context)
+                .pop(_EditAndRun(jsonEncode(report.request.toJson()))),
             icon: const Icon(Icons.edit_note_outlined, size: 18),
             label: Text(l10n.materialPhotoReportEditAndRun),
           ),
@@ -1793,6 +1824,8 @@ class _RunRequestDialogState extends State<_RunRequestDialog> {
                   _RehearsalReading(
                     rehearsal: _rehearsal!,
                     onHandOver: widget.onHandOver,
+                    // 这一批就在**这一页**下面：按一下把对话框关掉、把那一批摆出来。
+                    onOpenBatch: (batch) => Navigator.of(context).pop(batch),
                   ),
                 if (_rehearsalProblem != null) ...<Widget>[
                   const SizedBox(height: 12),
@@ -1831,13 +1864,21 @@ class _RunRequestDialogState extends State<_RunRequestDialog> {
 /// 编的转述可信：它说的是"这一条实际做了什么/为什么停在这"。没有增量的条目
 /// 也照摆（"跑过但什么都没改"本身是信息）。
 class _RehearsalReading extends StatefulWidget {
-  const _RehearsalReading({required this.rehearsal, this.onHandOver});
+  const _RehearsalReading({
+    required this.rehearsal,
+    this.onHandOver,
+    this.onOpenBatch,
+  });
 
   final RunRehearsal rehearsal;
 
   /// 「把要新建的东西交给人确认」那一下（轮次九十一）：只落待确认提案。
   /// 不给缝（`null`）就不摆这个按钮 —— 和"试跑"一样，能注入才好测。
   final RunIntakeRecorder? onHandOver;
+
+  /// 「去看看这一批」那一下（轮次九十五）：刚记下的那一批就在这一页下面，
+  /// 按一下把这个对话框关掉、页面把清单摆出来。不给缝就不摆这个按钮。
+  final ValueChanged<MaterialIntakeBatch>? onOpenBatch;
 
   @override
   State<_RehearsalReading> createState() => _RehearsalReadingState();
@@ -1947,7 +1988,7 @@ class _RehearsalReadingState extends State<_RehearsalReading> {
               ),
             ),
           ),
-          if (_handedOver != null)
+          if (_handedOver != null) ...<Widget>[
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -1956,6 +1997,20 @@ class _RehearsalReadingState extends State<_RehearsalReading> {
                 l10n.materialPhotoReportHandOverDone(_handedOver!.batchId),
               ),
             ),
+            if (widget.onOpenBatch != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => widget.onOpenBatch!(_handedOver!),
+                  icon: const Icon(Icons.arrow_forward, size: 18),
+                  label: Text(
+                    l10n.materialPhotoReportHandOverOpen(
+                      _handedOver!.unappliedCount,
+                    ),
+                  ),
+                ),
+              ),
+          ],
           if (_handOverProblem != null)
             _Problem(
               text: l10n.materialPhotoReportHandOverFailed(_handOverProblem!),
@@ -1991,4 +2046,25 @@ class _TraceTile extends StatelessWidget {
       subtitle: reading.isEmpty ? null : Text(reading),
     );
   }
+}
+
+/// 照片报告那张对话框能反出来的两件事：带着改过的字去试跑，或者直接去看刚记下的那一批。
+///
+/// 写成一个 sealed 家族而不是 `Object?`：页面拿到以后必须两种都处理，漏了一种编译器会说。
+sealed class _PhotoReportOutcome {
+  const _PhotoReportOutcome();
+}
+
+/// 「改一改再跑」：这份请求的原文（拿去开那张可编辑的对话框）。
+class _EditAndRun extends _PhotoReportOutcome {
+  const _EditAndRun(this.text);
+
+  final String text;
+}
+
+/// 「去看看这一批」：刚交给人确认的那一批（拿去摆到待确认清单上）。
+class _OpenBatch extends _PhotoReportOutcome {
+  const _OpenBatch(this.batch);
+
+  final MaterialIntakeBatch batch;
 }

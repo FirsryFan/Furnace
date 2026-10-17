@@ -1550,5 +1550,136 @@ void main() {
       // 原来的名字还在（挡下来就是真的一个字没动）。
       expect(find.text('rely on'), findsOneWidget);
     });
+
+    testWidgets('交给人确认之后就地去那一批：对话框关掉，清单已经摆在这一页上', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      // `runJson()` 里那条 review 指着 `kp`：库里得有它，整份才算合法。
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              return rehearsalOf();
+            }),
+            runIntakeRecorderProvider.overrideWithValue(
+              (RunExecutionReport report) => recordRunKnowledge(
+                report: report,
+                db: db,
+                anki: anki,
+                now: DateTime(2026, 10, 17, 13),
+                sourceRef: '贴进来的 run/1',
+              ),
+            ),
+          ],
+        ),
+      );
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePasteRun));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        jsonEncode(runJson()),
+      );
+      await tester.tap(find.text(l10n.materialIntakeRunCheck));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportHandOver));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.materialPhotoReportHandOverDone('run-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('这一页下面'),
+        findsWidgets,
+        reason: '别再叫用户去他正站着的那一页找',
+      );
+
+      await tester.tap(find.text(l10n.materialPhotoReportHandOverOpen(3)));
+      await tester.pumpAndSettle();
+
+      // 对话框关掉了，清单就在这一页上：三条提案都在，能直接点头。
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('alpha'), findsOneWidget);
+      expect(find.text('beta'), findsOneWidget);
+      expect(
+        find.text('en::w::a → en::w::b'),
+        findsOneWidget,
+        reason: '连接的标题是按两端的 id 现算的（这一条没有名字可用）',
+      );
+      expect(find.text(l10n.materialIntakeConfirm(3)), findsOneWidget);
+      // 还是只落清单：知识点一个都没多，线索边一行都没有。
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+      expect(await db.select(db.knowledgeEdges).get(), isEmpty);
+    });
+
+    testWidgets('照片报告那条路也走得通：两种出口（改一改再跑 / 去看那一批）都在', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await anki.createKnowledgePoint(
+        title: 'I relied on him.',
+        content: '说过的一句话',
+        externalId: 'kp',
+      );
+      final png = Uint8List.fromList(<int>[1, 2, 3, 4]);
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer('好的：\n```json\n${jsonEncode(runJson())}\n```'),
+      ]);
+      await tester.pumpWidget(
+        harness(
+          overrides: <Override>[
+            modelAdapterProvider.overrideWithValue(adapter),
+            photoPickerProvider.overrideWithValue(() async => png),
+            visionEncoderProvider.overrideWithValue(const _FakeEncoder()),
+            runRehearsalRunnerProvider.overrideWithValue((
+              MaterialRunRequest request,
+            ) async {
+              return rehearsalOf();
+            }),
+            runIntakeRecorderProvider.overrideWithValue(
+              (RunExecutionReport report) => recordRunKnowledge(
+                report: report,
+                db: db,
+                anki: anki,
+                now: DateTime(2026, 10, 17, 13),
+                sourceRef: '照片读出来的 run/1',
+              ),
+            ),
+          ],
+        ),
+      );
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.materialIntakePickPhoto));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportRehearse));
+      await tester.pumpAndSettle();
+      // 两种出口同时在：改一改再跑（轮次九十二）和去看那一批（轮次九十五）。
+      expect(find.text(l10n.materialPhotoReportEditAndRun), findsOneWidget);
+      await tester.tap(find.text(l10n.materialPhotoReportHandOver));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.materialPhotoReportHandOverOpen(3)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('alpha'), findsOneWidget);
+      expect(find.text(l10n.materialIntakeConfirm(3)), findsOneWidget);
+      expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+    });
   });
 }
