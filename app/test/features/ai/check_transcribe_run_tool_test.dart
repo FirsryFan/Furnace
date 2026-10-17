@@ -91,6 +91,7 @@ void main() {
     bool includePrompt = false,
     bool execute = false,
     bool record = false,
+    Map<String, Object?>? edits,
   }) =>
       ToolInvocation(
         toolName: 'check_transcribe_run',
@@ -101,6 +102,7 @@ void main() {
           if (includePrompt) 'include_prompt': true,
           if (execute) 'execute': true,
           if (record) 'record': true,
+          if (edits != null) 'edits': edits,
         },
       );
 
@@ -336,6 +338,21 @@ void main() {
     expect(await anki.getKnowledgePoints(), isEmpty);
     expect(await db.select(db.knowledgeEdges).get(), isEmpty);
 
+    // 提案 id 摆出来了 —— 模型下一次要改哪一条、点头时选哪几条，靠的都是它。
+    final proposals = payload['recorded_proposals']! as List;
+    expect(proposals, hasLength(3));
+    expect(
+      [
+        for (final row in proposals)
+          (row as Map<String, Object?>)['proposal_id']
+      ],
+      containsAll(<String>[
+        'kp:en::w::alpha',
+        'kp:en::w::beta',
+        'edge:e_3_en::w::alpha_en::w::beta',
+      ]),
+    );
+
     // 同一跑再记一次：落的还是那一批。
     await tool.run(
       invocationOf(
@@ -352,6 +369,88 @@ void main() {
     );
     expect(await db.select(db.materialIntakeBatches).get(), hasLength(1));
     expect(await db.select(db.materialIntakeProposals).get(), hasLength(3));
+  });
+
+  test('`record` + `edits`：落成提案之后、点头之前改一改标题与正文', () async {
+    final result = await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[
+            knowledgeAction('en::w::alpha', 'alpha'),
+            edgeAction('en::w::alpha', 'en::w::alpha'),
+          ],
+        ),
+        execute: true,
+        record: true,
+        edits: <String, Object?>{
+          'kp:en::w::alpha': <String, Object?>{
+            'title': 'alpha（阿尔法）',
+            'body': '  释义：阿尔法  ',
+          },
+        },
+      ),
+    );
+
+    expect(result.ok, isTrue, reason: result.summary);
+    expect(result.summary, contains('点头之前改过 1 条知识点提案'));
+    final payload = result.modelResult! as Map<String, Object?>;
+    final edited = payload['edited']! as List;
+    expect((edited.single as Map<String, Object?>)['proposal_id'],
+        'kp:en::w::alpha');
+
+    // 改的是提案本身：清单里那条的标题与正文都变了，知识点仍然一行都没建。
+    final proposals = await db.select(db.materialIntakeProposals).get();
+    final alpha = proposals.singleWhere(
+      (row) => row.proposalId == 'kp:en::w::alpha',
+    );
+    expect(alpha.payloadJson, contains('alpha（阿尔法）'));
+    expect(alpha.payloadJson, contains('释义：阿尔法'));
+    expect(await anki.getKnowledgePoints(), isEmpty);
+
+    // `recorded_proposals` 里摆的就是改过之后的标题。
+    final listed = payload['recorded_proposals']! as List;
+    expect(
+      [for (final row in listed) (row as Map<String, Object?>)['title']],
+      contains('alpha（阿尔法）'),
+    );
+  });
+
+  test('`edits` 指到一条连接 ⇒ 失败，说清只有知识点提案能改', () async {
+    final result = await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[
+            knowledgeAction('en::w::alpha', 'alpha'),
+            edgeAction('en::w::alpha', 'en::w::alpha'),
+          ],
+        ),
+        execute: true,
+        record: true,
+        edits: <String, Object?>{'edge:e_2_en::w::alpha_en::w::alpha': '改名'},
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('只有知识点提案能改'));
+    // 提案已经落下了（改失败不等于没收），但知识点一个都没建。
+    expect(await db.select(db.materialIntakeBatches).get(), hasLength(1));
+    expect(await anki.getKnowledgePoints(), isEmpty);
+  });
+
+  test('`edits` 没跟 `record` ⇒ 说清怎么用，不是装作改了', () async {
+    final result = await tool.run(
+      invocationOf(
+        runJson(
+          actions: <Map<String, Object?>>[knowledgeAction('en::w::a', 'a')],
+        ),
+        execute: true,
+        edits: <String, Object?>{'kp:en::w::a': '改名'},
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.error, contains('`edits` 需要 `record: true`'));
+    expect(await db.select(db.materialIntakeBatches).get(), isEmpty);
   });
 
   test('`record` 没跟 `execute` ⇒ 说清怎么用，不是装作记了', () async {

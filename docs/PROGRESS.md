@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-17 轮次九十九：AI 也能在点名前改（第二半）—— run 那条路的正文能补，提案 id 也摆出来了（Lead）
+
+**做了什么**：轮次九十六让 AI 在材料那条路上能在点名前改标题（`apply_material_intake` 的 `renames`），
+轮次九十八让界面能改正文 —— 可 `check_transcribe_run` 走 `record` 那条路还是只有"记成提案、告诉你去
+点头"：提案 id 没摆出来（模型下一次想改都无从下手），正文那一半更没有（`run/1` 这条路的正文**本来
+就是空的**，`why` 里明说"等你在清单上补"）。这一轮把这两件事一起补上。
+
+- **提案 id 摆出来**：`record: true` 的 `modelResult` 多一个 `recorded_proposals`（每条的
+  `proposal_id` / `kind` / `title`）—— 下一次要查/改/点头都靠它，不再让模型猜 id。
+- **点头之前能改**：多一个 `edits`（提案 id → 改什么）：值给字符串就是只改标题，给对象可以
+  `{title, body}`。调的是轮次九十七的 `MaterialIntakeRepository.editPointProposal` —— 与界面那颗铅笔
+  **同一处规矩**（只改还没点头的、只改知识点提案、空标题挡住、`exists` 跟着现算）。
+- **两条纪律**：`edits` 必须跟 `record: true`（先落成提案才谈得上改）；改失败时如实说"提案已经记下来了，
+  但还没点头，所以一个知识点都没建" —— 不谎称"一个字都没写"。
+- **改完看得见**：`modelResult.edited` 摆出改过哪几条，摘要里也有一行；`recorded_proposals` 里摆的就是
+  **改过之后**的标题（模型下一步看到的与现实一致）。
+
+**证据**：`app/test/features/ai/check_transcribe_run_tool_test.dart` 14 → 17 例 —— `record: true` 那条补上
+"提案 id 摆出来了"（三条 id 都在）；新例 `record` + `edits` 改标题与正文（清单里那条的 `payload_json` 变了、
+`recorded_proposals` 里是改过的标题、知识点一行都没建）；`edits` 指到一条连接 ⇒ "只有知识点提案能改"；
+`edits` 没跟 `record` ⇒ 说清怎么用。本轮 `dart format` 2 个 Dart 文件 2 changed（复查 0 changed）；
+`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与八十六～九十八同基线）；全量
+`flutter test --concurrency=1` → **+2055 ~2**（轮次九十八 `+2052 ~2`，差值 3）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 演练读数仍然是现算的、不落库；③ `ls` 仍
+没有标定来源；④ 其余 18 个参数还没有滑块；⑤ 连接的两端与 `ls` 仍然不能就地改；⑥ 边提案的 `ls` 照抄增量、
+`lsCalibrated` 一律 false；⑦ run 那条路的提案仍然只能"在 `record` 的同一次调用里改"（没有单独一个"改一批
+已记下的提案"的工具）。
+
+---
+
 ## 2026-10-17 轮次九十八：连接的两端说人话 —— 顺手把一个会抖的断言改稳（Lead）
 
 **做了什么**：待确认清单里，`run/1` 那条路读出来的**连接提案**标题一直是一串节点 id（`en::w::a → en::w::b`）

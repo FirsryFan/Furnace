@@ -481,7 +481,9 @@ class CheckTranscribeRunTool extends AiTool {
       '（`ms` 用库里代表卡片的模型读数）并真的把动作 apply 一遍 —— 只跑不落库，'
       '库里的知识点/边/卡片状态/记忆态都不变。'
       '`record: true`（要连同 `execute: true`）时，演练完把这一跑要新建的节点/边'
-      '交给人确认：落成待确认提案（两张清单表），仍然不建任何知识点或边。';
+      '交给人确认：落成待确认提案（两张清单表），仍然不建任何知识点或边；'
+      '提案 id 会摆在结果的 `recorded_proposals` 里，还能先用 `edits` 在点头之前'
+      '改一改知识点提案的标题/正文（`run/1` 那条路的正文常常是空的，正好在这儿补）。';
 
   @override
   Map<String, Object?> get parameters => <String, Object?>{
@@ -521,6 +523,15 @@ class CheckTranscribeRunTool extends AiTool {
                 '`knowledge_edges` 一行都不动 —— 那是「添加资料」页上点头那一步的事。'
                 '要比对得像样的东西才落得下来；只有 review/exposure/goal/time 的一跑'
                 '没有可确认的东西，这一项会说人话拒绝。默认 false。',
+          },
+          'edits': <String, Object?>{
+            'type': 'object',
+            'description': '可选（要连同 `record: true`）：落成提案之后、点头之前改一改'
+                '其中几条**知识点**提案：`{"kp:en::w::a": {"title": "alpha", '
+                '"body": "释义：阿尔法"}}`；值给字符串就是只改标题。'
+                '`run/1` 那条路的正文本来常常是空的，正好在这儿补。'
+                '连接的标题是按两端名字现算的，改不了；已经点头过的也改不了。',
+            'additionalProperties': <String, Object?>{'type': 'object'},
           },
         },
         'required': <String>['request'],
@@ -602,6 +613,44 @@ class CheckTranscribeRunTool extends AiTool {
         error: '`record` 需要 `execute: true`',
       );
     }
+
+    // 点头之前改一改（与材料那条路的 `renames`、界面那颗铅笔同一件事）：只有给了
+    // `edits` 才做，而且得先落成提案才谈得上改。
+    final rawEdits = invocation.arguments['edits'];
+    final edits = <String, Map<String, String>>{};
+    if (rawEdits is Map) {
+      for (final entry in rawEdits.entries) {
+        final id = entry.key.toString().trim();
+        if (id.isEmpty) {
+          return const ToolResult.failure('`edits` 里有空的提案 id：键不能是空的');
+        }
+        final value = entry.value;
+        if (value is String) {
+          edits[id] = <String, String>{'title': value.trim()};
+        } else if (value is Map) {
+          final row = value.cast<String, Object?>();
+          edits[id] = <String, String>{
+            if (row['title'] != null) 'title': row['title'].toString().trim(),
+            if (row['body'] != null) 'body': row['body'].toString(),
+          };
+        } else {
+          return const ToolResult.failure(
+            '`edits` 的每一项要么是字符串（只改标题），要么是对象（`title` / `body`）',
+          );
+        }
+      }
+    } else if (rawEdits != null) {
+      return const ToolResult.failure('`edits` 应该是一个对象（提案 id → 改什么）');
+    }
+    if (edits.isNotEmpty && !record) {
+      return ToolResult(
+        ok: false,
+        summary: '`edits` 要跟 `record: true` 一起用：先落成待确认提案，才谈得上点头之前'
+            '改一改。',
+        modelResult: modelResult,
+        error: '`edits` 需要 `record: true`',
+      );
+    }
     if (!execute) {
       return ToolResult(
         ok: true,
@@ -649,6 +698,43 @@ class CheckTranscribeRunTool extends AiTool {
       modelResult['record_problem'] = recordProblem;
     }
 
+    // 改的是提案本身（`payload_json`），知识点照样要等点头那一下才建。
+    final editedRows = <Map<String, Object?>>[];
+    if (recorded != null && edits.isNotEmpty) {
+      for (final entry in edits.entries) {
+        final change = entry.value;
+        try {
+          await _repository.editPointProposal(
+            batchId: recorded.batchId,
+            proposalId: entry.key,
+            title: change['title'],
+            body: change['body'],
+          );
+        } on MaterialApplyException catch (error) {
+          return ToolResult.failure(
+            error.message,
+            summary: '先改那几条提案那一步没成 —— 提案已经记下来了，但还没点头，'
+                '所以一个知识点都没建：${error.message}',
+          );
+        }
+        editedRows.add(<String, Object?>{'proposal_id': entry.key, ...change});
+      }
+      modelResult['edited'] = editedRows;
+    }
+    // 提案 id 摆出来：下一次要改哪一条、点头时给 `apply_material_intake` 选哪几条，
+    // 都靠它 —— 没有它，模型只能猜。
+    if (recorded != null) {
+      final pending = await _repository.pendingProposals(recorded.batchId);
+      modelResult['recorded_proposals'] = <Map<String, Object?>>[
+        for (final proposal in pending)
+          <String, Object?>{
+            'proposal_id': proposal.id,
+            'kind': proposal.kind.id,
+            'title': proposal.title,
+          },
+      ];
+    }
+
     final lines = <String>[
       '演练（只跑不落库）：${rehearsal.text}',
       '图清单来自库里的 ${existingNodeIds.length} 个节点；'
@@ -661,7 +747,14 @@ class CheckTranscribeRunTool extends AiTool {
             '（批次 `${recorded.batchId}`）—— 只写了那两张清单表，'
             '`knowledge_points` / `knowledge_edges` 一行都没动；'
             '去「添加资料」那一页点头，才真的建。'
-            '同一跑再记一次，落的还是这一批。',
+            '同一跑再记一次，落的还是这一批。'
+            '提案 id 在 payload 的 `recorded_proposals` 里（拿它来查/改/点头）。',
+      if (editedRows.isNotEmpty)
+        '点头之前改过 ${editedRows.length} 条知识点提案：'
+            '${[
+          for (final row in editedRows) '`${row['proposal_id']}`'
+        ].join('、')}'
+            ' —— 改的是提案，知识点还是等点头才建。',
       if (recordProblem != null) '没记成：$recordProblem',
     ];
 
@@ -706,4 +799,3 @@ Map<String, Object?>? _tryDecode(String text) {
     return null;
   }
 }
-
