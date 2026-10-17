@@ -12,6 +12,48 @@ import 'package:furnace/features/questions/application/question_corpus_reader.da
 void main() {
   late AppDatabase db;
 
+  test('查询是值对象：归一化后同一条查询相等（能当 provider family 的键）', () {
+    const a = CapabilityQuestionQuery(
+      actionTypes: <String>['case_split', ' sanity_check ', ''],
+      subjectKey: ' physics ',
+    );
+    const b = CapabilityQuestionQuery(
+      actionTypes: <String>['sanity_check', 'case_split'],
+      subjectKey: 'physics',
+    );
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(
+      a,
+      isNot(
+        const CapabilityQuestionQuery(
+          actionTypes: <String>['case_split'],
+          subjectKey: 'physics',
+        ),
+      ),
+    );
+    expect(
+      a,
+      isNot(
+        const CapabilityQuestionQuery(
+          actionTypes: <String>['case_split', 'sanity_check'],
+        ),
+      ),
+      reason: '学科不同就不相等',
+    );
+    expect(
+      a,
+      isNot(
+        const CapabilityQuestionQuery(
+          actionTypes: <String>['case_split', 'sanity_check'],
+          subjectKey: 'physics',
+          requireAll: true,
+        ),
+      ),
+      reason: 'requireAll 不同就不相等',
+    );
+  });
+
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
   });

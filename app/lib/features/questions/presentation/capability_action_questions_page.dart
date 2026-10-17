@@ -6,6 +6,10 @@
 ///
 /// 只读：读 `reasoning_chains` / `reasoning_steps` / `questions`，不写任何表。
 /// 点一行进题目详情页（那里有 AI 解题与卡点评估）。
+///
+/// 学科筛选（轮次一百零八）：同一页可以只看某个学科。筛选**走读表**（
+/// `readQuestionsForCapabilities`，与工具面的组合查询同一份函数），不是在前端把已经
+/// 加载的结果过滤一下 —— 否则"页面上看到的"和"模型查到的"迟早会分叉（D2）。
 library;
 
 import 'package:flutter/material.dart';
@@ -18,22 +22,48 @@ import '../application/question_corpus_reader.dart';
 import 'question_detail_page.dart';
 import 'question_vocab_labels.dart';
 
-class CapabilityActionQuestionsPage extends ConsumerWidget {
+class CapabilityActionQuestionsPage extends ConsumerStatefulWidget {
   const CapabilityActionQuestionsPage({super.key, required this.actionType});
 
   /// 能力动作 key（词表里的稳定标识；词表外的也照原样显示）。
   final String actionType;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CapabilityActionQuestionsPage> createState() =>
+      _CapabilityActionQuestionsPageState();
+}
+
+class _CapabilityActionQuestionsPageState
+    extends ConsumerState<CapabilityActionQuestionsPage> {
+  /// 学科筛选（空串 = 全部学科）。
+  String _subjectKey = '';
+
+  String get _label =>
+      CapabilityAction.byKey(widget.actionType)?.labelZh ??
+      widget.actionType.trim();
+
+  /// 不加学科筛选时的查询（同时用来收集"有哪些学科可选"）。
+  CapabilityQuestionQuery get _baseQuery =>
+      CapabilityQuestionQuery(actionTypes: <String>[widget.actionType]);
+
+  CapabilityQuestionQuery get _query => CapabilityQuestionQuery(
+        actionTypes: <String>[widget.actionType],
+        subjectKey: _subjectKey,
+      );
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final label =
-        CapabilityAction.byKey(actionType)?.labelZh ?? actionType.trim();
-    final rows = ref.watch(questionsForActionProvider(actionType));
+    final base = ref.watch(questionsForCapabilitiesProvider(_baseQuery));
+    final rows = _subjectKey.isEmpty
+        ? base
+        : ref.watch(questionsForCapabilitiesProvider(_query));
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.capabilityActionQuestionsTitle(label))),
+      appBar: AppBar(
+        title: Text(l10n.capabilityActionQuestionsTitle(_label)),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -41,6 +71,8 @@ class CapabilityActionQuestionsPage extends ConsumerWidget {
             l10n.capabilityActionQuestionsNote,
             style: theme.textTheme.bodySmall,
           ),
+          // 学科筛选项来自"这个动作下真实出现过的学科"（没出现过的学科不摆出来骗点击）。
+          ..._subjectChips(l10n, base),
           const SizedBox(height: 12),
           ...rows.when(
             loading: () => <Widget>[const LinearProgressIndicator()],
@@ -48,15 +80,49 @@ class CapabilityActionQuestionsPage extends ConsumerWidget {
               Text(l10n.capabilityActionQuestionsFailed('$error')),
             ],
             data: (items) => items.isEmpty
-                ? <Widget>[Text(l10n.capabilityActionQuestionsEmpty(label))]
+                ? <Widget>[Text(l10n.capabilityActionQuestionsEmpty(_label))]
                 : <Widget>[
                     for (final row in items)
-                      _QuestionRow(row: row, actionLabel: label),
+                      _QuestionRow(row: row, actionLabel: _label),
                   ],
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _subjectChips(
+    AppLocalizations l10n,
+    AsyncValue<List<CapabilityQuestionRow>> base,
+  ) {
+    final subjects = <String>{
+      for (final row in base.value ?? const <CapabilityQuestionRow>[])
+        if (row.subjectKey.trim().isNotEmpty) row.subjectKey.trim(),
+    }.toList()
+      ..sort();
+    if (subjects.length <= 1) return const <Widget>[];
+    return <Widget>[
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          ChoiceChip(
+            label: Text(l10n.capabilityActionQuestionsAllSubjects),
+            selected: _subjectKey.isEmpty,
+            onSelected: (_) => setState(() => _subjectKey = ''),
+          ),
+          for (final subject in subjects)
+            ChoiceChip(
+              label: Text(
+                CapabilityAction.subjectLabelsZh[subject] ?? subject,
+              ),
+              selected: _subjectKey == subject,
+              onSelected: (_) => setState(() => _subjectKey = subject),
+            ),
+        ],
+      ),
+    ];
   }
 }
 

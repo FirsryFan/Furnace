@@ -215,6 +215,33 @@ class CapabilityQuestionQuery {
         subjectKey: subjectKey.trim(),
         requireAll: requireAll,
       );
+
+  /// 值相等（按**归一化后**的动作集合 + 学科 + `requireAll` 比）。
+  ///
+  /// 这不是锦上添花：它让 `CapabilityQuestionQuery` 能当 Riverpod family 的键 ——
+  /// 页面重建时同一个查询不会重复读表，`Set`/`==` 也让人在测试里直接比查询。
+  @override
+  bool operator ==(Object other) {
+    if (other is! CapabilityQuestionQuery) return false;
+    final mine = normalized();
+    final theirs = other.normalized();
+    final mineSet = mine.actionTypes.toSet();
+    final theirsSet = theirs.actionTypes.toSet();
+    return mine.subjectKey == theirs.subjectKey &&
+        mine.requireAll == theirs.requireAll &&
+        mineSet.length == theirsSet.length &&
+        mineSet.containsAll(theirsSet);
+  }
+
+  @override
+  int get hashCode {
+    final normalizedQuery = normalized();
+    return Object.hash(
+      normalizedQuery.subjectKey,
+      normalizedQuery.requireAll,
+      Object.hashAllUnordered(normalizedQuery.actionTypes),
+    );
+  }
 }
 
 /// 按能力动作找题：题目最新一条链的动作序列里含 [actionType] 的题。

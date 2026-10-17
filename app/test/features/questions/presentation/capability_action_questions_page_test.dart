@@ -137,4 +137,49 @@ void main() {
     );
     expect(find.byType(Card), findsNothing);
   });
+
+  testWidgets('学科筛选：走读表（组合查询），选中后只剩该学科的题，能切回全部', (tester) async {
+    await seedQuestion(id: 'q-math', stem: '数学的分类讨论题。', subjectKey: 'math');
+    await seedQuestion(
+      id: 'q-phys',
+      stem: '物理的分类讨论题。',
+      subjectKey: 'physics',
+      sourceLevel: 'school',
+    );
+    await seedChain(
+      questionId: 'q-math',
+      actions: const <String>['case_split'],
+    );
+    await seedChain(
+      questionId: 'q-phys',
+      actions: const <String>['case_split'],
+    );
+
+    await pumpPage(tester, 'case_split');
+
+    // 两个学科都真实出现过 → 至少两个学科 chip + 「全部学科」。
+    expect(find.text(zh.capabilityActionQuestionsAllSubjects), findsOneWidget);
+    expect(find.text('数学'), findsWidgets);
+    expect(find.text('物理'), findsWidgets);
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+
+    // 点「物理」：只剩物理那道（筛选走读表，不是在已加载结果里过滤）。
+    await tester.tap(find.widgetWithText(ChoiceChip, '物理'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+    expect(find.text('数学的分类讨论题。'), findsNothing);
+
+    // 切回「全部学科」：两道都回来。
+    await tester.tap(
+      find.widgetWithText(ChoiceChip, zh.capabilityActionQuestionsAllSubjects),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+  });
 }

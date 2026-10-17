@@ -1211,6 +1211,7 @@
   "@capabilityActionQuestionsEmpty": {
     "placeholders": { "label": { "type": "String" } }
   },
+  "capabilityActionQuestionsAllSubjects": "All subjects",
   "capabilityActionQuestionsMeta": "{subject} · {source} · moves on the chain: {actions}",
   "@capabilityActionQuestionsMeta": {
     "placeholders": {

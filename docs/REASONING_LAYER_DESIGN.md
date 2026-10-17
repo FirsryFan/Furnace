@@ -307,14 +307,21 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 - **页面**：`CapabilityActionQuestionsPage`（`features/questions/presentation/`）—— 标题用词表
   `labelZh`（词表外原样）；每行是题干 + "学科 · 来源 · 链上动作"；点一行进题目详情页（那里有
   AI 解题与卡点评估）。只读，不写任何表。
+  **学科筛选（轮次一百零八）**：学科 chip 来自"这个动作下真实出现过的学科"（没出现过的学科不摆出来
+  骗点击），选中后走**读表**（`questionsForCapabilitiesProvider`，与工具面同一份 `readQuestionsForCapabilities`）
+  而不是在前端过滤已加载结果 —— 否则"页面上看到的"和"模型查到的"迟早分叉。`CapabilityQuestionQuery`
+  是值对象（`==`/`hashCode` 按归一化后的动作集合 + 学科 + `requireAll` 比），可以直接当 Riverpod
+  family 的键，页面重建不会重复读表。
 - **入口**：认知模型页的能力动作画像每一行现在点得开（右侧有 chevron）—— 画像回答"该练哪个"，
   点开回答"练哪几道"。
 - **不越界**：这一层只从**已有题库**里找题，AI 不出题（与用户口径一致）；没有链的题不会出现在
   这里，页面明说"先去题目详情页按一次「AI 解题」"。
 
-验收：`test/features/questions/application/capability_action_questions_reader_test.dart` 3 例
-（命中/旧链不算/排序与空输入）、`test/features/questions/presentation/capability_action_questions_page_test.dart`
-2 例（题干 + 元信息 + 点进详情页；空态）、认知模型页 +1 例（画像行点得开 → 到那一页）。
+验收：`test/features/questions/application/capability_action_questions_reader_test.dart` **5 例**
+（命中/旧链不算/排序与空输入/组合查询/查询值相等）、
+`test/features/questions/presentation/capability_action_questions_page_test.dart` **3 例**
+（题干 + 元信息 + 点进详情页；空态；学科筛选 chip 选中后只剩该学科、能切回全部）、
+认知模型页 +1 例（画像行点得开 → 到那一页）。
 
 **工具面（轮次一百零六，轮次一百零七扩成组合查询）**：`find_questions_by_capability`
 （`features/ai/tools/question_tools.dart`，注册在 `ToolRegistry.forApp`）—— 与页面**同一份读表函数**

@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-10-18 轮次一百零八：组合查询上屏 —— 页面上也能按学科筛（Lead）
+
+**做了什么**：轮次一百零七把组合查询做在了读表与工具面，页面上却还是"从画像点进来只看一个动作、
+库里有什么摆什么"。这一轮把它接到界面：**「按能力动作找题」页可以按学科筛**，而且筛选**走读表**
+（`questionsForCapabilitiesProvider` → `readQuestionsForCapabilities`），不是在前端把已加载的结果过滤
+一下 —— 否则"页面上看到的"和"模型查到的"迟早分叉（D2：一个数字一个来源）。
+
+- **查询变值对象**：`CapabilityQuestionQuery` 加 `==`/`hashCode`（按归一化后的动作集合 + 学科 +
+  `requireAll` 比），可以直接当 Riverpod family 的键；页面重建时同一条查询不会重复读表。
+- **provider**：新增 `questionsForCapabilitiesProvider`（family，带数据版本）；原来的
+  `questionsForActionProvider` 保留（认知模型页那条入口还在用）。
+- **页面**：学科 chip 只列**这个动作下真实出现过的学科**（没出现过的学科不摆出来骗点击）；"全部学科"
+  chip 可切回；选中后列表只剩该学科的题，换学科即时重查。筛选后为空时仍用同一句空态（诚实说"还没有
+  解过含这个动作的题"），不发明新文案。
+- **砍掉一段死代码**：初版还带"这个学科里没有"的专用空态，但 chip 只来自真实出现过的学科，
+  这条路径实际不可达 —— 与其留一句永远显示不出来的话，不如删掉（l10n key 同步移除，四个文件都删）。
+
+**证据**：`app/test/features/questions/presentation/capability_action_questions_page_test.dart` 2 → **3 例**
+（新增：两个学科的库 → chip 出现；点「物理」只剩物理那道；点「全部学科」两道都回来；
+既有两例不回归）；`app/test/features/questions/application/capability_action_questions_reader_test.dart`
+4 → **5 例**（新增：查询是值对象 —— 归一化后相等、`hashCode` 一致，学科/`requireAll` 不同不相等）。
+本轮 `dart format` 只格式化本轮改动的 8 个 Dart 文件（0 changed）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**，与八十六～一百零七同基线）；全量
+`flutter test --concurrency=1` → **+2095 ~2**（轮次一百零七 `+2093 ~2`，差值 2）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ `kPreferredActionBoost = 0.15` 仍属未标定
+先验；④ 页面的学科筛选是**单选**（多动作 + `match` 的控件还没有，虽然工具面已经能问）；⑤ 组卷/相似题
+措辞与配额打磨；⑥ 题库入口是否升顶层导航。
+
+---
+
 ## 2026-10-18 轮次一百零七：组合查询 —— "分类讨论和回代检验都得用上的题"也能问（Lead）
 
 **做了什么**：轮次一百零五～一百零六的"按能力动作找题"一次只能问**一个**动作。但真实问法是组合的：

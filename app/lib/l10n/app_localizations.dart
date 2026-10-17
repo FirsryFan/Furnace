@@ -4713,6 +4713,12 @@ abstract class AppLocalizations {
   /// **'No solved question uses "{label}" yet - solve one from its detail page first.'**
   String capabilityActionQuestionsEmpty(String label);
 
+  /// No description provided for @capabilityActionQuestionsAllSubjects.
+  ///
+  /// In en, this message translates to:
+  /// **'All subjects'**
+  String get capabilityActionQuestionsAllSubjects;
+
   /// No description provided for @capabilityActionQuestionsMeta.
   ///
   /// In en, this message translates to:

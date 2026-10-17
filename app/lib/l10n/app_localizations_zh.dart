@@ -2607,6 +2607,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get capabilityActionQuestionsAllSubjects => '全部学科';
+
+  @override
   String capabilityActionQuestionsMeta(
       String subject, String source, String actions) {
     return '$subject · $source · 链上动作：$actions';

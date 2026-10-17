@@ -2723,6 +2723,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get capabilityActionQuestionsAllSubjects => 'All subjects';
+
+  @override
   String capabilityActionQuestionsMeta(
       String subject, String source, String actions) {
     return '$subject · $source · moves on the chain: $actions';
