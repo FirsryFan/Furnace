@@ -1202,6 +1202,27 @@
   },
   "capabilityProfileNoRisk": "no risk reading (no judgement given)",
   "capabilityProfileUnknownNote": "Unknown moves are shown verbatim - that is not \"fine\", it means the vocabulary does not know it yet.",
+  "capabilityActionQuestionsTitle": "Questions by capability move: {label}",
+  "@capabilityActionQuestionsTitle": {
+    "placeholders": { "label": { "type": "String" } }
+  },
+  "capabilityActionQuestionsNote": "These are the questions whose latest solved chain used this move; questions without a chain cannot appear here.",
+  "capabilityActionQuestionsEmpty": "No solved question uses \"{label}\" yet - solve one from its detail page first.",
+  "@capabilityActionQuestionsEmpty": {
+    "placeholders": { "label": { "type": "String" } }
+  },
+  "capabilityActionQuestionsMeta": "{subject} · {source} · moves on the chain: {actions}",
+  "@capabilityActionQuestionsMeta": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "source": { "type": "String" },
+      "actions": { "type": "String" }
+    }
+  },
+  "capabilityActionQuestionsFailed": "Could not read the question bank: {message}",
+  "@capabilityActionQuestionsFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
   "learningMetricsTitle": "Learning effect (the review log decides)",
   "learningMetricsDetail": "Retention is \"how much was still there after that long\", read from review outcomes only - not from the model's own opinion of itself. Calibration waits for reviews that recorded a prediction.",
   "learningMetricsEmpty": "No reviews yet - these numbers grow as you review.",

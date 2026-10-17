@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-18 轮次一百零五：按能力动作找题 —— 画像回答"该练哪个"，点开回答"练哪几道"（Lead）
+
+**做了什么**：轮次一百零二～一百零四把"我卡在哪种动作上"算出来、接进组卷、还加了开关 —— 但用户看完
+画像还是得自己回题库里翻：**没有"动作 → 题目"的路**。这一轮把它补上：认知模型页的能力动作画像每一行
+现在点得开，进入「按能力动作找题」页，列出链上出现过这个动作的题（题干 + 学科/来源/链上动作），
+点一行进题目详情页（那里有 AI 解题与卡点评估）。
+
+- **读表（纯 Dart）**：`readQuestionsForAction(db, actionType)` —— 复用 `readChainActionTypes` 的
+  **"只认最新一条链"**口径（与组卷的动作偏好、找相似题同一份判断，不会"按画面筛出来的题"和"组卷里算的
+  命中"是两回事）；排序 = 来源分级高的在前、平手按题目 id；空动作 / 没命中返回空表。
+  `CapabilityQuestionRow` 带题干（题库里 `stem` 非空的题才会出现）。
+- **应用层**：`questionsForActionProvider`（family，带数据版本）。
+- **页面**：`CapabilityActionQuestionsPage` —— 标题用词表 `labelZh`（词表外原样）；顶部一句"只认最新
+  一条链、没解过链的题不会出现"；空态说"先去题目详情页按一次「AI 解题」"，不编"暂无异常"。只读。
+- **入口**：画像行加 chevron 并 `Navigator.push` —— 画像回答"该练哪个动作"，点开回答"练哪几道题"。
+- **不越界**：只从**已有题库**里找题，AI 不出题（用户口径）。
+
+**证据**：新增 `app/test/features/questions/application/capability_action_questions_reader_test.dart` **3 例**
+（命中/旧链里出现过但最新链没有就不算/排序与空动作空输入）；新增
+`app/test/features/questions/presentation/capability_action_questions_page_test.dart` **2 例**（题干 + 元信息
+"数学 · 高考真题 · 分类讨论、回代检验" + 点进 `QuestionDetailPage`；没有命中时的空态）；
+`app/test/features/cognitive/cognitive_model_page_test.dart` 16 → **17 例**（画像行点得开 → 到那一页并显示
+标题）。本轮 `dart format` 只格式化本轮改动的 10 个 Dart 文件（0 changed）；`dart analyze lib test` →
+`94 issues found`（**0 error / 0 warning**，与八十六～一百零四同基线）；全量
+`flutter test --concurrency=1` → **+2084 ~2**（轮次一百零四 `+2078 ~2`，差值 6）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ `kPreferredActionBoost = 0.15` 仍属未标定
+先验；④ **这一页还没有 AI 工具面**（模型不能自己"按动作找题"，只能组卷/找相似题）；⑤ 页面上没有
+"按学科/来源筛"的控件（数据量大了才需要）；⑥ 题库入口是否升顶层导航。
+
+---
+
 ## 2026-10-18 轮次一百零四：让那条加成看得见、也关得掉 —— 未标定的先验不该偷偷生效（Lead）
 
 **做了什么**：轮次一百零三的"按我最该练的动作排"是**自动生效**的：用户看不到这一卷被一条没标定的先验

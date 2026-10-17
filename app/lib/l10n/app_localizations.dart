@@ -4695,6 +4695,37 @@ abstract class AppLocalizations {
   /// **'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.'**
   String get capabilityProfileUnknownNote;
 
+  /// No description provided for @capabilityActionQuestionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions by capability move: {label}'**
+  String capabilityActionQuestionsTitle(String label);
+
+  /// No description provided for @capabilityActionQuestionsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'These are the questions whose latest solved chain used this move; questions without a chain cannot appear here.'**
+  String get capabilityActionQuestionsNote;
+
+  /// No description provided for @capabilityActionQuestionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No solved question uses "{label}" yet - solve one from its detail page first.'**
+  String capabilityActionQuestionsEmpty(String label);
+
+  /// No description provided for @capabilityActionQuestionsMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{subject} · {source} · moves on the chain: {actions}'**
+  String capabilityActionQuestionsMeta(
+      String subject, String source, String actions);
+
+  /// No description provided for @capabilityActionQuestionsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the question bank: {message}'**
+  String capabilityActionQuestionsFailed(String message);
+
   /// No description provided for @learningMetricsTitle.
   ///
   /// In en, this message translates to:

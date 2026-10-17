@@ -2593,6 +2593,31 @@ class AppLocalizationsZh extends AppLocalizations {
       '词表里没有的动作按原样显示 —— 那不是「没问题」，是「这个词表还不认识它」。';
 
   @override
+  String capabilityActionQuestionsTitle(String label) {
+    return '按能力动作找题：$label';
+  }
+
+  @override
+  String get capabilityActionQuestionsNote =>
+      '这里的题按「最新一条解题链里出现过这个动作」筛；没解过链的题不会出现在这里。';
+
+  @override
+  String capabilityActionQuestionsEmpty(String label) {
+    return '还没有解过含「$label」的题 —— 先去题目详情页按一次「AI 解题」。';
+  }
+
+  @override
+  String capabilityActionQuestionsMeta(
+      String subject, String source, String actions) {
+    return '$subject · $source · 链上动作：$actions';
+  }
+
+  @override
+  String capabilityActionQuestionsFailed(String message) {
+    return '读题库失败：$message';
+  }
+
+  @override
   String get learningMetricsTitle => '学习效果（复习日志说了算）';
 
   @override

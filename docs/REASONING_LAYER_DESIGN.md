@@ -294,3 +294,22 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 那就不是练得准而是只练解过的题）。命中的动作写进 `PaperItem.matchedPreferredActions`，
 理由行补一句"这题会练到「分类讨论」这类动作"。页面（`paperPlanProvider`）与 AI 工具
 （`compose_paper`）走同一份纯函数，口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11。
+
+## 13. 动作 → 题目：按能力动作找题（轮次一百零五）
+
+画像只回答"我最该练哪个动作"，用户看完还是得回题库自己翻。这一节把"动作 → 题目"接上：
+
+- **读表**：`readQuestionsForAction(db, actionType)`（`question_corpus_reader.dart`，纯 Dart）——
+  复用 `readChainActionTypes` 的**"只认最新一条链"**口径，筛出链上含该动作的题；排序 = 来源分级
+  高的在前、平手按题目 id（同一份库刷两次顺序一样）；空动作 / 没命中返回空表。
+- **页面**：`CapabilityActionQuestionsPage`（`features/questions/presentation/`）—— 标题用词表
+  `labelZh`（词表外原样）；每行是题干 + "学科 · 来源 · 链上动作"；点一行进题目详情页（那里有
+  AI 解题与卡点评估）。只读，不写任何表。
+- **入口**：认知模型页的能力动作画像每一行现在点得开（右侧有 chevron）—— 画像回答"该练哪个"，
+  点开回答"练哪几道"。
+- **不越界**：这一层只从**已有题库**里找题，AI 不出题（与用户口径一致）；没有链的题不会出现在
+  这里，页面明说"先去题目详情页按一次「AI 解题」"。
+
+验收：`test/features/questions/application/capability_action_questions_reader_test.dart` 3 例
+（命中/旧链不算/排序与空输入）、`test/features/questions/presentation/capability_action_questions_page_test.dart`
+2 例（题干 + 元信息 + 点进详情页；空态）、认知模型页 +1 例（画像行点得开 → 到那一页）。

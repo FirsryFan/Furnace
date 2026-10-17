@@ -16,6 +16,8 @@ library;
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/assessment_repository.dart';
+import '../../../data/repositories/question_repository.dart'
+    show kSourceLevelWeight;
 import '../../../domain/services/cognitive/fast_diagnosis.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
@@ -155,6 +157,73 @@ Future<Map<String, List<String>>> readChainActionTypes(AppDatabase db) async {
         actionsByChain[entry.value.id] ?? const <String>[],
       ),
   };
+}
+
+/// 一张"按能力动作找题"的检索行：题目本身 + 题干 + 它链上的动作序列。
+class CapabilityQuestionRow {
+  const CapabilityQuestionRow({
+    required this.questionId,
+    required this.stem,
+    required this.subjectKey,
+    required this.sourceLevel,
+    required this.actionTypes,
+  });
+
+  final String questionId;
+  final String stem;
+  final String subjectKey;
+  final String sourceLevel;
+
+  /// 这一题**最新一条链**的全部动作（含命中的那个）。没解过链的题不会出现在这张表里。
+  final List<String> actionTypes;
+}
+
+/// 按能力动作找题：题目最新一条链的动作序列里含 [actionType] 的题。
+///
+/// 为什么认"最新一条链"：与组卷的动作偏好、找相似题的动作对齐用同一个口径
+/// （[readChainActionTypes]）—— 一处定义、三处复用；也避免"按画面筛出来的题"
+/// 与"组卷里算的命中"是两份不同的判断。
+///
+/// 排序：来源分级高的在前（`kSourceLevelWeight` 与检索/组卷同序），平手按题目 id，
+/// 保证同一份库刷两次顺序一样。
+Future<List<CapabilityQuestionRow>> readQuestionsForAction(
+  AppDatabase db,
+  String actionType,
+) async {
+  final wanted = actionType.trim();
+  if (wanted.isEmpty) {
+    return const <CapabilityQuestionRow>[];
+  }
+  final actionsByQuestion = await readChainActionTypes(db);
+  final matchedIds = <String>[
+    for (final entry in actionsByQuestion.entries)
+      if (entry.value.contains(wanted)) entry.key,
+  ];
+  if (matchedIds.isEmpty) {
+    return const <CapabilityQuestionRow>[];
+  }
+
+  final rows = await (db.select(db.questions)
+        ..where((t) => t.id.isIn(matchedIds)))
+      .get();
+  final byId = {for (final row in rows) row.id: row};
+  final result = <CapabilityQuestionRow>[
+    for (final id in matchedIds)
+      if (byId[id] != null && byId[id]!.stem.trim().isNotEmpty)
+        CapabilityQuestionRow(
+          questionId: id,
+          stem: byId[id]!.stem.trim(),
+          subjectKey: byId[id]!.subjectKey,
+          sourceLevel: byId[id]!.sourceLevel,
+          actionTypes: actionsByQuestion[id]!,
+        ),
+  ];
+  result.sort((a, b) {
+    final bySource = (kSourceLevelWeight[b.sourceLevel] ?? 0)
+        .compareTo(kSourceLevelWeight[a.sourceLevel] ?? 0);
+    return bySource != 0 ? bySource : a.questionId.compareTo(b.questionId);
+  });
+  return List<CapabilityQuestionRow>.unmodifiable(result);
 }
 
 /// 题目 id → 题干（已 trim，空题干不进结果）。

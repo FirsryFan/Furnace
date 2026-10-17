@@ -1924,10 +1924,15 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 + `PaperPlan.preferredActionTypes` 回报 + 工具 `use_capability_profile`；关掉后卷子与"没有画像"逐字段一致）。
 口径见 `docs/PAPER_COMPOSER_DESIGN.md` §12。
 
+**轮次一百零五：按能力动作找题**（`readQuestionsForAction` 只认最新一条链；`CapabilityActionQuestionsPage`
+每行是题干 + 学科/来源/链上动作、点进详情页；认知模型页的画像行点得开作为入口）。口径见
+`docs/REASONING_LAYER_DESIGN.md` §13 —— 画像回答"该练哪个"，点开回答"练哪几道"，仍然只从已有题库里找。
+
 **仍未做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，要么引 `desktop_drop` 一类依赖、
 要么只走"粘贴 + 选文件"——需用户拍板）；② 能力动作词表用户可编辑（设计上留到 v13）；
 ③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层导航（当前刻意挂在设置页，见
-`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）。
+`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）；
+⑥ "按能力动作找题"还没有 AI 工具面（`compose_paper` / `find_similar_questions` 之外的第 4 个只读工具）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

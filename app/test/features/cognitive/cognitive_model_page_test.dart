@@ -27,7 +27,10 @@ import 'package:furnace/domain/services/reasoning/capability_profile.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
+import 'package:furnace/features/questions/application/capability_action_questions_provider.dart';
 import 'package:furnace/features/questions/application/capability_profile_provider.dart';
+import 'package:furnace/features/questions/application/question_corpus_reader.dart';
+import 'package:furnace/features/questions/presentation/capability_action_questions_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -337,6 +340,50 @@ void main() {
     expect(find.textContaining('brand_new_move'), findsOneWidget);
     expect(
       find.textContaining('这个词表还不认识它'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('画像每一行点得开：跳到"按能力动作找题"页（那一页只读）', (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        // 画像本身直接给一条读数（这一条只验"点得开"，不重复聚合逻辑）。
+        capabilityProfileProvider.overrideWith(
+          (ref) async => const <CapabilityReading>[
+            CapabilityReading(
+              actionType: 'case_split',
+              label: '分类讨论',
+              known: true,
+              stepCount: 2,
+              riskyStepCount: 1,
+              avgStuckRisk: 0.75,
+            ),
+          ],
+        ),
+        // 点进去那一页要读题库：这条用例不种题库，给空表（仍是只读的）。
+        questionsForActionProvider.overrideWith(
+          (ref, actionType) async => const <CapabilityQuestionRow>[],
+        ),
+      ],
+    );
+
+    await tester.tap(find.textContaining('分类讨论'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(CapabilityActionQuestionsPage), findsOneWidget);
+    expect(
+      find.text(
+        AppLocalizations.of(
+          tester.element(find.byType(CapabilityActionQuestionsPage)),
+        ).capabilityActionQuestionsTitle('分类讨论'),
+      ),
       findsOneWidget,
     );
   });

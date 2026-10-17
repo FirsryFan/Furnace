@@ -2709,6 +2709,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.';
 
   @override
+  String capabilityActionQuestionsTitle(String label) {
+    return 'Questions by capability move: $label';
+  }
+
+  @override
+  String get capabilityActionQuestionsNote =>
+      'These are the questions whose latest solved chain used this move; questions without a chain cannot appear here.';
+
+  @override
+  String capabilityActionQuestionsEmpty(String label) {
+    return 'No solved question uses "$label" yet - solve one from its detail page first.';
+  }
+
+  @override
+  String capabilityActionQuestionsMeta(
+      String subject, String source, String actions) {
+    return '$subject · $source · moves on the chain: $actions';
+  }
+
+  @override
+  String capabilityActionQuestionsFailed(String message) {
+    return 'Could not read the question bank: $message';
+  }
+
+  @override
   String get learningMetricsTitle => 'Learning effect (the review log decides)';
 
   @override

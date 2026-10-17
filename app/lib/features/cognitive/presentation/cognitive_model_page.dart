@@ -54,6 +54,7 @@ import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/capability_profile_provider.dart';
+import '../../questions/presentation/capability_action_questions_page.dart';
 import 'mechanism_page.dart';
 import 'zone_labels.dart';
 
@@ -1148,7 +1149,7 @@ class _CapabilityProfileSection extends ConsumerWidget {
               else if (profile.hasError)
                 Text(l10n.capabilityProfileUnavailable, style: subtle)
               else
-                ..._body(l10n, theme, subtle, profile.requireValue),
+                ..._body(context, l10n, theme, subtle, profile.requireValue),
             ],
           ),
         ),
@@ -1157,6 +1158,7 @@ class _CapabilityProfileSection extends ConsumerWidget {
   }
 
   List<Widget> _body(
+    BuildContext context,
     AppLocalizations l10n,
     ThemeData theme,
     TextStyle? subtle,
@@ -1166,19 +1168,41 @@ class _CapabilityProfileSection extends ConsumerWidget {
       return [Text(l10n.capabilityProfileEmpty, style: subtle)];
     }
     return [
+      // 每一行都能点开：动作 → 哪些题练到这个动作（「按能力动作找题」页）。
+      // 画像只回答"该练哪个"，点开才回答"练哪几道"。
       for (final reading in readings)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(
-            l10n.capabilityProfileRow(
-              reading.label,
-              reading.stepCount,
-              reading.riskyStepCount,
-              reading.avgStuckRisk == null
-                  ? l10n.capabilityProfileNoRisk
-                  : reading.avgStuckRisk!.toStringAsFixed(2),
+        InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CapabilityActionQuestionsPage(
+                actionType: reading.actionType,
+              ),
             ),
-            style: subtle,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.capabilityProfileRow(
+                      reading.label,
+                      reading.stepCount,
+                      reading.riskyStepCount,
+                      reading.avgStuckRisk == null
+                          ? l10n.capabilityProfileNoRisk
+                          : reading.avgStuckRisk!.toStringAsFixed(2),
+                    ),
+                    style: subtle,
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       if (readings.any((reading) => !reading.known))
