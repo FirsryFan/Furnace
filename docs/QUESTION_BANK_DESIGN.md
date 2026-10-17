@@ -168,6 +168,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q23 | 画像 → 组卷联动：候选带链上动作序列、组卷器加"最该练动作"透明加成、理由行说出来；页面 provider 与 `compose_paper` 同源 | 已完成（轮次一百零三，Lead；口径见 `docs/PAPER_COMPOSER_DESIGN.md` §11） |
 | Q24 | 画像加成可见且可关：组卷页开关 + `PaperSpec.preferCapabilityActions` + `PaperPlan.preferredActionTypes` 回报 + 工具 `use_capability_profile` | 已完成（轮次一百零四，Lead；口径见 `docs/PAPER_COMPOSER_DESIGN.md` §12） |
 | Q25 | 按能力动作找题：`readQuestionsForAction`（只认最新链）+ `questionsForActionProvider` + `CapabilityActionQuestionsPage` + 画像行点开作为入口 | 已完成（轮次一百零五，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13） |
+| Q26 | 按能力动作找题的工具面：`find_questions_by_capability`（只读、与页面同一份读表函数、词表外 key 失败并列可用值） | 已完成（轮次一百零六，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13 工具面） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

@@ -313,3 +313,13 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 验收：`test/features/questions/application/capability_action_questions_reader_test.dart` 3 例
 （命中/旧链不算/排序与空输入）、`test/features/questions/presentation/capability_action_questions_page_test.dart`
 2 例（题干 + 元信息 + 点进详情页；空态）、认知模型页 +1 例（画像行点得开 → 到那一页）。
+
+**工具面（轮次一百零六）**：`find_questions_by_capability`（`features/ai/tools/question_tools.dart`，
+注册在 `ToolRegistry.forApp`）—— 与页面**同一份读表函数**（`readQuestionsForAction`），所以
+"页面上查到的"与"模型查到的"不会分叉。入参 `action_type`（必填，词表外的 key 直接失败并列出可用值）
++ `limit`（默认 10、上限 50）；`readOnly => true`，`ApprovalEngine` 两种权限模式下都不逐条询问。
+`modelResult` 里带 `action_type` / `action_label_zh` / `returned` / `candidates` /
+`rule: 'latest_chain_only'` / `questions[]`（id、题干摘要、学科 key + 中文名、来源分级、
+链上全部动作 key + 中文名）。空结果如实说"还没有解过含这个动作的题，我不会自己出题"。
+验收：`test/features/ai/find_questions_by_capability_tool_test.dart` **7 例**（注册与审批、未知动作、
+参数错、命中 + 只认最新链、空结果、`limit` 钳位、整库指纹只读）。

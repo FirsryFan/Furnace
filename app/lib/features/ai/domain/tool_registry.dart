@@ -108,6 +108,10 @@ class ToolRegistry {
       // (`questions/application/question_corpus_reader.dart`) 上的只读排序，
       // 找不到就如实说没有——AI 不出题 (tools/question_tools.dart)。
       FindSimilarQuestionsTool(db: db),
+      // 用途 1 的第三个问法 (轮次一百零六): 「我老在某类动作上卡，该练哪几道」——
+      // 与认知模型页的「能力动作画像」同源：画像回答"哪个动作最该练"，这个工具回答
+      // "练哪几道"（`readQuestionsForAction`，只认每道题最新一条链；AI 不出题）。
+      FindQuestionsByCapabilityTool(db: db),
       // 用途 1 的另一半 (Q9/Q11/Q13): 「现在该练什么」——按危险/发展区读数从题库凑卷，
       // 凑不齐就如实报缺哪些知识点。读数与页面同源
       // (`cognitive/application/library_diagnosis_reader.dart`)，
