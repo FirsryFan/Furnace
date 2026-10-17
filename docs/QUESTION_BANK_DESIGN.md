@@ -52,6 +52,12 @@ Agent（省时间的交互层：收题、拍照整理、组卷、排程都从这
 
 **来源分级只在"选择"环节用**：`sourceLevel` 决定权重与去重时的保留优先级，不决定题目本身的价值。
 
+**来源元信息事后可改（轮次一百零一）**：`QuestionRepository.updateSource(id, {sourceLevel, sourceLabel,
+year, region})` —— 只写这四列，`sourceLevel` 走 `kSourceLevelWeight` 白名单（写错当场抛
+`ArgumentError` 并列出可用值），题干 / 答案 / 解析 / 加工列一个字不动。入口在题目详情页的「改来源」
+（对话框里留空的字段 = 不改那一列；年份非整数或越界就停在对话框里报错）。理由：来源分级是检索排序与
+`aiQuality` 权重的输入，粘进来时标不准的题不该永远停在"未标注"。
+
 ## 2. 去重与质量
 
 - 入库前算 `stemFingerprint`；库内已有同指纹 → 不新增，返回既有题目并提示「疑似重复」。
@@ -152,6 +158,28 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q17 | 组卷页补三个 spec 控件（目标难度 / 每知识点上限 / 重置） | 已完成（`fe1964a`，teammate `question-intake` 交付） |
 | Q19 | 拍照整理的待确认清单持久化（schema v13 两张表 + 仓储 + `refresh()` 恢复 + 迁移/仓储测试） | 已完成（本轮，Lead） |
 | Q20 | 组卷页「复制卷面」：卷面渲染成可打印纯文本（`renderPaperText`）+ 剪贴板 + ARB | 已完成（本轮，teammate `question-intake` 交付） |
+| Q21 | 来源元信息事后可改：`QuestionRepository.updateSource`（四列白名单）+ 详情页「改来源」对话框 + ARB + 仓储/页面测试 | 已完成（轮次一百零一，Lead） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。
+
+## 10. 验收记录（轮次一百零一，2026-10-18）
+
+按本文档的五片逐条核过一遍，结论与证据：
+
+| 片 | 交付物（代码位置） | 片级测试 |
+|---|---|---|
+| ① schema v12 题目实体 | `tables.dart` 的 `Questions` / `QuestionOptions` / `ReasoningChains` / `ReasoningSteps`；v13 两张拍照整理表；`question_repository.dart`（指纹去重、来源分级、加工列白名单） | `v12_migration_test`、`v13_migration_test`、`question_repository_test` |
+| ② 收题页（粘贴优先） | `question_intake_page.dart`：粘贴 → AI/本机结构化 → 校对表 → 入库（未确认不写）；`file_picker` 选图入口 | `question_intake_page_test`、`question_repository_test` |
+| ③ 拍照手写整理 → 三类待确认产物 | `handwriting_proposals.dart`（标签/闪存卡/知识点三类提案 + 严格解析）、`handwriting_proposal_service.dart`、`handwriting_queue_page.dart`、schema v13 落盘 | `handwriting_proposals_test`、`handwriting_proposal_repository_test`、`handwriting_proposal_service_test`、`handwriting_intake_store_test`、`handwriting_queue_page_test` |
+| ④ 解题链 → 步骤 → 能力动作 → 卡点评估 | `question_reasoning_service.dart`、`capability_action.dart`、`stuck_point_evaluator.dart`、详情页展示与评估 | `question_reasoning_service_test`、`capability_action_test`、`stuck_point_evaluator_test`、`question_detail_page_test` |
+| ⑤ threadflow 两段式 | `time_window_engine.dart`（算法定时段/截止匹配）、`domain_balance.dart`（领域配额）、`thread_balance_inputs.dart`（MindNet 有效性）→ `thread_rank_service.dart` | `time_window_engine_test`、`domain_balance_test`、`thread_balance_inputs_test`、`thread_balance_provider_test` |
+
+**仍未做（诚实清单）**：
+
+1. **②的"拖拽"**：OS 级文件拖入 Flutter 没有 SDK API；要做得加 `desktop_drop` / `super_drag_and_drop`
+   一类依赖（还要平台注册），当前只有"粘贴文本 + 选文件"两条路 —— 需要用户拍板是否引依赖。
+2. **④的能力动作词表用户可编辑**：按本文档 §4 的约定留到 schema v13 之后（本期不改表）。
+3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
+4. **拍照整理的主入口**：现在在收题页的待整理清单 + 设置页各有一个入口；是否提升为顶层导航待定
+   （设置页现有入口是刻意的设计选择，见 `settings_page.dart` 的注释）。

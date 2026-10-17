@@ -21,6 +21,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/database/database.dart';
+import '../../../data/repositories/question_repository.dart';
+import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
@@ -70,6 +73,40 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     });
   }
 
+  /// 改来源：只动"来源元信息"四列（题干与答案一个字不改）。
+  ///
+  /// 题目进来时的来源分级常常是 `unknown`（粘贴时没标、拍照读不出），事后知道了
+  /// "这是 2024 湖南师大附中的月考"，得有个地方改 —— 不然 `aiQuality`/排序的权重
+  /// 一直按"未标注"算。
+  Future<void> _editSource(Question question) async {
+    final edited = await showDialog<
+        ({String level, String label, int? year, String? region})>(
+      context: context,
+      builder: (_) => _EditSourceDialog(question: question),
+    );
+    if (edited == null || !mounted) {
+      return;
+    }
+    try {
+      await ref.read(questionRepositoryProvider).updateSource(
+            question.id,
+            sourceLevel: edited.level,
+            sourceLabel: edited.label,
+            year: edited.year,
+            region: edited.region,
+          );
+      // 保存完立刻重读：不把"屏幕上已经变了"寄望于全局写拦截器（测试里不装它，
+      // 而且这一页本来就该在「我按了保存」之后自己刷新）。
+      ref.invalidate(questionDetailProvider(question.id));
+    } on ArgumentError catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('${error.message}')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -92,7 +129,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           else if (missing)
             Text(l10n.questionDetailQuestionMissing)
           else if (detail != null)
-            _QuestionCard(detail: detail),
+            _QuestionCard(
+              detail: detail,
+              onEditSource: () => _editSource(detail.question),
+            ),
           const SizedBox(height: 16),
           _ReasoningSection(
             questionId: widget.questionId,
@@ -111,9 +151,12 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
 /// 题目本身：题干、选项、答案、解析、来源与质量。
 class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({required this.detail});
+  const _QuestionCard({required this.detail, this.onEditSource});
 
   final QuestionDetail detail;
+
+  /// 「改来源」（可空：没给缝就不摆这个按钮 —— 与页面上别的可注入动作同一个做法）。
+  final VoidCallback? onEditSource;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +187,25 @@ class _QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(meta.join(' · '), style: theme.textTheme.bodySmall),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    meta.join(' · '),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+                // 「改来源」：来源分级/来源说明/年份/地区都是"事后也可能知道"的
+                // 元信息，题干与答案不动。
+                if (onEditSource != null)
+                  TextButton.icon(
+                    onPressed: onEditSource,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: Text(l10n.questionDetailEditSource),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             SelectableText(question.stem, style: theme.textTheme.titleMedium),
             if (question.difficulty != null) ...[
@@ -838,4 +899,132 @@ void _openIntake(BuildContext context) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (context) => const QuestionIntakePage()),
   );
+}
+
+/// 「改来源」对话框：来源分级（白名单下拉）+ 来源说明/年份/地区。
+///
+/// 三条纪律：① 只改来源元信息（题干/答案/选项一个字不动）；② 留空的字段 =
+/// **不改**那一列（不是清空 —— 想清空得再定一次口径，这一轮不顺手做半套）；
+/// ③ 年份写错就停在对话框里说清楚，不悄悄当"没填"。
+class _EditSourceDialog extends StatefulWidget {
+  const _EditSourceDialog({required this.question});
+
+  final Question question;
+
+  @override
+  State<_EditSourceDialog> createState() => _EditSourceDialogState();
+}
+
+class _EditSourceDialogState extends State<_EditSourceDialog> {
+  late String _level = widget.question.sourceLevel;
+  late final TextEditingController _labelController =
+      TextEditingController(text: widget.question.sourceLabel);
+  late final TextEditingController _yearController =
+      TextEditingController(text: widget.question.year?.toString() ?? '');
+  late final TextEditingController _regionController =
+      TextEditingController(text: widget.question.region ?? '');
+  String? _yearProblem;
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _yearController.dispose();
+    _regionController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final l10n = AppLocalizations.of(context);
+    final rawYear = _yearController.text.trim();
+    int? year;
+    if (rawYear.isNotEmpty) {
+      year = int.tryParse(rawYear);
+      if (year == null || year < 1900 || year > 2200) {
+        setState(() => _yearProblem = l10n.questionDetailEditSourceYearBad);
+        return;
+      }
+    }
+    final label = _labelController.text.trim();
+    final region = _regionController.text.trim();
+    Navigator.of(context).pop((
+      level: _level,
+      label: label,
+      year: year,
+      region: region.isEmpty ? null : region,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.questionDetailEditSourceTitle),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            DropdownButtonFormField<String>(
+              initialValue: _level,
+              decoration: InputDecoration(
+                labelText: l10n.questionIntakeSourceLevelLabel,
+              ),
+              items: <DropdownMenuItem<String>>[
+                for (final level in kSourceLevelWeight.keys)
+                  DropdownMenuItem<String>(
+                    value: level,
+                    child: Text(sourceLevelLabel(l10n, level)),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _level = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _labelController,
+              decoration: InputDecoration(
+                labelText: l10n.questionIntakeSourceLabelLabel,
+                hintText: l10n.questionIntakeSourceLabelHint,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _yearController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: l10n.questionIntakeYearLabel,
+                errorText: _yearProblem,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _regionController,
+              decoration: InputDecoration(
+                labelText: l10n.questionIntakeRegionLabel,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.questionDetailEditSourceHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonClose),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: Text(l10n.commonSave),
+        ),
+      ],
+    );
+  }
 }

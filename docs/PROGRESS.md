@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-10-18 轮次一百零一：题库五片验收 + 来源分级事后能改（Lead）
+
+**做了什么**：这一轮按 `docs/QUESTION_BANK_DESIGN.md` 把「题库 + 推理层 + 三应用领域」的五片重新核了一遍
+（Q1–Q20 的交付是否真的在、测试是否真的绿），补上验收路上唯一一处**用户看得见的断口**：题目的来源分级
+在收题那一刻定了之后**再也改不了** —— 粘贴时没标来源、拍照读不出来的题永远停在"未标注"，而
+`sourceLevel` 正是检索排序与 `aiQuality` 权重的一等输入。现在详情页多一个「改来源」：来源分级（词表下拉）
++ 来源说明 + 年份 + 地区，只写这四列，题干/答案/解析/加工列一个字不动。
+
+- **仓储开一个窄口子**：`QuestionRepository.updateSource(id, {sourceLevel, sourceLabel, year, region})` ——
+  与 `updateProcessing` 分工清楚：那个管加工列（state/trapNote/difficulty/aiQuality），这个管来源元信息；
+  题干/选项仍然只追加。`sourceLevel` 走 `kSourceLevelWeight` 白名单，写错值当场抛 `ArgumentError`
+  并列出可用值（不悄悄落成权重 0 把排序弄歪）。
+- **界面上**：题目元信息那一行右边多一颗「改来源」；对话框是词表下拉 + 三个文本框，**留空 = 不改那一列**
+  （想清空再定口径，这一轮不做半套）；年份写错（非整数 / 越界 1900–2200）停在对话框里报错，不写库。
+  保存成功立刻 `invalidate(questionDetailProvider)` 重读 —— 不把"屏幕已经变了"寄望于全局写拦截器。
+- **验收结论（五片都核实过）**：① schema v12 四表 + v13 两张拍照整理表在（`tables.dart:1070-1290`），
+  `v12_migration_test`/`v13_migration_test` 在；② 收题页粘贴 + 文件选择 + 校对表 + 指纹去重在
+  （`question_intake_page.dart`、`question_repository.dart`）；③ 拍照整理三类产物（标签/闪存卡/知识点）
+  + 落盘队列（`handwriting_proposals.dart` + `handwriting_proposal_repository.dart`）在；④ 推理管道
+  （`question_reasoning_service.dart`）、能力动作词表（`capability_action.dart`）、卡点评估
+  （`stuck_point_evaluator.dart`）且已接进详情页；⑤ 两段式（`time_window_engine.dart` /
+  `domain_balance.dart` / `thread_balance_inputs.dart` → `thread_rank_service.dart`）在。
+  这一轮跑的片级测试：`v12/v13` 迁移、`question_repository`、`stuck_point_evaluator`、`time_window_engine`、
+  `domain_balance`、`thread_balance_inputs`、`thread_balance_provider`、`question_tools`、`paper_tools`
+  共 **85 例**；`test/features/questions` 全目录 **105 例**；拍照整理四件套 **46 例** —— 全绿。
+- **仍未做（记在这里，下一轮从这儿挑）**：② 的"拖拽"仍然没有（OS 级文件拖入 Flutter 没有 SDK API，
+  要么加 `desktop_drop` 一类依赖、要么就走"粘贴 + 选文件"这两条路 —— 需要用户拍板）；④ 的用户可编辑
+  能力动作词表按设计留到 v13；组卷/相似题的措辞与配额打磨仍可继续。
+
+**证据**：`app/test/data/repositories/question_repository_test.dart` +3 例（改四列且题干/答案/加工列不动、
+来源分级写错当场拒绝且一列不改、只改来源分级时其余三列保持原样）；`app/test/features/questions/presentation/question_detail_page_test.dart`
++2 例（改来源存得住、页面自己刷新出"高考真题"与 2024 年；年份写错停在对话框、库里 year 仍为 null）。
+本轮 `dart format` 6 个 Dart 文件 0 changed；`dart analyze lib test` → `94 issues found`（**0 error /
+0 warning**，与八十六～一百同基线）；全量 `flutter test --concurrency=1` → **+2063 ~2**（轮次一百
+`+2058 ~2`，差值 5）。
+
+---
+
 ## 2026-10-17 轮次一百：这一跑到底做了什么 —— 演练的话跟着批次留下来了（Lead）
 
 **做了什么**：轮次九十三让演练的每条动作有了读数、轮次九十八把它摆到了界面上 —— 可那些读数**只在当时

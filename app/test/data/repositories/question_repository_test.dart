@@ -87,6 +87,84 @@ void main() {
     expect(after.updatedAt, greaterThanOrEqualTo(after.createdAt));
   });
 
+  test('来源元信息事后能改：只动那四列，题干/答案/加工列一个字不动', () async {
+    final ingested = await repo.ingest(
+      const QuestionDraft(
+        stem: '已知 x^2-5x+6=0，求两根之和。',
+        answer: '5',
+        solution: '韦达定理',
+        sourceLevel: 'unknown',
+        questionType: 'solution',
+      ),
+    );
+    await repo.updateProcessing(
+      ingested.question.id,
+      state: 'processed',
+      trapNote: '把系数看错',
+      difficulty: 3,
+    );
+    final before = (await repo.byId(ingested.question.id))!;
+
+    await repo.updateSource(
+      ingested.question.id,
+      sourceLevel: 'gaokao',
+      sourceLabel: '2024 湖南师大附中月考',
+      year: 2024,
+      region: '湖南',
+    );
+
+    final after = (await repo.byId(ingested.question.id))!;
+    expect(after.sourceLevel, 'gaokao');
+    expect(after.sourceLabel, '2024 湖南师大附中月考');
+    expect(after.year, 2024);
+    expect(after.region, '湖南');
+    // 题干 / 答案 / 解析 / 加工列都不归这个口子管。
+    expect(after.stem, before.stem);
+    expect(after.answer, before.answer);
+    expect(after.solution, before.solution);
+    expect(after.state, before.state);
+    expect(after.trapNote, before.trapNote);
+    expect(after.difficulty, before.difficulty);
+    expect(after.updatedAt, greaterThanOrEqualTo(before.updatedAt));
+  });
+
+  test('来源分级只认词表里的值：写错当场拒绝，不改任何一列', () async {
+    final ingested = await repo.ingest(
+      const QuestionDraft(stem: '来源分级写错的题', sourceLevel: 'school'),
+    );
+
+    await expectLater(
+      repo.updateSource(ingested.question.id, sourceLevel: 'gaokao_2024'),
+      throwsA(
+        isA<ArgumentError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('未知的来源分级'), contains('gaokao')),
+        ),
+      ),
+    );
+    expect((await repo.byId(ingested.question.id))!.sourceLevel, 'school');
+  });
+
+  test('只改来源分级时，来源说明/年份/地区保持原样', () async {
+    final ingested = await repo.ingest(
+      const QuestionDraft(
+        stem: '只改分级',
+        sourceLabel: '某校月考',
+        year: 2023,
+        region: '湖北',
+      ),
+    );
+
+    await repo.updateSource(ingested.question.id, sourceLevel: 'elite_school');
+
+    final after = (await repo.byId(ingested.question.id))!;
+    expect(after.sourceLevel, 'elite_school');
+    expect(after.sourceLabel, '某校月考');
+    expect(after.year, 2023);
+    expect(after.region, '湖北');
+  });
+
   test('检索按来源分级与质量排序，低价值题只是压后', () async {
     // 时间顺序刻意反过来：自建题最新，但这不该让它排第一。
     await repo.ingest(

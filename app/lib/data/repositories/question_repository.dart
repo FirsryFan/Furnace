@@ -387,6 +387,38 @@ class QuestionRepository {
     );
   }
 
+  /// 改**来源元信息**（来源分级 / 来源说明 / 年份 / 地区）。
+  ///
+  /// 为什么不并进 [updateProcessing]：来源分级有固定词表（[kSourceLevelWeight]），
+  /// 传错值会悄悄变成权重 0、把排序弄歪；所以这里对 [sourceLevel] 做一次白名单校验。
+  /// 题干 / 答案 / 选项仍然只追加 —— 这个口子只写四列来源信息。
+  Future<void> updateSource(
+    String id, {
+    String? sourceLevel,
+    String? sourceLabel,
+    int? year,
+    String? region,
+    DateTime? now,
+  }) async {
+    if (sourceLevel != null && !kSourceLevelWeight.containsKey(sourceLevel)) {
+      throw ArgumentError(
+        '未知的来源分级 `$sourceLevel`（可用：${kSourceLevelWeight.keys.join(' / ')}）',
+      );
+    }
+    final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    await (_db.update(_db.questions)..where((t) => t.id.equals(id))).write(
+      QuestionsCompanion(
+        sourceLevel:
+            sourceLevel == null ? const Value.absent() : Value(sourceLevel),
+        sourceLabel:
+            sourceLabel == null ? const Value.absent() : Value(sourceLabel),
+        year: year == null ? const Value.absent() : Value(year),
+        region: region == null ? const Value.absent() : Value(region),
+        updatedAt: Value(ms),
+      ),
+    );
+  }
+
   /// 删除题目并显式清理它的一切（本项目没有外键，级联不会自己发生）。
   Future<void> deleteQuestion(String id) async {
     await _db.transaction(() async {

@@ -1267,6 +1267,10 @@
   "questionIntakeSourceUnknown": "未标注",
   "questionDetailTitle": "题目详情",
   "questionDetailQuestionMissing": "这道题已不在题库里（可能刚被删掉）。",
+  "questionDetailEditSource": "改来源",
+  "questionDetailEditSourceTitle": "改一改来源",
+  "questionDetailEditSourceHint": "留空的字段 = 不改那一列；题干、答案与选项一个字不动。",
+  "questionDetailEditSourceYearBad": "年份要写 1900–2200 之间的整数",
   "questionDetailCorrectOption": "正确答案",
   "questionDetailYear": "{year} 年",
   "@questionDetailYear": {

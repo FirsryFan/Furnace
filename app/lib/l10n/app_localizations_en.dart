@@ -2988,6 +2988,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'This question is no longer in the library (it may have just been deleted).';
 
   @override
+  String get questionDetailEditSource => 'Edit source';
+
+  @override
+  String get questionDetailEditSourceTitle => 'Edit the source';
+
+  @override
+  String get questionDetailEditSourceHint =>
+      'A field left empty is left unchanged; the stem, answer and options are never touched.';
+
+  @override
+  String get questionDetailEditSourceYearBad =>
+      'The year must be an integer between 1900 and 2200';
+
+  @override
   String get questionDetailCorrectOption => 'correct';
 
   @override

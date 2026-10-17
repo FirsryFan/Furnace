@@ -5187,6 +5187,30 @@ abstract class AppLocalizations {
   /// **'This question is no longer in the library (it may have just been deleted).'**
   String get questionDetailQuestionMissing;
 
+  /// No description provided for @questionDetailEditSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit source'**
+  String get questionDetailEditSource;
+
+  /// No description provided for @questionDetailEditSourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the source'**
+  String get questionDetailEditSourceTitle;
+
+  /// No description provided for @questionDetailEditSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A field left empty is left unchanged; the stem, answer and options are never touched.'**
+  String get questionDetailEditSourceHint;
+
+  /// No description provided for @questionDetailEditSourceYearBad.
+  ///
+  /// In en, this message translates to:
+  /// **'The year must be an integer between 1900 and 2200'**
+  String get questionDetailEditSourceYearBad;
+
   /// No description provided for @questionDetailCorrectOption.
   ///
   /// In en, this message translates to:

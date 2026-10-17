@@ -1372,6 +1372,10 @@
   "questionIntakeSourceUnknown": "Unlabelled",
   "questionDetailTitle": "Question detail",
   "questionDetailQuestionMissing": "This question is no longer in the library (it may have just been deleted).",
+  "questionDetailEditSource": "Edit source",
+  "questionDetailEditSourceTitle": "Edit the source",
+  "questionDetailEditSourceHint": "A field left empty is left unchanged; the stem, answer and options are never touched.",
+  "questionDetailEditSourceYearBad": "The year must be an integer between 1900 and 2200",
   "questionDetailCorrectOption": "correct",
   "questionDetailYear": "{year}",
   "@questionDetailYear": {

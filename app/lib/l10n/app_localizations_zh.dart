@@ -2863,6 +2863,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailQuestionMissing => '这道题已不在题库里（可能刚被删掉）。';
 
   @override
+  String get questionDetailEditSource => '改来源';
+
+  @override
+  String get questionDetailEditSourceTitle => '改一改来源';
+
+  @override
+  String get questionDetailEditSourceHint => '留空的字段 = 不改那一列；题干、答案与选项一个字不动。';
+
+  @override
+  String get questionDetailEditSourceYearBad => '年份要写 1900–2200 之间的整数';
+
+  @override
   String get questionDetailCorrectOption => '正确答案';
 
   @override

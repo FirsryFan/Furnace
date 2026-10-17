@@ -188,7 +188,8 @@ void main() {
     await _pumpDetail(tester, database, _missingQuestionId, adapter: adapter);
 
     expect(find.text(_zh.questionDetailQuestionMissing), findsOneWidget);
-    await tester.tap(find.text(_zh.questionDetailSolveButton), warnIfMissed: false);
+    await tester.tap(find.text(_zh.questionDetailSolveButton),
+        warnIfMissed: false);
     await _settle(tester);
     expect(adapter.requests, isEmpty);
   });
@@ -271,6 +272,91 @@ void main() {
     await _waitForType(tester, QuestionDetailPage);
 
     expect(find.byType(QuestionDetailPage), findsOneWidget);
+  });
+
+  testWidgets('改来源：分级/年份/地区存得住，题干一个字不动', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final repository = QuestionRepository(database);
+    final seeded = await repository.ingest(
+      const QuestionDraft(
+        stem: '不确定来源的一道题',
+        answer: '42',
+        subjectKey: 'math',
+        questionType: 'solution',
+        sourceLevel: 'unknown',
+      ),
+    );
+
+    await _pumpDetail(tester, database, seeded.question.id, adapter: null);
+    await _waitForText(tester, '不确定来源的一道题');
+
+    expect(find.text(_zh.questionDetailEditSource), findsOneWidget);
+    await tester.tap(find.text(_zh.questionDetailEditSource));
+    await tester.pumpAndSettle();
+    expect(find.text(_zh.questionDetailEditSourceTitle), findsOneWidget);
+
+    // 分级从"未标注"改成"高考真题"。
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(_zh.questionIntakeSourceGaokao).last);
+    await tester.pumpAndSettle();
+
+    // 年份与地区。来源说明也一起补上。
+    final fields = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), '2024 湖南师大附中月考');
+    await tester.enterText(fields.at(1), '2024');
+    await tester.enterText(fields.at(2), '湖南');
+    await tester.tap(find.text(_zh.commonSave));
+    await tester.pumpAndSettle();
+
+    // 页面自己刷新：来源行变成"高考真题"，年份也在。
+    await tester.pumpAndSettle();
+    expect(find.textContaining(_zh.questionIntakeSourceGaokao), findsWidgets);
+    expect(find.textContaining(_zh.questionDetailYear(2024)), findsWidgets);
+
+    // 库里的四列变了，题干/答案没动。
+    final after = (await repository.byId(seeded.question.id))!;
+    expect(after.sourceLevel, 'gaokao');
+    expect(after.sourceLabel, '2024 湖南师大附中月考');
+    expect(after.year, 2024);
+    expect(after.region, '湖南');
+    expect(after.stem, seeded.question.stem);
+    expect(after.answer, '42');
+  });
+
+  testWidgets('改来源时年份写错：停在对话框里说清楚，一行都不写库', (
+    WidgetTester tester,
+  ) async {
+    final database = _newDatabase();
+    final repository = QuestionRepository(database);
+    final seeded = await repository.ingest(
+      const QuestionDraft(
+        stem: '年份写错的那道题',
+        sourceLevel: 'unknown',
+        questionType: 'solution',
+      ),
+    );
+
+    await _pumpDetail(tester, database, seeded.question.id, adapter: null);
+    await _waitForText(tester, '年份写错的那道题');
+    await tester.tap(find.text(_zh.questionDetailEditSource));
+    await tester.pumpAndSettle();
+
+    final fields = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(1), '20x4');
+    await tester.tap(find.text(_zh.commonSave));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_zh.questionDetailEditSourceYearBad), findsOneWidget);
+    final after = (await repository.byId(seeded.question.id))!;
+    expect(after.year, isNull, reason: '写错就是没写进去');
+    expect(after.sourceLevel, 'unknown');
   });
 }
 
@@ -403,8 +489,9 @@ void _bigSurface(WidgetTester tester) {
 Future<void> _settle(WidgetTester tester, {int rounds = 40}) async {
   for (var i = 0; i < rounds; i++) {
     await tester.pump(const Duration(milliseconds: 20));
-    final spinning = find.byType(LinearProgressIndicator).evaluate().isNotEmpty ||
-        find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
+    final spinning =
+        find.byType(LinearProgressIndicator).evaluate().isNotEmpty ||
+            find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
     if (!spinning) {
       return;
     }
@@ -426,7 +513,8 @@ Future<void> _waitForText(
   fail('等了 12 秒也没等到这段文字：$text');
 }
 
-Future<void> _waitForType(WidgetTester tester, Type type, {int rounds = 120}) async {
+Future<void> _waitForType(WidgetTester tester, Type type,
+    {int rounds = 120}) async {
   for (var i = 0; i < rounds; i++) {
     await tester.pump(const Duration(milliseconds: 100));
     if (find.byType(type).evaluate().isNotEmpty) {
