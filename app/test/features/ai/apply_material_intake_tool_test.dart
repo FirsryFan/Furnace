@@ -94,6 +94,7 @@ void main() {
   ToolInvocation invocationOf(
     Object? material, {
     List<String>? proposalIds,
+    Map<String, String>? renames,
   }) =>
       ToolInvocation(
         toolName: 'apply_material_intake',
@@ -101,6 +102,7 @@ void main() {
         arguments: <String, Object?>{
           'material': material,
           if (proposalIds != null) 'proposal_ids': proposalIds,
+          if (renames != null) 'renames': renames,
         },
       );
 
@@ -241,5 +243,98 @@ void main() {
 
     expect(result.ok, isTrue);
     expect(await db.select(db.knowledgePoints).get(), hasLength(2));
+  });
+
+  test('renames：点头之前先改一改标题，建出来的就是改过的那个', () async {
+    final result = await tool.run(
+      invocationOf(
+        envelopeJson(),
+        renames: <String, String>{'kp:en::w::rely-on': '  rely on（依靠）  '},
+      ),
+    );
+
+    expect(result.ok, isTrue, reason: result.summary);
+    expect(result.summary, contains('先改过 1 条知识点提案的标题'));
+    expect(result.summary, contains('rely on（依靠）'));
+    final payload = payloadOf(result);
+    expect(payload['renamed'], hasLength(1));
+    final renamed =
+        (payload['renamed']! as List).single as Map<String, Object?>;
+    expect(renamed['proposal_id'], 'kp:en::w::rely-on');
+    expect(renamed['title'], 'rely on（依靠）', reason: '首尾空白要剪掉');
+
+    // 库里那个知识点的标题就是改过的（不是材料里原来那个）。
+    final points = await anki.getKnowledgePoints();
+    expect(
+      points.map((point) => point.title),
+      containsAll(<String>['rely on（依靠）', 'I relied on him.']),
+    );
+    expect(points.map((point) => point.title), isNot(contains('rely on')));
+  });
+
+  test('renames 指到一条连接 ⇒ 失败，说清只有知识点的标题能改', () async {
+    // 先确认一条知识点：连接还留在待确认里，正好拿它来试"连接的标题不给改"。
+    await tool.run(
+      invocationOf(
+        envelopeJson(),
+        proposalIds: <String>['kp:en::w::rely-on'],
+      ),
+    );
+    final batch = (await repository.batches()).single;
+    final connection = (await repository.pendingProposals(batch.batchId))
+        .firstWhere((proposal) => proposal.id.startsWith('edge:'));
+
+    final result = await tool.run(
+      invocationOf(
+        envelopeJson(),
+        renames: <String, String>{connection.id: '随便改个名字'},
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('只有知识点的标题能改'));
+    // 第一次那条已经点过头了；这次失败没多建任何东西。
+    expect(await db.select(db.knowledgePoints).get(), hasLength(1));
+  });
+
+  test('renames 给空标题 ⇒ 失败，理由是人话', () async {
+    final result = await tool.run(
+      invocationOf(
+        envelopeJson(),
+        renames: <String, String>{'kp:en::w::rely-on': '   '},
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('标题不能是空的'));
+    expect(await db.select(db.knowledgePoints).get(), isEmpty);
+  });
+
+  test('renames 有这一批之外的 id ⇒ 失败，说清这一批里没有它', () async {
+    final result = await tool.run(
+      invocationOf(
+        envelopeJson(),
+        renames: <String, String>{'kp:en::w::not-here': '改'},
+      ),
+    );
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('没有这条提案'));
+    expect(await db.select(db.knowledgePoints).get(), isEmpty);
+  });
+
+  test('renames 不是对象 ⇒ 参数错，不装作改了', () async {
+    final result = await tool.run(ToolInvocation(
+      toolName: 'apply_material_intake',
+      action: 'apply_material_intake',
+      arguments: <String, Object?>{
+        'material': envelopeJson(),
+        'renames': <String>['不是对象'],
+      },
+    ));
+
+    expect(result.ok, isFalse);
+    expect(result.summary, contains('应该是一个对象'));
+    expect(await db.select(db.knowledgePoints).get(), isEmpty);
   });
 }

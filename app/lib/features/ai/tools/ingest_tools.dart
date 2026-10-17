@@ -230,7 +230,9 @@ class ApplyMaterialIntakeTool extends AiTool {
       '入库是幂等的：批次主键就是信封的 `batch_id`，同一条提案确认两次不会建出两个知识点'
       '或两条边，同名的也不会重复建（结果里如实报"已存在"）。连接的**两端都必须已经在库里**'
       '（本批刚建的或原有的）—— 缺一端就落不了，报成 `deferred` 留在待办里，绝不编一条边。'
-      '信封不合规就整份拒绝，绝不写半份。';
+      '信封不合规就整份拒绝，绝不写半份。'
+      '点头之前可以先改一改**知识点**提案的标题（`renames`）：界面上那颗铅笔（轮次九十四）'
+      '在这条工具路上也有 —— 改的还是提案本身，确认之后建出来的就是改过的标题。';
 
   @override
   Map<String, Object?> get parameters => <String, Object?>{
@@ -250,6 +252,13 @@ class ApplyMaterialIntakeTool extends AiTool {
           'include_topic_hubs': <String, Object?>{
             'type': 'boolean',
             'description': '可选：与上一步保持一致。默认 false（主题分组不建）。',
+          },
+          'renames': <String, Object?>{
+            'type': 'object',
+            'description': '可选：点头之前改一改**知识点**提案的标题（`{"kp:en::w::rely-on": '
+                '"rely on（依靠）"}`）。只改知识点提案（连接的标题是按两端 id 现算的），'
+                '已经点头过的不许改；改完再确认，建出来的就是改过的标题。',
+            'additionalProperties': <String, Object?>{'type': 'string'},
           },
           'now': <String, Object?>{
             'type': 'string',
@@ -279,6 +288,21 @@ class ApplyMaterialIntakeTool extends AiTool {
         nowMs == null ? _clock() : DateTime.fromMillisecondsSinceEpoch(nowMs);
     final includeTopicHubs = args.optBool('include_topic_hubs') ?? false;
     final proposalIds = args.optStringList('proposal_ids');
+
+    // 点头之前改一改标题（与界面那颗铅笔同一件事）。参数是"提案 id → 新标题"的对象。
+    final rawRenames = invocation.arguments['renames'];
+    final renames = <String, String>{};
+    if (rawRenames is Map) {
+      for (final entry in rawRenames.entries) {
+        final id = entry.key.toString().trim();
+        if (id.isEmpty) {
+          return const ToolResult.failure('`renames` 里有空的提案 id：键不能是空的');
+        }
+        renames[id] = entry.value?.toString().trim() ?? '';
+      }
+    } else if (rawRenames != null) {
+      return const ToolResult.failure('`renames` 应该是一个对象（提案 id → 新标题）');
+    }
 
     final MaterialEnvelope envelope;
     final MaterialConversion conversion;
@@ -331,6 +355,28 @@ class ApplyMaterialIntakeTool extends AiTool {
           ?.millisecondsSinceEpoch,
     );
     final MaterialApplyOutcome outcome;
+    // 先改名字，再点头：改的是提案本身（`payload_json` 里那个标题），知识点仍然要等
+    // `apply` 才建 —— 与界面上那颗铅笔同一条口径。
+    final renamed = <Map<String, Object?>>[];
+    for (final entry in renames.entries) {
+      try {
+        await _repository.renamePointProposal(
+          batchId: batch.batchId,
+          proposalId: entry.key,
+          title: entry.value,
+        );
+      } on MaterialApplyException catch (error) {
+        return ToolResult.failure(
+          error.message,
+          summary: '先改标题那一步没成 —— 提案已经记下来了，但还没点头，所以一个知识点都'
+              '没建：${error.message}',
+        );
+      }
+      renamed.add(<String, Object?>{
+        'proposal_id': entry.key,
+        'title': entry.value,
+      });
+    }
     try {
       outcome = await _repository.apply(
         batchId: batch.batchId,
@@ -346,6 +392,12 @@ class ApplyMaterialIntakeTool extends AiTool {
     final updated = await _repository.batch(batch.batchId) ?? batch;
 
     final lines = <String>[
+      if (renamed.isNotEmpty)
+        '- 先改过 ${renamed.length} 条知识点提案的标题：'
+            '${[
+          for (final row in renamed)
+            '`${row['proposal_id']}` → 「${row['title']}」'
+        ].join('、')}',
       for (final point in outcome.created)
         '- 建了知识点「${point.title}」'
             '${point.nodeId == null ? '' : '（${point.nodeId}）'}',
@@ -369,6 +421,7 @@ class ApplyMaterialIntakeTool extends AiTool {
       modelResult: <String, Object?>{
         'batch': updated.toJson(),
         'outcome': outcome.toJson(),
+        if (renamed.isNotEmpty) 'renamed': renamed,
       },
       afterJson: jsonEncode(<String, Object?>{
         'batch_id': batch.batchId,
@@ -653,3 +706,4 @@ Map<String, Object?>? _tryDecode(String text) {
     return null;
   }
 }
+
