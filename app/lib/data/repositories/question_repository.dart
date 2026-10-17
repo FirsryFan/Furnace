@@ -511,4 +511,11 @@ class QuestionRepository {
             ..where((t) => t.chainId.equals(chainId))
             ..orderBy([(t) => OrderingTerm.asc(t.idx)]))
           .get();
+
+  /// 库里所有链的步骤（只读；能力动作画像用）。
+  ///
+  /// 不按题目/链过滤：画像要回答的是"我在哪些**动作**上反复卡"，跨题目聚合才有意义。
+  /// 顺序不保证 —— 聚合层自己分桶统计，不依赖顺序。
+  Future<List<ReasoningStep>> allReasoningSteps() =>
+      _db.select(_db.reasoningSteps).get();
 }

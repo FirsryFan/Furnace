@@ -1187,6 +1187,21 @@
     "description": "Entry point to the assessment on the reading page"
   },
 
+  "capabilityProfileTitle": "Capability moves (from solved chains)",
+  "capabilityProfileDetail": "Aggregated per step's stuck risk; steps with no risk reading are only counted, never averaged in.",
+  "capabilityProfileUnavailable": "The profile could not be read (database read failed).",
+  "capabilityProfileEmpty": "No reasoning chains yet: solve a question once from its detail page and there will be something to aggregate.",
+  "capabilityProfileRow": "{action}: {steps} steps, {risky} high-risk, average risk {risk}",
+  "@capabilityProfileRow": {
+    "placeholders": {
+      "action": { "type": "String" },
+      "steps": { "type": "int" },
+      "risky": { "type": "int" },
+      "risk": { "type": "String" }
+    }
+  },
+  "capabilityProfileNoRisk": "no risk reading (no judgement given)",
+  "capabilityProfileUnknownNote": "Unknown moves are shown verbatim - that is not \"fine\", it means the vocabulary does not know it yet.",
   "learningMetricsTitle": "Learning effect (the review log decides)",
   "learningMetricsDetail": "Retention is \"how much was still there after that long\", read from review outcomes only - not from the model's own opinion of itself. Calibration waits for reviews that recorded a prediction.",
   "learningMetricsEmpty": "No reviews yet - these numbers grow as you review.",

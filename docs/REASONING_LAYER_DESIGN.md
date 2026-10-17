@@ -259,3 +259,31 @@ test/domain/services/reasoning test/features/questions/application` → `No issu
 `flutter test test/domain/services/reasoning/stuck_point_evaluator_test.dart
 test/features/questions/application/question_reasoning_service_test.dart` → `+16 All tests passed!`
 （评估器 9 + 管道 7）。
+
+## 12. 能力动作画像：从「这道题卡在哪」到「我卡在哪种动作上」（轮次一百零二）
+
+文件：`app/lib/domain/services/reasoning/capability_profile.dart`（纯逻辑）+
+`app/lib/features/questions/application/capability_profile_provider.dart`（唯一 IO：读
+`reasoning_steps`）+ 认知模型页的「能力动作画像」卡片。
+
+为什么要有它：§11 的卡点评估回答的是"**这道题**这一步他能不能走下去"；但同一类动作在多道题上
+反复高风险，才是"这块肌肉没练出来"。§3 已经论证过能力动作是跨学科公共词汇，所以按动作聚合出来的
+画像可以直接指导下一份卷子练什么（与组卷器/找相似题共用同一个词表 key，不改 schema）。
+
+聚合口径（三条诚实规则）：
+
+1. **只聚合真有的读数**：`stuckRisk` 为 null 的步骤只计入条数，**不进平均**——把"模型没给判断"
+   当成 0 会把风险摊薄；输出里平均风险为 null 的动作排在最后，界面显示"没有风险读数（未给判断）"。
+2. **未知动作不吞**：词表里没有的 key 按原串显示（`known == false`），界面额外说明"那不是没问题，
+   是这个词表还不认识它"——词表会长，静默归类会掩盖契约漂移。
+3. **没有样本就说没有**：空输入返回空列表，页面显示"还没有解题链：先去题目详情页按一次「AI 解题」"，
+   不编一行"暂无异常"。
+
+排序：有平均风险的在前（沿风险降序），平手看高风险条数、再看条数、最后按展示名——即"最该练的排在最
+上面"。高风险门槛沿用 §11 的 0.6（与详情页红条同一口径）。
+
+评估结果**不落库**（派生计算，和 §11 一样）：每次从 `reasoning_steps` 现算，样本永远跟着解题链走。
+
+验收：`test/domain/services/reasoning/capability_profile_test.dart` 7 例（归并/只信真读数/
+无读数垫底/排序/未知动作原样/空输入/`toJson`）+ 认知模型页 1 例（真库两条步骤聚合出
+"分类讨论：2 步，其中 1 步高风险，平均风险 0.50"，未知动作原样出现）。

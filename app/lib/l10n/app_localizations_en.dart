@@ -2681,6 +2681,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Measure (give the model a starting point)';
 
   @override
+  String get capabilityProfileTitle => 'Capability moves (from solved chains)';
+
+  @override
+  String get capabilityProfileDetail =>
+      "Aggregated per step's stuck risk; steps with no risk reading are only counted, never averaged in.";
+
+  @override
+  String get capabilityProfileUnavailable =>
+      'The profile could not be read (database read failed).';
+
+  @override
+  String get capabilityProfileEmpty =>
+      'No reasoning chains yet: solve a question once from its detail page and there will be something to aggregate.';
+
+  @override
+  String capabilityProfileRow(
+      String action, int steps, int risky, String risk) {
+    return '$action: $steps steps, $risky high-risk, average risk $risk';
+  }
+
+  @override
+  String get capabilityProfileNoRisk => 'no risk reading (no judgement given)';
+
+  @override
+  String get capabilityProfileUnknownNote =>
+      'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.';
+
+  @override
   String get learningMetricsTitle => 'Learning effect (the review log decides)';
 
   @override

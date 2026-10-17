@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-10-18 轮次一百零二：能力动作画像 —— 「我卡在哪种动作上」（Lead）
+
+**做了什么**：轮次一百零一验收五片时记下的下一个口子：推理层已经有"这道题这一步他能不能走下去"
+（`stuck_point_evaluator.dart`），但**没有跨题的读法** —— 同一类动作在多道题上反复高风险，才是
+"这块肌肉没练出来"。这一轮把 `reasoning_steps` 按**跨学科能力动作**聚合，在认知模型页多一张
+「能力动作画像」卡片：每个动作多少步、其中几步高风险、平均卡点风险，最该练的排在最上面。
+
+- **一条纯函数**：`app/lib/domain/services/reasoning/capability_profile.dart` —— `CapabilityStepSample`
+  → `CapabilityReading`（条数 / 高风险条数 / 平均风险 / 词表认不认识），排序 = 平均风险降序 → 高风险
+  条数 → 条数 → 展示名。不碰库、不碰时钟、不碰 Flutter。
+- **三条诚实规则**（与推理层其它读数同一口径）：① 只聚合真有的读数 —— `stuckRisk` 为 null 的步骤只算
+  条数、**不进平均**（把"模型没判断"当 0 会把风险摊薄）；② 未知动作按原串显示并在界面上明说"那不是
+  没问题，是这个词表还不认识它"；③ 空样本就说没有（"先去题目详情页按一次「AI 解题」"），不编"暂无异常"。
+- **唯一 IO**：`app/lib/features/questions/application/capability_profile_provider.dart` 读
+  `QuestionRepository.allReasoningSteps()`（新增，只读全表步骤），带 `watchDatabaseRevision` —— 解完
+  一道题画像立刻能看到新样本。
+- **结果不落库**：与卡点评估同一条口径（派生计算）—— 链一重跑，画像跟着变，不存在"画像过期了"。
+
+**证据**：`app/test/domain/services/reasoning/capability_profile_test.dart` **7 例**（归并/只信真读数/
+无读数垫底/排序/未知动作原样/空输入/`toJson`）；`app/test/features/cognitive/cognitive_model_page_test.dart`
+新增 1 例（真内存库插两条 `case_split` 步骤 + 一条未知动作步骤 → 页面显示
+"分类讨论：2 步，其中 1 步高风险，平均风险 0.50"，未知动作 `brand_new_move` 原样出现并带说明），
+该文件 15 → 16 例全过。本轮 `dart format` 只格式化本轮改动的文件（**踩了一次 `dart format lib test`
+的历史坑：它会把 150+ 个无关文件重排**，已全部 `git checkout` 回退；这条教训第九十五轮已写进 PROGRESS，
+这次又验证了一遍）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与八十六～一百零一
+同基线）；全量 `flutter test --concurrency=1` → **+2071 ~2**（轮次一百零一 `+2063 ~2`，差值 8）。
+
+**已知的没做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，需引依赖或只走"粘贴 + 选文件"，
+待用户拍板）；② 能力动作词表用户可编辑（设计留到 v13）；③ 组卷/相似题的措辞与配额打磨；④ 题库入口
+是否升为顶层导航；⑤ 画像目前只按动作聚合，没有"按学科轨道/按题型"的切面，也没有跟组卷器联动
+（"下一份卷子该多排哪类动作题"还没接）。
+
+---
+
 ## 2026-10-18 轮次一百零一：题库五片验收 + 来源分级事后能改（Lead）
 
 **做了什么**：这一轮按 `docs/QUESTION_BANK_DESIGN.md` 把「题库 + 推理层 + 三应用领域」的五片重新核了一遍

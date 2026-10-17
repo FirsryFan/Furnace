@@ -47,11 +47,13 @@ import '../../../domain/services/cognitive/fast_diagnosis.dart'
 import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/cognitive/learning_metrics.dart';
 import '../../../domain/services/cognitive/metacognition.dart';
+import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
+import '../../questions/application/capability_profile_provider.dart';
 import 'mechanism_page.dart';
 import 'zone_labels.dart';
 
@@ -659,6 +661,7 @@ class CognitiveModelPage extends ConsumerWidget {
             if (data.fastLayerRan)
               _Metacognition(l10n: l10n, reading: data.metacognition),
             const _LearningMetricsSection(),
+            const _CapabilityProfileSection(),
             const SizedBox(height: 8),
             if (data.cards.isEmpty)
               Padding(
@@ -1084,6 +1087,102 @@ class _LearningMetricsSection extends ConsumerWidget {
             : l10n.learningMetricsNoCalibration,
         style: subtle,
       ),
+    ];
+  }
+}
+
+/// 能力动作画像（推理层读数）：把已入库解题链的步骤按「跨学科动作」聚一遍。
+///
+/// 与学习度量并排的理由：两者都是**从派生数据里读出来的我**（记忆层读保留率、
+/// 推理层读"卡在哪个动作"）。聚合与排序在 `capability_profile.dart`（纯逻辑），
+/// 这里只负责渲染与"没有样本就说没有"。
+class _CapabilityProfileSection extends ConsumerWidget {
+  const _CapabilityProfileSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final subtle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final profile = ref.watch(capabilityProfileProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_tree_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.capabilityProfileTitle,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(l10n.capabilityProfileDetail, style: subtle),
+              const SizedBox(height: 8),
+              if (profile.isLoading)
+                const SizedBox(
+                  height: 16,
+                  child: Center(
+                    child: SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else if (profile.hasError)
+                Text(l10n.capabilityProfileUnavailable, style: subtle)
+              else
+                ..._body(l10n, theme, subtle, profile.requireValue),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _body(
+    AppLocalizations l10n,
+    ThemeData theme,
+    TextStyle? subtle,
+    List<CapabilityReading> readings,
+  ) {
+    if (readings.isEmpty) {
+      return [Text(l10n.capabilityProfileEmpty, style: subtle)];
+    }
+    return [
+      for (final reading in readings)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            l10n.capabilityProfileRow(
+              reading.label,
+              reading.stepCount,
+              reading.riskyStepCount,
+              reading.avgStuckRisk == null
+                  ? l10n.capabilityProfileNoRisk
+                  : reading.avgStuckRisk!.toStringAsFixed(2),
+            ),
+            style: subtle,
+          ),
+        ),
+      if (readings.any((reading) => !reading.known))
+        Text(l10n.capabilityProfileUnknownNote, style: subtle),
     ];
   }
 }

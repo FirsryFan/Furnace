@@ -457,6 +457,10 @@ Brier/ECE 会系统性地好看。因此：
 同步三分类：`questions` / `question_options` 归**只追加**（并集 + 按 id 去重）；
 `reasoning_chains` / `reasoning_steps` 归**派生**（导入后本地重跑或用本地副本，不合并）。
 
+**能力动作画像（轮次一百零二）不落库**：它是 `reasoning_steps` 的派生聚合（按 `action_type` 分桶算条数/
+高风险条数/平均 `stuck_risk`），每次从步骤表现算（`capability_profile.dart` + `capabilityProfileProvider`）。
+与卡点评估同一条口径：派生计算不新增列、不新增表 —— 链一重跑，画像跟着变，不存在"画像过期了"这种状态。
+
 迁移与自愈：`schemaVersion` 11 → 12，`_upgradeV11ToV12()` 建四张空表（全部只加不删——
 没人收过题就是空表，不开题库界面的安装行为与之前完全一致）；`_ensureColumns()` 同时做
 "版本号已是最新但表缺失"的自愈。

@@ -2568,6 +2568,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assessmentEntryAction => '测一测（给模型一个起点）';
 
   @override
+  String get capabilityProfileTitle => '能力动作画像（来自解题链）';
+
+  @override
+  String get capabilityProfileDetail => '按每条步骤的卡点风险聚合；没有风险读数的步骤只算条数、不进平均。';
+
+  @override
+  String get capabilityProfileUnavailable => '画像读不出来（读库失败）。';
+
+  @override
+  String get capabilityProfileEmpty => '还没有解题链：先去题目详情页按一次「AI 解题」，这里才有东西可聚合。';
+
+  @override
+  String capabilityProfileRow(
+      String action, int steps, int risky, String risk) {
+    return '$action：$steps 步，其中 $risky 步高风险，平均风险 $risk';
+  }
+
+  @override
+  String get capabilityProfileNoRisk => '没有风险读数（未给判断）';
+
+  @override
+  String get capabilityProfileUnknownNote =>
+      '词表里没有的动作按原样显示 —— 那不是「没问题」，是「这个词表还不认识它」。';
+
+  @override
   String get learningMetricsTitle => '学习效果（复习日志说了算）';
 
   @override

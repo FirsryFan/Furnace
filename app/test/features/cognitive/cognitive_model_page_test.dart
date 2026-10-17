@@ -23,8 +23,11 @@ import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
 import 'package:furnace/domain/services/cognitive/learning_metrics.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/metacognition.dart';
+import 'package:furnace/domain/services/reasoning/capability_profile.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
+import 'package:furnace/features/questions/application/capability_profile_provider.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -146,6 +149,11 @@ Future<void> _pumpPage(
         // no database behind it. Empty is the honest default here (an empty
         // library has no reviews); callers that want numbers override it last.
         learningMetricsProvider.overrideWith((ref) async => _noReviews),
+        // 能力动作画像是推理层的读数；不手写 override 的话它会去开一个真的
+        // 数据库（`appDatabaseProvider` 的默认实现是打开磁盘上的库），所以这里的
+        // 默认值必须是"空"；想验证聚合的用例自己覆盖它（见"能力动作画像"那条）。
+        capabilityProfileProvider
+            .overrideWith((ref) async => const <CapabilityReading>[]),
         ...overrides,
       ],
       child: MaterialApp(
@@ -249,6 +257,88 @@ void main() {
           'danger is computed now, so the note may not claim it never appears',
     );
     expect(find.text('认知模型'), findsOneWidget);
+  });
+
+  testWidgets('能力动作画像：链上的步骤按动作聚合，只信真有的读数', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final question = await QuestionRepository(db).ingest(
+      const QuestionDraft(stem: '画像用的那道题', questionType: 'solution'),
+    );
+    // 两条步骤落在同一个动作上（一高一低），第三条是另一个动作且没有风险读数。
+    await db.into(db.reasoningChains).insert(
+          ReasoningChainsCompanion.insert(
+            id: 'chain-1',
+            questionId: question.question.id,
+            createdAt: 1,
+            summary: const Value('两步'),
+            stepCount: const Value(3),
+          ),
+        );
+    await db.into(db.reasoningSteps).insert(
+          ReasoningStepsCompanion.insert(
+            id: 'step-1',
+            chainId: 'chain-1',
+            idx: 0,
+            goal: '先分类',
+            actionType: const Value('case_split'),
+            stuckRisk: const Value(0.8),
+            createdAt: 1,
+          ),
+        );
+    await db.into(db.reasoningSteps).insert(
+          ReasoningStepsCompanion.insert(
+            id: 'step-2',
+            chainId: 'chain-1',
+            idx: 1,
+            goal: '再校验',
+            actionType: const Value('case_split'),
+            stuckRisk: const Value(0.2),
+            createdAt: 1,
+          ),
+        );
+    await db.into(db.reasoningSteps).insert(
+          ReasoningStepsCompanion.insert(
+            id: 'step-3',
+            chainId: 'chain-1',
+            idx: 2,
+            goal: '词表里还没有的动作',
+            actionType: const Value('brand_new_move'),
+            createdAt: 1,
+          ),
+        );
+
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        // 用真的仓储读一遍步骤，再交给同一个聚合函数（页面上的 provider 就是这么做的）。
+        capabilityProfileProvider.overrideWith((ref) async {
+          final steps = await QuestionRepository(db).allReasoningSteps();
+          return CapabilityProfile.of(<CapabilityStepSample>[
+            for (final step in steps)
+              CapabilityStepSample(
+                actionType: step.actionType,
+                stuckRisk: step.stuckRisk,
+              ),
+          ]);
+        }),
+      ],
+    );
+
+    // 分类讨论：2 步、1 步高风险、平均 (0.8+0.2)/2 = 0.50。
+    expect(find.textContaining('分类讨论'), findsOneWidget);
+    expect(find.textContaining('2 步，其中 1 步高风险，平均风险 0.50'), findsOneWidget);
+    // 词表里没有的动作原样显示，并且明说"那不是没问题"。
+    expect(find.textContaining('brand_new_move'), findsOneWidget);
+    expect(
+      find.textContaining('这个词表还不认识它'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a diagnosis turns zones real, and an empty map is healthy',
@@ -639,8 +729,7 @@ void main() {
       );
     }
 
-    testWidgets('no reviews says so instead of showing a zero',
-        (tester) async {
+    testWidgets('no reviews says so instead of showing a zero', (tester) async {
       await _pumpPage(
         tester,
         overrides: shellOverrides(),

@@ -4653,6 +4653,48 @@ abstract class AppLocalizations {
   /// **'Measure (give the model a starting point)'**
   String get assessmentEntryAction;
 
+  /// No description provided for @capabilityProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capability moves (from solved chains)'**
+  String get capabilityProfileTitle;
+
+  /// No description provided for @capabilityProfileDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Aggregated per step's stuck risk; steps with no risk reading are only counted, never averaged in.'**
+  String get capabilityProfileDetail;
+
+  /// No description provided for @capabilityProfileUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The profile could not be read (database read failed).'**
+  String get capabilityProfileUnavailable;
+
+  /// No description provided for @capabilityProfileEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reasoning chains yet: solve a question once from its detail page and there will be something to aggregate.'**
+  String get capabilityProfileEmpty;
+
+  /// No description provided for @capabilityProfileRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{action}: {steps} steps, {risky} high-risk, average risk {risk}'**
+  String capabilityProfileRow(String action, int steps, int risky, String risk);
+
+  /// No description provided for @capabilityProfileNoRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'no risk reading (no judgement given)'**
+  String get capabilityProfileNoRisk;
+
+  /// No description provided for @capabilityProfileUnknownNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.'**
+  String get capabilityProfileUnknownNote;
+
   /// No description provided for @learningMetricsTitle.
   ///
   /// In en, this message translates to:

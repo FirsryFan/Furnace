@@ -93,6 +93,11 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 
 用户随后可增删——**本期不改表**：词表在代码里，用户覆盖留到 v13（避免过早为"还没用上的编辑功能"加 schema）。
 
+**动作画像（轮次一百零二）**：词表不只用来给步骤打标，还用来**聚合**——把已入库解题链的步骤按
+`actionType` 分桶，算每个动作的条数/高风险条数/平均卡点风险（`capability_profile.dart`），在认知模型页
+显示"最该练的动作"。聚合只信真有的读数、未知动作原样显示、空样本说空，口径见
+`docs/REASONING_LAYER_DESIGN.md` §12。
+
 ## 5. 标签怎么用
 
 - 题目与知识点：`object_tags`，`objectType = 'question'` / `'knowledge_point'`——**复用现有标签树**，不新建连接表。
@@ -159,6 +164,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q19 | 拍照整理的待确认清单持久化（schema v13 两张表 + 仓储 + `refresh()` 恢复 + 迁移/仓储测试） | 已完成（本轮，Lead） |
 | Q20 | 组卷页「复制卷面」：卷面渲染成可打印纯文本（`renderPaperText`）+ 剪贴板 + ARB | 已完成（本轮，teammate `question-intake` 交付） |
 | Q21 | 来源元信息事后可改：`QuestionRepository.updateSource`（四列白名单）+ 详情页「改来源」对话框 + ARB + 仓储/页面测试 | 已完成（轮次一百零一，Lead） |
+| Q22 | 能力动作画像：`capability_profile.dart`（按动作聚合卡点风险，纯逻辑）+ `capabilityProfileProvider`（唯一 IO）+ 认知模型页卡片 | 已完成（轮次一百零二，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §12） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。

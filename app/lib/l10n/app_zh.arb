@@ -1104,6 +1104,21 @@
   "assessmentNoEvidence": "这一轮一步证据都没写（全部跳过），所以没有先验——空的一轮不会污染读数。",
   "assessmentEntryAction": "测一测（给模型一个起点）",
 
+  "capabilityProfileTitle": "能力动作画像（来自解题链）",
+  "capabilityProfileDetail": "按每条步骤的卡点风险聚合；没有风险读数的步骤只算条数、不进平均。",
+  "capabilityProfileUnavailable": "画像读不出来（读库失败）。",
+  "capabilityProfileEmpty": "还没有解题链：先去题目详情页按一次「AI 解题」，这里才有东西可聚合。",
+  "capabilityProfileRow": "{action}：{steps} 步，其中 {risky} 步高风险，平均风险 {risk}",
+  "@capabilityProfileRow": {
+    "placeholders": {
+      "action": { "type": "String" },
+      "steps": { "type": "int" },
+      "risky": { "type": "int" },
+      "risk": { "type": "String" }
+    }
+  },
+  "capabilityProfileNoRisk": "没有风险读数（未给判断）",
+  "capabilityProfileUnknownNote": "词表里没有的动作按原样显示 —— 那不是「没问题」，是「这个词表还不认识它」。",
   "learningMetricsTitle": "学习效果（复习日志说了算）",
   "learningMetricsDetail": "留存率是「隔了多久再看还记得多少」，只看复习结果，不看模型的自我感觉；校准度要等带预测的复习攒出样本。",
   "learningMetricsEmpty": "还没有复习记录——这里会随着你复习慢慢长出数字。",
