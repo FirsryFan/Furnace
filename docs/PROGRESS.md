@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-18 轮次一百零九：组合查询第二步上屏 —— 工具能问的，页面也能问（Lead）
+
+**做了什么**：轮次一百零七～一百零八把组合查询做进了读表、工具与页面学科筛选。但页面上还只能"入口那个
+动作 + 一个学科"，而工具面已经能问"分类讨论**且**回代检验""分类讨论**或**回代检验"。这一轮把动作维度的
+组合也接上界面：
+
+- **「再叠加一个动作（可选）」下拉**：选项 = 词表里除入口动作外的所有 key（带中文名 + key 便于对照）；
+  选一个后页面查询变成 `actionTypes: [入口动作, 第二个动作]`。
+- **「两个动作都得出现在同一条链里」开关**：只在叠加了第二个动作时出现，对应查询的 `requireAll`
+  （`match: all` / `any`）；清回「不叠加」时开关自动收起、`requireAll` 复位 —— 不留下"看不见的过滤条件"。
+- **仍是同一份读表**：全部走 `questionsForCapabilitiesProvider` → `readQuestionsForCapabilities`，
+  没有前端过滤；学科 chip 与动作筛选正交，可以同时生效（学科 × 第二个动作 × 任一/全部）。
+- 至此**工具面 `find_questions_by_capability` 能问的组合查询，页面上都能问**（参数一一对应：
+  下拉↔`action_types`/`action_type`、开关↔`match`、学科 chip↔`subject_key`）。
+
+**顺带纠正文档口径**：目标 ② 写的是"收题页（App 内粘贴/拖拽，**B 优先**）"——B（粘贴 + `file_picker`
+选图）早已完成（`question_intake_page.dart`），拖拽是 A 方案、需要引 `desktop_drop` 一类依赖。
+已在 `docs/QUESTION_BANK_DESIGN.md` §9 与 `docs/MINDNET_ROADMAP.md` 里把 ② 标成"按 B 口径已完成"，
+不再把它列成"待用户拍板才能算完成"的阻塞项；A 方案单独列为可选增强。
+
+**证据**：`app/test/features/questions/presentation/capability_action_questions_page_test.dart` 3 → **4 例**
+（新增：两道题一道"两个动作都用上"、一道"只用入口动作"；叠加第二个动作后默认 any 仍两道、打开
+「都要出现」只剩一道；下拉清回「不叠加」后开关消失、两道都回来）。本轮 `dart format` 只格式化本轮改动的
+5 个 Dart 文件（1 changed，复查 0 changed）；`dart analyze lib test` → `94 issues found`
+（**0 error / 0 warning**，与八十六～一百零八同基线）；全量 `flutter test --concurrency=1` →
+**+2096 ~2**（轮次一百零八 `+2095 ~2`，差值 1）。
+
+**已知的没做**：① 收题页的"拖拽"（A 方案，可选；引依赖前需用户拍板）；② 能力动作词表用户可编辑
+（设计留到 v13）；③ `kPreferredActionBoost = 0.15` 仍属未标定先验；④ 学科维度仍是单选
+（动作维度已经能叠第二个 + 任一/全部）；⑤ 组卷/相似题措辞与配额打磨；⑥ 题库入口是否升顶层导航。
+
+---
+
 ## 2026-10-18 轮次一百零八：组合查询上屏 —— 页面上也能按学科筛（Lead）
 
 **做了什么**：轮次一百零七把组合查询做在了读表与工具面，页面上却还是"从画像点进来只看一个动作、

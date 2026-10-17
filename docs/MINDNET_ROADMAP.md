@@ -1941,11 +1941,15 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 学科"，选中后**走读表**（`questionsForCapabilitiesProvider`）而不是前端过滤；`CapabilityQuestionQuery`
 变成值对象（`==`/`hashCode`），能直接当 Riverpod family 的键）。口径同上 §13。
 
-**仍未做**：① 收题页的"拖拽"（OS 级文件拖入没有 Flutter SDK API，要么引 `desktop_drop` 一类依赖、
-要么只走"粘贴 + 选文件"——需用户拍板）；② 能力动作词表用户可编辑（设计上留到 v13）；
-③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层导航（当前刻意挂在设置页，见
-`settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验（等标定协议）；
-⑥ 「按能力动作找题」页的学科筛选是单选（多选 + `match` 的控件还没有；工具面已经能问）。
+**轮次一百零九：组合查询第二步上屏**（页面加「再叠加一个动作」下拉 + 「两个动作都得出现在同一条链里」
+开关：下拉 = 工具的 `action_types`，开关 = `match`；清回「不叠加」时开关收起、`requireAll` 复位）。
+至此**工具能问的组合查询，页面上也能问**。口径同上 §13。
+
+**仍未做**：① 收题页的"拖拽"（A 方案，可选）：按目标"B 优先"的口径，② 已由"粘贴 + `file_picker` 选图"
+完成（见 `docs/QUESTION_BANK_DESIGN.md` §10）；OS 级拖入要加 `desktop_drop` 一类依赖，需用户拍板；
+② 能力动作词表用户可编辑（设计上留到 v13）；③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层
+导航（当前刻意挂在设置页，见 `settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验
+（等标定协议）；⑥ 「按能力动作找题」页的学科筛选仍为单选（动作侧已经能叠第二个 + 任一/全部）。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

@@ -2726,6 +2726,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get capabilityActionQuestionsAllSubjects => 'All subjects';
 
   @override
+  String get capabilityActionQuestionsSecondAction =>
+      'Add a second move (optional)';
+
+  @override
+  String get capabilityActionQuestionsSecondActionNone => 'None';
+
+  @override
+  String get capabilityActionQuestionsRequireAll =>
+      'Both moves must appear on the same chain';
+
+  @override
   String capabilityActionQuestionsMeta(
       String subject, String source, String actions) {
     return '$subject · $source · moves on the chain: $actions';

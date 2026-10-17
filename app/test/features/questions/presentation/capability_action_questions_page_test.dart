@@ -182,4 +182,55 @@ void main() {
     expect(find.text('数学的分类讨论题。'), findsOneWidget);
     expect(find.text('物理的分类讨论题。'), findsOneWidget);
   });
+
+  testWidgets('叠加第二个动作 + 「都要出现」：列表收窄；清掉后恢复并收起开关', (tester) async {
+    await seedQuestion(id: 'q-both', stem: '两个动作都用上的题。');
+    await seedQuestion(id: 'q-split', stem: '只用分类讨论的题。');
+    await seedChain(
+      questionId: 'q-both',
+      actions: const <String>['case_split', 'sanity_check'],
+    );
+    await seedChain(
+      questionId: 'q-split',
+      actions: const <String>['case_split'],
+    );
+
+    await pumpPage(tester, 'case_split');
+    expect(find.text('两个动作都用上的题。'), findsOneWidget);
+    expect(find.text('只用分类讨论的题。'), findsOneWidget);
+    // 没叠加第二个动作时不该有「都要出现」开关。
+    expect(find.byType(Switch), findsNothing);
+
+    // 选第二个动作：sanity_check（回代检验）。
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('回代检验（sanity_check）').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // 默认 any：只看"链上含分类讨论或回代检验"——两道都还在。
+    expect(find.text('两个动作都用上的题。'), findsOneWidget);
+    expect(find.text('只用分类讨论的题。'), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
+
+    // 打开「两个动作都得出现在同一条链里」：只剩两个动作都有的那道。
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('两个动作都用上的题。'), findsOneWidget);
+    expect(find.text('只用分类讨论的题。'), findsNothing);
+
+    // 清掉第二个动作（选「不叠加」）：开关收起、列表回到两道。
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.text(zh.capabilityActionQuestionsSecondActionNone).last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(Switch), findsNothing);
+    expect(find.text('两个动作都用上的题。'), findsOneWidget);
+    expect(find.text('只用分类讨论的题。'), findsOneWidget);
+  });
 }

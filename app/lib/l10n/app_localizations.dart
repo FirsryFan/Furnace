@@ -4719,6 +4719,24 @@ abstract class AppLocalizations {
   /// **'All subjects'**
   String get capabilityActionQuestionsAllSubjects;
 
+  /// No description provided for @capabilityActionQuestionsSecondAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a second move (optional)'**
+  String get capabilityActionQuestionsSecondAction;
+
+  /// No description provided for @capabilityActionQuestionsSecondActionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get capabilityActionQuestionsSecondActionNone;
+
+  /// No description provided for @capabilityActionQuestionsRequireAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Both moves must appear on the same chain'**
+  String get capabilityActionQuestionsRequireAll;
+
   /// No description provided for @capabilityActionQuestionsMeta.
   ///
   /// In en, this message translates to:

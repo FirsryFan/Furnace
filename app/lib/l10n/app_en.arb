@@ -1212,6 +1212,9 @@
     "placeholders": { "label": { "type": "String" } }
   },
   "capabilityActionQuestionsAllSubjects": "All subjects",
+  "capabilityActionQuestionsSecondAction": "Add a second move (optional)",
+  "capabilityActionQuestionsSecondActionNone": "None",
+  "capabilityActionQuestionsRequireAll": "Both moves must appear on the same chain",
   "capabilityActionQuestionsMeta": "{subject} · {source} · moves on the chain: {actions}",
   "@capabilityActionQuestionsMeta": {
     "placeholders": {

@@ -171,6 +171,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 | Q26 | 按能力动作找题的工具面：`find_questions_by_capability`（只读、与页面同一份读表函数、词表外 key 失败并列可用值） | 已完成（轮次一百零六，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13 工具面） |
 | Q27 | 组合查询：`CapabilityQuestionQuery`（一组动作 + `match` 任一/全部 + 学科）+ `readQuestionsForCapabilities` + 工具参数升级（`action_types` / `match` / `subject_key`）+ 命中项如实回报 | 已完成（轮次一百零七，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13） |
 | Q28 | 组合查询上屏：页面学科 chip（走读表、不是前端过滤）+ `questionsForCapabilitiesProvider` + `CapabilityQuestionQuery` 值相等（可当 family 键） | 已完成（轮次一百零八，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13） |
+| Q29 | 组合查询第二步上屏：页面「再叠加一个动作」下拉 + 「两个动作都得出现在同一条链里」开关（走同一个 `questionsForCapabilitiesProvider`） | 已完成（轮次一百零九，Lead；口径见 `docs/REASONING_LAYER_DESIGN.md` §13） |
 
 每片的验收不变：`dart analyze` 0 error / 0 warning；相关单测 + 全量 `flutter test` 绿；
 同步本文档与 `docs/PROGRESS.md` / `docs/DATA_MODEL.md`；commit 并由 Lead 统一 push。
@@ -189,8 +190,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 
 **仍未做（诚实清单）**：
 
-1. **②的"拖拽"**：OS 级文件拖入 Flutter 没有 SDK API；要做得加 `desktop_drop` / `super_drag_and_drop`
-   一类依赖（还要平台注册），当前只有"粘贴文本 + 选文件"两条路 —— 需要用户拍板是否引依赖。
+1. **②的"拖拽"（A 方案，可选）**：OS 级文件拖入 Flutter 没有 SDK API；要做得加 `desktop_drop` /
+   `super_drag_and_drop` 一类依赖（还要平台注册）。**按本目标"B 优先"的口径，② 已经完成**：
+   收题页有"粘贴文本 + `file_picker` 选图"两条路（见 §10 验收表、`question_intake_page.dart`）。
+   拖拽是锦上添花的 A 方案，引依赖前需要用户拍板。
 2. **④的能力动作词表用户可编辑**：按本文档 §4 的约定留到 schema v13 之后（本期不改表）。
 3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
 4. **拍照整理的主入口**：现在在收题页的待整理清单 + 设置页各有一个入口；是否提升为顶层导航待定

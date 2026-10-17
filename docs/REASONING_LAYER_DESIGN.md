@@ -312,6 +312,10 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
   而不是在前端过滤已加载结果 —— 否则"页面上看到的"和"模型查到的"迟早分叉。`CapabilityQuestionQuery`
   是值对象（`==`/`hashCode` 按归一化后的动作集合 + 学科 + `requireAll` 比），可以直接当 Riverpod
   family 的键，页面重建不会重复读表。
+  **再叠加一个动作（轮次一百零九）**：页面多一个「再叠加一个动作（可选）」下拉（词表里除入口动作外的
+  所有 key），选了一个动作后出现「两个动作都得出现在同一条链里」开关 —— 下拉对应工具的 `action_type` /
+  `action_types`，开关对应 `match`；清回「不叠加」时开关自动收起、`requireAll` 复位。也就是说
+  **工具能问的组合查询，页面上现在都能问**（学科 × 第二个动作 × 任一/全部）。
 - **入口**：认知模型页的能力动作画像每一行现在点得开（右侧有 chevron）—— 画像回答"该练哪个"，
   点开回答"练哪几道"。
 - **不越界**：这一层只从**已有题库**里找题，AI 不出题（与用户口径一致）；没有链的题不会出现在
@@ -319,8 +323,9 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 
 验收：`test/features/questions/application/capability_action_questions_reader_test.dart` **5 例**
 （命中/旧链不算/排序与空输入/组合查询/查询值相等）、
-`test/features/questions/presentation/capability_action_questions_page_test.dart` **3 例**
-（题干 + 元信息 + 点进详情页；空态；学科筛选 chip 选中后只剩该学科、能切回全部）、
+`test/features/questions/presentation/capability_action_questions_page_test.dart` **4 例**
+（题干 + 元信息 + 点进详情页；空态；学科筛选 chip 选中后只剩该学科、能切回全部；
+叠加第二个动作 + 「都要出现」收窄列表、清掉后恢复并收起开关）、
 认知模型页 +1 例（画像行点得开 → 到那一页）。
 
 **工具面（轮次一百零六，轮次一百零七扩成组合查询）**：`find_questions_by_capability`

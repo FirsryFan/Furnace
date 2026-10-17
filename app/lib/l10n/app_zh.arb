@@ -1129,6 +1129,9 @@
     "placeholders": { "label": { "type": "String" } }
   },
   "capabilityActionQuestionsAllSubjects": "全部学科",
+  "capabilityActionQuestionsSecondAction": "再叠加一个动作（可选）",
+  "capabilityActionQuestionsSecondActionNone": "不叠加",
+  "capabilityActionQuestionsRequireAll": "两个动作都得出现在同一条链里",
   "capabilityActionQuestionsMeta": "{subject} · {source} · 链上动作：{actions}",
   "@capabilityActionQuestionsMeta": {
     "placeholders": {

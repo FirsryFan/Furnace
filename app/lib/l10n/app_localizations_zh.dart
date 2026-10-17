@@ -2610,6 +2610,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get capabilityActionQuestionsAllSubjects => '全部学科';
 
   @override
+  String get capabilityActionQuestionsSecondAction => '再叠加一个动作（可选）';
+
+  @override
+  String get capabilityActionQuestionsSecondActionNone => '不叠加';
+
+  @override
+  String get capabilityActionQuestionsRequireAll => '两个动作都得出现在同一条链里';
+
+  @override
   String capabilityActionQuestionsMeta(
       String subject, String source, String actions) {
     return '$subject · $source · 链上动作：$actions';

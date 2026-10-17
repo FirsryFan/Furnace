@@ -38,16 +38,30 @@ class _CapabilityActionQuestionsPageState
   /// 学科筛选（空串 = 全部学科）。
   String _subjectKey = '';
 
+  /// 再叠加一个动作（空串 = 不叠加）；与页面入口那一个动作一起构成 `actionTypes`。
+  String _secondAction = '';
+
+  /// 两个动作时要不要"都出现在同一条链里"（`requireAll`）。
+  bool _requireAll = false;
+
   String get _label =>
       CapabilityAction.byKey(widget.actionType)?.labelZh ??
       widget.actionType.trim();
 
-  /// 不加学科筛选时的查询（同时用来收集"有哪些学科可选"）。
-  CapabilityQuestionQuery get _baseQuery =>
-      CapabilityQuestionQuery(actionTypes: <String>[widget.actionType]);
+  List<String> get _actionTypes => <String>[
+        widget.actionType,
+        if (_secondAction.isNotEmpty) _secondAction,
+      ];
+
+  /// 不带学科筛选时的查询（同时用来收集"有哪些学科可选"）。
+  CapabilityQuestionQuery get _baseQuery => CapabilityQuestionQuery(
+        actionTypes: _actionTypes,
+        requireAll: _requireAll,
+      );
 
   CapabilityQuestionQuery get _query => CapabilityQuestionQuery(
-        actionTypes: <String>[widget.actionType],
+        actionTypes: _actionTypes,
+        requireAll: _requireAll,
         subjectKey: _subjectKey,
       );
 
@@ -71,6 +85,7 @@ class _CapabilityActionQuestionsPageState
             l10n.capabilityActionQuestionsNote,
             style: theme.textTheme.bodySmall,
           ),
+          ..._actionCompose(l10n, theme),
           // 学科筛选项来自"这个动作下真实出现过的学科"（没出现过的学科不摆出来骗点击）。
           ..._subjectChips(l10n, base),
           const SizedBox(height: 12),
@@ -89,6 +104,48 @@ class _CapabilityActionQuestionsPageState
         ],
       ),
     );
+  }
+
+  /// 「再叠加一个动作」+「都要出现」开关：问法本身来自工具面的组合查询，这里给它个界面。
+  List<Widget> _actionCompose(AppLocalizations l10n, ThemeData theme) {
+    final others = <CapabilityAction>[
+      for (final action in CapabilityAction.catalog)
+        if (action.key != widget.actionType) action,
+    ];
+    return <Widget>[
+      const SizedBox(height: 12),
+      Text(
+        l10n.capabilityActionQuestionsSecondAction,
+        style: theme.textTheme.labelLarge,
+      ),
+      DropdownButton<String>(
+        value: _secondAction,
+        isExpanded: true,
+        items: <DropdownMenuItem<String>>[
+          DropdownMenuItem<String>(
+            value: '',
+            child: Text(l10n.capabilityActionQuestionsSecondActionNone),
+          ),
+          for (final action in others)
+            DropdownMenuItem<String>(
+              value: action.key,
+              child: Text('${action.labelZh}（${action.key}）'),
+            ),
+        ],
+        onChanged: (value) => setState(() {
+          _secondAction = value ?? '';
+          if (_secondAction.isEmpty) _requireAll = false;
+        }),
+      ),
+      if (_secondAction.isNotEmpty)
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          value: _requireAll,
+          onChanged: (value) => setState(() => _requireAll = value),
+          title: Text(l10n.capabilityActionQuestionsRequireAll),
+        ),
+    ];
   }
 
   List<Widget> _subjectChips(
