@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-10-17 轮次九十八：连接的两端说人话 —— 顺手把一个会抖的断言改稳（Lead）
+
+**做了什么**：待确认清单里，`run/1` 那条路读出来的**连接提案**标题一直是一串节点 id（`en::w::a → en::w::b`）
+—— 因为计划层只拿得到 `from` / `to` 两个 id。可"这条边连的是谁"恰恰是人点头前最想知道的一件事，而两端
+的名字明明有：这一跑自己建的节点带着名字（`trace.delta.node.name`），库里已有的节点也有标题
+（`external_node_inventory`）。材料信封那条路早就用名字拼标题了，只有 `run/1` 这条路露着 id。
+
+- **两级名字，最后才退回 id**：`planRunKnowledge` 多一个 `nodeLabels`（id → 名字，调用方给库里已有的那些），
+  计划层自己再从这一跑的节点增量里收一遍（**这一跑建的名字优先**）—— 拼标题时 `labels[from] ?? from`，
+  没有名字才退回 id。两端真身仍是 id（`from`/`to` 一个字没动），只有给人看的那行改了。
+- **谁给的标签**：`recordRunKnowledge` 从 `externalNodeInventory()` 里取（id → 标题），一起交给计划层 ——
+  所以界面「交给人确认」与 AI 工具 `check_transcribe_run` 的 `record` 两条路自动都变好，不用各改一遍。
+- **顺手改稳一个会抖的断言**：全量套件第一次跑时 `app/test/features/anki/review_service_test.dart` 里
+  "a miss followed by the solution ... leaves the FSRS schedule untouched" 红了一次 —— 它拿两次 `grade`
+  之后的 `stability` 直接比相等，而两次调用隔几毫秒、FSRS 用"现在"算经过天数，浮点尾数会差 1e-8 量级
+  （实测 `1.62332132` vs `1.62332135`）。这不是认知模型的分歧，是钟的分歧，所以改成容差（`< 1e-5`）并把
+  道理写在测试里 —— 与本轮改动无关，但顺手钉住，免得它以后继续偶发地红。
+
+**证据**：`app/test/domain/services/ingest/run_knowledge_plan_test.dart` 新增 2 例（这一跑自己建的节点用名字：
+`alpha → beta`，两端真身仍是 id；这一跑没建的那一端用调用方给的标签：`en::w::a → beta（库里那张卡）`）；
+`app/test/features/cognitive/presentation/material_intake_page_test.dart` 里那条"就地去那一批"的断言从
+`en::w::a → en::w::b` 改成 `alpha → beta`（同一份演练数据，现在显示名字）。本轮 `dart format` 5 个 Dart 文件
+0 changed；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与八十六～九十七同基线）；
+全量 `flutter test --concurrency=1` → **+2052 ~2**（轮次九十七 `+2050 ~2`，差值 2）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 演练读数仍然是现算的、不落库；③ `ls` 仍
+没有标定来源；④ 其余 18 个参数还没有滑块；⑤ 连接的两端与 `ls` 仍然不能就地改（标题改了，真身没改）；
+⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ `check_transcribe_run` 走 `record` 那条路仍然不能
+改名/改正文（没有把提案 id 摆出来）。
+
+---
+
 ## 2026-10-17 轮次九十七：点头之前能改（第二半）—— 正文也能补上，那颗铅笔成了一整个编辑框（Lead）
 
 **做了什么**：轮次九十四让人在点头之前改命题的**标题**，可"读出来的东西不对"不止名字：材料里的正文

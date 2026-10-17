@@ -412,7 +412,16 @@ void main() {
 
       // Same failed recall, so the same lapse in FSRS: same interval, same
       // forced binding, same model ceiling.
-      expect(feedbackState.stability, plainState.stability);
+      //
+      // 容差而不是相等：两次 `grade` 之间隔了几毫秒，FSRS 用"现在"算经过天数，
+      // 浮点尾数会差出 1e-8 量级（实测 1.62332132 vs 1.62332135）—— 那不是
+      // 认知模型的分歧，是钟的分歧。
+      expect(plainState.stability, isNotNull);
+      expect(feedbackState.stability, isNotNull);
+      expect(
+        (feedbackState.stability! - plainState.stability!).abs(),
+        lessThan(1e-5),
+      );
       // The due stamp is taken from the wall clock at write time, so the two
       // reviews differ by milliseconds; the interval is what must match.
       expect(

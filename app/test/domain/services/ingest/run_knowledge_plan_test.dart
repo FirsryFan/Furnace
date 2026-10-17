@@ -250,5 +250,47 @@ void main() {
         throwsA(isA<RunKnowledgeException>()),
       );
     });
+
+    test('连接的两端说人话：这一跑自己建的名字优先，其次调用方给的标签，最后才是 id', () {
+      final plan = planRunKnowledge(
+        report: reportOf(<RunActionTrace>[
+          // 这一跑建了两个节点（名字 alpha / beta），然后把它们连起来。
+          nodeTrace(
+            index: 0,
+            node: const <String, Object?>{
+              'id': 'en::w::a',
+              'name': 'alpha',
+              'type': 'word',
+            },
+          ),
+          nodeTrace(
+            index: 1,
+            node: const <String, Object?>{
+              'id': 'en::w::b',
+              'name': 'beta',
+              'type': 'word',
+            },
+          ),
+          edgeTrace(index: 2),
+        ]),
+        existingNodeIds: const <String>{},
+        existingTitles: const <String>{},
+      );
+
+      final edge = plan.proposals.last;
+      expect(edge.title, 'alpha → beta');
+      expect(edge.from, 'en::w::a', reason: '两端真身还是 id，只有标题说人话');
+    });
+
+    test('这一跑没建那一端时，用调用方给的标签（库里那个节点叫什么）', () {
+      final plan = planRunKnowledge(
+        report: reportOf(<RunActionTrace>[edgeTrace(index: 0)]),
+        existingNodeIds: const <String>{},
+        existingTitles: const <String>{},
+        nodeLabels: const <String, String>{'en::w::b': 'beta（库里那张卡）'},
+      );
+
+      expect(plan.proposals.single.title, 'en::w::a → beta（库里那张卡）');
+    });
   });
 }

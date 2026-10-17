@@ -1651,9 +1651,9 @@ void main() {
       expect(find.text('alpha'), findsOneWidget);
       expect(find.text('beta'), findsOneWidget);
       expect(
-        find.text('en::w::a → en::w::b'),
+        find.text('alpha → beta'),
         findsOneWidget,
-        reason: '连接的标题是按两端的 id 现算的（这一条没有名字可用）',
+        reason: '连接的两端优先说名字（这一跑自己建的节点），没有名字才退回 id',
       );
       expect(find.text(l10n.materialIntakeConfirm(3)), findsOneWidget);
       // 还是只落清单：知识点一个都没多，线索边一行都没有。

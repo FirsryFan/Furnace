@@ -37,6 +37,7 @@ MaterialIntakePlan planRunKnowledge({
   required RunExecutionReport report,
   required Set<String> existingNodeIds,
   required Set<String> existingTitles,
+  Map<String, String> nodeLabels = const <String, String>{},
   String? sourceRef,
 }) {
   if (!report.ok) {
@@ -51,6 +52,26 @@ MaterialIntakePlan planRunKnowledge({
   final batchId = report.runId;
   final proposals = <MaterialIntakeProposal>[];
   final skipped = <MaterialIntakeSkip>[];
+
+  // 两端说人话（轮次九十八）：先拿这一跑自己建的节点名字，再拿调用方给的（库里已有
+  // 的节点 id → 标题），都没有才退回 id —— 清单上摆一串 `en::w::a → en::w::b`，
+  // 人认不出这条边连的是谁。
+  final labels = <String, String>{...nodeLabels};
+  for (final trace in report.traces) {
+    if (trace.kind != 'knowledge' || trace.delta['added'] != 'node') {
+      continue;
+    }
+    final node = trace.delta['node'];
+    if (node is! Map) {
+      continue;
+    }
+    final json = node.cast<String, Object?>();
+    final id = json['id']?.toString().trim() ?? '';
+    final name = json['name']?.toString().trim() ?? '';
+    if (id.isNotEmpty && name.isNotEmpty) {
+      labels[id] = name;
+    }
+  }
 
   for (final trace in report.traces) {
     if (trace.kind != 'knowledge') {
@@ -118,7 +139,7 @@ MaterialIntakePlan planRunKnowledge({
       proposals.add(MaterialIntakeProposal(
         id: 'edge:$edgeId',
         kind: MaterialIntakeKind.connection,
-        title: '$from → $to',
+        title: '${labels[from] ?? from} → ${labels[to] ?? to}',
         from: from,
         to: to,
         // 引擎算出来的 0.8（请求没写 ls 时）在这里也照抄 —— 它已经带 `ls_calibrated: false`

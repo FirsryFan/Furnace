@@ -37,6 +37,11 @@ Future<MaterialIntakeBatch> recordRunKnowledge({
     report: report,
     existingNodeIds: <String>{for (final entry in inventory) entry.id},
     existingTitles: await repository.existingTitles(),
+    // 库里已有的节点也有名字：连接提案的两端优先说名字（这一跑自己建的节点由计划层
+    // 自己认），都没有才退回 id。
+    nodeLabels: <String, String>{
+      for (final entry in inventory) entry.id: entry.name,
+    },
     sourceRef: sourceRef,
   );
   if (plan.isEmpty) {
