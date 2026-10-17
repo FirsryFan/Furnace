@@ -353,21 +353,24 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     }
   }
 
-  /// 点头之前改一改这条提案的标题（只有知识点提案有这个口子）。
+  /// 点头之前改一改这条提案：**标题**（机器读出来的名字）与**正文**（释义/例句——材料
+  /// 常读不全，`run/1` 那条路干脆留空）。
   ///
-  /// 写的是提案本身（`payload_json` 里那个标题 + 跟着重算的"库里已经有同名的了"），
-  /// 不是知识点：知识点要等点头才建。规则（能不能改、空标题怎么办）在仓储那一层，
-  /// 这里只把人话摆出来。
-  Future<void> _rename(MaterialIntakeProposal proposal) async {
+  /// 写的是提案本身（`payload_json`），不是知识点：知识点要等点头才建。规则（能不能改、
+  /// 空标题怎么办）在仓储那一层，这里只把人话摆出来。
+  Future<void> _edit(MaterialIntakeProposal proposal) async {
     final batch = _batch;
     if (batch == null) {
       return;
     }
-    final title = await showDialog<String>(
+    final edited = await showDialog<({String title, String body})>(
       context: context,
-      builder: (_) => _RenameDialog(title: proposal.title),
+      builder: (_) => _EditProposalDialog(
+        title: proposal.title,
+        body: proposal.body,
+      ),
     );
-    if (title == null || !mounted) {
+    if (edited == null || !mounted) {
       return;
     }
     setState(() {
@@ -376,10 +379,11 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
     });
     final repository = ref.read(materialIntakeRepositoryProvider);
     try {
-      await repository.renamePointProposal(
+      await repository.editPointProposal(
         batchId: batch.batchId,
         proposalId: proposal.id,
-        title: title,
+        title: edited.title,
+        body: edited.body,
       );
       final pending = await readPendingBatch(
         repository: repository,
@@ -1003,7 +1007,7 @@ class _MaterialIntakePageState extends ConsumerState<MaterialIntakePage> {
                   onRename: _busy ||
                           proposal.kind != MaterialIntakeKind.knowledgePoint
                       ? null
-                      : () => _rename(proposal),
+                      : () => _edit(proposal),
                   onChanged: _busy
                       ? null
                       : (bool? value) => setState(() {
@@ -1123,6 +1127,15 @@ class _ProposalTile extends StatelessWidget {
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
+                  // 正文就是点头之后知识点的 `content`：机器读出来的（或 `run/1` 那条路
+                  // 干脆没说的）就摆在这里，改了立刻看得见 —— 不然"改了什么"只在库里。
+                  if (isPoint && proposal.body.trim().isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.materialIntakeProposalBody(proposal.body),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(proposal.why, style: theme.textTheme.bodySmall),
                   // 还没点头就先说清"这条落不了、缺的是哪一端"：等确认之后再知道，
@@ -1209,28 +1222,35 @@ class _AppliedTile extends StatelessWidget {
   }
 }
 
-/// 改一改这一条提案的标题（点头之前）：一个框、一个存。
+/// 改一改这一条提案（点头之前）：标题 + 正文，两个框一个存。
 ///
 /// 只负责"要改成什么"；能不能改（已点头的、连接的）、空标题怎么办，都由仓储那一层
 /// 说人话，页面把话摆出来。
-class _RenameDialog extends StatefulWidget {
-  const _RenameDialog({required this.title});
+class _EditProposalDialog extends StatefulWidget {
+  const _EditProposalDialog({required this.title, required this.body});
 
   final String title;
+  final String body;
 
   @override
-  State<_RenameDialog> createState() => _RenameDialogState();
+  State<_EditProposalDialog> createState() => _EditProposalDialogState();
 }
 
-class _RenameDialogState extends State<_RenameDialog> {
-  late final TextEditingController _controller =
+class _EditProposalDialogState extends State<_EditProposalDialog> {
+  late final TextEditingController _titleController =
       TextEditingController(text: widget.title);
+  late final TextEditingController _bodyController =
+      TextEditingController(text: widget.body);
 
   @override
   void dispose() {
-    _controller.dispose();
+    _titleController.dispose();
+    _bodyController.dispose();
     super.dispose();
   }
+
+  void _save() => Navigator.of(context)
+      .pop((title: _titleController.text, body: _bodyController.text));
 
   @override
   Widget build(BuildContext context) {
@@ -1238,13 +1258,27 @@ class _RenameDialogState extends State<_RenameDialog> {
     return AlertDialog(
       title: Text(l10n.materialIntakeRenameDialogTitle),
       content: SizedBox(
-        width: 420,
-        child: TextField(
-          controller: _controller,
-          autofocus: true,
-          decoration:
-              InputDecoration(labelText: l10n.materialIntakeRenameField),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              decoration:
+                  InputDecoration(labelText: l10n.materialIntakeRenameField),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _bodyController,
+              minLines: 2,
+              maxLines: 5,
+              decoration: InputDecoration(
+                labelText: l10n.materialIntakeEditBody,
+                hintText: l10n.materialIntakeEditBodyHint,
+              ),
+            ),
+          ],
         ),
       ),
       actions: <Widget>[
@@ -1253,7 +1287,7 @@ class _RenameDialogState extends State<_RenameDialog> {
           child: Text(l10n.commonCancel),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
+          onPressed: _save,
           child: Text(l10n.materialIntakeRenameSave),
         ),
       ],

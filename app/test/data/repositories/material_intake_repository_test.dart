@@ -755,7 +755,7 @@ void main() {
           isA<MaterialApplyException>().having(
             (error) => error.message,
             'message',
-            contains('只有知识点的标题能改'),
+            contains('只有知识点提案能改'),
           ),
         ),
       );
@@ -798,6 +798,91 @@ void main() {
             (error) => error.message,
             'message',
             contains('没有这条提案'),
+          ),
+        ),
+      );
+    });
+
+    test('editPointProposal：只改正文不动标题，点头之后写进 content 的就是它', () async {
+      await record(planOf());
+      final before = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+
+      await repository.editPointProposal(
+        batchId: 'b1',
+        proposalId: 'kp:en::w::rely-on',
+        body: '  释义：依靠；搭配 rely on sb.  ',
+      );
+
+      final after = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(after.body, '释义：依靠；搭配 rely on sb.', reason: '首尾空白要剪掉');
+      expect(after.title, before.title, reason: '只改正文就不该碰标题');
+      expect(after.exists, before.exists);
+
+      await repository.apply(
+        batchId: 'b1',
+        proposalIds: <String>['kp:en::w::rely-on'],
+      );
+      final points = await anki.getKnowledgePoints();
+      expect(
+        points.singleWhere((point) => point.title == 'rely on').content,
+        '释义：依靠；搭配 rely on sb.',
+      );
+    });
+
+    test('editPointProposal：标题与正文一起改，exists 也跟着现算', () async {
+      await record(planOf());
+      await anki.createKnowledgePoint(title: 'I relied on him.', content: '句子');
+
+      await repository.editPointProposal(
+        batchId: 'b1',
+        proposalId: 'kp:en::w::rely-on',
+        title: 'I relied on him.',
+        body: '整句：我依靠他。',
+      );
+
+      final edited = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(edited.title, 'I relied on him.');
+      expect(edited.body, '整句：我依靠他。');
+      expect(edited.exists, isTrue, reason: '改到库里已有的名字，那句话就得跟着变');
+    });
+
+    test('editPointProposal：两个字段都不给就是没改什么', () async {
+      await record(planOf());
+      final before = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+
+      await repository.editPointProposal(
+        batchId: 'b1',
+        proposalId: 'kp:en::w::rely-on',
+      );
+
+      final after = (await repository.pendingProposals('b1'))
+          .firstWhere((proposal) => proposal.id == 'kp:en::w::rely-on');
+      expect(after.title, before.title);
+      expect(after.body, before.body);
+    });
+
+    test('editPointProposal 改正文也走同一条规矩：已点头的不许改', () async {
+      await record(planOf());
+      await repository.apply(
+        batchId: 'b1',
+        proposalIds: <String>['kp:en::w::rely-on'],
+      );
+
+      await expectLater(
+        repository.editPointProposal(
+          batchId: 'b1',
+          proposalId: 'kp:en::w::rely-on',
+          body: '改一改',
+        ),
+        throwsA(
+          isA<MaterialApplyException>().having(
+            (error) => error.message,
+            'message',
+            contains('已经点头过'),
           ),
         ),
       );

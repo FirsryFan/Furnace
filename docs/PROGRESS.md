@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-10-17 轮次九十七：点头之前能改（第二半）—— 正文也能补上，那颗铅笔成了一整个编辑框（Lead）
+
+**做了什么**：轮次九十四让人在点头之前改命题的**标题**，可"读出来的东西不对"不止名字：材料里的正文
+（释义/例句）机器常读不全，`run/1` 那条路干脆把正文留空（`why` 里明说"落库时内容留空、等你在清单上
+补"）—— 可清单上根本没有"补"的地方。这一轮把铅笔扩成编辑框：**标题 + 正文**一起改，正文还是多行的。
+
+- **仓储多开一个口子**：`MaterialIntakeRepository.editPointProposal({batchId, proposalId, title?, body?})`
+  —— 与标题同一条规矩（只改还没点头的、只改知识点提案、空标题挡住、`exists` 跟着标题现算）；正文允许留空
+  （有人就是想把不是正文的东西删掉），首尾空白剪掉；两个字段都不给就是没改什么，直接返回不写一行。
+  `renamePointProposal` 变成它的窄口子（界面与 AI 工具都还用着，`renames` 那条路一个字都不用改）。
+- **界面上**：`_RenameDialog` 换成 `_EditProposalDialog`（标题一个框、正文一个多行框，一进来都预填现值）；
+  提案卡片上也多一行"正文：…" —— 改了什么不必等落库才看得见。
+- **只开了这两个字段**：`MaterialIntakeProposal.copyWith({title, exists, body})` —— 其余字段（id、两端、
+  `ls`、出处）仍是上游算出来的，让它们能被就地改就等于把"这条提案从哪来"改掉了。
+
+**证据**：`app/test/data/repositories/material_intake_repository_test.dart` 新增 4 例（只改正文不动标题
++ 点头之后写进 `content` 的就是它 + 首尾空白剪掉；标题与正文一起改、`exists` 跟着现算；两个字段都不给
+= 没改什么；改正文也守"已点头的不许改"）；`app/test/features/cognitive/presentation/material_intake_page_test.dart`
+35 → 36 例（"点头之前连正文一起补上：清单上看得见，点头时写进 content"：正文框预填材料的正文、改成
+"释义：依靠；搭配 rely on sb." 之后清单上立刻显示、点头之后知识点的 `content` 就是它）。既有两条改名用例
+改用 `find.widgetWithText(TextField, …)` 定位（对话框现在有两个框）。本轮 `dart format` 9 个 Dart 文件
+2 changed（复查 0 changed）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warning**，与
+八十六～九十六同基线）；全量 `flutter test --concurrency=1` → **+2050 ~2**（轮次九十六 `+2045 ~2`，差值 5）。
+
+**已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 演练读数仍然是现算的、不落库；③ `ls` 仍
+没有标定来源；④ 其余 18 个参数还没有滑块；⑤ **本轮补上的是正文那一半** —— 连接的两端与 `ls` 仍改不动；
+⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ `check_transcribe_run` 走 `record` 那条路仍然
+不能改名/改正文（没有把提案 id 摆出来）。
+
+---
+
 ## 2026-10-17 轮次九十六：界面与工具同一把尺子 —— AI 也能在点名前改一改标题（Lead）
 
 **做了什么**：轮次九十四给待确认清单加了一颗铅笔（点头之前能改知识点提案的标题）。可那条路只有界面
@@ -31,7 +62,7 @@ changed）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warni
 
 **已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 演练读数仍然是现算的、不落库；③ `ls` 仍
 没有标定来源；④ 其余 18 个参数还没有滑块；⑤ 提案能改的仍然只有标题（正文 `body`、连接的两端与 `ls`
-改不动）；⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ `check_transcribe_run` 走 `record` 那条
+改不动）—— **轮次九十七补上了正文那一半**（标题 + 正文都能改；连接的两端与 `ls` 仍改不动）；⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ `check_transcribe_run` 走 `record` 那条
 路仍然不能改名（没有把提案 id 摆出来给你改）。
 
 ---
@@ -64,7 +95,7 @@ changed）；`dart analyze lib test` → `94 issues found`（**0 error / 0 warni
 
 **已知的没做**：① 谁来决定"这份请求可以执行了"（判断者仍缺）；② 演练读数仍然是现算的、不落库；③ `ls` 仍
 没有标定来源；④ 其余 18 个参数还没有滑块；⑤ 提案能改的仍然只有标题（正文 `body`、连接的两端与 `ls`
-改不动）；⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ AI 工具那条路仍然只会"看清单 + 点头"，
+改不动）—— **轮次九十七补上了正文那一半**（标题 + 正文都能改；连接的两端与 `ls` 仍改不动）；⑥ 边提案的 `ls` 照抄增量、`lsCalibrated` 一律 false；⑦ AI 工具那条路仍然只会"看清单 + 点头"，
 不能在点名之前替用户改一改标题（界面与工具暂时不同口径）。
 
 **踩到的一个坑（写给后面的轮次）**：这一轮误把 `dart format --set-exit-if-changed lib test` 当成"只检查"

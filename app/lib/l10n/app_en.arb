@@ -391,10 +391,16 @@
   "materialIntakeKindConnection": "connection",
   "materialIntakeConnectionClue": "clue edge: strictly directed, ls uncalibrated",
   "materialIntakeExisting": "already exists - no duplicate",
-  "materialIntakeRename": "Edit this one's name",
-  "materialIntakeRenameDialogTitle": "Edit the name (not confirmed yet)",
+  "materialIntakeRename": "Edit this one",
+  "materialIntakeRenameDialogTitle": "Edit this one (not confirmed yet)",
   "materialIntakeRenameField": "Title",
   "materialIntakeRenameSave": "Save it",
+  "materialIntakeEditBody": "Body",
+  "materialIntakeEditBodyHint": "e.g. the meaning, an example sentence, the original text - fill in what the machine missed",
+  "materialIntakeProposalBody": "Body: {body}",
+  "@materialIntakeProposalBody": {
+    "placeholders": { "body": { "type": "String" } }
+  },
   "materialIntakeCantLand": "cannot land yet: {reason} (get that end into the graph first)",
   "materialIntakeConfirm": "Confirm and write ({count})",
   "@materialIntakeConfirm": {

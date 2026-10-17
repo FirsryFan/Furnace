@@ -148,11 +148,13 @@ class MaterialIntakeProposal {
 
   final MaterialIntakeEvidence evidence;
 
-  /// 用户点头之前改过的两个字段：标题（自己起的名字）与"库里已经有一个同名的了"。
+  /// 用户点头之前改过的字段：标题（自己起的名字）、正文（释义/例句，机器常读不全）、
+  /// 以及"库里已经有一个同名的了"。
   ///
-  /// 只开这两个口子：其余字段都是上游算出来的（id、两端、`ls`、出处），让它们能被
+  /// 只开这几个口子：其余字段都是上游算出来的（id、两端、`ls`、出处），让它们能被
   /// 就地改就等于把"这条提案从哪来"改掉了。
-  MaterialIntakeProposal copyWith({String? title, bool? exists}) =>
+  MaterialIntakeProposal copyWith(
+          {String? title, bool? exists, String? body}) =>
       MaterialIntakeProposal(
         id: id,
         kind: kind,
@@ -162,7 +164,7 @@ class MaterialIntakeProposal {
         to: to,
         ls: ls,
         origin: origin,
-        body: body,
+        body: body ?? this.body,
         why: why,
         exists: exists ?? this.exists,
         evidence: evidence,

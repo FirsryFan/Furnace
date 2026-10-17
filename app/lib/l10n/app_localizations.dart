@@ -1697,13 +1697,13 @@ abstract class AppLocalizations {
   /// No description provided for @materialIntakeRename.
   ///
   /// In en, this message translates to:
-  /// **'Edit this one\'s name'**
+  /// **'Edit this one'**
   String get materialIntakeRename;
 
   /// No description provided for @materialIntakeRenameDialogTitle.
   ///
   /// In en, this message translates to:
-  /// **'Edit the name (not confirmed yet)'**
+  /// **'Edit this one (not confirmed yet)'**
   String get materialIntakeRenameDialogTitle;
 
   /// No description provided for @materialIntakeRenameField.
@@ -1717,6 +1717,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save it'**
   String get materialIntakeRenameSave;
+
+  /// No description provided for @materialIntakeEditBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Body'**
+  String get materialIntakeEditBody;
+
+  /// No description provided for @materialIntakeEditBodyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. the meaning, an example sentence, the original text - fill in what the machine missed'**
+  String get materialIntakeEditBodyHint;
+
+  /// No description provided for @materialIntakeProposalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Body: {body}'**
+  String materialIntakeProposalBody(String body);
 
   /// No description provided for @materialIntakeConfirm.
   ///

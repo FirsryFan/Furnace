@@ -1499,16 +1499,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(l10n.materialIntakeRenameDialogTitle), findsOneWidget);
-      final field = find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextField),
+      final titleField = find.widgetWithText(
+        TextField,
+        l10n.materialIntakeRenameField,
       );
       expect(
-        tester.widget<TextField>(field).controller?.text,
+        tester.widget<TextField>(titleField).controller?.text,
         'rely on',
         reason: '框里先摆着现在的名字，改是"接着改"，不是从空白起',
       );
-      await tester.enterText(field, '  rely upon  ');
+      await tester.enterText(titleField, '  rely upon  ');
       await tester.tap(find.text(l10n.materialIntakeRenameSave));
       await tester.pumpAndSettle();
 
@@ -1526,6 +1526,43 @@ void main() {
       expect(await db.select(db.knowledgeEdges).get(), hasLength(2));
     });
 
+    testWidgets('点头之前连正文一起补上：清单上看得见，点头时写进 content', (
+      WidgetTester tester,
+    ) async {
+      bigSurface(tester);
+      await tester.pumpWidget(harness());
+      await preview(tester, envelopeJson());
+
+      final l10n = l10nOf(tester);
+      await tester.tap(find.byTooltip(l10n.materialIntakeRename).last);
+      await tester.pumpAndSettle();
+
+      final bodyField = find.widgetWithText(
+        TextField,
+        l10n.materialIntakeEditBody,
+      );
+      expect(bodyField, findsOneWidget);
+      expect(
+        tester.widget<TextField>(bodyField).controller?.text,
+        contains('释义：依靠'),
+        reason: '材料读出来的正文先摆着，改是接着改',
+      );
+      await tester.enterText(bodyField, '释义：依靠；搭配 rely on sb.');
+      await tester.tap(find.text(l10n.materialIntakeRenameSave));
+      await tester.pumpAndSettle();
+
+      // 正文就在清单上：改了什么不必等落库才看得见。
+      expect(
+        find.text(l10n.materialIntakeProposalBody('释义：依靠；搭配 rely on sb.')),
+        findsOneWidget,
+      );
+
+      await confirm(tester, 4);
+      final points = await anki.getKnowledgePoints();
+      final word = points.firstWhere((point) => point.title == 'rely on');
+      expect(word.content, '释义：依靠；搭配 rely on sb.');
+    });
+
     testWidgets('改名字被挡下来时，理由摆在页面上（不是悄悄不动）', (
       WidgetTester tester,
     ) async {
@@ -1537,10 +1574,7 @@ void main() {
       await tester.tap(find.byTooltip(l10n.materialIntakeRename).last);
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(TextField),
-        ),
+        find.widgetWithText(TextField, l10n.materialIntakeRenameField),
         '   ',
       );
       await tester.tap(find.text(l10n.materialIntakeRenameSave));

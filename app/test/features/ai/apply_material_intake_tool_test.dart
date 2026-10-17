@@ -272,7 +272,7 @@ void main() {
     expect(points.map((point) => point.title), isNot(contains('rely on')));
   });
 
-  test('renames 指到一条连接 ⇒ 失败，说清只有知识点的标题能改', () async {
+  test('renames 指到一条连接 ⇒ 失败，说清只有知识点提案能改', () async {
     // 先确认一条知识点：连接还留在待确认里，正好拿它来试"连接的标题不给改"。
     await tool.run(
       invocationOf(
@@ -292,7 +292,7 @@ void main() {
     );
 
     expect(result.ok, isFalse);
-    expect(result.summary, contains('只有知识点的标题能改'));
+    expect(result.summary, contains('只有知识点提案能改'));
     // 第一次那条已经点过头了；这次失败没多建任何东西。
     expect(await db.select(db.knowledgePoints).get(), hasLength(1));
   });

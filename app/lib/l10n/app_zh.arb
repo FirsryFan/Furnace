@@ -397,10 +397,16 @@
   "materialIntakeKindConnection": "连接",
   "materialIntakeConnectionClue": "线索边：严格有向，ls 未标定",
   "materialIntakeExisting": "已存在，不重复建",
-  "materialIntakeRename": "改一改这一条的名字",
-  "materialIntakeRenameDialogTitle": "改一改名字（这一条还没点头）",
+  "materialIntakeRename": "改一改这一条",
+  "materialIntakeRenameDialogTitle": "改一改这一条（还没点头）",
   "materialIntakeRenameField": "标题",
   "materialIntakeRenameSave": "存下来",
+  "materialIntakeEditBody": "正文",
+  "materialIntakeEditBodyHint": "例：释义、例句、原文；机器读不全的就在这儿补",
+  "materialIntakeProposalBody": "正文：{body}",
+  "@materialIntakeProposalBody": {
+    "placeholders": { "body": { "type": "String" } }
+  },
   "materialIntakeCantLand": "这条现在落不了：{reason}（先让缺的那一端进图）",
   "@materialIntakeCantLand": {
     "placeholders": { "reason": { "type": "String" } }

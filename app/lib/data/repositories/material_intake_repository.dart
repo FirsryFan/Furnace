@@ -554,21 +554,40 @@ class MaterialIntakeRepository {
 
   /// 用户点头之前改一条**知识点**提案的标题（自己起的名字）。
   ///
+  /// 只是 [editPointProposal] 的一个窄口子：界面那颗铅笔与 AI 工具的 `renames` 都走这里
+  /// （两边同一把尺子），正文那一半走 [editPointProposal]。
+  Future<void> renamePointProposal({
+    required String batchId,
+    required String proposalId,
+    required String title,
+  }) =>
+      editPointProposal(
+        batchId: batchId,
+        proposalId: proposalId,
+        title: title,
+      );
+
+  /// 用户点头之前改一条**知识点**提案：标题（自己起的名字）与正文（释义/例句）。
+  ///
   /// 为什么只到这里：提案的其余字段都是上游算出来的（id、两端、`ls`、出处），改了它们
   /// 就等于把"这条提案从哪来"改掉；连接的标题是按两端名字现算的，改它是在说假话。
   /// `exists` 跟着新标题重算 —— 拿的还是计划层那份口径（[existingTitles] +
   /// [MaterialIntakePlanner.normalizeTitle]），否则屏幕上会留着"已存在"这句过期的话，
   /// 然后写入方再建一个同名的出来。
   ///
-  /// 已经点头过的提案**不许改**：它是历史（`applied_at` 非空），要改名字请去改那个
-  /// 知识点本身。
-  Future<void> renamePointProposal({
+  /// 已经点头过的提案**不许改**：它是历史（`applied_at` 非空），要改请去改那个知识点本身。
+  /// 两个字段都不给就是没改什么 —— 直接返回，不写一行。
+  Future<void> editPointProposal({
     required String batchId,
     required String proposalId,
-    required String title,
+    String? title,
+    String? body,
   }) async {
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) {
+    if (title == null && body == null) {
+      return;
+    }
+    final trimmedTitle = title?.trim();
+    if (trimmedTitle != null && trimmedTitle.isEmpty) {
       throw const MaterialApplyException(
         '标题不能是空的 —— 改成一个字都没有的名字，等于把这一条悄悄删掉',
       );
@@ -583,27 +602,34 @@ class MaterialIntakeRepository {
     }
     if (row.appliedAt != null) {
       throw const MaterialApplyException(
-        '这一条已经点头过了（它是历史）—— 要改名字请去改那个知识点本身',
+        '这一条已经点头过了（它是历史）—— 要改请去改那个知识点本身',
       );
     }
     if (row.kind != MaterialIntakeKind.knowledgePoint.id) {
-      throw const MaterialApplyException('只有知识点的标题能改：连接的标题是按两端名字现算的');
+      throw const MaterialApplyException('只有知识点提案能改（标题/正文）：连接的标题是按两端名字现算的');
     }
     final proposal = _toProposal(row);
-    // 与计划层同一条口径：两边都先归一（去空白、压空白、转小写）再比 —— 否则
-    // 大小写差一点就会把这句话说反：显示成"不会重复建"，落库时却当成新点建了。
-    final known = <String>{
-      for (final title in await existingTitles())
-        MaterialIntakePlanner.normalizeTitle(title),
-    };
-    final renamed = proposal.copyWith(
-      title: trimmed,
-      exists: known.contains(MaterialIntakePlanner.normalizeTitle(trimmed)),
-    );
+    var edited = proposal;
+    if (body != null) {
+      edited = edited.copyWith(body: body.trim());
+    }
+    if (trimmedTitle != null) {
+      // 与计划层同一条口径：两边都先归一（去空白、压空白、转小写）再比 —— 否则
+      // 大小写差一点就会把这句话说反：显示成"不会重复建"，落库时却当成新点建了。
+      final known = <String>{
+        for (final title in await existingTitles())
+          MaterialIntakePlanner.normalizeTitle(title),
+      };
+      edited = edited.copyWith(
+        title: trimmedTitle,
+        exists:
+            known.contains(MaterialIntakePlanner.normalizeTitle(trimmedTitle)),
+      );
+    }
     await (_db.update(_db.materialIntakeProposals)
           ..where((t) => t.id.equals(row.id)))
         .write(MaterialIntakeProposalsCompanion(
-      payloadJson: Value(jsonEncode(renamed.toJson())),
+      payloadJson: Value(jsonEncode(edited.toJson())),
       updatedAt: Value(_clock().millisecondsSinceEpoch),
     ));
   }
