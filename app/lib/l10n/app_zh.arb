@@ -1279,6 +1279,54 @@
       }
     }
   },
+  "questionIntakeDropHint": "也可以把照片直接拖到这里（支持微信聊天记录里的图片）",
+  "questionIntakeDropActive": "松手即可添加照片",
+  "questionIntakeDropBusy": "上一批照片还在处理，稍等一下再拖",
+  "questionIntakeDropSkippedNonImage": "已跳过 {count} 个非图片文件",
+  "@questionIntakeDropSkippedNonImage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDropDuplicates": "已忽略 {count} 个重复文件",
+  "@questionIntakeDropDuplicates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDropUnreadable": "有 {count} 个文件读不出来",
+  "@questionIntakeDropUnreadable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionSerialUnnumbered": "TR-未编号",
+  "questionSerialCopyTooltip": "复制题号",
+  "questionSerialCopied": "已复制 {label}",
+  "@questionSerialCopied": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailImagesSection": "题目配图",
+  "questionImageCount": "共 {count} 张",
+  "@questionImageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionImageOpenTooltip": "点开看大图",
+  "questionImageLoadFailed": "这张图读不出来",
   "questionIntakePhotoPending": "待整理图片",
   "questionIntakeNoPhotos": "还没有拍照。选中的图片会存在本地，等 AI 整理成题干。",
   "questionIntakePhotoSummary": "{mime} · .{extension}",

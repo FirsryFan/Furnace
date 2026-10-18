@@ -15,9 +15,11 @@
 /// 覆盖，这里只证明页面把该调的调了、该看的状态看对了。
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:drift/native.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -27,25 +29,49 @@ import 'package:furnace/core/state/data_change_bus.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/data/handwriting_intake_store.dart';
+import 'package:furnace/features/questions/presentation/drop_intake_filter.dart';
+import 'package:furnace/features/questions/presentation/drop_intake_reader.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../support/picked_file_fakes.dart';
+import 'support/question_media_fakes.dart';
+
+/// `DropIntakeReader` 的替身：真实现走 `dart:io` 异步读盘，在 widget test 的假时钟
+/// 里等不到；这里直接把准备好的计划和字节交回去。
+final class _FakeDropIntakeReader implements DropIntakeReader {
+  _FakeDropIntakeReader(this.respond);
+
+  final Future<DropIntakeBatch> Function(List<DropItem> items) respond;
+
+  /// 页面调了几次 `examine`（防重入测试要盯这个）。
+  int calls = 0;
+
+  @override
+  Future<DropIntakeBatch> examine(List<DropItem> items) {
+    calls++;
+    return respond(items);
+  }
+}
 
 void main() {
   late AppDatabase db;
   late QuestionRepository repository;
   late FakeIntakeStore store;
+  late FakeQuestionMediaStore mediaStore;
   late Directory supportRoot;
 
   setUp(() {
     DataChangeBus.instance.debugReset();
     db = AppDatabase.forTesting(instrumentWrites(NativeDatabase.memory()));
     repository = QuestionRepository(db);
-    supportRoot = Directory.systemTemp.createTempSync('furnace_intake_support_');
+    supportRoot =
+        Directory.systemTemp.createTempSync('furnace_intake_support_');
     store = FakeIntakeStore(database: db, root: supportRoot);
+    mediaStore = FakeQuestionMediaStore(database: db);
   });
 
   tearDown(() async {
@@ -93,7 +119,10 @@ void main() {
   }
 
   /// 一个高一点的视口：页面是 `ListView`，没被 build 出来的卡片是找不到的。
-  Future<void> pumpPage(WidgetTester tester) async {
+  Future<void> pumpPage(
+    WidgetTester tester, {
+    List<Override> overrides = const <Override>[],
+  }) async {
     tester.view.physicalSize = const Size(1200, 4000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -103,6 +132,8 @@ void main() {
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           handwritingIntakeStoreProvider.overrideWithValue(store),
+          questionMediaStoreProvider.overrideWithValue(mediaStore),
+          ...overrides,
         ],
         child: const MaterialApp(
           locale: Locale('zh'),
@@ -129,12 +160,41 @@ void main() {
     return picker as FakeFilePicker;
   }
 
+  /// 一次拖拽的读取结果：只造计划和每张图的字节，不碰磁盘。
+  DropIntakeBatch batchOf(List<String> imagePaths) {
+    final plan = planDropIntake(<DropIntakeCandidate>[
+      for (final path in imagePaths)
+        DropIntakeCandidate(path: path, fileName: dropIntakeFileName(path)),
+    ]);
+    return DropIntakeBatch(
+      plan: plan,
+      bytes: <String, Uint8List>{
+        for (final decision in plan.images)
+          decision.path: Uint8List.fromList(const <int>[1, 2, 3, 4]),
+      },
+    );
+  }
+
+  /// 直接调 `DropTarget` 的 `onDragDone`：desktop_drop 的真事件来自 MethodChannel，
+  /// 在 widget test 里伪造通道事件不可靠；页面行为就挂在这个回调上。
+  Future<void> fireDrop(WidgetTester tester, List<DropItem> files) async {
+    tester.widget<DropTarget>(find.byType(DropTarget)).onDragDone!(
+      DropDoneDetails(
+        files: files,
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ),
+    );
+    await tester.pump();
+  }
+
   testWidgets('粘贴题干 → 入库为 manual/structured，列表自己刷新', (tester) async {
     await pumpPage(tester);
     final strings = l10n(tester);
 
     // 两边的空白要被裁掉：题干是去重的依据，前后空格不该算另一道题。
-    await tester.enterText(field(strings.questionIntakeStemLabel), '  求 x²+1 的最小值  ');
+    await tester.enterText(
+        field(strings.questionIntakeStemLabel), '  求 x²+1 的最小值  ');
     await tester.pump();
     await submit(tester);
 
@@ -208,13 +268,15 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(field(strings.questionIntakeStemLabel), '2+2 等于几？');
-    await tester.enterText(field(strings.questionIntakeOptionLabel('A')), '  3  ');
+    await tester.enterText(
+        field(strings.questionIntakeOptionLabel('A')), '  3  ');
     await tester.enterText(field(strings.questionIntakeOptionLabel('B')), '4');
     // 第三个选项留着不填：它不该进库，也不该在标签里留个「C」的空档。
     await tester.tap(find.text(strings.questionIntakeAddOption));
     await tester.pumpAndSettle();
     // 勾 A 正确（第一个复选框）。
-    await tester.tap(find.byTooltip(strings.questionIntakeCorrectTooltip).first);
+    await tester
+        .tap(find.byTooltip(strings.questionIntakeCorrectTooltip).first);
     await tester.pump();
 
     await submit(tester);
@@ -229,10 +291,10 @@ void main() {
     expect(options.last.isCorrect, isFalse);
   });
 
-  testWidgets('选图：附件落盘 + 建一条 raw/ai_scan 题 + 待整理清单认得出文件名',
-      (tester) async {
-    FilePickerPlatform.instance =
-        FakeFilePicker([FakePickedFile('page1.png', Uint8List.fromList([1, 2, 3, 4]))]);
+  testWidgets('选图：附件落盘 + 建一条 raw/ai_scan 题 + 待整理清单认得出文件名', (tester) async {
+    FilePickerPlatform.instance = FakeFilePicker([
+      FakePickedFile('page1.png', Uint8List.fromList([1, 2, 3, 4]))
+    ]);
 
     await pumpPage(tester);
     final strings = l10n(tester);
@@ -268,8 +330,9 @@ void main() {
   });
 
   testWidgets('从待整理清单删掉一张图：行和文件一起消失', (tester) async {
-    FilePickerPlatform.instance =
-        FakeFilePicker([FakePickedFile('trash.png', Uint8List.fromList([9]))]);
+    FilePickerPlatform.instance = FakeFilePicker([
+      FakePickedFile('trash.png', Uint8List.fromList([9]))
+    ]);
 
     await pumpPage(tester);
     final strings = l10n(tester);
@@ -325,5 +388,167 @@ void main() {
 
     expect(await repository.all(), isEmpty);
     await expectTextEventually(tester, strings.questionIntakeDeleted('待删除的题'));
+  });
+
+  testWidgets('拖入图片：高亮层随拖入出现/拖出消失，图片按 raw/ai_scan 入库', (tester) async {
+    final reader = _FakeDropIntakeReader(
+      (_) async => batchOf(<String>['/微信/微信图片 1.png']),
+    );
+    await pumpPage(
+      tester,
+      overrides: <Override>[dropIntakeReaderProvider.overrideWithValue(reader)],
+    );
+    final strings = l10n(tester);
+
+    DropEventDetails event() => DropEventDetails(
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        );
+
+    tester.widget<DropTarget>(find.byType(DropTarget)).onDragEntered!(event());
+    await tester.pump();
+    expect(find.byKey(dropIntakeHighlightKey), findsOneWidget);
+    expect(find.text(strings.questionIntakeDropActive), findsOneWidget);
+
+    tester.widget<DropTarget>(find.byType(DropTarget)).onDragExited!(event());
+    await tester.pump();
+    expect(find.byKey(dropIntakeHighlightKey), findsNothing);
+
+    await fireDrop(tester, <DropItem>[DropItemFile('/微信/微信图片 1.png')]);
+    await expectTextEventually(tester, strings.questionIntakePhotoAdded(1));
+    await expectTextEventually(tester, '微信图片 1.png');
+    expect(reader.calls, 1);
+
+    final rows = await repository.all();
+    expect(rows, hasLength(1));
+    expect(rows.single.origin, 'ai_scan');
+    expect(rows.single.state, 'raw');
+    expect(rows.single.stem, strings.questionIntakePhotoStem('微信图片 1.png'));
+
+    // 附件落在本页自己的 ownerType 下，和 file_picker 那条路一致。
+    final attachments = await db.select(db.attachments).get();
+    expect(attachments, hasLength(1));
+    expect(attachments.single.ownerType, HandwritingIntakeStore.ownerType);
+    expect(attachments.single.relPath, endsWith('微信图片 1.png'));
+  });
+
+  testWidgets('一次拖多张：图片按顺序收，非图片/重复/读不出的合并成一条提示', (tester) async {
+    final plan = planDropIntake(<DropIntakeCandidate>[
+      const DropIntakeCandidate(path: '/微信/照片 A.png', fileName: '照片 A.png'),
+      const DropIntakeCandidate(path: '/微信/照片 B.jpg', fileName: '照片 B.jpg'),
+      const DropIntakeCandidate(path: '/微信/readme.txt', fileName: 'readme.txt'),
+      const DropIntakeCandidate(path: '/微信/照片 A.png', fileName: '照片 A.png'),
+      DropIntakeCandidate(
+        path: '/微信/坏图.png',
+        fileName: '坏图.png',
+        readError: StateError('permission denied'),
+      ),
+    ]);
+    final reader = _FakeDropIntakeReader(
+      (_) async => DropIntakeBatch(
+        plan: plan,
+        bytes: <String, Uint8List>{
+          for (final decision in plan.images)
+            decision.path: Uint8List.fromList(const <int>[1, 2]),
+        },
+      ),
+    );
+    await pumpPage(
+      tester,
+      overrides: <Override>[dropIntakeReaderProvider.overrideWithValue(reader)],
+    );
+    final strings = l10n(tester);
+
+    await fireDrop(tester, <DropItem>[
+      DropItemFile('/微信/照片 A.png'),
+      DropItemFile('/微信/照片 B.jpg'),
+      DropItemFile('/微信/readme.txt'),
+      DropItemFile('/微信/照片 A.png'),
+      DropItemFile('/微信/坏图.png'),
+    ]);
+
+    final lines = <String>[
+      strings.questionIntakePhotoAdded(2),
+      strings.questionIntakeDropSkippedNonImage(1),
+      strings.questionIntakeDropDuplicates(1),
+      strings.questionIntakeDropUnreadable(1),
+    ];
+    await expectTextEventually(tester, lines.join('\n'));
+
+    final rows = await repository.all();
+    expect(rows, hasLength(2));
+    expect(
+      rows.map((row) => row.stem),
+      containsAll(<String>[
+        strings.questionIntakePhotoStem('照片 A.png'),
+        strings.questionIntakePhotoStem('照片 B.jpg'),
+      ]),
+    );
+  });
+
+  testWidgets('上一批还在读的时候再拖：只提示等一下，不重复收图', (tester) async {
+    final gate = Completer<DropIntakeBatch>();
+    final reader = _FakeDropIntakeReader((_) => gate.future);
+    await pumpPage(
+      tester,
+      overrides: <Override>[dropIntakeReaderProvider.overrideWithValue(reader)],
+    );
+    final strings = l10n(tester);
+
+    await fireDrop(tester, <DropItem>[DropItemFile('/微信/第一次.png')]);
+    await fireDrop(tester, <DropItem>[DropItemFile('/微信/第二次.png')]);
+    await expectTextEventually(tester, strings.questionIntakeDropBusy);
+    expect(reader.calls, 1);
+
+    gate.complete(batchOf(<String>['/微信/第一次.png']));
+    await expectTextEventually(tester, strings.questionIntakePhotoAdded(1));
+    expect(await repository.all(), hasLength(1));
+  });
+
+  testWidgets('整批都是非图片：一张不写库，只说跳过了几个', (tester) async {
+    final plan = planDropIntake(<DropIntakeCandidate>[
+      const DropIntakeCandidate(path: '/微信/readme.txt', fileName: 'readme.txt'),
+      const DropIntakeCandidate(
+          path: '/微信/archive.zip', fileName: 'archive.zip'),
+    ]);
+    final reader = _FakeDropIntakeReader(
+      (_) async =>
+          DropIntakeBatch(plan: plan, bytes: const <String, Uint8List>{}),
+    );
+    await pumpPage(
+      tester,
+      overrides: <Override>[dropIntakeReaderProvider.overrideWithValue(reader)],
+    );
+    final strings = l10n(tester);
+
+    await fireDrop(tester, <DropItem>[DropItemFile('/微信/readme.txt')]);
+
+    await expectTextEventually(
+      tester,
+      strings.questionIntakeDropSkippedNonImage(2),
+    );
+    expect(await repository.all(), isEmpty);
+    expect(await db.select(db.attachments).get(), isEmpty);
+  });
+
+  testWidgets('收题清单每行：题号在副标题最前，配图给缩略图', (tester) async {
+    final seeded = await repository.ingest(
+      const QuestionDraft(stem: '清单里的那道题'),
+    );
+    mediaStore.seed(
+      questionId: seeded.question.id,
+      fileName: 'scan.png',
+      bytes: tinyPngBytes,
+    );
+
+    await pumpPage(tester);
+
+    expect(find.text('清单里的那道题'), findsOneWidget);
+    expect(find.textContaining('TR-00001'), findsOneWidget);
+    // 缩略图要等 readBytes 的 future 回来才会变成 Image（之前是占位图标）。
+    for (var i = 0; i < 40 && find.byType(Image).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(Image), findsOneWidget);
   });
 }

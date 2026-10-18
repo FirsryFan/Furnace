@@ -20,6 +20,7 @@ import '../application/paper_plan_provider.dart';
 import 'handwriting_queue_page.dart';
 import 'question_detail_page.dart';
 import 'question_intake_page.dart';
+import 'question_media_view.dart';
 import 'question_paper_page.dart' show QuestionPaperPage, subjectLabelOf;
 import 'question_vocab_labels.dart';
 
@@ -157,6 +158,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                   ),
                 for (final candidate in shown)
                   _QuestionTile(
+                    questionId: candidate.questionId,
                     title: stems[candidate.questionId] ??
                         l10n.questionBankUntitled,
                     subtitle: [
@@ -227,25 +229,51 @@ class _EntryRow extends StatelessWidget {
   }
 }
 
-/// 一道题：题干两行 + 学科/来源/知识点数。点进详情页（跑解题链也在那里）。
-class _QuestionTile extends StatelessWidget {
+/// 一道题：题号 + 题干两行 + 学科/来源/知识点数。点进详情页（跑解题链也在那里）。
+///
+/// 题号（`TR-00042`）按 id 现读：组卷的 `PaperCandidate` 只带匹配用的字段，
+/// 没有编号；没编号的老题显示占位而不是空着。
+class _QuestionTile extends ConsumerWidget {
   const _QuestionTile({
+    required this.questionId,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
+  final String questionId;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final serialAsync = ref.watch(questionSerialProvider(questionId));
+    final serialLabel = serialAsync.hasValue
+        ? questionSerialText(l10n, serialAsync.value)
+        : null;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            QuestionCoverThumbnail(questionId: questionId),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Text(
+          serialLabel == null ? subtitle : '$serialLabel · $subtitle',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

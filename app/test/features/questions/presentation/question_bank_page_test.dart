@@ -16,10 +16,13 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
+import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_paper_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
+
+import 'support/question_media_fakes.dart';
 
 const int _ts = 1700000000000;
 
@@ -105,14 +108,50 @@ void main() {
     // 没有配 AI key 时：标签、Thread、Time、闪存卡、题库、知识库、设置。
     expect(destinations, hasLength(7));
   });
+
+  testWidgets('题库行：题号 + 题干，配图给首图缩略图', (tester) async {
+    await _seedQuestion(
+      db,
+      id: 'q-7',
+      stem: '求二次函数最小值',
+      subject: 'math',
+      serialNo: 7,
+    );
+    final mediaStore = FakeQuestionMediaStore(database: db)
+      ..seed(
+        questionId: 'q-7',
+        fileName: 'cover.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pump(tester, db, mediaStore: mediaStore);
+
+    expect(find.textContaining('TR-00007'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('没编号的老题：题号位置显示占位而不是空白', (tester) async {
+    await _seedQuestion(db, id: 'q-old', stem: '老题一道');
+
+    await _pump(tester, db);
+
+    expect(find.textContaining(zh.questionSerialUnnumbered), findsOneWidget);
+  });
 }
 
 /// 浅色/英文都无所谓：断言用的都是 zh 词表。
-Future<void> _pump(WidgetTester tester, AppDatabase db) async {
+Future<void> _pump(
+  WidgetTester tester,
+  AppDatabase db, {
+  FakeQuestionMediaStore? mediaStore,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
+        questionMediaStoreProvider.overrideWithValue(
+          mediaStore ?? FakeQuestionMediaStore(database: db),
+        ),
         // 组卷页会读诊断；快层没跑是"未知"，用 notRun 而不是空 map。
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => LibraryDiagnosis.notRun,
@@ -135,6 +174,7 @@ Future<void> _seedQuestion(
   required String stem,
   String subject = '',
   String sourceLevel = 'gaokao',
+  int? serialNo,
 }) {
   return db.into(db.questions).insert(
         QuestionsCompanion.insert(
@@ -144,6 +184,7 @@ Future<void> _seedQuestion(
           updatedAt: _ts,
           subjectKey: Value(subject),
           sourceLevel: Value(sourceLevel),
+          serialNo: Value(serialNo),
         ),
       );
 }

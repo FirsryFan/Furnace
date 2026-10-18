@@ -2994,6 +2994,57 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get questionIntakeDropHint =>
+      'You can also drag photos here (WeChat chat images work too)';
+
+  @override
+  String get questionIntakeDropActive => 'Release to add the photos';
+
+  @override
+  String get questionIntakeDropBusy =>
+      'Still importing the previous photos; try again in a moment';
+
+  @override
+  String questionIntakeDropSkippedNonImage(int count) {
+    return 'Skipped $count non-image file(s)';
+  }
+
+  @override
+  String questionIntakeDropDuplicates(int count) {
+    return 'Ignored $count duplicate file(s)';
+  }
+
+  @override
+  String questionIntakeDropUnreadable(int count) {
+    return 'Could not read $count file(s)';
+  }
+
+  @override
+  String get questionSerialUnnumbered => 'TR-unassigned';
+
+  @override
+  String get questionSerialCopyTooltip => 'Copy the question number';
+
+  @override
+  String questionSerialCopied(String label) {
+    return 'Copied $label';
+  }
+
+  @override
+  String get questionDetailImagesSection => 'Question images';
+
+  @override
+  String questionImageCount(int count) {
+    return '$count image(s)';
+  }
+
+  @override
+  String get questionImageOpenTooltip => 'Open at full size';
+
+  @override
+  String get questionImageLoadFailed => 'This image could not be loaded';
+
+  @override
   String get questionIntakePhotoPending => 'Images waiting';
 
   @override

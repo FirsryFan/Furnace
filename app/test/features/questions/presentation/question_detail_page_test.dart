@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
@@ -27,12 +28,14 @@ import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
+import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../support/picked_file_fakes.dart';
+import 'support/question_media_fakes.dart';
 
 const String _stem = '已知 x^2-5x+6=0，求两根之和。';
 const String _chainSummary = '先把系数看清楚，再用韦达定理，最后回代检验。';
@@ -358,6 +361,111 @@ void main() {
     expect(after.year, isNull, reason: '写错就是没写进去');
     expect(after.sourceLevel, 'unknown');
   });
+
+  testWidgets('题号：详情页显示 TR-00001，点一下复制到剪贴板', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, 'TR-00001');
+
+    await tester.tap(find.text('TR-00001'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final copies = calls
+        .where((call) => call.method == 'Clipboard.setData')
+        .toList(growable: false);
+    expect(copies, hasLength(1));
+    expect(
+      (copies.single.arguments as Map<Object?, Object?>)['text'],
+      'TR-00001',
+    );
+    expect(find.text(_zh.questionSerialCopied('TR-00001')), findsOneWidget);
+  });
+
+  testWidgets('配图：详情页有缩略图，点开是可缩放的大图', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'page-1.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    await _waitForText(tester, _zh.questionDetailImagesSection);
+    await _waitForType(tester, Image);
+
+    expect(find.text(_zh.questionImageCount(1)), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+
+    await tester.tap(find.byType(Image));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('没有配图：配图区块整个不出现，不留空相框', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.text(_zh.questionDetailImagesSection), findsNothing);
+    expect(find.byType(Image), findsNothing);
+  });
+
+  testWidgets('配图读不出来：给一个坏图标记，不崩', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database);
+    final image = mediaStore.seed(
+      questionId: question.id,
+      fileName: 'lost.png',
+      bytes: tinyPngBytes,
+    );
+    mediaStore.removeBytes(image);
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    await _waitForText(tester, _zh.questionImageCount(1));
+
+    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -431,6 +539,7 @@ Future<void> _pumpDetail(
   AppDatabase database,
   String questionId, {
   required ModelAdapter? adapter,
+  FakeQuestionMediaStore? mediaStore,
 }) async {
   _bigSurface(tester);
   await tester.pumpWidget(
@@ -438,6 +547,9 @@ Future<void> _pumpDetail(
       overrides: <Override>[
         appDatabaseProvider.overrideWithValue(database),
         modelAdapterProvider.overrideWithValue(adapter),
+        questionMediaStoreProvider.overrideWithValue(
+          mediaStore ?? FakeQuestionMediaStore(database: database),
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
@@ -463,6 +575,8 @@ Future<void> _pumpIntake(
         handwritingIntakeStoreProvider.overrideWithValue(
           FakeIntakeStore(database: database, root: root),
         ),
+        questionMediaStoreProvider
+            .overrideWithValue(FakeQuestionMediaStore(database: database)),
       ],
       child: const MaterialApp(
         locale: Locale('zh'),

@@ -2872,6 +2872,55 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get questionIntakeDropHint => '也可以把照片直接拖到这里（支持微信聊天记录里的图片）';
+
+  @override
+  String get questionIntakeDropActive => '松手即可添加照片';
+
+  @override
+  String get questionIntakeDropBusy => '上一批照片还在处理，稍等一下再拖';
+
+  @override
+  String questionIntakeDropSkippedNonImage(int count) {
+    return '已跳过 $count 个非图片文件';
+  }
+
+  @override
+  String questionIntakeDropDuplicates(int count) {
+    return '已忽略 $count 个重复文件';
+  }
+
+  @override
+  String questionIntakeDropUnreadable(int count) {
+    return '有 $count 个文件读不出来';
+  }
+
+  @override
+  String get questionSerialUnnumbered => 'TR-未编号';
+
+  @override
+  String get questionSerialCopyTooltip => '复制题号';
+
+  @override
+  String questionSerialCopied(String label) {
+    return '已复制 $label';
+  }
+
+  @override
+  String get questionDetailImagesSection => '题目配图';
+
+  @override
+  String questionImageCount(int count) {
+    return '共 $count 张';
+  }
+
+  @override
+  String get questionImageOpenTooltip => '点开看大图';
+
+  @override
+  String get questionImageLoadFailed => '这张图读不出来';
+
+  @override
   String get questionIntakePhotoPending => '待整理图片';
 
   @override

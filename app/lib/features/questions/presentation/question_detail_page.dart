@@ -35,6 +35,7 @@ import '../application/question_reasoning_service.dart';
 import '../application/similar_question_provider.dart';
 import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
+import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
@@ -133,6 +134,8 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               detail: detail,
               onEditSource: () => _editSource(detail.question),
             ),
+          if (detail != null)
+            QuestionImagesSection(questionId: widget.questionId),
           const SizedBox(height: 16),
           _ReasoningSection(
             questionId: widget.questionId,
@@ -190,6 +193,8 @@ class _QuestionCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                QuestionSerialBadge(serialNo: question.serialNo),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     meta.join(' · '),

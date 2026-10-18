@@ -5164,6 +5164,84 @@ abstract class AppLocalizations {
   /// **'Picking images failed: {error}'**
   String questionIntakePhotoFailed(String error);
 
+  /// No description provided for @questionIntakeDropHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also drag photos here (WeChat chat images work too)'**
+  String get questionIntakeDropHint;
+
+  /// No description provided for @questionIntakeDropActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to add the photos'**
+  String get questionIntakeDropActive;
+
+  /// No description provided for @questionIntakeDropBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Still importing the previous photos; try again in a moment'**
+  String get questionIntakeDropBusy;
+
+  /// No description provided for @questionIntakeDropSkippedNonImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped {count} non-image file(s)'**
+  String questionIntakeDropSkippedNonImage(int count);
+
+  /// No description provided for @questionIntakeDropDuplicates.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignored {count} duplicate file(s)'**
+  String questionIntakeDropDuplicates(int count);
+
+  /// No description provided for @questionIntakeDropUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read {count} file(s)'**
+  String questionIntakeDropUnreadable(int count);
+
+  /// No description provided for @questionSerialUnnumbered.
+  ///
+  /// In en, this message translates to:
+  /// **'TR-unassigned'**
+  String get questionSerialUnnumbered;
+
+  /// No description provided for @questionSerialCopyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the question number'**
+  String get questionSerialCopyTooltip;
+
+  /// No description provided for @questionSerialCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied {label}'**
+  String questionSerialCopied(String label);
+
+  /// No description provided for @questionDetailImagesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Question images'**
+  String get questionDetailImagesSection;
+
+  /// No description provided for @questionImageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} image(s)'**
+  String questionImageCount(int count);
+
+  /// No description provided for @questionImageOpenTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open at full size'**
+  String get questionImageOpenTooltip;
+
+  /// No description provided for @questionImageLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image could not be loaded'**
+  String get questionImageLoadFailed;
+
   /// No description provided for @questionIntakePhotoPending.
   ///
   /// In en, this message translates to:

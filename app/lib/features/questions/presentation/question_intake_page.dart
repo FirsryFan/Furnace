@@ -19,6 +19,7 @@ library;
 
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,8 +30,10 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../data/handwriting_intake_store.dart';
+import 'drop_intake_reader.dart';
 import 'question_detail_page.dart';
 import 'question_intake_providers.dart';
+import 'question_media_view.dart';
 import 'handwriting_queue_page.dart';
 import 'question_paper_page.dart';
 import 'question_vocab_labels.dart';
@@ -42,6 +45,12 @@ const String _typeSingleChoice = 'single_choice';
 const String _originManual = 'manual';
 const String _originAiScan = 'ai_scan';
 const String _stateRaw = 'raw';
+
+/// 照片正被拖到页面上的高亮层（测试按这个 key 找）。
+///
+/// 拖拽时整页都是投放区（DropTarget 包着 ListView），高亮层让用户知道「松手就会
+/// 收」；它盖在列表上但不该挡住控件，所以套了 IgnorePointer。
+const Key dropIntakeHighlightKey = Key('drop-intake-highlight');
 
 /// 收题页。
 class QuestionIntakePage extends ConsumerStatefulWidget {
@@ -72,6 +81,9 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
   String _sourceLevel = 'unknown';
   bool _saving = false;
   bool _picking = false;
+
+  /// 有文件正拖在本页上方：画高亮层。
+  bool _dragOver = false;
 
   @override
   void dispose() {
@@ -235,6 +247,97 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     }
   }
 
+  /// 把 OS 拖进来的文件收成待整理照片（微信聊天记录里的图也走这条路）。
+  ///
+  /// 文件识别、同批去重、跳过计数都在纯函数 `drop_intake_filter.dart` 里，这里只负
+  /// 责：读字节（`DropIntakeReader`）→ 逐张落盘 + 建 raw 题 → 汇总一句提示。非图片 /
+  /// 读不出来的文件只跳过并计数，不让整批失败。
+  Future<void> _handleDrop(DropDoneDetails details) async {
+    // 详情页 / 队列页盖住本页时，DropTarget 的监听未必已经撤掉：别在背后收图。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      return;
+    }
+    if (_picking) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.questionIntakeDropBusy)),
+      );
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _picking = true);
+    try {
+      final batch =
+          await ref.read(dropIntakeReaderProvider).examine(details.files);
+      if (batch.plan.consideredCount == 0) {
+        return;
+      }
+      final store = ref.read(handwritingIntakeStoreProvider);
+      final repository = ref.read(questionRepositoryProvider);
+      var saved = 0;
+      var failed = 0;
+      String? firstError;
+      for (final decision in batch.plan.images) {
+        final bytes = batch.bytes[decision.path];
+        if (bytes == null) {
+          // 分类说是图片，但整读失败：算读不出来，继续看下一张。
+          failed++;
+          continue;
+        }
+        try {
+          final image = await store.save(DropIntakePlatformFile(
+            name: decision.fileName,
+            path: decision.path,
+            bytes: bytes,
+          ));
+          await repository.ingest(QuestionDraft(
+            stem: l10n.questionIntakePhotoStem(image.fileName),
+            origin: _originAiScan,
+            state: _stateRaw,
+          ));
+          saved++;
+        } catch (error) {
+          // 单张失败不整批回滚：其余照片照样收。
+          failed++;
+          firstError ??= '$error';
+        }
+      }
+      if (!mounted) {
+        return;
+      }
+      // 一次拖拽可能既有收下的、也有跳过的：合成一条多行提示，比排队四条 SnackBar
+      // 好读，也不依赖 SnackBar 的排队顺序。
+      final unreadable = batch.plan.unreadable.length + failed;
+      final skipped = batch.plan.nonImageCount + batch.plan.directoryCount;
+      final lines = <String>[
+        if (saved > 0) l10n.questionIntakePhotoAdded(saved),
+        if (skipped > 0) l10n.questionIntakeDropSkippedNonImage(skipped),
+        if (batch.plan.duplicateCount > 0)
+          l10n.questionIntakeDropDuplicates(batch.plan.duplicateCount),
+        if (unreadable > 0) l10n.questionIntakeDropUnreadable(unreadable),
+      ];
+      if (lines.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(lines.join('\n'))));
+      }
+      if (firstError != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.questionIntakePhotoFailed(firstError))),
+        );
+      }
+    } catch (error) {
+      // 读盘 / 落盘整体炸了（目录被删、磁盘满）也要说出来，不能看起来像没反应。
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.questionIntakePhotoFailed('$error'))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _picking = false);
+      }
+    }
+  }
+
   Future<void> _removePhoto(PendingHandwritingImage image) async {
     await ref.read(handwritingIntakeStoreProvider).delete(image);
   }
@@ -318,59 +421,109 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            l10n.questionIntakeSubtitle,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 12),
-          _IntakeFormCard(
-            stemController: _stemController,
-            answerController: _answerController,
-            solutionController: _solutionController,
-            sourceLabelController: _sourceLabelController,
-            yearController: _yearController,
-            regionController: _regionController,
-            difficultyController: _difficultyController,
-            options: _options,
-            subjectKey: _subjectKey,
-            questionType: _questionType,
-            sourceLevel: _sourceLevel,
-            isChoice: _isChoice,
-            saving: _saving,
-            onSubjectChanged: (value) => setState(() => _subjectKey = value),
-            onQuestionTypeChanged: (value) =>
-                setState(() => _questionType = value),
-            onSourceLevelChanged: (value) =>
-                setState(() => _sourceLevel = value),
-            onOptionChanged: () => setState(() {}),
-            onAddOption: _addOption,
-            onRemoveOption: _removeOption,
-            onSubmit: _submit,
-          ),
-          const SizedBox(height: 12),
-          _HandwritingCard(
-            picking: _picking,
-            onPick: _pickImages,
-            onRemove: _removePhoto,
-            onOrganize: _openQueue,
-          ),
-          const SizedBox(height: 12),
-          _IntakeLibrarySection(
-            searchController: _stemSearchController,
-            onSearchChanged: (value) => _setFilter(
-              (current) => current.copyWith(stemContains: value),
+      body: DropTarget(
+        // 本页被详情页 / 队列页盖住时别再响应拖拽（desktop_drop 注释的建议）。
+        enable: !_picking && (ModalRoute.of(context)?.isCurrent ?? true),
+        onDragEntered: (_) => setState(() => _dragOver = true),
+        onDragExited: (_) => setState(() => _dragOver = false),
+        onDragDone: (details) {
+          setState(() => _dragOver = false);
+          unawaited(_handleDrop(details));
+        },
+        child: Stack(
+          children: [
+            ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  l10n.questionIntakeSubtitle,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                _IntakeFormCard(
+                  stemController: _stemController,
+                  answerController: _answerController,
+                  solutionController: _solutionController,
+                  sourceLabelController: _sourceLabelController,
+                  yearController: _yearController,
+                  regionController: _regionController,
+                  difficultyController: _difficultyController,
+                  options: _options,
+                  subjectKey: _subjectKey,
+                  questionType: _questionType,
+                  sourceLevel: _sourceLevel,
+                  isChoice: _isChoice,
+                  saving: _saving,
+                  onSubjectChanged: (value) =>
+                      setState(() => _subjectKey = value),
+                  onQuestionTypeChanged: (value) =>
+                      setState(() => _questionType = value),
+                  onSourceLevelChanged: (value) =>
+                      setState(() => _sourceLevel = value),
+                  onOptionChanged: () => setState(() {}),
+                  onAddOption: _addOption,
+                  onRemoveOption: _removeOption,
+                  onSubmit: _submit,
+                ),
+                const SizedBox(height: 12),
+                _HandwritingCard(
+                  picking: _picking,
+                  onPick: _pickImages,
+                  onRemove: _removePhoto,
+                  onOrganize: _openQueue,
+                ),
+                const SizedBox(height: 12),
+                _IntakeLibrarySection(
+                  searchController: _stemSearchController,
+                  onSearchChanged: (value) => _setFilter(
+                    (current) => current.copyWith(stemContains: value),
+                  ),
+                  onClearSearch: () {
+                    _stemSearchController.clear();
+                    _setFilter((current) => current.copyWith(clearStem: true));
+                  },
+                  onOpen: _openDetail,
+                  onDelete: _confirmDelete,
+                ),
+              ],
             ),
-            onClearSearch: () {
-              _stemSearchController.clear();
-              _setFilter((current) => current.copyWith(clearStem: true));
-            },
-            onOpen: _openDetail,
-            onDelete: _confirmDelete,
-          ),
-        ],
+            if (_dragOver)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    key: dropIntakeHighlightKey,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.08),
+                    alignment: Alignment.center,
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.file_download_outlined,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              l10n.questionIntakeDropActive,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -755,6 +908,11 @@ class _HandwritingCard extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.questionIntakeDropHint,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             pending.when(
               loading: () => const Padding(
                 padding: EdgeInsets.only(top: 12),
@@ -928,10 +1086,20 @@ class _IntakeLibrarySection extends ConsumerWidget {
                         for (final entry in entries)
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              entry.question.stem,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            title: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                QuestionCoverThumbnail(
+                                  questionId: entry.question.id,
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    entry.question.stem,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                             subtitle: Text(
                               _librarySubtitle(l10n, entry),
@@ -963,6 +1131,7 @@ class _IntakeLibrarySection extends ConsumerWidget {
     QuestionListEntry entry,
   ) {
     final parts = <String>[];
+    parts.add(questionSerialText(l10n, entry.question.serialNo));
     final subject = entry.question.subjectKey;
     if (subject.isNotEmpty) {
       parts.add(CapabilityAction.subjectLabelsZh[subject] ?? subject);

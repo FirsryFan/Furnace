@@ -1399,6 +1399,54 @@
       }
     }
   },
+  "questionIntakeDropHint": "You can also drag photos here (WeChat chat images work too)",
+  "questionIntakeDropActive": "Release to add the photos",
+  "questionIntakeDropBusy": "Still importing the previous photos; try again in a moment",
+  "questionIntakeDropSkippedNonImage": "Skipped {count} non-image file(s)",
+  "@questionIntakeDropSkippedNonImage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDropDuplicates": "Ignored {count} duplicate file(s)",
+  "@questionIntakeDropDuplicates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionIntakeDropUnreadable": "Could not read {count} file(s)",
+  "@questionIntakeDropUnreadable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionSerialUnnumbered": "TR-unassigned",
+  "questionSerialCopyTooltip": "Copy the question number",
+  "questionSerialCopied": "Copied {label}",
+  "@questionSerialCopied": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailImagesSection": "Question images",
+  "questionImageCount": "{count} image(s)",
+  "@questionImageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionImageOpenTooltip": "Open at full size",
+  "questionImageLoadFailed": "This image could not be loaded",
   "questionIntakePhotoPending": "Images waiting",
   "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into stems.",
   "questionIntakePhotoSummary": "{mime} · .{extension}",
