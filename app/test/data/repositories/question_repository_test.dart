@@ -312,4 +312,47 @@ void main() {
     expect(third.question.serialNo, 2);
     expect(second.question.serialNo, 2);
   });
+
+  test('按题号检索：findBySerialNo 精确命中，0、负数与不存在的号返回 null', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '按号识别一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '按号识别二'));
+
+    final found = await repo.findBySerialNo(2);
+    expect(found, isNotNull);
+    expect(found!.id, second.question.id);
+    expect(found.stem, '按号识别二');
+    expect((await repo.findBySerialNo(1))!.id, first.question.id);
+
+    // 号从 1 开始（v24 题号规则），0 与负数不做注定查不到的查询。
+    expect(await repo.findBySerialNo(0), isNull);
+    expect(await repo.findBySerialNo(-1), isNull);
+    expect(await repo.findBySerialNo(999), isNull);
+  });
+
+  test('search(serialNos:) 按组过滤；空集没有命中；null 不过滤', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '过滤题一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '过滤题二'));
+    final third = await repo.ingest(const QuestionDraft(stem: '过滤题三'));
+
+    final picked = await repo.search(serialNos: <int>{1, 3});
+    expect(picked.map((q) => q.serialNo).toSet(), <int>{1, 3});
+    expect(
+      picked.map((q) => q.id).toSet(),
+      <String>{first.question.id, third.question.id},
+    );
+
+    // 空集与 tagIds 空集同一语义：用户明确要一组号，而这组号是空的。
+    expect(await repo.search(serialNos: <int>{}), isEmpty);
+
+    final all = await repo.search(serialNos: null);
+    expect(all, hasLength(3));
+    expect(all.map((q) => q.serialNo).toSet(), <int>{1, 2, 3});
+
+    // 与题干过滤相与（组内还要匹配题干）。
+    final both = await repo.search(
+      serialNos: <int>{1, 2},
+      stemContains: '过滤题二',
+    );
+    expect(both.single.id, second.question.id);
+  });
 }

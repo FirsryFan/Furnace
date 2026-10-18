@@ -399,6 +399,13 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<double> goalBeta = GeneratedColumn<double>(
       'goal_beta', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _capabilityActionOverlayJsonMeta =
+      const VerificationMeta('capabilityActionOverlayJson');
+  @override
+  late final GeneratedColumn<String> capabilityActionOverlayJson =
+      GeneratedColumn<String>(
+          'capability_action_overlay_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -429,6 +436,7 @@ class $LocalSettingsTable extends LocalSettings
         rhythmHintsEnabled,
         goalMechanismEnabled,
         goalBeta,
+        capabilityActionOverlayJson,
         createdAt,
         updatedAt
       ];
@@ -521,6 +529,13 @@ class $LocalSettingsTable extends LocalSettings
       context.handle(_goalBetaMeta,
           goalBeta.isAcceptableOrUnknown(data['goal_beta']!, _goalBetaMeta));
     }
+    if (data.containsKey('capability_action_overlay_json')) {
+      context.handle(
+          _capabilityActionOverlayJsonMeta,
+          capabilityActionOverlayJson.isAcceptableOrUnknown(
+              data['capability_action_overlay_json']!,
+              _capabilityActionOverlayJsonMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -575,6 +590,9 @@ class $LocalSettingsTable extends LocalSettings
           DriftSqlType.bool, data['${effectivePrefix}goal_mechanism_enabled']),
       goalBeta: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}goal_beta']),
+      capabilityActionOverlayJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}capability_action_overlay_json']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -667,6 +685,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// NULL 读作转录表里的值（今天 0.3，`calibrated: false`，即未标定的占位值）。
   /// 用户能调的范围由内核的参数表给（`FastParamSpec.min/max`），页面不另编一套。
   final double? goalBeta;
+
+  /// v25: 用户自定义能力动作（`CapabilityActionOverlay` 的 JSON 原文）。
+  ///
+  /// NULL / 空串 / 解析失败都读作空 overlay：推理链路退回内置种子词表，与这一列
+  /// 存在之前的行为逐字节相同。坏 JSON 不抛错、不阻塞任何一次解题——词表是锦上
+  /// 添花的东西，不能让它挡住主流程（见 `capability_action_overlay.dart` 的宽容
+  /// 解析与 `docs/REASONING_LAYER_DESIGN.md` §4）。
+  final String? capabilityActionOverlayJson;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -686,6 +712,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.rhythmHintsEnabled,
       this.goalMechanismEnabled,
       this.goalBeta,
+      this.capabilityActionOverlayJson,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -731,6 +758,10 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || goalBeta != null) {
       map['goal_beta'] = Variable<double>(goalBeta);
+    }
+    if (!nullToAbsent || capabilityActionOverlayJson != null) {
+      map['capability_action_overlay_json'] =
+          Variable<String>(capabilityActionOverlayJson);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -779,6 +810,10 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       goalBeta: goalBeta == null && nullToAbsent
           ? const Value.absent()
           : Value(goalBeta),
+      capabilityActionOverlayJson:
+          capabilityActionOverlayJson == null && nullToAbsent
+              ? const Value.absent()
+              : Value(capabilityActionOverlayJson),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -807,6 +842,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       goalMechanismEnabled:
           serializer.fromJson<bool?>(json['goalMechanismEnabled']),
       goalBeta: serializer.fromJson<double?>(json['goalBeta']),
+      capabilityActionOverlayJson:
+          serializer.fromJson<String?>(json['capabilityActionOverlayJson']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -832,6 +869,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'rhythmHintsEnabled': serializer.toJson<bool?>(rhythmHintsEnabled),
       'goalMechanismEnabled': serializer.toJson<bool?>(goalMechanismEnabled),
       'goalBeta': serializer.toJson<double?>(goalBeta),
+      'capabilityActionOverlayJson':
+          serializer.toJson<String?>(capabilityActionOverlayJson),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -854,6 +893,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<bool?> rhythmHintsEnabled = const Value.absent(),
           Value<bool?> goalMechanismEnabled = const Value.absent(),
           Value<double?> goalBeta = const Value.absent(),
+          Value<String?> capabilityActionOverlayJson = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -883,6 +923,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
             ? goalMechanismEnabled.value
             : this.goalMechanismEnabled,
         goalBeta: goalBeta.present ? goalBeta.value : this.goalBeta,
+        capabilityActionOverlayJson: capabilityActionOverlayJson.present
+            ? capabilityActionOverlayJson.value
+            : this.capabilityActionOverlayJson,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -917,6 +960,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ? data.goalMechanismEnabled.value
           : this.goalMechanismEnabled,
       goalBeta: data.goalBeta.present ? data.goalBeta.value : this.goalBeta,
+      capabilityActionOverlayJson: data.capabilityActionOverlayJson.present
+          ? data.capabilityActionOverlayJson.value
+          : this.capabilityActionOverlayJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -941,6 +987,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('goalBeta: $goalBeta, ')
+          ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -965,6 +1012,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       rhythmHintsEnabled,
       goalMechanismEnabled,
       goalBeta,
+      capabilityActionOverlayJson,
       createdAt,
       updatedAt);
   @override
@@ -987,6 +1035,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.rhythmHintsEnabled == this.rhythmHintsEnabled &&
           other.goalMechanismEnabled == this.goalMechanismEnabled &&
           other.goalBeta == this.goalBeta &&
+          other.capabilityActionOverlayJson ==
+              this.capabilityActionOverlayJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1008,6 +1058,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<bool?> rhythmHintsEnabled;
   final Value<bool?> goalMechanismEnabled;
   final Value<double?> goalBeta;
+  final Value<String?> capabilityActionOverlayJson;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -1027,6 +1078,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.rhythmHintsEnabled = const Value.absent(),
     this.goalMechanismEnabled = const Value.absent(),
     this.goalBeta = const Value.absent(),
+    this.capabilityActionOverlayJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1047,6 +1099,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.rhythmHintsEnabled = const Value.absent(),
     this.goalMechanismEnabled = const Value.absent(),
     this.goalBeta = const Value.absent(),
+    this.capabilityActionOverlayJson = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1068,6 +1121,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<bool>? rhythmHintsEnabled,
     Expression<bool>? goalMechanismEnabled,
     Expression<double>? goalBeta,
+    Expression<String>? capabilityActionOverlayJson,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1091,6 +1145,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (goalMechanismEnabled != null)
         'goal_mechanism_enabled': goalMechanismEnabled,
       if (goalBeta != null) 'goal_beta': goalBeta,
+      if (capabilityActionOverlayJson != null)
+        'capability_action_overlay_json': capabilityActionOverlayJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1113,6 +1169,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<bool?>? rhythmHintsEnabled,
       Value<bool?>? goalMechanismEnabled,
       Value<double?>? goalBeta,
+      Value<String?>? capabilityActionOverlayJson,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1133,6 +1190,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       rhythmHintsEnabled: rhythmHintsEnabled ?? this.rhythmHintsEnabled,
       goalMechanismEnabled: goalMechanismEnabled ?? this.goalMechanismEnabled,
       goalBeta: goalBeta ?? this.goalBeta,
+      capabilityActionOverlayJson:
+          capabilityActionOverlayJson ?? this.capabilityActionOverlayJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1191,6 +1250,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (goalBeta.present) {
       map['goal_beta'] = Variable<double>(goalBeta.value);
     }
+    if (capabilityActionOverlayJson.present) {
+      map['capability_action_overlay_json'] =
+          Variable<String>(capabilityActionOverlayJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1219,6 +1282,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('goalBeta: $goalBeta, ')
+          ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -22909,6 +22973,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> rhythmHintsEnabled,
   Value<bool?> goalMechanismEnabled,
   Value<double?> goalBeta,
+  Value<String?> capabilityActionOverlayJson,
   required int createdAt,
   required int updatedAt,
 });
@@ -22930,6 +22995,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> rhythmHintsEnabled,
   Value<bool?> goalMechanismEnabled,
   Value<double?> goalBeta,
+  Value<String?> capabilityActionOverlayJson,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -22994,6 +23060,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<double> get goalBeta => $composableBuilder(
       column: $table.goalBeta, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get capabilityActionOverlayJson => $composableBuilder(
+      column: $table.capabilityActionOverlayJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -23065,6 +23135,10 @@ class $$LocalSettingsTableOrderingComposer
   ColumnOrderings<double> get goalBeta => $composableBuilder(
       column: $table.goalBeta, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get capabilityActionOverlayJson => $composableBuilder(
+      column: $table.capabilityActionOverlayJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -23129,6 +23203,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<double> get goalBeta =>
       $composableBuilder(column: $table.goalBeta, builder: (column) => column);
 
+  GeneratedColumn<String> get capabilityActionOverlayJson => $composableBuilder(
+      column: $table.capabilityActionOverlayJson, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -23178,6 +23255,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
             Value<bool?> goalMechanismEnabled = const Value.absent(),
             Value<double?> goalBeta = const Value.absent(),
+            Value<String?> capabilityActionOverlayJson = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -23198,6 +23276,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             rhythmHintsEnabled: rhythmHintsEnabled,
             goalMechanismEnabled: goalMechanismEnabled,
             goalBeta: goalBeta,
+            capabilityActionOverlayJson: capabilityActionOverlayJson,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -23218,6 +23297,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
             Value<bool?> goalMechanismEnabled = const Value.absent(),
             Value<double?> goalBeta = const Value.absent(),
+            Value<String?> capabilityActionOverlayJson = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -23238,6 +23318,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             rhythmHintsEnabled: rhythmHintsEnabled,
             goalMechanismEnabled: goalMechanismEnabled,
             goalBeta: goalBeta,
+            capabilityActionOverlayJson: capabilityActionOverlayJson,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

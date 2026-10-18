@@ -152,5 +152,26 @@ class SettingsRepository {
     ));
   }
 
+  /// Persists the user's capability-action overlay JSON (schema v25).
+  ///
+  /// `null` is a real value here, not "absent": it means "the user never
+  /// changed the vocabulary", which reads as the shipped built-in catalog.
+  /// The editor's "back to shipped" path therefore writes null instead of an
+  /// empty JSON object - storing `{"version":1,"customActions":[]}` would
+  /// freeze an empty choice into the row and lose the distinction between
+  /// "never touched" and "deliberately emptied" (the same rule as
+  /// [updateGoalBeta] and the switches above, see
+  /// `docs/REASONING_LAYER_DESIGN.md` §4).
+  ///
+  /// Callers must ensure the single settings row exists first
+  /// ([ensureSettings]); this method only updates row `id = 1`.
+  Future<void> updateCapabilityActionOverlayJson(String? json) async {
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      capabilityActionOverlayJson: Value(json),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

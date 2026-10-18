@@ -18,9 +18,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/reasoning/capability_action_overlay.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../ai/application/ai_providers.dart';
 import '../../ai/domain/model_adapter.dart';
+import 'capability_vocabulary_store.dart';
 
 /// 一次解题拆链的结果。
 class ReasoningRunResult {
@@ -100,9 +102,11 @@ class QuestionReasoningService {
     required QuestionRepository repository,
     required ModelAdapter? adapter,
     List<ModelToolSpec> tools = const <ModelToolSpec>[],
+    Future<CapabilityActionOverlay> Function()? overlayLoader,
   })  : _repository = repository,
         _adapter = adapter,
-        _tools = tools;
+        _tools = tools,
+        _overlayLoader = overlayLoader;
 
   final QuestionRepository _repository;
 
@@ -112,6 +116,27 @@ class QuestionReasoningService {
   /// 传给模型的工具表。这一步不需要工具，默认空表——给空表比给一份用不上的
   /// 工具表更诚实：模型不会以为自己能做别的事。
   final List<ModelToolSpec> _tools;
+
+  /// 每次解题前取一次用户词表；`null` 表示只用内置种子词表。
+  ///
+  /// 做成"取词表的函数"而不是在构造时读死，是因为词表可以随用户编辑而变化：
+  /// 管道是长活对象（provider 只建一次），每次跑都该吃当前词表。词表读失败
+  /// （数据库被换、JSON 坏到连宽容解析都救不回）**不**让解题失败——退回内置
+  /// 词表，因为词表只影响"模型把动作归到哪一类"，不该挡住解出这道题。
+  final Future<CapabilityActionOverlay> Function()? _overlayLoader;
+
+  /// 取当前词表；没有 loader 或读取失败都退回空 overlay（= 内置词表）。
+  Future<CapabilityActionOverlay> _loadOverlay() async {
+    final loader = _overlayLoader;
+    if (loader == null) {
+      return CapabilityActionOverlay.empty;
+    }
+    try {
+      return await loader();
+    } on Object {
+      return CapabilityActionOverlay.empty;
+    }
+  }
 
   /// 解一道题并（默认）把思维链落库。
   ///
@@ -136,6 +161,10 @@ class QuestionReasoningService {
     }
 
     final options = await _repository.optionsOf(questionId);
+    // 当前生效词表：内置种子 + 用户自定义动作。提示词与解析器必须吃同一份
+    // （`docs/REASONING_LAYER_DESIGN.md` §4），否则会出现"提示词允许、解析器
+    // 不认识"的错位。取词表失败退回内置词表，不让它挡住解题。
+    final catalog = (await _loadOverlay()).catalog;
     final messages = solveThenDecompose(
       questionStem: question.stem,
       options: <String>[
@@ -145,6 +174,7 @@ class QuestionReasoningService {
               : '${option.label}. ${option.content}',
       ],
       subjectKey: question.subjectKey,
+      capabilityCatalog: catalog.actions,
     );
 
     final buffer = StringBuffer();
@@ -175,7 +205,7 @@ class QuestionReasoningService {
 
     final ParsedChain chain;
     try {
-      chain = parseChain(raw);
+      chain = parseChain(raw, lookup: catalog.byKey);
     } on ReasoningParseException catch (error) {
       return ReasoningRunResult.parseFailure(questionId, error, raw);
     }
@@ -220,7 +250,13 @@ class QuestionReasoningService {
 
 /// App 默认管道：仓储来自数据库，适配器来自 AI 层（可能是 `null`）。
 final questionReasoningServiceProvider =
-    Provider<QuestionReasoningService>((ref) => QuestionReasoningService(
-          repository: ref.watch(questionRepositoryProvider),
-          adapter: ref.watch(modelAdapterProvider),
-        ));
+    Provider<QuestionReasoningService>((ref) {
+  // 词表从 `local_settings`（schema v25）读；保存词表后 invalidate
+  // [capabilityActionOverlayProvider]，下一次解题即生效。
+  final vocabulary = ref.watch(capabilityVocabularyStoreProvider);
+  return QuestionReasoningService(
+    repository: ref.watch(questionRepositoryProvider),
+    adapter: ref.watch(modelAdapterProvider),
+    overlayLoader: vocabulary.load,
+  );
+});

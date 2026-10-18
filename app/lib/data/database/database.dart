@@ -105,9 +105,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
-  /// [_upgradeV23ToV24].
+  /// [_upgradeV23ToV24] / [_upgradeV24ToV25].
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration {
@@ -185,6 +185,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 24) {
           await _upgradeV23ToV24();
         }
+        if (from < 25) {
+          await _upgradeV24ToV25();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -235,6 +238,10 @@ class AppDatabase extends _$AppDatabase {
         // v22: 第一个滑块（目标机制的 `beta_goal`）。同一个失败模式：老文件被盖成
         // v22 却没有这一列时，Drift 跳过 onUpgrade，映射器第一次读设置就抛错。
         localSettings.goalBeta,
+        // v25（轮次一百二十三）：用户自定义能力动作词表的 JSON。同一个失败模式：
+        // 老文件被盖成 v25 却没有这一列时，Drift 跳过 onUpgrade，映射器第一次读
+        // 设置（解题前读词表）就抛错。
+        localSettings.capabilityActionOverlayJson,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -702,6 +709,23 @@ class AppDatabase extends _$AppDatabase {
       await _addColumnIfMissing(m, 'attachments', attachments.sortOrder);
     }
     await backfillQuestionSerialNumbers();
+  }
+
+  /// v24 -> v25：`local_settings.capability_action_overlay_json`（轮次一百二十三）。
+  ///
+  /// 纯新增一列，老行不动。这是能力动作词表的用户扩展层（overlay）第一次落库：
+  /// 列可空、NULL 读作空 overlay（= 内置种子词表），所以升级过来的库解题行为
+  /// **一个字不变**，直到用户在词表编辑界面里加了自己的动作。
+  ///
+  /// 表不存在就跳过：被盖成 v25 的空文件由 `_ensureColumns` 建表自愈，在这里
+  /// 建表会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同一个道理）。
+  Future<void> _upgradeV24ToV25() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.capabilityActionOverlayJson);
   }
 
   Future<void> _upgradeV4ToV5() async {

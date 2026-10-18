@@ -114,6 +114,20 @@ class LocalSettings extends Table {
   /// 用户能调的范围由内核的参数表给（`FastParamSpec.min/max`），页面不另编一套。
   RealColumn get goalBeta => real().nullable()();
 
+  // --- v25: 能力动作词表 overlay（用户自定义动作的持久化，轮次一百二十三）---
+  //
+  // 与上面两列同一个契约：列可空、NULL 读作"用户没改过"，即空 overlay（出厂词表）。
+  // 迁移绝不写默认值 —— 否则今天的空 JSON 会被冻进每一台已有安装，以后想换出厂
+  // 词表或换存储格式就达不到了。
+
+  /// v25: 用户自定义能力动作（`CapabilityActionOverlay` 的 JSON 原文）。
+  ///
+  /// NULL / 空串 / 解析失败都读作空 overlay：推理链路退回内置种子词表，与这一列
+  /// 存在之前的行为逐字节相同。坏 JSON 不抛错、不阻塞任何一次解题——词表是锦上
+  /// 添花的东西，不能让它挡住主流程（见 `capability_action_overlay.dart` 的宽容
+  /// 解析与 `docs/REASONING_LAYER_DESIGN.md` §4）。
+  TextColumn get capabilityActionOverlayJson => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

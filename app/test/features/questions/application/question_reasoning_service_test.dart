@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/domain/services/reasoning/capability_action_overlay.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/question_reasoning_service.dart';
@@ -154,5 +155,90 @@ void main() {
     expect(user.content, contains('求 f(x)=x²-2x+3 在 [0,3] 上的最小值。'));
     expect(user.content, contains('A. 2'));
     expect(user.content, contains('B. 3'));
+  });
+
+  // ---- 能力动作词表 overlay（schema v25，轮次一百二十三） ----
+  //
+  // 词表 overlay 接进管道之后，提示词与解析器必须吃**同一份**合并词表：
+  // 只改提示词不改解析器，模型按提示词交出自定义动作会被判成未知；只改解析
+  // 器不改提示词，模型根本不会用自定义动作。
+  group('能力动作词表 overlay', () {
+    const overlay = CapabilityActionOverlay(
+      customActions: <CustomCapabilityAction>[
+        CustomCapabilityAction(
+          key: 'force_diagram_analysis',
+          labelZh: '受力图分析',
+          descriptionZh: '先画受力图再分析运动',
+          subjectHints: <String>['physics'],
+        ),
+      ],
+    );
+
+    const customReply = '''
+{"summary":"先画受力图",
+ "steps":[
+   {"index":1,"goal":"画受力图","actionType":"force_diagram_analysis",
+    "justification":"先看受力再分析运动","checkMethod":"","stuckRisk":0.2,
+    "knowledgeHints":[]}
+ ]}
+''';
+
+    test('loader 给的自定义动作进提示词，解析器把它标成自定义动作', () async {
+      final id = await seedQuestion();
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer(customReply)]);
+      final service = QuestionReasoningService(
+        repository: repo,
+        adapter: adapter,
+        overlayLoader: () async => overlay,
+      );
+
+      final result = await service.solveAndDecompose(id, modelId: 'test-model');
+      expect(result.ok, isTrue);
+      expect(result.savedSteps, 1);
+
+      final step = result.chain!.steps.single;
+      expect(step.actionType, 'force_diagram_analysis');
+      expect(step.knownAction, isTrue, reason: '合并词表认识它');
+      expect(step.customAction, isTrue, reason: '内置词表不认识它');
+
+      final system = adapter.requests.single.messages.first.content;
+      expect(system, contains('force_diagram_analysis'));
+      expect(system, contains('受力图分析'));
+      expect(system, contains('先画受力图再分析运动'));
+    });
+
+    test('loader 抛异常 → 退回内置词表，解题照常成功', () async {
+      final id = await seedQuestion();
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer(goodReply)]);
+      final service = QuestionReasoningService(
+        repository: repo,
+        adapter: adapter,
+        overlayLoader: () async => throw StateError('数据库坏了'),
+      );
+
+      final result = await service.solveAndDecompose(id);
+      expect(result.ok, isTrue, reason: '词表读失败不该挡住解题');
+      expect(result.savedSteps, 2);
+      expect(result.chain!.steps.first.knownAction, isTrue);
+      expect(result.chain!.steps.first.customAction, isFalse);
+
+      final system = adapter.requests.single.messages.first.content;
+      expect(system, isNot(contains('force_diagram_analysis')));
+    });
+
+    test('loader 返回空词表 → 与不传 loader 行为一致', () async {
+      final id = await seedQuestion();
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer(goodReply)]);
+      final service = QuestionReasoningService(
+        repository: repo,
+        adapter: adapter,
+        overlayLoader: () async => CapabilityActionOverlay.empty,
+      );
+
+      final result = await service.solveAndDecompose(id);
+      expect(result.ok, isTrue);
+      expect(result.chain!.steps.first.knownAction, isTrue);
+      expect(result.chain!.steps.first.customAction, isFalse);
+    });
   });
 }

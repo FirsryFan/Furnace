@@ -261,6 +261,22 @@ class QuestionRepository {
             ..limit(1))
           .getSingleOrNull();
 
+  /// 按人读题号精确查题（schema v24 的 `serial_no`，v25 起支持按号检索）。
+  ///
+  /// 题号是跨学科一个序列（`docs/QUESTION_BANK_DESIGN.md` §11.1），不是主键：
+  /// 跨设备 append 导入可能撞号，所以这里 `limit(1)` 取任意一条而不是报"多条"
+  /// —— 按号搜是给人找题用的，撞号这个代价是编号方案刻意接受的。传 0 / 负数
+  /// 直接返回 null（号从 1 开始），不做一次注定查不到的查询。
+  Future<Question?> findBySerialNo(int serialNo) async {
+    if (serialNo < 1) {
+      return null;
+    }
+    return (_db.select(_db.questions)
+          ..where((t) => t.serialNo.equals(serialNo))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<List<Question>> all({int limit = 200}) => (_db.select(_db.questions)
         ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
         ..limit(limit))
@@ -287,12 +303,16 @@ class QuestionRepository {
   ///
   /// [tagIds] 给的是想要的标签 id 集合（一棵子树的展开交给调用方，仓储不懂标签树）；
   /// 只要题目挂着其中**任意一个**标签就算命中。
+  /// [serialNos] 是题号过滤（schema v25 的按号搜题）：给空集与 [tagIds] 给空集
+  /// 同一语义——用户明确要一组号，而这组号是空的，就没有任何题该命中；给
+  /// `null` 表示不按号过滤。
   /// 排序：来源权重降序 → `aiQuality` 降序（NULL 最后）→ 创建时间降序 → id 升序。
   Future<List<Question>> search({
     String? subjectKey,
     Set<String>? tagIds,
     Set<String>? sourceLevels,
     Set<String>? states,
+    Set<int>? serialNos,
     double? minQuality,
     String? stemContains,
     int limit = 50,
@@ -310,6 +330,12 @@ class QuestionRepository {
     }
     if (minQuality != null) {
       query.where((t) => t.aiQuality.isBiggerOrEqualValue(minQuality));
+    }
+    if (serialNos != null) {
+      if (serialNos.isEmpty) {
+        return const [];
+      }
+      query.where((t) => t.serialNo.isIn(serialNos));
     }
     if (stemContains != null && stemContains.isNotEmpty) {
       final escaped = stemContains

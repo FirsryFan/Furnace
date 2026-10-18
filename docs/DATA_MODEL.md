@@ -568,3 +568,48 @@ v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号�
 删掉最大号后下一题接手）、`app/test/data/package/tfpkg_test.dart`（编号随包走；v23 包没有
 `serial_no` 时导入后补 1、2）。
 
+## 14. v25：能力动作词表 overlay 持久化（轮次一百二十三）
+
+用户要"以后能自己往能力动作词表里加动作，不用等发版"。这一版只加**一列可空偏好**与读写层，
+把轮次一百二十一留在纯逻辑层的 overlay 接到数据库与生产解题管道上。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.capability_action_overlay_json` | TEXT，可空 | 用户自定义动作的 JSON（`CapabilityActionOverlay.toJson` 产物，形如 `{"version":1,"customActions":[...]}`）；**NULL = 用户没改过 = 出厂词表**，与 language / themeMode / goalBeta 同一条可空偏好契约 |
+
+**为什么只存用户条目**：内置 20 个动作跟着代码走，存整张词表会在发版改内置表时把用户库钉死在旧表上；
+存合并结果等于把"内置 + 自定义"的派生数据当事实。合并永远在读取时做
+（`CapabilityActionOverlay.catalog`），提示词渲染与解析器 `lookup` 吃同一个合并对象。
+
+**迁移**：`_upgradeV24ToV25()` 只 `addColumnIfMissing`，**不写默认值**；表不存在时直接返回，
+交给 `_ensureColumns` 自愈（版本号已经是 25 但列被老文件盖掉时补列）。测试锁的事实：真实 v24
+文件升级后 language/themeMode/goalBeta 原样保留、新列 NULL；伪造 v25 缺列文件靠自愈补列后能读写；
+保存后关库重开仍是 v25、不再迁移且值还在（`app/test/data/database/v25_migration_test.dart`）。
+
+**读写层**：`lib/features/questions/application/capability_vocabulary_store.dart`
+
+- `CapabilityVocabularyStore.load()`：设置行不存在 / 列为 NULL / JSON 语法错 / 形状不对
+  一律读作 `CapabilityActionOverlay.empty`（出厂词表），**永不抛异常**——词表只影响动作归类，
+  不该挡住解题或启动；
+- `save(overlay)`：先 `ensureSettings()`（单行表可能还不存在）；`overlay.isEmpty` 时写回
+  **NULL**（回到出厂词表，不留下空壳 JSON），否则写 `jsonEncode(overlay.toJson())`；
+- provider：`capabilityVocabularyStoreProvider`（同步取 store）与
+  `capabilityActionOverlayProvider`（`FutureProvider`，保存后由界面 invalidate 刷新）。
+
+**接进解题管道**：`QuestionReasoningService` 新增可选参数
+`Future<CapabilityActionOverlay> Function()? overlayLoader`（生产 provider 传 `store.load`）；
+每次 `solveAndDecompose` 都重新取一次词表，而不是构造时读死——管道是长活对象，用户改词表后
+下一次解题就该生效。`_loadOverlay()` 失败（loader 抛异常）退回内置词表；拿到 `catalog` 后同时
+用于 `solveThenDecompose(capabilityCatalog: catalog.actions)` 与
+`parseChain(raw, lookup: catalog.byKey)`——两处必须同源，否则出现"提示词允许、解析器不认识"。
+
+**未做**：词表编辑 UI 与 l10n（界面写入口未接，本轮只有纯逻辑编辑层与未知动作发现器由队友
+交付）；跨设备同步词表（overlay 目前只在本机 `local_settings` 里）。
+
+证据：`app/test/data/database/v25_migration_test.dart`（真实 v24 升级 / 伪造 v25 自愈 / 关库重开
+仍在）、`app/test/features/questions/application/capability_vocabulary_store_test.dart`（NULL 与
+坏 JSON 读作空、保存往返、空词表写回 NULL、坏数据可被覆盖、provider invalidate 语义）、
+`app/test/features/questions/application/question_reasoning_service_test.dart`（自定义动作进提示词
+且被解析成 customAction、loader 抛异常退回内置词表、空 overlay 行为不变）、
+`app/test/data/repositories/question_repository_test.dart`（`findBySerialNo` 与
+`search(serialNos:)` 的过滤语义）。
