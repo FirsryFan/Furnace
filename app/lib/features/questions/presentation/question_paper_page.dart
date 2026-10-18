@@ -22,6 +22,7 @@ import '../application/paper_plan_provider.dart';
 import 'paper_docx_export_button.dart';
 import 'paper_domain_quota_view.dart';
 import 'paper_manual_selection_view.dart';
+import 'paper_quality_view.dart';
 import 'paper_subject_quota_view.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
@@ -109,6 +110,9 @@ class QuestionPaperPage extends ConsumerWidget {
           const SizedBox(height: 12),
           const PaperSubjectQuotaSection(),
           const PaperDomainQuotaSection(),
+          const SizedBox(height: 12),
+          // 体检卡只读领域层报告（paper_quality_report.dart），这里只排版。
+          const PaperQualitySection(),
           const SizedBox(height: 8),
           const PaperManualSelectionButton(),
           const PaperManualSelectionSection(),

@@ -3931,6 +3931,51 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get paperQualityTitle => '组卷质量体检';
+
+  @override
+  String paperQualitySummary(
+    int questionCount,
+    int requestedCount,
+    String percent,
+  ) {
+    return '题数 $questionCount / 想要 $requestedCount 道（填充率 $percent）';
+  }
+
+  @override
+  String paperQualityCoverage(String percent) {
+    return '知识点覆盖率 $percent';
+  }
+
+  @override
+  String get paperQualityQuotaUnsatisfied => '保底配额没满足：下面会说明差在哪。';
+
+  @override
+  String get paperQualityClean => '没有命中任何判据';
+
+  @override
+  String paperQualityGroupHeader(String label, int count) {
+    return '$label（$count）';
+  }
+
+  @override
+  String get paperQualityEvidenceToggle => '查看依据';
+
+  @override
+  String get paperQualityEvidenceCollapse => '收起依据';
+
+  @override
+  String get paperQualityEvidenceTitle => '判定依据';
+
+  @override
+  String paperQualityTruncated(int count) {
+    return '还有 $count 条判据被截断';
+  }
+
+  @override
+  String get paperQualityFailed => '体检暂时算不出来';
+
+  @override
   String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
 
   @override

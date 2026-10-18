@@ -21,6 +21,7 @@ import '../../../domain/services/export/omml/omml.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_docx_export.dart';
+import '../application/paper_quality_provider.dart';
 import '../application/question_media_providers.dart';
 
 /// 「导出 Word」按钮的稳定 key（widget test 与键盘/无障碍定位用）。
@@ -246,6 +247,9 @@ class _PaperDocxExportButtonState extends ConsumerState<PaperDocxExportButton> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // 订阅质量报告：只取「已经算好的」那份给导出用（没算完/报错就是 null，
+    // 导出照常、卷末不出现质量节，与旧版一致）。这里不 await，不阻塞导出。
+    ref.watch(paperQualityReportProvider);
     return FilledButton.tonalIcon(
       key: paperDocxExportButtonKey,
       onPressed: _exporting ? null : _export,
@@ -270,11 +274,14 @@ class _PaperDocxExportButtonState extends ConsumerState<PaperDocxExportButton> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _exporting = true);
     try {
+      // 质量报告可能仍在算：只取当前值，不等待（拿不到就按旧行为导出）。
+      final qualityReport = ref.read(paperQualityReportProvider).valueOrNull;
       final result = await buildPaperDocxExport(
         db: ref.read(appDatabaseProvider),
         mediaStore: ref.read(questionMediaStoreProvider),
         plan: widget.plan,
         mathCompiler: compileLatexToOmml,
+        qualityReport: qualityReport,
       );
       final target = await ref.read(paperDocxSaverProvider)(
         dialogTitle: l10n.questionPaperExportDocx,

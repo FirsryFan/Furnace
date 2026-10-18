@@ -585,3 +585,30 @@
 - `flutter test test/features/questions/application --concurrency=1`：**186 例全绿**（本片前 177）。
 - 两个文件 `dart format` 0 changed；scoped `dart analyze lib/features/questions/application
   test/features/questions/application` **No issues found!**。
+
+## 23. 界面接线：组卷页质量体检卡与题目卷导出接质量节（轮次一百二十五，task-46）
+
+§21 的纯逻辑报告与 §22 的 provider 都已经就绪，本节把「卷子哪里不像样」端到用户眼前。
+
+- **质量卡**：`app/lib/features/questions/presentation/paper_quality_view.dart`——`PaperQualitySection`
+  只读 `paperQualityReportProvider`，不自己算判据。loading 时 `SizedBox.shrink`（安静不占高），
+  error 时降级成「体检暂时算不出来」的卡片且不影响组卷，data 时渲染：
+  摘要（题数 / 想要 / 填充率）、知识点覆盖率、`quotaSatisfied` 提醒、判据截断提示、
+  按 错误 → 警告 → 提示 分组（组头带计数）、每条判据 `messageZh` + 可展开 `evidence`；
+  报告没有命中任何判据时写「没有命中任何判据」。页面位置：领域配额区之后、手工名单区之前。
+- **evidence 字段中文化**：40 个已知字段键（题数、学科键、比例、来源档、zone、阈值等）在 Dart
+  `const` map 里翻成中文，比例/学科/来源档/zone 分别格式化；这是有意不走 l10n 的取舍——
+  英文界面下这些字段名仍是中文，与领域层 `messageZh` 中文硬编码同源。
+- **导出接质量节**：`paper_docx_export_button.dart` 用 `watch` 保持订阅、`valueOrNull` 取值（不 await），
+  报告就绪就把 `qualityReport` 传给 `buildPaperDocxExport`，未就绪 / 算错传 `null`（与旧行为逐字节一致）；
+  所以报告没算好时点导出不会卡，只是没有质量节。
+- **l10n**：`paperQuality*` 11 个 key 手改五文件（标题 / 摘要(int,int,String) / 覆盖率 / 保底提醒 / 干净 /
+  分组表头(String,int) / 展开 / 收起 / 依据标题 / 截断(int) / 失败），未跑 gen-l10n。
+- **验收**：`paper_quality_view_test.dart` **12 例**（5 纯逻辑 + 7 widget：loading 安静、error 降级、
+  干净报告、分组顺序、evidence 展开与收起、保底 + 截断、空卷报告也渲染）；
+  `question_paper_page_export_test.dart` **+3 例**（就绪 → 页面有卡且 docx 含「组卷质量」节 /
+  未就绪 → 导出照常且无该节 / 算错 → 页面降级、导出照常）；
+  `flutter test test/features/questions/presentation` → **+232 全绿**（本片前 217）。
+- **未验证**：Word 真机打开带质量节的 docx 的排版与页数、小屏滚动与长 evidence 换行、
+  英文文案母语校对、报告 loading 首帧立刻点导出的真机行为（测试只覆盖挂起 Completer）。
+- 后续可做：质量卡里「一键按建议调整」（例如提高 target_count、放宽学科上限）仍未做——现在只报不改。

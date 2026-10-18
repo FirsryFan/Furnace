@@ -11,8 +11,10 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart' show NativeDatabase;
 import 'package:flutter/material.dart';
@@ -22,11 +24,14 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/domain/services/export/paper_docx.dart';
+import 'package:furnace/domain/services/paper/paper_quality_report.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/paper_docx_export.dart';
+import 'package:furnace/features/questions/application/paper_quality_provider.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/features/questions/presentation/paper_docx_export_button.dart';
+import 'package:furnace/features/questions/presentation/paper_quality_view.dart';
 import 'package:furnace/features/questions/presentation/question_paper_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -252,6 +257,81 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('质量报告就绪：导出的 docx 卷末含「组卷质量」节，页面也摆出体检卡', (tester) async {
+      await _seedQuestion(db,
+          id: 'q1', stem: '求 1+1 的值', answer: '2', solution: '1+1=2');
+      final saver = _FakeSaver();
+      await _pumpPaperPage(
+        tester,
+        db: db,
+        saver: saver,
+        extraOverrides: [
+          paperQualityReportProvider.overrideWith(
+            (ref) async => _qualityReport(),
+          ),
+        ],
+      );
+      await _waitForQuality(tester);
+
+      // 接线：体检卡确实插在组卷页上（不是只存在于单独测试的沙盒里）。
+      expect(find.byKey(paperQualitySectionKey), findsOneWidget);
+
+      await tester.tap(find.byKey(paperDocxExportButtonKey));
+      await _settle(tester);
+
+      expect(saver.calls, 1);
+      final text = _documentText(saver.lastBytes!);
+      expect(text, contains('组卷质量'));
+      expect(text, contains('判据'));
+    });
+
+    testWidgets('质量报告未就绪：导出照常，卷末不带质量节', (tester) async {
+      await _seedQuestion(db,
+          id: 'q1', stem: '求 1+1 的值', answer: '2', solution: '1+1=2');
+      final gate = Completer<PaperQualityReport>();
+      final saver = _FakeSaver();
+      await _pumpPaperPage(
+        tester,
+        db: db,
+        saver: saver,
+        extraOverrides: [
+          paperQualityReportProvider.overrideWith((ref) => gate.future),
+        ],
+      );
+
+      expect(find.byKey(paperQualitySectionKey), findsNothing);
+
+      await tester.tap(find.byKey(paperDocxExportButtonKey));
+      await _settle(tester);
+
+      expect(saver.calls, 1);
+      expect(_documentText(saver.lastBytes!), isNot(contains('组卷质量')));
+    });
+
+    testWidgets('质量报告算错：导出照常，卷末不带质量节', (tester) async {
+      await _seedQuestion(db,
+          id: 'q1', stem: '求 1+1 的值', answer: '2', solution: '1+1=2');
+      final saver = _FakeSaver();
+      await _pumpPaperPage(
+        tester,
+        db: db,
+        saver: saver,
+        extraOverrides: [
+          paperQualityReportProvider.overrideWith(
+            (ref) async => throw StateError('quality boom'),
+          ),
+        ],
+      );
+
+      expect(find.text(zh.paperQualityFailed), findsOneWidget);
+
+      await tester.tap(find.byKey(paperDocxExportButtonKey));
+      await _settle(tester);
+
+      expect(saver.calls, 1);
+      expect(_documentText(saver.lastBytes!), isNot(contains('组卷质量')));
+    });
   });
 }
 
@@ -264,6 +344,7 @@ Future<void> _pumpPaperPage(
   required AppDatabase db,
   required _FakeSaver saver,
   QuestionMediaStore? mediaStore,
+  List<Override> extraOverrides = const [],
 }) async {
   tester.view.physicalSize = const Size(1200, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -281,6 +362,7 @@ Future<void> _pumpPaperPage(
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => LibraryDiagnosis.notRun,
         ),
+        ...extraOverrides,
       ],
       child: const MaterialApp(
         locale: Locale('zh'),
@@ -403,3 +485,52 @@ class _ThrowingMediaStore extends FakeQuestionMediaStore {
     throw StateError('图片目录不可用');
   }
 }
+
+/// 等质量报告算完：导出前按钮必须已经 watch 到 data（否则按旧行为不带质量节）。
+Future<void> _waitForQuality(WidgetTester tester) async {
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(QuestionPaperPage)),
+  );
+  for (var i = 0; i < 100; i++) {
+    final value = container.read(paperQualityReportProvider);
+    if (value is AsyncData<PaperQualityReport>) return;
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  fail('paperQualityReportProvider 一直没算完');
+}
+
+/// 从 docx 字节里取出正文文本（按 Word 的 `<w:t>` 片段拼接）。
+///
+/// 只用来断言「卷末有没有质量节」，不校验 OOXML 结构。
+String _documentText(Uint8List bytes) {
+  final archive = ZipDecoder().decodeBytes(bytes);
+  final file = archive.files.firstWhere(
+    (item) => item.name == 'word/document.xml',
+  );
+  final dynamic content = file.content;
+  final data =
+      content is Uint8List ? content : List<int>.from(content as List<int>);
+  final xml = utf8.decode(data);
+  return RegExp(r'<w:t[^>]*>(.*?)</w:t>', dotAll: true)
+      .allMatches(xml)
+      .map((match) => match.group(1) ?? '')
+      .join();
+}
+
+/// 质量报告替身：内容对导出断言不重要，非 null 就会在卷末多出「组卷质量」节。
+PaperQualityReport _qualityReport() => const PaperQualityReport(
+      questionCount: 1,
+      requestedCount: 1,
+      fillRatio: 1,
+      subjectDistribution: <PaperQualityBucket>[],
+      domainDistribution: <PaperQualityBucket>[],
+      difficultyDistribution: <PaperQualityBucket>[],
+      sourceLevelDistribution: <PaperQualityBucket>[],
+      zoneDistribution: <PaperQualityBucket>[],
+      coveredKnowledgePointCount: 0,
+      knowledgePointCoverage: 0,
+      uncoveredKnowledgePointIds: <String>[],
+      quotaSatisfied: true,
+      warnings: <PaperQualityWarning>[],
+      truncatedWarningCount: 0,
+    );

@@ -4104,6 +4104,53 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get paperQualityTitle => 'Paper quality check';
+
+  @override
+  String paperQualitySummary(
+    int questionCount,
+    int requestedCount,
+    String percent,
+  ) {
+    return '$questionCount of $requestedCount questions ($percent filled)';
+  }
+
+  @override
+  String paperQualityCoverage(String percent) {
+    return 'Knowledge point coverage $percent';
+  }
+
+  @override
+  String get paperQualityQuotaUnsatisfied =>
+      'Minimum quotas are not satisfied; the findings below explain the gap.';
+
+  @override
+  String get paperQualityClean => 'No criteria were triggered.';
+
+  @override
+  String paperQualityGroupHeader(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String get paperQualityEvidenceToggle => 'Show evidence';
+
+  @override
+  String get paperQualityEvidenceCollapse => 'Hide evidence';
+
+  @override
+  String get paperQualityEvidenceTitle => 'Evidence';
+
+  @override
+  String paperQualityTruncated(int count) {
+    return '$count more finding(s) were truncated';
+  }
+
+  @override
+  String get paperQualityFailed =>
+      'The quality check is unavailable right now.';
+
+  @override
   String get tasksDueAtConflictTitle =>
       'That time clashes with a schedule block';
 

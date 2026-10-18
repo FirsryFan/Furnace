@@ -6960,6 +6960,76 @@ abstract class AppLocalizations {
   /// **'$count more not listed'**
   String paperManualSelectionMore(int count);
 
+  /// No description provided for @paperQualityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper quality check'**
+  String get paperQualityTitle;
+
+  /// No description provided for @paperQualitySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'$questionCount of $requestedCount questions ($percent filled)'**
+  String paperQualitySummary(
+    int questionCount,
+    int requestedCount,
+    String percent,
+  );
+
+  /// No description provided for @paperQualityCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge point coverage $percent'**
+  String paperQualityCoverage(String percent);
+
+  /// No description provided for @paperQualityQuotaUnsatisfied.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum quotas are not satisfied; the findings below explain the gap.'**
+  String get paperQualityQuotaUnsatisfied;
+
+  /// No description provided for @paperQualityClean.
+  ///
+  /// In en, this message translates to:
+  /// **'No criteria were triggered.'**
+  String get paperQualityClean;
+
+  /// No description provided for @paperQualityGroupHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'$label ($count)'**
+  String paperQualityGroupHeader(String label, int count);
+
+  /// No description provided for @paperQualityEvidenceToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show evidence'**
+  String get paperQualityEvidenceToggle;
+
+  /// No description provided for @paperQualityEvidenceCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide evidence'**
+  String get paperQualityEvidenceCollapse;
+
+  /// No description provided for @paperQualityEvidenceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence'**
+  String get paperQualityEvidenceTitle;
+
+  /// No description provided for @paperQualityTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'$count more finding(s) were truncated'**
+  String paperQualityTruncated(int count);
+
+  /// No description provided for @paperQualityFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The quality check is unavailable right now.'**
+  String get paperQualityFailed;
+
   /// No description provided for @tasksDueAtConflictTitle.
   ///
   /// In en, this message translates to:

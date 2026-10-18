@@ -376,8 +376,8 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
   的 `buildPaperDocxExport` 新增可选 `PaperQualityReport? qualityReport` 并直接透传给
   `buildPaperDocx`；界面层在导出按钮里从 `paperQualityReportProvider` 取值传入即可（不传则与旧版
   逐字节一致）。新增 2 例透传测试：不传没有质量节、传报告时卷面出现「组卷质量」与「填充率」。
-- **UI 未展示**：组卷页还没有质量报告卡片；页面展示与 l10n 文案由其他接线任务完成
-  （同轮 question-intake 的 task-46 在做；导出按钮传报告也一并由它接）。
+- **UI 已接（轮次一百二十五，task-46）**：组卷页已有质量报告卡片 `PaperQualitySection`，导出按钮也把
+  `paperQualityReportProvider` 的当前值作为 `qualityReport` 传入（详见 §14.6）。
 - **阈值未标定**：报告里的 0.6 集中度、来源单一题数 3、难度极差 1.0 等都还是先验值；
   版面上一页能放多少行（6 行分布 / 3 条判据）也未在 Word 真机标定。
 - 未在 Word 真机上重测带质量节的页数与分页（只做 XML 层 `pageBreakBefore` 计数）。
@@ -395,3 +395,24 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
   （本片前 141）。
 - `dart analyze lib/domain/services/export test/domain/services/export` → **No issues found!**
 - 两个 Dart 文件 `dart format -o none --set-exit-if-changed` → **0 changed**。
+
+### 14.6 界面接线：组卷页质量卡与导出按钮传报告（轮次一百二十五，task-46）
+
+- **质量卡**：`app/lib/features/questions/presentation/paper_quality_view.dart`（约 400 行）
+  的 `PaperQualitySection` 只读 `paperQualityReportProvider`：loading 安静收成零高、error 降级成
+  「体检暂时算不出来」卡片、data 渲染摘要（题数 / 想要 / 填充率、知识点覆盖率、保底配额提醒、截断提示）、
+  按 错误 → 警告 → 提示 分组，每条判据支持展开 `evidence` 键值；无判据时写「没有命中任何判据」。
+  卡片插在组卷页领域配额区之后、手工名单区之前。
+- **导出按钮**：`paper_docx_export_button.dart` 用 `ref.watch(paperQualityReportProvider)` 保持订阅、
+  用 `valueOrNull` 取值（不 await 阻塞导出）：报告就绪则传 `qualityReport`，未就绪 / 算错传 `null`，
+  与旧行为逐字节一致。即用户在报告还没算好时点导出，得到的是没有质量节的卷子，不会卡住。
+- **l10n**：`paperQuality*` 共 11 个 key（标题/摘要/覆盖率/保底提醒/干净/分组表头/展开与收起/依据标题/
+  截断/失败）手改 l10n 五文件（未跑 gen-l10n）。`evidence` 的 40 个字段键在 Dart `const` map 里中文化，
+  **不走 l10n**——英文界面下这些字段名仍是中文，属已知取舍，与领域层 `messageZh` 同口径。
+- **验收**：`paper_quality_view_test.dart` **12 例**（5 纯逻辑 + 7 widget：loading 安静、error 降级、
+  干净报告、分组顺序、evidence 展开收起、保底 + 截断、空卷报告也渲染）；`question_paper_page_export_test.dart`
+  **+3 例**（报告就绪 → 页面有卡且 docx 含「组卷质量」节；报告未就绪 → 导出照常且 docx 无该节；
+  报告算错 → 页面降级、导出照常）；`flutter test test/features/questions/presentation` → **+232 全绿**
+  （本片前 217）。
+- **未验证**：Word 真机打开带质量节的 docx 排版、小屏滚动与长 evidence 换行、英文文案母语校对、
+  报告 loading 首帧立刻点导出的真机行为（测试用挂起 Completer 覆盖）。

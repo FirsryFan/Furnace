@@ -2170,6 +2170,36 @@
   "@paperManualSelectionMore": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "paperQualityTitle": "Paper quality check",
+  "paperQualitySummary": "{questionCount} of {requestedCount} questions ({percent} filled)",
+  "@paperQualitySummary": {
+    "placeholders": {
+      "questionCount": { "type": "int" },
+      "requestedCount": { "type": "int" },
+      "percent": { "type": "String" }
+    }
+  },
+  "paperQualityCoverage": "Knowledge point coverage {percent}",
+  "@paperQualityCoverage": {
+    "placeholders": { "percent": { "type": "String" } }
+  },
+  "paperQualityQuotaUnsatisfied": "Minimum quotas are not satisfied; the findings below explain the gap.",
+  "paperQualityClean": "No criteria were triggered.",
+  "paperQualityGroupHeader": "{label} ({count})",
+  "@paperQualityGroupHeader": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "paperQualityEvidenceToggle": "Show evidence",
+  "paperQualityEvidenceCollapse": "Hide evidence",
+  "paperQualityEvidenceTitle": "Evidence",
+  "paperQualityTruncated": "{count} more finding(s) were truncated",
+  "@paperQualityTruncated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperQualityFailed": "The quality check is unavailable right now.",
   "tasksDueAtConflictTitle": "That time clashes with a schedule block",
   "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
   "tasksDueAtConflictMoveBefore": "Move before it ({moment})",

@@ -2050,6 +2050,36 @@
   "@paperManualSelectionMore": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "paperQualityTitle": "组卷质量体检",
+  "paperQualitySummary": "题数 {questionCount} / 想要 {requestedCount} 道（填充率 {percent}）",
+  "@paperQualitySummary": {
+    "placeholders": {
+      "questionCount": { "type": "int" },
+      "requestedCount": { "type": "int" },
+      "percent": { "type": "String" }
+    }
+  },
+  "paperQualityCoverage": "知识点覆盖率 {percent}",
+  "@paperQualityCoverage": {
+    "placeholders": { "percent": { "type": "String" } }
+  },
+  "paperQualityQuotaUnsatisfied": "保底配额没满足：下面会说明差在哪。",
+  "paperQualityClean": "没有命中任何判据",
+  "paperQualityGroupHeader": "{label}（{count}）",
+  "@paperQualityGroupHeader": {
+    "placeholders": {
+      "label": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "paperQualityEvidenceToggle": "查看依据",
+  "paperQualityEvidenceCollapse": "收起依据",
+  "paperQualityEvidenceTitle": "判定依据",
+  "paperQualityTruncated": "还有 {count} 条判据被截断",
+  "@paperQualityTruncated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperQualityFailed": "体检暂时算不出来",
   "tasksDueAtConflictTitle": "这段时间撞上了日程块",
   "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
   "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",
