@@ -274,3 +274,44 @@
 
 下一轮（轮次一百二十五）在同一对入口上补领域配额透传，然后才是页面控件。
 
+## 16. 接线：领域配额进组卷 provider 与 compose_paper 工具（轮次一百二十五）
+
+§14 的领域配额纯逻辑接进两条真实入口（与 §15 的学科配额接线对称）：组卷页的 spec 状态（provider）
+与 AI 工具 `compose_paper`。
+
+- **provider（`app/lib/features/questions/application/paper_plan_provider.dart`）**：`PaperSpecNotifier`
+  新增 `setDomainQuota(DomainQuota?)`（`null` 走清空分支）、`clearDomainQuota()`、
+  `setDomainMax(String domain, int? max)`、`setDomainMin(String domain, int? min)`。`max` 为 `null` 或
+  负数表示删掉该域上限、`min` 为 `null` 或 `<1` 表示删掉该域保底，其余领域原样保留；空白键忽略；
+  `reset()` 回到 `domainQuota = null`。**空 `DomainQuota`（两张表都空）视同不启用**：内部
+  `_applyDomainQuota` 用 `quota.isEnabled ? quota : null` + `clearDomainQuota`，不留空壳对象。
+  `domainQuota` 随 `PaperSpec` 原样流进 `buildPaperPlan` → `PaperComposer.compose`，装配代码不用改。
+- **工具（`app/lib/features/ai/tools/paper_tools.dart` 的 `ComposePaperTool`）**：`compose_paper` 新增
+  可选参数 `domain_quota`，形如 `{"物理": {"max": 2}, "数学": {"min": 3}}`（领域键 → `{max, min}`，
+  两个值都是非负整数，`max = 0` 表示该域不取，`min > max` 时保底优先）。启用时 `modelResult` 追加
+  `by_domain` / `quota_blocked_by_domain` / `domain_shortfalls` / `domain_quota` 四键（与
+  `PaperPlan.toJson` 同源）；摘要另外用大白话报：领域分布（按数量倒序、同数按领域键）、被领域上限
+  挡下多少道、保底没凑够哪几域差多少（最多列 5 条，区分「可用候选不足」与「题库里这一领域没有可用
+  题」）。**不传或传空对象时输出与接线前一致**（有测试钉住）。
+- **参数校验（全都给可执行的报错，不静默忽略）**：不是对象 / 领域键 trim 后为空 / 值不是对象 /
+  字段不是 `max` 或 `min` / 值不是非负整数 / 领域键 trim 后重复（`" 物理"` 与 `"物理"`）/ 字段
+  trim 后重复，都抛 `ToolArgError` 写明原因；`DomainQuota.resolve()` 抛的 `ArgumentError` 也转成
+  `ToolArgError`。空对象（或只有 `{"物理": {}}`）解析为 `null` = 不启用。
+- **接线口径（领域从哪来）**：领域 = 知识点标签路径的第一段（`物理/力学` → `物理`）。组卷页与工具
+  两条路都从 `PaperCorpus` 取 `knowledgePointTagPaths`（`app/lib/features/questions/application/
+  question_corpus_reader.dart` 里由 `Tags.path` 拼出的**完整**路径），`buildPaperPlan` 原样传给
+  `compose`（`app/lib/features/questions/application/paper_plan_builder.dart` 的 `knowledgePointTagPaths:
+  corpus.knowledgePointTagPaths`）。任务书里提到的 `paperKnowledgePointTagPathsProvider` 在仓库中
+  **不存在**（全库 grep 无匹配）；实际来源是 `paperCorpusProvider` 的 `knowledgePointTagPaths` 字段。
+- **默认关闭、旧输出逐字节不变**：`domainQuota == null` 时不走新分支，旧 `toJson` 十键顺序与
+  `modelResult` 输出不变（provider 与工具测试各有一条回归用例钉住）。
+- **未做**：组卷页还没有领域配额编辑控件与 `byDomain` / 被挡题 / 保底缺口展示；配额数值**未标定**
+  （没有真实数据支撑先给比例）；领域键与学科键是两套命名空间（领域键是中文标签第一段如 `物理`，
+  学科键是 `math` / `physics`），不要混用。
+- 验收：`paper_plan_provider_test.dart` 14 → **20 例**（setter 语义与清空 / 空表视同不启用 / 默认
+  不启用时四字段为空且 `toJson` 无领域键 / 真卷上限生效 / 保底缺口 / 保底领域无题）；
+  `paper_tools_test.dart` 22 → **30 例**（不传时四键缺席且摘要不提领域 / 上限生效 / 保底缺口 /
+  保底领域无题 / `max = 0` / 空对象 / 形状与重复键报错 / schema 含 `domain_quota`）；两个文件与
+  `test/domain/services/paper`（+122）全绿；`dart analyze lib test` 94 issues / 0 error / 0 warning
+  （92 条基线 + 2 条来自他人未跟踪测试文件的 info；本轮四个文件 `No issues found!`）。
+

@@ -16,6 +16,7 @@ library;
 import '../../../data/database/database.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/paper/domain_quota.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/paper/subject_quota.dart';
 import '../../../domain/services/reasoning/capability_profile.dart';
@@ -45,7 +46,7 @@ class ComposePaperTool extends AiTool {
       '凑不齐时如实列出"缺哪些知识点"（`uncovered_knowledge_point_ids`）让人去收题。'
       '用在你需要"现在该练什么"的时候。**只读**：不写数据、不生成题干、不落库——'
       '它只从库里挑已有的题，挑不出来就说挑不出来，绝不自己编一道题填空。'
-      '这不是随机抽题：它按诊断读数排序，并受学科/来源/每知识点配额约束。'
+      '这不是随机抽题：它按诊断读数排序，并受学科/领域/来源/每知识点配额约束。'
       '默认还会参考"我最该练的动作"（能力动作画像，未标定，可用 '
       '`use_capability_profile: false` 关掉）。';
 
@@ -86,6 +87,25 @@ class ComposePaperTool extends AiTool {
             'description': '可选：按学科配额。学科键 -> {max, min}，整数且 >= 0；'
                 'max = 该科最多几道（max=0 表示这一科一道都不取），min = 至少几道'
                 '（题库不够时如实报缺口）。没列出的学科不限；不给 = 不启用配额。'
+                'min > max 时保底优先。',
+            'additionalProperties': {
+              'type': 'object',
+              'properties': {
+                'max': {'type': 'integer', 'minimum': 0},
+                'min': {'type': 'integer', 'minimum': 0},
+              },
+              'required': <String>[],
+            },
+          },
+          // 领域键是标签路径的第一段（完整 `Tags.path`，如 `物理/力学` 的
+          // 领域是 `物理`）。与 subject_quota 分开传：同一道题可以同时受两个
+          // 配额约束（学科上限先行，领域配额在填充/保底阶段判定）。
+          'domain_quota': {
+            'type': 'object',
+            'description': '可选：按领域配额（领域 = 知识标签路径的第一段，'
+                '如 `物理/力学` 属于 `物理`）。领域键 -> {max, min}，整数且 >= 0；'
+                'max = 该领域最多几道（max=0 表示这一领域一道都不取），min = 至少'
+                '几道（题库不够时如实报缺口）。没列出的领域不限；不给 = 不启用配额。'
                 'min > max 时保底优先。',
             'additionalProperties': {
               'type': 'object',
@@ -188,6 +208,17 @@ class ComposePaperTool extends AiTool {
             ],
           if (plan.subjectQuota != null)
             'subject_quota': plan.subjectQuota!.toJson(),
+          if (plan.domainQuota != null) 'by_domain': plan.byDomain,
+          if (plan.domainQuota != null)
+            'quota_blocked_by_domain': [
+              for (final blocked in plan.quotaBlockedByDomain) blocked.toJson(),
+            ],
+          if (plan.domainQuota != null)
+            'domain_shortfalls': [
+              for (final shortfall in plan.domainShortfalls) shortfall.toJson(),
+            ],
+          if (plan.domainQuota != null)
+            'domain_quota': plan.domainQuota!.toJson(),
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,
           'uncovered_knowledge_points': [
             for (final id in plan.uncoveredKnowledgePointIds)
@@ -271,6 +302,7 @@ class ComposePaperTool extends AiTool {
       targetDifficulty: rawDifficulty,
       minSourceLevel: minSourceLevel,
       subjectQuota: _subjectQuotaOf(args),
+      domainQuota: _domainQuotaOf(args),
     );
   }
 
@@ -331,6 +363,66 @@ class ComposePaperTool extends AiTool {
     return quota;
   }
 
+  /// 解析可选的 `domain_quota` 对象。错形状给出可执行的报错（而不是静默当没给）。
+  ///
+  /// 领域键 = 完整标签路径的第一段（`物理/力学` → `物理`）；与 `subject_quota`
+  /// 相同，空对象视同不启用（返回 null，而不是一个什么都不限的空壳）。
+  DomainQuota? _domainQuotaOf(ToolArgs args) {
+    final raw = args.raw['domain_quota'];
+    if (raw == null) return null;
+    if (raw is! Map) {
+      throw ToolArgError(
+        '`domain_quota` 必须是对象：领域键 -> {max, min}；收到 ${raw.runtimeType}',
+      );
+    }
+    final max = <String, int>{};
+    final min = <String, int>{};
+    final seenDomains = <String>{};
+    for (final entry in raw.entries) {
+      final key = entry.key.toString().trim();
+      if (key.isEmpty) {
+        throw ToolArgError('`domain_quota` 的领域键不能为空白');
+      }
+      if (!seenDomains.add(key)) {
+        throw ToolArgError('`domain_quota` 里有重复领域键 `$key`（trim 后是同一领域）');
+      }
+      final value = entry.value;
+      if (value is! Map) {
+        throw ToolArgError(
+          '`domain_quota.$key` 必须是对象 {max, min}；收到 ${value.runtimeType}',
+        );
+      }
+      final seenFields = <String>{};
+      for (final inner in value.entries) {
+        final field = inner.key.toString().trim();
+        if (field != 'max' && field != 'min') {
+          throw ToolArgError(
+            '`domain_quota.$key` 只认识 max / min，收到 `$field`',
+          );
+        }
+        if (!seenFields.add(field)) {
+          throw ToolArgError(
+            '`domain_quota.$key` 里 `$field` 重复（trim 后同名）',
+          );
+        }
+        final count = _quotaCount(inner.value, '`domain_quota.$key.$field`');
+        if (field == 'max') {
+          max[key] = count;
+        } else {
+          min[key] = count;
+        }
+      }
+    }
+    if (max.isEmpty && min.isEmpty) return null;
+    final quota = DomainQuota(maxPerDomain: max, minPerDomain: min);
+    try {
+      quota.resolve();
+    } on ArgumentError catch (error) {
+      throw ToolArgError('`domain_quota` 配置无效：${error.message}');
+    }
+    return quota;
+  }
+
   int _quotaCount(Object? value, String label) {
     final int? parsed;
     if (value is int) {
@@ -364,7 +456,7 @@ class ComposePaperTool extends AiTool {
     if (plan.items.isEmpty) {
       buffer.write(
         '题库里有 ${corpus.candidates.length} 道题，但按当前条件'
-        '（学科/来源/难度/配额）一道都排不出来。',
+        '（学科/领域/来源/难度/配额）一道都排不出来。',
       );
     } else {
       buffer.write(
@@ -440,6 +532,34 @@ class ComposePaperTool extends AiTool {
                 '（${shortfall.isUncovered ? '题库里这一科没有可用题' : '可用候选 ${shortfall.availableCount} 道'}）',
         ];
         buffer.write(' 学科保底没凑够：${short.join('、')}。');
+      }
+    }
+    final domainQuota = plan.domainQuota;
+    if (domainQuota != null) {
+      final byDomain = plan.byDomain.entries.toList()
+        ..sort((a, b) {
+          final byCount = b.value.compareTo(a.value);
+          return byCount != 0 ? byCount : a.key.compareTo(b.key);
+        });
+      if (byDomain.isNotEmpty) {
+        buffer.write(
+          ' 领域分布：${byDomain.map((e) => '${e.key} ${e.value} 道').join('、')}。',
+        );
+      }
+      if (plan.quotaBlockedByDomain.isNotEmpty) {
+        buffer.write(
+          ' 另有 ${plan.quotaBlockedByDomain.length} 道本来能进卷的题被领域上限挡下'
+          '（提高对应领域的 max 或 `target_count` 才能看到它们）。',
+        );
+      }
+      if (plan.domainShortfalls.isNotEmpty) {
+        final short = [
+          for (final shortfall in plan.domainShortfalls.take(5))
+            '${shortfall.domain} 差 '
+                '${shortfall.minimumCount - shortfall.selectedCount} 道'
+                '（${shortfall.isUncovered ? '题库里这一领域没有可用题' : '可用候选 ${shortfall.availableCount} 道'}）',
+        ];
+        buffer.write(' 领域保底没凑够：${short.join('、')}。');
       }
     }
     if (!diagnosisRan) {

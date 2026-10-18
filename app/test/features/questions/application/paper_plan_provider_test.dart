@@ -10,6 +10,7 @@ import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
+import 'package:furnace/domain/services/paper/domain_quota.dart';
 import 'package:furnace/domain/services/paper/paper_composer.dart';
 import 'package:furnace/domain/services/paper/subject_quota.dart';
 import 'package:furnace/domain/services/scheduling/cognitive_readings.dart';
@@ -496,6 +497,212 @@ void main() {
       expect(plan.quotaBlockedQuestions, hasLength(1));
       expect(plan.quotaBlockedQuestions.single.subjectKey, '数学');
       expect(plan.quotaBlockedQuestions.single.subjectLimit, 1);
+    });
+  });
+
+  group('领域配额（可选；默认不启用时与旧行为一致）', () {
+    /// 领域 = 标签路径的第一段（`物理/力学` → `物理`）。先建顶层领域标签，
+    /// 再给每道题建一个子标签；题目与知识点挂同一个子标签才连得上。
+    Future<String> seedDomainTag(String domain) async =>
+        (await tags.createTag(name: domain)).id;
+
+    Future<void> seedDomainQuestion({
+      required String domainTagId,
+      required String stem,
+      required String pointTitle,
+      required String childTag,
+      String subjectKey = '数学',
+    }) async {
+      final questionId = await seedQuestion(stem: stem, subjectKey: subjectKey);
+      final pointId = await seedKnowledgePoint(pointTitle);
+      final tagId =
+          (await tags.createTag(name: childTag, parentId: domainTagId)).id;
+      await link(tagId: tagId, pointId: pointId, questionId: questionId);
+    }
+
+    test('setter：整表/单域上限/单域保底/清空/空白键/reset 的语义', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      PaperSpec read() => container.read(paperSpecProvider);
+
+      expect(read().domainQuota, isNull, reason: '默认不启用领域配额');
+
+      spec.setDomainQuota(const DomainQuota(
+        maxPerDomain: <String, int>{'物理': 2},
+      ));
+      // DomainQuota 是配置（未解析），上限/保底按原表读。
+      Map<String, int> maxOf() => read().domainQuota!.maxPerDomain;
+      Map<String, int> minOf() => read().domainQuota!.minPerDomain;
+
+      expect(maxOf()['物理'], 2);
+      expect(minOf()['物理'], isNull);
+
+      // 单域保底：同一个表上追加，不把已有上限挤掉。
+      spec.setDomainMin('化学', 3);
+      expect(maxOf()['物理'], 2);
+      expect(minOf()['化学'], 3);
+      expect(minOf()['物理'], isNull);
+
+      spec.setDomainMax('物理', 5);
+      expect(maxOf()['物理'], 5);
+      expect(minOf()['化学'], 3);
+
+      // 删除单域上限：max < 0 或 null 都表示"去掉这个领域"。
+      spec.setDomainMax('物理', null);
+      expect(maxOf()['物理'], isNull);
+      expect(minOf()['化学'], 3);
+
+      // 单域键空白：忽略，不改状态。
+      spec.setDomainMax('   ', 2);
+      expect(maxOf()['化学'], isNull);
+
+      // 空表 = 不启用（回到 null，而不是一个空壳配额）。
+      spec.clearDomainQuota();
+      expect(read().domainQuota, isNull);
+
+      spec.setDomainQuota(const DomainQuota(
+        maxPerDomain: <String, int>{'物理': 1},
+        minPerDomain: <String, int>{'化学': 2},
+      ));
+      expect(read().domainQuota, isNotNull);
+      spec.reset();
+      expect(read().domainQuota, isNull, reason: 'reset 应清掉领域配额');
+    });
+
+    test('空 DomainQuota 视同不启用', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+
+      spec.setDomainQuota(const DomainQuota());
+      expect(container.read(paperSpecProvider).domainQuota, isNull);
+    });
+
+    test('默认不启用：卷子的领域四字段为空，toJson 不出现领域键', () async {
+      final physics = await seedDomainTag('物理');
+      await seedDomainQuestion(
+        domainTagId: physics,
+        stem: '一道物理题。',
+        pointTitle: '动量守恒',
+        childTag: '力学',
+      );
+      await seedQuestion(stem: '一道数学题。');
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.items, hasLength(2));
+      expect(plan.domainQuota, isNull);
+      expect(plan.byDomain, isEmpty);
+      expect(plan.quotaBlockedByDomain, isEmpty);
+      expect(plan.domainShortfalls, isEmpty);
+      expect(plan.uncoveredDomains, isEmpty);
+      final json = plan.toJson();
+      for (final key in <String>[
+        'by_domain',
+        'quota_blocked_by_domain',
+        'domain_shortfalls',
+        'domain_quota',
+      ]) {
+        expect(json.containsKey(key), isFalse, reason: '没启用领域配额不该出现 $key');
+      }
+    });
+
+    test('卷子真的按领域配额排题：上限生效、被挡的候选进清单', () async {
+      final physics = await seedDomainTag('物理');
+      final math = await seedDomainTag('数学');
+      await seedDomainQuestion(
+        domainTagId: physics,
+        stem: '物理题 A',
+        pointTitle: '动量守恒',
+        childTag: '力学',
+        subjectKey: 'physics',
+      );
+      await seedDomainQuestion(
+        domainTagId: physics,
+        stem: '物理题 B',
+        pointTitle: '电磁感应',
+        childTag: '电磁学',
+        subjectKey: 'physics',
+      );
+      await seedDomainQuestion(
+        domainTagId: physics,
+        stem: '物理题 C',
+        pointTitle: '光的折射',
+        childTag: '光学',
+        subjectKey: 'physics',
+      );
+      await seedDomainQuestion(
+        domainTagId: math,
+        stem: '数学题 A',
+        pointTitle: '等差数列',
+        childTag: '数列',
+      );
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setDomainQuota(const DomainQuota(
+        maxPerDomain: <String, int>{'物理': 1},
+      ));
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.domainQuota, isNotNull);
+      expect(plan.byDomain, <String, int>{'物理': 1, '数学': 1});
+      expect(plan.items, hasLength(2));
+      expect(plan.quotaBlockedByDomain, hasLength(2));
+      expect(
+        plan.quotaBlockedByDomain.map((row) => row.domain).toSet(),
+        <String>{'物理'},
+      );
+      expect(plan.quotaBlockedByDomain.first.domainLimit, 1);
+      expect(plan.domainShortfalls, isEmpty);
+      expect(plan.uncoveredDomains, isEmpty);
+    });
+
+    test('保底缺口：物理要 3 道只有 1 道，如实报 selected/available', () async {
+      final physics = await seedDomainTag('物理');
+      await seedDomainQuestion(
+        domainTagId: physics,
+        stem: '唯一一道物理题。',
+        pointTitle: '动量守恒',
+        childTag: '力学',
+        subjectKey: 'physics',
+      );
+      await seedQuestion(stem: '一道数学题。');
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setDomainQuota(const DomainQuota(
+        minPerDomain: <String, int>{'物理': 3},
+      ));
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.domainShortfalls, hasLength(1));
+      final shortfall = plan.domainShortfalls.single;
+      expect(shortfall.domain, '物理');
+      expect(shortfall.minimumCount, 3);
+      expect(shortfall.selectedCount, 1);
+      expect(shortfall.availableCount, 1);
+      expect(shortfall.isUncovered, isFalse);
+      expect(plan.uncoveredDomains, isEmpty);
+    });
+
+    test('保底领域题库里没有题：缺口在收题，不在配额', () async {
+      await seedQuestion(stem: '一道数学题。');
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setDomainQuota(const DomainQuota(
+        minPerDomain: <String, int>{'化学': 1},
+      ));
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.domainShortfalls, hasLength(1));
+      final missing = plan.domainShortfalls.single;
+      expect(missing.domain, '化学');
+      expect(missing.selectedCount, 0);
+      expect(missing.availableCount, 0);
+      expect(missing.isUncovered, isTrue);
+      expect(plan.uncoveredDomains, <String>['化学']);
     });
   });
 }

@@ -678,4 +678,303 @@ void main() {
       expect(schema['description'] as String, contains('max'));
     });
   });
+
+  group('领域配额 domain_quota（可选，不启用时输出不变）', () {
+    /// 领域 = 标签路径第一段。顶层领域标签只建一次；每题一个子标签（同名
+    /// 顶层标签第二次会变 `物理-2`，多题同域必须共用同一个父标签）。
+    Future<String> seedDomainTag(String domain) async =>
+        (await tags.createTag(name: domain)).id;
+
+    Future<void> seedDomainLinked({
+      required String domainTagId,
+      required String childTag,
+      required String stem,
+      required String pointTitle,
+      String subjectKey = 'math',
+    }) async {
+      final questionId = await seedQuestion(stem: stem, subjectKey: subjectKey);
+      final pointId = await seedKnowledgePoint(pointTitle);
+      final tagId =
+          (await tags.createTag(name: childTag, parentId: domainTagId)).id;
+      await tags.addTagToObject(
+        tagId: tagId,
+        objectType: 'knowledge_point',
+        objectId: pointId,
+      );
+      await tags.addTagToObject(
+        tagId: tagId,
+        objectType: 'question',
+        objectId: questionId,
+      );
+    }
+
+    test('不传 domain_quota：payload 里没有领域四键，摘要不提领域', () async {
+      final physics = await seedDomainTag('物理');
+      final math = await seedDomainTag('数学');
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '力学',
+        stem: '一道物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: math,
+        childTag: '数列',
+        stem: '一道数学题。',
+        pointTitle: '等差数列',
+      );
+
+      final result = await tool.run(invoke({'target_count': 5}));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payload['item_count'], 2);
+      for (final key in [
+        'by_domain',
+        'quota_blocked_by_domain',
+        'domain_shortfalls',
+        'domain_quota',
+      ]) {
+        expect(payload.containsKey(key), isFalse, reason: '没启用领域配额不该出现 $key');
+      }
+      expect(result.summary, isNot(contains('领域分布')));
+    });
+
+    test('上限生效：物理最多 1 道，被挡的候选进清单，摘要报领域分布', () async {
+      final physics = await seedDomainTag('物理');
+      final math = await seedDomainTag('数学');
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '力学',
+        stem: '物理题 A',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '电磁学',
+        stem: '物理题 B',
+        pointTitle: '电磁感应',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '光学',
+        stem: '物理题 C',
+        pointTitle: '光的折射',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: math,
+        childTag: '数列',
+        stem: '数学题 A',
+        pointTitle: '等差数列',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'domain_quota': <String, Object?>{
+          '物理': <String, Object?>{'max': 1},
+        },
+      }));
+      final payload = payloadOf(result);
+      final items = itemsOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payload['by_domain'], <String, Object?>{'物理': 1, '数学': 1});
+      expect(items, hasLength(2));
+      final blocked = payload['quota_blocked_by_domain']! as List<Object?>;
+      expect(blocked, hasLength(2));
+      final blockedJson = blocked.first! as Map<String, Object?>;
+      expect(blockedJson['domain'], '物理');
+      expect(blockedJson['domain_limit'], 1);
+      expect(result.summary, contains('领域分布'));
+      expect(result.summary, contains('被领域上限挡下'));
+      final echo = payload['domain_quota']! as Map<String, Object?>;
+      expect(echo['max_per_domain'], <String, Object?>{'物理': 1});
+    });
+
+    test('保底缺口：物理要 3 道只有 1 道，如实报 selected/available', () async {
+      final physics = await seedDomainTag('物理');
+      final math = await seedDomainTag('数学');
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '力学',
+        stem: '唯一一道物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: math,
+        childTag: '数列',
+        stem: '一道数学题。',
+        pointTitle: '等差数列',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'domain_quota': <String, Object?>{
+          '物理': <String, Object?>{'min': 3},
+        },
+      }));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final shortfalls = payload['domain_shortfalls']! as List<Object?>;
+      expect(shortfalls, hasLength(1));
+      final shortfall = shortfalls.single! as Map<String, Object?>;
+      expect(shortfall['domain'], '物理');
+      expect(shortfall['minimum_count'], 3);
+      expect(shortfall['selected_count'], 1);
+      expect(shortfall['available_count'], 1);
+      expect(shortfall['is_uncovered'], isFalse);
+      expect(result.summary, contains('领域保底没凑够'));
+      expect(result.summary, contains('可用候选 1 道'));
+    });
+
+    test('保底领域题库里没有题：缺口在收题，不在配额', () async {
+      final math = await seedDomainTag('数学');
+      await seedDomainLinked(
+        domainTagId: math,
+        childTag: '数列',
+        stem: '一道数学题。',
+        pointTitle: '等差数列',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 3,
+        'domain_quota': <String, Object?>{
+          '化学': <String, Object?>{'min': 1},
+        },
+      }));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final shortfalls = payload['domain_shortfalls']! as List<Object?>;
+      expect(shortfalls, hasLength(1));
+      final missing = shortfalls.single! as Map<String, Object?>;
+      expect(missing['domain'], '化学');
+      expect(missing['is_uncovered'], isTrue);
+      expect(missing['available_count'], 0);
+      expect(result.summary, contains('题库里这一领域没有可用题'));
+    });
+
+    test('max = 0：这一领域一道都不取（不是忽略该键）', () async {
+      final physics = await seedDomainTag('物理');
+      final math = await seedDomainTag('数学');
+      await seedDomainLinked(
+        domainTagId: physics,
+        childTag: '力学',
+        stem: '物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+      await seedDomainLinked(
+        domainTagId: math,
+        childTag: '数列',
+        stem: '数学题。',
+        pointTitle: '等差数列',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'domain_quota': <String, Object?>{
+          '物理': <String, Object?>{'max': 0},
+        },
+      }));
+      final payload = payloadOf(result);
+      final items = itemsOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(items, hasLength(1));
+      final blocked = payload['quota_blocked_by_domain']! as List<Object?>;
+      expect(
+        blocked.map((row) => (row! as Map<String, Object?>)['domain']).toSet(),
+        <String>{'物理'},
+      );
+      expect(payload['by_domain'], <String, Object?>{'数学': 1});
+    });
+
+    test('空对象 = 没启用：不出现领域键', () async {
+      await seedLinked(stem: '一道题。', pointTitle: '数列');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 1,
+        'domain_quota': <String, Object?>{},
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payloadOf(result).containsKey('domain_quota'), isFalse);
+    });
+
+    test('形状不对 → 失败并指出具体哪里错，而不是悄悄忽略', () async {
+      Future<String> errorOf(Object? quota) async {
+        final result = await tool.run(invoke(<String, Object?>{
+          'domain_quota': quota,
+        }));
+        expect(result.ok, isFalse);
+        return result.error!;
+      }
+
+      expect(await errorOf('物理'), contains('必须是对象'));
+
+      expect(
+        await errorOf(<String, Object?>{
+          ' ': <String, Object?>{'max': 1},
+        }),
+        contains('不能为空白'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{'物理': 1}),
+        contains('必须是对象 {max, min}'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          '物理': <String, Object?>{'limit': 1},
+        }),
+        contains('只认识 max / min'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          '物理': <String, Object?>{'max': -1},
+        }),
+        contains('必须是非负整数'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          ' 物理': <String, Object?>{'max': 1},
+          '物理': <String, Object?>{'max': 2},
+        }),
+        contains('重复领域键'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          '物理': <String, Object?>{'max': '不是数字'},
+        }),
+        contains('必须是非负整数'),
+      );
+    });
+
+    test('schema 里声明了 domain_quota 对象', () {
+      final registry = ToolRegistry.forApp(
+        db: db,
+        tasks: TaskRepository(db),
+        blocks: TimeBlockRepository(db),
+        anki: anki,
+        tags: tags,
+      );
+      final spec = registry.modelSpecs.firstWhere((s) => s.name == tool.name);
+      final properties = spec.parameters['properties']! as Map<String, Object?>;
+      expect(properties.keys, contains('domain_quota'));
+      final schema = properties['domain_quota']! as Map<String, Object?>;
+      expect(schema['type'], 'object');
+      expect(schema['description'] as String, contains('第一段'));
+    });
+  });
 }

@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
+import '../../../domain/services/paper/domain_quota.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/paper/subject_quota.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
@@ -78,6 +79,10 @@ final paperSpecProvider =
 
 /// 组卷要求的可变状态。`PaperSpec` 是纯值对象（无 `copyWith`），所以每次改动都
 /// 显式重建：可空字段要能"清空"，光靠 `null` 分不清"没改"和"设成 null"。
+///
+/// 学科配额与领域配额也在这里维护（`setSubjectQuota` / `setDomainQuota` 一组
+/// 方法）：两张配额表都空时存成 `null`，不让状态里出现"看起来配过、实际什么
+/// 都不限"的空壳。
 class PaperSpecNotifier extends Notifier<PaperSpec> {
   @override
   PaperSpec build() => const PaperSpec(targetCount: 10);
@@ -195,6 +200,59 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
         clearSubjectQuota: !quota.isEnabled);
   }
 
+  /// 整张领域配额表（null = 不启用）。配置本身由 [DomainQuota] 校验。
+  ///
+  /// 领域键是标签路径（完整 `Tags.path`，如 `物理/力学`）的第一段，即
+  /// `物理`；与学科配额一样，两张表都空时存成 null，不留下空壳配额。
+  void setDomainQuota(DomainQuota? quota) {
+    if (quota == null) {
+      _update(clearDomainQuota: true);
+    } else {
+      _applyDomainQuota(quota);
+    }
+  }
+
+  /// 清空领域配额（回到"不限领域题量"）。
+  void clearDomainQuota() => _update(clearDomainQuota: true);
+
+  /// 某领域最多几道；null 或负数 = 去掉这个领域的上限。
+  void setDomainMax(String domain, int? max) {
+    final key = domain.trim();
+    if (key.isEmpty) return;
+    final current = state.domainQuota ?? const DomainQuota();
+    final nextMax = <String, int>{...current.maxPerDomain};
+    if (max == null || max < 0) {
+      nextMax.remove(key);
+    } else {
+      nextMax[key] = max;
+    }
+    _applyDomainQuota(
+      DomainQuota(maxPerDomain: nextMax, minPerDomain: current.minPerDomain),
+    );
+  }
+
+  /// 某领域至少几道；null 或 <1 = 去掉这个领域的保底。
+  void setDomainMin(String domain, int? min) {
+    final key = domain.trim();
+    if (key.isEmpty) return;
+    final current = state.domainQuota ?? const DomainQuota();
+    final nextMin = <String, int>{...current.minPerDomain};
+    if (min == null || min < 1) {
+      nextMin.remove(key);
+    } else {
+      nextMin[key] = min;
+    }
+    _applyDomainQuota(
+      DomainQuota(maxPerDomain: current.maxPerDomain, minPerDomain: nextMin),
+    );
+  }
+
+  void _applyDomainQuota(DomainQuota quota) {
+    _update(
+        domainQuota: quota.isEnabled ? quota : null,
+        clearDomainQuota: !quota.isEnabled);
+  }
+
   void _update({
     int? targetCount,
     Set<String>? subjectKeys,
@@ -207,6 +265,8 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
     bool? preferCapabilityActions,
     SubjectQuota? subjectQuota,
     bool clearSubjectQuota = false,
+    DomainQuota? domainQuota,
+    bool clearDomainQuota = false,
   }) {
     final current = state;
     state = PaperSpec(
@@ -225,6 +285,8 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
           preferCapabilityActions ?? current.preferCapabilityActions,
       subjectQuota:
           clearSubjectQuota ? null : (subjectQuota ?? current.subjectQuota),
+      domainQuota:
+          clearDomainQuota ? null : (domainQuota ?? current.domainQuota),
     );
   }
 }
