@@ -262,3 +262,47 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 拖拽出来的临时文件）后销账；本节 11.1 / 11.2 是新增的两片，验收门禁同 §10：`dart analyze`
 0 error / 0 warning、相关单测 + 全量测试绿、docs 同步、Lead 统一提交。
 
+## 12. 导入导出：题目卷 → Word（.docx）（轮次一百二十二）
+
+用户指令（m00726）：「docx 文档的构建和组卷网的链接可以借鉴 dsh skill」；此前 m00340 的
+「导入导出要能简单生成 Word/docx」是本片目标。设计细节见 `docs/DOCX_EXPORT_DESIGN.md`，这里只记口径：
+
+- 纯 Dart、离线、不调模型：`domain/services/export/docx_writer.dart`（OOXML 构造 + `archive` 打包）、
+  `paper_docx.dart`（`PaperPlan` + 题目素材 → 卷面）、`features/questions/application/paper_docx_export.dart`
+  （读库 + 读配图字节 + 文件名/页脚）。借鉴 `paper-composer` 的页面几何（A4、左 1.2cm/右 4.0cm 批注栏/
+  上下 1.8cm）、字号字体、页码域页脚、图片等比缩放、OMML 原生公式、**真测分页**六条。
+- 卷面 = 标题 + 每题「`n.  TR-00001` + 学科/来源/zone/知识点 + 题干 + 选项 + 配图」+ 卷末「参考答案与解析」
+  （第一个附录标题才另起一页）+ 缺口两节 + 「导出提示」（缺题/空题干/缺答案/缺解析/跳图/公式失败）。
+- 公式：行内 `$...$` 用注入的 `compileLatexToOmml` 转 Word 原生公式；编译失败保留 LaTeX 原文并计数。
+- 图片：只 `wp:inline`（随文不浮动），栏宽 62%/页高 22% 双上限、最多放大 1.5 倍；WEBP/HEIC 不支持就报跳过。
+- 验收：新测试 +158（含 omml 层、docx_writer、paper_docx、image_size、应用层装配）；探针样张 3 题/35 段/
+  2 图/29 公式/0 失败；Word 16.0 真开 → 2 页、546 字、29 个 OMath、PDF 205,630 字节（附录分页修复前 4 页）。
+- UI（task-10，question-intake 交付）：组卷页复制按钮旁新增「导出 Word」按钮
+  （`paper_docx_export_button.dart`，key `paper-export-docx`），`FilePicker.saveFile` 另存为，
+  成功/空卷/失败 SnackBar，有告警时弹「导出提示」明细（缺题/跳图/公式失败等，每类最多列 3 条）；
+  空卷面也能导出（只有标题与缺口），复制按钮同时禁用。真机另存为对话框**未手测**（未验证）。
+  英文界面下 docx 内部标签仍是域层默认中文——刻意不扩 25+ l10n key，记为已知限制。
+- 未做：PDF 直出、表格/浮动图/页眉/多栏、WPS/LibreOffice 兼容未验证、docx 内部标签国际化。
+
+## 13. 组卷网链接（找同类题的入口，轮次一百二十二）
+
+设计规则、编码证据与已知局限见 `docs/ZUJUAN_LINKS_DESIGN.md`。口径：
+
+- 纯逻辑：`domain/services/zujuan/zujuan_link.dart`（URL）与 `zujuan_keywords.dart`（检索词候选），
+  移植 `zujuan-source-standards` skill 的 `bridge.mjs` / `keywords.mjs` / `extract.mjs` / `paper.mjs`。
+- 文本搜题：`https://zujuan.xkw.com/quessearch?keyword=<base64>&intent=question&b=0&urlSource=0`；
+  keyword 必须先 UTF-8 base64（标准、非 URL-safe）再百分号编码；`intent` 必须 `question`。
+- 详情页 `/<bankId>q<id>.html`、试卷页 `/<bankId>p<id>.html`；缺 id 或非纯数字返回 `null`，不猜。
+- 检索词：剔除公式/图片/〔标记〕、保留拉丁字母数字、标点分隔、长度 4–28、按内容词密度排序，默认 ≤8 条；
+  领域词表只有生物学科（原样移植的已知局限）。
+- 学科提醒：站点按 bankId cookie 过滤，学科不对会静默 0 条——UI 文案必须提示用户先切学科。
+- 验收：`flutter test test/domain/services/zujuan` → +25 通过（编码与 skill CLI 逐条一致、候选规则、确定性）。
+- UI（task-11，question-intake 交付）：题目详情页题面/配图下方「去组卷网搜这道题」入口
+  （`question_zujuan_search.dart`，key `question-zujuan-search`），候选空则零高度；底部表只显示前 5 条，
+  每条「复制检索词 / 打开搜索页」，表头常驻「先切学科」提示；打开搜索页 = 复制 URL（不新增 url_launcher）。
+  验收：`flutter test test/features/questions/presentation` → +133 通过（详情页 22 例含剪贴板断言）。
+  真机剪贴板与浏览器粘贴**未手测**（未验证）。
+- 未做：题库无 bankId/questionId/sourceUrl 字段，详情/试卷链接暂用不上；候选质量受"领域词表只有生物"限制；
+  没有"我是否已在组卷网找到这道题"的记录。
+
+
