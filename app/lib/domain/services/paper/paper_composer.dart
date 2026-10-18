@@ -197,6 +197,8 @@ class PaperSpec {
     this.minSourceLevel,
     this.subjectQuota,
     this.domainQuota,
+    this.manualIncludeQuestionIds,
+    this.manualExcludeQuestionIds,
     this.preferCapabilityActions = true,
   });
 
@@ -231,6 +233,31 @@ class PaperSpec {
   /// `PaperPlan.quotaBlockedByDomain`；没凑够保底的领域记进
   /// `PaperPlan.domainShortfalls`。
   final DomainQuota? domainQuota;
+
+  /// 手工**必收**的题目 id；`null` = 不启用（历史行为逐字节不变）。
+  ///
+  /// 非 null（含空集）即视为启用：空集只代表"没有必收题"，与 `null` 的区别是
+  /// `PaperPlan.toJson` 会多出手工相关四键（输出契约，测试钉住）。
+  ///
+  /// 语义（与 [manualExcludeQuestionIds] 同时看）：
+  /// * **排除优先**：同一 id 同时出现在必收与排除里时，排除生效；它记进
+  ///   [PaperPlan.manualConflictQuestionIds]，不算进卷、也不算缺失；
+  /// * 必收题在保底与填充**之前**入选，不受知识点上限、学科上限、领域上限
+  ///   （以及 [subjectKeys] / [minSourceLevel] 过滤）限制——用户点名就要；
+  /// * 只受 [targetCount] 硬上限：装不下时按 id 字典序取前若干个，其余记进
+  ///   [PaperPlan.manualSkippedQuestionIds]；
+  /// * 候选池里根本没有这个 id 时记进 [PaperPlan.manualMissingQuestionIds]；
+  /// * 必收题仍走正常打分（`PaperItem` 的 zone / need / score 照算），并计入
+  ///   [PaperPlan.bySubject] / [PaperPlan.byDomain] 与各配额计数（占用该科/该域的
+  ///   名额，保底不会为它重复补题）。
+  final Set<String>? manualIncludeQuestionIds;
+
+  /// 手工**排除**的题目 id；`null` = 不启用（历史行为逐字节不变）。
+  ///
+  /// 排除优先级最高：候选池里这些题在**任何阶段**都不选（保底、填充也不选），
+  /// 并从 `candidateCount` 里去掉。与 [manualIncludeQuestionIds] 冲突时排除生效，
+  /// 冲突 id 记进 [PaperPlan.manualConflictQuestionIds]。
+  final Set<String>? manualExcludeQuestionIds;
 
   /// 组卷时要不要参考"我最该练的动作"（能力动作画像，未标定）。
   ///
@@ -326,6 +353,11 @@ class PaperPlan {
     this.quotaBlockedByDomain = const [],
     this.domainShortfalls = const [],
     this.domainQuota,
+    this.manualSelectionEnabled = false,
+    this.manualIncludedCount = 0,
+    this.manualMissingQuestionIds = const [],
+    this.manualSkippedQuestionIds = const [],
+    this.manualConflictQuestionIds = const [],
   });
 
   /// 选中的题（**贪心选择顺序**，与每知识点配额有关，不是单纯的分数降序）。
@@ -385,6 +417,24 @@ class PaperPlan {
   /// 这次组卷实际生效的领域配额（已归一化：trim/排序/保底优先）；`null` = 没启用。
   final DomainQuotaResolved? domainQuota;
 
+  /// 是否启用了手工指定/排除（`PaperSpec.manualIncludeQuestionIds` 或
+  /// `manualExcludeQuestionIds` 任一非 null；空集也算启用）。
+  ///
+  /// 只有 `true` 时 `toJson` 才追加手工相关四键；`false`（默认）时旧输出逐字节不变。
+  final bool manualSelectionEnabled;
+
+  /// 实际进卷的手工必收题数（不含因 [requestedCount] 上限被挤掉的、也不含缺失/冲突）。
+  final int manualIncludedCount;
+
+  /// 要求必收、但候选池里根本没有的题目 id（按 id 字典序；不静默丢）。
+  final List<String> manualMissingQuestionIds;
+
+  /// 要求必收、但被 [requestedCount] 硬上限挤掉的题目 id（按 id 字典序；不静默丢）。
+  final List<String> manualSkippedQuestionIds;
+
+  /// 同时出现在必收与排除里的题目 id（排除生效，未进卷；按 id 字典序）。
+  final List<String> manualConflictQuestionIds;
+
   /// 有保底、但题库里一道候选都没有的学科（缺口在收题，不在配额）。
   List<String> get uncoveredSubjectKeys => [
         for (final shortfall in subjectShortfalls)
@@ -437,6 +487,15 @@ class PaperPlan {
             for (final shortfall in domainShortfalls) shortfall.toJson(),
           ],
         if (domainQuota != null) 'domain_quota': domainQuota!.toJson(),
+        // 手工指定/排除：独立的开关；null 时四键都不出（历史输出逐字节一致）。
+        if (manualSelectionEnabled)
+          'manual_included_count': manualIncludedCount,
+        if (manualSelectionEnabled)
+          'manual_missing_question_ids': manualMissingQuestionIds,
+        if (manualSelectionEnabled)
+          'manual_skipped_question_ids': manualSkippedQuestionIds,
+        if (manualSelectionEnabled)
+          'manual_conflict_question_ids': manualConflictQuestionIds,
       };
 }
 
@@ -468,8 +527,19 @@ class PaperPlan {
 ///     无领域处理、不进领域判定；附加领域只在 PaperPlan.byDomain 里出现；
 /// 12. 未覆盖（`DomainQuotaShortfall.isUncovered`）的领域进
 ///     PaperPlan.uncoveredDomains：缺口在收题，不在配额。
-/// 默认 `subjectQuota == null && domainQuota == null` 时以上分支全不进入
-/// → 输出与历史逐字节一致。
+///
+/// 手工指定/排除（PaperSpec.manualIncludeQuestionIds / manualExcludeQuestionIds，默认关闭）：
+/// 13. 排除优先：排除 id 在任何阶段都不选，并从 `candidateCount` 里去掉；
+/// 14. 必收题在学科保底/领域保底/填充**之前**入选，不受知识点上限、学科上限、
+///     领域上限（以及 `subjectKeys` / `minSourceLevel` 过滤）限制，只受
+///     `targetCount` 硬上限；装不下的按 id 字典序记进
+///     PaperPlan.manualSkippedQuestionIds，不静默丢；
+/// 15. 候选池里没有的必收 id 记进 PaperPlan.manualMissingQuestionIds；与排除
+///     冲突的 id 记进 PaperPlan.manualConflictQuestionIds（排除生效）；
+/// 16. 必收题仍走正常打分，并计入 PaperPlan.bySubject / byDomain 与各配额计数
+///     （占该科/该域名额，保底不会为它重复补题）。
+/// 默认 `subjectQuota == null && domainQuota == null` 且手工两集合都为 `null` 时
+/// 以上分支全不进入 → 输出与历史逐字节一致。
 abstract final class PaperComposer {
   static PaperPlan compose({
     required List<PaperCandidate> candidates,
@@ -492,9 +562,15 @@ abstract final class PaperComposer {
         .take(kPreferredActionLimit)
         .toList();
 
+    // 手工指定/排除（默认 null：enabled=false，下面两个分支都不改变历史行为）。
+    final manual = _ManualSelection.resolve(spec);
+
     final usable = [
       for (final candidate in candidates)
-        if (_passesFilters(candidate, spec)) candidate,
+        if (!manual.excludeIdSet.contains(candidate.questionId.trim()) &&
+            (_passesFilters(candidate, spec) ||
+                manual.includeIdSet.contains(candidate.questionId.trim())))
+          candidate,
     ];
 
     final scored = [
@@ -571,6 +647,33 @@ abstract final class PaperComposer {
       }
     }
 
+    // 手工必收：排除优先；必收在保底/填充之前入选，只受 targetCount 硬上限。
+    final manualMissing = <String>[];
+    final manualSkipped = <String>[];
+    var manualIncludedCount = 0;
+    if (manual.enabled) {
+      // scored 已按同一 tie-break 排序：同一 id 多候选时取最优的那条（确定性）。
+      final scoredById = <String, _Scored>{};
+      for (final entry in scored) {
+        scoredById.putIfAbsent(entry.candidate.questionId.trim(), () => entry);
+      }
+      for (final id in manual.includeIds) {
+        // 与排除冲突：排除生效，冲突已记进 manual.conflicts，不算缺失/挤掉。
+        if (manual.excludeIdSet.contains(id)) continue;
+        final entry = scoredById[id];
+        if (entry == null) {
+          manualMissing.add(id);
+          continue;
+        }
+        if (picked.length >= spec.targetCount) {
+          manualSkipped.add(id);
+          continue;
+        }
+        pick(entry);
+        manualIncludedCount++;
+      }
+    }
+
     if (quota != null) {
       // 保底阶段：学科键字典序，逐科按分数序补到下限（受知识点上限/targetCount 约束）。
       final minimumSubjects = quota.minPerSubject.keys.toList()..sort();
@@ -619,8 +722,10 @@ abstract final class PaperComposer {
 
     for (final entry in scored) {
       if (picked.length >= spec.targetCount) break;
-      // 只有启用配额时才按 id 去重（关闭时保持历史行为逐字节不变）。
-      if ((quota != null || domainQuota != null) &&
+      // 只有启用配额或手工必收时才按 id 去重（都关闭时保持历史行为逐字节不变）。
+      if ((quota != null ||
+              domainQuota != null ||
+              manual.includeIdSet.isNotEmpty) &&
           pickedIds.contains(entry.candidate.questionId)) {
         continue;
       }
@@ -804,6 +909,11 @@ abstract final class PaperComposer {
       quotaBlockedByDomain: List.unmodifiable(domainBlocked),
       domainShortfalls: List.unmodifiable(domainShortfalls),
       domainQuota: domainQuota,
+      manualSelectionEnabled: manual.enabled,
+      manualIncludedCount: manualIncludedCount,
+      manualMissingQuestionIds: List.unmodifiable(manualMissing),
+      manualSkippedQuestionIds: List.unmodifiable(manualSkipped),
+      manualConflictQuestionIds: List.unmodifiable(manual.conflicts),
     );
   }
 
@@ -1004,4 +1114,56 @@ class _Scored {
   final double difficultyFit;
   final double score;
   final List<String> matchedPreferredActions;
+}
+
+/// `PaperSpec` 里的手工指定/排除，归一化之后的样子。
+///
+/// 归一化口径：id 先 `trim`、丢掉空串、去重；必收顺序与冲突列表按 id 字典序，
+/// 保证 `Set` 输入顺序不同也得到同一份卷子。排除集合只做成员判断。
+/// `enabled` = 两个集合里任一非 `null`（空集也算启用：输出契约需要如实表达
+/// "用户开了这个开关但没点名"，与 `null` 的"没开"区分）。
+class _ManualSelection {
+  const _ManualSelection({
+    required this.enabled,
+    required this.includeIds,
+    required this.includeIdSet,
+    required this.excludeIdSet,
+    required this.conflicts,
+  });
+
+  factory _ManualSelection.resolve(PaperSpec spec) {
+    final rawInclude = spec.manualIncludeQuestionIds;
+    final rawExclude = spec.manualExcludeQuestionIds;
+    final includeIdSet = _cleanIds(rawInclude);
+    final excludeIdSet = _cleanIds(rawExclude);
+    final includeIds = includeIdSet.toList()..sort();
+    final conflicts = includeIdSet.intersection(excludeIdSet).toList()..sort();
+    return _ManualSelection(
+      enabled: rawInclude != null || rawExclude != null,
+      includeIds: List.unmodifiable(includeIds),
+      includeIdSet: Set.unmodifiable(includeIdSet),
+      excludeIdSet: Set.unmodifiable(excludeIdSet),
+      conflicts: List.unmodifiable(conflicts),
+    );
+  }
+
+  final bool enabled;
+
+  /// 排好序的必收 id：`targetCount` 装不下时按这个顺序取前若干个。
+  final List<String> includeIds;
+  final Set<String> includeIdSet;
+  final Set<String> excludeIdSet;
+
+  /// 同时出现在必收与排除里的 id（排除生效）。
+  final List<String> conflicts;
+
+  static Set<String> _cleanIds(Set<String>? ids) {
+    if (ids == null) return const <String>{};
+    final cleaned = <String>{};
+    for (final id in ids) {
+      final trimmed = id.trim();
+      if (trimmed.isNotEmpty) cleaned.add(trimmed);
+    }
+    return cleaned;
+  }
 }

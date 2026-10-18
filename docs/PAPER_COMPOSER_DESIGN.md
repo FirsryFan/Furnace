@@ -343,3 +343,45 @@
   自己改的文件。
 - **未做 / 风险**：真机未手测（数字输入法是否拦截负号/小数点、聚焦与滚动）；配额区未做折叠，
   学科很多时行数线性增长未压测；en 文案未母语校对；领域配额 UI 不在本节（排队中）。
+
+## 18. 组卷手工指定 / 排除题目（轮次一百二十六）
+
+- **需求**：组卷时允许按题目 id 手工「必收」或「排除」若干题。纯逻辑（`app/lib/domain/services/
+  paper/paper_composer.dart`），不连 DB、不碰 UI；默认关闭时输出与历史完全一致。
+- **API（`paper_composer.dart` 当前行号）**：
+  - `PaperSpec.manualIncludeQuestionIds`（构造 :200、字段 :253）与 `manualExcludeQuestionIds`
+    （构造 :201、字段 :260）都是 `Set<String>?`：**null = 不启用**，非 null（**含空集**）= 启用。
+  - `PaperPlan.manualSelectionEnabled`（:356 / :424）、`manualIncludedCount`（:357 / :427）、
+    `manualMissingQuestionIds`（:358 / :430）、`manualSkippedQuestionIds`（:359 / :433）、
+    `manualConflictQuestionIds`（:360 / :436）。
+  - `toJson` 仅在启用时追加四个 snake_case 键，顺序在领域配额四键（若启用）之后：
+    `manual_included_count` / `manual_missing_question_ids` / `manual_skipped_question_ids` /
+    `manual_conflict_question_ids`（:491-498）。schema 仍是 `mindnet.paper_plan/1`。
+  - `compose` 内的接线：`_ManualSelection.resolve(spec)`（:566）、`usable` 过滤同时应用排除与
+    「必收绕过过滤」（:570-572）、必收入选块（:651-673）、填充去重条件（:728）、返回计划时的五个
+    新字段（:912-916）。私有解析器 `_ManualSelection`（:1125）负责 trim / 丢空 / 去重 / 排序与
+    冲突集合（`resolve` :1134、`_cleanIds` :1160）。
+- **口径与优先级**：
+  1. 排除优先级最高：被排除的题在打分之前就从 `usable` 移除，任何阶段都不会被选，也不进
+     `candidateCount`。
+  2. 必收题在**学科保底 / 领域保底 / 填充之前**强制入选；绕过 `subjectKeys`、`minSourceLevel`、
+     难度等过滤条件，也不受知识点上限、学科上限、领域上限约束。
+  3. 必收仍受 `targetCount` 硬上限：按 id 字典序（先 `trim` 去重）取前 k 个，装不下的进
+     `manualSkippedQuestionIds`，不静默丢。
+  4. 候选池里没有的必收 id 进 `manualMissingQuestionIds`；与排除冲突的 id 进
+     `manualConflictQuestionIds`（排除生效，不算进卷、也不算缺失）。
+  5. 必收题照常打分（分数 / 危险区理由照常可解释），并照常占用知识点、学科、领域配额计数，
+     因此 `bySubject` / `byDomain` 会把它算进去，保底阶段不会为它重复补题。
+  6. 同一 id 有多个候选行时取排序后最优的一条（`scoredById.putIfAbsent`，:656-658）。
+  7. 空集语义钉住为「启用但没有任何必收/排除」；两个集合都 null 时分支不进入，旧 `toJson` 十键
+     顺序与 `jsonEncode` 逐字节不变。
+- **不静默丢题**：缺失、被 `targetCount` 挤掉、与排除冲突三类都写进计划字段与 `toJson`，调用方
+  可原样展示给用户。
+- **未做 / 风险**：`paper_plan_provider` 还没有 setter、`compose_paper` 工具还没有参数、组卷页
+  还没有编辑控件与三类名单展示（provider / 工具 / UI 由 Lead 统一接线）；题目 id 由上层提供，
+  拼写错误只会进 `manualMissingQuestionIds`（这是有意行为）；`candidateCount` 仍按打分后的
+  `scored` 计数——必收题绕过过滤后也在其中，排除题已提前移除。
+- **验收**：新增 `app/test/domain/services/paper/manual_selection_test.dart` **36 例**（默认关闭 6 /
+  必收 7 / 排除 4 / `targetCount` 4 / 缺失冲突 5 / 汇总计数 4 / 确定性 4 / 边界组合 2）；
+  `flutter test test/domain/services/paper` **122 → 158** 全绿；本文件 `dart analyze` `No issues
+  found!`，只 `dart format` 自己改的两个文件。
