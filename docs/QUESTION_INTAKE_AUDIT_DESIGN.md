@@ -297,3 +297,31 @@ H4 7 组（同题干不同标点、指纹、both、三道同题干、空题干�
 3. 与「解题/拆题」结果联动：AI 独立解出的答案与 `answer` 不一致 → 新 code，但那是推理层的事，不在本轮。
 4. UI 接线（§10）与 l10n 映射（按 code → 本地化文案）。
 
+## 13. AI 工具只读摘要（轮次一百二十五）
+
+- **文件**：`app/lib/features/ai/tools/question_audit_tools.dart`，类 `AuditQuestionIntakeTool`；
+  注册在 `app/lib/features/ai/domain/tool_registry.dart`（`AuditQuestionIntakeTool(db: db, clock: clock)`，
+  与 `compose_paper` 相邻）。工具名 `audit_question_intake`，让 AI 对话能回答「我的题库质量怎么样、
+  哪些题要修」，而不是让它去修。
+- **参数**：`severity`（`error` / `warning` / `info`，可空 = 全部）、`subject_key`（可空 = 全库，
+  比较时 trim + 小写）、`limit`（默认 20、上限 100，超上限按 100 钳制，`< 1` 抛 `ToolArgError`）。
+  未知 `severity` 抛 `ToolArgError` 并列出可用值。
+- **管道复用**：`readQuestionAuditCorpus(db)` 读全库行 → `QuestionIntakeAudit(currentYear, 
+  knownSubjectKeys: corpus.knownSubjectKeys, knownSourceLevels: kQuestionAuditKnownSourceLevels).audit(rows)`。
+  `currentYear` 由注册处传入的 `clock` 取年份（测试注入 2026-05-01；不隐式读 now，保证报告可复现）。
+  判据、阈值、排序全部在域层，本工具不重写任何规则。
+- **返回口径**：`modelResult` 含 `questions_checked`、`findings_total`、`counts`（error/warning/info，
+  **全量**、不随 severity 过滤变）、`by_code`（按 code+severity 计数，数量降序→code 升序）、
+  `findings`（前 limit 条：question_id / serial_no / code / severity / message_zh / evidence）、
+  `truncated`、`limit`、`filters`、`is_clean`、`note`（「没发现问题不代表证明没问题」）。
+  摘要一句话：干净时「体检了 N 道题…没发现硬伤」；有问题时「共 N 条结论（X 个错误、Y 个警告、
+  Z 个提示），这里列出前 K 条。只报不改」。空库与空学科分别如实说没得体检。
+- **只读声明**：`readOnly => true`，`riskFor` 仍返回 `write`、`reversibleFor => true` —— 这个组合让
+  审批引擎在两种权限模式下都不会逐条询问只读工具（与 `compose_paper` / `find_similar_questions` 同款）。
+  工具**不能**改题/删重复题/补编号，与 skill 的「只报不改」纪律一致。
+- **验收**：`app/test/features/ai/question_audit_tools_test.dart` 10 例（空库、干净题（挂知识点后
+  零结论）、脏数据计数与 by_code 求和一致、severity 过滤但 counts 全量、subject_key 过滤、
+  limit 截断与 truncated、limit 超上限钳制、未知 severity / limit<=0 抛错、工具声明与 schema、
+  只读跑完行数不变）。
+- **未做**：`messageZh` 仍是中文硬编码（UI 已有徽标/详情页，见 §10.1/§10.2）；工具不分页、
+  不做跨库对比；「修数据」功能特意不做。

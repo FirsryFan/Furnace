@@ -19,6 +19,7 @@ import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
 import '../tools/metrics_tools.dart';
 import '../tools/paper_tools.dart';
+import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -120,6 +121,11 @@ class ToolRegistry {
       // (`cognitive/application/library_diagnosis_reader.dart`)，
       // 所以同一个知识点不会这边说危险、那边说健康 (tools/paper_tools.dart)。
       ComposePaperTool(db: db),
+      // 题库质量的只读体检（轮次一百二十五）：判据在
+      // domain/services/questions/question_intake_audit.dart，读表在
+      // questions/application/question_audit_reader.dart。只报不改——
+      // 让模型能回答"题库哪些题要修"，而不是让它去修。
+      AuditQuestionIntakeTool(db: db, clock: clock),
       // 用途 1 的裁判 (Q16 标定协议 v1): 「我记得到底行不行、模型是不是过度自信」。
       // 它读的只有 `review_logs`，是全 app 唯一一条**外部**检查——数字不来自模型的
       // 自我叙述。样本不足时它照原话拒绝给系数（tools/metrics_tools.dart）。
