@@ -1426,6 +1426,32 @@
       }
     }
   },
+  "questionAuditSectionTitle": "Intake audit",
+  "questionAuditClean": "No hard issues found in this check",
+  "questionAuditReadOnly": "The audit only reports; it never edits the question.",
+  "questionAuditEvidence": "Evidence",
+  "questionAuditBadgeTooltip": "Intake audit: {errors} error(s), {warnings} warning(s)",
+  "@questionAuditBadgeTooltip": {
+    "placeholders": {
+      "errors": {
+        "type": "int"
+      },
+      "warnings": {
+        "type": "int"
+      }
+    }
+  },
+  "questionAuditGroupHeader": "{label} · {count}",
+  "@questionAuditGroupHeader": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "questionSerialUnnumbered": "TR-unassigned",
   "questionSerialCopyTooltip": "Copy the question number",
   "questionSerialCopied": "Copied {label}",

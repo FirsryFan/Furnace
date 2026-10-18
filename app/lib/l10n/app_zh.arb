@@ -1306,6 +1306,32 @@
       }
     }
   },
+  "questionAuditSectionTitle": "入库体检",
+  "questionAuditClean": "本次检查未发现硬伤",
+  "questionAuditReadOnly": "体检只报不改：这里只列出问题，不会自动改题",
+  "questionAuditEvidence": "判定依据",
+  "questionAuditBadgeTooltip": "入库体检：错误 {errors} 条、存疑 {warnings} 条",
+  "@questionAuditBadgeTooltip": {
+    "placeholders": {
+      "errors": {
+        "type": "int"
+      },
+      "warnings": {
+        "type": "int"
+      }
+    }
+  },
+  "questionAuditGroupHeader": "{label} · {count} 条",
+  "@questionAuditGroupHeader": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "questionSerialUnnumbered": "TR-未编号",
   "questionSerialCopyTooltip": "复制题号",
   "questionSerialCopied": "已复制 {label}",

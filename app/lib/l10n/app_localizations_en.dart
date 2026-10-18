@@ -3020,6 +3020,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get questionAuditSectionTitle => 'Intake audit';
+
+  @override
+  String get questionAuditClean => 'No hard issues found in this check';
+
+  @override
+  String get questionAuditReadOnly =>
+      'The audit only reports; it never edits the question.';
+
+  @override
+  String get questionAuditEvidence => 'Evidence';
+
+  @override
+  String questionAuditBadgeTooltip(int errors, int warnings) {
+    return 'Intake audit: $errors error(s), $warnings warning(s)';
+  }
+
+  @override
+  String questionAuditGroupHeader(String label, int count) {
+    return '$label · $count';
+  }
+
+  @override
   String get questionSerialUnnumbered => 'TR-unassigned';
 
   @override

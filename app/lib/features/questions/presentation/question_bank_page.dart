@@ -18,6 +18,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
 import '../application/paper_plan_provider.dart';
 import 'handwriting_queue_page.dart';
+import 'question_audit_view.dart';
 import 'question_detail_page.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
@@ -274,7 +275,13 @@ class _QuestionTile extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            QuestionAuditBadge(questionId: questionId),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
         onTap: onTap,
       ),
     );

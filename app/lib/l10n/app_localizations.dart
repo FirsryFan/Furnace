@@ -5200,6 +5200,42 @@ abstract class AppLocalizations {
   /// **'Could not read {count} file(s)'**
   String questionIntakeDropUnreadable(int count);
 
+  /// No description provided for @questionAuditSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Intake audit'**
+  String get questionAuditSectionTitle;
+
+  /// No description provided for @questionAuditClean.
+  ///
+  /// In en, this message translates to:
+  /// **'No hard issues found in this check'**
+  String get questionAuditClean;
+
+  /// No description provided for @questionAuditReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'The audit only reports; it never edits the question.'**
+  String get questionAuditReadOnly;
+
+  /// No description provided for @questionAuditEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Evidence'**
+  String get questionAuditEvidence;
+
+  /// No description provided for @questionAuditBadgeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Intake audit: {errors} error(s), {warnings} warning(s)'**
+  String questionAuditBadgeTooltip(int errors, int warnings);
+
+  /// No description provided for @questionAuditGroupHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} · {count}'**
+  String questionAuditGroupHeader(String label, int count);
+
   /// No description provided for @questionSerialUnnumbered.
   ///
   /// In en, this message translates to:

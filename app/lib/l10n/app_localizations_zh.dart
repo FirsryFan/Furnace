@@ -2896,6 +2896,28 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get questionAuditSectionTitle => '入库体检';
+
+  @override
+  String get questionAuditClean => '本次检查未发现硬伤';
+
+  @override
+  String get questionAuditReadOnly => '体检只报不改：这里只列出问题，不会自动改题';
+
+  @override
+  String get questionAuditEvidence => '判定依据';
+
+  @override
+  String questionAuditBadgeTooltip(int errors, int warnings) {
+    return '入库体检：错误 $errors 条、存疑 $warnings 条';
+  }
+
+  @override
+  String questionAuditGroupHeader(String label, int count) {
+    return '$label · $count 条';
+  }
+
+  @override
   String get questionSerialUnnumbered => 'TR-未编号';
 
   @override

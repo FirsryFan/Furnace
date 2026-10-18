@@ -33,6 +33,7 @@ import '../../../domain/services/srs/dsr_memory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/question_reasoning_service.dart';
 import '../application/similar_question_provider.dart';
+import 'question_audit_view.dart';
 import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
@@ -140,6 +141,9 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
           if (detail != null)
             QuestionZujuanSearchButton(stem: detail.question.stem),
+          // 入库体检：只报不改；体检没跑出来/失败时整块零高度，不挡下面的解题入口。
+          if (detail != null)
+            QuestionAuditSection(questionId: widget.questionId),
           const SizedBox(height: 16),
           _ReasoningSection(
             questionId: widget.questionId,
