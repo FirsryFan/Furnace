@@ -531,3 +531,30 @@ static LearningAdvicePlan build({
 - 未做：页面 UI（首页「下一步」或学习洞察页）与建议卡片未接；建议不落库、不做历史对比；
   动作 × 知识点交叉读数仍空；阈值与条数**未标定**（等真实使用数据再调）。
 
+## 17. 词表编辑的 application 层（轮次一百二十五）
+
+文件：`app/lib/features/questions/application/capability_vocabulary_editor_provider.dart`（Lead 交付）。
+
+- `CapabilityVocabularyEditorState`：`overlay`（草稿）、`savedOverlay`（上次载入 / 保存的快照）、
+  `issues`（最近一次被拒的条目）、`isSaving`；派生 `customActionCount`、`isDirty`（按条目逐字段
+  深比较——`CapabilityActionOverlay` 没有 `==`）、`hasIssues`、`firstIssueMessage`。
+- `CapabilityVocabularyEditor`（`AsyncNotifier`）：`build` 用 `CapabilityVocabularyStore.load()` 初始化；
+  `add` / `updateAction` / `remove` / `reorder` / `importJson` 全部转发纯逻辑编辑层
+  （`capability_action_overlay_editor.dart`），失败只写 `issues`、不动 overlay；`clearIssues`；
+  `save`（写库 → `ref.invalidate(capabilityActionOverlayProvider)` → `savedOverlay` 前移；
+  `isSaving` 防重入；未 dirty 直接返回、不建库行；写失败复位 `isSaving` 后原样抛出，草稿保留）；
+  `revert` 回 `savedOverlay`。
+- 命名坑：方法**不能叫 `update`**——`AsyncNotifier` 已有 `update(回调)` 方法，重名会编译失败；
+  所以叫 `updateAction`。
+- 不用 autoDispose：用户在编辑页切走再回来，未保存的草稿不该被静默丢掉；也**不做自动保存**
+  ——词表直接决定诊断口径，必须由用户点「保存」才算数。
+- 验收：`test/features/questions/application/capability_vocabulary_editor_provider_test.dart` **20 例**
+  （载入出厂 / 已有条目不 dirty；add 合法与内置 key、非法 key、缺中文名、重复、100 条上限六类拒绝；
+  update 保留未传字段 / 空中文名 / 找不到 key；remove 成功与 keyNotFound；reorder 换位、移回原位、
+  空操作、越界；importJson 部分成功（重复 + 非法各一条 issue）与形状不识别；成功编辑清掉上一条 issue；
+  clearIssues；save 写库 + dirty 变 false + 推理链路 invalidate 后读到新词表；删光保存写回 NULL；
+  无改动 save 不建库行；revert 放弃草稿；save 失败 isSaving 复位且草稿保留）；跑出 `+20 All tests passed`；
+  `dart analyze` 两个文件 `No issues found`。
+- 未做：编辑页 UI（列表 / 表单 / 导入按钮 / 保存按钮）与 l10n 未做，下一轮派给 question-intake；
+  词表导入的 `.json` 文件选择（file_picker + `jsonDecode`）留在 UI 层；不做跨设备同步。
+
