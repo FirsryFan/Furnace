@@ -26,6 +26,8 @@
 | `.fskill` 安装 / 启停 / 删除 / **脚本执行容器** | 表内无此节（[SKILL_FORMAT.md](SKILL_FORMAT.md) 原标注"容器未实现"） | ✅ 全部实现（`domain/skill/` + `data/skill/`：§3 容器 `skill_runner.dart`、工具包装 `skill_tool.dart`）；脚本仅 Windows 可执行，`browser_bridge` 未实现 |
 | 跨页状态更新需要重启 | 表内无此节 | ✅ 已修复（2026-10-02 写库即刷新，[REACTIVITY_DESIGN.md](REACTIVITY_DESIGN.md)） |
 | `.tfpkg` 导出/导入（全量逻辑转储） | 🔴 R4 | ✅ 已实现（`data/package/tfpkg_service.dart`、设置页「数据」小节） |
+| 题目卷 → Word（.docx）导出 | 表内无此节 | ✅ 2026-10-18 新增（轮次一百二十二）：`domain/services/export/` 纯 Dart 拼 OOXML + `archive` 打包，卷末答案与解析、图片随文、行内公式转 Word 原生公式；组卷页「导出 Word」按钮；Word 16.0 真开 2 页 / 29 个公式。见 [DOCX_EXPORT_DESIGN.md](DOCX_EXPORT_DESIGN.md) |
+| 题干 → 组卷网检索词与链接 | 表内无此节 | ✅ 2026-10-18 新增（轮次一百二十二）：`domain/services/zujuan/` 移植 zujuan-source-standards 的 URL 与检索词规则（纯逻辑、不联网、不新增依赖）；题目详情页「去组卷网搜这道题」入口，底部表复制检索词 / 搜索页链接。见 [ZUJUAN_LINKS_DESIGN.md](ZUJUAN_LINKS_DESIGN.md) |
 | 主题 JSON（主/辅色、背景、动画） | 🔴 R4 | ✅ 已实现（`Themes` 表、`core/theme/theme_profile.dart`、主题编辑器；**图标槽位**为 2026-10-02 新增） |
 | 日/周/月/时间线日历 | 🔴 R5 | ✅ 已实现（`features/timeboard/presentation/calendar_page.dart`，`CalendarView{day,week,month,timeline}`） |
 | 页面缩放 80%–150% | 🔴 R4 | ❌ 仍未实现（在 `app/lib/` 下检索 `textScaleFactor` / `scaleFactor` / `uiScale` / `pageScale` 均无命中） |
