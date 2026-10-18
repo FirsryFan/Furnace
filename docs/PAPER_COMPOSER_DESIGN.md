@@ -447,7 +447,7 @@
   test/features/questions/presentation` **173 → 187** 全绿；scoped `dart analyze` `No issues found!`；
   全量 analyze 92 issues / 0 error / 0 warning（基线）。
 
-## 21. 组卷质量评价 PaperQualityReport（轮次一百二十七）
+## 21. 组卷质量评价 PaperQualityReport（轮次一百二十五）
 
 给 `PaperPlan` 出一份**确定性体检报告**（纯逻辑：不调模型、不重排、不读 IO、不连 DB），供组卷页 / Word 导出 /
 聊天工具后续消费。同一份 plan + 同一组入参，两次 `build` 的 `toJson` 逐字节相等（测试钉住）。
@@ -516,7 +516,7 @@
 
 - 组卷页与 Word 导出还没有消费这份报告（UI 卡片、题目卷「组卷说明」都未接线）。
 - 所有阈值未标定（学科集中 0.6 / 难度极差 1.0 / 各最小题数 / 容差 1.0 都是先验值）。
-- 没有真实题库手测（只在单测里构造 plan）；`difficultyByQuestionId` 需要上层从候选表带出来，目前无人提供。
+- 没有真实题库手测（只在单测里构造 plan）；`difficultyByQuestionId` 由上层从候选表带出来，应用层已接（见 §22），组卷页 / Word 导出仍未展示。
 - 文案中文硬编码在纯逻辑里，未接 l10n。
 
 ### 验收
@@ -529,3 +529,42 @@
 - 全量 `dart analyze lib test`：本片交付时 **92 issues / 0 error / 0 warning**（基线）；收尾复跑已是 **94 /
   0 error / 1 warning**，唯一 warning 来自他人在途未跟踪文件
   `app/test/features/questions/application/chain_quality_reader_test.dart:8`（unused_import），不是本片文件。
+
+## 22. 接线：组卷质量报告的 provider 与难度读数（轮次一百二十五）
+
+把 §21 的纯逻辑报告接进真实的组卷链路：卷子来自 `paperPlanProvider`，难度读数从题库原始候选
+`paperCandidatesProvider` 回填（`PaperPlan` / `PaperItem` 不保留逐题难度），学科名与知识点名走界面同一份名字表。
+仍然**不调模型、不改卷子**：报告只读 plan。
+
+- **文件**：`app/lib/features/questions/application/paper_quality_provider.dart`（应用层，可 import Flutter / Riverpod；
+  判据依旧一条都不在这里）。文件头 library doc 写明分工：判据在 domain，应用层只补 Plan 里没有的数据。
+- **`paperQualityDifficultiesProvider`**（`FutureProvider.autoDispose<Map<String, double>>`）：watch
+  `paperCandidatesProvider`，只收 `difficulty != null && isFinite` 的题（questionId → 难度），返回不可变 Map。
+  NaN / ±inf 视为坏数据不进来——宁可让报告说「没有读数」，也不拿 0 冒充。
+- **`paperQualityReportProvider`**（`FutureProvider.autoDispose<PaperQualityReport>`）：watch `paperPlanProvider`、
+  `paperQualityDifficultiesProvider`、`paperKnowledgePointLabelsProvider`、`paperSpecProvider`，调
+  `PaperQualityReport.build(plan:, subjectNames: CapabilityAction.subjectLabelsZh, knowledgePointNames:,
+  difficultyByQuestionId:, targetDifficulty: spec.targetDifficulty)`。空卷照常出报告（只有 `empty_plan` 一条 error），
+  UI 不用先判空；`autoDispose` 让离开组卷页就释放，换组卷要求会自然重算。
+- **学科展示名**复用 `CapabilityAction.subjectLabelsZh`（math 数学 / physics 物理 / chemistry 化学 / biology 生物 /
+  chinese 语文 / history 历史 / informatics 信息学竞赛 / qiangji 强基计划）；题库里出现表外学科时回退学科键，
+  不丢行也不编中文名。空学科键仍是报告自己的「未标注学科」桶。
+
+### 未做 / 未验证
+
+- 组卷页、题目详情页、`compose_paper` 工具与 Word 导出都还没消费 `paperQualityReportProvider`（`compose_paper`
+  的工具输出与题目卷「组卷说明」都没显示质量报告）；只有 provider 与测试。
+- `difficulty` 只认题库列上的原始读数，不推断、不从 `aiQuality` 换算；老库大量题为 NULL 时会稳定报
+  `difficulty_data_unavailable`，这是如实状态而不是缺陷。
+- 阈值仍全部未标定（沿用 §21 的先验值），provider 不做任何覆盖。
+- 真实题库手测未做（只在内存库构造题）；报告文案仍是纯逻辑里的中文硬编码，未接 l10n。
+
+### 验收
+
+- 新增 `app/test/features/questions/application/paper_quality_provider_test.dart` **9 例**：空卷只出 `empty_plan` /
+  无难度读数出 info 且分布为空 / 有难度按 1 位小数档分桶 / 部分读数出 `difficulty_data_partial` 且 `known_count` /
+  `missing_count` 正确 / 目标难度拉远出 `difficulty_far_from_target` 且带均值与目标 / 学科中文名与表外回退键 /
+  挂知识点后覆盖率 1.0 / provider 与直接 `build` 的 `toJson` 完全一致 / 学科筛到不存在学科不抛。
+- `flutter test test/features/questions/application --concurrency=1`：**186 例全绿**（本片前 177）。
+- 两个文件 `dart format` 0 changed；scoped `dart analyze lib/features/questions/application
+  test/features/questions/application` **No issues found!**。
