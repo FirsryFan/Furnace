@@ -4,6 +4,66 @@
 
 ---
 
+## 2026-10-18 轮次一百一十三：v0.5.0 发布件 —— 删旧版、双端重编、发布说明（Lead）
+
+**起点（用户指令）**：「删掉旧版本，同时生成新版本软件，我放 release」。
+
+**A. 版本号：0.4.2+8 → 0.5.0+9**
+
+依据：v0.4.2 之后累计 **95 commits / 246 files / +94,852 −7,825**、88 个 feat；测试 1081 → **2107**；
+schema **9 → 23**；AI 工具 **11 → 19** —— 按语义化版本升 minor。改动：`app/pubspec.yaml:4`
+`version: 0.5.0+9`、`app/lib/core/app_info.dart:11/15` 的 `kAppVersion` / `kAppBuildNumber`（`app_info_test`
+比对 pubspec 与 UA，全量里通过）。Windows 版本资源由 `windows/runner/Runner.rc` 的 FLUTTER_VERSION 宏从
+pubspec 取，Android 的 versionCode/versionName 由 `android/app/build.gradle.kts` 从 flutter 读，都无需手改。
+
+**B. Android：一次过**
+
+`scripts/build_android.ps1`（ASCII junction + 镜像 init + apksigner 实测校验）：Gradle **413.6s**，
+`app-release.apk` **91,774,654 bytes（87.5 MB）**，SHA-256 `8E3A0CFD595AA7606F74718BAA500B5553D606D68ADE5B9ED2A7A0F0D6AE8430`。
+`aapt2 badging`：`com.furnace.app`，versionCode **9** / versionName **0.5.0**，minSdk 24 / targetSdk 36，
+权限 INTERNET / POST_NOTIFICATIONS / RECEIVE_BOOT_COMPLETED / VIBRATE；`apksigner`：`CN=Threadflow`，
+证书 SHA-256 `57de8b8f…`——与 v0.4.2 的 APK 同一把，**可覆盖安装、数据保留**。
+
+**C. Windows：两个坑，修好后才拿到产物**
+
+1. `sqlite3_flutter_libs` 的 FetchContent 下载 `sqlite.org/2026/sqlite-autoconf-3520000.tar.gz` 报
+   `status_string: "Failure when receiving data from the peer"`。把同版本 tarball（**3,258,980 bytes**，
+   来自 `E:\knowflow\app\build\windows\x64\_deps\...\sqlite3-populate-prefix\src\`）预置到 junction 的
+   `build\windows\x64\_deps\sqlite3-subbuild\sqlite3-populate-prefix\src\` 后跳过下载
+   （该 URL 没有 HASH 参数，CMake 见文件已存在就直接用）。
+2. 编译通过，但 INSTALL 想写 `C:/Program Files/furnace`：`cmake_install.cmake:90 (file) file cannot create
+   directory` → `MSB3073 ... INSTALL.vcxproj`。根因是 `build\windows\x64\CMakeCache.txt` 的
+   `CMAKE_INSTALL_PREFIX` 停在默认值，而 `windows/CMakeLists.txt:65-70` 期望 `$<TARGET_FILE_DIR:furnace>`。
+   删掉 CMakeCache 用 Flutter 同一组参数重新 configure 后 cache 正确，再 `flutter build windows --release`
+   **18s** 完成 build + install。
+
+产物：`furnace.exe` 91,136 bytes、`data\app.so` **18,826,120 bytes**（18.0 MB）、Release 目录共
+**44,377,262 bytes（42.3 MB）**。启动冒烟（Start-Process → 10s）：进程存活、窗口标题 `Furnace`、
+`Responding=True`、工作集约 287 MB。
+
+顺手两处：`scripts/build_windows.ps1` 不再无条件 `flutter create`（只在 `windows\CMakeLists.txt` 缺失时跑），
+否则每次构建都会改掉 `app/.metadata`；本次构建造成的 `.metadata` android→windows 漂移已回退。
+
+**D. 打包与删旧版**
+
+- `dist/Furnace-0.5.0-android.apk`（91,774,654 bytes）与 `dist/Furnace-0.5.0-windows-x64.zip`
+  （19,381,974 bytes，zip 根就是 `furnace.exe` / `data/` / 各 dll）；zip SHA-256
+  `6FA3CA763867BBF88542035A96586F69755D95EFAB634473EA09E9276BD3F2BB`
+- 新写 `dist/RELEASE-v0.5.0.md`（照 v0.4.2 模板：下载表 / 这一版是什么 / 五个主题 / 验证 / 已知未做）
+- 删掉 v0.3.1、v0.4.0、v0.4.1、v0.4.2 的 apk + zip 与 4 份旧 RELEASE md：**15 files / 507.5 MB → 3 files / 106.0 MB**
+  （−401.5 MB）。GitHub Release 里 v0.1.0–v0.4.2 的 assets 都还在（API 核查过），本地删掉不丢历史。
+
+**证据**：全量 `flutter test --concurrency=1` → **`+2107 ~2` All tests passed**（v0.4.2 基线 1081，本版多 1026 条）；
+`dart analyze lib test` → **93 issues（0 error / 0 warning）**；`flutter test test/core/app_info_test.dart` → `+2` 绿；
+APK 元数据/签名都是 `aapt2`/`apksigner` 从真实产物读出来的。本提交打 tag `v0.5.0`。
+
+**诚实**：Windows 构建仍依赖网络（除非像这次一样预置 sqlite tarball）；CMakeCache 为何停在默认 prefix
+没有完全定位，只是删 cache 重建解决了（已写进 `docs/DEPLOY.md` §4.1）；Windows 端没有安装器、没有代码签名；
+exe 只做「能启动、窗口在、能响应」的冒烟，没有逐屏点过；`dist/` 是 gitignore 的本地发布素材，
+发布说明也不进 git，需要手动传到 GitHub Release。
+
+---
+
 ## 2026-10-18 轮次一百一十二：精简 —— 5.85 GB 可再生物归零、28 个死 key、组卷装配只留一份（Lead）
 
 **起点（用户反馈）**：「精简一下项目代码，占用空间有点大，应该还有可以优化的逻辑等等」。

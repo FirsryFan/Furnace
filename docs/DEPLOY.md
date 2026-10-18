@@ -203,6 +203,49 @@ flutter build windows --release
 产物在 `E:\Document\furnace-build\build\windows\x64\runner\Release\`（实测 **35.66 MB** 打包为 zip，
 `furnace.exe` 启动后窗口正常、占用约 255 MB）。发版时把该目录压成 zip 分发。
 
+### 4.1 v0.5.0 实测：两个 Windows 构建坑（2026-10-18）
+
+v0.5.0（`0.5.0+9`）实测：Android `flutter build apk --release` 一次过（Gradle 413.6s，APK 87.5 MB）；
+Windows 连踩两个坑，记录如下，下次先看这里。
+
+**A. `sqlite3_flutter_libs` 的 CMake FetchContent 下载失败**
+
+- 症状：下载 `https://sqlite.org/2026/sqlite-autoconf-3520000.tar.gz` 报
+  `status_string: "Failure when receiving data from the peer"`，`sqlite3-populate` 失败，
+  `Build step for sqlite3 failed: 1`。
+- 处理：把同版本 tarball（`sqlite-autoconf-3520000.tar.gz`，**3,258,980 bytes**）预置到
+  `build\windows\x64\_deps\sqlite3-subbuild\sqlite3-populate-prefix\src\`。
+  该 FetchContent URL 没有 `HASH` 参数，CMake 见文件已存在就跳过下载
+  （本机这份来自 `E:\knowflow\app\build\windows\x64\...` 的同名缓存）。
+- 注意：`flutter clean` 会把 `build\` 一起删掉，下次构建又需要网络或重新预置。
+
+**B. INSTALL 目标想写 `C:/Program Files/furnace`**
+
+- 症状：编译都过了，`cmake --build ... --target INSTALL` 报
+  `CMake Error at cmake_install.cmake:90 (file): file cannot create directory: C:/Program Files/furnace.`
+  → `MSB3073 ... INSTALL.vcxproj`。
+- 根因：`build\windows\x64\CMakeCache.txt` 里的 `CMAKE_INSTALL_PREFIX` 停在默认值，
+  而不是 `windows\CMakeLists.txt:65-70` 预期的 `$<TARGET_FILE_DIR:furnace>`。
+- 处理：删掉该 `CMakeCache.txt`，按 Flutter 的同一组参数重新 configure（或重跑构建），
+  cache 里会变成 `CMAKE_INSTALL_PREFIX:PATH=$<TARGET_FILE_DIR:furnace>`：
+
+  ```powershell
+  cd E:\Document\furnace-build
+  Remove-Item build\windows\x64\CMakeCache.txt -Force
+  & 'E:\VisualStudio\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe' `
+      -S windows -B build/windows/x64 -G 'Visual Studio 17 2022' -A x64 `
+      -DFLUTTER_TARGET_PLATFORM=windows-x64
+  flutter build windows --release
+  ```
+
+  2026-10-18 实测：删 cache、重新 configure 后约 **18s** 完成 build + install。
+
+产物实测：`furnace.exe` 91,136 bytes、`data\app.so` 18,826,120 bytes、
+Release 目录合计 44,377,262 bytes，压缩为 zip 19,381,974 bytes。
+
+> `scripts/build_windows.ps1` 已改为只在 `windows\CMakeLists.txt` 缺失时才跑
+> `flutter create`——以前每次构建都会顺手改掉 `app/.metadata`，让 release 构建多出无意义的 diff。
+
 ---
 
 ## 5. 已知限制

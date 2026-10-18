@@ -34,8 +34,13 @@ if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
 
 Push-Location $AppDir
 try {
-    Write-Host "==> Ensuring platform directories ..."
-    flutter create --platforms=windows .
+    # Only scaffold when the Windows runner is missing: an unconditional
+    # `flutter create` rewrites version-control-adjacent metadata (e.g. app/.metadata)
+    # and turns a release build into a diff.
+    if (-not (Test-Path (Join-Path $AppDir 'windows\CMakeLists.txt'))) {
+        Write-Host "==> Ensuring platform directories ..."
+        flutter create --platforms=windows .
+    }
 
     Write-Host "==> Installing dependencies ..."
     flutter pub get
