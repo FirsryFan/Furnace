@@ -194,12 +194,71 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 
 **仍未做（诚实清单）**：
 
-1. **②的"拖拽"（A 方案，可选）**：OS 级文件拖入 Flutter 没有 SDK API；要做得加 `desktop_drop` /
-   `super_drag_and_drop` 一类依赖（还要平台注册）。**按本目标"B 优先"的口径，② 已经完成**：
-   收题页有"粘贴文本 + `file_picker` 选图"两条路（见 §10 验收表、`question_intake_page.dart`）。
-   拖拽是锦上添花的 A 方案，引依赖前需要用户拍板。
-2. **④的能力动作词表用户可编辑**：按本文档 §4 的约定留到 schema v13 之后（本期不改表）。
+1. ~~**②的"拖拽"（A 方案，可选）**~~ —— **已做（轮次一百二十一，用户明确要求「拖动添加照片的功能
+   一定要支持微信的聊天记录」）**：引入 `desktop_drop: 0.8.4`（sdk ^3.5.0，兼容本机 Dart 3.13.2 /
+   Flutter 3.47.2；0.9.1 要求 sdk ^3.13.5 装不上），收题页整页是投放区（`DropTarget` 包
+   `Stack[ListView, 高亮层]`），一次可拖多张；Windows 通道只给路径，所以按扩展名白名单 + 前 12
+   字节魔数双保险识别，同批去重（Windows/macOS 忽略大小写），非图片逐张跳过不整批失败，
+   中文/空格/微信临时目录路径按原样处理。真机 OS 拖拽（尤其微信聊天记录）**未手测**（未验证）。
+   详见 `docs/HANDWRITING_INTAKE_DESIGN.md` §4 与 `question_intake_page.dart`。
+2. **④的能力动作词表用户可编辑**：**纯逻辑层已做（轮次一百二十一，reasoning-core）**——
+   `capability_action_overlay.dart` 提供内置 + 自定义合并词表（key 规范、内置优先拒绝覆盖、
+   issue 收集、`fromJson` 坏数据永不抛、空 overlay 零行为变化）、`parseChain` 支持注入
+   lookup 映射自定义动作。**DB 表/迁移、provider、用户编辑 UI、l10n 仍未做**（见
+   `docs/REASONING_LAYER_DESIGN.md` §4/§5）。
 3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
 4. ~~**拍照整理的主入口**~~ —— **已解决（轮次一百一十五，用户反馈 m29290）**：收题 / 组卷 /
    拍照整理 / 材料入库四个入口从设置页收进新的顶层目的地「题库」（`QuestionBankPage`），
    设置页只留一个「题库」门；知识库仍是一级目的地，是否降级见 `FEATURE_MATRIX.md` D4/R5。
+
+## 11. 题目编号与题目图片（轮次一百二十一，schema v24）
+
+用户的原始要求（本轮 m00340 重申，属 HANDOFF §3 待办）：
+
+> 我建议给每个题目一个独有的编号，就像 SCP 对异常有编号一样……这个编号要不要跨学科我不知道，
+> 我建议搞成一个整体的吧。
+>
+> 题库的一个重要因素就是图片。题目肯定需要大量图片，每个科目都是，所以要支持图片格式。
+
+### 11.1 题目编号：跨学科整体序列
+
+- 口径：**一个题库一条序列**，不按学科分段。显示 `TR-00001`（`kQuestionSerialPrefix = 'TR'`、
+  `kQuestionSerialMinDigits = 5`，超过 5 位不截断）；库里存整数 `questions.serial_no`。
+- 发放：`QuestionRepository.ingest` 事务内 `MAX(serial_no) + 1`（`nextQuestionSerial`），
+  调用方不能指定。指纹去重命中老题时**沿用老题号**，不消耗新号。
+- 老库：v23 → v24 迁移 + `_ensureColumns` 自愈都调 `backfillQuestionSerialNumbers()`，
+  按 `(created_at, id)` 升序补 1..N。
+- 包：`.tfpkg` 导入后回填，老包里的题也拿到号；v24 包自带号。
+- **未做（诚实清单）**：① 编号不加 UNIQUE（`append` 导入会撞号，宁重复不丢题），跨库合并后
+  可能看到两个同一编号——要真唯一得引入来源前缀/命名空间；② "发出即永久保留"未做到：
+  分配规则是"现存最大 + 1"，删掉最大号那题后号会被下一题接手，持久计数器留待后续。
+- UI（轮次一百二十一，question-intake 交付）：新增 `question_media_view.dart` 的
+  `QuestionSerialBadge` / `questionSerialProvider` / `questionSerialText`，题号在收题清单、题目详情、
+  题库列表三处展示；徽章可点击复制（`Clipboard.setData` + SnackBar）。题库行用的是
+  `PaperCandidate`（没有 serialNo），所以按 id 异步读 `questions.serial_no`，读回来前不占位。
+  另有纯函数 `questionSerialLabel` / `tryParseQuestionSerial`（`TR-00042`、`tr-42`、`00042`、`42`
+  都能认，不是编号返回 null），留给搜索框按号找题。
+- **未做**：题号未进组卷页 / 相似题区 / 闪存卡；按号搜索框尚未接线。
+
+### 11.2 题目图片
+
+- 存储：复用 `attachments` 表（`owner_type = 'question'`、`owner_id = questionId`），新增
+  `attachments.sort_order`（默认 0）排同题多图；文件在
+  `<application support>/question_images/<questionId>/<attId>/<原文件名>`，库里存相对 POSIX 路径。
+- API：`QuestionMediaStore.save / list / readBytes / delete / deleteForQuestion`，
+  provider 在 `question_media_providers.dart`。
+- 与收题页拍照 store 分开（owner 不同），细节见 `docs/DATA_MODEL.md` §13。
+- UI（轮次一百二十一，question-intake 交付）：详情页配图区 `QuestionImagesSection`、
+  列表 48×48 首图缩略图 `QuestionCoverThumbnail`、点开 `Dialog + InteractiveViewer`（0.5–5 倍）
+  的 `showQuestionImageViewer`；空清单 / 读不出都不占版面（失败只给一行文案）。三处界面目前
+  都是**只读展示**。
+- **未做**：`deleteQuestion` 尚未自动清图片（需调用方显式 `deleteForQuestion`）；图片压缩/
+  缩略图生成未做（48×48 是解码整图后缩放）；界面里没有图片增删入口；OCR 不读题目配图
+  （拍照整理仍是独立入口）。
+
+### 11.3 与 §10 未做清单的关系
+
+§10 第 1 条的"拖拽收题"由 question-intake 的 task-5 落地（`desktop_drop 0.8.4`，支持微信
+拖拽出来的临时文件）后销账；本节 11.1 / 11.2 是新增的两片，验收门禁同 §10：`dart analyze`
+0 error / 0 warning、相关单测 + 全量测试绿、docs 同步、Lead 统一提交。
+

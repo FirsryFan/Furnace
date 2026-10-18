@@ -4,6 +4,99 @@
 
 ---
 
+## 2026-10-18 轮次一百二十一：题库长出编号和图片、微信照片能拖进来、错题先空两张、找相似题看得见 MindNet（Lead + 三个 teammate）
+
+**起点（用户 m00340，长消息）**：闪存卡别原地重复，答错后空 2–3 张再来（每日任务到最后没有空卡了
+才连续出现）；「不调模型（确定性模板）」要的是确定性公式但**必须融合 MindNet** 做相似题质量评比；
+题库的一个重要因素是**图片**；拖动添加照片**必须支持微信聊天记录**；导入导出要能简单生成 Word/docx；
+五个应用领域必须包含（任务排序 / flashcard 推送与同步 / 纸质端数据上传同步 / 题目搜索入库评价 /
+智能组卷评价与资料补充）；每道题给一个**跨学科整体编号**（SCP 式），可以形成"臭名昭著"的题号。
+上一轮团队随旧会话失效，本轮先用 `spawn_teammate` 重建等价团队（新成员不继承旧记忆），再按片推进。
+
+**A. 团队重建与任务板**：新成员 reasoning-core（跨学科能力动作词表/思维链提示与解析，纯逻辑）、
+threadflow-engine（threadflow 两段式：可行域过滤 + MindNet 有效性排序与领域配额）、question-intake
+（收题页/拍照手写整理/题目详情与组卷 UI）。新建 task-1..task-6，写作用域互斥：reasoning 只写
+`lib/domain/services/reasoning/**` 与其测试；threadflow 写 `cloze/**`、`paper/similar_questions.dart`
+与其测试；question-intake 写 `features/questions/presentation/**`、`lib/l10n/**` 与其测试；Lead 写
+`data/**`、`domain/services/questions/**`、`features/questions/application/**`、docs、pubspec 并统一
+提交 git。6 个 task 全部 completed（rev3），成员全程没碰 git。
+
+**B. 题号 + 题目配图（schema v24，commit `5be9431`，19 文件）**：`questions.serial_no` 跨学科整体
+编号（显示 `TR-00001`，`kQuestionSerialMinDigits=5`，超 5 位不截断）；`QuestionRepository.ingest`
+同一事务里 `SELECT MAX(serial_no)` → `nextQuestionSerial` → 插入，`QuestionDraft` 不带编号（编号不是
+调用方的事）；**不加 UNIQUE**（宁可重复也不丢题，append 导入撞号可接受）、号不回收（删最大号后下一题
+接手）；v23→v24 迁移补两列并按 `(created_at,id)` 升序回填 1..N，`_ensureColumns` 同样自愈；
+`tfpkg` 包内 `serial_no` 随包走，v23 旧包导入后事务外回填 1..N。`attachments.sort_order` 非空默认 0。
+新增 `QuestionMediaStore`：磁盘 `<app support>/question_images/<questionId>/<attId>/<原文件名>`，
+`rel_path` 存相对 app support 的 POSIX 路径；save 先写文件后插行、delete 先删行再删文件并收空目录；
+`image_mime` 从字节魔数推 mime，拖拽与拍照两个入口共用。证据：v24_migration / question_number /
+question_media_store / question_repository / tfpkg 五组测试，组合跑 6 文件 **+50**。
+
+**C. 能力动作词表可扩展（commit `8680ec7`，4 文件）**：内置 20 个动作不变，新增
+`capability_action_overlay.dart`——自定义动作 JSON 逐条校验（key 必须蛇形、trim 后非空、长度 ≤48、
+不许撞内置 key、自定义之间重复"先到先得"、`labelZh` 必填）；**被拒条目不进 catalog 但保留在
+overlay.customActions 里**（不静默丢用户数据）；`CapabilityActionCatalog.merge` 保证内置在前、对象
+同一性、sortOrder=合并后下标、空 overlay 逐项 identical；展示兜底 `labelEn→key`、`descriptionZh→
+labelZh`、`subjectHints` 只留合法 subjectKey 去重保序、`transferable`=合法 hints≥4。`parseChain` /
+`ParsedChain.fromJson` 加可选 `lookup`（`CapabilityAction? Function(String)`）：注入 overlay 后自定义
+动作是 `customAction`、未知动作是 `unknownActionTypes`，原始 `actionType` 永远保留；不传 lookup 与
+旧版逐字节一致。结构错误文案改为「第 N 步（steps[position]，index=X）的字段」+ 实际值，`rawSnippet`
+附整段 JSON，不再输出 `xxx.stuckRisk.stuckRisk` 这种重复路径。reasoning 测试 **99 例**（原基线 62）。
+未做：DB 表 / provider / 编辑 UI / l10n。
+
+**D. 错题先空 2–3 张再重现（commit `7d35bd5`，6 文件）**：用户口径「原地重复不太好」。公式
+`insertIndex = clamp(currentIndex + 1 + max(gap, 2), 0, queueLength)`（`forced_loop.dart:101`
+`reinsertAfter`，:112-121），gap 由调用方 `ReviewService.relearnGapCards=3` 传入
+（`review_service.dart:244` 单一来源），ForcedLoop 自身不给默认值；0/1/负数一律抬到 2。队首答错
+(0,5,gap3)→4、队中(1,6,3)→5、队尾不足(3,5,3)→7 夹到 5（**接队尾，下一轮马上重现**）；队列只有 1 张
+连续重来；连续错两次每次至少隔 2 张。时间门语义未变：刚答错不套 10 分钟门，10 分钟门只在"答对一次
+仍绑定"的第二次重现生效（`forcedRelearnMinutes` 默认 10）。cloze **+49**、anki **+110**。
+
+**E. 找相似题融合 MindNet 有效性（commit `83fc43d`，4 文件）**：用户要「确定性模板 + 必须融合
+MindNet」——不调模型，用 MindNet 读数走确定性公式。新增 `question_quality.dart`：中性 0.5 +
+危险区加成 .35 + 发展区加成 .20 + `priorWeight .30 * (1-R0) * confidence`，与
+`DomainBalanceRanker` 同口径（`EffectivenessTuning` 集中未标定默认值）；`SimilarQuestionFinder.rank`
+加可选 `knowledgePointReadings` / `qualityTuning`，quality 只取**共用知识点**的最大值（跨学科纯动作
+迁移没有共用点 → 中性，不拿无关弱点带偏榜单）；`SimilarityWeights.quality` 默认 0.0 = 显式关闭，
+**默认时既有 14 例分数逐字节不变**；`components` 恒含第五键 `quality`，理由句只在权重>0 且 quality
+≠0.5 时追加「MindNet 有效性 X.XX」。paper 测试 **+45**。未接线 provider（`similarQuestionsProvider`
+未传 `CognitiveReadingsAdapter.readingsFor`），标定前权重保持 0。
+
+**F. 拖拽收题 + 题号/配图 UI（commit `460ef91`，19 文件）**：`desktop_drop 0.8.4`（0.9.1 要求
+Dart ^3.13.5，本机 3.13.2 装不上）。新增 `drop_intake_filter.dart`（322 行纯逻辑，不 import
+dart:io）：扩展名白名单（png/jpg/jpeg/gif/webp/heic/bmp）→ 不认识看前 12 字节魔数（PNG/JPEG/GIF/
+RIFF..WEBP/BMP/HEIC 品牌）→ 文件夹/0 字节/读失败/非图片各自状态；同批按 normalize 后路径去重
+（Windows/macOS 忽略大小写）；非图片逐张跳过，不整批失败。`drop_intake_reader.dart` 用
+`DropIntakeReader.examine(List<DropItem>)`（provider 可 override）与 `DropIntakePlatformFile`
+（`xFile` 抛 UnsupportedError，避免 cross_file 依赖）。收题页整页被 `DropTarget` 包住，高亮层
+「松手即可添加照片」，`_handleDrop` 有 `isCurrent` / `_picking` 防重入，读字节 → store.save →
+`repository.ingest(ai_scan/raw)`，多文件合并提示（跳过非图片/重复/读不出）。**微信聊天记录**就是
+OS 拖拽给的临时文件路径，app 只当普通 DropItem 读，不依赖微信 API。新增
+`question_media_view.dart`：题号徽章（点击复制 + SnackBar，题库行用 `PaperCandidate` 无 serialNo 故
+按 id 异步读）、首图 48×48 缩略图、点开 Dialog+InteractiveViewer 0.5–5 倍、空清单/读失败不占版面；
+接入题目详情、题库列表、收题清单三处。l10n 13 个新 key 手改五文件（未跑 gen-l10n）。
+presentation **117 例**（原 110 + 新 7，含拖拽 4 个 widget 用例）。
+
+**G. 全量验证**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（= 基线）。
+`flutter test --concurrency=1` 全量两遍：第一遍 **+2289 ~2 -1（07:11）**，唯一失败是
+`test/features/ai/question_tools_test.dart` 断言 components 四个键，而 83fc43d 之后恒含 `quality`
+（该工具没接读数、权重 0 → 恒 `kNeutralQuestionQuality`=0.5）；改断言为五键并显式检查 quality==0.5
+（commit `b5ac0bf`）。第二遍（修过断言后）**+2290 ~2 All tests passed（06:45，EXIT=0）**，
+全量从此以 +2290 为基线（上一轮 +2152，本轮新增 138 例）
+
+**H. 未做 / 未验证**：真机 OS 拖拽（尤其微信聊天记录临时路径）、系统剪贴板、大图缩放均未手测；
+Android 未注册 desktop_drop（桌面功能无碍）；图片只有只读展示、无增删入口，缩略图是解码整图后缩放
+（未做缩略图生成）；题号未进组卷页/相似题区/闪存卡，按号搜索框未接；词表 overlay 没有 DB/provider/
+编辑 UI；quality 未标定（权重 0、provider 未接线）；**导入导出生成 Word/docx 未做**（现有 `.tfpkg`
+全库包与 `.kpak` 知识包，回答用户时已说明）；五个应用领域本轮未接线（下轮计划）。
+
+**I. 下一轮计划**：①导入导出「简版 Word 卷 / 错题本」（复用 paper-composer 思路，内容取自题库 +
+思维链，不调模型）；②五个应用领域逐个接线：任务排序（`thread_ranker`）、flashcard 推送/同步、纸质端
+上传同步、题目搜索入库评价、智能组卷评价与资料补充；③quality 标定并接 `knowledgePointReadings`；
+④题号搜索框 + 组卷页/相似题区显示题号；⑤overlay 持久化（表 + provider + 编辑页）；⑥真机验证微信拖拽。
+
+---
+
 ## 2026-10-18 轮次一百二十：v0.5.3 发布件 —— 把「今天该做的卡」装进双端安装包（Lead）
 
 **起点（用户指令 m30963）**：「不用了，还是建新包吧」——不要调试运行的做法，直接把上一轮

@@ -103,8 +103,15 @@ presentation 侧用 `export` 保住了原来的 import 路径。
   `handwriting_intake_runs` + `handwriting_proposals` 两张表里，重启后 `refresh()` 恢复。
   界线仍然清楚：**这三张表只存提案与确认状态，标签 / 知识点 / 闪存卡仍然只在用户点确认
   之后才写**——"确认前不写库"说的是学习数据，不是"待确认清单"。
-- **一次只整理一张照片**：提示词只带一张图；多页连拍 / 一次多图未做。
+- **一次只整理一张照片**：提示词只带一张图；多页连拍 / 一次多图未做。**收题页的拖拽入口
+  可以一次放多张照片**（轮次一百二十一），但那是"批量放进待整理队列"（每张各存一个
+  `handwriting_intake_runs`），整理仍是逐张整理。
 - **图片格式靠扩展名**（`HandwritingIntakeStore.mimeForName`）：认不出直接报"认不出…"。
+  轮次一百二十一之后 `mimeForName` 委托给 `lib/data/media/image_mime.dart` 的
+  `imageMimeForName`（扩展名白名单：jpg/jpeg/png/gif/webp/heic/bmp，大小写不敏感）；
+  拖拽入口另有**前 12 字节魔数兜底**（PNG/JPEG/GIF/WEBP/BMP/HEIC-HEIF，见
+  `drop_intake_filter.dart`），无扩展名的微信临时文件也能认出。手写整理这条主路仍只按
+  扩展名——文件已经在 store 里，路径与 mime 落库时已定。
 - **UI 已交付**（Q15，`63e04f0`）：`app/lib/features/questions/presentation/question_intake_page.dart` +
   `handwriting_queue_page.dart`；`refresh()` 现在还会从库里把整理结果读回来。
 - **OCR 质量取决于模型**：解析严格意味着模型跑偏时用户看到的是"回复不符合契约"+原文，

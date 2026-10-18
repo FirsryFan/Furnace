@@ -511,3 +511,60 @@ Brier/ECE 会系统性地好看。因此：
 `lapse` 的 S 与 R0 轨迹不同）、`app/test/features/anki/review_page_test.dart`
 （按钮只在"答案已揭示、还没写库"时出现；按下后写曝光、不写复习记录、到期日不变）。
 
+## 13. v24：题目编号（SCP 式整体编号）与题目图片（轮次一百二十一）
+
+用户要"每道题一个独有编号，像 SCP 对异常的编号，整体跨学科，不按学科分"。这一版只把
+**编号本身**与**题目配图**落到 schema，题库其余实体不动。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `questions.serial_no` | INTEGER，可空 | 跨学科整体序列号，从 1 起；显示层格式化成 `TR-00001`（`kQuestionSerialMinDigits = 5`，超过 5 位不截断）。可空是为了兼容 v23 老库、v23 及更早的 `.tfpkg` 包、`append` 导入可能撞号的行——**宁可重复也不丢题**，所以不加 UNIQUE 索引 |
+| `attachments.sort_order` | INTEGER 非空，默认 0 | 同一 owner 内多张图的展示顺序；老行补 0，新图由 `QuestionMediaStore` 取当前最大值 + 1，首张为 0 |
+
+**编号怎么发**：唯一插入点 `QuestionRepository.ingest` 在**同一个事务**里先读
+`SELECT MAX(serial_no)`，再用 `nextQuestionSerial`（`lib/domain/services/questions/question_number.dart`）
+算 `max + 1`，然后插入题目。事务内读-算-写保证并发不撞号；`QuestionDraft` 不带编号参数，
+调用方无法自己指定（编号是仓储的职责，不是收题页的）。
+
+**老库回填**：`_upgradeV23ToV24()` 补两列后调 `backfillQuestionSerialNumbers()`——按
+`(created_at, id)` 升序给 `serial_no IS NULL` 的行逐行补 1..N，已有号不动。逐行 UPDATE 而
+不用窗口函数，是为了让三种 SQLite 实现语义一致（桌面/Android/测试内存库）。`_ensureColumns()`
+里也有一份同样的自愈：版本号已经是 24 但列被老文件盖掉时补列并回填。
+
+**两个刻意的取舍（已写进测试注释）**：
+
+1. **编号不加 UNIQUE**：`append` 导入是"整包 dump + 跳过 id 冲突"，两个库各自从 1 发号，
+   合并后必然撞号。撞号只是显示重复，去重（UNIQUE）会让整包导入失败——不符合"纸端/设备端
+   双向同步"的主线场景。冲突在 UI 上以"题号可能重复"呈现，后续要真唯一得引入命名空间/来源前缀。
+2. **号不回收只做到"不腾空"**：分配规则是"现存最大 + 1"，所以删掉**当前最大号**那道题后，
+   它的号会被下一道新题接手。真正"发出即永久保留"需要持久计数器（单独的表或 settings 行），
+   本轮没做；题库的不变量是只追加，删题是清理手段，不是常规操作。
+
+**题目图片**：复用 `attachments` 表（`owner_type = 'question'`、`owner_id = questionId`），
+新的 `QuestionMediaStore`（`lib/features/questions/data/question_media_store.dart`）负责"文件 +
+表行"永远同步：
+
+- 磁盘：`<application support>/question_images/<questionId>/<attId>/<原文件名>`；
+- DB：`rel_path` 存**相对 app support 的 POSIX 路径**（Windows app 目录会随安装位置/改名移动，
+  存绝对路径会在换安装目录后全部失效）；
+- `save` 先写文件再插行（文件失败不会留悬挂行；行失败有文件残留，`deleteForQuestion` 兜底）；
+- `delete` 先删行再删文件并收掉空目录；`deleteForQuestion` 在删题时调用（`deleteQuestion`
+  本身仍不清理附件，见 v12 教训——调用方要显式清）。
+
+**与拍照整理 store 的分工**：`HandwritingIntakeStore` 的 owner 是"还没确认的收题页"
+（`owner_type = 'handwriting_intake'`、`owner_id` 空），图片在题目存在之前就落盘；题目配图
+属于已入库的题。两者都写 `attachments`，但 owner 不同——混用会让"题目没确认时的临时图"
+出现在某道题的配图里。
+
+**包导入**：`TfpkgService.importDump` 在事务收尾后调用 `backfillQuestionSerialNumbers()`：
+v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号，已有号不动。
+
+证据：`app/test/data/database/v24_migration_test.dart`（真实 v23 文件升级后老题 `[1, 2]`、
+`sort_order` 为 0、新入库题号 3；版本 24 但缺列的自愈；`backfill` 只补 NULL 且接 `MAX + 1`、
+重复调用幂等）、`app/test/features/questions/data/question_media_store_test.dart`（落盘与表行、
+排序、owner 隔离、同名不覆盖、越界文件名被剥成 basename、删行删文件收空目录）、
+`app/test/domain/services/questions/question_number_test.dart`（格式化/解析/发号边界）、
+`app/test/data/repositories/question_repository_test.dart`（入库 1/2、同指纹重复入库号不变、
+删掉最大号后下一题接手）、`app/test/data/package/tfpkg_test.dart`（编号随包走；v23 包没有
+`serial_no` 时导入后补 1、2）。
+

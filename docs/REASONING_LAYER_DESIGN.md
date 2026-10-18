@@ -85,6 +85,30 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
 `key` 是稳定标识：snake_case、永不本地化、永不改名。中文只出现在 `labelZh` /
 `descriptionZh`。数据库里存的是 `key`，改 key 等于让历史数据失去意义。
 
+**词表可扩展（轮次一百二十一，纯逻辑层）**：内置 20 个动作不变，新增
+`capability_action_overlay.dart` 提供"内置 + 用户自定义"的合并词表，用户以后能自己加动作，
+而不用等发版改内置表：
+
+- `CustomCapabilityAction`：`key` / `labelZh` / `labelEn` / `descriptionZh` / `subjectHints`；
+- `CapabilityActionOverlay`：`const` 构造（`empty` 是空 overlay）、`fromJson` **永不抛**
+  （坏数据只丢条目）、`toJson` 写回 `{'version': 1, 'customActions': [...]}`；
+- `CapabilityActionCatalog`：`CapabilityActionCatalog.builtIn` 与
+  `CapabilityActionCatalog.merge(customActions)`；`actions` / `customActions` / `issues`、
+  `byKey` / `isKnownKey` / `isBuiltInKey` / `isCustomKey`、`keys` / `length`。
+- 合并规则（有测试钉住）：内置条目**在前且保持对象同一性**（不是复制），自定义按输入顺序追加，
+  `sortOrder` = 合并后下标；空 overlay 的 `actions` 与内置 `CapabilityAction.catalog` 逐项
+  `identical`——默认零行为变化。
+- key 校验：trim；空 → `missingKey`；长度 > 48 → `keyTooLong`；
+  须匹配 `^[a-z][a-z0-9]*(_[a-z0-9]+)*$` 否则 `keyNotSnakeCase`（大小写敏感，
+  `Force_Diagram` 视为未知）；撞内置 key → `keyReserved`（**拒绝覆盖**，内置展示不变）；
+  自定义之间重复 → `duplicateKey`（先到先得）；缺 `labelZh` → `missingLabelZh`。
+- 展示兜底：`labelEn` 空用 key、`descriptionZh` 空用 `labelZh`；`subjectHints` 只保留合法
+  `subjectKeys`、去重、保序，`transferable` 仍按"合法 hints 数 ≥ 4"推。
+- 被拒的条目**不进** `catalog.actions`，但 issue 全部收集；`overlay.customActions` 保留原始
+  条目（序列化时不替用户丢数据）。
+- **未做**：overlay 的 DB 表/迁移、provider、用户编辑 UI、l10n 文案都没做（本轮明确定位是
+  纯逻辑层）；`CapabilityAction` 内置表本身零改动。
+
 ## 5. 解析器期待的 JSON 契约（逐字，与 `chainJsonContract` 一致）
 
 ```json
@@ -112,7 +136,7 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
 | `steps` | 非空数组 | 抛错（缺失或为空都抛） | 抛错 |
 | `steps[].index` | int | 抛错 | 抛错（整数值的 double 接受） |
 | `steps[].goal` | 非空 String | 抛错 | 抛错 |
-| `steps[].actionType` | 非空 String | 抛错 | **未知 key 不抛错**：保留原串，`knownAction=false` |
+| `steps[].actionType` | 非空 String | 抛错 | **未知 key 不抛错**：保留原串，`knownAction=false`（注入 lookup 后见下） |
 | `steps[].justification` | String | 空字符串 | 抛错 |
 | `steps[].checkMethod` | String | 空字符串 | 抛错 |
 | `steps[].stuckRisk` | 0..1 的 num | `defaultStuckRisk = 0.5` | 抛错（越界、NaN、非数字） |
@@ -129,6 +153,25 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
 
 大小写敏感：`byKey('Reduction')` 返回 `null`。错大小写就是未知 key，不做静默归一化，
 否则统计出来的动作分布会掩盖模型的格式问题。
+
+**注入 lookup（轮次一百二十一）**：`parseChain` 与 `ParsedChain.fromJson` 多了可选
+`lookup` 参数（默认 `CapabilityAction.byKey`，类型 `typedef CapabilityActionLookup =
+CapabilityAction? Function(String actionType)`）。传 `CapabilityActionOverlay(...).catalog.byKey`
+之后，自定义动作会被映射成 `CapabilityAction`：`knownAction = true` 且 `customAction = true`，
+`unknownActionTypes` 为空。步骤上有了三态：
+
+- `knownAction`：能映射到（内置或自定义）词表；
+- `builtInAction` / `customAction`：映射到内置条目 / 用户条目；
+- 原始 `actionType` 字符串**永远保留**；lookup 也不认识才算未知。
+
+默认行为不变：不传 lookup 时与旧版逐字节一致（未知 key 仍保留原串、不进异常）。
+注意 `ParsedStep.toJson` 里的 `knownAction` 是"解析当次按 lookup 派生"的字段：入库时没注入
+lookup 就会存 `false`，读回时若注入同一 lookup 会重算为 `true`——字符串与步骤本身不丢，
+只是重新判定，所以读写路径要传同一份 lookup。
+
+结构错误（缺 `goal` / `actionType`、类型错、`stuckRisk` 越界等）的异常文案现在指认
+「第 N 步（`steps[position]`，`index=X`）的 `字段`」+ 实际值，`rawSnippet` 附该步整段
+JSON（例如 `"actionType": 42`），不再出现 `xxx.stuckRisk.stuckRisk` 这种重复拼接。
 
 ## 6. 与 schema v12 的接口需求
 
@@ -160,7 +203,9 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
    认识这个学生。它现在其实是「这类学生群体的先验卡点」。要不要把学生的历史掌握度
    注入提示词（每条链一个学生画像）？这会影响隐私设计。
 4. **未知 `actionType` 的处理策略**：现在只是标记。是否要在累计 N 次后自动生成
-   候选动作、走人工确认流程？未定。
+   候选动作、走人工确认流程？未定（**基础设施已备，策略未定**）：`ParsedChain.unknownActionTypes`
+   可直接作为该管道的输入，`CapabilityActionOverlay` 也提供了程序化写入口（`fromJson` /
+   `toJson` / key 校验 / issue 列表），缺的是持久化与 UI。
 5. **`labelEn` 的用途**：目前只用于导出/排版，没有任何判断依赖它。若导出不需要，
    应删除以减小契约面积——**未验证**：还没有导出需求出现过。
 6. **`index` 是否强制连续**：提示词要求从 1 连续递增，但解析器只要求是整数。
@@ -177,7 +222,11 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
   本层之外。任务书给的基线是 94 条 info，仓库此刻有并行改动，因此这个数字是
   观测值而不是承诺）
 - `flutter test test/domain/services/reasoning`
-  → `All tests passed!`（46 个用例）
+  → `All tests passed!`（轮次一百二十一的词表 overlay 之后：99 例。此前基线 62 例；
+  本层最初交付时是 46 例）
+- 轮次一百二十一的实测：`dart analyze lib/domain/services/reasoning
+  test/domain/services/reasoning` → `No issues found!`；`flutter test
+  test/domain/services/reasoning` → `+99: All tests passed!`
 
 **未验证**：没有用真实模型回复跑过 `parseChain`（本机离线，不调用 provider）。
 解析器的行为只由手工构造的 JSON 用例覆盖；真实输出的分布（尤其是模型自创

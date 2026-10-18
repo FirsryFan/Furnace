@@ -12,7 +12,8 @@
 做：
 
 - 给**一道已有题目**当基准（focus），在**题库已有题目**里排序，给出"为什么像"的一句话。
-- 四个信号分开算、可调权：共用知识点、同型思维链动作、同学科、难度接近。
+- 四个基础信号分开算、可调权：共用知识点、同型思维链动作、同学科、难度接近。
+- 可选的第五信号：**MindNet 有效性**（`quality`）——候选与基准题共用的知识点越「该练」，排序越靠前；默认权重 0（未标定），开启后仍全离线、确定性。
 - 跨学科但动作同型 → 明确标成迁移候选（`crossSubjectTransfer`），而不是偷偷给个高分。
 
 不做：
@@ -29,9 +30,9 @@
 |---|---|
 | `SimilarityFocus` | `questionId`（必填）、`knowledgePointIds`、`subjectKey`、`questionType`、`difficulty`、`actionTypes`（思维链动作，按步骤顺序） |
 | `SimilarityCandidate` | `questionId`（必填）、`knowledgePointIds`、`subjectKey`、`questionType`、`sourceLevel`、`difficulty`、`actionTypes`、`sourcePriority` |
-| `SimilarityWeights` | `knowledgePoint` 0.50 / `actionType` 0.30 / `subject` 0.10 / `difficulty` 0.10（`normalized()` 归一化） |
-| `SimilarQuestion` | `questionId`、`score`、`components`（四个分量各自的值）、`sharedKnowledgePointIds`、`sharedActionTypes`、`crossSubjectTransfer`、`reasonZh`、`toJson()` |
-| `SimilarQuestionFinder.rank({focus, candidates, limit = 10, minScore = kMinSimilarityScore, weights, knowledgePointNames})` | `List<SimilarQuestion>` |
+| `SimilarityWeights` | `knowledgePoint` 0.50 / `actionType` 0.30 / `subject` 0.10 / `difficulty` 0.10 / `quality` **0.0（默认关闭，未标定）**（`normalized()` 归一化） |
+| `SimilarQuestion` | `questionId`、`score`、`components`（四个基础分量 + `quality` 各自的值）、`sharedKnowledgePointIds`、`sharedActionTypes`、`crossSubjectTransfer`、`reasonZh`、`toJson()` |
+| `SimilarQuestionFinder.rank({focus, candidates, limit = 10, minScore = kMinSimilarityScore, weights, knowledgePointNames, knowledgePointReadings = const {}, qualityTuning = const EffectivenessTuning()})` | `List<SimilarQuestion>` |
 | `SimilarQuestionFinder.knowledgePointOverlap` / `actionSequenceOverlap` | 两个分量的单独入口（测试与 UI 可复用） |
 
 `kMinSimilarityScore = 0.25`：只是同学科、同难度的"陌生人"（0.20）**不进榜**——阈值调低就不是"相似"而是"随便给一道"。
@@ -51,13 +52,19 @@
 
 ## 3. 怎么打分
 
-四个分量各自落在 `[0, 1]`，缺失一律取**中性 0.5**，绝不因为"不知道"而扣分：
+四个基础分量各自落在 `[0, 1]`，缺失一律取**中性 0.5**，绝不因为「不知道」而扣分：
 
 - **共用知识点** = 交集大小 / focus 的知识点数（focus 没有知识点 → 0）。
 - **同型动作** = **最长公共子序列**长度 / focus 的动作数（截断到 50 步防长链）。
   用 LCS 而不是集合交集：解题是一串**有顺序**的动作，顺序不同就是不同的解法。
 - **学科**：相同 → 1.0；都非空且不同 → 0.0；任一侧为空 → 0.5（"不知道"不惩罚）。
 - **难度**：两侧都有读数 → `1 - |Δ| / 9`（钳 0..1）；任一为空 → 0.5。
+- **MindNet 有效性（可选）** = `questionQuality(基准题与候选的共用知识点, MindNet 读数)`：
+  取共用知识点中有效性最高者（多知识点取 max，不取平均，避免「有一个弱点就拉平」）；**只用共用知识点**，
+  跨学科纯动作迁移（没有共用知识点）一律中性 0.5，不拿候选题自己的弱点带偏榜单；
+  没有任何读数 / 空知识点 → 0.5（缺失不惩罚）。公式与 `DomainBalanceRanker` 同口径，集中在
+  `domain/services/paper/question_quality.dart`（`kNeutralQuestionQuality = 0.5`），未标定默认值仍是
+  `EffectivenessTuning`：neutral 0.5 / dangerBoost 0.35 / developmentBoost 0.20 / priorWeight 0.30。
 
 `score = Σ wᵢ · componentᵢ / Σ wᵢ`。排序：`score` → 共用知识点多 → 同型动作多 → 来源分级高 → 题目 id 升序
 （同输入必同输出，与候选顺序无关）。`limit > 0` 才截断。
@@ -68,7 +75,9 @@
 
 ## 4. 刻意未标定 / 已知缺口
 
-- **权重与阈值是显式但未标定的取值**（0.50/0.30/0.10/0.10、`0.25`）。标定需要真实使用数据，另开协议（与 Q9 的权重同一处境）。
+- **权重与阈值是显式但未标定的取值**（0.50/0.30/0.10/0.10/0.00、`0.25`）。标定需要真实使用数据，另开协议（与 Q9 的权重同一处境）。
+- **`quality` 默认 0.0 = 显式关闭**：接口、公式、`components`、理由句都已就位，但权重不打开时既有 14 例分数逐字节不变；打开前要先标定，否则等于拿一个没验证的信号压过知识点与动作。
+- **provider 尚未接线**：`similarQuestionsProvider` 还没把 `CognitiveReadingsAdapter.readingsFor` 的读数传进 `rank`；接线只加一个可选参数，不改变页面行为（权重仍为 0）。页面接线与标定同批做。
 - `actionSequenceOverlap` 是 O(n·m) 的 LCS，链长上限 50；题库量级（每天 30 道）远不够触发性能问题，**没有索引**。
 - 相似题只按"库内线性扫描"找；将来要更快，先加索引/缓存，不先引向量库。
 - 找不到相似题时页面只说"库里还没有相似的题"，并给出收题入口——**不给"看着像"的题凑数**。
@@ -78,10 +87,11 @@
 
 ## 5. 验收记录
 
-- `app/test/domain/services/paper/similar_questions_test.dart` → **14 例全绿**：共用知识点排序与分量；自己不推荐自己；跨学科同型 → 迁移标记；**LCS 顺序**（逆序分更低、空序列 0）；缺学科/缺难度取中性；难度差越大分越低；弱信号不过阈值（阈值调低才进）；`limit` 语义；**调权改变排序**；tie-break 与输入顺序无关；`reasonZh` 各段（含未知动作原样显示与兜底句）；输入清洗（空白/重复）；`toJson`；空候选不抛。
+- `app/test/domain/services/paper/question_quality_test.dart` → **7 例全绿**：无读数/空知识点 → 中性 0.5；危险区/发展区/是否已练（priorWeight）各自抬升有效性；多知识点取 max；读数缺失不惩罚；`EffectivenessTuning` 可覆盖；与 `DomainBalanceRanker` 同口径。
+- `app/test/domain/services/paper/similar_questions_test.dart` → **20 例全绿**：共用知识点排序与分量；`quality` 权重为 0 时既有 14 例分数不变；开启权重后「共用知识点更该练」的题排序上移、`components['quality']` 有值；跨学科无共用知识点保持中性不带动榜单；没有 MindNet 读数时中性；理由句只在权重开启且非中性时追加「MindNet 有效性 X.XX」；自己不推荐自己；跨学科同型 → 迁移标记；**LCS 顺序**（逆序分更低、空序列 0）；缺学科/缺难度取中性；难度差越大分越低；弱信号不过阈值（阈值调低才进）；`limit` 语义；**调权改变排序**；tie-break 与输入顺序无关；`reasonZh` 各段（含未知动作原样显示与兜底句）；输入清洗（空白/重复）；`toJson`；空候选不抛。
 - `app/test/features/questions/application/similar_question_provider_test.dart` → **6 例全绿**：共享知识点 + 同型动作入榜且理由讲同型步骤；跨学科 → 迁移候选；没链时只用结构信号；**多条链只认最新**（旧链不算数，两道结构分相同的题因此分出高下）；题干为空的脏行不进候选但仍能当基准题（回落读行）；不与自己配对 / 无相似题 / 不存在的题都返回空列表。
 - `app/test/features/ai/question_tools_test.dart` → **11 例全绿**：只读构造（两种权限模式都不逐条询问 + 调用前后整库指纹相同）；
-  按 `question_id` 找到并给出题干摘要/理由/中文动作名/四个分量；长题干截断；id 不存在 → `ok:false`；
+  按 `question_id` 找到并给出题干摘要/理由/中文动作名/四个基础分量（`quality` 权重 0，恒中性 0.5）；长题干截断；id 不存在 → `ok:false`；
   题干为空的脏行当基准 → 0 条；只给条件（知识点 + 动作）能找到；无基准 → 失败；题库空 → ok + 0 条；
   `limit` 默认 5 且钳 1..20；注册进 `ToolRegistry.forApp` 且 schema 键齐全。
 - 回归：`flutter test test/domain/services/paper test/features/questions/application test/features/ai` → **+385 全绿**
@@ -103,6 +113,9 @@ Q12 的能力不只给页面用——agent 也应该能"找题"而不是"编题"
 - `readOnly => true`（不写任何表，测试用整库指纹证明）；返回 `modelResult.questions[]` 带
   `id` 与**截断到 120 字的题干摘要**、`score`、四个 `components`、`shared_knowledge_point_ids`、
   中文知识点名、`shared_action_types` + 中文动作标签、`cross_subject_transfer`、`reason`。
+  `components` 现在是**五个键**：四个基础分量 + `quality`。工具面没有接认知读数、权重默认 0，
+  所以 `quality` 恒为中性 0.5（存在但不参与排序）；要真启用第 5 分量得先把 `knowledgePointReadings`
+  传进来（页面侧同样未接线）。
 - 题库为空、或**一道都不够像**时也返回 `ok: true` + 明确的中文说明（"我不会自己出题，要么去收题页补题，
   要么放宽条件"）——工具不许拿"看着像"的题凑数，也不许替模型生成题干。
 - **`compose_paper` 工具已补上**（原计划"本轮不做"，后由 `library_diagnosis_reader.dart` 把诊断抽成
