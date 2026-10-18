@@ -780,6 +780,60 @@ static LearningAdvicePlan build({
   误报率未标定。
 - `catalog` 为 null 时退回内置词表的兼容行为保留（既有调用方不传 overlay 不会被新判据改变），
   但自定义动作会被判未知——接线时必须传合并后的 catalog。
+## 22. 配题推荐：从「练什么动作」到「练哪几道题」（轮次一百二十五，task-47）
+
+§15 的学习建议只说「下一步练哪种动作 / 补哪类链」，§13 的按动作找题给的是集合而不是排序。这一节把两者
+接起来：给定洞察 + 学习建议 + 学生题目候选，产出**确定性**的配题推荐（哪几道、为什么、按什么顺序）。
+纯逻辑：不读库、不写库、不调模型、不 import Flutter；题库投影与 UI 由后续接线。
+
+### 22.1 文件与 API
+
+`app/lib/domain/services/reasoning/practice_recommendation.dart`（518 行）：
+
+- `enum PracticeRecommendationReason`（`:35`）9 个理由，按输出顺序：
+  `matchedAdviceAction` / `matchedHighRiskKnowledgePoint` / `unknownActionScaffold` / `upToDate` /
+  `missingSolution` / `missingAnswer` / `tooHard` / `tooEasy` / `unrelated`。
+- `class PracticeQuestionCandidate`（`:66`）：`questionId / serialNo? / subjectKey? / sourceLevel? /
+  difficulty? / aiQuality? / knowledgePointIds / actionTypes / hasAnswer? / hasSolution?`。
+  `subjectKey / sourceLevel / aiQuality` 三个标定字段当前**不参与打分**（预留，文档已注明）。
+- `class PracticeRecommendation`（`:113`）：`questionId / serialNo? / score / rank / reasons /
+  matchedActionTypes / matchedKnowledgePointIds`，`toJson()`（`:147`）固定键序；
+- `class PracticeRecommendationPlan`（`:161`）：`recommendations / skippedQuestionIds / requestCount /
+  maxQuestions`，`isEmpty`（`:295`）、`toJson()`（`:305`）；权重常量全部 public（`:170-:191`）：
+  `adviceActionScore=3.0`、`highRiskKnowledgePointScore=2.0`、`unknownActionScaffoldScore=1.5`、
+  `difficultyMatchScore=2.0`、`difficultyTolerance=0.5`、`missingSolutionPenalty=1.5`、
+  `missingAnswerPenalty=1.0`、`defaultMaxQuestions=10`（`:170`）。
+- `static build`（`:213`）：`build({required ChainInsights insights, required LearningAdvicePlan advicePlan,
+  required Iterable<PracticeQuestionCandidate> candidates, int maxQuestions = defaultMaxQuestions,
+  Set<String>? preferredActionTypes, Set<String>? preferredKnowledgePointIds, double? targetDifficulty,
+  bool includeUnknownActionScaffold = true})`。
+
+### 22.2 打分与排序口径
+
+- 偏好来源：默认取 `advicePlan` 里 `practiceAction` 的 actionType 与 knowledgePointIds，并并入
+  `insights.highRiskByKnowledgePoint` 的键（建议在前、去重、trim、去空、大小写敏感）；显式传入
+  `preferred*` 覆盖默认，**显式空集 = 明确没有偏好**（不是不过滤，有测试钉住）。
+- 打分：命中动作数 ×3.0 + 命中知识点数 ×2.0 + 未知动作补习 1.5（仅当开关打开且候选动作属于
+  `insights.unknownActions`）+ 难度贴近分（目标难度与题目难度都有限时 `2.0 - |d-target|` 夹到 0..2；
+  差值超过容差 0.5 另记 tooHard / tooEasy）− 缺解析 1.5 − 缺答案 1.0；`hasAnswer/hasSolution` 都为 true
+  记 upToDate（不加减分），null 既不扣分也不记理由；没有任何正向匹配记 unrelated。
+- NaN / ±inf 的难度一律当无读数，分数始终有限（测试遍历过 NaN / ±inf）。
+- 排序：分数降序 → 命中动作数降序 → serialNo（null 最后）→ questionId 升序；同题去重保留高分（同分保留
+  先出现）；空白 questionId 直接丢弃且不进 skipped；`requestCount` = 去重后有效候选数。
+- 截断：`maxQuestions < 0` 夹成 0；前 N 条 rank 从 1 起，其余按同一排序全部进 `skippedQuestionIds`——
+  截断显式可见，不静默丢题。
+- `toJson()` 计划键序固定：`recommendation_count / skipped_count / request_count / is_empty /
+  max_questions / recommendations / skipped_question_ids`。
+
+### 22.3 验收与未做
+
+- `app/test/domain/services/reasoning/practice_recommendation_test.dart`（962 行）**45 例**，7 组：
+  偏好来源 / 各项打分 / 难度与容差 / 缺答案缺解析 / 未知动作开关 / 排序与去重截断 / toJson 与不可变性。
+- `flutter test test/domain/services/reasoning` → **464 例全绿**（基线 419 + 45）；
+  scoped `dart analyze lib/domain/services/reasoning test/domain/services/reasoning` → No issues found!。
+- 未做：题库行 → `PracticeQuestionCandidate` 的投影 provider、洞察页 / 详情页 / 练习页 UI、
+  `targetDifficulty` 与各权重的标定、接进 AI 对话流程；真实题库数据下的推荐质量未验证。
+- 未接线时**不要**把本层当「自动出题」：它只在学生题库现有题里排序挑选，不生成题目。
 ## 21. 学习洞察页 UI：把读数与建议摆到学生面前（轮次一百二十五，task-39）
 
 §16 的学习建议 provider 与 §14 的洞察聚合此前只有数据、没有页面；这一节把两者装成一张设置页可达的
