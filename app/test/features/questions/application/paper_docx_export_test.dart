@@ -15,6 +15,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/domain/services/export/omml/omml.dart';
 import 'package:furnace/domain/services/paper/paper_composer.dart';
+import 'package:furnace/domain/services/paper/paper_quality_report.dart';
 import 'package:furnace/domain/services/questions/question_number.dart';
 import 'package:furnace/features/questions/application/paper_docx_export.dart';
 import 'package:furnace/features/questions/application/question_corpus_reader.dart';
@@ -412,5 +413,48 @@ void main() {
     final time = DateTime(2026, 1, 2, 3, 4);
     expect(paperDocxFileName(time), 'furnace-paper-20260102-0304.docx');
     expect(defaultPaperDocxFooter(time), 'Furnace · 2026-01-02');
+  });
+
+  group('组卷质量体检透传（轮次一百二十五）', () {
+    test('不传报告：卷面没有组卷质量节（与旧版一致）', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '没有质量节的题。'));
+      final plan = planOf(<String>[ingested.question.id]);
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: plan,
+      );
+
+      final xml = documentXml(result.bytes);
+      expect(xml, isNot(contains('组卷质量')));
+    });
+
+    test('传报告：组卷说明末尾出现质量节（总览 + 判据）', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '带质量节的题。'));
+      final plan = planOf(<String>[ingested.question.id]);
+      final quality = PaperQualityReport.build(
+        plan: plan,
+        subjectNames: const <String, String>{'math': '数学'},
+        knowledgePointNames: const <String, String>{'kp1': '函数'},
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: plan,
+        qualityReport: quality,
+      );
+
+      final xml = documentXml(result.bytes);
+      expect(xml, contains('组卷质量'));
+      expect(xml, contains('判据'));
+      expect(xml, contains('卷面'));
+      expect(
+        xml,
+        contains('填充率'),
+        reason: '质量节总览应带填充率，证明报告真的透传到了纯逻辑层',
+      );
+    });
   });
 }

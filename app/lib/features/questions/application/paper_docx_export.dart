@@ -18,6 +18,7 @@ import '../../../data/media/image_size.dart';
 import '../../../domain/services/export/docx_writer.dart';
 import '../../../domain/services/export/paper_docx.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/paper/paper_quality_report.dart';
 import '../data/question_media_store.dart';
 import 'question_corpus_reader.dart';
 
@@ -47,12 +48,15 @@ class PaperDocxExportResult {
 /// 组装一份卷子的 .docx。
 ///
 /// [mathCompiler] 由推理层注入（LaTeX → OMML）；不传则 `$...$` 保留原文。
+/// [qualityReport] 由界面层从 `paperQualityReportProvider` 取（组卷质量体检），透传给
+/// [buildPaperDocx] 追加「组卷质量」节；不传则该节整段不出现，docx 与旧版逐字节一致。
 /// 其余可选参数直接透传给 [buildPaperDocx]（答案/解析/理由/缺口开关、标题、页脚）。
 Future<PaperDocxExportResult> buildPaperDocxExport({
   required AppDatabase db,
   required QuestionMediaStore mediaStore,
   required PaperPlan plan,
   DocxMathCompiler? mathCompiler,
+  PaperQualityReport? qualityReport,
   PaperDocxLabels labels = const PaperDocxLabels(),
   DocxPageConfig page = const DocxPageConfig.a4Exam(),
   String? footerText,
@@ -86,6 +90,7 @@ Future<PaperDocxExportResult> buildPaperDocxExport({
     questions: questions,
     knowledgePointNames: knowledgePointNames,
     labels: labels,
+    qualityReport: qualityReport,
     mathCompiler: mathCompiler,
     page: page,
     footerText: footerText ?? defaultPaperDocxFooter(now),

@@ -372,10 +372,12 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
 
 ### 14.4 未做 / 需要后续接线
 
-- **provider 未传报告**：`features/questions/application/paper_docx_export.dart` 目前没把
-  `PaperQualityReport` 传进 `buildPaperDocx`；组卷层要先有「导出时按 plan 现算报告」的调用，
-  这属于 features 层，本片未碰。
-- **UI 未展示**：组卷页还没有质量报告卡片；页面展示与 l10n 文案由其他接线任务完成。
+- **应用层已透传（轮次一百二十五）**：`features/questions/application/paper_docx_export.dart`
+  的 `buildPaperDocxExport` 新增可选 `PaperQualityReport? qualityReport` 并直接透传给
+  `buildPaperDocx`；界面层在导出按钮里从 `paperQualityReportProvider` 取值传入即可（不传则与旧版
+  逐字节一致）。新增 2 例透传测试：不传没有质量节、传报告时卷面出现「组卷质量」与「填充率」。
+- **UI 未展示**：组卷页还没有质量报告卡片；页面展示与 l10n 文案由其他接线任务完成
+  （同轮 question-intake 的 task-46 在做；导出按钮传报告也一并由它接）。
 - **阈值未标定**：报告里的 0.6 集中度、来源单一题数 3、难度极差 1.0 等都还是先验值；
   版面上一页能放多少行（6 行分布 / 3 条判据）也未在 Word 真机标定。
 - 未在 Word 真机上重测带质量节的页数与分页（只做 XML 层 `pageBreakBefore` 计数）。
