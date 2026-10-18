@@ -16,8 +16,12 @@
 /// 不重写规则、不设阈值（阈值/权重都在领域层）。
 library;
 
+import 'package:drift/drift.dart';
+
 import '../../../data/database/database.dart';
+import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/paper/similar_questions.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
@@ -527,6 +531,247 @@ class FindQuestionsByCapabilityTool extends AiTool {
     }
     return CapabilityAction.subjectLabelsZh[subjectKey] ?? subjectKey;
   }
+}
+
+/// 读一道题的完整内容（题干 / 选项 / 答案 / 解析 / 知识点 / 解题链动作 / 配图数）。
+///
+/// 用户口径：AI **不出题**，只解题 / 拆题 / 找相似题。要解题先得看见题——
+/// 对话里在此之前只能靠 `find_similar_questions` 拿题干摘要，模型讲不清一道具体题
+/// 的选项与解析。这个工具补上「读题」这一步，它仍然**只读**：不写库、不出题；
+/// 题号解析复用 `domain/services/questions/question_number.dart`，与题库页同一口径。
+class ReadQuestionTool extends AiTool {
+  ReadQuestionTool({required AppDatabase db}) : _db = db;
+
+  final AppDatabase _db;
+
+  @override
+  String get name => 'read_question';
+
+  @override
+  String get description => '读题库里一道题的完整内容：给 `question_id` 或题号 `serial`'
+      '（如 TR-00042 / 42），返回完整题干、选项、答案、解析、知识点、最新一条解题链的'
+      '能力动作、配图数。用在你需要讲清 / 拆解一道**用户库里已有的题**的时候'
+      '（例如用户问「帮我讲讲这道题」）。**只读**：不写库、不生成题干、不猜题——'
+      '库里没有就如实说没有。';
+
+  @override
+  Map<String, Object?> get parameters => {
+        'type': 'object',
+        'properties': {
+          'question_id': {
+            'type': 'string',
+            'description': '题目 id（库里已有）。与 `serial` 二选一；两个都给时以它为准。',
+          },
+          'serial': {
+            'type': 'string',
+            'description': '题号：TR-00042 / tr-42 / 00042 / 42 都能读（题号只增不减）。',
+          },
+        },
+        'required': <String>[],
+      };
+
+  /// 只读、无 action：与 `find_similar_questions` 同一中性组合（`write` + 可逆），
+  /// 让 `ApprovalEngine` 在任何权限模式下都不逐条询问。
+  @override
+  ToolRisk riskFor(String action) => ToolRisk.write; // unused: no actions
+
+  @override
+  bool reversibleFor(String action) => true;
+
+  @override
+  bool get readOnly => true;
+
+  @override
+  bool get availableOnCurrentPlatform => true;
+
+  @override
+  Future<ToolResult> run(ToolInvocation invocation) async {
+    try {
+      final args = ToolArgs(invocation.arguments);
+      final questionId = args.optString('question_id');
+      final serialText = args.optString('serial');
+      if (questionId == null && serialText == null) {
+        throw ToolArgError(
+          '缺少题目定位：给 `question_id`，或给题号 `serial`（如 TR-00042 / 42）',
+        );
+      }
+
+      final serialNo =
+          serialText == null ? null : tryParseQuestionSerial(serialText);
+      if (questionId == null && serialNo == null) {
+        throw ToolArgError(
+          '读不出题号 `$serialText`：给 TR-00042、tr-42、00042 或 42 这类写法',
+        );
+      }
+
+      final repository = QuestionRepository(_db);
+      final Question? row = questionId != null
+          ? await repository.byId(questionId)
+          : await repository.findBySerialNo(serialNo!);
+      if (row == null) {
+        if (questionId != null) {
+          return ToolResult.failure('题库里没有 id 为 `$questionId` 的题');
+        }
+        return ToolResult.failure(
+          '题库里没有题号 ${formatQuestionSerial(serialNo!)} 的题'
+          '（题号只增不减，删掉的题不会把号让出来）',
+        );
+      }
+
+      final serialLabel = _serialLabelOf(row);
+      final options = await repository.optionsOf(row.id);
+      final corpus = await readPaperCorpus(_db);
+      final pointIds = _pointIdsOf(corpus, row.id);
+      final actionTypes =
+          (await readChainActionTypes(_db))[row.id] ?? const <String>[];
+      final actionLabels = <String>[
+        for (final key in actionTypes)
+          CapabilityAction.byKey(key)?.labelZh ?? key,
+      ];
+      final attachmentRows = await (_db.select(_db.attachments)
+            ..where((t) =>
+                t.ownerType.equals('question') & t.ownerId.equals(row.id)))
+          .get();
+
+      return ToolResult(
+        ok: true,
+        summary: _summaryOf(
+          row: row,
+          serialLabel: serialLabel,
+          options: options,
+          pointIds: pointIds,
+          pointNames: corpus.knowledgePointNames,
+          actionTypes: actionTypes,
+          imageCount: attachmentRows.length,
+        ),
+        modelResult: {
+          'rule': 'library_only',
+          'id': row.id,
+          'serial_no': row.serialNo,
+          'serial_label': serialLabel,
+          'stem': row.stem,
+          'answer': row.answer,
+          'solution': row.solution,
+          'options': [
+            for (final option in options)
+              {
+                'label': option.label,
+                'content': option.content,
+                'is_correct': option.isCorrect,
+                'sort_order': option.sortOrder,
+              },
+          ],
+          'subject_key': row.subjectKey,
+          'subject': _subjectOf(row.subjectKey),
+          'source_level': row.sourceLevel,
+          'source_label': row.sourceLabel,
+          'source_level_zh': _sourceLevelOf(row.sourceLevel),
+          'year': row.year,
+          'region': row.region,
+          'difficulty': row.difficulty,
+          'difficulty_source': row.difficultySource,
+          'question_type': row.questionType,
+          'state': row.state,
+          'ai_quality': row.aiQuality,
+          'trap_note': row.trapNote,
+          'knowledge_point_ids': pointIds,
+          'knowledge_points': [
+            for (final id in pointIds)
+              {'id': id, 'title': corpus.knowledgePointNames[id] ?? id},
+          ],
+          'action_types': actionTypes,
+          'action_labels_zh': actionLabels,
+          'image_count': attachmentRows.length,
+        },
+      );
+    } on ToolArgError catch (e) {
+      // 模型给错了参数：变成它能读、能改的结果，而不是异常。
+      return ToolResult.failure(e.message);
+    }
+  }
+
+  String _serialLabelOf(Question question) {
+    final serialNo = question.serialNo;
+    if (serialNo == null || serialNo < 1) {
+      return kUnnumberedQuestionLabel;
+    }
+    return formatQuestionSerial(serialNo);
+  }
+
+  /// 题目覆盖的知识点：与组卷/详情页同一口径（题目和知识点挂同一个标签）。
+  List<String> _pointIdsOf(PaperCorpus corpus, String questionId) {
+    for (final candidate in corpus.candidates) {
+      if (candidate.questionId == questionId) {
+        return candidate.matchedKnowledgePointIds;
+      }
+    }
+    return const <String>[];
+  }
+
+  String _summaryOf({
+    required Question row,
+    required String serialLabel,
+    required List<QuestionOption> options,
+    required List<String> pointIds,
+    required Map<String, String> pointNames,
+    required List<String> actionTypes,
+    required int imageCount,
+  }) {
+    final subject = _subjectOf(row.subjectKey);
+    final source = _sourceLevelOf(row.sourceLevel);
+    final meta = [
+      if (subject.isNotEmpty) subject,
+      if (source.isNotEmpty) source,
+    ].join(' · ');
+    final stem = previewStem(row.stem);
+    final answer = _oneLine(row.answer);
+    final solutionLength = _oneLine(row.solution).length;
+    final parts = <String>[
+      options.isEmpty ? '没存选项' : '${options.length} 个选项',
+      answer.isEmpty ? '库里没存答案' : '答案 $answer',
+      solutionLength == 0 ? '没存解析' : '解析 $solutionLength 字',
+      pointIds.isEmpty
+          ? '没挂知识点'
+          : '知识点 ${pointIds.length} 个（${_namesOf(pointIds, pointNames)}）',
+      if (actionTypes.isNotEmpty) '最新解题链动作 ${actionTypes.length} 个',
+      if (imageCount > 0) '配图 $imageCount 张',
+    ];
+    final head = meta.isEmpty ? serialLabel : '$serialLabel（$meta）';
+    return '$head：$stem。${parts.join('，')}。这些是题库里已有的题，我不会自己出题。';
+  }
+
+  String _namesOf(List<String> ids, Map<String, String> names) {
+    final labels = [for (final id in ids) names[id] ?? id];
+    if (labels.length <= 3) {
+      return labels.join('、');
+    }
+    return '${labels.take(3).join('、')} 等 ${labels.length} 个';
+  }
+
+  String _oneLine(String? text) {
+    final compact = (text ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (compact.length <= 80) {
+      return compact;
+    }
+    return '${compact.substring(0, 80)}…';
+  }
+
+  String _subjectOf(String subjectKey) {
+    if (subjectKey.trim().isEmpty) {
+      return '';
+    }
+    return CapabilityAction.subjectLabelsZh[subjectKey] ?? subjectKey;
+  }
+
+  String _sourceLevelOf(String key) => switch (key.trim()) {
+        'gaokao' => '高考真题',
+        'provincial_diagnostic' => '省市诊断',
+        'elite_school' => '名校测试',
+        'school' => '校内题',
+        'personal' => '自建题',
+        'unknown' => '',
+        _ => key.trim(),
+      };
 }
 
 /// 题干摘要：只给模型/用户"认得出是哪道题"的量，空题干也明确说出来（不冒充有题）。

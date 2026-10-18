@@ -117,6 +117,10 @@ class ToolRegistry {
       // 与认知模型页的「能力动作画像」同源：画像回答"哪个动作最该练"，这个工具回答
       // "练哪几道"（`readQuestionsForAction`，只认每道题最新一条链；AI 不出题）。
       FindQuestionsByCapabilityTool(db: db),
+      // 读题 (轮次一百二十五): 「这道题到底在问什么」——按 id 或题号读完整题干/选项/
+      // 答案/解析/知识点/解题链动作。只读；AI 不出题，它只看得见库里已有的题
+      // (tools/question_tools.dart)。
+      ReadQuestionTool(db: db),
       // 用途 1 的另一半 (Q9/Q11/Q13): 「现在该练什么」——按危险/发展区读数从题库凑卷，
       // 凑不齐就如实报缺哪些知识点。读数与页面同源
       // (`cognitive/application/library_diagnosis_reader.dart`)，

@@ -156,7 +156,7 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
-**2026-10-18 实测：当前真正注册的工具清单（21 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+**2026-10-19 实测：当前真正注册的工具清单（24 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
 清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`（模块聚合被遵守：
 21 个工具覆盖任务/日程/认知/材料/题库/卡片/标签/文档，而不是把 60+ 个仓库方法逐个铺开）：
 
@@ -173,7 +173,10 @@ class ToolSpec {
 | `check_transcribe_run` | 同上 | 只读（校验 / `execute:true` 只演练不落库） | — |
 | `find_similar_questions` | `tools/question_tools.dart` | 只读（题库同型邻居） | — |
 | `find_questions_by_capability` | 同上 | 只读（按能力动作找题） | — |
+| `read_question` | 同上 | 只读（按 id/题号读整道题：题干/选项/答案/解析/知识点/最新链动作/配图数） | — |
 | `compose_paper` | `tools/paper_tools.dart` | 只读（从已有题库凑卷，不出题） | — |
+| `audit_question_intake` | `tools/question_audit_tools.dart` | 只读（题库入库体检摘要，26 判据只报不改） | — |
+| `get_learning_advice` | `tools/learning_advice_tools.dart` | 只读（洞察 + 画像 + 题库题数 → 确定性建议） | — |
 | `review_metrics` | `tools/metrics_tools.dart` | 只读（只读 `review_logs`，外部检查） | — |
 | `fetch_page` | `tools/web_tools.dart` | 只读（唯一的联网工具，约束见 D1 修订） | — |
 | `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建，含 `object_tags` 关联；照片→闪存卡的落库工具） |

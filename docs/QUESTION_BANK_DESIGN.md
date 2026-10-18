@@ -323,4 +323,43 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 未做：题库无 bankId/questionId/sourceUrl 字段，详情/试卷链接暂用不上；候选质量受"领域词表只有生物"限制；
   没有"我是否已在组卷网找到这道题"的记录。
 
+## 14. 读题工具与组卷手工指定/排除（轮次一百二十五）
+
+### 14.1 AI 工具 `read_question`（只读）
+
+用户口径（m00340）：AI **不出题**，只解题 / 拆题 / 找相似题。此前对话里只能靠
+`find_similar_questions` 拿题干摘要，模型讲不清一道具体题的选项与解析；本轮补上「先读题」：
+
+- 文件：`app/lib/features/ai/tools/question_tools.dart` 的 `ReadQuestionTool`，注册在
+  `tool_registry.dart`（`ReadQuestionTool(db: db)`）；题号解析直接复用
+  `domain/services/questions/question_number.dart` 的 `tryParseQuestionSerial`，与题库页同一口径。
+- 定位：`question_id` 或 `serial`（`TR-00042` / `tr-42` / `00042` / `42` 都认），两个都给时以 id 为准；
+  缺参、读不出题号、查无此号/此 id 都返回可读的失败结果，不猜、不生成题干。
+- 返回：完整题干、选项（按 `sort_order` 升序）、答案、解析、学科/来源档位/来源文字/年份/地区/难度/
+  题型/加工状态/AI 分、知识点 id + 标题（与组卷页同一「题目与知识点共享同一标签」口径）、
+  最新一条链的能力动作 key + 中文名、配图数（`attachments` 里 `owner_type='question'` 的行数）。
+- 只读：`readOnly = true`，`riskFor` 与 `reversibleFor` 用与 `find_similar_questions` 相同的中性组合，
+  `ApprovalEngine` 在任何权限模式下都不逐条询问；有测试逐表比对调用前后快照不变。
+- 验收：`flutter test test/features/ai/read_question_tool_test.dart` → 15 例全绿（定位 8、内容 6、只读 1）；
+  `dart analyze lib/features/ai test/features/ai` → 0 error / 0 warning。
+- 未做：工具面返回的是**整段**题干/解析（只读工具默认摘要原则的例外，因为解题必须看全文），
+  超长题干没有分页；未做「按题号列出整卷」的批量读题工具。
+
+### 14.2 组卷页手工指定 / 排除（question-intake 交付）
+
+`compose_paper` 与组卷 provider 早就有 `manualIncludeQuestionIds` / `manualExcludeQuestionIds`（轮次一百二十五
+上游切片，task-32/34 的语义：排除 > 必收 > 保底 > 填充），本轮补 UI：
+
+- 新增 `app/lib/features/questions/presentation/paper_manual_selection_view.dart`：组卷页题目列表上方的
+  「必收 / 排除」入口与名单区、选择题对话框（内存候选过滤，不走仓储查询）、三类结果卡；
+  纯函数（排序、题干摘要、同批过滤、名单分组、可见性）与 widget 同文件，便于单测。
+- `question_paper_page.dart` 在领域配额区之后挂入口与名单区，空卷与非空卷两个分支都渲染结果卡：
+  收下几道 + `missing` / `skipped` / `conflict` 三类名单各前 3 条，其余只报数量（不静默丢）。
+- l10n 五文件手改 18 个 key（`paperManualSelection*`，zh/en arb + 三个生成 dart）；未跑 gen-l10n。
+- 验收：`flutter test test/features/questions/presentation/question_paper_manual_selection_test.dart` → 15 例全绿；
+  该目录回归 +202 通过；`dart analyze lib/features/questions/presentation lib/l10n test/features/questions/presentation`
+  → No issues found。
+- 未做 / 未验证：真机弹窗与小屏滚动未手测；英文文案未母语校对；对话框搜索只过滤内存候选；
+  题目详情页没有「一键设为必收/排除」入口（本轮只要求组卷页）。
+
 
