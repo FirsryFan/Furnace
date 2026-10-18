@@ -12,6 +12,7 @@ import 'package:furnace/features/ai/domain/ai_tool.dart';
 import 'package:furnace/features/ai/domain/approval_engine.dart';
 import 'package:furnace/features/ai/domain/tool_registry.dart';
 import 'package:furnace/features/ai/tools/question_tools.dart';
+import 'package:furnace/domain/services/paper/question_quality.dart';
 
 /// `find_similar_questions` 是"找相似题"（Q12）的工具面，验收点：
 ///
@@ -204,8 +205,12 @@ void main() {
           first['shared_action_types'], ['first_principles', 'sanity_check']);
       // 动作 key 在给用户看的字段里是中文（词表外的 key 原样保留）。
       expect(first['shared_actions_zh'], isNotEmpty);
-      expect((first['components']! as Map<String, Object?>).keys.toSet(),
-          {'knowledge_point', 'action_type', 'subject', 'difficulty'});
+      // 四个基础分量 + 第五个可选分量 `quality`（MindNet 有效性）。这个工具没接
+      // 认知读数、权重默认 0，所以 quality 恒为中性 0.5——它存在但不参与排序。
+      final components = first['components']! as Map<String, Object?>;
+      expect(components.keys.toSet(),
+          {'knowledge_point', 'action_type', 'subject', 'difficulty', 'quality'});
+      expect(components['quality'], kNeutralQuestionQuality);
       expect(first['score'] as double, greaterThanOrEqualTo(0.25));
     });
 
