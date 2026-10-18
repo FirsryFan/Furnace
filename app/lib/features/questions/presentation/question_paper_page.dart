@@ -19,6 +19,7 @@ import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
+import 'paper_docx_export_button.dart';
 import 'question_vocab_labels.dart';
 
 /// 目标题数下拉的选项（本页冻结：5 / 10 / 15 / 20）。
@@ -290,11 +291,19 @@ class _PaperBody extends ConsumerWidget {
                     : l10n.questionPaperEmptyPlan,
               ),
               const SizedBox(height: 8),
-              _copyButton(
-                context,
-                l10n,
-                knowledgePointNames,
-                enabled: false,
+              // 空卷面也能导出（标题 + 缺口说明）：导出按钮不跟着复制按钮一起禁用。
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _copyButton(
+                    context,
+                    l10n,
+                    knowledgePointNames,
+                    enabled: false,
+                  ),
+                  PaperDocxExportButton(plan: plan),
+                ],
               ),
             ],
           ),
@@ -318,7 +327,21 @@ class _PaperBody extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            _copyButton(context, l10n, knowledgePointNames, enabled: true),
+            const SizedBox(width: 8),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              alignment: WrapAlignment.end,
+              children: [
+                _copyButton(
+                  context,
+                  l10n,
+                  knowledgePointNames,
+                  enabled: true,
+                ),
+                PaperDocxExportButton(plan: plan),
+              ],
+            ),
           ],
         ),
         const SizedBox(height: 4),

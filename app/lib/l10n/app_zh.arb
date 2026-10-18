@@ -1316,6 +1316,20 @@
       }
     }
   },
+  "questionZujuanSearch": "去组卷网搜这道题",
+  "questionZujuanCopyKeyword": "复制检索词",
+  "questionZujuanCopied": "检索词已复制：{keyword}",
+  "@questionZujuanCopied": {
+    "placeholders": {
+      "keyword": {
+        "type": "String"
+      }
+    }
+  },
+  "questionZujuanNoCandidates": "题干里没有可用的检索词",
+  "questionZujuanBankHint": "组卷网按当前学科过滤：先在网站上切到对应学科，否则会搜不到",
+  "questionZujuanOpenUrl": "打开搜索页",
+  "questionZujuanUrlCopied": "搜索页链接已复制：到浏览器粘贴打开",
   "questionDetailImagesSection": "题目配图",
   "questionImageCount": "共 {count} 张",
   "@questionImageCount": {
@@ -1687,6 +1701,48 @@
   "questionPaperCopyBackgroundLabel": "背景",
   "questionPaperCopyUncoveredHeading": "未覆盖的知识点",
   "questionPaperCopyDeferredHeading": "被上限挡下的知识点",
+  "questionPaperExportDocx": "导出 Word",
+  "questionPaperExportDocxBusy": "正在导出…",
+  "questionPaperExportDocxDone": "已导出 {questions} 道题（配图 {images} 张）：{fileName}",
+  "@questionPaperExportDocxDone": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "images": { "type": "int" },
+      "fileName": { "type": "String" }
+    }
+  },
+  "questionPaperExportDocxEmptyDone": "卷面是空的：只导出了标题与缺口说明（{fileName}）",
+  "@questionPaperExportDocxEmptyDone": {
+    "placeholders": { "fileName": { "type": "String" } }
+  },
+  "questionPaperExportDocxFailed": "导出失败",
+  "questionPaperExportDocxWarnings": "有 {count} 处提示",
+  "@questionPaperExportDocxWarnings": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxWarningsAction": "查看",
+  "questionPaperExportDocxWarningsTitle": "导出提示",
+  "questionPaperExportDocxMissingQuestions": "缺失题目",
+  "questionPaperExportDocxSkippedImages": "跳过的配图",
+  "questionPaperExportDocxFormulaFailures": "公式编译失败",
+  "questionPaperExportDocxImageLoadNotes": "读图提示",
+  "questionPaperExportDocxMissingFields": "卷面缺字段",
+  "questionPaperExportDocxMissingStem": "缺题干 {count} 道",
+  "@questionPaperExportDocxMissingStem": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMissingAnswer": "缺答案 {count} 道",
+  "@questionPaperExportDocxMissingAnswer": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMissingSolution": "缺解析 {count} 道",
+  "@questionPaperExportDocxMissingSolution": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMoreItems": "等 {count} 条",
+  "@questionPaperExportDocxMoreItems": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "tasksDueAtConflictTitle": "这段时间撞上了日程块",
   "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
   "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",

@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
@@ -32,6 +33,7 @@ import 'package:furnace/features/questions/application/question_media_providers.
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
+import 'package:furnace/features/questions/presentation/question_zujuan_search.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../support/picked_file_fakes.dart';
@@ -466,6 +468,192 @@ void main() {
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(find.byType(Image), findsNothing);
   });
+
+  test('组卷网候选 provider：空白题干为空，正常题干每条候选都带搜索链接', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(container.read(questionZujuanCandidatesProvider('')), isEmpty);
+    expect(container.read(questionZujuanCandidatesProvider('   ')), isEmpty);
+
+    final candidates = container.read(
+      questionZujuanCandidatesProvider('细胞膜上的载体蛋白参与物质运输，实验测得浓度梯度。'),
+    );
+    expect(candidates, isNotEmpty);
+    for (final candidate in candidates) {
+      expect(candidate.url, zujuanSearchUrl(candidate.keyword));
+    }
+  });
+
+  testWidgets('组卷网入口：没有可用检索词时整个入口不渲染', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: const <ZujuanSearchCandidate>[],
+    );
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionZujuanSearchButtonKey), findsNothing);
+  });
+
+  testWidgets('组卷网入口：点开列出检索词候选与两种操作', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final candidates = <ZujuanSearchCandidate>[
+      ZujuanSearchCandidate(
+        keyword: '细胞膜上的载体蛋白',
+        url: zujuanSearchUrl('细胞膜上的载体蛋白'),
+      ),
+      ZujuanSearchCandidate(
+        keyword: '实验测得浓度梯度',
+        url: zujuanSearchUrl('实验测得浓度梯度'),
+      ),
+    ];
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: candidates,
+    );
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionZujuanSearchButtonKey), findsOneWidget);
+    await tester.tap(find.byKey(questionZujuanSearchButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('细胞膜上的载体蛋白'), findsOneWidget);
+    expect(find.text('实验测得浓度梯度'), findsOneWidget);
+    expect(find.text(_zh.questionZujuanBankHint), findsOneWidget);
+    expect(find.text(_zh.questionZujuanCopyKeyword), findsNWidgets(2));
+    expect(find.text(_zh.questionZujuanOpenUrl), findsNWidgets(2));
+    expect(find.byKey(const Key('question-zujuan-copy-0')), findsOneWidget);
+    expect(find.byKey(const Key('question-zujuan-open-1')), findsOneWidget);
+  });
+
+  testWidgets('组卷网入口：候选最多只显示前 5 条', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final candidates = List<ZujuanSearchCandidate>.generate(8, (index) {
+      final keyword = '候选检索词$index';
+      return ZujuanSearchCandidate(
+          keyword: keyword, url: zujuanSearchUrl(keyword));
+    });
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: candidates,
+    );
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionZujuanSearchButtonKey));
+    await tester.pumpAndSettle();
+
+    for (var index = 0; index < questionZujuanVisibleCandidateLimit; index++) {
+      expect(find.text('候选检索词$index'), findsOneWidget);
+      expect(find.byKey(Key('question-zujuan-copy-$index')), findsOneWidget);
+    }
+    expect(find.text('候选检索词5'), findsNothing);
+    expect(find.byKey(const Key('question-zujuan-copy-5')), findsNothing);
+  });
+
+  testWidgets('组卷网入口：复制检索词写进剪贴板并提示', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    const keyword = '细胞膜上的载体蛋白';
+    final candidates = <ZujuanSearchCandidate>[
+      ZujuanSearchCandidate(keyword: keyword, url: zujuanSearchUrl(keyword)),
+    ];
+
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: candidates,
+    );
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionZujuanSearchButtonKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('question-zujuan-copy-0')));
+    await tester.pumpAndSettle();
+
+    final copies = calls
+        .where((call) => call.method == 'Clipboard.setData')
+        .toList(growable: false);
+    expect(copies, hasLength(1));
+    expect((copies.single.arguments as Map<Object?, Object?>)['text'], keyword);
+    expect(find.text(_zh.questionZujuanCopied(keyword)), findsOneWidget);
+    expect(find.byKey(const Key('question-zujuan-copy-0')), findsNothing);
+  });
+
+  testWidgets('组卷网入口：打开搜索页复制链接并提示去浏览器粘贴', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    const keyword = '实验测得浓度梯度';
+    final url = zujuanSearchUrl(keyword);
+    final candidates = <ZujuanSearchCandidate>[
+      ZujuanSearchCandidate(keyword: keyword, url: url),
+    ];
+
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: candidates,
+    );
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionZujuanSearchButtonKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('question-zujuan-open-0')));
+    await tester.pumpAndSettle();
+
+    final copies = calls
+        .where((call) => call.method == 'Clipboard.setData')
+        .toList(growable: false);
+    expect(copies, hasLength(1));
+    expect((copies.single.arguments as Map<Object?, Object?>)['text'], url);
+    expect(find.text(_zh.questionZujuanUrlCopied), findsOneWidget);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -540,6 +728,7 @@ Future<void> _pumpDetail(
   String questionId, {
   required ModelAdapter? adapter,
   FakeQuestionMediaStore? mediaStore,
+  List<ZujuanSearchCandidate>? zujuanCandidates,
 }) async {
   _bigSurface(tester);
   await tester.pumpWidget(
@@ -550,6 +739,11 @@ Future<void> _pumpDetail(
         questionMediaStoreProvider.overrideWithValue(
           mediaStore ?? FakeQuestionMediaStore(database: database),
         ),
+        // 只替换「题干 → 候选」这一步，别的通路照真实 provider 走。
+        if (zujuanCandidates != null)
+          questionZujuanCandidatesProvider.overrideWith(
+            (ref, stem) => zujuanCandidates,
+          ),
       ],
       child: MaterialApp(
         locale: const Locale('zh'),

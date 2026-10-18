@@ -1436,6 +1436,20 @@
       }
     }
   },
+  "questionZujuanSearch": "Search this question on Zujuan",
+  "questionZujuanCopyKeyword": "Copy keyword",
+  "questionZujuanCopied": "Keyword copied: {keyword}",
+  "@questionZujuanCopied": {
+    "placeholders": {
+      "keyword": {
+        "type": "String"
+      }
+    }
+  },
+  "questionZujuanNoCandidates": "No usable search keyword in the stem",
+  "questionZujuanBankHint": "Zujuan filters by your current subject. Switch to the matching subject on the site first, or searches may return nothing.",
+  "questionZujuanOpenUrl": "Open search page",
+  "questionZujuanUrlCopied": "Search page link copied: paste it in a browser to open",
   "questionDetailImagesSection": "Question images",
   "questionImageCount": "{count} image(s)",
   "@questionImageCount": {
@@ -1807,6 +1821,48 @@
   "questionPaperCopyBackgroundLabel": "Background",
   "questionPaperCopyUncoveredHeading": "Knowledge points with no candidates",
   "questionPaperCopyDeferredHeading": "Knowledge points blocked by the cap",
+  "questionPaperExportDocx": "Export Word",
+  "questionPaperExportDocxBusy": "Exporting…",
+  "questionPaperExportDocxDone": "Exported {questions} question(s) with {images} image(s): {fileName}",
+  "@questionPaperExportDocxDone": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "images": { "type": "int" },
+      "fileName": { "type": "String" }
+    }
+  },
+  "questionPaperExportDocxEmptyDone": "The paper is empty: only the title and gap notes were exported ({fileName})",
+  "@questionPaperExportDocxEmptyDone": {
+    "placeholders": { "fileName": { "type": "String" } }
+  },
+  "questionPaperExportDocxFailed": "Export failed",
+  "questionPaperExportDocxWarnings": "{count} warning(s)",
+  "@questionPaperExportDocxWarnings": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxWarningsAction": "View",
+  "questionPaperExportDocxWarningsTitle": "Export warnings",
+  "questionPaperExportDocxMissingQuestions": "Missing questions",
+  "questionPaperExportDocxSkippedImages": "Skipped images",
+  "questionPaperExportDocxFormulaFailures": "Formula compilation failures",
+  "questionPaperExportDocxImageLoadNotes": "Image notes",
+  "questionPaperExportDocxMissingFields": "Missing fields",
+  "questionPaperExportDocxMissingStem": "{count} missing stem(s)",
+  "@questionPaperExportDocxMissingStem": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMissingAnswer": "{count} missing answer(s)",
+  "@questionPaperExportDocxMissingAnswer": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMissingSolution": "{count} missing solution(s)",
+  "@questionPaperExportDocxMissingSolution": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionPaperExportDocxMoreItems": "and {count} more",
+  "@questionPaperExportDocxMoreItems": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "tasksDueAtConflictTitle": "That time clashes with a schedule block",
   "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
   "tasksDueAtConflictMoveBefore": "Move before it ({moment})",

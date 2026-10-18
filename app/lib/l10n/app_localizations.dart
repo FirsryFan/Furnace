@@ -5218,6 +5218,48 @@ abstract class AppLocalizations {
   /// **'Copied {label}'**
   String questionSerialCopied(String label);
 
+  /// No description provided for @questionZujuanSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this question on Zujuan'**
+  String get questionZujuanSearch;
+
+  /// No description provided for @questionZujuanCopyKeyword.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy keyword'**
+  String get questionZujuanCopyKeyword;
+
+  /// No description provided for @questionZujuanCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyword copied: {keyword}'**
+  String questionZujuanCopied(String keyword);
+
+  /// No description provided for @questionZujuanNoCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable search keyword in the stem'**
+  String get questionZujuanNoCandidates;
+
+  /// No description provided for @questionZujuanBankHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Zujuan filters by your current subject. Switch to the matching subject on the site first, or searches may return nothing.'**
+  String get questionZujuanBankHint;
+
+  /// No description provided for @questionZujuanOpenUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Open search page'**
+  String get questionZujuanOpenUrl;
+
+  /// No description provided for @questionZujuanUrlCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Search page link copied: paste it in a browser to open'**
+  String get questionZujuanUrlCopied;
+
   /// No description provided for @questionDetailImagesSection.
   ///
   /// In en, this message translates to:
@@ -6093,6 +6135,109 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Knowledge points blocked by the cap'**
   String get questionPaperCopyDeferredHeading;
+
+  /// No description provided for @questionPaperExportDocx.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Word'**
+  String get questionPaperExportDocx;
+
+  /// No description provided for @questionPaperExportDocxBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting…'**
+  String get questionPaperExportDocxBusy;
+
+  /// No description provided for @questionPaperExportDocxDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {questions} question(s) with {images} image(s): {fileName}'**
+  String questionPaperExportDocxDone(
+      int questions, int images, String fileName);
+
+  /// No description provided for @questionPaperExportDocxEmptyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The paper is empty: only the title and gap notes were exported ({fileName})'**
+  String questionPaperExportDocxEmptyDone(String fileName);
+
+  /// No description provided for @questionPaperExportDocxFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed'**
+  String get questionPaperExportDocxFailed;
+
+  /// No description provided for @questionPaperExportDocxWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} warning(s)'**
+  String questionPaperExportDocxWarnings(int count);
+
+  /// No description provided for @questionPaperExportDocxWarningsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get questionPaperExportDocxWarningsAction;
+
+  /// No description provided for @questionPaperExportDocxWarningsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export warnings'**
+  String get questionPaperExportDocxWarningsTitle;
+
+  /// No description provided for @questionPaperExportDocxMissingQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing questions'**
+  String get questionPaperExportDocxMissingQuestions;
+
+  /// No description provided for @questionPaperExportDocxSkippedImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped images'**
+  String get questionPaperExportDocxSkippedImages;
+
+  /// No description provided for @questionPaperExportDocxFormulaFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'Formula compilation failures'**
+  String get questionPaperExportDocxFormulaFailures;
+
+  /// No description provided for @questionPaperExportDocxImageLoadNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Image notes'**
+  String get questionPaperExportDocxImageLoadNotes;
+
+  /// No description provided for @questionPaperExportDocxMissingFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing fields'**
+  String get questionPaperExportDocxMissingFields;
+
+  /// No description provided for @questionPaperExportDocxMissingStem.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing stem(s)'**
+  String questionPaperExportDocxMissingStem(int count);
+
+  /// No description provided for @questionPaperExportDocxMissingAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing answer(s)'**
+  String questionPaperExportDocxMissingAnswer(int count);
+
+  /// No description provided for @questionPaperExportDocxMissingSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing solution(s)'**
+  String questionPaperExportDocxMissingSolution(int count);
+
+  /// No description provided for @questionPaperExportDocxMoreItems.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more'**
+  String questionPaperExportDocxMoreItems(int count);
 
   /// No description provided for @tasksDueAtConflictTitle.
   ///

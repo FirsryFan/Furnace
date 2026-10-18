@@ -37,6 +37,7 @@ import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
+import 'question_zujuan_search.dart';
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
@@ -136,6 +137,9 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             ),
           if (detail != null)
             QuestionImagesSection(questionId: widget.questionId),
+          // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
+          if (detail != null)
+            QuestionZujuanSearchButton(stem: detail.question.stem),
           const SizedBox(height: 16),
           _ReasoningSection(
             questionId: widget.questionId,

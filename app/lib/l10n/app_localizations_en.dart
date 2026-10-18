@@ -3031,6 +3031,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get questionZujuanSearch => 'Search this question on Zujuan';
+
+  @override
+  String get questionZujuanCopyKeyword => 'Copy keyword';
+
+  @override
+  String questionZujuanCopied(String keyword) {
+    return 'Keyword copied: $keyword';
+  }
+
+  @override
+  String get questionZujuanNoCandidates =>
+      'No usable search keyword in the stem';
+
+  @override
+  String get questionZujuanBankHint =>
+      'Zujuan filters by your current subject. Switch to the matching subject on the site first, or searches may return nothing.';
+
+  @override
+  String get questionZujuanOpenUrl => 'Open search page';
+
+  @override
+  String get questionZujuanUrlCopied =>
+      'Search page link copied: paste it in a browser to open';
+
+  @override
   String get questionDetailImagesSection => 'Question images';
 
   @override
@@ -3561,6 +3587,73 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionPaperCopyDeferredHeading =>
       'Knowledge points blocked by the cap';
+
+  @override
+  String get questionPaperExportDocx => 'Export Word';
+
+  @override
+  String get questionPaperExportDocxBusy => 'Exporting…';
+
+  @override
+  String questionPaperExportDocxDone(
+      int questions, int images, String fileName) {
+    return 'Exported $questions question(s) with $images image(s): $fileName';
+  }
+
+  @override
+  String questionPaperExportDocxEmptyDone(String fileName) {
+    return 'The paper is empty: only the title and gap notes were exported ($fileName)';
+  }
+
+  @override
+  String get questionPaperExportDocxFailed => 'Export failed';
+
+  @override
+  String questionPaperExportDocxWarnings(int count) {
+    return '$count warning(s)';
+  }
+
+  @override
+  String get questionPaperExportDocxWarningsAction => 'View';
+
+  @override
+  String get questionPaperExportDocxWarningsTitle => 'Export warnings';
+
+  @override
+  String get questionPaperExportDocxMissingQuestions => 'Missing questions';
+
+  @override
+  String get questionPaperExportDocxSkippedImages => 'Skipped images';
+
+  @override
+  String get questionPaperExportDocxFormulaFailures =>
+      'Formula compilation failures';
+
+  @override
+  String get questionPaperExportDocxImageLoadNotes => 'Image notes';
+
+  @override
+  String get questionPaperExportDocxMissingFields => 'Missing fields';
+
+  @override
+  String questionPaperExportDocxMissingStem(int count) {
+    return '$count missing stem(s)';
+  }
+
+  @override
+  String questionPaperExportDocxMissingAnswer(int count) {
+    return '$count missing answer(s)';
+  }
+
+  @override
+  String questionPaperExportDocxMissingSolution(int count) {
+    return '$count missing solution(s)';
+  }
+
+  @override
+  String questionPaperExportDocxMoreItems(int count) {
+    return 'and $count more';
+  }
 
   @override
   String get tasksDueAtConflictTitle =>

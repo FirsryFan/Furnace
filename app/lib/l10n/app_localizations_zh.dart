@@ -2907,6 +2907,29 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get questionZujuanSearch => '去组卷网搜这道题';
+
+  @override
+  String get questionZujuanCopyKeyword => '复制检索词';
+
+  @override
+  String questionZujuanCopied(String keyword) {
+    return '检索词已复制：$keyword';
+  }
+
+  @override
+  String get questionZujuanNoCandidates => '题干里没有可用的检索词';
+
+  @override
+  String get questionZujuanBankHint => '组卷网按当前学科过滤：先在网站上切到对应学科，否则会搜不到';
+
+  @override
+  String get questionZujuanOpenUrl => '打开搜索页';
+
+  @override
+  String get questionZujuanUrlCopied => '搜索页链接已复制：到浏览器粘贴打开';
+
+  @override
   String get questionDetailImagesSection => '题目配图';
 
   @override
@@ -3409,6 +3432,72 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperCopyDeferredHeading => '被上限挡下的知识点';
+
+  @override
+  String get questionPaperExportDocx => '导出 Word';
+
+  @override
+  String get questionPaperExportDocxBusy => '正在导出…';
+
+  @override
+  String questionPaperExportDocxDone(
+      int questions, int images, String fileName) {
+    return '已导出 $questions 道题（配图 $images 张）：$fileName';
+  }
+
+  @override
+  String questionPaperExportDocxEmptyDone(String fileName) {
+    return '卷面是空的：只导出了标题与缺口说明（$fileName）';
+  }
+
+  @override
+  String get questionPaperExportDocxFailed => '导出失败';
+
+  @override
+  String questionPaperExportDocxWarnings(int count) {
+    return '有 $count 处提示';
+  }
+
+  @override
+  String get questionPaperExportDocxWarningsAction => '查看';
+
+  @override
+  String get questionPaperExportDocxWarningsTitle => '导出提示';
+
+  @override
+  String get questionPaperExportDocxMissingQuestions => '缺失题目';
+
+  @override
+  String get questionPaperExportDocxSkippedImages => '跳过的配图';
+
+  @override
+  String get questionPaperExportDocxFormulaFailures => '公式编译失败';
+
+  @override
+  String get questionPaperExportDocxImageLoadNotes => '读图提示';
+
+  @override
+  String get questionPaperExportDocxMissingFields => '卷面缺字段';
+
+  @override
+  String questionPaperExportDocxMissingStem(int count) {
+    return '缺题干 $count 道';
+  }
+
+  @override
+  String questionPaperExportDocxMissingAnswer(int count) {
+    return '缺答案 $count 道';
+  }
+
+  @override
+  String questionPaperExportDocxMissingSolution(int count) {
+    return '缺解析 $count 道';
+  }
+
+  @override
+  String questionPaperExportDocxMoreItems(int count) {
+    return '等 $count 条';
+  }
 
   @override
   String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
