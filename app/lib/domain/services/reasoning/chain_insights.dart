@@ -5,6 +5,7 @@
 /// 1. 模型/学生实际在哪些动作上花步子、又卡在哪些动作上？
 /// 2. 高危步集中在哪些题、哪些知识点上？
 /// 3. 词表里哪些动作从没出现过、哪些动作还是词表不认识的（自定义/未知）？
+/// 4. 某个动作的高危步集中在哪些知识点上（动作 × 知识点交叉读数）？
 ///
 /// 诚实性规则（与推理层其它读数同一条口径）：
 /// * **只聚合真有的读数**：`stuckRisk` 为 null 的步只算条数，不进平均/最高值；
@@ -237,6 +238,44 @@ class ChainHighRiskGroup {
       };
 }
 
+/// 一个「能力动作 × 知识点」的高风险交叉读数。
+///
+/// 只统计高危步（`stuckRisk >= 阈值`）：低风险步不能证明「这个动作在这个
+/// 知识点上卡住」，把它们算进来会让建议指向无关知识点。步上的
+/// `knowledgeHints` 会先去空白、去重，再分别计入每个知识点。
+class ChainActionKnowledgePointGroup {
+  const ChainActionKnowledgePointGroup({
+    required this.actionType,
+    required this.knowledgePointId,
+    required this.highRiskStepCount,
+    required this.questionCount,
+    required this.chainCount,
+  });
+
+  /// 能力动作原串 key（未知动作也原样保留）。
+  final String actionType;
+
+  /// 知识点 id（来自步骤的 `knowledgeHints`，已去空白）。
+  final String knowledgePointId;
+
+  /// 该「动作 × 知识点」组合下的高危步数。
+  final int highRiskStepCount;
+
+  /// 涉及的不同题目数（空 questionId 不计）。
+  final int questionCount;
+
+  /// 涉及的不同链数。
+  final int chainCount;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'action_type': actionType,
+        'knowledge_point_id': knowledgePointId,
+        'high_risk_step_count': highRiskStepCount,
+        'question_count': questionCount,
+        'chain_count': chainCount,
+      };
+}
+
 /// 一批思维链的聚合洞察。
 ///
 /// 用 [ChainInsights.aggregate] 构造；构造结果不可变、纯数据。
@@ -260,6 +299,7 @@ class ChainInsights {
     required this.neverUsedActions,
     required this.highRiskByQuestion,
     required this.highRiskByKnowledgePoint,
+    required this.highRiskByActionAndKnowledgePoint,
   });
 
   /// 判「高危步」的默认门槛，与详情页红条 / 画像层一致。
@@ -281,6 +321,7 @@ class ChainInsights {
     final buckets = <String, _ActionBucket>{};
     final questionBuckets = <String, _HighRiskBucket>{};
     final knowledgeBuckets = <String, _HighRiskBucket>{};
+    final actionKnowledgeBuckets = <String, Map<String, _HighRiskBucket>>{};
     final highRiskChainIds = <String>{};
 
     var chainCount = 0;
@@ -367,6 +408,10 @@ class ChainInsights {
               knowledgeBuckets
                   .putIfAbsent(hint, _HighRiskBucket.new)
                   .add(questionId: questionId, chainId: chainId);
+              actionKnowledgeBuckets
+                  .putIfAbsent(actionType, () => <String, _HighRiskBucket>{})
+                  .putIfAbsent(hint, _HighRiskBucket.new)
+                  .add(questionId: questionId, chainId: chainId);
             }
           }
         }
@@ -400,6 +445,14 @@ class ChainInsights {
       for (final entry in knowledgeBuckets.entries)
         entry.value.toGroup(entry.key),
     ]..sort(_compareGroups);
+    final highRiskByActionAndKnowledgePoint = <ChainActionKnowledgePointGroup>[
+      for (final actionEntry in actionKnowledgeBuckets.entries)
+        for (final hintEntry in actionEntry.value.entries)
+          hintEntry.value.toActionKnowledgePointGroup(
+            actionType: actionEntry.key,
+            knowledgePointId: hintEntry.key,
+          ),
+    ]..sort(_compareActionKnowledgePoints);
 
     return ChainInsights._(
       highRiskThreshold: threshold,
@@ -423,6 +476,10 @@ class ChainInsights {
       ),
       highRiskByKnowledgePoint: List<ChainHighRiskGroup>.unmodifiable(
         highRiskByKnowledgePoint,
+      ),
+      highRiskByActionAndKnowledgePoint:
+          List<ChainActionKnowledgePointGroup>.unmodifiable(
+        highRiskByActionAndKnowledgePoint,
       ),
     );
   }
@@ -484,6 +541,13 @@ class ChainInsights {
   /// 高危步按知识点维度计数；空白知识点忽略。
   final List<ChainHighRiskGroup> highRiskByKnowledgePoint;
 
+  /// 高危步按「能力动作 × 知识点」交叉计数；空白知识点忽略，未知/自定义
+  /// 动作的 `actionType` 原样保留。
+  ///
+  /// 排序与 [highRiskByKnowledgePoint] 同一套稳定口径：高危步数降序 →
+  /// 链数降序 → 题数降序 → actionType 升序 → 知识点 id 升序。
+  final List<ChainActionKnowledgePointGroup> highRiskByActionAndKnowledgePoint;
+
   /// 没有任何有效步骤。
   bool get isEmpty => stepCount == 0;
 
@@ -519,6 +583,9 @@ class ChainInsights {
         ],
         'high_risk_by_knowledge_point': <Object?>[
           for (final group in highRiskByKnowledgePoint) group.toJson(),
+        ],
+        'high_risk_by_action_and_knowledge_point': <Object?>[
+          for (final group in highRiskByActionAndKnowledgePoint) group.toJson(),
         ],
       };
 
@@ -595,6 +662,30 @@ class ChainInsights {
     return left.key.compareTo(right.key);
   }
 
+  static int _compareActionKnowledgePoints(
+    ChainActionKnowledgePointGroup left,
+    ChainActionKnowledgePointGroup right,
+  ) {
+    final byHighRisk =
+        right.highRiskStepCount.compareTo(left.highRiskStepCount);
+    if (byHighRisk != 0) {
+      return byHighRisk;
+    }
+    final byChainCount = right.chainCount.compareTo(left.chainCount);
+    if (byChainCount != 0) {
+      return byChainCount;
+    }
+    final byQuestionCount = right.questionCount.compareTo(left.questionCount);
+    if (byQuestionCount != 0) {
+      return byQuestionCount;
+    }
+    final byAction = left.actionType.compareTo(right.actionType);
+    if (byAction != 0) {
+      return byAction;
+    }
+    return left.knowledgePointId.compareTo(right.knowledgePointId);
+  }
+
   static double _normalizeThreshold(double value) {
     if (!value.isFinite) {
       return defaultHighRiskThreshold;
@@ -660,6 +751,18 @@ class _HighRiskBucket {
 
   ChainHighRiskGroup toGroup(String key) => ChainHighRiskGroup(
         key: key,
+        highRiskStepCount: highRiskStepCount,
+        questionCount: questionIds.length,
+        chainCount: chainIds.length,
+      );
+
+  ChainActionKnowledgePointGroup toActionKnowledgePointGroup({
+    required String actionType,
+    required String knowledgePointId,
+  }) =>
+      ChainActionKnowledgePointGroup(
+        actionType: actionType,
+        knowledgePointId: knowledgePointId,
         highRiskStepCount: highRiskStepCount,
         questionCount: questionIds.length,
         chainCount: chainIds.length,

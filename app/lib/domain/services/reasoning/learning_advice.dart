@@ -10,7 +10,9 @@
 /// 2. **没有输入就说没有**：空输入返回一条 `noData`，不虚构题数、不编「暂无异常」。
 /// 3. **未知动作不吞**：词表外的动作会单独给一条 `reviewVocabulary` 建议，并说明
 ///    「词表还不认识它们，不是没问题」——词表会变，静默忽略会掩盖契约漂移。
-/// 4. **不落库**：本层是派生计算，输入改变时重新 [LearningAdvicePlan.build] 即可。
+/// 4. **知识点只填真读数**：练习建议的 `knowledgePointIds` 只来自洞察层的
+///    「动作 × 知识点」交叉读数（最多 3 个），没有交叉读数就保持空列表。
+/// 5. **不落库**：本层是派生计算，输入改变时重新 [LearningAdvicePlan.build] 即可。
 ///
 /// 这一层不读数据库、不读时钟、不依赖 Flutter；`profile` 与 `insights` 都由调用方
 /// 现算后传入。
@@ -79,10 +81,12 @@ class LearningAdvice {
   /// 其中被判为高风险的步骤数；没有风险读数时是 null。
   final int? highRiskStepCount;
 
-  /// 关联的知识点 id 列表（不可变）。
+  /// 关联的知识点 id 列表（不可变，已按真实交叉读数排序）。
   ///
-  /// 当前**恒为空**：§14 的洞察聚合层没有按「动作 × 知识点」交叉的读数，编造关联
-  /// 比不填更坏。等交叉读数落地后再由调用方填进来。
+  /// 只有 [LearningAdviceKind.practiceAction] 会填：来自 §14 洞察层的
+  /// 「动作 × 知识点」交叉读数，最多 [LearningAdvicePlan.maxKnowledgePointIds] 个
+  /// （高危步数降序、同数按知识点 id 升序）。没有交叉读数时是空列表——
+  /// 不按题目/知识点猜。
   final List<String> knowledgePointIds;
 
   /// 序列化（字段全部 snake_case）。
@@ -147,6 +151,10 @@ class LearningAdvicePlan {
   /// 带内最多 100 个练习建议（rank 0..99），超出后共用一个 priority，靠
   /// kind / actionType 兜底排序。
   static const int _maxPracticeRank = 99;
+
+  /// 每条练习建议最多带几个知识点：来自真实交叉读数，按高危步数降序、
+  /// 同数按知识点 id 升序，超出截断。
+  static const int maxKnowledgePointIds = 3;
 
   /// 生成建议清单。
   ///
@@ -229,6 +237,22 @@ class LearningAdvicePlan {
   }) {
     final seen = <String>{};
     final candidates = <_PracticeCandidate>[];
+
+    // 只取该动作自己的真实交叉读数：高危步数降序、同数按知识点 id 升序，
+    // 最多 maxKnowledgePointIds 个。没有读数时返回空列表。
+    List<String> knowledgePointsOf(String actionType) {
+      final groups = <ChainActionKnowledgePointGroup>[
+        for (final group in insights.highRiskByActionAndKnowledgePoint)
+          if (group.actionType == actionType) group,
+      ]..sort(_compareKnowledgePointGroups);
+      final count = groups.length > maxKnowledgePointIds
+          ? maxKnowledgePointIds
+          : groups.length;
+      return <String>[
+        for (var i = 0; i < count; i++) groups[i].knowledgePointId,
+      ];
+    }
+
     for (final action in insights.actions) {
       // 未知动作不进练习建议：词表都不认识它，详情页也没有可展示的中文名。
       if (!action.known || action.highRiskStepCount < minSteps) {
@@ -244,6 +268,7 @@ class LearningAdvicePlan {
           questionCount: action.questionCount,
           stepCount: action.stepCount,
           highRiskStepCount: action.highRiskStepCount,
+          knowledgePointIds: knowledgePointsOf(action.actionType),
         ),
       );
     }
@@ -263,11 +288,23 @@ class LearningAdvicePlan {
           questionCount: null,
           stepCount: reading.stepCount,
           highRiskStepCount: reading.riskyStepCount,
+          knowledgePointIds: knowledgePointsOf(key),
         ),
       );
     }
     candidates.sort(_comparePracticeCandidates);
     return candidates;
+  }
+
+  static int _compareKnowledgePointGroups(
+    ChainActionKnowledgePointGroup a,
+    ChainActionKnowledgePointGroup b,
+  ) {
+    final byHighRisk = b.highRiskStepCount.compareTo(a.highRiskStepCount);
+    if (byHighRisk != 0) {
+      return byHighRisk;
+    }
+    return a.knowledgePointId.compareTo(b.knowledgePointId);
   }
 
   static int _comparePracticeCandidates(
@@ -318,6 +355,7 @@ class LearningAdvicePlan {
       questionCount: candidate.questionCount,
       stepCount: candidate.stepCount,
       highRiskStepCount: candidate.highRiskStepCount,
+      knowledgePointIds: candidate.knowledgePointIds,
     );
   }
 
@@ -419,6 +457,7 @@ class _PracticeCandidate {
     required this.questionCount,
     required this.stepCount,
     required this.highRiskStepCount,
+    required this.knowledgePointIds,
   });
 
   final String actionType;
@@ -426,4 +465,5 @@ class _PracticeCandidate {
   final int? questionCount;
   final int stepCount;
   final int highRiskStepCount;
+  final List<String> knowledgePointIds;
 }
