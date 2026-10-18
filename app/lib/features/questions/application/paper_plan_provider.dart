@@ -26,10 +26,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../domain/services/paper/paper_composer.dart';
-import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
 import 'capability_profile_provider.dart';
+import 'paper_plan_builder.dart';
 import 'question_corpus_reader.dart';
 
 /// `PaperCorpus` 的公开路径保持在这里：组卷页与找相似题都从这个文件导入它，
@@ -159,15 +159,14 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
 
 /// 当前要求下的一份卷子。题库为空时也会给出一个空 `PaperPlan`（`items` 空、
 /// `candidateCount` 0），页面据此显示"题库还没有题"而不是报错。
+///
+/// 装配本身在 `paper_plan_builder.dart`：AI 工具 `compose_paper` 调同一个函数，
+/// 所以同一份库、同一份诊断 → 同一份卷子（D2）。这里只提供页面侧的三个输入
+/// （已缓存的题库、页面上那次诊断、画像 provider）。
 final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
   ref.watchDatabaseRevision();
   final corpus = await ref.watch(paperCorpusProvider.future);
   final spec = ref.watch(paperSpecProvider);
-
-  final coveredPointIds = <String>{
-    for (final candidate in corpus.candidates)
-      ...candidate.matchedKnowledgePointIds,
-  };
   final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
 
   // 「我最该练的动作」来自能力动作画像（推理层读数）；没解过链的库这里是空表。
@@ -175,42 +174,15 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
   // 未标定先验，必须能关；关掉之后组卷结果与"没有画像"逐字段一致。
   final profile = await ref.watch(capabilityProfileProvider.future);
   final preferredActions = spec.preferCapabilityActions
-      ? <String>[
-          for (final reading in profile)
-            if (reading.avgStuckRisk != null &&
-                reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
-              reading.actionType,
-        ].take(kPreferredActionLimit).toList()
+      ? preferredActionTypesOf(profile)
       : const <String>[];
 
-  // 每道题最新一条链的动作序列：候选带上它，组卷器才能算"命中比例"。
-  final chainActions =
-      await readChainActionTypes(ref.read(appDatabaseProvider));
-  final candidates = <PaperCandidate>[
-    for (final candidate in corpus.candidates)
-      PaperCandidate(
-        questionId: candidate.questionId,
-        subjectKey: candidate.subjectKey,
-        sourceLevel: candidate.sourceLevel,
-        questionType: candidate.questionType,
-        difficulty: candidate.difficulty,
-        aiQuality: candidate.aiQuality,
-        trapNote: candidate.trapNote,
-        matchedKnowledgePointIds: candidate.matchedKnowledgePointIds,
-        actionTypes: chainActions[candidate.questionId] ?? const <String>[],
-      ),
-  ];
-
-  return PaperComposer.compose(
-    candidates: candidates,
+  final build = await buildPaperPlan(
+    db: ref.read(appDatabaseProvider),
+    corpus: corpus,
     spec: spec,
-    readings: await readPaperReadings(
-      ref.read(appDatabaseProvider),
-      coveredKnowledgePointIds: coveredPointIds,
-      diagnosis: diagnosis,
-    ),
-    knowledgePointNames: corpus.knowledgePointNames,
-    knowledgePointTagPaths: corpus.knowledgePointTagPaths,
+    diagnosis: diagnosis,
     preferredActionTypes: preferredActions,
   );
+  return build.plan;
 });

@@ -4,6 +4,70 @@
 
 ---
 
+## 2026-10-18 轮次一百一十二：精简 —— 5.85 GB 可再生物归零、28 个死 key、组卷装配只留一份（Lead）
+
+**起点（用户反馈）**：「精简一下项目代码，占用空间有点大，应该还有可以优化的逻辑等等」。
+
+**A. 空间：先量再删**
+
+清理前 `class-productivity` 全目录 **6,276.5 MB / 10,807 files**，源码只占 7.9 MB（`app/lib` 4.5 + `app/test` 2.2 +
+`docs` 1.2）；其余是 `app/build` 5,184.6 MB、`app/.dart_tool` 368.1 MB、`app/windows/flutter`（ephemeral 生成物）
+261.6 MB、`app/android/.gradle` 21.6 MB、`dist` 401.5 MB、`.git` 30.9 MB —— **大头全是可再生的构建产物**。
+
+做的：`flutter clean`（build/.dart_tool/ephemeral/.flutter-plugins-dependencies）+ 删 `android/.gradle`；
+`flutter pub get --offline` 重建 `.dart_tool`；删掉测试运行后重新生成的 `build/`；`git gc --prune=now`
+（`git count-objects`：4033 个松对象 → in-pack 4021）。
+
+结果：**423.7 MB / 612 files**，**-5,852.8 MB（-93.2%）**。分项：`build` 5,184.6→0（下次构建自动长回）、
+`.dart_tool` 368.1→10.7、`windows/flutter` 261.6→0.0、`android/.gradle` 21.6→删、`.git` 30.9→**3.2 MB**。
+清理后全量测试照跑（见下），说明仓库仍可编译/测试。`docs/DEV_SETUP.md` 新增 §7 记下这三条命令与
+"删前想一下"的两处（`dist/` 旧发布件、`.git` 松对象）。
+
+**B. 代码：28 个没人读的 l10n key，以及一条早就该修好的生成链**
+
+扫描 999 个 key，28 个在 `lib`/`test` 手写 dart 中**零引用**（`navMindnet`、`settingsTheme`、
+`settingsThemeSystem`、`timeMarkBusy/Open`、`ankiStartReview`、`packagesImportHint`、`threadEnergy2/4/6/8/10`、
+`threadExpectedNear`、`threadSortHint`、`propTitleHint/DescriptionHint/EstimateHint/ExpectedHint/DeadlineHint/
+EnergyHint/AlgorithmHint`、`propWeightsEditable`、`propTemplatesNote`、`aiThinking`、`skillsEnabled/Disabled`、
+`assessmentSkip`、`assessmentRecallPrompt`），从两份 arb 删除后由生成器重写三个 dart。
+
+**顺带修好 `flutter gen-l10n`**：它此前一直退出码 1（所以 l10n 生成文件是手工维护的）。根因只有一处：模板
+`app_en.arb` 缺 `@materialIntakeCantLand` 的 placeholder 声明（zh 里是 `reason: String`，模板默认成 Object →
+类型冲突）。给模板补 3 行后 gen-l10n **退出码 0**，以后不再手改生成文件。
+
+**C. 逻辑：组卷装配原本复制在两处**
+
+页面 `paperPlanProvider` 与 AI 工具 `compose_paper` 各自把"题库 + 挂载 + 诊断读数 + 每道题最新链的动作序列 +
+能力动作画像"拼成 `PaperCandidate` 再调 `PaperComposer.compose`，两段几乎逐行相同；而同一份库必须排出同一份
+卷子（D2：一个数字一个来源），复制两处迟早漂移。
+
+抽出 `lib/features/questions/application/paper_plan_builder.dart`：`preferredActionTypesOf(profile)` +
+`buildPaperPlan({db, corpus, spec, diagnosis, preferredActionTypes}) → PaperPlanBuild{plan, readingsUsed}`。
+两边的 IO 差异保留：页面用已缓存的题库/页面那次诊断/画像 provider；工具用 `readPaperCorpus` +
+`readLibraryDiagnosis(默认模型)` + 推理链样本（工具没有 `Ref`）。净效果：`paper_plan_provider.dart` 216→188 行、
+`paper_tools.dart` 352→323 行，重复装配只剩一份（新文件 94 行，含注释）。
+
+**D. 两处"能编译但是错的"顺手修掉**
+
+- `event_properties_page.dart` 6 条相对 import 多写了一级（`../../../../data/...`），会越出 `lib` 根；Dart 会把
+  越界的相对 import 悄悄 clamp 回 `lib` 根，所以一直没报错。改成真正的 `../../../`（presentation→thread→
+  features→lib），并在文件头注释里记下这个坑（自查脚本：lib 内 escaping relative imports 6→0）。
+- `data/database/database.dart` 删掉未用的 `dart:typed_data`。
+
+**证据**：`dart analyze lib test` → **93 issues（0 error / 0 warning）**（此前 94，少的 1 条就是那条未用 import）；
+全量 `flutter test --concurrency=1` → **`+2107 ~2` All tests passed**（与轮次一百一十一同数：本轮删代码/改装配、
+没有新增行为用例；组卷两处改动由既有 provider 11 例 + tool 14 例覆盖，定向 25 例全绿）；`flutter gen-l10n`
+退出码 0。
+
+**还能量、但没动的（诚实清单）**：① `dist/` 旧发布件 0.3.1/0.4.0/0.4.1（apk+zip ≈300 MB）保留 —— 重建要
+checkout 老 commit，留给用户决定；② `mind_map_page.dart`（443 行）与 `tasks_page.dart`/`task_detail_page.dart`
+（280+601 行）在 App 里不可达，但 `DESIGN_BLUEPRINT.md:134` 明确 mindmap「保留不动、UI 下线」、
+`FEATURE_MATRIX.md:89` 仍把 tasks 当交付物，故不删；③ analyze 仍有 93 条 info（`await_only_futures`、
+`prefer_const_constructors`、deprecated 的 `TextFormField.value`、`use_build_context_synchronously` 等），
+没批量改 —— 属于历史代码风格，不在本轮"精简"口径内。
+
+---
+
 ## 2026-10-18 轮次一百一十一：认知模型的只读可视化 —— 知识网络图（Lead）
 
 **起点（用户反馈）**：「认知模型我希望有一个只读的可视化界面」。此前读数页只有三块数字/列表

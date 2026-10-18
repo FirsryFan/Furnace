@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../data/database/database.dart';
-import '../../../../data/repositories/repository_providers.dart';
-import '../../../../domain/services/scheduling/schedule_conflict.dart';
-import '../../../../domain/services/scheduling/thread_ranker.dart';
-import '../../../../domain/services/scheduling/time_window_engine.dart';
-import '../../../../l10n/app_localizations.dart';
+// 这几个相对路径以前多写了一级（`../../../../`）。Dart 会把越界的相对 import
+// 悄悄 clamp 回 lib 根，所以一直能编译；但路径本身是错的 —— 改成真正的
+// `../../../`（presentation → thread → features → lib）。
+import '../../../data/database/database.dart';
+import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/scheduling/schedule_conflict.dart';
+import '../../../domain/services/scheduling/thread_ranker.dart';
+import '../../../domain/services/scheduling/time_window_engine.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../settings/presentation/usage_doc_page.dart';
 import '../../tasks/presentation/widgets/schedule_conflict_dialog.dart';
 import '../application/thread_rank_service.dart';

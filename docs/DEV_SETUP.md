@@ -85,3 +85,32 @@ lib/
   data/         # Drift 数据库、Repository 实现
   domain/       # 实体与算法服务（SRS、任务调度、挖空）
 ```
+
+---
+
+## 7. 回收磁盘空间（可再生物）
+
+本项目约 **5.8 GB** 的占用是**可再生的构建产物**，不是源码（源码 `app/lib` 4.5 MB、`app/test` 2.2 MB、
+`docs` 1.2 MB）。想腾空间时按顺序删，源码与历史都不会丢：
+
+```powershell
+cd class-productivity/app
+
+# 1) Flutter 构建缓存：build/ + .dart_tool/ + windows/flutter/ephemeral/（≈5.8 GB）
+flutter clean
+
+# 2) Android 的 Gradle 本地缓存（≈22 MB，下次构建重新生成）
+Remove-Item -Recurse -Force android/.gradle -ErrorAction SilentlyContinue
+
+# 3) 恢复依赖配置（≈0 MB；只重建 .dart_tool/package_config.json 这几个小文件）
+flutter pub get --offline
+```
+
+需要重新构建时照常 `flutter run -d windows` / `flutter build ...`，缓存会自己长回来；测试同样照跑。
+
+还有两处**不由构建自动再生**、删前想一下：
+
+- `dist/` 里的历史发布件（旧版本 apk/zip 各约 100 MB）：要重建得先 checkout 对应 commit，本项目默认保留；
+- `.git/` 的松对象：`git gc --prune=now` 会把它们打包（gc 前本仓库 `.git` 30.9 MB，gc 后的实测数字见
+  `PROGRESS.md` 轮次一百一十二），不丢历史，只是之后第一次 `git log`/`diff` 稍慢一点。
+

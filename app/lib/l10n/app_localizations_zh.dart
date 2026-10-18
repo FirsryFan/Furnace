@@ -15,9 +15,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navMindMap => '思维导图';
 
   @override
-  String get navMindnet => 'Mindnet';
-
-  @override
   String get navTags => '标签';
 
   @override
@@ -106,12 +103,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsLanguageEn => 'English';
-
-  @override
-  String get settingsTheme => '主题';
-
-  @override
-  String get settingsThemeSystem => '跟随系统';
 
   @override
   String get settingsThemeLight => '浅色';
@@ -230,12 +221,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timeNone => '无';
-
-  @override
-  String get timeMarkBusy => '标记为忙碌';
-
-  @override
-  String get timeMarkOpen => '标记为开放';
 
   @override
   String get calendarTimeline => '时间轴';
@@ -362,9 +347,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get calendarWeekday7 => '日';
-
-  @override
-  String get ankiStartReview => '开始复习';
 
   @override
   String get ankiShowAnswer => '显示答案';
@@ -633,9 +615,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeRunDialogTitle => '贴一份 run/1：先校验，再试跑';
 
   @override
-  String get materialIntakeRunDialogTitleEdited => '改一改再跑（同一份 run/1）';
-
-  @override
   String get materialIntakeRunHint => '把一份 mindnet.run/1 请求贴在这里';
 
   @override
@@ -700,6 +679,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialPhotoReportEditAndRun => '改一改再跑';
 
   @override
+  String get materialIntakeRunDialogTitleEdited => '改一改再跑（同一份 run/1）';
+
+  @override
   String get materialPhotoReportRehearseBusy => '正在试跑…';
 
   @override
@@ -749,6 +731,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String materialPhotoReportHandOverFailed(String message) {
     return '没记成：$message';
   }
+
+  @override
+  String get materialIntakeRunDetailLink => '这一跑当时做了什么';
+
+  @override
+  String get materialIntakeRunDetailTitle => '这一跑当时做了什么（只读）';
 
   @override
   String get materialIntakeTopicHubs => '顺便建主题分组（默认不建：分组不是卡片关系）';
@@ -825,24 +813,17 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get materialIntakeUndoLogTitle {
-    return '撤回记录';
-  }
+  String get materialIntakeUndoLogTitle => '撤回记录';
 
   @override
-  String get materialIntakeUndoLogNote {
-    return '点过撤回就留一笔：撤成了记删了什么，没撤成记为什么（那时库里一个字没动）。';
-  }
+  String get materialIntakeUndoLogNote =>
+      '点过撤回就留一笔：撤成了记删了什么，没撤成记为什么（那时库里一个字没动）。';
 
   @override
-  String get materialIntakeUndoLogDone {
-    return '撤成了';
-  }
+  String get materialIntakeUndoLogDone => '撤成了';
 
   @override
-  String get materialIntakeUndoLogNotDone {
-    return '没撤成';
-  }
+  String get materialIntakeUndoLogNotDone => '没撤成';
 
   @override
   String materialIntakeUndoLogBlocked(String reason, int count) {
@@ -897,12 +878,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get materialIntakeExisting => '已存在，不重复建';
 
   @override
-  String get materialIntakeRunDetailLink => '这一跑当时做了什么';
-
-  @override
-  String get materialIntakeRunDetailTitle => '这一跑当时做了什么（只读）';
-
-  @override
   String get materialIntakeRename => '改一改这一条';
 
   @override
@@ -926,6 +901,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String materialIntakeCantLand(String reason) {
+    return '这条现在落不了：$reason（先让缺的那一端进图）';
+  }
+
+  @override
   String materialIntakeConfirm(int count) {
     return '确认入库（$count 条）';
   }
@@ -939,11 +919,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String materialIntakeFrom(String source, String region) {
     return '出处：$source · $region';
-  }
-
-  @override
-  String materialIntakeCantLand(String reason) {
-    return '这条现在落不了：$reason（先让缺的那一端进图）';
   }
 
   @override
@@ -1002,9 +977,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get packagesExport => '导出知识包';
-
-  @override
-  String get packagesImportHint => '选择一个 .kpak 文件';
 
   @override
   String get packagesImported => '导入完成';
@@ -1167,31 +1139,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get threadEnergy1 => '极低 · 只适合机械事务';
 
   @override
-  String get threadEnergy2 => '极低 · 只适合机械事务';
-
-  @override
   String get threadEnergy3 => '偏低 · 轻松任务';
-
-  @override
-  String get threadEnergy4 => '偏低 · 轻松任务';
 
   @override
   String get threadEnergy5 => '中等 · 常规任务';
 
   @override
-  String get threadEnergy6 => '中等 · 常规任务';
-
-  @override
   String get threadEnergy7 => '偏高 · 需要专注';
 
   @override
-  String get threadEnergy8 => '偏高 · 需要专注';
-
-  @override
   String get threadEnergy9 => '极高 · 攻坚';
-
-  @override
-  String get threadEnergy10 => '极高 · 攻坚';
 
   @override
   String get threadStaleTitle => '状态可能已过期';
@@ -1217,9 +1174,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get threadExpectedNear => '期望时刻临近';
-
-  @override
   String get threadArchiveEmpty => '归档是空的';
 
   @override
@@ -1237,32 +1191,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get threadExpand => '展开顶栏';
 
   @override
-  String get threadSortHint => '重新排序';
-
-  @override
-  String get propTitleHint => '这件事叫什么。排序不读标题，但你自己靠它认出来。';
-
-  @override
-  String get propDescriptionHint => '详细说明。排序不读正文，只给你自己看。';
-
-  @override
-  String get propEstimateHint => '你估计要花多久。排序用它判断截止时刻之前装不装得下。';
-
-  @override
-  String get propExpectedHint => '你打算什么时候做。临近时它会变黄并提权，但它永远不会让它变红——因为可以推迟。';
-
-  @override
-  String get propDeadlineHint => '真正的硬底线。装不下就会进「时间不足」，并移出主列表。';
-
-  @override
-  String get propEnergyHint => '这件事需要多少精力（1-10）。与你当前的精力越接近，排序越靠前。';
-
-  @override
   String get propAlgorithm => '排序参数';
-
-  @override
-  String get propAlgorithmHint =>
-      '这个事件在最近一次排序中拿到的原始分量与权重。总分＝各分量×权重之和。右侧按钮可以改权重。';
 
   @override
   String get propAlgorithmNoData => '还没有排序结果：先在顶栏点「更新与排序」。';
@@ -1317,13 +1246,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get propWeightsHint => '权重对所有事件生效（不是只对这一条）。改完会自动重新排序。';
 
   @override
-  String get propWeightsEditable => '权重对所有事件生效，可编辑。';
-
-  @override
   String get propResetWeights => '恢复默认权重';
-
-  @override
-  String get propTemplatesNote => '事件模板与批量修改会复用这里的同一套参数。';
 
   @override
   String knowledgeRemaining(int count) {
@@ -1817,9 +1740,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiSend => '发送';
 
   @override
-  String get aiThinking => '思考中…';
-
-  @override
   String get aiPendingTitle => '以下操作需要你确认';
 
   @override
@@ -2009,12 +1929,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillsEmpty => '还没有安装任何 skill。';
 
   @override
-  String get skillsEnabled => '已启用';
-
-  @override
-  String get skillsDisabled => '已停用';
-
-  @override
   String get skillsPlatforms => '支持平台';
 
   @override
@@ -2186,7 +2100,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cognitiveReadOnlyNote => '只读页面：不会写入数据库';
 
   @override
-  @override
   String get mechanismPanelTitle => '机制与参数';
 
   @override
@@ -2309,6 +2222,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get mechanismSetupRunRehearsal => '转写请求演练那一跑';
 
+  @override
   String get cognitiveZoneNote =>
       '发展区/死角沿用复习队列的同一套 ReviewZone 词表。「不可用」只表示这次没做诊断，它不等于「健康（查过，没问题）」。';
 
@@ -2566,9 +2480,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assessmentBack => '上一步';
 
   @override
-  String get assessmentSkip => '这次跳过';
-
-  @override
   String get assessmentSelfHint =>
       '不看资料，现在能复述多少？0 = 完全想不起来，5 = 能完整讲出来。自评不是考试，它给模型一个起点；答不准也没关系，客观抽检会来修正它。';
 
@@ -2580,9 +2491,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get assessmentRecallHint =>
       '下面三个知识点是范围的两端与中间各一个——每次给同一批，才能比较不同时间。写下你的复述，然后给自己一个分：说法对得上吗？';
-
-  @override
-  String get assessmentRecallPrompt => '复述这个知识点';
 
   @override
   String get assessmentRecallAnswer => '我复述的内容（可留空）';

@@ -110,12 +110,6 @@ abstract class AppLocalizations {
   /// **'Mind Map'**
   String get navMindMap;
 
-  /// No description provided for @navMindnet.
-  ///
-  /// In en, this message translates to:
-  /// **'Mindnet'**
-  String get navMindnet;
-
   /// No description provided for @navTags.
   ///
   /// In en, this message translates to:
@@ -295,18 +289,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'English'**
   String get settingsLanguageEn;
-
-  /// No description provided for @settingsTheme.
-  ///
-  /// In en, this message translates to:
-  /// **'Theme'**
-  String get settingsTheme;
-
-  /// No description provided for @settingsThemeSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'System'**
-  String get settingsThemeSystem;
 
   /// No description provided for @settingsThemeLight.
   ///
@@ -541,18 +523,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'None'**
   String get timeNone;
-
-  /// No description provided for @timeMarkBusy.
-  ///
-  /// In en, this message translates to:
-  /// **'Mark as busy'**
-  String get timeMarkBusy;
-
-  /// No description provided for @timeMarkOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'Mark as open'**
-  String get timeMarkOpen;
 
   /// No description provided for @calendarTimeline.
   ///
@@ -793,12 +763,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sun'**
   String get calendarWeekday7;
-
-  /// No description provided for @ankiStartReview.
-  ///
-  /// In en, this message translates to:
-  /// **'Start review'**
-  String get ankiStartReview;
 
   /// No description provided for @ankiShowAnswer.
   ///
@@ -1286,12 +1250,6 @@ abstract class AppLocalizations {
   /// **'Paste a run/1: check it, then dry-run it'**
   String get materialIntakeRunDialogTitle;
 
-  /// No description provided for @materialIntakeRunDialogTitleEdited.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit it and run it (the same run/1)'**
-  String get materialIntakeRunDialogTitleEdited;
-
   /// No description provided for @materialIntakeRunHint.
   ///
   /// In en, this message translates to:
@@ -1406,6 +1364,12 @@ abstract class AppLocalizations {
   /// **'Edit it and run it'**
   String get materialPhotoReportEditAndRun;
 
+  /// No description provided for @materialIntakeRunDialogTitleEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit it and run it (the same run/1)'**
+  String get materialIntakeRunDialogTitleEdited;
+
   /// No description provided for @materialPhotoReportRehearseBusy.
   ///
   /// In en, this message translates to:
@@ -1483,6 +1447,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not record it: {message}'**
   String materialPhotoReportHandOverFailed(String message);
+
+  /// No description provided for @materialIntakeRunDetailLink.
+  ///
+  /// In en, this message translates to:
+  /// **'What that run actually did'**
+  String get materialIntakeRunDetailLink;
+
+  /// No description provided for @materialIntakeRunDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What that run actually did (read only)'**
+  String get materialIntakeRunDetailTitle;
 
   /// No description provided for @materialIntakeTopicHubs.
   ///
@@ -1694,18 +1670,6 @@ abstract class AppLocalizations {
   /// **'already exists - no duplicate'**
   String get materialIntakeExisting;
 
-  /// No description provided for @materialIntakeRunDetailLink.
-  ///
-  /// In en, this message translates to:
-  /// **'What that run actually did'**
-  String get materialIntakeRunDetailLink;
-
-  /// No description provided for @materialIntakeRunDetailTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'What that run actually did (read only)'**
-  String get materialIntakeRunDetailTitle;
-
   /// No description provided for @materialIntakeRename.
   ///
   /// In en, this message translates to:
@@ -1748,6 +1712,12 @@ abstract class AppLocalizations {
   /// **'Body: {body}'**
   String materialIntakeProposalBody(String body);
 
+  /// No description provided for @materialIntakeCantLand.
+  ///
+  /// In en, this message translates to:
+  /// **'cannot land yet: {reason} (get that end into the graph first)'**
+  String materialIntakeCantLand(String reason);
+
   /// No description provided for @materialIntakeConfirm.
   ///
   /// In en, this message translates to:
@@ -1766,12 +1736,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Source: {source} · {region}'**
   String materialIntakeFrom(String source, String region);
-
-  /// No description provided for @materialIntakeCantLand.
-  ///
-  /// In en, this message translates to:
-  /// **'cannot land yet: {reason} (get that end into the graph first)'**
-  String materialIntakeCantLand(String reason);
 
   /// No description provided for @materialIntakeQuote.
   ///
@@ -1868,12 +1832,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export .kpak'**
   String get packagesExport;
-
-  /// No description provided for @packagesImportHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a .kpak file'**
-  String get packagesImportHint;
 
   /// No description provided for @packagesImported.
   ///
@@ -2181,23 +2139,11 @@ abstract class AppLocalizations {
   /// **'Very low · mechanical chores only'**
   String get threadEnergy1;
 
-  /// No description provided for @threadEnergy2.
-  ///
-  /// In en, this message translates to:
-  /// **'Very low · mechanical chores only'**
-  String get threadEnergy2;
-
   /// No description provided for @threadEnergy3.
   ///
   /// In en, this message translates to:
   /// **'Low · light tasks'**
   String get threadEnergy3;
-
-  /// No description provided for @threadEnergy4.
-  ///
-  /// In en, this message translates to:
-  /// **'Low · light tasks'**
-  String get threadEnergy4;
 
   /// No description provided for @threadEnergy5.
   ///
@@ -2205,35 +2151,17 @@ abstract class AppLocalizations {
   /// **'Medium · routine work'**
   String get threadEnergy5;
 
-  /// No description provided for @threadEnergy6.
-  ///
-  /// In en, this message translates to:
-  /// **'Medium · routine work'**
-  String get threadEnergy6;
-
   /// No description provided for @threadEnergy7.
   ///
   /// In en, this message translates to:
   /// **'High · needs focus'**
   String get threadEnergy7;
 
-  /// No description provided for @threadEnergy8.
-  ///
-  /// In en, this message translates to:
-  /// **'High · needs focus'**
-  String get threadEnergy8;
-
   /// No description provided for @threadEnergy9.
   ///
   /// In en, this message translates to:
   /// **'Very high · deep push'**
   String get threadEnergy9;
-
-  /// No description provided for @threadEnergy10.
-  ///
-  /// In en, this message translates to:
-  /// **'Very high · deep push'**
-  String get threadEnergy10;
 
   /// No description provided for @threadStaleTitle.
   ///
@@ -2277,12 +2205,6 @@ abstract class AppLocalizations {
   /// **'needs {needed} min, {available} min available'**
   String threadInsufficientDetail(String needed, String available);
 
-  /// No description provided for @threadExpectedNear.
-  ///
-  /// In en, this message translates to:
-  /// **'Expected time is near'**
-  String get threadExpectedNear;
-
   /// No description provided for @threadArchiveEmpty.
   ///
   /// In en, this message translates to:
@@ -2313,59 +2235,11 @@ abstract class AppLocalizations {
   /// **'Expand status bar'**
   String get threadExpand;
 
-  /// No description provided for @threadSortHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Re-sort'**
-  String get threadSortHint;
-
-  /// No description provided for @propTitleHint.
-  ///
-  /// In en, this message translates to:
-  /// **'What this event is called. The ranking never reads the title, but you recognise it by it.'**
-  String get propTitleHint;
-
-  /// No description provided for @propDescriptionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Longer notes. The ranking never reads this either - it is only for you.'**
-  String get propDescriptionHint;
-
-  /// No description provided for @propEstimateHint.
-  ///
-  /// In en, this message translates to:
-  /// **'How long you think it takes. The ranking uses it to check whether it still fits before the deadline.'**
-  String get propEstimateHint;
-
-  /// No description provided for @propExpectedHint.
-  ///
-  /// In en, this message translates to:
-  /// **'When you plan to do it. Near that moment it turns yellow and gets a boost - but it can never turn anything red, because it can be postponed.'**
-  String get propExpectedHint;
-
-  /// No description provided for @propDeadlineHint.
-  ///
-  /// In en, this message translates to:
-  /// **'The real hard bottom line. If it no longer fits, the event moves to \"not enough time\" and leaves the main list.'**
-  String get propDeadlineHint;
-
-  /// No description provided for @propEnergyHint.
-  ///
-  /// In en, this message translates to:
-  /// **'How much energy this needs (1-10). The closer to your current energy, the higher it ranks.'**
-  String get propEnergyHint;
-
   /// No description provided for @propAlgorithm.
   ///
   /// In en, this message translates to:
   /// **'Ranking parameters'**
   String get propAlgorithm;
-
-  /// No description provided for @propAlgorithmHint.
-  ///
-  /// In en, this message translates to:
-  /// **'The raw components and weights this event scored in the last sort. Total = sum of component x weight. Use the buttons on the right to edit the weights.'**
-  String get propAlgorithmHint;
 
   /// No description provided for @propAlgorithmNoData.
   ///
@@ -2469,23 +2343,11 @@ abstract class AppLocalizations {
   /// **'Weights apply to all events, not just this one. Saving re-sorts automatically.'**
   String get propWeightsHint;
 
-  /// No description provided for @propWeightsEditable.
-  ///
-  /// In en, this message translates to:
-  /// **'Weights apply to every event and are editable.'**
-  String get propWeightsEditable;
-
   /// No description provided for @propResetWeights.
   ///
   /// In en, this message translates to:
   /// **'Restore default weights'**
   String get propResetWeights;
-
-  /// No description provided for @propTemplatesNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Event templates and batch edits reuse exactly these parameters.'**
-  String get propTemplatesNote;
 
   /// No description provided for @knowledgeRemaining.
   ///
@@ -2856,7 +2718,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUsageDocHint.
   ///
   /// In en, this message translates to:
-  /// **'How each part works and what its limits are: AI, review, knowledge base, cognitive model, ranking'**
+  /// **'How each part works and what its limits are: AI, review, knowledge base, question bank, photos/materials, cognitive model, ranking'**
   String get settingsUsageDocHint;
 
   /// No description provided for @docAiTitle.
@@ -2868,7 +2730,7 @@ abstract class AppLocalizations {
   /// No description provided for @docAiBody.
   ///
   /// In en, this message translates to:
-  /// **'The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_content, fetch_page, evaluate_problem_fit) run immediately; writes (creating tags, flashcards, tasks, documents...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.'**
+  /// **'The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_tasks, query_schedule, query_content, fetch_page, evaluate_problem_fit, compose_paper, find_similar_questions, find_questions_by_capability, plan_today, review_metrics and friends) run immediately; writes (creating tags, flashcards, tasks, documents, material intake, applying today\'s plan...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.'**
   String get docAiBody;
 
   /// No description provided for @docReviewTitle.
@@ -2880,7 +2742,7 @@ abstract class AppLocalizations {
   /// No description provided for @docReviewBody.
   ///
   /// In en, this message translates to:
-  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day.'**
+  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar).'**
   String get docReviewBody;
 
   /// No description provided for @docKnowledgeTitle.
@@ -2916,7 +2778,7 @@ abstract class AppLocalizations {
   /// No description provided for @docMaterialBody.
   ///
   /// In en, this message translates to:
-  /// **'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying "do not install the goal mechanism" really leaves it out.'**
+  /// **'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.'**
   String get docMaterialBody;
 
   /// No description provided for @docTodayTitle.
@@ -2940,7 +2802,7 @@ abstract class AppLocalizations {
   /// No description provided for @docCognitiveBody.
   ///
   /// In en, this message translates to:
-  /// **'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" needs confidence data this app does not store, so it never appears. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.'**
+  /// **'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.'**
   String get docCognitiveBody;
 
   /// No description provided for @docFormulaTitle.
@@ -3357,12 +3219,6 @@ abstract class AppLocalizations {
   /// **'Send'**
   String get aiSend;
 
-  /// No description provided for @aiThinking.
-  ///
-  /// In en, this message translates to:
-  /// **'Thinking...'**
-  String get aiThinking;
-
   /// No description provided for @aiPendingTitle.
   ///
   /// In en, this message translates to:
@@ -3711,18 +3567,6 @@ abstract class AppLocalizations {
   /// **'No skills installed.'**
   String get skillsEmpty;
 
-  /// No description provided for @skillsEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Enabled'**
-  String get skillsEnabled;
-
-  /// No description provided for @skillsDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
-  String get skillsDisabled;
-
   /// No description provided for @skillsPlatforms.
   ///
   /// In en, this message translates to:
@@ -4017,10 +3861,6 @@ abstract class AppLocalizations {
   /// **'Read-only page: nothing here is written to the database'**
   String get cognitiveReadOnlyNote;
 
-  /// No description provided for @cognitiveZoneNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".'**
   /// No description provided for @mechanismPanelTitle.
   ///
   /// In en, this message translates to:
@@ -4084,7 +3924,7 @@ abstract class AppLocalizations {
   /// No description provided for @mechanismGoalBetaApplies.
   ///
   /// In en, this message translates to:
-  /// **'Every run that installs the goal mechanism reads this number: the library-diagnosis run (the reading above on this page) and the problem-pricing run (the V(π) ordering behind evaluate_problem_fit / plan_today). The tools' module_defaults carries exactly it - empty when you have never tuned it (the shipped value untouched).'**
+  /// **'Every run that installs the goal mechanism reads this number: the library-diagnosis run (the reading above on this page) and the problem-pricing run (the V(π) ordering behind evaluate_problem_fit / plan_today). The tools\' module_defaults carries exactly it - empty when you have never tuned it (the shipped value untouched).'**
   String get mechanismGoalBetaApplies;
 
   /// No description provided for @mechanismGoalBetaOffNote.
@@ -4249,6 +4089,10 @@ abstract class AppLocalizations {
   /// **'The transcript-request rehearsal'**
   String get mechanismSetupRunRehearsal;
 
+  /// No description provided for @cognitiveZoneNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".'**
   String get cognitiveZoneNote;
 
   /// No description provided for @cognitiveFastLayerNote.
@@ -4647,12 +4491,6 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get assessmentBack;
 
-  /// No description provided for @assessmentSkip.
-  ///
-  /// In en, this message translates to:
-  /// **'Skip this time'**
-  String get assessmentSkip;
-
   /// No description provided for @assessmentSelfHint.
   ///
   /// In en, this message translates to:
@@ -4670,12 +4508,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'These three knowledge points are the two ends and the middle of the scope - the same set every time, so different days can be compared. Write your retelling, then rate it: did it hold up?'**
   String get assessmentRecallHint;
-
-  /// No description provided for @assessmentRecallPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Retell this knowledge point'**
-  String get assessmentRecallPrompt;
 
   /// No description provided for @assessmentRecallAnswer.
   ///
@@ -4752,7 +4584,7 @@ abstract class AppLocalizations {
   /// No description provided for @capabilityProfileDetail.
   ///
   /// In en, this message translates to:
-  /// **'Aggregated per step's stuck risk; steps with no risk reading are only counted, never averaged in.'**
+  /// **'Aggregated per step\'s stuck risk; steps with no risk reading are only counted, never averaged in.'**
   String get capabilityProfileDetail;
 
   /// No description provided for @capabilityProfileUnavailable.
@@ -4782,7 +4614,7 @@ abstract class AppLocalizations {
   /// No description provided for @capabilityProfileUnknownNote.
   ///
   /// In en, this message translates to:
-  /// **'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.'**
+  /// **'Unknown moves are shown verbatim - that is not \"fine\", it means the vocabulary does not know it yet.'**
   String get capabilityProfileUnknownNote;
 
   /// No description provided for @capabilityActionQuestionsTitle.
@@ -4800,7 +4632,7 @@ abstract class AppLocalizations {
   /// No description provided for @capabilityActionQuestionsEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No solved question uses "{label}" yet - solve one from its detail page first.'**
+  /// **'No solved question uses \"{label}\" yet - solve one from its detail page first.'**
   String capabilityActionQuestionsEmpty(String label);
 
   /// No description provided for @capabilityActionQuestionsAllSubjects.
@@ -6013,7 +5845,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionPaperActionProfileNote.
   ///
   /// In en, this message translates to:
-  /// **'This paper was ordered by your "{actions}" moves (uncalibrated, can be turned off)'**
+  /// **'This paper was ordered by your \"{actions}\" moves (uncalibrated, can be turned off)'**
   String questionPaperActionProfileNote(String actions);
 
   /// No description provided for @questionPaperCopy.

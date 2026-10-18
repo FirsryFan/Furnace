@@ -19,6 +19,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
+import '../../questions/application/paper_plan_builder.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
 
@@ -115,20 +116,9 @@ class ComposePaperTool extends AiTool {
         model: const MindNetCognitiveModel(),
       );
 
-      final coveredPointIds = <String>{
-        for (final candidate in corpus.candidates)
-          ...candidate.matchedKnowledgePointIds,
-      };
-      final readings = await readPaperReadings(
-        _db,
-        coveredKnowledgePointIds: coveredPointIds,
-        diagnosis: diagnosis,
-      );
-
-      // 与页面同源：能力动作画像（推理层读数）+ 每道题最新链的动作序列。
-      // 页面走 `capabilityProfileProvider` / `paperPlanProvider`，工具走同一份纯函数，
-      // 所以同一份库两边挑出来的卷子一致（D2：一个数字一个来源）。
-      final chainActions = await readChainActionTypes(_db);
+      // 与页面同源：能力动作画像（推理层读数）。装配本身在
+      // `questions/application/paper_plan_builder.dart` —— 页面与工具调同一个函数，
+      // 同一份库两边挑出来的卷子一致（D2：一个数字一个来源）。
       final capabilitySteps = await QuestionRepository(_db).allReasoningSteps();
       final profile = CapabilityProfile.of(<CapabilityStepSample>[
         for (final step in capabilitySteps)
@@ -137,37 +127,18 @@ class ComposePaperTool extends AiTool {
             stuckRisk: step.stuckRisk,
           ),
       ]);
-      final preferredActions = !useCapabilityProfile
-          ? const <String>[]
-          : <String>[
-              for (final reading in profile)
-                if (reading.avgStuckRisk != null &&
-                    reading.avgStuckRisk! >= CapabilityProfile.riskyThreshold)
-                  reading.actionType,
-            ].take(kPreferredActionLimit).toList();
-      final candidates = <PaperCandidate>[
-        for (final candidate in corpus.candidates)
-          PaperCandidate(
-            questionId: candidate.questionId,
-            subjectKey: candidate.subjectKey,
-            sourceLevel: candidate.sourceLevel,
-            questionType: candidate.questionType,
-            difficulty: candidate.difficulty,
-            aiQuality: candidate.aiQuality,
-            trapNote: candidate.trapNote,
-            matchedKnowledgePointIds: candidate.matchedKnowledgePointIds,
-            actionTypes: chainActions[candidate.questionId] ?? const <String>[],
-          ),
-      ];
+      final preferredActions = useCapabilityProfile
+          ? preferredActionTypesOf(profile)
+          : const <String>[];
 
-      final plan = PaperComposer.compose(
-        candidates: candidates,
+      final build = await buildPaperPlan(
+        db: _db,
+        corpus: corpus,
         spec: spec,
-        readings: readings,
-        knowledgePointNames: corpus.knowledgePointNames,
-        knowledgePointTagPaths: corpus.knowledgePointTagPaths,
+        diagnosis: diagnosis,
         preferredActionTypes: preferredActions,
       );
+      final plan = build.plan;
 
       return ToolResult(
         ok: true,
@@ -185,7 +156,7 @@ class ComposePaperTool extends AiTool {
           'overall_need': plan.overallNeed,
           'weights': plan.weights.toMap(),
           'diagnosis_ran': diagnosis.fastLayerRan,
-          'readings_used': readings.length,
+          'readings_used': build.readingsUsed,
           'preferred_action_types': preferredActions,
           'capability_profile_used': preferredActions.isNotEmpty,
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,

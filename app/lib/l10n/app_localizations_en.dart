@@ -15,9 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navMindMap => 'Mind Map';
 
   @override
-  String get navMindnet => 'Mindnet';
-
-  @override
   String get navTags => 'Tags';
 
   @override
@@ -106,12 +103,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsLanguageEn => 'English';
-
-  @override
-  String get settingsTheme => 'Theme';
-
-  @override
-  String get settingsThemeSystem => 'System';
 
   @override
   String get settingsThemeLight => 'Light';
@@ -230,12 +221,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeNone => 'None';
-
-  @override
-  String get timeMarkBusy => 'Mark as busy';
-
-  @override
-  String get timeMarkOpen => 'Mark as open';
 
   @override
   String get calendarTimeline => 'Timeline';
@@ -365,9 +350,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarWeekday7 => 'Sun';
-
-  @override
-  String get ankiStartReview => 'Start review';
 
   @override
   String get ankiShowAnswer => 'Show answer';
@@ -650,10 +632,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Paste a run/1: check it, then dry-run it';
 
   @override
-  String get materialIntakeRunDialogTitleEdited =>
-      'Edit it and run it (the same run/1)';
-
-  @override
   String get materialIntakeRunHint => 'Paste a mindnet.run/1 request here';
 
   @override
@@ -720,6 +698,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialPhotoReportEditAndRun => 'Edit it and run it';
 
   @override
+  String get materialIntakeRunDialogTitleEdited =>
+      'Edit it and run it (the same run/1)';
+
+  @override
   String get materialPhotoReportRehearseBusy => 'Running it through…';
 
   @override
@@ -771,6 +753,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String materialPhotoReportHandOverFailed(String message) {
     return 'Could not record it: $message';
   }
+
+  @override
+  String get materialIntakeRunDetailLink => 'What that run actually did';
+
+  @override
+  String get materialIntakeRunDetailTitle =>
+      'What that run actually did (read only)';
 
   @override
   String get materialIntakeTopicHubs =>
@@ -848,24 +837,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get materialIntakeUndoLogTitle {
-    return 'Undo log';
-  }
+  String get materialIntakeUndoLogTitle => 'Undo log';
 
   @override
-  String get materialIntakeUndoLogNote {
-    return 'Every undo attempt leaves an entry: what it deleted, or why it did not (nothing in the library changed).';
-  }
+  String get materialIntakeUndoLogNote =>
+      'Every undo attempt leaves an entry: what it deleted, or why it did not (nothing in the library changed).';
 
   @override
-  String get materialIntakeUndoLogDone {
-    return 'Undone';
-  }
+  String get materialIntakeUndoLogDone => 'Undone';
 
   @override
-  String get materialIntakeUndoLogNotDone {
-    return 'Not undone';
-  }
+  String get materialIntakeUndoLogNotDone => 'Not undone';
 
   @override
   String materialIntakeUndoLogBlocked(String reason, int count) {
@@ -922,13 +904,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get materialIntakeExisting => 'already exists - no duplicate';
 
   @override
-  String get materialIntakeRunDetailLink => 'What that run actually did';
-
-  @override
-  String get materialIntakeRunDetailTitle =>
-      'What that run actually did (read only)';
-
-  @override
   String get materialIntakeRename => 'Edit this one';
 
   @override
@@ -946,12 +921,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get materialIntakeEditBodyHint =>
-      'e.g. the meaning, an example sentence, the original text - '
-      'fill in what the machine missed';
+      'e.g. the meaning, an example sentence, the original text - fill in what the machine missed';
 
   @override
   String materialIntakeProposalBody(String body) {
     return 'Body: $body';
+  }
+
+  @override
+  String materialIntakeCantLand(String reason) {
+    return 'cannot land yet: $reason (get that end into the graph first)';
   }
 
   @override
@@ -968,11 +947,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String materialIntakeFrom(String source, String region) {
     return 'Source: $source · $region';
-  }
-
-  @override
-  String materialIntakeCantLand(String reason) {
-    return 'cannot land yet: $reason (get that end into the graph first)';
   }
 
   @override
@@ -1033,9 +1007,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get packagesExport => 'Export .kpak';
-
-  @override
-  String get packagesImportHint => 'Select a .kpak file';
 
   @override
   String get packagesImported => 'Imported';
@@ -1205,31 +1176,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadEnergy1 => 'Very low · mechanical chores only';
 
   @override
-  String get threadEnergy2 => 'Very low · mechanical chores only';
-
-  @override
   String get threadEnergy3 => 'Low · light tasks';
-
-  @override
-  String get threadEnergy4 => 'Low · light tasks';
 
   @override
   String get threadEnergy5 => 'Medium · routine work';
 
   @override
-  String get threadEnergy6 => 'Medium · routine work';
-
-  @override
   String get threadEnergy7 => 'High · needs focus';
 
   @override
-  String get threadEnergy8 => 'High · needs focus';
-
-  @override
   String get threadEnergy9 => 'Very high · deep push';
-
-  @override
-  String get threadEnergy10 => 'Very high · deep push';
 
   @override
   String get threadStaleTitle => 'State may be outdated';
@@ -1256,9 +1212,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get threadExpectedNear => 'Expected time is near';
-
-  @override
   String get threadArchiveEmpty => 'Archive is empty';
 
   @override
@@ -1277,38 +1230,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadExpand => 'Expand status bar';
 
   @override
-  String get threadSortHint => 'Re-sort';
-
-  @override
-  String get propTitleHint =>
-      'What this event is called. The ranking never reads the title, but you recognise it by it.';
-
-  @override
-  String get propDescriptionHint =>
-      'Longer notes. The ranking never reads this either - it is only for you.';
-
-  @override
-  String get propEstimateHint =>
-      'How long you think it takes. The ranking uses it to check whether it still fits before the deadline.';
-
-  @override
-  String get propExpectedHint =>
-      'When you plan to do it. Near that moment it turns yellow and gets a boost - but it can never turn anything red, because it can be postponed.';
-
-  @override
-  String get propDeadlineHint =>
-      'The real hard bottom line. If it no longer fits, the event moves to \"not enough time\" and leaves the main list.';
-
-  @override
-  String get propEnergyHint =>
-      'How much energy this needs (1-10). The closer to your current energy, the higher it ranks.';
-
-  @override
   String get propAlgorithm => 'Ranking parameters';
-
-  @override
-  String get propAlgorithmHint =>
-      'The raw components and weights this event scored in the last sort. Total = sum of component x weight. Use the buttons on the right to edit the weights.';
 
   @override
   String get propAlgorithmNoData =>
@@ -1372,15 +1294,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Weights apply to all events, not just this one. Saving re-sorts automatically.';
 
   @override
-  String get propWeightsEditable =>
-      'Weights apply to every event and are editable.';
-
-  @override
   String get propResetWeights => 'Restore default weights';
-
-  @override
-  String get propTemplatesNote =>
-      'Event templates and batch edits reuse exactly these parameters.';
 
   @override
   String knowledgeRemaining(int count) {
@@ -1648,7 +1562,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docMaterialBody =>
-      'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying "do not install the goal mechanism" really leaves it out.';
+      'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.';
 
   @override
   String get docTodayTitle => 'What to do today, and when';
@@ -1662,7 +1576,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docCognitiveBody =>
-      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. "Danger" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
+      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
 
   @override
   String get docFormulaTitle => 'How the score is computed';
@@ -1901,9 +1815,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiSend => 'Send';
 
   @override
-  String get aiThinking => 'Thinking...';
-
-  @override
   String get aiPendingTitle => 'These need your confirmation';
 
   @override
@@ -2101,12 +2012,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get skillsEmpty => 'No skills installed.';
 
   @override
-  String get skillsEnabled => 'Enabled';
-
-  @override
-  String get skillsDisabled => 'Disabled';
-
-  @override
   String get skillsPlatforms => 'Platforms';
 
   @override
@@ -2286,7 +2191,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Read-only page: nothing here is written to the database';
 
   @override
-  @override
   String get mechanismPanelTitle => 'Mechanisms and parameters';
 
   @override
@@ -2417,6 +2321,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mechanismSetupRunRehearsal => 'The transcript-request rehearsal';
 
+  @override
   String get cognitiveZoneNote =>
       'Zone uses the same ReviewZone vocabulary as the review queue. \"Unavailable\" only means nothing was diagnosed this time - it is not the same as \"healthy (checked, nothing to report)\".';
 
@@ -2677,9 +2582,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assessmentBack => 'Back';
 
   @override
-  String get assessmentSkip => 'Skip this time';
-
-  @override
   String get assessmentSelfHint =>
       'Without looking anything up, how much could you retell right now? 0 = nothing at all, 5 = I could teach it. Self-report is not an exam; it gives the model a starting point, and objective checks will correct it.';
 
@@ -2691,9 +2593,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assessmentRecallHint =>
       'These three knowledge points are the two ends and the middle of the scope - the same set every time, so different days can be compared. Write your retelling, then rate it: did it hold up?';
-
-  @override
-  String get assessmentRecallPrompt => 'Retell this knowledge point';
 
   @override
   String get assessmentRecallAnswer => 'What I retold (optional)';
@@ -2743,7 +2642,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get capabilityProfileDetail =>
-      "Aggregated per step's stuck risk; steps with no risk reading are only counted, never averaged in.";
+      'Aggregated per step\'s stuck risk; steps with no risk reading are only counted, never averaged in.';
 
   @override
   String get capabilityProfileUnavailable =>
@@ -2764,7 +2663,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get capabilityProfileUnknownNote =>
-      'Unknown moves are shown verbatim - that is not "fine", it means the vocabulary does not know it yet.';
+      'Unknown moves are shown verbatim - that is not \"fine\", it means the vocabulary does not know it yet.';
 
   @override
   String capabilityActionQuestionsTitle(String label) {
@@ -2777,7 +2676,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String capabilityActionQuestionsEmpty(String label) {
-    return 'No solved question uses "$label" yet - solve one from its detail page first.';
+    return 'No solved question uses \"$label\" yet - solve one from its detail page first.';
   }
 
   @override
@@ -3501,13 +3400,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionPaperActionProfileHint =>
-      'Questions that hit the moves you struggle with move up a little; '
-      'does nothing when you have no solved chains, and can be turned off.';
+      'Questions that hit the moves you struggle with move up a little; does nothing when you have no solved chains, and can be turned off.';
 
   @override
   String questionPaperActionProfileNote(String actions) {
-    return 'This paper was ordered by your "$actions" moves '
-        '(uncalibrated, can be turned off)';
+    return 'This paper was ordered by your \"$actions\" moves (uncalibrated, can be turned off)';
   }
 
   @override
