@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-10-18 轮次一百一十六：v0.5.1 发布件 —— 把卡组修复与入口重设计装进双端安装包（Lead）
+
+**起点（用户指令）**：用户此前要求「删掉旧版本，同时生成新版本软件，我放 release」；轮次一百一十四
+（旧卡归组 / 新建卡选卡组）与轮次一百一十五（题库入口重设计）的改动此前只在源码里，用户装的是
+v0.5.0。本轮把它们装成 v0.5.1，dist 只留最新版。
+
+**A. 版本**：`app/pubspec.yaml` `0.5.0+9 → 0.5.1+10`；`app/lib/core/app_info.dart` 的
+`kAppVersion = '0.5.1'`、`kAppBuildNumber = 10`（`kAppUserAgent` 跟随）。patch 级：没有 schema
+迁移，直接覆盖安装。
+
+**B. 构建**（脚本 `E:\dsh-tmp-aot\release-051-build.ps1`，日志 `release-051-build.txt`）：
+- 前置：`flutter pub get --offline` exit 0；`flutter gen-l10n` exit 0（轮次一百一十二修过 arb
+  模板，生成器现在可跑）；`dart run build_runner build --force-jit` 79s / 854 outputs。
+- Windows：先把 sqlite tarball（`sqlite-autoconf-3520000.tar.gz`，3,258,980 bytes，复用
+  `E:\knowflow` 的同版本缓存）预置到
+  `build\windows\x64\_deps\sqlite3-subbuild\sqlite3-populate-prefix\src\`。随后**手动 cmake
+  configure 失败**：`CMake Error at flutter/CMakeLists.txt:7 (include): include could not find
+  requested file: ...windows/flutter/ephemeral/generated_config.cmake` —— 该文件要 flutter 工具先
+  prepare 才生成，手动 configure 拿不到；失败那次只把 generator 写进了缓存。改回
+  `flutter build windows --release` 一次成功（110.0s），install 没有再往 `C:/Program Files` 写
+  （轮次一百一十三那个 CMakeCache 坑在干净 build 目录下没有复现）。产物：`furnace.exe` 91,136；
+  `data/app.so` **18,875,272 bytes**（v0.5.0 是 18,826,120）。
+- Android：`scripts/build_android.ps1`，Gradle **150.5s**，APK **91,971,382 bytes（87.7MB）**，
+  签名 `CN=Threadflow`、证书 SHA-256 `57de8b8f…`（与 v0.5.0 同一把钥匙，可覆盖安装）；aapt2：
+  `com.furnace.app` versionCode **10** / versionName **0.5.1**，minSdk 24 / targetSdk 36，label
+  Furnace。
+
+**C. dist**：删除 0.5.0 的三件（apk / zip / `RELEASE-v0.5.0.md`；GitHub Release 上的 v0.5.0 仍在），
+只留：
+- `Furnace-0.5.1-android.apk` 87.71MB，SHA-256 `0DEAD6301A33A73427E8B1DF474BFA08C4FED661CB802817E3F3AC399A7417A1`
+- `Furnace-0.5.1-windows-x64.zip` 18.51MB，SHA-256 `1BF3E8CEF7D63F8E638160B43207F70516955C05D5FC420840824C217010AC5D`
+- `RELEASE-v0.5.1.md`（4,229 bytes：下载表 / 修了什么 / 验证 / 已知未做）
+
+dist 3 文件 106.2MB。
+
+**D. 验证**：全量 `flutter test --concurrency=1` → **+2120 ~2 All tests passed**（版本号改后重跑；
+`app_info_test` 与 `about_page_test` 都在里面）；`dart analyze lib test` → **93 issues，0 error /
+0 warning**；Windows 冒烟：dist zip 解压到 `E:\FirsryOS\THREADRIPPER\Furnace-0.5.1-windows-x64\`，
+`Start-Process furnace.exe` → pid 15324、标题 `Furnace`、Responding、287MB。
+
+**E. 没做的**：Windows 没有安装器与代码签名（SmartScreen 会拦一下），dist 只留最新版（旧版在
+GitHub Release），没有自动更新。tag `v0.5.1`。
+
+---
+
 ## 2026-10-18 轮次一百一十五：入口重设计 —— 题库成为顶层目的地、设置页收敛、知识页顶栏收进菜单（Lead）
 
 **起点（用户指令）**：用户 m29290「还有很多功能，比如知识库、新建题目、题库总览之类的功能，请你重新设计其入口」；
