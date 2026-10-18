@@ -427,3 +427,42 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
   参数错、命中 + 只认最新链、空结果、`limit` 钳位、整库指纹只读、组合查询 any/all/学科/空条件）；
   `test/features/questions/application/capability_action_questions_reader_test.dart` **4 例**
   （含组合查询：命中项如实回报、`requireAll`、学科筛选、空条件返回空）。
+
+## 14. 思维链洞察聚合层：从「一条链」到「我卡在哪种动作上」（轮次一百二十四）
+
+§12 的能力动作画像回答的是「卷子该练哪个动作」，只用了单一维度（平均风险）；轮次一百二十四补一个更通用的聚合层，给未来的「学习洞察页」和统一信号模型供数。两层都是派生计算，不落库。
+
+### 14.1 纯聚合层（`chain_insights.dart`，task-18）
+
+文件：`app/lib/domain/services/reasoning/chain_insights.dart`（纯 Dart，无 IO）。输入是行模型：`ChainInsightChain`（chainId / questionId / steps / occurredAt）与 `ChainInsightStep`（actionType / index / stuckRisk / knownAction / knowledgeHints / occurredAt）；工厂 `ChainInsightChain.fromParsedChain` / `ChainInsightStep.fromParsedStep` 把解析器输出转成行模型。
+
+主入口 `ChainInsights.aggregate({chains, catalog?, highRiskThreshold = 0.6})`，输出（全部不可变）：
+
+- 总量：chainCount / stepCount / questionCount；以及**显式异常计数**：ignoredChainCount、duplicateChainCount、ignoredStepCount、duplicateStepCount、invalidRiskStepCount、clampedRiskStepCount、highRiskStepCount、highRiskChainCount——异常不静默吞掉。
+- `actions`（按动作聚合：stepCount / questionCount / knownActionRatio / highRiskStepCount / highRiskQuestionCount / highRiskChainCount / averageStuckRisk? / maxStuckRisk? / lastSeenAt）、`customActions`、`unknownActions`、`neverUsedActions`（词表里有、链里没用过，按词表顺序）。
+- 卡点维度：`highRiskByQuestion`、`highRiskByKnowledgePoint`（key / 高风险步数 / 题数 / 链数）。
+
+口径（与 §12 一脉相承）：
+
+1. `stuckRisk` 为 null / NaN / ±inf **不进平均、不插补 0**，只计入 invalidRiskStepCount；有限但越界的夹到 0..1 并计 clampedRiskStepCount。
+2. 空 chainId / 空 actionType 的行进 ignored* 计数；重复 chainId、重复 step index 只留第一条并计数。
+3. `known` / `custom` 始终按**当前 catalog** 重新判定，不信任行上的 knownAction 快照（旧词表写下的行可能已过期；快照为 null 时才由 catalog 推）——词表会变，读数要跟现在一致。
+4. 排序确定性：动作按 stepCount desc → questionCount desc → highRiskStepCount desc → 平均风险 desc（null 最后）→ actionType asc；卡点按 highRiskStepCount desc → chainCount desc → questionCount desc → key asc。阈值非有限回退 0.6。
+5. 空输入返回空结果（`isEmpty`），`neverUsedActions` 也空——「没有数据」和「所有动作都没用」不是一回事，不编数据。
+
+验收：`test/domain/services/reasoning/chain_insights_test.dart` **58 例**（聚合计数 / 未知与自定义动作 / neverUsed / 无效与越界风险 / 卡点分组 / 排序稳定 / 空输入 / `toJson`）。
+
+### 14.2 数据接线（`chain_insights_reader.dart`，task-21）
+
+文件：`app/lib/features/questions/application/chain_insights_reader.dart`（纯 Dart 读表，唯一 IO）。`readChainInsightCorpus(db)` 一次读完 `reasoning_chains` + `reasoning_steps` 并投影成行模型：链按 createdAt asc → id asc，链内步骤按 idx asc → id asc；步骤的 `knowledgeHints` JSON 容错（坏 JSON / 非数组记 null 并计 invalidKnowledgeHintsSteps，非法项丢弃）；找不到所属链的步骤计 orphanStepCount，不偷偷挂到别的链；空链保留。`knownAction` 一律置 null，交给当前 overlay 词表在聚合时重判（理由同 14.1 第 3 条）。
+
+两个 provider：`chainInsightCorpusProvider`（读表）与 `chainInsightsProvider`（读表 + 当前能力词表 overlay → `ChainInsights.aggregate`；词表读取失败退回内置词表继续，不因为偏好坏掉就看不到洞察）。
+
+验收：`test/features/questions/application/chain_insights_reader_test.dart` **12 例**（空库 / 字段投影与 knownAction null / 链与步骤排序 / 重复 idx / 空链 / 孤立步骤 / 坏 JSON / 未知动作进 unknownActions / 自定义词表认名 / 词表失败退回）。
+
+### 14.3 与 §12 / §10 的关系、未做
+
+- §12 的 `capability_profile` 仍是**组卷与工具面的输入**（只取平均风险 + 已知动作），口径更窄；本节是更全的洞察读数（自定义 / 未知动作、高风险热区、从未用过的动作），面向「学习洞察」而非组卷。两者暂不合并——统一学习信号模型是候选方向，合并前不偷偷改 §12 的口径。
+- 管道位置：§10 把解析结果落库 → 本节从库里多链聚合 → 未来洞察页 / 画像消费。聚合结果不落库。
+- 未做：洞察页 UI / provider 未接页面；真库里 NaN / ±inf 的落库路径未实测（测试用构造数据覆盖）；与 §12 的统一信号模型未做。
+

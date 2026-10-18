@@ -190,3 +190,14 @@
 - 验收：`question_paper_page_test.dart` 21 → **22 例**（开关/说明/说明行都在；关掉后说明行消失、
   次序回到按 id 兜底、重置把开关带回默认）；`paper_plan_provider_test.dart` 10 → **11 例**（关掉后
   `preferredActionTypes` 空、命中项全空、理由行不再提画像）；`paper_tools_test.dart` 13 → **14 例**。
+
+## 13. 学科配额：按学科上限与保底（轮次一百二十四）
+
+需求：一份卷子里的学科比例要可控（用户点名的「领域配额」先落在 `subjectKey` 这一层；按顶级领域标签祖先做映射仍未做——两者口径不同，见 `docs/THREADFLOW_TWO_SEGMENT.md` 的领域配额）。
+
+- **API**：`SubjectQuota`（纯逻辑，`app/lib/domain/services/paper/subject_quota.dart`）—— 每科可给上限 `maxPerSubject` 与保底 `minPerSubject`；配置归一化（trim、排序、空键 / 负值 / 去重后重复键抛 `ArgumentError`、同科 min>max 抬上限）。`PaperSpec.subjectQuota`（默认 `null` = 不启用）进来，`PaperPlan` 新增 `bySubject` / `quotaBlockedQuestions` / `subjectShortfalls` / `subjectQuota` / `uncoveredSubjectKeys` 如实回报；`toJson` 只在启用时追加 `by_subject` / `quota_blocked_questions` / `subject_shortfalls` / `subject_quota` 四个键，schema 仍是 `mindnet.paper_plan/1`。
+- **优先级与语义**：`targetCount` 是硬上限（不为保底多给题）> 保底阶段按学科键字典序补到 min（同时受 `perKnowledgePointCap` 约束）> 填充阶段按既有分数序（先知识点上限，再学科上限）。被学科上限挡下的候选、保底凑不够的缺口都写进 plan，**不静默丢题**；题库里一道都没有的学科进 `uncoveredSubjectKeys`。未列出的学科不限（空键也不限）；`maxPerSubject = 0` 表示该科不取。
+- **默认关闭、旧行为逐字节不变**：`subjectQuota == null` 时不走新分支，旧 `toJson` 十个键的顺序与 `jsonEncode` 输出有回归测试钉住。
+- **未做**：`paperPlanProvider` / `compose_paper` 工具未透传配额（纯逻辑已就绪，接线留下一轮）；页面上还没展示 `bySubject` / 被挡题 / 保底缺口；配额数值**未标定**（没有真实数据支撑先给比例）；按顶级领域标签祖先的映射未做。
+- 验收：`test/domain/services/paper/subject_quota_test.dart` **33 例**（配置归一化与抛错 / 上限与保底 / 交错填充 / `targetCount` 硬上限 / 被挡与缺口回报 / `max=0` / 未列学科 / 默认 null 逐字节不变 / `toJson` 启用四键）。
+

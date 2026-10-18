@@ -1945,9 +1945,8 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 开关：下拉 = 工具的 `action_types`，开关 = `match`；清回「不叠加」时开关收起、`requireAll` 复位）。
 至此**工具能问的组合查询，页面上也能问**。口径同上 §13。
 
-**仍未做**：① 收题页的"拖拽"（A 方案，可选）：按目标"B 优先"的口径，② 已由"粘贴 + `file_picker` 选图"
-完成（见 `docs/QUESTION_BANK_DESIGN.md` §10）；OS 级拖入要加 `desktop_drop` 一类依赖，需用户拍板；
-② 能力动作词表用户可编辑（设计上留到 v13）；③ 组卷/相似题的措辞与配额打磨；④ 题库入口是否升为顶层
+**仍未做**：① OS 级拖入已做（轮次一百二十一，`desktop_drop` 0.8.4 + 魔数兜底，见 `docs/QUESTION_BANK_DESIGN.md` §10），真机与微信聊天记录临时路径未手测；
+② 能力动作词表的编辑 UI 与文案（overlay 持久化 v25、编辑操作层、未知动作发现、推理接线已在轮次一百二十三落地，纯逻辑尚无入口）；③ 组卷学科配额（轮次一百二十四 `subject_quota.dart` 纯逻辑）的 provider/工具/页面接线与标定、按顶级领域标签祖先的领域映射，相似题质量分量（`SimilarityWeights.quality`）默认 0 未标定；④ 题库入口是否升为顶层
 导航（当前刻意挂在设置页，见 `settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验
 （等标定协议）；⑥ 「按能力动作找题」页的学科筛选仍为单选（动作侧已经能叠第二个 + 任一/全部）。
 
