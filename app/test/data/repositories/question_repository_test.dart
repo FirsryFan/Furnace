@@ -292,4 +292,24 @@ void main() {
     expect(steps[1].knowledgeHints, '["kp1"]');
     expect((await repo.byId(id))!.state, 'processed');
   });
+
+  test('题目编号：入库依次 1、2；重复入库不占新号；删题后接现存最大号 + 1', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '编号测试一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '编号测试二'));
+    expect(first.question.serialNo, 1);
+    expect(second.question.serialNo, 2);
+
+    // 同指纹再入库：返回既有题，号码不动（去重发生在分配之前）。
+    final again = await repo.ingest(const QuestionDraft(stem: '编号测试一'));
+    expect(again.created, isFalse);
+    expect(again.question.serialNo, 1);
+
+    // 删掉当前最大号那道题之后，下一道会不会接手那个号？会——分配只依赖
+    // "现存最大号 + 1"，而删题是物理删除。这是刻意接受的（题库不变量是只追加，
+    // 删题是清理手段），文档里把"严格不回收"列为未做，需要持久计数器。
+    await repo.deleteQuestion(second.question.id);
+    final third = await repo.ingest(const QuestionDraft(stem: '编号测试三'));
+    expect(third.question.serialNo, 2);
+    expect(second.question.serialNo, 2);
+  });
 }

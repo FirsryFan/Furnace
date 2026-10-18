@@ -11265,6 +11265,14 @@ class $AttachmentsTable extends Attachments
   late final GeneratedColumn<String> mime = GeneratedColumn<String>(
       'mime', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -11273,7 +11281,7 @@ class $AttachmentsTable extends Attachments
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, ownerType, ownerId, relPath, mime, createdAt];
+      [id, ownerType, ownerId, relPath, mime, sortOrder, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -11311,6 +11319,10 @@ class $AttachmentsTable extends Attachments
       context.handle(
           _mimeMeta, mime.isAcceptableOrUnknown(data['mime']!, _mimeMeta));
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -11336,6 +11348,8 @@ class $AttachmentsTable extends Attachments
           .read(DriftSqlType.string, data['${effectivePrefix}rel_path'])!,
       mime: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}mime']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
     );
@@ -11353,6 +11367,13 @@ class Attachment extends DataClass implements Insertable<Attachment> {
   final String ownerId;
   final String relPath;
   final String? mime;
+
+  /// 同一个主人（`ownerType` + `ownerId`）下的显示顺序，0 起。
+  ///
+  /// v24（轮次一百二十一）加的：一道题可以有多张图（拍照、截图、印刷页），
+  /// 列表要按用户添加的先后展示，不能靠 `createdAt` 撞毫秒。其它 owner
+  /// （AI 消息、拍照整理）不写这一列，落默认 0，语义与以前一致。
+  final int sortOrder;
   final int createdAt;
   const Attachment(
       {required this.id,
@@ -11360,6 +11381,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       required this.ownerId,
       required this.relPath,
       this.mime,
+      required this.sortOrder,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11371,6 +11393,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
     if (!nullToAbsent || mime != null) {
       map['mime'] = Variable<String>(mime);
     }
+    map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<int>(createdAt);
     return map;
   }
@@ -11382,6 +11405,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       ownerId: Value(ownerId),
       relPath: Value(relPath),
       mime: mime == null && nullToAbsent ? const Value.absent() : Value(mime),
+      sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
     );
   }
@@ -11395,6 +11419,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       ownerId: serializer.fromJson<String>(json['ownerId']),
       relPath: serializer.fromJson<String>(json['relPath']),
       mime: serializer.fromJson<String?>(json['mime']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
@@ -11407,6 +11432,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       'ownerId': serializer.toJson<String>(ownerId),
       'relPath': serializer.toJson<String>(relPath),
       'mime': serializer.toJson<String?>(mime),
+      'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<int>(createdAt),
     };
   }
@@ -11417,6 +11443,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           String? ownerId,
           String? relPath,
           Value<String?> mime = const Value.absent(),
+          int? sortOrder,
           int? createdAt}) =>
       Attachment(
         id: id ?? this.id,
@@ -11424,6 +11451,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
         ownerId: ownerId ?? this.ownerId,
         relPath: relPath ?? this.relPath,
         mime: mime.present ? mime.value : this.mime,
+        sortOrder: sortOrder ?? this.sortOrder,
         createdAt: createdAt ?? this.createdAt,
       );
   Attachment copyWithCompanion(AttachmentsCompanion data) {
@@ -11433,6 +11461,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       relPath: data.relPath.present ? data.relPath.value : this.relPath,
       mime: data.mime.present ? data.mime.value : this.mime,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -11445,6 +11474,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           ..write('ownerId: $ownerId, ')
           ..write('relPath: $relPath, ')
           ..write('mime: $mime, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -11452,7 +11482,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
 
   @override
   int get hashCode =>
-      Object.hash(id, ownerType, ownerId, relPath, mime, createdAt);
+      Object.hash(id, ownerType, ownerId, relPath, mime, sortOrder, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -11462,6 +11492,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           other.ownerId == this.ownerId &&
           other.relPath == this.relPath &&
           other.mime == this.mime &&
+          other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt);
 }
 
@@ -11471,6 +11502,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   final Value<String> ownerId;
   final Value<String> relPath;
   final Value<String?> mime;
+  final Value<int> sortOrder;
   final Value<int> createdAt;
   final Value<int> rowid;
   const AttachmentsCompanion({
@@ -11479,6 +11511,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     this.ownerId = const Value.absent(),
     this.relPath = const Value.absent(),
     this.mime = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -11488,6 +11521,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     required String ownerId,
     required String relPath,
     this.mime = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     required int createdAt,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -11501,6 +11535,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     Expression<String>? ownerId,
     Expression<String>? relPath,
     Expression<String>? mime,
+    Expression<int>? sortOrder,
     Expression<int>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -11510,6 +11545,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       if (ownerId != null) 'owner_id': ownerId,
       if (relPath != null) 'rel_path': relPath,
       if (mime != null) 'mime': mime,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -11521,6 +11557,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       Value<String>? ownerId,
       Value<String>? relPath,
       Value<String?>? mime,
+      Value<int>? sortOrder,
       Value<int>? createdAt,
       Value<int>? rowid}) {
     return AttachmentsCompanion(
@@ -11529,6 +11566,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       ownerId: ownerId ?? this.ownerId,
       relPath: relPath ?? this.relPath,
       mime: mime ?? this.mime,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -11552,6 +11590,9 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     if (mime.present) {
       map['mime'] = Variable<String>(mime.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -11569,6 +11610,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
           ..write('ownerId: $ownerId, ')
           ..write('relPath: $relPath, ')
           ..write('mime: $mime, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -16893,6 +16935,12 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serialNoMeta =
+      const VerificationMeta('serialNo');
+  @override
+  late final GeneratedColumn<int> serialNo = GeneratedColumn<int>(
+      'serial_no', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _stemMeta = const VerificationMeta('stem');
   @override
   late final GeneratedColumn<String> stem = GeneratedColumn<String>(
@@ -17018,6 +17066,7 @@ class $QuestionsTable extends Questions
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        serialNo,
         stem,
         answer,
         solution,
@@ -17052,6 +17101,10 @@ class $QuestionsTable extends Questions
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('serial_no')) {
+      context.handle(_serialNoMeta,
+          serialNo.isAcceptableOrUnknown(data['serial_no']!, _serialNoMeta));
     }
     if (data.containsKey('stem')) {
       context.handle(
@@ -17162,6 +17215,8 @@ class $QuestionsTable extends Questions
     return Question(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      serialNo: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}serial_no']),
       stem: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}stem'])!,
       answer: attachedDatabase.typeMapping
@@ -17211,6 +17266,16 @@ class $QuestionsTable extends Questions
 
 class Question extends DataClass implements Insertable<Question> {
   final String id;
+
+  /// 人可读的题目编号（v24，轮次一百二十一）：**跨学科一个序列**，1 起分配，
+  /// 显示成 `TR-00001`（见 `domain/services/questions/question_number.dart`）。
+  ///
+  /// 为什么不拿 [id] 当编号：id 是 `q-<uuid>`，给人看太长、背不住、写不上纸。
+  /// 编号要短、要稳、要能在错题本上抄。可空是为了兼容三件事：老文件升级
+  /// （迁移里回填）、v23 及更早的 `.tfpkg` 包（导入后
+  /// `AppDatabase.backfillQuestionSerialNumbers` 补）、以及 append 导入。
+  /// NULL 的含义是"还没编号"，界面上显示占位，不是 0 号。
+  final int? serialNo;
 
   /// 题干（纯文本；公式保留 LaTeX 原样）。
   final String stem;
@@ -17265,6 +17330,7 @@ class Question extends DataClass implements Insertable<Question> {
   final int updatedAt;
   const Question(
       {required this.id,
+      this.serialNo,
       required this.stem,
       this.answer,
       this.solution,
@@ -17288,6 +17354,9 @@ class Question extends DataClass implements Insertable<Question> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || serialNo != null) {
+      map['serial_no'] = Variable<int>(serialNo);
+    }
     map['stem'] = Variable<String>(stem);
     if (!nullToAbsent || answer != null) {
       map['answer'] = Variable<String>(answer);
@@ -17331,6 +17400,9 @@ class Question extends DataClass implements Insertable<Question> {
   QuestionsCompanion toCompanion(bool nullToAbsent) {
     return QuestionsCompanion(
       id: Value(id),
+      serialNo: serialNo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serialNo),
       stem: Value(stem),
       answer:
           answer == null && nullToAbsent ? const Value.absent() : Value(answer),
@@ -17372,6 +17444,7 @@ class Question extends DataClass implements Insertable<Question> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Question(
       id: serializer.fromJson<String>(json['id']),
+      serialNo: serializer.fromJson<int?>(json['serialNo']),
       stem: serializer.fromJson<String>(json['stem']),
       answer: serializer.fromJson<String?>(json['answer']),
       solution: serializer.fromJson<String?>(json['solution']),
@@ -17398,6 +17471,7 @@ class Question extends DataClass implements Insertable<Question> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'serialNo': serializer.toJson<int?>(serialNo),
       'stem': serializer.toJson<String>(stem),
       'answer': serializer.toJson<String?>(answer),
       'solution': serializer.toJson<String?>(solution),
@@ -17422,6 +17496,7 @@ class Question extends DataClass implements Insertable<Question> {
 
   Question copyWith(
           {String? id,
+          Value<int?> serialNo = const Value.absent(),
           String? stem,
           Value<String?> answer = const Value.absent(),
           Value<String?> solution = const Value.absent(),
@@ -17443,6 +17518,7 @@ class Question extends DataClass implements Insertable<Question> {
           int? updatedAt}) =>
       Question(
         id: id ?? this.id,
+        serialNo: serialNo.present ? serialNo.value : this.serialNo,
         stem: stem ?? this.stem,
         answer: answer.present ? answer.value : this.answer,
         solution: solution.present ? solution.value : this.solution,
@@ -17469,6 +17545,7 @@ class Question extends DataClass implements Insertable<Question> {
   Question copyWithCompanion(QuestionsCompanion data) {
     return Question(
       id: data.id.present ? data.id.value : this.id,
+      serialNo: data.serialNo.present ? data.serialNo.value : this.serialNo,
       stem: data.stem.present ? data.stem.value : this.stem,
       answer: data.answer.present ? data.answer.value : this.answer,
       solution: data.solution.present ? data.solution.value : this.solution,
@@ -17507,6 +17584,7 @@ class Question extends DataClass implements Insertable<Question> {
   String toString() {
     return (StringBuffer('Question(')
           ..write('id: $id, ')
+          ..write('serialNo: $serialNo, ')
           ..write('stem: $stem, ')
           ..write('answer: $answer, ')
           ..write('solution: $solution, ')
@@ -17531,32 +17609,35 @@ class Question extends DataClass implements Insertable<Question> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      stem,
-      answer,
-      solution,
-      subjectKey,
-      questionType,
-      sourceLevel,
-      sourceLabel,
-      year,
-      region,
-      difficulty,
-      difficultySource,
-      stemFingerprint,
-      trapNote,
-      state,
-      aiQuality,
-      aiQualityNote,
-      origin,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        serialNo,
+        stem,
+        answer,
+        solution,
+        subjectKey,
+        questionType,
+        sourceLevel,
+        sourceLabel,
+        year,
+        region,
+        difficulty,
+        difficultySource,
+        stemFingerprint,
+        trapNote,
+        state,
+        aiQuality,
+        aiQualityNote,
+        origin,
+        createdAt,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Question &&
           other.id == this.id &&
+          other.serialNo == this.serialNo &&
           other.stem == this.stem &&
           other.answer == this.answer &&
           other.solution == this.solution &&
@@ -17580,6 +17661,7 @@ class Question extends DataClass implements Insertable<Question> {
 
 class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String> id;
+  final Value<int?> serialNo;
   final Value<String> stem;
   final Value<String?> answer;
   final Value<String?> solution;
@@ -17602,6 +17684,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<int> rowid;
   const QuestionsCompanion({
     this.id = const Value.absent(),
+    this.serialNo = const Value.absent(),
     this.stem = const Value.absent(),
     this.answer = const Value.absent(),
     this.solution = const Value.absent(),
@@ -17625,6 +17708,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   });
   QuestionsCompanion.insert({
     required String id,
+    this.serialNo = const Value.absent(),
     required String stem,
     this.answer = const Value.absent(),
     this.solution = const Value.absent(),
@@ -17651,6 +17735,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
         updatedAt = Value(updatedAt);
   static Insertable<Question> custom({
     Expression<String>? id,
+    Expression<int>? serialNo,
     Expression<String>? stem,
     Expression<String>? answer,
     Expression<String>? solution,
@@ -17674,6 +17759,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (serialNo != null) 'serial_no': serialNo,
       if (stem != null) 'stem': stem,
       if (answer != null) 'answer': answer,
       if (solution != null) 'solution': solution,
@@ -17699,6 +17785,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
 
   QuestionsCompanion copyWith(
       {Value<String>? id,
+      Value<int?>? serialNo,
       Value<String>? stem,
       Value<String?>? answer,
       Value<String?>? solution,
@@ -17721,6 +17808,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       Value<int>? rowid}) {
     return QuestionsCompanion(
       id: id ?? this.id,
+      serialNo: serialNo ?? this.serialNo,
       stem: stem ?? this.stem,
       answer: answer ?? this.answer,
       solution: solution ?? this.solution,
@@ -17749,6 +17837,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (serialNo.present) {
+      map['serial_no'] = Variable<int>(serialNo.value);
     }
     if (stem.present) {
       map['stem'] = Variable<String>(stem.value);
@@ -17817,6 +17908,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   String toString() {
     return (StringBuffer('QuestionsCompanion(')
           ..write('id: $id, ')
+          ..write('serialNo: $serialNo, ')
           ..write('stem: $stem, ')
           ..write('answer: $answer, ')
           ..write('solution: $solution, ')
@@ -27969,6 +28061,7 @@ typedef $$AttachmentsTableCreateCompanionBuilder = AttachmentsCompanion
   required String ownerId,
   required String relPath,
   Value<String?> mime,
+  Value<int> sortOrder,
   required int createdAt,
   Value<int> rowid,
 });
@@ -27979,6 +28072,7 @@ typedef $$AttachmentsTableUpdateCompanionBuilder = AttachmentsCompanion
   Value<String> ownerId,
   Value<String> relPath,
   Value<String?> mime,
+  Value<int> sortOrder,
   Value<int> createdAt,
   Value<int> rowid,
 });
@@ -28006,6 +28100,9 @@ class $$AttachmentsTableFilterComposer
 
   ColumnFilters<String> get mime => $composableBuilder(
       column: $table.mime, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -28035,6 +28132,9 @@ class $$AttachmentsTableOrderingComposer
   ColumnOrderings<String> get mime => $composableBuilder(
       column: $table.mime, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -28062,6 +28162,9 @@ class $$AttachmentsTableAnnotationComposer
 
   GeneratedColumn<String> get mime =>
       $composableBuilder(column: $table.mime, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -28095,6 +28198,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             Value<String> ownerId = const Value.absent(),
             Value<String> relPath = const Value.absent(),
             Value<String?> mime = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -28104,6 +28208,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             relPath: relPath,
             mime: mime,
+            sortOrder: sortOrder,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -28113,6 +28218,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             required String ownerId,
             required String relPath,
             Value<String?> mime = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             required int createdAt,
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -28122,6 +28228,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             relPath: relPath,
             mime: mime,
+            sortOrder: sortOrder,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -30694,6 +30801,7 @@ typedef $$CognitivePriorsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
   required String id,
+  Value<int?> serialNo,
   required String stem,
   Value<String?> answer,
   Value<String?> solution,
@@ -30717,6 +30825,7 @@ typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
 });
 typedef $$QuestionsTableUpdateCompanionBuilder = QuestionsCompanion Function({
   Value<String> id,
+  Value<int?> serialNo,
   Value<String> stem,
   Value<String?> answer,
   Value<String?> solution,
@@ -30750,6 +30859,9 @@ class $$QuestionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get serialNo => $composableBuilder(
+      column: $table.serialNo, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get stem => $composableBuilder(
       column: $table.stem, builder: (column) => ColumnFilters(column));
@@ -30822,6 +30934,9 @@ class $$QuestionsTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get serialNo => $composableBuilder(
+      column: $table.serialNo, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get stem => $composableBuilder(
       column: $table.stem, builder: (column) => ColumnOrderings(column));
@@ -30896,6 +31011,9 @@ class $$QuestionsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get serialNo =>
+      $composableBuilder(column: $table.serialNo, builder: (column) => column);
 
   GeneratedColumn<String> get stem =>
       $composableBuilder(column: $table.stem, builder: (column) => column);
@@ -30979,6 +31097,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
               $$QuestionsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<int?> serialNo = const Value.absent(),
             Value<String> stem = const Value.absent(),
             Value<String?> answer = const Value.absent(),
             Value<String?> solution = const Value.absent(),
@@ -31002,6 +31121,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
           }) =>
               QuestionsCompanion(
             id: id,
+            serialNo: serialNo,
             stem: stem,
             answer: answer,
             solution: solution,
@@ -31025,6 +31145,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<int?> serialNo = const Value.absent(),
             required String stem,
             Value<String?> answer = const Value.absent(),
             Value<String?> solution = const Value.absent(),
@@ -31048,6 +31169,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
           }) =>
               QuestionsCompanion.insert(
             id: id,
+            serialNo: serialNo,
             stem: stem,
             answer: answer,
             solution: solution,

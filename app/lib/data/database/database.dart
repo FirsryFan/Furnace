@@ -104,9 +104,10 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
-  /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23].
+  /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
+  /// [_upgradeV23ToV24].
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration {
@@ -180,6 +181,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 23) {
           await _upgradeV22ToV23();
+        }
+        if (from < 24) {
+          await _upgradeV23ToV24();
         }
       },
       beforeOpen: (details) async {
@@ -267,6 +271,16 @@ class AppDatabase extends _$AppDatabase {
       for (final column in entry.value) {
         await _addColumnIfMissing(m, entry.key, column);
       }
+    }
+    // v24（轮次一百二十一）：题目编号 + 附件排序。同一个失败模式——老文件被盖成
+    // v24 却没有这两列时，Drift 跳过 onUpgrade，读题目/配图的映射器直接抛错。
+    // 编号列光补列还不够：不回填的话用户会看见一整屏「TR-未编号」。
+    if (await _tableExists('questions') &&
+        await _addColumnIfMissing(m, 'questions', questions.serialNo)) {
+      await backfillQuestionSerialNumbers();
+    }
+    if (await _tableExists('attachments')) {
+      await _addColumnIfMissing(m, 'attachments', attachments.sortOrder);
     }
     // v8 tables are healed the same way for the same reason. A missing *table*
     // is not a mapper crash but a silent "your plan is gone", which is why this
@@ -670,6 +684,26 @@ class AppDatabase extends _$AppDatabase {
         m, 'material_intake_batches', materialIntakeBatches.detailText);
   }
 
+  /// v23 -> v24：题目编号 `questions.serial_no` + 附件排序
+  /// `attachments.sort_order`（轮次一百二十一）。
+  ///
+  /// 两列都是纯新增，但编号列补完必须回填：用户已有的题不能升级完一片
+  /// 「TR-未编号」。回填按 `(created_at, id)`——先入库的号小，id 兜底让同一毫秒
+  /// 内的顺序也是确定的（见 [backfillQuestionSerialNumbers]）。
+  ///
+  /// 表不存在就跳过：被盖成 v24 的空文件由 `_ensureColumns` 建表自愈，
+  /// 在这里建表会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同一个道理）。
+  Future<void> _upgradeV23ToV24() async {
+    final m = Migrator(this);
+    if (await _tableExists('questions')) {
+      await _addColumnIfMissing(m, 'questions', questions.serialNo);
+    }
+    if (await _tableExists('attachments')) {
+      await _addColumnIfMissing(m, 'attachments', attachments.sortOrder);
+    }
+    await backfillQuestionSerialNumbers();
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -736,15 +770,22 @@ class AppDatabase extends _$AppDatabase {
         m, 'completion_logs', completionLogs.durationSuspicious);
   }
 
-  Future<void> _addColumnIfMissing(
+  /// 补一列；返回**是否真的补了**。
+  ///
+  /// 返回值是给需要"补完还要办事"的迁移用的：v24 的题目编号光加一列不够，老行
+  /// 得回填（见 [_upgradeV23ToV24] 与 [backfillQuestionSerialNumbers]）。返回
+  /// `false` 表示列已经在了——也可能是上一次补完但事务没收尾，所以调用方只该
+  /// 用这个值决定"要不要多做一步"，不该拿它当"第一次到这里"的凭据。
+  Future<bool> _addColumnIfMissing(
     Migrator m,
     String table,
     GeneratedColumn<Object> column,
   ) async {
     if (await _columnExists(table, column.name)) {
-      return;
+      return false;
     }
     await m.addColumn(_tableFor(table), column);
+    return true;
   }
 
   // --- logical dump support (.tfpkg) ---------------------------------------
@@ -883,6 +924,12 @@ class AppDatabase extends _$AppDatabase {
       // 声称 v23 的文件必须能按名字解析到这张表 —— 否则自愈会抛 unknown table。
       case 'material_intake_batches':
         return materialIntakeBatches;
+      // v24（轮次一百二十一）：自愈那一趟要给题目补编号、给附件补排序，所以一个
+      // 声称 v24 的文件必须能按名字解析到这两张表 —— 否则自愈会抛 unknown table。
+      case 'questions':
+        return questions;
+      case 'attachments':
+        return attachments;
       default:
         throw ArgumentError('unknown table $name');
     }
@@ -904,6 +951,42 @@ class AppDatabase extends _$AppDatabase {
       }
     }
     return false;
+  }
+
+  /// 给还没有编号的题补上编号（v24 迁移、版本号自愈、v23 及更早的包导入之后
+  /// 都会走到这里）。返回补了多少行。
+  ///
+  /// 规则：
+  /// - 已经有号的题一律不动——用户见过的号不能变；
+  /// - 没有号（NULL）的按 `(created_at, id)` 从前往后，接着当前最大号往下排；
+  /// - 删题不回收号，所以号只增不减。
+  ///
+  /// 刻意逐行 UPDATE 而不用窗口函数：这条路径要跑在三种 SQLite 上（Flutter 自带
+  /// 的、测试里的 dart:ffi、用户升级上来的老文件），逐行语义在哪儿都一样；量级
+  /// 只是"题库里有多少道题"，一次性迁移慢不到哪去。
+  Future<int> backfillQuestionSerialNumbers() async {
+    if (!await _tableExists('questions') ||
+        !await _columnExists('questions', 'serial_no')) {
+      return 0;
+    }
+    final maxRow = await customSelect(
+      'SELECT COALESCE(MAX(serial_no), 0) AS max_serial FROM questions',
+    ).getSingle();
+    var next = maxRow.read<int>('max_serial');
+    final pending = await customSelect(
+      'SELECT id FROM questions WHERE serial_no IS NULL ORDER BY created_at, id',
+    ).get();
+    if (pending.isEmpty) {
+      return 0;
+    }
+    for (final row in pending) {
+      next += 1;
+      await customStatement(
+        'UPDATE questions SET serial_no = ? WHERE id = ?',
+        [next, row.read<String>('id')],
+      );
+    }
+    return pending.length;
   }
 
   /// v1 -> v2: new tables, new columns, relaxed card_state /

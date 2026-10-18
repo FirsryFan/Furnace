@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/package/tfpkg_codec.dart';
 import 'package:furnace/data/package/tfpkg_service.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/thread_rank_repository.dart';
@@ -200,6 +201,43 @@ void main() {
       expect(report.written['tasks'], 1);
       final tasks = await TaskRepository(db).getTasks();
       expect(tasks.single.title, '未来字段');
+    });
+
+    test('题目编号随包走；老包没有 serial_no 时导入后补号', () async {
+      final repository = QuestionRepository(db);
+      await repository.ingest(const QuestionDraft(stem: '包里的第一题'));
+      await repository.ingest(const QuestionDraft(stem: '包里的第二题'));
+      final dump =
+          TfpkgCodec.readManifest(await TfpkgService(db).exportBytes());
+      expect(
+        dump.tables['questions']!.rows.map((row) => row['serial_no']),
+        [1, 2],
+      );
+
+      // v23 packages have no serial_no column at all. The import must give the
+      // rows numbers instead of leaving the whole bank unnumbered.
+      final oldStyleDump = TfpkgDump(
+        appVersion: dump.appVersion,
+        exportedAt: dump.exportedAt,
+        tables: {
+          ...dump.tables,
+          'questions': TableDump(rows: [
+            for (final row in dump.tables['questions']!.rows)
+              Map<String, dynamic>.from(row)..remove('serial_no'),
+          ]),
+        },
+        themes: dump.themes,
+      );
+      final target = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(target.close);
+      await TfpkgService(target)
+          .importDump(oldStyleDump, mode: TfpkgMergeMode.append);
+
+      final serials = (await QuestionRepository(target).all())
+          .map((question) => question.serialNo)
+          .toList()
+        ..sort();
+      expect(serials, [1, 2]);
     });
   });
 }

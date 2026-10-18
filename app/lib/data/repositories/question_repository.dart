@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../../domain/services/questions/question_number.dart';
 import '../../domain/services/srs/dsr_memory.dart';
 import '../database/database.dart';
 import '../ids.dart';
@@ -173,9 +174,19 @@ class QuestionRepository {
     final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
     final id = Ids.next('q');
     await _db.transaction(() async {
+      // v24（轮次一百二十一）：题目编号在这个事务里分配，"读 MAX + 插入"是一次
+      // 原子操作——放在事务外就可能两个 ingest 拿到同一个号。删题不回收号，所以
+      // 号只增不减；导入的包可能把号带成重复的（append 模式不重编号），这里只要
+      // 保证本地新题的号是现有最大 + 1。
+      final maxSerial = _db.questions.serialNo.max();
+      final maxRow = await (_db.selectOnly(_db.questions)
+            ..addColumns([maxSerial]))
+          .getSingle();
+      final serialNo = nextQuestionSerial(maxRow.read(maxSerial));
       await _db.into(_db.questions).insert(
             QuestionsCompanion.insert(
               id: id,
+              serialNo: Value(serialNo),
               stem: stem,
               answer: Value(draft.answer),
               solution: Value(draft.solution),

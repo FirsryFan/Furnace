@@ -712,6 +712,14 @@ class Attachments extends Table {
   TextColumn get ownerId => text()();
   TextColumn get relPath => text()();
   TextColumn get mime => text().nullable()();
+
+  /// 同一个主人（`ownerType` + `ownerId`）下的显示顺序，0 起。
+  ///
+  /// v24（轮次一百二十一）加的：一道题可以有多张图（拍照、截图、印刷页），
+  /// 列表要按用户添加的先后展示，不能靠 `createdAt` 撞毫秒。其它 owner
+  /// （AI 消息、拍照整理）不写这一列，落默认 0，语义与以前一致。
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
   IntColumn get createdAt => integer()();
 
   @override
@@ -1069,6 +1077,16 @@ class CognitivePriors extends Table {
 @DataClassName('Question')
 class Questions extends Table {
   TextColumn get id => text()();
+
+  /// 人可读的题目编号（v24，轮次一百二十一）：**跨学科一个序列**，1 起分配，
+  /// 显示成 `TR-00001`（见 `domain/services/questions/question_number.dart`）。
+  ///
+  /// 为什么不拿 [id] 当编号：id 是 `q-<uuid>`，给人看太长、背不住、写不上纸。
+  /// 编号要短、要稳、要能在错题本上抄。可空是为了兼容三件事：老文件升级
+  /// （迁移里回填）、v23 及更早的 `.tfpkg` 包（导入后
+  /// `AppDatabase.backfillQuestionSerialNumbers` 补）、以及 append 导入。
+  /// NULL 的含义是"还没编号"，界面上显示占位，不是 0 号。
+  IntColumn get serialNo => integer().nullable()();
 
   /// 题干（纯文本；公式保留 LaTeX 原样）。
   TextColumn get stem => text()();

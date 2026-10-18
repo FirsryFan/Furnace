@@ -27,6 +27,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/ids.dart';
+import '../../../data/media/image_mime.dart';
 
 /// 一张已经落盘的待整理图片。
 class PendingHandwritingImage {
@@ -192,23 +193,12 @@ class HandwritingIntakeStore {
     }
   }
 
-  /// 保留原扩展名，前面的点去掉；没有扩展名时返回 null。
-  static String? _extensionOf(String name) {
-    final extension = p.extension(name);
-    return extension.isEmpty ? null : extension.substring(1).toLowerCase();
-  }
-
   /// 从文件名推 MIME。认不出来的扩展名返回 null——`attachments.mime` 可空，
   /// 存 null 比存一个猜的要诚实。
-  static String? mimeForName(String name) => switch (_extensionOf(name)) {
-        'jpg' || 'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'gif' => 'image/gif',
-        'webp' => 'image/webp',
-        'heic' => 'image/heic',
-        'bmp' => 'image/bmp',
-        _ => null,
-      };
+  ///
+  /// 实现在 `data/media/image_mime.dart`：题库配图（`QuestionMediaStore`）和
+  /// 拖拽收题共用同一份，以后加 `avif` 之类只改一处。
+  static String? mimeForName(String name) => imageMimeForName(name);
 
   Future<Directory> _directoryFor(String id) async {
     final directory = Directory(p.join((await _intakeRoot()).path, id));

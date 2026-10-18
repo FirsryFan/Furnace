@@ -142,6 +142,13 @@ class TfpkgService implements TfpkgDumpSource {
       await _db.customStatement('PRAGMA foreign_keys = ON');
     }
 
+    // v24（轮次一百二十一）：v23 及更早导出的包没有 `serial_no` 这一列，而
+    // `restoreTable` 只写"双方都有的列"，所以那些题落进来读出来是 NULL。导入
+    // 结束后统一补号：带号的题（v24 包）一行不动，NULL 的接着最大号往下排。
+    // 放在事务外是有意的——补号只依赖最终落库的数据，单独一句 UPDATE 失败也不该
+    // 把"导进来了多少行"这件事一起回滚掉。
+    await _db.backfillQuestionSerialNumbers();
+
     return TfpkgImportReport(
       mode: mode,
       written: written,
