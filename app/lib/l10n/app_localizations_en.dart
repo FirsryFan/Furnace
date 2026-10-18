@@ -3684,6 +3684,62 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get paperSubjectQuotaTitle => 'Subject quotas';
+
+  @override
+  String get paperSubjectQuotaHint =>
+      'Blank = no limit; a max of 0 selects none from that subject.';
+
+  @override
+  String get paperSubjectQuotaNoSubjects =>
+      'Subject quotas only apply to selected subjects: pick subjects above, then set a max or minimum for each.';
+
+  @override
+  String get paperSubjectQuotaMaxLabel => 'Max';
+
+  @override
+  String get paperSubjectQuotaMinLabel => 'Min';
+
+  @override
+  String get paperSubjectQuotaClear => 'Clear quotas';
+
+  @override
+  String get paperSubjectQuotaInvalid => 'Enter a non-negative whole number';
+
+  @override
+  String get paperSubjectDistribution => 'Subject distribution';
+
+  @override
+  String paperSubjectQuotaBlocked(int count) {
+    return '$count question(s) blocked by subject caps';
+  }
+
+  @override
+  String paperSubjectQuotaBlockedItem(
+      String subject, int limit, String detail) {
+    return '$subject (limit $limit): $detail';
+  }
+
+  @override
+  String paperSubjectQuotaBlockedMore(int count) {
+    return 'and $count more blocked question(s)';
+  }
+
+  @override
+  String get paperSubjectQuotaShortfallTitle => 'Minimum shortfalls';
+
+  @override
+  String paperSubjectQuotaShortfall(
+      String subject, int missing, int available) {
+    return '$subject: short by $missing (available: $available)';
+  }
+
+  @override
+  String paperSubjectQuotaShortfallEmpty(String subject) {
+    return 'No usable questions for $subject in the bank';
+  }
+
+  @override
   String get tasksDueAtConflictTitle =>
       'That time clashes with a schedule block';
 

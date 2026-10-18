@@ -3527,6 +3527,60 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get paperSubjectQuotaTitle => '学科配额';
+
+  @override
+  String get paperSubjectQuotaHint => '留空 = 不限；上限 0 = 这一科一道都不选。';
+
+  @override
+  String get paperSubjectQuotaNoSubjects => '学科配额只作用于已选学科：先在上面选中学科，再给每科设上限或保底。';
+
+  @override
+  String get paperSubjectQuotaMaxLabel => '上限';
+
+  @override
+  String get paperSubjectQuotaMinLabel => '保底';
+
+  @override
+  String get paperSubjectQuotaClear => '清空配额';
+
+  @override
+  String get paperSubjectQuotaInvalid => '请输入非负整数';
+
+  @override
+  String get paperSubjectDistribution => '学科分布';
+
+  @override
+  String paperSubjectQuotaBlocked(int count) {
+    return '被学科上限挡下 $count 道';
+  }
+
+  @override
+  String paperSubjectQuotaBlockedItem(
+      String subject, int limit, String detail) {
+    return '$subject（上限 $limit 道）：$detail';
+  }
+
+  @override
+  String paperSubjectQuotaBlockedMore(int count) {
+    return '还有 $count 道被挡下的题没列出';
+  }
+
+  @override
+  String get paperSubjectQuotaShortfallTitle => '保底缺口';
+
+  @override
+  String paperSubjectQuotaShortfall(
+      String subject, int missing, int available) {
+    return '$subject 还差 $missing 道（可用 $available 道）';
+  }
+
+  @override
+  String paperSubjectQuotaShortfallEmpty(String subject) {
+    return '$subject 在题库里没有可用题';
+  }
+
+  @override
   String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
 
   @override

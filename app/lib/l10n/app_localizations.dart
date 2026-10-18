@@ -6281,6 +6281,90 @@ abstract class AppLocalizations {
   /// **'and {count} more'**
   String questionPaperExportDocxMoreItems(int count);
 
+  /// No description provided for @paperSubjectQuotaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject quotas'**
+  String get paperSubjectQuotaTitle;
+
+  /// No description provided for @paperSubjectQuotaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank = no limit; a max of 0 selects none from that subject.'**
+  String get paperSubjectQuotaHint;
+
+  /// No description provided for @paperSubjectQuotaNoSubjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject quotas only apply to selected subjects: pick subjects above, then set a max or minimum for each.'**
+  String get paperSubjectQuotaNoSubjects;
+
+  /// No description provided for @paperSubjectQuotaMaxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get paperSubjectQuotaMaxLabel;
+
+  /// No description provided for @paperSubjectQuotaMinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get paperSubjectQuotaMinLabel;
+
+  /// No description provided for @paperSubjectQuotaClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear quotas'**
+  String get paperSubjectQuotaClear;
+
+  /// No description provided for @paperSubjectQuotaInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a non-negative whole number'**
+  String get paperSubjectQuotaInvalid;
+
+  /// No description provided for @paperSubjectDistribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject distribution'**
+  String get paperSubjectDistribution;
+
+  /// No description provided for @paperSubjectQuotaBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} question(s) blocked by subject caps'**
+  String paperSubjectQuotaBlocked(int count);
+
+  /// No description provided for @paperSubjectQuotaBlockedItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{subject} (limit {limit}): {detail}'**
+  String paperSubjectQuotaBlockedItem(String subject, int limit, String detail);
+
+  /// No description provided for @paperSubjectQuotaBlockedMore.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more blocked question(s)'**
+  String paperSubjectQuotaBlockedMore(int count);
+
+  /// No description provided for @paperSubjectQuotaShortfallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum shortfalls'**
+  String get paperSubjectQuotaShortfallTitle;
+
+  /// No description provided for @paperSubjectQuotaShortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'{subject}: short by {missing} (available: {available})'**
+  String paperSubjectQuotaShortfall(String subject, int missing, int available);
+
+  /// No description provided for @paperSubjectQuotaShortfallEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable questions for {subject} in the bank'**
+  String paperSubjectQuotaShortfallEmpty(String subject);
+
   /// No description provided for @tasksDueAtConflictTitle.
   ///
   /// In en, this message translates to:

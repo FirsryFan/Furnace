@@ -1900,6 +1900,43 @@
   "@questionPaperExportDocxMoreItems": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "paperSubjectQuotaTitle": "Subject quotas",
+  "paperSubjectQuotaHint": "Blank = no limit; a max of 0 selects none from that subject.",
+  "paperSubjectQuotaNoSubjects": "Subject quotas only apply to selected subjects: pick subjects above, then set a max or minimum for each.",
+  "paperSubjectQuotaMaxLabel": "Max",
+  "paperSubjectQuotaMinLabel": "Min",
+  "paperSubjectQuotaClear": "Clear quotas",
+  "paperSubjectQuotaInvalid": "Enter a non-negative whole number",
+  "paperSubjectDistribution": "Subject distribution",
+  "paperSubjectQuotaBlocked": "{count} question(s) blocked by subject caps",
+  "@paperSubjectQuotaBlocked": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperSubjectQuotaBlockedItem": "{subject} (limit {limit}): {detail}",
+  "@paperSubjectQuotaBlockedItem": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "limit": { "type": "int" },
+      "detail": { "type": "String" }
+    }
+  },
+  "paperSubjectQuotaBlockedMore": "and {count} more blocked question(s)",
+  "@paperSubjectQuotaBlockedMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperSubjectQuotaShortfallTitle": "Minimum shortfalls",
+  "paperSubjectQuotaShortfall": "{subject}: short by {missing} (available: {available})",
+  "@paperSubjectQuotaShortfall": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "missing": { "type": "int" },
+      "available": { "type": "int" }
+    }
+  },
+  "paperSubjectQuotaShortfallEmpty": "No usable questions for {subject} in the bank",
+  "@paperSubjectQuotaShortfallEmpty": {
+    "placeholders": { "subject": { "type": "String" } }
+  },
   "tasksDueAtConflictTitle": "That time clashes with a schedule block",
   "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
   "tasksDueAtConflictMoveBefore": "Move before it ({moment})",

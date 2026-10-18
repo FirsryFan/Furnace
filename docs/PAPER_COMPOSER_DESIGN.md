@@ -315,3 +315,31 @@
   `test/domain/services/paper`（+122）全绿；`dart analyze lib test` 94 issues / 0 error / 0 warning
   （92 条基线 + 2 条来自他人未跟踪测试文件的 info；本轮四个文件 `No issues found!`）。
 
+## 17. 组卷页学科配额 UI（轮次一百二十五）
+
+- **文件与入口**：新增 `app/lib/features/questions/presentation/paper_subject_quota_view.dart`（474 行）；
+  `PaperSubjectQuotaSection`（:149）插在组卷页 controls 之后（`question_paper_page.dart:102`），
+  `PaperSubjectQuotaOutcome` 在空卷分支（:329）与非空卷 isShort 之后（:401）按条件展示。
+  纯函数与常量：`parsePaperSubjectQuotaInput`（:59）、`paperSubjectQuotaSubjects`（:73）、
+  `paperSubjectDistributionSorted`（:93）、`blockedPreviewLimit`（:110）、`blockedPreview`（:113）、
+  `blockedHidden`（:120）、`stemPreview`（:130）、`paperSubjectLabelOf`（:139）。
+- **交互**：只对已选学科逐个显示「上限 / 保底」输入；留空 = 不限；上限 0 = 这一科一道都不取；
+  非法输入标红且不提交；「清空配额」一次性回 null（空表视同不启用，不留空壳）。输入框自持
+  controller（`:289 _QuotaNumberField`），外部改动（清空/重置）会回写。
+- **结果展示**：学科分布（数量降序、学科名升序）、被学科上限挡下（最多列 3 条 + 「还有 N 条」）、
+  保底缺口（区分「题库里这一科没有可用题」与「可用候选不足」两种文案）；题干预览异步加载，
+  未加载时回退成题号。
+- **回归修复**：配额区带来页面上第 2 个 `TextButton`（「清空配额」），既有测试用「页面唯一
+  TextButton」定位「复制卷面」导致 5 例失败。修法：复制按钮加 `questionPaperCopyButtonKey`
+  （`question_paper_page.dart:87` 定义、:443 挂载），`question_paper_page_test.dart:828-838`
+  的 helper 改为 `find.byKey`；该文件 23 例复跑全绿。
+- **l10n**：14 个 key（`paperSubjectQuotaTitle` / `Hint` / `NoSubjects` / `MaxLabel` / `MinLabel` /
+  `Clear` / `Invalid` / `Distribution` / `Blocked(count)` / `BlockedItem` / `BlockedMore` /
+  `ShortfallTitle` / `Shortfall` / `ShortfallEmpty`），五个 l10n 文件手改（未跑 gen-l10n），
+  zh 与 en 同步。
+- **验收**：新增 `test/features/questions/presentation/question_paper_quota_test.dart` **16 例**
+  （纯函数 9 + widget 7）；`flutter test test/features/questions/presentation` **+173** 全绿
+  （158 → 173）；`dart analyze lib test` 92 issues / **0 error / 0 warning**；`dart format` 只
+  自己改的文件。
+- **未做 / 风险**：真机未手测（数字输入法是否拦截负号/小数点、聚焦与滚动）；配额区未做折叠，
+  学科很多时行数线性增长未压测；en 文案未母语校对；领域配额 UI 不在本节（排队中）。

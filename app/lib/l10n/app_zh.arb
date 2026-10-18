@@ -1780,6 +1780,43 @@
   "@questionPaperExportDocxMoreItems": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "paperSubjectQuotaTitle": "学科配额",
+  "paperSubjectQuotaHint": "留空 = 不限；上限 0 = 这一科一道都不选。",
+  "paperSubjectQuotaNoSubjects": "学科配额只作用于已选学科：先在上面选中学科，再给每科设上限或保底。",
+  "paperSubjectQuotaMaxLabel": "上限",
+  "paperSubjectQuotaMinLabel": "保底",
+  "paperSubjectQuotaClear": "清空配额",
+  "paperSubjectQuotaInvalid": "请输入非负整数",
+  "paperSubjectDistribution": "学科分布",
+  "paperSubjectQuotaBlocked": "被学科上限挡下 {count} 道",
+  "@paperSubjectQuotaBlocked": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperSubjectQuotaBlockedItem": "{subject}（上限 {limit} 道）：{detail}",
+  "@paperSubjectQuotaBlockedItem": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "limit": { "type": "int" },
+      "detail": { "type": "String" }
+    }
+  },
+  "paperSubjectQuotaBlockedMore": "还有 {count} 道被挡下的题没列出",
+  "@paperSubjectQuotaBlockedMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperSubjectQuotaShortfallTitle": "保底缺口",
+  "paperSubjectQuotaShortfall": "{subject} 还差 {missing} 道（可用 {available} 道）",
+  "@paperSubjectQuotaShortfall": {
+    "placeholders": {
+      "subject": { "type": "String" },
+      "missing": { "type": "int" },
+      "available": { "type": "int" }
+    }
+  },
+  "paperSubjectQuotaShortfallEmpty": "{subject} 在题库里没有可用题",
+  "@paperSubjectQuotaShortfallEmpty": {
+    "placeholders": { "subject": { "type": "String" } }
+  },
   "tasksDueAtConflictTitle": "这段时间撞上了日程块",
   "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
   "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",

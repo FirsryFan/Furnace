@@ -20,6 +20,7 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
 import 'paper_docx_export_button.dart';
+import 'paper_subject_quota_view.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
 
@@ -79,6 +80,12 @@ const List<double> paperTargetDifficultyOptions = <double>[
 /// 每个知识点上限的候选（"自动"是 `null`，交由组卷器按候选分布算）。
 const List<int> paperPerKnowledgePointCapOptions = <int>[1, 2, 3, 4, 5];
 
+/// 「复制卷面」按钮的 key。
+///
+/// 页面上不止一个 `TextButton`（配额区有「清空配额」），测试不能再用
+/// "页面唯一的 TextButton" 来找它，所以给复制按钮一个稳定的 key。
+const Key questionPaperCopyButtonKey = Key('paper-copy');
+
 /// 组卷页。
 class QuestionPaperPage extends ConsumerWidget {
   const QuestionPaperPage({super.key});
@@ -97,6 +104,8 @@ class QuestionPaperPage extends ConsumerWidget {
           Text(l10n.questionPaperSubtitle),
           const SizedBox(height: 12),
           _PaperControls(subjectOptions: subjectOptions),
+          const SizedBox(height: 12),
+          const PaperSubjectQuotaSection(),
           const SizedBox(height: 12),
           plan.when(
             loading: () => const Padding(
@@ -280,35 +289,46 @@ class _PaperBody extends ConsumerWidget {
         data: (keys) => keys.isEmpty,
         orElse: () => false,
       );
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                bankEmpty
-                    ? l10n.questionPaperEmptyBank
-                    : l10n.questionPaperEmptyPlan,
-              ),
-              const SizedBox(height: 8),
-              // 空卷面也能导出（标题 + 缺口说明）：导出按钮不跟着复制按钮一起禁用。
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _copyButton(
-                    context,
-                    l10n,
-                    knowledgePointNames,
-                    enabled: false,
+                  Text(
+                    bankEmpty
+                        ? l10n.questionPaperEmptyBank
+                        : l10n.questionPaperEmptyPlan,
                   ),
-                  PaperDocxExportButton(plan: plan),
+                  const SizedBox(height: 8),
+                  // 空卷面也能导出（标题 + 缺口说明）：导出按钮不跟着复制按钮一起禁用。
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _copyButton(
+                        context,
+                        l10n,
+                        knowledgePointNames,
+                        enabled: false,
+                      ),
+                      PaperDocxExportButton(plan: plan),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (plan.bySubject.isNotEmpty ||
+              plan.quotaBlockedQuestions.isNotEmpty ||
+              plan.subjectShortfalls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            PaperSubjectQuotaOutcome(plan: plan),
+          ],
+        ],
       );
     }
 
@@ -374,6 +394,12 @@ class _PaperBody extends ConsumerWidget {
             ),
           ),
         ],
+        if (plan.bySubject.isNotEmpty ||
+            plan.quotaBlockedQuestions.isNotEmpty ||
+            plan.subjectShortfalls.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          PaperSubjectQuotaOutcome(plan: plan),
+        ],
         const SizedBox(height: 12),
         for (var index = 0; index < plan.items.length; index++)
           Padding(
@@ -414,6 +440,7 @@ class _PaperBody extends ConsumerWidget {
     required bool enabled,
   }) {
     return TextButton.icon(
+      key: questionPaperCopyButtonKey,
       onPressed:
           enabled ? () => _copyPaper(context, l10n, knowledgePointNames) : null,
       icon: const Icon(Icons.copy_all_outlined),

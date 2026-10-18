@@ -825,10 +825,10 @@ String _gapPointTitle(String suffix) {
   return titles[suffix]!;
 }
 
-/// 页面上的「复制卷面」按钮：卷面页只有这一个 `TextButton`。
-Finder _copyPaperButton() {
-  return find.byWidgetPredicate((widget) => widget is TextButton);
-}
+/// 页面上的「复制卷面」按钮。
+///
+/// 不能用"页面唯一的 TextButton"来定位：配额区还有「清空配额」按钮。
+Finder _copyPaperButton() => find.byKey(questionPaperCopyButtonKey);
 
 /// 取「复制卷面」按钮本体（用来断言"禁用"）。
 TextButton _copyPaperButtonWidget(WidgetTester tester) {
