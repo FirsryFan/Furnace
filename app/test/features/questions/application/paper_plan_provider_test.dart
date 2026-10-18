@@ -11,6 +11,7 @@ import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/domain/services/paper/paper_composer.dart';
+import 'package:furnace/domain/services/paper/subject_quota.dart';
 import 'package:furnace/domain/services/scheduling/cognitive_readings.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
@@ -414,5 +415,87 @@ void main() {
     expect(afterReset.minSourceLevel, isNull);
     expect(afterReset.perKnowledgePointCap, isNull);
     expect(afterReset.targetDifficulty, isNull);
+  });
+
+  group('学科配额（可选；默认不启用时与旧行为一致）', () {
+    test('setter：整表/单科上限/单科保底/清空/reset 的语义', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      PaperSpec read() => container.read(paperSpecProvider);
+
+      expect(read().subjectQuota, isNull, reason: '默认不启用配额');
+
+      spec.setSubjectQuota(const SubjectQuota(
+        maxPerSubject: <String, int>{'数学': 2},
+      ));
+      // SubjectQuota 是配置（未解析），上限/保底按原表读。
+      Map<String, int> maxOf() => read().subjectQuota!.maxPerSubject;
+      Map<String, int> minOf() => read().subjectQuota!.minPerSubject;
+
+      expect(maxOf()['数学'], 2);
+      expect(minOf()['数学'], isNull);
+
+      // 单科保底：同一个表上追加，不把已有上限挤掉。
+      spec.setSubjectMin('语文', 3);
+      expect(maxOf()['数学'], 2);
+      expect(minOf()['语文'], 3);
+      expect(minOf()['数学'], isNull);
+
+      spec.setSubjectMax('数学', 5);
+      expect(maxOf()['数学'], 5);
+      expect(minOf()['语文'], 3);
+
+      // 删除单科上限：max < 0 或 null 都表示"去掉这一科"。
+      spec.setSubjectMax('数学', null);
+      expect(maxOf()['数学'], isNull);
+      expect(minOf()['语文'], 3);
+
+      // 单科键空白：忽略，不改状态。
+      spec.setSubjectMax('   ', 2);
+      expect(maxOf()['语文'], isNull);
+
+      // 空表 = 不启用（回到 null，而不是一个空壳配额）。
+      spec.clearSubjectQuota();
+      expect(read().subjectQuota, isNull);
+
+      spec.setSubjectQuota(const SubjectQuota(
+        maxPerSubject: <String, int>{'数学': 1},
+        minPerSubject: <String, int>{'语文': 2},
+      ));
+      expect(read().subjectQuota, isNotNull);
+      spec.reset();
+      expect(read().subjectQuota, isNull, reason: 'reset 应清掉配额');
+    });
+
+    test('空 SubjectQuota 视同不启用', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+
+      spec.setSubjectQuota(const SubjectQuota());
+      expect(container.read(paperSpecProvider).subjectQuota, isNull);
+    });
+
+    test('卷子真的按学科配额排题：上限生效、被挡的候选进缺口清单', () async {
+      await seedQuestion(stem: '数学题 A');
+      await seedQuestion(stem: '数学题 B');
+      await seedQuestion(stem: '语文题', subjectKey: '语文');
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setSubjectQuota(const SubjectQuota(
+        maxPerSubject: <String, int>{'数学': 1},
+      ));
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.subjectQuota, isNotNull);
+      expect(plan.bySubject, <String, int>{'数学': 1, '语文': 1});
+      expect(
+        plan.items.map((item) => item.subjectKey).toSet(),
+        <String>{'数学', '语文'},
+      );
+      expect(plan.quotaBlockedQuestions, hasLength(1));
+      expect(plan.quotaBlockedQuestions.single.subjectKey, '数学');
+      expect(plan.quotaBlockedQuestions.single.subjectLimit, 1);
+    });
   });
 }

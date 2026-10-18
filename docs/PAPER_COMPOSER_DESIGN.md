@@ -198,7 +198,7 @@
 - **API**：`SubjectQuota`（纯逻辑，`app/lib/domain/services/paper/subject_quota.dart`）—— 每科可给上限 `maxPerSubject` 与保底 `minPerSubject`；配置归一化（trim、排序、空键 / 负值 / 去重后重复键抛 `ArgumentError`、同科 min>max 抬上限）。`PaperSpec.subjectQuota`（默认 `null` = 不启用）进来，`PaperPlan` 新增 `bySubject` / `quotaBlockedQuestions` / `subjectShortfalls` / `subjectQuota` / `uncoveredSubjectKeys` 如实回报；`toJson` 只在启用时追加 `by_subject` / `quota_blocked_questions` / `subject_shortfalls` / `subject_quota` 四个键，schema 仍是 `mindnet.paper_plan/1`。
 - **优先级与语义**：`targetCount` 是硬上限（不为保底多给题）> 保底阶段按学科键字典序补到 min（同时受 `perKnowledgePointCap` 约束）> 填充阶段按既有分数序（先知识点上限，再学科上限）。被学科上限挡下的候选、保底凑不够的缺口都写进 plan，**不静默丢题**；题库里一道都没有的学科进 `uncoveredSubjectKeys`。未列出的学科不限（空键也不限）；`maxPerSubject = 0` 表示该科不取。
 - **默认关闭、旧行为逐字节不变**：`subjectQuota == null` 时不走新分支，旧 `toJson` 十个键的顺序与 `jsonEncode` 输出有回归测试钉住。
-- **未做**：`paperPlanProvider` / `compose_paper` 工具未透传配额（纯逻辑已就绪，接线留下一轮）；页面上还没展示 `bySubject` / 被挡题 / 保底缺口；配额数值**未标定**（没有真实数据支撑先给比例）；按顶级领域标签祖先的映射未做。
+- **未做**：页面上还没展示 `bySubject` / 被挡题 / 保底缺口；配额数值**未标定**（没有真实数据支撑先给比例）。provider 与 `compose_paper` 工具的接线已在 §15 完成；按顶级领域标签祖先的映射见 §14。
 - 验收：`test/domain/services/paper/subject_quota_test.dart` **33 例**（配置归一化与抛错 / 上限与保底 / 交错填充 / `targetCount` 硬上限 / 被挡与缺口回报 / `max=0` / 未列学科 / 默认 null 逐字节不变 / `toJson` 启用四键）。
 
 ## 14. 领域配额：按顶级领域标签的上限与保底（轮次一百二十五）
@@ -238,4 +238,39 @@
 - 验收：`test/domain/services/paper/domain_quota_test.dart` **44 例**（配置归一化与抛错 / 解析主领域与
   多领域 / 上限 / 保底 / 未配置 / `max=0` / 无标签题 / 学科与领域同时启用时的次序 / 默认 null 逐字节
   不变 / `toJson` 启用四键），`flutter test test/domain/services/paper` **+122 全绿**。
+
+## 15. 接线：学科配额进组卷 provider 与 compose_paper 工具（轮次一百二十四）
+
+§13 的学科配额纯逻辑接进两条真实入口：组卷页的 spec 状态（provider）与 AI 工具 `compose_paper`。
+领域配额（§14）仍只有纯逻辑，provider / 工具透传留给下一轮。
+
+- **provider（`app/lib/features/questions/application/paper_plan_provider.dart`）**：
+  `PaperSpecNotifier` 新增 `setSubjectQuota(SubjectQuota?)`（`null` 走清空分支）、`clearSubjectQuota()`、
+  `setSubjectMax(String subjectKey, int? max)`、`setSubjectMin(String subjectKey, int? min)`。
+  `max` 为 `null` 或负数表示删掉该科上限、`min` 为 `null` 或 `<1` 表示删掉该科保底，其余学科原样保留；
+  空白键忽略。**空 `SubjectQuota`（两张表都空）视同不启用**：内部 `_applySubjectQuota` 用
+  `quota.isEnabled ? quota : null` + `clearSubjectQuota`，避免在 spec 里留一个空壳对象；`reset()`
+  回到 `subjectQuota = null`。`subjectQuota` 随 `PaperSpec` 原样流进 `buildPaperPlan` →
+  `PaperComposer.compose`，装配代码不用改。
+- **工具（`app/lib/features/ai/tools/paper_tools.dart` 的 `ComposePaperTool`）**：`compose_paper`
+  新增可选参数 `subject_quota`，形如 `{"数学": {"max": 2, "min": 3}, "物理": {"max": 2}}`
+  （学科键 → `{max, min}`，两个值都是非负整数，`max = 0` 表示该科不取）。`subjectQuota` 只接
+  `PaperSpec.subjectQuota`；启用时 `modelResult` 追加 `by_subject` / `quota_blocked_questions` /
+  `subject_shortfalls` / `subject_quota` 四键（与 `PaperPlan.toJson` 同源），摘要另外用大白话报：
+  学科分布（按数量倒序、同数按学科键）、被学科上限挡下多少道、保底没凑够哪几科差多少（最多列 5 条，
+  区分「可用候选不足」与「题库里这一科没有可用题」）。**不传或传空对象时输出与接线前一致**
+  （有测试钉住）。
+- **参数校验（全都给可执行的报错，不静默忽略）**：不是对象 / 学科键 trim 后为空 / 值不是对象 /
+  字段不是 `max` 或 `min`（`{limit: 2}` 会被拒）/ 值不是非负整数 / 学科键 trim 后重复
+  （`" math"` 与 `"math"`）/ 字段 trim 后重复，都抛 `ToolArgError` 写明原因；
+  `SubjectQuota.resolve()` 抛的 `ArgumentError` 也转成 `ToolArgError`。
+- **未做**：领域配额（§14）未接进 provider / 工具；组卷页还没有配额编辑控件与 `bySubject` /
+  被挡题 / 保底缺口展示；配额数值**未标定**（没有真实数据先给比例）；`max` 与 `target_count` 的
+  相互作用只靠测试覆盖，没在真库里手测。
+- 验收：`paper_tools_test.dart` 14 → **22 例**（不传时四键缺席且摘要不变 / 上限生效 / 保底缺口 /
+  保底学科无题 / `max = 0` / 空对象 / 形状与重复键报错 / schema 含 `subject_quota`）；
+  `paper_plan_provider_test.dart` 11 → **14 例**（setter 语义与清空 / 空表视同不启用 / 真卷按配额）；
+  两个文件全绿，`dart analyze lib test` 92 issues / 0 error / 0 warning（基线不变）。
+
+下一轮（轮次一百二十五）在同一对入口上补领域配额透传，然后才是页面控件。
 

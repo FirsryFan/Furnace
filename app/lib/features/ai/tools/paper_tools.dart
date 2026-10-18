@@ -17,6 +17,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/paper/subject_quota.dart';
 import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/paper_plan_builder.dart';
@@ -79,6 +80,21 @@ class ComposePaperTool extends AiTool {
             'description': '可选：组卷时要不要参考"我最该练的动作"（能力动作画像，'
                 '**未标定**的先验；命中只把题往前排一点，不做过滤）。默认 true；'
                 '给 false 就完全不参考，卷子与没有画像时一致。',
+          },
+          'subject_quota': {
+            'type': 'object',
+            'description': '可选：按学科配额。学科键 -> {max, min}，整数且 >= 0；'
+                'max = 该科最多几道（max=0 表示这一科一道都不取），min = 至少几道'
+                '（题库不够时如实报缺口）。没列出的学科不限；不给 = 不启用配额。'
+                'min > max 时保底优先。',
+            'additionalProperties': {
+              'type': 'object',
+              'properties': {
+                'max': {'type': 'integer', 'minimum': 0},
+                'min': {'type': 'integer', 'minimum': 0},
+              },
+              'required': <String>[],
+            },
           },
         },
         'required': <String>[],
@@ -159,6 +175,19 @@ class ComposePaperTool extends AiTool {
           'readings_used': build.readingsUsed,
           'preferred_action_types': preferredActions,
           'capability_profile_used': preferredActions.isNotEmpty,
+          if (plan.subjectQuota != null) 'by_subject': plan.bySubject,
+          if (plan.subjectQuota != null)
+            'quota_blocked_questions': [
+              for (final blocked in plan.quotaBlockedQuestions)
+                blocked.toJson(),
+            ],
+          if (plan.subjectQuota != null)
+            'subject_shortfalls': [
+              for (final shortfall in plan.subjectShortfalls)
+                shortfall.toJson(),
+            ],
+          if (plan.subjectQuota != null)
+            'subject_quota': plan.subjectQuota!.toJson(),
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,
           'uncovered_knowledge_points': [
             for (final id in plan.uncoveredKnowledgePointIds)
@@ -241,7 +270,80 @@ class ComposePaperTool extends AiTool {
       perKnowledgePointCap: rawCap,
       targetDifficulty: rawDifficulty,
       minSourceLevel: minSourceLevel,
+      subjectQuota: _subjectQuotaOf(args),
     );
+  }
+
+  /// 解析可选的 `subject_quota` 对象。错形状给出可执行的报错（而不是静默当没给）。
+  SubjectQuota? _subjectQuotaOf(ToolArgs args) {
+    final raw = args.raw['subject_quota'];
+    if (raw == null) return null;
+    if (raw is! Map) {
+      throw ToolArgError(
+        '`subject_quota` 必须是对象：学科键 -> {max, min}；收到 ${raw.runtimeType}',
+      );
+    }
+    final max = <String, int>{};
+    final min = <String, int>{};
+    final seenSubjects = <String>{};
+    for (final entry in raw.entries) {
+      final key = entry.key.toString().trim();
+      if (key.isEmpty) {
+        throw ToolArgError('`subject_quota` 的学科键不能为空白');
+      }
+      if (!seenSubjects.add(key)) {
+        throw ToolArgError('`subject_quota` 里有重复学科键 `$key`（trim 后是同一科）');
+      }
+      final value = entry.value;
+      if (value is! Map) {
+        throw ToolArgError(
+          '`subject_quota.$key` 必须是对象 {max, min}；收到 ${value.runtimeType}',
+        );
+      }
+      final seenFields = <String>{};
+      for (final inner in value.entries) {
+        final field = inner.key.toString().trim();
+        if (field != 'max' && field != 'min') {
+          throw ToolArgError(
+            '`subject_quota.$key` 只认识 max / min，收到 `$field`',
+          );
+        }
+        if (!seenFields.add(field)) {
+          throw ToolArgError(
+            '`subject_quota.$key` 里 `$field` 重复（trim 后同名）',
+          );
+        }
+        final count = _quotaCount(inner.value, '`subject_quota.$key.$field`');
+        if (field == 'max') {
+          max[key] = count;
+        } else {
+          min[key] = count;
+        }
+      }
+    }
+    if (max.isEmpty && min.isEmpty) return null;
+    final quota = SubjectQuota(maxPerSubject: max, minPerSubject: min);
+    try {
+      quota.resolve();
+    } on ArgumentError catch (error) {
+      throw ToolArgError('`subject_quota` 配置无效：${error.message}');
+    }
+    return quota;
+  }
+
+  int _quotaCount(Object? value, String label) {
+    final int? parsed;
+    if (value is int) {
+      parsed = value;
+    } else if (value is num) {
+      parsed = value.toInt();
+    } else {
+      parsed = int.tryParse(value?.toString().trim() ?? '');
+    }
+    if (parsed == null || parsed < 0) {
+      throw ToolArgError('$label 必须是非负整数，收到 `$value`');
+    }
+    return parsed;
   }
 
   /// 摘要说人话：凑了几道、哪几道是为了哪个知识点、缺什么、以及"我不会自己出题"。
@@ -311,6 +413,34 @@ class ComposePaperTool extends AiTool {
         '（数量/配额限制），想练它们就把 `target_count` 调大或提高 '
         '`per_knowledge_point_cap`。',
       );
+    }
+    final quota = plan.subjectQuota;
+    if (quota != null && quota.isEnabled) {
+      final bySubject = plan.bySubject.entries.toList()
+        ..sort((a, b) {
+          final byCount = b.value.compareTo(a.value);
+          return byCount != 0 ? byCount : a.key.compareTo(b.key);
+        });
+      if (bySubject.isNotEmpty) {
+        buffer.write(
+          ' 学科分布：${bySubject.map((e) => '${e.key} ${e.value} 道').join('、')}。',
+        );
+      }
+      if (plan.quotaBlockedQuestions.isNotEmpty) {
+        buffer.write(
+          ' 另有 ${plan.quotaBlockedQuestions.length} 道本来能进卷的题被学科上限挡下'
+          '（提高对应学科的 max 或 `target_count` 才能看到它们）。',
+        );
+      }
+      if (plan.subjectShortfalls.isNotEmpty) {
+        final short = [
+          for (final shortfall in plan.subjectShortfalls.take(5))
+            '${shortfall.subjectKey} 差 '
+                '${shortfall.minimumCount - shortfall.selectedCount} 道'
+                '（${shortfall.isUncovered ? '题库里这一科没有可用题' : '可用候选 ${shortfall.availableCount} 道'}）',
+        ];
+        buffer.write(' 学科保底没凑够：${short.join('、')}。');
+      }
     }
     if (!diagnosisRan) {
       buffer.write(

@@ -26,6 +26,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/paper/subject_quota.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
 import 'capability_profile_provider.dart';
@@ -136,6 +137,64 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
     }
   }
 
+  /// 整张学科配额表（null = 不启用）。配置本身由 [SubjectQuota] 校验。
+  ///
+  /// 空表（两科都没配）也按"不启用"存成 null —— 否则状态里会出现一个
+  /// 看起来配过、实际什么都不限的空壳配额。
+  void setSubjectQuota(SubjectQuota? quota) {
+    if (quota == null) {
+      _update(clearSubjectQuota: true);
+    } else {
+      _applySubjectQuota(quota);
+    }
+  }
+
+  /// 清空学科配额（回到"不限学科题量"）。
+  void clearSubjectQuota() => _update(clearSubjectQuota: true);
+
+  /// 某学科最多几道；null 或负数 = 去掉这一科的上限。
+  ///
+  /// 只改动这一科，其他学科的上限/保底原样保留；两张表都空了就回到不启用。
+  void setSubjectMax(String subjectKey, int? max) {
+    final key = subjectKey.trim();
+    if (key.isEmpty) return;
+    final current = state.subjectQuota ?? const SubjectQuota();
+    final nextMax = <String, int>{...current.maxPerSubject};
+    if (max == null || max < 0) {
+      nextMax.remove(key);
+    } else {
+      nextMax[key] = max;
+    }
+    _applySubjectQuota(
+      SubjectQuota(
+          maxPerSubject: nextMax, minPerSubject: current.minPerSubject),
+    );
+  }
+
+  /// 某学科至少几道；null 或 <1 = 去掉这一科的保底。
+  void setSubjectMin(String subjectKey, int? min) {
+    final key = subjectKey.trim();
+    if (key.isEmpty) return;
+    final current = state.subjectQuota ?? const SubjectQuota();
+    final nextMin = <String, int>{...current.minPerSubject};
+    if (min == null || min < 1) {
+      nextMin.remove(key);
+    } else {
+      nextMin[key] = min;
+    }
+    _applySubjectQuota(
+      SubjectQuota(
+          maxPerSubject: current.maxPerSubject, minPerSubject: nextMin),
+    );
+  }
+
+  void _applySubjectQuota(SubjectQuota quota) {
+    // 两张表都空 = 不启用（与 null 等价）：让 reset 语义保持一致。
+    _update(
+        subjectQuota: quota.isEnabled ? quota : null,
+        clearSubjectQuota: !quota.isEnabled);
+  }
+
   void _update({
     int? targetCount,
     Set<String>? subjectKeys,
@@ -146,6 +205,8 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
     String? minSourceLevel,
     bool clearMinSourceLevel = false,
     bool? preferCapabilityActions,
+    SubjectQuota? subjectQuota,
+    bool clearSubjectQuota = false,
   }) {
     final current = state;
     state = PaperSpec(
@@ -162,6 +223,8 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
           : (minSourceLevel ?? current.minSourceLevel),
       preferCapabilityActions:
           preferCapabilityActions ?? current.preferCapabilityActions,
+      subjectQuota:
+          clearSubjectQuota ? null : (subjectQuota ?? current.subjectQuota),
     );
   }
 }

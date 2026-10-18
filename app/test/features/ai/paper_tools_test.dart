@@ -458,4 +458,224 @@ void main() {
       expect(pointId, isNotEmpty);
     });
   });
+
+  group('学科配额 subject_quota（可选，不启用时输出不变）', () {
+    test('不传 subject_quota：payload 里没有配额四键，卷子与旧行为一致', () async {
+      await seedLinked(stem: '一道数学题。', pointTitle: '数列');
+      await seedLinked(
+        stem: '一道物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+
+      final result = await tool.run(invoke({'target_count': 5}));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payload['item_count'], 2);
+      for (final key in [
+        'by_subject',
+        'quota_blocked_questions',
+        'subject_shortfalls',
+        'subject_quota',
+      ]) {
+        expect(payload.containsKey(key), isFalse, reason: '没启用配额时不该出现 $key');
+      }
+      expect(result.summary, isNot(contains('学科分布')));
+    });
+
+    test('上限生效：数学最多 1 道，物理照常进卷，摘要报学科分布', () async {
+      for (var i = 0; i < 3; i++) {
+        await seedLinked(stem: '数学题 $i。', pointTitle: '数列');
+      }
+      await seedLinked(
+        stem: '一道物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'subject_quota': <String, Object?>{
+          'math': <String, Object?>{'max': 1},
+        },
+      }));
+      final payload = payloadOf(result);
+      final items = itemsOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payload['by_subject'], <String, Object?>{'math': 1, 'physics': 1});
+      expect(
+        items.map((item) => item['subject_key']).toSet(),
+        <String>{'math', 'physics'},
+      );
+      final blocked = payload['quota_blocked_questions']! as List<Object?>;
+      expect(blocked, hasLength(2));
+      final blockedJson = blocked.first! as Map<String, Object?>;
+      expect(blockedJson['subject_key'], 'math');
+      expect(blockedJson['subject_limit'], 1);
+      expect(result.summary, contains('学科分布'));
+      expect(result.summary, contains('被学科上限挡下'));
+      final echo = payload['subject_quota']! as Map<String, Object?>;
+      expect(echo['max_per_subject'], <String, Object?>{'math': 1});
+    });
+
+    test('保底缺口：数学要 3 道只有 1 道，如实报 selected/available', () async {
+      await seedLinked(stem: '只有一道数学题。', pointTitle: '数列');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'subject_quota': <String, Object?>{
+          'math': <String, Object?>{'min': 3},
+        },
+      }));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final shortfalls = payload['subject_shortfalls']! as List<Object?>;
+      expect(shortfalls, hasLength(1));
+      final shortfall = shortfalls.single! as Map<String, Object?>;
+      expect(shortfall['subject_key'], 'math');
+      expect(shortfall['minimum_count'], 3);
+      expect(shortfall['selected_count'], 1);
+      expect(shortfall['available_count'], 1);
+      expect(shortfall['is_uncovered'], isFalse);
+      expect(result.summary, contains('学科保底没凑够'));
+      expect(result.summary, contains('可用候选 1 道'));
+    });
+
+    test('保底学科题库里没有题：缺口在收题，不在配额', () async {
+      await seedLinked(stem: '一道数学题。', pointTitle: '数列');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 3,
+        'subject_quota': <String, Object?>{
+          'math': <String, Object?>{'min': 1},
+          'physics': <String, Object?>{'min': 2},
+        },
+      }));
+      final payload = payloadOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final shortfalls = payload['subject_shortfalls']! as List<Object?>;
+      expect(shortfalls, hasLength(1));
+      final missing = shortfalls.single! as Map<String, Object?>;
+      expect(missing['subject_key'], 'physics');
+      expect(missing['is_uncovered'], isTrue);
+      expect(missing['available_count'], 0);
+      expect(result.summary, contains('题库里这一科没有可用题'));
+    });
+
+    test('max = 0：这一科一道都不取（不是忽略该键）', () async {
+      await seedLinked(stem: '数学题。', pointTitle: '数列');
+      await seedLinked(
+        stem: '物理题。',
+        pointTitle: '动量守恒',
+        subjectKey: 'physics',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 5,
+        'subject_quota': <String, Object?>{
+          'math': <String, Object?>{'max': 0},
+        },
+      }));
+      final payload = payloadOf(result);
+      final items = itemsOf(result);
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(
+        items.map((item) => item['subject_key']).toSet(),
+        <String>{'physics'},
+      );
+      final blocked = payload['quota_blocked_questions']! as List<Object?>;
+      expect(
+        blocked
+            .map((row) => (row! as Map<String, Object?>)['subject_key'])
+            .toSet(),
+        <String>{'math'},
+      );
+    });
+
+    test('空对象 = 没启用：不出现配额键', () async {
+      await seedLinked(stem: '一道题。', pointTitle: '数列');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 1,
+        'subject_quota': <String, Object?>{},
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payloadOf(result).containsKey('subject_quota'), isFalse);
+    });
+
+    test('形状不对 → 失败并指出具体哪里错，而不是悄悄忽略', () async {
+      Future<String> errorOf(Object? quota) async {
+        final result = await tool.run(invoke(<String, Object?>{
+          'subject_quota': quota,
+        }));
+        expect(result.ok, isFalse);
+        return result.error!;
+      }
+
+      expect(await errorOf('math'), contains('必须是对象'));
+
+      expect(
+        await errorOf(<String, Object?>{
+          ' ': <String, Object?>{'max': 1},
+        }),
+        contains('不能为空白'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{'math': 1}),
+        contains('必须是对象 {max, min}'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          'math': <String, Object?>{'limit': 1},
+        }),
+        contains('只认识 max / min'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          'math': <String, Object?>{'max': -1},
+        }),
+        contains('必须是非负整数'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          ' math': <String, Object?>{'max': 1},
+          'math': <String, Object?>{'max': 2},
+        }),
+        contains('重复学科键'),
+      );
+
+      expect(
+        await errorOf(<String, Object?>{
+          'math': <String, Object?>{'max': '不是数字'},
+        }),
+        contains('必须是非负整数'),
+      );
+    });
+
+    test('schema 里声明了 subject_quota 对象', () {
+      final registry = ToolRegistry.forApp(
+        db: db,
+        tasks: TaskRepository(db),
+        blocks: TimeBlockRepository(db),
+        anki: anki,
+        tags: tags,
+      );
+      final spec = registry.modelSpecs.firstWhere((s) => s.name == tool.name);
+      final properties = spec.parameters['properties']! as Map<String, Object?>;
+      expect(properties.keys, contains('subject_quota'));
+      final schema = properties['subject_quota']! as Map<String, Object?>;
+      expect(schema['type'], 'object');
+      expect(schema['description'] as String, contains('max'));
+    });
+  });
 }
