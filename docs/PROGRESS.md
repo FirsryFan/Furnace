@@ -2,6 +2,83 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-19 轮次一百二十五：词表能编辑了、体检与质量报告上屏、组卷开始会说话（Lead + 三个 teammate）
+
+**起点**：轮次一百二十四把「体检 / 洞察 / 学习建议 / 组卷配额」的纯逻辑铺完，本轮把它们接到真实数据、界面
+与 AI 工具：能力词表可以在设置页里编辑并导入导出、入库体检与学习建议成了模型能自查的两个工具、思维链有了
+质量体检、组卷有了质量评价报告并在页面与 Word 里上屏、洞察页与配题推荐也落了地。写作用域互斥，成员全程不碰
+git。本轮 task-25..task-47 全部 completed（rev3）。
+
+**A. 能力动作词表可编辑（commits `34823d6`、`d7b9230`、`4a7c004`，Lead + reasoning-core + question-intake）**：
+application 层把 `CapabilityActionOverlayEditor` 的 add / update / remove / reorder / mergeImport 与
+`CapabilityVocabularyStore` 接进 Riverpod（保存后失效 overlay provider，推理服务下一次解题就用新词表）；
+新增纯逻辑 JSON 编解码（64 KB 上限、BOM/CRLF 与两种顶层形状兼容、version 四态、fatal 前置排序）；设置页
+新增「能力动作词表」编辑页（内置词表只读 + 自定义动作增删改 / 导入 / 保存），l10n 五文件手改。测试：编辑页 13 例。
+
+**B. 组卷配额与手工名单（commits `36d0ff3`、`b1fa82e`、`757b674`、`9f7f494`、`9606829`、`d0c24eb`、`2bdaffd`）**：
+学科配额与领域配额分别接进 `PaperSpecNotifier` 与 `compose_paper` 工具（领域键 = 标签路径第一段，与学科键两套
+命名空间）；组卷页两张配额卡（上限 / 保底编辑 + 被挡与缺口展示）；手工指定 / 排除纯逻辑（优先级：排除 > 必收
+（绕过学科 / 来源 / 难度过滤与三类上限，只受 targetCount）> 学科保底 > 领域保底 > 填充；missing / skipped /
+conflict 三类如实回报）接进 provider 与工具，页面加必收 / 排除两栏 + 选择题对话框 + 结果提示（18 个 l10n key、
+15 例测试）。
+
+**C. 两个模型可自查的 AI 工具（commits `77f205c`、`d03c93c`、`e2f9496`）**：`audit_question_intake` 把 26 条
+入库体检判据暴露给模型（只报不改，不是 AI 自己判断）；`get_learning_advice` 把洞察 + 画像 + 题库题数拼成
+确定性建议（练习只给真读数、未知动作不吸收、知识点最多 3 个）；学习建议同时接上真实读数 provider。测试各 10 例。
+
+**D. 相似题接 MindNet 有效性（commit `02175d8`）**：`SimilarityWeights.quality` 成为第五个可选分量（默认 0
+未标定），候选与聚焦题共用知识点时用 `questionQuality` 打分（无共用点 = 中性 0.5）；打开后有序性不变，但
+归一化会让绝对分略抬（0.4 → 0.4333），已用测试钉住。
+
+**E. 思维链洞察的交叉读数与学习洞察页（commits `06e0d1b`、`9db6873`、`dcbaca1`）**：聚合层新增「动作 ×
+知识点」交叉桶（`highRiskByActionAndKnowledgePoint`），学习建议的练习卡据此填知识点；application 层
+`learningInsightDataProvider`（洞察 + 建议 + 词表 + 知识点名，词表读失败退回空 overlay + fallback 标记）；
+设置页新增「学习洞察」入口，洞察页 721 行只消费该 provider（汇总 / 建议卡 / 动作分布 / 未知动作块 / 未用过动作 /
+卡点热区 / 交叉表），33 个 l10n key，测试 15 例。
+
+**F. 读题工具 `read_question`（commit `e492ff6`）**：只读，按 `question_id` 或题号（TR-00042 / tr-42 / 00042 /
+42）定位，缺参 / 坏号 / 查无都返回失败；返回题干、选项（按 sortOrder）、答案、解析、学科来源、知识点、最新
+解题链动作与配图数。15 例测试，含「调用前后全库快照不变」的只读证明。
+
+**G. 思维链质量体检（commits `7fcc7c2`、`80e6f9e`）**：纯逻辑 19 条判据（error 6 / warning 9 / info 4），
+knownAction 按当前词表重判、NaN/±inf 读数单报 invalid_risk_reading、整链无读数报 no_risk_reading，排序与截断
+确定性；application 层读表 + 三个 provider（含单题 family）。测试 51 + 11 例。
+
+**H. 组卷质量评价（commits `518ca43`、`0ed156b`、`b39af7a`）**：纯逻辑 17 条判据（空卷 / 填充不足 / 学科集中 /
+来源单一 / 知识点缺口 / 难度过平或偏离目标 / 保底未达 / 配额挡下 …）；provider 从原始候选回填逐题难度；
+`compose_paper` 的 `model_result` 直接带 `quality`，摘要点名「最该看」的一条并注明另有几条。测试 37 + 9 + 4 例。
+
+**I. 题目卷 Word：组卷说明与质量节（commits `dd94abd`、`aa3d065`、`a01df94`）**：「组卷说明」附录分节（学科与
+领域分布、手工指定三类名单、配额挡下、保底缺口，只有数据非空才渲染，默认输出逐字节不变）；质量节（分布 + 判据，
+版面折叠 6 行分布 / 同 code 3 条判据，折叠只写计数不静默丢内容）；export 层 `buildPaperDocxExport` 透传报告。
+测试：组卷说明 20 → 42 例、质量节 16 例，export 目录 157 例。
+
+**J. 组卷页质量体检卡（commit `6dcceb6`）**：`PaperQualitySection` 只读 `paperQualityReportProvider`（loading
+安静、error 降级、data 按错误 → 警告 → 提示分组、evidence 可展开）；导出按钮用 `valueOrNull` 传报告（未就绪不
+阻塞导出，传 null 与旧行为逐字节一致）；11 个 `paperQuality*` l10n key；测试 12 + 3 例，presentation 232 例全绿。
+
+**K. 配题推荐（commit `fbd25f1`，reasoning-core）**：`PracticeRecommendationPlan`（518 行纯逻辑）——9 种理由、
+权重全部 public const（命中动作 ×3、命中知识点 ×2、未知动作补习 1.5、难度贴近最多 2、缺解析 −1.5、缺答案 −1.0），
+排序 score desc → 命中动作数 → serialNo（null 最后）→ questionId，截断显式进 skipped；45 例测试。
+
+**L. 文档**：`REASONING_LAYER_DESIGN.md` §14.4 / §15 / §16 / §17 / §18 / §19 / §20 / §21 / §22；
+`PAPER_COMPOSER_DESIGN.md` §13–§23；`SIMILAR_QUESTIONS_DESIGN.md` §7；`QUESTION_INTAKE_AUDIT_DESIGN.md` §13；
+`DOCX_EXPORT_DESIGN.md` §13 / §14 / §14.6；`AI_DESIGN.md` 工具清单更新为 24 个；`QUESTION_BANK_DESIGN.md` §14；
+`PROGRESS.md` 轮次一百二十三 / 一百二十四条目。
+
+**M. 验收**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（= 基线）；各切片定向测试全绿
+（词表编辑页 13、交叉读数 24、洞察页 15、read_question 15、链质量 51 + 11、组卷质量 37 + 9 + 4、Word 组卷说明
+42、质量节 16、导出透传 19、质量卡 12 + 3、配题推荐 45、手工名单 15 + 8 + 3、领域配额 44、学科配额 33 + 8 + 3）；
+reasoning 目录 464、paper 目录 195、export 目录 157、presentation 目录 232 全绿。全量 `flutter test --concurrency=1`
+→ **+3392 ~2 All tests passed**（E:/dsh-tmp-aot/test-125-full.txt，9 分 44 秒；2 条 skip 为既有跳过）。
+
+**N. 未做 / 已知限制**：词表编辑页、洞察页、质量卡均未真机手测（小屏滚动、长 evidence 换行）；英文文案未母语
+校对，体检 / 质量 / 建议的 messageZh 仍是中文硬编码，evidence 字段标签走 Dart const map 不走 l10n；质量卡与
+体检只报不改（没有「一键按建议调整」）；配题推荐只到纯逻辑，界面与详情页入口未接；相似题 quality 权重、所有
+质量判据阈值都还是先验值未标定；带组卷说明与质量节的 docx 未在 Word 真机上重测页数与分页。
+
+---
+
 ## 2026-10-19 轮次一百二十四：体检上屏、思维链会说话了、组卷开始按学科配额凑（Lead + 三个 teammate）
 
 **起点**：轮次一百二十三把地基铺完（v25 词表 overlay 持久化、题号检索 API、体检纯逻辑、洞察聚合），
