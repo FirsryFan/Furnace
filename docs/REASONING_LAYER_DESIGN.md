@@ -504,4 +504,30 @@ static LearningAdvicePlan build({
 - 洞察页 UI 与 provider 未接页面（目前只有纯函数，调用点等界面 / 首页「下一步」设计定稿）。
 - 未接 AI 对话：建议只走确定性规则；「哪个动作先练」的权重标定需要真数据后再做，当前不假装个性化。
 - 动作 × 知识点交叉读数未做（`knowledgePointIds` 恒空）。
+## 16. 接线：学习建议 provider 与题库题数（轮次一百二十五）
+
+### 16.1 数据接线（`learning_advice_provider.dart`）
+
+文件：`app/lib/features/questions/application/learning_advice_provider.dart`（纯拼装，无业务口径）。
+
+- `questionCorpusCountProvider`：对 `questions` 做一次真实 `COUNT`，并 `ref.watchDatabaseRevision()`，
+  收题 / 删题后立即重算；空库返回 0。
+- `learningAdviceProvider`：依次取 `chainInsightsProvider`（known 已按**当前**词表 overlay 重判，
+  这里不再重复读词表）、`capabilityProfileProvider`（§12 口径，只读 `reasoning_steps`，因此
+  孤立步骤也能进画像）与题数，调用 `LearningAdvicePlan.build` 的默认参数（阈值 3 步、最多 5 条）。
+- 顺带补上刷新：`chainInsightCorpusProvider` 也 watch 数据库修订号——之前它只在首次读取后缓存，
+  新落的链要重启才出现在洞察里；现在链 / 步骤写入后洞察与建议一起刷新。
+- 诚实性延续：题数**只**用于判断缺口。洞察覆盖 0 题时文案是「但当前还没有任何解题链」；
+  部分覆盖时写「当前洞察只覆盖 X 道题，还有 Y 道题没有解题链」；只有画像补充的练习建议
+  `questionCount` 留空（不虚构题数）；未知动作仍不吸收进练习建议。
+
+### 16.2 验收与未做
+
+- 验收：`test/features/questions/application/learning_advice_provider_test.dart` **10 例**
+  （题数空库 / 收题后变化；noData 不虚构题数 / 收集链缺口（全部没链与部分覆盖两种文案）/
+  3 步高风险给练习且题数来自洞察 / 阈值不足返回 keepGoing / 词表外动作 reviewVocabulary /
+  overlay 自定义动作算已知后进练习 / 只有画像（孤立步骤）也给练习且题数留空）；
+  `chain_insights_reader_test.dart` 12 例回归通过。
+- 未做：页面 UI（首页「下一步」或学习洞察页）与建议卡片未接；建议不落库、不做历史对比；
+  动作 × 知识点交叉读数仍空；阈值与条数**未标定**（等真实使用数据再调）。
 

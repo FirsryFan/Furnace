@@ -15,6 +15,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../domain/services/reasoning/capability_action_overlay.dart';
@@ -145,6 +146,7 @@ List<String>? _parseKnowledgeHints(String raw) {
 /// 全库思维链的聚合输入快照。
 final chainInsightCorpusProvider =
     FutureProvider<ChainInsightCorpus>((ref) async {
+  ref.watchDatabaseRevision();
   final db = ref.watch(appDatabaseProvider);
   return readChainInsightCorpus(db);
 });
