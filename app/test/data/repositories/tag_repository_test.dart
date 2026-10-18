@@ -74,7 +74,7 @@ void main() {
       () async {
     final tag = await tags.createTag(name: '数学');
     final first = await card('first');
-    final second = await card('second');
+    await card('second');
     final already = await card('already');
     await tags.addTagToObject(
       tagId: tag.id,

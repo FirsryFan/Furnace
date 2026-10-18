@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/review_plan_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
@@ -31,7 +32,12 @@ void main() {
     tags = TagRepository(db);
     anki = AnkiRepository(db);
     tasks = TaskRepository(db);
-    query = QueryContentTool(db: db, anki: anki, tags: tags);
+    query = QueryContentTool(
+      db: db,
+      anki: anki,
+      tags: tags,
+      plans: ReviewPlanRepository(db, anki),
+    );
     delete = DeleteContentTool(db: db, anki: anki, tags: tags);
   });
 
@@ -103,7 +109,8 @@ void main() {
     });
 
     test('cards name the flashcard they belong to', () async {
-      final point = await anki.createKnowledgePoint(title: '牛顿', content: 'F=ma');
+      final point =
+          await anki.createKnowledgePoint(title: '牛顿', content: 'F=ma');
       final card = await anki.createTemplate(
         knowledgePointId: point.id,
         type: 'essay',
@@ -153,8 +160,8 @@ void main() {
   group('looking is free, deleting is not', () {
     test('a read-only tool never needs confirmation, in either mode', () {
       for (final mode in AiPermissionMode.values) {
-        final decision = ApprovalEngine(mode: mode)
-            .forInvocation(query, {'kind': 'tag'});
+        final decision =
+            ApprovalEngine(mode: mode).forInvocation(query, {'kind': 'tag'});
         expect(
           decision.disposition,
           ToolDisposition.executeNow,

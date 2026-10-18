@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/entities/card_template.dart' as domain;
 import 'package:furnace/domain/entities/knowledge_point.dart' as domain;
 import 'package:furnace/domain/services/cloze/cloze_generator.dart';
@@ -141,7 +142,7 @@ void main() {
     setUp(() {
       db = AppDatabase.forTesting(NativeDatabase.memory());
       anki = AnkiRepository(db);
-      tool = CreateKnowledgeCardsTool(anki);
+      tool = CreateKnowledgeCardsTool(anki, TagRepository(db));
     });
 
     tearDown(() async {

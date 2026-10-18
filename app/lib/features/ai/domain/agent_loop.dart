@@ -13,6 +13,7 @@ import '../../../data/skill/skill_store.dart';
 import '../../../domain/skill/skill_manifest.dart';
 import '../../../domain/skill/skill_tool.dart';
 import '../infrastructure/ai_attachment_store.dart';
+import '../tools/card_group_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
@@ -246,7 +247,8 @@ class TurnUsage {
     if (cacheHitPromptTokens == null && cacheMissPromptTokens == null) {
       return false;
     }
-    final accounted = (cacheHitPromptTokens ?? 0) + (cacheMissPromptTokens ?? 0);
+    final accounted =
+        (cacheHitPromptTokens ?? 0) + (cacheMissPromptTokens ?? 0);
     return accounted < promptTokens;
   }
 
@@ -320,8 +322,7 @@ class TurnUsage {
         roundsWithUsage: roundsWithUsage ?? this.roundsWithUsage,
         promptTokens: promptTokens ?? this.promptTokens,
         completionTokens: completionTokens ?? this.completionTokens,
-        cacheHitPromptTokens:
-            cacheHitPromptTokens ?? this.cacheHitPromptTokens,
+        cacheHitPromptTokens: cacheHitPromptTokens ?? this.cacheHitPromptTokens,
         cacheMissPromptTokens:
             cacheMissPromptTokens ?? this.cacheMissPromptTokens,
         generationTime: generationTime ?? this.generationTime,
@@ -710,7 +711,8 @@ class AgentLoop {
       // One read of the skill directory per round: it produces this round's
       // tool list *and* the prompt that accompanies it.
       final turnTools = await _turnTools();
-      final history = await _buildHistory(conversationId, turnTools.systemPrompt);
+      final history =
+          await _buildHistory(conversationId, turnTools.systemPrompt);
       final calls = <ToolCallRequest>[];
       final textBuffer = StringBuffer();
       String? failure;
@@ -816,9 +818,8 @@ class AgentLoop {
           status: tool == null
               ? AiRepository.statusFailed
               : AiRepository.statusPending,
-          resultJson: tool == null
-              ? jsonEncode({'error': '未知工具 ${call.name}'})
-              : null,
+          resultJson:
+              tool == null ? jsonEncode({'error': '未知工具 ${call.name}'}) : null,
         );
 
         if (tool == null || call.parseError != null) {
@@ -962,9 +963,8 @@ class AgentLoop {
 
     await repository.updateActionStatus(
       item.actionId,
-      status: result.ok
-          ? AiRepository.statusExecuted
-          : AiRepository.statusFailed,
+      status:
+          result.ok ? AiRepository.statusExecuted : AiRepository.statusFailed,
       beforeJson: result.beforeJson,
       afterJson: result.afterJson,
       resultJson: jsonEncode(result.toModelJson()),
@@ -1068,7 +1068,8 @@ class AgentLoop {
             }
             messages.add(ChatMessage.tool(
               action.resultJson ??
-                  jsonEncode({'ok': action.status == AiRepository.statusExecuted}),
+                  jsonEncode(
+                      {'ok': action.status == AiRepository.statusExecuted}),
               toolCallId: action.toolCallId!,
             ));
           }
@@ -1114,9 +1115,7 @@ class AgentLoop {
       return const [];
     }
     try {
-      return await store
-          .partsForMessage(messageId)
-          .timeout(imageReadTimeout);
+      return await store.partsForMessage(messageId).timeout(imageReadTimeout);
     } catch (_) {
       return const [];
     }
@@ -1188,6 +1187,9 @@ class AgentLoop {
         '3. 删除类操作需要用户逐条确认，这是设计如此，不要因此反复重试。\n'
         '4. 要动某个标签、闪存卡或卡片时，先用 query_content 找到它的 id 再操作；'
         '要新增标签就调 create_tags（可指定父标签的 id 或路径，用来搭标签树）；'
+        '要把闪存卡挂进卡组（卡组就是标签）就调 link_card_tags，'
+        '卡如果已经带完整来源路径，可以用 from_source_paths 批量匹配（先 dry_run 预览）；'
+        '要给卡组设每天的新卡/复习量就调 manage_review_plan（先用 query_content(kind: review_plan) 看现状）；'
         '不要凭记忆猜名字，猜错只会得到"找不到"，而查是免费的。\n'
         '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。\n'
         '6. 要"生成文档 / 导出文件"时用 create_document，文档是写在'
@@ -1229,6 +1231,10 @@ class AgentLoop {
       case 'manage_time_block':
         await restoreTimeBlock(db, map);
         return true;
+      case ManageReviewPlanTool.toolName:
+        // A plan set/clear is undone by putting the previous row back; a
+        // first-time set has no old row and undo clears the plan (null snapshot).
+        return restoreReviewPlan(db, map);
       default:
         return false;
     }
@@ -1237,9 +1243,11 @@ class AgentLoop {
   bool _isCreate(AiActionRecord record) {
     // `create_knowledge_cards` creates a set of rows, so its "before" state is
     // "nothing existed" just like `manage_task(create)` - it simply has no
-    // `action` argument to say so.
+    // `action` argument to say so. `link_card_tags` is the same shape: undo is
+    // "remove the links it made", not "restore an old row".
     if (record.toolName == CreateTagsTool.toolName ||
         record.toolName == CreateKnowledgeCardsTool.toolName ||
+        record.toolName == LinkCardTagsTool.toolName ||
         record.toolName == CreateDocumentTool.toolName) {
       return true;
     }
@@ -1259,6 +1267,10 @@ class AgentLoop {
         return deleteCreatedTags(db, map);
       case CreateKnowledgeCardsTool.toolName:
         return deleteCreatedKnowledgeCards(db, map);
+      case LinkCardTagsTool.toolName:
+        // Undo for the link half: remove exactly the object_tags rows this call
+        // added, leaving cards the user grouped themselves untouched.
+        return unlinkCardTags(db, map);
       case CreateDocumentTool.toolName:
         // A document is a file, not a row: the snapshot names the file and the
         // helper deletes exactly that one (tools/document_tools.dart).
@@ -1271,7 +1283,8 @@ class AgentLoop {
         }
         await (db.delete(db.tasks)..where((t) => t.id.equals(id))).go();
         await (db.delete(db.taskDependencies)
-              ..where((t) => t.taskId.equals(id) | t.dependsOnTaskId.equals(id)))
+              ..where(
+                  (t) => t.taskId.equals(id) | t.dependsOnTaskId.equals(id)))
             .go();
         return true;
       case 'manage_time_block':
@@ -1434,4 +1447,3 @@ class _TurnMetrics {
         inFlightElapsed: inFlightElapsed,
       );
 }
-

@@ -1,4 +1,4 @@
-﻿# Furnace AI 集成设计（v1，待批注）
+# Furnace AI 集成设计（v1，待批注）
 
 > 状态：**待用户批注**。本文件是讨论结论的落地版，用户可直接在文中修改。
 > 决策标准（用户给定，冲突时按此优先级压）：
@@ -156,8 +156,9 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
-**2026-10-12 实测：当前真正注册的工具清单（11 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
-清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`：
+**2026-10-18 实测：当前真正注册的工具清单（21 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`（模块聚合被遵守：
+21 个工具覆盖任务/日程/认知/材料/题库/卡片/标签/文档，而不是把 60+ 个仓库方法逐个铺开）：
 
 | 工具 | 文件 | 风险 | reversible |
 | --- | --- | --- | --- |
@@ -166,15 +167,40 @@ class ToolSpec {
 | `query_schedule` | `tools/schedule_tools.dart` | 只读 | — |
 | `manage_time_block` | 同上 | 增改 `write`；**删除 `destructive`** | ✅ |
 | `evaluate_problem_fit` | `tools/cognitive_tools.dart` | 只读（用途 1） | — |
+| `plan_today` | `tools/today_tools.dart` | 只读（合成今天清单，不改到期日） | — |
+| `ingest_material` | `tools/ingest_tools.dart` | 只读（只出 `mindnet.material/1` 待确认提案） | — |
+| `apply_material_intake` | 同上 | `write`（确认后写库，`batch_id` 幂等） | ✅ |
+| `check_transcribe_run` | 同上 | 只读（校验 / `execute:true` 只演练不落库） | — |
+| `find_similar_questions` | `tools/question_tools.dart` | 只读（题库同型邻居） | — |
+| `find_questions_by_capability` | 同上 | 只读（按能力动作找题） | — |
+| `compose_paper` | `tools/paper_tools.dart` | 只读（从已有题库凑卷，不出题） | — |
+| `review_metrics` | `tools/metrics_tools.dart` | 只读（只读 `review_logs`，外部检查） | — |
 | `fetch_page` | `tools/web_tools.dart` | 只读（唯一的联网工具，约束见 D1 修订） | — |
-| `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建；照片→闪存卡的落库工具） |
+| `create_knowledge_cards` | `tools/knowledge_tools.dart` | `write` | ✅（撤销＝删除所建，含 `object_tags` 关联；照片→闪存卡的落库工具） |
+| `link_card_tags` | `tools/card_group_tools.dart` | `write`（把闪存卡挂进卡组=标签） | ✅（撤销＝删本次建的 `object_tags` 行） |
+| `manage_review_plan` | 同上 | `write`（`action`: set·clear，卡组每日新卡/复习量） | ✅（撤销＝恢复旧行，首设则删掉） |
 | `delete_content` | `tools/deletion_tools.dart` | **`destructive`（tag/card/flashcard 三种 kind 全是）** | ✅（`before_json` 存原行，含标签子树与关联、卡片状态与复习日志） |
-| `query_content` | `tools/content_query_tools.dart` | 只读（标签/闪存卡/卡片的 id 与上下文） | — |
+| `query_content` | `tools/content_query_tools.dart` | 只读（标签/闪存卡/卡片/卡组计划的 id 与上下文） | — |
 | `create_tags` | `tools/tag_tools.dart` | `write`（搭标签树，可指定父标签 id 或路径） | ✅（撤销＝删除所建子树） |
 | `create_document` | `tools/document_tools.dart` | `write`（把正文写成 `<appSupport>/documents/*.md|.txt` 文件；512 KiB 上限，文件名消毒，不覆盖同名） | ✅（撤销＝删除本次创建的文件） |
 
-> **2026-10-02 补：只读是显式声明的，不是猜出来的。** `AiTool.readOnly` 默认 `false`，七个只读工具
-> （`query_tasks` / `query_schedule` / `evaluate_problem_fit` / `fetch_page` / `query_content`）声明 `true`，
+> **2026-10-18 补：卡组接口补齐（用户现场反馈的缺口）。** 用户实测 `query_content(kind: flashcard)`
+> 只回 `id/title/source/card_count`、`create_knowledge_cards` 没有标签参数、工具清单里没有任何
+> "挂标签 / 建卡组 / 设每日计划"的接口——而他的库里有 269 张卡、114 个标签、`object_tags` 全空，
+> 卡的 `source` 里却已经写着完整标签路径。于是本轮补了四件事：
+> ① `query_content(kind: flashcard)` 每行加 `tags`（id/name/path）与 `untagged`；
+> ② `query_content(kind: tag)` 加 `linked_flashcards`（只数 `object_type='knowledge_point'`，
+>    不把其它对象算进卡组）；
+> ③ 新增 `query_content(kind: review_plan)`：已配卡组的每日目标 + 未分组卡数；
+> ④ 新增 `link_card_tags`（显式 `tag`+`card_ids`；或 `from_source_paths: true` 从 source 最后一个
+>    「｜」后的路径批量匹配，`dry_run` 默认 `true` 只预览，歧义如实报不猜）与
+>    `manage_review_plan`（`action: set/clear`），`create_knowledge_cards` 增 `tags` 参数
+>    （id 或完整路径，**建卡前先全部解析，未知/重名整单失败**，避免"静默忽略参数"）。
+
+> **2026-10-02 补：只读是显式声明的，不是猜出来的。** `AiTool.readOnly` 默认 `false`，十二个只读工具
+> （`query_tasks` / `query_schedule` / `evaluate_problem_fit` / `plan_today` / `ingest_material` /
+> `check_transcribe_run` / `find_similar_questions` / `find_questions_by_capability` / `compose_paper` /
+> `review_metrics` / `fetch_page` / `query_content`）声明 `true`，
 > `ApprovalEngine` 见到它就返回 `executeNow`——**两种权限模式下，看数据都不需要用户确认**。
 > 这条直接对应本节 D12 表里"只读查询＝自动"，此前只是靠"声明成 `write` 但什么都不写"糊过去，
 > 结果是「按计划」模式下模型连查一下都要先申请，删除更是无从下手（连 id 都拿不到）。
@@ -233,7 +259,7 @@ scripts/**         配套脚本
 
 | 能力 | Windows | Android |
 | --- | --- | --- |
-| 内置工具（当前 11 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
+| 内置工具（当前 21 个，见 `ToolRegistry.forApp`） | ✅ | ✅ |
 | 提示词型 skill（`prompt.md` + `references/**`） | ✅ | ✅ |
 | 脚本型 skill（`.fskill` 带脚本，§3 容器） | ✅ 已实现（2026-10-02） | ❌ |
 | 浏览器扩展桥（复用已登录标签页） | ✅ | ❌ |

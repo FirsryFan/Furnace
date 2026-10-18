@@ -4,6 +4,86 @@
 
 ---
 
+## 2026-10-18 轮次一百一十七：AI 能自己把卡归组了 —— 补齐卡组/标签/每日计划接口（Lead）
+
+**起点（用户现场反馈）**：用户实测「读这一侧 `query_content(kind: flashcard)` 的返回字段仍然只有
+id / title / source / card_count，没有 tags；目标标签「第1节 细胞是生命活动的基本单位」的
+`linked_objects` 仍然是 0；写这一侧 `create_knowledge_cards` 仍然只有标题/正文/来源/卡片四个参数，
+没有标签；工具清单里也没有任何'给闪存卡挂标签 / 建卡组 / 设每日计划'的接口」。他的库里 **269 张
+闪存卡、114 个标签、`object_tags` 0 行**，而每张卡的 `source` 里其实都写着完整标签路径
+（如 `…｜生物/高中生物/必修1 分子与细胞/第1章 走近细胞/第1节 细胞是生命活动的基本单位`）——
+归属信息在文本里，但没有任何工具能把两边接上。用户明确说「不会用猜的参数去试——被静默忽略就会往
+库里再塞一批重复卡，反而要再删一遍」，所以这一轮不是解释现状，是把接口补到能一次调用批量归组。
+
+**A. 读侧（`app/lib/features/ai/tools/content_query_tools.dart`）**
+- `kind: flashcard` 每行新增 `tags`（`[{id, name, path}]`）、`tag_count`、`untagged`——模型终于能
+  看到"这张卡属于哪些卡组"，也能一眼看出还有多少张散卡。
+- `kind: tag` 新增 `linked_flashcards`：只数 `object_type = 'knowledge_point'` 的关联，不把题目、
+  材料等其它对象算进卡组（卡组本来就是标签，但"标签挂了多少张卡"必须按对象类型分开数）。
+- 新增 `kind: review_plan`：`items` 是已配卡组的每日目标（`tag_id` / `tag_path` /
+  `new_cards_per_day` / `review_cards_per_day`），顶层另给 `total_flashcards`、
+  `ungrouped_flashcards` 与一句 `note`（0 = 不限量）。模型设计划前先看现状，不用猜。
+- 工具构造从 `QueryContentTool(db, anki, tags)` 变为 `QueryContentTool(db, anki, tags, plans)`，
+  `plans` 是 `ReviewPlanRepository(db, anki)`。
+
+**B. 写侧（新文件 `app/lib/features/ai/tools/card_group_tools.dart`，755 行）**
+- `link_card_tags`：两种用法。① 显式 `tag` + `card_ids`（先校验每个 id 都存在，缺一个整单失败，
+  不写一半）；② `from_source_paths: true` 扫描还没进任何卡组的卡，从 `source` 最后一个「｜」
+  （或半角 `|`）之后的文本取路径，与已有标签路径做匹配。`dry_run` 默认 **true** 只预览，
+  `dry_run: false` 才写库；`limit` 默认 50、上限 500，扫不完如实报 `remaining`。
+- 匹配规则（`_matchTagPath`）三层，**顺序即优先级**：① 全路径精确相等；② 标签路径是来源路径的
+  段级尾部（来源写得深、标签建得浅时命中，取段数最多者，同深才算歧义）；③ 来源路径是某个更深
+  标签路径的段级尾部（来源只写某一级时，若只有**一个**标签能解释它就用，≥2 个如实报
+  `ambiguous` 并列出候选，不猜）。匹配不到的单列 `unmatched` 带原因，不静默跳过。
+- `manage_review_plan`：`action: set/clear`。`set` 要求 `new_cards_per_day` 与
+  `review_cards_per_day` 都是 >= 0 的整数（负数报错），标签可用 id 或完整路径；`clear` 删掉该
+  卡组的计划行。`before_json` 存旧计划（没有则 `plan: null`），撤销时恢复旧行或删掉本次首设。
+- 撤销函数（导出给 `agent_loop`）：`unlinkCardTags(db, snapshot)` 按 `after_json.links` 删本次建的
+  `object_tags` 行；`restoreReviewPlan(db, snapshot)` 恢复 `before_json` 里的计划。
+- 公共解析函数 `resolveTagForTool(tags, raw)`：先 id、再完整路径、再名字精确、最后忽略大小写；
+  重名时报错并列出各条完整路径（不替用户选）。
+- `create_knowledge_cards`（`tools/knowledge_tools.dart`）新增 `tags` 参数（id 或完整路径，可多个）：
+  **建任何东西之前先把所有标签解析完**，未知/歧义整单失败——这正是回应"参数被静默忽略"的顾虑；
+  建完后逐张调 `addTagToObject(objectType: 'knowledge_point')`。撤销 `deleteCreatedKnowledgeCards`
+  现在会先删 `object_tags` 再删知识点，否则撤销会留下指向不存在卡片的关联行。
+
+**C. 接线（`domain/tool_registry.dart` / `domain/agent_loop.dart`）**
+- `ToolRegistry.forApp`：新增 `final reviewPlans = ReviewPlanRepository(db, anki);`，
+  注册 `LinkCardTagsTool`、`ManageReviewPlanTool`，`CreateKnowledgeCardsTool(anki, tags)`，
+  `QueryContentTool(..., plans: reviewPlans)`。内置工具 **19 → 21 个**。
+- `agent_loop`：`_isCreate` 认 `link_card_tags`（撤销走删除新建关联），`_deleteCreated` 加
+  `unlinkCardTags`，`_undo` 加 `manage_review_plan → restoreReviewPlan`；系统提示规则 4 补一句
+  "挂卡组/设每日计划用 `link_card_tags` 与 `manage_review_plan`，批量前先 `dry_run` 预览"。
+
+**D. 证据**
+- 新测试 `app/test/features/ai/card_group_tools_test.dart` 24 例：标签解析（id/路径/名字/重名/未知）、
+  显式挂（计数、幂等、未知卡 id 整单失败）、source 批量（dry-run 不写、写入、二次只扫未分组、
+  真正并列歧义被报出而不是猜、来源只写一级能唯一命中更深标签、limit 截断与 remaining、无标签报错
+  并指向 `create_tags`）、撤销（`unlinkCardTags` 只删本次、`restoreReviewPlan` 恢复旧行/清掉首设）、
+  设计划（set 快照"原本没有"、负数拒绝、clear、缺参数报错）、读侧新字段（tags/untagged/tag_count、
+  review_plan 的 items + 顶层统计）。
+- 新测试 `app/test/features/ai/card_group_loop_test.dart` 3 例：经 `AgentLoop` 执行 `link_card_tags`
+  后 `undoExecuted` 真的把 `object_tags` 清空（验证 `_isCreate`/`_deleteCreated` 接线）、dry-run
+  不产生撤销快照、`manage_review_plan` 经循环执行后撤销能把首次计划删干净。
+- `test/features/ai/knowledge_tools_test.dart` 18 例：新增三例——建卡时挂标签并回报路径、未知标签
+  在建卡前失败且库为空、`deleteCreatedKnowledgeCards` 同时清掉 `object_tags`。
+- 定向：`flutter test test/features/ai` → **+452 全绿**。
+- 全量：`flutter test --concurrency=1` → **+2150 ~2 All tests passed**（上一轮基线 +2120 ~2，
+  差值 30 = 24 + 3 + 3，全部是本轮新增用例）。
+- `dart analyze lib test` → **92 issues，0 error / 0 warning**（顺带清掉一条既有 info：
+  `test/features/ai/ai_settings_page_test.dart` 的 `MaterialApp` 加 `const`）。
+- 文档：`docs/AI_DESIGN.md` §4.1 工具表从"11 个（2026-10-12）"更新为 21 个并补一行只读数量
+  （7 → 12），另加一段 2026-10-18 的缺口说明与四个接口的用法。
+
+**E. 没做 / 限制（诚实清单）**
+- 批量匹配只读 `source` 里最后一个「｜」之后的文本；如果某张卡的 source 根本没写路径，它只会进
+  `unmatched`，不会被"猜"进任何卡组。
+- 歧义一律不猜：同一路径能对上多个标签时，工具报告候选而不是替用户选（用户的库有 114 个标签，
+  同名的父子层级很常见）。
+- 本轮只补接口，**没有替用户跑他的 269 张卡**——`dry_run` 预览归组结果应由他在对话里确认后再写；
+  也没有替他设每日计划（那是他的学习节奏）。
+- `link_card_tags` 一次最多 500 张（`limit` 上限），超过要分次；卡组设置仍只在 `review_plan` 里
+  可见，本轮没改 UI。
 ## 2026-10-18 轮次一百一十六：v0.5.1 发布件 —— 把卡组修复与入口重设计装进双端安装包（Lead）
 
 **起点（用户指令）**：用户此前要求「删掉旧版本，同时生成新版本软件，我放 release」；轮次一百一十四

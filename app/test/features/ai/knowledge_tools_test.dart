@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/services/cloze/cloze_generator.dart';
 import 'package:furnace/features/ai/domain/agent_loop.dart';
 import 'package:furnace/features/ai/domain/ai_tool.dart';
@@ -27,12 +28,14 @@ import 'package:furnace/features/ai/tools/knowledge_tools.dart';
 void main() {
   late AppDatabase db;
   late AnkiRepository anki;
+  late TagRepository tags;
   late CreateKnowledgeCardsTool tool;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     anki = AnkiRepository(db);
-    tool = CreateKnowledgeCardsTool(anki);
+    tags = TagRepository(db);
+    tool = CreateKnowledgeCardsTool(anki, tags);
   });
 
   tearDown(() async {
@@ -106,7 +109,8 @@ void main() {
         '光反应的产物是什么？',
       ]);
       expect(templates.first.clozeTemplate, '光反应在哪里进行？',
-          reason: 'a fill_blank needs its cloze text, or review cannot render it');
+          reason:
+              'a fill_blank needs its cloze text, or review cannot render it');
 
       // Every card must have a state, or it is invisible to the review queue -
       // i.e. the user would see cards that never come up.
@@ -135,6 +139,72 @@ void main() {
         for (final card in payload['cards'] as List) (card as Map)['id'],
       ];
       expect(ids, [(await storedTemplates()).single.id]);
+    });
+  });
+
+  group('a new card can be born inside a card group', () {
+    test('tags are linked after the card exists, and reported', () async {
+      final subject = await tags.createTag(name: '生物');
+      final section =
+          await tags.createTag(name: '第1节 细胞', parentId: subject.id);
+
+      final result = await tool.run(invoke({
+        'title': '细胞学说',
+        'content': '细胞是生命活动的基本单位。',
+        'cards': [
+          {'question': '基本单位是？', 'answer': '细胞'},
+        ],
+        'tags': ['生物/第1节 细胞'],
+      }));
+
+      expect(result.ok, isTrue);
+      final point = (await anki.getKnowledgePoints()).single;
+      final linked = await tags.tagsForObject(
+        objectType: 'knowledge_point',
+        objectId: point.id,
+      );
+      expect(linked.map((tag) => tag.id), [section.id]);
+      final payload = result.modelResult as Map<String, Object?>;
+      expect((payload['tags']! as List).single['path'], '生物/第1节 细胞');
+    });
+
+    test('an unknown tag fails before any card is written', () async {
+      final result = await tool.run(invoke({
+        'title': '细胞学说',
+        'content': '细胞是生命活动的基本单位。',
+        'tags': ['根本不存在的标签'],
+      }));
+
+      expect(result.ok, isFalse);
+      expect(result.error, contains('找不到标签'));
+      expect(await anki.getKnowledgePoints(), isEmpty);
+      expect(await db.select(db.objectTags).get(), isEmpty);
+    });
+
+    test('undo removes the tag link along with the card', () async {
+      await tags.createTag(name: '生物');
+      final result = await tool.run(invoke({
+        'title': '细胞学说',
+        'content': '细胞是生命活动的基本单位。',
+        'cards': [
+          {'question': '基本单位是？', 'answer': '细胞'},
+        ],
+        'tags': ['生物'],
+      }));
+      expect(await db.select(db.objectTags).get(), hasLength(1));
+
+      final undone = await deleteCreatedKnowledgeCards(
+        db,
+        (result.modelResult! as Map).cast<String, Object?>(),
+      );
+
+      expect(undone, isTrue);
+      expect(await anki.getKnowledgePoints(), isEmpty);
+      expect(
+        await db.select(db.objectTags).get(),
+        isEmpty,
+        reason: 'a leftover link would point at a card that no longer exists',
+      );
     });
   });
 
@@ -203,7 +273,8 @@ void main() {
       expect(result.ok, isFalse);
       expect(result.error, contains('cards[1]'));
       expect(await anki.getKnowledgePoints(), isEmpty,
-          reason: 'the first card was valid but the call as a whole was not - a '
+          reason:
+              'the first card was valid but the call as a whole was not - a '
               'partial write would make "2 cards created" a lie');
     });
 
@@ -227,7 +298,7 @@ void main() {
 
     setUp(() {
       repository = AiRepository(db);
-      registry = ToolRegistry([CreateKnowledgeCardsTool(anki)]);
+      registry = ToolRegistry([CreateKnowledgeCardsTool(anki, tags)]);
     });
 
     AgentLoop buildLoop(
@@ -278,8 +349,8 @@ void main() {
       );
 
       expect(pending.hasPending, isTrue);
-      expect(pending.pending.single.tool.name,
-          CreateKnowledgeCardsTool.toolName);
+      expect(
+          pending.pending.single.tool.name, CreateKnowledgeCardsTool.toolName);
       expect(pending.pending.single.decision.disposition.name, 'batchApproval');
       expect(await anki.getKnowledgePoints(), isEmpty,
           reason: 'nothing may be written before the user approves');

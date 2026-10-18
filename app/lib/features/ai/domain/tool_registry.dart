@@ -3,12 +3,14 @@ import 'dart:io';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/material_intake_repository.dart';
+import '../../../data/repositories/review_plan_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../../data/repositories/time_block_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
+import '../tools/card_group_tools.dart';
 import '../tools/cognitive_tools.dart';
 import '../tools/tag_tools.dart';
 import '../tools/content_query_tools.dart';
@@ -52,6 +54,7 @@ class ToolRegistry {
     CognitiveModel model = const MindNetCognitiveModel(),
     DateTime Function()? clock,
   }) {
+    final reviewPlans = ReviewPlanRepository(db, anki);
     return ToolRegistry([
       FetchPageTool(),
       QueryTasksTool(tasks, db),
@@ -122,8 +125,14 @@ class ToolRegistry {
       // 自我叙述。样本不足时它照原话拒绝给系数（tools/metrics_tools.dart）。
       ReviewMetricsTool(db: db),
       // The write half of the photo flow: an attached page of notes becomes a
-      // real knowledge point plus cards (see tools/knowledge_tools.dart).
-      CreateKnowledgeCardsTool(anki),
+      // real knowledge point plus cards, optionally in a card group (see
+      // tools/knowledge_tools.dart).
+      CreateKnowledgeCardsTool(anki, tags),
+      // 卡组（卡组就是标签，轮次十七）的两个写口：把闪存卡挂进卡组，以及给卡组设
+      // 每日新卡/复习量。用户现场留下的缺口就在这里——269 张卡、114 个标签、
+      // object_tags 空，没有任何工具能把两边接上（tools/card_group_tools.dart）。
+      LinkCardTagsTool(db: db, anki: anki, tags: tags),
+      ManageReviewPlanTool(tags: tags, plans: reviewPlans),
       // The only destructive tool. Deleting a tag takes its whole subtree with
       // it, and deleting a flashcard takes its review history, so every call is
       // per-item confirmed and snapshotted for undo (tools/deletion_tools.dart).
@@ -132,7 +141,15 @@ class ToolRegistry {
       // name, and before this pair existed the only way to address a tag or a
       // flashcard was to guess its name from the conversation
       // (tools/content_query_tools.dart). Read-only, so no mode asks about it.
-      QueryContentTool(db: db, anki: anki, tags: tags),
+      // Also the read half of the card-group pair above: flashcard rows now say
+      // which tags they carry, tag rows say how many flashcards they hold, and
+      // kind=review_plan reports the daily targets plus ungrouped-card count.
+      QueryContentTool(
+        db: db,
+        anki: anki,
+        tags: tags,
+        plans: reviewPlans,
+      ),
       // Building the tag tree is a normal reversible write; deleting from it is
       // delete_content (destructive, per-item confirmed).
       CreateTagsTool(tags),

@@ -18,12 +18,16 @@ library;
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
+
 import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
+import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/entities/card_template.dart' as domain;
 import '../../../domain/entities/knowledge_point.dart' as domain;
 import '../../anki/application/card_type_preference.dart';
 import '../domain/ai_tool.dart';
+import 'card_group_tools.dart';
 
 /// One card the model asked for, after validation.
 class _RequestedCard {
@@ -44,9 +48,10 @@ class _RequestedCard {
 
 /// Creates a knowledge point plus one card template per requested card.
 class CreateKnowledgeCardsTool extends AiTool {
-  CreateKnowledgeCardsTool(this._anki);
+  CreateKnowledgeCardsTool(this._anki, this._tags);
 
   final AnkiRepository _anki;
+  final TagRepository _tags;
 
   /// The name the provider sees. The agent loop recognises it for undo.
   static const String toolName = 'create_knowledge_cards';
@@ -63,8 +68,7 @@ class CreateKnowledgeCardsTool extends AiTool {
   String get name => toolName;
 
   @override
-  String get description =>
-      '创建一个闪存卡，并为它生成背诵卡片（问题/答案）。'
+  String get description => '创建一个闪存卡，并为它生成背诵卡片（问题/答案）。'
       '**用户发来课本/笔记的照片、或粘贴一段内容，并要求"做成背诵卡片 / 记忆卡片 / 帮我记住"时，用这个工具**：'
       '先读懂内容，把关键信息整理成 content，再自己出题填 cards。'
       '题目与答案必须与原文同一种语言（原文是中文就用中文，是英文就用英文），一道题只问一个点，'
@@ -73,6 +77,8 @@ class CreateKnowledgeCardsTool extends AiTool {
       '选 mcq 时必须同时给 options。'
       '不给 cards 时会自动从 content 生成一张卡片，题型跟随用户的题型偏好（默认填空题，'
       'content 里需要一个可挖空的关键信息）。'
+      '要直接归进某个卡组（标签）就给 tags：标签 id 或完整路径（先用 query_content(kind: tag) 查）；'
+      '不给 tags 的卡是散卡，任何每日新卡/复习计划都管不到它。'
       '创建完成后可以在这条对话里一键撤销。';
 
   @override
@@ -91,6 +97,12 @@ class CreateKnowledgeCardsTool extends AiTool {
           'source': {
             'type': 'string',
             'description': '来源说明，例如「课本 P32 第 3 段」或照片的文件名',
+          },
+          'tags': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': '要挂到的卡组（标签）id 或完整路径，可以给多个；'
+                '路径先用 query_content(kind: tag) 查，不要猜。留空则建为散卡。',
           },
           'cards': {
             'type': 'array',
@@ -142,6 +154,14 @@ class CreateKnowledgeCardsTool extends AiTool {
       final content = args.requireString('content');
       final source = args.optString('source');
       final requested = _parseCards(invocation.arguments['cards']);
+
+      // Resolve the card groups BEFORE writing: a path that matches no tag (or
+      // matches two) must fail the call, not leave a card in the wrong group or
+      // a card the user was told was grouped but is not.
+      final targetTags = <Tag>[];
+      for (final raw in args.optStringList('tags') ?? const <String>[]) {
+        targetTags.add(await resolveTagForTool(_tags, raw));
+      }
 
       // The fallback card is computed BEFORE anything is written: a knowledge
       // point with no card can never be reviewed, so a request that yields no
@@ -207,15 +227,33 @@ class CreateKnowledgeCardsTool extends AiTool {
         ));
       }
 
+      // The card groups the user asked for. The links are removed by the same
+      // undo that removes the point (see [deleteCreatedKnowledgeCards]), so a
+      // create that also tags is one undo, not two.
+      for (final tag in targetTags) {
+        await _tags.addTagToObject(
+          tagId: tag.id,
+          objectType: kKnowledgePointObjectType,
+          objectId: point.id,
+        );
+      }
+
       return ToolResult(
         ok: true,
         summary: '已创建闪存卡「${point.title}」，含 ${created.length} 张卡片'
-            '${auto != null ? '（自动生成填空题）' : ''}',
+            '${auto != null ? '（自动生成填空题）' : ''}'
+            '${targetTags.isEmpty ? '' : '，归入卡组 ${[
+                for (final tag in targetTags) '「${tag.path ?? tag.name}」'
+              ].join('')}'}',
         modelResult: {
           'knowledge_point_id': point.id,
           'title': point.title,
           'card_count': created.length,
           'auto_generated_card': auto != null,
+          'tags': [
+            for (final tag in targetTags)
+              {'id': tag.id, 'path': tag.path ?? tag.name},
+          ],
           'cards': created,
         },
         // Ids only: that is everything undo needs, and keeping the snapshot
@@ -284,10 +322,9 @@ class CreateKnowledgeCardsTool extends AiTool {
       if (question.isEmpty || answer.isEmpty) {
         throw ToolArgError('`cards[$i]` 缺少 question 或 answer');
       }
-      final type =
-          (entry['type']?.toString().trim().isNotEmpty ?? false)
-              ? entry['type'].toString().trim()
-              : defaultCardType;
+      final type = (entry['type']?.toString().trim().isNotEmpty ?? false)
+          ? entry['type'].toString().trim()
+          : defaultCardType;
       if (!cardTypes.contains(type)) {
         throw ToolArgError(
           '`cards[$i].type` 未知：$type。可用：${cardTypes.join(' / ')}',
@@ -374,6 +411,15 @@ Future<bool> deleteCreatedKnowledgeCards(
       await (db.delete(db.cardTemplates)..where((t) => t.id.isIn(templateIds)))
           .go();
     }
+    // Tag links go with the point: a create that also put the card into card
+    // groups has to undo both halves, or the undo leaves a ghost link behind.
+    await (db.delete(db.objectTags)
+          ..where(
+            (t) =>
+                t.objectType.equals(kKnowledgePointObjectType) &
+                t.objectId.equals(pointId),
+          ))
+        .go();
     await (db.delete(db.knowledgePoints)..where((t) => t.id.equals(pointId)))
         .go();
   });
