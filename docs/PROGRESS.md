@@ -4,6 +4,102 @@
 
 ---
 
+## 2026-10-18 轮次一百一十五：入口重设计 —— 题库成为顶层目的地、设置页收敛、知识页顶栏收进菜单（Lead）
+
+**起点（用户指令）**：用户 m29290「还有很多功能，比如知识库、新建题目、题库总览之类的功能，请你重新设计其入口」；
+用户 m29307「你的 UI 设计布局有很多可以提升的地方，请先简单修改，不要有显著问题即可」。
+
+**A. 问题**：题库的四个入口（收题 / 组卷 / 拍照整理 / 材料入库）此前各占设置页一行，把设置页
+撑成功能清单，而「题库总览」本身**没有页面**；知识页 AppBar 五个图标平铺、没有主次；底部导航
+7 个项目在手机宽度下全标签会挤。
+
+**B. 题库成为顶层目的地**：`home_shell.dart` 的 `shellDestinations` 在「闪存卡」之后插入
+`destination('questions', l10n.navQuestions)`，`pages` 同步插入 `QuestionBankPage`；索引相关全改：
+`_settingsIndex => aiConfigured ? 7 : 6`、Ctrl+0 的 `onInvoke` 同步、新增 `Ctrl+5 → _GoToTabIntent(4)`
+（注释说明题库和 Ctrl+1..4 一样钉在固定位置）。手机 `NavigationBar` 增
+`labelBehavior: onlyShowSelected`（8 项全标签挤不下；桌面 rail 仍全标签）。图标槽位加
+`'questions'`（`app_icons.dart` 的 slots / slotDefaults `'quiz'` / objects 分类 / catalog、
+`icon_picker_page.dart` 的 `slotLabel`），`test/core/theme/app_icons_test.dart` 的固定槽位表同步 +1。
+
+**C. 新题库页** `app/lib/features/questions/presentation/question_bank_page.dart`（~330 行，只读）：
+数据复用 `paperCorpusProvider` + 新增的 `questionStemsProvider`（`readQuestionStems` 读全表，
+`watchDatabaseRevision`；AI 工具那条路仍只传 ids），**不新增第二套读表口径**。内容：四个加题入口
+（收题 / 组卷 / 拍照整理 / 材料入库）→ 统计卡（`共 N 道题 · M 个学科`，空库时给引导）→ 学科
+`ChoiceChip` 筛选 → 行（题干 + 学科 · 来源分级 · 知识点数）→ 点进 `QuestionDetailPage`；
+下拉刷新 `invalidate` 两个 provider。
+
+**D. 设置页收敛**：删掉收题 / 组卷 / 拍照整理 / 材料入库四个 `ListTile` 与四个 import，改成
+一个「题库」条目（`settingsQuestionBankHint`）→ `QuestionBankPage`。
+
+**E. 知识页顶栏**：五个 `IconButton` → 2 个常用（复习偏好、复习计划）+ `PopupMenuButton`
+「更多」（线索边 / 洞察 / 今日清单，`enum _KnowledgeMoreAction`）。理由写在代码注释里：
+"看数据"类不是复习流程每轮都要点的东西。
+
+**F. l10n**：新增 `navQuestions`、`knowledgeMoreActions`、`settingsQuestionBankHint`、
+`questionBankRefresh/Failed/Empty/EmptyHint/Intro/Summary/AllSubjects/NoMatch/Untitled/PointCount`
+共 13 个 key（zh/en），`flutter gen-l10n` 重新生成三个 dart（不再手改生成文件）。
+
+**G. 证据**：新增 `test/features/questions/presentation/question_bank_page_test.dart` 5 例
+（空态四入口、列表/统计/学科筛选真的过滤、点行进详情、组卷入口、`shellDestinations` 纯函数
+7 项且题库紧跟闪存卡）；`test/app/home_shell_narrow_test.dart` 1 例（390×844 底部导航渲染
+7 个 `NavigationDestination`、点 quiz 图标进题库）；`test/core/theme/app_icons_test.dart` 槽位表 +1；
+回归 settings / anki / app → 全绿；全量 `flutter test --concurrency=1` → **`+2120 ~2`**
+（轮次一百一十三基线 +2107，差值 13 = 卡组 7 + 题库 5 + 窄屏 1）；`dart analyze lib test` →
+**93 issues（0 error / 0 warning）**。
+
+**H. 没做（诚实清单）**：① 知识库仍是导航一级页（`FEATURE_MATRIX.md` 的 D4/R5 未决，这一轮没动）；
+② 手机端八项是现有信息架构的边界，没做"更多"折叠（那要先决定哪一项进折叠）；
+③ 题库页只读——改题仍在题目详情页，页内不做编辑；④ 拍照整理的主入口仍是待整理队列页，
+题库页只是多了一条路。
+
+**I. 文档**：`docs/QUESTION_BANK_DESIGN.md` §6 补入口说明、§10 诚实清单第 4 条改为已解决。
+
+---
+
+## 2026-10-18 轮次一百一十四：旧卡没有卡组 —— 把"看不见的卡"补进卡组，新建卡时就能选卡组（Lead）
+
+**起点（用户反馈）**：用户 m29052「现在软件里面有一些旧的 flashcard 没有设置『卡组』，可能是我现在
+没看到『一天多少个卡』的设置的原因」。
+
+**A. 先取证**：把活动库 `C:\Users\firsr\AppData\Roaming\FirsryFan\Furnace\furnace.db` 复制到
+`E:\dsh-tmp-aot\furnace-copy.db` 后用脚本查：`knowledge_points` **269**、`card_templates` **644**、
+`tags` **133**、**`object_tags` 0 行**、`review_group_plans` **0 行**。⇒ 269 张卡一张标签都没挂，
+而卡组*就是*标签、每日任务量按卡组设 ⇒ 它们不属于任何卡组，计划页自然是空的，旧卡永远落在
+任何每日配额之外（不是"不限量"，是"不在范围内"）。设计口径见轮次十七（`review_plan_page.dart`
+与 `docs/FRONTEND.md` 的卡组说明）。
+
+**B. 仓储**（`app/lib/data/repositories/tag_repository.dart`，object_tags 的写者仍只有这一个）：
+`countKnowledgePointsWithoutTags()`、`knowledgePointIdsWithoutTags()`（共用
+`NOT EXISTS` 子查询，注释说明为什么不用 `LEFT JOIN ... IS NULL` 的假重复）、
+`tagKnowledgePointsWithoutTags(tagId)`（未知标签抛 `ArgumentError`；批量
+`InsertMode.insertOrIgnore`，调两次不会重复、第二次返回 0）。
+
+**C. 卡组设置页**（`review_plan_page.dart`）：新的 `ungroupedKnowledgePointsProvider`
+（`watchDatabaseRevision`）与 `_UngroupedCardsCard`——「有 N 张卡还没有卡组」+「把它们归到一个
+卡组」；归组后 snackbar 报数并**立刻打开**那个卡组的每日任务量编辑器（归组只是半个闭环，
+设完任务量才算完）；计划为空的空态补一个「添加卡组任务量」按钮（此前只有一段文字）；抽
+`_sortedTags` / `_pickTag` / `_tagLabel` 给两处选标签复用。
+
+**D. 新建卡就能选卡组**（`anki_manage_page.dart`）：新建知识点弹窗加「卡组（标签）」下拉
+（`DropdownButtonFormField(initialValue: ...)`，`''` = 「不设置（散卡）」），保存后若有选中
+就 `addTagToObject`。
+
+**E. l10n**：`reviewPlanUngroupedTitle(count)` / `Body` / `Action` / `Done(count,tag)`、
+`ankiCardGroup` / `ankiCardGroupNone`；`docReviewBody`（使用文档）补上"没有挂标签的旧卡不属于
+任何卡组、卡组设置页会给一键归组、新建卡时也能选"。
+
+**F. 证据**：新增 `test/data/repositories/tag_repository_test.dart` 4 例（0/2 计数、归组后清零、
+二次归组返回 0、未知标签抛错）；新增 `test/features/anki/review_plan_page_test.dart` 3 例
+（未分组提示与空态按钮、一键归组后出现每日任务量编辑器且库里 1 行 plan / 2 行 object_tags、
+无标签时提示先去建标签）；定向 settings+anki 回归全绿；全量 **`+2120 ~2`**；analyze **93 issues
+（0 error / 0 warning）**。
+
+**G. 没做（诚实清单）**：① 只支持"全部未分组卡归到同一个标签"，不提供逐张归组/多标签归组；
+② 归组后不自动设每日目标（打开编辑器让用户自己填，默认仍是"不限"）；③ 已经手工挂过标签的卡
+按"有卡组"算，不检查它挂的标签是否看起来像学科。
+
+---
+
 ## 2026-10-18 轮次一百一十三：v0.5.0 发布件 —— 删旧版、双端重编、发布说明（Lead）
 
 **起点（用户指令）**：「删掉旧版本，同时生成新版本软件，我放 release」。

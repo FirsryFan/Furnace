@@ -44,6 +44,15 @@ final paperCorpusProvider =
   return readPaperCorpus(ref.watch(appDatabaseProvider));
 });
 
+/// 题干表：`PaperCorpus` 只带 id 与筛选维度（题干是每题一大段文本，组卷的打分
+/// 不需要它），而题库总览页要显示"是哪道题"。一次读全表：总览页本来就要列出
+/// 全部题目；AI 工具只返回前几条时仍走 `readQuestionStems(ids: ...)`，不经过这里。
+final questionStemsProvider =
+    FutureProvider.autoDispose<Map<String, String>>((ref) async {
+  ref.watchDatabaseRevision();
+  return readQuestionStems(ref.watch(appDatabaseProvider));
+});
+
 /// 题库里的全部题目（`PaperCandidate`）。
 final paperCandidatesProvider =
     FutureProvider.autoDispose<List<PaperCandidate>>(

@@ -52,7 +52,8 @@ class _IconPickerPageState extends State<IconPickerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${l10n.iconPickerTitle} · ${slotLabel(l10n, widget.slot)}'),
+        title:
+            Text('${l10n.iconPickerTitle} · ${slotLabel(l10n, widget.slot)}'),
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.restart_alt),
@@ -173,7 +174,9 @@ class _IconCell extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isSelected ? scheme.primary : Theme.of(context).dividerColor,
+                color: isSelected
+                    ? scheme.primary
+                    : Theme.of(context).dividerColor,
                 width: isSelected ? 3 : 1,
               ),
             ),
@@ -195,6 +198,7 @@ String slotLabel(AppLocalizations l10n, String slot) => switch (slot) {
       'thread' => l10n.navThread,
       'time' => l10n.navTime,
       'knowledge' => l10n.navAnki,
+      'questions' => l10n.navQuestions,
       'packages' => l10n.navPackages,
       'ai' => l10n.navAi,
       'settings' => l10n.navSettings,

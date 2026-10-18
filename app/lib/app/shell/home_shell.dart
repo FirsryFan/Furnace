@@ -11,6 +11,7 @@ import '../../features/anki/presentation/knowledge_page.dart';
 import '../../features/settings/application/appearance_providers.dart';
 import '../../features/tags/presentation/tag_tree_page.dart';
 import '../../features/packages/presentation/packages_page.dart';
+import '../../features/questions/presentation/question_bank_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/thread/application/thread_rank_service.dart';
 import '../../features/thread/presentation/thread_page.dart';
@@ -42,6 +43,7 @@ List<NavigationDestination> shellDestinations({
     destination('thread', l10n.navThread),
     destination('time', l10n.navTime),
     destination('knowledge', l10n.navAnki),
+    destination('questions', l10n.navQuestions),
     destination('packages', l10n.navPackages),
     if (aiConfigured) destination('ai', l10n.navAi),
     destination('settings', l10n.navSettings),
@@ -53,7 +55,7 @@ class _SortThreadIntent extends Intent {
   const _SortThreadIntent();
 }
 
-/// Ctrl+1..4: jump to a top-level module.
+/// Ctrl+1..5: jump to a top-level module.
 class _GoToTabIntent extends Intent {
   const _GoToTabIntent(this.index);
 
@@ -115,6 +117,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
       const ThreadPage(),
       const TimePage(),
       const KnowledgePage(),
+      const QuestionBankPage(),
       const PackagesPage(),
       if (aiConfigured)
         AiChatPage(onOpenSettings: () => _goToTab(_settingsIndex)),
@@ -152,7 +155,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
   }
 
   /// Index of the Settings tab, which shifts when the AI page is present.
-  int get _settingsIndex => ref.read(aiEnabledProvider) ? 6 : 5;
+  int get _settingsIndex => ref.read(aiEnabledProvider) ? 7 : 6;
 
   void _goToTab(int index) => setState(() => _selectedIndex = index);
 
@@ -169,6 +172,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
         const _GoToTabIntent(2),
     const SingleActivator(LogicalKeyboardKey.digit4, control: true):
         const _GoToTabIntent(3),
+    // Ctrl+5: 题库。它和 Ctrl+1..4 一样钉在固定位置（AI 目的地在它后面插入）。
+    const SingleActivator(LogicalKeyboardKey.digit5, control: true):
+        const _GoToTabIntent(4),
     const SingleActivator(LogicalKeyboardKey.digit0, control: true):
         const _GoToSettingsIntent(),
   };
@@ -203,7 +209,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
         // Ctrl+0 jumps to Settings, whose index shifts with the AI page.
         _GoToSettingsIntent: CallbackAction<_GoToSettingsIntent>(
           onInvoke: (intent) {
-            setState(() => _selectedIndex = aiConfigured ? 6 : 5);
+            setState(() => _selectedIndex = aiConfigured ? 7 : 6);
             return null;
           },
         ),
@@ -249,6 +255,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
           body: pages[selected],
           bottomNavigationBar: NavigationBar(
             selectedIndex: selected,
+            // 八个目的地挤在手机宽度里，全称标签会换行/截断；只给选中项显示
+            // 标签是 Material 允许的做法，桌面端（rail）仍然是全标签。
+            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             onDestinationSelected: (index) {
               setState(() => _selectedIndex = index);
             },

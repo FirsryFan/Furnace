@@ -47,13 +47,14 @@ void main() {
           // spinner is indeterminate - which means a `pumpAndSettle` here would
           // never settle. An empty installed list is the state a fresh install
           // is in, so nothing is faked that the app cannot really show.
-          installedSkillsProvider.overrideWith((ref) => const <InstalledSkill>[]),
+          installedSkillsProvider
+              .overrideWith((ref) => const <InstalledSkill>[]),
         ],
-        child: MaterialApp(
-          locale: const Locale('zh'),
+        child: const MaterialApp(
+          locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const AiSettingsPage(),
+          home: AiSettingsPage(),
         ),
       ),
     );
@@ -73,8 +74,8 @@ void main() {
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
-    expect((await AiRepository(db).getConfig()).maxRounds,
-        AiConfig.maxMaxRounds,
+    expect(
+        (await AiRepository(db).getConfig()).maxRounds, AiConfig.maxMaxRounds,
         reason: 'the saved budget is the one the slider showed');
   });
 }

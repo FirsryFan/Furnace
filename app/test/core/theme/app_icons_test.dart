@@ -39,7 +39,8 @@ void main() {
         expect(
           entry.value.outlined.codePoint,
           isNot(entry.value.filled.codePoint),
-          reason: '${entry.key}: outlined and filled are the same glyph, so the '
+          reason:
+              '${entry.key}: outlined and filled are the same glyph, so the '
               'selected state would be invisible',
         );
         expect(
@@ -82,6 +83,7 @@ void main() {
         'thread',
         'time',
         'knowledge',
+        'questions',
         'packages',
         'ai',
         'settings',
@@ -94,6 +96,7 @@ void main() {
         'thread': 'bolt',
         'time': 'schedule',
         'knowledge': 'psychology',
+        'questions': 'quiz',
         'packages': 'library_books',
         'ai': 'smart_toy',
         'settings': 'settings',
@@ -108,13 +111,15 @@ void main() {
     test('an unconfigured slot renders its factory icon', () {
       for (final slot in AppIcons.slots) {
         final expected = catalogIsConst[AppIcons.slotDefaults[slot]]!;
-        expect(AppIcons.effectiveName(slot, const {}), AppIcons.slotDefaults[slot]);
+        expect(AppIcons.effectiveName(slot, const {}),
+            AppIcons.slotDefaults[slot]);
         expect(AppIcons.iconFor(slot, const {}).outlined, expected.outlined);
         expect(
           AppIcons.iconData(slot, const {}, filled: false),
           expected.outlined,
         );
-        expect(AppIcons.iconData(slot, const {}, filled: true), expected.filled);
+        expect(
+            AppIcons.iconData(slot, const {}, filled: true), expected.filled);
       }
     });
 
@@ -141,7 +146,8 @@ void main() {
       for (final name in AppIcons.names) {
         for (final slot in AppIcons.slots) {
           expect(
-            AppIcons.iconData(slot, <String, String>{slot: name}, filled: false),
+            AppIcons.iconData(slot, <String, String>{slot: name},
+                filled: false),
             catalogIsConst[name]!.outlined,
             reason: '$name in $slot',
           );

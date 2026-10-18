@@ -17,10 +17,7 @@ import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../anki/presentation/review_plan_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
-import '../../cognitive/presentation/material_intake_page.dart';
-import '../../questions/presentation/handwriting_queue_page.dart';
-import '../../questions/presentation/question_intake_page.dart';
-import '../../questions/presentation/question_paper_page.dart';
+import '../../questions/presentation/question_bank_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
 import 'about_page.dart';
@@ -120,57 +117,18 @@ class SettingsPage extends ConsumerWidget {
               ),
             ),
           ),
-          // 收题的入口（`docs/QUESTION_BANK_DESIGN.md` §6）：和认知模型一样挂在
-          // 设置里，不动底部导航的五个目的地。
+          // 题库的总入口（用户反馈 m29290）：收题、组卷、拍照整理、材料入库
+          // 此前各占一行，把设置页撑成功能清单；现在它们都收进「题库」这一页，
+          // 设置页只留一个能走过去的门。
           ListTile(
-            leading: const Icon(Icons.edit_note_outlined),
-            title: Text(l10n.questionIntakeTitle),
-            subtitle: Text(l10n.questionIntakeEntryHint),
+            leading: const Icon(Icons.quiz_outlined),
+            title: Text(l10n.navQuestions),
+            subtitle: Text(l10n.settingsQuestionBankHint),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const QuestionIntakePage(),
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.playlist_add_check),
-            title: Text(l10n.questionPaperTitle),
-            subtitle: Text(l10n.questionPaperEntryHint),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const QuestionPaperPage(),
-              ),
-            ),
-          ),
-          // 拍照整理的第二入口（`docs/QUESTION_BANK_DESIGN.md` §7.4）：主入口挂在
-          // 收题页的待整理清单里（每张照片一个「整理」），这里给一条能直接进来的路。
-          ListTile(
-            leading: const Icon(Icons.auto_fix_high),
-            title: Text(l10n.handwritingQueueTitle),
-            subtitle: Text(l10n.handwritingQueueEntryHint),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const HandwritingQueuePage(),
-              ),
-            ),
-          ),
-          // 材料入库的入口（`docs/MINDNET_ROADMAP.md` §2-C ①）：和收题、认知模型一样
-          // 挂在设置里，不动底部导航的五个目的地。
-          ListTile(
-            leading: const Icon(Icons.library_add_outlined),
-            title: Text(l10n.materialIntakeTitle),
-            subtitle: Text(l10n.materialIntakeEntryHint),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const MaterialIntakePage(),
+                builder: (context) => const QuestionBankPage(),
               ),
             ),
           ),

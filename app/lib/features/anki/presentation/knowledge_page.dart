@@ -51,36 +51,52 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
               ),
             ),
           ),
-          IconButton(
-            // 线索边：资料里的连接确认之后落在 `knowledge_edges` 里，这一页是它们
-            // 唯一的读法（一份只读清单 —— 有写者没读者等于没落地）。
-            tooltip: l10n.knowledgeEdges,
-            icon: const Icon(Icons.hub_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) => const KnowledgeEdgePage(),
+          // 用户反馈（m29307）：五个图标挤在标题栏里，看不出主次。复习用到的
+          // 两个（偏好、计划）留在外面，"看数据"类的三个（线索边 / 洞察 / 今日
+          // 清单）收进一个菜单——它们不是复习流程里每轮都要点的东西。
+          PopupMenuButton<_KnowledgeMoreAction>(
+            tooltip: l10n.knowledgeMoreActions,
+            icon: const Icon(Icons.more_vert),
+            onSelected: (action) {
+              final page = switch (action) {
+                // 线索边：资料里的连接确认之后落在 `knowledge_edges` 里，这一页是
+                // 它们唯一的读法（一份只读清单 —— 有写者没读者等于没落地）。
+                _KnowledgeMoreAction.edges => const KnowledgeEdgePage(),
+                _KnowledgeMoreAction.insight => const KnowledgeInsightPage(),
+                // 今日清单：把「今天做这几件事」摆到人面前（roadmap §1 控制层那
+                // 一行的界面面）。它只列到期的卡，候选题的价格要模型给。
+                _KnowledgeMoreAction.todayPlan => const TodayPlanPage(),
+              };
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (context) => page),
+              );
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: _KnowledgeMoreAction.edges,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.hub_outlined),
+                  title: Text(l10n.knowledgeEdges),
+                ),
               ),
-            ),
-          ),
-          IconButton(
-            tooltip: l10n.knowledgeInsight,
-            icon: const Icon(Icons.insights),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) => const KnowledgeInsightPage(),
+              PopupMenuItem(
+                value: _KnowledgeMoreAction.insight,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.insights),
+                  title: Text(l10n.knowledgeInsight),
+                ),
               ),
-            ),
-          ),
-          IconButton(
-            // 今日清单：把「今天做这几件事」摆到人面前（roadmap §1 控制层那
-            // 一行的界面面）。它只列到期的卡，候选题的价格要模型给。
-            tooltip: l10n.todayPlanTitle,
-            icon: const Icon(Icons.checklist),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) => const TodayPlanPage(),
+              PopupMenuItem(
+                value: _KnowledgeMoreAction.todayPlan,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.checklist),
+                  title: Text(l10n.todayPlanTitle),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -110,3 +126,6 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
     );
   }
 }
+
+/// The "read the data" entries hidden behind the app bar's overflow menu.
+enum _KnowledgeMoreAction { edges, insight, todayPlan }
