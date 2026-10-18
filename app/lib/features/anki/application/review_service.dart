@@ -242,17 +242,23 @@ class ReviewService {
   /// reappear inside the same day.
   ///
   /// [plan] is today's per-group load, or null when the caller has nothing
-  /// configured. It has exactly one effect: a group whose daily **review**
-  /// allowance is spent stops drawing *new* cards for the rest of the day
-  /// (user request "每天各个卡组的任务量"). With `plan == null` - which is what
-  /// every install that never opened the plan UI passes - the queue is built
-  /// exactly as it was before the plan existed.
+  /// configured. A configured group hands out two daily allowances - new cards
+  /// and reviews - and the queue is what *today's tasks* means: the cards that
+  /// still fit in those allowances, in the model's own order. A group with
+  /// `newCardsPerDay: 15` shows fifteen new cards and not the whole library; a
+  /// card whose groups have both buckets spent waits for tomorrow. With
+  /// `plan == null` - what every install that never opened the plan UI passes -
+  /// the queue is built exactly as it was before the plan existed.
   ///
-  /// **A card answered wrong today is never suppressed by the cap.** The forced
-  /// loop below runs before the cap is consulted and ignores it entirely: an
-  /// error has to reappear in the same day's queue until it is answered right
-  /// twice in a row (annotation 17). A daily allowance limits how much *new*
-  /// material a group introduces; it must not be able to hold a mistake open.
+  /// **A card answered wrong today is never suppressed by an allowance.** The
+  /// forced loop below runs before the allowance is consulted and those items
+  /// bypass it entirely: an error has to reappear in the same day's queue until
+  /// it is answered right twice in a row (annotation 17). A daily allowance
+  /// decides which cards enter the day; it must not be able to hold a mistake
+  /// open.
+  ///
+  /// Cards that carry no tag of any configured group are unlimited: the plan
+  /// must not be able to hide material the user never filed under a group.
   Future<List<ReviewItem>> buildQueue({
     DateTime? now,
     ReviewDayLoad? plan,
@@ -263,12 +269,32 @@ class ReviewService {
     final forced = <ReviewItem>[];
     final boostedIds = <String, double>{};
 
-    // The groups that have used up their daily allowance. Empty for a database
-    // with no plan at all, which is also what makes the membership queries below
-    // free in that case.
-    final exhaustedGroups = plan?.reviewExhaustedGroups ?? const <String>{};
-    final exhaustedMembers = <String, Set<String>>{};
-    var exhaustedMembersLoaded = false;
+    // Today's remaining allowance per configured group, plus each point's tag
+    // paths. Both stay empty when no plan is configured, which also keeps the
+    // membership query unrun for every install that never opened the plan UI.
+    final budgets = <_GroupBudget>[
+      for (final group in plan?.groups ?? const <ReviewGroupLoad>[])
+        _GroupBudget(
+          memberPaths:
+              (plan!.pathsByGroup[group.plan.tagId] ?? const <String>[])
+                  .toSet(),
+          newRemaining: group.newRemaining,
+          reviewRemaining: group.remainingReviews,
+        ),
+    ];
+    final pointPathsByPoint = budgets.isEmpty
+        ? const <String, Set<String>>{}
+        : {
+            for (final entry in (await ankiRepository.tagPathsForObjects(
+              objectType: 'knowledge_point',
+              objectIds: [for (final p in points) p.id],
+            ))
+                .entries)
+              entry.key: entry.value.toSet(),
+          };
+    // Whether a point already had its first answer (see the comment in the loop
+    // below); only filled when a plan is actually enforcing allowances.
+    final introducedByPoint = <String, bool>{};
 
     for (final boost in await ankiRepository.getAllBoosts()) {
       boostedIds[boost.knowledgePointId] = boost.factor;
@@ -280,6 +306,15 @@ class ReviewService {
       final contentStates =
           await ankiRepository.unitStatesForKnowledgePoint(point.id);
       final states = await _statesFor(contentStates, templates);
+      // A point is "introduced" once any of its units has been answered. The
+      // drawn item's own `isNew` is not enough: a card answered yesterday can be
+      // re-drawn today with an unused blank, and that is a review of material the
+      // group already had, not a new card. This is also the split `loadDay`
+      // spends its allowances on, so the two sides must agree on it.
+      final introduced = states.any((state) => state.repetitions > 0);
+      if (budgets.isNotEmpty) {
+        introducedByPoint[point.id] = introduced;
+      }
       final forcedStates = states.where((state) => state.forced == 1).toList();
       for (final state in forcedStates) {
         final item = await _itemFor(
@@ -302,37 +337,6 @@ class ReviewService {
       // (spec 1.3.2) is what brings the same material back through different
       // blanks, and a card the user wrote must not switch it off.
       final dueState = _dueState(states, moment);
-
-      // Today's per-group allowance is consulted BEFORE the "nothing new to
-      // draw" exit below, not after it. The order is the rule: a knowledge point
-      // whose unit is not due because its *only* unit has already been created
-      // is still a card this group would present for the first time today, and a
-      // cap that let it through here would not be a cap at all.
-      //
-      // "New" is decided by `repetitions`, not by `dueState == null`. The first
-      // build of a queue already creates the unit row of a card it drew (with
-      // `due_at` NULL and `repetitions` 0), so the second build sees a state
-      // while the card is still one the user has never actually answered -
-      // `ReviewItem.isNew` uses exactly this counter, and the cap has to agree
-      // with it or it would let precisely those cards through.
-      if (exhaustedGroups.isNotEmpty && _isUnseenDraw(states, moment)) {
-        if (!exhaustedMembersLoaded) {
-          for (final entry in (await ankiRepository.tagPathsForObjects(
-            objectType: 'knowledge_point',
-            objectIds: [for (final p in points) p.id],
-          ))
-              .entries) {
-            exhaustedMembers[entry.key] = entry.value.toSet();
-          }
-          exhaustedMembersLoaded = true;
-        }
-        final pointPaths = exhaustedMembers[point.id] ?? const <String>{};
-        if (exhaustedGroups.every((group) =>
-            (plan!.pathsByGroup[group] ?? const <String>[])
-                .any(pointPaths.contains))) {
-          continue;
-        }
-      }
 
       if (dueState == null && contentStates.isNotEmpty) {
         continue;
@@ -382,7 +386,65 @@ class ReviewService {
       }
     }
 
-    return _interleave(orderedForced, orderedDue);
+    // Apply the day's allowance last, on the model's order: the first cards the
+    // model wants are the ones that fit the group's budget, and the rest wait for
+    // tomorrow. Filtering here rather than while collecting means the budget is
+    // spent on exactly what the user will actually see.
+    final keptDue = <ReviewItem>[];
+    for (final item in orderedDue) {
+      if (_takeAllowance(
+        item,
+        budgets,
+        pointPathsByPoint[item.knowledgePointId],
+        isNew: !(introducedByPoint[item.knowledgePointId] ?? item.isNew),
+      )) {
+        keptDue.add(item);
+      }
+    }
+
+    return _interleave(orderedForced, keptDue);
+  }
+
+  /// Consumes one unit of the covering groups' allowance for [item], or reports
+  /// that the card cannot be shown today.
+  ///
+  /// A card belongs to every configured group whose subtree holds one of its
+  /// tags. It is dropped when **any** of them has spent the bucket the card would
+  /// draw from; when it fits it consumes a unit from each, so a nested group
+  /// cannot hand out a budget its parent already used. A card in no configured
+  /// group - or in a database with no plan at all - is unlimited.
+  bool _takeAllowance(
+    ReviewItem item,
+    List<_GroupBudget> budgets,
+    Set<String>? pointPaths, {
+    required bool isNew,
+  }) {
+    if (budgets.isEmpty || pointPaths == null) {
+      return true;
+    }
+    final groups = <_GroupBudget>[];
+    for (final budget in budgets) {
+      if (pointPaths.any(budget.memberPaths.contains)) {
+        groups.add(budget);
+      }
+    }
+    if (groups.isEmpty) {
+      return true;
+    }
+    for (final budget in groups) {
+      final left = isNew ? budget.newRemaining : budget.reviewRemaining;
+      if (left != null && left <= 0) {
+        return false;
+      }
+    }
+    for (final budget in groups) {
+      if (isNew) {
+        budget.newRemaining -= 1;
+      } else {
+        budget.reviewRemaining = budget.reviewRemaining! - 1;
+      }
+    }
+    return true;
   }
 
   /// Places active units a few cards after their wrong answer; when nothing
@@ -401,23 +463,6 @@ class ReviewService {
       }
     }
     return result;
-  }
-
-  /// Whether the next normal draw of this knowledge point would be a card the
-  /// user has never answered.
-  ///
-  /// True when every unit that could be drawn right now still has
-  /// `repetitions == 0`. The `forced != 1` filter matters: a bound unit is
-  /// re-presented by the wrong-answer rule and is not what the daily cap is
-  /// about, while the eligibility filter is the same one [_dueState] uses - so
-  /// a card with a real schedule (a review) makes this false even when its
-  /// `dueAt` is null because it was only ever *drawn*, never answered.
-  bool _isUnseenDraw(List<CardState> states, DateTime now) {
-    final drawable = states.where((s) => s.forced != 1).where(
-        (s) => s.dueAt == null || s.dueAt! <= now.millisecondsSinceEpoch);
-    // No state at all: the knowledge point has never been drawn, so this is new
-    // material by definition.
-    return drawable.every((s) => s.repetitions == 0);
   }
 
   /// The most overdue, not-yet-forced unit of [states], or null when nothing
@@ -1299,3 +1344,19 @@ final reviewServiceProvider = Provider<ReviewService>((ref) {
     cognitiveModel: ref.watch(cognitiveModelProvider),
   );
 });
+
+/// One configured group's allowance, mutable while a queue is being built.
+///
+/// Both counters are spent down as cards are admitted; [reviewRemaining] is null
+/// for a group that put no review target, which means "unlimited", not "none".
+class _GroupBudget {
+  _GroupBudget({
+    required this.memberPaths,
+    required this.newRemaining,
+    required this.reviewRemaining,
+  });
+
+  final Set<String> memberPaths;
+  int newRemaining;
+  int? reviewRemaining;
+}

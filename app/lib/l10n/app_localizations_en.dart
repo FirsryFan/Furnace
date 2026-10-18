@@ -991,7 +991,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewPlanZeroIsUnlimited =>
-      '0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.';
+      '0 new cards per day means no new cards today; 0 or empty reviews per day means no review limit. A card answered wrong today still comes back.';
 
   @override
   String reviewPlanTarget(int newCards, int reviewCards) {
@@ -1004,6 +1004,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String reviewPlanNewRemaining(int count) {
+    return 'New cards left: $count';
+  }
+
+  @override
   String reviewPlanRemaining(int count) {
     return 'Remaining allowance: $count';
   }
@@ -1012,11 +1017,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewPlanReviewsUnlimited => 'Remaining allowance: no limit';
 
   @override
-  String get reviewPlanNewCardsNormal => 'New cards are drawn normally.';
+  String get reviewPlanNewCardsNormal => 'Today\'s allowance is still open.';
 
   @override
   String get reviewPlanNewCardsStopped =>
-      'Review allowance used up: this group stops drawing new cards today. A card answered wrong today still comes back.';
+      'New-card allowance used up: no more new cards from this group today.';
+
+  @override
+  String get reviewPlanReviewsStopped =>
+      'Review allowance used up: that is today\'s reviews, come back tomorrow.';
 
   @override
   String get reviewPlanEdit => 'Edit target';

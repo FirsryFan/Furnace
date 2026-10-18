@@ -450,7 +450,7 @@
   "materialIntakeNoSource": "未标出处",
   "reviewPlanNewCardsPerDay": "每天新卡",
   "reviewPlanReviewCardsPerDay": "每天复习",
-  "reviewPlanZeroIsUnlimited": "每天复习填 0 或留空表示不限量。复习量用完之后，这个卡组当天不再抽新卡——今天答错的卡仍然会回来。",
+  "reviewPlanZeroIsUnlimited": "每天新卡填 0 表示今天不抽新卡；每天复习填 0 或留空表示不限量。今天答错的卡仍然会回来。",
   "reviewPlanTarget": "目标：新卡 {newCards} · 复习 {reviewCards}",
   "@reviewPlanTarget": {
     "placeholders": {
@@ -462,13 +462,18 @@
   "@reviewPlanDoneToday": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "reviewPlanNewRemaining": "剩余新卡：{count}",
+  "@reviewPlanNewRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "reviewPlanRemaining": "剩余额度：{count}",
   "@reviewPlanRemaining": {
     "placeholders": { "count": { "type": "int" } }
   },
   "reviewPlanReviewsUnlimited": "剩余额度：不限",
-  "reviewPlanNewCardsNormal": "新卡正常抽取。",
-  "reviewPlanNewCardsStopped": "复习额度已用完：这个卡组今天不再抽新卡。今天答错的卡仍然会回来。",
+  "reviewPlanNewCardsNormal": "今天的额度还没用完。",
+  "reviewPlanNewCardsStopped": "新卡额度用完了：这个卡组今天不再抽新卡。",
+  "reviewPlanReviewsStopped": "复习额度用完了：今天的复习到这里，明天再来。",
   "reviewPlanEdit": "修改任务量",
   "reviewPlanClear": "删除任务量（恢复为不限）",
   "ankiAutoBlankUnsupported": "按当前题型偏好生成不了：这段内容里没有足够的可挖空信息",

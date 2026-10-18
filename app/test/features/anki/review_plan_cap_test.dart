@@ -11,17 +11,17 @@ import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
 import 'package:furnace/features/anki/application/review_service.dart';
 
-/// The per-group daily plan's single enforcement rule:
+/// The per-group daily plan decides **what today's queue is**:
 ///
-/// > once a group's daily **review** allowance is used up, that group stops
-/// > drawing **new** cards for today - and a card answered wrong today still
-/// > comes back, always.
+/// > a group hands out a new-card allowance and a review allowance; the queue
+/// > shows the cards that still fit, in the model's order. A card with no budget
+/// > left waits for tomorrow.
 ///
-/// The three cases below pin that down from both sides: the cap must bite on a
-/// brand-new card, it must not bite on a unit that already has a schedule, and
-/// the wrong-answer return (annotation 17) must survive an exhausted allowance.
-/// The fourth case is the other half of the contract: with nothing configured
-/// the queue is built exactly as it was before the plan existed.
+/// The cases below pin that down from both sides: each allowance must bite on
+/// its own bucket (new vs review), a wrong answer today (annotation 17) must
+/// survive both, a card outside every configured group must stay unlimited, and
+/// with nothing configured the queue is built exactly as it was before the plan
+/// existed.
 void main() {
   late AppDatabase db;
   late AnkiRepository anki;
@@ -64,32 +64,24 @@ void main() {
     return point;
   }
 
-  Future<void> logReviewToday(String knowledgePointId) async {
+  Future<void> logReviewAt(String knowledgePointId, DateTime when) async {
     final state =
         await anki.getOrCreateUnitCardState(knowledgePointId, 'cloze:s1');
     await anki.addReviewLog(
       cardStateId: state.id,
       cardTemplateId: state.unitKey ?? 'unit',
       rating: 2,
-      reviewedAt: moment.millisecondsSinceEpoch,
+      reviewedAt: when.millisecondsSinceEpoch,
       correct: 1,
       judgeMode: 'auto',
     );
   }
 
-  Future<Set<String>> queuedIds({ReviewDayLoad? plan}) async {
-    final queue = await service.buildQueue(now: moment, plan: plan);
-    return {for (final item in queue) item.knowledgePointId};
-  }
-
-  test('an exhausted group stops drawing new cards', () async {
-    final tag = await tags.createTag(name: '语文');
-    final reviewed = await pointIn(tag.id, '动量');
-    final unseen = await pointIn(tag.id, '冲量');
-
-    // Give the first card a history and log today's review, which is what the
-    // plan counts; the second card is deliberately untouched.
-    final state = await anki.getOrCreateUnitCardState(reviewed.id, 'cloze:s1');
+  /// Makes [knowledgePointId] material the group already had: introduced
+  /// yesterday (so today's answers count as reviews) and due again today.
+  Future<void> makeOldMaterial(String knowledgePointId) async {
+    final state =
+        await anki.getOrCreateUnitCardState(knowledgePointId, 'cloze:s1');
     await anki.updateUnitCardState(
       state.id,
       dueAt: moment.subtract(const Duration(days: 1)).millisecondsSinceEpoch,
@@ -97,51 +89,90 @@ void main() {
       lastReviewedAt:
           moment.subtract(const Duration(days: 3)).millisecondsSinceEpoch,
     );
-    await logReviewToday(reviewed.id);
+    await logReviewAt(
+      knowledgePointId,
+      moment.subtract(const Duration(days: 1)),
+    );
+  }
+
+  Future<List<ReviewItem>> queueFor({ReviewDayLoad? plan}) =>
+      service.buildQueue(now: moment, plan: plan);
+
+  test('the new-card allowance caps how many new cards enter the day',
+      () async {
+    final tag = await tags.createTag(name: '语文');
+    await pointIn(tag.id, '动量');
+    await pointIn(tag.id, '冲量');
+    await pointIn(tag.id, '动能');
 
     await plans.setGroupPlan(
       tagId: tag.id,
-      newCardsPerDay: 10,
+      newCardsPerDay: 1,
+      reviewCardsPerDay: 5,
+    );
+    final load = await plans.loadDay(now: moment);
+    expect(load.groups.single.newRemaining, 1);
+
+    final queue = await queueFor(plan: load);
+    expect(queue, hasLength(1),
+        reason: 'one new card a day means one card, not the library');
+    expect(queue.single.isNew, isTrue);
+  });
+
+  test('the review allowance caps how many due reviews enter the day',
+      () async {
+    final tag = await tags.createTag(name: '数学');
+    final x = await pointIn(tag.id, '函数');
+    final y = await pointIn(tag.id, '导数');
+    await makeOldMaterial(x.id);
+    await makeOldMaterial(y.id);
+
+    await plans.setGroupPlan(
+      tagId: tag.id,
+      newCardsPerDay: 0,
       reviewCardsPerDay: 1,
     );
     final load = await plans.loadDay(now: moment);
-    expect(load.reviewExhaustedGroups, contains(tag.id),
-        reason: 'the one allowed review has happened');
+    expect(load.groups.single.remainingReviews, 1);
 
-    final ids = await queuedIds(plan: load);
-    expect(ids, contains(reviewed.id),
-        reason: 'the card that is due is an ordinary review, not a new card');
-    expect(ids, isNot(contains(unseen.id)),
-        reason: 'a card this group has never shown must not be drawn');
-    expect(
-      await anki.unitStatesForKnowledgePoint(unseen.id),
-      isEmpty,
-      reason: 'the cap blocks the card before any state is created for it',
-    );
+    final queue = await queueFor(plan: load);
+    expect(queue, hasLength(1),
+        reason: 'one review a day means one card, not every due card');
+    expect([x.id, y.id], contains(queue.single.knowledgePointId));
   });
 
-  test('a wrong answer still comes back with the allowance used up', () async {
-    final tag = await tags.createTag(name: '数学');
-    final wrong = await pointIn(tag.id, '函数');
-    final unseen = await pointIn(tag.id, '导数');
+  test('zero new cards a day means no new cards today', () async {
+    final tag = await tags.createTag(name: '物理');
+    final fresh = await pointIn(tag.id, '功');
+    final old = await pointIn(tag.id, '功率');
+    await makeOldMaterial(old.id);
 
-    // Answer the first card wrong: that binds it to reappear inside today's
-    // queue (annotation 17), and this is the rule the cap must never touch.
-    final wrongState =
-        await anki.getOrCreateUnitCardState(wrong.id, 'cloze:s1');
-    await anki.updateUnitCardState(
-      wrongState.id,
-      dueAt: moment.millisecondsSinceEpoch,
-      repetitions: 1,
-      lastReviewedAt:
-          moment.subtract(const Duration(minutes: 30)).millisecondsSinceEpoch,
+    await plans.setGroupPlan(
+      tagId: tag.id,
+      newCardsPerDay: 0,
+      reviewCardsPerDay: 5,
     );
-    // The queue before any cap exists: the newly-bound card and the group's new
-    // material are both drawn. That 导数 is present here is what makes the
-    // assertion further down ("the cap holds it back") mean something.
-    final firstQueue = await service.buildQueue(now: moment);
+    final load = await plans.loadDay(now: moment);
+    final queue = await queueFor(plan: load);
+    final ids = {for (final item in queue) item.knowledgePointId};
+    expect(ids, contains(old.id));
+    expect(ids, isNot(contains(fresh.id)),
+        reason: '0 is a real "none", not "unlimited"');
+  });
+
+  test('a wrong answer still comes back with both allowances spent', () async {
+    final tag = await tags.createTag(name: '化学');
+    final wrong = await pointIn(tag.id, '水');
+    final unseen = await pointIn(tag.id, '氧气');
+
+    // Material the group already had, so today's answer is a review rather than
+    // a new card; answering it wrong binds it to reappear today (annotation 17).
+    await makeOldMaterial(wrong.id);
+    // Before any plan exists both the due review and the group's new material are
+    // drawn; that is what makes the assertions below mean something.
+    final firstQueue = await queueFor();
     expect(
-      {for (final entry in firstQueue) entry.knowledgePointId},
+      {for (final item in firstQueue) item.knowledgePointId},
       {wrong.id, unseen.id},
     );
     final item = firstQueue.firstWhere((e) => e.knowledgePointId == wrong.id);
@@ -154,63 +185,68 @@ void main() {
     expect(outcome.stillForced, isTrue,
         reason: 'a wrong answer is pinned to today\'s queue');
 
-    // The day's allowance is now spent (the wrong answer itself is the review).
+    // Both buckets are now empty: no new cards, and the review allowance (1) was
+    // spent by the answer above.
     await plans.setGroupPlan(
       tagId: tag.id,
-      newCardsPerDay: 10,
+      newCardsPerDay: 0,
       reviewCardsPerDay: 1,
     );
     final load = await plans.loadDay(now: moment);
+    expect(load.groups.single.remainingReviews, 0);
+    expect(load.groups.single.newRemaining, 0);
     expect(load.reviewExhaustedGroups, contains(tag.id));
 
-    final queue = await service.buildQueue(now: moment, plan: load);
+    final queue = await queueFor(plan: load);
     final ids = [for (final entry in queue) entry.knowledgePointId];
     expect(ids, contains(wrong.id),
-        reason: 'the forced retry is exempt from the cap, by design');
+        reason: 'the forced retry is exempt from the allowances, by design');
     expect(
-        queue
-            .firstWhere((e) => e.knowledgePointId == wrong.id)
-            .cardState
-            .forced,
-        1);
+      queue.firstWhere((e) => e.knowledgePointId == wrong.id).cardState.forced,
+      1,
+    );
     expect(ids, isNot(contains(unseen.id)),
-        reason: 'the cap still holds back the new card');
+        reason: 'the new-card allowance is zero, so the new card waits');
   });
 
-  test('a group under its allowance keeps drawing new cards', () async {
-    final tag = await tags.createTag(name: '物理');
-    final first = await pointIn(tag.id, '功');
-    final second = await pointIn(tag.id, '功率');
+  test('a card in no configured group stays unlimited', () async {
+    final configured = await tags.createTag(name: '语文');
+    final other = await tags.createTag(name: '地理');
+    final inside = await pointIn(configured.id, '动量');
+    final outside = await pointIn(other.id, '气候');
 
-    await logReviewToday(first.id);
     await plans.setGroupPlan(
-      tagId: tag.id,
-      newCardsPerDay: 10,
+      tagId: configured.id,
+      newCardsPerDay: 0,
       reviewCardsPerDay: 5,
     );
-
     final load = await plans.loadDay(now: moment);
-    expect(load.groups.single.newCardsAllowed, isTrue);
-    final ids = await queuedIds(plan: load);
-    expect(ids, contains(second.id),
-        reason: 'one review out of five does not stop the group');
+    final queue = await queueFor(plan: load);
+    final ids = {for (final item in queue) item.knowledgePointId};
+    expect(ids, isNot(contains(inside.id)),
+        reason: 'the configured group asked for no new cards');
+    expect(ids, contains(outside.id),
+        reason: 'a plan must not hide material the user never filed anywhere');
   });
 
   test('with nothing configured the queue is drawn exactly as before',
       () async {
-    final tag = await tags.createTag(name: '化学');
+    final tag = await tags.createTag(name: '历史');
     final point = await pointIn(tag.id, '水');
-    await logReviewToday(point.id);
+    await logReviewAt(point.id, moment);
 
     // No target at all: the "first-run user" case.
     expect((await plans.loadDay(now: moment)).isEmpty, isTrue);
 
     // Both call shapes must agree: an explicit empty load and the pre-plan
     // signature with no plan argument at all.
-    final withEmptyPlan = await queuedIds(
-      plan: await plans.loadDay(now: moment),
-    );
-    final withoutPlan = await queuedIds();
+    final withEmptyPlan = {
+      for (final item in await queueFor(plan: await plans.loadDay(now: moment)))
+        item.knowledgePointId,
+    };
+    final withoutPlan = {
+      for (final item in await queueFor()) item.knowledgePointId,
+    };
     expect(withEmptyPlan, contains(point.id), reason: 'no target means no cap');
     expect(withoutPlan, withEmptyPlan,
         reason: 'the plan argument is additive, never a behaviour change');

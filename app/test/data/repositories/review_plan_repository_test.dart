@@ -17,6 +17,9 @@ import 'package:furnace/features/anki/application/judge_mode_preference.dart';
 ///    it too, and a card under a sibling tag (`数学`) does not;
 ///  * **nothing configured means no limit**, which is what keeps a first-run
 ///    user from silently losing cards;
+///  * a new card is a point whose **first review ever** happened today, and those
+///    answers do not also eat the review allowance - they are not reviews of
+///    material the group already had;
 ///  * a review target of 0 means *unlimited*, not "no reviews", because 0 is the
 ///    column default and a brand-new row must not stop reviews.
 void main() {
@@ -67,7 +70,8 @@ void main() {
       expect(await plans.getCardTypePreference(), CardTypePreference.mixed);
     });
 
-    test('a chosen judging mode survives a re-read and creates the settings row',
+    test(
+        'a chosen judging mode survives a re-read and creates the settings row',
         () async {
       expect(await db.select(db.localSettings).get(), isEmpty);
 
@@ -107,7 +111,8 @@ void main() {
       expect(CardTypePreference.fromStorage('essay'), CardTypePreference.essay);
       // Unknown or missing means the shipped default, i.e. today's behaviour.
       expect(CardTypePreference.fromStorage(null), CardTypePreference.mixed);
-      expect(CardTypePreference.fromStorage('quantum'), CardTypePreference.mixed);
+      expect(
+          CardTypePreference.fromStorage('quantum'), CardTypePreference.mixed);
       expect(JudgeModePreference.fromStorage(null), JudgeModePreference.strict);
       expect(JudgeModePreference.fromStorage('self'), JudgeModePreference.self);
       expect(JudgeModePreference.fromStorage('nonsense'),
@@ -119,14 +124,16 @@ void main() {
   group('a group is a tag and its subtree', () {
     test('membership counts the tag itself and every tag under it', () async {
       final chinese = await tags.createTag(name: '语文');
-      final composition = await tags.createTag(name: '作文', parentId: chinese.id);
+      final composition =
+          await tags.createTag(name: '作文', parentId: chinese.id);
       final modern = await tags.createTag(name: '现代文', parentId: chinese.id);
       final math = await tags.createTag(name: '数学');
 
       final a = await anki.createKnowledgePoint(title: 'A', content: 'A 的内容。');
       final b = await anki.createKnowledgePoint(title: 'B', content: 'B 的内容。');
       final c = await anki.createKnowledgePoint(title: 'C', content: 'C 的内容。');
-      final outside = await anki.createKnowledgePoint(title: 'D', content: 'D 的内容。');
+      final outside =
+          await anki.createKnowledgePoint(title: 'D', content: 'D 的内容。');
       for (final link in [
         (a, chinese),
         (b, composition),
@@ -172,7 +179,12 @@ void main() {
           reason: 'only the card filed directly under 作文');
       expect(byTag[math.id]!.alreadyDoneToday, 1,
           reason: '数学 is a sibling subtree, not part of 语文');
-      expect(byTag[chinese.id]!.remainingReviews, 17);
+      // All three points were answered for the first time today, so they spend
+      // the new-card allowance and not the review allowance.
+      expect(byTag[chinese.id]!.newDoneToday, 3);
+      expect(byTag[chinese.id]!.reviewDoneToday, 0);
+      expect(byTag[chinese.id]!.newRemaining, 7);
+      expect(byTag[chinese.id]!.remainingReviews, 20);
       expect(byTag[chinese.id]!.newCardsAllowed, isTrue);
     });
 
@@ -200,11 +212,15 @@ void main() {
       final load = await plans.loadDay(now: moment);
       expect(load.groups.single.alreadyDoneToday, 0,
           reason: 'the allowance is per local calendar day');
+      expect(load.groups.single.newDoneToday, 0);
+      expect(load.groups.single.newRemaining, 10);
+      expect(load.groups.single.remainingReviews, 5);
       expect(load.groups.single.newCardsAllowed, isTrue);
     });
 
-    test('the allowance runs out and the group stops drawing new cards',
-        () async {
+    test(
+        'material from an earlier day spends the review allowance, not the '
+        'new-card one', () async {
       final tag = await tags.createTag(name: '生物');
       final point = await anki.createKnowledgePoint(
         title: '细胞',
@@ -220,14 +236,21 @@ void main() {
         newCardsPerDay: 10,
         reviewCardsPerDay: 2,
       );
+      // Introduced yesterday, so today's answers are reviews of old material.
+      await logReview(
+        knowledgePointId: point.id,
+        when: moment.subtract(const Duration(days: 1)),
+      );
       await logReview(knowledgePointId: point.id, when: moment);
       await logReview(knowledgePointId: point.id, when: moment);
 
       final load = await plans.loadDay(now: moment);
       final group = load.groups.single;
       expect(group.alreadyDoneToday, 2);
+      expect(group.newDoneToday, 0);
+      expect(group.reviewDoneToday, 2);
+      expect(group.newRemaining, 10);
       expect(group.remainingReviews, 0);
-      expect(group.newCardsAllowed, isFalse);
       expect(load.reviewExhaustedGroups, contains(tag.id));
     });
 
@@ -254,8 +277,12 @@ void main() {
 
       final load = await plans.loadDay(now: moment);
       expect(load.groups.single.remainingReviews, isNull);
+      expect(load.groups.single.newDoneToday, 1,
+          reason: 'three answers to the same card are still one new card');
+      expect(load.groups.single.newRemaining, 2);
       expect(load.groups.single.newCardsAllowed, isTrue,
-          reason: '0 is the column default, so it cannot mean "stop reviewing"');
+          reason:
+              '0 is the column default, so it cannot mean "stop reviewing"');
       expect(load.reviewExhaustedGroups, isEmpty);
     });
 

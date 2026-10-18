@@ -43,7 +43,7 @@ final ungroupedKnowledgePointsProvider = FutureProvider<int>((ref) {
 });
 
 /// One group's line: how much is due, how much was done, what is left, and what
-/// happens to new cards once the allowance runs out.
+/// happens when each allowance runs out.
 class CardGroupPlanCard extends ConsumerWidget {
   const CardGroupPlanCard({super.key, required this.group});
 
@@ -54,8 +54,10 @@ class CardGroupPlanCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final plan = group.plan;
-    final remaining = group.remainingReviews;
-    final reached = !group.newCardsAllowed;
+    final newRemaining = group.newRemaining;
+    final reviewRemaining = group.remainingReviews;
+    final newReached = newRemaining <= 0;
+    final reviewReached = reviewRemaining == 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -106,45 +108,71 @@ class CardGroupPlanCard extends ConsumerWidget {
               style: theme.textTheme.bodyMedium,
             ),
             Text(
-              remaining == null
+              l10n.reviewPlanNewRemaining(newRemaining),
+              style: theme.textTheme.bodyMedium,
+            ),
+            Text(
+              reviewRemaining == null
                   ? l10n.reviewPlanReviewsUnlimited
-                  : l10n.reviewPlanRemaining(remaining),
+                  : l10n.reviewPlanRemaining(reviewRemaining),
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  reached
-                      ? Icons.pause_circle_outline
-                      : Icons.play_circle_outline,
-                  size: 16,
-                  color: reached
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    // The rule, in the user's words: once the review allowance
-                    // is spent the group stops producing NEW cards for the rest
-                    // of the day, while anything already wrong today still comes
-                    // back (a wrong answer is never suppressed).
-                    reached
-                        ? l10n.reviewPlanNewCardsStopped
-                        : l10n.reviewPlanNewCardsNormal,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: reached
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            if (newReached)
+              _PlanHint(
+                icon: Icons.pause_circle_outline,
+                color: theme.colorScheme.error,
+                text: l10n.reviewPlanNewCardsStopped,
+              )
+            else if (reviewReached)
+              _PlanHint(
+                icon: Icons.pause_circle_outline,
+                color: theme.colorScheme.error,
+                text: l10n.reviewPlanReviewsStopped,
+              )
+            else
+              _PlanHint(
+                icon: Icons.play_circle_outline,
+                color: theme.colorScheme.primary,
+                text: l10n.reviewPlanNewCardsNormal,
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One line of "what happens now" under a group's counters.
+class _PlanHint extends StatelessWidget {
+  const _PlanHint({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color == theme.colorScheme.primary
+                  ? theme.colorScheme.onSurfaceVariant
+                  : color,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

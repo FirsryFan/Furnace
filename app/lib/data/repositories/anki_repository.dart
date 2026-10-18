@@ -480,6 +480,41 @@ class AnkiRepository {
     };
   }
 
+  /// The knowledge points whose **very first** review happened at or after
+  /// [sinceMillis].
+  ///
+  /// The daily plan needs this to tell "a new card introduced today" apart from
+  /// "a card from an earlier day reviewed today". `card_states.repetitions` is a
+  /// current value - after the fact it cannot say *when* the first answer
+  /// happened - so the review log is the only source for that split.
+  ///
+  /// Restricted to [knowledgePointIds] when given: the caller already holds the
+  /// points reviewed today, and asking for the first review of every card in the
+  /// library would scan the user's whole history.
+  Future<Set<String>> knowledgePointsFirstReviewedSince(
+    int sinceMillis, {
+    Iterable<String>? knowledgePointIds,
+  }) async {
+    final ids = knowledgePointIds?.toSet().toList() ?? const <String>[];
+    final scope = ids.isEmpty
+        ? 'AND cs.knowledge_point_id IS NOT NULL '
+        : 'AND cs.knowledge_point_id IN '
+            '(${List.filled(ids.length, '?').join(', ')}) ';
+    final rows = await _db.customSelect(
+      'SELECT cs.knowledge_point_id AS kp, MIN(rl.reviewed_at) AS first_at '
+      'FROM review_logs rl '
+      'JOIN card_states cs ON cs.id = rl.card_state_id '
+      'WHERE 1 = 1 $scope'
+      'GROUP BY cs.knowledge_point_id '
+      'HAVING first_at >= ?',
+      variables: [
+        for (final id in ids) Variable.withString(id),
+        Variable.withInt(sinceMillis),
+      ],
+    ).get();
+    return {for (final row in rows) row.read<String>('kp')};
+  }
+
   /// Every review that can be judged, oldest first inside each card, with the
   /// interval since the previous review of the *same* card already attached.
   ///

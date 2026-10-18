@@ -1806,7 +1806,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewPlanZeroIsUnlimited.
   ///
   /// In en, this message translates to:
-  /// **'0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.'**
+  /// **'0 new cards per day means no new cards today; 0 or empty reviews per day means no review limit. A card answered wrong today still comes back.'**
   String get reviewPlanZeroIsUnlimited;
 
   /// No description provided for @reviewPlanTarget.
@@ -1820,6 +1820,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done today: {count}'**
   String reviewPlanDoneToday(int count);
+
+  /// No description provided for @reviewPlanNewRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'New cards left: {count}'**
+  String reviewPlanNewRemaining(int count);
 
   /// No description provided for @reviewPlanRemaining.
   ///
@@ -1836,14 +1842,20 @@ abstract class AppLocalizations {
   /// No description provided for @reviewPlanNewCardsNormal.
   ///
   /// In en, this message translates to:
-  /// **'New cards are drawn normally.'**
+  /// **'Today\'s allowance is still open.'**
   String get reviewPlanNewCardsNormal;
 
   /// No description provided for @reviewPlanNewCardsStopped.
   ///
   /// In en, this message translates to:
-  /// **'Review allowance used up: this group stops drawing new cards today. A card answered wrong today still comes back.'**
+  /// **'New-card allowance used up: no more new cards from this group today.'**
   String get reviewPlanNewCardsStopped;
+
+  /// No description provided for @reviewPlanReviewsStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Review allowance used up: that is today\'s reviews, come back tomorrow.'**
+  String get reviewPlanReviewsStopped;
 
   /// No description provided for @reviewPlanEdit.
   ///

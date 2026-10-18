@@ -4,6 +4,69 @@
 
 ---
 
+## 2026-10-18 轮次一百一十九：闪存卡只看「今天该做的卡」—— 卡组每日新卡/复习额度真正生效（Lead）
+
+**起点（用户反馈）**：「我设置了卡组，但是闪存卡那里还是所有卡片放到一起背。应该只显示今日任务。」
+
+**A. 先看真机数据（只读副本，不碰用户库）**：把
+`C:\Users\firsr\AppData\Roaming\FirsryFan\Furnace\furnace.db` 复制到
+`E:\dsh-tmp-aot\furnace-live2.db` 后查：`knowledge_points` 269、`tags` 133、
+`object_tags` 269（0.5.2 的一键归组之后已全部挂上，未挂标签 0）、
+`review_group_plans` 1 行（`生物/高中生物`，每天新卡 15、复习 15，覆盖全部 269 张）、
+`review_logs` 21 条（今天 16）、`card_states` 913 条（repetitions 0 的 898 条、1 的 12 条、2 的 3 条，
+`due_at` 全是 NULL）——也就是说 269 张卡全是「新卡」，队列自然把 269 张全端上来。
+
+**B. 根因（旧行为）**：`newCardsPerDay` 从来没有参与队列；`reviewCardsPerDay` 只在
+「复习额度用尽」时压制**从未见过**的单元（docs/PROGRESS.md:3970 轮次十七的原话，
+旧 `test/features/anki/review_plan_cap_test.dart` 锁的就是这条）。所以设了 15/15 也等于没设。
+
+**C. 新语义（今日任务=额度，逐项扣）**：
+- `newRemaining = max(0, newCardsPerDay - 今天首次出现的知识点数)`，**0 就是今天不学新卡**；
+- `remainingReviews = reviewCardsPerDay == 0 ? null（不限） : max(0, reviewCardsPerDay - 今天在「以前见过」的卡上的复习次数)`；
+- 队列按模型优先级遍历到期项，每一项对**覆盖它的每个已配置卡组**扣对应额度，任一卡组该桶为 0 就剔除这一项；
+  嵌套卡组必须都有余量才放行；
+- 答错后的强制重来（annotation 17）不占额度、也不受限；
+- 没有任何标签属于已配置卡组的卡、以及完全没有计划时，一律不限量（与以前一致）。
+
+**D. 实现**：
+- `app/lib/data/repositories/anki_repository.dart` 新增
+  `knowledgePointsFirstReviewedSince(int sinceMillis, {Iterable<String>? knowledgePointIds})`
+  → `Set<String>`（`MIN(reviewed_at) GROUP BY knowledge_point_id HAVING first_at >= ?`），
+  用于区分「今天才第一次出现」和「以前见的」。
+- `app/lib/data/repositories/review_plan_repository.dart`：`ReviewGroupLoad` 换成
+  `newDoneToday / reviewDoneToday / newRemaining / remainingReviews`，`newCardsAllowed => newRemaining > 0`；
+  `ReviewDayLoad.reviewExhaustedGroups` 改为 `remainingReviews == 0`；`loadDay` 用上面的 firstReviewed 拆分两次计数。
+- `app/lib/features/anki/application/review_service.dart`：`buildQueue` 增加 `_GroupBudget`
+  （`memberPaths / newRemaining / reviewRemaining?`）与 `_takeAllowance(..., {required bool isNew})`，
+  删掉旧的 `_isUnseenDraw` 压制逻辑。「是不是新卡」按知识点是否已有过任何作答判断
+  （`states.any((s) => s.repetitions > 0)`），不是看 `item.isNew`——自由填空会给旧卡新开一个空位，
+  `item.isNew` 会是 true，按它扣会把复习当新卡。
+- `app/lib/features/anki/presentation/review_plan_page.dart`：卡组卡显示「今天还剩新卡 N / 复习 N」，
+  提示按三种状态给（新卡额度用完 / 复习额度用完 / 额度还没用完）。
+- l10n（zh/en）：`reviewPlanZeroIsUnlimited` 改写（0 新卡=今天不学新卡；0 或空复习=不限；答错的卡仍会回来）、
+  `reviewPlanNewCardsNormal` / `reviewPlanNewCardsStopped` 改写，新增 `reviewPlanReviewsStopped`、
+  `reviewPlanNewRemaining(count)`；`flutter gen-l10n` exit 0。
+
+**E. 测试**：`app/test/features/anki/review_plan_cap_test.dart` 重写成 6 例
+（新卡额度 1 → 队列只有 1 张；复习额度 1 → 只放 1 张；新卡 0 → 一张新卡都不出现；
+答错仍回来；不在任何卡组的卡不限；没有计划时队列与以前完全一致）；
+`test/data/repositories/review_plan_repository_test.dart` 的计数断言改成新语义
+（`newDoneToday` / `reviewDoneToday` / `newRemaining` / `remainingReviews`）；
+`test/features/anki/review_plan_page_test.dart` 保持绿。
+定向 `flutter test test/features/anki test/data/repositories test/features/settings test/features/questions`
+→ **+396 全绿**；全量 `flutter test --concurrency=1` → **+2152 ~2 All tests passed**
+（上一轮基线 +2150，差值 2 = `review_plan_cap_test` 从 4 例重写成 6 例；
+日志 `E:\dsh-tmp-aot\fulltest-053.txt`）；`dart analyze lib test` → **92 issues（0 error / 0 warning）**，
+与上一轮基线相同。
+
+**F. 没做 / 副作用（诚实清单）**：
+- 被额度挡下的卡在构造队列时仍会为它新开一个空白位（`unitKey: c0`）的 `card_states` 行
+  （`due_at` 为 NULL）——不影响明天再抽，但确实多一行；没有为此重构队列的「先排序后建项」。
+- 额度只在卡组维度生效：卡属于多个已配置卡组时每个卡组都要有余量（这是刻意的，避免嵌套卡组互相超发）。
+- 答错的强制项绕开额度（annotation 17 设计不变），所以「0 新卡」的日子仍可能因错题回到队列。
+- 本轮不构建 release 包（用户 m30529：「你不用每一次都构建完整的 release 包」）。
+
+
 ## 2026-10-18 轮次一百一十八：v0.5.2 发布件 —— 把卡组接口装进双端安装包（Lead）
 
 **起点（用户指令）**：用户上一轮反馈工具面接不上卡组（269 张卡、133 个标签、`object_tags` 全空，

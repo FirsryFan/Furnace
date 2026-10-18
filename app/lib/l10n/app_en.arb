@@ -447,7 +447,7 @@
   "materialIntakeNoSource": "no source recorded",
   "reviewPlanNewCardsPerDay": "New cards per day",
   "reviewPlanReviewCardsPerDay": "Reviews per day",
-  "reviewPlanZeroIsUnlimited": "0 or empty reviews per day means no limit. Once the review allowance is used up, this group stops drawing new cards for the day - a card answered wrong today still comes back.",
+  "reviewPlanZeroIsUnlimited": "0 new cards per day means no new cards today; 0 or empty reviews per day means no review limit. A card answered wrong today still comes back.",
   "reviewPlanTarget": "Target: {newCards} new · {reviewCards} reviews",
   "@reviewPlanTarget": {
     "placeholders": {
@@ -459,13 +459,18 @@
   "@reviewPlanDoneToday": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "reviewPlanNewRemaining": "New cards left: {count}",
+  "@reviewPlanNewRemaining": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "reviewPlanRemaining": "Remaining allowance: {count}",
   "@reviewPlanRemaining": {
     "placeholders": { "count": { "type": "int" } }
   },
   "reviewPlanReviewsUnlimited": "Remaining allowance: no limit",
-  "reviewPlanNewCardsNormal": "New cards are drawn normally.",
-  "reviewPlanNewCardsStopped": "Review allowance used up: this group stops drawing new cards today. A card answered wrong today still comes back.",
+  "reviewPlanNewCardsNormal": "Today's allowance is still open.",
+  "reviewPlanNewCardsStopped": "New-card allowance used up: no more new cards from this group today.",
+  "reviewPlanReviewsStopped": "Review allowance used up: that is today's reviews, come back tomorrow.",
   "reviewPlanEdit": "Edit target",
   "reviewPlanClear": "Remove target (back to no limit)",
   "ankiAutoBlankUnsupported": "Cannot build a card for the current type preference: this content does not have enough to blank out",

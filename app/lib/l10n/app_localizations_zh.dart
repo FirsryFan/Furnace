@@ -963,7 +963,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reviewPlanZeroIsUnlimited =>
-      '每天复习填 0 或留空表示不限量。复习量用完之后，这个卡组当天不再抽新卡——今天答错的卡仍然会回来。';
+      '每天新卡填 0 表示今天不抽新卡；每天复习填 0 或留空表示不限量。今天答错的卡仍然会回来。';
 
   @override
   String reviewPlanTarget(int newCards, int reviewCards) {
@@ -976,6 +976,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String reviewPlanNewRemaining(int count) {
+    return '剩余新卡：$count';
+  }
+
+  @override
   String reviewPlanRemaining(int count) {
     return '剩余额度：$count';
   }
@@ -984,10 +989,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewPlanReviewsUnlimited => '剩余额度：不限';
 
   @override
-  String get reviewPlanNewCardsNormal => '新卡正常抽取。';
+  String get reviewPlanNewCardsNormal => '今天的额度还没用完。';
 
   @override
-  String get reviewPlanNewCardsStopped => '复习额度已用完：这个卡组今天不再抽新卡。今天答错的卡仍然会回来。';
+  String get reviewPlanNewCardsStopped => '新卡额度用完了：这个卡组今天不再抽新卡。';
+
+  @override
+  String get reviewPlanReviewsStopped => '复习额度用完了：今天的复习到这里，明天再来。';
 
   @override
   String get reviewPlanEdit => '修改任务量';

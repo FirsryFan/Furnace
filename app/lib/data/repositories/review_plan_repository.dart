@@ -158,8 +158,7 @@ class ReviewPlanRepository {
     if (ids.isEmpty) {
       return;
     }
-    await (_db.delete(_db.reviewGroupPlans)
-          ..where((t) => t.tagId.isIn(ids)))
+    await (_db.delete(_db.reviewGroupPlans)..where((t) => t.tagId.isIn(ids)))
         .go();
   }
 
@@ -191,10 +190,20 @@ class ReviewPlanRepository {
   ///
   ///  * `alreadyDoneToday` - review logs written since local midnight whose
   ///    knowledge point carries any tag under the group;
+  ///  * `newDoneToday` - how many of those points were introduced **today**
+  ///    (their first review ever is today), i.e. how many new cards of the
+  ///    group's daily new-card allowance are spent;
+  ///  * `reviewDoneToday` - the rest of the log rows: answers on material the
+  ///    group already had before today, which is what the review allowance is
+  ///    about;
+  ///  * `newRemaining` - the new-card allowance left (never null: a group with
+  ///    `newCardsPerDay == 0` simply has none today);
   ///  * `remainingReviews` - the review allowance left, or null when the group
-  ///    has no positive review target (i.e. it is not capped);
-  ///  * `newCardsAllowed` - false once the review allowance is used up, which is
-  ///    the enforcement rule the queue applies.
+  ///    has no positive review target (i.e. it is not capped).
+  ///
+  /// A knowledge point's logs are counted in exactly one of the two buckets:
+  /// re-answers of a card that was introduced today are neither a review of old
+  /// material nor a second new card, so they only add to `alreadyDoneToday`.
   ///
   /// "Today" is the local calendar day: a daily plan that rolled over at UTC
   /// midnight would hand a user east of Greenwich a fresh allowance in the
@@ -211,6 +220,14 @@ class ReviewPlanRepository {
     final done = await _anki.reviewCountsPerKnowledgePointSince(
       dayStart.millisecondsSinceEpoch,
     );
+    // The split between "introduced today" and "already had it" comes from the
+    // log history, not from the current repetitions column.
+    final firstSeenToday = done.isEmpty
+        ? const <String>{}
+        : await _anki.knowledgePointsFirstReviewedSince(
+            dayStart.millisecondsSinceEpoch,
+            knowledgePointIds: done.keys,
+          );
     // One lookup for every knowledge point that was reviewed today (and only
     // those): asking per group would repeat the same query once per row, and
     // asking per knowledge point would be one query per card in the library.
@@ -228,13 +245,21 @@ class ReviewPlanRepository {
       pathsByGroup[plan.tagId] = paths;
       final members = paths.toSet();
       var doneToday = 0;
+      var newDone = 0;
+      var reviewDone = 0;
       for (final entry in done.entries) {
         final pointPaths = pathsByKnowledgePoint[entry.key];
         if (pointPaths == null) {
           continue;
         }
-        if (pointPaths.any(members.contains)) {
-          doneToday += entry.value;
+        if (!pointPaths.any(members.contains)) {
+          continue;
+        }
+        doneToday += entry.value;
+        if (firstSeenToday.contains(entry.key)) {
+          newDone += 1;
+        } else {
+          reviewDone += entry.value;
         }
       }
       entries.add(
@@ -242,11 +267,12 @@ class ReviewPlanRepository {
           plan: plan,
           memberPaths: paths,
           alreadyDoneToday: doneToday,
+          newDoneToday: newDone,
+          reviewDoneToday: reviewDone,
+          newRemaining: (plan.newCardsPerDay - newDone).clamp(0, 1 << 30),
           remainingReviews: plan.isReviewCapped
-              ? (plan.reviewCardsPerDay - doneToday).clamp(0, 1 << 30)
+              ? (plan.reviewCardsPerDay - reviewDone).clamp(0, 1 << 30)
               : null,
-          newCardsAllowed: !plan.isReviewCapped ||
-              doneToday < plan.reviewCardsPerDay,
         ),
       );
     }
@@ -278,8 +304,7 @@ class ReviewPlanRepository {
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await _db.transaction(() async {
-      final existing =
-          await _db.select(_db.localSettings).getSingleOrNull();
+      final existing = await _db.select(_db.localSettings).getSingleOrNull();
       if (existing == null) {
         await _db.into(_db.localSettings).insert(
               LocalSettingsCompanion.insert(
@@ -377,15 +402,15 @@ class ReviewDayLoad {
   /// Whether anything is configured at all.
   bool get isEmpty => groups.isEmpty;
 
-  /// The groups whose review allowance is used up.
+  /// The groups whose review allowance is spent.
   ///
-  /// These are the groups that stop drawing **new** cards: the point of a daily
-  /// review target is that the day's capacity goes to the material already in
-  /// rotation, and a wrong answer from today is exempt from this (see
-  /// `ReviewService.buildQueue`).
+  /// Only meaningful for capped groups (an uncapped group has no review
+  /// allowance to run out of). The queue uses the per-group remaining counts
+  /// rather than this set, so this stays a cheap read for anything that just
+  /// wants to say "this group is done for today".
   Set<String> get reviewExhaustedGroups => {
         for (final group in groups)
-          if (!group.newCardsAllowed) group.plan.tagId,
+          if (group.remainingReviews == 0) group.plan.tagId,
       };
 
   /// The groups a set of tag paths belongs to, restricted to [groupIds].
@@ -415,8 +440,10 @@ class ReviewGroupLoad {
     required this.plan,
     required this.memberPaths,
     required this.alreadyDoneToday,
+    required this.newDoneToday,
+    required this.reviewDoneToday,
+    required this.newRemaining,
     required this.remainingReviews,
-    required this.newCardsAllowed,
   });
 
   final CardGroupPlan plan;
@@ -424,14 +451,24 @@ class ReviewGroupLoad {
   /// Tag paths counted as this group (the tag and its subtree).
   final List<String> memberPaths;
 
-  /// Reviews of this group's knowledge points already logged today.
+  /// Every answer logged today on this group's knowledge points.
   final int alreadyDoneToday;
+
+  /// How many of those points were introduced today (first review ever today).
+  final int newDoneToday;
+
+  /// Today's answers on material the group already had before today.
+  final int reviewDoneToday;
+
+  /// New-card allowance left for today. Never null: `newCardsPerDay == 0`
+  /// means "no new cards today", not "unlimited".
+  final int newRemaining;
 
   /// Review allowance left, or null when the group is not review-capped.
   final int? remainingReviews;
 
-  /// False once the review allowance is spent.
-  final bool newCardsAllowed;
+  /// Whether the group can still draw a new card today.
+  bool get newCardsAllowed => newRemaining > 0;
 }
 
 /// The path helper this file matches groups with.
