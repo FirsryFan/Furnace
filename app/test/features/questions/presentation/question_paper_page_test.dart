@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
@@ -798,6 +799,18 @@ void main() {
     expect(text.contains('独一无二的答案'), isFalse);
     // 但"为什么排它"这段领域层文案要在。
     expect(text, contains('${zh.questionPaperCopyReasonLabel}：'));
+  });
+
+  testWidgets('组卷题目行带题号：按 id 异步读，老数据没号也不摆空框', (tester) async {
+    // ingest 会给题号（TR-00001/TR-00002）；直接插库的老数据没有 serialNo。
+    final repository = QuestionRepository(db);
+    await repository.ingest(const QuestionDraft(stem: '第一题：带题号'));
+    await repository.ingest(const QuestionDraft(stem: '第二题：带题号'));
+
+    await _pumpPaperPage(tester, db: db);
+
+    expect(find.text('TR-00001'), findsOneWidget);
+    expect(find.text('TR-00002'), findsOneWidget);
   });
 }
 

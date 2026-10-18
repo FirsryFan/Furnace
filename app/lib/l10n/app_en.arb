@@ -1501,6 +1501,17 @@
       }
     }
   },
+  "questionIntakeDeletedWithImages": "Deleted: {stem} (removed {count} image(s))",
+  "@questionIntakeDeletedWithImages": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "questionIntakeDeleteConfirm": "Delete this question? It will not come back from sync.",
   "questionIntakeCancel": "Cancel",
   "questionIntakeSearchHint": "Search stems",

@@ -29,6 +29,7 @@ import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
+import '../application/question_media_providers.dart';
 import '../data/handwriting_intake_store.dart';
 import 'drop_intake_reader.dart';
 import 'question_detail_page.dart';
@@ -390,9 +391,28 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     if (confirmed != true) {
       return;
     }
+    // 配图的行与文件由 media store 一起清（仓储的 deleteQuestion 只删库表，
+    // 不碰文件系统）。清理失败不阻断删题：一张删不掉的图不值得让"删题"失败。
+    var removedImages = 0;
+    try {
+      removedImages = await ref
+          .read(questionMediaStoreProvider)
+          .deleteForQuestion(question.id);
+    } catch (error) {
+      debugPrint('删题时清理配图失败（继续删题）：$error');
+    }
     await ref.read(questionRepositoryProvider).deleteQuestion(question.id);
     messenger.showSnackBar(
-      SnackBar(content: Text(l10n.questionIntakeDeleted(question.stem))),
+      SnackBar(
+        content: Text(
+          removedImages > 0
+              ? l10n.questionIntakeDeletedWithImages(
+                  question.stem,
+                  removedImages,
+                )
+              : l10n.questionIntakeDeleted(question.stem),
+        ),
+      ),
     );
   }
 

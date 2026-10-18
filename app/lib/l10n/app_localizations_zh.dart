@@ -2979,6 +2979,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String questionIntakeDeletedWithImages(String stem, int count) {
+    return '已删除：$stem（同时清理 $count 张配图）';
+  }
+
+  @override
   String get questionIntakeDeleteConfirm => '删除这道题？它不会被同步回来。';
 
   @override

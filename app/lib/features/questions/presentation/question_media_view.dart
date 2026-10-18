@@ -127,6 +127,37 @@ class QuestionSerialBadge extends StatelessWidget {
   }
 }
 
+/// 按 id 读题号再渲染徽章：列表/候选行的号码是异步读出来的。
+///
+/// 读取中与读失败都返回零尺寸：列表行里宁可暂时没有号，也不摆一个空相框或
+/// 半截加载圈；读到 null 时交给 [QuestionSerialBadge] 显示「未编号」占位文字。
+class QuestionSerialBadgeById extends ConsumerWidget {
+  const QuestionSerialBadgeById({
+    super.key,
+    required this.questionId,
+    this.copyable = true,
+    this.dense = true,
+  });
+
+  final String questionId;
+  final bool copyable;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final serialAsync = ref.watch(questionSerialProvider(questionId));
+    if (serialAsync.hasError ||
+        (serialAsync.isLoading && !serialAsync.hasValue)) {
+      return const SizedBox.shrink();
+    }
+    return QuestionSerialBadge(
+      serialNo: serialAsync.valueOrNull,
+      copyable: copyable,
+      dense: dense,
+    );
+  }
+}
+
 /// 列表行首的小缩略图：没有配图就完全不占位。
 class QuestionCoverThumbnail extends ConsumerWidget {
   const QuestionCoverThumbnail({

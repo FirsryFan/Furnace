@@ -1381,6 +1381,17 @@
       }
     }
   },
+  "questionIntakeDeletedWithImages": "已删除：{stem}（同时清理 {count} 张配图）",
+  "@questionIntakeDeletedWithImages": {
+    "placeholders": {
+      "stem": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "questionIntakeDeleteConfirm": "删除这道题？它不会被同步回来。",
   "questionIntakeCancel": "取消",
   "questionIntakeSearchHint": "搜题干",

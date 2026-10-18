@@ -57,11 +57,30 @@ final class _FakeDropIntakeReader implements DropIntakeReader {
   }
 }
 
+/// 记录「删题时按题目清理配图」的调用；其余行为沿用只读替身。
+final class _RecordingMediaStore extends FakeQuestionMediaStore {
+  _RecordingMediaStore({required super.database});
+
+  final List<String> deletedForQuestion = <String>[];
+  int removedCount = 0;
+  Object? deleteForQuestionError;
+
+  @override
+  Future<int> deleteForQuestion(String questionId) async {
+    deletedForQuestion.add(questionId);
+    final error = deleteForQuestionError;
+    if (error != null) {
+      throw error;
+    }
+    return removedCount;
+  }
+}
+
 void main() {
   late AppDatabase db;
   late QuestionRepository repository;
   late FakeIntakeStore store;
-  late FakeQuestionMediaStore mediaStore;
+  late _RecordingMediaStore mediaStore;
   late Directory supportRoot;
 
   setUp(() {
@@ -71,7 +90,7 @@ void main() {
     supportRoot =
         Directory.systemTemp.createTempSync('furnace_intake_support_');
     store = FakeIntakeStore(database: db, root: supportRoot);
-    mediaStore = FakeQuestionMediaStore(database: db);
+    mediaStore = _RecordingMediaStore(database: db);
   });
 
   tearDown(() async {
@@ -388,6 +407,46 @@ void main() {
 
     expect(await repository.all(), isEmpty);
     await expectTextEventually(tester, strings.questionIntakeDeleted('待删除的题'));
+  });
+
+  testWidgets('删题时清掉这道题的配图：提示里带清理张数', (tester) async {
+    final ingested =
+        await repository.ingest(const QuestionDraft(stem: '带配图的待删题'));
+    mediaStore.removedCount = 3;
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.tap(find.byTooltip(strings.questionIntakeDelete));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(strings.questionIntakeDelete));
+    await settle(tester);
+
+    expect(await repository.all(), isEmpty);
+    expect(mediaStore.deletedForQuestion, <String>[ingested.question.id]);
+    await expectTextEventually(
+      tester,
+      strings.questionIntakeDeletedWithImages('带配图的待删题', 3),
+    );
+  });
+
+  testWidgets('配图清理抛异常：题照样删掉，提示降级成普通删除', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '清理会失败的题'));
+    mediaStore.deleteForQuestionError = StateError('图片目录不可用');
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.tap(find.byTooltip(strings.questionIntakeDelete));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(strings.questionIntakeDelete));
+    await settle(tester);
+
+    // 清理失败不阻断删题：题已经删了，只是提示里没有清理张数。
+    expect(await repository.all(), isEmpty);
+    expect(mediaStore.deletedForQuestion, hasLength(1));
+    await expectTextEventually(
+        tester, strings.questionIntakeDeleted('清理会失败的题'));
   });
 
   testWidgets('拖入图片：高亮层随拖入出现/拖出消失，图片按 raw/ai_scan 入库', (tester) async {

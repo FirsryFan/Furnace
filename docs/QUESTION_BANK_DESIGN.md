@@ -238,7 +238,14 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   `PaperCandidate`（没有 serialNo），所以按 id 异步读 `questions.serial_no`，读回来前不占位。
   另有纯函数 `questionSerialLabel` / `tryParseQuestionSerial`（`TR-00042`、`tr-42`、`00042`、`42`
   都能认，不是编号返回 null），留给搜索框按号找题。
-- **未做**：题号未进组卷页 / 相似题区 / 闪存卡；按号搜索框尚未接线。
+- 按号检索 API（轮次一百二十三，schema v25）：`QuestionRepository.findBySerialNo(int)`（号 < 1
+  返回 null；撞号时 `limit(1)`）与 `search(serialNos: Set<int>)`（空集 = 没有命中，null = 不过滤；
+  与题干/标签过滤相与）；界面侧用 `tryParseQuestionSerial` 解析输入，不要自己写正则。
+- 题号进界面（task-13，question-intake 交付）：新增 `QuestionSerialBadgeById(questionId)`
+  （`question_media_view.dart`，异步读号，加载/失败时 `SizedBox.shrink` 不占位），已接相似题候选行
+  （`question_detail_page.dart`）与组卷页题目首行（`question_paper_page.dart`）；组卷页纯文本
+  `renderPaperText` 未动。题库搜索框按号过滤由 task-16 接线（进行中）。
+- **未做**：闪存卡里未显示题号；组卷页纯文本复制仍不带题号（待定是否改 `renderPaperText`）。
 
 ### 11.2 题目图片
 
@@ -252,9 +259,13 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   列表 48×48 首图缩略图 `QuestionCoverThumbnail`、点开 `Dialog + InteractiveViewer`（0.5–5 倍）
   的 `showQuestionImageViewer`；空清单 / 读不出都不占版面（失败只给一行文案）。三处界面目前
   都是**只读展示**。
-- **未做**：`deleteQuestion` 尚未自动清图片（需调用方显式 `deleteForQuestion`）；图片压缩/
-  缩略图生成未做（48×48 是解码整图后缩放）；界面里没有图片增删入口；OCR 不读题目配图
-  （拍照整理仍是独立入口）。
+- 删题清配图（轮次一百二十三，question-intake 交付）：唯一界面删题入口
+  `question_intake_page.dart` 的 `_confirmDelete` 先 `QuestionMediaStore.deleteForQuestion(id)`
+  再 `QuestionRepository.deleteQuestion(id)`；清图失败只 `debugPrint` 不阻断删题，SnackBar 带
+  清理张数（l10n `questionIntakeDeletedWithImages`）。仓储层本身仍不碰文件系统（职责不变），
+  grep 全库 `deleteQuestion` 只有这一处界面调用，无遗漏入口。
+- **未做**：图片压缩/缩略图生成未做（48×48 是解码整图后缩放）；界面里没有图片增删入口；
+  OCR 不读题目配图（拍照整理仍是独立入口）。
 
 ### 11.3 与 §10 未做清单的关系
 

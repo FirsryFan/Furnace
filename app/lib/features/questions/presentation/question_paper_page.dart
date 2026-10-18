@@ -20,6 +20,7 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
 import 'paper_docx_export_button.dart';
+import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
 
 /// 目标题数下拉的选项（本页冻结：5 / 10 / 15 / 20）。
@@ -479,6 +480,10 @@ class _PaperItemCard extends StatelessWidget {
                   l10n.questionPaperItemIndex(index),
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
+                const SizedBox(width: 8),
+                // 卷面上的号按 id 异步读（PaperItem 不自带 serialNo）；没回填时
+                // 显示「未编号」，不摆空框。
+                QuestionSerialBadgeById(questionId: item.questionId),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Wrap(

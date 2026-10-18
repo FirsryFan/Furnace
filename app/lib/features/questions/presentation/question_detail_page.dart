@@ -847,6 +847,9 @@ class _SimilarQuestionTile extends ConsumerWidget {
       contentPadding: EdgeInsets.zero,
       title: Row(
         children: [
+          // 候选的号是异步读的（列表数据源里没有 serialNo）；读不到显示「未编号」。
+          QuestionSerialBadgeById(questionId: similar.questionId),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               loadingStem

@@ -3107,6 +3107,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String questionIntakeDeletedWithImages(String stem, int count) {
+    return 'Deleted: $stem (removed $count image(s))';
+  }
+
+  @override
   String get questionIntakeDeleteConfirm =>
       'Delete this question? It will not come back from sync.';
 

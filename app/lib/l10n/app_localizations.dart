@@ -5338,6 +5338,12 @@ abstract class AppLocalizations {
   /// **'Deleted: {stem}'**
   String questionIntakeDeleted(String stem);
 
+  /// No description provided for @questionIntakeDeletedWithImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted: {stem} (removed {count} image(s))'**
+  String questionIntakeDeletedWithImages(String stem, int count);
+
   /// No description provided for @questionIntakeDeleteConfirm.
   ///
   /// In en, this message translates to:

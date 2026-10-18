@@ -196,6 +196,11 @@ void main() {
     await waitForText(tester, '另一道动量题：子弹打木块。');
     await waitForText(tester, '跨学科的题：电路里的等效变换。');
 
+    // 候选行带题号：按 questionId 异步读，读到才显示；页头自己的号仍是唯一那个。
+    await waitForText(tester, 'TR-00002');
+    await waitForText(tester, 'TR-00003');
+    expect(find.text('TR-00001'), findsOneWidget);
+
     // 理由行是领域层写的，界面只原样显示（含知识点名）。
     expect(find.textContaining('共用知识点「动量守恒」'), findsOneWidget);
     expect(find.textContaining('跨学科迁移：学科不同，但解题动作同型'), findsOneWidget);
