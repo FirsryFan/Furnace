@@ -705,4 +705,109 @@ void main() {
       expect(plan.uncoveredDomains, <String>['化学']);
     });
   });
+
+  group('手工指定/排除（provider 状态与卷子）', () {
+    test('setter 语义：整表设置 / toggle / 空集回 null / clear / reset', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      PaperSpec read() => container.read(paperSpecProvider);
+
+      expect(read().manualIncludeQuestionIds, isNull);
+      expect(read().manualExcludeQuestionIds, isNull);
+
+      spec.setManualIncludeIds(<String>{'q-b', 'q-a'});
+      expect(read().manualIncludeQuestionIds, <String>{'q-a', 'q-b'});
+      spec.setManualExcludeIds(<String>{'q-c'});
+      expect(read().manualExcludeQuestionIds, <String>{'q-c'});
+
+      // 已在名单里 → 移除；不在 → 加入。
+      spec.toggleManualInclude('q-a');
+      expect(read().manualIncludeQuestionIds, <String>{'q-b'});
+      spec.toggleManualInclude('q-c');
+      expect(read().manualIncludeQuestionIds, <String>{'q-b', 'q-c'});
+
+      // 排除名单删空回到"不启用"（null），不留空壳。
+      spec.toggleManualExclude('q-c');
+      expect(read().manualExcludeQuestionIds, isNull);
+
+      // 整表传空集 = 启用但无操作（与 null 语义不同，composer 文档里写清了）。
+      spec.setManualIncludeIds(<String>{});
+      expect(read().manualIncludeQuestionIds, <String>{});
+
+      spec.clearManualSelection();
+      expect(read().manualIncludeQuestionIds, isNull);
+      expect(read().manualExcludeQuestionIds, isNull);
+
+      spec.setManualIncludeIds(<String>{'q-a'});
+      spec.setManualExcludeIds(<String>{'q-b'});
+      spec.reset();
+      expect(read().manualIncludeQuestionIds, isNull);
+      expect(read().manualExcludeQuestionIds, isNull);
+    });
+
+    test('toggle 空白 id 被忽略，不清空已有名单', () {
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setManualIncludeIds(<String>{'q-a'});
+
+      spec.toggleManualInclude('   ');
+      expect(container.read(paperSpecProvider).manualIncludeQuestionIds,
+          <String>{'q-a'});
+      spec.toggleManualExclude('');
+      expect(
+          container.read(paperSpecProvider).manualExcludeQuestionIds, isNull);
+    });
+
+    test('卷子真的按手工名单排题：必收绕过知识点上限、冲突按排除、目标数挤掉如实报', () async {
+      final q1 = await seedQuestion(stem: '必收题一。');
+      final q2 = await seedQuestion(stem: '必收题二。');
+      final q3 = await seedQuestion(stem: '被排除的题。');
+
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final spec = container.read(paperSpecProvider.notifier);
+      spec.setTargetCount(10);
+      spec.setManualIncludeIds(<String>{q1, q2, q3});
+      spec.setManualExcludeIds(<String>{q3});
+      var plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.manualSelectionEnabled, isTrue);
+      expect(plan.manualIncludedCount, 2);
+      expect(
+          plan.items.map((item) => item.questionId).toSet(), <String>{q1, q2});
+      expect(plan.manualConflictQuestionIds, <String>{q3});
+      expect(plan.manualMissingQuestionIds, isEmpty);
+      final json = plan.toJson();
+      expect(json['manual_included_count'], 2);
+      expect(json['manual_conflict_question_ids'], <String>[q3]);
+
+      // target_count = 1 装不下两道必收题：其余进 skipped，不静默丢。
+      spec.setTargetCount(1);
+      plan = await container.read(paperPlanProvider.future);
+      expect(plan.manualIncludedCount, 1);
+      expect(plan.manualSkippedQuestionIds, hasLength(1));
+      expect(plan.items, hasLength(1));
+    });
+
+    test('默认不启用：手工字段为空，toJson 不出现手工键', () async {
+      final q1 = await seedQuestion(stem: '一道普通题。');
+      final container = containerWith(LibraryDiagnosis.notRun);
+      final plan = await container.read(paperPlanProvider.future);
+
+      expect(plan.manualSelectionEnabled, isFalse);
+      expect(plan.manualIncludedCount, 0);
+      expect(plan.manualMissingQuestionIds, isEmpty);
+      expect(plan.manualSkippedQuestionIds, isEmpty);
+      expect(plan.manualConflictQuestionIds, isEmpty);
+      final json = plan.toJson();
+      for (final key in <String>[
+        'manual_included_count',
+        'manual_missing_question_ids',
+        'manual_skipped_question_ids',
+        'manual_conflict_question_ids',
+      ]) {
+        expect(json.containsKey(key), isFalse, reason: '没启用手工选择不该出现 $key');
+      }
+      expect(plan.items.single.questionId, q1);
+    });
+  });
 }

@@ -385,3 +385,36 @@
   必收 7 / 排除 4 / `targetCount` 4 / 缺失冲突 5 / 汇总计数 4 / 确定性 4 / 边界组合 2）；
   `flutter test test/domain/services/paper` **122 → 158** 全绿；本文件 `dart analyze` `No issues
   found!`，只 `dart format` 自己改的两个文件。
+
+## 19. 接线：手工指定/排除进组卷 provider 与 compose_paper 工具（轮次一百二十五）
+
+§18 的手工名单纯逻辑接进两条真实入口（与 §15/§16 的配额接线同一对入口），让组卷页与 AI 都能
+"我说了算"：
+
+- **provider（`app/lib/features/questions/application/paper_plan_provider.dart`）**：
+  `PaperSpecNotifier` 新增 `setManualIncludeIds(Set<String>?)` / `setManualExcludeIds(Set<String>?)`
+  （整表替换；`null` = 不启用）、`clearManualSelection()`、`toggleManualInclude(String id)` /
+  `toggleManualExclude(String id)`（已在名单里则移除、不在则加入；空白 id 忽略）。`_update` 新增
+  `manualInclude` / `manualExclude` 与 `clearManualInclude` / `clearManualExclude` 两个清除开关，
+  `clearManualSelection()` 与 `reset()` 都回到 `null`。**整表传空集 = 启用但无操作**（与 `null` 语义
+  不同，钉在测试里）；`toggle` 把名单删空时回落到 `null`，不在 spec 里留空壳。名单随 `PaperSpec`
+  原样流进 `buildPaperPlan` → `PaperComposer.compose`，装配代码不用改。
+- **工具（`app/lib/features/ai/tools/paper_tools.dart` 的 `ComposePaperTool`）**：`compose_paper`
+  新增可选参数 `manual_include_question_ids` / `manual_exclude_question_ids`（题目 id 数组）。
+  描述里写明：放**题目 id**（不是题号）、排除优先、必收绕过筛选与配额但只受 `target_count` 约束。
+  `_specOf` 通过新私有 helper `_manualIdsOf(args, key)` 解析：`null` → `null`；非数组 → `ToolArgError`；
+  元素非字符串 / `trim` 后空串 / 去重后空集 → 报错或 `null`（空数组 = 不启用）。启用时 `modelResult`
+  追加 `manual_included_count` / `manual_missing_question_ids` / `manual_skipped_question_ids` /
+  `manual_conflict_question_ids` 四键（与 `PaperPlan.toJson` 同源，**不出现 `manual_selection_enabled`
+  这种布尔**——四键出现即启用）；摘要另用大白话报：手工指定入选多少道、找不到哪些 id、哪些被
+  `target_count` 挤掉、哪些与排除冲突按排除处理。
+- **不静默**：三类名单原样回给模型与界面；不传两个参数时输出与接线前一致（有测试钉住四键缺席、
+  摘要不提手工选择）。
+- **未做**：组卷页还没有手工名单编辑控件与三类名单展示（留给 question-intake 的下一片）；
+  题目 id 由上层提供，拼写错误只会进 `manualMissingQuestionIds`（§18 的有意行为）；没在真库里手测
+  `target_count` 与必收的交互，只有单测覆盖。
+- **验收**：`paper_tools_test.dart` 30 → **37 例**（不传四键缺席 / 必收绕过学科过滤 + 排除优先 + 冲突
+  如实报 / `target_count` 挤掉进 skipped / missing id 报找不到 / 形状错误三类 / 空数组不启用 /
+  schema 声明两参数）；`paper_plan_provider_test.dart` 20 → **24 例**（setter 语义 / 空白 toggle 忽略 /
+  真卷按名单 / 默认不启用）。两文件合计 **+61 All tests passed**；scoped `dart analyze` 无 error /
+  warning（唯一 info 是既有 `ai_chat_page_test.dart:63`）。

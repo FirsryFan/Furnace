@@ -116,6 +116,22 @@ class ComposePaperTool extends AiTool {
               'required': <String>[],
             },
           },
+          // 手工指定/排除：放的是题目 id（questions.id），不是题号——题号给人看，
+          // 工具层让模型先查题拿到 id 再传进来。排除优先于入选；入选在保底与填充
+          // 之前强制进卷，只受 target_count 硬上限。
+          'manual_include_question_ids': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': '可选：必须收进卷子的题目 id 列表。会绕过学科/来源/难度过滤与'
+                '知识点/学科/领域上限，但仍受 target_count 限制；装不下或被挤掉的会'
+                '在结果里如实报。不给 = 不启用。',
+          },
+          'manual_exclude_question_ids': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': '可选：绝对不要收进卷子的题目 id 列表（优先级最高，任何阶段'
+                '都不会选；与入选名单冲突时按排除处理并如实报）。不给 = 不启用。',
+          },
         },
         'required': <String>[],
       };
@@ -219,6 +235,12 @@ class ComposePaperTool extends AiTool {
             ],
           if (plan.domainQuota != null)
             'domain_quota': plan.domainQuota!.toJson(),
+          if (plan.manualSelectionEnabled) ...{
+            'manual_included_count': plan.manualIncludedCount,
+            'manual_missing_question_ids': plan.manualMissingQuestionIds,
+            'manual_skipped_question_ids': plan.manualSkippedQuestionIds,
+            'manual_conflict_question_ids': plan.manualConflictQuestionIds,
+          },
           'uncovered_knowledge_point_ids': plan.uncoveredKnowledgePointIds,
           'uncovered_knowledge_points': [
             for (final id in plan.uncoveredKnowledgePointIds)
@@ -303,6 +325,10 @@ class ComposePaperTool extends AiTool {
       minSourceLevel: minSourceLevel,
       subjectQuota: _subjectQuotaOf(args),
       domainQuota: _domainQuotaOf(args),
+      manualIncludeQuestionIds:
+          _manualIdsOf(args, 'manual_include_question_ids'),
+      manualExcludeQuestionIds:
+          _manualIdsOf(args, 'manual_exclude_question_ids'),
     );
   }
 
@@ -438,6 +464,33 @@ class ComposePaperTool extends AiTool {
     return parsed;
   }
 
+  /// 解析可选的题目 id 列表（手工指定/排除）。形状不对报错，不静默吞。
+  ///
+  /// 空数组按"不启用"处理（null），避免库里出现"启用了但什么都不做"的空壳。
+  Set<String>? _manualIdsOf(ToolArgs args, String key) {
+    final raw = args.raw[key];
+    if (raw == null) return null;
+    if (raw is! List) {
+      throw ToolArgError(
+        '$key 必须是题目 id 的数组；收到 ${raw.runtimeType}',
+      );
+    }
+    final ids = <String>{};
+    for (final item in raw) {
+      if (item is! String) {
+        throw ToolArgError(
+          '$key 里的元素必须是字符串题目 id，收到 ${item.runtimeType}',
+        );
+      }
+      final id = item.trim();
+      if (id.isEmpty) {
+        throw ToolArgError('$key 里不能有空字符串');
+      }
+      ids.add(id);
+    }
+    return ids.isEmpty ? null : ids;
+  }
+
   /// 摘要说人话：凑了几道、哪几道是为了哪个知识点、缺什么、以及"我不会自己出题"。
   String _summaryOf({
     required PaperPlan plan,
@@ -561,6 +614,28 @@ class ComposePaperTool extends AiTool {
         ];
         buffer.write(' 领域保底没凑够：${short.join('、')}。');
       }
+    }
+    if (plan.manualSelectionEnabled) {
+      buffer.write(' 手工指定：入选 ${plan.manualIncludedCount} 道');
+      if (plan.manualMissingQuestionIds.isNotEmpty) {
+        buffer.write(
+          '；有 ${plan.manualMissingQuestionIds.length} 道指定必收的题在候选池里'
+          '找不到（可能学科/来源不符合条件，或题被删了）',
+        );
+      }
+      if (plan.manualSkippedQuestionIds.isNotEmpty) {
+        buffer.write(
+          '；有 ${plan.manualSkippedQuestionIds.length} 道因为 target_count '
+          '装不下，这轮没进卷',
+        );
+      }
+      if (plan.manualConflictQuestionIds.isNotEmpty) {
+        buffer.write(
+          '；有 ${plan.manualConflictQuestionIds.length} 道同时被指定入选和排除，'
+          '按排除处理了',
+        );
+      }
+      buffer.write('。');
     }
     if (!diagnosisRan) {
       buffer.write(

@@ -253,6 +253,52 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
         clearDomainQuota: !quota.isEnabled);
   }
 
+  /// 整张手工入选名单（null = 不启用；空集 = 启用但没有题，等于不操作）。
+  ///
+  /// 名单里放的是题目 id（questions.id），不是题号：题号是给人看的，
+  /// 界面用 tryParseQuestionSerial 解析后再用仓储换成 id。
+  void setManualIncludeIds(Set<String>? ids) {
+    _update(manualInclude: ids, clearManualInclude: ids == null);
+  }
+
+  /// 整张手工排除名单（null = 不启用；排除优先于入选）。
+  void setManualExcludeIds(Set<String>? ids) {
+    _update(manualExclude: ids, clearManualExclude: ids == null);
+  }
+
+  /// 清空整份手工选择（两名单一起回到"不启用"）。
+  void clearManualSelection() {
+    _update(clearManualInclude: true, clearManualExclude: true);
+  }
+
+  /// 把一道题在"必收"里切换（已在就移除；移除后名单空则回到不启用）。
+  void toggleManualInclude(String questionId) {
+    final id = questionId.trim();
+    if (id.isEmpty) return;
+    final next = <String>{...?state.manualIncludeQuestionIds};
+    if (!next.remove(id)) {
+      next.add(id);
+    }
+    _update(
+      manualInclude: next.isEmpty ? null : next,
+      clearManualInclude: next.isEmpty,
+    );
+  }
+
+  /// 把一道题在"排除"里切换。
+  void toggleManualExclude(String questionId) {
+    final id = questionId.trim();
+    if (id.isEmpty) return;
+    final next = <String>{...?state.manualExcludeQuestionIds};
+    if (!next.remove(id)) {
+      next.add(id);
+    }
+    _update(
+      manualExclude: next.isEmpty ? null : next,
+      clearManualExclude: next.isEmpty,
+    );
+  }
+
   void _update({
     int? targetCount,
     Set<String>? subjectKeys,
@@ -267,6 +313,10 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
     bool clearSubjectQuota = false,
     DomainQuota? domainQuota,
     bool clearDomainQuota = false,
+    Set<String>? manualInclude,
+    bool clearManualInclude = false,
+    Set<String>? manualExclude,
+    bool clearManualExclude = false,
   }) {
     final current = state;
     state = PaperSpec(
@@ -287,6 +337,12 @@ class PaperSpecNotifier extends Notifier<PaperSpec> {
           clearSubjectQuota ? null : (subjectQuota ?? current.subjectQuota),
       domainQuota:
           clearDomainQuota ? null : (domainQuota ?? current.domainQuota),
+      manualIncludeQuestionIds: clearManualInclude
+          ? null
+          : (manualInclude ?? current.manualIncludeQuestionIds),
+      manualExcludeQuestionIds: clearManualExclude
+          ? null
+          : (manualExclude ?? current.manualExcludeQuestionIds),
     );
   }
 }

@@ -977,4 +977,138 @@ void main() {
       expect(schema['description'] as String, contains('第一段'));
     });
   });
+
+  group('手工指定/排除（manual_include_question_ids / manual_exclude_question_ids）',
+      () {
+    test('不传时四个手工键缺席，摘要不提手工选择', () async {
+      await seedLinked(stem: '一道题。', pointTitle: '数列');
+
+      final result =
+          await tool.run(invoke(<String, Object?>{'target_count': 1}));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      for (final key in <String>[
+        'manual_included_count',
+        'manual_missing_question_ids',
+        'manual_skipped_question_ids',
+        'manual_conflict_question_ids',
+      ]) {
+        expect(payload.containsKey(key), isFalse, reason: '没启用手工选择不该出现 $key');
+      }
+      expect(result.summary, isNot(contains('手工指定')));
+    });
+
+    test('必收绕过学科过滤、排除优先、冲突如实报', () async {
+      final mathId = await seedLinked(stem: '数学必收题。', pointTitle: '数列');
+      final physicsId = await seedLinked(
+        stem: '物理必收题。',
+        pointTitle: '动量',
+        subjectKey: 'physics',
+      );
+      final excludedId = await seedLinked(stem: '被排除的题。', pointTitle: '概率');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 10,
+        'subject_keys': <String>['math'],
+        'manual_include_question_ids': <String>[
+          physicsId.$1,
+          excludedId.$1,
+          mathId.$1,
+        ],
+        'manual_exclude_question_ids': <String>[excludedId.$1],
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      expect(payload['manual_included_count'], 2);
+      expect(
+        payload['manual_conflict_question_ids'],
+        <String>[excludedId.$1],
+      );
+      final ids = itemsOf(result).map((item) => item['question_id']).toSet();
+      expect(ids, contains(mathId.$1));
+      expect(ids, contains(physicsId.$1), reason: '必收绕过 subject_keys 过滤');
+      expect(ids, isNot(contains(excludedId.$1)), reason: '排除优先于必收');
+      expect(result.summary, contains('手工指定'));
+      expect(result.summary, contains('按排除处理'));
+    });
+
+    test('target_count 装不下必收题：其余进 skipped 并写进摘要', () async {
+      final a = await seedQuestion(stem: '必收题 A。');
+      final b = await seedQuestion(stem: '必收题 B。');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_count': 1,
+        'manual_include_question_ids': <String>[a, b],
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      expect(payload['manual_included_count'], 1);
+      expect(payload['manual_skipped_question_ids'], hasLength(1));
+      expect(result.summary, contains('装不下'));
+    });
+
+    test('候选池里没有的 id 进 missing 并如实说找不到', () async {
+      await seedQuestion(stem: '唯一一道题。');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'manual_include_question_ids': <String>['q-does-not-exist'],
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      expect(
+          payload['manual_missing_question_ids'], <String>['q-does-not-exist']);
+      expect(result.summary, contains('找不到'));
+    });
+
+    test('形状不对 → 失败并指出具体哪里错', () async {
+      Future<String> errorOf(Object? ids) async {
+        final result = await tool.run(invoke(<String, Object?>{
+          'manual_include_question_ids': ids,
+        }));
+        expect(result.ok, isFalse);
+        return result.error!;
+      }
+
+      expect(await errorOf('q-1'), contains('必须是题目 id 的数组'));
+      expect(await errorOf(<Object?>['q-1', 2]), contains('元素必须是字符串'));
+      expect(await errorOf(<Object?>['q-1', '   ']), contains('不能有空字符串'));
+    });
+
+    test('空数组按不启用处理：四个手工键缺席', () async {
+      await seedQuestion(stem: '一道题。');
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'manual_include_question_ids': <String>[],
+        'manual_exclude_question_ids': <String>[],
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(payloadOf(result).containsKey('manual_included_count'), isFalse);
+      expect(result.summary, isNot(contains('手工指定')));
+    });
+
+    test('schema 里声明了两个手工参数', () {
+      final registry = ToolRegistry.forApp(
+        db: db,
+        tasks: TaskRepository(db),
+        blocks: TimeBlockRepository(db),
+        anki: anki,
+        tags: tags,
+      );
+      final spec = registry.modelSpecs.firstWhere((s) => s.name == tool.name);
+      final properties = spec.parameters['properties']! as Map<String, Object?>;
+      for (final key in <String>[
+        'manual_include_question_ids',
+        'manual_exclude_question_ids',
+      ]) {
+        final schema = properties[key]! as Map<String, Object?>;
+        expect(schema['type'], 'array');
+        expect((schema['items']! as Map<String, Object?>)['type'], 'string');
+      }
+    });
+  });
 }
