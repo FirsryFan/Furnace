@@ -253,3 +253,67 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
   长题留大片空白，需按真实内容再实测。
 - 只在 Word 16.0 上验证；WPS/LibreOffice 未测（OOXML 标准结构 + 无浮动元素，兼容风险较低但未验证）。
 - 未验证：真机上从组卷页点按钮保存到系统下载目录（依赖 task-10 完成与手测）。
+
+## 13. 组卷说明附录（轮次一百二十五）
+
+轮次 124/125 把学科配额、领域配额、手工指定/排除接进 `PaperPlan`；这一轮把这些「对账信息」
+写进卷末的「组卷说明」分节，让导出卷面能自己解释：为什么少题、为什么某科/某领域只有这几道、
+手工指定里哪些没进来。
+
+### 13.1 API 变化（`app/lib/domain/services/export/paper_docx.dart`）
+
+- `buildPaperDocx`（:316）新增 `bool includeCompositionNotes = true`（:329），透传给
+  `_Assembler.addAppendix`（:589）。
+- `PaperDocxLabels` 新增 8 个默认中文文案（构造参数 :188-195、字段 :231-255）：
+  `sectionHeading='组卷说明'`、`bySubjectHeading='学科分布'`、`byDomainHeading='领域分布'`、
+  `manualHeading='手工指定'`、`quotaHeading='配额'`、`shortfallHeading='保底缺口'`、
+  `uncoveredHeading='未覆盖'`、`nonePlaceholder='无'`。
+- 命名冲突处理：原有 `uncoveredHeading='未覆盖的知识点'`（知识点缺口小节用）改名
+  `uncoveredKnowledgePointHeading`（:170/:211，默认文案不变，`_addGaps`（:750）改用新名，
+  实际使用在 :759）；新 `uncoveredHeading='未覆盖'` 只用于组卷说明的「领域未覆盖」子块。该字段
+  此前只有 `paper_docx.dart` 内部 3 处引用、无外部调用者，改名不改变任何输出。
+- 学科名一律走现有 `PaperDocxLabels.subjectName` 回调（不新建映射表）；知识点名继续走
+  `knowledgePointNames`。
+
+### 13.2 渲染规则
+
+- **只有数据非空才出现**：`PaperPlan` 的 `bySubject` / `byDomain` / `uncoveredDomains` /
+  手工指定（`manualSelectionEnabled` 且计数或三类名单非空）/ `quotaBlockedQuestions` /
+  `quotaBlockedByDomain` / `subjectShortfalls` / `domainShortfalls` 至少一项非空时才渲染
+  「组卷说明」；默认 plan（无配额、无手工）卷面内容与旧版完全一致（测试比较 zip 内全部文本条目）。
+- **位置与分页**：排在「参考答案与解析」之后、「知识点缺口」与「导出提示」之前；整文档仍只有
+  1 个 `pageBreakBefore`（附录第一个标题承担，通常就是答案区）。组卷说明自身的标题一律
+  `pageBreakBefore: false`；只有答案区被显式关掉、它成为附录第一个标题时才承担那一次分页。
+- **子块顺序固定**：学科分布 → 领域分布（含「未覆盖」子标题）→ 手工指定 → 配额 → 保底缺口。
+- **学科分布**：按 `bySubject` 的条目顺序逐条写 `学科名：N 道`，不按题目反推、不补零。
+- **领域分布**：按 `byDomain` 条目写 `领域：N 道`；`uncoveredDomains`（保底一个都没凑到的领域）
+  另起「未覆盖」小标题逐条列。领域是标签路径第一段（如 `物理`），不是 `subjectKey`。
+- **手工指定**：写 `进卷 N 道` 与三类名单——`题库里找不到`（`manualMissingQuestionIds`）、
+  `target_count 装不下`（`manualSkippedQuestionIds`）、`与排除冲突（按排除处理）`
+  （`manualConflictQuestionIds`）；名单为空时写 `nonePlaceholder`。
+- **配额挡下**：把 `quotaBlockedQuestions` 按 `subjectKey`、`quotaBlockedByDomain` 按 `domain`
+  聚合计数，键字典序排序后写一行，例如「被学科上限挡下：数学 2 道、物理 1 道」。
+- **保底缺口**：按 plan 里的顺序写；`availableCount == 0` 写「题库里没有可用题（保底 N 道）」，
+  否则写「差 K 道（保底 M 道，已排 S 道；可用候选 A 道）」。
+- **不推断、不补零**：所有数字都直接取自 `PaperPlan` 字段；没有对应字段就不写该句。
+
+### 13.3 未做 / 需要后续接线
+
+- 子块细节文案（「题库里找不到」「被学科上限挡下」等）与既有「题干为空：N 道」一样是硬编码
+  中文；要上多语言需再补 labels（当前 8 个标题 label 可以被 l10n 覆盖，英文用例已覆盖）。
+- 应用层 `paper_docx_export.dart` 不需要改：`includeCompositionNotes` 默认 true，组卷页导出的卷
+  只要 plan 带配额/手工数据就会自动带上说明；若产品要开关，加一个按钮透传即可。
+- 数值本身（配额、保底）仍未标定；说明分节只如实反映 plan，不做任何推荐。
+- 未在 Word 真机上重测带组卷说明的分页（只做了 XML 层 pageBreakBefore 计数；Word 实测需按
+  真实内容重跑，同 §11.2 的纪律）。
+
+### 13.4 验收
+
+- `flutter test test/domain/services/export/paper_docx_test.dart --concurrency=1`
+  → **+42 All tests passed!**（原 20 例 + 新增 22 例）。
+- `flutter test test/domain/services/export --concurrency=1` → **+141 All tests passed!**。
+- `dart analyze lib/domain/services/export test/domain/services/export` → **No issues found!**。
+- 新增用例覆盖：默认 plan 不渲染/开关不改变内容、学科分布、领域分布+未覆盖、手工三类名单与
+  空名单「无」、手工无数据不渲染、配额学科/领域聚合计数、学科/领域保底缺口与未覆盖、子块顺序、
+  分页唯一性与答案区关闭时的分页、`includeCompositionNotes=false`、仅单类数据也渲染、英文 labels、
+  不按题目反推、不按题数截断。

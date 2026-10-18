@@ -167,7 +167,7 @@ class PaperDocxLabels {
     this.generatedAtPrefix = '导出时间：',
     this.answerSectionTitle = '参考答案与解析',
     this.exportNotesHeading = '导出提示',
-    this.uncoveredHeading = '未覆盖的知识点',
+    this.uncoveredKnowledgePointHeading = '未覆盖的知识点',
     this.deferredHeading = '被上限挡下的知识点',
     this.answerLabel = '答案：',
     this.solutionLabel = '解析：',
@@ -185,6 +185,14 @@ class PaperDocxLabels {
     this.uncoveredEmpty = '（目标知识点都已覆盖）',
     this.deferredEmpty = '（没有被上限挡下的知识点）',
     this.missingQuestionHeading = '缺失题目',
+    this.sectionHeading = '组卷说明',
+    this.bySubjectHeading = '学科分布',
+    this.byDomainHeading = '领域分布',
+    this.manualHeading = '手工指定',
+    this.quotaHeading = '配额',
+    this.shortfallHeading = '保底缺口',
+    this.uncoveredHeading = '未覆盖',
+    this.nonePlaceholder = '无',
     this.headlineBuilder = defaultPaperDocxHeadline,
     this.subjectLabel,
     this.sourceLevelLabel,
@@ -195,7 +203,12 @@ class PaperDocxLabels {
   final String generatedAtPrefix;
   final String answerSectionTitle;
   final String exportNotesHeading;
-  final String uncoveredHeading;
+
+  /// 知识点缺口小节标题（默认「未覆盖的知识点」）。
+  ///
+  /// 早先这个字段叫 `uncoveredHeading`；组卷说明的领域未覆盖子块需要同名 getter
+  /// 后改名，默认文案与版式不变。
+  final String uncoveredKnowledgePointHeading;
   final String deferredHeading;
   final String answerLabel;
   final String solutionLabel;
@@ -213,6 +226,33 @@ class PaperDocxLabels {
   final String uncoveredEmpty;
   final String deferredEmpty;
   final String missingQuestionHeading;
+
+  /// 卷末「组卷说明」分节标题。只有 plan 里带配额/手工指定/保底缺口数据时才出现。
+  final String sectionHeading;
+
+  /// 组卷说明里的「学科分布」子块标题。
+  final String bySubjectHeading;
+
+  /// 组卷说明里的「领域分布」子块标题。
+  final String byDomainHeading;
+
+  /// 组卷说明里的「手工指定」子块标题。
+  final String manualHeading;
+
+  /// 组卷说明里的「配额」子块标题（被学科/领域上限挡下的计数）。
+  final String quotaHeading;
+
+  /// 组卷说明里的「保底缺口」子块标题。
+  final String shortfallHeading;
+
+  /// 领域未覆盖子块标题（默认「未覆盖」）。
+  ///
+  /// 与知识点缺口的 [uncoveredKnowledgePointHeading] 是两回事：这里指领域配额
+  /// 一个都没凑到的领域。
+  final String uncoveredHeading;
+
+  /// 名单为空时的占位文案（默认「无」）。
+  final String nonePlaceholder;
 
   /// 「想要 N 道，凑到 M 道」；与组卷页复制卷面的口径保持一致。
   final String Function(int want, int got) headlineBuilder;
@@ -270,6 +310,9 @@ String paperDocxSourceLevelLabel(String level, {String emptyLabel = '未标注�
 ///
 /// [questions] 按 questionId 索引；缺项不会让导出失败，而是记进
 /// [PaperDocxBuildResult.missingQuestionLabels] 并在附录里如实说明。
+///
+/// [includeCompositionNotes] 控制卷末是否渲染「组卷说明」；只有 [plan] 里带了
+/// 配额、手工指定或保底缺口数据时才会出现该节，默认 plan 的卷面不因此变化。
 PaperDocxBuildResult buildPaperDocx({
   required PaperPlan plan,
   required Map<String, PaperDocxQuestion> questions,
@@ -283,6 +326,7 @@ PaperDocxBuildResult buildPaperDocx({
   bool includeSolutions = true,
   bool includeReasons = true,
   bool includeGaps = true,
+  bool includeCompositionNotes = true,
   String? title,
   String? subtitle,
 }) {
@@ -304,6 +348,7 @@ PaperDocxBuildResult buildPaperDocx({
     includeSolutions: includeSolutions,
     includeReasons: includeReasons,
     includeGaps: includeGaps,
+    includeCompositionNotes: includeCompositionNotes,
   );
   final bytes = builder.build();
   return assembler.result(bytes);
@@ -546,11 +591,13 @@ class _Assembler {
     required bool includeSolutions,
     required bool includeReasons,
     required bool includeGaps,
+    required bool includeCompositionNotes,
   }) {
-    final wantsAppendix =
-        includeAnswers || includeSolutions || includeReasons || includeGaps;
-    if (!wantsAppendix) return;
-    if (includeAnswers || includeSolutions || includeReasons) {
+    final wantsAnswers = includeAnswers || includeSolutions || includeReasons;
+    final wantsComposition = includeCompositionNotes && _hasCompositionData();
+    final wantsGaps = includeGaps;
+    if (!wantsAnswers && !wantsComposition && !wantsGaps) return;
+    if (wantsAnswers) {
       _addAppendixHeading(labels.answerSectionTitle);
       for (var index = 0; index < plan.items.length; index++) {
         _addAnswerEntry(
@@ -562,7 +609,11 @@ class _Assembler {
         );
       }
     }
-    if (includeGaps) {
+    // 组卷说明紧跟答案区，和知识点缺口一样属于卷末对账信息。
+    if (wantsComposition) {
+      _addCompositionNotes();
+    }
+    if (wantsGaps) {
       _addGaps();
     }
     _addExportNotes();
@@ -705,7 +756,7 @@ class _Assembler {
         .map(_knowledgePointName)
         .where((name) => name.isNotEmpty)
         .toList(growable: false);
-    _addAppendixHeading(labels.uncoveredHeading);
+    _addAppendixHeading(labels.uncoveredKnowledgePointHeading);
     if (uncovered.isEmpty) {
       _addBullet(labels.uncoveredEmpty);
     } else {
@@ -721,6 +772,161 @@ class _Assembler {
         _addBullet(name);
       }
     }
+  }
+
+  /// 组卷说明：把配额、手工指定与保底缺口的账面如实写进卷末，方便对账。
+  ///
+  /// 只有 [PaperPlan] 里确实带数据时才由 [addAppendix] 调用；默认 plan（没有
+  /// 配额、没有手工指定）不会出现这一节，卷面与旧版逐字节一致。
+  void _addCompositionNotes() {
+    _addAppendixHeading(labels.sectionHeading);
+    _addSubjectDistribution();
+    _addDomainDistribution();
+    _addManualSelectionNotes();
+    _addQuotaBlockedNotes();
+    _addShortfallNotes();
+  }
+
+  bool _hasCompositionData() {
+    if (plan.bySubject.isNotEmpty) return true;
+    if (plan.byDomain.isNotEmpty) return true;
+    if (plan.uncoveredDomains.isNotEmpty) return true;
+    if (plan.manualSelectionEnabled) {
+      if (plan.manualIncludedCount > 0) return true;
+      if (plan.manualMissingQuestionIds.isNotEmpty) return true;
+      if (plan.manualSkippedQuestionIds.isNotEmpty) return true;
+      if (plan.manualConflictQuestionIds.isNotEmpty) return true;
+    }
+    if (plan.quotaBlockedQuestions.isNotEmpty) return true;
+    if (plan.quotaBlockedByDomain.isNotEmpty) return true;
+    if (plan.subjectShortfalls.isNotEmpty) return true;
+    if (plan.domainShortfalls.isNotEmpty) return true;
+    return false;
+  }
+
+  void _addSubjectDistribution() {
+    if (plan.bySubject.isEmpty) return;
+    _addAppendixHeading(labels.bySubjectHeading);
+    for (final entry in plan.bySubject.entries) {
+      _addBullet('${labels.subjectName(entry.key)}：${entry.value} 道');
+    }
+  }
+
+  void _addDomainDistribution() {
+    final uncovered = plan.uncoveredDomains;
+    if (plan.byDomain.isEmpty && uncovered.isEmpty) return;
+    _addAppendixHeading(labels.byDomainHeading);
+    for (final entry in plan.byDomain.entries) {
+      _addBullet('${entry.key}：${entry.value} 道');
+    }
+    if (uncovered.isEmpty) return;
+    _addAppendixHeading(labels.uncoveredHeading);
+    for (final domain in uncovered) {
+      _addBullet(domain);
+    }
+  }
+
+  void _addManualSelectionNotes() {
+    if (!plan.manualSelectionEnabled) return;
+    final hasLists = plan.manualMissingQuestionIds.isNotEmpty ||
+        plan.manualSkippedQuestionIds.isNotEmpty ||
+        plan.manualConflictQuestionIds.isNotEmpty;
+    if (plan.manualIncludedCount <= 0 && !hasLists) return;
+    _addAppendixHeading(labels.manualHeading);
+    _addBullet('进卷 ${plan.manualIncludedCount} 道');
+    _addBullet('题库里找不到：${_idListText(plan.manualMissingQuestionIds)}');
+    _addBullet(
+      'target_count 装不下：${_idListText(plan.manualSkippedQuestionIds)}',
+    );
+    _addBullet(
+      '与排除冲突（按排除处理）：${_idListText(plan.manualConflictQuestionIds)}',
+    );
+  }
+
+  String _idListText(List<String> ids) {
+    if (ids.isEmpty) return labels.nonePlaceholder;
+    return ids.join('、');
+  }
+
+  void _addQuotaBlockedNotes() {
+    if (plan.quotaBlockedQuestions.isEmpty &&
+        plan.quotaBlockedByDomain.isEmpty) {
+      return;
+    }
+    _addAppendixHeading(labels.quotaHeading);
+    if (plan.quotaBlockedQuestions.isNotEmpty) {
+      final counts = <String, int>{};
+      for (final blocked in plan.quotaBlockedQuestions) {
+        counts.update(
+          blocked.subjectKey,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
+      }
+      _addBullet(
+        '被学科上限挡下：${_quotaCountsText(counts, subjectNames: true)}',
+      );
+    }
+    if (plan.quotaBlockedByDomain.isNotEmpty) {
+      final counts = <String, int>{};
+      for (final blocked in plan.quotaBlockedByDomain) {
+        counts.update(blocked.domain, (value) => value + 1, ifAbsent: () => 1);
+      }
+      _addBullet(
+        '被领域上限挡下：${_quotaCountsText(counts, subjectNames: false)}',
+      );
+    }
+  }
+
+  /// 键按字典序排，保证同一份 plan 每次导出的字句顺序一致。
+  String _quotaCountsText(
+    Map<String, int> counts, {
+    required bool subjectNames,
+  }) {
+    final keys = counts.keys.toList(growable: false)..sort();
+    return keys.map((key) {
+      final name = subjectNames ? labels.subjectName(key) : key;
+      return '$name ${counts[key]} 道';
+    }).join('、');
+  }
+
+  void _addShortfallNotes() {
+    if (plan.subjectShortfalls.isEmpty && plan.domainShortfalls.isEmpty) return;
+    _addAppendixHeading(labels.shortfallHeading);
+    for (final shortfall in plan.subjectShortfalls) {
+      _addBullet(
+        _shortfallText(
+          labels.subjectName(shortfall.subjectKey),
+          shortfall.minimumCount,
+          shortfall.selectedCount,
+          shortfall.availableCount,
+        ),
+      );
+    }
+    for (final shortfall in plan.domainShortfalls) {
+      _addBullet(
+        _shortfallText(
+          shortfall.domain,
+          shortfall.minimumCount,
+          shortfall.selectedCount,
+          shortfall.availableCount,
+        ),
+      );
+    }
+  }
+
+  String _shortfallText(
+    String name,
+    int minimumCount,
+    int selectedCount,
+    int availableCount,
+  ) {
+    if (availableCount <= 0) {
+      return '$name：题库里没有可用题（保底 $minimumCount 道）';
+    }
+    final missing = minimumCount - selectedCount;
+    return '$name：差 $missing 道（保底 $minimumCount 道，已排 '
+        '$selectedCount 道；可用候选 $availableCount 道）';
   }
 
   void _addExportNotes() {

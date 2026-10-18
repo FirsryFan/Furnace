@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/domain/services/export/paper_docx.dart';
+import 'package:furnace/domain/services/paper/domain_quota.dart';
 import 'package:furnace/domain/services/paper/paper_composer.dart';
+import 'package:furnace/domain/services/paper/subject_quota.dart';
 
 /// 题目卷装配：页首、题干/选项/配图、卷末答案与组卷说明、缺口与导出提示，
 /// 以及"编译不了/缺内容时如实报告，而不是静默省略"。
@@ -398,6 +400,438 @@ void main() {
       expect(document.indexOf('被上限挡下的知识点'), greaterThan(answerIndex));
     });
   });
+
+  group('组卷说明（配额 / 手工指定 / 保底缺口）', () {
+    String build(PaperPlan plan, {PaperDocxLabels? labels}) {
+      final result = buildPaperDocx(
+        plan: plan,
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        labels: labels ?? const PaperDocxLabels(),
+      );
+      return _documentXml(result);
+    }
+
+    bool hasSection(String document) => document.contains('组卷说明');
+
+    test('默认 plan 不渲染组卷说明，附录仍只分页一次', () {
+      final result = buildPaperDocx(
+        plan: samplePlan(),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+      );
+      final document = _documentXml(result);
+      expect(document, isNot(contains('组卷说明')));
+      expect(document, isNot(contains('学科分布')));
+      expect('<w:pageBreakBefore/>'.allMatches(document).length, 1);
+    });
+
+    test('默认 plan 的 includeCompositionNotes 开关不改变任何输出内容', () {
+      final on = buildPaperDocx(
+        plan: samplePlan(),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+      );
+      final off = buildPaperDocx(
+        plan: samplePlan(),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        includeCompositionNotes: false,
+      );
+      expect(unzipText(off.bytes), equals(unzipText(on.bytes)));
+    });
+
+    test('学科分布按 bySubject 渲染，学科名走 subjectName 回调', () {
+      final document = build(
+        compositionPlan(
+            bySubject: const <String, int>{'math': 2, 'physics': 1}),
+      );
+      expect(hasSection(document), isTrue);
+      expect(document, contains('学科分布'));
+      expect(document, contains('数学：2 道'));
+      expect(document, contains('物理：1 道'));
+    });
+
+    test('领域分布渲染 byDomain，未覆盖领域单独列出', () {
+      final document = build(
+        compositionPlan(
+          byDomain: const <String, int>{'物理': 1},
+          domainShortfalls: const <DomainQuotaShortfall>[
+            DomainQuotaShortfall(
+              domain: '化学',
+              minimumCount: 1,
+              selectedCount: 0,
+              availableCount: 0,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('领域分布'));
+      expect(document, contains('物理：1 道'));
+      expect(document, contains('未覆盖'));
+      expect(
+        document.indexOf('未覆盖'),
+        greaterThan(document.indexOf('领域分布')),
+      );
+    });
+
+    test('手工指定渲染进卷数与三类名单', () {
+      final document = build(
+        compositionPlan(
+          manualSelectionEnabled: true,
+          manualIncludedCount: 2,
+          manualMissing: const <String>['q-x'],
+          manualSkipped: const <String>['q-y'],
+          manualConflict: const <String>['q-z'],
+        ),
+      );
+      expect(document, contains('手工指定'));
+      expect(document, contains('进卷 2 道'));
+      expect(document, contains('题库里找不到：q-x'));
+      expect(document, contains('target_count 装不下：q-y'));
+      expect(document, contains('与排除冲突（按排除处理）：q-z'));
+    });
+
+    test('手工指定名单为空时写「无」占位', () {
+      final document = build(
+        compositionPlan(
+          manualSelectionEnabled: true,
+          manualIncludedCount: 1,
+        ),
+      );
+      expect(document, contains('题库里找不到：无'));
+      expect(document, contains('target_count 装不下：无'));
+      expect(document, contains('与排除冲突（按排除处理）：无'));
+    });
+
+    test('手工开关打开但没有数据时不渲染组卷说明', () {
+      final document = build(compositionPlan(manualSelectionEnabled: true));
+      expect(hasSection(document), isFalse);
+    });
+
+    test('配额挡下按学科聚合计数并按字典序输出', () {
+      final document = build(
+        compositionPlan(
+          blockedQuestions: const <QuotaBlockedQuestion>[
+            QuotaBlockedQuestion(
+              questionId: 'b1',
+              subjectKey: 'math',
+              subjectLimit: 1,
+            ),
+            QuotaBlockedQuestion(
+              questionId: 'b2',
+              subjectKey: 'physics',
+              subjectLimit: 1,
+            ),
+            QuotaBlockedQuestion(
+              questionId: 'b3',
+              subjectKey: 'math',
+              subjectLimit: 1,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('配额'));
+      expect(document, contains('被学科上限挡下：数学 2 道、物理 1 道'));
+    });
+
+    test('配额挡下按领域聚合计数', () {
+      final document = build(
+        compositionPlan(
+          blockedDomains: const <DomainQuotaBlockedQuestion>[
+            DomainQuotaBlockedQuestion(
+              questionId: 'b1',
+              domain: '化学',
+              domainLimit: 1,
+            ),
+            DomainQuotaBlockedQuestion(
+              questionId: 'b2',
+              domain: '化学',
+              domainLimit: 1,
+            ),
+            DomainQuotaBlockedQuestion(
+              questionId: 'b3',
+              domain: '物理',
+              domainLimit: 1,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('被领域上限挡下：化学 2 道、物理 1 道'));
+    });
+
+    test('学科保底缺口写差几道、保底与可用候选', () {
+      final document = build(
+        compositionPlan(
+          subjectShortfalls: const <SubjectQuotaShortfall>[
+            SubjectQuotaShortfall(
+              subjectKey: 'math',
+              minimumCount: 3,
+              selectedCount: 1,
+              availableCount: 2,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('保底缺口'));
+      expect(
+        document,
+        contains('数学：差 2 道（保底 3 道，已排 1 道；可用候选 2 道）'),
+      );
+    });
+
+    test('学科保底没凑到写题库里没有可用题', () {
+      final document = build(
+        compositionPlan(
+          subjectShortfalls: const <SubjectQuotaShortfall>[
+            SubjectQuotaShortfall(
+              subjectKey: 'math',
+              minimumCount: 2,
+              selectedCount: 0,
+              availableCount: 0,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('数学：题库里没有可用题（保底 2 道）'));
+    });
+
+    test('领域保底缺口与未覆盖领域都如实写', () {
+      final document = build(
+        compositionPlan(
+          domainShortfalls: const <DomainQuotaShortfall>[
+            DomainQuotaShortfall(
+              domain: '化学',
+              minimumCount: 1,
+              selectedCount: 0,
+              availableCount: 0,
+            ),
+            DomainQuotaShortfall(
+              domain: '物理',
+              minimumCount: 3,
+              selectedCount: 2,
+              availableCount: 1,
+            ),
+          ],
+        ),
+      );
+      expect(document, contains('化学：题库里没有可用题（保底 1 道）'));
+      expect(
+        document,
+        contains('物理：差 1 道（保底 3 道，已排 2 道；可用候选 1 道）'),
+      );
+    });
+
+    test('子块顺序固定：学科→领域→手工→配额→保底', () {
+      final result = buildPaperDocx(
+        plan: compositionPlan(
+          bySubject: const <String, int>{'math': 1},
+          byDomain: const <String, int>{'物理': 1},
+          manualSelectionEnabled: true,
+          manualIncludedCount: 1,
+          blockedQuestions: const <QuotaBlockedQuestion>[
+            QuotaBlockedQuestion(
+              questionId: 'b1',
+              subjectKey: 'math',
+              subjectLimit: 1,
+            ),
+          ],
+          subjectShortfalls: const <SubjectQuotaShortfall>[
+            SubjectQuotaShortfall(
+              subjectKey: 'math',
+              minimumCount: 2,
+              selectedCount: 1,
+              availableCount: 1,
+            ),
+          ],
+        ),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        includeGaps: false,
+      );
+      final document = _documentXml(result);
+      final answer = document.indexOf('参考答案与解析');
+      final section = document.indexOf('组卷说明');
+      final subjects = document.indexOf('学科分布');
+      final domains = document.indexOf('领域分布');
+      final manual = document.indexOf('手工指定');
+      final quota = document.indexOf('配额');
+      final shortfall = document.indexOf('保底缺口');
+      expect(answer, greaterThan(0));
+      expect(section, greaterThan(answer));
+      expect(subjects, greaterThan(section));
+      expect(domains, greaterThan(subjects));
+      expect(manual, greaterThan(domains));
+      expect(quota, greaterThan(manual));
+      expect(shortfall, greaterThan(quota));
+    });
+
+    test('有组卷说明时整文档仍只分页一次，分页落在答案区', () {
+      final result = buildPaperDocx(
+        plan: compositionPlan(bySubject: const <String, int>{'math': 1}),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+      );
+      final document = _documentXml(result);
+      expect('<w:pageBreakBefore/>'.allMatches(document).length, 1);
+      final breakIndex = document.indexOf('<w:pageBreakBefore/>');
+      final answerIndex = document.indexOf('参考答案与解析');
+      final sectionIndex = document.indexOf('组卷说明');
+      expect(breakIndex, greaterThan(0));
+      expect(breakIndex, lessThan(answerIndex));
+      expect(sectionIndex, greaterThan(answerIndex));
+    });
+
+    test('答案区关闭时由组卷说明承担唯一分页', () {
+      final result = buildPaperDocx(
+        plan: compositionPlan(bySubject: const <String, int>{'math': 1}),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        includeAnswers: false,
+        includeSolutions: false,
+        includeReasons: false,
+        includeGaps: false,
+      );
+      final document = _documentXml(result);
+      expect(document, isNot(contains('参考答案与解析')));
+      expect('<w:pageBreakBefore/>'.allMatches(document).length, 1);
+      expect(
+        document.indexOf('<w:pageBreakBefore/>'),
+        lessThan(document.indexOf('组卷说明')),
+      );
+    });
+
+    test('includeCompositionNotes=false 时不渲染组卷说明（即使 plan 带配额数据）', () {
+      final result = buildPaperDocx(
+        plan: compositionPlan(bySubject: const <String, int>{'math': 1}),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        includeCompositionNotes: false,
+      );
+      final document = _documentXml(result);
+      expect(hasSection(document), isFalse);
+      expect(document, isNot(contains('学科分布')));
+      expect('<w:pageBreakBefore/>'.allMatches(document).length, 1);
+    });
+
+    test('仅学科分布数据也渲染组卷说明', () {
+      final document = build(
+        compositionPlan(bySubject: const <String, int>{'physics': 2}),
+      );
+      expect(hasSection(document), isTrue);
+      expect(document, contains('学科分布'));
+      expect(document, contains('物理：2 道'));
+    });
+
+    test('仅配额挡下数据也渲染组卷说明', () {
+      final document = build(
+        compositionPlan(
+          blockedQuestions: const <QuotaBlockedQuestion>[
+            QuotaBlockedQuestion(
+              questionId: 'b1',
+              subjectKey: 'math',
+              subjectLimit: 1,
+            ),
+          ],
+        ),
+      );
+      expect(hasSection(document), isTrue);
+      expect(document, contains('配额'));
+      expect(document, contains('被学科上限挡下：数学 1 道'));
+    });
+
+    test('仅领域未覆盖数据也渲染组卷说明', () {
+      final document = build(
+        compositionPlan(
+          domainShortfalls: const <DomainQuotaShortfall>[
+            DomainQuotaShortfall(
+              domain: '化学',
+              minimumCount: 1,
+              selectedCount: 0,
+              availableCount: 0,
+            ),
+          ],
+        ),
+      );
+      expect(hasSection(document), isTrue);
+      expect(document, contains('领域分布'));
+      expect(document, contains('未覆盖'));
+    });
+
+    test('英文 labels 覆盖组卷说明的全部新标题', () {
+      const labels = PaperDocxLabels(
+        sectionHeading: 'Composition Notes',
+        bySubjectHeading: 'Subjects',
+        byDomainHeading: 'Domains',
+        manualHeading: 'Manual Selection',
+        quotaHeading: 'Quota Limits',
+        shortfallHeading: 'Shortfalls',
+        uncoveredHeading: 'Uncovered',
+        nonePlaceholder: 'None',
+        subjectLabel: _englishSubject,
+      );
+      final result = buildPaperDocx(
+        plan: compositionPlan(
+          bySubject: const <String, int>{'math': 2},
+          byDomain: const <String, int>{'物理': 1},
+          manualSelectionEnabled: true,
+          manualIncludedCount: 1,
+          blockedQuestions: const <QuotaBlockedQuestion>[
+            QuotaBlockedQuestion(
+              questionId: 'b1',
+              subjectKey: 'math',
+              subjectLimit: 1,
+            ),
+          ],
+          subjectShortfalls: const <SubjectQuotaShortfall>[
+            SubjectQuotaShortfall(
+              subjectKey: 'math',
+              minimumCount: 2,
+              selectedCount: 1,
+              availableCount: 1,
+            ),
+          ],
+          domainShortfalls: const <DomainQuotaShortfall>[
+            DomainQuotaShortfall(
+              domain: '物理',
+              minimumCount: 1,
+              selectedCount: 0,
+              availableCount: 0,
+            ),
+          ],
+        ),
+        questions: sampleQuestions(),
+        knowledgePointNames: const {'kp1': '函数单调性'},
+        labels: labels,
+      );
+      final document = _documentXml(result);
+      expect(document, contains('Composition Notes'));
+      expect(document, contains('Subjects'));
+      expect(document, contains('Domains'));
+      expect(document, contains('Uncovered'));
+      expect(document, contains('Manual Selection'));
+      expect(document, contains('Quota Limits'));
+      expect(document, contains('Shortfalls'));
+      expect(document, contains('Math：2 道'));
+      expect(document, contains('题库里找不到：None'));
+      expect(document, isNot(contains('组卷说明')));
+    });
+
+    test('学科分布只按 bySubject 写，不按题目反推', () {
+      final document = build(
+        compositionPlan(bySubject: const <String, int>{'physics': 5}),
+      );
+      expect(document, contains('物理：5 道'));
+      expect(document, isNot(contains('物理：1 道')));
+    });
+
+    test('领域分布按 plan 计数书写，不按题数截断', () {
+      final document = build(
+        compositionPlan(byDomain: const <String, int>{'物理': 2}),
+      );
+      expect(document, contains('物理：2 道'));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +884,44 @@ PaperPlan samplePlan({
       requestedCount: requestedCount,
       overallNeed: 1.0,
       weights: const PaperWeights(),
+    );
+
+/// 只带组卷说明数据的 plan：题目固定 1 道（q1 内容完整），配额/手工数据按参数给。
+PaperPlan compositionPlan({
+  Map<String, int> bySubject = const <String, int>{},
+  Map<String, int> byDomain = const <String, int>{},
+  List<QuotaBlockedQuestion> blockedQuestions = const <QuotaBlockedQuestion>[],
+  List<DomainQuotaBlockedQuestion> blockedDomains =
+      const <DomainQuotaBlockedQuestion>[],
+  List<SubjectQuotaShortfall> subjectShortfalls =
+      const <SubjectQuotaShortfall>[],
+  List<DomainQuotaShortfall> domainShortfalls = const <DomainQuotaShortfall>[],
+  bool manualSelectionEnabled = false,
+  int manualIncludedCount = 0,
+  List<String> manualMissing = const <String>[],
+  List<String> manualSkipped = const <String>[],
+  List<String> manualConflict = const <String>[],
+}) =>
+    PaperPlan(
+      items: <PaperItem>[paperItem('q1')],
+      uncoveredKnowledgePointIds: const <String>[],
+      deferredKnowledgePointIds: const <String>[],
+      byKnowledgePoint: const <String, int>{'kp1': 1},
+      candidateCount: 3,
+      requestedCount: 1,
+      overallNeed: 1.0,
+      weights: const PaperWeights(),
+      bySubject: bySubject,
+      quotaBlockedQuestions: blockedQuestions,
+      subjectShortfalls: subjectShortfalls,
+      byDomain: byDomain,
+      quotaBlockedByDomain: blockedDomains,
+      domainShortfalls: domainShortfalls,
+      manualSelectionEnabled: manualSelectionEnabled,
+      manualIncludedCount: manualIncludedCount,
+      manualMissingQuestionIds: manualMissing,
+      manualSkippedQuestionIds: manualSkipped,
+      manualConflictQuestionIds: manualConflict,
     );
 
 /// q1 内容完整（含公式/选项/解析/一张配图），q2 故意缺内容。
