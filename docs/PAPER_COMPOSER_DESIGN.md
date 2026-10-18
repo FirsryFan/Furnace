@@ -552,12 +552,29 @@
 
 ### 未做 / 未验证
 
-- 组卷页、题目详情页、`compose_paper` 工具与 Word 导出都还没消费 `paperQualityReportProvider`（`compose_paper`
-  的工具输出与题目卷「组卷说明」都没显示质量报告）；只有 provider 与测试。
+- `compose_paper` 工具已在同轮消费报告（`model_result.quality`，摘要报「最该看」的一条，见 §22.1）；组卷页与
+  题目详情页还没展示质量报告；题目卷 Word 的「组卷说明」由同轮 task-45 在接（见 `docs/DOCX_EXPORT_DESIGN.md`）。
 - `difficulty` 只认题库列上的原始读数，不推断、不从 `aiQuality` 换算；老库大量题为 NULL 时会稳定报
   `difficulty_data_unavailable`，这是如实状态而不是缺陷。
 - 阈值仍全部未标定（沿用 §21 的先验值），provider 不做任何覆盖。
 - 真实题库手测未做（只在内存库构造题）；报告文案仍是纯逻辑里的中文硬编码，未接 l10n。
+### 22.1 接线：`compose_paper` 工具输出质量体检（轮次一百二十五）
+
+模型组卷时最需要知道「这份卷子哪里不像样」，所以把报告直接塞进工具返回值：
+
+- **构造**：`app/lib/features/ai/tools/paper_tools.dart` 在 `build.plan` 之后调 `PaperQualityReport.build(plan:,
+  subjectNames: CapabilityAction.subjectLabelsZh, knowledgePointNames: corpus.knowledgePointNames,
+  difficultyByQuestionId: {候选里难度有限非空}, targetDifficulty: spec.targetDifficulty)`。难度仍从候选回填（与 §22
+  同一口径），不传 `sourceLevelNames`（报告回退来源键，不编中文）。
+- **输出**：`modelResult` 在 `by_knowledge_point` 之后、`items` 之前加 `quality`（= `report.toJson()`，16 键固定序）。
+- **摘要**：`_writeQuality` 先报三档计数，再点名 `warnings.first.messageZh`（「最该看：」），并注明「另有 N 条」；
+  没有命中任何判据时明说「质量体检：没有命中任何判据。」。工具 description 也写明：如实转述，不要自己感觉卷子好坏。
+- **空库**：摘要第一句仍先说实话（题库里没有可用题），质量体检计 zero 条，不会把空卷包装成正常卷。
+
+验收：`app/test/features/ai/paper_tools_test.dart` 追加 group「质量体检（model_result.quality，轮次一百二十五）」**4 例**：
+空库 `empty_plan` 与 schema / 两题出 `fill_short` 与摘要三档计数 / 三题难度 2 + `target_difficulty: 9` 时分布键
+`['2.0']` 且 `difficulty_far_from_target` 带 `mean 2.00` `target 9.00` / `math`+`physics` 的 `question_count` 与
+`item_count` 一致、学科名分别是「数学」「物理」。`flutter test test/features/ai/paper_tools_test.dart` → **+41 全绿**。
 
 ### 验收
 

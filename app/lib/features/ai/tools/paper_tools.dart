@@ -18,7 +18,9 @@ import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/domain_quota.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/paper/paper_quality_report.dart';
 import '../../../domain/services/paper/subject_quota.dart';
+import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/paper_plan_builder.dart';
@@ -48,7 +50,10 @@ class ComposePaperTool extends AiTool {
       '它只从库里挑已有的题，挑不出来就说挑不出来，绝不自己编一道题填空。'
       '这不是随机抽题：它按诊断读数排序，并受学科/领域/来源/每知识点配额约束。'
       '默认还会参考"我最该练的动作"（能力动作画像，未标定，可用 '
-      '`use_capability_profile: false` 关掉）。';
+      '`use_capability_profile: false` 关掉）。'
+      '`model_result.quality` 是这份卷子的质量体检（17 条确定性判据：题数/学科集中/'
+      '来源单一/难度过平或偏离/知识点缺口/zone 失衡/配额缺口等），'
+      '摘要里会报最该看的一条——如实转述，不要自己"感觉"卷子好坏。';
 
   @override
   Map<String, Object?> get parameters => {
@@ -192,11 +197,26 @@ class ComposePaperTool extends AiTool {
       );
       final plan = build.plan;
 
+      // 质量体检跟着卷子一起给模型看：判据在 domain 层（纯逻辑），这里只把题库候选
+      // 上已有的逐题难度带过去（`PaperPlan` 不保留难度；NaN/±inf 当没有读数）。
+      final quality = PaperQualityReport.build(
+        plan: plan,
+        subjectNames: CapabilityAction.subjectLabelsZh,
+        knowledgePointNames: corpus.knowledgePointNames,
+        difficultyByQuestionId: <String, double>{
+          for (final candidate in corpus.candidates)
+            if (candidate.difficulty != null && candidate.difficulty!.isFinite)
+              candidate.questionId: candidate.difficulty!,
+        },
+        targetDifficulty: spec.targetDifficulty,
+      );
+
       return ToolResult(
         ok: true,
         summary: _summaryOf(
           plan: plan,
           corpus: corpus,
+          quality: quality,
           diagnosisRan: diagnosis.fastLayerRan,
         ),
         modelResult: {
@@ -251,6 +271,7 @@ class ComposePaperTool extends AiTool {
           ],
           'deferred_knowledge_point_ids': plan.deferredKnowledgePointIds,
           'by_knowledge_point': plan.byKnowledgePoint,
+          'quality': quality.toJson(),
           'items': [
             for (final item in plan.items)
               {
@@ -495,6 +516,7 @@ class ComposePaperTool extends AiTool {
   String _summaryOf({
     required PaperPlan plan,
     required PaperCorpus corpus,
+    required PaperQualityReport quality,
     required bool diagnosisRan,
   }) {
     final buffer = StringBuffer();
@@ -637,6 +659,7 @@ class ComposePaperTool extends AiTool {
       }
       buffer.write('。');
     }
+    _writeQuality(buffer, quality);
     if (!diagnosisRan) {
       buffer.write(
         ' 注意：认知快层这轮没有跑出结论（没有标签或没有卡片观测），'
@@ -644,5 +667,26 @@ class ComposePaperTool extends AiTool {
       );
     }
     return buffer.toString();
+  }
+
+  /// 质量体检说人话：三档计数 + 最该看的一条（不是让模型自己"感觉"卷子好坏）。
+  void _writeQuality(StringBuffer buffer, PaperQualityReport quality) {
+    if (quality.warnings.isEmpty) {
+      buffer.write(' 质量体检：没有命中任何判据。');
+      return;
+    }
+    final counts = quality.countsBySeverity;
+    buffer.write(
+      ' 质量体检：错误 ${counts[PaperQualitySeverity.error]} 条、'
+      '警告 ${counts[PaperQualitySeverity.warning]} 条、'
+      '提示 ${counts[PaperQualitySeverity.info]} 条',
+    );
+    final top = quality.warnings.first;
+    buffer.write('；最该看：${top.messageZh}');
+    if (quality.warnings.length > 1) {
+      buffer
+          .write('（另有 ${quality.warnings.length - 1} 条，见 `quality.warnings`）');
+    }
+    buffer.write('。');
   }
 }

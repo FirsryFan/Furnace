@@ -1111,4 +1111,91 @@ void main() {
       }
     });
   });
+
+  group('质量体检（model_result.quality，轮次一百二十五）', () {
+    Map<String, Object?> qualityOf(ToolResult result) =>
+        payloadOf(result)['quality']! as Map<String, Object?>;
+
+    List<String> qualityCodes(ToolResult result) => [
+          for (final warning in qualityOf(result)['warnings']! as List<Object?>)
+            (warning! as Map<String, Object?>)['code']! as String,
+        ];
+
+    test('空库：quality 是 empty_plan，摘要先说实话（题库里没题）', () async {
+      final result = await tool.run(invoke(<String, Object?>{}));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final quality = qualityOf(result);
+      expect(quality['schema'], 'mindnet.paper_quality/1');
+      expect(quality['question_count'], 0);
+      expect(qualityCodes(result), <String>['empty_plan']);
+      expect(result.summary, contains('题库里还没有任何可用的题'));
+    });
+
+    test('凑不齐：fill_short 进 quality，摘要报质量体检三档计数', () async {
+      await seedQuestion(stem: '第一道题。');
+      await seedQuestion(stem: '第二道题。');
+
+      final result = await tool.run(invoke(<String, Object?>{}));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      expect(qualityCodes(result), contains('fill_short'));
+      expect(qualityOf(result)['question_count'], 2);
+      expect(result.summary, contains('质量体检：'));
+      expect(result.summary, contains('最该看：'));
+    });
+
+    test('难度读数从题库候选回填：target_difficulty 拉远时出 far_from_target', () async {
+      await seedQuestion(stem: '简单题一。', difficulty: 2);
+      await seedQuestion(stem: '简单题二。', difficulty: 2);
+      await seedQuestion(stem: '简单题三。', difficulty: 2);
+
+      final result = await tool.run(invoke(<String, Object?>{
+        'target_difficulty': 9,
+      }));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final quality = qualityOf(result);
+      final distribution = quality['difficulty_distribution']! as List<Object?>;
+      expect(
+        [
+          for (final bucket in distribution)
+            (bucket! as Map<String, Object?>)['key'],
+        ],
+        <String>['2.0'],
+        reason: 'Plan 不保留难度，这条分布只能来自题库候选的 difficulty',
+      );
+      final far = (quality['warnings']! as List<Object?>)
+          .cast<Map<String, Object?>>()
+          .singleWhere(
+            (warning) => warning['code'] == 'difficulty_far_from_target',
+          );
+      expect((far['evidence']! as Map<String, Object?>)['mean'], '2.00');
+      expect((far['evidence']! as Map<String, Object?>)['target'], '9.00');
+      expect(result.summary, contains('难度偏离目标'));
+    });
+
+    test('学科中文名与题数同源：math 显示数学，question_count 与 item_count 一致', () async {
+      await seedLinked(stem: '数学题一。', pointTitle: '数列');
+      await seedLinked(
+        stem: '物理题。',
+        pointTitle: '动量',
+        subjectKey: 'physics',
+      );
+
+      final result = await tool.run(invoke(<String, Object?>{}));
+
+      expect(result.ok, isTrue, reason: result.summary);
+      final payload = payloadOf(result);
+      final quality = qualityOf(result);
+      expect(quality['question_count'], payload['item_count']);
+      final subjects = <String, String>{
+        for (final bucket in quality['subject_distribution']! as List<Object?>)
+          (bucket! as Map<String, Object?>)['key']! as String:
+              (bucket as Map<String, Object?>)['label_zh']! as String,
+      };
+      expect(subjects['math'], '数学');
+      expect(subjects['physics'], '物理');
+    });
+  });
 }
