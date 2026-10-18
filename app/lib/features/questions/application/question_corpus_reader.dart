@@ -14,6 +14,8 @@
 /// 阈值/权重/排序全留在 `domain/services/…`。这个文件只做读表与投影。
 library;
 
+import 'package:drift/drift.dart' show OrderingTerm;
+
 import '../../../data/database/database.dart';
 import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/question_repository.dart'
@@ -21,7 +23,9 @@ import '../../../data/repositories/question_repository.dart'
 import '../../../domain/services/cognitive/fast_diagnosis.dart';
 import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
+import '../../../domain/services/export/paper_docx.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/scheduling/cognitive_readings.dart';
 import '../../../domain/services/scheduling/domain_balance.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
@@ -396,3 +400,141 @@ Future<List<KnowledgePointReading>> readPaperReadings(
 
 bool _isDiagnosed(BottleneckType? verdict) =>
     verdict == BottleneckType.danger || verdict == BottleneckType.weak;
+
+/// 一道题的 docx 导出素材：题干/题号/来源/选项/答案/解析。
+///
+/// 为什么单独一个类型而不直接回 [PaperDocxQuestion]：那个类型还要求配图
+/// （[PaperDocxImage] 里有字节），而读图字节要走 `QuestionMediaStore`（dart:io），
+/// 这个文件是纯读表、不碰文件系统。应用层拿到本类型，再补上图片才装配成
+/// [PaperDocxQuestion]。
+class QuestionDocxRow {
+  const QuestionDocxRow({
+    required this.questionId,
+    required this.stem,
+    this.serialNo,
+    this.subjectKey = '',
+    this.sourceLevel = '',
+    this.sourceLabel = '',
+    this.year,
+    this.region = '',
+    this.questionType = '',
+    this.options = const <PaperDocxOption>[],
+    this.answer,
+    this.solution,
+  });
+
+  final String questionId;
+
+  /// 库里的整数编号（v24）；导出时再格式化成 `TR-00001`。
+  final int? serialNo;
+  final String stem;
+  final String subjectKey;
+  final String sourceLevel;
+  final String sourceLabel;
+  final int? year;
+
+  /// 地区；库里是 nullable，这里空串表示没有。
+  final String region;
+  final String questionType;
+  final List<PaperDocxOption> options;
+  final String? answer;
+  final String? solution;
+
+  /// 补上图片后转成装配层要的题目对象。
+  PaperDocxQuestion toPaperDocxQuestion({
+    List<PaperDocxImage> images = const <PaperDocxImage>[],
+  }) {
+    return PaperDocxQuestion(
+      questionId: questionId,
+      stem: stem,
+      serialNo: serialNo == null || serialNo! < 1
+          ? null
+          : formatQuestionSerial(serialNo!),
+      subjectKey: subjectKey,
+      sourceLevel: sourceLevel,
+      sourceLabel: sourceLabel,
+      year: year,
+      region: region,
+      questionType: questionType,
+      options: options,
+      answer: answer,
+      solution: solution,
+      images: images,
+    );
+  }
+}
+
+/// 题目 id → docx 导出素材。给 [ids] 时只查这些题（卷子就十来道，不必扫全表）；
+/// 不给就是全表。
+///
+/// 空题干保留（与 [readQuestionStems] 不同）：导出要如实报「第 N 题题干为空」，
+/// 悄悄少一道题比留个空题干更糟。
+Future<Map<String, QuestionDocxRow>> readQuestionDocxRows(
+  AppDatabase db, {
+  Iterable<String>? ids,
+}) async {
+  final wanted = ids == null
+      ? null
+      : <String>{
+          for (final id in ids)
+            if (id.trim().isNotEmpty) id.trim(),
+        };
+  if (wanted != null && wanted.isEmpty) {
+    return const <String, QuestionDocxRow>{};
+  }
+
+  final questionQuery = db.select(db.questions);
+  if (wanted != null) {
+    questionQuery.where((t) => t.id.isIn(wanted));
+  }
+  final questionRows = await questionQuery.get();
+  if (questionRows.isEmpty) return const <String, QuestionDocxRow>{};
+
+  final questionIds = <String>{for (final row in questionRows) row.id};
+  final optionRows = await (db.select(db.questionOptions)
+        ..where((t) => t.questionId.isIn(questionIds))
+        ..orderBy([
+          (t) => OrderingTerm.asc(t.sortOrder),
+          (t) => OrderingTerm.asc(t.id),
+        ]))
+      .get();
+  final optionsByQuestion = <String, List<PaperDocxOption>>{};
+  for (final row in optionRows) {
+    (optionsByQuestion[row.questionId] ??= <PaperDocxOption>[]).add(
+      PaperDocxOption(
+        label: row.label,
+        content: row.content,
+        isCorrect: row.isCorrect,
+      ),
+    );
+  }
+
+  return <String, QuestionDocxRow>{
+    for (final row in questionRows)
+      row.id: QuestionDocxRow(
+        questionId: row.id,
+        stem: row.stem,
+        serialNo: row.serialNo,
+        subjectKey: row.subjectKey,
+        sourceLevel: row.sourceLevel,
+        sourceLabel: row.sourceLabel,
+        year: row.year,
+        region: row.region ?? '',
+        questionType: row.questionType,
+        options: List<PaperDocxOption>.unmodifiable(
+          optionsByQuestion[row.id] ?? const <PaperDocxOption>[],
+        ),
+        answer: row.answer,
+        solution: row.solution,
+      ),
+  };
+}
+
+/// 知识点 id → 标题。docx 卷面的理由行要它；只读 knowledge_points 一张表。
+Future<Map<String, String>> readKnowledgePointNames(AppDatabase db) async {
+  final rows = await db.select(db.knowledgePoints).get();
+  return <String, String>{
+    for (final row in rows)
+      if (row.title.trim().isNotEmpty) row.id: row.title.trim(),
+  };
+}
