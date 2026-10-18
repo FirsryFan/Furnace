@@ -1872,6 +1872,46 @@
   "@paperSubjectQuotaShortfallEmpty": {
     "placeholders": { "subject": { "type": "String" } }
   },
+  "paperDomainQuotaTitle": "领域配额",
+  "paperDomainQuotaHint": "留空 = 不限；上限 0 = 这个领域一道都不选。领域是知识点标签路径的第一段，与上面的学科配额是两套键。",
+  "paperDomainQuotaMaxLabel": "上限",
+  "paperDomainQuotaMinLabel": "保底",
+  "paperDomainQuotaClear": "清空配额",
+  "paperDomainQuotaInvalid": "请输入非负整数",
+  "paperDomainQuotaDistribution": "领域分布",
+  "paperDomainQuotaBlocked": "被领域上限挡下 {count} 道",
+  "@paperDomainQuotaBlocked": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperDomainQuotaBlockedItem": "{domain}（上限 {limit} 道）：{detail}",
+  "@paperDomainQuotaBlockedItem": {
+    "placeholders": {
+      "domain": { "type": "String" },
+      "limit": { "type": "int" },
+      "detail": { "type": "String" }
+    }
+  },
+  "paperDomainQuotaBlockedMore": "还有 {count} 道被挡下的题没列出",
+  "@paperDomainQuotaBlockedMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperDomainQuotaShortfallTitle": "领域保底缺口",
+  "paperDomainQuotaShortfall": "{domain} 还差 {missing} 道（可用 {available} 道）",
+  "@paperDomainQuotaShortfall": {
+    "placeholders": {
+      "domain": { "type": "String" },
+      "missing": { "type": "int" },
+      "available": { "type": "int" }
+    }
+  },
+  "paperDomainQuotaShortfallEmpty": "{domain} 在题库里没有可用题",
+  "@paperDomainQuotaShortfallEmpty": {
+    "placeholders": { "domain": { "type": "String" } }
+  },
+  "paperDomainQuotaUncovered": "未覆盖领域：{domains}",
+  "@paperDomainQuotaUncovered": {
+    "placeholders": { "domains": { "type": "String" } }
+  },
   "tasksDueAtConflictTitle": "这段时间撞上了日程块",
   "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
   "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",

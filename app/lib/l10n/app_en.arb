@@ -1992,6 +1992,46 @@
   "@paperSubjectQuotaShortfallEmpty": {
     "placeholders": { "subject": { "type": "String" } }
   },
+  "paperDomainQuotaTitle": "Domain quotas",
+  "paperDomainQuotaHint": "Leave empty for no cap; a cap of 0 excludes the domain entirely. Domains are the first segment of a knowledge-point tag path, separate from the subject quota above.",
+  "paperDomainQuotaMaxLabel": "Max",
+  "paperDomainQuotaMinLabel": "Min",
+  "paperDomainQuotaClear": "Clear quotas",
+  "paperDomainQuotaInvalid": "Enter a non-negative whole number",
+  "paperDomainQuotaDistribution": "Domain distribution",
+  "paperDomainQuotaBlocked": "{count} question(s) blocked by domain caps",
+  "@paperDomainQuotaBlocked": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperDomainQuotaBlockedItem": "{domain} (cap {limit}): {detail}",
+  "@paperDomainQuotaBlockedItem": {
+    "placeholders": {
+      "domain": { "type": "String" },
+      "limit": { "type": "int" },
+      "detail": { "type": "String" }
+    }
+  },
+  "paperDomainQuotaBlockedMore": "and {count} more blocked question(s)",
+  "@paperDomainQuotaBlockedMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperDomainQuotaShortfallTitle": "Domain minimum shortfalls",
+  "paperDomainQuotaShortfall": "{domain}: short by {missing} (available: {available})",
+  "@paperDomainQuotaShortfall": {
+    "placeholders": {
+      "domain": { "type": "String" },
+      "missing": { "type": "int" },
+      "available": { "type": "int" }
+    }
+  },
+  "paperDomainQuotaShortfallEmpty": "No usable questions for {domain} in the bank",
+  "@paperDomainQuotaShortfallEmpty": {
+    "placeholders": { "domain": { "type": "String" } }
+  },
+  "paperDomainQuotaUncovered": "Uncovered domains: {domains}",
+  "@paperDomainQuotaUncovered": {
+    "placeholders": { "domains": { "type": "String" } }
+  },
   "tasksDueAtConflictTitle": "That time clashes with a schedule block",
   "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
   "tasksDueAtConflictMoveBefore": "Move before it ({moment})",

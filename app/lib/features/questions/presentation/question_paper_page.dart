@@ -20,6 +20,7 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
 import 'paper_docx_export_button.dart';
+import 'paper_domain_quota_view.dart';
 import 'paper_subject_quota_view.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
@@ -106,6 +107,7 @@ class QuestionPaperPage extends ConsumerWidget {
           _PaperControls(subjectOptions: subjectOptions),
           const SizedBox(height: 12),
           const PaperSubjectQuotaSection(),
+          const PaperDomainQuotaSection(),
           const SizedBox(height: 12),
           plan.when(
             loading: () => const Padding(
@@ -271,6 +273,23 @@ class _PaperControls extends ConsumerWidget {
   }
 }
 
+/// 学科配额结果里有没有要展示的内容（分布 / 被挡 / 保底缺口任一）。
+///
+/// 学科配额 UI 在本任务之前就已经接线，这里只把原来写在两个分支里的长条件收成
+/// 一个函数：空卷分支和非空分支必须用同一套判断，否则两边会越来越难对齐。
+bool _hasSubjectQuotaOutcome(PaperPlan plan) {
+  return plan.bySubject.isNotEmpty ||
+      plan.quotaBlockedQuestions.isNotEmpty ||
+      plan.subjectShortfalls.isNotEmpty;
+}
+
+/// 领域配额结果里有没有要展示的内容（分布 / 被挡 / 保底缺口任一）。
+bool _hasDomainQuotaOutcome(PaperPlan plan) {
+  return plan.byDomain.isNotEmpty ||
+      plan.quotaBlockedByDomain.isNotEmpty ||
+      plan.domainShortfalls.isNotEmpty;
+}
+
 /// 卷面 + 缺口。
 class _PaperBody extends ConsumerWidget {
   const _PaperBody({required this.plan, required this.subjectOptions});
@@ -322,11 +341,13 @@ class _PaperBody extends ConsumerWidget {
               ),
             ),
           ),
-          if (plan.bySubject.isNotEmpty ||
-              plan.quotaBlockedQuestions.isNotEmpty ||
-              plan.subjectShortfalls.isNotEmpty) ...[
+          if (_hasSubjectQuotaOutcome(plan)) ...[
             const SizedBox(height: 12),
             PaperSubjectQuotaOutcome(plan: plan),
+          ],
+          if (_hasDomainQuotaOutcome(plan)) ...[
+            const SizedBox(height: 12),
+            PaperDomainQuotaOutcome(plan: plan),
           ],
         ],
       );
@@ -394,11 +415,13 @@ class _PaperBody extends ConsumerWidget {
             ),
           ),
         ],
-        if (plan.bySubject.isNotEmpty ||
-            plan.quotaBlockedQuestions.isNotEmpty ||
-            plan.subjectShortfalls.isNotEmpty) ...[
+        if (_hasSubjectQuotaOutcome(plan)) ...[
           const SizedBox(height: 12),
           PaperSubjectQuotaOutcome(plan: plan),
+        ],
+        if (_hasDomainQuotaOutcome(plan)) ...[
+          const SizedBox(height: 12),
+          PaperDomainQuotaOutcome(plan: plan),
         ],
         const SizedBox(height: 12),
         for (var index = 0; index < plan.items.length; index++)

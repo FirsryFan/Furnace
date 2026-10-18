@@ -418,3 +418,31 @@
   schema 声明两参数）；`paper_plan_provider_test.dart` 20 → **24 例**（setter 语义 / 空白 toggle 忽略 /
   真卷按名单 / 默认不启用）。两文件合计 **+61 All tests passed**；scoped `dart analyze` 无 error /
   warning（唯一 info 是既有 `ai_chat_page_test.dart:63`）。
+
+## 20. 组卷页领域配额 UI（轮次一百二十五）
+
+`§14` 的领域配额（按标签路径第一段的上限 / 保底）上屏，与 `§17` 的学科配额 UI 同构，但**两套命名空间
+不混用**：学科键是 `math` / `physics`，领域键是中文顶级标签（如「数学」「函数」）。
+
+- **纯函数（`app/lib/features/questions/presentation/paper_domain_quota_view.dart`）**：
+  `parsePaperDomainQuotaInput`（空 = 清空该字段；非负整数合法；负数 / 小数 / 文字 = invalid，**不当清空**）、
+  `paperDomainQuotaBankDomains`（题库里出现过的领域，去重排序）、`paperDomainQuotaDomains`（题库序优先，
+  再补配额表独有领域）、`paperDomainQuotaDistributionSorted`、`blockedPreview` / `blockedHidden` /
+  `stemPreview`。控件 `PaperDomainQuotaSection`（每领域两个数字框 + 清空）、`PaperDomainQuotaOutcome`
+  （领域分布 / 被领域上限挡下题数 + 前 3 条题目预览 / 领域保底缺口两种文案（候选不足 vs 题库无题）/
+  未覆盖领域；三者皆空渲染 `SizedBox.shrink()`，不摆空壳）。
+- **页面（`question_paper_page.dart`）**：`PaperDomainQuotaSection` 接在学科配额段之后；空卷与非空卷两个
+  分支都按 `_hasDomainQuotaOutcome(plan)` 条件渲染结果卡（首版漏了非空分支，测试抓到后已补）。
+- **l10n**：14 个 key（`paperDomainQuotaTitle` / `Hint` / `MaxLabel` / `MinLabel` / `Clear` / `Invalid` /
+  `Distribution` / `Blocked(count)` / `BlockedItem(domain,limit,detail)` / `BlockedMore(count)` /
+  `ShortfallTitle` / `Shortfall(domain,missing,available)` / `ShortfallEmpty(domain)` / `Uncovered(domains)`），
+  五个 l10n 文件手改（未跑 gen-l10n）。
+- **语义**：输入非法时标红且**不写 spec**（不静默清空用户已配的配额）；清空 = 回 `null`（不启用，
+  旧卷面输出不变）；结果只读 `plan`，不重算分数。
+- **未做**：真机未手测（数字键盘、长领域名换行）；只在内存库用标签路径做组卷验证，真实老库里
+  `path` 为空 / 未挂知识点的题不会出现在领域行（`domainOfTagPath` 返回 null 被忽略）；en 文案未母语校对。
+- **验收**：`app/test/features/questions/presentation/question_paper_domain_quota_test.dart` **14 例**
+  （8 纯函数 + 6 widget：空库不摆空壳 / 有领域未启用只摆输入 / 设上限后 spec 与 plan 反映且展示 outcome /
+  非法输入标红不写 spec / 清空后结果卡消失 / 保底缺口两种如实展示）；`flutter test
+  test/features/questions/presentation` **173 → 187** 全绿；scoped `dart analyze` `No issues found!`；
+  全量 analyze 92 issues / 0 error / 0 warning（基线）。

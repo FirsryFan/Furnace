@@ -6569,6 +6569,90 @@ abstract class AppLocalizations {
   /// **'No usable questions for {subject} in the bank'**
   String paperSubjectQuotaShortfallEmpty(String subject);
 
+  /// No description provided for @paperDomainQuotaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Domain quotas'**
+  String get paperDomainQuotaTitle;
+
+  /// No description provided for @paperDomainQuotaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for no cap; a cap of 0 excludes the domain entirely. Domains are the first segment of a knowledge-point tag path, separate from the subject quota above.'**
+  String get paperDomainQuotaHint;
+
+  /// No description provided for @paperDomainQuotaMaxLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get paperDomainQuotaMaxLabel;
+
+  /// No description provided for @paperDomainQuotaMinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get paperDomainQuotaMinLabel;
+
+  /// No description provided for @paperDomainQuotaClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear quotas'**
+  String get paperDomainQuotaClear;
+
+  /// No description provided for @paperDomainQuotaInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a non-negative whole number'**
+  String get paperDomainQuotaInvalid;
+
+  /// No description provided for @paperDomainQuotaDistribution.
+  ///
+  /// In en, this message translates to:
+  /// **'Domain distribution'**
+  String get paperDomainQuotaDistribution;
+
+  /// No description provided for @paperDomainQuotaBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} question(s) blocked by domain caps'**
+  String paperDomainQuotaBlocked(int count);
+
+  /// No description provided for @paperDomainQuotaBlockedItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{domain} (cap {limit}): {detail}'**
+  String paperDomainQuotaBlockedItem(String domain, int limit, String detail);
+
+  /// No description provided for @paperDomainQuotaBlockedMore.
+  ///
+  /// In en, this message translates to:
+  /// **'and {count} more blocked question(s)'**
+  String paperDomainQuotaBlockedMore(int count);
+
+  /// No description provided for @paperDomainQuotaShortfallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Domain minimum shortfalls'**
+  String get paperDomainQuotaShortfallTitle;
+
+  /// No description provided for @paperDomainQuotaShortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'{domain}: short by {missing} (available: {available})'**
+  String paperDomainQuotaShortfall(String domain, int missing, int available);
+
+  /// No description provided for @paperDomainQuotaShortfallEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable questions for {domain} in the bank'**
+  String paperDomainQuotaShortfallEmpty(String domain);
+
+  /// No description provided for @paperDomainQuotaUncovered.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncovered domains: {domains}'**
+  String paperDomainQuotaUncovered(String domains);
+
   /// No description provided for @tasksDueAtConflictTitle.
   ///
   /// In en, this message translates to:

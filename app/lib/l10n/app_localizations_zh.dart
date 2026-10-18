@@ -3702,6 +3702,61 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get paperDomainQuotaTitle => '领域配额';
+
+  @override
+  String get paperDomainQuotaHint =>
+      '留空 = 不限；上限 0 = 这个领域一道都不选。领域是知识点标签路径的第一段，与上面的学科配额是两套键。';
+
+  @override
+  String get paperDomainQuotaMaxLabel => '上限';
+
+  @override
+  String get paperDomainQuotaMinLabel => '保底';
+
+  @override
+  String get paperDomainQuotaClear => '清空配额';
+
+  @override
+  String get paperDomainQuotaInvalid => '请输入非负整数';
+
+  @override
+  String get paperDomainQuotaDistribution => '领域分布';
+
+  @override
+  String paperDomainQuotaBlocked(int count) {
+    return '被领域上限挡下 $count 道';
+  }
+
+  @override
+  String paperDomainQuotaBlockedItem(String domain, int limit, String detail) {
+    return '$domain（上限 $limit 道）：$detail';
+  }
+
+  @override
+  String paperDomainQuotaBlockedMore(int count) {
+    return '还有 $count 道被挡下的题没列出';
+  }
+
+  @override
+  String get paperDomainQuotaShortfallTitle => '领域保底缺口';
+
+  @override
+  String paperDomainQuotaShortfall(String domain, int missing, int available) {
+    return '$domain 还差 $missing 道（可用 $available 道）';
+  }
+
+  @override
+  String paperDomainQuotaShortfallEmpty(String domain) {
+    return '$domain 在题库里没有可用题';
+  }
+
+  @override
+  String paperDomainQuotaUncovered(String domains) {
+    return '未覆盖领域：$domains';
+  }
+
+  @override
   String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
 
   @override

@@ -3865,6 +3865,61 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get paperDomainQuotaTitle => 'Domain quotas';
+
+  @override
+  String get paperDomainQuotaHint =>
+      'Leave empty for no cap; a cap of 0 excludes the domain entirely. Domains are the first segment of a knowledge-point tag path, separate from the subject quota above.';
+
+  @override
+  String get paperDomainQuotaMaxLabel => 'Max';
+
+  @override
+  String get paperDomainQuotaMinLabel => 'Min';
+
+  @override
+  String get paperDomainQuotaClear => 'Clear quotas';
+
+  @override
+  String get paperDomainQuotaInvalid => 'Enter a non-negative whole number';
+
+  @override
+  String get paperDomainQuotaDistribution => 'Domain distribution';
+
+  @override
+  String paperDomainQuotaBlocked(int count) {
+    return '$count question(s) blocked by domain caps';
+  }
+
+  @override
+  String paperDomainQuotaBlockedItem(String domain, int limit, String detail) {
+    return '$domain (cap $limit): $detail';
+  }
+
+  @override
+  String paperDomainQuotaBlockedMore(int count) {
+    return 'and $count more blocked question(s)';
+  }
+
+  @override
+  String get paperDomainQuotaShortfallTitle => 'Domain minimum shortfalls';
+
+  @override
+  String paperDomainQuotaShortfall(String domain, int missing, int available) {
+    return '$domain: short by $missing (available: $available)';
+  }
+
+  @override
+  String paperDomainQuotaShortfallEmpty(String domain) {
+    return 'No usable questions for $domain in the bank';
+  }
+
+  @override
+  String paperDomainQuotaUncovered(String domains) {
+    return 'Uncovered domains: $domains';
+  }
+
+  @override
   String get tasksDueAtConflictTitle =>
       'That time clashes with a schedule block';
 
