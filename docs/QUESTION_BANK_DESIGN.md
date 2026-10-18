@@ -207,8 +207,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
    lookup 映射自定义动作。**持久化与接线已做**：轮次一百二十三 schema v25 加了
    `local_settings.capability_action_overlay_json`（NULL = 出厂词表）并接进 `QuestionReasoningService`
    （提示词与 `parseChain` lookup 同源）；轮次一百二十五再加了编辑操作层与保存/放弃状态机
-   （`capability_vocabulary_editor_provider.dart`）。**用户编辑 UI 与 l10n 仍在做**（task-29，
-   question-intake），见 `docs/REASONING_LAYER_DESIGN.md` §4/§4.1/§17。
+   （`capability_vocabulary_editor_provider.dart`）。**用户编辑 UI 已做**（轮次一百二十五 task-29，
+   question-intake）：设置页「能力动作词表」入口 → `capability_vocabulary_page.dart`（内置只读分组、
+   自定义条目增删改/上下移、粘贴 JSON 导入、issues 卡片、保存/放弃与退出确认，l10n 34 key）；
+   见 `docs/REASONING_LAYER_DESIGN.md` §4/§4.1/§17/§19。
 3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
 4. ~~**拍照整理的主入口**~~ —— **已解决（轮次一百一十五，用户反馈 m29290）**：收题 / 组卷 /
    拍照整理 / 材料入库四个入口从设置页收进新的顶层目的地「题库」（`QuestionBankPage`），

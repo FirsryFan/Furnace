@@ -495,6 +495,22 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 - 管道位置：§10 把解析结果落库 → 本节从库里多链聚合 → 未来洞察页 / 画像消费。聚合结果不落库。
 - 未做：洞察页 UI / provider 未接页面；真库里 NaN / ±inf 的落库路径未实测（测试用构造数据覆盖）；与 §12 的统一信号模型未做。
 
+### 14.4 动作 × 知识点交叉读数（轮次一百二十五，task-36）
+
+§14.1 的卡点维度只看题目与裸知识点（高风险的 step.knowledgeHints），回答不了「我在哪个动作上、
+对哪个知识点卡」。「下一步练什么」需要这种更细的坐标，所以聚合层再补一层交叉读数：
+
+- 新增公开类 `ChainActionKnowledgePointGroup`（`chain_insights.dart`）：actionType / knowledgePointId /
+  highRiskStepCount / questionCount / chainCount，`toJson` 用 snake_case。
+- `aggregate` 内部按 actionType → knowledgePointId 建桶，**只统计高风险步**（stuckRisk ≥ 阈值，
+  默认 0.6）且步骤的 `knowledgeHints` 非空的项；hints 去空白、去重后逐个记桶，低风险步不进交叉
+  读数——把正常步摊进「卡点热区」会让人越练越偏。
+- 排序确定性：highRiskStepCount desc → chainCount desc → questionCount desc → actionType asc →
+  knowledgePointId asc。结果放在新字段 `highRiskByActionAndKnowledgePoint`（不可变）；`toJson`
+  新增 `high_risk_by_action_and_knowledge_point` 键（纯增量，旧键全部保留，旧消费方只需容忍新键）。
+- 验收：`test/domain/services/reasoning/action_knowledge_cross_test.dart` **24 例**（交叉计数 /
+  低风险不计 / hints 去重 / 排序 / 空输入 / `toJson`）；reasoning 目录合计 **368 例**全绿。
+
 ## 15. 学习建议聚合层：从「读数」到「下一步做什么」（轮次一百二十五）
 
 §12 的能力动作画像回答「卷子该练哪个动作」，§14 的洞察层回答「我卡在哪种动作上」；本节把这两层**读数**翻成一份确定性的建议清单，给未来的「学习洞察 / 首页下一步」供数。只读派生，不落库、不调模型——建议由规则算出来，可复现、可测。
@@ -513,7 +529,7 @@ static LearningAdvicePlan build({
 })
 ```
 
-`LearningAdviceKind` 五种（枚举顺序即同类建议的排序兜底）：`practiceAction` / `collectChains` / `reviewVocabulary` / `keepGoing` / `noData`。每条 `LearningAdvice` 带 kind、priority（越小越靠前）、titleZh / detailZh，以及**能填就填的真实读数**（actionType / actionLabelZh / questionCount / stepCount / highRiskStepCount）；`knowledgePointIds` 保留但恒为空（聚合层没有动作 × 知识点交叉读数，不编造）。
+`LearningAdviceKind` 五种（枚举顺序即同类建议的排序兜底）：`practiceAction` / `collectChains` / `reviewVocabulary` / `keepGoing` / `noData`。每条 `LearningAdvice` 带 kind、priority（越小越靠前）、titleZh / detailZh，以及**能填就填的真实读数**（actionType / actionLabelZh / questionCount / stepCount / highRiskStepCount）；`knowledgePointIds` 来自动作 × 知识点交叉读数（§14.4；仅 practiceAction 填，每动作最多 3 个，高危步数降序、同数按 id 升序；无读数保持空列表，不编造）。
 
 优先级分段：practice 从 100 起（多条按高风险步数降序编 100、101…，到 199 为止），collect 200，review 300，keep 400，noData 500；最终按 priority → kind 枚举序 → actionType 字典序 → titleZh 稳定排序，再按 maxAdvices 截断（<1 按 1 处理；截断取排序后的前缀，截断后 `isEmpty` 仍为 false）。
 
@@ -532,7 +548,14 @@ static LearningAdvicePlan build({
 
 - 洞察页 UI 与 provider 未接页面（目前只有纯函数，调用点等界面 / 首页「下一步」设计定稿）。
 - 未接 AI 对话：建议只走确定性规则；「哪个动作先练」的权重标定需要真数据后再做，当前不假装个性化。
-- 动作 × 知识点交叉读数未做（`knowledgePointIds` 恒空）。
+### 15.3 动作 × 知识点交叉读数接线（轮次一百二十五，task-36）
+
+- `LearningAdvicePlan.maxKnowledgePointIds = 3`（public const）；`_practiceCandidates` 内按 actionType
+  从 §14.4 的交叉读数取知识点（高危步数降序、同数按 id 升序、截断 3），洞察与画像两类候选共用
+  同一函数；`LearningAdvice.knowledgePointIds` 只对 practiceAction 非空，其他 kind 与无读数时仍空。
+- 验收：`action_knowledge_cross_test.dart` **24 例**（practice 填点 / 截断 / 排序 / 无读数空 /
+  非 practice 不填）；`learning_advice_test.dart` 48 例回归；reasoning 目录 **368 例**全绿。
+- 未做：界面还不显示这些知识点（只有 id，要显示名称得再读一层 knowledge_points 标题）。
 ## 16. 接线：学习建议 provider 与题库题数（轮次一百二十五）
 
 ### 16.1 数据接线（`learning_advice_provider.dart`）
@@ -558,7 +581,7 @@ static LearningAdvicePlan build({
   overlay 自定义动作算已知后进练习 / 只有画像（孤立步骤）也给练习且题数留空）；
   `chain_insights_reader_test.dart` 12 例回归通过。
 - 未做：页面 UI（首页「下一步」或学习洞察页）与建议卡片未接；建议不落库、不做历史对比；
-  动作 × 知识点交叉读数仍空；阈值与条数**未标定**（等真实使用数据再调）。
+  阈值与条数**未标定**（等真实使用数据再调）；知识点只填了 id，界面尚未展示。
 
 ## 17. 词表编辑的 application 层（轮次一百二十五）
 
@@ -584,8 +607,8 @@ static LearningAdvicePlan build({
   clearIssues；save 写库 + dirty 变 false + 推理链路 invalidate 后读到新词表；删光保存写回 NULL；
   无改动 save 不建库行；revert 放弃草稿；save 失败 isSaving 复位且草稿保留）；跑出 `+20 All tests passed`；
   `dart analyze` 两个文件 `No issues found`。
-- 未做：编辑页 UI（列表 / 表单 / 导入按钮 / 保存按钮）与 l10n 未做，下一轮派给 question-intake；
-  词表导入的 `.json` 文件选择（file_picker + `jsonDecode`）留在 UI 层；不做跨设备同步。
+- 编辑页 UI 与 l10n 已做（§19，轮次一百二十五 task-29）。
+- 未做：词表导入的 `.json` 文件选择（file_picker + `jsonDecode`）仍留在 UI 层未接；不做跨设备同步。
 
 ## 18. AI 工具：下一步练什么（轮次一百二十五）
 
@@ -610,4 +633,28 @@ static LearningAdvicePlan build({
   2 步不足阈值 keepGoing、阈值可调、未知动作 reviewVocabulary、题数缺口 collectChains 如实说还差几道、
   overlay 自定义动作被认作已知动作、max_advices 钳制与非法参数、工具声明/schema、只读跑完行数不变）。
 - 未做：建议卡片 UI（首页「下一步」/学习洞察页）仍归 presentation；工具不落库、不做历史对比；
-  `knowledgePointIds` 仍恒空；阈值与条数未标定。
+  阈值与条数未标定；`knowledgePointIds` 已由 §14.4/§15.3 填真实交叉读数（工具输出里也会带上）。
+
+## 19. 词表编辑页 UI：设置页「能力动作词表」（轮次一百二十五，task-29）
+
+§17 的 application 层原本没有入口。这一节把它接成设置页里的一页（question-intake 交付）：
+
+- 入口：`settings_page.dart` 在「认知模型」之后加一个 ListTile（`app/lib/features/settings/presentation/`），
+  点进 `CapabilityVocabularyPage`。
+- 页面（`capability_vocabulary_page.dart`，约 800 行）：内置动作只读分组（key + 中文名 + 说明，
+  不能改 — 内置词表是诊断口径的地基）；自定义条目分组可新增 / 编辑 / 删除 / 上移 / 下移；
+  底部保存栏（dirty 时显示、含「放弃」与「保存」）；顶部提供「粘贴 JSON 导入」。
+  `PopScope` 拦截退出：有未保存改动时弹二次确认（留下 / 放弃），不静默丢草稿。
+- 错误如实回显：编辑层 / 导入层的 issues（非法 key、缺中文名、重复、超 100 条、导入形状不识别）
+  显示在 issues 卡片里，可逐条关闭；保存失败 SnackBar 带**错误原文**，页面保留未保存状态。
+- 一个真实 bug 的教训：粘贴 JSON 对话框最初在 `showDialog` 返回后立刻 dispose 控制器，
+  路由退场动画期间 TextField 重建 → `A TextEditingController was used after being disposed`，
+  导致后续 7 个测试连锁失败；现在 `_ImportJsonDialog` 自己用 State 持有控制器。
+- l10n：34 个 key（前缀 `capabilityVocabulary`）手改进五个文件（含 7 个带参 key）；未跑 `gen-l10n`。
+- 验收：`test/features/settings/presentation/capability_vocabulary_page_test.dart` **13 例**
+  （内置只读 / 空自定义 / 种子渲染 / 新增 / 编辑 / 删除 / 上移下移 / JSON 语法错误 / 语义非法进 issues /
+  保存成功写库 / 保存失败保留未保存态 / 加载失败错误态 / 设置页入口 / 退出二次确认），
+  `test/features/questions/presentation` **173 例**回归；`dart analyze lib test` 92 issues / 0 error /
+  0 warning（基线）。
+- 未做 / 未验证：真机滚动与键盘、`PopScope` 与 Android 返回手势真机行为、导入大 JSON 的性能、
+  en 文案母语校对；导入 .json **文件**（file_picker）仍未接，目前只能粘贴文本。
