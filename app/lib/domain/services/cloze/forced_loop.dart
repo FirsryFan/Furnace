@@ -1,33 +1,47 @@
 /// 会话内「错题强制绑定」闭环的纯决策逻辑（无 Flutter、无数据库、无副作用）。
 ///
-/// ## 这个文件解决的口径差异（显式选择，不是新规则）
+/// ## 当前口径（2026-10-18 用户原话）
 ///
-/// 仓库里关于「答错的空什么时候再出现」本来有两份口径：
+/// 「错题先空 2–3 张再重现；如果每日任务到了最后没有空的卡了，就只能连续重复出现。」
 ///
-/// 1. **位置口径** —— `ReviewService.buildQueue`
-///    （app/lib/features/anki/application/review_service.dart:271-282）只把
-///    `cardState.forced == 1` 的卡挑出来，交给 `_interleave`
-///    （同文件 :378-391）按 `relearnGapCards = 3`（同文件 :225）安插；
-///    它**完全不看 `dueAt`**。
-/// 2. **时间口径** —— `ForcedStep.nextDueAt`
-///    （app/lib/domain/services/cloze/cloze_engine.dart:211-257）在每次仍然被绑定时给出
-///    `now + relearnMinutes`（默认 10 分钟，见 furnace_defaults.dart 的
-///    `forcedRelearnMinutes`）。
+/// 落到本文件就是两条：
 ///
-/// 产品口径 D11（docs/FEATURE_MATRIX.md）写的是
-/// 「答错立即重做 → 约 10 分钟短间隔再出现 → 连续两次正确解除」。
+/// * **刚答错**的那一张：按位置排到 `currentIndex + 1 + gap`（夹在队尾），
+///   **不**再叠 10 分钟时间下限——用户否掉了「原地立刻重复」，但间隔本身
+///   已经够短，位置口径已经说明了它什么时候回来；
+/// * **仍然被绑定、但已经答对一次**的那一张：同样排到
+///   `currentIndex + 1 + gap`，并且受 `ForcedStep.nextDueAt` 的 10 分钟下限
+///   约束（见 cloze_engine.dart 的 `ForcedMachine.grade`：`now + relearnMinutes`，
+///   默认 10 分钟，来自 furnace_defaults.dart 的 `forcedRelearnMinutes`）。
 ///
-/// 本文件的取舍是 **两个门都过、取下限更晚者**：
+/// 队列剩余不足 `gap` 张时 `insertIndex` 被夹到 `queueLength`：这张卡接在
+/// 队尾之后出现，队列只有 1 张时就是连续重复——这正是「末尾没有空卡了才
+/// 连续」的语义。
 ///
-/// * `immediateRedo == true`（刚答错）那一张**只受位置约束**，紧跟在当前这张后面
-///   （`currentIndex + 1`），不套 10 分钟下限——这就是 D11 的「立即重做」；
-/// * 仍然被绑定、但已经答对一次的那一次，位置按 `gap`（调用方传入
-///   `ReviewService.relearnGapCards`）排在 `currentIndex + 1 + gap`，时间按
-///   `nextDueAt` 卡在 10 分钟之后。
+/// `gap` 由调用方传入（当前唯一来源：`ReviewService.relearnGapCards = 3`，
+/// 见 app/lib/features/anki/application/review_service.dart 的 `buildQueue` /
+/// `_interleave`）；本文件只保留一个**产品口径下限**
+/// [kMinForcedRedoGapCards] = 2，防止调用方传 0/负数时退化成原地重复
+/// （用户口径是「空两到三张」）。
 ///
-/// 两处代码位置就是上面引的 :271-282 / :378-391 与 cloze_engine.dart:211-257。
-/// 这是把两份既有实现之间的差异**固定下来**，而不是引入第三条规则。
+/// ## 与旧口径的关系
+///
+/// 旧口径把产品口径 D11「答错立即重做」实现成 `insertIndex = currentIndex + 1`
+/// （紧跟当前这张，不套 10 分钟门）。用户 2026-10-18 明确改掉了这一点：错题
+/// 不再紧跟当前这张，而是先空 2–3 张。`immediateRedo` 这个**入参名**为了不改
+/// 调用方暂时沿用（review_page.dart 不在本次改动的写作用域内），语义收敛成
+/// 「这一次是刚答错，因此不套 [notBefore] 时间下限」；排位决策里对应的字段
+/// 已经改名为 [ForcedRedoPlan.timeGated]，避免留下错名。
+///
+/// 产品文档 D11（docs/FEATURE_MATRIX.md）的旧描述由 Lead 统一改；本文件只负责
+/// 把**代码行为**固定成用户最新口径。
 library;
+
+/// 错题重现的最小间隔（张）：用户口径「错题先空 2–3 张」，所以下限是 2。
+///
+/// 这是**产品口径下限**，不是默认值；默认间隔仍然只由调用方传入
+/// （`ReviewService.relearnGapCards`，当前 = 3），避免出现第二处默认值真相。
+const int kMinForcedRedoGapCards = 2;
 
 /// 一次「把刚答过的卡插回本轮队列」的排位决策。
 ///
@@ -36,7 +50,7 @@ class ForcedRedoPlan<T> {
   const ForcedRedoPlan({
     required this.item,
     required this.insertIndex,
-    required this.immediate,
+    required this.timeGated,
     required this.notBefore,
   });
 
@@ -44,35 +58,46 @@ class ForcedRedoPlan<T> {
   final T item;
 
   /// 插回**去掉当前这张之后**的队列里的下标（已夹在 `[0, queueLength]`）。
+  ///
+  /// 下标 `currentIndex + 1 + gap` 意味着「当前这张之后还有 gap 张卡，然后才轮到它」。
   final int insertIndex;
 
-  /// 是否为 D11 的「立即重做」那一次（不受时间下限约束）。
-  final bool immediate;
+  /// 这一次是否套用 [notBefore] 时间下限。
+  ///
+  /// * 刚答错：`false`（位置已经隔开，不叠加 10 分钟门）；
+  /// * 答对一次、仍在绑定期内：`true`。
+  final bool timeGated;
 
   /// 早于此时刻不允许显示；`null` 表示立刻可见。
   final DateTime? notBefore;
 
-  /// 是否受时间下限约束（立即重做那一次为 `false`）。
-  bool get gated => !immediate && notBefore != null;
+  /// 是否真的受时间下限约束（`timeGated` 且拿到了 [notBefore]）。
+  bool get gated => timeGated && notBefore != null;
 
   /// 此刻能否把这张卡放出来。
   bool visibleAt(DateTime now) =>
-      ForcedLoop.mayShow(now: now, notBefore: immediate ? null : notBefore);
+      ForcedLoop.mayShow(now: now, notBefore: timeGated ? notBefore : null);
 
   /// 还要等多久（向上取整到分钟；可显示时为 [Duration.zero]）。
   Duration waitRemaining(DateTime now) => ForcedLoop.waitRemaining(
-      now: now, notBefore: immediate ? null : notBefore);
+      now: now, notBefore: timeGated ? notBefore : null);
 }
 
 /// 会话内强制重做的排位规则。
 abstract final class ForcedLoop {
-  /// 根据一次作答之后的 `ForcedStep`（cloze_engine.dart:211-257）决定要不要把这张卡插回本轮队列。
+  /// 根据一次作答之后的 `ForcedStep`（cloze_engine.dart 的 `ForcedMachine.grade`）
+  /// 决定要不要把这张卡插回本轮队列。
   ///
   /// 返回 `null` = 不插回（已经解除绑定，或本来就没被绑定）。
   ///
   /// [currentIndex] 是刚答完这张卡在**插入前**队列里的下标；
   /// [queueLength] 是插入前队列长度；[gap] 由调用方传入
-  /// `ReviewService.relearnGapCards`（= 3），这里不做默认值，避免第二处真相。
+  /// `ReviewService.relearnGapCards`（= 3），这里不做默认值，避免第二处真相；
+  /// 但小于 [kMinForcedRedoGapCards] 的值会被抬到 2（用户口径「先空两到三张」）。
+  ///
+  /// [immediateRedo] 沿用 `ReviewOutcome.immediateRedo` 的旧名字，语义是
+  /// 「这一次是刚答错」：位置同样隔 [gap] 张，但**不**套 [nextDueAt] 时间下限。
+  /// 答对一次、仍在绑定期内则位置隔 [gap] 张且套 [nextDueAt]。
   static ForcedRedoPlan<T>? reinsertAfter<T>({
     required T item,
     required bool stillForced,
@@ -86,22 +111,13 @@ abstract final class ForcedLoop {
 
     final length = queueLength < 0 ? 0 : queueLength;
     final index = currentIndex < 0 ? 0 : currentIndex;
-    final spacing = gap < 0 ? 0 : gap;
-
-    if (immediateRedo) {
-      return ForcedRedoPlan<T>(
-        item: item,
-        insertIndex: _clamp(index + 1, 0, length),
-        immediate: true,
-        notBefore: null,
-      );
-    }
+    final spacing = _spacing(gap);
 
     return ForcedRedoPlan<T>(
       item: item,
       insertIndex: _clamp(index + 1 + spacing, 0, length),
-      immediate: false,
-      notBefore: nextDueAt,
+      timeGated: !immediateRedo,
+      notBefore: immediateRedo ? null : nextDueAt,
     );
   }
 
@@ -122,6 +138,9 @@ abstract final class ForcedLoop {
     final minutes = (left.inSeconds + 59) ~/ 60;
     return Duration(minutes: minutes);
   }
+
+  static int _spacing(int gap) =>
+      gap < kMinForcedRedoGapCards ? kMinForcedRedoGapCards : gap;
 
   static int _clamp(int value, int low, int high) {
     if (value < low) return low;

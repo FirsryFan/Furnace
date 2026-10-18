@@ -184,8 +184,8 @@ void main() {
     });
 
     test(
-        'a wrong answer is redone right away, and the redo grades from a '
-        'freshly read row', () async {
+        'a wrong answer is forced back into today\'s queue, and the redo '
+        'grades from a freshly read row', () async {
       await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');
       final item = (await service.buildQueue()).single;
 
@@ -195,7 +195,8 @@ void main() {
         rating: FsrsRating.good,
       );
       expect(wrong.stillForced, isTrue);
-      expect(wrong.immediateRedo, isTrue, reason: 'D11: 答错立即重做，不是等到下一轮队列');
+      expect(wrong.immediateRedo, isTrue,
+          reason: 'D11: 答错仍要回同一天队列（位置由 ForcedLoop 按 gap 排，不再原地紧跟）');
 
       // 队列里这一份还是「答错之前」的行（grade 的契约），会话内重做要先读一遍。
       final fresh = await service.refreshItem(item);
@@ -215,7 +216,8 @@ void main() {
       );
       expect(first.stillForced, isTrue);
       expect(first.released, isFalse);
-      expect(first.immediateRedo, isFalse, reason: '答对一次只进强制期，不再立刻重做');
+      expect(first.immediateRedo, isFalse,
+          reason: '答对一次只进强制期：隔 gap 张、10 分钟后再出现');
 
       final second = await service.grade(
         item: await service.refreshItem(fresh),

@@ -91,7 +91,7 @@ void main() {
     expect(clozeSentence(tester), isNot(contains('______')));
   });
 
-  testWidgets('答错后同一张卡立刻重做，答对一次先进等待态', (tester) async {
+  testWidgets('答错后（队列只剩这一张）同一张卡连续重做，答对一次先进等待态', (tester) async {
     final (db, anki) = await openDatabase();
     await addClozePoint(anki);
 
@@ -107,12 +107,14 @@ void main() {
     await tester.tap(find.text('还是不会'));
     await settle(tester);
 
-    // 2) 下一张就是同一个空 —— 会话内闭环，不用等下一轮队列。
+    // 2) 队列只有这一张、后面没有空卡：按用户新口径它只能连续出现 —— 会话内
+    // 闭环，不用等下一轮队列。
     await tapNext(tester);
     expect(clozeSentence(tester), '光合作用的主要场所是______。');
     expect(find.text('新空'), findsNothing, reason: '重做不是一张新空');
 
-    // 3) 这次答对：仍在强制期内，约 10 分钟后才会再出现。
+    // 3) 这次答对：仍在强制期内，位置隔 gap 张（这里没有别的卡），约 10 分钟后
+    // 才会再出现。
     await tester.enterText(find.byType(TextField), '叶绿体');
     await tester.tap(find.byTooltip('提交'));
     await settle(tester);

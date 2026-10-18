@@ -8,8 +8,9 @@
 ///   brand-new (never-used) slot; otherwise it replays a historical slot.
 ///   When no unused slot exists the knowledge point is marked exhausted and
 ///   only historical draws happen.
-/// - The forced-binding machine (wrong answer -> immediate redo + short
-///   relearning interval until two consecutive correct answers) is pure.
+/// - The forced-binding machine (wrong answer -> the same unit comes back
+///   later in the session queue + short relearning interval until two
+///   consecutive correct answers) is pure.
 library;
 
 import 'dart:math';
@@ -193,7 +194,12 @@ class ForcedStep {
   /// Consecutive correct answers while forced.
   final int forcedStreak;
 
-  /// True when the same unit must be redone right away (wrong answer).
+  /// True when this answer was wrong, so the unit stays forced.
+  ///
+  /// The name is historical (D11「答错立即重做」): the in-session queue now
+  /// re-inserts a wrong answer a couple of cards later instead of in place
+  /// (`ForcedLoop.reinsertAfter`), and this flag only means "this is the
+  /// wrong-answer step, so no time floor applies to the redo".
   final bool immediateRedo;
 
   final DateTime? nextDueAt;
@@ -217,8 +223,9 @@ abstract final class ForcedMachine {
     required int releaseStreak,
   }) {
     if (!correct) {
-      // Wrong: binding forces on, streak resets, redo now and again after
-      // the short relearning interval.
+      // Wrong: binding forces on, streak resets; the queue re-inserts the
+      // unit a couple of cards later, and the next correct answer then waits
+      // for the short relearning interval.
       return ForcedStep(
         forced: true,
         forcedStreak: 0,

@@ -145,15 +145,16 @@ class ReviewOutcome {
   /// The unit must come back inside today's queue.
   final bool stillForced;
 
-  /// The wrong answer must be redone **right away**, before the rest of the
-  /// queue - D11's 立即重做.
+  /// This answer was wrong, so the unit stays forced (D11's 立即重做).
   ///
   /// [stillForced] is the "it comes back" half of the binding; this flag is the
   /// "without waiting for the 10-minute floor" half. The two are decided by the
   /// same `ForcedMachine.grade` call, and the in-session queue rule reads both
-  /// (`ForcedLoop.reinsertAfter`): a set [stillForced] with [immediateRedo]
-  /// re-inserts the card right behind the current one, while a set [stillForced]
-  /// without it inserts it `relearnGapCards` later and gates it on [nextDueAt].
+  /// (`ForcedLoop.reinsertAfter`): both branches now insert the card
+  /// `relearnGapCards` later (clamped to the queue end, so a short queue still
+  /// repeats it back-to-back); only the [stillForced] without [immediateRedo]
+  /// branch gates it on [nextDueAt]. The name keeps the old D11 wording; the
+  /// flag no longer means "in place, right away".
   final bool immediateRedo;
 
   /// Knowledge points lifted by tag diffusion because of this wrong answer.
@@ -198,8 +199,9 @@ class ExposureOutcome {
 ///
 /// - Blank granularity: ONE blank per question (annotation 17).
 /// - A wrong answer marks THAT blank `active`; it must reappear within the
-///   same day's queue, a few cards later, or immediately when nothing else is
-///   left (annotation 17).
+///   same day's queue after a couple of cards, and only becomes contiguous when
+///   the queue has no spare cards left (annotation 17; user 2026-10-18: 错题先
+///   空 2–3 张再重现，末尾不足才连续).
 /// - Three ways to judge an answer, all kept: strict auto (characters exactly,
 ///   no normalisation at all - annotation 18), lenient auto ([lenientMatch]) and
 ///   self ([JudgeMode.self], for prose). The engine only produces the verdict
@@ -234,6 +236,11 @@ class ReviewService {
   final CognitiveModel cognitiveModel;
 
   /// How many cards must pass before an active (wrong-answer) blank returns.
+  ///
+  /// This is the single source of truth for the gap: both the initial queue
+  /// interleave below and the in-session re-insert (`ForcedLoop.reinsertAfter`,
+  /// fed by review_page.dart) read it. The forced loop keeps its own floor of
+  /// 2 cards (user: 空两到三张), but never a second default of 3.
   static const int relearnGapCards = 3;
 
   // --- queue ---------------------------------------------------------------
@@ -449,6 +456,10 @@ class ReviewService {
 
   /// Places active units a few cards after their wrong answer; when nothing
   /// else is queued they simply repeat (annotation 17).
+  ///
+  /// Same policy as `ForcedLoop.reinsertAfter`: one active unit every
+  /// `relearnGapCards` cards, and `add` once the queue runs out instead of
+  /// padding it, so a short queue repeats the unit back-to-back.
   List<ReviewItem> _interleave(List<ReviewItem> forced, List<ReviewItem> due) {
     if (forced.isEmpty) {
       return due;
