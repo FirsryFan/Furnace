@@ -317,3 +317,79 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
   空名单「无」、手工无数据不渲染、配额学科/领域聚合计数、学科/领域保底缺口与未覆盖、子块顺序、
   分页唯一性与答案区关闭时的分页、`includeCompositionNotes=false`、仅单类数据也渲染、英文 labels、
   不按题目反推、不按题数截断。
+
+## 14. 组卷说明里的组卷质量报告（轮次一百二十五）
+
+组卷页的「组卷质量报告」（`domain/services/paper/paper_quality_report.dart` 的
+`PaperQualityReport`）现在可以原样追加到题目卷 Word 的「组卷说明」末尾：得分、判据、
+证据都来自调用方算好的报告，导出层只负责排版，不重算、不改写数字。
+
+### 14.1 参数
+
+- `buildPaperDocx` 新增可选参数 `PaperQualityReport? qualityReport`（默认 null）：
+  `paper_docx.dart:402`：
+  逐字节不变的兼容边界。null 时所有新分支都不进入，旧卷面（含旧「组卷说明」）
+  与改动前完全一致；`includeCompositionNotes: false` 时即使传了报告也不渲染。
+- `PaperDocxLabels` 新增 15 个默认中文文案字段（`paper_docx.dart:197` 起）：
+  `qualityHeading`（组卷质量）、`qualityOverview`（卷面）、`qualitySeverityPrefix`（判据）、
+  `qualitySeverityError/Warning/Info`（错误/警告/提示）、`qualityNoWarnings`（没有命中任何判据）、
+  `qualityDistributionSubject/Source/Difficulty/Zone`（学科/来源/难度/区域分布）、
+  `qualityRestPrefix`（其余）、`qualitySameCodePrefix`（同类共）、
+  `qualityReportTruncatedPrefix`（报告侧截断）。全部可被英文/自定义 labels 覆盖，**不新增 l10n key**。
+- 两个版面常量（**未标定**）：`kPaperDocxQualityDistributionLimit = 6`
+  （`paper_docx.dart:353`）与
+  `kPaperDocxQualityWarningsPerCode = 3`
+  （`paper_docx.dart:358`）。
+- 质量报告由调用方算好：组卷层已有 `PaperQualityReport.build(plan: ...)`，导出层不读 IO、不查 DB。
+
+### 14.2 渲染顺序与内容
+
+质量节固定排在「组卷说明」已有子块之后（学科分布 → 领域分布 → 手工指定 → 配额 → 保底缺口 →
+组卷质量），不单独分页；整文档 `pageBreakBefore` 仍只出现一次（落在附录第一个标题）。
+渲染顺序：
+
+1. 标题 `qualityHeading`；
+2. 总览：`卷面：N / 目标 M 道，填充率 x.x%`（比例非有限值记 `0.0%`，不抛）；
+3. 判据计数：`判据：错误 e 条、警告 w 条、提示 i 条`（三档始终齐全）；
+4. 四类分布：学科 / 来源 / 难度 / zone，每行 `标签 count 道（xx.x%）`，」、」连接；
+   空分布（例如没有逐题难度读数）整行跳过，不写空行、不编造；
+5. 命中判据：按报告顺序逐条 `· [错误/警告/提示] messageZh`；报告没有任何判据时写
+   `qualityNoWarnings`（没有命中任何判据）；
+6. 报告侧截断提示：`报告侧截断：另有 N 条同类判据未展开`（`truncatedWarningCount > 0` 才写）。
+
+质量节由 `_addQualityNotes` 驱动（`paper_docx.dart:1022`），
+分布与判据分别走 `_addQualityDistribution`（`:1063`）与
+`_addQualityWarnings`（`:1078`）。
+
+### 14.3 截断口径
+
+- 报告侧：`PaperQualityReport.build(maxWarningsPerCode: ...)` 已按 code 截断（默认 20），
+  被截时报告自己带 `truncatedWarningCount`，导出层照实写一条汇总；
+- 版面侧：同一判据 code 连续最多列 `kPaperDocxQualityWarningsPerCode`（3）条，超出写
+  `同类共 N 条，已显示前 3 条`；分布每类最多列 `kPaperDocxQualityDistributionLimit`（6）行，
+  超出写 `其余 N 项`；两处折叠都只写计数，不静默丢内容。
+- 折叠以「相邻同 code 分组」实现，依赖报告本身已按 severity → code 排序；导出层不重新排序。
+
+### 14.4 未做 / 需要后续接线
+
+- **provider 未传报告**：`features/questions/application/paper_docx_export.dart` 目前没把
+  `PaperQualityReport` 传进 `buildPaperDocx`；组卷层要先有「导出时按 plan 现算报告」的调用，
+  这属于 features 层，本片未碰。
+- **UI 未展示**：组卷页还没有质量报告卡片；页面展示与 l10n 文案由其他接线任务完成。
+- **阈值未标定**：报告里的 0.6 集中度、来源单一题数 3、难度极差 1.0 等都还是先验值；
+  版面上一页能放多少行（6 行分布 / 3 条判据）也未在 Word 真机标定。
+- 未在 Word 真机上重测带质量节的页数与分页（只做 XML 层 `pageBreakBefore` 计数）。
+- 质量节文案与既有附录文案一样是中文硬编码（可被 labels 覆盖，但未接 l10n）。
+
+### 14.5 验收
+
+- 新增 `app/test/domain/services/export/paper_docx_quality_test.dart` **16 例**：
+  不传报告 / 显式 null 逐字节一致且无质量节、`includeCompositionNotes=false` 不渲染、
+  仅报告也渲染组卷说明、质量节在末尾且分页仍一次、两次导出字节相等、总览与三档计数、
+  学科/来源/区域分布（空分布不写）、难度展示名、分布折叠「其余 N 项」、空卷只有 empty_plan、
+  英文 labels、无判据占位句、同 code 折叠 3 条、不同 code 各自折叠、报告侧截断计数、
+  真实报告每条 messageZh 都进卷面。
+- `flutter test test/domain/services/export --concurrency=1` → **+157 All tests passed!**
+  （本片前 141）。
+- `dart analyze lib/domain/services/export test/domain/services/export` → **No issues found!**
+- 两个 Dart 文件 `dart format -o none --set-exit-if-changed` → **0 changed**。

@@ -19,6 +19,7 @@ library;
 import 'dart:typed_data';
 
 import '../paper/paper_composer.dart';
+import '../paper/paper_quality_report.dart';
 import '../reasoning/capability_action.dart';
 import 'docx_writer.dart';
 
@@ -193,6 +194,20 @@ class PaperDocxLabels {
     this.shortfallHeading = '保底缺口',
     this.uncoveredHeading = '未覆盖',
     this.nonePlaceholder = '无',
+    this.qualityHeading = '组卷质量',
+    this.qualityOverview = '卷面',
+    this.qualitySeverityPrefix = '判据',
+    this.qualitySeverityError = '错误',
+    this.qualitySeverityWarning = '警告',
+    this.qualitySeverityInfo = '提示',
+    this.qualityNoWarnings = '没有命中任何判据',
+    this.qualityDistributionSubject = '学科分布',
+    this.qualityDistributionSource = '来源分布',
+    this.qualityDistributionDifficulty = '难度分布',
+    this.qualityDistributionZone = '区域分布',
+    this.qualityRestPrefix = '其余',
+    this.qualitySameCodePrefix = '同类共',
+    this.qualityReportTruncatedPrefix = '报告侧截断',
     this.headlineBuilder = defaultPaperDocxHeadline,
     this.subjectLabel,
     this.sourceLevelLabel,
@@ -254,6 +269,48 @@ class PaperDocxLabels {
   /// 名单为空时的占位文案（默认「无」）。
   final String nonePlaceholder;
 
+  /// 组卷质量节标题（默认「组卷质量」）。
+  final String qualityHeading;
+
+  /// 组卷质量节第一行「卷面」前缀：`卷面：2 / 目标 3 道，填充率 66.7%`。
+  final String qualityOverview;
+
+  /// 组卷质量节严重度汇总行前缀（默认「判据」）。
+  final String qualitySeverityPrefix;
+
+  /// 严重度「错误」的中文文案。
+  final String qualitySeverityError;
+
+  /// 严重度「警告」的中文文案。
+  final String qualitySeverityWarning;
+
+  /// 严重度「提示」的中文文案。
+  final String qualitySeverityInfo;
+
+  /// 报告没有任何命中判据时的占位句（默认「没有命中任何判据」）。
+  final String qualityNoWarnings;
+
+  /// 质量节的学科分布行前缀。
+  final String qualityDistributionSubject;
+
+  /// 质量节的来源分布行前缀。
+  final String qualityDistributionSource;
+
+  /// 质量节的难度分布行前缀。
+  final String qualityDistributionDifficulty;
+
+  /// 质量节的区域（zone）分布行前缀。
+  final String qualityDistributionZone;
+
+  /// 分布超过上限时折叠行的前缀（默认「其余」，后接「N 项」）。
+  final String qualityRestPrefix;
+
+  /// 同一判据 code 超过上限时折叠行的前缀（默认「同类共」）。
+  final String qualitySameCodePrefix;
+
+  /// 报告侧按 code 截断时提示行的前缀（默认「报告侧截断」）。
+  final String qualityReportTruncatedPrefix;
+
   /// 「想要 N 道，凑到 M 道」；与组卷页复制卷面的口径保持一致。
   final String Function(int want, int got) headlineBuilder;
 
@@ -290,6 +347,16 @@ class PaperDocxLabels {
 /// 默认的「想要 N 道，凑到 M 道」。
 String defaultPaperDocxHeadline(int want, int got) => '想要 $want 道，凑到 $got 道';
 
+/// 组卷质量节里每类分布最多列几行，其余折叠成「其余 N 项」。
+///
+/// 未标定：先取 6，等真实卷面实测后再调整；超过部分只写计数，不静默丢内容。
+const int kPaperDocxQualityDistributionLimit = 6;
+
+/// 组卷质量节里同一判据 code 最多列几条，其余折叠成「同类共 N 条」。
+///
+/// 未标定：先取 3；报告本身已有 `maxWarningsPerCode` 截断，这里只控制版面长度。
+const int kPaperDocxQualityWarningsPerCode = 3;
+
 /// 来源档位中文名（与收题页 `question_vocab_labels.dart` 的档位一一对应）。
 const Map<String, String> kPaperDocxSourceLevelLabelsZh = <String, String>{
   'gaokao': '高考真题',
@@ -311,8 +378,13 @@ String paperDocxSourceLevelLabel(String level, {String emptyLabel = '未标注�
 /// [questions] 按 questionId 索引；缺项不会让导出失败，而是记进
 /// [PaperDocxBuildResult.missingQuestionLabels] 并在附录里如实说明。
 ///
-/// [includeCompositionNotes] 控制卷末是否渲染「组卷说明」；只有 [plan] 里带了
-/// 配额、手工指定或保底缺口数据时才会出现该节，默认 plan 的卷面不因此变化。
+/// [includeCompositionNotes] 控制卷末是否渲染「组卷说明」；[plan] 里带了配额、
+/// 手工指定或保底缺口数据，或者传了 [qualityReport] 时才会出现该节，默认 plan
+/// 的卷面不因此变化。
+///
+/// [qualityReport] 是调用方算好的组卷质量报告（[PaperQualityReport.build]）；
+/// 只在 [includeCompositionNotes] 打开且报告非空时追加到「组卷说明」末尾。导出
+/// 层不重算判据，也不改写报告里的数字；默认 null 时卷面与旧版逐字节一致。
 PaperDocxBuildResult buildPaperDocx({
   required PaperPlan plan,
   required Map<String, PaperDocxQuestion> questions,
@@ -327,6 +399,7 @@ PaperDocxBuildResult buildPaperDocx({
   bool includeReasons = true,
   bool includeGaps = true,
   bool includeCompositionNotes = true,
+  PaperQualityReport? qualityReport,
   String? title,
   String? subtitle,
 }) {
@@ -340,6 +413,7 @@ PaperDocxBuildResult buildPaperDocx({
     labels: labels,
     mathCompiler: mathCompiler,
     generatedAt: generatedAt,
+    qualityReport: qualityReport,
   );
   assembler.addPreamble(title: title ?? labels.title, subtitle: subtitle);
   assembler.addBody();
@@ -364,6 +438,7 @@ class _Assembler {
     required this.labels,
     required this.mathCompiler,
     required this.generatedAt,
+    required this.qualityReport,
   });
 
   final DocxDocumentBuilder builder;
@@ -374,6 +449,9 @@ class _Assembler {
   final PaperDocxLabels labels;
   final DocxMathCompiler? mathCompiler;
   final DateTime? generatedAt;
+
+  /// 调用方算好的组卷质量报告；null = 卷末不渲染质量节（旧版卷面）。
+  final PaperQualityReport? qualityReport;
 
   final List<String> missingQuestionLabels = <String>[];
   final List<String> imageSkippedNotes = <String>[];
@@ -594,7 +672,8 @@ class _Assembler {
     required bool includeCompositionNotes,
   }) {
     final wantsAnswers = includeAnswers || includeSolutions || includeReasons;
-    final wantsComposition = includeCompositionNotes && _hasCompositionData();
+    final wantsComposition = includeCompositionNotes &&
+        (_hasCompositionData() || qualityReport != null);
     final wantsGaps = includeGaps;
     if (!wantsAnswers && !wantsComposition && !wantsGaps) return;
     if (wantsAnswers) {
@@ -774,10 +853,12 @@ class _Assembler {
     }
   }
 
-  /// 组卷说明：把配额、手工指定与保底缺口的账面如实写进卷末，方便对账。
+  /// 组卷说明：把配额、手工指定、保底缺口与组卷质量的账面如实写进卷末，
+  /// 方便对账。
   ///
-  /// 只有 [PaperPlan] 里确实带数据时才由 [addAppendix] 调用；默认 plan（没有
-  /// 配额、没有手工指定）不会出现这一节，卷面与旧版逐字节一致。
+  /// 只有 [PaperPlan] 里确实带数据（或调用方传了 [qualityReport]）时才由
+  /// [addAppendix] 调用；默认 plan（没有配额、没有手工指定、没有质量报告）
+  /// 不会出现这一节，卷面与旧版逐字节一致。
   void _addCompositionNotes() {
     _addAppendixHeading(labels.sectionHeading);
     _addSubjectDistribution();
@@ -785,6 +866,7 @@ class _Assembler {
     _addManualSelectionNotes();
     _addQuotaBlockedNotes();
     _addShortfallNotes();
+    _addQualityNotes();
   }
 
   bool _hasCompositionData() {
@@ -927,6 +1009,118 @@ class _Assembler {
     final missing = minimumCount - selectedCount;
     return '$name：差 $missing 道（保底 $minimumCount 道，已排 '
         '$selectedCount 道；可用候选 $availableCount 道）';
+  }
+
+  // ------------------------------------------------------- 组卷质量报告
+
+  /// 组卷质量：把调用方算好的 [PaperQualityReport] 如实写进组卷说明末尾。
+  ///
+  /// 导出层不重算判据、不改写报告数字；分布每类最多列
+  /// [kPaperDocxQualityDistributionLimit] 行、同一判据最多列
+  /// [kPaperDocxQualityWarningsPerCode] 条，超出部分折叠成显式计数。
+  /// 报告里没被评估的判据（例如没有难度读数时的难度分布）不写空行、不编造。
+  void _addQualityNotes() {
+    final report = qualityReport;
+    if (report == null) return;
+    _addAppendixHeading(labels.qualityHeading);
+    _addBullet(_qualityOverviewText(report));
+    _addBullet(_qualitySeverityText(report));
+    _addQualityDistribution(
+      labels.qualityDistributionSubject,
+      report.subjectDistribution,
+    );
+    _addQualityDistribution(
+      labels.qualityDistributionSource,
+      report.sourceLevelDistribution,
+    );
+    _addQualityDistribution(
+      labels.qualityDistributionDifficulty,
+      report.difficultyDistribution,
+    );
+    _addQualityDistribution(
+      labels.qualityDistributionZone,
+      report.zoneDistribution,
+    );
+    _addQualityWarnings(report);
+  }
+
+  String _qualityOverviewText(PaperQualityReport report) {
+    return '${labels.qualityOverview}：${report.questionCount} / 目标 '
+        '${report.requestedCount} 道，填充率 ${_percentText(report.fillRatio)}';
+  }
+
+  String _qualitySeverityText(PaperQualityReport report) {
+    final counts = report.countsBySeverity;
+    final error = counts[PaperQualitySeverity.error] ?? 0;
+    final warning = counts[PaperQualitySeverity.warning] ?? 0;
+    final info = counts[PaperQualitySeverity.info] ?? 0;
+    return '${labels.qualitySeverityPrefix}：'
+        '${labels.qualitySeverityError} $error 条、'
+        '${labels.qualitySeverityWarning} $warning 条、'
+        '${labels.qualitySeverityInfo} $info 条';
+  }
+
+  void _addQualityDistribution(
+    String heading,
+    List<PaperQualityBucket> buckets,
+  ) {
+    if (buckets.isEmpty) return;
+    final shown = buckets.take(kPaperDocxQualityDistributionLimit).toList();
+    final parts = <String>[
+      for (final bucket in shown)
+        '${bucket.labelZh} ${bucket.count} 道（${_percentText(bucket.ratio)}）',
+    ];
+    final rest = buckets.length - shown.length;
+    if (rest > 0) parts.add('${labels.qualityRestPrefix} $rest 项');
+    _addBullet('$heading：${parts.join('、')}');
+  }
+
+  void _addQualityWarnings(PaperQualityReport report) {
+    final warnings = report.warnings;
+    if (warnings.isEmpty) {
+      _addBullet(labels.qualityNoWarnings);
+    } else {
+      var index = 0;
+      while (index < warnings.length) {
+        final code = warnings[index].code;
+        var end = index;
+        while (end < warnings.length && warnings[end].code == code) {
+          end++;
+        }
+        final group = warnings.sublist(index, end);
+        final shown = group.take(kPaperDocxQualityWarningsPerCode).toList();
+        for (final warning in shown) {
+          _addBullet('[${_qualitySeverityName(warning.severity)}] '
+              '${warning.messageZh}');
+        }
+        if (group.length > shown.length) {
+          _addBullet('${labels.qualitySameCodePrefix} ${group.length} 条，'
+              '已显示前 ${shown.length} 条');
+        }
+        index = end;
+      }
+    }
+    if (report.truncatedWarningCount > 0) {
+      _addBullet('${labels.qualityReportTruncatedPrefix}：另有 '
+          '${report.truncatedWarningCount} 条同类判据未展开');
+    }
+  }
+
+  String _qualitySeverityName(PaperQualitySeverity severity) {
+    switch (severity) {
+      case PaperQualitySeverity.error:
+        return labels.qualitySeverityError;
+      case PaperQualitySeverity.warning:
+        return labels.qualitySeverityWarning;
+      case PaperQualitySeverity.info:
+        return labels.qualitySeverityInfo;
+    }
+  }
+
+  /// 比例写成一位小数百分数；非有限值记 0（不抛）。
+  String _percentText(double ratio) {
+    if (!ratio.isFinite) return '0.0%';
+    return '${(ratio * 100).toStringAsFixed(1)}%';
   }
 
   void _addExportNotes() {
