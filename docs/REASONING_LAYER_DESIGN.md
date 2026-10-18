@@ -137,6 +137,35 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
   自定义动作会再次出现在"未知动作"候选里。持久化/UI/provider 均未做，等后续切片。
 - 验收：`app/test/domain/services/reasoning` → +59（编辑层 34 + 发现器 25），目录 analyze 干净。
 
+### 4.2 词表 JSON 文件编解码（轮次一百二十五，纯逻辑）
+
+编辑页要做到「从文件导入 / 导出成 .json」之前，先有纯逻辑编解码层：
+
+- 文件：`app/lib/domain/services/reasoning/capability_vocabulary_codec.dart`（456 行）。API：
+  `String encodeCapabilityVocabularyJson(CapabilityActionOverlay overlay, {bool pretty = true})`
+  （键顺序固定的 `{"version":1,"customActions":[...]}`，pretty 两空格缩进 + 结尾换行，compact 无空白；
+  **不做语义去重**，交给 overlay 校验）、
+  `String? tryEncodeOverlayForSharing(...)`（空词表返回 null）、
+  `CapabilityVocabularyDecodeResult decodeCapabilityVocabularyText(String text)` —— **永不抛异常**。
+- 解码口径：strip UTF-8 BOM、容忍 CRLF 与首尾空白；两种顶层形状（带 version 对象 / 裸 customActions
+  数组，后者 version 按 1）；version 缺省 = 1、整数 > 1 报 `unsupportedVersion` 但**尽力解析**、
+  整数 < 1 报 `invalidVersion`、非整数报 `versionNotInteger`；未知顶层键记 `unknownTopLevelKey`
+  不报错；原始 UTF-8 字节 > **64 KB**（先于 JSON 语法判断）、空文档、坏 JSON、顶层非对象/数组为
+  **fatal**（返回空 overlay）；`customActions` 缺失/非列表为非 fatal；条目级（非对象 / 缺 key /
+  key 非字符串）逐条记账并带原始 index；结构合格条目交给 `CapabilityActionOverlay.fromJson`，
+  其既有 catalog issues 合并为 `entryRejected`（带 `overlayReason`，重复 key 时 index = null）。
+- issue：`enum CapabilityVocabularyDecodeIssueCode` 13 值；`CapabilityVocabularyDecodeIssue` 有
+  code / message / fatal / index / key / overlayReason 与 `toJson`；结果对象暴露 `version` / `hadBom` /
+  `byteLength` / `hasFatal` / `isUsable`（无 fatal 且 overlay 非空）；issue 排序确定性：fatal 在前 →
+  index 升序（文档级 null 视作 -1）→ code 枚举序 → key → message。
+- 用途：导入 = 读文件文本 → `decodeCapabilityVocabularyText`，fatal 直接展示、非 fatal 逐条列
+  `message + index`；导出 = `encodeCapabilityVocabularyJson`。文件 IO / 导入导出按钮 / l10n 仍未做
+  （归后续词表编辑页切片）；issue message 是中文硬编码。
+- 验收：新建 `test/domain/services/reasoning/capability_vocabulary_codec_test.dart` **80 例**（8 组：
+  编码稳定、往返保真含中文/emoji/subjectHints、BOM/CRLF/裸数组、version 四态、未知顶层键、fatal 四类、
+  条目级 issue 与 `entryRejected` 映射、`isUsable` 与排序）；`test/domain/services/reasoning`
+  **+344**（264 → 344，无回归）；目录 analyze 干净。
+
 ## 5. 解析器期待的 JSON 契约（逐字，与 `chainJsonContract` 一致）
 
 ```json
@@ -558,3 +587,27 @@ static LearningAdvicePlan build({
 - 未做：编辑页 UI（列表 / 表单 / 导入按钮 / 保存按钮）与 l10n 未做，下一轮派给 question-intake；
   词表导入的 `.json` 文件选择（file_picker + `jsonDecode`）留在 UI 层；不做跨设备同步。
 
+## 18. AI 工具：下一步练什么（轮次一百二十五）
+
+§14/§15/§16 的读数与建议原本只活在 provider 里，这个切片把它们接到 AI 对话的工具层：
+
+- 文件：`app/lib/features/ai/tools/learning_advice_tools.dart`，类 `GetLearningAdviceTool`；
+  注册在 `tool_registry.dart`（`GetLearningAdviceTool(db: db)`）。工具名 `get_learning_advice`。
+- 参数：`max_advices`（默认 5、上限 10，超上限钳制、<1 抛 `ToolArgError`）、
+  `high_risk_min_steps`（默认 3、上限 20，<1 抛错）。非法值用中文报错并写清当前值。
+- 管道与页面**同源**：`CapabilityVocabularyStore(SettingsRepository(db)).load()` 取当前词表 overlay →
+  `readChainInsightCorpus(db)` → `ChainInsights.aggregate(chains, catalog: overlay.catalog)`；
+  另用 `QuestionRepository(db).allReasoningSteps()` 喂 `CapabilityProfile.of`，并用一次
+  `COUNT(questions)` 得题库题数；最后 `LearningAdvicePlan.build`（阈值与条数由参数覆盖）。
+  全部只读，不写库、不调模型。
+- 摘要口径：noData 时直接给「还没有学习数据——…先去题库加题…」；有建议时先说第一条
+  「下一步建议：标题——理由（共 N 条，完整的在 result 里）」。`modelResult` 含
+  `corpus_question_count` / `reasoning_step_count` / `insights`（链数/步数/题数/高风险步数/自定义与未知动作数/
+  异常计数）/ `thresholds` / `plan`（建议清单）/ `note`（确定性、阈值未标定、只作行动提示）。
+- 只读声明：`readOnly => true` + `riskFor` 返回 write + `reversibleFor => true`，与 `compose_paper` /
+  `audit_question_intake` 同款，审批引擎不会逐条询问只读查询。
+- 验收：`app/test/features/ai/learning_advice_tools_test.dart` **10 例**（空库 noData、3 步高风险练习建议排第一、
+  2 步不足阈值 keepGoing、阈值可调、未知动作 reviewVocabulary、题数缺口 collectChains 如实说还差几道、
+  overlay 自定义动作被认作已知动作、max_advices 钳制与非法参数、工具声明/schema、只读跑完行数不变）。
+- 未做：建议卡片 UI（首页「下一步」/学习洞察页）仍归 presentation；工具不落库、不做历史对比；
+  `knowledgePointIds` 仍恒空；阈值与条数未标定。
