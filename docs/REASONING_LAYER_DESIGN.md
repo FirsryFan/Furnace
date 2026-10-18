@@ -770,9 +770,12 @@ static LearningAdvicePlan build({
 
 ### 20.5 未做 / 未验证
 
-- 数据读取（从落库 chain / step 表构造 `ChainQualityChainInput`、带上 `knownAction` 快照、
-  接 overlay 合并后的 catalog）未接，归后续 application 层；详情页 / 洞察页展示、修复建议生成、
-  阈值标定均未做。
+- 数据读取已接（轮次一百二十五，`features/questions/application/chain_quality_reader.dart`）：
+  一次全库读 `ReasoningChains` / `ReasoningSteps` 投影成 `ChainQualityChainInput`（`knownAction` 无落库快照，
+  统一传 null 让体检层按当前词表重判；空 justification / checkMethod 读作 null；坏 `knowledgeHints` 计
+  `invalidKnowledgeHintsSteps` 读作空），提供 `chainQualityReportProvider`（全库）与
+  `chainQualityForQuestionProvider`（单题，题目详情页用）；词表读取失败退回内置词表继续体检。
+  详情页 / 洞察页展示、修复建议生成、阈值标定均未做。
 - 真实历史库里 stuckRisk 出现 NaN / ±inf 的落库路径未实测；knownAction 快照与当前词表大规模漂移后的
   误报率未标定。
 - `catalog` 为 null 时退回内置词表的兼容行为保留（既有调用方不传 overlay 不会被新判据改变），
