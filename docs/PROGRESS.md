@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-10-18 轮次一百二十：v0.5.3 发布件 —— 把「今天该做的卡」装进双端安装包（Lead）
+
+**起点（用户指令 m30963）**：「不用了，还是建新包吧」——不要调试运行的做法，直接把上一轮
+（轮次一百一十九，commit `80fc46a`）的卡组每日额度修复打成新的双端安装包。
+
+**A. 版本**：`app/pubspec.yaml` `0.5.2+11 → 0.5.3+12`；`app/lib/core/app_info.dart` 的
+`kAppVersion = '0.5.3'`、`kAppBuildNumber = 12`。patch 级：没有 schema 迁移，直接覆盖安装。
+
+**B. 构建**（脚本 `E:\dsh-tmp-aot\release-053-build.ps1`，日志 `release-053-build.txt`）：
+- 第一次尝试失败：包装脚本用 `powershell`（Windows PowerShell 5.1）跑，脚本本身是 UTF-8 无 BOM
+  且含中文仓库路径，5.1 按 ANSI 读 → `Set-Location` 失败、`scripts\*.ps1` 找不到，
+  两个子构建都是 `exit=-196608`（0.2s 空转）。改用 `pwsh` 并在同一进程里 `& scripts\build_windows.ps1`
+  （绝对路径）后正常；同时修掉 wrapper 里 `pubspec` 空行（之前也是路径没进去的征兆）。
+- Windows：`scripts/build_windows.ps1`（pub get --offline → gen-l10n → build_runner 44s/407 outputs →
+  `flutter build windows --release`）**152.8s**，exit 0。产物 `furnace.exe` 91,136 bytes、
+  `data\app.so` **18,924,424 bytes**（与 v0.5.2 同尺寸但 SHA-256 不同：`585F4F56…` vs `1554DA36…`，
+  确认是真重建，不是缓存）。
+- Android：`scripts/build_android.ps1` **207.3s**，exit 0。APK **92,151,606 bytes（87.9 MB）**；
+  aapt2：`versionCode='12' versionName='0.5.3'`，minSdk 24 / targetSdk 36，label Furnace；
+  apksigner：`CN=Threadflow`、证书 SHA-256 `57de8b8f…`（与 v0.5.0–v0.5.2 同一把，可覆盖安装）。
+
+**C. 打包时发现并清掉一个调试残留**：`Release\data\flutter_assets\kernel_blob.bin`
+（105,422,664 bytes）——是上一轮为了演示 `flutter run` 调试运行留在构建目录里的产物，
+release 包运行不需要它。删掉后 Release 目录 27 个文件 / 44,475,882 bytes（v0.5.2 为 27 文件 /
+44,377,262 bytes）。教训：同一 build 目录先跑过 `flutter run` 再打包，要检查
+`data\flutter_assets\kernel_blob.bin` 是否被带进 Release。
+
+**D. dist**：
+- `dist/Furnace-0.5.3-android.apk`：92,151,606 bytes，SHA-256
+  `8C9D8971FD07BA7F846C04D1A01519E161B301AE255FE55BAEA1519E099C059D`。
+- `dist/Furnace-0.5.3-windows-x64.zip`：19,422,508 bytes（34 entries），SHA-256
+  `6C46A7D22C5FB33AD8D9919ADA60DB3F701982490532B2C91550A8012CE12538`。
+- 删掉 v0.5.2 三件（apk / zip / RELEASE-v0.5.2.md）与 dist 里误留的
+  `Furnace-0.5.2-windows-x64` 解压目录；重写 `dist/RELEASE-v0.5.3.md`（下载表、额度修复说明、
+  验证数字、已知未做）。
+- 解压到 `E:\FirsryOS\THREADRIPPER\Furnace-0.5.3-windows-x64\` 并冒烟：`Start-Process furnace.exe`
+  → pid 16484、标题 `Furnace`、Responding=True、WorkingSet 285.7 MB；exe 版本资源 `0.5.3+12`。
+  顺手删掉旧的 0.5.0 / 0.5.1 / 0.5.2 解压目录，只留 0.5.3。
+
+**E. 验证**：`flutter test test/core/app_info_test.dart` → +2 通过（版本常量与 pubspec 一致）；
+`dart analyze lib test` → **92 issues（0 error / 0 warning）**；全量测试已在轮次一百一十九跑过
+**+2152 ~2 All tests passed**，本轮只改版本常量（`app_info_test` 复核），未再重跑全量。
+
+**F. 没做 / 限制**：Windows 仍无安装器、无代码签名；本轮不再重复构建之外的清理
+（build 目录保留，方便下次增量构建）。
+
+
 ## 2026-10-18 轮次一百一十九：闪存卡只看「今天该做的卡」—— 卡组每日新卡/复习额度真正生效（Lead）
 
 **起点（用户反馈）**：「我设置了卡组，但是闪存卡那里还是所有卡片放到一起背。应该只显示今日任务。」
