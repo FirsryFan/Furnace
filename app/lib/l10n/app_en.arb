@@ -1514,7 +1514,7 @@
   },
   "questionIntakeDeleteConfirm": "Delete this question? It will not come back from sync.",
   "questionIntakeCancel": "Cancel",
-  "questionIntakeSearchHint": "Search stems",
+  "questionIntakeSearchHint": "Search stems or serial numbers",
   "questionIntakeFilterAll": "All",
   "questionIntakeOptionCount": "{count} options",
   "@questionIntakeOptionCount": {

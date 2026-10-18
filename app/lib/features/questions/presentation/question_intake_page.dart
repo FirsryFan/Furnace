@@ -496,11 +496,14 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
                 _IntakeLibrarySection(
                   searchController: _stemSearchController,
                   onSearchChanged: (value) => _setFilter(
-                    (current) => current.copyWith(stemContains: value),
+                    (current) => questionLibraryFilterForSearch(current, value),
                   ),
                   onClearSearch: () {
                     _stemSearchController.clear();
-                    _setFilter((current) => current.copyWith(clearStem: true));
+                    _setFilter((current) => current.copyWith(
+                          clearStem: true,
+                          clearSerialNo: true,
+                        ));
                   },
                   onOpen: _openDetail,
                   onDelete: _confirmDelete,

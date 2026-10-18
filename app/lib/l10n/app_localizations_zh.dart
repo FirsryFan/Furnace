@@ -2990,7 +2990,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionIntakeCancel => '取消';
 
   @override
-  String get questionIntakeSearchHint => '搜题干';
+  String get questionIntakeSearchHint => '搜题干或题号';
 
   @override
   String get questionIntakeFilterAll => '全部';

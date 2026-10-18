@@ -5359,7 +5359,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionIntakeSearchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search stems'**
+  /// **'Search stems or serial numbers'**
   String get questionIntakeSearchHint;
 
   /// No description provided for @questionIntakeFilterAll.

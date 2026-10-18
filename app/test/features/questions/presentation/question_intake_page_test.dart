@@ -385,6 +385,38 @@ void main() {
     expect(find.text('光合作用的意义'), findsNothing);
   });
 
+  testWidgets('搜索框按题号精确命中：输入 TR-00002 只剩第二题', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '光合作用的意义'));
+    await repository.ingest(const QuestionDraft(stem: '牛顿第二定律'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.enterText(
+      field(strings.questionIntakeSearchHint),
+      'TR-00002',
+    );
+    await settle(tester);
+
+    expect(find.text('牛顿第二定律'), findsOneWidget);
+    expect(find.text('光合作用的意义'), findsNothing);
+  });
+
+  testWidgets('题号没命中时回落成题干搜索（数字也可能只是题干的一部分）', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '第 42 号实验的现象'));
+    await repository.ingest(const QuestionDraft(stem: '牛顿第二定律'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    // 库里没有 42 号题：'42' 应回落成题干 LIKE '%42%'，而不是空列表。
+    await tester.enterText(field(strings.questionIntakeSearchHint), '42');
+    await settle(tester);
+
+    expect(find.text('第 42 号实验的现象'), findsOneWidget);
+    expect(find.text('牛顿第二定律'), findsNothing);
+  });
+
   testWidgets('删题要确认：确认前库里还在，确认后消失并提示', (tester) async {
     await repository.ingest(const QuestionDraft(stem: '待删除的题'));
 

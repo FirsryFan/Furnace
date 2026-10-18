@@ -3119,7 +3119,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionIntakeCancel => 'Cancel';
 
   @override
-  String get questionIntakeSearchHint => 'Search stems';
+  String get questionIntakeSearchHint => 'Search stems or serial numbers';
 
   @override
   String get questionIntakeFilterAll => 'All';

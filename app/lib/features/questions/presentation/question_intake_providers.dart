@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../application/handwriting_proposal_service.dart';
 import '../data/handwriting_intake_store.dart';
 
@@ -37,28 +38,39 @@ class QuestionLibraryFilter {
     this.sourceLevel,
     this.state,
     this.stemContains,
+    this.serialNo,
   });
 
   final String? subjectKey;
   final String? sourceLevel;
   final String? state;
+
+  /// 题干关键字（LIKE）。搜索框的原文也留在这里：输入读得出题号时，它同时是
+  /// 题号一个都没命中后的回落条件。
   final String? stemContains;
+
+  /// 搜索框输入读出来的题号（`TR-42` → 42）。有值时先按号精确搜（见
+  /// [questionLibraryProvider]）；读不出号码时为 null，只按题干搜。
+  final int? serialNo;
 
   bool get isEmpty =>
       (subjectKey == null || subjectKey!.isEmpty) &&
       (sourceLevel == null || sourceLevel!.isEmpty) &&
       (state == null || state!.isEmpty) &&
-      (stemContains == null || stemContains!.isEmpty);
+      (stemContains == null || stemContains!.isEmpty) &&
+      serialNo == null;
 
   QuestionLibraryFilter copyWith({
     String? subjectKey,
     String? sourceLevel,
     String? state,
     String? stemContains,
+    int? serialNo,
     bool clearSubject = false,
     bool clearSourceLevel = false,
     bool clearState = false,
     bool clearStem = false,
+    bool clearSerialNo = false,
   }) {
     // `null` 在这些字段上是"不筛"，不是"保持原值"，所以要一个显式清空开关：
     // 否则用户把学科选回"全部"时，旧的学科会留在筛选里。
@@ -67,6 +79,7 @@ class QuestionLibraryFilter {
       sourceLevel: clearSourceLevel ? null : (sourceLevel ?? this.sourceLevel),
       state: clearState ? null : (state ?? this.state),
       stemContains: clearStem ? null : (stemContains ?? this.stemContains),
+      serialNo: clearSerialNo ? null : (serialNo ?? this.serialNo),
     );
   }
 
@@ -76,10 +89,56 @@ class QuestionLibraryFilter {
       other.subjectKey == subjectKey &&
       other.sourceLevel == sourceLevel &&
       other.state == state &&
-      other.stemContains == stemContains;
+      other.stemContains == stemContains &&
+      other.serialNo == serialNo;
 
   @override
-  int get hashCode => Object.hash(subjectKey, sourceLevel, state, stemContains);
+  int get hashCode =>
+      Object.hash(subjectKey, sourceLevel, state, stemContains, serialNo);
+}
+
+/// 一次搜索输入的解析结果：能读成题号就带上 [serialNo]，同时保留文本用于
+/// 题号一个都没命中时回落到题干搜。
+class QuestionLibrarySearchQuery {
+  const QuestionLibrarySearchQuery({this.stemContains, this.serialNo});
+
+  final String? stemContains;
+  final int? serialNo;
+
+  bool get isEmpty => (stemContains ?? '').isEmpty && serialNo == null;
+}
+
+/// 解析题库搜索框的输入。
+///
+/// 号码规则统一走 `tryParseQuestionSerial`（`TR-00042` / `tr-42` / `00042` /
+/// `42` 都认），界面层不自己写正则；认不出号码时整段文本就是题干关键字。
+QuestionLibrarySearchQuery parseQuestionLibrarySearch(String input) {
+  final trimmed = input.trim();
+  if (trimmed.isEmpty) {
+    return const QuestionLibrarySearchQuery();
+  }
+  return QuestionLibrarySearchQuery(
+    stemContains: trimmed,
+    serialNo: tryParseQuestionSerial(trimmed),
+  );
+}
+
+/// 用搜索框文本更新筛选条件：[current] 的学科/来源/状态保留。
+///
+/// 题号与题干同时写进筛选：provider 先按号搜、没命中再按题干搜，用户不用
+/// 记自己刚才敲的是号码还是关键词。
+QuestionLibraryFilter questionLibraryFilterForSearch(
+  QuestionLibraryFilter current,
+  String input,
+) {
+  final query = parseQuestionLibrarySearch(input);
+  return QuestionLibraryFilter(
+    subjectKey: current.subjectKey,
+    sourceLevel: current.sourceLevel,
+    state: current.state,
+    stemContains: query.stemContains,
+    serialNo: query.serialNo,
+  );
 }
 
 final questionLibraryFilterProvider = StateProvider<QuestionLibraryFilter>(
@@ -104,18 +163,34 @@ final questionLibraryProvider =
   final repository = ref.watch(questionRepositoryProvider);
   final filter = ref.watch(questionLibraryFilterProvider);
 
+  Future<List<Question>> search({
+    Set<int>? serialNos,
+    String? stemContains,
+  }) {
+    return repository.search(
+      subjectKey: filter.subjectKey,
+      sourceLevels: filter.sourceLevel == null ? null : {filter.sourceLevel!},
+      states: filter.state == null ? null : {filter.state!},
+      serialNos: serialNos,
+      stemContains: stemContains,
+      limit: questionLibraryLimit,
+    );
+  }
+
   final List<Question> rows;
   if (filter.isEmpty) {
     // 没筛选时按时间倒序（`all`），这是"刚收进来的在最前面"的顺序。
     rows = await repository.all(limit: questionLibraryLimit);
+  } else if (filter.serialNo != null) {
+    // 搜索框的输入读得出题号：先按号精确命中（`TR-42` 与 `42` 等价）。
+    final bySerial = await search(serialNos: {filter.serialNo!});
+    // 号一个都没命中就回落成题干搜：用户敲的数字可能只出现在题干里，也可能
+    // 只是记错了号——这时给空列表不如把他真正想找的题干搜出来。
+    rows = bySerial.isEmpty
+        ? await search(stemContains: filter.stemContains)
+        : bySerial;
   } else {
-    rows = await repository.search(
-      subjectKey: filter.subjectKey,
-      sourceLevels: filter.sourceLevel == null ? null : {filter.sourceLevel!},
-      states: filter.state == null ? null : {filter.state!},
-      stemContains: filter.stemContains,
-      limit: questionLibraryLimit,
-    );
+    rows = await search(stemContains: filter.stemContains);
   }
 
   final entries = <QuestionListEntry>[];
