@@ -3920,6 +3920,79 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get paperManualSelectionTitle => 'Manual selection';
+
+  @override
+  String get paperManualSelectionAdd => 'Choose questions';
+
+  @override
+  String get paperManualSelectionHint =>
+      'Mandatory questions are always included (capped only by the target count); excluded questions are never picked; exclusion wins on conflicts.';
+
+  @override
+  String paperManualSelectionIncludeTitle(int count) {
+    return 'Mandatory ($count)';
+  }
+
+  @override
+  String paperManualSelectionExcludeTitle(int count) {
+    return 'Excluded ($count)';
+  }
+
+  @override
+  String get paperManualSelectionRemove => 'Remove';
+
+  @override
+  String get paperManualSelectionClear => 'Clear manual selection';
+
+  @override
+  String get paperManualSelectionPickerTitle => 'Choose questions';
+
+  @override
+  String get paperManualSelectionPickerFilterHint =>
+      'Filter by stem or question ID';
+
+  @override
+  String get paperManualSelectionPickerInclude => 'Mark mandatory';
+
+  @override
+  String get paperManualSelectionPickerExclude => 'Mark excluded';
+
+  @override
+  String get paperManualSelectionPickerNone =>
+      'No selectable questions in the bank';
+
+  @override
+  String paperManualSelectionPickerFailed(String message) {
+    return 'Failed to read the question bank: $message';
+  }
+
+  @override
+  String paperManualSelectionOutcomeIncluded(int count) {
+    return '$count mandatory question(s) included';
+  }
+
+  @override
+  String paperManualSelectionMissingTitle(int count) {
+    return 'Mandatory but missing from the bank ($count)';
+  }
+
+  @override
+  String paperManualSelectionSkippedTitle(int count) {
+    return 'Mandatory but squeezed out by the target count ($count)';
+  }
+
+  @override
+  String paperManualSelectionConflictTitle(int count) {
+    return 'Mandatory/excluded conflicts (exclusion wins, $count)';
+  }
+
+  @override
+  String paperManualSelectionMore(int count) {
+    return '$count more not listed';
+  }
+
+  @override
   String get tasksDueAtConflictTitle =>
       'That time clashes with a schedule block';
 

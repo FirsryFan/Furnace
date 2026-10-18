@@ -3757,6 +3757,77 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get paperManualSelectionTitle => '手工指定';
+
+  @override
+  String get paperManualSelectionAdd => '选择题';
+
+  @override
+  String get paperManualSelectionHint =>
+      '必收题点名就要（只受目标题数上限）；排除题任何阶段都不选；两者冲突时排除优先。';
+
+  @override
+  String paperManualSelectionIncludeTitle(int count) {
+    return '必收（$count 道）';
+  }
+
+  @override
+  String paperManualSelectionExcludeTitle(int count) {
+    return '排除（$count 道）';
+  }
+
+  @override
+  String get paperManualSelectionRemove => '移除';
+
+  @override
+  String get paperManualSelectionClear => '清空手工选择';
+
+  @override
+  String get paperManualSelectionPickerTitle => '选择题';
+
+  @override
+  String get paperManualSelectionPickerFilterHint => '按题干或题目 id 过滤';
+
+  @override
+  String get paperManualSelectionPickerInclude => '设为必收';
+
+  @override
+  String get paperManualSelectionPickerExclude => '设为排除';
+
+  @override
+  String get paperManualSelectionPickerNone => '题库里没有可选的题';
+
+  @override
+  String paperManualSelectionPickerFailed(String message) {
+    return '读取题库失败：$message';
+  }
+
+  @override
+  String paperManualSelectionOutcomeIncluded(int count) {
+    return '本卷收下必收题 $count 道';
+  }
+
+  @override
+  String paperManualSelectionMissingTitle(int count) {
+    return '必收但题库里没有（$count 道）';
+  }
+
+  @override
+  String paperManualSelectionSkippedTitle(int count) {
+    return '必收但被目标题数挤掉（$count 道）';
+  }
+
+  @override
+  String paperManualSelectionConflictTitle(int count) {
+    return '必收与排除冲突（排除生效，$count 道）';
+  }
+
+  @override
+  String paperManualSelectionMore(int count) {
+    return '还有 $count 道没列出';
+  }
+
+  @override
   String get tasksDueAtConflictTitle => '这段时间撞上了日程块';
 
   @override

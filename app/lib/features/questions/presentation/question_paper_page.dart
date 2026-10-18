@@ -21,6 +21,7 @@ import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
 import 'paper_docx_export_button.dart';
 import 'paper_domain_quota_view.dart';
+import 'paper_manual_selection_view.dart';
 import 'paper_subject_quota_view.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
@@ -108,6 +109,9 @@ class QuestionPaperPage extends ConsumerWidget {
           const SizedBox(height: 12),
           const PaperSubjectQuotaSection(),
           const PaperDomainQuotaSection(),
+          const SizedBox(height: 8),
+          const PaperManualSelectionButton(),
+          const PaperManualSelectionSection(),
           const SizedBox(height: 12),
           plan.when(
             loading: () => const Padding(
@@ -349,6 +353,10 @@ class _PaperBody extends ConsumerWidget {
             const SizedBox(height: 12),
             PaperDomainQuotaOutcome(plan: plan),
           ],
+          if (paperManualOutcomeVisible(plan)) ...[
+            const SizedBox(height: 12),
+            PaperManualSelectionOutcome(plan: plan),
+          ],
         ],
       );
     }
@@ -422,6 +430,10 @@ class _PaperBody extends ConsumerWidget {
         if (_hasDomainQuotaOutcome(plan)) ...[
           const SizedBox(height: 12),
           PaperDomainQuotaOutcome(plan: plan),
+        ],
+        if (paperManualOutcomeVisible(plan)) ...[
+          const SizedBox(height: 12),
+          PaperManualSelectionOutcome(plan: plan),
         ],
         const SizedBox(height: 12),
         for (var index = 0; index < plan.items.length; index++)

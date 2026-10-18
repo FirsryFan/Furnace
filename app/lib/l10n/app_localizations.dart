@@ -6653,6 +6653,114 @@ abstract class AppLocalizations {
   /// **'Uncovered domains: {domains}'**
   String paperDomainQuotaUncovered(String domains);
 
+  /// No description provided for @paperManualSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual selection'**
+  String get paperManualSelectionTitle;
+
+  /// No description provided for @paperManualSelectionAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose questions'**
+  String get paperManualSelectionAdd;
+
+  /// No description provided for @paperManualSelectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandatory questions are always included (capped only by the target count); excluded questions are never picked; exclusion wins on conflicts.'**
+  String get paperManualSelectionHint;
+
+  /// No description provided for @paperManualSelectionIncludeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandatory ($count)'**
+  String paperManualSelectionIncludeTitle(int count);
+
+  /// No description provided for @paperManualSelectionExcludeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded ($count)'**
+  String paperManualSelectionExcludeTitle(int count);
+
+  /// No description provided for @paperManualSelectionRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get paperManualSelectionRemove;
+
+  /// No description provided for @paperManualSelectionClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear manual selection'**
+  String get paperManualSelectionClear;
+
+  /// No description provided for @paperManualSelectionPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose questions'**
+  String get paperManualSelectionPickerTitle;
+
+  /// No description provided for @paperManualSelectionPickerFilterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by stem or question ID'**
+  String get paperManualSelectionPickerFilterHint;
+
+  /// No description provided for @paperManualSelectionPickerInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark mandatory'**
+  String get paperManualSelectionPickerInclude;
+
+  /// No description provided for @paperManualSelectionPickerExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark excluded'**
+  String get paperManualSelectionPickerExclude;
+
+  /// No description provided for @paperManualSelectionPickerNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No selectable questions in the bank'**
+  String get paperManualSelectionPickerNone;
+
+  /// No description provided for @paperManualSelectionPickerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read the question bank: $message'**
+  String paperManualSelectionPickerFailed(String message);
+
+  /// No description provided for @paperManualSelectionOutcomeIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'$count mandatory question(s) included'**
+  String paperManualSelectionOutcomeIncluded(int count);
+
+  /// No description provided for @paperManualSelectionMissingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandatory but missing from the bank ($count)'**
+  String paperManualSelectionMissingTitle(int count);
+
+  /// No description provided for @paperManualSelectionSkippedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandatory but squeezed out by the target count ($count)'**
+  String paperManualSelectionSkippedTitle(int count);
+
+  /// No description provided for @paperManualSelectionConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandatory/excluded conflicts (exclusion wins, $count)'**
+  String paperManualSelectionConflictTitle(int count);
+
+  /// No description provided for @paperManualSelectionMore.
+  ///
+  /// In en, this message translates to:
+  /// **'$count more not listed'**
+  String paperManualSelectionMore(int count);
+
   /// No description provided for @tasksDueAtConflictTitle.
   ///
   /// In en, this message translates to:

@@ -2032,6 +2032,48 @@
   "@paperDomainQuotaUncovered": {
     "placeholders": { "domains": { "type": "String" } }
   },
+  "paperManualSelectionTitle": "Manual selection",
+  "paperManualSelectionAdd": "Choose questions",
+  "paperManualSelectionHint": "Mandatory questions are always included (capped only by the target count); excluded questions are never picked; exclusion wins on conflicts.",
+  "paperManualSelectionIncludeTitle": "Mandatory ({count})",
+  "@paperManualSelectionIncludeTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionExcludeTitle": "Excluded ({count})",
+  "@paperManualSelectionExcludeTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionRemove": "Remove",
+  "paperManualSelectionClear": "Clear manual selection",
+  "paperManualSelectionPickerTitle": "Choose questions",
+  "paperManualSelectionPickerFilterHint": "Filter by stem or question ID",
+  "paperManualSelectionPickerInclude": "Mark mandatory",
+  "paperManualSelectionPickerExclude": "Mark excluded",
+  "paperManualSelectionPickerNone": "No selectable questions in the bank",
+  "paperManualSelectionPickerFailed": "Failed to read the question bank: {message}",
+  "@paperManualSelectionPickerFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "paperManualSelectionOutcomeIncluded": "{count} mandatory question(s) included",
+  "@paperManualSelectionOutcomeIncluded": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionMissingTitle": "Mandatory but missing from the bank ({count})",
+  "@paperManualSelectionMissingTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionSkippedTitle": "Mandatory but squeezed out by the target count ({count})",
+  "@paperManualSelectionSkippedTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionConflictTitle": "Mandatory/excluded conflicts (exclusion wins, {count})",
+  "@paperManualSelectionConflictTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionMore": "{count} more not listed",
+  "@paperManualSelectionMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "tasksDueAtConflictTitle": "That time clashes with a schedule block",
   "tasksDueAtConflictBody": "\"{title}\" {range} is a busy block, so it cannot be scheduled there.",
   "tasksDueAtConflictMoveBefore": "Move before it ({moment})",

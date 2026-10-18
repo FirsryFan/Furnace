@@ -1912,6 +1912,48 @@
   "@paperDomainQuotaUncovered": {
     "placeholders": { "domains": { "type": "String" } }
   },
+  "paperManualSelectionTitle": "手工指定",
+  "paperManualSelectionAdd": "选择题",
+  "paperManualSelectionHint": "必收题点名就要（只受目标题数上限）；排除题任何阶段都不选；两者冲突时排除优先。",
+  "paperManualSelectionIncludeTitle": "必收（{count} 道）",
+  "@paperManualSelectionIncludeTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionExcludeTitle": "排除（{count} 道）",
+  "@paperManualSelectionExcludeTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionRemove": "移除",
+  "paperManualSelectionClear": "清空手工选择",
+  "paperManualSelectionPickerTitle": "选择题",
+  "paperManualSelectionPickerFilterHint": "按题干或题目 id 过滤",
+  "paperManualSelectionPickerInclude": "设为必收",
+  "paperManualSelectionPickerExclude": "设为排除",
+  "paperManualSelectionPickerNone": "题库里没有可选的题",
+  "paperManualSelectionPickerFailed": "读取题库失败：{message}",
+  "@paperManualSelectionPickerFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "paperManualSelectionOutcomeIncluded": "本卷收下必收题 {count} 道",
+  "@paperManualSelectionOutcomeIncluded": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionMissingTitle": "必收但题库里没有（{count} 道）",
+  "@paperManualSelectionMissingTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionSkippedTitle": "必收但被目标题数挤掉（{count} 道）",
+  "@paperManualSelectionSkippedTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionConflictTitle": "必收与排除冲突（排除生效，{count} 道）",
+  "@paperManualSelectionConflictTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "paperManualSelectionMore": "还有 {count} 道没列出",
+  "@paperManualSelectionMore": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "tasksDueAtConflictTitle": "这段时间撞上了日程块",
   "tasksDueAtConflictBody": "「{title}」{range} 是忙碌日程块，不能排进去。",
   "tasksDueAtConflictMoveBefore": "移到这块之前（{moment}）",
