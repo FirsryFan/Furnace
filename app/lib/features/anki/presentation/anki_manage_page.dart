@@ -21,6 +21,13 @@ final ankiStatsProvider = FutureProvider<AnkiStats>((ref) {
   return ref.watch(ankiStatsServiceProvider).load();
 });
 
+/// Every tag, ordered the way the pickers show them.
+Future<List<Tag>> _sortedTags(WidgetRef ref) async {
+  final tags = await ref.read(tagRepositoryProvider).getAllTags();
+  tags.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
+  return tags;
+}
+
 /// Anki management: create knowledge points and card templates.
 class AnkiManagePage extends ConsumerWidget {
   const AnkiManagePage({super.key});
@@ -196,42 +203,76 @@ class AnkiManagePage extends ConsumerWidget {
     final titleController = TextEditingController();
     final contentController = TextEditingController();
     final sourceController = TextEditingController();
+    // A card group is a tag, and every daily target is set per group, so a card
+    // created without one can never be reached by the review plan. Asking here
+    // is cheaper than making the user find the card again and tag it later.
+    final tags = await _sortedTags(ref);
+    if (!context.mounted) {
+      return;
+    }
+    var selectedTagId = '';
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.ankiNewKnowledgePoint),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              autofocus: true,
-              decoration: InputDecoration(labelText: l10n.commonTitle),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.ankiNewKnowledgePoint),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  autofocus: true,
+                  decoration: InputDecoration(labelText: l10n.commonTitle),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contentController,
+                  maxLines: 3,
+                  decoration: InputDecoration(labelText: l10n.commonContent),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sourceController,
+                  decoration: InputDecoration(labelText: l10n.ankiSource),
+                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedTagId,
+                    isExpanded: true,
+                    decoration: InputDecoration(labelText: l10n.ankiCardGroup),
+                    items: [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text(l10n.ankiCardGroupNone),
+                      ),
+                      for (final tag in tags)
+                        DropdownMenuItem(
+                          value: tag.id,
+                          child: Text(tag.path ?? tag.name),
+                        ),
+                    ],
+                    onChanged: (value) => setDialogState(
+                      () => selectedTagId = value ?? '',
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: contentController,
-              maxLines: 3,
-              decoration: InputDecoration(labelText: l10n.commonContent),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.commonCancel),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: sourceController,
-              decoration: InputDecoration(labelText: l10n.ankiSource),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.commonSave),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.commonSave),
-          ),
-        ],
       ),
     );
 
@@ -243,11 +284,18 @@ class AnkiManagePage extends ConsumerWidget {
     if (title.isEmpty || content.isEmpty) {
       return;
     }
-    await ref.read(ankiRepositoryProvider).createKnowledgePoint(
+    final point = await ref.read(ankiRepositoryProvider).createKnowledgePoint(
           title: title,
           content: content,
           source: sourceController.text.trim(),
         );
+    if (selectedTagId.isNotEmpty) {
+      await ref.read(tagRepositoryProvider).addTagToObject(
+            tagId: selectedTagId,
+            objectType: 'knowledge_point',
+            objectId: point.id,
+          );
+    }
     ref.invalidate(ankiKnowledgePointsProvider);
     ref.invalidate(ankiStatsProvider);
   }

@@ -10,6 +10,10 @@
   "@navAnki": {
     "description": "User-facing term (2026-10-02): 闪存卡 / flashcard. It replaced the older words 「知识点」 and 「词条」. Code, database columns and the MindNet contract still say knowledgePoint / KP on purpose - renaming identifiers or the schema would be a migration with no user-visible benefit."
   },
+  "navQuestions": "Questions",
+  "@navQuestions": {
+    "description": "Top-level destination for the question bank (题库): the overview list plus the intake/paper/photo/material entries."
+  },
   "navPackages": "Library",
   "navSettings": "Settings",
   "tagsTitle": "Tags",
@@ -134,6 +138,8 @@
   "ankiNewKnowledgePoint": "New flashcard",
   "ankiAutoBlank": "Auto blank",
   "ankiSource": "Source",
+  "ankiCardGroup": "Card group (tag)",
+  "ankiCardGroupNone": "No group (loose card)",
   "ankiNewTemplate": "New template",
   "ankiQuestion": "Question",
   "ankiAnswer": "Answer",
@@ -182,6 +188,19 @@
     "placeholders": { "tag": { "type": "String" } }
   },
   "reviewPlanGroupBody": "The tag and everything under it count as this group.",
+  "reviewPlanUngroupedTitle": "{count} cards are in no card group",
+  "@reviewPlanUngroupedTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "reviewPlanUngroupedBody": "A card group is a tag, and daily targets are set per group, so a card with no tag falls outside every target - the plan cannot see it. Give them a group once and you can set that group's daily amount right away.",
+  "reviewPlanUngroupedAction": "Put them in one group",
+  "reviewPlanUngroupedDone": "Moved {count} cards into \"{tag}\"",
+  "@reviewPlanUngroupedDone": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "tag": { "type": "String" }
+    }
+  },
   "todayPlanTitle": "Today's list",
   "todayPlanUncalibrated": "The bonus is not calibrated: this order is a hint, not a measurement.",
   "todayPlanEmpty": "Nothing is due today. That is not \"nothing to do\" - the due queue is just empty; which new cards to learn is your call, and this page will not invent them.",
@@ -590,6 +609,7 @@
   "knowledgeCreateTask": "Create event",
   "knowledgeTaskCreated": "Event created",
   "knowledgeInsight": "Today's review",
+  "knowledgeMoreActions": "More",
   "knowledgeReviewTab": "Review",
   "knowledgeInsightEmpty": "Nothing recorded today",
   "knowledgeInsightWrong": "Went wrong",
@@ -670,13 +690,14 @@
 
   "settingsCardGroups": "Deck settings",
   "settingsCardGroupsHint": "A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.",
+  "settingsQuestionBankHint": "Question overview, intake, paper assembly, photo cleanup and material intake all start here.",
 
   "settingsUsageDoc": "Usage guide",
   "settingsUsageDocHint": "How each part works and what its limits are: AI, review, knowledge base, question bank, photos/materials, cognitive model, ranking",
   "docAiTitle": "What the assistant can do, and what waits for your consent",
   "docAiBody": "The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_tasks, query_schedule, query_content, fetch_page, evaluate_problem_fit, compose_paper, find_similar_questions, find_questions_by_capability, plan_today, review_metrics and friends) run immediately; writes (creating tags, flashcards, tasks, documents, material intake, applying today's plan...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.",
   "docReviewTitle": "Review and flashcards",
-  "docReviewBody": "Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today's queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen's app bar).",
+  "docReviewBody": "Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today's queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen's app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.",
   "docKnowledgeTitle": "Knowledge base and tags",
   "docKnowledgeBody": "Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI's delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.",
   "docBankTitle": "Question bank and paper assembly",
@@ -1286,6 +1307,25 @@
   "questionIntakeTitle": "Question intake",
   "questionIntakeSubtitle": "Paste a question, photograph it, or browse the bank",
   "questionIntakeEntryHint": "Paste, photograph, browse",
+  "questionBankRefresh": "Refresh the question bank",
+  "questionBankFailed": "Could not read the question bank: {message}",
+  "@questionBankFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "questionBankEmpty": "The question bank is empty",
+  "questionBankEmptyHint": "Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.",
+  "questionBankIntro": "The four buttons above add material to the bank; the list below filters by subject - tap a row for its detail and solution chain.",
+  "questionBankSummary": "{questions} questions · {subjects} subjects",
+  "@questionBankSummary": {
+    "placeholders": { "questions": { "type": "int" }, "subjects": { "type": "int" } }
+  },
+  "questionBankAllSubjects": "All subjects",
+  "questionBankNoMatch": "No questions in this subject yet",
+  "questionBankUntitled": "(no stem)",
+  "questionBankPointCount": "{count} knowledge points",
+  "@questionBankPointCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "questionIntakePasteSection": "Paste a question",
   "questionIntakePhotoSection": "Photograph / pick images",
   "questionIntakeLibrarySection": "Question bank",

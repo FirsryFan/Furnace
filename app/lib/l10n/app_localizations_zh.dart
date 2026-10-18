@@ -30,6 +30,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navAnki => '闪存卡';
 
   @override
+  String get navQuestions => '题库';
+
+  @override
   String get navPackages => '知识库';
 
   @override
@@ -382,6 +385,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ankiSource => '来源';
 
   @override
+  String get ankiCardGroup => '卡组（标签）';
+
+  @override
+  String get ankiCardGroupNone => '不设置（散卡）';
+
+  @override
   String get ankiNewTemplate => '新建模板';
 
   @override
@@ -520,6 +529,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reviewPlanGroupBody => '这个标签以及它下面的所有标签都算作这个卡组。';
+
+  @override
+  String reviewPlanUngroupedTitle(int count) {
+    return '有 $count 张卡还没有卡组';
+  }
+
+  @override
+  String get reviewPlanUngroupedBody =>
+      '卡组就是标签，而每日任务量是按卡组设的：没有标签的卡不属于任何卡组，也就落在任何每日任务量之外——计划看不到它们。把它们归到一个卡组后，就能马上给这个卡组设每天多少张。';
+
+  @override
+  String get reviewPlanUngroupedAction => '把它们归到一个卡组';
+
+  @override
+  String reviewPlanUngroupedDone(int count, String tag) {
+    return '已把 $count 张卡归到「$tag」';
+  }
 
   @override
   String get todayPlanTitle => '今日清单';
@@ -1295,6 +1321,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get knowledgeInsight => '今日复盘';
 
   @override
+  String get knowledgeMoreActions => '更多';
+
+  @override
   String get knowledgeReviewTab => '复习';
 
   @override
@@ -1460,6 +1489,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '卡组就是标签树：给一个标签设每日新卡/复习上限，它整棵子树都算这个卡组；判分方式与卡片类型也在这里改。';
 
   @override
+  String get settingsQuestionBankHint => '题库总览、收题、组卷、拍照整理、材料入库，都从这一页进。';
+
+  @override
   String get settingsUsageDoc => '使用文档';
 
   @override
@@ -1478,7 +1510,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docReviewBody =>
-      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。';
+      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。';
 
   @override
   String get docKnowledgeTitle => '知识库与标签';
@@ -2685,6 +2717,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionIntakeEntryHint => '粘贴、拍照、查题库';
+
+  @override
+  String get questionBankRefresh => '刷新题库';
+
+  @override
+  String questionBankFailed(String message) {
+    return '读题库失败：$message';
+  }
+
+  @override
+  String get questionBankEmpty => '题库还是空的';
+
+  @override
+  String get questionBankEmptyHint => '题从三个地方来：收题（粘贴或选文件）、拍照整理、材料入库。AI 不会替你出题。';
+
+  @override
+  String get questionBankIntro => '上面四个按钮是往题库里加东西的入口；下面按学科筛，点一行看这道题的详情与解题链。';
+
+  @override
+  String questionBankSummary(int questions, int subjects) {
+    return '共 $questions 道题 · $subjects 个学科';
+  }
+
+  @override
+  String get questionBankAllSubjects => '全部学科';
+
+  @override
+  String get questionBankNoMatch => '这个学科下还没有题';
+
+  @override
+  String get questionBankUntitled => '（题干没读到）';
+
+  @override
+  String questionBankPointCount(int count) {
+    return '$count 个知识点';
+  }
 
   @override
   String get questionIntakePasteSection => '粘贴建题';

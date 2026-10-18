@@ -31,6 +31,17 @@ final reviewDayLoadProvider = FutureProvider<ReviewDayLoad>((ref) {
   return ref.watch(reviewPlanRepositoryProvider).loadDay();
 });
 
+/// How many cards belong to no card group at all.
+///
+/// A card group is a tag, so "no tag" means "no group", which means no daily
+/// target can reach the card. Old databases can have hundreds of those; before
+/// this was surfaced the plan screen just looked empty and the cards were
+/// silently out of scope.
+final ungroupedKnowledgePointsProvider = FutureProvider<int>((ref) {
+  ref.watchDatabaseRevision();
+  return ref.watch(tagRepositoryProvider).countKnowledgePointsWithoutTags();
+});
+
 /// One group's line: how much is due, how much was done, what is left, and what
 /// happens to new cards once the allowance runs out.
 class CardGroupPlanCard extends ConsumerWidget {
@@ -370,6 +381,144 @@ String reviewPreferenceLabel(
       CardTypePreference.essay => l10n.ankiTypeEssay,
     };
 
+/// The "these cards are in no card group" notice.
+///
+/// Every daily target is set per card group, and a card group is a tag, so a
+/// card with no tag cannot be reached by any target - it is not "unlimited", it
+/// is out of scope. Cards created before the grouping existed are exactly like
+/// that, which is why this says so instead of leaving them invisible.
+class _UngroupedCardsCard extends ConsumerWidget {
+  const _UngroupedCardsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final count = ref.watch(ungroupedKnowledgePointsProvider).valueOrNull ?? 0;
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.label_off_outlined,
+                  size: 18,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.reviewPlanUngroupedTitle(count),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.reviewPlanUngroupedBody,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              icon: const Icon(Icons.label_outline, size: 18),
+              label: Text(l10n.reviewPlanUngroupedAction),
+              onPressed: () => _tagUngroupedCards(context, ref),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Every tag, ordered the way the pickers show them.
+Future<List<Tag>> _sortedTags(WidgetRef ref) async {
+  final tags = await ref.read(tagRepositoryProvider).getAllTags();
+  tags.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
+  return tags;
+}
+
+String _tagLabel(Tag tag) => tag.path ?? tag.name;
+
+/// Lets the user pick one of [tags]; null when they back out.
+Future<Tag?> _pickTag(
+  BuildContext context,
+  List<Tag> tags, {
+  required String title,
+}) {
+  return showDialog<Tag>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: Text(title),
+      children: [
+        for (final tag in tags)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, tag),
+            child: Text(_tagLabel(tag)),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Gives every card that has no tag the same tag, then opens that group's
+/// daily-target editor.
+///
+/// Tagging is only half the job: a group with no target is still unlimited, and
+/// the user came here to set "how many cards a day". So the editor opens right
+/// away, and backing out of it is fine - the grouping has already happened.
+Future<void> _tagUngroupedCards(BuildContext context, WidgetRef ref) async {
+  final l10n = AppLocalizations.of(context);
+  final tags = await _sortedTags(ref);
+  if (!context.mounted) {
+    return;
+  }
+  if (tags.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.reviewPlanNoTags)),
+    );
+    return;
+  }
+  final chosen = await _pickTag(context, tags, title: l10n.reviewPlanPickGroup);
+  if (chosen == null || !context.mounted) {
+    return;
+  }
+  final count = await ref
+      .read(tagRepositoryProvider)
+      .tagKnowledgePointsWithoutTags(chosen.id);
+  ref.invalidate(ungroupedKnowledgePointsProvider);
+  if (!context.mounted) {
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(l10n.reviewPlanUngroupedDone(count, _tagLabel(chosen))),
+    ),
+  );
+  final plans = await ref.read(reviewGroupPlansProvider.future);
+  if (!context.mounted) {
+    return;
+  }
+  final existing = plans.where((p) => p.tagId == chosen.id).firstOrNull;
+  await showCardGroupPlanEditor(
+    context: context,
+    ref: ref,
+    tagId: chosen.id,
+    tagPath: _tagLabel(chosen),
+    plan: existing,
+  );
+}
+
 /// The review-plan surface: 复习偏好 + the per-group daily plan (plan vs actual).
 ///
 /// Both halves of the user's request live on one screen because they answer one
@@ -400,6 +549,7 @@ class ReviewPlanPage extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           const ReviewPreferencesCard(),
+          const _UngroupedCardsCard(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Row(
@@ -433,7 +583,18 @@ class ReviewPlanPage extends ConsumerWidget {
               if (plans.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text(l10n.reviewPlanEmpty),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.reviewPlanEmpty),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(l10n.reviewPlanAdd),
+                        onPressed: () => _pickGroup(context, ref),
+                      ),
+                    ],
+                  ),
                 );
               }
               return loadAsync.when(
@@ -469,8 +630,7 @@ class ReviewPlanPage extends ConsumerWidget {
   /// target, because `setGroupPlan` upserts on the tag.
   Future<void> _pickGroup(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
-    final tagRepository = ref.read(tagRepositoryProvider);
-    final tags = await tagRepository.getAllTags();
+    final tags = await _sortedTags(ref);
     if (!context.mounted) {
       return;
     }
@@ -480,20 +640,8 @@ class ReviewPlanPage extends ConsumerWidget {
       );
       return;
     }
-    tags.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
-    final chosen = await showDialog<Tag>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(l10n.reviewPlanPickGroup),
-        children: [
-          for (final tag in tags)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, tag),
-              child: Text(tag.path ?? tag.name),
-            ),
-        ],
-      ),
-    );
+    final chosen =
+        await _pickTag(context, tags, title: l10n.reviewPlanPickGroup);
     if (chosen == null || !context.mounted) {
       return;
     }
@@ -506,7 +654,7 @@ class ReviewPlanPage extends ConsumerWidget {
       context: context,
       ref: ref,
       tagId: chosen.id,
-      tagPath: chosen.path ?? chosen.name,
+      tagPath: _tagLabel(chosen),
       plan: existing,
     );
   }

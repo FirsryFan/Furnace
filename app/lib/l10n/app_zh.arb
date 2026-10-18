@@ -7,6 +7,7 @@
   "navTasks": "任务",
   "navTime": "Time",
   "navAnki": "闪存卡",
+  "navQuestions": "题库",
   "navPackages": "知识库",
   "navSettings": "设置",
   "tagsTitle": "标签",
@@ -131,6 +132,8 @@
   "ankiNewKnowledgePoint": "新建闪存卡",
   "ankiAutoBlank": "自动挖空",
   "ankiSource": "来源",
+  "ankiCardGroup": "卡组（标签）",
+  "ankiCardGroupNone": "不设置（散卡）",
   "ankiNewTemplate": "新建模板",
   "ankiQuestion": "题目",
   "ankiAnswer": "答案",
@@ -188,6 +191,19 @@
     "placeholders": { "tag": { "type": "String" } }
   },
   "reviewPlanGroupBody": "这个标签以及它下面的所有标签都算作这个卡组。",
+  "reviewPlanUngroupedTitle": "有 {count} 张卡还没有卡组",
+  "@reviewPlanUngroupedTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "reviewPlanUngroupedBody": "卡组就是标签，而每日任务量是按卡组设的：没有标签的卡不属于任何卡组，也就落在任何每日任务量之外——计划看不到它们。把它们归到一个卡组后，就能马上给这个卡组设每天多少张。",
+  "reviewPlanUngroupedAction": "把它们归到一个卡组",
+  "reviewPlanUngroupedDone": "已把 {count} 张卡归到「{tag}」",
+  "@reviewPlanUngroupedDone": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "tag": { "type": "String" }
+    }
+  },
   "todayPlanTitle": "今日清单",
   "todayPlanUncalibrated": "加成未标定：这份顺序是提示，不是测量。",
   "todayPlanEmpty": "今天没有到期的卡。这不是「没事做」——只是到期队列空着；新卡该学什么是你自己挑的，这一页不会替你编。",
@@ -596,6 +612,7 @@
   "knowledgeCreateTask": "生成任务",
   "knowledgeTaskCreated": "已生成任务",
   "knowledgeInsight": "今日复盘",
+  "knowledgeMoreActions": "更多",
   "knowledgeReviewTab": "复习",
   "knowledgeInsightEmpty": "今天还没有记录",
   "knowledgeInsightWrong": "答错的",
@@ -676,13 +693,14 @@
 
   "settingsCardGroups": "卡组设置",
   "settingsCardGroupsHint": "卡组就是标签树：给一个标签设每日新卡/复习上限，它整棵子树都算这个卡组；判分方式与卡片类型也在这里改。",
+  "settingsQuestionBankHint": "题库总览、收题、组卷、拍照整理、材料入库，都从这一页进。",
 
   "settingsUsageDoc": "使用文档",
   "settingsUsageDocHint": "AI、复习、知识库、题库、拍照/资料、认知模型与排序算法：怎么用、有什么限制都写在这里",
   "docAiTitle": "AI 助手能做什么、什么要你确认",
   "docAiBody": "AI 只能通过工具改数据，每个工具都带风险等级：读操作（query_tasks / query_schedule / query_content / fetch_page / evaluate_problem_fit / compose_paper / find_similar_questions / find_questions_by_capability / plan_today / review_metrics 等）直接执行；写操作（建标签、建闪存卡、建任务、写文档、材料入库、应用今日计划…）在「逐条确认」和「先计划后确认」两种模式下都要你点同意；删除类操作在任何模式下都逐条确认，并且可以撤销。执行前会告诉你改什么，执行后可以撤销一次；模型看不到你的 API key，skill 脚本也拿不到它。",
   "docReviewTitle": "复习与闪存卡",
-  "docReviewBody": "闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。",
+  "docReviewBody": "闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。",
   "docKnowledgeTitle": "知识库与标签",
   "docKnowledgeBody": "标签是一棵树，路径用 / 分隔。删除一个标签会连同它整棵子树、子树里的闪存卡与复习记录一起删除（AI 的删除工具会逐条确认并留下可撤销的快照）。卡片有两种存在形态——模板生成的卡、以及按单元直接建的卡——认知读数页都算数；读数页顶部的孤儿横幅只在你按它的按钮时才清理。",
   "docBankTitle": "题库与组卷",
@@ -1178,6 +1196,16 @@
   "questionIntakeTitle": "收题",
   "questionIntakeSubtitle": "粘贴建题、拍照存附件、题库列表",
   "questionIntakeEntryHint": "粘贴、拍照、查题库",
+  "questionBankRefresh": "刷新题库",
+  "questionBankFailed": "读题库失败：{message}",
+  "questionBankEmpty": "题库还是空的",
+  "questionBankEmptyHint": "题从三个地方来：收题（粘贴或选文件）、拍照整理、材料入库。AI 不会替你出题。",
+  "questionBankIntro": "上面四个按钮是往题库里加东西的入口；下面按学科筛，点一行看这道题的详情与解题链。",
+  "questionBankSummary": "共 {questions} 道题 · {subjects} 个学科",
+  "questionBankAllSubjects": "全部学科",
+  "questionBankNoMatch": "这个学科下还没有题",
+  "questionBankUntitled": "（题干没读到）",
+  "questionBankPointCount": "{count} 个知识点",
   "questionIntakePasteSection": "粘贴建题",
   "questionIntakePhotoSection": "拍照 / 选图",
   "questionIntakeLibrarySection": "题库列表",

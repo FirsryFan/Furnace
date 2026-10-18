@@ -30,6 +30,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navAnki => 'Flashcards';
 
   @override
+  String get navQuestions => 'Questions';
+
+  @override
   String get navPackages => 'Library';
 
   @override
@@ -385,6 +388,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ankiSource => 'Source';
 
   @override
+  String get ankiCardGroup => 'Card group (tag)';
+
+  @override
+  String get ankiCardGroupNone => 'No group (loose card)';
+
+  @override
   String get ankiNewTemplate => 'New template';
 
   @override
@@ -535,6 +544,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reviewPlanGroupBody =>
       'The tag and everything under it count as this group.';
+
+  @override
+  String reviewPlanUngroupedTitle(int count) {
+    return '$count cards are in no card group';
+  }
+
+  @override
+  String get reviewPlanUngroupedBody =>
+      'A card group is a tag, and daily targets are set per group, so a card with no tag falls outside every target - the plan cannot see it. Give them a group once and you can set that group\'s daily amount right away.';
+
+  @override
+  String get reviewPlanUngroupedAction => 'Put them in one group';
+
+  @override
+  String reviewPlanUngroupedDone(int count, String tag) {
+    return 'Moved $count cards into \"$tag\"';
+  }
 
   @override
   String get todayPlanTitle => 'Today\'s list';
@@ -1344,6 +1370,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get knowledgeInsight => 'Today\'s review';
 
   @override
+  String get knowledgeMoreActions => 'More';
+
+  @override
   String get knowledgeReviewTab => 'Review';
 
   @override
@@ -1522,6 +1551,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.';
 
   @override
+  String get settingsQuestionBankHint =>
+      'Question overview, intake, paper assembly, photo cleanup and material intake all start here.';
+
+  @override
   String get settingsUsageDoc => 'Usage guide';
 
   @override
@@ -1541,7 +1574,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docReviewBody =>
-      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar).';
+      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.';
 
   @override
   String get docKnowledgeTitle => 'Knowledge base and tags';
@@ -2800,6 +2833,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionIntakeEntryHint => 'Paste, photograph, browse';
+
+  @override
+  String get questionBankRefresh => 'Refresh the question bank';
+
+  @override
+  String questionBankFailed(String message) {
+    return 'Could not read the question bank: $message';
+  }
+
+  @override
+  String get questionBankEmpty => 'The question bank is empty';
+
+  @override
+  String get questionBankEmptyHint =>
+      'Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.';
+
+  @override
+  String get questionBankIntro =>
+      'The four buttons above add material to the bank; the list below filters by subject - tap a row for its detail and solution chain.';
+
+  @override
+  String questionBankSummary(int questions, int subjects) {
+    return '$questions questions · $subjects subjects';
+  }
+
+  @override
+  String get questionBankAllSubjects => 'All subjects';
+
+  @override
+  String get questionBankNoMatch => 'No questions in this subject yet';
+
+  @override
+  String get questionBankUntitled => '(no stem)';
+
+  @override
+  String questionBankPointCount(int count) {
+    return '$count knowledge points';
+  }
 
   @override
   String get questionIntakePasteSection => 'Paste a question';

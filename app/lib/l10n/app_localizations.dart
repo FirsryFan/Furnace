@@ -140,6 +140,12 @@ abstract class AppLocalizations {
   /// **'Flashcards'**
   String get navAnki;
 
+  /// Top-level destination for the question bank (题库): the overview list plus the intake/paper/photo/material entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions'**
+  String get navQuestions;
+
   /// No description provided for @navPackages.
   ///
   /// In en, this message translates to:
@@ -830,6 +836,18 @@ abstract class AppLocalizations {
   /// **'Source'**
   String get ankiSource;
 
+  /// No description provided for @ankiCardGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Card group (tag)'**
+  String get ankiCardGroup;
+
+  /// No description provided for @ankiCardGroupNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No group (loose card)'**
+  String get ankiCardGroupNone;
+
   /// No description provided for @ankiNewTemplate.
   ///
   /// In en, this message translates to:
@@ -1099,6 +1117,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The tag and everything under it count as this group.'**
   String get reviewPlanGroupBody;
+
+  /// No description provided for @reviewPlanUngroupedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} cards are in no card group'**
+  String reviewPlanUngroupedTitle(int count);
+
+  /// No description provided for @reviewPlanUngroupedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A card group is a tag, and daily targets are set per group, so a card with no tag falls outside every target - the plan cannot see it. Give them a group once and you can set that group\'s daily amount right away.'**
+  String get reviewPlanUngroupedBody;
+
+  /// No description provided for @reviewPlanUngroupedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Put them in one group'**
+  String get reviewPlanUngroupedAction;
+
+  /// No description provided for @reviewPlanUngroupedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {count} cards into \"{tag}\"'**
+  String reviewPlanUngroupedDone(int count, String tag);
 
   /// No description provided for @todayPlanTitle.
   ///
@@ -2421,6 +2463,12 @@ abstract class AppLocalizations {
   /// **'Today\'s review'**
   String get knowledgeInsight;
 
+  /// No description provided for @knowledgeMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get knowledgeMoreActions;
+
   /// No description provided for @knowledgeReviewTab.
   ///
   /// In en, this message translates to:
@@ -2709,6 +2757,12 @@ abstract class AppLocalizations {
   /// **'A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.'**
   String get settingsCardGroupsHint;
 
+  /// No description provided for @settingsQuestionBankHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Question overview, intake, paper assembly, photo cleanup and material intake all start here.'**
+  String get settingsQuestionBankHint;
+
   /// No description provided for @settingsUsageDoc.
   ///
   /// In en, this message translates to:
@@ -2742,7 +2796,7 @@ abstract class AppLocalizations {
   /// No description provided for @docReviewBody.
   ///
   /// In en, this message translates to:
-  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar).'**
+  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.'**
   String get docReviewBody;
 
   /// No description provided for @docKnowledgeTitle.
@@ -4839,6 +4893,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste, photograph, browse'**
   String get questionIntakeEntryHint;
+
+  /// No description provided for @questionBankRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the question bank'**
+  String get questionBankRefresh;
+
+  /// No description provided for @questionBankFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the question bank: {message}'**
+  String questionBankFailed(String message);
+
+  /// No description provided for @questionBankEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The question bank is empty'**
+  String get questionBankEmpty;
+
+  /// No description provided for @questionBankEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.'**
+  String get questionBankEmptyHint;
+
+  /// No description provided for @questionBankIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The four buttons above add material to the bank; the list below filters by subject - tap a row for its detail and solution chain.'**
+  String get questionBankIntro;
+
+  /// No description provided for @questionBankSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{questions} questions · {subjects} subjects'**
+  String questionBankSummary(int questions, int subjects);
+
+  /// No description provided for @questionBankAllSubjects.
+  ///
+  /// In en, this message translates to:
+  /// **'All subjects'**
+  String get questionBankAllSubjects;
+
+  /// No description provided for @questionBankNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions in this subject yet'**
+  String get questionBankNoMatch;
+
+  /// No description provided for @questionBankUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'(no stem)'**
+  String get questionBankUntitled;
+
+  /// No description provided for @questionBankPointCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} knowledge points'**
+  String questionBankPointCount(int count);
 
   /// No description provided for @questionIntakePasteSection.
   ///

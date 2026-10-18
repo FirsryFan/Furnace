@@ -42,7 +42,8 @@ class TagRepository {
             updatedAt: now,
           ),
         );
-    return (await _db.select(_db.tags)..where((t) => t.id.equals(id)))
+    return (await _db.select(_db.tags)
+          ..where((t) => t.id.equals(id)))
         .getSingle();
   }
 
@@ -154,12 +155,10 @@ class TagRepository {
     final ids = [id, ...await _descendantIds(id)];
     await _db.transaction(() async {
       for (final tagId in ids) {
-        await (_db.delete(_db.objectTags)
-              ..where((t) => t.tagId.equals(tagId)))
+        await (_db.delete(_db.objectTags)..where((t) => t.tagId.equals(tagId)))
             .go();
       }
-      await (_db.delete(_db.reviewGroupPlans)
-            ..where((t) => t.tagId.isIn(ids)))
+      await (_db.delete(_db.reviewGroupPlans)..where((t) => t.tagId.isIn(ids)))
           .go();
       await (_db.delete(_db.tags)..where((t) => t.id.isIn(ids))).go();
     });
@@ -215,6 +214,74 @@ class TagRepository {
     return rows.map((row) => row.readTable(_db.tags)).toList();
   }
 
+  // --- cards with no card group --------------------------------------------
+
+  /// How many knowledge points carry no tag at all.
+  ///
+  /// A card group (*卡组*) *is* a tag, so a card with no tag belongs to no group
+  /// and no daily target can ever reach it. That used to fail silently: the
+  /// review-plan screen simply showed an empty list and the cards sat there
+  /// forever. This count makes the gap visible, and
+  /// [tagKnowledgePointsWithoutTags] fixes it in one action.
+  Future<int> countKnowledgePointsWithoutTags() async {
+    final row = await _db.customSelect(
+      _untaggedKnowledgePointQuery('COUNT(*) AS c'),
+      readsFrom: {_db.knowledgePoints, _db.objectTags},
+    ).getSingle();
+    return row.read<int>('c');
+  }
+
+  /// The ids of every knowledge point that carries no tag at all.
+  Future<List<String>> knowledgePointIdsWithoutTags() async {
+    final rows = await _db.customSelect(
+      _untaggedKnowledgePointQuery('kp.id AS id'),
+      readsFrom: {_db.knowledgePoints, _db.objectTags},
+    ).get();
+    return [for (final row in rows) row.read<String>('id')];
+  }
+
+  /// Links [tagId] to every knowledge point that currently has no tag.
+  ///
+  /// Returns how many cards got their first tag. Existing links are ignored, so
+  /// calling this twice cannot duplicate anything - the second call just finds
+  /// nothing left to do and returns 0.
+  Future<int> tagKnowledgePointsWithoutTags(String tagId) async {
+    if (await getTagById(tagId) == null) {
+      throw ArgumentError('unknown tag: $tagId');
+    }
+    final ids = await knowledgePointIdsWithoutTags();
+    if (ids.isEmpty) {
+      return 0;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.batch((batch) {
+      batch.insertAll(
+        _db.objectTags,
+        [
+          for (final objectId in ids)
+            ObjectTagsCompanion.insert(
+              id: _newId('link'),
+              tagId: tagId,
+              objectType: 'knowledge_point',
+              objectId: objectId,
+              createdAt: now,
+            ),
+        ],
+        mode: InsertMode.insertOrIgnore,
+      );
+    });
+    return ids.length;
+  }
+
+  /// SQL for "knowledge points with no tag", shared by the two readers above.
+  ///
+  /// `NOT EXISTS` rather than a `LEFT JOIN ... IS NULL`: the join form would
+  /// multiply rows when a card has several tags and force a `DISTINCT`.
+  String _untaggedKnowledgePointQuery(String columns) =>
+      'SELECT $columns FROM knowledge_points kp WHERE NOT EXISTS ('
+      'SELECT 1 FROM object_tags ot WHERE ot.object_type = '
+      "'knowledge_point' AND ot.object_id = kp.id)";
+
   Future<List<ObjectTag>> objectLinksForTag(String tagId) {
     return (_db.select(_db.objectTags)..where((t) => t.tagId.equals(tagId)))
         .get();
@@ -255,12 +322,10 @@ class TagRepository {
     if (tag == null) {
       return;
     }
-    final parentPath = tag.parentId == null
-        ? null
-        : (await getTagById(tag.parentId!))?.path;
+    final parentPath =
+        tag.parentId == null ? null : (await getTagById(tag.parentId!))?.path;
     var name = tag.name;
-    var candidate =
-        parentPath == null ? name : '$parentPath/$name';
+    var candidate = parentPath == null ? name : '$parentPath/$name';
     while (await _otherWithPath(candidate, excludeId: id) != null) {
       name = '$name-2';
       candidate = parentPath == null ? name : '$parentPath/$name';
@@ -274,8 +339,8 @@ class TagRepository {
         ),
       );
     }
-    final children =
-        rows.where((r) => r.parentId == id).toList()..sort((a, b) => a.id.compareTo(b.id));
+    final children = rows.where((r) => r.parentId == id).toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
     for (final child in children) {
       await _refreshSubtreePaths(child.id);
     }
