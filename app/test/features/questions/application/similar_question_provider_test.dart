@@ -7,6 +7,14 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart'
+    show BottleneckType;
+import 'package:furnace/domain/services/cognitive/library_diagnosis.dart'
+    show LibraryDiagnosis;
+import 'package:furnace/domain/services/paper/similar_questions.dart'
+    show SimilarityWeights;
+import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart'
+    show cognitiveLibraryDiagnosisProvider;
 import 'package:furnace/features/questions/application/similar_question_provider.dart';
 
 /// 找相似题（Q12）应用层的验收点：
@@ -37,6 +45,24 @@ void main() {
   ProviderContainer container() {
     final container = ProviderContainer(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
+    );
+    addTearDown(container.dispose);
+    return container;
+  }
+
+  /// 带诊断 / 权重重写的容器：MindNet 读数那条接线只在 quality > 0 时才读诊断。
+  ProviderContainer containerWith({
+    SimilarityWeights? weights,
+    LibraryDiagnosis diagnosis = LibraryDiagnosis.notRun,
+  }) {
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => diagnosis),
+        if (weights != null)
+          similarityWeightsProvider.overrideWithValue(weights),
+      ],
     );
     addTearDown(container.dispose);
     return container;
@@ -102,6 +128,26 @@ void main() {
       ),
       now: now,
     );
+  }
+
+  /// 两个候选题只有"共用哪个知识点"不同：A 共用危险区知识点，B 共用没诊断结论的
+  /// 知识点；其余信号（学科 / 来源 / 难度 / 动作）完全一样。
+  Future<({String focusId, String dangerId, String neutralId})>
+      seedQualityTie() async {
+    final dangerPoint = await seedKnowledgePoint('动量守恒');
+    final neutralPoint = await seedKnowledgePoint('概率分布');
+
+    final focusId = await seedQuestion(stem: '基准题：碰后速度是多少？');
+    final dangerId = await seedQuestion(stem: '共用危险区知识点的题。');
+    final neutralId = await seedQuestion(stem: '共用普通知识点的题。');
+
+    await link(questionId: focusId, pointId: dangerPoint, tagName: '力学');
+    await link(questionId: focusId, pointId: neutralPoint, tagName: '概率');
+
+    await link(questionId: dangerId, pointId: dangerPoint, tagName: '力学');
+    await link(questionId: neutralId, pointId: neutralPoint, tagName: '概率');
+
+    return (focusId: focusId, dangerId: dangerId, neutralId: neutralId);
   }
 
   test('共享知识点 + 同型动作序列 → 相似的题入榜，理由讲同型步骤', () async {
@@ -257,5 +303,67 @@ void main() {
       await provider.read(similarQuestionsProvider('q-does-not-exist').future),
       isEmpty,
     );
+  });
+
+  group('MindNet 有效性（第五分量 quality，默认 0 不参与）', () {
+    test('默认权重下 quality=0：两个候选分数相同，不读诊断也不改写排序', () async {
+      final seeded = await seedQualityTie();
+
+      final ranked = await container()
+          .read(similarQuestionsProvider(seeded.focusId).future);
+      final byId = {for (final item in ranked) item.questionId: item};
+
+      expect(byId.keys.toSet(), <String>{seeded.dangerId, seeded.neutralId});
+      expect(byId[seeded.dangerId]!.score,
+          closeTo(byId[seeded.neutralId]!.score, 1e-9));
+      expect(byId[seeded.dangerId]!.reasonZh, isNot(contains('MindNet 有效性')));
+    });
+
+    test('quality > 0 且诊断跑出危险区：共用危险区知识点的题排前并给出 MindNet 理由', () async {
+      final seeded = await seedQualityTie();
+      // 诊断层的键是知识点 id（library_diagnosis_reader 已经翻好键空间）。
+      final points = await db.select(db.knowledgePoints).get();
+      final dangerPointId = points.firstWhere((row) => row.title == '动量守恒').id;
+
+      final ranked = await containerWith(
+        weights: const SimilarityWeights(quality: 0.5),
+        diagnosis: LibraryDiagnosis(
+          byKnowledgePoint: <String, BottleneckType>{
+            dangerPointId: BottleneckType.danger,
+          },
+          fastLayerRan: true,
+        ),
+      ).read(similarQuestionsProvider(seeded.focusId).future);
+
+      expect(ranked.first.questionId, seeded.dangerId);
+      expect(ranked.first.score, greaterThan(ranked.last.score));
+      expect(ranked.first.reasonZh, contains('MindNet 有效性'));
+    });
+
+    test('quality > 0 但这轮没跑诊断：没有读数，排序与默认权重一致（不把没跑当健康）', () async {
+      final seeded = await seedQualityTie();
+      final withQuality = await containerWith(
+        weights: const SimilarityWeights(quality: 0.5),
+        // fastLayerRan = false：这是"没跑"，不是"跑了没问题"。
+      ).read(similarQuestionsProvider(seeded.focusId).future);
+      final baseline = await container()
+          .read(similarQuestionsProvider(seeded.focusId).future);
+
+      // 排序不变：没读数时两个候选的 quality 都是中性 0.5，谁也不会被抬高。
+      expect(
+        withQuality.map((item) => item.questionId).toList(),
+        baseline.map((item) => item.questionId).toList(),
+      );
+      // 分数**会**变：打开第四分量等于多分一份权重给它（归一化），中性 0.5 乘进去
+      // 让两边一起从 0.4 抬到 0.433；这不是"改写排序"，断言比值而非绝对值。
+      expect(withQuality.first.score, greaterThan(baseline.first.score));
+      expect(
+        withQuality.first.score - withQuality.last.score,
+        closeTo(0, 1e-9),
+      );
+      for (final item in withQuality) {
+        expect(item.reasonZh, isNot(contains('MindNet 有效性')));
+      }
+    });
   });
 }

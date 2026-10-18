@@ -126,3 +126,32 @@ Q12 的能力不只给页面用——agent 也应该能"找题"而不是"编题"
   （`readPaperCorpus` / `readChainActionTypes` / `readQuestionStems`，纯 Dart 无 Riverpod），
   两个 provider 变成瘦包装（仍各自 `ref.watchDatabaseRevision()`）；`paper_plan_provider.dart`
   继续 `export` 这些符号，调用方路径不变。
+
+## 7. 应用层接线：MindNet 读数进相似题 provider（轮次一百二十五）
+
+§3 的第五分量（`quality`）在领域层早就就位，但一直没人把 `knowledgePointReadings` 喂进来——
+页面 provider 只传了 `focus / candidates / knowledgePointNames`，所以 `quality` 恒中性。这一节
+把它接上，并**保持默认排序不变**：
+
+- **新增 `similarityWeightsProvider`**（`app/lib/features/questions/application/similar_question_provider.dart`，
+  `Provider<SimilarityWeights>`，默认 `const SimilarityWeights()`，`quality = 0.0`）：
+  相似度权重第一次有了单一覆盖点。要启用第 5 分量，覆盖这个 provider 并给一个**标定过**的
+  `quality`（领域层 `SimilarityWeights.quality` 的文档写明了前置条件）。
+- **只在 `quality > 0` 时才读诊断**：默认路径连 `cognitiveLibraryDiagnosisProvider` 都不 watch，
+  没有新增 IO、没有 new failure mode，排序与接线前逐字节一致（测试钉住两个候选分数相同、
+  理由句不含「MindNet 有效性」）。
+- **读数复用组卷那条口径**：`readPaperReadings(db, coveredKnowledgePointIds: focus.knowledgePointIds,
+  diagnosis: …)`——只有诊断结论为危险区/发展区（`danger` / `weak`）的知识点才有读数，
+  「这轮没跑诊断」返回空读数而不是「健康」；共用点没有读数时领域层按 `kNeutralQuestionQuality = 0.5`
+  处理。所以同一知识点在组卷页说危险、在相似题榜单里也按危险抬有效性，不会两处口径打架。
+- **一个要记住的数学事实**：打开第 5 分量会让权重重新归一化，即使所有读数都是中性 0.5，
+  总分也会从 `0.4` 抬到 `0.433`（`0.4 / 1.5 + 0.5 × 0.5 / 1.5`）。这不是"改写了排序"——
+  两边同幅抬升，候选间的**相对**先后不变（有测试断言差值仍为 0）；但任何拿绝对分数做阈值
+  的调用方要先知道这件事。
+- **仍未做**：`quality` 数值**未标定**（没有真实数据先给比例，默认永远 0）；AI 工具
+  `find_similar_questions` 仍未传 `knowledgePointReadings`（工具面 `components.quality` 仍恒 0.5）；
+  页面与工具都没把 `similarityWeightsProvider` 暴露成用户可调项。
+- **验收**：`app/test/features/questions/application/similar_question_provider_test.dart` 新增 3 例
+  （共 9 例全绿）：默认权重不读诊断且分数相同；`quality > 0` + 诊断给出危险区 → 共用该知识点的题
+  排前且理由含「MindNet 有效性」；`quality > 0` 但诊断没跑 → 顺序与默认一致、理由句不加 MindNet。
+  `dart analyze lib/features/questions/application test/features/questions/application` → `No issues found!`。

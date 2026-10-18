@@ -22,7 +22,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../domain/services/paper/similar_questions.dart';
+import '../../../domain/services/scheduling/domain_balance.dart'
+    show KnowledgePointReading;
+import '../../cognitive/presentation/cognitive_model_page.dart'
+    show cognitiveLibraryDiagnosisProvider;
 import 'paper_plan_provider.dart';
+import 'question_corpus_reader.dart' show readPaperReadings;
 
 /// 一道题的最新一条链的步骤动作序列（`idx` 升序），键是题目 id。
 ///
@@ -95,6 +100,14 @@ final similarQuestionFocusProvider =
   },
 );
 
+/// 相似度的权重：**第五个分量 quality 默认 0.0 = 未标定前不参与排序**。
+///
+/// 接线（MindNet 有效性）只在这个 provider 的 `quality > 0` 时才去读诊断与读数，
+/// 默认路径的 IO 与排序都和接线前完全一致。要启用，覆盖本 provider 并给一个经过
+/// 标定的权重（`SimilarityWeights.quality` 的文档写明了前置条件）。
+final similarityWeightsProvider =
+    Provider<SimilarityWeights>((ref) => const SimilarityWeights());
+
 /// 给一道题找库里的相似题（默认上限 10 条，阈值见领域层 `kMinSimilarityScore`）。
 ///
 /// **一道都不相似时返回空列表**：这里不出题、不凑数——真没有就如实说"库里还没有
@@ -108,11 +121,32 @@ final similarQuestionsProvider =
 
     final candidates = await ref.watch(similarCandidatesProvider.future);
     final names = await ref.watch(paperKnowledgePointLabelsProvider.future);
+    final weights = ref.watch(similarityWeightsProvider);
+
+    // 第五个分量（MindNet 有效性）默认关闭：quality == 0 时连诊断都不读，
+    // 保证默认排序与接线前逐字节一致。启用时复用组卷那条读数口径：只有诊断
+    // 结论为危险区/发展区的知识点才有读数（"没跑诊断"不是"健康"），共用点没有
+    // 读数时领域层按中性 0.5 处理。
+    var readings = const <String, KnowledgePointReading>{};
+    if (weights.quality > 0) {
+      final diagnosis =
+          await ref.watch(cognitiveLibraryDiagnosisProvider.future);
+      readings = <String, KnowledgePointReading>{
+        for (final reading in await readPaperReadings(
+          ref.watch(appDatabaseProvider),
+          coveredKnowledgePointIds: focus.knowledgePointIds.toSet(),
+          diagnosis: diagnosis,
+        ))
+          reading.knowledgePointId: reading,
+      };
+    }
 
     return SimilarQuestionFinder.rank(
       focus: focus,
       candidates: candidates,
       knowledgePointNames: names,
+      weights: weights,
+      knowledgePointReadings: readings,
     );
   },
 );
