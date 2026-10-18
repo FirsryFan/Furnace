@@ -106,8 +106,36 @@ v1 **保留了任务给定的全部 20 个种子动作，一个都没删，也�
   `subjectKeys`、去重、保序，`transferable` 仍按"合法 hints 数 ≥ 4"推。
 - 被拒的条目**不进** `catalog.actions`，但 issue 全部收集；`overlay.customActions` 保留原始
   条目（序列化时不替用户丢数据）。
-- **未做**：overlay 的 DB 表/迁移、provider、用户编辑 UI、l10n 文案都没做（本轮明确定位是
-  纯逻辑层）；`CapabilityAction` 内置表本身零改动。
+- **持久化与接线（轮次一百二十三，schema v25）**：overlay 存 `local_settings.capability_action_overlay_json`
+  （NULL = 出厂词表），迁移 v24→v25 只加列不写默认值；`CapabilityVocabularyStore` 负责读写
+  （坏 JSON 读作空、空词表写回 NULL），`questionReasoningServiceProvider` 把 `store.load` 作为
+  `overlayLoader` 注入管道，每次解题取的词表同时喂提示词与解析器；细节见 `docs/DATA_MODEL.md` §14。
+- **仍未做**：词表编辑 UI 与 l10n 文案没做（编辑操作层、未知动作发现器是纯逻辑交付）；
+  `CapabilityAction` 内置表本身零改动。
+
+### 4.1 编辑层与未知动作发现（轮次一百二十三，纯逻辑）
+
+在 §4 的合并层之上再叠两层纯函数，给以后"用户自己改词表"的界面供 API：
+
+- **编辑层** `capability_action_overlay_editor.dart`：`add` / `update` / `remove` / `reorder` /
+  `mergeImport`，全部静态纯函数，输入 overlay + 编辑意图 → `OverlayEditResult{overlay, issues, changed}`；
+  **不抛异常、不做 IO**，失败返回同一个 overlay 对象（`identical`）+ 单条 issue，调用方零副作用。
+  硬上限 `maxCustomActions = 100`；`mergeImport` 接受 `toJson` 产物或裸数组，逐条"归整→校验→去重→上限"。
+- 校验入口只有一处：`validateCustomCapabilityAction` / `normalizeCustomCapabilityAction` 复用合并层的
+  私有 `_validate` / `_sanitizeSubjectHints`，保证"表单提示的理由"与"合并拒绝的理由"逐字一致。
+  issue 枚举本轮追加 4 值：`keyNotFound` / `indexOutOfRange` / `customActionLimitExceeded` /
+  `importNotRecognized`——**只由编辑层产生**，合并层永不产生这 4 个。
+- 编辑语义：`update` 的 null = 保持原值、空串 = 清空（`labelEn`/`descriptionZh` 由合并层兜底，
+  `labelZh` 空被 `missingLabelZh` 拒收）；key 不可改；`remove` 清掉 trim 后同 key 的**全部**条目；
+  `reorder` 的 `newIndex` 是移动后下标，严格 `0..len-1`，原位是 no-op。
+- **未知动作发现** `capability_action_discovery.dart`：`discover(samples, catalog, highRiskThreshold: 0.6,
+  maxSampleQuestionIds: 5)` 只输出词表不认识的 `actionType`，按"步数 desc → 题数 desc → actionType asc"
+  排序，返回不可变列表；空白 actionType 丢弃、trim 后大小写敏感；questionCount 按去重 questionId；
+  样本题目默认最多 5 条按首次出现；`averageStuckRisk` 无读数时 **null 不插补 0**（沿用卡点风险评估的
+  缺读数原则）；风险值/阈值夹 0..1，非有限值忽略或退回 0.6。
+- 生产接线提醒：`catalog` 参数建议始终传当前生效的 `overlay.catalog`（默认只认内置），否则用户已加的
+  自定义动作会再次出现在"未知动作"候选里。持久化/UI/provider 均未做，等后续切片。
+- 验收：`app/test/domain/services/reasoning` → +59（编辑层 34 + 发现器 25），目录 analyze 干净。
 
 ## 5. 解析器期待的 JSON 契约（逐字，与 `chainJsonContract` 一致）
 

@@ -45,6 +45,23 @@ enum CapabilityActionOverlayIssueReason {
 
   /// 缺中文展示名（[CustomCapabilityAction.labelZh]）。
   missingLabelZh,
+
+  /// 编辑操作找不到目标 key（更新 / 移动 / 删除时这个词表里没有它）。
+  ///
+  /// 合并层永远不会产生这个原因：合并是「逐条尽量收」，没有「目标条目」的概念；
+  /// 它只由编辑层（capability_action_overlay_editor.dart）产生。
+  keyNotFound,
+
+  /// 移动的目标下标越界：合法范围是 0 .. 自定义条目数 - 1。
+  indexOutOfRange,
+
+  /// 自定义条目总量会超过 [CapabilityActionOverlayEditor.maxCustomActions]。
+  customActionLimitExceeded,
+
+  /// 导入源不是可识别的 overlay JSON。
+  ///
+  /// 合法来源是 [CapabilityActionOverlay.toJson] 的产物，或直接给出条目数组。
+  importNotRecognized,
 }
 
 /// 一条被拒绝的自定义动作，以及可读的原因。
@@ -373,3 +390,30 @@ List<String> _readHints(Object? value) {
   }
   return hints;
 }
+
+/// 校验一条自定义动作，但**不合并、不落库**：合法返回 null，非法返回带原因的
+/// issue。
+///
+/// 这是编辑层（capability_action_overlay_editor.dart）与合并层共同吃的唯一
+/// 校验入口：表单里提示「这个 key 为什么不行」和词表合并时拒绝它的理由完全
+/// 一致。纯函数、永不抛异常。
+CapabilityActionOverlayIssue? validateCustomCapabilityAction(
+  CustomCapabilityAction draft,
+) =>
+    _validate(draft);
+
+/// 把用户输入归整成可持久化形态：文本去首尾空白，[CustomCapabilityAction.subjectHints]
+/// 只保留合法学科键并去重、保序。
+///
+/// 只做归整，不做语义校验（缺 key / 非法 key / 与内置冲突交给
+/// [validateCustomCapabilityAction]）：因此对任意输入都永不抛异常。
+CustomCapabilityAction normalizeCustomCapabilityAction(
+  CustomCapabilityAction draft,
+) =>
+    CustomCapabilityAction(
+      key: draft.key.trim(),
+      labelZh: draft.labelZh.trim(),
+      labelEn: draft.labelEn.trim(),
+      descriptionZh: draft.descriptionZh.trim(),
+      subjectHints: _sanitizeSubjectHints(draft.subjectHints),
+    );
