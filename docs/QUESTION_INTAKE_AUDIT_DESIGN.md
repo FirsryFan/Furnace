@@ -236,22 +236,40 @@ skill 九条判据（`app/lib/data/skill/zujuan_finder_skill.dart:92-98`）→ �
 - 来源可信度打分（`kSourceLevelWeight` 只是分级权重，不是质量分）；`region` / `state` /
   `imageCount < 0`（不可能值）/ `origin` 未判。
 - 跨批/跨库重复；题簇/题组关系。
-- DB 拼装、迁移、UI 徽标、自动修复 —— 下一轮接线（§10），本轮不碰。
+- DB 拼装已在轮次一百二十四接线（`question_audit_reader.dart` + 两个 provider，见 §10.1）；UI 徽标、详情页展开证据、自动修复仍未做。
 - 文案未进 l10n：`messageZh` 是中文硬编码，域层不依赖 Flutter；UI 若要英文，按 `code` 映射即可。
 
-## 10. 下一轮 UI / 数据接线计划
+## 10. 接线计划
 
-1. **拼行**（Repository 层，Lead 接线）：一次查询 questions + question_options（按 sortOrder）
-   + 知识点关联 id + 图片数，投影成 `QuestionAuditRow`。
-   - `imageCount` 口径 = 该题附件/图片行数；题干 Markdown 内嵌图不算（这正是 h1_figure_missing 的检测对象）。
-   - `stemFingerprint` 用仓储已有的 `stemFingerprint()`（`question_repository.dart:28-38`；空则体检内部回退归一化题干）。
-2. **体检**：`auditQuestionIntake(rows, knownSubjectKeys: ..., knownSourceLevels: kQuestionAuditKnownSourceLevels, currentYear: ...)`。
+### 10.1 DB 读表（轮次一百二十四已完成）
+
+- 文件：`app/lib/features/questions/application/question_audit_reader.dart`。
+- `readQuestionAuditCorpus(AppDatabase)`：一次读 questions / question_options / object_tags /
+  attachments，投影成 `QuestionAuditRow` + 题库出现过的学科键 `knownSubjectKeys`。
+  - 题目 → 覆盖知识点一律走 `TaskKnowledgePointResolver.resolveFromTagLinks(...,
+    sourceObjectType: kQuestionObjectType)`，与组卷/相似题同一规则，不在读表层重写。
+  - 选项顺序与 `QuestionRepository.optionsOf` 同口径：sortOrder 升序、平手比 label。
+  - `imageCount` 口径 = `attachments` 里 `ownerType == 'question'` 的行数；题干 Markdown 内嵌图不算
+    （这正是 h1_figure_missing 的检测对象）。
+  - `stemFingerprint` 取库列；空串给 `null`，由体检层回退归一化题干（不在这里重复算指纹）。
+  - **全量读**：不用 `QuestionRepository.all()`（默认 200 条上限），H4 跨行重复必须看到全部题。
+  - 行顺序按题目 id 稳定排序；题干为空的题**保留**（空题干本身是 H1 硬伤）。
+- Provider：`questionAuditCorpusProvider`（读表快照）、`questionAuditReportProvider`
+  （`QuestionIntakeAudit(currentYear: DateTime.now().year, knownSubjectKeys: 题库学科,
+  knownSourceLevels: kQuestionAuditKnownSourceLevels).audit(rows)`）。
+- 验收：`flutter test test/features/questions/application/question_audit_reader_test.dart` → 11 例通过
+  （字段映射、选项顺序、配图计数口径、知识点推导、250 条不截断、空题干保留并被报告命中、
+  学科键集合、空指纹、稳定顺序、provider、空库）。
+
+### 10.2 仍留在 UI 层（未做）
+
+1. **体检**：`auditQuestionIntake(rows, knownSubjectKeys: ..., knownSourceLevels: kQuestionAuditKnownSourceLevels, currentYear: ...)`。
    - `knownSubjectKeys` 建议取题库已有学科 key（distinct `subjectKey`）或设置页学科表；空集自动跳过。
    - `currentYear` 由设置/系统注入；默认 2026 仅方便测试与复现。
-3. **展示**：题库列表用 `errorCount/warningCount` 做徽标；题目详情页用 `findingsFor(questionId)`
+2. **展示**：题库列表用 `errorCount/warningCount` 做徽标；题目详情页用 `findingsFor(questionId)`
    展开证据（code + messageZh + evidence），单题场景可直接调 `auditRow` 避免整批。
-4. **交互边界**：只提示，不自动改题/不自动删重复题/不自动补编号（skill 纪律「只报不改」）。
-5. **性能**：纯内存 O(n log n) 排序；万级行可接受；若题库继续增大，UI 侧按学科/state 分批体检。
+3. **交互边界**：只提示，不自动改题/不自动删重复题/不自动补编号（skill 纪律「只报不改」）。
+4. **性能**：纯内存 O(n log n) 排序；万级行可接受；若题库继续增大，UI 侧按学科/state 分批体检。
 
 ## 11. 验收证据（本机真实输出）
 
