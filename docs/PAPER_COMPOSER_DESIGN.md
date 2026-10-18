@@ -201,3 +201,41 @@
 - **未做**：`paperPlanProvider` / `compose_paper` 工具未透传配额（纯逻辑已就绪，接线留下一轮）；页面上还没展示 `bySubject` / 被挡题 / 保底缺口；配额数值**未标定**（没有真实数据支撑先给比例）；按顶级领域标签祖先的映射未做。
 - 验收：`test/domain/services/paper/subject_quota_test.dart` **33 例**（配置归一化与抛错 / 上限与保底 / 交错填充 / `targetCount` 硬上限 / 被挡与缺口回报 / `max=0` / 未列学科 / 默认 null 逐字节不变 / `toJson` 启用四键）。
 
+## 14. 领域配额：按顶级领域标签的上限与保底（轮次一百二十五）
+
+需求：§13 的学科配额按 `subjectKey` 控制比例，这一轮补上用户点名的另一半——按**顶级领域标签祖先**
+（`knowledgePointTagPaths` 里每条标签路径的第一段，如 `物理/力学` → `物理`）设上限与保底，与
+`docs/THREADFLOW_TWO_SEGMENT.md` 的领域配额口径对齐（那里是任务窗口的配额奖励，这里是组卷的选题目）。
+
+- **API（纯逻辑，`app/lib/domain/services/paper/domain_quota.dart`）**：`DomainQuota` 每域可给上限
+  `maxPerDomain` 与保底 `minPerDomain`；配置归一化（trim、键排序、空键 / 负值 / trim 后重复键抛
+  `ArgumentError`、同域 min>max 抬上限 = 保底优先）。`DomainQuotaResolver.domainOfTagPath` 取一条
+  标签路径的第一个非空段；`domainsByKnowledgePoint` 把每个知识点的多条标签路径汇总成领域集
+  （排序去重、无领域知识点不进结果）；`questionDomains` 给一道题的领域集：**字典序第一个是主领域**，
+  其余是附加领域。`PaperSpec.domainQuota`（默认 `null` = 不启用）进来，`PaperPlan` 新增 `byDomain` /
+  `quotaBlockedByDomain` / `domainShortfalls` / `domainQuota` / `uncoveredDomains` 如实回报；`toJson`
+  只在启用时追加 `by_domain` / `quota_blocked_by_domain` / `domain_shortfalls` / `domain_quota` 四个
+  snake_case 键，schema 仍是 `mindnet.paper_plan/1`。
+- **领域解析口径**：`knowledgePointTagPaths` 的每个元素必须是**一条完整标签路径**（与
+  `question_corpus_reader.dart` 的 `Tags.path` 形态一致，如 `数学/函数/函数单调性`），不要传已切分的
+  片段（`['数学','函数']` 会被当成两条路径）。一个知识点挂多条路径、一道题有多个知识点时取领域并集；
+  **主领域只用于上限判定与缺口计数**，附加领域只进 `byDomain` 回报、不参与上限判定——所以
+  `byDomain` 的条目数可以大于题目数。没挂标签路径的题按无领域处理：不占上限、不报领域、不进缺口。
+- **优先级与冲突（次序写死并有测试）**：`targetCount` 硬上限 > 学科保底阶段（既有算法不变，此阶段
+  不强制领域上限，学科保底优先于领域上限与领域保底）> 领域保底阶段（域键字典序补到 min，同时受
+  `targetCount` / `perKnowledgePointCap` / 学科上限约束，学科上限挡下的候选只跳过、不记领域 blocked）>
+  填充阶段（既有分数序：先知识点上限，再学科上限，最后主领域上限）。被学科上限挡下的候选记进
+  `quotaBlockedQuestions`，不再重复记进 `quotaBlockedByDomain`；被领域上限挡下的记进
+  `quotaBlockedByDomain`。未列出的领域不限；`maxPerDomain = 0` 表示该域不取。
+- **不静默丢题**：被挡候选（`quotaBlockedByDomain`）、保底缺口（`domainShortfalls`，`selectedCount` 按
+  主领域计、`availableCount` 是候选里主领域为该域的数量）、题库一道都没有的领域
+  （`uncoveredDomains` / `isUncovered = true`）原样回给调用方。
+- **默认关闭、旧行为逐字节不变**：`domainQuota == null`（或空表解析后不启用）时不走新分支，旧
+  `toJson` 十个键的顺序与 `jsonEncode` 输出有回归测试钉住（含候选顺序无关的确定性用例）。
+- **未做**：`paperPlanProvider` / `compose_paper` 工具未透传领域配额（纯逻辑已就绪，接线留下一轮）；
+  页面上还没展示 `byDomain` / 被挡题 / 保底缺口；配额数值**未标定**（没有真实数据支撑先给比例）；
+  领域解析依赖上层传完整标签路径，若上层改传片段形态会解析错（口径已写进代码注释）。
+- 验收：`test/domain/services/paper/domain_quota_test.dart` **44 例**（配置归一化与抛错 / 解析主领域与
+  多领域 / 上限 / 保底 / 未配置 / `max=0` / 无标签题 / 学科与领域同时启用时的次序 / 默认 null 逐字节
+  不变 / `toJson` 启用四键），`flutter test test/domain/services/paper` **+122 全绿**。
+

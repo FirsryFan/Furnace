@@ -13,6 +13,7 @@ library;
 import '../reasoning/capability_action.dart' show CapabilityAction;
 import '../scheduling/domain_balance.dart' show KnowledgePointReading;
 import '../srs/dsr_memory.dart';
+import 'domain_quota.dart';
 import 'subject_quota.dart';
 
 /// **未标定**：一道题如果命中"我最该练的动作"，分数乘上 `1 + 这个系数 × 命中比例`。
@@ -195,6 +196,7 @@ class PaperSpec {
     this.targetDifficulty,
     this.minSourceLevel,
     this.subjectQuota,
+    this.domainQuota,
     this.preferCapabilityActions = true,
   });
 
@@ -220,6 +222,15 @@ class PaperSpec {
   /// 静默丢弃，而是记进 PaperPlan.quotaBlockedQuestions；没凑够保底的学科
   /// 记进 PaperPlan.subjectShortfalls。
   final SubjectQuota? subjectQuota;
+
+  /// 按领域配额（标签顶级域的上限/下限）；`null` = 不启用（历史行为逐字节不变）。
+  ///
+  /// 领域来自 [compose] 的 `knowledgePointTagPaths`（每条标签路径的第一段，见
+  /// `DomainQuotaResolver`）。与 [subjectQuota] 同时启用时的确定次序见
+  /// [PaperComposer.compose] 文档。被领域上限挡下的候选不静默丢弃，记进
+  /// `PaperPlan.quotaBlockedByDomain`；没凑够保底的领域记进
+  /// `PaperPlan.domainShortfalls`。
+  final DomainQuota? domainQuota;
 
   /// 组卷时要不要参考"我最该练的动作"（能力动作画像，未标定）。
   ///
@@ -311,6 +322,10 @@ class PaperPlan {
     this.quotaBlockedQuestions = const [],
     this.subjectShortfalls = const [],
     this.subjectQuota,
+    this.byDomain = const {},
+    this.quotaBlockedByDomain = const [],
+    this.domainShortfalls = const [],
+    this.domainQuota,
   });
 
   /// 选中的题（**贪心选择顺序**，与每知识点配额有关，不是单纯的分数降序）。
@@ -355,10 +370,31 @@ class PaperPlan {
   /// 这次组卷实际生效的学科配额（已归一化：trim/排序/保底优先）；`null` = 没启用。
   final SubjectQuotaResolved? subjectQuota;
 
+  /// 每个领域被排了几道（领域键已 trim、按字典序；主领域 + 附加领域全量统计）。
+  ///
+  /// 一道题可能同时属于多个领域，所以这张表的条目数可以大于题目数；
+  /// 无领域的题不进这张表。空表 = 没启用领域配额（或一道都没选中）。
+  final Map<String, int> byDomain;
+
+  /// 本来能进卷、但被领域上限挡下的候选（按扫描顺序；不静默丢题）。
+  final List<DomainQuotaBlockedQuestion> quotaBlockedByDomain;
+
+  /// 没达到领域保底的缺口（按领域键字典序；空 = 没有缺口或没配保底）。
+  final List<DomainQuotaShortfall> domainShortfalls;
+
+  /// 这次组卷实际生效的领域配额（已归一化：trim/排序/保底优先）；`null` = 没启用。
+  final DomainQuotaResolved? domainQuota;
+
   /// 有保底、但题库里一道候选都没有的学科（缺口在收题，不在配额）。
   List<String> get uncoveredSubjectKeys => [
         for (final shortfall in subjectShortfalls)
           if (shortfall.isUncovered) shortfall.subjectKey,
+      ];
+
+  /// 有保底、但题库里一道候选都没有的领域（缺口在收题，不在配额）。
+  List<String> get uncoveredDomains => [
+        for (final shortfall in domainShortfalls)
+          if (shortfall.isUncovered) shortfall.domain,
       ];
 
   /// 没凑够（题库不足或过滤太严）。
@@ -390,6 +426,17 @@ class PaperPlan {
             for (final shortfall in subjectShortfalls) shortfall.toJson(),
           ],
         if (subjectQuota != null) 'subject_quota': subjectQuota!.toJson(),
+        // 领域配额：独立开关；启用才出键（都关闭时历史输出逐字节一致）。
+        if (domainQuota != null) 'by_domain': byDomain,
+        if (domainQuota != null)
+          'quota_blocked_by_domain': [
+            for (final blocked in quotaBlockedByDomain) blocked.toJson(),
+          ],
+        if (domainQuota != null)
+          'domain_shortfalls': [
+            for (final shortfall in domainShortfalls) shortfall.toJson(),
+          ],
+        if (domainQuota != null) 'domain_quota': domainQuota!.toJson(),
       };
 }
 
@@ -408,6 +455,21 @@ class PaperPlan {
 /// 5. targetCount 是硬上限（保底也不得突破）；没配置的学科、空学科键不受限；
 /// 6. 同科 min > max 时保底优先，上限在归一化时抬到 min。
 /// 默认 `subjectQuota == null` 时以上分支全不进入 → 输出与历史逐字节一致。
+///
+/// 领域配额（PaperSpec.domainQuota，默认关闭；与学科配额同时启用时）：
+/// 7. 领域 = 知识点标签路径的顶级域（`DomainQuotaResolver`）；一道题取所有
+///    知识点的领域并集、字典序第一个为主领域，附加领域只回报不判定；
+/// 8. 次序固定：学科保底 → 领域保底 → 填充；targetCount 始终是硬上限；
+/// 9. 领域保底阶段受知识点上限与学科上限约束（学科上限更硬，挡下不计 blocked），
+///    不再强制领域上限（同域 min > max 已在归一化时抬到 min，保底优先）；
+/// 10. 填充阶段依次查 知识点上限 → 学科上限 → 领域主领域上限；被领域上限
+///     挡下的候选记进 PaperPlan.quotaBlockedByDomain，不静默丢弃；
+/// 11. 没配置的领域不限；max=0 的领域不取；没挂知识点/没标签路径的题按
+///     无领域处理、不进领域判定；附加领域只在 PaperPlan.byDomain 里出现；
+/// 12. 未覆盖（`DomainQuotaShortfall.isUncovered`）的领域进
+///     PaperPlan.uncoveredDomains：缺口在收题，不在配额。
+/// 默认 `subjectQuota == null && domainQuota == null` 时以上分支全不进入
+/// → 输出与历史逐字节一致。
 abstract final class PaperComposer {
   static PaperPlan compose({
     required List<PaperCandidate> candidates,
@@ -453,11 +515,35 @@ abstract final class PaperComposer {
         ? requestedQuota.resolve()
         : null;
 
+    final requestedDomainQuota = spec.domainQuota;
+    final domainQuota =
+        (requestedDomainQuota != null && requestedDomainQuota.isEnabled)
+            ? requestedDomainQuota.resolve()
+            : null;
+    final domainsByPoint = domainQuota == null
+        ? const <String, List<String>>{}
+        : DomainQuotaResolver.domainsByKnowledgePoint(
+            knowledgePointTagPaths,
+          );
+    final domainsByQuestion = <String, QuestionDomains>{};
+    if (domainQuota != null) {
+      for (final entry in scored) {
+        domainsByQuestion[entry.candidate.questionId] =
+            DomainQuotaResolver.questionDomains(
+          domainsByPoint,
+          entry.coveredPoints,
+        );
+      }
+    }
+
     final picked = <_Scored>[];
     final pickedIds = <String>{};
     final usedPerPoint = <String, int>{};
     final usedPerSubject = <String, int>{};
     final quotaBlocked = <QuotaBlockedQuestion>[];
+    // 领域配额只按主领域计数；附加领域不参与上限/保底判定。
+    final usedPerDomain = <String, int>{};
+    final domainBlocked = <DomainQuotaBlockedQuestion>[];
 
     // 每知识点上限（旧语义）：每个挂到的点都到上限才跳过；没挂点的题不限。
     bool pointCapAllows(_Scored entry) =>
@@ -474,6 +560,14 @@ abstract final class PaperComposer {
       if (quota != null) {
         final subjectKey = entry.candidate.subjectKey.trim();
         usedPerSubject[subjectKey] = (usedPerSubject[subjectKey] ?? 0) + 1;
+      }
+      if (domainQuota != null) {
+        final primaryDomain =
+            domainsByQuestion[entry.candidate.questionId]?.primaryDomain;
+        if (primaryDomain != null) {
+          usedPerDomain[primaryDomain] =
+              (usedPerDomain[primaryDomain] ?? 0) + 1;
+        }
       }
     }
 
@@ -494,10 +588,40 @@ abstract final class PaperComposer {
       }
     }
 
+    if (domainQuota != null) {
+      // 领域保底阶段：域键字典序、逐域按分数序补到下限。
+      // 保底不强制领域上限（min>max 已在归一化抬上限）；但不得突破学科上限。
+      final minimumDomains = domainQuota.minPerDomain.keys.toList()..sort();
+      for (final domain in minimumDomains) {
+        final minimum = domainQuota.minPerDomain[domain]!;
+        if (minimum <= 0) continue;
+        for (final entry in scored) {
+          if ((usedPerDomain[domain] ?? 0) >= minimum) break;
+          if (picked.length >= spec.targetCount) break;
+          if (pickedIds.contains(entry.candidate.questionId)) continue;
+          if (domainsByQuestion[entry.candidate.questionId]?.primaryDomain !=
+              domain) {
+            continue;
+          }
+          if (!pointCapAllows(entry)) continue;
+          if (quota != null) {
+            final subjectKey = entry.candidate.subjectKey.trim();
+            final maximum = quota.maxPerSubject[subjectKey];
+            if (maximum != null &&
+                (usedPerSubject[subjectKey] ?? 0) >= maximum) {
+              continue;
+            }
+          }
+          pick(entry);
+        }
+      }
+    }
+
     for (final entry in scored) {
       if (picked.length >= spec.targetCount) break;
       // 只有启用配额时才按 id 去重（关闭时保持历史行为逐字节不变）。
-      if (quota != null && pickedIds.contains(entry.candidate.questionId)) {
+      if ((quota != null || domainQuota != null) &&
+          pickedIds.contains(entry.candidate.questionId)) {
         continue;
       }
       if (!pointCapAllows(entry)) continue;
@@ -511,6 +635,22 @@ abstract final class PaperComposer {
             subjectLimit: maximum,
           ));
           continue;
+        }
+      }
+      if (domainQuota != null) {
+        final primaryDomain =
+            domainsByQuestion[entry.candidate.questionId]?.primaryDomain;
+        if (primaryDomain != null) {
+          final maximum = domainQuota.maxPerDomain[primaryDomain];
+          if (maximum != null &&
+              (usedPerDomain[primaryDomain] ?? 0) >= maximum) {
+            domainBlocked.add(DomainQuotaBlockedQuestion(
+              questionId: entry.candidate.questionId,
+              domain: primaryDomain,
+              domainLimit: maximum,
+            ));
+            continue;
+          }
         }
       }
       pick(entry);
@@ -546,6 +686,44 @@ abstract final class PaperComposer {
         ));
       }
     }
+
+    // 领域汇总/缺口（只在启用领域配额时才算；关闭时三张表都是空）。
+    final byDomainCounts = <String, int>{};
+    final domainShortfalls = <DomainQuotaShortfall>[];
+    if (domainQuota != null) {
+      for (final entry in picked) {
+        final assignment = domainsByQuestion[entry.candidate.questionId];
+        if (assignment == null) continue;
+        for (final domain in assignment.allDomains) {
+          byDomainCounts[domain] = (byDomainCounts[domain] ?? 0) + 1;
+        }
+      }
+      final availablePerDomain = <String, int>{};
+      for (final entry in scored) {
+        final primaryDomain =
+            domainsByQuestion[entry.candidate.questionId]?.primaryDomain;
+        if (primaryDomain == null) continue;
+        availablePerDomain[primaryDomain] =
+            (availablePerDomain[primaryDomain] ?? 0) + 1;
+      }
+      final minimumDomains = domainQuota.minPerDomain.keys.toList()..sort();
+      for (final domain in minimumDomains) {
+        final minimum = domainQuota.minPerDomain[domain]!;
+        if (minimum <= 0) continue;
+        final selected = usedPerDomain[domain] ?? 0;
+        if (selected >= minimum) continue;
+        domainShortfalls.add(DomainQuotaShortfall(
+          domain: domain,
+          minimumCount: minimum,
+          selectedCount: selected,
+          availableCount: availablePerDomain[domain] ?? 0,
+        ));
+      }
+    }
+    final sortedDomainKeys = byDomainCounts.keys.toList()..sort();
+    final byDomain = <String, int>{
+      for (final domain in sortedDomainKeys) domain: byDomainCounts[domain]!,
+    };
 
     final items = [
       for (final entry in picked)
@@ -622,6 +800,10 @@ abstract final class PaperComposer {
       quotaBlockedQuestions: List.unmodifiable(quotaBlocked),
       subjectShortfalls: List.unmodifiable(subjectShortfalls),
       subjectQuota: quota,
+      byDomain: Map.unmodifiable(byDomain),
+      quotaBlockedByDomain: List.unmodifiable(domainBlocked),
+      domainShortfalls: List.unmodifiable(domainShortfalls),
+      domainQuota: domainQuota,
     );
   }
 
