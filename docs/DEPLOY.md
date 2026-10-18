@@ -226,19 +226,23 @@ Windows 连踩两个坑，记录如下，下次先看这里。
   → `MSB3073 ... INSTALL.vcxproj`。
 - 根因：`build\windows\x64\CMakeCache.txt` 里的 `CMAKE_INSTALL_PREFIX` 停在默认值，
   而不是 `windows\CMakeLists.txt:65-70` 预期的 `$<TARGET_FILE_DIR:furnace>`。
-- 处理：删掉该 `CMakeCache.txt`，按 Flutter 的同一组参数重新 configure（或重跑构建），
-  cache 里会变成 `CMAKE_INSTALL_PREFIX:PATH=$<TARGET_FILE_DIR:furnace>`：
+- 处理：v0.5.0 当时是删 `CMakeCache.txt` + 手动 configure；**v0.5.1/v0.5.2 实测这一步不再需要**：
+  只要 `build\` 是干净的（或刚 `flutter clean` 过），直接 `flutter build windows --release`
+  一次成功（v0.5.1 实测 110s），cache 会由 flutter 工具以正确前缀生成。
+  若确实要为已有 cache 修前缀，注意手动 configure 需要
+  `windows\flutter\ephemeral\generated_config.cmake` 已存在（该文件由 flutter 工具生成，
+  干净目录下手动 `cmake -S windows ...` 会报 `include could not find requested file`），
+  所以**不要**手动 configure；直接删掉整个 `build\windows` 重跑构建即可：
 
   ```powershell
   cd E:\Document\furnace-build
-  Remove-Item build\windows\x64\CMakeCache.txt -Force
-  & 'E:\VisualStudio\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe' `
-      -S windows -B build/windows/x64 -G 'Visual Studio 17 2022' -A x64 `
-      -DFLUTTER_TARGET_PLATFORM=windows-x64
+  Remove-Item build\windows -Recurse -Force
+  # 如仍需预置 sqlite tarball，见 A 段
   flutter build windows --release
   ```
 
-  2026-10-18 实测：删 cache、重新 configure 后约 **18s** 完成 build + install。
+  v0.5.0 实测：删 cache、手动 configure 后约 **18s** 完成 build + install；
+  v0.5.1 实测干净目录直接构建 **110s**。
 
 产物实测：`furnace.exe` 91,136 bytes、`data\app.so` 18,826,120 bytes、
 Release 目录合计 44,377,262 bytes，压缩为 zip 19,381,974 bytes。

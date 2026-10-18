@@ -4,6 +4,57 @@
 
 ---
 
+## 2026-10-18 轮次一百一十八：v0.5.2 发布件 —— 把卡组接口装进双端安装包（Lead）
+
+**起点（用户指令）**：用户上一轮反馈工具面接不上卡组（269 张卡、133 个标签、`object_tags` 全空，
+但每张卡的 `source` 里写着完整标签路径），轮次一百一十七（commit `b9320ef`）补了四个接口
+（read 侧的 tags/untagged/linked_flashcards/kind=review_plan，write 侧的 `link_card_tags` /
+`manage_review_plan` / `create_knowledge_cards.tags`），但那些改动只在源码里，用户装的是 v0.5.1。
+本轮把它们装成 **v0.5.2**，dist 只留最新版。
+
+**A. 版本**：`app/pubspec.yaml` `0.5.1+10 → 0.5.2+11`；`app/lib/core/app_info.dart` 的
+`kAppVersion = '0.5.2'`、`kAppBuildNumber = 11`。patch 级：没有 schema 迁移，直接覆盖安装。
+
+**B. 构建**（脚本 `E:\dsh-tmp-aot\release-052-build.ps1`，日志 `release-052-build.txt`）：
+- 前置：`flutter pub get --offline` exit 0（16:22:35）；`flutter gen-l10n` exit 0；
+  `dart run build_runner build --force-jit` exit 0（30s，223 outputs）。
+- 预置 sqlite tarball（3,258,980 bytes，来自 `E:\knowflow\...` 缓存）到
+  `build\windows\x64\_deps\sqlite3-subbuild\sqlite3-populate-prefix\src\`，见 `docs/DEPLOY.md` §4.1-A。
+- **Windows**：这次不做手动 cmake configure（上一次的 110s 成功证明干净目录直接构建即可；
+  手动 configure 在未生成 `windows\flutter\ephemeral\generated_config.cmake` 时会失败）。
+  `flutter build windows --release` 16:23:14 → 16:24:35，**81s**，exit 0。
+  产物 `furnace.exe` 91,136 bytes、`data\app.so` **18,924,424 bytes**。
+- **Android**：`scripts/build_android.ps1`，16:24:35 → 16:26:28，**113s**，exit 0。
+  APK 92,167,990 bytes（87.9 MB）；aapt2：`package com.furnace.app versionCode='11'
+  versionName='0.5.2'`，minSdk 24 / targetSdk 36，label Furnace；apksigner：
+  `CN=Threadflow`、证书 SHA-256 `57de8b8f…`（与 v0.5.0/v0.5.1 同一把，可覆盖安装、数据保留）。
+
+**C. 打包与 dist**
+- `dist/Furnace-0.5.2-android.apk`：SHA-256
+  `B64A411C7FB8A656CAFE393D06C2FA705D4DD5025768D4389588628634B69C84`。
+- `dist/Furnace-0.5.2-windows-x64.zip`：19,427,258 bytes（34 个条目，根目录含 `furnace.exe` 与
+  `data/`），SHA-256 `271C220801DDA519228EC5FEC263631774817A7B3FC615FB3C1B1D322567E756`。
+- 删掉 dist 里 0.5.1 三件（apk / zip / `RELEASE-v0.5.1.md`），dist 只留 0.5.2 两个安装包 +
+  `RELEASE-v0.5.2.md`（约 106 MB）。旧版本在 GitHub Release 上仍然可下载（发布历史已核查过）。
+
+**D. 验证**
+- 全量 `flutter test --concurrency=1`（版本号改后重跑）：**+2150 ~2 All tests passed**，exit 0。
+- `dart analyze lib test`：**92 issues，0 error / 0 warning**。
+- `test/features/ai` 目录：**452 例全绿**（卡组接口的新测试都在里面）。
+- Windows 冒烟：`Start-Process Release\furnace.exe` → pid 9768、标题 **Furnace**、
+  Responding=True、工作集 302.1 MB，随后关闭。
+- **在用户库副本上试算**（`E:\dsh-tmp-aot\match_trial.py`，只读复制 `furnace.db` 到
+  `furnace-live.db`）：`knowledge_points=269`、`tags=133`、`object_tags(kp)=0`；按
+  `from_source_paths` 的同一套匹配规则，**269 张全部唯一命中（exact），0 歧义、0 匹配不到，
+  分布在 78 个卡组**。这说明用户升级后先 `dry_run` 预览、再 `dry_run: false` 一次即可归完，
+  不需要逐张点。本轮**没有写用户的真实库**，批量归组应由应用里的 AI 对话执行。
+
+**E. 没做 / 限制（诚实清单）**
+- 这一版**没有新的归组界面**：批量归组、建卡组、设每日计划都只能在 AI 对话里完成；卡组设置页
+  仍是上一版入口（设置 → 卡组设置）。
+- 匹配只读 `source` 最后一个「｜」之后的文本；来源没写路径的卡只会进 `unmatched`，不猜。
+- 归组后不会自动设每日目标（可再调 `manage_review_plan`，但设多少由用户决定）。
+- Windows 仍无安装器 / 代码签名；APK 未上架应用商店。
 ## 2026-10-18 轮次一百一十七：AI 能自己把卡归组了 —— 补齐卡组/标签/每日计划接口（Lead）
 
 **起点（用户现场反馈）**：用户实测「读这一侧 `query_content(kind: flashcard)` 的返回字段仍然只有
