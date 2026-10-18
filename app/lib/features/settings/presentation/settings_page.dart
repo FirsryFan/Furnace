@@ -15,6 +15,7 @@ import '../../thread/application/thread_rank_service.dart';
 import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
+import '../../anki/presentation/review_plan_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
 import '../../questions/presentation/handwriting_queue_page.dart';
@@ -87,6 +88,21 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const TagTreePage()),
+            ),
+          ),
+          // 卡组设置（用户反馈"flashcard 的卡组设置找不到"）：卡组就是标签树，
+          // 真正的设置在复习计划页（每个标签的每日新卡/复习上限 + 判分方式/卡片类型）。
+          // 之前只挂在复习页顶栏的两个图标里，等于藏起来；这里给一条明确的路。
+          ListTile(
+            leading: const Icon(Icons.style_outlined),
+            title: Text(l10n.settingsCardGroups),
+            subtitle: Text(l10n.settingsCardGroupsHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ReviewPlanPage(),
+              ),
             ),
           ),
           // Read-only observation page for the cognitive model (t19): the entry

@@ -2835,6 +2835,18 @@ abstract class AppLocalizations {
   /// **'Demo data loaded'**
   String get settingsDemoDataDone;
 
+  /// No description provided for @settingsCardGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck settings'**
+  String get settingsCardGroups;
+
+  /// No description provided for @settingsCardGroupsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.'**
+  String get settingsCardGroupsHint;
+
   /// No description provided for @settingsUsageDoc.
   ///
   /// In en, this message translates to:
@@ -2882,6 +2894,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI\'s delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.'**
   String get docKnowledgeBody;
+
+  /// No description provided for @docBankTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Question bank and paper assembly'**
+  String get docBankTitle;
+
+  /// No description provided for @docBankBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The intake page turns pasted text or picked images into drafts for proofreading: the AI only structures them, and nothing is written until you press save, while an identical question (same stem fingerprint) points at the existing row instead of duplicating it. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.'**
+  String get docBankBody;
+
+  /// No description provided for @docMaterialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos, materials and rehearsal'**
+  String get docMaterialTitle;
+
+  /// No description provided for @docMaterialBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying "do not install the goal mechanism" really leaves it out.'**
+  String get docMaterialBody;
+
+  /// No description provided for @docTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What to do today, and when'**
+  String get docTodayTitle;
+
+  /// No description provided for @docTodayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s list shows the cards due today; the rhythm layer reports alpha(tau) attention availability; conflicting tasks and schedule blocks are flagged and can be pushed back with one tap; the cognitive ranking tier only changes which card comes first, never due dates, and is recomputed only when you press the sort button. Counterfactual V(pi) and the retention probe likewise only affect ordering.'**
+  String get docTodayBody;
 
   /// No description provided for @docCognitiveTitle.
   ///

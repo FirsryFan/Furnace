@@ -41,6 +41,21 @@ class UsageDocPage extends ConsumerWidget {
             body: l10n.docKnowledgeBody,
           ),
           _DocEntry(
+            icon: Icons.quiz_outlined,
+            title: l10n.docBankTitle,
+            body: l10n.docBankBody,
+          ),
+          _DocEntry(
+            icon: Icons.photo_library_outlined,
+            title: l10n.docMaterialTitle,
+            body: l10n.docMaterialBody,
+          ),
+          _DocEntry(
+            icon: Icons.today_outlined,
+            title: l10n.docTodayTitle,
+            body: l10n.docTodayBody,
+          ),
+          _DocEntry(
             icon: Icons.insights_outlined,
             title: l10n.docCognitiveTitle,
             body: l10n.docCognitiveBody,

@@ -48,12 +48,20 @@ void main() {
     expect(find.text('AI 助手能做什么、什么要你确认'), findsOneWidget);
     expect(find.text('复习与闪存卡'), findsOneWidget);
     expect(find.text('知识库与标签'), findsOneWidget);
+    expect(find.text('题库与组卷'), findsOneWidget);
+    expect(find.text('拍照、资料与演练'), findsOneWidget);
+    expect(find.text('今天做什么、什么时候做'), findsOneWidget);
     expect(find.text('认知模型读数怎么理解'), findsOneWidget);
     // Bodies, not just headings: one distinctive claim from each.
     expect(find.textContaining('query_content'), findsOneWidget);
     expect(find.textContaining('FSRS'), findsOneWidget);
     expect(find.textContaining('整棵子树'), findsWidgets);
     expect(find.textContaining('evaluate_problem_fit'), findsWidgets);
+    // New modules say what they actually do: no writing before save, proposals
+    // before data, ordering only.
+    expect(find.textContaining('题干指纹'), findsOneWidget);
+    expect(find.textContaining('三类待确认产物'), findsOneWidget);
+    expect(find.textContaining('今日清单'), findsOneWidget);
     // The ranking section it grew out of is still there.
     expect(find.text('总分怎么算'), findsOneWidget);
   });
@@ -67,6 +75,8 @@ void main() {
       find.text('What the assistant can do, and what waits for your consent'),
       findsOneWidget,
     );
+    expect(find.text('Question bank and paper assembly'), findsOneWidget);
+    expect(find.text('Photos, materials and rehearsal'), findsOneWidget);
     expect(find.text('How the score is computed'), findsOneWidget);
     expect(find.textContaining('FSRS'), findsWidgets);
   });
