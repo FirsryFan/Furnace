@@ -683,3 +683,98 @@ static LearningAdvicePlan build({
   0 warning（基线）。
 - 未做 / 未验证：真机滚动与键盘、`PopScope` 与 Android 返回手势真机行为、导入大 JSON 的性能、
   en 文案母语校对；导入 .json **文件**（file_picker）仍未接，目前只能粘贴文本。
+
+## 20. 思维链质量体检：ChainQualityAudit（轮次一百二十五，task-40）
+
+§14 的洞察聚合回答「整体上哪些动作 / 知识点在卡人」，§15 的学习建议回答「接下来练什么」，
+但它们都信任落库数据本身。这一节补的是单条链的可信度体检：把 `ParsedChain` 的字段
+（动作 key、卡点读数、推导依据、验算方式、知识点提示）转成确定性的 findings，
+供详情页 / 洞察页后续展示「这条链哪里可疑」。纯逻辑，不读库、不写库，数据读取与 UI 由后续接线。
+
+### 20.1 文件与 API
+
+`app/lib/domain/services/reasoning/chain_quality.dart`（882 行）：
+
+- `enum ChainQualitySeverity { error, warning, info }`（`labelZh` 分别为 错误 / 警告 / 提示，`:29`）。
+- `abstract final class ChainQualityCodes`（`:50`）：19 个 `static const String` code + `all` 列表（`:116`），
+  定义顺序即文档顺序，code 与严重级的映射见 §20.2。
+- `class ChainQualityStepInput`（`:141`）：`{required String actionType, required int index,
+  double? stuckRisk, bool? knownAction, String? justification, String? checkMethod,
+  List<String> knowledgeHints = const []}`。
+- `class ChainQualityChainInput`（`:179`）：`{required String chainId, required String questionId,
+  List<ChainQualityStepInput> steps = const []}`。
+- `class ChainQualityFinding`（`:198`）：`code / severity / messageZh / questionId / chainId / stepIndex? / evidence`，
+  `evidence` 不可变；`toJson()`（`:232`）输出 `code / severity / severity_label_zh / message_zh /
+  question_id / chain_id / step_index / evidence`（evidence 键字典序）。
+- `class ChainQualityReport`（`:255`）：`chainCount / stepCount / findings / countsBySeverity /
+  countsByCode / truncatedCounts / maxFindingsPerCode`，getter `isClean`（`:307`）、
+  `isTruncated`（`:310`）、`totalFindingCount`（`:313`）、`findingsFor(code)`（`:322`）、
+  `toJson()`（`:332`，snake_case，counts 键排序）；`factory ChainQualityReport.empty()`（`:271`）。
+- `abstract final class ChainQualityAudit`（`:360`）：
+  `static ChainQualityReport audit(List<ChainQualityChainInput> chains, {CapabilityActionCatalog? catalog,
+  int minSteps = 3, double highRiskThreshold = 0.6, int maxFindingsPerCode = 50})`（`:383`）；
+  常量 `defaultMinSteps = 3`、`defaultHighRiskThreshold = 0.6`、`defaultMaxFindingsPerCode = 50`、
+  `unknownActionRatioThreshold = 0.5`。
+
+### 20.2 判据表（19 条）
+
+| code | 严重级 | 触发条件 |
+| --- | --- | --- |
+| `empty_chain` | error | 空链（steps 为空）；只报这一条并返回 |
+| `too_few_steps` | warning | steps.length < minSteps（minSteps 小于 1 按 1） |
+| `empty_chain_id` | error | chainId trim 后为空 |
+| `empty_question_id` | warning | questionId trim 后为空 |
+| `empty_action_type` | error | 某步 actionType trim 后为空 |
+| `unknown_action_ratio_high` | warning | 未知动作步数 / 总步数 严格大于 0.5，且至少 1 个未知 |
+| `no_known_action` | warning | 非空链里没有任何已知动作 |
+| `high_risk_missing_justification` | warning | 高危步 justification trim 后为空 |
+| `high_risk_missing_check_method` | warning | 高危步 checkMethod trim 后为空 |
+| `no_risk_reading` | warning | 整链没有任何有限卡点读数（链级，理由见 §20.3） |
+| `duplicate_step_index` | error | 同链 index 重复，第 2 次起每条 |
+| `invalid_step_index` | error | index < 0 |
+| `non_contiguous_step_index` | warning | 唯一非负 index 排序后出现缺号（允许从任意值起连续），每链最多一条 |
+| `single_action` | info | 步数 >= 2 且全部非空 actionType 相同 |
+| `consecutive_duplicate_action` | info | 相邻两步非空 actionType 相同（每条） |
+| `missing_knowledge_hints` | info | 该步 knowledgeHints trim 后全空（每条） |
+| `invalid_risk_reading` | error | stuckRisk 是 NaN 或 ±inf |
+| `risk_out_of_range` | warning | 读数有限但越出 0..1（先报本条，再夹取判高危） |
+| `stale_known_action_flag` | info | 落库快照 knownAction 与按当前词表重判结果不一致 |
+
+### 20.3 口径
+
+- 已知动作判定：`catalog != null` 用 `catalog.isKnownKey`（trim 后），否则退回内置
+  `CapabilityAction.isKnownKey`；因此不传 catalog 时自定义动作会被判未知，接线时应传 overlay 合并后的 catalog。
+- 高危定义：有限且夹到 0..1 后的 stuckRisk >= 阈值；只有高危步才检查 justification / checkMethod 是否为空。
+- 越界 / 非法读数：NaN、±inf → `invalid_risk_reading`，不参与高危、不计入有限读数；
+  有限越界报 `risk_out_of_range` 后夹到 0..1 再判高危。
+- 「高危步无读数」在定义上自相矛盾（没有读数就无法判高危），所以改为链级 `no_risk_reading`：
+  整链没有任何有限读数时触发。
+- 空 actionType 显式报错，不当成普通未知动作静默统计；它只出现在未知判定里会稀释占比口径。
+- 参数净化：minSteps < 1 → 1；阈值 NaN / ±inf → 0.6，其余夹 0..1；maxFindingsPerCode < 1 → 1。
+- 排序：先按 (trim 后 questionId, trim 后 chainId, 原始输入顺序) 稳定排序链；findings 全局按
+  questionId → chainId → stepIndex（null 最后）→ 严重级（error < warning < info）→ code → messageZh
+  → evidence 序列化排序，保证同输入输出确定。
+- 截断：countsByCode / countsBySeverity 统计截断前真实数量；每个 code 按排序后顺序保留前
+  maxFindingsPerCode 条，其余计入 truncatedCounts；totalFindingCount = 截断前总数；
+  report.findings / findingsFor 返回不可变列表。
+- 文案口径：messageZh 只陈述读数与字段事实，不出现「可能 / 大概 / 建议」这类推测与建议措辞
+  （练习建议归 §15，不在这里生成）。
+
+### 20.4 验收
+
+- `app/test/domain/services/reasoning/chain_quality_test.dart`（1092 行）**51 例**，分 5 组：
+  严重级与 code 表 4 / 链级判据 17 / 步级判据 13 / 参数、截断与空报告 9 / 确定性与排序 8。
+- `dart analyze lib/domain/services/reasoning test/domain/services/reasoning` → No issues found!；
+  `flutter test test/domain/services/reasoning` → **419 例全绿**（基线 368 + 新增 51）。
+- 确定性：同输入两次调用 `toJson()` 的 JSON 逐字节相等；输入链顺序颠倒不改变 JSON（内部先排序归一）。
+
+### 20.5 未做 / 未验证
+
+- 数据读取（从落库 chain / step 表构造 `ChainQualityChainInput`、带上 `knownAction` 快照、
+  接 overlay 合并后的 catalog）未接，归后续 application 层；详情页 / 洞察页展示、修复建议生成、
+  阈值标定均未做。
+- 真实历史库里 stuckRisk 出现 NaN / ±inf 的落库路径未实测；knownAction 快照与当前词表大规模漂移后的
+  误报率未标定。
+- `catalog` 为 null 时退回内置词表的兼容行为保留（既有调用方不传 overlay 不会被新判据改变），
+  但自定义动作会被判未知——接线时必须传合并后的 catalog。
+
