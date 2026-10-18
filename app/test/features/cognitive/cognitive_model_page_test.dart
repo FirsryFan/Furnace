@@ -26,6 +26,7 @@ import 'package:furnace/domain/services/cognitive/metacognition.dart';
 import 'package:furnace/domain/services/reasoning/capability_profile.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
+import 'package:furnace/features/cognitive/presentation/cognitive_graph_page.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/capability_action_questions_provider.dart';
 import 'package:furnace/features/questions/application/capability_profile_provider.dart';
@@ -821,5 +822,31 @@ void main() {
       expect(find.textContaining('校准曲线还没有样本'), findsOneWidget);
       expect(find.textContaining('Brier'), findsNothing);
     });
+  });
+
+  testWidgets('读数页有「知识网络图（只读）」入口，点进去是图（空态也不崩）', (tester) async {
+    await _pumpPage(
+      tester,
+      overrides: [
+        cognitiveObservationInputsProvider
+            .overrideWith((ref) => _fixtureInputs()),
+        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+        cognitiveLibraryDiagnosisProvider
+            .overrideWith((ref) async => LibraryDiagnosis.notRun),
+        capabilityProfileProvider
+            .overrideWith((ref) async => const <CapabilityReading>[]),
+        // 图的数据在真实环境里来自读数+标签；这条用例只验入口，给空图即可
+        // （用空图还能顺带验证"没有读数时给出空态"这条真实路径）。
+        cognitiveGraphProvider
+            .overrideWith((ref) async => CognitiveGraphData.empty),
+      ],
+    );
+
+    expect(find.text('知识网络图（只读）'), findsOneWidget);
+    await tester.tap(find.text('知识网络图（只读）'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CognitiveGraphPage), findsOneWidget);
+    expect(find.text('还没有可画的读数：先建知识点与标签，再复习几张卡。'), findsOneWidget);
   });
 }

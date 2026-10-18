@@ -3945,6 +3945,48 @@ abstract class AppLocalizations {
   /// **'Read-only readings: R / band / zone'**
   String get cognitiveModelSubtitle;
 
+  /// No description provided for @cognitiveGraphTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge network (read-only)'**
+  String get cognitiveGraphTitle;
+
+  /// No description provided for @cognitiveGraphHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Dots are knowledge points (colour = cognitive zone, size = card count), squares are tags, and a line means the point hangs off that tag. Nothing here is editable: no due dates and no ordering change.'**
+  String get cognitiveGraphHint;
+
+  /// No description provided for @cognitiveGraphEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to draw yet: create knowledge points and tags, then review a few cards.'**
+  String get cognitiveGraphEmpty;
+
+  /// No description provided for @cognitiveGraphSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} knowledge points · {tags} tags · {links} links'**
+  String cognitiveGraphSummary(int points, int tags, int links);
+
+  /// No description provided for @cognitiveGraphPointDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone: {zone} · {cards} cards · mean R {mean}'**
+  String cognitiveGraphPointDetail(String zone, int cards, String mean);
+
+  /// No description provided for @cognitiveGraphTagDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} knowledge points hang off this tag'**
+  String cognitiveGraphTagDetail(int count);
+
+  /// No description provided for @cognitiveGraphTapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a dot or a square to read it (read-only).'**
+  String get cognitiveGraphTapHint;
+
   /// No description provided for @cognitiveAdvisorMode.
   ///
   /// In en, this message translates to:

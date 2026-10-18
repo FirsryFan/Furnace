@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-10-18 轮次一百一十一：认知模型的只读可视化 —— 知识网络图（Lead）
+
+**起点（用户反馈）**：「认知模型我希望有一个只读的可视化界面」。此前读数页只有三块数字/列表
+（知识点读数、标签读表、能力动作画像），看得见读数但看不见"结构"。
+
+- **画什么、为什么这样画**：认知模型实际跑的快层图（`cognitive_graph.dart` 的标签扩散）节点是
+  **标签**；而读数页手里是**知识点**。两者是两套 id，`knowledgePointTagIdsProvider` 存在的理由就是它们
+  不同。所以可视化选「知识点 ↔ 标签」的二部网络：知识点摆在环上、标签按成员角的圆周均值摆在内环，
+  一条连线 = 一个知识点挂了一个标签。**不发明知识点之间的边**（线索边另有 `knowledge_edge_page.dart`），
+  也不把标签扩散分数硬塞进图里当长度——颜色只表示区域，大小只表示卡片数。
+- **只读**：页面只 `watch` provider（上游 `cognitiveReadingsProvider` / `knowledgePointTagIdsProvider` /
+  `allTagsProvider` 都是 select 出来的），整条链路没有一次写库调用；也没有"在图上拖动/编辑"的手势。
+- **新文件**
+  - `lib/features/cognitive/presentation/cognitive_graph_layout.dart`：纯布局，无 Flutter widget。
+    `CognitiveGraphPointInput` / `CognitiveGraphTagInput` / `GraphPointNode` / `GraphTagNode` /
+    `GraphLink` / `CognitiveGraphLayout`；`layoutCognitiveGraph({size, points, tags})` 按主标签标题→标题→id
+    排序后均匀摆外环（半径 `shortestSide/2*0.72`），圆点半径 `5+min(cardCount,8)*1.6`；标签位置取成员
+    角度的圆周均值（对称退化时取首角度），内环 = 外环 * 0.42；`hitTestCognitiveGraph` 先点（半径 + 14）
+    再标签；`kGraphPointHitSlop = 14`。
+  - `lib/features/cognitive/presentation/cognitive_graph_page.dart`：`buildCognitiveGraphData` 把
+    `CognitiveCardReading` 按知识点分组，区域取**最坏**一个（danger > deadEnd > empty > overload > slow >
+    offGoal > proximal > healthy > unavailable），meanR 取均值；`cognitiveGraphProvider` 组装数据；
+    页面 = 画布（`CustomPaint`，参考环 / 连线 / 标签方块 / 知识点圆点，选中提亮）+ 图例（9 个区域词，
+    复用读数页 `zoneLabel`）+ 只读详情卡（点知识点→区域/卡片数/平均 R；点标签→挂了多少知识点）；
+    空数据有空态；画布最大边 840（`kCognitiveGraphMaxSide`）。
+- **入口**：读数页 `_Notes` 之后加一张卡「知识网络图（只读）」→ `CognitiveGraphPage`。
+- **使用文档**：`docCognitiveBody` 补一句读数页顶部的知识网络图入口（颜色=区域、大小=卡片数、点节点看读数）。
+
+**证据**：新增 `app/test/features/cognitive/cognitive_graph_layout_test.dart` **6 例**（布局确定性、
+外环/内环/连线数、卡片多半径大、空输入与 `Size.zero`、对称退化下圆周均值有限、命中测试含 +14 容差）；
+`cognitive_graph_page_test.dart` **2 例**（标题/说明/摘要/图例/画布 + 点圆点看到详情；空数据→空态且无画布）；
+`cognitive_model_page_test.dart` **+1 例**（读数页有入口，点进去是图、空态也不崩）。`dart analyze lib test`
+→ 94 issues（0 error / 0 warning，与八十六～一百一十同基线）；定向
+`flutter test test/features/cognitive test/features/settings` → **+177 全绿**；全量
+`flutter test --concurrency=1` → **`+2107 ~2`**（轮次一百一十 `+2098 ~2`，差值 9 = 6+2+1 条新用例）。
+
+**没做的**：① 图不能缩放/拖动，节点太多时外围标签会互相压（只做了截断与左/右对齐，没做避让）；
+② 不画知识点之间的边（那属于线索边页，不在这张图里）；③ 代码/体积精简（用户第 4 条，下一轮）。
+
+---
+
 ## 2026-10-18 轮次一百一十：卡组设置终于找得到 + 使用文档追上现在的 App（Lead）
 
 **起点（用户反馈）**：「flashcard 的卡组设置我还没有找到在哪里」「很多遗留细碎内容，比如『设置 > 使用文档』需要简单更新」。

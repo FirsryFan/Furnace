@@ -1662,7 +1662,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docCognitiveBody =>
-      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. "Danger" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
+      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. "Danger" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
 
   @override
   String get docFormulaTitle => 'How the score is computed';
@@ -2235,6 +2235,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cognitiveModelSubtitle => 'Read-only readings: R / band / zone';
+
+  @override
+  String get cognitiveGraphTitle => 'Knowledge network (read-only)';
+
+  @override
+  String get cognitiveGraphHint =>
+      'Dots are knowledge points (colour = cognitive zone, size = card count), squares are tags, and a line means the point hangs off that tag. Nothing here is editable: no due dates and no ordering change.';
+
+  @override
+  String get cognitiveGraphEmpty =>
+      'Nothing to draw yet: create knowledge points and tags, then review a few cards.';
+
+  @override
+  String cognitiveGraphSummary(int points, int tags, int links) {
+    return '$points knowledge points · $tags tags · $links links';
+  }
+
+  @override
+  String cognitiveGraphPointDetail(String zone, int cards, String mean) {
+    return 'Zone: $zone · $cards cards · mean R $mean';
+  }
+
+  @override
+  String cognitiveGraphTagDetail(int count) {
+    return '$count knowledge points hang off this tag';
+  }
+
+  @override
+  String get cognitiveGraphTapHint =>
+      'Tap a dot or a square to read it (read-only).';
 
   @override
   String get cognitiveAdvisorMode => 'Advisor mode: due dates are not changed';

@@ -706,7 +706,7 @@
   "docTodayTitle": "What to do today, and when",
   "docTodayBody": "Today's list shows the cards due today; the rhythm layer reports alpha(tau) attention availability; conflicting tasks and schedule blocks are flagged and can be pushed back with one tap; the cognitive ranking tier only changes which card comes first, never due dates, and is recomputed only when you press the sort button. Counterfactual V(pi) and the retention probe likewise only affect ordering.",
   "docCognitiveTitle": "How to read the cognitive model",
-  "docCognitiveBody": "Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI's evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.",
+  "docCognitiveBody": "Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI's evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.",
   "docFormulaTitle": "How the score is computed",
   "docFormulaBody": "Total = urgency x weight + goal match x weight + state fit x weight + expected pressure x weight - fatigue penalty x weight. Every component is between 0 and 1, the weights are normalized internally, so the total is between 0 and 1 as well. The order is only recomputed when you press the sort button - nothing changes in the background.",
   "docCurrentWeights": "Current weights (shipped values in brackets)",
@@ -950,6 +950,30 @@
 
   "cognitiveModelTitle": "Cognitive model",
   "cognitiveModelSubtitle": "Read-only readings: R / band / zone",
+  "cognitiveGraphTitle": "Knowledge network (read-only)",
+  "cognitiveGraphHint": "Dots are knowledge points (colour = cognitive zone, size = card count), squares are tags, and a line means the point hangs off that tag. Nothing here is editable: no due dates and no ordering change.",
+  "cognitiveGraphEmpty": "Nothing to draw yet: create knowledge points and tags, then review a few cards.",
+  "cognitiveGraphSummary": "{points} knowledge points · {tags} tags · {links} links",
+  "@cognitiveGraphSummary": {
+    "placeholders": {
+      "points": { "type": "int" },
+      "tags": { "type": "int" },
+      "links": { "type": "int" }
+    }
+  },
+  "cognitiveGraphPointDetail": "Zone: {zone} · {cards} cards · mean R {mean}",
+  "@cognitiveGraphPointDetail": {
+    "placeholders": {
+      "zone": { "type": "String" },
+      "cards": { "type": "int" },
+      "mean": { "type": "String" }
+    }
+  },
+  "cognitiveGraphTagDetail": "{count} knowledge points hang off this tag",
+  "@cognitiveGraphTagDetail": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "cognitiveGraphTapHint": "Tap a dot or a square to read it (read-only).",
   "cognitiveAdvisorMode": "Advisor mode: due dates are not changed",
   "cognitiveAdvisorModeDetail": "FSRS still owns when a card is due. The model only influences the queue order and the numbers on this page.",
   "cognitiveUncalibratedWeights": "Weights such as ls are not calibrated",

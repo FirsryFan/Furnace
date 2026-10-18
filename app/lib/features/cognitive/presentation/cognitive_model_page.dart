@@ -55,6 +55,7 @@ import '../../assessment/presentation/assessment_page.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/capability_profile_provider.dart';
 import '../../questions/presentation/capability_action_questions_page.dart';
+import 'cognitive_graph_page.dart';
 import 'mechanism_page.dart';
 import 'zone_labels.dart';
 
@@ -657,6 +658,8 @@ class CognitiveModelPage extends ConsumerWidget {
               priorCount: data.priorCount,
             ),
             const SizedBox(height: 8),
+            const _GraphEntryCard(),
+            const SizedBox(height: 8),
             const _OrphanRepairBanner(),
             _Summary(l10n: l10n, readings: data),
             if (data.fastLayerRan)
@@ -795,6 +798,32 @@ class _OrphanRepairBanner extends ConsumerWidget {
 
 /// What the numbers are *allowed* to mean. Rendered above the list on purpose:
 /// a user who reads only the first screen must not conclude that the model
+/// 图的入口：读数页是"一列数字"，网络图是"同一批数字的另一种画法"。
+///
+/// 只读是两页共同的承诺；这里只给一条能走到的路（用户反馈"希望有一个可视化的界面"）。
+class _GraphEntryCard extends StatelessWidget {
+  const _GraphEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.hub_outlined),
+        title: Text(l10n.cognitiveGraphTitle),
+        subtitle: Text(l10n.cognitiveGraphHint),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const CognitiveGraphPage(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// schedules reviews or that its weights are calibrated.
 class _Notes extends StatelessWidget {
   const _Notes({

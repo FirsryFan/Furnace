@@ -1590,7 +1590,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docCognitiveBody =>
-      '设置里的「认知模型」是只读读数页：R 是当前记忆强度，R0 是刚记住时的强度，Σ 是累计投入；「发展区/死角」由标签图上的快层扩散给出（起点=最近复习的知识点，目标=今天到期的），没有标签、或没有可用的起点与目标时显示「不可用」——它不等于「健康」。「危险」由元认知行给出：复习时自评的把握与实际表现差得够远才会出现，样本不足时不出现，「不出现」不等于健康。「能力动作画像」按解题链上的动作聚合卡点风险，回答「我最该练哪类动作」，点一行可以按动作找题（只读）。页面顶部几条声明说明它不改到期时间、参数尚未标定、不替你做决定。AI 的 evaluate_problem_fit 工具读的是同一批数字，用来判断一道题值不值得现在做。';
+      '设置里的「认知模型」是只读读数页：R 是当前记忆强度，R0 是刚记住时的强度，Σ 是累计投入；「发展区/死角」由标签图上的快层扩散给出（起点=最近复习的知识点，目标=今天到期的），没有标签、或没有可用的起点与目标时显示「不可用」——它不等于「健康」。「危险」由元认知行给出：复习时自评的把握与实际表现差得够远才会出现，样本不足时不出现，「不出现」不等于健康。「能力动作画像」按解题链上的动作聚合卡点风险，回答「我最该练哪类动作」，点一行可以按动作找题（只读）。读数页顶部还有一个「知识网络图」入口：把知识点与标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点看读数。页面顶部几条声明说明它不改到期时间、参数尚未标定、不替你做决定。AI 的 evaluate_problem_fit 工具读的是同一批数字，用来判断一道题值不值得现在做。';
 
   @override
   String get docFormulaTitle => '总分怎么算';
@@ -2140,6 +2140,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cognitiveModelSubtitle => '只读读数：R / 分组 / 发展区';
+
+  @override
+  String get cognitiveGraphTitle => '知识网络图（只读）';
+
+  @override
+  String get cognitiveGraphHint =>
+      '圆点=知识点（颜色=认知区域，大小=卡片数），方块=标签；一条线=这个知识点挂在那个标签上。图上没有任何可改的东西：不改到期时间，也不改排序。';
+
+  @override
+  String get cognitiveGraphEmpty => '还没有可画的读数：先建知识点与标签，再复习几张卡。';
+
+  @override
+  String cognitiveGraphSummary(int points, int tags, int links) {
+    return '$points 个知识点 · $tags 个标签 · $links 条连线';
+  }
+
+  @override
+  String cognitiveGraphPointDetail(String zone, int cards, String mean) {
+    return '区域：$zone · $cards 张卡 · 平均 R $mean';
+  }
+
+  @override
+  String cognitiveGraphTagDetail(int count) {
+    return '这个标签下挂着 $count 个知识点';
+  }
+
+  @override
+  String get cognitiveGraphTapHint => '点一个圆点或方块看它的读数（只读）。';
 
   @override
   String get cognitiveAdvisorMode => '顾问模式：不改到期时间';
