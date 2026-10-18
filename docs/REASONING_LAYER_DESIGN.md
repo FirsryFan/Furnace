@@ -466,3 +466,42 @@ test/features/questions/application/question_reasoning_service_test.dart` → `+
 - 管道位置：§10 把解析结果落库 → 本节从库里多链聚合 → 未来洞察页 / 画像消费。聚合结果不落库。
 - 未做：洞察页 UI / provider 未接页面；真库里 NaN / ±inf 的落库路径未实测（测试用构造数据覆盖）；与 §12 的统一信号模型未做。
 
+## 15. 学习建议聚合层：从「读数」到「下一步做什么」（轮次一百二十五）
+
+§12 的能力动作画像回答「卷子该练哪个动作」，§14 的洞察层回答「我卡在哪种动作上」；本节把这两层**读数**翻成一份确定性的建议清单，给未来的「学习洞察 / 首页下一步」供数。只读派生，不落库、不调模型——建议由规则算出来，可复现、可测。
+
+### 15.1 纯聚合层（`learning_advice.dart`，task-24）
+
+文件：`app/lib/domain/services/reasoning/learning_advice.dart`（纯 Dart，无 IO；只依赖 `chain_insights.dart` 与 `capability_profile.dart`）。主入口：
+
+```dart
+static LearningAdvicePlan build({
+  required ChainInsights insights,
+  List<CapabilityReading> profile = const <CapabilityReading>[],
+  int highRiskMinSteps = 3,
+  int maxAdvices = 5,
+  int? corpusQuestionCount,
+})
+```
+
+`LearningAdviceKind` 五种（枚举顺序即同类建议的排序兜底）：`practiceAction` / `collectChains` / `reviewVocabulary` / `keepGoing` / `noData`。每条 `LearningAdvice` 带 kind、priority（越小越靠前）、titleZh / detailZh，以及**能填就填的真实读数**（actionType / actionLabelZh / questionCount / stepCount / highRiskStepCount）；`knowledgePointIds` 保留但恒为空（聚合层没有动作 × 知识点交叉读数，不编造）。
+
+优先级分段：practice 从 100 起（多条按高风险步数降序编 100、101…，到 199 为止），collect 200，review 300，keep 400，noData 500；最终按 priority → kind 枚举序 → actionType 字典序 → titleZh 稳定排序，再按 maxAdvices 截断（<1 按 1 处理；截断取排序后的前缀，截断后 `isEmpty` 仍为 false）。
+
+生成规则（诚实性优先）：
+
+1. 练习建议只给**真读数**：洞察里 known 且 highRiskStepCount ≥ highRiskMinSteps 的动作；能力画像作为补充证据（known、riskyStepCount 达阈值且洞察里没出现过的动作，此时 questionCount 如实留空）；未知动作永远不进练习建议。阈值 <1 按 1 处理。
+2. 未知动作不吞：`unknownActions` 非空时给一条 reviewVocabulary，detail 列出最多 5 个**原串**并说明总数，明说「词表还不认识它们，不是没问题」。
+3. 没数据不说：只有调用方传了 `corpusQuestionCount` 且题库题数 > 洞察覆盖题数时才产出 collectChains（写清缺口）；不传题数就不猜「有题缺链」；没有任何读数且没有缺口时给一条 noData（题库 0 题与没传题数的文案分开）。
+4. 不落库、不调模型：建议清单每次从读数现算，链 / 步骤写入后由上层重新聚合即可刷新。
+
+`LearningAdvice.toJson` 与 `LearningAdvicePlan.toJson`（advice_count / is_empty / advices）供未来落 JSON 快照或测试断言；列表均 unmodifiable。
+
+验收：`app/test/domain/services/reasoning/learning_advice_test.dart` **48 例**（枚举与序列化 / 空输入与 noData / 练习阈值 / 画像补充 / collect 缺口 / review 词表外动作 / keepGoing / 排序与截断 / NaN 与 ±inf 不参与）。
+
+### 15.2 未做
+
+- 洞察页 UI 与 provider 未接页面（目前只有纯函数，调用点等界面 / 首页「下一步」设计定稿）。
+- 未接 AI 对话：建议只走确定性规则；「哪个动作先练」的权重标定需要真数据后再做，当前不假装个性化。
+- 动作 × 知识点交叉读数未做（`knowledgePointIds` 恒空）。
+
