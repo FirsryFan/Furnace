@@ -583,6 +583,31 @@ static LearningAdvicePlan build({
 - 未做：页面 UI（首页「下一步」或学习洞察页）与建议卡片未接；建议不落库、不做历史对比；
   阈值与条数**未标定**（等真实使用数据再调）；知识点只填了 id，界面尚未展示。
 
+### 16.3 学习洞察页数据 provider（`learning_insight_provider.dart`，轮次一百二十五）
+
+页面 UI 归 question-intake；这一层只把页面要的四份数据拼成一次快照，没有任何新口径。
+
+- `learningInsightDataProvider`（`FutureProvider<LearningInsightData>`）：`ref.watchDatabaseRevision()`
+  后依次取 `chainInsightsProvider`、`learningAdviceProvider`、`capabilityActionOverlayProvider`，
+  再按需读知识点标题。词表读取失败时退回 `CapabilityActionOverlay.empty` 并把
+  `vocabOverlayFallback` 置 true——用户自定义词表坏掉只影响 known / custom 判定，不该让整页打不开。
+- 知识点标题：只查 `advice.knowledgePointIds ∪ insights.highRiskByKnowledgePoint.key
+  ∪ insights.highRiskByActionAndKnowledgePoint.knowledgePointId` 里出现的 id（trim 去空、去重），
+  空集合**不发查询**；公开 helper `readKnowledgePointTitles(AppDatabase, Set<String>)` 只返回
+  title 非空的 id。读不到的 id 不在表里，界面回退显示 id（`titleOf` 兜底），不编造名称。
+- `LearningInsightData` 派生视图（都为不可变 List / Map）：`actionRows`（动作行：label、known、custom、
+  步数、题数、高风险步数、平均风险、最近时间，风险缺失为 null 不插补 0）、`unknownRows`、
+  `neverUsedActions`、`stuckRows`（知识点卡点热区，中文名已读好）、`actionKnowledgeRows`（动作 × 知识点交叉卡点）、
+  `adviceCards`（建议卡 + 知识点中文名列表）、`actionCatalog`；空态：`hasActivity` /
+  `isEmpty` / `hasUnknownActions` / `hasKnowledgePointGaps`。排序全部沿用 `ChainInsights` 的确定性顺序，
+  这里不重排。
+- 验收：`test/features/questions/application/learning_insight_provider_test.dart` **12 例**
+  （空库 noData、有题没链建议收链、孤立步骤不算活动；高风险动作进练习且平均风险按读数、无读数不插补 0、
+  动作顺序沿用洞察层、未知动作单列并建议补词表；知识点中文名进卡点 / 交叉 / 建议、缺失 id 回退、
+  `readKnowledgePointTitles` 只返回存在的 id 且空标题丢弃；overlay 自定义动作认名、overlay 读取失败标记 fallback），
+  跑出 `+12 All tests passed`；`dart analyze` 两个文件 `No issues found`。
+- 未做：学习洞察页 UI 与入口（下一片 question-intake）、「从未用过的动作」的展示样式、真库大数据滚动性能。
+
 ## 17. 词表编辑的 application 层（轮次一百二十五）
 
 文件：`app/lib/features/questions/application/capability_vocabulary_editor_provider.dart`（Lead 交付）。
