@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:furnace/domain/services/paper/question_quality.dart';
 import 'package:furnace/domain/services/paper/similar_questions.dart';
+import 'package:furnace/domain/services/scheduling/domain_balance.dart';
 
 /// 找相似题（Q12）纯逻辑的验收点：
 ///
@@ -8,7 +10,9 @@ import 'package:furnace/domain/services/paper/similar_questions.dart';
 ///  * 跨学科但动作同型 → 明确标成迁移候选；
 ///  * "不知道"（缺学科、缺难度）取中性，不冒充"很像"；
 ///  * 弱信号（只是同学科同难度）不过阈值；
-///  * tie-break 与输入顺序无关（同一输入永远同一输出）。
+///  * tie-break 与输入顺序无关（同一输入永远同一输出）；
+///  * MindNet 有效性质量分量默认关闭（`SimilarityWeights.quality == 0`），
+///    启用后只按**共用知识点**的读数加分；读数缺省 → 中性 0.5，不惩罚"不知道"。
 void main() {
   const focus = SimilarityFocus(
     questionId: 'q-focus',
@@ -360,5 +364,147 @@ void main() {
       SimilarQuestionFinder.rank(focus: focus, candidates: const []),
       isEmpty,
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // 第五个分量：MindNet 有效性（质量评比）
+  // ---------------------------------------------------------------------------
+
+  KnowledgePointReading reading(
+    String id, {
+    bool danger = false,
+    bool development = false,
+    double? r0,
+    double confidence = 0,
+  }) =>
+      KnowledgePointReading(
+        knowledgePointId: id,
+        inDangerZone: danger,
+        inDevelopmentZone: development,
+        priorR0: r0,
+        priorConfidence: confidence,
+      );
+
+  test('默认 quality 权重 0：给不给读数，排序与分数完全一致', () {
+    final candidates = [
+      candidate('q-one', knowledgePointIds: ['kp-a']),
+      candidate('q-both', knowledgePointIds: ['kp-a', 'kp-b']),
+    ];
+    final plain =
+        SimilarQuestionFinder.rank(focus: focus, candidates: candidates);
+    final withReadings = SimilarQuestionFinder.rank(
+      focus: focus,
+      candidates: candidates,
+      knowledgePointReadings: {'kp-a': reading('kp-a', danger: true)},
+    );
+
+    expect(plain.map((r) => r.questionId).toList(),
+        withReadings.map((r) => r.questionId).toList());
+    expect(plain.map((r) => r.score).toList(),
+        withReadings.map((r) => r.score).toList());
+    // 分量仍按读数给出原始值（0..1），只是默认权重 0 不参与分数：
+    // 共用的 kp-a 在危险区 → quality 原始值 0.85；plain 无读数 → 中性 0.5。
+    final byId = {for (final r in withReadings) r.questionId: r};
+    expect(byId['q-one']!.components['quality'], closeTo(0.85, 1e-9));
+    expect(plain.first.components['quality'], kNeutralQuestionQuality);
+    // 没启用的信号不该出现在给用户看的理由里。
+    expect(withReadings.first.reasonZh, isNot(contains('MindNet')));
+  });
+
+  test('启用 quality 后：共用知识点在危险区的候选排前，理由给出有效性', () {
+    final ranked = SimilarQuestionFinder.rank(
+      focus: focus,
+      candidates: [
+        candidate('q-plain', knowledgePointIds: ['kp-b']),
+        candidate('q-danger', knowledgePointIds: ['kp-a']),
+      ],
+      knowledgePointReadings: {'kp-a': reading('kp-a', danger: true)},
+      weights: const SimilarityWeights(quality: 0.5),
+    );
+
+    expect(ranked.map((r) => r.questionId).toList(), ['q-danger', 'q-plain']);
+    // 0.5 + dangerBoost 0.35 = 0.85（未标定默认值）。
+    expect(ranked.first.components['quality'], closeTo(0.85, 1e-9));
+    expect(ranked.last.components['quality'], closeTo(0.5, 1e-9));
+    expect(ranked.first.reasonZh, contains('MindNet 有效性 0.85'));
+    // 中性（没有读数）的那条不加这句：理由只说真实依据。
+    expect(ranked.last.reasonZh, isNot(contains('MindNet')));
+  });
+
+  test('质量只看共用知识点：跨学科纯动作候选不受自己其他知识点的危险读数影响', () {
+    final ranked = SimilarQuestionFinder.rank(
+      focus: focus,
+      candidates: [
+        candidate(
+          'q-language',
+          subjectKey: '语文',
+          knowledgePointIds: ['kp-other'],
+          actionTypes: ['first_principles', 'sanity_check'],
+        ),
+      ],
+      knowledgePointReadings: {'kp-other': reading('kp-other', danger: true)},
+      weights: const SimilarityWeights(quality: 0.3),
+      minScore: 0,
+    );
+
+    final only = ranked.single;
+    expect(only.sharedKnowledgePointIds, isEmpty);
+    // 没有共用知识点 → 中性，不拿无关的弱点把榜单带偏。
+    expect(only.components['quality'], kNeutralQuestionQuality);
+    expect(only.crossSubjectTransfer, isTrue);
+  });
+
+  test('先验 R0/置信度参与质量分：弱先验抬高质量', () {
+    final ranked = SimilarQuestionFinder.rank(
+      focus: focus,
+      candidates: [
+        candidate('q-prior', knowledgePointIds: ['kp-a'])
+      ],
+      knowledgePointReadings: {
+        'kp-a': reading('kp-a', r0: 0.2, confidence: 1),
+      },
+      weights: const SimilarityWeights(
+        knowledgePoint: 0,
+        actionType: 0,
+        subject: 0,
+        difficulty: 0,
+        quality: 1,
+      ),
+      minScore: 0,
+    );
+
+    final only = ranked.single;
+    // 0.5 + 0.30 * (1 - 0.2) * 1 = 0.74（未标定默认值）。
+    expect(only.components['quality'], closeTo(0.74, 1e-9));
+    expect(only.score, closeTo(0.74, 1e-9));
+  });
+
+  test('多个共用知识点取最有效的那个（max）', () {
+    final ranked = SimilarQuestionFinder.rank(
+      focus: focus,
+      candidates: [
+        candidate('q-both', knowledgePointIds: ['kp-a', 'kp-b'])
+      ],
+      knowledgePointReadings: {
+        'kp-a': reading('kp-a'),
+        'kp-b': reading('kp-b', development: true),
+      },
+      weights: const SimilarityWeights(quality: 1),
+      minScore: 0,
+    );
+
+    // kp-a 0.5、kp-b 0.5 + 0.20 = 0.70 → 取 0.70。
+    expect(ranked.single.components['quality'], closeTo(0.70, 1e-9));
+  });
+
+  test('SimilarityWeights 的 sum/normalized/toMap 带上 quality（默认 0）', () {
+    const defaults = SimilarityWeights();
+    expect(defaults.quality, 0.0);
+    expect(defaults.sum, closeTo(1.0, 1e-9));
+    expect(defaults.toMap()['quality'], 0.0);
+
+    const weighted = SimilarityWeights(quality: 0.5);
+    expect(weighted.sum, closeTo(1.5, 1e-9));
+    expect(weighted.normalized().quality, closeTo(0.5 / 1.5, 1e-9));
   });
 }

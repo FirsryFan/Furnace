@@ -4,7 +4,7 @@
 /// 只在已有候选里排序——它是 `docs/PAPER_COMPOSER_DESIGN.md` §4 那句"缺口只报不补"
 /// 的另一半：缺口可以补，但补的必须是库里已有的题。
 ///
-/// 四个信号（都是"越多越像"的归一化分量）：
+/// 四个相似度信号（都是"越多越像"的归一化分量）：
 ///
 /// * **共用知识点**（权重最高）：两个题挂到同一个知识点，说明练的是同一件事；
 /// * **思维链动作序列**（LCS 重合度）：`actionType` 是跨学科的桥——数学的"分类讨论"
@@ -12,6 +12,13 @@
 ///   值得推荐（跨学科迁移训练）；
 /// * **学科**：同科加分（但不是必需）；
 /// * **难度**：接近加分，缺读数时取中性，不惩罚"不知道"。
+///
+/// 外加一个**可选的第五个分量**：**MindNet 有效性**（见 `question_quality.dart`）。
+/// 相似度回答"像不像"，它回答"这批相似题里现在做哪道更值得"——共用的知识点处在
+/// 危险区 / 发展区时质量更高。读数由 `scheduling/cognitive_readings.dart` 的确定性
+/// 投影提供，缺读数取中性 0.5（不惩罚"不知道"）。权重默认 **0.0 且未标定**：标定
+/// 之前不参与排序（既有行为逐字节不变），调用方标定后传 [SimilarityWeights.quality]
+/// 与 `knowledgePointReadings` 即可启用。
 ///
 /// 两条纪律：
 ///
@@ -21,7 +28,10 @@
 library;
 
 import '../reasoning/capability_action.dart';
+import '../scheduling/domain_balance.dart'
+    show EffectivenessTuning, KnowledgePointReading;
 import 'paper_composer.dart' show kSourceLevelPriority;
+import 'question_quality.dart';
 
 /// 低于这个分数不算相似：同学科 + 同难度（0.10 + 0.10）还不够，必须真有一条
 /// "共用知识点"或"同型步骤"。
@@ -34,6 +44,7 @@ class SimilarityWeights {
     this.actionType = 0.30,
     this.subject = 0.10,
     this.difficulty = 0.10,
+    this.quality = 0.0,
   });
 
   /// 共用知识点（占最高权重：练的是同一件事）。
@@ -48,7 +59,13 @@ class SimilarityWeights {
   /// 难度接近。
   final double difficulty;
 
-  double get sum => knowledgePoint + actionType + subject + difficulty;
+  /// MindNet 有效性（第五个分量）。**默认 0.0 = 未标定前不参与**：打开它要先由
+  /// provider 用 `CognitiveReadingsAdapter` 产出 [KnowledgePointReading] 并标定权重，
+  /// 默认值保持 0 才能保证既有排序逐字节不变。
+  final double quality;
+
+  double get sum =>
+      knowledgePoint + actionType + subject + difficulty + quality;
 
   /// 归一化到和为 1；和 ≤ 0 时原样返回（宁可退化，也不悄悄改权重）。
   SimilarityWeights normalized() {
@@ -59,6 +76,7 @@ class SimilarityWeights {
       actionType: actionType / total,
       subject: subject / total,
       difficulty: difficulty / total,
+      quality: quality / total,
     );
   }
 
@@ -67,6 +85,7 @@ class SimilarityWeights {
         'action_type': actionType,
         'subject': subject,
         'difficulty': difficulty,
+        'quality': quality,
       };
 }
 
@@ -138,7 +157,8 @@ class SimilarQuestion {
   /// 归一化权重下的加权总分。
   final double score;
 
-  /// 四个分量（归一化权重后），便于界面解释"为什么像"与后续调权。
+  /// 分量（四个相似度信号 + 可选 MindNet 有效性 `quality`），便于界面解释
+  /// "为什么像"与后续调权。
   final Map<String, double> components;
 
   final List<String> sharedKnowledgePointIds;
@@ -174,6 +194,9 @@ abstract final class SimilarQuestionFinder {
   /// * 低于 [minScore] 的不返回；
   /// * 取前 [limit] 条（`limit <= 0` 视为不限制）；
   /// * 输入顺序不影响输出（按分数 → 共用点数 → 来源分级 → 题目 id 兜底排序）。
+  ///
+  /// [knowledgePointReadings] 缺省为空 → `quality` 分量为中性 0.5；只有
+  /// [SimilarityWeights.quality] > 0 时它才影响 [score]（默认 0 = 不启用）。
   static List<SimilarQuestion> rank({
     required SimilarityFocus focus,
     required List<SimilarityCandidate> candidates,
@@ -181,6 +204,8 @@ abstract final class SimilarQuestionFinder {
     double minScore = kMinSimilarityScore,
     SimilarityWeights weights = const SimilarityWeights(),
     Map<String, String> knowledgePointNames = const {},
+    Map<String, KnowledgePointReading> knowledgePointReadings = const {},
+    EffectivenessTuning qualityTuning = const EffectivenessTuning(),
   }) {
     final normalized = weights.normalized();
     final focusPoints = cleanIds(focus.knowledgePointIds);
@@ -214,11 +239,19 @@ abstract final class SimilarQuestionFinder {
           _subjectComponent(focus.subjectKey, candidate.subjectKey);
       final difficultyScore =
           _difficultyComponent(focus.difficulty, candidate.difficulty);
+      // MindNet 质量：只看**共用的**知识点（相似度已由上面四个信号决定；
+      // 跨学科纯动作迁移没有共用点 → 中性，不拿无关的弱点把榜单带偏）。
+      final qualityScore = questionQuality(
+        knowledgePointIds: sharedPoints,
+        readings: knowledgePointReadings,
+        tuning: qualityTuning,
+      );
 
       final score = normalized.knowledgePoint * pointScore +
           normalized.actionType * actionScore +
           normalized.subject * subjectScore +
-          normalized.difficulty * difficultyScore;
+          normalized.difficulty * difficultyScore +
+          normalized.quality * qualityScore;
       if (score.isNaN || score < minScore) continue;
 
       final crossSubject = sharedActions.isNotEmpty &&
@@ -236,10 +269,13 @@ abstract final class SimilarQuestionFinder {
             'action_type': actionScore,
             'subject': subjectScore,
             'difficulty': difficultyScore,
+            'quality': qualityScore,
           },
           sharedPoints: List<String>.unmodifiable(sharedPoints),
           sharedActions: List<String>.unmodifiable(sharedActions),
           crossSubjectTransfer: crossSubject,
+          quality: qualityScore,
+          qualityWeight: normalized.quality,
         ),
       );
     }
@@ -392,6 +428,12 @@ abstract final class SimilarQuestionFinder {
     if (focusDifficulty != null && candidateDifficulty != null) {
       parts.add('难度 ${_two(focusDifficulty)} vs ${_two(candidateDifficulty)}');
     }
+    // 只有质量分量真的参与权重、且读数确实给出非中性值时，才在理由里提 MindNet
+    // （默认权重 0 / 没有读数时，理由不该多出一句用户无法验证的话）。
+    if (entry.qualityWeight > 0 &&
+        (entry.quality - kNeutralQuestionQuality).abs() > 1e-9) {
+      parts.add('MindNet 有效性 ${_two(entry.quality)}');
+    }
     final source = entry.candidate.sourceLevel.trim();
     if (source.isNotEmpty && source != 'unknown') {
       parts.add('来源：${_sourceLabel(source)}');
@@ -438,6 +480,8 @@ class _Scored {
     required this.sharedPoints,
     required this.sharedActions,
     required this.crossSubjectTransfer,
+    required this.quality,
+    required this.qualityWeight,
   });
 
   final SimilarityCandidate candidate;
@@ -446,4 +490,10 @@ class _Scored {
   final List<String> sharedPoints;
   final List<String> sharedActions;
   final bool crossSubjectTransfer;
+
+  /// MindNet 有效性分量（0..1；没有读数时中性 0.5）。
+  final double quality;
+
+  /// 归一化之后的质量权重；0 表示这次排序没有启用质量分量（理由里也不提）。
+  final double qualityWeight;
 }
