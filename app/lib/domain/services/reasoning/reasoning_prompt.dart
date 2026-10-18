@@ -6,15 +6,21 @@
 /// 最高优先级，且测试会逐字检查这句话还在。
 ///
 /// 输出侧是一份**严格的 JSON 契约**（见 [chainJsonContract]）：模型交回一条
-/// 分步思维链，每步带一个来自 `CapabilityAction` 词表的 `actionType`。解析器
-/// [parseChain] 负责把这坨文本变成结构化数据，并且：
+/// 分步思维链，每步带一个来自能力动作词表的 `actionType`。词表默认是内置的种子
+/// 动作（[CapabilityAction.catalog]），也可以由调用方注入子集或用户自定义条目
+/// （CapabilityActionOverlay.catalog）。解析器 [parseChain] 负责把这坨文本变成
+/// 结构化数据，并且：
 ///
-/// * 容忍模型习惯性的 ```json 代码块和前后寒暄；
-/// * 对结构性错误抛 [ReasoningParseException]（可 catch 的类型化异常），
-///   让调用方能把「模型胡说」和「网络失败」分开处理；
+/// * 容忍模型习惯性的 Markdown 代码块和前后寒暄；
+/// * 对结构性错误抛 [ReasoningParseException]（可 catch 的类型化异常），异常
+///   message 指认「第几步、哪个字段」，并尽量附上该步原始 JSON 片段，调用方才
+///   分得清「模型胡说」还是「网络失败」；
 /// * 对 `actionType` **不**抛错：未知 key 保留原始字符串并标记
 ///   [ParsedStep.knownAction] == false。词表是开放的，未知动作是信号而不是
 ///   事故——它恰好告诉我们模型在用我们还没建模的思考方式。
+/// * 调用方可以注入 [CapabilityActionLookup]（例如
+///   CapabilityActionOverlay.catalog.byKey），让用户自定义动作也被认出来：此时
+///   [ParsedStep.knownAction] == true 且 [ParsedStep.customAction] == true。
 ///
 /// 纯 Dart：不 import drift、不 import 数据库、不 import Flutter widget。
 library;
@@ -57,8 +63,11 @@ const String chainJsonContract = '''
 /// * [options] 选择题选项，按顺序传入；非选择题传空列表。
 /// * [subjectKey] 学科轨道键，取值来自 [CapabilityAction.subjectKeys]。未知值
 ///   不会被拒绝，只会退化成原样输出，避免调用方因为一个枚举写错而整条链路挂掉。
-/// * [capabilityCatalog] 本次提供给模型的能力动作词表，默认全表。传入子集可以
-///   做对照实验（比如只给可迁移动作，看模型的 actionType 分布会不会变）。
+/// * [capabilityCatalog] 本次提供给模型的能力动作词表，默认全表（内置种子动作）。
+///   传入子集可以做对照实验（比如只给可迁移动作，看模型的 actionType 分布会不
+///   会变）；传入 CapabilityActionOverlay.catalog.actions 则把用户自定义动作一起
+///   渲染进【能力动作词表】。提示词与解析器应当吃同一份词表，否则会出现「提示
+///   词允许、解析器不认识」的错位。
 List<ChatMessage> solveThenDecompose({
   required String questionStem,
   List<String> options = const <String>[],
@@ -211,7 +220,19 @@ class ParsedStep {
   final List<String> knowledgeHints;
 
   /// [actionType] 是否是词表里的已知 key。
+  ///
+  /// 注入自定义词表（parseChain 的 lookup 参数）后，用户自定义动作也算已知。
   bool get knownAction => action != null;
+
+  /// [action] 是内置词表（[CapabilityAction.catalog]）里的条目。
+  ///
+  /// 与 [knownAction] 合起来用：knownAction == true 且 builtInAction == false
+  /// 说明这一步的动作来自注入的自定义词表，而不是内置的种子动作。
+  bool get builtInAction =>
+      action != null && CapabilityAction.isKnownKey(action!.key);
+
+  /// [action] 来自调用方注入的自定义词表（overlay），内置词表里没有它。
+  bool get customAction => action != null && !builtInAction;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'index': index,
@@ -240,7 +261,14 @@ class ParsedChain {
 
   /// 从已经解码的 JSON 对象构造。入库读回来的数据可以走这条路，
   /// 校验规则与 [parseChain] 完全一致。
-  factory ParsedChain.fromJson(Map<String, Object?> json) {
+  ///
+  /// [lookup] 决定 `actionType` 往哪张词表上映射，默认内置词表。入库读回时如果
+  /// 用户自定义词表后来变了，传 CapabilityActionOverlay.catalog.byKey 就能重新
+  /// 判定 knownAction / customAction，而原始 actionType 字符串不受影响。
+  factory ParsedChain.fromJson(
+    Map<String, Object?> json, {
+    CapabilityActionLookup lookup = CapabilityAction.byKey,
+  }) {
     final summaryRaw = json['summary'];
     if (summaryRaw != null && summaryRaw is! String) {
       throw const ReasoningParseException('summary 必须是字符串');
@@ -254,7 +282,7 @@ class ParsedChain {
     }
     final steps = <ParsedStep>[];
     for (var i = 0; i < stepsRaw.length; i++) {
-      steps.add(_parseStep(stepsRaw[i], i));
+      steps.add(_parseStep(stepsRaw[i], i, lookup));
     }
     return ParsedChain(
       summary: (summaryRaw as String?)?.trim() ?? '',
@@ -302,9 +330,15 @@ class ParsedChain {
 /// * 容忍 ```json 代码块、代码块前后的寒暄、以及 JSON 前后多余的散文；
 /// * 空回复、找不到 JSON 对象、JSON 语法错误、steps 缺失/为空/类型错、
 ///   单个步骤缺 `goal`/`actionType` 或 `stuckRisk` 越界 —— 一律抛
-///   [ReasoningParseException]；
+///   [ReasoningParseException]，message 指认第几步/哪个字段，并尽量附带该步
+///   原始 JSON 片段；
 /// * `actionType` 未知**不**抛错：保留原字符串并标记 `knownAction == false`。
-ParsedChain parseChain(String modelReplyJson) {
+///   注入 [lookup] 后，映射到自定义词表的动作 knownAction == true 且
+///   customAction == true；只有 lookup 也不认识的 key 才是真正未知。
+ParsedChain parseChain(
+  String modelReplyJson, {
+  CapabilityActionLookup lookup = CapabilityAction.byKey,
+}) {
   final body = _extractJsonObject(modelReplyJson);
   Object? decoded;
   try {
@@ -321,7 +355,7 @@ ParsedChain parseChain(String modelReplyJson) {
       rawSnippet: _snippet(body),
     );
   }
-  return ParsedChain.fromJson(decoded.cast<String, Object?>());
+  return ParsedChain.fromJson(decoded.cast<String, Object?>(), lookup: lookup);
 }
 
 String _extractJsonObject(String raw) {
@@ -346,40 +380,70 @@ String _extractJsonObject(String raw) {
   return text.substring(start, end + 1);
 }
 
-ParsedStep _parseStep(Object? raw, int position) {
+ParsedStep _parseStep(
+  Object? raw,
+  int position,
+  CapabilityActionLookup lookup,
+) {
   if (raw is! Map) {
     throw ReasoningParseException(
-      'steps[$position] 必须是对象，实际是 ${raw.runtimeType}',
+      '第 ${position + 1} 步（steps[$position]）必须是对象，实际是 ${_describeValue(raw)}',
     );
   }
   final map = raw.cast<String, Object?>();
-  final path = 'steps[$position]';
-  final actionType = _requireText(map['actionType'], '$path.actionType');
-  return ParsedStep(
-    index: _parseIndex(map['index'], path),
-    goal: _requireText(map['goal'], '$path.goal'),
-    actionType: actionType,
-    action: CapabilityAction.byKey(actionType),
-    justification: _optionalText(map['justification'], '$path.justification'),
-    checkMethod: _optionalText(map['checkMethod'], '$path.checkMethod'),
-    stuckRisk: _parseStuckRisk(map['stuckRisk'], path),
-    knowledgeHints: _parseKnowledgeHints(map['knowledgeHints'], path),
-  );
+  final stepNumber = position + 1;
+  try {
+    final index = _parseIndex(map['index'], position);
+    // 错误信息统一带上「第几步 + 该步 index」，模型或人一眼能定位是哪一步坏了。
+    String fieldPath(String field) =>
+        '第 $stepNumber 步（steps[$position]，index=$index）的 $field';
+    final actionType = _requireText(map['actionType'], fieldPath('actionType'));
+    return ParsedStep(
+      index: index,
+      goal: _requireText(map['goal'], fieldPath('goal')),
+      actionType: actionType,
+      action: lookup(actionType),
+      justification: _optionalText(
+        map['justification'],
+        fieldPath('justification'),
+      ),
+      checkMethod: _optionalText(map['checkMethod'], fieldPath('checkMethod')),
+      stuckRisk: _parseStuckRisk(map['stuckRisk'], fieldPath('stuckRisk')),
+      knowledgeHints: _parseKnowledgeHints(
+        map['knowledgeHints'],
+        fieldPath('knowledgeHints'),
+      ),
+    );
+  } on ReasoningParseException catch (error) {
+    if (error.rawSnippet != null) {
+      rethrow;
+    }
+    // 结构错误只有一行 message 时信息可能不够定位；把整步原始 JSON 附上。
+    throw ReasoningParseException(
+      error.message,
+      rawSnippet: _snippetOfStep(map),
+    );
+  }
 }
 
-int _parseIndex(Object? value, String path) {
+int _parseIndex(Object? value, int position) {
   if (value is int) {
     return value;
   }
   if (value is double && value == value.truncateToDouble()) {
     return value.toInt();
   }
-  throw ReasoningParseException('$path 缺失或不是整数，实际是 $value');
+  throw ReasoningParseException(
+    '第 ${position + 1} 步（steps[$position]）的 index 缺失或不是整数'
+    '（实际是 ${_describeValue(value)}）',
+  );
 }
 
 String _requireText(Object? value, String path) {
   if (value is! String || value.trim().isEmpty) {
-    throw ReasoningParseException('$path 缺失或不是非空字符串，实际是 $value');
+    throw ReasoningParseException(
+      '$path 缺失或不是非空字符串（实际是 ${_describeValue(value)}）',
+    );
   }
   return value.trim();
 }
@@ -389,7 +453,9 @@ String _optionalText(Object? value, String path) {
     return '';
   }
   if (value is! String) {
-    throw ReasoningParseException('$path 必须是字符串，实际是 $value');
+    throw ReasoningParseException(
+      '$path 必须是字符串（实际是 ${_describeValue(value)}）',
+    );
   }
   return value.trim();
 }
@@ -401,11 +467,15 @@ double _parseStuckRisk(Object? value, String path) {
     return defaultStuckRisk;
   }
   if (value is! num) {
-    throw ReasoningParseException('$path.stuckRisk 必须是数字，实际是 $value');
+    throw ReasoningParseException(
+      '$path 必须是数字（实际是 ${_describeValue(value)}）',
+    );
   }
   final risk = value.toDouble();
   if (risk.isNaN || risk < 0 || risk > 1) {
-    throw ReasoningParseException('$path.stuckRisk 必须在 0..1 之间，实际是 $value');
+    throw ReasoningParseException(
+      '$path 必须在 0..1 之间（实际是 ${_describeValue(value)}）',
+    );
   }
   return risk;
 }
@@ -415,13 +485,15 @@ List<String> _parseKnowledgeHints(Object? value, String path) {
     return const <String>[];
   }
   if (value is! List) {
-    throw ReasoningParseException('$path.knowledgeHints 必须是数组，实际是 $value');
+    throw ReasoningParseException(
+      '$path 必须是数组（实际是 ${_describeValue(value)}）',
+    );
   }
   final hints = <String>[];
   for (final hint in value) {
     if (hint is! String) {
       throw ReasoningParseException(
-        '$path.knowledgeHints 里必须都是字符串，实际含 ${hint.runtimeType}',
+        '$path 里必须都是字符串（实际含 ${hint.runtimeType}）',
       );
     }
     final text = hint.trim();
@@ -430,6 +502,31 @@ List<String> _parseKnowledgeHints(Object? value, String path) {
     }
   }
   return hints;
+}
+
+/// 把 JSON 值描述成错误信息里可读的一段。
+///
+/// 空字符串要显式写出来（否则「实际是」后面什么都没有，看起来像代码 bug），
+/// 非字符串附上运行时类型（模型常把数字/布尔塞进字符串字段）。
+String _describeValue(Object? value) {
+  if (value == null) {
+    return 'null';
+  }
+  if (value is String) {
+    final text = value.trim();
+    return text.isEmpty ? '空字符串' : '「$text」';
+  }
+  return '$value（${value.runtimeType}）';
+}
+
+/// 生成「出错那一步的原始 JSON」摘要；无法序列化时给一句兜底说明，
+/// 绝不让「生成错误信息」本身抛异常。
+String _snippetOfStep(Map<String, Object?> step) {
+  try {
+    return _snippet(jsonEncode(step));
+  } catch (_) {
+    return '无法序列化的步骤对象（字段：${step.keys.join(', ')}）';
+  }
 }
 
 String _snippet(String text) {

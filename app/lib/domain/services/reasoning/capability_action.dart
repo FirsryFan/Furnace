@@ -429,3 +429,12 @@ class CapabilityAction {
   @override
   String toString() => 'CapabilityAction($key)';
 }
+
+/// 把一个原始 `actionType` 字符串映射到词表条目；未知 key 返回 `null`，
+/// **永不抛异常**。
+///
+/// 默认实现是 [CapabilityAction.byKey]。要让解析器认识用户自定义动作，传入
+/// `CapabilityActionOverlay.catalog.byKey`（见 `capability_action_overlay.dart`）：
+/// 这样同一份报表在库外合并词表之后，`knownAction` 仍然是对现实的准确描述，
+/// 而 `customAction` 能告诉界面「这一步用的是用户自己的动作」。
+typedef CapabilityActionLookup = CapabilityAction? Function(String actionType);
