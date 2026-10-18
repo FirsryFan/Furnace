@@ -2747,6 +2747,131 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get capabilityVocabularyTitle => 'Capability vocabulary';
+
+  @override
+  String get capabilityVocabularyHint =>
+      'The vocabulary names the move a student is stuck on. Built-in moves are read-only because their keys already live in saved data. Custom entries stay on this page until you tap Save; saved entries take effect from the next solve.';
+
+  @override
+  String capabilityVocabularyBuiltInSection(int count) {
+    return 'Built-in moves (read-only, $count)';
+  }
+
+  @override
+  String get capabilityVocabularyBuiltInNote =>
+      'Built-in moves are defined in code; changing one means shipping a new build. This list is read-only.';
+
+  @override
+  String capabilityVocabularyCustomSection(int count) {
+    return 'Custom moves ($count)';
+  }
+
+  @override
+  String get capabilityVocabularyCustomEmpty =>
+      'No custom moves yet. Use Add move, or paste JSON to import below.';
+
+  @override
+  String get capabilityVocabularyAdd => 'Add move';
+
+  @override
+  String get capabilityVocabularyEditTitle => 'Edit move';
+
+  @override
+  String get capabilityVocabularyKeyLabel => 'key (stable id)';
+
+  @override
+  String get capabilityVocabularyKeyHint =>
+      'Lower snake case, for example force_diagram_analysis; cannot change after saving.';
+
+  @override
+  String get capabilityVocabularyLabelZh => 'Chinese name';
+
+  @override
+  String get capabilityVocabularyLabelEn => 'English name (optional)';
+
+  @override
+  String get capabilityVocabularyDescriptionZh =>
+      'One-line description (optional)';
+
+  @override
+  String get capabilityVocabularySubjectHints => 'Subjects where it appears';
+
+  @override
+  String get capabilityVocabularyMoveUp => 'Move up';
+
+  @override
+  String get capabilityVocabularyMoveDown => 'Move down';
+
+  @override
+  String get capabilityVocabularyImport => 'Paste JSON to import';
+
+  @override
+  String get capabilityVocabularyImportTitle => 'Paste vocabulary JSON';
+
+  @override
+  String get capabilityVocabularyImportHint =>
+      'Accepts {"customActions": [...]} or a plain array of custom moves';
+
+  @override
+  String capabilityVocabularyImportInvalidJson(String message) {
+    return 'Could not parse the JSON: $message';
+  }
+
+  @override
+  String capabilityVocabularyImportDone(int count) {
+    return 'Imported $count move(s) (not saved yet)';
+  }
+
+  @override
+  String get capabilityVocabularyRevert => 'Discard changes';
+
+  @override
+  String get capabilityVocabularySaved =>
+      'Saved. The next solve uses the new vocabulary.';
+
+  @override
+  String capabilityVocabularySaveFailed(String message) {
+    return 'Could not save: $message';
+  }
+
+  @override
+  String get capabilityVocabularyDirty => 'Unsaved changes';
+
+  @override
+  String capabilityVocabularyIssuesTitle(int count) {
+    return '$count operation(s) were rejected';
+  }
+
+  @override
+  String get capabilityVocabularyIssueDismiss => 'Got it';
+
+  @override
+  String capabilityVocabularyLoadFailed(String message) {
+    return 'Could not read the vocabulary: $message';
+  }
+
+  @override
+  String get capabilityVocabularyLeaveTitle => 'Unsaved changes';
+
+  @override
+  String get capabilityVocabularyLeaveBody =>
+      'Leaving will discard these changes.';
+
+  @override
+  String get capabilityVocabularyLeaveStay => 'Keep editing';
+
+  @override
+  String get capabilityVocabularyLeaveDiscard => 'Discard and leave';
+
+  @override
+  String get capabilityVocabularySettingsTitle => 'Capability vocabulary';
+
+  @override
+  String get capabilityVocabularySettingsHint =>
+      'Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.';
+
+  @override
   String get learningMetricsTitle => 'Learning effect (the review log decides)';
 
   @override

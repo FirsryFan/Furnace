@@ -4738,6 +4738,210 @@ abstract class AppLocalizations {
   /// **'Could not read the question bank: {message}'**
   String capabilityActionQuestionsFailed(String message);
 
+  /// No description provided for @capabilityVocabularyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capability vocabulary'**
+  String get capabilityVocabularyTitle;
+
+  /// No description provided for @capabilityVocabularyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The vocabulary names the move a student is stuck on. Built-in moves are read-only because their keys already live in saved data. Custom entries stay on this page until you tap Save; saved entries take effect from the next solve.'**
+  String get capabilityVocabularyHint;
+
+  /// No description provided for @capabilityVocabularyBuiltInSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in moves (read-only, {count})'**
+  String capabilityVocabularyBuiltInSection(int count);
+
+  /// No description provided for @capabilityVocabularyBuiltInNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in moves are defined in code; changing one means shipping a new build. This list is read-only.'**
+  String get capabilityVocabularyBuiltInNote;
+
+  /// No description provided for @capabilityVocabularyCustomSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom moves ({count})'**
+  String capabilityVocabularyCustomSection(int count);
+
+  /// No description provided for @capabilityVocabularyCustomEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom moves yet. Use Add move, or paste JSON to import below.'**
+  String get capabilityVocabularyCustomEmpty;
+
+  /// No description provided for @capabilityVocabularyAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add move'**
+  String get capabilityVocabularyAdd;
+
+  /// No description provided for @capabilityVocabularyEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit move'**
+  String get capabilityVocabularyEditTitle;
+
+  /// No description provided for @capabilityVocabularyKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'key (stable id)'**
+  String get capabilityVocabularyKeyLabel;
+
+  /// No description provided for @capabilityVocabularyKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower snake case, for example force_diagram_analysis; cannot change after saving.'**
+  String get capabilityVocabularyKeyHint;
+
+  /// No description provided for @capabilityVocabularyLabelZh.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese name'**
+  String get capabilityVocabularyLabelZh;
+
+  /// No description provided for @capabilityVocabularyLabelEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English name (optional)'**
+  String get capabilityVocabularyLabelEn;
+
+  /// No description provided for @capabilityVocabularyDescriptionZh.
+  ///
+  /// In en, this message translates to:
+  /// **'One-line description (optional)'**
+  String get capabilityVocabularyDescriptionZh;
+
+  /// No description provided for @capabilityVocabularySubjectHints.
+  ///
+  /// In en, this message translates to:
+  /// **'Subjects where it appears'**
+  String get capabilityVocabularySubjectHints;
+
+  /// No description provided for @capabilityVocabularyMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get capabilityVocabularyMoveUp;
+
+  /// No description provided for @capabilityVocabularyMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get capabilityVocabularyMoveDown;
+
+  /// No description provided for @capabilityVocabularyImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste JSON to import'**
+  String get capabilityVocabularyImport;
+
+  /// No description provided for @capabilityVocabularyImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste vocabulary JSON'**
+  String get capabilityVocabularyImportTitle;
+
+  /// No description provided for @capabilityVocabularyImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepts {"customActions": [...]} or a plain array of custom moves'**
+  String get capabilityVocabularyImportHint;
+
+  /// No description provided for @capabilityVocabularyImportInvalidJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not parse the JSON: {message}'**
+  String capabilityVocabularyImportInvalidJson(String message);
+
+  /// No description provided for @capabilityVocabularyImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} move(s) (not saved yet)'**
+  String capabilityVocabularyImportDone(int count);
+
+  /// No description provided for @capabilityVocabularyRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get capabilityVocabularyRevert;
+
+  /// No description provided for @capabilityVocabularySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved. The next solve uses the new vocabulary.'**
+  String get capabilityVocabularySaved;
+
+  /// No description provided for @capabilityVocabularySaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save: {message}'**
+  String capabilityVocabularySaveFailed(String message);
+
+  /// No description provided for @capabilityVocabularyDirty.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get capabilityVocabularyDirty;
+
+  /// No description provided for @capabilityVocabularyIssuesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} operation(s) were rejected'**
+  String capabilityVocabularyIssuesTitle(int count);
+
+  /// No description provided for @capabilityVocabularyIssueDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get capabilityVocabularyIssueDismiss;
+
+  /// No description provided for @capabilityVocabularyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the vocabulary: {message}'**
+  String capabilityVocabularyLoadFailed(String message);
+
+  /// No description provided for @capabilityVocabularyLeaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get capabilityVocabularyLeaveTitle;
+
+  /// No description provided for @capabilityVocabularyLeaveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaving will discard these changes.'**
+  String get capabilityVocabularyLeaveBody;
+
+  /// No description provided for @capabilityVocabularyLeaveStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get capabilityVocabularyLeaveStay;
+
+  /// No description provided for @capabilityVocabularyLeaveDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard and leave'**
+  String get capabilityVocabularyLeaveDiscard;
+
+  /// No description provided for @capabilityVocabularySettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capability vocabulary'**
+  String get capabilityVocabularySettingsTitle;
+
+  /// No description provided for @capabilityVocabularySettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.'**
+  String get capabilityVocabularySettingsHint;
+
   /// No description provided for @learningMetricsTitle.
   ///
   /// In en, this message translates to:

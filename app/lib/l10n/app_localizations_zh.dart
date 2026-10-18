@@ -2635,6 +2635,127 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get capabilityVocabularyTitle => '能力动作词表';
+
+  @override
+  String get capabilityVocabularyHint =>
+      '词表决定「学生卡在哪一步动作」怎么命名。内置动作只读（key 已写进历史数据）；自定义条目只暂存在本页，点「保存」才落库，保存后从下一次解题开始生效。';
+
+  @override
+  String capabilityVocabularyBuiltInSection(int count) {
+    return '内置动作（只读，共 $count 个）';
+  }
+
+  @override
+  String get capabilityVocabularyBuiltInNote =>
+      '内置词表由代码定义；改内置动作要改代码并发版，这里只读展示。';
+
+  @override
+  String capabilityVocabularyCustomSection(int count) {
+    return '自定义动作（$count 条）';
+  }
+
+  @override
+  String get capabilityVocabularyCustomEmpty =>
+      '还没有自定义动作：点「新增动作」，或在下面粘贴 JSON 导入。';
+
+  @override
+  String get capabilityVocabularyAdd => '新增动作';
+
+  @override
+  String get capabilityVocabularyEditTitle => '编辑动作';
+
+  @override
+  String get capabilityVocabularyKeyLabel => 'key（稳定标识）';
+
+  @override
+  String get capabilityVocabularyKeyHint =>
+      '小写蛇形，例如 force_diagram_analysis；保存后不可改';
+
+  @override
+  String get capabilityVocabularyLabelZh => '中文名';
+
+  @override
+  String get capabilityVocabularyLabelEn => '英文名（可选）';
+
+  @override
+  String get capabilityVocabularyDescriptionZh => '一句话说明（可选）';
+
+  @override
+  String get capabilityVocabularySubjectHints => '会出现的学科';
+
+  @override
+  String get capabilityVocabularyMoveUp => '上移';
+
+  @override
+  String get capabilityVocabularyMoveDown => '下移';
+
+  @override
+  String get capabilityVocabularyImport => '粘贴 JSON 导入';
+
+  @override
+  String get capabilityVocabularyImportTitle => '粘贴词表 JSON';
+
+  @override
+  String get capabilityVocabularyImportHint =>
+      '支持 {"customActions": [...]} 或直接给自定义动作数组';
+
+  @override
+  String capabilityVocabularyImportInvalidJson(String message) {
+    return 'JSON 解析失败：$message';
+  }
+
+  @override
+  String capabilityVocabularyImportDone(int count) {
+    return '已导入 $count 条（还没保存）';
+  }
+
+  @override
+  String get capabilityVocabularyRevert => '放弃修改';
+
+  @override
+  String get capabilityVocabularySaved => '已保存：下一次解题起用新词表';
+
+  @override
+  String capabilityVocabularySaveFailed(String message) {
+    return '保存失败：$message';
+  }
+
+  @override
+  String get capabilityVocabularyDirty => '有未保存的修改';
+
+  @override
+  String capabilityVocabularyIssuesTitle(int count) {
+    return '$count 条操作没有被接受';
+  }
+
+  @override
+  String get capabilityVocabularyIssueDismiss => '知道了';
+
+  @override
+  String capabilityVocabularyLoadFailed(String message) {
+    return '读词表失败：$message';
+  }
+
+  @override
+  String get capabilityVocabularyLeaveTitle => '有未保存的修改';
+
+  @override
+  String get capabilityVocabularyLeaveBody => '离开会丢掉这些修改。';
+
+  @override
+  String get capabilityVocabularyLeaveStay => '留下继续编辑';
+
+  @override
+  String get capabilityVocabularyLeaveDiscard => '放弃并离开';
+
+  @override
+  String get capabilityVocabularySettingsTitle => '能力动作词表';
+
+  @override
+  String get capabilityVocabularySettingsHint => '添加内置词表里没有的能力动作；保存后下一次解题生效';
+
+  @override
   String get learningMetricsTitle => '学习效果（复习日志说了算）';
 
   @override

@@ -1172,6 +1172,61 @@
   "@capabilityActionQuestionsFailed": {
     "placeholders": { "message": { "type": "String" } }
   },
+  "capabilityVocabularyTitle": "能力动作词表",
+  "capabilityVocabularyHint": "词表决定「学生卡在哪一步动作」怎么命名。内置动作只读（key 已写进历史数据）；自定义条目只暂存在本页，点「保存」才落库，保存后从下一次解题开始生效。",
+  "capabilityVocabularyBuiltInSection": "内置动作（只读，共 {count} 个）",
+  "@capabilityVocabularyBuiltInSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyBuiltInNote": "内置词表由代码定义；改内置动作要改代码并发版，这里只读展示。",
+  "capabilityVocabularyCustomSection": "自定义动作（{count} 条）",
+  "@capabilityVocabularyCustomSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyCustomEmpty": "还没有自定义动作：点「新增动作」，或在下面粘贴 JSON 导入。",
+  "capabilityVocabularyAdd": "新增动作",
+  "capabilityVocabularyEditTitle": "编辑动作",
+  "capabilityVocabularyKeyLabel": "key（稳定标识）",
+  "capabilityVocabularyKeyHint": "小写蛇形，例如 force_diagram_analysis；保存后不可改",
+  "capabilityVocabularyLabelZh": "中文名",
+  "capabilityVocabularyLabelEn": "英文名（可选）",
+  "capabilityVocabularyDescriptionZh": "一句话说明（可选）",
+  "capabilityVocabularySubjectHints": "会出现的学科",
+  "capabilityVocabularyMoveUp": "上移",
+  "capabilityVocabularyMoveDown": "下移",
+  "capabilityVocabularyImport": "粘贴 JSON 导入",
+  "capabilityVocabularyImportTitle": "粘贴词表 JSON",
+  "capabilityVocabularyImportHint": "支持 {\"customActions\": [...]} 或直接给自定义动作数组",
+  "capabilityVocabularyImportInvalidJson": "JSON 解析失败：{message}",
+  "@capabilityVocabularyImportInvalidJson": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyImportDone": "已导入 {count} 条（还没保存）",
+  "@capabilityVocabularyImportDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyRevert": "放弃修改",
+  "capabilityVocabularySaved": "已保存：下一次解题起用新词表",
+  "capabilityVocabularySaveFailed": "保存失败：{message}",
+  "@capabilityVocabularySaveFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyDirty": "有未保存的修改",
+  "capabilityVocabularyIssuesTitle": "{count} 条操作没有被接受",
+  "@capabilityVocabularyIssuesTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyIssueDismiss": "知道了",
+  "capabilityVocabularyLoadFailed": "读词表失败：{message}",
+  "@capabilityVocabularyLoadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyLeaveTitle": "有未保存的修改",
+  "capabilityVocabularyLeaveBody": "离开会丢掉这些修改。",
+  "capabilityVocabularyLeaveStay": "留下继续编辑",
+  "capabilityVocabularyLeaveDiscard": "放弃并离开",
+  "capabilityVocabularySettingsTitle": "能力动作词表",
+  "capabilityVocabularySettingsHint": "添加内置词表里没有的能力动作；保存后下一次解题生效",
   "learningMetricsTitle": "学习效果（复习日志说了算）",
   "learningMetricsDetail": "留存率是「隔了多久再看还记得多少」，只看复习结果，不看模型的自我感觉；校准度要等带预测的复习攒出样本。",
   "learningMetricsEmpty": "还没有复习记录——这里会随着你复习慢慢长出数字。",

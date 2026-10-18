@@ -21,6 +21,7 @@ import '../../questions/presentation/question_bank_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
 import 'about_page.dart';
+import 'capability_vocabulary_page.dart';
 import 'data_section.dart';
 import 'usage_doc_page.dart';
 
@@ -114,6 +115,20 @@ class SettingsPage extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const CognitiveModelPage(),
+              ),
+            ),
+          ),
+          // 能力动作词表的编辑入口（task-29）：内置动作只读，自定义动作
+          // 保存在 LocalSetting.capabilityActionOverlayJson，下一次解题生效。
+          ListTile(
+            leading: const Icon(Icons.account_tree_outlined),
+            title: Text(l10n.capabilityVocabularySettingsTitle),
+            subtitle: Text(l10n.capabilityVocabularySettingsHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CapabilityVocabularyPage(),
               ),
             ),
           ),

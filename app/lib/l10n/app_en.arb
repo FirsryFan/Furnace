@@ -1261,6 +1261,61 @@
   "@capabilityActionQuestionsFailed": {
     "placeholders": { "message": { "type": "String" } }
   },
+  "capabilityVocabularyTitle": "Capability vocabulary",
+  "capabilityVocabularyHint": "The vocabulary names the move a student is stuck on. Built-in moves are read-only because their keys already live in saved data. Custom entries stay on this page until you tap Save; saved entries take effect from the next solve.",
+  "capabilityVocabularyBuiltInSection": "Built-in moves (read-only, {count})",
+  "@capabilityVocabularyBuiltInSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyBuiltInNote": "Built-in moves are defined in code; changing one means shipping a new build. This list is read-only.",
+  "capabilityVocabularyCustomSection": "Custom moves ({count})",
+  "@capabilityVocabularyCustomSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyCustomEmpty": "No custom moves yet. Use Add move, or paste JSON to import below.",
+  "capabilityVocabularyAdd": "Add move",
+  "capabilityVocabularyEditTitle": "Edit move",
+  "capabilityVocabularyKeyLabel": "key (stable id)",
+  "capabilityVocabularyKeyHint": "Lower snake case, for example force_diagram_analysis; cannot change after saving.",
+  "capabilityVocabularyLabelZh": "Chinese name",
+  "capabilityVocabularyLabelEn": "English name (optional)",
+  "capabilityVocabularyDescriptionZh": "One-line description (optional)",
+  "capabilityVocabularySubjectHints": "Subjects where it appears",
+  "capabilityVocabularyMoveUp": "Move up",
+  "capabilityVocabularyMoveDown": "Move down",
+  "capabilityVocabularyImport": "Paste JSON to import",
+  "capabilityVocabularyImportTitle": "Paste vocabulary JSON",
+  "capabilityVocabularyImportHint": "Accepts {\"customActions\": [...]} or a plain array of custom moves",
+  "capabilityVocabularyImportInvalidJson": "Could not parse the JSON: {message}",
+  "@capabilityVocabularyImportInvalidJson": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyImportDone": "Imported {count} move(s) (not saved yet)",
+  "@capabilityVocabularyImportDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyRevert": "Discard changes",
+  "capabilityVocabularySaved": "Saved. The next solve uses the new vocabulary.",
+  "capabilityVocabularySaveFailed": "Could not save: {message}",
+  "@capabilityVocabularySaveFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyDirty": "Unsaved changes",
+  "capabilityVocabularyIssuesTitle": "{count} operation(s) were rejected",
+  "@capabilityVocabularyIssuesTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "capabilityVocabularyIssueDismiss": "Got it",
+  "capabilityVocabularyLoadFailed": "Could not read the vocabulary: {message}",
+  "@capabilityVocabularyLoadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "capabilityVocabularyLeaveTitle": "Unsaved changes",
+  "capabilityVocabularyLeaveBody": "Leaving will discard these changes.",
+  "capabilityVocabularyLeaveStay": "Keep editing",
+  "capabilityVocabularyLeaveDiscard": "Discard and leave",
+  "capabilityVocabularySettingsTitle": "Capability vocabulary",
+  "capabilityVocabularySettingsHint": "Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.",
   "learningMetricsTitle": "Learning effect (the review log decides)",
   "learningMetricsDetail": "Retention is \"how much was still there after that long\", read from review outcomes only - not from the model's own opinion of itself. Calibration waits for reviews that recorded a prediction.",
   "learningMetricsEmpty": "No reviews yet - these numbers grow as you review.",
