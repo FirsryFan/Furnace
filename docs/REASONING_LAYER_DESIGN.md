@@ -875,3 +875,45 @@ static LearningAdvicePlan build({
 - 未做 / 未验证：真机手势与滚动、英文文案母语校对、自定义动作徽标分支（测试只覆盖内置 / 未知）、
   页面数据由 domain 构造后 override，未用真实数据库链数据跑；链质量体检与组卷质量未上这一页。
 
+## 23. 配题推荐接线：题库行 → 候选投影 → provider（轮次一百二十五，task-48）
+
+§22 的推荐层是纯逻辑（不读库）；这一节把它接到真实题库。读表与 provider 在 application 层，
+打分 / 理由 / 排序仍是 §22 的纯函数，不在这一层重写任何口径。
+
+### 23.1 文件与 API
+
+`app/lib/features/questions/application/practice_recommendation_provider.dart`（约 170 行）：
+
+- `Future<List<PracticeQuestionCandidate>> readPracticeQuestionCandidates(AppDatabase db)`：一次读全库
+  `questions` + `object_tags`（题目 → 覆盖知识点走 `TaskKnowledgePointResolver` 单一口径）+ 最新一条链的
+  动作序列（复用 `readChainActionTypes`，与组卷 / 按动作找题同源）。字段映射：
+  `questionId / serialNo / subjectKey / sourceLevel / difficulty / aiQuality / knowledgePointIds /
+  actionTypes / hasAnswer / hasSolution`；`difficulty / aiQuality` 的非有限数（NaN / ±inf）读作 null，
+  `answer / solution` 为 null 或去空白为空都读作 false；行按题目 id 稳定排序（推荐结果可复现）。
+- `practiceCandidatesProvider`（`FutureProvider.autoDispose`）：watch `ref.watchDatabaseRevision()`，刚收的题 /
+  刚拆的链立即进入候选。
+- `practiceRecommendationProvider`（`FutureProvider.autoDispose<PracticeRecommendationPlan>`）：watch
+  `chainInsightsProvider` + `learningAdviceProvider` + `practiceCandidatesProvider`，调
+  `PracticeRecommendationPlan.build`；`targetDifficulty` 暂不传（null = 不按难度贴目标打分），
+  `maxQuestions` 用默认 10，`includeUnknownActionScaffold` 默认开。
+
+### 23.2 取舍
+
+- **不用 `QuestionRepository.all()`**：它默认只回 200 条，推荐要从整个题库里挑；题库是本地 SQLite、
+  行数万级以内，一次读完可接受（与入库体检读表同一理由）。
+- **知识点 / 动作不在这里重写规则**：一个走 `TaskKnowledgePointResolver`（同一个标签同时挂题与知识点），
+  一个走 `readChainActionTypes`（一道题只认最新那条链）；换口径只改那一处。
+- **失败退化沿用上游**：词表读不出来时 `chainInsightsProvider` 退回出厂词表继续聚合，推荐照常产出；
+  本层不重复读词表、不吞异常。
+
+### 23.3 验收与未做
+
+- `app/test/features/questions/application/practice_recommendation_provider_test.dart`（约 330 行）**12 例**：
+  字段一一对应与自动题号 / 缺答案缺解析 / 非有限读数 / 多条链只认最新 / 知识点共挂口径 / 空库；
+  空库空 plan / 卡点知识点题排第一并给理由 / 词表外动作补习加分 / 答案解析齐全 upToDate /
+  词表读取失败不阻塞 / 重读 plan 能看到刚收的题。
+- `flutter test test/features/questions/application` → **200 例全绿**（基线 188 + 12）；
+  scoped `dart analyze lib/features/questions/application test/features/questions/application` → No issues found!。
+- 未做：洞察页「下一步练什么」UI（task-49）、`targetDifficulty` 从组卷 spec 读取、权重与阈值标定、
+  详情页 / 练习页入口、真实题库下的推荐质量验证；本层仍**不生成题目**，只在现有题库里排序挑选。
+
