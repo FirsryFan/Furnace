@@ -2872,6 +2872,117 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.';
 
   @override
+  String get learningInsightTitle => 'Learning insights';
+
+  @override
+  String get learningInsightRefresh => 'Refresh';
+
+  @override
+  String learningInsightLoadFailed(String message) =>
+      'Could not load learning insights: $message';
+
+  @override
+  String get learningInsightRetry => 'Retry';
+
+  @override
+  String get learningInsightOverlayFallback =>
+      'Could not read the custom capability vocabulary; showing the built-in vocabulary.';
+
+  @override
+  String get learningInsightEmptyTitle => 'No solution chains yet';
+
+  @override
+  String get learningInsightEmptyBody =>
+      'Run AI solve on a few question detail pages first; insights appear once chains exist.';
+
+  @override
+  String learningInsightSummary(int chains, int steps, int questions) =>
+      '$chains chains · $steps steps · $questions questions';
+
+  @override
+  String get learningInsightAdviceSection => 'What to do next';
+
+  @override
+  String get learningInsightAdviceEmpty => 'No actionable advice right now';
+
+  @override
+  String learningInsightAdviceAction(String label) => 'Action: $label';
+
+  @override
+  String learningInsightAdviceQuestions(int count) => '$count questions';
+
+  @override
+  String learningInsightAdviceSteps(int count) => '$count steps';
+
+  @override
+  String learningInsightAdviceHighRisk(int count) => '$count high-risk steps';
+
+  @override
+  String get learningInsightActionSection => 'Capability action breakdown';
+
+  @override
+  String get learningInsightActionEmpty => 'No action readings yet';
+
+  @override
+  String get learningInsightActionBuiltIn => 'Built-in';
+
+  @override
+  String get learningInsightActionCustom => 'Custom';
+
+  @override
+  String get learningInsightActionUnknown => 'Unknown';
+
+  @override
+  String learningInsightActionCounts(int steps, int questions, int highRisk) =>
+      '$steps steps · $questions questions · $highRisk high-risk';
+
+  @override
+  String learningInsightRiskAverage(String percent) => 'Average risk $percent';
+
+  @override
+  String get learningInsightRiskUnread => 'Average risk: no readings';
+
+  @override
+  String learningInsightLastSeen(String time) => 'Last seen $time';
+
+  @override
+  String learningInsightUnknownSection(int count) =>
+      'Actions outside the vocabulary ($count)';
+
+  @override
+  String get learningInsightUnknownHint =>
+      'These actions are not in the vocabulary yet; consider adding them.';
+
+  @override
+  String get learningInsightOpenVocabulary => 'Open vocabulary';
+
+  @override
+  String get learningInsightNeverUsedSection => 'Vocabulary actions never seen';
+
+  @override
+  String get learningInsightNeverUsedHint =>
+      'No samples for these actions yet; that does not mean they should not be used.';
+
+  @override
+  String get learningInsightStuckSection => 'Stuck hotspots (knowledge points)';
+
+  @override
+  String learningInsightStuckCounts(
+          int highRiskSteps, int questions, int chains) =>
+      '$highRiskSteps high-risk steps · $questions questions · $chains chains';
+
+  @override
+  String get learningInsightCrossSection =>
+      'Action × knowledge point stuck points';
+
+  @override
+  String get learningInsightSettingsTitle => 'Learning insights';
+
+  @override
+  String get learningInsightSettingsHint =>
+      'Review capability actions and stuck points in solution chains, and what to practice next';
+
+  @override
   String get learningMetricsTitle => 'Learning effect (the review log decides)';
 
   @override

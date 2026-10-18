@@ -4942,6 +4942,205 @@ abstract class AppLocalizations {
   /// **'Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.'**
   String get capabilityVocabularySettingsHint;
 
+  /// No description provided for @learningInsightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning insights'**
+  String get learningInsightTitle;
+
+  /// No description provided for @learningInsightRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get learningInsightRefresh;
+
+  /// No description provided for @learningInsightLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load learning insights: {message}'**
+  String learningInsightLoadFailed(String message);
+
+  /// No description provided for @learningInsightRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get learningInsightRetry;
+
+  /// No description provided for @learningInsightOverlayFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the custom capability vocabulary; showing the built-in vocabulary.'**
+  String get learningInsightOverlayFallback;
+
+  /// No description provided for @learningInsightEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No solution chains yet'**
+  String get learningInsightEmptyTitle;
+
+  /// No description provided for @learningInsightEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Run AI solve on a few question detail pages first; insights appear once chains exist.'**
+  String get learningInsightEmptyBody;
+
+  /// No description provided for @learningInsightSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{chains} chains · {steps} steps · {questions} questions'**
+  String learningInsightSummary(int chains, int steps, int questions);
+
+  /// No description provided for @learningInsightAdviceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'What to do next'**
+  String get learningInsightAdviceSection;
+
+  /// No description provided for @learningInsightAdviceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No actionable advice right now'**
+  String get learningInsightAdviceEmpty;
+
+  /// No description provided for @learningInsightAdviceAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action: {label}'**
+  String learningInsightAdviceAction(String label);
+
+  /// No description provided for @learningInsightAdviceQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} questions'**
+  String learningInsightAdviceQuestions(int count);
+
+  /// No description provided for @learningInsightAdviceSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} steps'**
+  String learningInsightAdviceSteps(int count);
+
+  /// No description provided for @learningInsightAdviceHighRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} high-risk steps'**
+  String learningInsightAdviceHighRisk(int count);
+
+  /// No description provided for @learningInsightActionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Capability action breakdown'**
+  String get learningInsightActionSection;
+
+  /// No description provided for @learningInsightActionEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No action readings yet'**
+  String get learningInsightActionEmpty;
+
+  /// No description provided for @learningInsightActionBuiltIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in'**
+  String get learningInsightActionBuiltIn;
+
+  /// No description provided for @learningInsightActionCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get learningInsightActionCustom;
+
+  /// No description provided for @learningInsightActionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get learningInsightActionUnknown;
+
+  /// No description provided for @learningInsightActionCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{steps} steps · {questions} questions · {highRisk} high-risk'**
+  String learningInsightActionCounts(int steps, int questions, int highRisk);
+
+  /// No description provided for @learningInsightRiskAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Average risk {percent}'**
+  String learningInsightRiskAverage(String percent);
+
+  /// No description provided for @learningInsightRiskUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'Average risk: no readings'**
+  String get learningInsightRiskUnread;
+
+  /// No description provided for @learningInsightLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {time}'**
+  String learningInsightLastSeen(String time);
+
+  /// No description provided for @learningInsightUnknownSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions outside the vocabulary ({count})'**
+  String learningInsightUnknownSection(int count);
+
+  /// No description provided for @learningInsightUnknownHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These actions are not in the vocabulary yet; consider adding them.'**
+  String get learningInsightUnknownHint;
+
+  /// No description provided for @learningInsightOpenVocabulary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open vocabulary'**
+  String get learningInsightOpenVocabulary;
+
+  /// No description provided for @learningInsightNeverUsedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocabulary actions never seen'**
+  String get learningInsightNeverUsedSection;
+
+  /// No description provided for @learningInsightNeverUsedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No samples for these actions yet; that does not mean they should not be used.'**
+  String get learningInsightNeverUsedHint;
+
+  /// No description provided for @learningInsightStuckSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Stuck hotspots (knowledge points)'**
+  String get learningInsightStuckSection;
+
+  /// No description provided for @learningInsightStuckCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{highRiskSteps} high-risk steps · {questions} questions · {chains} chains'**
+  String learningInsightStuckCounts(
+      int highRiskSteps, int questions, int chains);
+
+  /// No description provided for @learningInsightCrossSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Action × knowledge point stuck points'**
+  String get learningInsightCrossSection;
+
+  /// No description provided for @learningInsightSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning insights'**
+  String get learningInsightSettingsTitle;
+
+  /// No description provided for @learningInsightSettingsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Review capability actions and stuck points in solution chains, and what to practice next'**
+  String get learningInsightSettingsHint;
+
   /// No description provided for @learningMetricsTitle.
   ///
   /// In en, this message translates to:

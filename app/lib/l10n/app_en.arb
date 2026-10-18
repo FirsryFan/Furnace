@@ -1316,6 +1316,102 @@
   "capabilityVocabularyLeaveDiscard": "Discard and leave",
   "capabilityVocabularySettingsTitle": "Capability vocabulary",
   "capabilityVocabularySettingsHint": "Add capability moves the built-in vocabulary does not have. Saved entries take effect on the next solve.",
+  "learningInsightTitle": "Learning insights",
+  "learningInsightRefresh": "Refresh",
+  "learningInsightLoadFailed": "Could not load learning insights: {message}",
+  "@learningInsightLoadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "learningInsightRetry": "Retry",
+  "learningInsightOverlayFallback": "Could not read the custom capability vocabulary; showing the built-in vocabulary.",
+  "learningInsightEmptyTitle": "No solution chains yet",
+  "learningInsightEmptyBody": "Run AI solve on a few question detail pages first; insights appear once chains exist.",
+  "learningInsightSummary": "{chains} chains · {steps} steps · {questions} questions",
+  "@learningInsightSummary": {
+    "placeholders": {
+      "chains": {
+        "type": "int"
+      },
+      "steps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightAdviceSection": "What to do next",
+  "learningInsightAdviceEmpty": "No actionable advice right now",
+  "learningInsightAdviceAction": "Action: {label}",
+  "@learningInsightAdviceAction": {
+    "placeholders": { "label": { "type": "String" } }
+  },
+  "learningInsightAdviceQuestions": "{count} questions",
+  "@learningInsightAdviceQuestions": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightAdviceSteps": "{count} steps",
+  "@learningInsightAdviceSteps": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightAdviceHighRisk": "{count} high-risk steps",
+  "@learningInsightAdviceHighRisk": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightActionSection": "Capability action breakdown",
+  "learningInsightActionEmpty": "No action readings yet",
+  "learningInsightActionBuiltIn": "Built-in",
+  "learningInsightActionCustom": "Custom",
+  "learningInsightActionUnknown": "Unknown",
+  "learningInsightActionCounts": "{steps} steps · {questions} questions · {highRisk} high-risk",
+  "@learningInsightActionCounts": {
+    "placeholders": {
+      "steps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      },
+      "highRisk": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightRiskAverage": "Average risk {percent}",
+  "@learningInsightRiskAverage": {
+    "placeholders": { "percent": { "type": "String" } }
+  },
+  "learningInsightRiskUnread": "Average risk: no readings",
+  "learningInsightLastSeen": "Last seen {time}",
+  "@learningInsightLastSeen": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "learningInsightUnknownSection": "Actions outside the vocabulary ({count})",
+  "@learningInsightUnknownSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightUnknownHint": "These actions are not in the vocabulary yet; consider adding them.",
+  "learningInsightOpenVocabulary": "Open vocabulary",
+  "learningInsightNeverUsedSection": "Vocabulary actions never seen",
+  "learningInsightNeverUsedHint": "No samples for these actions yet; that does not mean they should not be used.",
+  "learningInsightStuckSection": "Stuck hotspots (knowledge points)",
+  "learningInsightStuckCounts": "{highRiskSteps} high-risk steps · {questions} questions · {chains} chains",
+  "@learningInsightStuckCounts": {
+    "placeholders": {
+      "highRiskSteps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      },
+      "chains": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightCrossSection": "Action × knowledge point stuck points",
+  "learningInsightSettingsTitle": "Learning insights",
+  "learningInsightSettingsHint": "Review capability actions and stuck points in solution chains, and what to practice next",
   "learningMetricsTitle": "Learning effect (the review log decides)",
   "learningMetricsDetail": "Retention is \"how much was still there after that long\", read from review outcomes only - not from the model's own opinion of itself. Calibration waits for reviews that recorded a prediction.",
   "learningMetricsEmpty": "No reviews yet - these numbers grow as you review.",

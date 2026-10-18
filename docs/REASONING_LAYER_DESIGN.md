@@ -780,4 +780,44 @@ static LearningAdvicePlan build({
   误报率未标定。
 - `catalog` 为 null 时退回内置词表的兼容行为保留（既有调用方不传 overlay 不会被新判据改变），
   但自定义动作会被判未知——接线时必须传合并后的 catalog。
+## 21. 学习洞察页 UI：把读数与建议摆到学生面前（轮次一百二十五，task-39）
+
+§16 的学习建议 provider 与 §14 的洞察聚合此前只有数据、没有页面；这一节把两者装成一张设置页可达的
+只读页面。页面**只消费数据、不改数据**：不调模型、不写库、不改词表（改词表走 §19 的编辑页）。
+
+### 21.1 页面与入口
+
+- 页面：`app/lib/features/questions/presentation/learning_insight_page.dart`（721 行），
+  数据只来自 `learningInsightDataProvider`（`features/questions/application/learning_insight_provider.dart`）。
+  区块自上而下：汇总（链数 / 步数 / 题数）→ 学习建议卡（§15 的确定性建议，优先级顺序）→
+  能力动作分布（内置 / 自定义 / 未知徽标、平均卡点读数、最近出现）→ 未知动作块（可跳设置页词表编辑）→
+  未用过动作（chips）→ 卡点热区（知识点中文名 + 高危步数 / 题数 / 链数）→ 动作 × 知识点交叉卡点。
+- 入口：设置页 `app/lib/features/settings/presentation/settings_page.dart:136-149`「学习洞察」，
+  排在能力动作词表之后、题库入口之前；不新增导航栈层级（`Navigator.push` 进页面，返回即设置页）。
+- 状态处理：加载中骨架 / 错误态显示原文 + 重试按钮 / 空态（没有任何链时如实说没数据）；
+  `vocabOverlayFallback` 为真时顶部提示「词表读取失败，按出厂词表统计」而不是假装正常；
+  下拉刷新与 AppBar 刷新都 invalidate 同一个 provider。
+- 文案：33 个 `learningInsight*` key 手改进 l10n 五文件（未跑 gen-l10n）；纯逻辑 `adviceIcon / riskText /
+  `actionStateText / lastSeenText / showsFallback / showsEmpty` 放在页面文件里便于单测。
+
+### 21.2 口径
+
+- 未知动作永远不进「练习建议」（§15 口径），页面只把它列进「未知动作」块并给跳词表入口；
+  自定义动作（overlay 已收）按已收录显示，不重复提示。
+- 卡点热区与交叉卡点直接取 `ChainInsights.highRiskByKnowledgePoint /
+  `highRiskByActionAndKnowledgePoint`；知识点标题读不到时回退 id（不编中文名）。
+- 页面不展示链质量体检（§20）与组卷质量报告（`docs/PAPER_COMPOSER_DESIGN.md` §21）：
+  它们是另外的消费方，混进洞察页会让「学情」与「卷子质量」两种判断混淆。
+
+### 21.3 验收与未做
+
+- `app/test/features/questions/presentation/learning_insight_page_test.dart`（392 行）**15 例**
+  （5 纯函数 + 10 widget）：空态 / 错误态原文与重试 / 汇总与建议卡 / 动作行内置徽标与平均风险 /
+  未知动作块跳词表页 / 卡点中文名 / 交叉行 / fallback 条 / never-used chips / 下拉刷新 / 设置页入口。
+- `flutter test test/features/questions/presentation` → **217 例全绿**（基线 202 + 15）；
+  scoped `dart analyze`（两个 presentation 目录 + l10n + 测试目录）→ No issues found!。
+- 顺带修掉 l10n 生成文件里的真 bug：11 个带参方法把 `{message}` 写成字面量，页面错误态测试抓到后
+  改为 `$参数` 插值（zh / en 共 22 处），arb 里占位符不变。
+- 未做 / 未验证：真机手势与滚动、英文文案母语校对、自定义动作徽标分支（测试只覆盖内置 / 未知）、
+  页面数据由 domain 构造后 override，未用真实数据库链数据跑；链质量体检与组卷质量未上这一页。
 

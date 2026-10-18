@@ -1227,6 +1227,102 @@
   "capabilityVocabularyLeaveDiscard": "放弃并离开",
   "capabilityVocabularySettingsTitle": "能力动作词表",
   "capabilityVocabularySettingsHint": "添加内置词表里没有的能力动作；保存后下一次解题生效",
+  "learningInsightTitle": "学习洞察",
+  "learningInsightRefresh": "刷新",
+  "learningInsightLoadFailed": "读学习洞察失败：{message}",
+  "@learningInsightLoadFailed": {
+    "placeholders": { "message": { "type": "String" } }
+  },
+  "learningInsightRetry": "重试",
+  "learningInsightOverlayFallback": "没读到自定义能力词表，已按内置词表展示。",
+  "learningInsightEmptyTitle": "还没有解题链",
+  "learningInsightEmptyBody": "先在题目详情页用「AI 解题」跑出几条链，这里才会长出洞察。",
+  "learningInsightSummary": "{chains} 条链 · {steps} 步 · {questions} 道题",
+  "@learningInsightSummary": {
+    "placeholders": {
+      "chains": {
+        "type": "int"
+      },
+      "steps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightAdviceSection": "下一步做什么",
+  "learningInsightAdviceEmpty": "暂时没有可执行的建议",
+  "learningInsightAdviceAction": "动作：{label}",
+  "@learningInsightAdviceAction": {
+    "placeholders": { "label": { "type": "String" } }
+  },
+  "learningInsightAdviceQuestions": "{count} 道题",
+  "@learningInsightAdviceQuestions": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightAdviceSteps": "{count} 步",
+  "@learningInsightAdviceSteps": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightAdviceHighRisk": "高危 {count} 步",
+  "@learningInsightAdviceHighRisk": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightActionSection": "能力动作分布",
+  "learningInsightActionEmpty": "还没有动作读数",
+  "learningInsightActionBuiltIn": "内置",
+  "learningInsightActionCustom": "自定义",
+  "learningInsightActionUnknown": "未知",
+  "learningInsightActionCounts": "{steps} 步 · {questions} 道题 · 高危 {highRisk} 步",
+  "@learningInsightActionCounts": {
+    "placeholders": {
+      "steps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      },
+      "highRisk": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightRiskAverage": "平均风险 {percent}",
+  "@learningInsightRiskAverage": {
+    "placeholders": { "percent": { "type": "String" } }
+  },
+  "learningInsightRiskUnread": "平均风险：未读数",
+  "learningInsightLastSeen": "最近 {time}",
+  "@learningInsightLastSeen": {
+    "placeholders": { "time": { "type": "String" } }
+  },
+  "learningInsightUnknownSection": "词表外的动作（{count}）",
+  "@learningInsightUnknownSection": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "learningInsightUnknownHint": "这些动作不在词表里，不是没问题——建议补词表。",
+  "learningInsightOpenVocabulary": "去词表页补",
+  "learningInsightNeverUsedSection": "词表里从没出现过的动作",
+  "learningInsightNeverUsedHint": "这些动作还没有样本，不代表不该用。",
+  "learningInsightStuckSection": "卡点热区（知识点）",
+  "learningInsightStuckCounts": "高危 {highRiskSteps} 步 · {questions} 道题 · {chains} 条链",
+  "@learningInsightStuckCounts": {
+    "placeholders": {
+      "highRiskSteps": {
+        "type": "int"
+      },
+      "questions": {
+        "type": "int"
+      },
+      "chains": {
+        "type": "int"
+      }
+    }
+  },
+  "learningInsightCrossSection": "动作 × 知识点卡点",
+  "learningInsightSettingsTitle": "学习洞察",
+  "learningInsightSettingsHint": "看解题链里的能力动作与卡点，以及下一步练什么",
   "learningMetricsTitle": "学习效果（复习日志说了算）",
   "learningMetricsDetail": "留存率是「隔了多久再看还记得多少」，只看复习结果，不看模型的自我感觉；校准度要等带预测的复习攒出样本。",
   "learningMetricsEmpty": "还没有复习记录——这里会随着你复习慢慢长出数字。",

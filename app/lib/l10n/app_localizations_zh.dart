@@ -2756,6 +2756,109 @@ class AppLocalizationsZh extends AppLocalizations {
   String get capabilityVocabularySettingsHint => '添加内置词表里没有的能力动作；保存后下一次解题生效';
 
   @override
+  String get learningInsightTitle => '学习洞察';
+
+  @override
+  String get learningInsightRefresh => '刷新';
+
+  @override
+  String learningInsightLoadFailed(String message) => '读学习洞察失败：$message';
+
+  @override
+  String get learningInsightRetry => '重试';
+
+  @override
+  String get learningInsightOverlayFallback => '没读到自定义能力词表，已按内置词表展示。';
+
+  @override
+  String get learningInsightEmptyTitle => '还没有解题链';
+
+  @override
+  String get learningInsightEmptyBody => '先在题目详情页用「AI 解题」跑出几条链，这里才会长出洞察。';
+
+  @override
+  String learningInsightSummary(int chains, int steps, int questions) =>
+      '$chains 条链 · $steps 步 · $questions 道题';
+
+  @override
+  String get learningInsightAdviceSection => '下一步做什么';
+
+  @override
+  String get learningInsightAdviceEmpty => '暂时没有可执行的建议';
+
+  @override
+  String learningInsightAdviceAction(String label) => '动作：$label';
+
+  @override
+  String learningInsightAdviceQuestions(int count) => '$count 道题';
+
+  @override
+  String learningInsightAdviceSteps(int count) => '$count 步';
+
+  @override
+  String learningInsightAdviceHighRisk(int count) => '高危 $count 步';
+
+  @override
+  String get learningInsightActionSection => '能力动作分布';
+
+  @override
+  String get learningInsightActionEmpty => '还没有动作读数';
+
+  @override
+  String get learningInsightActionBuiltIn => '内置';
+
+  @override
+  String get learningInsightActionCustom => '自定义';
+
+  @override
+  String get learningInsightActionUnknown => '未知';
+
+  @override
+  String learningInsightActionCounts(int steps, int questions, int highRisk) =>
+      '$steps 步 · $questions 道题 · 高危 $highRisk 步';
+
+  @override
+  String learningInsightRiskAverage(String percent) => '平均风险 $percent';
+
+  @override
+  String get learningInsightRiskUnread => '平均风险：未读数';
+
+  @override
+  String learningInsightLastSeen(String time) => '最近 $time';
+
+  @override
+  String learningInsightUnknownSection(int count) => '词表外的动作（$count）';
+
+  @override
+  String get learningInsightUnknownHint => '这些动作不在词表里，不是没问题——建议补词表。';
+
+  @override
+  String get learningInsightOpenVocabulary => '去词表页补';
+
+  @override
+  String get learningInsightNeverUsedSection => '词表里从没出现过的动作';
+
+  @override
+  String get learningInsightNeverUsedHint => '这些动作还没有样本，不代表不该用。';
+
+  @override
+  String get learningInsightStuckSection => '卡点热区（知识点）';
+
+  @override
+  String learningInsightStuckCounts(
+          int highRiskSteps, int questions, int chains) =>
+      '高危 $highRiskSteps 步 · $questions 道题 · $chains 条链';
+
+  @override
+  String get learningInsightCrossSection => '动作 × 知识点卡点';
+
+  @override
+  String get learningInsightSettingsTitle => '学习洞察';
+
+  @override
+  String get learningInsightSettingsHint => '看解题链里的能力动作与卡点，以及下一步练什么';
+
+  @override
   String get learningMetricsTitle => '学习效果（复习日志说了算）';
 
   @override

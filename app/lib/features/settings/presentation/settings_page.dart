@@ -17,6 +17,7 @@ import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../anki/presentation/review_plan_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
+import '../../questions/presentation/learning_insight_page.dart';
 import '../../questions/presentation/question_bank_page.dart';
 import '../application/demo_data_service.dart';
 import 'appearance_section.dart';
@@ -129,6 +130,20 @@ class SettingsPage extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const CapabilityVocabularyPage(),
+              ),
+            ),
+          ),
+          // 学习洞察入口（task-39）：只读展示已聚合好的解题链洞察与卡点，
+          // 不在这里重算任何口径。
+          ListTile(
+            leading: const Icon(Icons.auto_graph),
+            title: Text(l10n.learningInsightSettingsTitle),
+            subtitle: Text(l10n.learningInsightSettingsHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LearningInsightPage(),
               ),
             ),
           ),
