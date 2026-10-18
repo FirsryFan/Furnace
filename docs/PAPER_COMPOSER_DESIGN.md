@@ -446,3 +446,86 @@
   非法输入标红不写 spec / 清空后结果卡消失 / 保底缺口两种如实展示）；`flutter test
   test/features/questions/presentation` **173 → 187** 全绿；scoped `dart analyze` `No issues found!`；
   全量 analyze 92 issues / 0 error / 0 warning（基线）。
+
+## 21. 组卷质量评价 PaperQualityReport（轮次一百二十七）
+
+给 `PaperPlan` 出一份**确定性体检报告**（纯逻辑：不调模型、不重排、不读 IO、不连 DB），供组卷页 / Word 导出 /
+聊天工具后续消费。同一份 plan + 同一组入参，两次 `build` 的 `toJson` 逐字节相等（测试钉住）。
+
+- **纯逻辑（`app/lib/domain/services/paper/paper_quality_report.dart`，纯 Dart，不 import Flutter / drift / dart:io）**：
+  - `enum PaperQualitySeverity { error, warning, info }`（`labelZh` = 错误 / 警告 / 提示）：67
+  - `abstract final class PaperQualityCodes`：17 个 code + `all`（声明序）+ `descriptions`（中文说明）：81
+  - `class PaperQualityBucket { key, labelZh, count, ratio; toJson }`：177；`class PaperQualityWarning {
+    code, severity, messageZh, evidence; toJson }`：210
+  - `class PaperQualityReport`：241 —— 字段 `questionCount` / `requestedCount` / `fillRatio` / `subjectDistribution` /
+    `domainDistribution` / `difficultyDistribution` / `sourceLevelDistribution` / `zoneDistribution` /
+    `coveredKnowledgePointCount` / `knowledgePointCoverage` / `uncoveredKnowledgePointIds` / `quotaSatisfied` /
+    `warnings` / `truncatedWarningCount`；getter `countsBySeverity`（三档齐全）/ `hasWarnings` / `isEmpty` /
+    `severityCount(severity)`
+  - 唯一入口 `PaperQualityReport.build({required PaperPlan plan, Map<String, String> subjectNames = const {},
+    knowledgePointNames = const {}, difficultyLabels = const {}, sourceLevelNames = const {},
+    Map<String, double> difficultyByQuestionId = const {}, double? targetDifficulty, double difficultyTolerance = 1.0,
+    int maxWarningsPerCode = 20})`：277
+  - `toJson()` 16 个 snake_case 键、顺序固定（`schema` / `question_count` / `requested_count` / `fill_ratio` /
+    `subject_distribution` / `domain_distribution` / `difficulty_distribution` / `source_level_distribution` /
+    `zone_distribution` / `covered_knowledge_point_count` / `knowledge_point_coverage` /
+    `uncovered_knowledge_point_ids` / `quota_satisfied` / `counts_by_severity` / `truncated_warning_count` /
+    `warnings`），`schema` = `mindnet.paper_quality/1`：369
+
+### 判据表（17 条；阈值集中成常量，**全部未标定**）
+
+| code | 严重度 | 触发条件（空卷只报 `empty_plan`，其余判据一律不评估） |
+| --- | --- | --- |
+| `empty_plan` | error | `questionCount == 0` |
+| `fill_short` | warning | `fillRatio < 1`，evidence 带 `missing_count` / `fill_ratio`（两位小数） |
+| `subject_concentrated` | warning | 题数 >= 2 且最高学科占比 **严格大于** 0.6（等于 0.6 不报） |
+| `source_narrow` | warning | 题数 >= 3 且来源种类只有 1 种 |
+| `knowledge_point_gap` | warning | `uncoveredKnowledgePointIds` 非空；evidence 带前 10 个 id 与展示名，超出写「（共 N 个）」 |
+| `no_knowledge_points` | warning | 选中题一个知识点都没挂（覆盖数 0） |
+| `zone_imbalanced` | warning | 题数 >= 3 且全部落在同一 zone，且该 zone 是危险区或发展区 |
+| `difficulty_flat` | warning | 难度样本 >= 3 且极差 < 1.0 |
+| `difficulty_far_from_target` | warning | 传了 `targetDifficulty` 且 \|均值 - 目标\| > `difficultyTolerance`（等于容差不报） |
+| `difficulty_data_unavailable` | info | 难度样本为空（`PaperItem` 不保留逐题难度，必须由调用方传 `difficultyByQuestionId`） |
+| `difficulty_data_partial` | info | 只有部分题有难度读数 |
+| `subject_min_shortfall` | warning | 学科保底没达成且题库里有可用题：message 写「差 X 道」+ 可用候选数 |
+| `uncovered_subject` | warning | 学科保底没达成且该学科**没有可用题**（`isUncovered`），与上一条互斥不重复报 |
+| `domain_min_shortfall` | warning | 领域保底没达成且该领域有可用题 |
+| `uncovered_domain` | warning | 领域保底没达成且该领域没有可用题 |
+| `quota_blocked` | info | 学科或领域上限挡下过题：evidence 带 `subject_blocked_count` / `domain_blocked_count` + 分科分域计数 |
+| `manual_selection_issues` | info | 启用手工名单且 missing / skipped / conflict 任一非空 |
+
+### 口径
+
+- **分布**：学科 / 来源 / zone 由 `plan.items` 现算；学科为空白进「未标注学科」桶、来源为空白记 `unknown`；
+  `ratio` = 数量 / 题数（保留 6 位小数）。`domain_distribution` 直接读 `plan.byDomain`（一道题可挂多个领域，
+  所以 ratio 之和可以大于 1，这是**有意**的，不按题数归一）。难度分布用 `difficultyByQuestionId` 的样本，
+  按数值升序、桶键保留一位小数（如 `5.5`），可用 `difficultyLabels` 覆盖展示名。zone 分布按 `PaperZone`
+  声明顺序（危险区 / 发展区 / 健康 / 没有读数）。
+- **知识点覆盖**：覆盖集合 = 每题的 `knowledgePointId` ∪ `matchedKnowledgePointIds` 去重；覆盖率分母 =
+  覆盖集合 ∪ `plan.uncoveredKnowledgePointIds`，分母为 0 时记 0（不除零、不抛）。未覆盖 id 按字典序。
+- **配额**：`quotaSatisfied` = 学科保底缺口与领域保底缺口都为空（**被上限挡下不算不满足**）；缺口与挡下都如实
+  进 warnings 与 evidence，不静默丢。
+- **排序与截断**：warnings 先按 severity（error → warning → info）再按 code 升序、同 code 按生成序；
+  `maxWarningsPerCode` 按 code 分别截断（<= 0 表示不截断），被截时该组最后一条 message 末尾追加
+  「（同类共 N 条，已显示前 M 条）」并在 evidence 标 `truncated` / `total_for_code` / `shown_for_code`，
+  `truncatedWarningCount` 记被截总数。
+- **展示名**：一律走回调 Map（`subjectNames` / `knowledgePointNames` / `difficultyLabels` / `sourceLevelNames`），
+  缺失回退 key；内置来源等级展示名表 `kPaperQualitySourceLevelLabels`。中文文案不用「可能 / 大概」。
+
+### 未做
+
+- 组卷页与 Word 导出还没有消费这份报告（UI 卡片、题目卷「组卷说明」都未接线）。
+- 所有阈值未标定（学科集中 0.6 / 难度极差 1.0 / 各最小题数 / 容差 1.0 都是先验值）。
+- 没有真实题库手测（只在单测里构造 plan）；`difficultyByQuestionId` 需要上层从候选表带出来，目前无人提供。
+- 文案中文硬编码在纯逻辑里，未接 l10n。
+
+### 验收
+
+- 新增 `app/test/domain/services/paper/paper_quality_report_test.dart` **37 例**（空卷 / 填充率 / 五类分布 /
+  覆盖与截断 / 集中度与难度与 zone 边界 / 保底缺口与配额挡下 / 手工名单 / 排序 / 截断 / 确定性 / toJson 键序 /
+  常量一致性）。
+- `flutter test test/domain/services/paper --concurrency=1`：**195 例全绿**（本片前 158）。
+- 两个文件 `dart format -o none --set-exit-if-changed` 0 changed；scoped `dart analyze` **No issues found!**。
+- 全量 `dart analyze lib test`：本片交付时 **92 issues / 0 error / 0 warning**（基线）；收尾复跑已是 **94 /
+  0 error / 1 warning**，唯一 warning 来自他人在途未跟踪文件
+  `app/test/features/questions/application/chain_quality_reader_test.dart:8`（unused_import），不是本片文件。
