@@ -204,8 +204,11 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 2. **④的能力动作词表用户可编辑**：**纯逻辑层已做（轮次一百二十一，reasoning-core）**——
    `capability_action_overlay.dart` 提供内置 + 自定义合并词表（key 规范、内置优先拒绝覆盖、
    issue 收集、`fromJson` 坏数据永不抛、空 overlay 零行为变化）、`parseChain` 支持注入
-   lookup 映射自定义动作。**DB 表/迁移、provider、用户编辑 UI、l10n 仍未做**（见
-   `docs/REASONING_LAYER_DESIGN.md` §4/§5）。
+   lookup 映射自定义动作。**持久化与接线已做**：轮次一百二十三 schema v25 加了
+   `local_settings.capability_action_overlay_json`（NULL = 出厂词表）并接进 `QuestionReasoningService`
+   （提示词与 `parseChain` lookup 同源）；轮次一百二十五再加了编辑操作层与保存/放弃状态机
+   （`capability_vocabulary_editor_provider.dart`）。**用户编辑 UI 与 l10n 仍在做**（task-29，
+   question-intake），见 `docs/REASONING_LAYER_DESIGN.md` §4/§4.1/§17。
 3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
 4. ~~**拍照整理的主入口**~~ —— **已解决（轮次一百一十五，用户反馈 m29290）**：收题 / 组卷 /
    拍照整理 / 材料入库四个入口从设置页收进新的顶层目的地「题库」（`QuestionBankPage`），
@@ -244,7 +247,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 题号进界面（task-13，question-intake 交付）：新增 `QuestionSerialBadgeById(questionId)`
   （`question_media_view.dart`，异步读号，加载/失败时 `SizedBox.shrink` 不占位），已接相似题候选行
   （`question_detail_page.dart`）与组卷页题目首行（`question_paper_page.dart`）；组卷页纯文本
-  `renderPaperText` 未动。题库搜索框按号过滤由 task-16 接线（进行中）。
+  `renderPaperText` 未动。题库搜索框按号过滤**已接线**（轮次一百二十三 task-16，commit `4da1c5b`：
+  输入 trim 后先 `tryParseQuestionSerial`，认得出号就优先 `search(serialNos:)`、0 命中回落题干 LIKE；
+  读不出号只按题干 LIKE；纯空白不筛）。
 - **未做**：闪存卡里未显示题号；组卷页纯文本复制仍不带题号（待定是否改 `renderPaperText`）。
 
 ### 11.2 题目图片

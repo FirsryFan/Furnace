@@ -2,6 +2,112 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-19 轮次一百二十四：体检上屏、思维链会说话了、组卷开始按学科配额凑（Lead + 三个 teammate）
+
+**起点**：轮次一百二十三把地基铺完（v25 词表 overlay 持久化、题号检索 API、体检纯逻辑、洞察聚合），
+本轮把「纯逻辑」接到真实数据与界面上，并补上「看到读数之后该练什么」的建议层。task-17..task-24
+全部 completed（rev3）；Lead（体检读表/洞察读表/学习建议 provider/配额接线/docs/git）、reasoning-core
+（洞察聚合 + 学习建议纯逻辑）、threadflow-engine（组卷学科/领域配额纯逻辑）、question-intake（体检 UI）。
+
+**A. 入库体检接真实题库（commit `91efd96`，11 例）**：新增 `question_audit_reader.dart`（约 230 行）——
+一次读 questions / question_options / object_tags / attachments，投影成 `QuestionAuditRow` + 题库学科键
+`knownSubjectKeys`；知识点推导复用 `TaskKnowledgePointResolver`（与组卷/相似题同一规则），选项按
+`sortOrder` 升序平手比 label（与 `QuestionRepository.optionsOf` 同口径），`imageCount` 只数
+`attachments.owner_type == question` 的行；**全量读**（不用 `all()` 的 200 条上限，H4 跨行重复必须看全）；
+空题干保留（空题干本身就是 H1 硬伤）。两个 provider：`questionAuditCorpusProvider` 与
+`questionAuditReportProvider`（`currentYear: DateTime.now().year`）。
+
+**B. 体检上屏（commit `4a943f3`，question-intake，9 文件 +776/-1）**：新增 `question_audit_view.dart`
+（284 行）——题库列表徽标 `QuestionAuditBadge`（Tooltip 分严重度）+ 题目详情页体检区
+`QuestionAuditSection`（按严重度分组、evidence 展开、只报不改）；l10n 五文件手改 6 个 key；
+`question_audit_ui_test.dart` 4 例；presentation 目录 157 例全绿。
+
+**C. 思维链洞察聚合（commit `e5e9e57`，reasoning-core）**：新增 `chain_insights.dart`（约 660 行纯 Dart）——
+`ChainInsightStep.fromParsedStep` / `ChainInsightChain.fromParsedChain` 把解析后的链投影成聚合输入，
+`ChainInsights.aggregate` 出动作分布（步数/题数/链数/平均与最高卡点/最近出现/known+custom+unknown）、
+高风险步（默认阈值 0.6）按题目与知识点分组、`neverUsedActions`（当前词表里从没出现过的动作）；
+异常显式计数不静默（空 chainId/actionType、重复 chainId/index、NaN/±inf、越界风险夹 0..1）；
+排序确定性（步数 → 题数 → 高风险步数 → 平均风险 → actionType）；测试 **58 例**，reasoning 目录 +216。
+
+**D. 洞察与建议接上真实库（commits `cca2e23`、`8617202`、`e2f9496`）**：`chain_insights_reader.dart` 读
+`reasoning_chains` + `reasoning_steps` 投影（链 createdAt/id、步骤 idx/id、坏 knowledgeHints 记非法数、
+孤立步骤单列、knownAction 留空交给当前词表重判），配 `chainInsightCorpusProvider` / `chainInsightsProvider`
+（词表读取失败退回内置词表）+12 例；`learning_advice.dart`（reasoning-core，429 行纯逻辑）把洞察 + 能力画像
+变成确定性建议（练习/补链/看词表/继续/无数据五类，优先 100/200/300/400/500，只给真读数、未知动作永不进练习，
+空输入不虚构「有题缺链」）**48 例**；`learning_advice_provider.dart` 接线——`questionCorpusCountProvider` 用
+COUNT + `watchDatabaseRevision`，`learningAdviceProvider` 三输入，并补了洞察读表的库修订 watch（之前新链要重启
+才出现）；文案诚实：0 链说「但当前还没有任何解题链」、部分覆盖写「只覆盖 X 道题，还有 Y 道没有链」；**10 例**。
+
+**E. 组卷配额纯逻辑（commits `c5c924b`、`418face`）**：`subject_quota.dart`（191 行）按学科上限/保底，
+`domain_quota.dart`（329 行）按标签路径第一段（领域）上限/保底；两者都归一化配置（trim/排序/负值与重复键抛
+`ArgumentError`/同科 min>max 抬上限），`paper_composer.dart` 接入：targetCount 硬上限 > 学科保底 > 领域保底 >
+填充（知识点上限 → 学科上限 → 主领域上限）；被挡题与保底缺口**全部回报不静默丢**；`null`/空表不启用时旧
+`toJson` 十键逐字节不变。测试 `subject_quota_test` **33 例**、`domain_quota_test` **44 例**（paper 目录 +78/+122）。
+
+**F. 学科配额接线（commit `36d0ff3`）**：`PaperSpecNotifier` 加 `setSubjectQuota` / `setSubjectMax` /
+`setSubjectMin` / `clearSubjectQuota`（空表视同不启用、不留空壳），`compose_paper` 工具加 `subject_quota` 参数
+（学科 -> {max,min}，形状/重复键/未知字段/负值全部 `ToolArgError`），启用时 `modelResult` 追加
+`by_subject` / `quota_blocked_questions` / `subject_shortfalls` / `subject_quota`，摘要补学科分布、被挡 N 道、
+保底缺口三句。工具测试 14→22、provider 测试 11→14。
+
+**G. 文档**：`REASONING_LAYER_DESIGN.md` 追加 §14 洞察聚合、§15 学习建议、§16 接线；
+`PAPER_COMPOSER_DESIGN.md` 追加 §13 学科配额、§14 领域配额（含「领域键是标签路径第一段、与学科键两套命名
+空间」口径）；`MINDNET_ROADMAP.md` 未做清单更新；`QUESTION_INTAKE_AUDIT_DESIGN.md` 的接线计划改成已做。
+
+**H. 验收**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（= 基线）；各切片定向测试全绿
+（体检读表 11、洞察 58+12、学习建议 48+10、学科配额 33+8+3、领域配额 44）与 paper 122 例回归。
+
+**I. 未做 / 已知限制**：洞察页与学习建议卡片还没有界面（数据与 provider 已就绪）；词表编辑页 UI 未做；
+体检「自动修复」特意不做（只报不改）；配额数值仍未标定（默认不启用）；体检 `messageZh` 仍是中文硬编码。
+
+---
+## 2026-10-18 轮次一百二十三：词表能存下来了、题号能搜、体检有判据了（Lead + 三个 teammate）
+
+**起点**：轮次一百二十二收尾后，按用户 m00340 的五个应用领域与「能力动作词表要可扩展」继续。本轮四切片
+（task-12..task-16）全部 completed（rev3）：Lead（schema v25 + 推理接线 + 题号检索 API）、reasoning-core
+（overlay 编辑操作层 + 未知动作发现）、threadflow-engine（入库体检纯逻辑）、question-intake（题号 UI +
+删题清配图 + 题库搜索框按号）。写作用域互斥，成员全程没碰 git。
+
+**A. 词表 overlay 持久化与接线（schema v25，commit `f03b396`，12 文件 +810/-8）**：`LocalSettings` 加可空列
+`capability_action_overlay_json`（与既有可空偏好同契约：NULL = 用户没改过 = 出厂词表；迁移**不写**默认值；坏
+JSON 读作空 overlay 不阻塞解题）；`_upgradeV24ToV25` 只 `addColumnIfMissing`，`_ensureColumns` 自愈；
+`CapabilityVocabularyStore`（load 永不抛 / save 空 overlay 写 NULL / 非空写 `{"version":1,"customActions":[...]}`）+
+两个 provider；`QuestionReasoningService` 加可选 `overlayLoader`，`solveAndDecompose` 每次跑取当前词表：
+`solveThenDecompose(capabilityCatalog: catalog.actions)` 与 `parseChain(raw, lookup: catalog.byKey)` **同一份词表**，
+读失败退回内置词表不阻塞；题号检索 API：`QuestionRepository.findBySerialNo` + `search(serialNos:)`（空集=无命中、
+null=不过滤）。证据：v25 迁移 3、词表存储 12、题号检索 2、overlay 接线 3，共 **+40**；`DATA_MODEL.md` §14。
+
+**B. 编辑操作层与未知动作发现（commit `bb84ad8`，reasoning-core，6 文件 +1674/-2）**：
+`capability_action_overlay_editor.dart`（395 行）——`add` / `update` / `remove` / `reorder` / `mergeImport` 静态纯函数，
+`maxCustomActions = 100`，失败返回原 overlay + 单条 issue 不抛；新增 issue code（keyNotFound / indexOutOfRange /
+customActionLimitExceeded / importNotRecognized）；`capability_action_discovery.dart`（202 行）按频次统计步骤样本里
+**不在词表里的动作**（步数/题数/高风险数/样本题目），为「把模型新造的动作加进词表」供数据；生产必须传
+`overlay.catalog`（否则自定义动作被误报）。测试 **+59**（34+25）；`REASONING_LAYER_DESIGN.md` §4.1。
+
+**C. 题号进界面、删题清配图（commit `129262d`，question-intake，14 文件 +290/-7）**：新增
+`QuestionSerialBadgeById(questionId)`（异步读号，加载/失败不占位），接相似题候选行与组卷页题目首行；删题唯一入口
+先 `QuestionMediaStore.deleteForQuestion(id)` 再 `deleteQuestion`（清理失败 debugPrint 不阻断），SnackBar 带清理张数；
+l10n 五文件手改 `questionIntakeDeletedWithImages`；presentation +7 例；`QUESTION_BANK_DESIGN.md` §11.1/§11.2。
+
+**D. 入库体检判据（commit `2f51914`，threadflow-engine，3 文件 +2320）**：新增
+`question_intake_audit.dart`（1,050 行纯 Dart，只 import 题号工具）——26 条确定性判据：H1 题干/选项 10 条、
+H2 答案/解析 6 条、H3 元数据 6 条、H4 重复/编号 3 条 + 本地点 1 条；严重度 error/warning/info，报告排序
+questionId → severity → code，确定性；阈值常量集中公开（最少 6 字、年份 1900–今年+1、难度 1–10、aiQuality 0–1），
+`currentYear` 必须注入不隐式读 now；测试 **53 例**（8 组），新文档 `QUESTION_INTAKE_AUDIT_DESIGN.md`（282 行）。
+
+**E. 题库搜索框按题号（commit `4da1c5b`，question-intake，9 文件 +230/-17）**：`QuestionLibraryFilter` 加 `serialNo`，
+`parseQuestionLibrarySearch` 先 `tryParseQuestionSerial`（认 TR-00042 / tr-42 / 00042 / 42），认得出就优先
+`search(serialNos:)`、0 命中回落题干 LIKE；读不出号只按题干；纯空白不筛；l10n 提示改成「搜题干或题号」；
+11 + 2 例测试；presentation +153。
+
+**F. 验收**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（= 基线）；五个切片定向测试全绿
+（+40 / +59 / +140 / +63 / +153）；docs 同步 DATA_MODEL §14、REASONING §4/§4.1、QUESTION_BANK §11.1/§11.2、
+新体检设计文档。
+
+**G. 未做 / 已知限制**：词表编辑 UI 与 l10n 未做（application 层下一轮补）；体检还没有上屏；题号还没进闪存卡、
+组卷页纯文本复制不带题号；按号搜索未真机手测；体检 `messageZh` 中文硬编码、英文按 code 映射留待做。
+
+---
 ---
 
 ## 2026-10-18 轮次一百二十二：题目卷导出成 Word、题干能拿去组卷网搜（Lead + 三个 teammate）
