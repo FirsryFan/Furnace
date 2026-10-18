@@ -13,6 +13,7 @@ library;
 import '../reasoning/capability_action.dart' show CapabilityAction;
 import '../scheduling/domain_balance.dart' show KnowledgePointReading;
 import '../srs/dsr_memory.dart';
+import 'subject_quota.dart';
 
 /// **未标定**：一道题如果命中"我最该练的动作"，分数乘上 `1 + 这个系数 × 命中比例`。
 ///
@@ -193,6 +194,7 @@ class PaperSpec {
     this.perKnowledgePointCap,
     this.targetDifficulty,
     this.minSourceLevel,
+    this.subjectQuota,
     this.preferCapabilityActions = true,
   });
 
@@ -210,6 +212,14 @@ class PaperSpec {
 
   /// 来源分级下限（含）；`null` = 不限。
   final String? minSourceLevel;
+
+  /// 按学科配额（上限/下限）；`null` = 不启用（历史行为逐字节不变）。
+  ///
+  /// 启用后：先按学科保底逐科补齐，再按分数序填充；知识点上限先于学科上限；
+  /// targetCount 是硬上限（保底也不得突破）。被学科上限挡下的候选不是
+  /// 静默丢弃，而是记进 PaperPlan.quotaBlockedQuestions；没凑够保底的学科
+  /// 记进 PaperPlan.subjectShortfalls。
+  final SubjectQuota? subjectQuota;
 
   /// 组卷时要不要参考"我最该练的动作"（能力动作画像，未标定）。
   ///
@@ -297,6 +307,10 @@ class PaperPlan {
     required this.overallNeed,
     required this.weights,
     this.preferredActionTypes = const [],
+    this.bySubject = const {},
+    this.quotaBlockedQuestions = const [],
+    this.subjectShortfalls = const [],
+    this.subjectQuota,
   });
 
   /// 选中的题（**贪心选择顺序**，与每知识点配额有关，不是单纯的分数降序）。
@@ -327,6 +341,26 @@ class PaperPlan {
   /// 界面据此显示"本卷按「…」这类动作排过（未标定，可关）"；工具把它放进 `modelResult`。
   final List<String> preferredActionTypes;
 
+  /// 每个学科被排了几道（学科键已 trim；空学科键不进这张表）。
+  ///
+  /// 空表 = 没启用学科配额（或一道都没选中）。
+  final Map<String, int> bySubject;
+
+  /// 本来能进卷、但被学科上限挡下的候选（按扫描顺序；不静默丢题）。
+  final List<QuotaBlockedQuestion> quotaBlockedQuestions;
+
+  /// 没达到学科保底的缺口（按学科键字典序；空 = 没有缺口或没配保底）。
+  final List<SubjectQuotaShortfall> subjectShortfalls;
+
+  /// 这次组卷实际生效的学科配额（已归一化：trim/排序/保底优先）；`null` = 没启用。
+  final SubjectQuotaResolved? subjectQuota;
+
+  /// 有保底、但题库里一道候选都没有的学科（缺口在收题，不在配额）。
+  List<String> get uncoveredSubjectKeys => [
+        for (final shortfall in subjectShortfalls)
+          if (shortfall.isUncovered) shortfall.subjectKey,
+      ];
+
   /// 没凑够（题库不足或过滤太严）。
   bool get isShort => items.length < requestedCount;
 
@@ -345,6 +379,17 @@ class PaperPlan {
         'weights': weights.toMap(),
         if (preferredActionTypes.isNotEmpty)
           'preferred_action_types': preferredActionTypes,
+        // 学科配额：启用才出键（默认不启用 → 一个键都不多，历史输出逐字节一致）。
+        if (subjectQuota != null) 'by_subject': bySubject,
+        if (subjectQuota != null)
+          'quota_blocked_questions': [
+            for (final blocked in quotaBlockedQuestions) blocked.toJson(),
+          ],
+        if (subjectQuota != null)
+          'subject_shortfalls': [
+            for (final shortfall in subjectShortfalls) shortfall.toJson(),
+          ],
+        if (subjectQuota != null) 'subject_quota': subjectQuota!.toJson(),
       };
 }
 
@@ -352,6 +397,17 @@ class PaperPlan {
 ///
 /// 确定性：同一份输入（哪怕顺序不同）永远给出同一份卷子；tie-break 依次是
 /// 分数 → 来源分级 → AI 质量 → 题目 id。
+///
+/// 学科配额（PaperSpec.subjectQuota，默认关闭）：
+/// 1. 过滤 → 打分 → tie-break 排序 → 每知识点上限，全部与不启用时一致；
+/// 2. 保底阶段：按学科键字典序，逐科把该科候选按分数序补到下限
+///    （受每知识点上限与 targetCount 约束）；
+/// 3. 填充阶段：仍按分数序，先查每知识点上限（旧的 continue 语义不变），
+///    再查学科上限——超限的候选记进 PaperPlan.quotaBlockedQuestions，不静默丢弃；
+/// 4. 选完后：每个没达到保底的学科记进 PaperPlan.subjectShortfalls；
+/// 5. targetCount 是硬上限（保底也不得突破）；没配置的学科、空学科键不受限；
+/// 6. 同科 min > max 时保底优先，上限在归一化时抬到 min。
+/// 默认 `subjectQuota == null` 时以上分支全不进入 → 输出与历史逐字节一致。
 abstract final class PaperComposer {
   static PaperPlan compose({
     required List<PaperCandidate> candidates,
@@ -392,17 +448,102 @@ abstract final class PaperComposer {
 
     scored.sort(_byScoreThenProvenance);
 
+    final requestedQuota = spec.subjectQuota;
+    final quota = (requestedQuota != null && requestedQuota.isEnabled)
+        ? requestedQuota.resolve()
+        : null;
+
     final picked = <_Scored>[];
+    final pickedIds = <String>{};
     final usedPerPoint = <String, int>{};
-    for (final entry in scored) {
-      if (picked.length >= spec.targetCount) break;
-      final atCap = entry.coveredPoints.isNotEmpty &&
-          entry.coveredPoints
-              .every((point) => (usedPerPoint[point] ?? 0) >= cap);
-      if (atCap) continue;
+    final usedPerSubject = <String, int>{};
+    final quotaBlocked = <QuotaBlockedQuestion>[];
+
+    // 每知识点上限（旧语义）：每个挂到的点都到上限才跳过；没挂点的题不限。
+    bool pointCapAllows(_Scored entry) =>
+        entry.coveredPoints.isEmpty ||
+        !entry.coveredPoints
+            .every((point) => (usedPerPoint[point] ?? 0) >= cap);
+
+    void pick(_Scored entry) {
       picked.add(entry);
+      pickedIds.add(entry.candidate.questionId);
       for (final point in entry.coveredPoints) {
         usedPerPoint[point] = (usedPerPoint[point] ?? 0) + 1;
+      }
+      if (quota != null) {
+        final subjectKey = entry.candidate.subjectKey.trim();
+        usedPerSubject[subjectKey] = (usedPerSubject[subjectKey] ?? 0) + 1;
+      }
+    }
+
+    if (quota != null) {
+      // 保底阶段：学科键字典序，逐科按分数序补到下限（受知识点上限/targetCount 约束）。
+      final minimumSubjects = quota.minPerSubject.keys.toList()..sort();
+      for (final subjectKey in minimumSubjects) {
+        final minimum = quota.minPerSubject[subjectKey]!;
+        if (minimum <= 0) continue;
+        for (final entry in scored) {
+          if ((usedPerSubject[subjectKey] ?? 0) >= minimum) break;
+          if (picked.length >= spec.targetCount) break;
+          if (pickedIds.contains(entry.candidate.questionId)) continue;
+          if (entry.candidate.subjectKey.trim() != subjectKey) continue;
+          if (!pointCapAllows(entry)) continue;
+          pick(entry);
+        }
+      }
+    }
+
+    for (final entry in scored) {
+      if (picked.length >= spec.targetCount) break;
+      // 只有启用配额时才按 id 去重（关闭时保持历史行为逐字节不变）。
+      if (quota != null && pickedIds.contains(entry.candidate.questionId)) {
+        continue;
+      }
+      if (!pointCapAllows(entry)) continue;
+      if (quota != null) {
+        final subjectKey = entry.candidate.subjectKey.trim();
+        final maximum = quota.maxPerSubject[subjectKey];
+        if (maximum != null && (usedPerSubject[subjectKey] ?? 0) >= maximum) {
+          quotaBlocked.add(QuotaBlockedQuestion(
+            questionId: entry.candidate.questionId,
+            subjectKey: subjectKey,
+            subjectLimit: maximum,
+          ));
+          continue;
+        }
+      }
+      pick(entry);
+    }
+
+    // 学科汇总/缺口（只在启用配额时才算；关闭时两张表都是空）。
+    final bySubject = <String, int>{};
+    final subjectShortfalls = <SubjectQuotaShortfall>[];
+    if (quota != null) {
+      final pickedSubjects = usedPerSubject.keys.toList()..sort();
+      for (final subjectKey in pickedSubjects) {
+        if (subjectKey.isEmpty) continue;
+        bySubject[subjectKey] = usedPerSubject[subjectKey]!;
+      }
+      final availablePerSubject = <String, int>{};
+      for (final entry in scored) {
+        final subjectKey = entry.candidate.subjectKey.trim();
+        if (subjectKey.isEmpty) continue;
+        availablePerSubject[subjectKey] =
+            (availablePerSubject[subjectKey] ?? 0) + 1;
+      }
+      final minimumSubjects = quota.minPerSubject.keys.toList()..sort();
+      for (final subjectKey in minimumSubjects) {
+        final minimum = quota.minPerSubject[subjectKey]!;
+        if (minimum <= 0) continue;
+        final selected = usedPerSubject[subjectKey] ?? 0;
+        if (selected >= minimum) continue;
+        subjectShortfalls.add(SubjectQuotaShortfall(
+          subjectKey: subjectKey,
+          minimumCount: minimum,
+          selectedCount: selected,
+          availableCount: availablePerSubject[subjectKey] ?? 0,
+        ));
       }
     }
 
@@ -477,6 +618,10 @@ abstract final class PaperComposer {
       overallNeed: overallNeed,
       weights: normalized,
       preferredActionTypes: List<String>.unmodifiable(preferred),
+      bySubject: Map.unmodifiable(bySubject),
+      quotaBlockedQuestions: List.unmodifiable(quotaBlocked),
+      subjectShortfalls: List.unmodifiable(subjectShortfalls),
+      subjectQuota: quota,
     );
   }
 
