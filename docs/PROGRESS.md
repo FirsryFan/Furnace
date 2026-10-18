@@ -4,6 +4,90 @@
 
 ---
 
+## 2026-10-18 轮次一百二十二：题目卷导出成 Word、题干能拿去组卷网搜（Lead + 三个 teammate）
+
+**起点（用户 m00726）**：「docx 文档的构建和组卷网的链接可以借鉴 dsh skill」。分别借鉴 `paper-composer`
+（试卷排版：Word 真测、页面几何、字体字号、OMML 公式、图片随文、页脚域）与 `zujuan-source-standards`
+（组卷网链接构造、检索词切法、答案与配额）。口径是「能生成文件」不算完成 —— 要 Word 真开、量页码与
+公式数、链接编码逐字节对站点。本轮 task-7..task-11 全部 completed（rev3）；成员：Lead（docx 核心/装配/
+发布/docs/git）、reasoning-core（LaTeX→OMML）、threadflow-engine（组卷网纯逻辑）、question-intake
+（两个界面入口 + l10n）。写作用域互斥，成员全程没碰 git。
+
+**A. 纯 Dart OOXML 层（commit `de1d979`，5 文件）**：新建 `lib/domain/services/export/docx_writer.dart`
+（773 行）——`DocxBuilder` 拼 zip：`[Content_Types].xml`、`_rels/.rels`、`word/document.xml`（根声明
+w/r/wp/a/pic 命名空间）、`word/_rels/document.xml.rels`、`word/styles.xml`、`word/settings.xml`、
+`word/footer1.xml`、`word/media/imageN.*`；`_sect()` A4 `pgSz 11906×16838`、`pgMar` 左边 680 / 右 2268 /
+上下 1020 twips；页脚用 `fldChar` PAGE / NUMPAGES 域 + 右对齐制表位（左时期代号右页码）+ pBdr 顶线；
+文本 XML 转义、控制字符丢弃、`xml:space="preserve"`、换行→`<w:br/>`；图片先解析 PNG/JPEG/GIF/BMP/WEBP
+像素尺寸（`lib/data/media/image_size.dart`，205 行）再等比缩放（0.62 栏宽 / 0.22 页高上限、1.5 倍放大封顶），
+`wp:inline` 随文不跑位。`paper_docx.dart`（881 行）装配整卷：标题 30 半磅黑体 + meta 行 + 每题题号行
+（12 半磅黑体 keepNext）、meta 行（学科/来源档位/sourceLabel/zone/知识点/年份/地区）、题干按换行拆段、
+选项 `A. …`、配图、行内 `$...$` 交给注入的 `DocxMathCompiler`；附录「参考答案与解析」另起一页（只有
+第一个附录标题带 `pageBreakBefore`，测试断言该元素出现恰好 1 次），答案缺省回退到正确选项字母；卷末
+「导出提示」列出缺失题/空题干/缺答案/缺解析/跳图/公式失败，**不静默丢内容**。三组测试约 60 例。
+
+**B. LaTeX→OMML 编译器（commit `a97b978`，reasoning-core）**：移植 paper-composer 的 `omml.py` →
+`lib/domain/services/export/omml/omml.dart`（1,159 行），API `compileLatexToOmml(String tex,{int? sizeHalfPt})`
+返回不带 xmlns 的 `<m:oMath>` 片段（命名空间由 document.xml 根声明），另有 `plainTextOfLatex`、
+`supportedLatexCommands`、`LatexError{message,position,context}`；覆盖 frac/sqrt/根号/left-right/巨算符/
+函数名/希腊字母/矩阵/cases/aligned/重音/上下划线/binom/直立 mathrm；未知控制序列必须抛错而不是丢反斜杠
+静默退化（旧实现出过的事故）。单跑 `test/domain/services/export/omml` **+84**。
+
+**C. 卷面装配到字节（commit `81cae64`，4 文件）**：`lib/features/questions/application/paper_docx_export.dart`
+（187 行）把 `PaperPlan` + 题库装配成 `PaperDocxQuestion`（题号/题干/选项/答案/解析/配图字节）；
+`question_corpus_reader.dart` 新增 `readQuestionDocxContents`（`serialNo`、选项、答案、解析、
+`QuestionMediaStore` 图片与像素尺寸）；`tool/docx_probe.dart`（185 行）离线探针从真实库生成样张供 Word COM
+验收；`paper_docx_export_test` 覆盖装配与降级。
+
+**D. 组卷网链接纯逻辑（commit `9044989`，threadflow-engine，3 文件 759 行）**：
+`lib/domain/services/zujuan/zujuan_link.dart`（130 行）——`zujuanSearchUrl`（先 UTF-8 标准 base64 再
+`encodeURIComponent`，query 固定 `keyword=&intent=question&b=0&urlSource=0`）、`zujuanQuestionDetailUrl`
+（`/<bankId>q<questionId>.html`）、`zujuanPaperDetailUrl`（`/<bankId>p<paperId>.html`），缺 id 返回 null 不猜；
+`zujuan_keywords.dart`（295 行）——剔除 `$...$`、`![](...)`、`〔...〕`，保留拉丁字母与数字，标点当分隔，
+长度 4–28，按内容词密度排序，`zujuanSearchCandidates` 最多 8 条（UI 取 5）。`zujuan_link_test.dart`（334 行）
+**+25**，含中文/空格/`+` 号编码、公式图标记剔除、纯公式空结果。
+
+**E. 两个界面入口（commit `a913513`，question-intake，11 文件 +1605/-6）**：
+`paper_docx_export_button.dart`（331 行）——组卷页「复制卷面」旁「导出 Word」，FilePicker 另存为、
+loading/防重入、成功/空卷/失败 SnackBar、告警明细对话框（每类最多 3 条 + hiddenCount，key
+`paper-export-docx`）；`question_zujuan_search.dart`（203 行）——题目详情页「去组卷网找这道题」，底部表
+最多 5 条候选，可复制检索词或搜索链接（先关表再 SnackBar，不新增 url_launcher）；l10n 五文件手改
+17 + 7 个 key（未跑 gen-l10n，沿用既有手改方式）。测试：组卷页导出 +10（3 纯逻辑 + 7 widget）、详情页
++22（16 旧 + 6 新），presentation 目录 **+133**。
+
+**F. 文档（commit `d802bf9` + `6416553`）**：新建 `docs/DOCX_EXPORT_DESIGN.md`（分层/版面参数/zip 条目/
+契约/图片缩放公式/公式策略/卷面装配/验收证据/未做）、`docs/ZUJUAN_LINKS_DESIGN.md`（URL 规则/检索词规则/
+API/UI 接线/验收/未做）；`docs/QUESTION_BANK_DESIGN.md` 追加 §12 Word 导出与 §13 组卷网链接；
+`docs/FEATURE_MATRIX.md` 补两行；`app/android/.gitignore` 忽略 Gradle 的 `.kotlin/`。
+
+**G. 验收（真实输出）**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（= 基线）；定向：
+export + media + application/paper_docx_export_test **+158**、zujuan **+25**、presentation **+133**、版本测试 +4；
+全量 `flutter test --concurrency=1` → **+2489 ~2 All tests passed（EXIT=0）**（上一轮基线 +2290）。
+Word 真测（探针样张 + Word COM 打开→导出 PDF）：**2 页 / 546 字 / 29 个 OMath / 2 张内嵌图 / PDF 205,630 bytes**，
+文件 6,566 bytes；公式可编辑、图片随文、附录另起一页。
+
+**H. 发布 v0.5.4（含上一轮已合并但未发布的改动）**：`app/pubspec.yaml` `0.5.3+12 → 0.5.4+13`，
+`kAppVersion='0.5.4'`、`kAppBuildNumber=13`。脚本 `E:\dsh-tmp-aot\release-054-build.ps1`（日志
+`release-054-build.txt`）：Windows **163.7 s exit 0**，`furnace.exe` 91,648 bytes（版本资源 0.5.4+13）、
+`data/app.so` **19,366,792 bytes**；删掉调试运行留在 Release 的 `kernel_blob.bin`（105,422,664 bytes）后
+**28 files / 45,012,219 bytes**，zip **19,652,645 bytes**（SHA-256 `89D20BF8…`），解压冒烟 28 files 通过。
+Android **387.6 s exit 0**，APK **93,397,838 bytes（89.1 MB）**、`versionCode 13` / `versionName 0.5.4`、
+minSdk 24 / targetSdk 36、签名 `CN=Threadflow` 证书 SHA-256 `57de8b8f…`（与 v0.5.0–v0.5.3 同一把，可覆盖
+安装），APK SHA-256 `BB9ABCD6…`。`dist/` 只留三件：APK、Windows zip、`RELEASE-v0.5.4.md`。
+**没有推送 GitHub**（用户自己传）。
+
+**I. 未做 / 已知限制**：真机 OS 拖拽（微信聊天记录临时路径）与 FilePicker「另存为」未手测；英文界面
+导出的 docx 内部标签仍是中文（有意取舍）；docx 无 PDF 直出/表格/浮动图/页眉多栏，WPS/LibreOffice 兼容未验证；
+题库表没有 `source_url`，不记录「已找到」；组卷网领域词表只有生物学科；相似题 MindNet quality 权重仍为 0
+（未标定、provider 未接线）；登录/云同步/语音朗读/字体导入仍无。
+
+**J. 下一轮计划**：①五个应用领域逐个接线（任务排序 / flashcard 推送与同步 / 纸质端上传同步 / 题目搜索
+入库评价 / 智能组卷评价与资料补充）；②quality 标定并接 `knowledgePointReadings`；③题号进组卷页/相似题区/
+闪存卡 + 按号搜索；④词表 overlay 持久化（表 + provider + 编辑页）；⑤真机验证微信拖拽与另存为；
+⑥docx 图片纳入受控环绕与 PDF 直出（若确有需要）。
+
+---
+
 ## 2026-10-18 轮次一百二十一：题库长出编号和图片、微信照片能拖进来、错题先空两张、找相似题看得见 MindNet（Lead + 三个 teammate）
 
 **起点（用户 m00340，长消息）**：闪存卡别原地重复，答错后空 2–3 张再来（每日任务到最后没有空卡了
