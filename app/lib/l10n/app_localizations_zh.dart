@@ -2698,7 +2698,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get capabilityVocabularyImportHint =>
-      '支持 {"customActions": [...]} 或直接给自定义动作数组';
+      '支持 customActions 列表，或直接给自定义动作数组';
 
   @override
   String capabilityVocabularyImportInvalidJson(String message) {
@@ -2762,7 +2762,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningInsightRefresh => '刷新';
 
   @override
-  String learningInsightLoadFailed(String message) => '读学习洞察失败：$message';
+  String learningInsightLoadFailed(String message) {
+    return '读学习洞察失败：$message';
+  }
 
   @override
   String get learningInsightRetry => '重试';
@@ -2777,8 +2779,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningInsightEmptyBody => '先在题目详情页用「AI 解题」跑出几条链，这里才会长出洞察。';
 
   @override
-  String learningInsightSummary(int chains, int steps, int questions) =>
-      '$chains 条链 · $steps 步 · $questions 道题';
+  String learningInsightSummary(int chains, int steps, int questions) {
+    return '$chains 条链 · $steps 步 · $questions 道题';
+  }
 
   @override
   String get learningInsightAdviceSection => '下一步做什么';
@@ -2787,16 +2790,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningInsightAdviceEmpty => '暂时没有可执行的建议';
 
   @override
-  String learningInsightAdviceAction(String label) => '动作：$label';
+  String learningInsightAdviceAction(String label) {
+    return '动作：$label';
+  }
 
   @override
-  String learningInsightAdviceQuestions(int count) => '$count 道题';
+  String learningInsightAdviceQuestions(int count) {
+    return '$count 道题';
+  }
 
   @override
-  String learningInsightAdviceSteps(int count) => '$count 步';
+  String learningInsightAdviceSteps(int count) {
+    return '$count 步';
+  }
 
   @override
-  String learningInsightAdviceHighRisk(int count) => '高危 $count 步';
+  String learningInsightAdviceHighRisk(int count) {
+    return '高危 $count 步';
+  }
 
   @override
   String get learningInsightActionSection => '能力动作分布';
@@ -2814,20 +2825,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningInsightActionUnknown => '未知';
 
   @override
-  String learningInsightActionCounts(int steps, int questions, int highRisk) =>
-      '$steps 步 · $questions 道题 · 高危 $highRisk 步';
+  String learningInsightActionCounts(int steps, int questions, int highRisk) {
+    return '$steps 步 · $questions 道题 · 高危 $highRisk 步';
+  }
 
   @override
-  String learningInsightRiskAverage(String percent) => '平均风险 $percent';
+  String learningInsightRiskAverage(String percent) {
+    return '平均风险 $percent';
+  }
 
   @override
   String get learningInsightRiskUnread => '平均风险：未读数';
 
   @override
-  String learningInsightLastSeen(String time) => '最近 $time';
+  String learningInsightLastSeen(String time) {
+    return '最近 $time';
+  }
 
   @override
-  String learningInsightUnknownSection(int count) => '词表外的动作（$count）';
+  String learningInsightUnknownSection(int count) {
+    return '词表外的动作（$count）';
+  }
 
   @override
   String get learningInsightUnknownHint => '这些动作不在词表里，不是没问题——建议补词表。';
@@ -2846,8 +2864,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String learningInsightStuckCounts(
-          int highRiskSteps, int questions, int chains) =>
-      '高危 $highRiskSteps 步 · $questions 道题 · $chains 条链';
+      int highRiskSteps, int questions, int chains) {
+    return '高危 $highRiskSteps 步 · $questions 道题 · $chains 条链';
+  }
 
   @override
   String get learningInsightCrossSection => '动作 × 知识点卡点';
@@ -3935,10 +3954,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String paperQualitySummary(
-    int questionCount,
-    int requestedCount,
-    String percent,
-  ) {
+      int questionCount, int requestedCount, String percent) {
     return '题数 $questionCount / 想要 $requestedCount 道（填充率 $percent）';
   }
 

@@ -1285,7 +1285,7 @@
   "capabilityVocabularyMoveDown": "Move down",
   "capabilityVocabularyImport": "Paste JSON to import",
   "capabilityVocabularyImportTitle": "Paste vocabulary JSON",
-  "capabilityVocabularyImportHint": "Accepts {\"customActions\": [...]} or a plain array of custom moves",
+  "capabilityVocabularyImportHint": "Accepts a customActions list, or a plain array of custom moves",
   "capabilityVocabularyImportInvalidJson": "Could not parse the JSON: {message}",
   "@capabilityVocabularyImportInvalidJson": {
     "placeholders": { "message": { "type": "String" } }

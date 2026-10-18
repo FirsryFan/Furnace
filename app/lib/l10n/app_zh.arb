@@ -1196,7 +1196,7 @@
   "capabilityVocabularyMoveDown": "下移",
   "capabilityVocabularyImport": "粘贴 JSON 导入",
   "capabilityVocabularyImportTitle": "粘贴词表 JSON",
-  "capabilityVocabularyImportHint": "支持 {\"customActions\": [...]} 或直接给自定义动作数组",
+  "capabilityVocabularyImportHint": "支持 customActions 列表，或直接给自定义动作数组",
   "capabilityVocabularyImportInvalidJson": "JSON 解析失败：{message}",
   "@capabilityVocabularyImportInvalidJson": {
     "placeholders": { "message": { "type": "String" } }

@@ -4849,7 +4849,7 @@ abstract class AppLocalizations {
   /// No description provided for @capabilityVocabularyImportHint.
   ///
   /// In en, this message translates to:
-  /// **'Accepts {"customActions": [...]} or a plain array of custom moves'**
+  /// **'Accepts a customActions list, or a plain array of custom moves'**
   String get capabilityVocabularyImportHint;
 
   /// No description provided for @capabilityVocabularyImportInvalidJson.
@@ -6873,13 +6873,13 @@ abstract class AppLocalizations {
   /// No description provided for @paperManualSelectionIncludeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Mandatory ($count)'**
+  /// **'Mandatory ({count})'**
   String paperManualSelectionIncludeTitle(int count);
 
   /// No description provided for @paperManualSelectionExcludeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Excluded ($count)'**
+  /// **'Excluded ({count})'**
   String paperManualSelectionExcludeTitle(int count);
 
   /// No description provided for @paperManualSelectionRemove.
@@ -6927,37 +6927,37 @@ abstract class AppLocalizations {
   /// No description provided for @paperManualSelectionPickerFailed.
   ///
   /// In en, this message translates to:
-  /// **'Failed to read the question bank: $message'**
+  /// **'Failed to read the question bank: {message}'**
   String paperManualSelectionPickerFailed(String message);
 
   /// No description provided for @paperManualSelectionOutcomeIncluded.
   ///
   /// In en, this message translates to:
-  /// **'$count mandatory question(s) included'**
+  /// **'{count} mandatory question(s) included'**
   String paperManualSelectionOutcomeIncluded(int count);
 
   /// No description provided for @paperManualSelectionMissingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Mandatory but missing from the bank ($count)'**
+  /// **'Mandatory but missing from the bank ({count})'**
   String paperManualSelectionMissingTitle(int count);
 
   /// No description provided for @paperManualSelectionSkippedTitle.
   ///
   /// In en, this message translates to:
-  /// **'Mandatory but squeezed out by the target count ($count)'**
+  /// **'Mandatory but squeezed out by the target count ({count})'**
   String paperManualSelectionSkippedTitle(int count);
 
   /// No description provided for @paperManualSelectionConflictTitle.
   ///
   /// In en, this message translates to:
-  /// **'Mandatory/excluded conflicts (exclusion wins, $count)'**
+  /// **'Mandatory/excluded conflicts (exclusion wins, {count})'**
   String paperManualSelectionConflictTitle(int count);
 
   /// No description provided for @paperManualSelectionMore.
   ///
   /// In en, this message translates to:
-  /// **'$count more not listed'**
+  /// **'{count} more not listed'**
   String paperManualSelectionMore(int count);
 
   /// No description provided for @paperQualityTitle.
@@ -6969,17 +6969,14 @@ abstract class AppLocalizations {
   /// No description provided for @paperQualitySummary.
   ///
   /// In en, this message translates to:
-  /// **'$questionCount of $requestedCount questions ($percent filled)'**
+  /// **'{questionCount} of {requestedCount} questions ({percent} filled)'**
   String paperQualitySummary(
-    int questionCount,
-    int requestedCount,
-    String percent,
-  );
+      int questionCount, int requestedCount, String percent);
 
   /// No description provided for @paperQualityCoverage.
   ///
   /// In en, this message translates to:
-  /// **'Knowledge point coverage $percent'**
+  /// **'Knowledge point coverage {percent}'**
   String paperQualityCoverage(String percent);
 
   /// No description provided for @paperQualityQuotaUnsatisfied.
@@ -6997,7 +6994,7 @@ abstract class AppLocalizations {
   /// No description provided for @paperQualityGroupHeader.
   ///
   /// In en, this message translates to:
-  /// **'$label ($count)'**
+  /// **'{label} ({count})'**
   String paperQualityGroupHeader(String label, int count);
 
   /// No description provided for @paperQualityEvidenceToggle.
@@ -7021,7 +7018,7 @@ abstract class AppLocalizations {
   /// No description provided for @paperQualityTruncated.
   ///
   /// In en, this message translates to:
-  /// **'$count more finding(s) were truncated'**
+  /// **'{count} more finding(s) were truncated'**
   String paperQualityTruncated(int count);
 
   /// No description provided for @paperQualityFailed.

@@ -2811,7 +2811,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get capabilityVocabularyImportHint =>
-      'Accepts {"customActions": [...]} or a plain array of custom moves';
+      'Accepts a customActions list, or a plain array of custom moves';
 
   @override
   String capabilityVocabularyImportInvalidJson(String message) {
@@ -2878,8 +2878,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningInsightRefresh => 'Refresh';
 
   @override
-  String learningInsightLoadFailed(String message) =>
-      'Could not load learning insights: $message';
+  String learningInsightLoadFailed(String message) {
+    return 'Could not load learning insights: $message';
+  }
 
   @override
   String get learningInsightRetry => 'Retry';
@@ -2896,8 +2897,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Run AI solve on a few question detail pages first; insights appear once chains exist.';
 
   @override
-  String learningInsightSummary(int chains, int steps, int questions) =>
-      '$chains chains · $steps steps · $questions questions';
+  String learningInsightSummary(int chains, int steps, int questions) {
+    return '$chains chains · $steps steps · $questions questions';
+  }
 
   @override
   String get learningInsightAdviceSection => 'What to do next';
@@ -2906,16 +2908,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningInsightAdviceEmpty => 'No actionable advice right now';
 
   @override
-  String learningInsightAdviceAction(String label) => 'Action: $label';
+  String learningInsightAdviceAction(String label) {
+    return 'Action: $label';
+  }
 
   @override
-  String learningInsightAdviceQuestions(int count) => '$count questions';
+  String learningInsightAdviceQuestions(int count) {
+    return '$count questions';
+  }
 
   @override
-  String learningInsightAdviceSteps(int count) => '$count steps';
+  String learningInsightAdviceSteps(int count) {
+    return '$count steps';
+  }
 
   @override
-  String learningInsightAdviceHighRisk(int count) => '$count high-risk steps';
+  String learningInsightAdviceHighRisk(int count) {
+    return '$count high-risk steps';
+  }
 
   @override
   String get learningInsightActionSection => 'Capability action breakdown';
@@ -2933,21 +2943,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learningInsightActionUnknown => 'Unknown';
 
   @override
-  String learningInsightActionCounts(int steps, int questions, int highRisk) =>
-      '$steps steps · $questions questions · $highRisk high-risk';
+  String learningInsightActionCounts(int steps, int questions, int highRisk) {
+    return '$steps steps · $questions questions · $highRisk high-risk';
+  }
 
   @override
-  String learningInsightRiskAverage(String percent) => 'Average risk $percent';
+  String learningInsightRiskAverage(String percent) {
+    return 'Average risk $percent';
+  }
 
   @override
   String get learningInsightRiskUnread => 'Average risk: no readings';
 
   @override
-  String learningInsightLastSeen(String time) => 'Last seen $time';
+  String learningInsightLastSeen(String time) {
+    return 'Last seen $time';
+  }
 
   @override
-  String learningInsightUnknownSection(int count) =>
-      'Actions outside the vocabulary ($count)';
+  String learningInsightUnknownSection(int count) {
+    return 'Actions outside the vocabulary ($count)';
+  }
 
   @override
   String get learningInsightUnknownHint =>
@@ -2968,8 +2984,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String learningInsightStuckCounts(
-          int highRiskSteps, int questions, int chains) =>
-      '$highRiskSteps high-risk steps · $questions questions · $chains chains';
+      int highRiskSteps, int questions, int chains) {
+    return '$highRiskSteps high-risk steps · $questions questions · $chains chains';
+  }
 
   @override
   String get learningInsightCrossSection =>
@@ -4108,10 +4125,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String paperQualitySummary(
-    int questionCount,
-    int requestedCount,
-    String percent,
-  ) {
+      int questionCount, int requestedCount, String percent) {
     return '$questionCount of $requestedCount questions ($percent filled)';
   }
 
