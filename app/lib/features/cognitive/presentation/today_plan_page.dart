@@ -17,9 +17,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/services/reasoning/daily_plan_step_destination.dart';
 import '../../../domain/services/reasoning/daily_study_plan.dart';
 import '../../../domain/services/scheduling/today_plan.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../anki/presentation/review_page.dart';
+import '../../questions/presentation/question_bank_page.dart';
+import '../../settings/presentation/capability_vocabulary_page.dart';
 import '../application/daily_study_plan_reader.dart';
 import '../application/today_plan_reader.dart';
 
@@ -31,6 +35,61 @@ const Key todayStudyPlanRetryKey = Key('today-study-plan-retry');
 /// 第 [index] 步的 key（顺序即 `DailyStudyPlan.steps` 的顺序，页面不重排）。
 Key todayStudyPlanStepKey(int index) =>
     ValueKey<String>('today-study-plan-step-$index');
+
+/// 点击「今天做什么」某一步后要打开的页面。
+///
+/// 页面不自己写映射表：由 [buildTodayStudyPlanDestinationPage] 决定；测试用
+/// [todayStudyPlanPageBuilderProvider] 换成探针页，不必真的推复习队列或词表页。
+typedef TodayStudyPlanPageBuilder = Widget Function(
+  DailyPlanStepDestination destination,
+);
+
+/// 默认目标页面：只指向已经存在的页面，不为「今天做什么」新造路由。
+///
+/// 题库没有「按题号开练」的入口（`QuestionBankPage` 不收题号），所以练习与
+/// 补链两步都退回题库页；复习进复习页、补词表进能力动作词表页。不可导航的
+/// 步骤给一个零尺寸占位，调用方永远不会用到（卡片本身不触发点击）。
+Widget buildTodayStudyPlanDestinationPage(
+    DailyPlanStepDestination destination) {
+  switch (destination.kind) {
+    case DailyPlanDestinationKind.practiceQuestions:
+    case DailyPlanDestinationKind.collectChains:
+      return const QuestionBankPage();
+    case DailyPlanDestinationKind.ankiReview:
+      return const ReviewPage();
+    case DailyPlanDestinationKind.vocabulary:
+      return const CapabilityVocabularyPage();
+    case DailyPlanDestinationKind.keepGoing:
+    case DailyPlanDestinationKind.none:
+      return const SizedBox.shrink();
+  }
+}
+
+/// 测试与将来的首页卡片共用的跳转目标入口。
+final todayStudyPlanPageBuilderProvider =
+    Provider<TodayStudyPlanPageBuilder>((ref) {
+  return buildTodayStudyPlanDestinationPage;
+});
+
+/// 卡片上「去哪里」的文案；不可导航的步骤没有入口文案。
+String todayStudyPlanGoLabel(
+  AppLocalizations l10n,
+  DailyPlanDestinationKind kind,
+) {
+  switch (kind) {
+    case DailyPlanDestinationKind.practiceQuestions:
+      return l10n.todayStudyPlanGoPractice;
+    case DailyPlanDestinationKind.ankiReview:
+      return l10n.todayStudyPlanGoReview;
+    case DailyPlanDestinationKind.collectChains:
+      return l10n.todayStudyPlanGoChains;
+    case DailyPlanDestinationKind.vocabulary:
+      return l10n.todayStudyPlanGoVocabulary;
+    case DailyPlanDestinationKind.keepGoing:
+    case DailyPlanDestinationKind.none:
+      return '';
+  }
+}
 
 class TodayPlanPage extends ConsumerWidget {
   const TodayPlanPage({super.key});
@@ -229,6 +288,8 @@ class _DailyStudyPlanSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final plan = ref.watch(dailyStudyPlanProvider);
     final value = plan.valueOrNull;
+    // 目标页由 provider 给：测试换成探针页，生产是现有页面映射。
+    final pageBuilder = ref.watch(todayStudyPlanPageBuilderProvider);
 
     return Column(
       key: todayStudyPlanSectionKey,
@@ -285,7 +346,17 @@ class _DailyStudyPlanSection extends ConsumerWidget {
             message: l10n.todayStudyPlanFailed('$error'),
             onRetry: () => ref.invalidate(dailyStudyPlanProvider),
           ),
-          data: (data) => _DailyStudyPlanContent(plan: data),
+          data: (data) => _DailyStudyPlanContent(
+            plan: data,
+            onOpen: (destination) {
+              // 页面层只负责推路由；打开哪个页面完全由 builder 决定。
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => pageBuilder(destination),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -293,9 +364,12 @@ class _DailyStudyPlanSection extends ConsumerWidget {
 }
 
 class _DailyStudyPlanContent extends StatelessWidget {
-  const _DailyStudyPlanContent({required this.plan});
+  const _DailyStudyPlanContent({required this.plan, required this.onOpen});
 
   final DailyStudyPlan plan;
+
+  /// 用户点了某一步：参数是领域层算好的目标，页面不重新判断。
+  final void Function(DailyPlanStepDestination destination) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -308,50 +382,101 @@ class _DailyStudyPlanContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var index = 0; index < plan.steps.length; index++)
-          _DailyStudyStepCard(index: index, step: plan.steps[index]),
+          _DailyStudyStepCard(
+            index: index,
+            step: plan.steps[index],
+            onOpen: onOpen,
+          ),
       ],
     );
   }
 }
 
 class _DailyStudyStepCard extends StatelessWidget {
-  const _DailyStudyStepCard({required this.index, required this.step});
+  const _DailyStudyStepCard({
+    required this.index,
+    required this.step,
+    required this.onOpen,
+  });
 
   final int index;
   final DailyPlanStep step;
+  final void Function(DailyPlanStepDestination destination) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    // 能不能点由领域层口径决定（`destinationOf`），页面不自己再判一遍。
+    final destination = destinationOf(step);
+    final navigable = destination.isNavigable;
+    final goLabel =
+        navigable ? todayStudyPlanGoLabel(l10n, destination.kind) : '';
 
-    return Card(
+    final card = Card(
       key: todayStudyPlanStepKey(index),
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(step.titleZh, style: theme.textTheme.titleSmall),
-                ),
-                const SizedBox(width: 8),
-                // 分钟数照抄数据层；0 分钟也照写，不替它改口径。
-                Text(
-                  l10n.todayStudyPlanStepMinutes(step.estimatedMinutes),
-                  style: theme.textTheme.bodySmall,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: navigable ? () => onOpen(destination) : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      step.titleZh,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 分钟数照抄数据层；0 分钟也照写，不替它改口径。
+                  Text(
+                    l10n.todayStudyPlanStepMinutes(step.estimatedMinutes),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  // 不可导航的步骤不摆箭头：没有目标就是没有目标，不弹提示糊弄。
+                  if (navigable) ...[
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(step.detailZh, style: theme.textTheme.bodySmall),
+              if (navigable) ...[
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    goLabel,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.primary),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 6),
-            Text(step.detailZh, style: theme.textTheme.bodySmall),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+
+    if (!navigable) {
+      return card;
+    }
+    // 只给可点的卡加语义：读屏听到「去哪里：标题」比一个普通卡片有用。
+    return Semantics(
+      button: true,
+      label: '$goLabel：${step.titleZh}',
+      child: card,
     );
   }
 }

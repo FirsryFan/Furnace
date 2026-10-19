@@ -623,6 +623,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get todayStudyPlanRetry => '重试';
 
   @override
+  String get todayStudyPlanGoPractice => '去题库练这些题';
+
+  @override
+  String get todayStudyPlanGoReview => '去复习到期卡';
+
+  @override
+  String get todayStudyPlanGoChains => '去题库补链';
+
+  @override
+  String get todayStudyPlanGoVocabulary => '去词表';
+
+  @override
   String get materialIntakeTitle => '添加资料';
 
   @override

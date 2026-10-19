@@ -8,12 +8,17 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/domain/services/reasoning/chain_insights.dart';
+import 'package:furnace/domain/services/reasoning/daily_plan_step_destination.dart';
 import 'package:furnace/domain/services/reasoning/daily_study_plan.dart';
 import 'package:furnace/domain/services/reasoning/learning_advice.dart';
+import 'package:furnace/domain/services/reasoning/practice_recommendation.dart';
 import 'package:furnace/domain/services/scheduling/today_plan.dart';
+import 'package:furnace/features/anki/presentation/review_page.dart';
 import 'package:furnace/features/cognitive/application/daily_study_plan_reader.dart';
 import 'package:furnace/features/cognitive/application/today_plan_reader.dart';
 import 'package:furnace/features/cognitive/presentation/today_plan_page.dart';
+import 'package:furnace/features/questions/presentation/question_bank_page.dart';
+import 'package:furnace/features/settings/presentation/capability_vocabulary_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 /// 今日清单页是「排序结果真的被人看见」这一环（roadmap §1 控制层那一行的
@@ -70,6 +75,7 @@ void main() {
   Future<AppLocalizations> pumpPage(
     WidgetTester tester, {
     List<Override> overrides = const <Override>[],
+    List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -77,11 +83,12 @@ void main() {
           appDatabaseProvider.overrideWithValue(db),
           ...overrides,
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
+        child: MaterialApp(
+          locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: TodayPlanPage(),
+          navigatorObservers: navigatorObservers,
+          home: const TodayPlanPage(),
         ),
       ),
     );
@@ -459,4 +466,344 @@ void main() {
       );
     });
   });
+
+  group('navigation mapping', () {
+    DailyPlanStep stepOf(
+      DailyPlanStepKind kind, {
+      List<String> questionIds = const <String>[],
+      int? cardCount,
+      String? actionType,
+    }) =>
+        DailyPlanStep(
+          kind: kind,
+          priority: 1,
+          titleZh: '标题',
+          detailZh: '理由',
+          estimatedMinutes: 1,
+          questionIds: questionIds,
+          cardCount: cardCount,
+          actionType: actionType,
+        );
+
+    test('only steps with a real target are navigable', () {
+      // 练习步骤：没有题号就没有可练的对象，不能点。
+      expect(
+        destinationOf(stepOf(DailyPlanStepKind.practiceQuestions)).isNavigable,
+        isFalse,
+      );
+      final practice = destinationOf(
+        stepOf(
+          DailyPlanStepKind.practiceQuestions,
+          questionIds: ['q-2', 'q-1'],
+        ),
+      );
+      expect(practice.isNavigable, isTrue);
+      expect(practice.kind, DailyPlanDestinationKind.practiceQuestions);
+      expect(practice.questionIds, ['q-2', 'q-1']);
+
+      // 复习步骤：没有到期卡（null / 0）也没有地方可去。
+      expect(
+        destinationOf(stepOf(DailyPlanStepKind.reviewDueCards)).isNavigable,
+        isFalse,
+      );
+      expect(
+        destinationOf(stepOf(DailyPlanStepKind.reviewDueCards, cardCount: 0))
+            .isNavigable,
+        isFalse,
+      );
+      final review = destinationOf(
+        stepOf(DailyPlanStepKind.reviewDueCards, cardCount: 3),
+      );
+      expect(review.isNavigable, isTrue);
+      expect(review.kind, DailyPlanDestinationKind.ankiReview);
+
+      final chains = destinationOf(
+        stepOf(DailyPlanStepKind.collectChains, actionType: 'first_principles'),
+      );
+      expect(chains.isNavigable, isTrue);
+      expect(chains.actionType, 'first_principles');
+      expect(
+        destinationOf(stepOf(DailyPlanStepKind.reviewVocabulary)).isNavigable,
+        isTrue,
+      );
+      expect(
+        destinationOf(stepOf(DailyPlanStepKind.keepGoing)).isNavigable,
+        isFalse,
+      );
+      final noData = destinationOf(stepOf(DailyPlanStepKind.noData));
+      expect(noData.kind, DailyPlanDestinationKind.none);
+      expect(noData.isNavigable, isFalse);
+    });
+
+    test('every navigable kind gets its own label, dead ends get none',
+        () async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+      final labels = <DailyPlanDestinationKind, String>{
+        DailyPlanDestinationKind.practiceQuestions:
+            l10n.todayStudyPlanGoPractice,
+        DailyPlanDestinationKind.ankiReview: l10n.todayStudyPlanGoReview,
+        DailyPlanDestinationKind.collectChains: l10n.todayStudyPlanGoChains,
+        DailyPlanDestinationKind.vocabulary: l10n.todayStudyPlanGoVocabulary,
+      };
+      for (final entry in labels.entries) {
+        expect(todayStudyPlanGoLabel(l10n, entry.key), entry.value);
+        expect(entry.value, isNotEmpty);
+      }
+      expect(labels.values.toSet(), hasLength(4));
+      expect(
+        todayStudyPlanGoLabel(l10n, DailyPlanDestinationKind.keepGoing),
+        isEmpty,
+      );
+      expect(
+        todayStudyPlanGoLabel(l10n, DailyPlanDestinationKind.none),
+        isEmpty,
+      );
+    });
+
+    test('the default mapping only points at pages that already exist', () {
+      Widget pageFor(
+        DailyPlanDestinationKind kind, {
+        List<String> questionIds = const <String>[],
+        int? cardCount,
+        String? actionType,
+      }) =>
+          buildTodayStudyPlanDestinationPage(
+            DailyPlanStepDestination(
+              kind: kind,
+              questionIds: questionIds,
+              cardCount: cardCount,
+              actionType: actionType,
+            ),
+          );
+
+      // 题库还没有「按题号开练」的入口：练习/补链都退回题库页（已写进报告）。
+      expect(
+        pageFor(
+          DailyPlanDestinationKind.practiceQuestions,
+          questionIds: ['q-1'],
+        ),
+        isA<QuestionBankPage>(),
+      );
+      expect(
+        pageFor(
+          DailyPlanDestinationKind.collectChains,
+          actionType: 'first_principles',
+        ),
+        isA<QuestionBankPage>(),
+      );
+      expect(
+        pageFor(DailyPlanDestinationKind.ankiReview, cardCount: 2),
+        isA<ReviewPage>(),
+      );
+      expect(
+        pageFor(DailyPlanDestinationKind.vocabulary),
+        isA<CapabilityVocabularyPage>(),
+      );
+      expect(pageFor(DailyPlanDestinationKind.keepGoing), isA<SizedBox>());
+      expect(pageFor(DailyPlanDestinationKind.none), isA<SizedBox>());
+    });
+  });
+
+  group('a step with a target is a button; the rest are static', () {
+    DailyStudyPlan practicePlan() {
+      final insights = ChainInsights.aggregate(
+        chains: const [
+          ChainInsightChain(
+            chainId: 'c-9',
+            questionId: 'q-1',
+            steps: [
+              ChainInsightStep(actionType: 'first_principles', stuckRisk: 0.9),
+              ChainInsightStep(actionType: 'first_principles', stuckRisk: 0.9),
+              ChainInsightStep(actionType: 'first_principles', stuckRisk: 0.9),
+            ],
+          ),
+        ],
+      );
+      final advices = LearningAdvicePlan.build(insights: insights);
+      final recommendations = PracticeRecommendationPlan.build(
+        insights: insights,
+        advicePlan: advices,
+        candidates: const [PracticeQuestionCandidate(questionId: 'q-2')],
+      );
+      return DailyStudyPlan.build(
+        insights: insights,
+        advices: advices,
+        recommendations: recommendations,
+      );
+    }
+
+    Future<AppLocalizations> pumpNavigable(
+      WidgetTester tester,
+      DailyStudyPlan plan, {
+      required _RecordingObserver observer,
+      required List<DailyPlanStepDestination> opened,
+    }) =>
+        pumpPage(
+          tester,
+          navigatorObservers: [observer],
+          overrides: [
+            dailyStudyPlanProvider.overrideWith((ref) async => plan),
+            // 真推复习页/词表页会带出 DB 与路径插件依赖；这里把目标页换成
+            // 探针页，只验证「点了会推一条到领域层给的目标」。
+            todayStudyPlanPageBuilderProvider.overrideWithValue(
+              (DailyPlanStepDestination destination) {
+                opened.add(destination);
+                return const Scaffold(key: _probePageKey);
+              },
+            ),
+          ],
+        );
+
+    Finder semanticsOf(int index) => find.ancestor(
+          of: find.byKey(todayStudyPlanStepKey(index)),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Semantics && widget.properties.button == true,
+          ),
+        );
+
+    testWidgets(
+        'navigable steps show a chevron, a target line and button semantics',
+        (tester) async {
+      final plan = studyPlan();
+      final observer = _RecordingObserver();
+      final opened = <DailyPlanStepDestination>[];
+      final l10n = await pumpNavigable(
+        tester,
+        plan,
+        observer: observer,
+        opened: opened,
+      );
+
+      expect(
+        plan.steps.map((step) => step.kind),
+        containsAll([
+          DailyPlanStepKind.reviewDueCards,
+          DailyPlanStepKind.reviewVocabulary,
+        ]),
+      );
+      for (var index = 0; index < plan.steps.length; index++) {
+        expect(
+          find.descendant(
+            of: find.byKey(todayStudyPlanStepKey(index)),
+            matching: find.byIcon(Icons.chevron_right),
+          ),
+          findsOneWidget,
+        );
+        expect(semanticsOf(index), findsOneWidget);
+      }
+      expect(find.text(l10n.todayStudyPlanGoReview), findsOneWidget);
+      expect(find.text(l10n.todayStudyPlanGoVocabulary), findsOneWidget);
+
+      final semantics = tester.widget<Semantics>(semanticsOf(0));
+      expect(
+        semantics.properties.label,
+        startsWith(l10n.todayStudyPlanGoReview),
+      );
+      expect(semantics.properties.label, contains(plan.steps[0].titleZh));
+    });
+
+    testWidgets('tapping the review step opens the review destination',
+        (tester) async {
+      final plan = studyPlan();
+      final observer = _RecordingObserver();
+      final opened = <DailyPlanStepDestination>[];
+      await pumpNavigable(tester, plan, observer: observer, opened: opened);
+      final routesBefore = observer.pushed.length;
+
+      await tester.tap(find.byKey(todayStudyPlanStepKey(0)));
+      await tester.pumpAndSettle();
+
+      expect(opened, hasLength(1));
+      expect(opened.single.kind, DailyPlanDestinationKind.ankiReview);
+      expect(observer.pushed, hasLength(routesBefore + 1));
+      expect(find.byKey(_probePageKey), findsOneWidget);
+    });
+
+    testWidgets('tapping the vocabulary step opens the vocabulary destination',
+        (tester) async {
+      final plan = studyPlan();
+      final observer = _RecordingObserver();
+      final opened = <DailyPlanStepDestination>[];
+      await pumpNavigable(tester, plan, observer: observer, opened: opened);
+      await tester.ensureVisible(find.byKey(todayStudyPlanStepKey(1)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(todayStudyPlanStepKey(1)));
+      await tester.pumpAndSettle();
+
+      expect(opened, hasLength(1));
+      expect(opened.single.kind, DailyPlanDestinationKind.vocabulary);
+      expect(find.byKey(_probePageKey), findsOneWidget);
+    });
+
+    testWidgets('a practice step carries the recommended question ids',
+        (tester) async {
+      final plan = practicePlan();
+      expect(plan.steps, hasLength(1));
+      expect(plan.steps.single.kind, DailyPlanStepKind.practiceQuestions);
+      final observer = _RecordingObserver();
+      final opened = <DailyPlanStepDestination>[];
+      final l10n = await pumpNavigable(
+        tester,
+        plan,
+        observer: observer,
+        opened: opened,
+      );
+
+      expect(find.text(l10n.todayStudyPlanGoPractice), findsOneWidget);
+      await tester.tap(find.byKey(todayStudyPlanStepKey(0)));
+      await tester.pumpAndSettle();
+
+      expect(opened, hasLength(1));
+      expect(opened.single.kind, DailyPlanDestinationKind.practiceQuestions);
+      expect(opened.single.questionIds, contains('q-2'));
+    });
+
+    testWidgets('a step without a target stays static and never navigates',
+        (tester) async {
+      final plan = emptyStudyPlan();
+      final observer = _RecordingObserver();
+      final opened = <DailyPlanStepDestination>[];
+      final l10n = await pumpNavigable(
+        tester,
+        plan,
+        observer: observer,
+        opened: opened,
+      );
+      expect(plan.steps.single.kind, DailyPlanStepKind.noData);
+
+      expect(find.byIcon(Icons.chevron_right), findsNothing);
+      expect(semanticsOf(0), findsNothing);
+      for (final label in [
+        l10n.todayStudyPlanGoPractice,
+        l10n.todayStudyPlanGoReview,
+        l10n.todayStudyPlanGoChains,
+        l10n.todayStudyPlanGoVocabulary,
+      ]) {
+        expect(find.text(label), findsNothing);
+      }
+
+      final routesBefore = observer.pushed.length;
+      await tester.tap(find.byKey(todayStudyPlanStepKey(0)));
+      await tester.pumpAndSettle();
+
+      expect(opened, isEmpty);
+      expect(observer.pushed, hasLength(routesBefore));
+      expect(find.byKey(_probePageKey), findsNothing);
+    });
+  });
 }
+
+/// 记录 Navigator 推了哪些路由（初始 home 也记一条）。
+class _RecordingObserver extends NavigatorObserver {
+  final List<Route<dynamic>> pushed = <Route<dynamic>>[];
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushed.add(route);
+    super.didPush(route, previousRoute);
+  }
+}
+
+/// 测试用的「目标页」：只证明点进去的是 builder 给的那一页。
+const Key _probePageKey = Key('today-study-plan-probe-page');

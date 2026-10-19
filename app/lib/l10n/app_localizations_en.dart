@@ -639,6 +639,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayStudyPlanRetry => 'Retry';
 
   @override
+  String get todayStudyPlanGoPractice => 'Practice in the question bank';
+
+  @override
+  String get todayStudyPlanGoReview => 'Review due cards';
+
+  @override
+  String get todayStudyPlanGoChains => 'Open the question bank';
+
+  @override
+  String get todayStudyPlanGoVocabulary => 'Open the vocabulary';
+
+  @override
   String get materialIntakeTitle => 'Add material';
 
   @override

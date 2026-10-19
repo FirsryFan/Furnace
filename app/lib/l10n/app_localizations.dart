@@ -1256,6 +1256,30 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get todayStudyPlanRetry;
 
+  /// No description provided for @todayStudyPlanGoPractice.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice in the question bank'**
+  String get todayStudyPlanGoPractice;
+
+  /// No description provided for @todayStudyPlanGoReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review due cards'**
+  String get todayStudyPlanGoReview;
+
+  /// No description provided for @todayStudyPlanGoChains.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the question bank'**
+  String get todayStudyPlanGoChains;
+
+  /// No description provided for @todayStudyPlanGoVocabulary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the vocabulary'**
+  String get todayStudyPlanGoVocabulary;
+
   /// No description provided for @materialIntakeTitle.
   ///
   /// In en, this message translates to:
