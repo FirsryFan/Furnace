@@ -325,3 +325,20 @@ H4 7 组（同题干不同标点、指纹、both、三道同题干、空题干�
   只读跑完行数不变）。
 - **未做**：`messageZh` 仍是中文硬编码（UI 已有徽标/详情页，见 §10.1/§10.2）；工具不分页、
   不做跨库对比；「修数据」功能特意不做。
+
+## 14. 全库体检聚合报告 QuestionAuditSummary（轮次一百二十六）
+
+- **文件**：`app/lib/domain/services/questions/question_audit_summary.dart`（纯 Dart，只 import 同目录 `question_intake_audit.dart`；不改既有判据/报告 API）。
+- **API**：
+  - `QuestionAuditSummary.summarize(Iterable<QuestionAuditReport> reports, {int maxOffenders = 10, int maxSampleQuestionIds = 5})`；
+  - `class QuestionAuditCodeCount { code; severity; findingCount; questionCount; sampleQuestionIds; toJson }`；
+  - `class QuestionAuditOffender { questionId; errorCount; warningCount; infoCount; codes; priorityScore; toJson }`；
+  - `class QuestionAuditSummary { questionCount; cleanQuestionCount; dirtyQuestionCount; cleanRatio; findingsBySeverity; codeCounts; topOffenders; truncatedOffenderCount; isEmpty; isClean; toJson }`，另有 `errorCount` / `warningCount` / `infoCount` / `findingCount` 便捷 getter 与 `QuestionAuditSummary.empty` 常量。
+- **输入口径**：期望每个 report 对应一道题（逐题 `auditRow`）。若把一次 `audit(rows)` 的整批 report 传进来，`questionCount` / `cleanQuestionCount` 按 report 数计，而 `codeCounts` / `topOffenders` 按 `finding.questionId` 展开——两种用法不要混。空输入返回 `empty`（题数 0、比值 0、不抛）。
+- **判据聚合**：`findingCount` 是该 code 的结论条数、`questionCount` 是不同题数（同题同 code 两条 → 2 条 / 1 题）；`sampleQuestionIds` 按字符串升序、默认最多 5 个；同 code 出现互相矛盾的严重度时取最重一档。
+- **优先级公式**：`priorityScore = errorCount * kQuestionAuditErrorWeight + warningCount * kQuestionAuditWarningWeight + infoCount * kQuestionAuditInfoWeight`。权重是公开常量 **10 / 3 / 1（未标定）**，只回答「先修哪道」的相对顺序，不是质量结论。
+- **排序与截断**：`codeCounts` 按 severity 升序 → findingCount 降序 → questionCount 降序 → code 升序；`topOffenders` 按 priorityScore 降序 → errorCount 降序 → warningCount 降序 → questionId 升序，最多 `maxOffenders` 道，其余记进 `truncatedOffenderCount`；截断参数小于 0 按 0 处理（不抛）。
+- **clean 口径**：该题 report 没有任何 finding 即干净；`cleanRatio = clean / questionCount`，题数 0 记 0。`isEmpty` 区分「没体检」与「全干净」（两者 `isClean` 都为 true）。
+- **确定性**：所有列表显式排序、不依赖 Map 迭代顺序；`toJson` 键序固定（question_count / clean_question_count / dirty_question_count / clean_ratio / findings_by_severity / code_counts / top_offenders / truncated_offender_count / is_empty / is_clean），`clean_ratio` 四舍五入到 6 位；两次调用 JSON 逐字节相等，输入 report 顺序置换不改变输出。
+- **验收**：`app/test/domain/services/questions/question_audit_summary_test.dart` 38 例（空输入、全干净、混合严重度、同 code 多题、样例题号截断、offender 四级排序与截断、cleanRatio 除零、同题同 code、toJson 键序、确定性、1000 题极端输入）。真实输出：`flutter test test/domain/services/questions` → `00:03 +101: All tests passed!`（本轮 38 + 既有 63）；`dart analyze lib/domain/services/questions test/domain/services/questions` → `No issues found!`。
+- **未做**：application 层 provider（把读库 + 体检 + 聚合串起来）、题库页总览（分布与优先修名单）、导出（Word/CSV 报告）；权重与阈值未标定。

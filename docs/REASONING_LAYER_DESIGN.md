@@ -917,3 +917,89 @@ static LearningAdvicePlan build({
 - 未做：洞察页「下一步练什么」UI（task-49）、`targetDifficulty` 从组卷 spec 读取、权重与阈值标定、
   详情页 / 练习页入口、真实题库下的推荐质量验证；本层仍**不生成题目**，只在现有题库里排序挑选。
 
+## 24. 今日学习计划生成层 DailyStudyPlan（轮次一百二十五收尾补记，task-50）
+
+§22 的配题推荐回答「练哪几道」，§15 的学习建议回答「先做什么」，这一层回答「今天这些事怎么排进有限的时间」。
+`app/lib/domain/services/reasoning/daily_study_plan.dart`（约 20 KB）是纯逻辑：不读库、不读时钟、不调模型、
+不 import Flutter；到期卡片数量也由调用方注入。
+
+### 24.1 API 与固定口径
+
+- `enum DailyPlanStepKind`：practiceQuestions('练习配题推荐') / reviewDueCards('复习到期卡片') /
+  collectChains('补齐思维链') / reviewVocabulary('补能力动作词表') / keepGoing('继续保持') /
+  noData('今天没有可依据的数据')，各带中文 `labelZh`。
+- `class DailyPlanStep`：kind、priority、titleZh、detailZh、estimatedMinutes、actionType?、
+  knowledgePointIds（不可变、已去重）、questionIds（按推荐名次）、cardCount?、toJson（固定键序）。
+- `class DailyStudyPlan`：steps、totalMinutes、focusKnowledgePointIds（最多 5 个、稳定顺序）、
+  skippedStepCount、isEmpty / isNotEmpty、toJson。
+- `static DailyStudyPlan build({required ChainInsights insights, required LearningAdvicePlan advices,
+  PracticeRecommendationPlan? recommendations, int? dueCardCount, int dailyMinutes = 30, int maxSteps = 5})`。
+- 优先级数字（小的先做）：复习到期卡片 100 → 练习 200 → 补齐思维链 300 → 补词表 400 → 继续保持 500 →
+  没有数据 600。自然时长：卡片 `ceil(卡数 / 2)` 分钟、练习每题 2 分钟、补链 5 分钟、补词表 3 分钟、
+  继续保持 1 分钟、noData 0 分钟。
+
+### 24.2 诚实性与边界
+
+- **只排真有的东西**：练习步骤只来自配题推荐；建议里有 practiceAction 但推荐为空时不造练习步骤。
+- **未知动作不写练习步骤**：词表外动作只由洞察的 unknownActions 给出 reviewVocabulary 一步。
+- **没有数据就说没有**：无到期卡、无推荐、无读数 → 单条 noData（0 分钟，detailZh 明说没有可依据数据），不虚构计划。
+- **预算如实**：所有 estimatedMinutes 之和 ≤ dailyMinutes（dailyMinutes < 1 抬到 1）；放不下或超过 maxSteps
+  的候选进 skippedStepCount，不静默消失；maxSteps 夹在 1..8。到期卡按 min(剩余, 自然) 截断，
+  练习按剩余预算缩减题数（缩到 0 道就跳过）。
+- **确定性**：不读时钟、不随机、不依赖 Map 迭代顺序，同一输入两次结果相同；dueCardCount 非有限 / 负数净化。
+
+### 24.3 验收与未做
+
+- `app/test/domain/services/reasoning/daily_study_plan_test.dart` **48 例**：空输入 noData、只有到期卡、只有练习、
+  全未知动作、预算极小 / 充足、maxSteps 边界、skipped 计数、focus 去重与上限、NaN / 负数净化、toJson 键序、
+  两次 build 相同、空列表不抛。
+- scoped `dart analyze lib/domain/services/reasoning test/domain/services/reasoning` 干净；全仓 analyze 仍
+  92 issues / 0 error / 0 warning。
+- 未做：application 层 provider（到期卡数量注入）、页面 / 计划卡片、时间预算由用户设置、与日程页联动、标定。
+
+## 25. 洞察页「下一步练什么」：把推荐摆到学生面前（轮次一百二十五收尾补记，task-49）
+
+`app/lib/features/questions/presentation/practice_recommendation_view.dart`（约 10 KB）。
+`PracticeRecommendationSection({required List<CapabilityAction>? actionCatalog})` 消费 `practiceRecommendationProvider`：
+
+- loading 安静不占高；error 只降级一行「配题推荐暂时算不出来」；空推荐一句空文案。
+- 每行：名次（第 N 名）、题号徽章、理由中文短语（最多 3 条，`practiceRecommendationVisibleReasonLimit = 3`，
+  其余折叠「另有 N 条理由」）、命中动作中文名（词表外动作显示 key，不虚构中文）。
+- skippedQuestionIds 非空 → 「还有 N 道没显示」。
+- 点击一行进题目详情页；区块 key `practiceRecommendationSectionKey`，空 / 错 / skipped 各有 key 便于测试。
+- 接线：`learning_insight_page.dart` 的 `_InsightBody` 在建议卡之后插入
+  `PracticeRecommendationSection(actionCatalog: data.actionCatalog)`，只消费 provider 的分数与理由，不重算。
+- l10n 五文件手改 16 个 key（title / empty / failed / rank / actions / moreReasons / skipped + 9 条理由），
+  占位符 int / String；文案里无字面花括号（发布构建教训）。
+
+### 25.1 验收与未做
+
+- `app/test/features/questions/presentation/practice_recommendation_view_test.dart` **11 例**（纯逻辑 + widget）：
+  渲染名次 / 题号 / 理由 / 命中动作、空态、错误降级、点击跳转、理由折叠、skipped 计数、加载中不占高。
+- 未做：英文母语文案校对、真机长列表滚动、推荐行上的「加入组卷 / 练习」动作、推荐质量标定。
+
+## 26. `recommend_practice` 只读工具：让对话里能问「下一步练哪几道」（轮次一百二十五收尾补记，task-52）
+
+- `app/lib/features/ai/tools/practice_recommendation_tools.dart`（约 13 KB）：
+  `RecommendPracticeTool extends AiTool`，name = `recommend_practice`，注册在 `GetLearningAdviceTool` 之后 →
+  `ToolRegistry.forApp` 工具总数 **24 → 25**。
+- 参数：`max_questions`（1..20，默认 10，超上限夹取不报错）、`subject_key`（可选过滤）、
+  `target_difficulty`（1..10 有限数，非法抛 ToolArgError）。
+- 读表复用 `readPracticeQuestionCandidates` + 洞察 / 学习建议 reader → `PracticeRecommendationPlan.build`；
+  再按参数过滤 / 截断，不在工具层重写排序口径。
+- `modelResult`：recommendations[`rank / question_id / serial_no / serial_label / score /
+  reasons（枚举 key + 中文理由）/ matched_action_types / matched_action_labels_zh /
+  matched_knowledge_point_ids`]、`skipped_count`、`advice_summary`（最多 2 条）；查无候选回空列表 + 一句中文说明。
+- 风险口径与其他只读工具一致：`readOnly = true`、`riskFor => ToolRisk.write`、`reversibleFor => true`；
+  不生成题目、不写库。
+
+### 26.1 验收与未做
+
+- `app/test/features/ai/practice_recommendation_tool_test.dart` **14 例**：只读（调用前后全库快照不变）、空库、
+  卡点知识点排序、subject_key 过滤、target_difficulty 影响排序、max_questions 截断与 skipped_count、理由中文、
+  未知动作不虚构、参数非法。
+- 本轮新增四套件合计 **38 + 48 + 14 + 11 = 111 例**（题目入库体检聚合 38 例归 task-51）；组合跑四套件 →
+  **+174 All tests passed**。
+- 未做：工具返回完整 DailyStudyPlan 步骤、分页、与练习入口联动、真实题库下的推荐质量验证。
+
+
