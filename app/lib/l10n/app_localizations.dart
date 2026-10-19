@@ -1214,6 +1214,48 @@ abstract class AppLocalizations {
   /// **'Could not read today\'s list: {error}'**
   String todayPlanFailed(String error);
 
+  /// No description provided for @todayStudyPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What to do today'**
+  String get todayStudyPlanTitle;
+
+  /// No description provided for @todayStudyPlanLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Building today\'s plan…'**
+  String get todayStudyPlanLoading;
+
+  /// No description provided for @todayStudyPlanTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'About {minutes} min in total'**
+  String todayStudyPlanTotal(int minutes);
+
+  /// No description provided for @todayStudyPlanSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} step(s) skipped'**
+  String todayStudyPlanSkipped(int count);
+
+  /// No description provided for @todayStudyPlanStepMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'About {minutes} min'**
+  String todayStudyPlanStepMinutes(int minutes);
+
+  /// No description provided for @todayStudyPlanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read today\'s plan: {error}'**
+  String todayStudyPlanFailed(String error);
+
+  /// No description provided for @todayStudyPlanRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get todayStudyPlanRetry;
+
   /// No description provided for @materialIntakeTitle.
   ///
   /// In en, this message translates to:

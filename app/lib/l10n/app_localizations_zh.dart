@@ -594,6 +594,35 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get todayStudyPlanTitle => '今天做什么';
+
+  @override
+  String get todayStudyPlanLoading => '正在排今天的计划…';
+
+  @override
+  String todayStudyPlanTotal(int minutes) {
+    return '共约 $minutes 分钟';
+  }
+
+  @override
+  String todayStudyPlanSkipped(int count) {
+    return '跳过 $count 条';
+  }
+
+  @override
+  String todayStudyPlanStepMinutes(int minutes) {
+    return '约 $minutes 分钟';
+  }
+
+  @override
+  String todayStudyPlanFailed(String error) {
+    return '读不到今天的计划：$error';
+  }
+
+  @override
+  String get todayStudyPlanRetry => '重试';
+
+  @override
   String get materialIntakeTitle => '添加资料';
 
   @override

@@ -610,6 +610,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get todayStudyPlanTitle => 'What to do today';
+
+  @override
+  String get todayStudyPlanLoading => 'Building today\'s plan…';
+
+  @override
+  String todayStudyPlanTotal(int minutes) {
+    return 'About $minutes min in total';
+  }
+
+  @override
+  String todayStudyPlanSkipped(int count) {
+    return '$count step(s) skipped';
+  }
+
+  @override
+  String todayStudyPlanStepMinutes(int minutes) {
+    return 'About $minutes min';
+  }
+
+  @override
+  String todayStudyPlanFailed(String error) {
+    return 'Could not read today\'s plan: $error';
+  }
+
+  @override
+  String get todayStudyPlanRetry => 'Retry';
+
+  @override
   String get materialIntakeTitle => 'Add material';
 
   @override
