@@ -32,6 +32,7 @@ import '../scheduling/domain_balance.dart'
     show EffectivenessTuning, KnowledgePointReading;
 import 'paper_composer.dart' show kSourceLevelPriority;
 import 'question_quality.dart';
+import 'source_level_labels.dart';
 
 /// 低于这个分数不算相似：同学科 + 同难度（0.10 + 0.10）还不够，必须真有一条
 /// "共用知识点"或"同型步骤"。
@@ -96,6 +97,7 @@ class SimilarityFocus {
     this.knowledgePointIds = const [],
     this.subjectKey = '',
     this.questionType = '',
+    this.sourceLevel = 'unknown',
     this.difficulty,
     this.actionTypes = const [],
   });
@@ -107,6 +109,13 @@ class SimilarityFocus {
 
   final String subjectKey;
   final String questionType;
+
+  /// 聚焦题自己的来源档位（`gaokao` / `provincial_diagnostic` / ...）；
+  /// 默认 `unknown` = 不知道。
+  ///
+  /// 只在 `rank(detailedReasons: true)` 的「可核实依据」里用来做来源档位对比；
+  /// 不知道时不做对比，不猜。
+  final String sourceLevel;
 
   /// 1..10；未知就留 `null`（分量取中性，不当成"最简单"）。
   final double? difficulty;
@@ -197,6 +206,10 @@ abstract final class SimilarQuestionFinder {
   ///
   /// [knowledgePointReadings] 缺省为空 → `quality` 分量为中性 0.5；只有
   /// [SimilarityWeights.quality] > 0 时它才影响 [score]（默认 0 = 不启用）。
+  ///
+  /// [detailedReasons] 默认 `false`：理由与历史输出逐字节一致。设为 `true` 时，
+  /// 只有候选与聚焦题真有可核实的共性（共用知识点、同型动作）才在理由后追加一句
+  /// 「可核实依据：…」（个数、来源档位对比）；没有这类信息就不追加，不写空话。
   static List<SimilarQuestion> rank({
     required SimilarityFocus focus,
     required List<SimilarityCandidate> candidates,
@@ -206,6 +219,7 @@ abstract final class SimilarQuestionFinder {
     Map<String, String> knowledgePointNames = const {},
     Map<String, KnowledgePointReading> knowledgePointReadings = const {},
     EffectivenessTuning qualityTuning = const EffectivenessTuning(),
+    bool detailedReasons = false,
   }) {
     final normalized = weights.normalized();
     final focusPoints = cleanIds(focus.knowledgePointIds);
@@ -296,6 +310,7 @@ abstract final class SimilarQuestionFinder {
             entry: entry,
             focus: focus,
             knowledgePointNames: knowledgePointNames,
+            detailedReasons: detailedReasons,
           ),
         ),
     ];
@@ -404,6 +419,7 @@ abstract final class SimilarQuestionFinder {
     required _Scored entry,
     required SimilarityFocus focus,
     required Map<String, String> knowledgePointNames,
+    bool detailedReasons = false,
   }) {
     final parts = <String>[];
 
@@ -438,8 +454,58 @@ abstract final class SimilarQuestionFinder {
     if (source.isNotEmpty && source != 'unknown') {
       parts.add('来源：${_sourceLabel(source)}');
     }
-    if (parts.isEmpty) return '库里和它挂载关系最接近的一道题。';
-    return '${parts.join('；')}。';
+    final base = parts.isEmpty ? '库里和它挂载关系最接近的一道题。' : '${parts.join('；')}。';
+    if (!detailedReasons) return base;
+    final basis = _verifiableBasis(entry: entry, focus: focus);
+    return basis.isEmpty ? base : '$base 可核实依据：$basis。';
+  }
+
+  /// [detailedReasons] 追加的「可核实依据」：只拼输入里真有的数据。
+  ///
+  /// 没有任何共用知识点/同型动作时返回空串（信息缺失不追加废话）。
+  static String _verifiableBasis({
+    required _Scored entry,
+    required SimilarityFocus focus,
+  }) {
+    final focusPoints = cleanIds(focus.knowledgePointIds);
+    final focusActions = _truncate(cleanActions(focus.actionTypes));
+    final basis = <String>[];
+    if (entry.sharedPoints.isNotEmpty) {
+      basis.add('共用知识点 ${entry.sharedPoints.length}/${focusPoints.length} 个');
+    }
+    if (entry.sharedActions.isNotEmpty) {
+      basis.add(
+        '同型动作命中 ${entry.sharedActions.length} 个'
+        '（聚焦题 ${focusActions.length} 步）',
+      );
+    }
+    if (basis.isEmpty) return '';
+    final source = _sourceComparison(
+      focus.sourceLevel,
+      entry.candidate.sourceLevel,
+    );
+    if (source != null) basis.add(source);
+    return basis.join('；');
+  }
+
+  /// 来源档位对比；两边都必须是已知档位，否则返回 `null`（不猜）。
+  static String? _sourceComparison(String focusLevel, String candidateLevel) {
+    final focusKey = focusLevel.trim();
+    final candidateKey = candidateLevel.trim();
+    if (focusKey.isEmpty || focusKey == 'unknown') return null;
+    if (candidateKey.isEmpty || candidateKey == 'unknown') return null;
+    final focusPriority = kSourceLevelPriority[focusKey];
+    final candidatePriority = kSourceLevelPriority[candidateKey];
+    if (focusPriority == null || candidatePriority == null) return null;
+    final focusLabel = _sourceLabel(focusKey);
+    final candidateLabel = _sourceLabel(candidateKey);
+    if (candidatePriority > focusPriority) {
+      return '来源档位：候选题「$candidateLabel」高于聚焦题「$focusLabel」';
+    }
+    if (candidatePriority < focusPriority) {
+      return '来源档位：候选题「$candidateLabel」低于聚焦题「$focusLabel」';
+    }
+    return '来源档位：候选题「$candidateLabel」与聚焦题「$focusLabel」同档';
   }
 
   /// 知识点名（有名字用名字，没有就回落到 id）；最多列两个，其余说"等 N 个"。
@@ -458,14 +524,7 @@ abstract final class SimilarQuestionFinder {
     return action == null ? key : action.labelZh;
   }
 
-  static String _sourceLabel(String key) => switch (key) {
-        'gaokao' => '高考真题',
-        'provincial_diagnostic' => '省市诊断',
-        'elite_school' => '名校测试',
-        'school' => '校内题',
-        'personal' => '自建题',
-        _ => key,
-      };
+  static String _sourceLabel(String key) => sourceLevelLabel(key);
 
   static String _quoted(String value) => '「$value」';
 

@@ -14,6 +14,7 @@ import '../reasoning/capability_action.dart' show CapabilityAction;
 import '../scheduling/domain_balance.dart' show KnowledgePointReading;
 import '../srs/dsr_memory.dart';
 import 'domain_quota.dart';
+import 'source_level_labels.dart';
 import 'subject_quota.dart';
 
 /// **未标定**：一道题如果命中"我最该练的动作"，分数乘上 `1 + 这个系数 × 命中比例`。
@@ -333,6 +334,33 @@ class PaperItem {
       };
 }
 
+/// 缺口的一句话解释（[PaperPlan.uncoveredKnowledgePointNotes] /
+/// [PaperPlan.deferredKnowledgePointNotes] 的元素）。
+///
+/// 只在调用方开 `PaperComposer.compose(detailedNotes: true)` 时产出；默认不生成，
+/// 历史输出逐字节不变。措辞归领域层，界面/导出直接展示，不再自己拼一套。
+class PaperGapNote {
+  const PaperGapNote({
+    required this.knowledgePointId,
+    required this.labelZh,
+    required this.messageZh,
+  });
+
+  final String knowledgePointId;
+
+  /// 知识点显示名（标签路径最后一段 → 名字 → id）。
+  final String labelZh;
+
+  /// 缺口原因 + 下一步动作（中文，可执行）。
+  final String messageZh;
+
+  Map<String, Object?> toJson() => {
+        'knowledge_point_id': knowledgePointId,
+        'label_zh': labelZh,
+        'message': messageZh,
+      };
+}
+
 /// 一份卷子。
 class PaperPlan {
   const PaperPlan({
@@ -358,6 +386,8 @@ class PaperPlan {
     this.manualMissingQuestionIds = const [],
     this.manualSkippedQuestionIds = const [],
     this.manualConflictQuestionIds = const [],
+    this.uncoveredKnowledgePointNotes = const [],
+    this.deferredKnowledgePointNotes = const [],
   });
 
   /// 选中的题（**贪心选择顺序**，与每知识点配额有关，不是单纯的分数降序）。
@@ -435,6 +465,16 @@ class PaperPlan {
   /// 同时出现在必收与排除里的题目 id（排除生效，未进卷；按 id 字典序）。
   final List<String> manualConflictQuestionIds;
 
+  /// 未覆盖知识点的解释句（`detailedNotes: true` 才产出；默认空表 = 不出键）。
+  ///
+  /// 与 [uncoveredKnowledgePointIds] 一一对应（顺序相同）：缺什么、下一步做什么。
+  final List<PaperGapNote> uncoveredKnowledgePointNotes;
+
+  /// 被挤掉知识点的解释句（`detailedNotes: true` 才产出；默认空表 = 不出键）。
+  ///
+  /// 与 [deferredKnowledgePointIds] 一一对应（顺序相同）：为什么这轮没排上、怎么调。
+  final List<PaperGapNote> deferredKnowledgePointNotes;
+
   /// 有保底、但题库里一道候选都没有的学科（缺口在收题，不在配额）。
   List<String> get uncoveredSubjectKeys => [
         for (final shortfall in subjectShortfalls)
@@ -457,6 +497,15 @@ class PaperPlan {
         'items': [for (final item in items) item.toJson()],
         'uncovered_knowledge_points': uncoveredKnowledgePointIds,
         'deferred_knowledge_points': deferredKnowledgePointIds,
+        // 缺口解释句：只有 detailedNotes 产出时非空（默认不出键，历史输出一致）。
+        if (uncoveredKnowledgePointNotes.isNotEmpty)
+          'uncovered_knowledge_point_notes': [
+            for (final note in uncoveredKnowledgePointNotes) note.toJson(),
+          ],
+        if (deferredKnowledgePointNotes.isNotEmpty)
+          'deferred_knowledge_point_notes': [
+            for (final note in deferredKnowledgePointNotes) note.toJson(),
+          ],
         'by_knowledge_point': byKnowledgePoint,
         'candidate_count': candidateCount,
         'requested_count': requestedCount,
@@ -538,6 +587,13 @@ class PaperPlan {
 ///     冲突的 id 记进 PaperPlan.manualConflictQuestionIds（排除生效）；
 /// 16. 必收题仍走正常打分，并计入 PaperPlan.bySubject / byDomain 与各配额计数
 ///     （占该科/该域名额，保底不会为它重复补题）。
+/// 文案详情（`compose(detailedNotes: true)`，默认关闭）：
+/// 17. 默认 `false` 时 `PaperItem` 三条文案与缺口列表逐字节不变；
+/// 18. 打开后只在理由/建议/背景里追加**可核实**信息（本卷第几题、需求 / 质量分 /
+///     综合得分 / 权重、本题还覆盖的知识点），并生成
+///     `PaperPlan.uncoveredKnowledgePointNotes` / `deferredKnowledgePointNotes`
+///     回答缺口「缺什么、下一步怎么做」；排序、分数、配额与默认完全一致。
+///
 /// 默认 `subjectQuota == null && domainQuota == null` 且手工两集合都为 `null` 时
 /// 以上分支全不进入 → 输出与历史逐字节一致。
 abstract final class PaperComposer {
@@ -549,6 +605,7 @@ abstract final class PaperComposer {
     Map<String, List<String>> knowledgePointTagPaths = const {},
     PaperWeights weights = const PaperWeights(),
     List<String> preferredActionTypes = const [],
+    bool detailedNotes = false,
   }) {
     final readingsById = {
       for (final reading in readings) reading.knowledgePointId: reading,
@@ -830,8 +887,24 @@ abstract final class PaperComposer {
       for (final domain in sortedDomainKeys) domain: byDomainCounts[domain]!,
     };
 
-    final items = [
-      for (final entry in picked)
+    // 每个知识点在过滤后还剩多少候选（缺口解释句里只报真实数量）。
+    final availability = <String, int>{};
+    for (final entry in scored) {
+      for (final point in entry.coveredPoints) {
+        availability[point] = (availability[point] ?? 0) + 1;
+      }
+    }
+
+    final items = <PaperItem>[];
+    for (var index = 0; index < picked.length; index++) {
+      final entry = picked[index];
+      final pointLabel = _labelOf(
+        entry.primaryPointId,
+        knowledgePointNames,
+        knowledgePointTagPaths,
+      );
+      final reading = readingsById[entry.primaryPointId];
+      items.add(
         PaperItem(
           questionId: entry.candidate.questionId,
           subjectKey: entry.candidate.subjectKey,
@@ -843,26 +916,44 @@ abstract final class PaperComposer {
           need: entry.need,
           quality: entry.quality,
           score: entry.score,
-          reasonZh: _reasonZh(
-            pointId: entry.primaryPointId,
-            pointLabel: _labelOf(
-              entry.primaryPointId,
-              knowledgePointNames,
-              knowledgePointTagPaths,
-            ),
-            zone: entry.zone,
-            reading: readingsById[entry.primaryPointId],
-            matchedPreferredActions: entry.matchedPreferredActions,
-          ),
-          improvementNote: _improvementNote(entry.candidate, entry.zone),
-          backgroundZh: _backgroundZh(
-            entry.primaryPointId,
-            knowledgePointNames,
-            knowledgePointTagPaths,
-          ),
+          reasonZh: detailedNotes
+              ? _detailedReasonZh(
+                  itemIndex: index + 1,
+                  entry: entry,
+                  pointLabel: pointLabel,
+                  reading: reading,
+                  weights: normalized,
+                )
+              : _reasonZh(
+                  pointId: entry.primaryPointId,
+                  pointLabel: pointLabel,
+                  zone: entry.zone,
+                  reading: reading,
+                  matchedPreferredActions: entry.matchedPreferredActions,
+                ),
+          improvementNote: detailedNotes
+              ? _detailedImprovementNote(
+                  candidate: entry.candidate,
+                  zone: entry.zone,
+                  pointLabel: pointLabel,
+                )
+              : _improvementNote(entry.candidate, entry.zone),
+          backgroundZh: detailedNotes
+              ? _detailedBackgroundZh(
+                  primaryPointId: entry.primaryPointId,
+                  matchedKnowledgePointIds: entry.coveredPoints,
+                  names: knowledgePointNames,
+                  paths: knowledgePointTagPaths,
+                )
+              : _backgroundZh(
+                  entry.primaryPointId,
+                  knowledgePointNames,
+                  knowledgePointTagPaths,
+                ),
           matchedPreferredActions: entry.matchedPreferredActions,
         ),
-    ];
+      );
+    }
 
     final chosenPoints = <String>{
       for (final entry in picked) ...entry.coveredPoints,
@@ -879,6 +970,46 @@ abstract final class PaperComposer {
     }
     uncovered.sort();
     deferred.sort();
+
+    // 缺口解释句：只在 detailedNotes 时生成（默认空表 → toJson 不出键）。
+    final uncoveredNotes = <PaperGapNote>[];
+    final deferredNotes = <PaperGapNote>[];
+    if (detailedNotes) {
+      for (final point in uncovered) {
+        final label = _labelOf(
+          point,
+          knowledgePointNames,
+          knowledgePointTagPaths,
+        );
+        final zone = paperZoneOf(readingsById[point]);
+        uncoveredNotes.add(
+          PaperGapNote(
+            knowledgePointId: point,
+            labelZh: label,
+            messageZh: '知识点「$label」在${zone.labelZh}，题库里一道候选都没有：'
+                '先收这个知识点的题（拍照或组卷网入库），不要用模型生成。',
+          ),
+        );
+      }
+      for (final point in deferred) {
+        final label = _labelOf(
+          point,
+          knowledgePointNames,
+          knowledgePointTagPaths,
+        );
+        final zone = paperZoneOf(readingsById[point]);
+        final available = availability[point] ?? 0;
+        deferredNotes.add(
+          PaperGapNote(
+            knowledgePointId: point,
+            labelZh: label,
+            messageZh: '知识点「$label」在${zone.labelZh}，题库里有 $available 道可用候选，'
+                '但这轮没排进来（被目标题数或配额挤掉）：把目标题数调大，'
+                '或提高该知识点的每题上限。',
+          ),
+        );
+      }
+    }
 
     final byKnowledgePoint = <String, int>{};
     for (final entry in picked) {
@@ -914,6 +1045,8 @@ abstract final class PaperComposer {
       manualMissingQuestionIds: List.unmodifiable(manualMissing),
       manualSkippedQuestionIds: List.unmodifiable(manualSkipped),
       manualConflictQuestionIds: List.unmodifiable(manual.conflicts),
+      uncoveredKnowledgePointNotes: List.unmodifiable(uncoveredNotes),
+      deferredKnowledgePointNotes: List.unmodifiable(deferredNotes),
     );
   }
 
@@ -1042,6 +1175,69 @@ abstract final class PaperComposer {
       PaperZone.unknown => '知识点「$pointLabel」还没有你的读数，按未知处理（未知不当作健康）。',
     };
     return '$base$preferredNote';
+  }
+
+  /// 详细版选卷理由（`detailedNotes: true`）：在原有理由后补上**这份卷子真实的**
+  /// 排序依据——第几题、需求（来自 zone 读数）、质量分（来源档位 + AI 质量）、
+  /// 综合得分与当前权重。数字全部取自 [entry] 与 [weights]，不另外估算。
+  static String _detailedReasonZh({
+    required int itemIndex,
+    required _Scored entry,
+    required String pointLabel,
+    required KnowledgePointReading? reading,
+    required PaperWeights weights,
+  }) {
+    final base = _reasonZh(
+      pointId: entry.primaryPointId,
+      pointLabel: pointLabel,
+      zone: entry.zone,
+      reading: reading,
+      matchedPreferredActions: entry.matchedPreferredActions,
+    );
+    final sourceKey = entry.candidate.sourceLevel.trim();
+    final sourceLabel = sourceKey.isEmpty || sourceKey == 'unknown'
+        ? '来源未标注'
+        : '来源 ${sourceLevelLabel(sourceKey)}';
+    return '本卷第 $itemIndex 题。$base这题在这份卷子里的排序依据：'
+        '需求 ${_two(entry.need)}（${entry.zone.labelZh}）、'
+        '质量分 ${_two(entry.quality)}（$sourceLabel）、'
+        '综合得分 ${_two(entry.score)}；'
+        '排序权重 需求 ${_two(weights.need)} / 质量 ${_two(weights.quality)} / '
+        '难度贴合 ${_two(weights.difficultyFit)}（未标定，见 PAPER_COMPOSER_DESIGN §4）。';
+  }
+
+  /// 详细版改进建议（`detailedNotes: true`）：点名它为哪个知识点服务，并给出
+  /// 可执行的下一步（把结果记进系统，才会产生下一轮读数）。
+  static String _detailedImprovementNote({
+    required PaperCandidate candidate,
+    required PaperZone zone,
+    required String pointLabel,
+  }) {
+    final base = _improvementNote(candidate, zone);
+    return '为知识点「$pointLabel」：$base '
+        '下一步：做完把这题的结果记进系统（这一轮会产生下一轮的读数）。';
+  }
+
+  /// 详细版知识点背景（`detailedNotes: true`）：除主知识点路径外，列出这道题
+  /// 还覆盖了哪些知识点（只列真实挂载，重复与主知识点自身跳过）。
+  static String _detailedBackgroundZh({
+    required String? primaryPointId,
+    required List<String> matchedKnowledgePointIds,
+    required Map<String, String> names,
+    required Map<String, List<String>> paths,
+  }) {
+    final base = _backgroundZh(primaryPointId, names, paths);
+    final seen = <String>{};
+    final primaryKey = (primaryPointId ?? '').trim();
+    if (primaryKey.isNotEmpty) seen.add(primaryKey);
+    final extras = <String>[];
+    for (final id in matchedKnowledgePointIds) {
+      final key = id.trim();
+      if (key.isEmpty || !seen.add(key)) continue;
+      extras.add(_labelOf(key, names, paths));
+    }
+    if (extras.isEmpty) return base;
+    return '$base；本题还覆盖：${extras.join('、')}';
   }
 
   /// 动作 key → 中文名；词表外的 key 原样返回（不硬塞一个"未知动作"）。
