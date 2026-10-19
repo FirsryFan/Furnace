@@ -19,7 +19,9 @@ import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/cognitive/problem_evaluator.dart';
+import '../../../domain/services/reasoning/daily_study_plan.dart';
 import '../../../domain/services/scheduling/today_plan.dart';
+import '../../cognitive/application/daily_study_plan_reader.dart';
 import '../domain/ai_tool.dart';
 import 'cognitive_tools.dart';
 
@@ -180,13 +182,43 @@ class PlanTodayTool extends AiTool {
       maxActions: maxActions,
     );
 
+    // 两套口径并存，互不覆盖，注释写清各自回答的问题：
+    // * 'actions'（TodayPlanner）：到期卡 + 模型这次给的候选题，按收益/成本 V(π)
+    //   排序，只回答「这一轮先做哪件事最划算」；
+    // * 'study_plan'（DailyStudyPlan，domain/services/reasoning/daily_study_plan.dart）：
+    //   洞察 / 学习建议 / 配题推荐 / 到期卡四层**真实读数**排出的固定优先级计划，
+    //   回答「今天整体怎么安排」。
+    // 两者都只读数据；学习计划读取失败只是少了增量信息，不影响旧清单。
+    DailyStudyPlan? studyPlan;
+    String? studyPlanNotice;
+    try {
+      // 到期卡张数复用上面那次查询（同一个 moment），不再读第二次时钟：
+      // 旧清单和新计划必须看同一个「今天」。
+      studyPlan = await readDailyStudyPlan(
+        database: _database,
+        dueCardCount: dueCards.length,
+      );
+    } on Object {
+      // 退化成没有 'study_plan' 字段，并在摘要里说明，不让整个工具失败。
+      studyPlan = null;
+      studyPlanNotice = '今天的学习计划读取失败，本次只返回旧的「今天做这几件事」清单。';
+    }
+    final studyPlanLine = studyPlan == null
+        ? (studyPlanNotice ?? '')
+        : _studyPlanSummaryLine(studyPlan);
+    final modelResult = <String, Object?>{
+      ...plan.toJson(),
+      if (studyPlan != null) 'study_plan': studyPlan.toJson(),
+    };
+
     if (plan.actions.isEmpty) {
       return ToolResult(
         ok: true,
         summary: '今天没有到期要复习的卡，也没有可排的题：清单是空的'
             '（这不是"没事做"，只是到期队列与候选题都空着）'
+            '$studyPlanLine'
             '${tunedParametersNote(report.moduleDefaults)}',
-        modelResult: plan.toJson(),
+        modelResult: modelResult,
       );
     }
 
@@ -205,9 +237,28 @@ class PlanTodayTool extends AiTool {
       ok: true,
       summary: '今天做这几件事（${plan.actions.length} 件$omitted）：\n'
           '${lines.join('\n')}\n'
+          '$studyPlanLine\n'
           '加成未标定：这份顺序是提示，不是测量。'
           '${tunedParametersNote(report.moduleDefaults)}',
-      modelResult: plan.toJson(),
+      modelResult: modelResult,
     );
   }
+}
+
+/// 学习计划的摘要句：只写计划里真实的分钟数 / 步数与一、二步标题。
+///
+/// 没有数据时（单条 noData）如实说「今天没有可依据的数据」，不虚构计划；
+/// 这一步只是把 `DailyStudyPlan` 已有的读数翻译成一句人话，不改数字。
+String _studyPlanSummaryLine(DailyStudyPlan studyPlan) {
+  final steps = studyPlan.steps;
+  if (steps.isEmpty) {
+    return '今日学习计划为空（0 分钟）。';
+  }
+  if (steps.length == 1 && steps.first.kind == DailyPlanStepKind.noData) {
+    return '今天预计 ${studyPlan.totalMinutes} 分钟、1 步：'
+        '${steps.first.titleZh}。';
+  }
+  final next = steps.length > 1 ? '，再做：${steps[1].titleZh}' : '';
+  return '今天预计 ${studyPlan.totalMinutes} 分钟、${steps.length} 步；'
+      '先做：${steps.first.titleZh}$next。';
 }

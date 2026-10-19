@@ -1,8 +1,12 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
@@ -81,6 +85,87 @@ void main() {
           moment.subtract(Duration(days: daysAgo)).millisecondsSinceEpoch,
     );
     return point.id;
+  }
+
+  /// 题库里的一道真题（有答案、有解析，配题推荐的候选）。
+  Future<String> seedQuestion({String stem = '已知函数求单调区间'}) async {
+    final ingested = await QuestionRepository(db).ingest(
+      QuestionDraft(
+        stem: stem,
+        answer: 'B',
+        solution: '先求导再判号',
+        subjectKey: '数学',
+        sourceLevel: 'gaokao',
+      ),
+    );
+    return ingested.question.id;
+  }
+
+  Future<String> seedKnowledgePoint(String title) async =>
+      (await anki.createKnowledgePoint(title: title, content: '')).id;
+
+  /// 题目覆盖某个知识点的方式：两者挂**同一个**标签（与题库其它读表同一口径）。
+  Future<void> linkKnowledgePoint({
+    required String pointId,
+    required String questionId,
+  }) async {
+    final tagId = (await tags.createTag(name: '标签-$pointId')).id;
+    await tags.addTagToObject(
+      tagId: tagId,
+      objectType: 'knowledge_point',
+      objectId: pointId,
+    );
+    await tags.addTagToObject(
+      tagId: tagId,
+      objectType: 'question',
+      objectId: questionId,
+    );
+  }
+
+  /// 一条已落库的思维链：goal/action/stuckRisk 都按真实表结构写。
+  Future<void> seedChain({
+    required String chainId,
+    required String questionId,
+    List<({String action, double? risk, List<String> hints})> steps = const [],
+  }) async {
+    await db.into(db.reasoningChains).insert(
+          ReasoningChainsCompanion.insert(
+            id: chainId,
+            questionId: questionId,
+            createdAt: 1,
+            summary: const Value(''),
+            stepCount: Value(steps.length),
+          ),
+        );
+    for (var i = 0; i < steps.length; i++) {
+      await db.into(db.reasoningSteps).insert(
+            ReasoningStepsCompanion.insert(
+              id: '$chainId-step-$i',
+              chainId: chainId,
+              idx: i,
+              goal: '第 $i 步',
+              actionType: Value(steps[i].action),
+              stuckRisk: Value(steps[i].risk),
+              knowledgeHints: Value(jsonEncode(steps[i].hints)),
+              createdAt: 1,
+            ),
+          );
+    }
+  }
+
+  Map<String, Object?>? studyPlanPayloadOf(ToolResult result) {
+    final raw = (result.modelResult! as Map<String, Object?>)['study_plan'];
+    if (raw == null) return null;
+    return (raw as Map).cast<String, Object?>();
+  }
+
+  List<Map<String, Object?>> studyStepsOf(ToolResult result) {
+    final plan = studyPlanPayloadOf(result);
+    if (plan == null) return const <Map<String, Object?>>[];
+    return [
+      for (final raw in plan['steps']! as List)
+        (raw as Map).cast<String, Object?>(),
+    ];
   }
 
   Map<String, Object?> payloadOf(ToolResult result) =>
@@ -245,5 +330,127 @@ void main() {
     // 就在这里生效；摘要里说清它是谁定的，别把用户调过的数当出厂值。
     expect(result.summary, contains('用户调过的参数'));
     expect(result.summary, contains('context.goal.beta_goal=1.2'));
+  });
+
+  group('今日学习计划（study_plan）', () {
+    test('空库：单步 noData、0 分钟，不虚构计划', () async {
+      final result = await tool.run(invoke(const {}));
+
+      final plan = studyPlanPayloadOf(result)!;
+      expect(plan['is_empty'], isFalse, reason: 'noData 也是一条计划，不是空计划');
+      expect(plan['total_minutes'], 0);
+      expect(plan['skipped_step_count'], 0);
+      expect(plan['focus_knowledge_point_ids'], isEmpty);
+      final steps = studyStepsOf(result);
+      expect(steps, hasLength(1));
+      expect(steps.single['kind'], 'noData');
+      expect(steps.single['estimated_minutes'], 0);
+      expect(steps.single['priority'], 600);
+      // 摘要句如实说「今天没有可依据的数据」，不写空话。
+      expect(result.summary, contains('今天没有可依据的数据'));
+      expect(result.summary, contains('今天预计 0 分钟、1 步'));
+      // 旧清单字段一个不少。
+      expect(payloadOf(result)['actions'], isEmpty);
+    });
+
+    test('有题 + 三步高危链：练习步骤真的带上 question_ids', () async {
+      final questionId = await seedQuestion();
+      final pointId = await seedKnowledgePoint('函数单调性');
+      await linkKnowledgePoint(pointId: pointId, questionId: questionId);
+      await seedChain(
+        chainId: 'chain-1',
+        questionId: questionId,
+        steps: [
+          (action: 'case_split', risk: 0.8, hints: <String>[pointId]),
+          (action: 'case_split', risk: 0.8, hints: <String>[pointId]),
+          (action: 'case_split', risk: 0.8, hints: <String>[pointId]),
+        ],
+      );
+
+      final result = await tool.run(invoke(const {}));
+      final plan = studyPlanPayloadOf(result)!;
+      final steps = studyStepsOf(result);
+      final practice =
+          steps.singleWhere((s) => s['kind'] == 'practiceQuestions');
+
+      expect(practice['question_ids'], [questionId]);
+      expect(practice['action_type'], 'case_split');
+      expect(practice['knowledge_point_ids'], [pointId]);
+      expect(practice['estimated_minutes'], 2);
+      expect(plan['total_minutes'], 2);
+      expect(plan['focus_knowledge_point_ids'], [pointId]);
+      // 摘要句：真实的分钟数 + 第一步标题，不重排、不改数字。
+      expect(result.summary, contains('今天预计 2 分钟、'));
+      expect(result.summary, contains(practice['title_zh']! as String));
+      // 旧清单口径不变：没有到期卡，也没有模型这次给的候选题。
+      expect(actionsOf(result), isEmpty);
+    });
+
+    test('到期读数为 0 时没有 reviewDueCards；真有到期卡时才出现', () async {
+      await seedQuestion();
+      final none = await tool.run(invoke(const {}));
+      expect(
+        studyStepsOf(none).map((s) => s['kind']),
+        isNot(contains('reviewDueCards')),
+      );
+
+      await duePoint('动量守恒');
+      final withCards = await tool.run(invoke(const {}));
+      final steps = studyStepsOf(withCards);
+      final cards = steps.where((s) => s['kind'] == 'reviewDueCards').toList();
+      expect(cards, hasLength(1));
+      expect(cards.single['card_count'], 1);
+      expect(cards.single['estimated_minutes'], 1);
+      expect(cards.single['priority'], 100);
+      expect(studyPlanPayloadOf(withCards)!['total_minutes'],
+          greaterThanOrEqualTo(1));
+    });
+
+    test('modelResult 键齐全：旧清单字段保留，study_plan 键序固定', () async {
+      await duePoint('动量守恒');
+      final result = await tool.run(invoke(const {}));
+      final payload = payloadOf(result);
+
+      expect(
+        payload.keys,
+        containsAll(<String>[
+          'uncalibrated',
+          'now_hours',
+          'horizon_hours',
+          'considered',
+          'mixes_metrics',
+          'actions',
+          'study_plan',
+        ]),
+      );
+      final plan = studyPlanPayloadOf(result)!;
+      expect(
+        plan.keys,
+        orderedEquals(<String>[
+          'steps',
+          'total_minutes',
+          'focus_knowledge_point_ids',
+          'skipped_step_count',
+          'is_empty',
+        ]),
+      );
+      final step = studyStepsOf(result).first;
+      expect(
+        step.keys,
+        orderedEquals(<String>[
+          'kind',
+          'priority',
+          'title_zh',
+          'detail_zh',
+          'estimated_minutes',
+          'action_type',
+          'knowledge_point_ids',
+          'question_ids',
+          'card_count',
+        ]),
+      );
+      expect(result.summary, contains('今天预计'));
+      expect(result.summary, contains('先做：'));
+    });
   });
 }
