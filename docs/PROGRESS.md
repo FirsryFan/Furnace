@@ -2,6 +2,44 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-20 轮次一百二十七：题号进复制与搜索、今日计划步骤可点、相似题与组卷理由更具体（Lead + 三个 teammate）
+
+**起点**：轮次一百二十六（HEAD `87da95f`）把今日计划与题号检索纯逻辑铺完。本轮把它们接到界面、补上
+「为什么排这里 / 缺什么」的可核实文案，并把题号真正带进组卷复制文本与题库搜索框。写作用域互斥，成员
+全程不碰 git。task-58..task-61 全部 completed（rev3）。
+
+**A. 题号进复制文本与搜索解析（task-58，question-intake）**：`renderPaperText` 新增可选
+`Map<String, int?> serialNumbers`，每题在「序号.」后写 `formatQuestionSerial`；不传或没号不摆占位，
+旧输出逐字不变。`_copyPaper` 复制前逐题 `ref.read(questionSerialProvider(id).future)` 取号，单题失败置 null 继续。
+题库搜索框解析换新 `parseQuestionNumberQuery`（多认大小写 TR、全角数字、`#`/`＃`、可选全角连字符），
+读不出回退旧 `tryParseQuestionSerial`（`00042`、长前导零仍可检索），题干原文始终保留以便 0 命中回落 LIKE。
+测试 +6（组卷页 +4、搜索解析 +2），`test/features/questions/presentation` 249 例全绿。
+
+**B. 今日计划步骤的跳转目标与页面接线（task-59 reasoning-core + task-60 question-intake）**：新增纯逻辑
+`app/lib/domain/services/reasoning/daily_plan_step_destination.dart`——`destinationOf(DailyPlanStep)` 把六种步骤
+映射成跳转目标，练习无题号 / 复习卡数 null·0·负数 / keepGoing / noData 不可导航，参数按种类收窄（不夹带
+标题与分钟），43 例测试、reasoning 目录 +555 全绿。页面按目标给可导航卡加 InkWell + 箭头 + 目标文案 +
+Semantics，不可导航保持静态；路由：练习/补链 → 题库页（无题号预筛，如实退回）、到期复习 → `ReviewPage`、
+词表 → `CapabilityVocabularyPage`；新增 `todayStudyPlanPageBuilderProvider` seam。l10n 五文件手改 4 key。
+测试 +8（共 21 例），`test/features/cognitive/presentation` +74 全绿。
+
+**C. 相似题与组卷理由的「可核实依据」与缺口解释（task-61，threadflow-engine）**：相似题新增
+`rank(detailedReasons: true)`，真有共用知识点 / 同型动作 / 两侧已知来源档位时在理由句尾追加「可核实依据：…」；
+组卷新增 `compose(detailedNotes: true)`，每题写「本卷第 N 题」+ 需求/质量分/综合得分/权重依据（注明未标定）。
+新增 `PaperGapNote` 与 `PaperPlan.uncoveredKnowledgePointNotes / deferredKnowledgePointNotes`：题库里没有候选
+→ 先收题，有候选但被题数/配额挤掉 → 调大上限。来源六档中文表抽成 `source_level_labels.dart` 共用。
+**两个开关默认关闭**：默认 JSON / 分数 / 理由逐字节不变（测试钉住）；新增 23 例，paper 目录 218 例全绿
+（既有 195 例未改一字）。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；全量
+`flutter test --concurrency=1` → **07:41 +3667 ~2 All tests passed**（exit 0；基线 3587 → 本轮 +80 例 = 43 + 23 +
+4 + 2 + 8）。`dart format` 只格式化本轮改动的文件。
+
+**未做 / 未验证**：详细文案开关还没接到 `paper_plan_builder` / `compose_paper` 工具 / 相似题 provider 与页面，
+`PaperGapNote` 也还没有界面展示（默认关闭是有意为之，避免一次改掉所有既有文案）；练习步骤退回题库页不预筛
+题号；`ReviewPage` / 词表页的加载态未被 widget 测试真实构造；真机复制剪贴板、返回栈、OS 拖拽均未手测；
+闪存卡仍不显示题号（cards 与 questions 无外键，需另开 schema 片）。
+
 ## 2026-10-19 轮次一百二十六：今日计划上屏、plan_today 会说计划、题号检索有了纯逻辑（Lead + 三个 teammate）
 
 **起点**：轮次一百二十五把「今日学习计划生成层 / 配题推荐 / 入库体检摘要」的纯逻辑铺完（v0.5.6 已出包，未推

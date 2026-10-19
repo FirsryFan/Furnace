@@ -1090,3 +1090,86 @@ static LearningAdvicePlan build({
 - 未做：读取失败退化分支无单测（reader 无注入点）、大库下 plan_today 延迟未实测、`study_plan` 的步骤级跳转信息未返回。
 
 
+## 30. 今日计划步骤的跳转目标：`destinationOf`（轮次一百二十七，task-59）
+
+§24 的 `DailyStudyPlan` 步骤原来只能读，页面不知道该把用户送去哪。这一片补纯逻辑映射，
+不 import Flutter、不读库、不读时钟：`app/lib/domain/services/reasoning/daily_plan_step_destination.dart`（201 行）。
+
+- `:41` `enum DailyPlanDestinationKind { practiceQuestions, ankiReview, collectChains, vocabulary, keepGoing, none }`
+- `:65` `class DailyPlanStepDestination`（ctor `:70`）：`kind`、`questionIds`（trim + 丢空 + 去重 + 保序）、
+  `cardCount`、`actionType`；`isNavigable` `:95`；`toJson` `:113`（键序 kind / question_ids / card_count /
+  action_type / is_navigable）；值语义 `==` `:122` / `hashCode` `:134`。
+- `:147` `DailyPlanStepDestination destinationOf(DailyPlanStep step)`：
+
+| 步骤种类 | 目标 kind | 可导航条件 |
+|---|---|---|
+| `practiceQuestions` | `practiceQuestions` | 归一化后题号非空；空 / 全空白不可导航（kind 如实保留，UI 可说明原因） |
+| `reviewDueCards` | `ankiReview` | `cardCount > 0`；null / 0 不可；负数不可且原样保留（不悄悄改成 0） |
+| `collectChains` | `collectChains` | 总是可导航；`actionType` 原样透传（含 null，不猜默认值） |
+| `reviewVocabulary` | `vocabulary` | 总是可导航；不携带 actionType |
+| `keepGoing` | `keepGoing` | 不可导航（只是节奏，不是任务） |
+| `noData` | `none` | 不可导航（没有页面可去，不假装有目标） |
+
+- 参数按种类收窄：练习只带题号、复习只带卡片数、补齐思维链只带动作 key；标题 / 说明 / 预计分钟 /
+  知识点等展示字段一律不夹带，防 UI 误用。
+
+### 30.1 验收与未做
+
+- `app/test/domain/services/reasoning/daily_plan_step_destination_test.dart`（527 行，8 组 43 例）；
+  `flutter test test/domain/services/reasoning` → **+555 全绿**（reasoning 基线 512 + 43），scoped analyze 无问题。
+### 30.2 页面接线：步骤卡可点（轮次一百二十七，task-60，question-intake）
+
+- `app/lib/features/cognitive/presentation/today_plan_page.dart`：`:36-45` typedef `TodayStudyPlanPageBuilder`；
+  `:52` `buildTodayStudyPlanDestinationPage` 映射表；`:69-72` provider seam
+  `todayStudyPlanPageBuilderProvider`（widget 测试 override 成探针页，不必真推复习队列/词表页）；`:411` 起每张卡
+  `destinationOf(step)` 决定可导航与否。
+- 路由：`practiceQuestions` / `collectChains` → `QuestionBankPage`（**退回**：grep 全 lib/features 确认没有
+  任何页面收 `List<String> questionIds`、`QuestionBankPage` 也不接受题号预筛，所以不新造页面、不预筛）；
+  `ankiReview` → `ReviewPage`；`vocabulary` → `CapabilityVocabularyPage`；`keepGoing` / `none` 不可导航
+  （静态卡、无箭头、无提示）。
+- 可导航卡：`Card` + `InkWell` + 行尾 `chevron_right` + 底部目标文案 + `Semantics(button: true,
+  label: '去XX：标题')`；不可导航直接返回原 `Card`。
+- l10n 五文件手改 4 个 key：`todayStudyPlanGoPractice` / `GoReview` / `GoChains` / `GoVocabulary`。
+- 验收：`today_plan_page_test.dart` +8（3 纯映射 + 5 widget，共 21 例）；
+  `flutter test test/features/cognitive/presentation --concurrency=1` → **+74 全绿**（基线 66）。
+- 未做：练习步骤不预筛题号；`ReviewPage` / 词表页只被真实构造过一次的那种加载态未在本任务覆盖；
+  真机返回栈与小屏滚动未手测。
+
+## 31. 相似题与组卷理由句的「可核实依据」与缺口解释（轮次一百二十七，task-61）
+
+§10-3 的「为什么排这里 / 缺什么」文案打磨，两处领域层都新增**默认关闭**的详细文案开关，
+默认路径的 JSON / 分数 / 理由逐字节不变（测试钉住）；不会因为开详细文案而改变任何排序。
+
+### 31.1 相似题：`detailedReasons`
+
+- `app/lib/domain/services/paper/similar_questions.dart`（558 行）：`SimilarityFocus.sourceLevel`（`:100` / `:118`，
+  默认 `'unknown'`，只在两侧都已知时做档位对比）；`rank(..., detailedReasons: false)`（`:222`）；
+  `_reasonZh`（`:422`）默认路径与历史一致，开启且真有可核实共性时句尾追加「可核实依据：…」（`:458-460`）。
+- 可核实依据只写算得出来的东西：共用知识点 M/N 个、同型动作命中 M 个（聚焦题 K 步）、来源档位高于/低于/同档；
+  两者都没有就一个字不加，unknown / 词表外不做对比。
+- 来源档位中文表抽成 `app/lib/domain/services/paper/source_level_labels.dart`（19 行，`sourceLevelLabel`，
+  六档中文名，词表外原样返回），组卷与相似题共用，删掉了 `similar_questions` 里重复 switch。
+
+### 31.2 组卷：`detailedNotes` + 缺口解释
+
+- `app/lib/domain/services/paper/paper_composer.dart`（1365 行）：`compose(..., detailedNotes: false)`（`:608`）。
+- 开启后每题文案更具体（`:919-957`）：`reasonZh` = 「本卷第 N 题。」+ 旧理由 + 排序依据（需求 x.xx / 质量分 x.xx /
+  综合得分 x.xx / 排序权重，并注明未标定）；`improvementNote` / `backgroundZh` 追加下一步与覆盖范围。
+  默认关闭时输出与历史逐字节一致。
+- 缺口解释：新增 `PaperGapNote`（`:342`，`toJson` 三键 knowledge_point_id / label_zh / message_zh）与
+  `PaperPlan.uncoveredKnowledgePointNotes` / `deferredKnowledgePointNotes`（`:389-390` / `:468-476`），
+  非空时才在 `toJson` 里追加两个键（`:500-507`）。生成在 `:974-1013`：
+  uncovered = 题库里一道候选都没有 → 先收题、不要用模型生成；deferred = 有 N 道可用候选但被目标题数 /
+  配额挤掉 → 调大目标题数或每知识点上限。候选数口径 = 通过过滤的 scored 候选（不含手工排除）。
+
+### 31.3 验收与未做
+
+- `app/test/domain/services/paper/reason_wording_test.dart`（506 行，23 例）：相似题可核实依据 10 例（含
+  「默认与显式 false 理由相等」逐字节钉住）、组卷详细文案 11 例（含「默认 JSON 与显式 false 逐字节一致、
+  不出缺口解释键」）、`PaperGapNote` 与来源表 2 例。既有 195 例一行未改。
+- `flutter test test/domain/services/paper` → **+218 全绿**（195 + 23）；`dart analyze lib test` 92 issues / 0 error /
+  0 warning（与基线一致）。
+- 未做：接线（`paper_plan_builder` / `compose_paper` 工具 / `similar_question_provider` 的开关尚未打开，
+  默认关闭是有意为之）；详细文案为中文硬编码、未接 l10n；缺口解释 `PaperGapNote` 尚无界面展示。
+
+

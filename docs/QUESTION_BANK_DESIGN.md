@@ -211,7 +211,13 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
    question-intake）：设置页「能力动作词表」入口 → `capability_vocabulary_page.dart`（内置只读分组、
    自定义条目增删改/上下移、粘贴 JSON 导入、issues 卡片、保存/放弃与退出确认，l10n 34 key）；
    见 `docs/REASONING_LAYER_DESIGN.md` §4/§4.1/§17/§19。
-3. **组卷/相似题的措辞与配额打磨**：功能在，但"为什么排这里/缺什么"的文案还能更具体。
+3. **组卷/相似题的措辞与配额打磨**：**领域层已完成（轮次一百二十七，threadflow-engine task-61）**——
+  相似题 `rank(detailedReasons: true)` 在有共用知识点 / 同型动作 / 已知来源档位时追加「可核实依据：…」；
+  组卷 `compose(detailedNotes: true)` 写「本卷第 N 题。」+ 排序依据 + 下一步，并新增 `PaperGapNote` 缺口解释
+  （题库里没有 → 先收题；有候选但被题数/配额挤掉 → 调大上限）。**两个开关默认关闭**，默认 JSON / 分数 /
+  理由逐字节不变（测试钉住）。**接线未做**：`paper_plan_builder`、`compose_paper` 工具、
+  `similar_question_provider` 尚未打开开关，`PaperGapNote` 也还没有界面展示；详细文案为中文硬编码未接 l10n。
+  见 `docs/REASONING_LAYER_DESIGN.md` §31。
 4. ~~**拍照整理的主入口**~~ —— **已解决（轮次一百一十五，用户反馈 m29290）**：收题 / 组卷 /
    拍照整理 / 材料入库四个入口从设置页收进新的顶层目的地「题库」（`QuestionBankPage`），
    设置页只留一个「题库」门；知识库仍是一级目的地，是否降级见 `FEATURE_MATRIX.md` D4/R5。
@@ -252,7 +258,15 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   `renderPaperText` 未动。题库搜索框按号过滤**已接线**（轮次一百二十三 task-16，commit `4da1c5b`：
   输入 trim 后先 `tryParseQuestionSerial`，认得出号就优先 `search(serialNos:)`、0 命中回落题干 LIKE；
   读不出号只按题干 LIKE；纯空白不筛）。
-- **未做**：闪存卡里未显示题号；组卷页纯文本复制仍不带题号（待定是否改 `renderPaperText`）。
+- 题号进复制文本与搜索解析（轮次一百二十七，question-intake，task-58）：
+  - `renderPaperText` 新增可选 `Map<String, int?> serialNumbers`（`question_paper_page.dart:734`），
+    每行标题在「序号.」后加 `formatQuestionSerial` 结果；不传 / 该题没号时**不摆占位**，旧输出逐字不变；
+    `_copyPaper` 复制前逐题 `await ref.read(questionSerialProvider(id).future)` 取号，单题失败置 null 继续。
+  - 题库搜索框解析换新解析器（`question_intake_providers.dart:121` `parseQuestionLibrarySearch`：
+    先 `parseQuestionNumberQuery`，读不出回退旧 `tryParseQuestionSerial`，题干原文始终保留）：
+    新解析器多认大小写 `TR`、可选半角/全角连字符、`#`/`＃`、全角数字；更严处 = 拒绝 0、数字位 > 9 位，
+    旧输入（`00042`、10 位前导零）由回退层继续按号检索。
+- **未做**：闪存卡里未显示题号（cards 与 questions 无外键，需另开 schema 片）。
 
 ### 11.2 题目图片
 
