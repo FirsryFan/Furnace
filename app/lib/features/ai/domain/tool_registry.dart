@@ -20,6 +20,7 @@ import '../tools/knowledge_tools.dart';
 import '../tools/metrics_tools.dart';
 import '../tools/paper_tools.dart';
 import '../tools/learning_advice_tools.dart';
+import '../tools/practice_recommendation_tools.dart';
 import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/schedule_tools.dart';
@@ -134,6 +135,9 @@ class ToolRegistry {
       // 「下一步练什么」的确定性建议（轮次一百二十五）：洞察聚合 + 能力动作画像 +
       // 题库题数 -> learning_advice.dart 的纯逻辑，不调模型也不写库。
       GetLearningAdviceTool(db: db),
+      // 「下一步练哪几道题」（轮次一百二十五）：学习建议 + 洞察 + 题库候选 ->
+      // practice_recommendation.dart 的确定性排序，返回题号与理由；不出题、不写库。
+      RecommendPracticeTool(db: db),
       // 用途 1 的裁判 (Q16 标定协议 v1): 「我记得到底行不行、模型是不是过度自信」。
       // 它读的只有 `review_logs`，是全 app 唯一一条**外部**检查——数字不来自模型的
       // 自我叙述。样本不足时它照原话拒绝给系数（tools/metrics_tools.dart）。
