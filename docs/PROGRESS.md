@@ -9,6 +9,24 @@
 质量体检、组卷有了质量评价报告并在页面与 Word 里上屏、洞察页与配题推荐也落了地。写作用域互斥，成员全程不碰
 git。本轮 task-25..task-47 全部 completed（rev3）。
 
+### 收尾补记（任务板 task-49..task-52，commit `c9f4e96`、`4bedc9a`、`f1ffcf3`、`b033835`、`047bd88`）
+
+05:00 收尾前落地的四个方向，代码与测试均完成，本轮一并入包（v0.5.6）：
+
+- **题库入库体检摘要 QuestionAuditSummary（task-51）**：把 26 条判据的体检结果聚合成只读摘要
+  （总题数 / 分档计数、按判据命中数、按严重度分布、截断与空库口径），供页面与工具共用；测试 38 例。
+- **今日学习计划生成层 DailyStudyPlan（task-50）**：洞察 + 学习建议 + 配题推荐 + 到期卡片 → 确定性的
+  「今天做什么」；固定优先级与预算（时长可注入）、未知动作不写练习步骤、无数据回单条 noData、
+  放不下的步骤计入 skippedStepCount；纯逻辑，不读库 / 时钟 / 模型；测试 48 例。
+- **洞察页「下一步练什么」（task-49）**：名次、题号徽章、理由折叠（最多 3 条）、命中动作中文名、
+  skipped 计数、点击进题目详情；loading 安静、error 降级；l10n 五文件手改 16 key；测试 11 例。
+- **`recommend_practice` 只读工具（task-52）**：把配题推荐暴露给模型（max_questions / subject_key /
+  target_difficulty），返回题号、分数、理由与命中动作；不生成题目、不写库；工具总数 24 → 25；测试 14 例。
+
+四套件新增 111 例（38 + 48 + 14 + 11），组合跑 +174 全绿；`dart analyze lib test` 仍 92 issues /
+0 error / 0 warning。docs：REASONING_LAYER_DESIGN §24–§26、AI_DESIGN 工具清单 24 → 25、
+QUESTION_INTAKE_AUDIT_DESIGN 补聚合层。
+
 **A. 能力动作词表可编辑（commits `34823d6`、`d7b9230`、`4a7c004`，Lead + reasoning-core + question-intake）**：
 application 层把 `CapabilityActionOverlayEditor` 的 add / update / remove / reorder / mergeImport 与
 `CapabilityVocabularyStore` 接进 Riverpod（保存后失效 overlay provider，推理服务下一次解题就用新词表）；
