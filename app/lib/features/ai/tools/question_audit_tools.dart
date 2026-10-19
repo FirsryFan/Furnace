@@ -9,7 +9,9 @@
 library;
 
 import '../../../data/database/database.dart';
+import '../../../domain/services/questions/question_audit_summary.dart';
 import '../../../domain/services/questions/question_intake_audit.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../../questions/application/question_audit_reader.dart';
 import '../domain/ai_tool.dart';
 
@@ -124,6 +126,28 @@ class AuditQuestionIntakeTool extends AiTool {
       for (final row in corpus.rows) row.questionId: row.serialNo,
     };
 
+    // 全库聚合报告与上面 findings 用同一份（已按 severity 过滤的）结论：按题分组，
+    // 一道题没有结论也保留空 report，questionCount / cleanRatio 才等于体检题数。
+    final findingsByQuestion = <String, List<QuestionAuditFinding>>{
+      for (final row in rows) row.questionId: <QuestionAuditFinding>[],
+    };
+    for (final finding in findings) {
+      findingsByQuestion
+          .putIfAbsent(finding.questionId, () => <QuestionAuditFinding>[])
+          .add(finding);
+    }
+    final auditSummary = QuestionAuditSummary.summarize(
+      <QuestionAuditReport>[
+        for (final row in rows)
+          QuestionAuditReport(
+            findings: findingsByQuestion[row.questionId] ??
+                const <QuestionAuditFinding>[],
+          ),
+      ],
+      maxOffenders: 10,
+      maxSampleQuestionIds: 5,
+    );
+
     // 按 (code, severity) 计数：同一个 code 只会有一个严重度，但分开计数让
     // 结构自解释，也避免以后调整严重度时两处口径打架。
     final byCodeCounts = <String, int>{};
@@ -158,19 +182,32 @@ class AuditQuestionIntakeTool extends AiTool {
       summary = subjectKey == null
           ? '题库里还没有题目，没得体检。'
           : '题库里没有学科 $subjectKey 的题目，没得体检。';
-    } else if (findings.isEmpty) {
-      summary = '体检了 ${rows.length} 道题$filterNote，这个范围内没发现硬伤。';
     } else {
-      final parts = <String>[
-        if (report.errorCount > 0) '${report.errorCount} 个错误',
-        if (report.warningCount > 0) '${report.warningCount} 个警告',
-        if (report.infoCount > 0) '${report.infoCount} 个提示',
-      ];
-      final truncated = shown.length < findings.length;
-      summary = '体检了 ${rows.length} 道题$filterNote：'
-          '共 ${findings.length} 条结论（${parts.join("、")}）'
-          '${truncated ? "，这里列出前 ${shown.length} 条" : ""}。'
-          '只报不改——要修哪道题由你决定。';
+      final cleanText = '干净题 ${auditSummary.cleanQuestionCount} 道'
+          '（${(auditSummary.cleanRatio * 100).toStringAsFixed(0)}%）';
+      if (findings.isEmpty) {
+        summary = '体检了 ${rows.length} 道题$filterNote，这个范围内没发现硬伤。'
+            '$cleanText。';
+      } else {
+        final parts = <String>[
+          if (report.errorCount > 0) '${report.errorCount} 个错误',
+          if (report.warningCount > 0) '${report.warningCount} 个警告',
+          if (report.infoCount > 0) '${report.infoCount} 个提示',
+        ];
+        final truncated = shown.length < findings.length;
+        final topOffender = auditSummary.topOffenders.isEmpty
+            ? null
+            : auditSummary.topOffenders.first;
+        final priorityText = topOffender == null
+            ? ''
+            : '，优先修：'
+                '${questionSerialLabel(serials[topOffender.questionId])}'
+                '（分数 ${topOffender.priorityScore}）';
+        summary = '体检了 ${rows.length} 道题$filterNote：'
+            '共 ${findings.length} 条结论（${parts.join("、")}）'
+            '${truncated ? "，这里列出前 ${shown.length} 条" : ""}；'
+            '$cleanText$priorityText。只报不改——要修哪道题由你决定。';
+      }
     }
 
     final modelResult = <String, Object?>{
@@ -200,6 +237,8 @@ class AuditQuestionIntakeTool extends AiTool {
         'subject_key': subjectKey,
       },
       'is_clean': findings.isEmpty,
+      'summary': auditSummary.toJson(),
+      'priority_note': '优先级分数未标定：只用于相对排序，不是质量结论。',
       'note': '只读体检：判据是确定性的，不调模型；没发现问题不代表证明没问题。',
     };
 

@@ -88,6 +88,13 @@ void main() {
   List<Map<String, Object?>> findingsOf(ToolResult result) =>
       (mapOf(result)['findings']! as List).cast<Map<String, Object?>>();
 
+  Map<String, Object?> summaryOf(ToolResult result) =>
+      (mapOf(result)['summary']! as Map).cast<String, Object?>();
+
+  List<Map<String, Object?>> offendersOf(ToolResult result) =>
+      (summaryOf(result)['top_offenders']! as List)
+          .cast<Map<String, Object?>>();
+
   test('空库：不抛、报告干净、摘要如实说没题目', () async {
     final result = await tool.run(call(const <String, Object?>{}));
 
@@ -192,6 +199,11 @@ void main() {
     final findings = findingsOf(result);
     expect(findings.map((row) => row['question_id']).toSet(),
         <String>{'q-physics'});
+
+    final summary = summaryOf(result);
+    expect(summary['question_count'], 1, reason: 'summary 只统计学科过滤后的范围');
+    expect(summary['dirty_question_count'], 1);
+    expect(offendersOf(result).single['question_id'], 'q-physics');
   });
 
   test('limit 截断：findings 只给前 limit 条，truncated 如实报', () async {
@@ -256,5 +268,172 @@ void main() {
     await tool.run(call(const <String, Object?>{}));
     final after = await db.select(db.questions).get();
     expect(after.length, before.length);
+  });
+  test('summary：题数、干净比例、top_offenders 优先级分数与 toJson 键序', () async {
+    await rawQuestion(
+      id: 'q-clean-a',
+      stem: '干净题干甲：下列说法正确的是哪一个？',
+      serialNo: 1,
+    );
+    await linkKnowledgePoint('q-clean-a', 't-clean-a');
+    await rawQuestion(
+      id: 'q-clean-b',
+      stem: '干净题干乙：下列说法正确的是哪一个？',
+      serialNo: 2,
+    );
+    await linkKnowledgePoint('q-clean-b', 't-clean-b');
+    await rawQuestion(id: 'q-dirty', stem: '', serialNo: 3);
+
+    final result = await tool.run(call(const <String, Object?>{}));
+    final summary = summaryOf(result);
+
+    expect(
+      summary.keys.toList(),
+      <String>[
+        'question_count',
+        'clean_question_count',
+        'dirty_question_count',
+        'clean_ratio',
+        'findings_by_severity',
+        'code_counts',
+        'top_offenders',
+        'truncated_offender_count',
+        'is_empty',
+        'is_clean',
+      ],
+    );
+    expect(summary['question_count'], 3);
+    expect(summary['clean_question_count'], 2);
+    expect(summary['dirty_question_count'], 1);
+    expect((summary['clean_ratio']! as num).toDouble(), closeTo(2 / 3, 1e-6));
+    expect(summary['is_empty'], isFalse);
+    expect(summary['is_clean'], isFalse);
+    final bySeverity =
+        (summary['findings_by_severity']! as Map).cast<String, int>();
+    expect(bySeverity['error'], greaterThanOrEqualTo(1));
+
+    final offenders = offendersOf(result);
+    expect(offenders, hasLength(1));
+    final offender = offenders.single;
+    expect(offender['question_id'], 'q-dirty');
+    final errors = offender['error_count']! as int;
+    final warnings = offender['warning_count']! as int;
+    final infos = offender['info_count']! as int;
+    expect(offender['priority_score'], errors * 10 + warnings * 3 + infos * 1,
+        reason: '优先级分数 = 错误*10 + 警告*3 + 提示*1（未标定，仅相对排序）');
+    expect((offender['codes']! as List), isNotEmpty);
+
+    expect(mapOf(result)['priority_note'], contains('未标定'));
+    expect(result.summary, contains('干净题 2 道（67%）'));
+    expect(result.summary, contains('优先修：TR-00003'));
+    expect(result.summary, contains('只报不改'));
+  });
+
+  test('summary：severity 过滤后只统计过滤范围', () async {
+    await rawQuestion(id: 'q-error', stem: '', serialNo: 1);
+    await rawQuestion(
+      id: 'q-warning',
+      stem: '如图，求图中阴影部分面积。',
+      serialNo: 2,
+    );
+    await linkKnowledgePoint('q-warning', 't-warning');
+
+    final result =
+        await tool.run(call(const <String, Object?>{'severity': 'error'}));
+    final summary = summaryOf(result);
+
+    expect(summary['question_count'], 2);
+    expect(summary['clean_question_count'], 1,
+        reason: '只有 warning 的题在 error 范围内算干净');
+    final bySeverity =
+        (summary['findings_by_severity']! as Map).cast<String, int>();
+    expect(bySeverity['error'], findingsOf(result).length);
+    expect(bySeverity['warning'], 0);
+    expect(bySeverity['info'], 0);
+    final codeCounts =
+        (summary['code_counts']! as List).cast<Map<String, Object?>>();
+    expect(codeCounts.every((entry) => entry['severity'] == 'error'), isTrue);
+    expect(
+      offendersOf(result).map((entry) => entry['question_id']),
+      <String>['q-error'],
+    );
+  });
+
+  test('summary：空库返回空报告且比例记 0', () async {
+    final result = await tool.run(call(const <String, Object?>{}));
+    final summary = summaryOf(result);
+
+    expect(summary['question_count'], 0);
+    expect(summary['clean_question_count'], 0);
+    expect(summary['truncated_offender_count'], 0);
+    expect((summary['clean_ratio']! as num).toDouble(), 0);
+    expect(summary['top_offenders'], isEmpty);
+    expect(summary['is_empty'], isTrue);
+    expect(summary['is_clean'], isTrue);
+    expect(result.summary, contains('还没有题目'));
+  });
+
+  test('summary：全干净库 clean_ratio=1、摘要带 100%', () async {
+    await rawQuestion(
+      id: 'q-a',
+      stem: '干净题干甲：下列说法正确的是哪一个？',
+      serialNo: 1,
+    );
+    await linkKnowledgePoint('q-a', 't-a');
+    await rawQuestion(
+      id: 'q-b',
+      stem: '干净题干乙：下列说法正确的是哪一个？',
+      serialNo: 2,
+    );
+    await linkKnowledgePoint('q-b', 't-b');
+
+    final result = await tool.run(call(const <String, Object?>{}));
+    final summary = summaryOf(result);
+
+    expect(summary['question_count'], 2);
+    expect(summary['clean_question_count'], 2);
+    expect(summary['dirty_question_count'], 0);
+    expect((summary['clean_ratio']! as num).toDouble(), 1);
+    expect(summary['top_offenders'], isEmpty);
+    expect(summary['is_clean'], isTrue);
+    expect(result.summary, contains('干净题 2 道（100%）'));
+  });
+
+  test('summary：top_offenders 按优先级排序并截断到 10 道', () async {
+    for (var i = 0; i < 3; i++) {
+      await rawQuestion(id: 'q-error-$i', stem: '', serialNo: i + 1);
+    }
+    for (var i = 0; i < 9; i++) {
+      final id = 'q-warn-$i';
+      await rawQuestion(
+        id: id,
+        stem: '如图，第 $i 个图形中阴影部分面积是多少。',
+        serialNo: i + 4,
+      );
+      await linkKnowledgePoint(id, 't-warn-$i');
+    }
+
+    final result = await tool.run(call(const <String, Object?>{'limit': 1}));
+    final summary = summaryOf(result);
+    final offenders = offendersOf(result);
+
+    expect(summary['dirty_question_count'], 12);
+    expect(offenders, hasLength(10));
+    expect(summary['truncated_offender_count'], 2);
+    expect(
+      offenders.map((entry) => entry['question_id']).toList(),
+      <String>[
+        'q-error-0',
+        'q-error-1',
+        'q-error-2',
+        'q-warn-0',
+        'q-warn-1',
+        'q-warn-2',
+        'q-warn-3',
+        'q-warn-4',
+        'q-warn-5',
+        'q-warn-6',
+      ],
+    );
   });
 }
