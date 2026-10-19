@@ -40,6 +40,18 @@ Semantics，不可导航保持静态；路由：练习/补链 → 题库页（�
 题号；`ReviewPage` / 词表页的加载态未被 widget 测试真实构造；真机复制剪贴板、返回栈、OS 拖拽均未手测；
 闪存卡仍不显示题号（cards 与 questions 无外键，需另开 schema 片）。
 
+### 发布 v0.5.7
+
+- 双端构建（2026-10-20 00:22–00:24，从纯 ASCII junction `E:\Document\furnace-build` 构建）：
+  Windows 157.0 s、Android 121.5 s，均 exit 0。
+- Android：versionCode 16 / versionName 0.5.7，minSdk 24 / targetSdk 36，签名 `CN=Threadflow`（证书 SHA-256 `57de8b8f…`），
+  APK **95,266,386 bytes（90.85 MB）**，SHA-256 `EB28FD3B27CF989C46979A34B0A20474390FBD111D46AA0A25F057EFE388694A`。
+- Windows：`data/app.so` **20,071,304 bytes**，Release 目录清理调试产物（`kernel_blob.bin`，105,422,664 B）后
+  **28 个文件 / 45,718,047 bytes**，zip **19,928,866 bytes（19.01 MB）**，
+  SHA-256 `F02BFAA257931171B28BBC82792DFEE0A83FE25B70D3872E551F7ACAADA3C594`；`furnace.exe` 版本资源 `0.5.7+16`。
+- **无数据库迁移**：schema 仍为 v25（与 v0.5.6 相同），可直接覆盖安装。
+- 发布件放在 `dist/`（gitignore，不入库），**未推送 GitHub**，由用户自己上传。
+
 ## 2026-10-19 轮次一百二十六：今日计划上屏、plan_today 会说计划、题号检索有了纯逻辑（Lead + 三个 teammate）
 
 **起点**：轮次一百二十五把「今日学习计划生成层 / 配题推荐 / 入库体检摘要」的纯逻辑铺完（v0.5.6 已出包，未推
