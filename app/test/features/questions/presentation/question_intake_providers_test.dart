@@ -17,10 +17,30 @@ void main() {
       expect(query.isEmpty, isFalse);
     });
 
-    test('tr-42 与裸数字 42 等价（号码规则统一走 tryParseQuestionSerial）', () {
+    test('tr-42 / 42 / 00042 等价（新解析器 + 旧解析器兜底）', () {
       expect(parseQuestionLibrarySearch('tr-42').serialNo, 42);
       expect(parseQuestionLibrarySearch('42').serialNo, 42);
+      // 旧写法保留：新解析器也认，但回退层仍在，删掉任何一层这里都会红。
       expect(parseQuestionLibrarySearch('00042').serialNo, 42);
+    });
+
+    test('新解析器多认的写法：全角数字、# 前缀、全角连字符', () {
+      expect(parseQuestionLibrarySearch('#7').serialNo, 7);
+      expect(parseQuestionLibrarySearch('＃７').serialNo, 7);
+      expect(parseQuestionLibrarySearch('１２').serialNo, 12);
+      expect(parseQuestionLibrarySearch('TR－00042').serialNo, 42);
+      // 题干原文始终保留，供题号没命中时回落到题干搜。
+      expect(parseQuestionLibrarySearch('＃７').stemContains, '＃７');
+      expect(parseQuestionLibrarySearch('TR－00042').stemContains, 'TR－00042');
+    });
+
+    test('新解析器更严的旧输入由旧解析器兜底（10 位前导零仍是 1 号）', () {
+      // 新解析器位数上限 9 位会拒绝，旧解析器没有上限 → 回退后仍按 1 号检索。
+      expect(parseQuestionLibrarySearch('0000000001').serialNo, 1);
+      // 两层都拒绝：0 不是题号。
+      expect(parseQuestionLibrarySearch('0').serialNo, isNull);
+      expect(parseQuestionLibrarySearch('TR-0').serialNo, isNull);
+      expect(parseQuestionLibrarySearch('#0').serialNo, isNull);
     });
 
     test('前后空白不影响识别，题干关键字取 trim 后的文本', () {

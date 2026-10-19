@@ -24,6 +24,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/domain/services/cognitive/fast_diagnosis.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
+import 'package:furnace/domain/services/paper/paper_composer.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/paper_plan_provider.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
@@ -664,11 +665,7 @@ void main() {
     await _pumpPaperPage(tester, db: db);
     final clipboard = _captureClipboard(tester);
 
-    await tester.tap(_copyPaperButton());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    final text = _copiedText(clipboard);
+    final text = await _tapCopyAndWait(tester, clipboard);
     expect(text, isNotNull, reason: '点了复制就应该往剪贴板写东西');
     // 第一行：想凑 10 道、凑到 1 道（顺序不能反）。
     expect(text, contains(zh.questionPaperHeadline(10, 1)));
@@ -689,10 +686,7 @@ void main() {
 
     await _pumpPaperPage(tester, db: db);
     final clipboard = _captureClipboard(tester);
-    await tester.tap(_copyPaperButton());
-    await tester.pump();
-
-    final text = _copiedText(clipboard)!;
+    final text = (await _tapCopyAndWait(tester, clipboard))!;
     expect(text, contains(zh.questionPaperHeadline(10, 2)));
     // 明确挡住"想要 2 道，凑到 10 道"这种反过来的读法（回归防线）。
     expect(text.contains(zh.questionPaperHeadline(2, 10)), isFalse);
@@ -747,10 +741,7 @@ void main() {
     await _settle(tester);
 
     final clipboard = _captureClipboard(tester);
-    await tester.tap(_copyPaperButton());
-    await tester.pump();
-
-    final text = _copiedText(clipboard)!;
+    final text = (await _tapCopyAndWait(tester, clipboard))!;
     expect(text, contains('${zh.questionPaperCopyUncoveredHeading}：'));
     expect(text, contains('知识点戊'));
     expect(text, contains('${zh.questionPaperCopyDeferredHeading}：'));
@@ -791,10 +782,7 @@ void main() {
 
     await _pumpPaperPage(tester, db: db);
     final clipboard = _captureClipboard(tester);
-    await tester.tap(_copyPaperButton());
-    await tester.pump();
-
-    final text = _copiedText(clipboard)!;
+    final text = (await _tapCopyAndWait(tester, clipboard))!;
     expect(text.contains('独一无二的题干'), isFalse);
     expect(text.contains('独一无二的答案'), isFalse);
     // 但"为什么排它"这段领域层文案要在。
@@ -811,6 +799,66 @@ void main() {
 
     expect(find.text('TR-00001'), findsOneWidget);
     expect(find.text('TR-00002'), findsOneWidget);
+  });
+
+  testWidgets('复制卷面：读到题号就把 TR-xxxxx 写在序号后，老题没号不摆占位', (tester) async {
+    final repository = QuestionRepository(db);
+    await repository.ingest(const QuestionDraft(stem: '第一题：有号'));
+    await _seedQuestion(db, id: 'q-legacy', stem: '第二题：老数据没号');
+
+    await _pumpPaperPage(tester, db: db);
+    final clipboard = _captureClipboard(tester);
+    final text = (await _tapCopyAndWait(tester, clipboard))!;
+
+    // ingest 分配 TR-00001；直接插库的老题没有号 → 只写「序号.」，不写占位。
+    expect(text, contains('TR-00001'));
+    expect(text, contains('1. TR-00001 ['));
+    expect(text, contains('2. ['));
+    expect(text.contains('TR-00002'), isFalse);
+    expect(text.contains(zh.questionSerialUnnumbered), isFalse);
+    expect(find.text(zh.questionPaperCopyDone), findsOneWidget);
+  });
+
+  // 纯函数：题号是可选的排版输入，不传 / 部分没号都必须逐字保持旧输出。
+  group('renderPaperText 的题号', () {
+    test('传了题号：标题行在「序号.」后写 TR-xxxxx，其余段落不变', () {
+      final plan = _planOf(<String>['q-1', 'q-2']);
+      final text = renderPaperText(
+        l10n: zh,
+        plan: plan,
+        knowledgePointNames: const <String, String>{'kp1': '二次函数'},
+        serialNumbers: const <String, int?>{'q-1': 1, 'q-2': 42},
+      );
+      expect(text, contains('1. TR-00001 [数学] [高考真题] [危险区]'));
+      expect(text, contains('2. TR-00042 [数学] [高考真题] [危险区]'));
+      expect(text, contains('二次函数'));
+      expect(text, contains('${zh.questionPaperCopyReasonLabel}：危险区，优先补'));
+    });
+
+    test('没传题号：与旧输出逐字一致，不出现 TR- 也不出现占位', () {
+      final text = renderPaperText(
+        l10n: zh,
+        plan: _planOf(<String>['q-1', 'q-2']),
+        knowledgePointNames: const <String, String>{},
+      );
+      expect(text, contains('1. [数学] [高考真题] [危险区]'));
+      expect(text, contains('2. [数学] [高考真题] [危险区]'));
+      expect(text.contains('TR-'), isFalse);
+      expect(text.contains(zh.questionSerialUnnumbered), isFalse);
+    });
+
+    test('部分题有号：有号的写，没号的不追加任何文字', () {
+      final text = renderPaperText(
+        l10n: zh,
+        plan: _planOf(<String>['q-1', 'q-2']),
+        knowledgePointNames: const <String, String>{},
+        serialNumbers: const <String, int?>{'q-1': 1},
+      );
+      expect(text, contains('1. TR-00001 [数学]'));
+      expect(text, contains('2. [数学]'));
+      expect(text.contains('TR-00002'), isFalse);
+      expect(text.contains(zh.questionSerialUnnumbered), isFalse);
+    });
   });
 }
 
@@ -1030,4 +1078,56 @@ double? _difficultyDropdownValue() {
       .toList();
   expect(fields, hasLength(1), reason: '页面上应该只有一个"目标难度"下拉');
   return fields.single.initialValue;
+}
+
+/// 点「复制卷面」并等"读号 → 写剪贴板"这条异步链跑完，返回写进去的文本。
+///
+/// 题号是逐题异步读的（`questionSerialProvider`），点完当帧剪贴板还是空的，
+/// 不能像接题号之前那样固定 pump 一两次就断言。
+Future<String?> _tapCopyAndWait(
+  WidgetTester tester,
+  List<MethodCall> clipboard,
+) async {
+  await tester.tap(_copyPaperButton());
+  String? text;
+  for (var i = 0; i < 60; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    text = _copiedText(clipboard);
+    if (text != null) break;
+  }
+  // 再推两帧让「复制成功」提示完成入场。
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+  return text;
+}
+
+/// 纯函数测试用的最小卷面：只填 renderPaperText 会读到的字段。
+PaperPlan _planOf(List<String> ids) {
+  return PaperPlan(
+    items: <PaperItem>[
+      for (final id in ids)
+        PaperItem(
+          questionId: id,
+          subjectKey: 'math',
+          sourceLevel: 'gaokao',
+          questionType: 'solution',
+          knowledgePointId: 'kp1',
+          matchedKnowledgePointIds: const <String>['kp1'],
+          zone: PaperZone.danger,
+          need: 1,
+          quality: 0.7,
+          score: 0.8,
+          reasonZh: '危险区，优先补',
+          improvementNote: '练完能稳定拿分',
+          backgroundZh: '文化课/数学/二次函数',
+        ),
+    ],
+    uncoveredKnowledgePointIds: const <String>[],
+    deferredKnowledgePointIds: const <String>[],
+    byKnowledgePoint: const <String, int>{'kp1': 2},
+    candidateCount: ids.length,
+    requestedCount: ids.length,
+    overallNeed: 1,
+    weights: const PaperWeights(),
+  );
 }

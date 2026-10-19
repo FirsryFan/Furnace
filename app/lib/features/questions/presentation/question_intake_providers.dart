@@ -17,6 +17,7 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_number_query.dart';
 import '../application/handwriting_proposal_service.dart';
 import '../data/handwriting_intake_store.dart';
 
@@ -110,8 +111,13 @@ class QuestionLibrarySearchQuery {
 
 /// 解析题库搜索框的输入。
 ///
-/// 号码规则统一走 `tryParseQuestionSerial`（`TR-00042` / `tr-42` / `00042` /
-/// `42` 都认），界面层不自己写正则；认不出号码时整段文本就是题干关键字。
+/// 号码规则分两层，界面层不自己写正则：
+/// 1. 先走 [parseQuestionNumberQuery]（`question_number_query.dart`，v24 起
+///    题号检索的规范入口：`TR-00042` / `tr-42` / `#7` / `＃７` / 全角数字都认）；
+/// 2. 读不出时**回退**旧的 [tryParseQuestionSerial]：新解析器更严格（纯数字位数
+///    上限、`0` 拒绝等），旧写法如 `00042` / 超长前导零数字仍要能按号检索。
+///
+/// 两层都读不出号码时整段文本就是题干关键字（[stemContains] 始终保留原文）。
 QuestionLibrarySearchQuery parseQuestionLibrarySearch(String input) {
   final trimmed = input.trim();
   if (trimmed.isEmpty) {
@@ -119,8 +125,15 @@ QuestionLibrarySearchQuery parseQuestionLibrarySearch(String input) {
   }
   return QuestionLibrarySearchQuery(
     stemContains: trimmed,
-    serialNo: tryParseQuestionSerial(trimmed),
+    serialNo: _parseSearchSerialNo(trimmed),
   );
+}
+
+/// 搜索输入 → 题号：新解析器优先，旧解析器兜底（兼容老输入）。
+int? _parseSearchSerialNo(String trimmed) {
+  final query = parseQuestionNumberQuery(trimmed);
+  if (query != null) return query.serialNo;
+  return tryParseQuestionSerial(trimmed);
 }
 
 /// 用搜索框文本更新筛选条件：[current] 的学科/来源/状态保留。

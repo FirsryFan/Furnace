@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
@@ -338,6 +339,7 @@ class _PaperBody extends ConsumerWidget {
                     children: [
                       _copyButton(
                         context,
+                        ref,
                         l10n,
                         knowledgePointNames,
                         enabled: false,
@@ -389,6 +391,7 @@ class _PaperBody extends ConsumerWidget {
               children: [
                 _copyButton(
                   context,
+                  ref,
                   l10n,
                   knowledgePointNames,
                   enabled: true,
@@ -474,14 +477,16 @@ class _PaperBody extends ConsumerWidget {
   /// 往剪贴板里写空文本——空文本粘进 Word 等于把用户剪贴板里原来的东西清掉。
   Widget _copyButton(
     BuildContext context,
+    WidgetRef ref,
     AppLocalizations l10n,
     AsyncValue<Map<String, String>> knowledgePointNames, {
     required bool enabled,
   }) {
     return TextButton.icon(
       key: questionPaperCopyButtonKey,
-      onPressed:
-          enabled ? () => _copyPaper(context, l10n, knowledgePointNames) : null,
+      onPressed: enabled
+          ? () => _copyPaper(context, ref, l10n, knowledgePointNames)
+          : null,
       icon: const Icon(Icons.copy_all_outlined),
       label: Text(l10n.questionPaperCopy),
     );
@@ -493,6 +498,7 @@ class _PaperBody extends ConsumerWidget {
   /// 这里只负责"写"和"提示"，不重排、不复算分数。
   Future<void> _copyPaper(
     BuildContext context,
+    WidgetRef ref,
     AppLocalizations l10n,
     AsyncValue<Map<String, String>> knowledgePointNames,
   ) async {
@@ -500,10 +506,24 @@ class _PaperBody extends ConsumerWidget {
       data: (map) => map,
       orElse: () => const <String, String>{},
     );
+    // 卷面文本要带题号：按 id 异步读一次（PaperItem 不自带 serialNo，读侧入口在
+    // question_media_view.dart，这里不新造仓储读法）。读失败 / 读不出时按"还没
+    // 编号"处理——复制不能因为一个号读不到就整体失败。
+    final serialNumbers = <String, int?>{};
+    for (final item in plan.items) {
+      try {
+        serialNumbers[item.questionId] =
+            await ref.read(questionSerialProvider(item.questionId).future);
+      } catch (_) {
+        serialNumbers[item.questionId] = null;
+      }
+    }
+    if (!context.mounted) return;
     final text = renderPaperText(
       l10n: l10n,
       plan: plan,
       knowledgePointNames: names,
+      serialNumbers: serialNumbers,
     );
     if (text.isEmpty) return; // 兜底：空文本不污染剪贴板。
     await Clipboard.setData(ClipboardData(text: text));
@@ -691,7 +711,8 @@ String knowledgePointNameOf(
 /// ```
 /// 想要 N 道，凑到 M 道          ← questionPaperHeadline(requestedCount, items.length)
 ///
-/// 1. [学科] [来源] [档位]
+/// 1. TR-00001 [学科] [来源] [档位]   ← 传了 serialNumbers 且该题有号才写这一段
+/// 1. [学科] [来源] [档位]             ← 没号 / 没传：逐字保持旧输出
 /// 知识点名
 /// 理由：<PaperItem.reasonZh>
 /// 提升点：<improvementNote>     ← 非空才写
@@ -714,6 +735,7 @@ String renderPaperText({
   required AppLocalizations l10n,
   required PaperPlan plan,
   required Map<String, String> knowledgePointNames,
+  Map<String, int?> serialNumbers = const <String, int?>{},
 }) {
   if (plan.items.isEmpty) return '';
 
@@ -729,10 +751,15 @@ String renderPaperText({
     final pointText = pointId == null
         ? l10n.questionPaperKnowledgePointNone
         : (knowledgePointNames[pointId] ?? pointId);
+    // 题号（可选）：有号才写，没号不写占位——旧输出因此逐字不变。
+    final serialNo = serialNumbers[item.questionId];
+    final serialLabel = serialNo == null || serialNo < 1
+        ? ''
+        : '${formatQuestionSerial(serialNo)} ';
     buffer
       ..writeln()
       ..writeln(
-        '${index + 1}. '
+        '${index + 1}. $serialLabel'
         '[${subjectLabelOf(l10n, item.subjectKey)}] '
         '[${sourceLevelLabel(l10n, item.sourceLevel)}] '
         '[${item.zone.labelZh}]',
