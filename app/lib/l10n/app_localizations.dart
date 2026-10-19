@@ -5141,6 +5141,102 @@ abstract class AppLocalizations {
   /// **'Review capability actions and stuck points in solution chains, and what to practice next'**
   String get learningInsightSettingsHint;
 
+  /// No description provided for @practiceRecommendationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What to practice next'**
+  String get practiceRecommendationTitle;
+
+  /// No description provided for @practiceRecommendationEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No recommendations yet: collect a few questions and run AI solving, then check back.'**
+  String get practiceRecommendationEmpty;
+
+  /// No description provided for @practiceRecommendationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice recommendations are unavailable right now.'**
+  String get practiceRecommendationFailed;
+
+  /// No description provided for @practiceRecommendationRank.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank {rank}'**
+  String practiceRecommendationRank(int rank);
+
+  /// No description provided for @practiceRecommendationActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Matched actions: {labels}'**
+  String practiceRecommendationActions(String labels);
+
+  /// No description provided for @practiceRecommendationMoreReasons.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more reason(s)'**
+  String practiceRecommendationMoreReasons(int count);
+
+  /// No description provided for @practiceRecommendationSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more question(s) not shown'**
+  String practiceRecommendationSkipped(int count);
+
+  /// No description provided for @practiceRecommendationReasonMatchedAdviceAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches a practice action from your learning advice'**
+  String get practiceRecommendationReasonMatchedAdviceAction;
+
+  /// No description provided for @practiceRecommendationReasonMatchedHighRiskKnowledgePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Covers a stuck knowledge point'**
+  String get practiceRecommendationReasonMatchedHighRiskKnowledgePoint;
+
+  /// No description provided for @practiceRecommendationReasonUnknownActionScaffold.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses an action outside the vocabulary; build the basics first'**
+  String get practiceRecommendationReasonUnknownActionScaffold;
+
+  /// No description provided for @practiceRecommendationReasonUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer and solution are complete'**
+  String get practiceRecommendationReasonUpToDate;
+
+  /// No description provided for @practiceRecommendationReasonMissingSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing solution'**
+  String get practiceRecommendationReasonMissingSolution;
+
+  /// No description provided for @practiceRecommendationReasonMissingAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing answer'**
+  String get practiceRecommendationReasonMissingAnswer;
+
+  /// No description provided for @practiceRecommendationReasonTooHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Harder than target'**
+  String get practiceRecommendationReasonTooHard;
+
+  /// No description provided for @practiceRecommendationReasonTooEasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Easier than target'**
+  String get practiceRecommendationReasonTooEasy;
+
+  /// No description provided for @practiceRecommendationReasonUnrelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Little relation to current advice'**
+  String get practiceRecommendationReasonUnrelated;
+
   /// No description provided for @learningMetricsTitle.
   ///
   /// In en, this message translates to:

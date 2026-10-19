@@ -14,6 +14,7 @@ import '../../../domain/services/reasoning/learning_advice.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../settings/presentation/capability_vocabulary_page.dart';
 import '../application/learning_insight_provider.dart';
+import 'practice_recommendation_view.dart';
 
 /// 学习洞察页的根 key。
 const Key learningInsightPageKey = Key('learning-insight-page');
@@ -198,6 +199,8 @@ class _InsightBody extends StatelessWidget {
         else ...[
           _SummaryLine(data: data, l10n: l10n),
           _AdviceSection(data: data, l10n: l10n),
+          // 配题推荐只消费 provider 的分数与理由，这里不重算。
+          PracticeRecommendationSection(actionCatalog: data.actionCatalog),
           _ActionSection(data: data, l10n: l10n),
           if (data.unknownRows.isNotEmpty)
             _UnknownSection(data: data, l10n: l10n),

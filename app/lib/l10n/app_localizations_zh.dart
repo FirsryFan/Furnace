@@ -2878,6 +2878,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get learningInsightSettingsHint => '看解题链里的能力动作与卡点，以及下一步练什么';
 
   @override
+  String get practiceRecommendationTitle => '下一步练什么';
+
+  @override
+  String get practiceRecommendationEmpty => '还没有可推荐的题：先多收几道题、跑几次 AI 解题，再回来看。';
+
+  @override
+  String get practiceRecommendationFailed => '配题推荐暂时算不出来';
+
+  @override
+  String practiceRecommendationRank(int rank) {
+    return '第 $rank 名';
+  }
+
+  @override
+  String practiceRecommendationActions(String labels) {
+    return '命中动作：$labels';
+  }
+
+  @override
+  String practiceRecommendationMoreReasons(int count) {
+    return '另有 $count 条理由';
+  }
+
+  @override
+  String practiceRecommendationSkipped(int count) {
+    return '还有 $count 道没显示';
+  }
+
+  @override
+  String get practiceRecommendationReasonMatchedAdviceAction => '命中学习建议的练习动作';
+
+  @override
+  String get practiceRecommendationReasonMatchedHighRiskKnowledgePoint =>
+      '命中卡点知识点';
+
+  @override
+  String get practiceRecommendationReasonUnknownActionScaffold => '词表外的动作，先补基础';
+
+  @override
+  String get practiceRecommendationReasonUpToDate => '答案解析齐全';
+
+  @override
+  String get practiceRecommendationReasonMissingSolution => '缺解析';
+
+  @override
+  String get practiceRecommendationReasonMissingAnswer => '缺答案';
+
+  @override
+  String get practiceRecommendationReasonTooHard => '难度偏高';
+
+  @override
+  String get practiceRecommendationReasonTooEasy => '难度偏低';
+
+  @override
+  String get practiceRecommendationReasonUnrelated => '与当前建议关系不大';
+
+  @override
   String get learningMetricsTitle => '学习效果（复习日志说了算）';
 
   @override

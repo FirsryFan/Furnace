@@ -1412,6 +1412,34 @@
   "learningInsightCrossSection": "Action × knowledge point stuck points",
   "learningInsightSettingsTitle": "Learning insights",
   "learningInsightSettingsHint": "Review capability actions and stuck points in solution chains, and what to practice next",
+  "practiceRecommendationTitle": "What to practice next",
+  "practiceRecommendationEmpty": "No recommendations yet: collect a few questions and run AI solving, then check back.",
+  "practiceRecommendationFailed": "Practice recommendations are unavailable right now.",
+  "practiceRecommendationRank": "Rank {rank}",
+  "@practiceRecommendationRank": {
+    "placeholders": { "rank": { "type": "int" } }
+  },
+  "practiceRecommendationActions": "Matched actions: {labels}",
+  "@practiceRecommendationActions": {
+    "placeholders": { "labels": { "type": "String" } }
+  },
+  "practiceRecommendationMoreReasons": "{count} more reason(s)",
+  "@practiceRecommendationMoreReasons": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "practiceRecommendationSkipped": "{count} more question(s) not shown",
+  "@practiceRecommendationSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "practiceRecommendationReasonMatchedAdviceAction": "Matches a practice action from your learning advice",
+  "practiceRecommendationReasonMatchedHighRiskKnowledgePoint": "Covers a stuck knowledge point",
+  "practiceRecommendationReasonUnknownActionScaffold": "Uses an action outside the vocabulary; build the basics first",
+  "practiceRecommendationReasonUpToDate": "Answer and solution are complete",
+  "practiceRecommendationReasonMissingSolution": "Missing solution",
+  "practiceRecommendationReasonMissingAnswer": "Missing answer",
+  "practiceRecommendationReasonTooHard": "Harder than target",
+  "practiceRecommendationReasonTooEasy": "Easier than target",
+  "practiceRecommendationReasonUnrelated": "Little relation to current advice",
   "learningMetricsTitle": "Learning effect (the review log decides)",
   "learningMetricsDetail": "Retention is \"how much was still there after that long\", read from review outcomes only - not from the model's own opinion of itself. Calibration waits for reviews that recorded a prediction.",
   "learningMetricsEmpty": "No reviews yet - these numbers grow as you review.",

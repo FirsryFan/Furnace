@@ -1323,6 +1323,34 @@
   "learningInsightCrossSection": "动作 × 知识点卡点",
   "learningInsightSettingsTitle": "学习洞察",
   "learningInsightSettingsHint": "看解题链里的能力动作与卡点，以及下一步练什么",
+  "practiceRecommendationTitle": "下一步练什么",
+  "practiceRecommendationEmpty": "还没有可推荐的题：先多收几道题、跑几次 AI 解题，再回来看。",
+  "practiceRecommendationFailed": "配题推荐暂时算不出来",
+  "practiceRecommendationRank": "第 {rank} 名",
+  "@practiceRecommendationRank": {
+    "placeholders": { "rank": { "type": "int" } }
+  },
+  "practiceRecommendationActions": "命中动作：{labels}",
+  "@practiceRecommendationActions": {
+    "placeholders": { "labels": { "type": "String" } }
+  },
+  "practiceRecommendationMoreReasons": "另有 {count} 条理由",
+  "@practiceRecommendationMoreReasons": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "practiceRecommendationSkipped": "还有 {count} 道没显示",
+  "@practiceRecommendationSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "practiceRecommendationReasonMatchedAdviceAction": "命中学习建议的练习动作",
+  "practiceRecommendationReasonMatchedHighRiskKnowledgePoint": "命中卡点知识点",
+  "practiceRecommendationReasonUnknownActionScaffold": "词表外的动作，先补基础",
+  "practiceRecommendationReasonUpToDate": "答案解析齐全",
+  "practiceRecommendationReasonMissingSolution": "缺解析",
+  "practiceRecommendationReasonMissingAnswer": "缺答案",
+  "practiceRecommendationReasonTooHard": "难度偏高",
+  "practiceRecommendationReasonTooEasy": "难度偏低",
+  "practiceRecommendationReasonUnrelated": "与当前建议关系不大",
   "learningMetricsTitle": "学习效果（复习日志说了算）",
   "learningMetricsDetail": "留存率是「隔了多久再看还记得多少」，只看复习结果，不看模型的自我感觉；校准度要等带预测的复习攒出样本。",
   "learningMetricsEmpty": "还没有复习记录——这里会随着你复习慢慢长出数字。",

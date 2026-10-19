@@ -3000,6 +3000,69 @@ class AppLocalizationsEn extends AppLocalizations {
       'Review capability actions and stuck points in solution chains, and what to practice next';
 
   @override
+  String get practiceRecommendationTitle => 'What to practice next';
+
+  @override
+  String get practiceRecommendationEmpty =>
+      'No recommendations yet: collect a few questions and run AI solving, then check back.';
+
+  @override
+  String get practiceRecommendationFailed =>
+      'Practice recommendations are unavailable right now.';
+
+  @override
+  String practiceRecommendationRank(int rank) {
+    return 'Rank $rank';
+  }
+
+  @override
+  String practiceRecommendationActions(String labels) {
+    return 'Matched actions: $labels';
+  }
+
+  @override
+  String practiceRecommendationMoreReasons(int count) {
+    return '$count more reason(s)';
+  }
+
+  @override
+  String practiceRecommendationSkipped(int count) {
+    return '$count more question(s) not shown';
+  }
+
+  @override
+  String get practiceRecommendationReasonMatchedAdviceAction =>
+      'Matches a practice action from your learning advice';
+
+  @override
+  String get practiceRecommendationReasonMatchedHighRiskKnowledgePoint =>
+      'Covers a stuck knowledge point';
+
+  @override
+  String get practiceRecommendationReasonUnknownActionScaffold =>
+      'Uses an action outside the vocabulary; build the basics first';
+
+  @override
+  String get practiceRecommendationReasonUpToDate =>
+      'Answer and solution are complete';
+
+  @override
+  String get practiceRecommendationReasonMissingSolution => 'Missing solution';
+
+  @override
+  String get practiceRecommendationReasonMissingAnswer => 'Missing answer';
+
+  @override
+  String get practiceRecommendationReasonTooHard => 'Harder than target';
+
+  @override
+  String get practiceRecommendationReasonTooEasy => 'Easier than target';
+
+  @override
+  String get practiceRecommendationReasonUnrelated =>
+      'Little relation to current advice';
+
+  @override
   String get learningMetricsTitle => 'Learning effect (the review log decides)';
 
   @override
