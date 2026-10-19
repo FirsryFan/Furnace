@@ -1002,4 +1002,91 @@ static LearningAdvicePlan build({
   **+174 All tests passed**。
 - 未做：工具返回完整 DailyStudyPlan 步骤、分页、与练习入口联动、真实题库下的推荐质量验证。
 
+## 27. 今日计划的接线：reader / provider（轮次一百二十六，task-54）
+
+§24 的 `DailyStudyPlan` 是纯逻辑，不知道自己该从哪拿「到期卡片数量 / 洞察 / 建议 / 配题候选」。这一节把它接进
+真实数据库与 Riverpod：`app/lib/features/cognitive/application/daily_study_plan_reader.dart`（约 4.7 KB）。
+
+### 27.1 API
+
+- `Future<DailyStudyPlan> readDailyStudyPlan({required AppDatabase database, required int dueCardCount,
+  int dailyMinutes = DailyStudyPlan.defaultDailyMinutes, int maxSteps = DailyStudyPlan.defaultMaxSteps})`：
+  依次读洞察 → 能力画像 → 学习建议 → 配题候选 → `DailyStudyPlan.build`，不做任何重排或重算。
+- `Future<ChainInsights> readDailyStudyPlanInsights(AppDatabase db)`：`readChainInsightCorpus` 读链与步骤，
+  词表走 `CapabilityVocabularyStore(SettingsRepository(db)).load()`；**词表读取失败（坏 JSON / 坏设置行）**
+  退回 `CapabilityActionOverlay.empty`，未知动作照实统计，不让整个计划失败。
+- `Future<List<CapabilityReading>> readDailyStudyPlanProfile(AppDatabase db)`：直接读 `reasoning_steps`，
+  投影成 `CapabilityStepSample(actionType, stuckRisk)` → `CapabilityProfile.of`。
+- `Future<int> readDailyStudyPlanQuestionCount(AppDatabase db)`：`db.questions.id.count()`（drift 的 `.count()`
+  扩展需要 `import 'package:drift/drift.dart'`），与 `questionCorpusCountProvider` 同一口径。
+- `final dailyStudyPlanProvider = FutureProvider.autoDispose<DailyStudyPlan>`：watch `watchDatabaseRevision()`，
+  用 `AnkiRepository.getDueCardStates(DateTime.now().millisecondsSinceEpoch).length` 取到期卡数再调 reader。
+
+### 27.2 口径取舍
+
+- **到期卡数量由 reader 注入**（与 §24 一致）：纯逻辑层不读时钟 / 不读库，时钟只出现在 provider 一处。
+- **配题候选复用 `readPracticeQuestionCandidates`**，不在今日计划里重写候选投影或排序。
+- **知识库题数按全库统计**（不受学科过滤），用于「补齐思维链」建议的 `corpusQuestionCount`；筛不筛学科留给页面 / 工具。
+- **词表失败只降级不抛**：计划仍要出，未知动作块在页面照常显示。
+
+### 27.3 验收与未做
+
+- `app/test/features/cognitive/application/daily_study_plan_reader_test.dart` **11 例**：空库 noData（0 分钟）、
+  到期 5 张 → 3 分钟、到期 100 张截到 30 分钟、`dailyMinutes` 透传、种子题 + 3 步高风险链 → 洞察 / 画像 /
+  练习步骤 / 到期卡总时长、`knowledgeHints` 交叉读数 → 练习步骤带知识点、有题无链 → 补齐思维链 5 分钟、
+  `maxSteps=1` 跳过计数、overlay 自定义动作不进补词表、词表外动作出补词表步骤、provider 空库 → noData。
+- scoped `dart analyze lib/features/cognitive/application test/features/cognitive/application` → No issues；
+  全仓 `dart analyze lib test` 仍 92 issues / 0 error / 0 warning。
+- 未做：页面的步骤跳转（点一步进对应页面）、每日时间预算由用户设置、真实大库下的耗时验证。
+
+## 28. 今日清单页上的「今天做什么」区块（轮次一百二十六，task-55）
+
+`today_plan_page.dart` 原来只有复习侧清单（`TodayPlanner` 的 `TodayPlan`）。这一片在页顶加一个独立区块，
+消费 §27 的 `dailyStudyPlanProvider`，把 §24 的步骤原样摆出来：
+
+- 页面结构改成 `ListView`：页顶 `_DailyStudyPlanSection`（`:223`）→ 16px 间距 → 旧复习清单 `todayPlanProvider.when`；
+  旧区块不删、不合并，两块各自加载、各自失败。
+- 页头：图标 + `todayStudyPlanTitle` + 总分钟（`todayStudyPlanTotal`）；`skippedStepCount > 0` 时多一行「跳过 N 条」。
+- loading 只一行 16×16 spinner + `todayStudyPlanLoading`，不占满页（旧清单照常可用）；
+  error 显示错误原文 + 重试按钮（`_DailyStudyPlanError` `:359`，重试 = `ref.invalidate(dailyStudyPlanProvider)`）；
+  data 原顺序渲染 `_DailyStudyStepCard`（`:317`）：标题 + 「约 N 分钟」（0 分钟也照写）+ `detailZh`。
+- noData 不另造空态：数据层自己会给一条 `noData` 步骤，页面照常显示，避免两句空文案互相压过。
+- AppBar 刷新按钮同时 `ref.invalidate(todayPlanProvider)` 与 `ref.invalidate(dailyStudyPlanProvider)`（`:54-55`），
+  避免一个更新、另一个停在旧读数的半新半旧页面。
+- 稳定 key：`todayStudyPlanSectionKey` / `todayStudyPlanErrorKey` / `todayStudyPlanRetryKey` /
+  `todayStudyPlanStepKey(index)`（`:27-33`）。
+- l10n 五文件手改 7 个 `todayStudyPlan*` key：title / loading / total(int minutes) / skipped(int count) /
+  stepMinutes(int minutes) / failed(String error) / retry。
+
+### 28.1 验收与未做
+
+- `app/test/features/cognitive/presentation/today_plan_page_test.dart` 13 例（+6）：成功渲染（顺序与分钟）、
+  skipped 计数、noData 原样、失败原文 + 重试恢复、刷新同时重读两个 provider、加载态一行文案。
+- `flutter test test/features/cognitive/presentation --concurrency=1` → **+66 全绿**；scoped analyze 干净。
+- 未做：点步骤跳转对应页面（配题 / 词表 / 复习）、页面上的时间预算设置、图标按 kind 区分、真机小屏滚动手测。
+
+## 29. `plan_today` 里的 `study_plan`：让对话里也能看到今日计划（轮次一百二十六，task-56）
+
+`plan_today` 原本只返回 `TodayPlanner` 的 V(π) 清单（`actions`）。这一片把 §27 的 `DailyStudyPlan` 也放进去，
+**两套口径并存、互不覆盖**：
+
+- `actions`（`TodayPlanner`）：到期卡 + 模型这次给的候选题，按收益/成本排序，回答「这一轮先做哪件事最划算」。
+- `study_plan`（`DailyStudyPlan`）：洞察 / 建议 / 配题 / 到期卡四层真实读数排出的固定优先级计划，
+  回答「今天整体怎么安排」。
+- 装配（`today_tools.dart:185-212`）：复用 `run()` 里已经查到的 `dueCards.length`（同一个 `moment`，不二次读时钟）→
+  `readDailyStudyPlan(database: _database, dueCardCount: dueCards.length)`；成功才把 `'study_plan'` 塞进 `modelResult`
+  （旧 6 键全部保留）。
+- **读取失败退化**（`on Object`）：没有 `study_plan` 键，摘要追加「今天的学习计划读取失败，本次只返回旧的
+  「今天做这几件事」清单。」，工具本身仍然成功。
+- 摘要句 `_studyPlanSummaryLine`（`:248-264`）：正常「今天预计 N 分钟、M 步；先做：X，再做：Y。」；
+  单条 noData「今天预计 0 分钟、1 步：…」；只翻译已有读数，不改数字。
+
+### 29.1 验收与未做
+
+- `app/test/features/ai/today_tools_test.dart` 12 例（8 旧 + 4 新）：空库单步 noData、种子题 + 3 步高危链 →
+  `practiceQuestions` 带 `question_ids` / `knowledge_point_ids` / `action_type`、到期 0 与非 0 时 `reviewDueCards` 的有无、
+  `modelResult` 旧键 + `study_plan` 键与键序齐全。
+- `flutter test test/features/ai/today_tools_test.dart --concurrency=1` → **+12 All tests passed**（Lead 复跑同结果）。
+- 未做：读取失败退化分支无单测（reader 无注入点）、大库下 plan_today 延迟未实测、`study_plan` 的步骤级跳转信息未返回。
+
 

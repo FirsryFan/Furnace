@@ -2,6 +2,50 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-19 轮次一百二十六：今日计划上屏、plan_today 会说计划、题号检索有了纯逻辑（Lead + 三个 teammate）
+
+**起点**：轮次一百二十五把「今日学习计划生成层 / 配题推荐 / 入库体检摘要」的纯逻辑铺完（v0.5.6 已出包，未推
+GitHub）。本轮把它们真正接上真实数据、页面与 AI 工具，并补上题号检索的纯逻辑。写作用域互斥，成员全程不碰
+git。本轮 task-53..task-57 全部 completed（rev3）。
+
+**A. 今日计划数据层（task-54，Lead）**：新增 `app/lib/features/cognitive/application/daily_study_plan_reader.dart`——
+`readDailyStudyPlan`（洞察 → 能力画像 → 学习建议 → 配题候选 → `DailyStudyPlan.build`，不重排不重算）、
+`readDailyStudyPlanInsights`（词表走 `CapabilityVocabularyStore`，读取失败退回空 overlay、未知动作照实统计）、
+`readDailyStudyPlanProfile`（`reasoning_steps` → `CapabilityStepSample` → `CapabilityProfile.of`）、
+`readDailyStudyPlanQuestionCount`（全库题数，与 `questionCorpusCountProvider` 同口径），以及
+`dailyStudyPlanProvider`（watch `dataRevision`；到期卡数用 `AnkiRepository.getDueCardStates(now)` 注入，时钟只此一处）。
+测试 11 例。
+
+**B. 页面「今天做什么」（task-55，question-intake）**：`today_plan_page.dart` 页顶新增独立区块消费
+`dailyStudyPlanProvider`——总分钟、跳过条数、步骤卡（标题 / 约 N 分钟 / 理由，顺序照抄）、loading 只一行、
+失败原文 + 重试、noData 步骤原样显示；旧复习清单保留不删不合并，两块各自加载各自失败；刷新按钮同时
+invalidate 两个 provider；稳定 key 四个；l10n 五文件手改 7 个 `todayStudyPlan*` key（中英齐备）。测试 +6（共 13 例），
+`test/features/cognitive/presentation` +66 全绿。
+
+**C. `plan_today` 的 `study_plan`（task-56，reasoning-core）**：`today_tools.dart` 复用 `run()` 里同一 `moment` 的
+到期读数调 reader，`modelResult` 新增 `study_plan`（`DailyStudyPlan.toJson()`，旧 6 键全部保留），摘要补「今天预计
+N 分钟、M 步；先做：X，再做：Y」；读取失败只丢增量字段并说明，工具仍成功。测试 +4（共 12 例）。
+
+**D. 入库体检摘要接进 AI 工具（task-53，threadflow-engine）**：`audit_question_intake` 用与 findings 同一份
+（已按 severity 过滤）的结论按题分组构造 `QuestionAuditReport`，调 `QuestionAuditSummary.summarize` 后
+`modelResult` 新增 `summary`（题数 / 干净比例 / 分档 / 判据计数 / topOffenders）与 `priority_note`（优先级分数未标定），
+摘要句点名优先修题（TR 编号 + 分数）；空库与全干净库各有一句。测试 +5（共 15 例）。
+
+**E. 题号检索纯逻辑（task-57，threadflow-engine）**：新增 `app/lib/domain/services/questions/question_number_query.dart`——
+`parseQuestionNumberQuery`（`TR-00001` / `tr-12` / `#7` / `＃７` / 全角数字 / 前后空白都归一；位数上限 9；`0`、负数、
+夹字符一律拒绝，失败返回 null 不抛异常）、`isQuestionNumberQuery`、`matchQuestionSerial`、值对象
+`QuestionNumberQuery`（相等只按题号）；`QuestionNumberQuery.normalizedLabel` 用既有 `formatQuestionSerial` 补零。
+测试 46 例 / 8 组。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；全量
+`flutter test --concurrency=1` → **+3587 ~2 All tests passed**（09:29，exit 0，新增 72 例：5 + 11 + 6 + 4 + 46；
+日志 `E:/dsh-tmp-aot/test-126-full.txt`）。docs：`REASONING_LAYER_DESIGN` §27（reader / provider 接线）、
+§28（页面「今天做什么」）、§29（`plan_today` 的 `study_plan`）。
+
+**未做 / 未验证**：题号检索纯逻辑还没接搜索框（界面仍用旧 `tryParseQuestionSerial` 解析）；页面步骤还不能点进
+对应页面；`plan_today` 读取失败退化分支无单测；真机小屏滚动与真实大库下 plan_today 延迟未手测；v0.5.6 之后本轮
+改动尚未出包。
+
 ## 2026-10-19 轮次一百二十五：词表能编辑了、体检与质量报告上屏、组卷开始会说话（Lead + 三个 teammate）
 
 **起点**：轮次一百二十四把「体检 / 洞察 / 学习建议 / 组卷配额」的纯逻辑铺完，本轮把它们接到真实数据、界面
