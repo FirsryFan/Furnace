@@ -147,6 +147,15 @@ class LocalSettings extends Table {
   /// `SettingsRepository` 抛 ArgumentError，库里不存非法时刻。
   IntColumn get reviewReminderMinutes => integer().nullable()();
 
+  /// v29: 标签树的排序方式（域层 `TagTreeSortMode.code`：
+  /// `alphabetical` / `by_object_count` / `by_created_at`）。
+  ///
+  /// NULL 读作出厂「字典序」（用户从没选过），写侧也允许写 NULL 表示「恢复
+  /// 出厂排序」。表定义不 import 域层——读侧用 `tagTreeSortModeFromStorage`
+  /// 把 NULL / 未知值翻成出厂档位；库里只存域层的稳定 code，不存中文标签，
+  /// 否则改文案会把已存值变成读不懂的字符串。
+  TextColumn get tagTreeSortMode => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

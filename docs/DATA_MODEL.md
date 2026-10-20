@@ -724,3 +724,36 @@ NULL 读回 NULL、读侧折算不回写；未知角色原样落库、读取时�
 真实 v27 文件升级后老设置行读作关 / 没选过、升级后能立刻写能读且关库重开不丢；伪造「版本 28 但缺列」的
 文件靠 `_ensureColumns` 补列后可读可写、0 与 NULL 区分；越界分钟抛 `ArgumentError` 且不写库；
 `nextDueAtAfter` 只认严格更大、恰好等于的时刻不算、NULL `due_at` 不当未来时刻、没有更晚到期返回 null。
+
+## 18. v29：标签树排序方式（`local_settings.tag_tree_sort_mode`，轮次一百三十八）
+
+标签树的三种排序（字典序 / 按内容量 / 按添加时间）此前只在本次会话内记住，重启就回到字典序。
+v29 给单行设置表加一列可空文本，把用户最后选的档位落盘；不新建表、不动标签树本身。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.tag_tree_sort_mode` | TEXT，可空 | 标签树同层排序方式，存域层 `TagTreeSortMode.code`：`alphabetical` / `object_count` / `created_at`。**NULL = 没选过，读作出厂「字典序」** |
+
+**为什么存 code、不存中文**：中文标签（`labelZh`）是界面文案，改文案会把已存值变成读不懂的字符串；
+code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由域层/l10n 决定。
+
+**读写口径**（`app/lib/data/repositories/settings_repository.dart`）：
+- `getTagTreeSortMode()`：无设置行 / NULL → `null`；原样返回字符串，不翻译成枚举——
+  仓库不 import 域层，语义翻译归读侧 `tagTreeSortModeFromStorage`（`tag_tree_view.dart:313`）。
+- `updateTagTreeSortMode(String? mode)`：两端空白 trim；**空白串存成 NULL**（"空"不是第四种状态）；
+  传 `null` = 恢复出厂排序。未知 code **不拒绝**：合法集合归域层管，未来版本写的模式这一版读不懂时
+  由 `tagTreeSortModeFromStorage` 降级成字典序，不炸。写入要求设置行已存在（应用在启动时
+  `SettingsController` 已 `ensureSettings`；测试需自己先建行）。
+
+**迁移**：`_upgradeV28ToV29()` 对 `local_settings` `addColumnIfMissing` 一列（表不存在直接返回）；
+`_ensureColumns()` 的 `local_settings` 列表加同一列做自愈（版本号已是 29 但老文件被盖掉时补列）。
+迁移**不回填**：回填会把出厂字典序冻成一次用户选择，以后改出厂档位就达不到了（与
+`goal_beta` / `review_reminder_minutes` 同一个契约）。`database.g.dart` 由
+`dart run build_runner build --delete-conflicting-outputs` 重新生成（96 s，只 `LocalSettings` 表类/Companion 变化）。
+
+**测试锁的事实**（`app/test/data/database/v29_migration_test.dart` 4 例 +
+`settings_repository_test.dart` 排序方式组 3 例，共 +12 全绿）：
+真实 v28 文件升级后老设置行读作没选过、升级后立刻能写能读、关库重开不丢；伪造「版本 29 但缺列」的
+文件靠 `_ensureColumns` 补列后可读可写；空白串存成 NULL、未知 code 原样保留且读侧降级成字典序、
+`null` 清回出厂；新库没有设置行时读作没选过。
+

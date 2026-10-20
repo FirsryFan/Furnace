@@ -106,9 +106,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29].
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration {
@@ -198,6 +198,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 28) {
           await _upgradeV27ToV28();
         }
+        if (from < 29) {
+          await _upgradeV28ToV29();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -257,6 +260,10 @@ class AppDatabase extends _$AppDatabase {
         // 两列都可空、语义由读侧解释，补列即可，没有回填这一步。
         localSettings.reviewReminderEnabled,
         localSettings.reviewReminderMinutes,
+        // v29（轮次一百三十八）：标签树排序方式。同一个失败模式：老文件被盖成
+        // v29 却没有这一列时，Drift 跳过 onUpgrade，标签树第一次读设置就抛
+        // no such column。列可空、NULL 读作出厂字典序，补列即可，没有回填。
+        localSettings.tagTreeSortMode,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -810,6 +817,26 @@ class AppDatabase extends _$AppDatabase {
         m, 'local_settings', localSettings.reviewReminderEnabled);
     await _addColumnIfMissing(
         m, 'local_settings', localSettings.reviewReminderMinutes);
+  }
+
+  /// v28 -> v29：标签树排序方式 `local_settings.tag_tree_sort_mode`
+  /// （轮次一百三十八）。
+  ///
+  /// 纯新增一列、可空：NULL 读作出厂「字典序」（域层
+  /// `tagTreeSortModeFromStorage` 负责翻译），写侧只存 `TagTreeSortMode.code`
+  /// 这类稳定值，不存中文。迁移只补列、不回填——回填会把「字典序」冻成一次
+  /// 用户的明确选择，以后改出厂档位就达不到了（与 `goalBeta` /
+  /// `reviewReminderMinutes` 同一个契约）。
+  ///
+  /// 表不存在就跳过：被盖成 v29 却缺表的文件由 [_ensureColumns] 的自愈建表，
+  /// 在这里 createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV28ToV29() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.tagTreeSortMode);
   }
 
   Future<void> _upgradeV4ToV5() async {

@@ -421,6 +421,12 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<int> reviewReminderMinutes = GeneratedColumn<int>(
       'review_reminder_minutes', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _tagTreeSortModeMeta =
+      const VerificationMeta('tagTreeSortMode');
+  @override
+  late final GeneratedColumn<String> tagTreeSortMode = GeneratedColumn<String>(
+      'tag_tree_sort_mode', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -454,6 +460,7 @@ class $LocalSettingsTable extends LocalSettings
         capabilityActionOverlayJson,
         reviewReminderEnabled,
         reviewReminderMinutes,
+        tagTreeSortMode,
         createdAt,
         updatedAt
       ];
@@ -565,6 +572,12 @@ class $LocalSettingsTable extends LocalSettings
           reviewReminderMinutes.isAcceptableOrUnknown(
               data['review_reminder_minutes']!, _reviewReminderMinutesMeta));
     }
+    if (data.containsKey('tag_tree_sort_mode')) {
+      context.handle(
+          _tagTreeSortModeMeta,
+          tagTreeSortMode.isAcceptableOrUnknown(
+              data['tag_tree_sort_mode']!, _tagTreeSortModeMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -626,6 +639,8 @@ class $LocalSettingsTable extends LocalSettings
           DriftSqlType.bool, data['${effectivePrefix}review_reminder_enabled']),
       reviewReminderMinutes: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}review_reminder_minutes']),
+      tagTreeSortMode: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}tag_tree_sort_mode']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -739,6 +754,15 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// 但表定义不 import 域层——读侧负责这个翻译。写入校验 0..1439，越界由
   /// `SettingsRepository` 抛 ArgumentError，库里不存非法时刻。
   final int? reviewReminderMinutes;
+
+  /// v29: 标签树的排序方式（域层 `TagTreeSortMode.code`：
+  /// `alphabetical` / `by_object_count` / `by_created_at`）。
+  ///
+  /// NULL 读作出厂「字典序」（用户从没选过），写侧也允许写 NULL 表示「恢复
+  /// 出厂排序」。表定义不 import 域层——读侧用 `tagTreeSortModeFromStorage`
+  /// 把 NULL / 未知值翻成出厂档位；库里只存域层的稳定 code，不存中文标签，
+  /// 否则改文案会把已存值变成读不懂的字符串。
+  final String? tagTreeSortMode;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -761,6 +785,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.capabilityActionOverlayJson,
       this.reviewReminderEnabled,
       this.reviewReminderMinutes,
+      this.tagTreeSortMode,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -816,6 +841,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || reviewReminderMinutes != null) {
       map['review_reminder_minutes'] = Variable<int>(reviewReminderMinutes);
+    }
+    if (!nullToAbsent || tagTreeSortMode != null) {
+      map['tag_tree_sort_mode'] = Variable<String>(tagTreeSortMode);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -874,6 +902,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       reviewReminderMinutes: reviewReminderMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(reviewReminderMinutes),
+      tagTreeSortMode: tagTreeSortMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagTreeSortMode),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -908,6 +939,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           serializer.fromJson<bool?>(json['reviewReminderEnabled']),
       reviewReminderMinutes:
           serializer.fromJson<int?>(json['reviewReminderMinutes']),
+      tagTreeSortMode: serializer.fromJson<String?>(json['tagTreeSortMode']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -937,6 +969,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           serializer.toJson<String?>(capabilityActionOverlayJson),
       'reviewReminderEnabled': serializer.toJson<bool?>(reviewReminderEnabled),
       'reviewReminderMinutes': serializer.toJson<int?>(reviewReminderMinutes),
+      'tagTreeSortMode': serializer.toJson<String?>(tagTreeSortMode),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -962,6 +995,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> capabilityActionOverlayJson = const Value.absent(),
           Value<bool?> reviewReminderEnabled = const Value.absent(),
           Value<int?> reviewReminderMinutes = const Value.absent(),
+          Value<String?> tagTreeSortMode = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -1000,6 +1034,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         reviewReminderMinutes: reviewReminderMinutes.present
             ? reviewReminderMinutes.value
             : this.reviewReminderMinutes,
+        tagTreeSortMode: tagTreeSortMode.present
+            ? tagTreeSortMode.value
+            : this.tagTreeSortMode,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1043,6 +1080,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       reviewReminderMinutes: data.reviewReminderMinutes.present
           ? data.reviewReminderMinutes.value
           : this.reviewReminderMinutes,
+      tagTreeSortMode: data.tagTreeSortMode.present
+          ? data.tagTreeSortMode.value
+          : this.tagTreeSortMode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1070,6 +1110,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
           ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
+          ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1097,6 +1138,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         capabilityActionOverlayJson,
         reviewReminderEnabled,
         reviewReminderMinutes,
+        tagTreeSortMode,
         createdAt,
         updatedAt
       ]);
@@ -1124,6 +1166,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
               this.capabilityActionOverlayJson &&
           other.reviewReminderEnabled == this.reviewReminderEnabled &&
           other.reviewReminderMinutes == this.reviewReminderMinutes &&
+          other.tagTreeSortMode == this.tagTreeSortMode &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1148,6 +1191,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> capabilityActionOverlayJson;
   final Value<bool?> reviewReminderEnabled;
   final Value<int?> reviewReminderMinutes;
+  final Value<String?> tagTreeSortMode;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -1170,6 +1214,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.capabilityActionOverlayJson = const Value.absent(),
     this.reviewReminderEnabled = const Value.absent(),
     this.reviewReminderMinutes = const Value.absent(),
+    this.tagTreeSortMode = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1193,6 +1238,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.capabilityActionOverlayJson = const Value.absent(),
     this.reviewReminderEnabled = const Value.absent(),
     this.reviewReminderMinutes = const Value.absent(),
+    this.tagTreeSortMode = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1217,6 +1263,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? capabilityActionOverlayJson,
     Expression<bool>? reviewReminderEnabled,
     Expression<int>? reviewReminderMinutes,
+    Expression<String>? tagTreeSortMode,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1246,6 +1293,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
         'review_reminder_enabled': reviewReminderEnabled,
       if (reviewReminderMinutes != null)
         'review_reminder_minutes': reviewReminderMinutes,
+      if (tagTreeSortMode != null) 'tag_tree_sort_mode': tagTreeSortMode,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1271,6 +1319,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? capabilityActionOverlayJson,
       Value<bool?>? reviewReminderEnabled,
       Value<int?>? reviewReminderMinutes,
+      Value<String?>? tagTreeSortMode,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1297,6 +1346,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           reviewReminderEnabled ?? this.reviewReminderEnabled,
       reviewReminderMinutes:
           reviewReminderMinutes ?? this.reviewReminderMinutes,
+      tagTreeSortMode: tagTreeSortMode ?? this.tagTreeSortMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1367,6 +1417,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       map['review_reminder_minutes'] =
           Variable<int>(reviewReminderMinutes.value);
     }
+    if (tagTreeSortMode.present) {
+      map['tag_tree_sort_mode'] = Variable<String>(tagTreeSortMode.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1398,6 +1451,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
           ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
+          ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -23286,6 +23340,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> capabilityActionOverlayJson,
   Value<bool?> reviewReminderEnabled,
   Value<int?> reviewReminderMinutes,
+  Value<String?> tagTreeSortMode,
   required int createdAt,
   required int updatedAt,
 });
@@ -23310,6 +23365,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> capabilityActionOverlayJson,
   Value<bool?> reviewReminderEnabled,
   Value<int?> reviewReminderMinutes,
+  Value<String?> tagTreeSortMode,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -23385,6 +23441,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<int> get reviewReminderMinutes => $composableBuilder(
       column: $table.reviewReminderMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tagTreeSortMode => $composableBuilder(
+      column: $table.tagTreeSortMode,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
@@ -23469,6 +23529,10 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.reviewReminderMinutes,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get tagTreeSortMode => $composableBuilder(
+      column: $table.tagTreeSortMode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -23542,6 +23606,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<int> get reviewReminderMinutes => $composableBuilder(
       column: $table.reviewReminderMinutes, builder: (column) => column);
 
+  GeneratedColumn<String> get tagTreeSortMode => $composableBuilder(
+      column: $table.tagTreeSortMode, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -23594,6 +23661,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> capabilityActionOverlayJson = const Value.absent(),
             Value<bool?> reviewReminderEnabled = const Value.absent(),
             Value<int?> reviewReminderMinutes = const Value.absent(),
+            Value<String?> tagTreeSortMode = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -23617,6 +23685,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             capabilityActionOverlayJson: capabilityActionOverlayJson,
             reviewReminderEnabled: reviewReminderEnabled,
             reviewReminderMinutes: reviewReminderMinutes,
+            tagTreeSortMode: tagTreeSortMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -23640,6 +23709,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> capabilityActionOverlayJson = const Value.absent(),
             Value<bool?> reviewReminderEnabled = const Value.absent(),
             Value<int?> reviewReminderMinutes = const Value.absent(),
+            Value<String?> tagTreeSortMode = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -23663,6 +23733,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             capabilityActionOverlayJson: capabilityActionOverlayJson,
             reviewReminderEnabled: reviewReminderEnabled,
             reviewReminderMinutes: reviewReminderMinutes,
+            tagTreeSortMode: tagTreeSortMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

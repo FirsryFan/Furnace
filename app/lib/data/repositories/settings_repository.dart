@@ -224,5 +224,34 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the tag-tree sort mode (schema v29, 轮次一百三十八) as the raw
+  /// stored code, or `null` when the user never picked one.
+  ///
+  /// `null` is not a mode: the caller translates it into the shipped default
+  /// (`tagTreeSortModeFromStorage` → 字典序); this repository does not import
+  /// the domain layer, so it hands back exactly what the row says and lets the
+  /// read side own the meaning.
+  Future<String?> getTagTreeSortMode() async {
+    final row = await getSettings();
+    return row?.tagTreeSortMode;
+  }
+
+  /// Persists the tag-tree sort mode (schema v29) as a stable code
+  /// (`TagTreeSortMode.code`), or `null` to fall back to the shipped default.
+  ///
+  /// Blank input is stored as NULL rather than `''`: "empty" is not a mode and
+  /// must not become a third state the reader has to guess about. Unknown codes
+  /// are not rejected here — the domain-layer enum owns the legal set, and a
+  /// future version may add a mode this build cannot name; the reader already
+  /// degrades unknown values to 字典序.
+  Future<void> updateTagTreeSortMode(String? mode) async {
+    final code = mode?.trim();
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      tagTreeSortMode: Value(code == null || code.isEmpty ? null : code),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }
