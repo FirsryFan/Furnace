@@ -83,6 +83,10 @@ Future<void> main(List<String> args) async {
   final tall = await _loadImage(
     '$materialDir${Platform.pathSeparator}tall-300x900.png',
   );
+  // 答案截图（v27 role=answer）：有素材才嵌，没有就当这题没有答案图。
+  final answerShot = await _loadImage(
+    '$materialDir${Platform.pathSeparator}answer-620x860.png',
+  );
 
   final failures = <String>[];
   final plan = PaperPlan(
@@ -124,6 +128,7 @@ Future<void> main(List<String> args) async {
       solution: r'配方得 $f(x)=(x-1)^{2}+2$，对称轴 $x=1$；'
           r'区间端点与顶点比较得最值。',
       images: <PaperDocxImage>[if (figure != null) figure],
+      answerImages: <PaperDocxImage>[if (answerShot != null) answerShot],
     ),
     'q-tall': PaperDocxQuestion(
       questionId: 'q-tall',
@@ -180,7 +185,8 @@ Future<void> main(List<String> args) async {
     ..writeln('输出：${outFile.absolute.path}')
     ..writeln('大小：${result.bytes.length} 字节')
     ..writeln('题目：${result.questionCount} 道，段落 ${result.paragraphCount}，'
-        '配图 ${result.imageCount}（跳过 ${result.imageSkippedCount}）')
+        '配图 ${result.imageCount} + 答案截图 ${result.answerImageCount}'
+        '（跳过 ${result.imageSkippedCount}）')
     ..writeln('公式：${result.formulaCount} 处，失败 ${result.formulaFailureCount}')
     ..writeln(
         '缺失：题 ${result.missingQuestionCount} / 题干 ${result.missingStemCount} / '

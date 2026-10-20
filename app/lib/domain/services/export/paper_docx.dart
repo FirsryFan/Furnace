@@ -45,6 +45,7 @@ class PaperDocxQuestion {
     this.answer,
     this.solution,
     this.images = const <PaperDocxImage>[],
+    this.answerImages = const <PaperDocxImage>[],
   });
 
   final String questionId;
@@ -74,6 +75,14 @@ class PaperDocxQuestion {
   final String? solution;
 
   final List<PaperDocxImage> images;
+
+  /// 答案/解析截图（组卷网登录后看到的整张答案图，拍/截下来随题保存）。
+  ///
+  /// 渲染在附录该题的「答案：」「解析：」「理由/提升点/背景」之后；与
+  /// [images] 走同一套等比缩放/跳过规则，跳过 note 带「第 N 题答案截图」。
+  /// 只有答案区整段渲染时（includeAnswers/includeSolutions/includeReasons
+  /// 至少一个为 true）才会出现在附录。
+  final List<PaperDocxImage> answerImages;
 }
 
 /// 一道选择题的选项。
@@ -133,13 +142,21 @@ class PaperDocxBuildResult {
     required this.missingQuestionLabels,
     required this.imageSkippedNotes,
     required this.formulaFailures,
+    this.answerImageCount = 0,
   });
 
   final Uint8List bytes;
   final int questionCount;
   final int paragraphCount;
+
+  /// 题干配图张数（不含附录里的答案/解析截图）。
   final int imageCount;
+
+  /// 题干配图与答案截图两类跳过的图片合计张数。
   final int imageSkippedCount;
+
+  /// 成功放进附录的答案/解析截图张数（题干配图不计入）。
+  final int answerImageCount;
   final int formulaCount;
   final int formulaFailureCount;
   final int missingQuestionCount;
@@ -172,6 +189,7 @@ class PaperDocxLabels {
     this.deferredHeading = '被上限挡下的知识点',
     this.answerLabel = '答案：',
     this.solutionLabel = '解析：',
+    this.answerImagesLabel = '答案与解析截图',
     this.reasonLabel = '理由：',
     this.improvementLabel = '提升点：',
     this.backgroundLabel = '背景：',
@@ -227,6 +245,9 @@ class PaperDocxLabels {
   final String deferredHeading;
   final String answerLabel;
   final String solutionLabel;
+
+  /// 附录里答案/解析截图前的标签行（默认「答案与解析截图」）。
+  final String answerImagesLabel;
   final String reasonLabel;
   final String improvementLabel;
   final String backgroundLabel;
@@ -462,6 +483,12 @@ class _Assembler {
   int imageSkippedCount = 0;
   int formulaFailureCount = 0;
 
+  /// 题干配图张数（[PaperDocxBuildResult.imageCount] 的口径）。
+  int _stemImageCount = 0;
+
+  /// 成功放进附录的答案截图张数。
+  int _answerImageCount = 0;
+
   /// 附录里是否已经出过标题：只有第一个标题另起一页。
   bool _appendixStarted = false;
 
@@ -635,17 +662,34 @@ class _Assembler {
   }
 
   void _addImages(int number, PaperDocxQuestion question) {
-    for (final image in question.images) {
+    _appendImages(number, question.images, answerShot: false);
+  }
+
+  /// 附录里的答案/解析截图：标签行由 [_addAnswerImagesHeading] 单独渲染。
+  void _addAnswerImages(int number, PaperDocxQuestion question) {
+    _appendImages(number, question.answerImages, answerShot: true);
+  }
+
+  /// 题干配图与答案截图共用同一套嵌入规则：等比缩放、支持的扩展名、
+  /// 像素尺寸校验；note 只差来源前缀（答案截图带「答案截图」字样）。
+  void _appendImages(
+    int number,
+    List<PaperDocxImage> images, {
+    required bool answerShot,
+  }) {
+    final kind = answerShot ? '答案截图' : '';
+    for (final image in images) {
       final fileName = image.fileName?.trim() ?? '';
       final suffix = fileName.isEmpty ? '' : '（$fileName）';
       if (!image.hasUSatisfactoryExtent) {
         imageSkippedCount++;
-        imageSkippedNotes.add('第 $number 题$suffix：图片字节或尺寸信息缺失');
+        imageSkippedNotes.add('第 $number 题$kind$suffix：图片字节或尺寸信息缺失');
         continue;
       }
       if (!supportsDocxImageExtension(image.extension)) {
         imageSkippedCount++;
-        imageSkippedNotes.add('第 $number 题$suffix：格式 ${image.extension} 不支持嵌入');
+        imageSkippedNotes
+            .add('第 $number 题$kind$suffix：格式 ${image.extension} 不支持嵌入');
         continue;
       }
       builder.addImage(
@@ -656,9 +700,14 @@ class _Assembler {
           pixelHeight: image.pixelHeight,
           spacingBeforeTw: 60,
           spacingAfterTw: 40,
-          note: '第 $number 题$suffix',
+          note: '第 $number 题$kind$suffix',
         ),
       );
+      if (answerShot) {
+        _answerImageCount++;
+      } else {
+        _stemImageCount++;
+      }
     }
   }
 
@@ -796,6 +845,29 @@ class _Assembler {
     if (includeReasons) {
       _addReasonLines(item);
     }
+    if (question.answerImages.isNotEmpty) {
+      _addAnswerImagesHeading();
+      _addAnswerImages(number, question);
+    }
+  }
+
+  /// 答案截图前的标签行；只在有截图时出现，无截图时卷面与旧版逐字节一致。
+  void _addAnswerImagesHeading() {
+    builder.addParagraph(
+      DocxParagraph(
+        inlines: <DocxInline>[
+          DocxText(
+            labels.answerImagesLabel,
+            sizeHalfPt: kDocxMetaHalfPt,
+            bold: true,
+            colorHex: '595959',
+          ),
+        ],
+        spacingBeforeTw: 20,
+        spacingAfterTw: 20,
+        keepNext: true,
+      ),
+    );
   }
 
   void _addReasonLines(PaperItem item) {
@@ -1334,8 +1406,9 @@ class _Assembler {
       bytes: bytes,
       questionCount: plan.items.length,
       paragraphCount: builder.paragraphCount,
-      imageCount: builder.imageCount,
+      imageCount: _stemImageCount,
       imageSkippedCount: imageSkippedCount,
+      answerImageCount: _answerImageCount,
       formulaCount: builder.mathCount,
       formulaFailureCount: formulaFailureCount,
       missingQuestionCount: missingQuestionLabels.length,

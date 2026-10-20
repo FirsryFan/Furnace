@@ -441,8 +441,12 @@ class QuestionDocxRow {
   final String? solution;
 
   /// 补上图片后转成装配层要的题目对象。
+  ///
+  /// [images] 是题干配图（v27 的 role=stem），[answerImages] 是答案/解析截图
+  /// （role=answer）：前者跟着题干，后者进附录该题的答案之后。
   PaperDocxQuestion toPaperDocxQuestion({
     List<PaperDocxImage> images = const <PaperDocxImage>[],
+    List<PaperDocxImage> answerImages = const <PaperDocxImage>[],
   }) {
     return PaperDocxQuestion(
       questionId: questionId,
@@ -460,6 +464,7 @@ class QuestionDocxRow {
       answer: answer,
       solution: solution,
       images: images,
+      answerImages: answerImages,
     );
   }
 }

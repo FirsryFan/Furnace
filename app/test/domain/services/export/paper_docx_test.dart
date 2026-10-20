@@ -832,6 +832,266 @@ void main() {
       expect(document, contains('物理：2 道'));
     });
   });
+
+  group('答案与解析截图', () {
+    PaperDocxImage shot(
+      String fileName, {
+      String extension = 'png',
+      int width = 480,
+      int height = 320,
+      List<int> bytes = const <int>[3, 1, 4, 1, 5],
+    }) =>
+        PaperDocxImage(
+          bytes: Uint8List.fromList(bytes),
+          extension: extension,
+          pixelWidth: width,
+          pixelHeight: height,
+          fileName: fileName,
+        );
+
+    Map<String, PaperDocxQuestion> oneQuestion({
+      List<PaperDocxImage> images = const <PaperDocxImage>[],
+      List<PaperDocxImage> answerImages = const <PaperDocxImage>[],
+    }) =>
+        <String, PaperDocxQuestion>{
+          'q1': PaperDocxQuestion(
+            questionId: 'q1',
+            serialNo: 'TR-00001',
+            stem: '求单调区间。',
+            answer: 'B',
+            solution: '由定义可知……',
+            images: images,
+            answerImages: answerImages,
+          ),
+        };
+
+    PaperDocxBuildResult buildOne({
+      List<PaperDocxImage> images = const <PaperDocxImage>[],
+      List<PaperDocxImage> answerImages = const <PaperDocxImage>[],
+      PaperDocxLabels labels = const PaperDocxLabels(),
+      bool includeAnswers = true,
+      bool includeSolutions = true,
+      bool includeReasons = true,
+    }) =>
+        buildPaperDocx(
+          plan: samplePlan(
+            items: <PaperItem>[paperItem('q1')],
+            requestedCount: 1,
+          ),
+          questions: oneQuestion(images: images, answerImages: answerImages),
+          knowledgePointNames: const {'kp1': '函数单调性'},
+          labels: labels,
+          includeAnswers: includeAnswers,
+          includeSolutions: includeSolutions,
+          includeReasons: includeReasons,
+        );
+
+    List<String> mediaKeys(PaperDocxBuildResult result) {
+      final keys = unzipText(result.bytes)
+          .keys
+          .where((key) => key.startsWith('word/media/'))
+          .toList()
+        ..sort();
+      return keys;
+    }
+
+    test('单张答案截图进 media，answerImageCount 与 imageCount 分开', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+      );
+      final entries = unzipText(result.bytes);
+      expect(entries.keys, contains('word/media/image1.png'));
+      expect(result.answerImageCount, 1);
+      expect(result.imageCount, 0);
+      expect(result.imageSkippedCount, 0);
+      final document = entries['word/document.xml']!;
+      expect(document, contains('答案与解析截图'));
+      expect(document, contains('<wp:inline'));
+      expect(document, contains('<wp:extent'));
+    });
+
+    test('题干配图与答案截图同存：媒体两张，正文图在前、截图在附录', () {
+      final result = buildOne(
+        images: <PaperDocxImage>[shot('stem.png')],
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+      );
+      expect(result.imageCount, 1);
+      expect(result.answerImageCount, 1);
+      expect(result.imageSkippedCount, 0);
+      expect(mediaKeys(result), <String>[
+        'word/media/image1.png',
+        'word/media/image2.png',
+      ]);
+      final document = _documentXml(result);
+      final stemImage = document.indexOf('r:embed="rIdImg0"');
+      final answerImage = document.indexOf('r:embed="rIdImg1"');
+      expect(stemImage, greaterThanOrEqualTo(0));
+      expect(answerImage, greaterThan(stemImage));
+      expect(stemImage, lessThan(document.indexOf('参考答案与解析')));
+      expect(
+        document.indexOf('参考答案与解析'),
+        lessThan(document.indexOf('答案与解析截图')),
+      );
+    });
+
+    test('两张答案截图按参数顺序放入附录', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[
+          shot('first.png'),
+          shot('second.png', extension: 'jpeg'),
+        ],
+      );
+      expect(result.answerImageCount, 2);
+      expect(mediaKeys(result), <String>[
+        'word/media/image1.png',
+        'word/media/image2.jpeg',
+      ]);
+      final document = _documentXml(result);
+      expect(
+        document.indexOf('r:embed="rIdImg0"'),
+        lessThan(document.indexOf('r:embed="rIdImg1"')),
+      );
+    });
+
+    test('heic 答案截图跳过，note 带「答案截图」与文件名', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[shot('scan.heic', extension: 'heic')],
+      );
+      expect(result.answerImageCount, 0);
+      expect(result.imageSkippedCount, 1);
+      expect(result.imageSkippedNotes.length, 1);
+      expect(result.imageSkippedNotes.single, contains('第 1 题答案截图'));
+      expect(result.imageSkippedNotes.single, contains('scan.heic'));
+      expect(result.imageSkippedNotes.single, contains('格式 heic 不支持嵌入'));
+      expect(result.hasWarnings, isTrue);
+      final document = _documentXml(result);
+      expect(document, contains('答案与解析截图'));
+      expect(mediaKeys(result), isEmpty);
+    });
+
+    test('0×0 像素的答案截图跳过并区分来源', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[
+          shot('blank.png', width: 0, height: 0),
+        ],
+      );
+      expect(result.answerImageCount, 0);
+      expect(result.imageSkippedCount, 1);
+      expect(result.imageSkippedNotes.single, contains('第 1 题答案截图'));
+      expect(result.imageSkippedNotes.single, contains('图片字节或尺寸信息缺失'));
+    });
+
+    test('无 answerImages 时不渲染标签，输出与旧版一致', () {
+      final result = buildOne();
+      final document = _documentXml(result);
+      expect(result.answerImageCount, 0);
+      expect(result.imageCount, 0);
+      expect(result.imageSkippedCount, 0);
+      expect(result.hasWarnings, isFalse);
+      expect(document, isNot(contains('答案与解析截图')));
+    });
+
+    test('默认构造与显式空列表的答案截图输出一致', () {
+      final implicit = buildPaperDocx(
+        plan: samplePlan(
+          items: <PaperItem>[paperItem('q1')],
+          requestedCount: 1,
+        ),
+        questions: <String, PaperDocxQuestion>{
+          'q1': const PaperDocxQuestion(
+            questionId: 'q1',
+            serialNo: 'TR-00001',
+            stem: '求单调区间。',
+            answer: 'B',
+            solution: '由定义可知……',
+          ),
+        },
+        knowledgePointNames: const {'kp1': '函数单调性'},
+      );
+      final explicit = buildOne(
+        answerImages: const <PaperDocxImage>[],
+      );
+      expect(_documentXml(implicit), _documentXml(explicit));
+      expect(implicit.paragraphCount, explicit.paragraphCount);
+      expect(implicit.answerImageCount, explicit.answerImageCount);
+    });
+
+    test('答案截图不改动正文（答案区之前的内容逐字相同）', () {
+      final without = buildOne(images: <PaperDocxImage>[shot('stem.png')]);
+      final withShot = buildOne(
+        images: <PaperDocxImage>[shot('stem.png')],
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+      );
+      String bodyOf(PaperDocxBuildResult result) {
+        final document = _documentXml(result);
+        return document.substring(0, document.indexOf('参考答案与解析'));
+      }
+
+      expect(bodyOf(withShot), bodyOf(without));
+      expect(withShot.questionCount, without.questionCount);
+      expect(withShot.paragraphCount, greaterThan(without.paragraphCount));
+    });
+
+    test('答案截图标签在解析与理由之后', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+      );
+      final document = _documentXml(result);
+      expect(document.indexOf('解析：'), greaterThanOrEqualTo(0));
+      expect(document.indexOf('理由：'), greaterThanOrEqualTo(0));
+      expect(
+        document.indexOf('解析：'),
+        lessThan(document.indexOf('答案与解析截图')),
+      );
+      expect(
+        document.indexOf('理由：'),
+        lessThan(document.indexOf('答案与解析截图')),
+      );
+    });
+
+    test('答案区整体关闭时答案截图也不渲染', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+        includeAnswers: false,
+        includeSolutions: false,
+        includeReasons: false,
+      );
+      expect(result.answerImageCount, 0);
+      expect(mediaKeys(result), isEmpty);
+      expect(_documentXml(result), isNot(contains('答案与解析截图')));
+    });
+
+    test('标签行可被 labels 覆盖（英文）', () {
+      final result = buildOne(
+        answerImages: <PaperDocxImage>[shot('answer.png')],
+        labels: const PaperDocxLabels(answerImagesLabel: 'Answer Screenshots'),
+      );
+      final document = _documentXml(result);
+      expect(document, contains('Answer Screenshots'));
+      expect(document, isNot(contains('答案与解析截图')));
+    });
+
+    test('题干配图与答案截图同时被跳过时 note 能区分来源', () {
+      final result = buildOne(
+        images: <PaperDocxImage>[shot('stem.heic', extension: 'heic')],
+        answerImages: <PaperDocxImage>[shot('scan.heic', extension: 'heic')],
+      );
+      expect(result.imageSkippedCount, 2);
+      expect(result.imageCount, 0);
+      expect(result.answerImageCount, 0);
+      expect(
+        result.imageSkippedNotes
+            .any((note) => note.contains('第 1 题（stem.heic）')),
+        isTrue,
+      );
+      expect(
+        result.imageSkippedNotes.any(
+          (note) => note.contains('第 1 题答案截图（scan.heic）'),
+        ),
+        isTrue,
+      );
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

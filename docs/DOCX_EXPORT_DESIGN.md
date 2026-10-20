@@ -416,3 +416,55 @@ Word COM（Word 16.0，**pwsh 7** 跑 `verify-word.ps1`；Windows PowerShell 5.1
   （本片前 217）。
 - **未验证**：Word 真机打开带质量节的 docx 排版、小屏滚动与长 evidence 换行、英文文案母语校对、
   报告 loading 首帧立刻点导出的真机行为（测试用挂起 Completer 覆盖）。
+
+## 15. 答案与解析截图（轮次一百三十四，schema v27）
+
+组卷网的答案与解析是一整张 JPEG（登录后可见，免费账号每天约 30 道）。v27 给附件加了 `role`
+（`docs/DATA_MODEL.md` §16），`answer` / `solution` 两类截图不再混进题干配图：导出 Word 时
+它们不进题面位置，而是进卷末附录该题的答案/解析之后。
+
+### 15.1 纯逻辑层（`app/lib/domain/services/export/paper_docx.dart`）
+
+- `PaperDocxQuestion.answerImages`（默认空列表，旧调用零行为变化）。
+- `PaperDocxBuildResult.answerImageCount`（默认 0）；`imageCount` 语义收窄为**题干配图张数**，
+  `imageSkippedCount` 仍是两类合计。默认值而非 required，是因为作用域外的界面测试直接构造
+  这个 result 类。
+- `PaperDocxLabels.answerImagesLabel`（默认「答案与解析截图」）。
+- 渲染：`_addAnswerEntry` 在答案/解析/理由之后，只要 `includeAnswers` / `includeSolutions` /
+  `includeReasons` 有一个为真，就先渲一个小标题（页码元字号半磅 18、加粗、`595959`、keepNext），
+  再按与题干配图**完全相同**的等比缩放/扩展名/像素校验/跳过 note 规则嵌图，note 带
+  「第 N 题答案截图」前缀。三个开关全 false 时答案区整段不渲染，截图不出现、计数为 0。
+- 标签行在 `answerImages` 非空时渲染（即使全部截图被跳过）：让卷面诚实说明「有截图但没放进去」，
+  跳过原因进「导出提示」。若更希望全跳过时不渲染标签，改一行条件即可。
+
+### 15.2 应用层（`app/lib/features/questions/application/paper_docx_export.dart`）
+
+- `loadQuestionDocxImages` 只读 `role = stem`（含 v27 之前的 NULL 旧行）；新增
+  `loadQuestionDocxAnswerImages` 只读 `role = answer`；两者共用按角色参数化的私有加载器，
+  告警文字带「答案截图：」前缀，便于用户分清是哪类图没嵌进去。
+- `QuestionDocxRow.toPaperDocxQuestion({images, answerImages})` 一次装上两类图。
+- `PaperDocxExportResult.answerImageCount` 透出；`imageLoadNotes` 同时收两类告警。
+
+### 15.3 验收
+
+- 纯逻辑 `paper_docx_test.dart` 新增 group「答案与解析截图」**12 例**（单张、题干图+答案图同存、
+  两张顺序、heic 跳过、0×0 像素跳过、无截图不渲染标签、默认构造与显式空列表一致、不改正文、
+  标签位置在解析/理由之后、答案区关闭、英文标签覆盖、两类跳过 note 可区分）；
+  `flutter test test/domain/services/export` → **+169 全绿**。
+- 应用层 `paper_docx_export_test.dart` 新增 group **5 例**（两类分开嵌入、只有答案图、答案图文件
+  被删记告警、答案区关闭不嵌、两个 loader 各读各的角色）→ `+24 全绿`。
+- 详情页保存截图的 UI 由 question-intake 同轮交付（`QUESTION_BANK_DESIGN.md` §11.2）。
+
+### 15.4 Word 真机复测（2026-10-21）
+
+`tool/docx_probe.dart` 增补答案截图素材（`answer-620x860.png`，挂在 q-formula 的 `answerImages`）后
+重新生成样张（7,150 B、37 段、配图 2 + 答案截图 1），用 **pwsh 7 → Word COM** 打开并导出 PDF：
+`OPEN_MS=2380`、`PAGES=2`、`WORDS=553`、`INLINE_SHAPES=3`（2 题干图 + 1 答案图）、`OMATH=29`、
+正文含「答案与解析截图」标签、`PDF_BYTES=208132`。与不带答案截图的旧样张（2 页 / 546 字 / 2 图 /
+PDF 205,630 B）相比：仍是 2 页，信封尺寸与公式数不变，符合「附录截图不挤动正文页码」的预期。
+
+### 15.5 未验证 / 已知限制
+
+- 真实答案截图（用户截的组卷网长图，高宽比更大）没有端到端走过「详情页保存 → 导出 Word」；
+  Word 真测用的是构造的 620×860 图片（等比缩放到版面内）。
+- 英文界面下 `PaperDocxLabels` 默认标签仍是中文（可注入，但界面层还没传英文 labels）。

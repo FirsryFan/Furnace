@@ -457,4 +457,156 @@ void main() {
       );
     });
   });
+  group('答案与解析截图（v27 role=answer）', () {
+    test('题干配图与答案截图分开：前者跟题干、后者进附录', () async {
+      final ingested = await repo.ingest(
+        const QuestionDraft(stem: '带答案截图的题', answer: 'B'),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'stem.png',
+        bytes: tinyPng(width: 40, height: 30),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'answer.png',
+        bytes: tinyPng(width: 50, height: 60),
+        role: QuestionImageRole.answer,
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+      );
+
+      expect(result.report.imageCount, 1);
+      expect(result.answerImageCount, 1);
+      expect(result.imageLoadNotes, isEmpty);
+
+      final names = zipNames(result.bytes);
+      expect(names, contains('word/media/image1.png'));
+      expect(names, contains('word/media/image2.png'));
+
+      final xml = documentXml(result.bytes);
+      expect(xml, contains('答案与解析截图'));
+      expect(
+        xml.indexOf('参考答案与解析'),
+        lessThan(xml.indexOf('答案与解析截图')),
+        reason: '答案截图标签只应出现在附录，不能跑到卷首/题干位置',
+      );
+    });
+
+    test('只有答案截图：题干配图 0 张，附录仍渲染', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '只有答案图'));
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'answer.png',
+        bytes: tinyPng(),
+        role: QuestionImageRole.answer,
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+      );
+
+      expect(result.report.imageCount, 0);
+      expect(result.answerImageCount, 1);
+      expect(result.imageLoadNotes, isEmpty);
+      expect(documentXml(result.bytes), contains('答案与解析截图'));
+      expect(
+        zipNames(result.bytes),
+        contains('word/media/image1.png'),
+      );
+    });
+
+    test('答案截图文件被删：不进卷面但记告警，题干图不受影响', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '答案图丢了'));
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'stem.png',
+        bytes: tinyPng(),
+      );
+      final answer = await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'answer.png',
+        bytes: tinyPng(),
+        role: QuestionImageRole.answer,
+      );
+      File(answer.absolutePath).deleteSync();
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+      );
+
+      expect(result.report.imageCount, 1);
+      expect(result.answerImageCount, 0);
+      expect(result.imageLoadNotes, hasLength(1));
+      expect(result.imageLoadNotes.single, contains('答案截图'));
+      expect(result.imageLoadNotes.single, contains('answer.png'));
+      expect(result.imageLoadNotes.single, contains('文件缺失'));
+      expect(result.hasWarnings, isTrue);
+    });
+
+    test('答案区整体关闭：答案截图不渲染、计数 0', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '关掉答案区'));
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'answer.png',
+        bytes: tinyPng(),
+        role: QuestionImageRole.answer,
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+        includeAnswers: false,
+        includeSolutions: false,
+        includeReasons: false,
+      );
+
+      expect(result.answerImageCount, 0);
+      expect(documentXml(result.bytes), isNot(contains('答案与解析截图')));
+    });
+
+    test('两个 loader 各读各的角色，互不混入', () async {
+      final ingested = await repo.ingest(const QuestionDraft(stem: '两个 loader'));
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'stem.png',
+        bytes: tinyPng(),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'answer.png',
+        bytes: tinyPng(),
+        role: QuestionImageRole.answer,
+      );
+
+      final stems = await loadQuestionDocxImages(
+        mediaStore,
+        <String>[ingested.question.id],
+      );
+      final answers = await loadQuestionDocxAnswerImages(
+        mediaStore,
+        <String>[ingested.question.id],
+      );
+
+      expect(stems.imagesByQuestionId[ingested.question.id], hasLength(1));
+      expect(
+        stems.imagesByQuestionId[ingested.question.id]!.single.fileName,
+        'stem.png',
+      );
+      expect(answers.imagesByQuestionId[ingested.question.id], hasLength(1));
+      expect(
+        answers.imagesByQuestionId[ingested.question.id]!.single.fileName,
+        'answer.png',
+      );
+    });
+  });
 }
