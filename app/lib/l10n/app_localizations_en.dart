@@ -3736,6 +3736,72 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get zujuanPaperOpenButton => 'Scan paper';
+
+  @override
+  String get zujuanPaperTitle => 'Paper check';
+
+  @override
+  String get zujuanPaperIntro =>
+      'Paste the whole Zujuan paper page to see which questions are already in the library and which are missing. The app does not fetch pages; the check is local.';
+
+  @override
+  String get zujuanPaperInputLabel => 'Paste paper page';
+
+  @override
+  String get zujuanPaperInputHint =>
+      'The paper page URL or the whole page text; whatever select-all copy gives you in the browser';
+
+  @override
+  String get zujuanPaperParse => 'Parse';
+
+  @override
+  String get zujuanPaperParseEmpty =>
+      'No questions recognised: paste the whole Zujuan paper page text (it must contain question links).';
+
+  @override
+  String zujuanPaperHeader(int count, int matched, int missing) {
+    return '$count questions · $matched in library · $missing missing';
+  }
+
+  @override
+  String get zujuanPaperUntitled => 'Untitled paper';
+
+  @override
+  String get zujuanPaperMatchedSection => 'In library';
+
+  @override
+  String zujuanPaperMatchedItem(String serial, String preview) {
+    return '$serial · $preview';
+  }
+
+  @override
+  String get zujuanPaperMissingSection => 'Missing';
+
+  @override
+  String zujuanPaperMissingWithLink(String id) {
+    return '$id (link available)';
+  }
+
+  @override
+  String zujuanPaperMissingNoLink(String id) {
+    return '$id (no link)';
+  }
+
+  @override
+  String get zujuanPaperNoBank =>
+      'This page has no paper id (bankId), so missing-question links cannot be built; copy the question page links individually.';
+
+  @override
+  String get zujuanPaperCopyMissing => 'Copy missing links';
+
+  @override
+  String get zujuanPaperCopied => 'Missing links copied';
+
+  @override
+  String get zujuanPaperClose => 'Close';
+
+  @override
   String get questionDetailTitle => 'Question detail';
 
   @override

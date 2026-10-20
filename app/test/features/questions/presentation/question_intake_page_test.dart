@@ -35,6 +35,7 @@ import 'package:furnace/features/questions/presentation/drop_intake_filter.dart'
 import 'package:furnace/features/questions/presentation/drop_intake_reader.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
+import 'package:furnace/features/questions/presentation/zujuan_paper_dialog.dart';
 import 'package:furnace/features/questions/presentation/zujuan_paste_dialog.dart';
 import 'package:furnace/features/questions/presentation/zujuan_pick_panel.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -694,6 +695,27 @@ void main() {
     expect(await repository.all(), isEmpty);
   });
 
+  testWidgets('整卷对照入口：打开对话框，直接关闭不写库', (tester) async {
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.tap(find.byKey(zujuanPaperOpenButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(zujuanPaperDialogKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(zujuanPaperDialogKey),
+        matching: find.text(strings.zujuanPaperTitle),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip(strings.zujuanPaperClose));
+    await tester.pumpAndSettle();
+    expect(find.byKey(zujuanPaperDialogKey), findsNothing);
+    expect(await repository.all(), isEmpty);
+  });
   testWidgets('搜索框提示写明可以一次给多个题号', (tester) async {
     await pumpPage(tester);
     final strings = l10n(tester);

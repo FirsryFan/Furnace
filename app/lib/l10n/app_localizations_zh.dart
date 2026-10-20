@@ -3580,6 +3580,69 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get zujuanPaperOpenButton => '整卷对照';
+
+  @override
+  String get zujuanPaperTitle => '整卷对照';
+
+  @override
+  String get zujuanPaperIntro =>
+      '把组卷网试卷页整段粘进来，对照题库看已收录哪几道、还缺哪几道。App 不抓页面，只做本地对照。';
+
+  @override
+  String get zujuanPaperInputLabel => '粘贴整卷页';
+
+  @override
+  String get zujuanPaperInputHint => '组卷网试卷页 URL 或整页文字；浏览器里能选中全部复制即可';
+
+  @override
+  String get zujuanPaperParse => '解析';
+
+  @override
+  String get zujuanPaperParseEmpty => '没认出题目：粘贴组卷网试卷页的整段内容（要含题目链接）。';
+
+  @override
+  String zujuanPaperHeader(int count, int matched, int missing) {
+    return '共 $count 道 · 已收录 $matched 道 · 缺 $missing 道';
+  }
+
+  @override
+  String get zujuanPaperUntitled => '未命名试卷';
+
+  @override
+  String get zujuanPaperMatchedSection => '已收录';
+
+  @override
+  String zujuanPaperMatchedItem(String serial, String preview) {
+    return '$serial · $preview';
+  }
+
+  @override
+  String get zujuanPaperMissingSection => '缺题';
+
+  @override
+  String zujuanPaperMissingWithLink(String id) {
+    return '$id（有链接）';
+  }
+
+  @override
+  String zujuanPaperMissingNoLink(String id) {
+    return '$id（无链接）';
+  }
+
+  @override
+  String get zujuanPaperNoBank => '这页没带试卷编号（bankId），拿不到缺题链接；请单独复制题目页链接。';
+
+  @override
+  String get zujuanPaperCopyMissing => '复制缺题链接';
+
+  @override
+  String get zujuanPaperCopied => '缺题链接已复制';
+
+  @override
+  String get zujuanPaperClose => '关闭';
+
+  @override
   String get questionDetailTitle => '题目详情';
 
   @override

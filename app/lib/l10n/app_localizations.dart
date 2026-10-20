@@ -6359,6 +6359,114 @@ abstract class AppLocalizations {
   /// **'Imported {saved} · duplicates {duplicates} · failed {failed}'**
   String zujuanPasteSummary(int saved, int duplicates, int failed);
 
+  /// No description provided for @zujuanPaperOpenButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan paper'**
+  String get zujuanPaperOpenButton;
+
+  /// No description provided for @zujuanPaperTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper check'**
+  String get zujuanPaperTitle;
+
+  /// No description provided for @zujuanPaperIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the whole Zujuan paper page to see which questions are already in the library and which are missing. The app does not fetch pages; the check is local.'**
+  String get zujuanPaperIntro;
+
+  /// No description provided for @zujuanPaperInputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste paper page'**
+  String get zujuanPaperInputLabel;
+
+  /// No description provided for @zujuanPaperInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The paper page URL or the whole page text; whatever select-all copy gives you in the browser'**
+  String get zujuanPaperInputHint;
+
+  /// No description provided for @zujuanPaperParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse'**
+  String get zujuanPaperParse;
+
+  /// No description provided for @zujuanPaperParseEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions recognised: paste the whole Zujuan paper page text (it must contain question links).'**
+  String get zujuanPaperParseEmpty;
+
+  /// No description provided for @zujuanPaperHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} questions · {matched} in library · {missing} missing'**
+  String zujuanPaperHeader(int count, int matched, int missing);
+
+  /// No description provided for @zujuanPaperUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled paper'**
+  String get zujuanPaperUntitled;
+
+  /// No description provided for @zujuanPaperMatchedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'In library'**
+  String get zujuanPaperMatchedSection;
+
+  /// No description provided for @zujuanPaperMatchedItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{serial} · {preview}'**
+  String zujuanPaperMatchedItem(String serial, String preview);
+
+  /// No description provided for @zujuanPaperMissingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get zujuanPaperMissingSection;
+
+  /// No description provided for @zujuanPaperMissingWithLink.
+  ///
+  /// In en, this message translates to:
+  /// **'{id} (link available)'**
+  String zujuanPaperMissingWithLink(String id);
+
+  /// No description provided for @zujuanPaperMissingNoLink.
+  ///
+  /// In en, this message translates to:
+  /// **'{id} (no link)'**
+  String zujuanPaperMissingNoLink(String id);
+
+  /// No description provided for @zujuanPaperNoBank.
+  ///
+  /// In en, this message translates to:
+  /// **'This page has no paper id (bankId), so missing-question links cannot be built; copy the question page links individually.'**
+  String get zujuanPaperNoBank;
+
+  /// No description provided for @zujuanPaperCopyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy missing links'**
+  String get zujuanPaperCopyMissing;
+
+  /// No description provided for @zujuanPaperCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing links copied'**
+  String get zujuanPaperCopied;
+
+  /// No description provided for @zujuanPaperClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get zujuanPaperClose;
+
   /// No description provided for @questionDetailTitle.
   ///
   /// In en, this message translates to:

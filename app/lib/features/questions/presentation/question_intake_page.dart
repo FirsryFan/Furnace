@@ -40,6 +40,7 @@ import 'question_media_view.dart';
 import 'handwriting_queue_page.dart';
 import 'question_paper_page.dart';
 import 'question_vocab_labels.dart';
+import 'zujuan_paper_dialog.dart';
 import 'zujuan_paste_dialog.dart';
 import 'zujuan_pick_panel.dart';
 
@@ -502,6 +503,16 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     );
   }
 
+  /// 打开「整卷对照」对话框：粘贴组卷网试卷页 → 已收录 / 缺题清单。
+  ///
+  /// 对照只读本地库、不联网；缺题链接由对话框复制出去，浏览器打开仍是用户自己来。
+  void _openZujuanPaper() {
+    unawaited(showZujuanPaperDialog(
+      context,
+      l10n: AppLocalizations.of(context),
+    ));
+  }
+
   Future<void> _confirmDelete(Question question) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -619,6 +630,7 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
                   onSubmit: _submit,
                   onOpenZujuanPick: _openZujuanPick,
                   onOpenZujuanPaste: _openZujuanPaste,
+                  onOpenZujuanPaper: _openZujuanPaper,
                 ),
                 const SizedBox(height: 12),
                 _HandwritingCard(
@@ -747,6 +759,7 @@ class _IntakeFormCard extends StatelessWidget {
     required this.onSubmit,
     required this.onOpenZujuanPick,
     required this.onOpenZujuanPaste,
+    required this.onOpenZujuanPaper,
   });
 
   final TextEditingController stemController;
@@ -771,6 +784,7 @@ class _IntakeFormCard extends StatelessWidget {
   final VoidCallback onSubmit;
   final VoidCallback onOpenZujuanPick;
   final VoidCallback onOpenZujuanPaste;
+  final VoidCallback onOpenZujuanPaper;
 
   @override
   Widget build(BuildContext context) {
@@ -803,6 +817,15 @@ class _IntakeFormCard extends StatelessWidget {
                     onPressed: onOpenZujuanPaste,
                     icon: const Icon(Icons.content_paste_go),
                     label: Text(l10n.zujuanPasteOpenButton),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: zujuanPaperOpenButtonKey,
+                    onPressed: onOpenZujuanPaper,
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: Text(l10n.zujuanPaperOpenButton),
                   ),
                 ),
               ],
