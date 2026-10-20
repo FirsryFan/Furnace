@@ -637,7 +637,8 @@ void main() {
     await pumpPage(tester);
 
     expect(find.text('清单里的那道题'), findsOneWidget);
-    expect(find.textContaining('TR-00001'), findsOneWidget);
+    // 搜索框提示里也举了 TR-00001，所以这里认带「 · 」的副标题行。
+    expect(find.textContaining('TR-00001 ·'), findsOneWidget);
     // 缩略图要等 readBytes 的 future 回来才会变成 Image（之前是占位图标）。
     for (var i = 0; i < 40 && find.byType(Image).evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -691,5 +692,86 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(zujuanPasteDialogKey), findsNothing);
     expect(await repository.all(), isEmpty);
+  });
+
+  testWidgets('搜索框提示写明可以一次给多个题号', (tester) async {
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    expect(find.text(strings.questionIntakeSearchHint), findsOneWidget);
+    expect(strings.questionIntakeSearchHint, contains('TR-00001'));
+  });
+
+  testWidgets('一次给多个题号：逗号分隔的两个号都命中', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '第一题'));
+    await repository.ingest(const QuestionDraft(stem: '第二题'));
+    await repository.ingest(const QuestionDraft(stem: '第三题'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.enterText(
+      field(strings.questionIntakeSearchHint),
+      'TR-00001, TR-00003',
+    );
+    await settle(tester);
+
+    expect(find.text('第一题'), findsOneWidget);
+    expect(find.text('第三题'), findsOneWidget);
+    expect(find.text('第二题'), findsNothing);
+  });
+
+  testWidgets('区间输入：2-3 命中两题', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '第一题'));
+    await repository.ingest(const QuestionDraft(stem: '第二题'));
+    await repository.ingest(const QuestionDraft(stem: '第三题'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.enterText(field(strings.questionIntakeSearchHint), '2-3');
+    await settle(tester);
+
+    expect(find.text('第二题'), findsOneWidget);
+    expect(find.text('第三题'), findsOneWidget);
+    expect(find.text('第一题'), findsNothing);
+  });
+
+  testWidgets('题号 + 题干混合：并集去重（号命中在前，同一题只出现一次）', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '牛顿第一定律'));
+    await repository.ingest(const QuestionDraft(stem: '牛顿第二定律'));
+    await repository.ingest(const QuestionDraft(stem: '光合作用'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    // 1 号题号命中 + 「牛顿」题干命中第二题；第一题同时被两边命中，只留一行。
+    await tester.enterText(field(strings.questionIntakeSearchHint), '1 牛顿');
+    await settle(tester);
+
+    expect(find.text('牛顿第一定律'), findsOneWidget);
+    expect(find.text('牛顿第二定律'), findsOneWidget);
+    expect(find.text('光合作用'), findsNothing);
+  });
+
+  testWidgets('搜索后点清空：题号与题干一起清，列表恢复全量', (tester) async {
+    await repository.ingest(const QuestionDraft(stem: '第一题'));
+    await repository.ingest(const QuestionDraft(stem: '第二题'));
+
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.enterText(
+      field(strings.questionIntakeSearchHint),
+      'TR-00001',
+    );
+    await settle(tester);
+    expect(find.text('第二题'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.clear));
+    await settle(tester);
+
+    expect(find.text('第一题'), findsOneWidget);
+    expect(find.text('第二题'), findsOneWidget);
   });
 }

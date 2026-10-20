@@ -637,7 +637,7 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
                     _stemSearchController.clear();
                     _setFilter((current) => current.copyWith(
                           clearStem: true,
-                          clearSerialNo: true,
+                          clearSerialNos: true,
                         ));
                   },
                   onOpen: _openDetail,

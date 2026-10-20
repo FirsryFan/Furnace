@@ -3550,7 +3550,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionIntakeCancel => 'Cancel';
 
   @override
-  String get questionIntakeSearchHint => 'Search stems or serial numbers';
+  String get questionIntakeSearchHint =>
+      'Search stems or serial numbers (multiple: TR-00001, 2-5)';
 
   @override
   String get questionIntakeFilterAll => 'All';

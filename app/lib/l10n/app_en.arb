@@ -1790,7 +1790,7 @@
   },
   "questionIntakeDeleteConfirm": "Delete this question? It will not come back from sync.",
   "questionIntakeCancel": "Cancel",
-  "questionIntakeSearchHint": "Search stems or serial numbers",
+  "questionIntakeSearchHint": "Search stems or serial numbers (multiple: TR-00001, 2-5)",
   "questionIntakeFilterAll": "All",
   "questionIntakeOptionCount": "{count} options",
   "@questionIntakeOptionCount": {

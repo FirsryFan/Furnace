@@ -6038,7 +6038,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionIntakeSearchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search stems or serial numbers'**
+  /// **'Search stems or serial numbers (multiple: TR-00001, 2-5)'**
   String get questionIntakeSearchHint;
 
   /// No description provided for @questionIntakeFilterAll.

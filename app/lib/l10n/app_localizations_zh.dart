@@ -3403,7 +3403,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionIntakeCancel => '取消';
 
   @override
-  String get questionIntakeSearchHint => '搜题干或题号';
+  String get questionIntakeSearchHint => '搜题干或题号（可多个：TR-00001, 2-5）';
 
   @override
   String get questionIntakeFilterAll => '全部';

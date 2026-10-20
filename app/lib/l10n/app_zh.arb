@@ -1670,7 +1670,7 @@
   },
   "questionIntakeDeleteConfirm": "删除这道题？它不会被同步回来。",
   "questionIntakeCancel": "取消",
-  "questionIntakeSearchHint": "搜题干或题号",
+  "questionIntakeSearchHint": "搜题干或题号（可多个：TR-00001, 2-5）",
   "questionIntakeFilterAll": "全部",
   "questionIntakeOptionCount": "{count} 个选项",
   "@questionIntakeOptionCount": {
