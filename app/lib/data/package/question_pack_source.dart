@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import '../../domain/services/package/question_pack_plan.dart';
 import '../../domain/services/package/question_pack_record.dart';
+import '../../domain/services/package/question_pack_selection.dart';
 import '../database/database.dart';
 
 /// 读取一个相对路径的媒体字节；文件不在了返回 null。
@@ -64,10 +65,14 @@ class QuestionPackSourceSnapshot {
   bool get hasWarnings => warnings.isNotEmpty;
 }
 
-/// 从题库读出全部题目与它们的配图字节。
+/// 从题库读出（可按 [selection] 筛选的）题目与它们的配图字节。
+///
+/// 筛选在解码配图字节**之前**做：没选中的题不会读磁盘上的图片文件。
+/// 包内题号按筛选后的顺序从 1 重新编号——包只是一次导出的子集，不是题库快照。
 Future<QuestionPackSourceSnapshot> readQuestionPackSource({
   required AppDatabase database,
   required QuestionPackMediaBytesReader readMedia,
+  QuestionPackSelection selection = const QuestionPackSelection(),
 }) async {
   final questionRows = await database.select(database.questions).get();
   final optionRows = await database.select(database.questionOptions).get();
@@ -120,7 +125,21 @@ Future<QuestionPackSourceSnapshot> readQuestionPackSource({
     });
   }
 
-  final ordered = List<Question>.of(questionRows)..sort(_compareQuestions);
+  final ordered = <Question>[
+    for (final question in (List<Question>.of(questionRows)
+      ..sort(_compareQuestions)))
+      if (questionPackFieldsMatchSelection(
+        subjectKey: question.subjectKey,
+        sourceLevel: question.sourceLevel,
+        serialNo: question.serialNo,
+        tagPaths: <String>[
+          for (final tagId in tagIdsByQuestion[question.id] ?? const <String>{})
+            if (pathByTagId[tagId] case final String path) path,
+        ],
+        selection: selection,
+      ))
+        question,
+  ];
 
   final records = <QuestionPackRecord>[];
   final mediaBytes = <String, Uint8List>{};

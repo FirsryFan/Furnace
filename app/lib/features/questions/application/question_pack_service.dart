@@ -1,8 +1,9 @@
 /// 题库包（.tqb）的导出/导入服务（应用层）。
 ///
-/// 三件事：
-///  - [QuestionPackService.exportBytes]：读题库 → 打 zip → 返回字节（保存交给 UI）；
+/// 四件事：
+///  - [QuestionPackService.exportBytes]：读题库（可筛选）→ 打 zip → 返回字节（保存交给 UI）；
 ///  - [QuestionPackService.peek]：只读清单，给导入前的确认框用；
+///  - [QuestionPackService.planImport]：导入前预检（解码 + 对账 + 合并计划，不写库）；
 ///  - [QuestionPackService.importPack]：解码 → 定合并计划 → 逐题入库 → 存配图。
 ///
 /// 导入口径（与 `docs/QUESTION_BANK_DESIGN.md` §20 一致）：**只新增，不覆盖、
@@ -25,9 +26,11 @@ import '../../../data/package/question_pack_source.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
+import '../../../domain/services/package/question_pack_import_preview.dart';
 import '../../../domain/services/package/question_pack_manifest.dart';
 import '../../../domain/services/package/question_pack_plan.dart';
 import '../../../domain/services/package/question_pack_record.dart';
+import '../../../domain/services/package/question_pack_selection.dart';
 import '../data/question_media_store.dart';
 import 'question_media_providers.dart';
 
@@ -122,11 +125,17 @@ class QuestionPackService {
   final QuestionMediaStore _mediaStore;
   final TagRepository _tags;
 
-  /// 导出整个题库为 `.tqb` 字节。
-  Future<QuestionPackExportResult> exportBytes({DateTime? now}) async {
+  /// 导出（默认整个、可按 [selection] 筛选）题库为 `.tqb` 字节。
+  ///
+  /// 筛选只影响包内容与清单计数，不改库；未选中的题不会读配图文件。
+  Future<QuestionPackExportResult> exportBytes({
+    DateTime? now,
+    QuestionPackSelection selection = const QuestionPackSelection(),
+  }) async {
     final snapshot = await readQuestionPackSource(
       database: _database,
       readMedia: _mediaStore.readBytes,
+      selection: selection,
     );
     final manifest = QuestionPackManifest(
       exportedAt: now ?? DateTime.now(),
@@ -155,6 +164,26 @@ class QuestionPackService {
       mediaCount: manifest.mediaCount,
       appVersion: manifest.appVersion,
       exportedAt: manifest.exportedAt,
+    );
+  }
+
+  /// 导入前预检：解码、对账清单、算出合并计划，**不写库、不落图**。
+  ///
+  /// 坏包抛 [QuestionPackException] / [FormatException]；只读数据库
+  /// （题干指纹与标签路径）来判定会新增还是跳过。
+  Future<QuestionPackImportPreview> planImport(Uint8List bytes) async {
+    final archive = decodeQuestionPackArchive(bytes);
+    final tagByPath = await _tagByPath();
+    final plan = planQuestionPackImport(
+      records: archive.records,
+      fingerprintOf: stemFingerprint,
+      existingFingerprints: await _existingFingerprints(),
+      existingTagPaths: tagByPath.keys.toSet(),
+    );
+    return buildQuestionPackImportPreview(
+      manifest: archive.manifest,
+      records: archive.records,
+      plan: plan,
     );
   }
 
