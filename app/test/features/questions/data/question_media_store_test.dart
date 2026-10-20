@@ -272,4 +272,163 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  group('角色（v27 attachments.role）', () {
+    test('effectiveQuestionImageRole：NULL/空串算题干配图，其它原样', () {
+      expect(effectiveQuestionImageRole(null), QuestionImageRole.stem);
+      expect(effectiveQuestionImageRole(''), QuestionImageRole.stem);
+      expect(effectiveQuestionImageRole('   '), QuestionImageRole.stem);
+      expect(effectiveQuestionImageRole('stem'), QuestionImageRole.stem);
+      expect(effectiveQuestionImageRole('answer'), QuestionImageRole.answer);
+      expect(effectiveQuestionImageRole('solution'), QuestionImageRole.solution);
+      // 不认识的也原样留着：读侧不假装它是题干图。
+      expect(effectiveQuestionImageRole('weird'), 'weird');
+    });
+
+    test('save：缺省写 stem，显式 answer 写 answer', () async {
+      final stem = await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+      final answer = await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      expect(stem.role, QuestionImageRole.stem);
+      expect(answer.role, QuestionImageRole.answer);
+
+      final rows = await (db.select(db.attachments)
+            ..where((t) => t.ownerId.equals('q-role')))
+          .get();
+      final byName = {for (final row in rows) p.basename(row.relPath): row};
+      expect(byName['stem.png']!.role, QuestionImageRole.stem);
+      expect(byName['answer.png']!.role, QuestionImageRole.answer);
+    });
+
+    test('list：不传 role 返回全部角色', () async {
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      final all = await store.list('q-role');
+      expect(all.map((image) => image.fileName), ['stem.png', 'answer.png']);
+      expect(all.map((image) => image.role),
+          [QuestionImageRole.stem, QuestionImageRole.answer]);
+    });
+
+    test('list：stem 含 NULL 旧行但排掉 answer，answer 只给答案截图', () async {
+      // v27 之前写下的行：role 是 NULL。
+      await db.into(db.attachments).insert(
+            AttachmentsCompanion.insert(
+              id: 'att-legacy',
+              ownerType: QuestionMediaStore.ownerType,
+              ownerId: 'q-role',
+              relPath: 'question_images/q-role/att-legacy/legacy.png',
+              createdAt: 1,
+            ),
+          );
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'new-stem.png',
+        bytes: bytesOf([1]),
+      );
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      final stems = await store.list('q-role', role: QuestionImageRole.stem);
+      // 排序是 sortOrder 优先：旧行缺省 0，新题干图接在它后面（1）。
+      expect(stems.map((image) => image.fileName),
+          ['legacy.png', 'new-stem.png']);
+      expect(stems.map((image) => image.role),
+          [QuestionImageRole.stem, QuestionImageRole.stem],
+          reason: 'NULL 旧行读出来折成 stem，但库里仍是 NULL');
+      // 写入时按角色分别排号：旧行的 NULL 算 stem，所以新 stem 图接在 1。
+      expect(stems.last.sortOrder, 1);
+
+      final answers = await store.list('q-role', role: QuestionImageRole.answer);
+      expect(answers.map((image) => image.fileName), ['answer.png']);
+
+      final rawRows = await (db.select(db.attachments)
+            ..where((t) => t.id.equals('att-legacy')))
+          .getSingle();
+      expect(rawRows.role, isNull, reason: '迁移不回填，NULL 是兼容语义');
+    });
+
+    test('sortOrder：题干配图与答案截图各自从 0 起排序', () async {
+      final stem0 = await store.save(
+        questionId: 'q-role',
+        fileName: 's0.png',
+        bytes: bytesOf([1]),
+      );
+      final answer0 = await store.save(
+        questionId: 'q-role',
+        fileName: 'a0.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+      final stem1 = await store.save(
+        questionId: 'q-role',
+        fileName: 's1.png',
+        bytes: bytesOf([3]),
+      );
+      final answer1 = await store.save(
+        questionId: 'q-role',
+        fileName: 'a1.png',
+        bytes: bytesOf([4]),
+        role: QuestionImageRole.answer,
+      );
+
+      expect([stem0.sortOrder, stem1.sortOrder], [0, 1]);
+      expect([answer0.sortOrder, answer1.sortOrder], [0, 1]);
+    });
+
+    test('deleteForQuestion：两个角色的图一起删', () async {
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+      final answer = await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      final removed = await store.deleteForQuestion('q-role');
+
+      expect(removed, 2);
+      expect(File(answer.absolutePath).existsSync(), isFalse);
+      expect(await attachmentCount('q-role'), 0);
+    });
+
+    test('save：不认识的角色值原样落库，不静默改写成 stem', () async {
+      final odd = await store.save(
+        questionId: 'q-role',
+        fileName: 'odd.png',
+        bytes: bytesOf([1]),
+        role: 'scan_extra',
+      );
+      expect(odd.role, 'scan_extra');
+      expect(await store.list('q-role', role: QuestionImageRole.stem), isEmpty);
+      final all = await store.list('q-role');
+      expect(all.single.role, 'scan_extra');
+    });
+  });
 }

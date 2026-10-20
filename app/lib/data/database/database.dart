@@ -105,9 +105,10 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
-  /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26].
+  /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
+  /// [_upgradeV26ToV27].
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration {
@@ -190,6 +191,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 26) {
           await _upgradeV25ToV26();
+        }
+        if (from < 27) {
+          await _upgradeV26ToV27();
         }
       },
       beforeOpen: (details) async {
@@ -291,6 +295,10 @@ class AppDatabase extends _$AppDatabase {
     }
     if (await _tableExists('attachments')) {
       await _addColumnIfMissing(m, 'attachments', attachments.sortOrder);
+      // v27（轮次一百三十四）：附件角色（题干配图 / 答案截图）。同一个失败模式——
+      // 老文件被盖成 v27 却没有这一列时，Drift 跳过 onUpgrade，读配图的映射器
+      // 直接抛 no such column。列可空，补上即可，没有回填这一步。
+      await _addColumnIfMissing(m, 'attachments', attachments.role);
     }
     // v26（轮次一百二十九）：题目的外部来源锚点（来源 URL + 组卷网 qid/bankid）。
     // 同一个失败模式——老文件被盖成 v26 却没有这三列时，Drift 跳过 onUpgrade，
@@ -756,6 +764,23 @@ class AppDatabase extends _$AppDatabase {
     await _addColumnIfMissing(m, 'questions', questions.sourceUrl);
     await _addColumnIfMissing(m, 'questions', questions.zujuanQuestionId);
     await _addColumnIfMissing(m, 'questions', questions.zujuanBankId);
+  }
+
+  /// v26 -> v27：附件角色 `attachments.role`（轮次一百三十四）。
+  ///
+  /// 纯新增一列、可空：NULL 读作「题干配图」（v27 之前的所有题目图片都是题干
+  /// 配图，答案截图是这一版才有的东西），'stem' / 'answer' 由写侧显式写。
+  /// 迁移只补列，不替旧行回填 'stem'——NULL 已经是明确的兼容语义，回填反而
+  /// 让「旧数据」和「新写的题干图」在库里长得一样、以后想区分就再也分不出来。
+  ///
+  /// 表不存在就跳过：被盖成 v27 的空文件由 [_ensureColumns] 自愈，在这里
+  /// createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV26ToV27() async {
+    if (!await _tableExists('attachments')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'attachments', attachments.role);
   }
 
   Future<void> _upgradeV4ToV5() async {

@@ -734,6 +734,18 @@ class Attachments extends Table {
   /// （AI 消息、拍照整理）不写这一列，落默认 0，语义与以前一致。
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 这张图在题目里是什么角色（v27，轮次一百三十四）。
+  ///
+  /// - NULL：v27 之前写下的旧行，或其它 owner 的附件；读侧一律按
+  ///   [QuestionImageRole.stem]（题干配图）处理，旧题库看起来不变。
+  /// - 'stem'：题干配图（拍照的题干、印刷页截图）。
+  /// - 'answer'：答案/解析截图。组卷网登录后才看得到的答案是一整张 JPEG，
+  ///   用户截图/拍照存进来，导出 Word 时渲染在解析之后。
+  /// - 'solution'：预留给以后的「独立解析截图」，本轮没有写入方。
+  ///
+  /// 只有题目（`ownerType = 'question'`）用这一列；其它 owner 不写，落 NULL。
+  TextColumn get role => text().nullable()();
+
   IntColumn get createdAt => integer()();
 
   @override

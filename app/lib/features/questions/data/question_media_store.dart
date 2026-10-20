@@ -24,6 +24,33 @@ import '../../../data/database/database.dart';
 import '../../../data/ids.dart';
 import '../../../data/media/image_mime.dart';
 
+/// 一张题目图片在题目里的角色（`attachments.role`，v27 起）。
+///
+/// 库里的列是可空的；NULL 的含义是「v27 之前写下的行」或者「别的 owner 的
+/// 附件」，读侧一律按 [stem] 处理（见 [effectiveQuestionImageRole]）。
+class QuestionImageRole {
+  const QuestionImageRole._();
+
+  /// 题干配图：拍照的题干、印刷页截图。
+  static const String stem = 'stem';
+
+  /// 答案/解析截图：用户在组卷网登录后看到的整张答案 JPEG，截图存进来。
+  static const String answer = 'answer';
+
+  /// 预留给以后的「独立解析截图」；本轮没有写入方。
+  static const String solution = 'solution';
+}
+
+/// 把库里存的角色值折成读侧语义：NULL / 空串 → [QuestionImageRole.stem]；
+/// 其它非空值原样返回（不认识的也原样留着，界面按 stem 之外的独立区处理）。
+String effectiveQuestionImageRole(String? stored) {
+  final trimmed = stored?.trim() ?? '';
+  if (trimmed.isEmpty) {
+    return QuestionImageRole.stem;
+  }
+  return trimmed;
+}
+
 /// 一道题下的一张已经落盘的配图。
 class QuestionImage {
   const QuestionImage({
@@ -32,6 +59,7 @@ class QuestionImage {
     required this.absolutePath,
     required this.fileName,
     required this.sortOrder,
+    this.role = QuestionImageRole.stem,
     this.mime,
     this.createdAt,
   });
@@ -48,8 +76,13 @@ class QuestionImage {
   /// 用户添加时的文件名，界面上认得出是哪张图。
   final String fileName;
 
-  /// 同一道题内的显示顺序（0 起）；新建时接在已有图片后面。
+  /// 同一道题内的显示顺序（0 起）；新建时接在**同角色**已有图片的后面。
   final int sortOrder;
+
+  /// 这张图的角色：[QuestionImageRole.stem] 或 [QuestionImageRole.answer]。
+  ///
+  /// 读侧已经折过 NULL（见 [effectiveQuestionImageRole]），所以这里不会是 null。
+  final String role;
 
   /// 从扩展名推出来的 MIME；认不出来时为 null。
   final String? mime;
@@ -86,14 +119,17 @@ class QuestionMediaStore {
   /// 只复制字节、不重编码：题目图片常常是整页印刷题或手写答案，重编码会把小字
   /// 压没（拍照整理那条通路也是这个口径）。
   ///
-  /// [sortOrder] 不传就接在这道题现有图片的后面（0 起）。[mime] 不传就按扩展名
-  /// 推，推不出来落 NULL。
+  /// [sortOrder] 不传就接在这道题**同角色**现有图片的后面（0 起）；题干配图与
+  /// 答案截图各排各的，互不挤号。[mime] 不传就按扩展名推，推不出来落 NULL。
+  ///
+  /// [role] 不传就是题干配图；写答案截图时传 [QuestionImageRole.answer]。
   Future<QuestionImage> save({
     required String questionId,
     required String fileName,
     required Uint8List bytes,
     String? mime,
     int? sortOrder,
+    String role = QuestionImageRole.stem,
     DateTime? now,
   }) async {
     final id = questionId.trim();
@@ -113,7 +149,8 @@ class QuestionMediaStore {
     await file.writeAsBytes(bytes, flush: true);
 
     final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
-    final order = sortOrder ?? await _nextSortOrder(id);
+    final effectiveRole = effectiveQuestionImageRole(role);
+    final order = sortOrder ?? await _nextSortOrder(id, effectiveRole);
     await _db.into(_db.attachments).insert(
           AttachmentsCompanion.insert(
             id: attachmentId,
@@ -121,6 +158,7 @@ class QuestionMediaStore {
             ownerId: id,
             relPath: relPath,
             mime: Value(resolvedMime),
+            role: Value(effectiveRole),
             sortOrder: Value(order),
             createdAt: ms,
           ),
@@ -131,17 +169,29 @@ class QuestionMediaStore {
       absolutePath: absolute,
       fileName: safeName,
       sortOrder: order,
+      role: effectiveRole,
       mime: resolvedMime,
       createdAt: DateTime.fromMillisecondsSinceEpoch(ms).toLocal(),
     );
   }
 
-  /// 一道题的配图，按 `sortOrder` 排（同序按写入时间、id 兜底，绝不依赖毫秒
+  /// 一道题的图片，按 `sortOrder` 排（同序按写入时间、id 兜底，绝不依赖毫秒
   /// 撞不撞）。
-  Future<List<QuestionImage>> list(String questionId) async {
+  ///
+  /// [role] 不传返回全部角色；传 [QuestionImageRole.stem] 时**同时匹配 NULL**
+  ///（v27 之前写下的旧行），这样旧题库的配图一张都不会消失；传
+  /// [QuestionImageRole.answer] 就只返回答案截图。
+  Future<List<QuestionImage>> list(String questionId, {String? role}) async {
+    final owned = _db.attachments.ownerType.equals(ownerType) &
+        _db.attachments.ownerId.equals(questionId.trim());
+    final roleFilter = role == null
+        ? null
+        : (effectiveQuestionImageRole(role) == QuestionImageRole.stem
+            ? (_db.attachments.role.isNull() |
+                _db.attachments.role.equals(QuestionImageRole.stem))
+            : _db.attachments.role.equals(effectiveQuestionImageRole(role)));
     final rows = await (_db.select(_db.attachments)
-          ..where((t) =>
-              t.ownerType.equals(ownerType) & t.ownerId.equals(questionId.trim()))
+          ..where((t) => roleFilter == null ? owned : owned & roleFilter)
           ..orderBy([
             (t) => OrderingTerm.asc(t.sortOrder),
             (t) => OrderingTerm.asc(t.createdAt),
@@ -156,6 +206,7 @@ class QuestionMediaStore {
         absolutePath: await absolutePath(row.relPath),
         fileName: p.basename(row.relPath),
         sortOrder: row.sortOrder,
+        role: effectiveQuestionImageRole(row.role),
         mime: row.mime,
         createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt).toLocal(),
       ));
@@ -209,12 +260,18 @@ class QuestionMediaStore {
     return images.length;
   }
 
-  Future<int> _nextSortOrder(String questionId) async {
+  Future<int> _nextSortOrder(String questionId, String role) async {
+    final wanted = effectiveQuestionImageRole(role);
+    final owned = _db.attachments.ownerType.equals(ownerType) &
+        _db.attachments.ownerId.equals(questionId);
+    final roleFilter = wanted == QuestionImageRole.stem
+        ? (_db.attachments.role.isNull() |
+            _db.attachments.role.equals(QuestionImageRole.stem))
+        : _db.attachments.role.equals(wanted);
     final maxOrder = _db.attachments.sortOrder.max();
     final query = _db.selectOnly(_db.attachments)
       ..addColumns([maxOrder])
-      ..where(_db.attachments.ownerType.equals(ownerType) &
-          _db.attachments.ownerId.equals(questionId));
+      ..where(owned & roleFilter);
     final row = await query.getSingleOrNull();
     final current = row?.read(maxOrder);
     return current == null ? 0 : current + 1;

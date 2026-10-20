@@ -11337,6 +11337,11 @@ class $AttachmentsTable extends Attachments
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -11345,7 +11350,7 @@ class $AttachmentsTable extends Attachments
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, ownerType, ownerId, relPath, mime, sortOrder, createdAt];
+      [id, ownerType, ownerId, relPath, mime, sortOrder, role, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -11387,6 +11392,10 @@ class $AttachmentsTable extends Attachments
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -11414,6 +11423,8 @@ class $AttachmentsTable extends Attachments
           .read(DriftSqlType.string, data['${effectivePrefix}mime']),
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
     );
@@ -11438,6 +11449,18 @@ class Attachment extends DataClass implements Insertable<Attachment> {
   /// 列表要按用户添加的先后展示，不能靠 `createdAt` 撞毫秒。其它 owner
   /// （AI 消息、拍照整理）不写这一列，落默认 0，语义与以前一致。
   final int sortOrder;
+
+  /// 这张图在题目里是什么角色（v27，轮次一百三十四）。
+  ///
+  /// - NULL：v27 之前写下的旧行，或其它 owner 的附件；读侧一律按
+  ///   [QuestionImageRole.stem]（题干配图）处理，旧题库看起来不变。
+  /// - 'stem'：题干配图（拍照的题干、印刷页截图）。
+  /// - 'answer'：答案/解析截图。组卷网登录后才看得到的答案是一整张 JPEG，
+  ///   用户截图/拍照存进来，导出 Word 时渲染在解析之后。
+  /// - 'solution'：预留给以后的「独立解析截图」，本轮没有写入方。
+  ///
+  /// 只有题目（`ownerType = 'question'`）用这一列；其它 owner 不写，落 NULL。
+  final String? role;
   final int createdAt;
   const Attachment(
       {required this.id,
@@ -11446,6 +11469,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       required this.relPath,
       this.mime,
       required this.sortOrder,
+      this.role,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11458,6 +11482,9 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       map['mime'] = Variable<String>(mime);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(role);
+    }
     map['created_at'] = Variable<int>(createdAt);
     return map;
   }
@@ -11470,6 +11497,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       relPath: Value(relPath),
       mime: mime == null && nullToAbsent ? const Value.absent() : Value(mime),
       sortOrder: Value(sortOrder),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
       createdAt: Value(createdAt),
     );
   }
@@ -11484,6 +11512,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       relPath: serializer.fromJson<String>(json['relPath']),
       mime: serializer.fromJson<String?>(json['mime']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      role: serializer.fromJson<String?>(json['role']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
@@ -11497,6 +11526,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       'relPath': serializer.toJson<String>(relPath),
       'mime': serializer.toJson<String?>(mime),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'role': serializer.toJson<String?>(role),
       'createdAt': serializer.toJson<int>(createdAt),
     };
   }
@@ -11508,6 +11538,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           String? relPath,
           Value<String?> mime = const Value.absent(),
           int? sortOrder,
+          Value<String?> role = const Value.absent(),
           int? createdAt}) =>
       Attachment(
         id: id ?? this.id,
@@ -11516,6 +11547,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
         relPath: relPath ?? this.relPath,
         mime: mime.present ? mime.value : this.mime,
         sortOrder: sortOrder ?? this.sortOrder,
+        role: role.present ? role.value : this.role,
         createdAt: createdAt ?? this.createdAt,
       );
   Attachment copyWithCompanion(AttachmentsCompanion data) {
@@ -11526,6 +11558,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       relPath: data.relPath.present ? data.relPath.value : this.relPath,
       mime: data.mime.present ? data.mime.value : this.mime,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      role: data.role.present ? data.role.value : this.role,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -11539,14 +11572,15 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           ..write('relPath: $relPath, ')
           ..write('mime: $mime, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('role: $role, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, ownerType, ownerId, relPath, mime, sortOrder, createdAt);
+  int get hashCode => Object.hash(
+      id, ownerType, ownerId, relPath, mime, sortOrder, role, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -11557,6 +11591,7 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           other.relPath == this.relPath &&
           other.mime == this.mime &&
           other.sortOrder == this.sortOrder &&
+          other.role == this.role &&
           other.createdAt == this.createdAt);
 }
 
@@ -11567,6 +11602,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   final Value<String> relPath;
   final Value<String?> mime;
   final Value<int> sortOrder;
+  final Value<String?> role;
   final Value<int> createdAt;
   final Value<int> rowid;
   const AttachmentsCompanion({
@@ -11576,6 +11612,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     this.relPath = const Value.absent(),
     this.mime = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.role = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -11586,6 +11623,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     required String relPath,
     this.mime = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.role = const Value.absent(),
     required int createdAt,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -11600,6 +11638,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     Expression<String>? relPath,
     Expression<String>? mime,
     Expression<int>? sortOrder,
+    Expression<String>? role,
     Expression<int>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -11610,6 +11649,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       if (relPath != null) 'rel_path': relPath,
       if (mime != null) 'mime': mime,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (role != null) 'role': role,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -11622,6 +11662,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       Value<String>? relPath,
       Value<String?>? mime,
       Value<int>? sortOrder,
+      Value<String?>? role,
       Value<int>? createdAt,
       Value<int>? rowid}) {
     return AttachmentsCompanion(
@@ -11631,6 +11672,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       relPath: relPath ?? this.relPath,
       mime: mime ?? this.mime,
       sortOrder: sortOrder ?? this.sortOrder,
+      role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -11657,6 +11699,9 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -11675,6 +11720,7 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
           ..write('relPath: $relPath, ')
           ..write('mime: $mime, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('role: $role, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -28292,6 +28338,7 @@ typedef $$AttachmentsTableCreateCompanionBuilder = AttachmentsCompanion
   required String relPath,
   Value<String?> mime,
   Value<int> sortOrder,
+  Value<String?> role,
   required int createdAt,
   Value<int> rowid,
 });
@@ -28303,6 +28350,7 @@ typedef $$AttachmentsTableUpdateCompanionBuilder = AttachmentsCompanion
   Value<String> relPath,
   Value<String?> mime,
   Value<int> sortOrder,
+  Value<String?> role,
   Value<int> createdAt,
   Value<int> rowid,
 });
@@ -28333,6 +28381,9 @@ class $$AttachmentsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -28365,6 +28416,9 @@ class $$AttachmentsTableOrderingComposer
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -28395,6 +28449,9 @@ class $$AttachmentsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -28429,6 +28486,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             Value<String> relPath = const Value.absent(),
             Value<String?> mime = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String?> role = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -28439,6 +28497,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             relPath: relPath,
             mime: mime,
             sortOrder: sortOrder,
+            role: role,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -28449,6 +28508,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             required String relPath,
             Value<String?> mime = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String?> role = const Value.absent(),
             required int createdAt,
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -28459,6 +28519,7 @@ class $$AttachmentsTableTableManager extends RootTableManager<
             relPath: relPath,
             mime: mime,
             sortOrder: sortOrder,
+            role: role,
             createdAt: createdAt,
             rowid: rowid,
           ),

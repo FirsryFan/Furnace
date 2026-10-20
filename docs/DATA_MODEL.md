@@ -652,3 +652,38 @@ v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号�
 装配层 `app/test/features/questions/application/zujuan_paste_import_test.dart` 15 例覆盖字段搬运、
 链接回填优先级、缺 id 不猜链接、空白归一、批量顺序与默认档位。
 
+## 16. v27：附件角色（`attachments.role`，答案/解析截图随题保存，轮次一百三十四）
+
+组卷网的答案与解析是一整张 JPEG（登录后可见，免费账号每天约 30 道），用户会把截图存回题目。
+这些图必须和题干配图分开：题干配图属于"题长什么样"，答案截图属于"答案长什么样"，导出 Word
+时前者跟在题干后、后者进卷末"参考答案与解析"附录。v27 只给附件表加一列可空文本，不动其它表。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `attachments.role` | TEXT，可空 | 附件的用途。**NULL / 空串 = 旧数据与别处附件，读作题干配图**；`stem` = 题干配图；`answer` = 答案（及解析）截图；`solution` = 解析截图（预留，读取端先与 answer 同桶） |
+
+**为什么可空、为什么不在旧行上回填**：`attachments` 是多态附件表（`owner_type`/`owner_id`），同一个表还挂消息、材料等
+别的 owner；迁移时无法判断一张图是不是题干图，回填只会把别处附件误标成 `stem`。因此 NULL 即"未分类"，
+读侧统一折叠成 `stem`（旧版本拍进去的题干图正好都是这个语义），写入端则一律显式写角色。
+
+**读写口径**（`app/lib/features/questions/data/question_media_store.dart`）：
+- `QuestionImageRole` 常量 `stem` / `answer` / `solution`；顶层 `effectiveQuestionImageRole(String? stored)` 把
+  NULL / 空串 / 纯空白折成 `stem`，未知值原样保留（不静默改写，便于以后加角色）。
+- `save({..., String role = QuestionImageRole.stem, ...})` 写 `Value(effectiveRole)`；`sortOrder` 按**角色内**
+  排号（题干图 0,1,2…、答案截图也从 0 起），两个角色的顺序互不影响。
+- `list(questionId, {String? role})`：不传 = 全部角色；`stem` = `role IS NULL OR role = 'stem'`（旧行不丢）；
+  其它角色精确匹配；排序仍是 `sortOrder, createdAt, id`。
+- `deleteForQuestion` 不区分角色，整题删除时两种图一起清。
+- 应用层读图：题干配图用 `loadQuestionDocxImages` → `list(questionId, role: stem)`，答案截图不进题干位置。
+
+**迁移**：`_upgradeV26ToV27()` 对 `attachments` 表 `addColumnIfMissing` 一列 role（表不存在直接返回）；
+`_ensureColumns()` 里加同样的自愈块（版本号已是 27 但老文件被盖掉时补列）。`database.g.dart` 由
+`dart run build_runner build --delete-conflicting-outputs` 重新生成（约 88 s，只 `AttachmentsCompanion` 变化）。
+
+**测试锁的事实**（`app/test/data/database/v27_migration_test.dart` 3 例 +
+`app/test/features/questions/data/question_media_store_test.dart` 角色组 7 例，共 +20 全绿）：
+真实 v26 文件升级后老行 role 仍 NULL、按 stem 读得到、按 answer 读为空，写 answer 截图从 0 排号且不挤进题干图；
+伪造"版本 27 但缺列"的文件靠 `_ensureColumns` 补列后可读可写；带角色入库关库重开（不再迁移）读回 answer、
+NULL 读回 NULL、读侧折算不回写；未知角色原样落库、读取时不计入两桶。
+
+
