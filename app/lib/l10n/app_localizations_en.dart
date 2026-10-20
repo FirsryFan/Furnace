@@ -1904,6 +1904,59 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settingsQuestionPackSection => 'Question bank package (.tqb)';
+
+  @override
+  String get settingsQuestionPackExport => 'Export question bank package';
+
+  @override
+  String get settingsQuestionPackExportHint =>
+      'Questions and images only; no other workspace data';
+
+  @override
+  String settingsQuestionPackExportDone(int questions, int media, String size) {
+    return 'Exported $questions question(s) and $media image(s) ($size)';
+  }
+
+  @override
+  String get settingsQuestionPackExportEmpty =>
+      'There are no questions to export yet';
+
+  @override
+  String get settingsQuestionPackImport => 'Import question bank package';
+
+  @override
+  String get settingsQuestionPackImportHint =>
+      'Only adds questions; never overwrites the existing bank';
+
+  @override
+  String settingsQuestionPackImportPreview(int questions, int media) {
+    return 'This package contains $questions question(s) and $media image(s)';
+  }
+
+  @override
+  String get settingsQuestionPackImportConfirm =>
+      'Only new questions are added; identical stems (by fingerprint) are skipped';
+
+  @override
+  String settingsQuestionPackImportDone(int created, int skipped, int media) {
+    return 'Import finished: $created created, $skipped skipped, $media image(s) written';
+  }
+
+  @override
+  String settingsQuestionPackWarnings(int count) {
+    return 'Warnings: $count (for example, missing tags were skipped)';
+  }
+
+  @override
+  String settingsQuestionPackFailures(int count) {
+    return '$count question(s) failed to import; the rest were written';
+  }
+
+  @override
+  String get settingsQuestionPackInvalid => 'This is not a valid .tqb file';
+
+  @override
   String get settingsBackupNote =>
       'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
 

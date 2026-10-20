@@ -1825,6 +1825,56 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get settingsQuestionPackSection => '题库包（.tqb）';
+
+  @override
+  String get settingsQuestionPackExport => '导出题库包';
+
+  @override
+  String get settingsQuestionPackExportHint => '只含题目与图片，不含工作区其他数据';
+
+  @override
+  String settingsQuestionPackExportDone(int questions, int media, String size) {
+    return '已导出 $questions 道题、$media 张图片（$size）';
+  }
+
+  @override
+  String get settingsQuestionPackExportEmpty => '题库里还没有题目，没有可导出的内容';
+
+  @override
+  String get settingsQuestionPackImport => '导入题库包';
+
+  @override
+  String get settingsQuestionPackImportHint => '只会新增题目，不覆盖已有题库';
+
+  @override
+  String settingsQuestionPackImportPreview(int questions, int media) {
+    return '这个包里有 $questions 道题、$media 张图片';
+  }
+
+  @override
+  String get settingsQuestionPackImportConfirm =>
+      '只会新增题目，不覆盖已有题；题干相同（按指纹）的题会被跳过';
+
+  @override
+  String settingsQuestionPackImportDone(int created, int skipped, int media) {
+    return '导入完成：新建 $created 题，跳过 $skipped 题，写入 $media 张图片';
+  }
+
+  @override
+  String settingsQuestionPackWarnings(int count) {
+    return '有 $count 条告警（例如标签对不上，已跳过）';
+  }
+
+  @override
+  String settingsQuestionPackFailures(int count) {
+    return '有 $count 道题导入失败（其余已写入）';
+  }
+
+  @override
+  String get settingsQuestionPackInvalid => '这个文件不是有效的 .tqb';
+
+  @override
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
 
   @override

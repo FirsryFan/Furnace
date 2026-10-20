@@ -833,6 +833,45 @@
   "@settingsTfpkgSkippedTables": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsQuestionPackSection": "题库包（.tqb）",
+  "settingsQuestionPackExport": "导出题库包",
+  "settingsQuestionPackExportHint": "只含题目与图片，不含工作区其他数据",
+  "settingsQuestionPackExportDone": "已导出 {questions} 道题、{media} 张图片（{size}）",
+  "@settingsQuestionPackExportDone": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "media": { "type": "int" },
+      "size": { "type": "String" }
+    }
+  },
+  "settingsQuestionPackExportEmpty": "题库里还没有题目，没有可导出的内容",
+  "settingsQuestionPackImport": "导入题库包",
+  "settingsQuestionPackImportHint": "只会新增题目，不覆盖已有题库",
+  "settingsQuestionPackImportPreview": "这个包里有 {questions} 道题、{media} 张图片",
+  "@settingsQuestionPackImportPreview": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "media": { "type": "int" }
+    }
+  },
+  "settingsQuestionPackImportConfirm": "只会新增题目，不覆盖已有题；题干相同（按指纹）的题会被跳过",
+  "settingsQuestionPackImportDone": "导入完成：新建 {created} 题，跳过 {skipped} 题，写入 {media} 张图片",
+  "@settingsQuestionPackImportDone": {
+    "placeholders": {
+      "created": { "type": "int" },
+      "skipped": { "type": "int" },
+      "media": { "type": "int" }
+    }
+  },
+  "settingsQuestionPackWarnings": "有 {count} 条告警（例如标签对不上，已跳过）",
+  "@settingsQuestionPackWarnings": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackFailures": "有 {count} 道题导入失败（其余已写入）",
+  "@settingsQuestionPackFailures": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackInvalid": "这个文件不是有效的 .tqb",
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
   "navAi": "对话",
   "aiTitle": "AI 对话",

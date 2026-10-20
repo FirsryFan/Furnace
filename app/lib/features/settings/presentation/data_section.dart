@@ -4,12 +4,16 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:furnace/features/questions/application/question_pack_service.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/package/tfpkg_codec.dart';
 import '../../../data/package/tfpkg_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../questions/application/learning_advice_provider.dart';
+import '../../questions/application/question_audit_reader.dart';
+import '../../questions/presentation/question_intake_providers.dart';
 import '../application/appearance_providers.dart';
 import 'settings_page.dart' show currentProfileProvider;
 
@@ -19,6 +23,10 @@ import 'settings_page.dart' show currentProfileProvider;
 /// Export writes one zip containing a logical JSON dump of every table plus the
 /// theme documents. Import always backs the current workspace up first, so a
 /// wrong choice of merge mode is recoverable.
+///
+/// Also hosts the question-bank package (`.tqb`), which carries questions and
+/// their images only and never overwrites: it always appends, so no backup step
+/// is needed before importing one.
 class DataSection extends ConsumerWidget {
   const DataSection({super.key});
 
@@ -41,6 +49,7 @@ class DataSection extends ConsumerWidget {
           subtitle: Text(l10n.settingsTfpkgImportHint),
           onTap: () => _import(context, ref),
         ),
+        const _QuestionPackSection(),
       ],
     );
   }
@@ -244,6 +253,269 @@ class DataSection extends ConsumerWidget {
     ref.invalidate(themesProvider);
     ref.invalidate(activeAppearanceProvider);
     ref.invalidate(currentProfileProvider);
+  }
+}
+
+/// Human-readable byte count for the export confirmation ("3 B", "1.5 KB").
+String questionPackSizeText(int bytes) {
+  if (bytes < 1024) {
+    return '$bytes B';
+  }
+  final kilobytes = bytes / 1024;
+  if (kilobytes < 1024) {
+    return '${kilobytes.toStringAsFixed(1)} KB';
+  }
+  return '${(kilobytes / 1024).toStringAsFixed(1)} MB';
+}
+
+/// Timestamp used in exported package file names (`furnace-20261021T0430.tqb`).
+String questionPackTimestamp() => DateTime.now()
+    .toIso8601String()
+    .substring(0, 16)
+    .replaceAll(':', '')
+    .replaceAll('-', '');
+
+/// Question-bank package (`.tqb`): questions plus their images, for moving the
+/// bank between installs without touching the rest of the workspace.
+///
+/// Import only ever adds questions (identical stems are skipped by fingerprint),
+/// so unlike the workspace import there is no pre-import backup and no merge
+/// dialog: the package cannot overwrite what is already here.
+class _QuestionPackSection extends ConsumerStatefulWidget {
+  const _QuestionPackSection();
+
+  @override
+  ConsumerState<_QuestionPackSection> createState() =>
+      _QuestionPackSectionState();
+}
+
+class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
+  /// One package operation at a time: the tiles disable while it runs, so a
+  /// double tap cannot export or import twice.
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(
+          icon: Icons.inventory_2_outlined,
+          title: l10n.settingsQuestionPackSection,
+        ),
+        ListTile(
+          leading: const Icon(Icons.save_alt),
+          title: Text(l10n.settingsQuestionPackExport),
+          subtitle: Text(l10n.settingsQuestionPackExportHint),
+          enabled: !_busy,
+          onTap: _busy ? null : _export,
+        ),
+        ListTile(
+          leading: const Icon(Icons.file_open_outlined),
+          title: Text(l10n.settingsQuestionPackImport),
+          subtitle: Text(l10n.settingsQuestionPackImportHint),
+          enabled: !_busy,
+          onTap: _busy ? null : _import,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _export() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final result = await ref.read(questionPackServiceProvider).exportBytes();
+      if (!mounted) {
+        return;
+      }
+      if (result.questionCount == 0) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.settingsQuestionPackExportEmpty)),
+        );
+        return;
+      }
+      final target = await FilePicker.saveFile(
+        dialogTitle: l10n.settingsQuestionPackExport,
+        fileName: 'furnace-${questionPackTimestamp()}.tqb',
+        bytes: result.bytes,
+        type: FileType.any,
+      );
+      if (target == null) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.settingsQuestionPackExportDone(
+              result.questionCount,
+              result.mediaCount,
+              questionPackSizeText(result.bytes.length),
+            ),
+          ),
+        ),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('${l10n.settingsQuestionPackExport}: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _import() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final picked = await FilePicker.pickFiles(
+        dialogTitle: l10n.settingsQuestionPackImport,
+        type: FileType.custom,
+        allowedExtensions: const ['tqb'],
+      );
+      if (picked.isEmpty) {
+        return;
+      }
+      final Uint8List bytes;
+      try {
+        bytes = await picked.first.readAsBytes();
+      } catch (error) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('${l10n.settingsQuestionPackImport}: $error')),
+        );
+        return;
+      }
+      final service = ref.read(questionPackServiceProvider);
+      final QuestionPackPreview preview;
+      try {
+        preview = service.peek(bytes);
+      } catch (_) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.settingsQuestionPackInvalid)),
+        );
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+      final confirmed = await _askImportPreview(l10n, preview);
+      if (confirmed != true || !mounted) {
+        return;
+      }
+      final report = await service.importPack(bytes);
+      if (!mounted) {
+        return;
+      }
+      _refreshQuestionViews();
+      await _showImportReport(l10n, report);
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('${l10n.settingsQuestionPackImport}: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  /// Shows what is inside the package and asks before writing anything.
+  Future<bool?> _askImportPreview(
+    AppLocalizations l10n,
+    QuestionPackPreview preview,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackImport),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.settingsQuestionPackImportPreview(
+                preview.questionCount,
+                preview.mediaCount,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.settingsQuestionPackImportConfirm,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.settingsQuestionPackImport),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Result dialog: created/skipped/media counts, then warnings and failures.
+  Future<void> _showImportReport(
+    AppLocalizations l10n,
+    QuestionPackImportReport report,
+  ) {
+    final failures = report.failures;
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackImport),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.settingsQuestionPackImportDone(
+                report.createdCount,
+                report.skippedCount,
+                report.mediaCount,
+              ),
+            ),
+            if (report.warnings.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(l10n.settingsQuestionPackWarnings(report.warnings.length)),
+            ],
+            if (failures.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(l10n.settingsQuestionPackFailures(failures.length)),
+              for (final failure in failures.take(3))
+                Text(
+                  failure,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Every question view watches its own provider, so all of them are refreshed.
+  void _refreshQuestionViews() {
+    ref.invalidate(questionLibraryProvider);
+    ref.invalidate(questionCorpusCountProvider);
+    ref.invalidate(questionAuditCorpusProvider);
+    ref.invalidate(questionAuditReportProvider);
   }
 }
 

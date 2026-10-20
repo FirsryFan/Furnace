@@ -3357,6 +3357,84 @@ abstract class AppLocalizations {
   /// **'{count} table(s) came from a newer version and were skipped'**
   String settingsTfpkgSkippedTables(int count);
 
+  /// No description provided for @settingsQuestionPackSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Question bank package (.tqb)'**
+  String get settingsQuestionPackSection;
+
+  /// No description provided for @settingsQuestionPackExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export question bank package'**
+  String get settingsQuestionPackExport;
+
+  /// No description provided for @settingsQuestionPackExportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions and images only; no other workspace data'**
+  String get settingsQuestionPackExportHint;
+
+  /// No description provided for @settingsQuestionPackExportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {questions} question(s) and {media} image(s) ({size})'**
+  String settingsQuestionPackExportDone(int questions, int media, String size);
+
+  /// No description provided for @settingsQuestionPackExportEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no questions to export yet'**
+  String get settingsQuestionPackExportEmpty;
+
+  /// No description provided for @settingsQuestionPackImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import question bank package'**
+  String get settingsQuestionPackImport;
+
+  /// No description provided for @settingsQuestionPackImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only adds questions; never overwrites the existing bank'**
+  String get settingsQuestionPackImportHint;
+
+  /// No description provided for @settingsQuestionPackImportPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'This package contains {questions} question(s) and {media} image(s)'**
+  String settingsQuestionPackImportPreview(int questions, int media);
+
+  /// No description provided for @settingsQuestionPackImportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Only new questions are added; identical stems (by fingerprint) are skipped'**
+  String get settingsQuestionPackImportConfirm;
+
+  /// No description provided for @settingsQuestionPackImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Import finished: {created} created, {skipped} skipped, {media} image(s) written'**
+  String settingsQuestionPackImportDone(int created, int skipped, int media);
+
+  /// No description provided for @settingsQuestionPackWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Warnings: {count} (for example, missing tags were skipped)'**
+  String settingsQuestionPackWarnings(int count);
+
+  /// No description provided for @settingsQuestionPackFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} question(s) failed to import; the rest were written'**
+  String settingsQuestionPackFailures(int count);
+
+  /// No description provided for @settingsQuestionPackInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a valid .tqb file'**
+  String get settingsQuestionPackInvalid;
+
   /// No description provided for @settingsBackupNote.
   ///
   /// In en, this message translates to:

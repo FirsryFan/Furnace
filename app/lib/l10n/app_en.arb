@@ -830,6 +830,45 @@
   "@settingsTfpkgSkippedTables": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "settingsQuestionPackSection": "Question bank package (.tqb)",
+  "settingsQuestionPackExport": "Export question bank package",
+  "settingsQuestionPackExportHint": "Questions and images only; no other workspace data",
+  "settingsQuestionPackExportDone": "Exported {questions} question(s) and {media} image(s) ({size})",
+  "@settingsQuestionPackExportDone": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "media": { "type": "int" },
+      "size": { "type": "String" }
+    }
+  },
+  "settingsQuestionPackExportEmpty": "There are no questions to export yet",
+  "settingsQuestionPackImport": "Import question bank package",
+  "settingsQuestionPackImportHint": "Only adds questions; never overwrites the existing bank",
+  "settingsQuestionPackImportPreview": "This package contains {questions} question(s) and {media} image(s)",
+  "@settingsQuestionPackImportPreview": {
+    "placeholders": {
+      "questions": { "type": "int" },
+      "media": { "type": "int" }
+    }
+  },
+  "settingsQuestionPackImportConfirm": "Only new questions are added; identical stems (by fingerprint) are skipped",
+  "settingsQuestionPackImportDone": "Import finished: {created} created, {skipped} skipped, {media} image(s) written",
+  "@settingsQuestionPackImportDone": {
+    "placeholders": {
+      "created": { "type": "int" },
+      "skipped": { "type": "int" },
+      "media": { "type": "int" }
+    }
+  },
+  "settingsQuestionPackWarnings": "Warnings: {count} (for example, missing tags were skipped)",
+  "@settingsQuestionPackWarnings": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackFailures": "{count} question(s) failed to import; the rest were written",
+  "@settingsQuestionPackFailures": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackInvalid": "This is not a valid .tqb file",
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
   "navAi": "Chat",
   "aiTitle": "AI chat",
