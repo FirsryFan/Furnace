@@ -298,7 +298,12 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   再 `QuestionRepository.deleteQuestion(id)`；清图失败只 `debugPrint` 不阻断删题，SnackBar 带
   清理张数（l10n `questionIntakeDeletedWithImages`）。仓储层本身仍不碰文件系统（职责不变），
   grep 全库 `deleteQuestion` 只有这一处界面调用，无遗漏入口。
-- **未做**：图片压缩/缩略图生成未做（48×48 是解码整图后缩放）；真机系统文件选择器
+- **缩略图解码尺寸（轮次一百三十，task-79 纯逻辑）**：`domain/services/media/thumbnail_spec.dart` 的
+  `thumbnailDecodeSpec(logicalWidth:, logicalHeight:, devicePixelRatio:)` 把显示尺寸 × DPR 换成
+  `cacheWidth/cacheHeight`（长边默认封顶 1024、非法尺寸返回空 spec 让调用方不传 cache、DPR 非法归一、
+  防 int 溢出上限 16）；让 Flutter 在**解码阶段**就缩图，而不是解码整张 4000×3000 再显示。
+  UI 接线在 task-82（详情页 96、列表/收题清单 48 两个尺寸），验收 +27 例。
+- **未做**：不做图片重编码/不生成磁盘缩略图（磁盘上仍是原图，只在解码时缩）；真机系统文件选择器
   （Windows 对话框 / Android 选择器）与真实磁盘增删**未手测**（widget test 全用替身）；
   OCR 不读题目配图（拍照整理仍是独立入口）。
 
@@ -349,7 +354,13 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   验收：`flutter test test/features/questions/presentation` → +133 通过（详情页 22 例含剪贴板断言）。
   真机剪贴板与浏览器粘贴**未手测**（未验证）。
 - 已做（task-65，v26）：`questions` 加 `sourceUrl` / `zujuanQuestionId` / `zujuanBankId`，粘贴入库时写详情页链接。
-- 未做：题源 URL 还没有"点回去 / 复制原题链接"的界面入口（详情页只显示来源文字）；候选质量受
+- 题源链接纯逻辑（task-80，轮次一百三十）：`domain/services/questions/question_source.dart` 的
+  `questionSourceFor({sourceUrl, zujuanQuestionId, zujuanBankId})` 返回 `QuestionSourceRef{url, host,
+  fromStoredUrl, isZujuan}`；只认绝对 http(s)（javascript:/data:/file:/相对路径一律 null）、scheme/host 小写、
+  去 fragment 与默认端口、path/query 逐字节保留；库里有链接优先，没有则用两个 id 走
+  `zujuanQuestionDetailUrl` 重建（`fromStoredUrl=false`），都拿不到返回 null。验收 +46 例。
+  UI 入口在 task-82（详情页来源行「复制原题链接」）。
+- 未做：候选质量受
   "领域词表只有生物"限制；没有"我是否已在组卷网找到这道题"的记录。
 
 ## 14. 读题工具与组卷手工指定/排除（轮次一百二十五）
@@ -372,7 +383,12 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 验收：`flutter test test/features/ai/read_question_tool_test.dart` → 15 例全绿（定位 8、内容 6、只读 1）；
   `dart analyze lib/features/ai test/features/ai` → 0 error / 0 warning。
 - 未做：工具面返回的是**整段**题干/解析（只读工具默认摘要原则的例外，因为解题必须看全文），
-  超长题干没有分页；未做「按题号列出整卷」的批量读题工具。
+  超长题干没有分页；批量读题工具尚未接线。
+- 整卷题号批量解析（task-81，轮次一百三十，纯逻辑）：`domain/services/questions/question_serial_batch.dart`
+  的 `parseQuestionSerialBatch(raw, {maxCount = 200})` 支持半/全角逗号、顿号、半/全角分号、Unicode 空白
+  分隔，区间 `1..5` / `3-7` / `1~5` / `1—5`（升降序统一升序、重叠相邻合并、去重升序、超限截断并置
+  `truncated`、超大区间有 `kQuestionSerialBatchHardLimit` 防撑爆内存），认不出的段进 `rejectedSegments`
+  （区间一端非法整段拒绝，不猜一半），永不抛异常；+51 例。批量读题工具下一步接它。
 
 ### 14.2 组卷页手工指定 / 排除（question-intake 交付）
 
@@ -458,5 +474,58 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   每层用 `sortTagTreeSiblings`，内容量角标走 `objectCountByTagId`。完整口径见 `docs/TAG_TREE_SORT_DESIGN.md`。
 - 未做：排序偏好没有持久化到磁盘（重启回到字典序）。
 
+## 16. 题源链接、缩略图解码尺寸、整卷题号清单（轮次一百三十，2026-10-21）
 
+goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / reasoning-core），
+为三处一直缺的界面入口铺路——「点回去核对原题」「列表缩略图别解码整张照片」「按题号列整卷」。
+
+### 16.1 题源链接：`question_source.dart`（threadflow-engine，task-80）
+
+- `QuestionSourceRef? questionSourceFor({String? sourceUrl, String? zujuanQuestionId, String? zujuanBankId})`；
+  `QuestionSourceRef{url, host, fromStoredUrl, isZujuan, toJson, ==/hashCode, toString}`，157 行。
+- 信任边界：只认绝对 http(s) URL；`javascript:` / `data:` / `file:` / `mailto:` / 协议相对 `//host/a` /
+  相对路径 / 空 host 一律返回 null（库里可能是历史脏数据，不猜、不打开）。
+- 规范化（只做能证明的变换）：scheme 与 host 小写、去 fragment、去默认端口（http:80/https:443）、
+  非默认端口保留、path/query 逐字节保留（不 decode、不重排参数）、空 path 不补 `/`；
+  不升级 scheme、不补 www、不补尾斜杠。组卷网判定 = `zujuan.xkw.com` 与 `*.zujuan.xkw.com`
+  （`zujuan.xkw.com.evil.com`、`notzujuan.xkw.com` 有反例测试）。
+- 重建分支完全复用 `zujuan_link.dart` 的 `zujuanQuestionDetailUrl`（不重复实现数字校验）：
+  只有 id 时重建、`fromStoredUrl=false`；链接与 id 都有时链接优先。
+- 验收：`flutter test test/domain/services/questions/question_source_test.dart` → +46 全绿；
+  同目录全量 +244 无回归；`dart analyze lib/domain/services/questions test/domain/services/questions` → No issues。
+- 未做：DB/provider/UI 接线（task-82 接详情页来源行），打开器/真实浏览器验证未做。
+
+### 16.2 缩略图解码尺寸：`thumbnail_spec.dart`（Lead，task-79）
+
+- `ThumbnailDecodeSpec thumbnailDecodeSpec({required int logicalWidth, required int logicalHeight,
+  double devicePixelRatio = 1.0, int maxDecodeSide = 1024})`；返回
+  `ThumbnailDecodeSpec{cacheWidth, cacheHeight, devicePixelRatio, capped, isEmpty, toJson}`。
+- 口径：先乘 DPR 再 ceil（宁可多解一行，别拉糊）；长边 > `maxDecodeSide` 按比例压、两边至少 1、
+  `capped=true`；`maxDecodeSide<=0` 不设上限；DPR 非有限/<=0 按 1.0、>16 钳到 16（防 int 溢出）；
+  逻辑尺寸任一边 <=0 返回 0×0 空 spec（`isEmpty=true`）——Image 断言 cache 必须 >0，调用方必须判空后再传。
+- 为什么：题库列表/收题清单的缩略图只有 48–96 逻辑像素，`Image.memory` 默认按原始像素解码，
+  一张 4000×3000 照片解 48 MB，一屏十几张会卡、低端机会被系统杀（§11.2 记的「48×48 是解码整图后缩放」）。
+- 纯逻辑：不 import Flutter、不读文件、不探测原图尺寸（解码器不会放大，多算无害）。
+- 验收：`flutter test test/domain/services/media/thumbnail_spec_test.dart` → +27 全绿。
+
+### 16.3 整卷题号清单：`question_serial_batch.dart`（reasoning-core，task-81）
+
+- `QuestionSerialBatch parseQuestionSerialBatch(String raw, {int maxCount = 200})`；
+  `QuestionSerialBatch{serials, rejectedSegments, truncated, isEmpty, count, toJson}`，330 行。
+- 分隔符：半角逗号、全角逗号、顿号、半/全角分号先切块，块内再按 Unicode 空白切 token；
+  单 token 复用 `parseQuestionNumberQuery`（TR-00042 / tr-42 / #42 / 00042 / 42 / 全角数字都认）。
+- 区间连接符按 `..` → `~` → `—` → `-` 顺序尝试（`-` 最后，避免把 `TR-42` 自己的连字符当区间）；
+  两端都是合法单号才展开，升降序统一升序，重叠与相邻区间合并；一端非法整段进 `rejectedSegments`（不猜一半）。
+- 超 `maxCount` 只保留最小的若干个并置 `truncated=true`；`kQuestionSerialBatchHardLimit=100000` 防
+  `1..999999999` 撑爆内存；`maxCount<=0` 返回空题号 + truncated；空输入/纯拒绝段 truncated=false；永不抛。
+- 验收：`flutter test test/domain/services/questions/question_serial_batch_test.dart` → +51 全绿。
+
+### 16.4 本轮门禁与在途
+
+- `flutter test test/domain/services/media test/domain/services/questions --concurrency=1` → **+271 All tests passed**；
+  `dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。
+- 在途：task-82（question-intake）题目详情页「题目来源」入口 + 缩略图 `cacheWidth/cacheHeight` 接线 +
+  3 个 l10n key；完成后 Lead 统一提交并按切片写 PROGRESS。
+- 未做（下一批）：批量读题 AI 工具（接 §16.3）、题库列表题号搜索接新解析器之外的多号搜索、
+  来源链接写入/纠错的 UI、缩略图磁盘缓存。
 
