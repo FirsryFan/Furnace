@@ -176,6 +176,11 @@ void main() {
         ranked.single.sharedActionTypes, ['first_principles', 'sanity_check']);
     expect(ranked.single.reasonZh, contains('同型步骤'));
     expect(ranked.single.reasonZh, isNot(contains(strangerId)));
+    // 详情页拿到的是详细理由：补上可核实的计数，而不是含糊的「很像」。
+    // 计数只来自输入里真有的数据（这里聚焦题 1 个知识点、2 步动作）。
+    expect(ranked.single.reasonZh, contains('可核实依据'));
+    expect(ranked.single.reasonZh, contains('共用知识点 1/1 个'));
+    expect(ranked.single.reasonZh, contains('同型动作命中 2 个'));
   });
 
   test('跨学科但动作同型 → 标成迁移候选', () async {

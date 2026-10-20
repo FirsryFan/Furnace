@@ -1169,7 +1169,25 @@ static LearningAdvicePlan build({
   不出缺口解释键」）、`PaperGapNote` 与来源表 2 例。既有 195 例一行未改。
 - `flutter test test/domain/services/paper` → **+218 全绿**（195 + 23）；`dart analyze lib test` 92 issues / 0 error /
   0 warning（与基线一致）。
-- 未做：接线（`paper_plan_builder` / `compose_paper` 工具 / `similar_question_provider` 的开关尚未打开，
-  默认关闭是有意为之）；详细文案为中文硬编码、未接 l10n；缺口解释 `PaperGapNote` 尚无界面展示。
+- 未做：详细文案为中文硬编码、未接 l10n；缺口解释 `PaperGapNote` 尚无界面展示（数据已进
+  `PaperPlan`，页面/导出下一步展示）；`compose_paper` 工具仍用默认短文案（有意）。
+
+## 32. 详细理由的应用层接线（轮次一百二十九，task-78）
+
+§31 的两处开关在领域层做好后一直默认关闭、页面拿不到。这一片只接线，不改领域层口径：
+
+- **相似题**：`app/lib/features/questions/application/similar_question_provider.dart` 的
+  `similarQuestionsProvider` 调 `rank(..., detailedReasons: true)`；分数/排序/候选不变，理由句尾
+  按 §31.1 追加可核实依据。AI 工具 `find_similar_questions` 保持默认（短文案）。
+- **组卷**：`app/lib/features/questions/application/paper_plan_builder.dart` 的 `buildPaperPlan`
+  新增 `bool detailedNotes = false` 参数并透传给 `PaperComposer.compose`；
+  `app/lib/features/questions/application/paper_plan_provider.dart` 的 `paperPlanProvider` 传
+  `detailedNotes: true`，于是页面 `PaperPlan.items` 的三条文案带「本卷第 N 题 / 排序依据 /
+  下一步」，且 `uncoveredKnowledgePointNotes` / `deferredKnowledgePointNotes` 有真实内容。
+  AI 工具 `compose_paper` 调同一个 builder 但不传该参数 → 选卷结果完全相同，文案仍短。
+- **验收**：`paper_plan_provider_test.dart` 两例补断言（详细理由含「本卷第 1 题」「排序依据」
+  「排序权重」；改进建议点名知识点并给下一步；危险区缺口解释句含「一道候选都没有」「不要用
+  模型生成」）；`similar_question_provider_test.dart` 补 3 条（见 §31.1 口径）。
+- 未做：`PaperGapNote` 的界面/导出展示（下一片）、详细文案 l10n、`quality` 权重标定。
 
 

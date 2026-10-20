@@ -141,12 +141,16 @@ final similarQuestionsProvider =
       };
     }
 
+    // 详情页要能核实「为什么说它相似」：领域层打开 detailedReasons 会在这条理由
+    // 后补上真实数据（共用知识点几个 / 同型动作命中几个 / 来源档位对比），
+    // 没有证据就只给原句、不编。AI 工具走自己的 rank 调用，不受影响。
     return SimilarQuestionFinder.rank(
       focus: focus,
       candidates: candidates,
       knowledgePointNames: names,
       weights: weights,
       knowledgePointReadings: readings,
+      detailedReasons: true,
     );
   },
 );

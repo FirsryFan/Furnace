@@ -232,6 +232,14 @@ void main() {
     expect(item.improvementNote, isNotEmpty);
     expect(item.backgroundZh, contains('函数'));
     expect(plan.uncoveredKnowledgePointIds, isEmpty);
+    // 页面版文案（detailedNotes）回答「为什么排这道」：第几题、需求/质量/得分、权重，
+    // 以及点名这道题服务哪个知识点 + 下一步。数字全部来自本次组卷，不另外估算。
+    expect(item.reasonZh, contains('本卷第 1 题'));
+    expect(item.reasonZh, contains('排序依据'));
+    expect(item.reasonZh, contains('排序权重'));
+    // 文案里的知识点名走「标签路径最后一段 → 名字 → id」口径，这里挂的标签是「函数」。
+    expect(item.improvementNote, contains('为知识点「函数」'));
+    expect(item.improvementNote, contains('下一步'));
   });
 
   test('诊断这轮没跑：全部按未知，不冒充健康', () async {
@@ -365,6 +373,13 @@ void main() {
 
     expect(plan.uncoveredKnowledgePointIds, [pointId]);
     expect(plan.deferredKnowledgePointIds, isEmpty);
+    // 缺口解释句也由领域层给：缺什么 + 下一步做什么（不要用模型生成）。
+    final gap = plan.uncoveredKnowledgePointNotes.single;
+    expect(gap.knowledgePointId, pointId);
+    expect(gap.labelZh, '导数', reason: '显示名走标签路径最后一段');
+    expect(gap.messageZh, contains('一道候选都没有'));
+    expect(gap.messageZh, contains('不要用模型生成'));
+    expect(plan.deferredKnowledgePointNotes, isEmpty);
     // 题库里唯一那道题没挂点，仍然进卷，只是按未知处理。
     expect(plan.items.single.zone, PaperZone.unknown);
   });

@@ -45,12 +45,17 @@ List<String> preferredActionTypesOf(Iterable<CapabilityReading> profile) {
 
 /// 按 [spec] 从 [corpus] 里组一份卷子；[preferredActionTypes] 由调用方先决定
 /// （空表 = 完全不参考画像，卷子与没有画像时逐字段一致）。
+///
+/// [detailedNotes] 只改文案（选卷理由 / 改进建议 / 知识点背景与缺口解释句），
+/// 不改排序、分数、配额：页面传 true 给用户看可核实依据，AI 工具不传，
+/// 避免工具输出无谓变长。
 Future<PaperPlanBuild> buildPaperPlan({
   required AppDatabase db,
   required PaperCorpus corpus,
   required PaperSpec spec,
   required LibraryDiagnosis diagnosis,
   required List<String> preferredActionTypes,
+  bool detailedNotes = false,
 }) async {
   final coveredPointIds = <String>{
     for (final candidate in corpus.candidates)
@@ -89,6 +94,8 @@ Future<PaperPlanBuild> buildPaperPlan({
       knowledgePointNames: corpus.knowledgePointNames,
       knowledgePointTagPaths: corpus.knowledgePointTagPaths,
       preferredActionTypes: preferredActionTypes,
+      // 页面默认要「这套卷为什么这样排」的可核实依据；AI 工具不传，保持短文案。
+      detailedNotes: detailedNotes,
     ),
   );
 }

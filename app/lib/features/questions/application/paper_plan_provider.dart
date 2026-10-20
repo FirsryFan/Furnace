@@ -373,6 +373,9 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
     spec: spec,
     diagnosis: diagnosis,
     preferredActionTypes: preferredActions,
+    // 页面要能回答「为什么排这道」：第几题、需求 / 质量分 / 得分与权重、缺口解释句。
+    // 只加文案不改排序（领域层文档 §17–§18），AI 工具仍用默认短文案。
+    detailedNotes: true,
   );
   return build.plan;
 });

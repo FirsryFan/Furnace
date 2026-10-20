@@ -155,3 +155,18 @@ Q12 的能力不只给页面用——agent 也应该能"找题"而不是"编题"
   （共 9 例全绿）：默认权重不读诊断且分数相同；`quality > 0` + 诊断给出危险区 → 共用该知识点的题
   排前且理由含「MindNet 有效性」；`quality > 0` 但诊断没跑 → 顺序与默认一致、理由句不加 MindNet。
   `dart analyze lib/features/questions/application test/features/questions/application` → `No issues found!`。
+
+## 8. 应用层接线：详情页理由打开 `detailedReasons`（轮次一百二十九）
+
+领域层 §6 的详细理由开关（`rank(detailedReasons: true)`）此前**零调用**——页面拿到的
+始终是短理由。这一片只打开页面侧开关，不动领域层、不动 AI 工具：
+
+- `app/lib/features/questions/application/similar_question_provider.dart`（`similarQuestionsProvider`）
+  调 `SimilarQuestionFinder.rank` 时传 `detailedReasons: true`；排序、分数、候选筛选逐项不变，
+  只在这条理由后追加「可核实依据：…」。
+- 可核实依据仍只写算得出来的东西（领域层文档 §31.1）：共用知识点 M/N 个、同型动作命中
+  M 个（聚焦题 K 步）、两侧都已知时的来源档位对比；没有证据就一个字不加。
+- AI 工具 `find_similar_questions` 走自己的 `rank` 调用（默认 `false`），输出长度与之前一致；
+  页面要的是「为什么说它像」（人能点开核实），工具要的是省 token，两者口径不同是有意的。
+- 验收：`similar_question_provider_test.dart` 第一例补 3 条断言（理由含「可核实依据」/
+  「共用知识点 1/1 个」/「同型动作命中 2 个」），既有断言未见红。

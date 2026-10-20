@@ -88,16 +88,20 @@ void main() {
     expect(find.text('没有读数'), findsOneWidget);
     expect(find.text('${zh.questionPaperKnowledgePointLabel}：二次函数'),
         findsOneWidget);
-    // reasonZh 原文（未知档那一句）。
+    // 页面走详细文案（paperPlanProvider 传 detailedNotes: true）：
+    // 领域层原句仍在，但整段后面追加了本卷第几题、排序依据与权重。
     expect(
-      find.text('知识点「二次函数」还没有你的读数，按未知处理（未知不当作健康）。'),
+      find.textContaining('知识点「二次函数」还没有你的读数，按未知处理（未知不当作健康）。'),
       findsOneWidget,
     );
-    // improvementNote 原文 + trapNote 附在末尾。
+    expect(find.textContaining('本卷第 1 题。'), findsOneWidget);
+    expect(find.textContaining('排序依据：需求'), findsOneWidget);
+    // improvementNote 原文 + trapNote 附在末尾，前面点名它在为哪个知识点服务。
     expect(
-      find.text('先做一遍并把结果记进系统，下一轮才知道它属于哪一档。 这题的已知坑：别忘了定义域'),
+      find.textContaining('先做一遍并把结果记进系统，下一轮才知道它属于哪一档。 这题的已知坑：别忘了定义域'),
       findsOneWidget,
     );
+    expect(find.textContaining('下一步：做完把这题的结果记进系统'), findsOneWidget);
     // 三个标签都在（背景那段也渲染出来了）。
     expect(find.text(zh.questionPaperItemReasonLabel), findsOneWidget);
     expect(find.text(zh.questionPaperItemImprovementLabel), findsOneWidget);
@@ -229,16 +233,20 @@ void main() {
     expect(find.text('危险区'), findsOneWidget);
     expect(find.text('发展区'), findsOneWidget);
     expect(find.text('没有读数'), findsNothing);
+    // 详细文案把领域层原句放在「本卷第 N 题。…」之后，用包含匹配。
     expect(
-      find.text('知识点「Alpha」在危险区（自信高、实际提取不出来），这份卷先练它。'),
+      find.textContaining('知识点「Alpha」在危险区（自信高、实际提取不出来），这份卷先练它。'),
       findsOneWidget,
     );
     expect(
-      find.text('知识点「Beta」在发展区（有读数但还偏弱），现在练收益最大。'),
+      find.textContaining('知识点「Beta」在发展区（有读数但还偏弱），现在练收益最大。'),
       findsOneWidget,
     );
-    // 危险区的提升点原文也来自域层。
-    expect(find.text('别整套刷：只把关键那一步慢速重做一遍，并写出每一步的依据。'), findsOneWidget);
+    // 危险区的提升点原文也来自域层，前面点名它为哪个知识点服务。
+    expect(
+      find.textContaining('别整套刷：只把关键那一步慢速重做一遍，并写出每一步的依据。'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('危险区但题库里没有候选 → 如实列出"去收题"，不当成没问题', (tester) async {
