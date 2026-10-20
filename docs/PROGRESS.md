@@ -2,6 +2,129 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十二：题库搜索、整卷页粘贴抽取、题源链接写入（Lead + 三个 teammate）
+
+**起点**：轮次一百三十一（HEAD `6677a93`）。本轮继续把「少让用户手敲」往前推：搜索框一次贴多号/区间/
+关键词、组卷网试卷页整段粘进来就能拿到整套题号清单、题源链接能改能清。task-84（reasoning-core）、
+task-85（threadflow-engine）、task-86（question-intake）、task-87（Lead）全部 completed（rev3）；
+git 由 Lead 统一提交，成员只写各自作用域。
+
+**A. 搜索输入解析（task-84，reasoning-core）**：`domain/services/questions/question_search_plan.dart` 的
+`parseQuestionSearchPlan(raw, {maxSerialCount = 200})` 返回 `QuestionSearchPlan{raw, stemContains,
+serialNos, rejectedSegments, truncated}`：单号复用 `parseQuestionNumberQuery`（TR-00042 / tr-42 / #42 /
+全角数字）、区间连接符 `..`→`~`→`—`→`-`（`-` 只当两端纯数字，支持 `1 - 5` 三段写法）、重叠/相邻区间
+合并去重升序、超大区间按上限截断不真展开；认不出的文字按顺序拼进 `stemContains`，坏区间（`1..x` /
+`1..` / `1..5..9`）整段进 `rejectedSegments`；纯号时 `stemContains=null`，没有题号时回退「整段输入当
+题干」（旧搜索框行为）；永不抛。+81 例；`test/domain/services/questions` **+325** 全绿。提交 `235a2ee`。
+
+**B. 组卷网整卷页粘贴抽取（task-85，threadflow-engine）**：`domain/services/zujuan/zujuan_paper_extract.dart`
+的 `parseZujuanPaperText(raw)` 从粘贴的试卷页 URL/HTML 抽 `{paperId, bankId, title, questionIds,
+questionLinks, warnings, truncated}`：只认 `/<bank>p<paper>.html` 与 `q<digits>.html`（前导边界防
+`/abcq123` 误认）、顺序去重不重排、超 200 截断；`questionLinks` 复用 `zujuanQuestionDetailUrl`（缺 bank
+跳过并汇总 warning）；`title` 只认 `<title>`→`<h1>`→null（不猜）；不联网、不解析答案、永不抛。+44 例；
+`test/domain/services/zujuan` **+212** 全绿。提交 `48eb157`。
+
+**C. 题源链接写入/清除数据层（task-87，Lead）**：`QuestionRepository.updateSourceLinks(id, {sourceUrl,
+zujuanQuestionId, zujuanBankId, now})` 返回是否真改到行：`null` = 这一列不动、空串/全空白 = 清空（写回
+null）、外层空白归一；不碰来源分级/题干/答案/加工列；不存在的 id 返回 false 不抛。与 `updateSource`
+分开的原因写进 docs：来源分级是封闭词表、写错会弄歪排序，链接只是用户粘贴的外部字符串。+8 例。提交
+`9cda7d9`。
+
+**D. 收题页题库搜索接多题号（task-86，question-intake）**：`QuestionLibraryFilter.serialNo:int?` →
+`serialNos:List<int>` + 新增 `serialFallbackStem`；`parseQuestionLibrarySearch` 纯转发 domain 解析器；
+`questionLibraryProvider` 混合输入 = 题号查 + 题干查两次并集（题号命中在前、按 id 去重、各自保仓储序），
+纯号 0 命中保留旧「回落题干」行为，清空搜索时题号与回落一起清；hint 改成「搜题干或题号（可多个：
+TR-00001, 2-5）」（l10n 五文件手改，未跑 gen-l10n）。测试：providers 重写 15 例、页面 +5 例；
+`test/features/questions/presentation` **+298** 全绿（基线 291）。提交 `25bdebb`。
+
+**E. docs**：`QUESTION_BANK_DESIGN.md` 追加 §17（17.1 搜索输入 / 17.2 题源链接写入 / 17.3 整卷页粘贴
+抽取 / 17.4 门禁），并回填 §11.2、§13、§16.1、§16.4 的在途口径；PROGRESS 补记轮次一百三十、一百三十一
+（含门禁数字回填）与本条。docs 提交是轮次一百三十二的最后一条提交。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；全量
+`flutter test --concurrency=1` → **+4374 ~2 All tests passed**，8 分 52 秒（EXIT=0；日志
+`E:/dsh-tmp-aot/test-132-full.txt`）；四目录组合（domain/questions + domain/zujuan + data/repositories +
+presentation）→ **+1005** 全绿（日志 `E:/dsh-tmp-aot/test-132-slices.txt`）。
+
+**事故记录**：本轮第一次全量跑（日志 `E:/dsh-tmp-aot/test-131-full.txt`）在 `+3324 loading
+review_page_test.dart` 处 CPU 冻结 5 分钟无进展，手动 kill；原因未核实，怀疑与 teammate 同时跑
+`flutter test` 争用构建/工具锁。之后改为「同一工作区同一时刻只跑一个 flutter test」，重跑通过。
+
+**未做 / 未验证**：整卷页粘贴的界面入口（预览 / 批量入库）与真实浏览器「保存页面」HTML 未端到端验证；
+题源链接的「改原题链接」UI；搜索框多号结果的顺序只由代码顺序保证（测试断言命中与去重、不逐条断言）；
+真机输入法 / 清空按钮未手测；英文文案未母语校对；缩略图磁盘缓存。
+
+## 2026-10-21 轮次一百三十一：详情页来源入口与缩略图接线、整卷题号批量读题工具（Lead + question-intake）
+
+**起点**：轮次一百三十（HEAD `26f92e1`）。本轮把上一轮铺路的纯逻辑接进界面，并给"按整卷题号
+列题"补上 AI 侧入口。task-82（question-intake）与 task-83（Lead）completed（rev3）；git 由 Lead
+统一提交，成员只写各自作用域。
+
+**A. 题目详情页来源入口 + 缩略图解码尺寸接线（task-82，question-intake）**：详情页 meta 行与题干
+之间加「题目来源」行（`question_detail_page.dart:768 _QuestionSourceLine`，:188 用
+`questionSourceFor` 计算）：有链接显示「组卷网原题」或其它 host、按钮「复制原题链接」写规范化后的
+`source.url` + SnackBar；只有 zujuan 两个 id 时由领域层重建 `https://zujuan.xkw.com/<bank>q<id>.html`；
+无链接/非法/相对路径整块零高度，没有引入 url_launcher。缩略图（`question_media_view.dart:251`）改用
+`thumbnailDecodeSpec(显示边长 × DPR)` 传 `cacheWidth/cacheHeight`（空 spec 传 null，解码阶段就缩图），
+大图查看器保持不限制解码。l10n 五文件手改 3 key（`questionSourceCopyLink/CopyDone/Zujuan`，未跑
+gen-l10n）。测试：详情页 +4 例（无链接不出现 / 普通站 host / 仅 id 重建 / 组卷网不显示 host）、
+配图 +2 例（缩略图是 ResizeImage 且宽高等于 spec / 大图不是 ResizeImage）；`presentation` 目录
+**+291** 全绿（基线 285）。提交 `6677a93`。
+
+**B. AI 工具 read_questions_by_serials（task-83，Lead）**：`question_tools.dart` 新增只读工具，
+参数 `serials`（复用 `parseQuestionSerialBatch` 的区间/分隔符/去重升序/截断）+ `max_count`（默认
+50、上限 200）。一次查库返回每个号在不在库与摘要（题号/学科/来源/题干摘要/有无答案与解析/选项数/
+配图数），缺号按补零写进 `missing`、坏段原样进 `rejected_segments`；整段没认出可题号返回可读的
+`ToolArgError`。撞号按 `QuestionRepository.search` 价值序取第一条；只读声明（`readOnly` +
+`reversibleFor`）与 `read_question` 同口径，注册后工具共 **26 个**。16 例测试（只读快照、清单口径、
+摘要字段、缺号/坏段/截断、边界、注册与 schema）；`flutter test test/features/ai` **+553** 全绿。
+docs：`AI_DESIGN.md` 工具清单 25→26；`QUESTION_BANK_DESIGN.md` 新增 §14.2（原 §14.2 组卷页手工
+指定改为 §14.3）。提交 `d4102dc`。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。全量
+`flutter test --concurrency=1` → **+4374 ~2 All tests passed**，8 分 52 秒（EXIT=0；第一次并发跑卡住，单独重跑见轮次一百三十二的事故记录；日志 `E:/dsh-tmp-aot/test-132-full.txt`）。
+
+**docs 回填**：`QUESTION_BANK_DESIGN.md` §11.2（缩略图 UI）、§13（题源链接 UI）、§16.1/§16.4
+（task-82 在途 → 已交付）四处过时口径改为已做；PROGRESS 补记轮次一百三十、一百三十一。
+
+**未做 / 未验证**：题库列表搜索接多题号清单（现在仍按单号或题干 LIKE）；题源链接的写入/纠错 UI；
+缩略图磁盘缓存；真机剪贴板/SnackBar 与系统文件选择器未手测；英文文案未母语校对。
+
+## 2026-10-21 轮次一百三十：题源链接、缩略图解码尺寸、整卷题号清单三块纯逻辑（Lead + 两个 teammate）
+
+**起点**：轮次一百二十九（HEAD `1fe2e7e`，v0.5.8 之后 6 个提交）。本轮无新用户指令，按 goal 把
+三处长期缺的界面入口先铺成纯逻辑——「点回组卷网核对原题」「列表缩略图别解码整张照片」「按整卷
+题号列题」。task-79（Lead）、task-80（threadflow-engine）、task-81（reasoning-core）completed（rev3）。
+
+**A. 缩略图解码尺寸（task-79，Lead）**：`domain/services/media/thumbnail_spec.dart` 新增
+`ThumbnailDecodeSpec thumbnailDecodeSpec({logicalWidth, logicalHeight, devicePixelRatio = 1.0,
+maxDecodeSide = 1024})`——先乘 DPR 再向上取整，长边超上限按比例压且两边 ≥1（`capped=true`），
+DPR 非有限/≤0 归一到 1.0、>16 钳到 16（防 int 溢出），逻辑尺寸任一边 ≤0 返回 0×0 空 spec
+（`isEmpty`，调用方必须判空后再传 cache）。纯 Dart 不 import Flutter，+27 例。提交 `e432cb1`。
+
+**B. 题源链接（task-80，threadflow-engine）**：`domain/services/questions/question_source.dart` 的
+`questionSourceFor({sourceUrl, zujuanQuestionId, zujuanBankId})` 返回
+`QuestionSourceRef{url, host, fromStoredUrl, isZujuan}`：只认绝对 http(s)（javascript:/data:/file:/
+mailto:/相对路径一律 null），scheme/host 小写、去 fragment 与默认端口、path/query 逐字节保留；
+库里有链接优先，否则只有两个 id 时走 `zujuanQuestionDetailUrl` 重建（`fromStoredUrl=false`），
+组卷网判定 `zujuan.xkw.com` 与 `*.zujuan.xkw.com`。+46 例（同目录 +244 无回归）。提交 `283ca67`。
+
+**C. 整卷题号清单（task-81，reasoning-core）**：`domain/services/questions/question_serial_batch.dart` 的
+`parseQuestionSerialBatch(raw, {maxCount = 200})` 返回 `QuestionSerialBatch{serials, rejectedSegments,
+truncated, isEmpty, count}`：先按逗号/顿号/分号（半全角）切块、块内按空白切 token，单 token 复用
+`parseQuestionNumberQuery`；区间连接符按 `..`→`~`→`—`→`-` 顺序尝试（`-` 最后，避免把 `TR-42`
+拆坏），两端都合法才展开、升降序统一按升序、重叠区间合并、去重升序；超 `maxCount` 保留最小若干个
+并标 `truncated`，一端非法整段进 `rejectedSegments`，永不抛。+51 例。提交 `ba48356`。
+
+**docs**：`QUESTION_BANK_DESIGN.md` 追加 §16（16.1 题源链接 / 16.2 缩略图解码尺寸 / 16.3 整卷题号
+清单 / 16.4 门禁与在途），并补 §11.2、§13、§14.1 的未做口径。提交 `26f92e1`。
+
+**门禁**：`flutter test test/domain/services/media test/domain/services/questions --concurrency=1` →
+**+271 All tests passed**；`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。
+
+**未做（当时）**：三块的 UI/DB 接线在 task-82（轮次一百三十一已交付）；题源链接写入/纠错 UI、
+缩略图磁盘缓存、整卷题号批量读题 AI 工具留到后续（后两项中读题工具已在轮次一百三十一补上）。
+
 ## 2026-10-21 轮次一百二十九：题目配图增删、粘贴解析加固、内联选项、详细理由接线（Lead + 三个 teammate）
 
 **起点**：轮次一百二十八（HEAD `2d63b16`，tag `v0.5.8`，双端发布件已备在 `dist/`、未推 GitHub）。
