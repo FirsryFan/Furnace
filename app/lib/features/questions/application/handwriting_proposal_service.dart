@@ -482,6 +482,26 @@ class HandwritingProposalService {
     );
   }
 
+  /// 把一条「题目」提案翻成**收题页表单能回填**的草稿（只读，不写库）。
+  ///
+  /// 用户嫌 AI 整理的题面/选项有错时，可以把它带到收题页改完再入库；这里只做
+  /// 装配与 `tag_path` 查标签，提案状态由调用方在真正入库后用
+  /// [HandwritingQueueNotifier.markAppliedLocally] 标记。
+  ///
+  /// 返回 null 表示提案里没有题干（照片里没认出来）——UI 应提示重拍/手填，
+  /// 不要打开一张空表单。
+  Future<QuestionDraft?> questionDraftForIntake(
+    HandwritingProposal proposal,
+  ) async {
+    if ((proposal.fields['stem'] ?? '').trim().isEmpty) return null;
+    final tagPath = (proposal.fields['tag_path'] ?? '').trim();
+    final tag = tagPath.isEmpty ? null : await _tags.getTagByPath(tagPath);
+    return _questionDraft(
+      proposal,
+      tagIds: <String>{if (tag != null) tag.id},
+    );
+  }
+
   /// 题目：题干必须来自照片，选项照抄照片里的字母与顺序。
   ///
   /// 答案只做**认字母**这一件事：答案写成 `B` 或 `A、C` 时对应选项标成正确、
@@ -490,8 +510,8 @@ class HandwritingProposalService {
   Future<HandwritingApplyOutcome> _applyQuestion(
     HandwritingProposal proposal,
   ) async {
-    final stem = (proposal.fields['stem'] ?? '').trim();
-    if (stem.isEmpty) {
+    final draft = _questionDraft(proposal);
+    if (draft == null) {
       return HandwritingApplyOutcome(
         proposalId: proposal.id,
         kind: proposal.kind,
@@ -501,37 +521,14 @@ class HandwritingProposalService {
       );
     }
 
-    final answer = _textOrNull(proposal.fields['answer']);
-    final solution = _textOrNull(proposal.fields['solution']);
-    final correctLabels = _answerOptionLabels(answer, proposal.options);
-    final options = <QuestionOptionDraft>[
-      for (var i = 0; i < proposal.options.length; i++)
-        QuestionOptionDraft(
-          label: proposal.options[i].label,
-          content: proposal.options[i].content,
-          isCorrect: correctLabels.contains(proposal.options[i].label),
-          sortOrder: i,
-        ),
-    ];
-    final questionType = options.isEmpty
-        ? 'solution'
-        : (correctLabels.length > 1 ? 'multi_choice' : 'single_choice');
-
     final tagPath = (proposal.fields['tag_path'] ?? '').trim();
     final tag = tagPath.isEmpty ? null : await _tags.getTagByPath(tagPath);
 
     final result = await _questions.ingest(
-      QuestionDraft(
-        stem: stem,
-        answer: answer,
-        solution: solution,
-        questionType: questionType,
-        sourceLabel: '拍照整理',
-        origin: 'ai_scan',
-        state: 'structured',
-        options: options,
+      _questionDraft(
+        proposal,
         tagIds: <String>{if (tag != null) tag.id},
-      ),
+      )!,
     );
 
     final serialNo = result.question.serialNo;
@@ -549,7 +546,9 @@ class HandwritingProposalService {
       );
     }
 
-    final optionNote = options.isEmpty ? '纯文字题' : '${options.length} 个选项';
+    final optionNote = draft.options.isEmpty
+        ? '纯文字题'
+        : '${draft.options.length} 个选项';
     final tagNote = tagPath.isEmpty
         ? ''
         : (tag == null
@@ -562,6 +561,44 @@ class HandwritingProposalService {
       ok: true,
       targetId: result.question.id,
       detailZh: '建了题目 $serialLabel（$optionNote）$tagNote',
+    );
+  }
+
+  /// 装配题目草稿的唯一实现：题干为空返回 null；答案只认字母；选项照抄顺序。
+  /// [tagIds] 由调用方传入（`_applyQuestion` 与 `questionDraftForIntake` 各自查到）。
+  QuestionDraft? _questionDraft(
+    HandwritingProposal proposal, {
+    Set<String> tagIds = const <String>{},
+  }) {
+    final stem = (proposal.fields['stem'] ?? '').trim();
+    if (stem.isEmpty) return null;
+
+    final answer = _textOrNull(proposal.fields['answer']);
+    final solution = _textOrNull(proposal.fields['solution']);
+    final correctLabels = _answerOptionLabels(answer, proposal.options);
+    final options = <QuestionOptionDraft>[
+      for (var i = 0; i < proposal.options.length; i++)
+        QuestionOptionDraft(
+          label: proposal.options[i].label,
+          content: proposal.options[i].content,
+          isCorrect: correctLabels.contains(proposal.options[i].label),
+          sortOrder: i,
+        ),
+    ];
+    final questionType = options.isEmpty
+        ? 'solution'
+        : (correctLabels.length > 1 ? 'multi_choice' : 'single_choice');
+
+    return QuestionDraft(
+      stem: stem,
+      answer: answer,
+      solution: solution,
+      questionType: questionType,
+      sourceLabel: '拍照整理',
+      origin: 'ai_scan',
+      state: 'structured',
+      options: options,
+      tagIds: tagIds,
     );
   }
 }
@@ -758,6 +795,19 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     state = state.copyWith(applying: <String>{...state.applying, relPath});
     final report = await _service.applyAll(set, onlyIds: <String>{proposalId});
     return await _finishApply(relPath, report);
+  }
+
+  /// 用户已经在**收题页**把它手动入库了（拍照整理出的题目可以带着草稿去编辑）：
+  /// 只把这条提案标成已确认，**不再写一次库**——写第二遍就是重复。
+  Future<void> markAppliedLocally(String relPath, String proposalId) async {
+    await _repository.markApplied(
+      sourceRef: relPath,
+      proposalId: proposalId,
+      appliedAt: DateTime.now(),
+    );
+    state = state.copyWith(
+      appliedIds: <String>{...state.appliedIds, '$relPath#$proposalId'},
+    );
   }
 
   /// 确认这张照片上**还没确认过**的全部提案。

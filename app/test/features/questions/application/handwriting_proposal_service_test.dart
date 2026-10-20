@@ -481,6 +481,51 @@ void main() {
       expect(correct, hasLength(4));
       expect(correct.map((option) => option.label).toSet(), {'A', 'C'});
     });
+
+    test('带到收题页编辑：草稿装配好但不写库，标签已解析', () async {
+      final tag = await seedTagPath('文化课/物理/力学');
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "动量题", '
+            '"fields": {"stem": "下列情况中动量守恒的是？", "answer": "B", '
+            '"solution": "只有合外力为零时……", '
+            '"tag_path": "文化课/物理/力学"}, '
+            '"options": [{"label": "A", "content": "合外力不为零"}, '
+            '{"label": "B", "content": "合外力为零"}]}',
+      ]);
+
+      final draft = await serviceWith(null)
+          .questionDraftForIntake(set.proposals.single);
+
+      expect(draft, isNotNull);
+      expect(draft!.stem, '下列情况中动量守恒的是？');
+      expect(draft.answer, 'B');
+      expect(draft.solution, '只有合外力为零时……');
+      expect(draft.questionType, 'single_choice');
+      expect(draft.sourceLabel, '拍照整理');
+      expect(draft.origin, 'ai_scan');
+      expect(draft.state, 'structured');
+      expect(draft.options.map((option) => option.label), ['A', 'B']);
+      expect(draft.options.map((option) => option.isCorrect), [false, true]);
+      expect(draft.tagIds, {tag.id});
+      // 只装配、不写库：用户改之前题库里没有这道题。
+      expect(await db.select(db.questions).get(), isEmpty);
+      expect(await db.select(db.questionOptions).get(), isEmpty);
+    });
+
+    test('题干为空：拿不到可编辑草稿，也不查标签', () async {
+      const proposal = HandwritingProposal(
+        id: 'question-0',
+        kind: HandwritingProposalKind.question,
+        titleZh: '看不清的题目',
+        fields: <String, String>{'tag_path': '文化课/物理/力学'},
+      );
+
+      final draft =
+          await serviceWith(null).questionDraftForIntake(proposal);
+
+      expect(draft, isNull);
+      expect(await db.select(db.questions).get(), isEmpty);
+    });
   });
 
   group('内存队列（handwritingQueueProvider）', () {

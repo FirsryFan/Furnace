@@ -1,7 +1,10 @@
-# 拍照 → 三类待确认产物（手写整理）
+# 拍照 → 四类待确认产物（手写整理）
 
 `docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4 的落地设计。一句话：**一张手写照片进来，
 一份提案出去，用户点过之后才写库。**
+
+轮次一百二十八把产物从三类扩到四类（加了**题目**）：照片里的题干、选项、答案、解析
+本来就该能直接变成一道题库里的题，而不是让用户抄一遍。
 
 ## 1. 它做什么 / 不做什么
 
@@ -9,7 +12,10 @@
 
 - 从磁盘上已经存在的照片（`HandwritingIntakeStore.pending()` 里那些 `relPath`）出发，
   把「图 + 铁律 + 现在库里有什么」一起递给视觉模型；
-- 把模型回复解析成结构化提案：**标签 / 知识点 / 闪存卡**三类；
+- 把模型回复解析成结构化提案：**标签 / 知识点 / 闪存卡 / 题目**四类；
+
+题目这一类的边界（用户口径 m05023）：**题面必须来自照片**，模型只誊写不改写、不补全缺失
+选项、不做题；识别不清就降 `confidence`，宁可不给也不编。
 - 用户逐个（或整批）确认后，按下面 §3 的规矩真正写库。
 
 不做什么（每条都有理由，不是"还没做"）：
@@ -31,8 +37,9 @@
 
 | 符号 | 形状 |
 |---|---|
-| `HandwritingProposalKind` | `tag('tag','标签')` / `knowledgePoint('knowledge_point','知识点')` / `flashcard('flashcard','闪存卡')`，带 `storageKey` / `labelZh` |
-| `HandwritingProposal` | `id`（确定性 `'${kind.storageKey}-$index'`）、`kind`、`titleZh`、`rationaleZh`、`confidence`、`fields: Map<String,String>`、`cards`、`sourceRef` |
+| `HandwritingProposalKind` | `tag('tag','标签')` / `knowledgePoint('knowledge_point','知识点')` / `flashcard('flashcard','闪存卡')` / `question('question','题目')`，带 `storageKey` / `labelZh` |
+| `HandwritingProposal` | `id`（确定性 `'${kind.storageKey}-$index'`）、`kind`、`titleZh`、`rationaleZh`、`confidence`、`fields: Map<String,String>`、`cards`、`options`（只有题目用）、`sourceRef` |
+| `HandwritingOptionDraft` | `label`（A–Z，trim + 大写后必须单字母）、`content`（非空）；JSON 解析的错误里带字段路径（`options[1].label`） |
 | `HandwritingCardDraft` | `question`、`answer`、`type`（缺省 `essay`，只认 `fill_blank` / `mcq` / `essay`） |
 | `HandwritingProposalSet` | `sourceRef` + `proposals`，`isEmpty` / `countOf(kind)` |
 | 缺省置信度 | `defaultProposalConfidence = 0.5`——模型没说就是"不知道"，不是"很确定" |
@@ -46,6 +53,7 @@
 | `tag` | 无（可选 `fields.parent_path`） |
 | `knowledge_point` | `fields.content` |
 | `flashcard` | `fields.content` + `cards` 非空（每张卡要 `question` + `answer`） |
+| `question` | `fields.stem`（题面必须来自照片，不能留空） |
 
 ### 应用层 `app/lib/features/questions/application/handwriting_proposal_service.dart`
 
@@ -58,6 +66,8 @@
 | `handwritingProposalServiceProvider` | store / tags / anki 来自既有 provider，adapter 来自 `modelAdapterProvider` |
 | `handwritingProposalRepositoryProvider` | `HandwritingProposalRepository(ref.watch(appDatabaseProvider))`（schema v13） |
 | `handwritingQueueProvider` | `NotifierProvider<HandwritingQueueNotifier, HandwritingQueueState>` |
+| `HandwritingProposalService.questionDraftForIntake(proposal)` | 只**装配**题目草稿、不写库：题干空返回 `null`（不查标签），否则解析 `tag_path` 填 `tagIds`，交给收题页表单预填（轮次一百二十八） |
+| `HandwritingQueueNotifier.markAppliedLocally(relPath, proposalId)` | 用户在收题页手动入库后只标"已确认"，不写第二遍（`HandwritingProposalRepository.markApplied` + 内存 `appliedIds`） |
 
 ### 数据层（schema v13）
 
@@ -83,13 +93,14 @@
 `question_intake_providers.dart` 搬到了应用层（整理服务与收题页共用同一个 store），
 presentation 侧用 `export` 保住了原来的 import 路径。
 
-## 3. 三类产物各怎么写库
+## 3. 四类产物各怎么写库
 
 | 产物 | 写什么 | 规矩 |
 |---|---|---|
 | 标签 | `TagRepository.createTag(name:, parentId:, description:)` | 父路径必须**已经存在**；已经存在就直接采用（detail 里说明"没有新建"）；父路径不存在 → 这一条失败，别的条照写 |
 | 知识点 | `AnkiRepository.createKnowledgePoint(title:, content:, source: 'handwriting_intake')`，再可选 `addTagToObject(objectType: 'knowledge_point')` | `tag_path` 不存在时**点照建、只是没挂边**（detail 说明）——点本身是用户确认过的内容，比一条边重要 |
 | 闪存卡 | 先建知识点，再每张卡 `createTemplate(...)`，**然后逐张 `getOrCreateCardState(template.id)`** | 没有卡状态的模板在复习队列里不存在（同 `features/ai/tools/knowledge_tools.dart` 里那条注释），"建了卡但复习里看不到"等于没建 |
+| 题目 | `QuestionRepository.ingest(QuestionDraft(...))`：`sourceLabel: '拍照整理'`、`origin: 'ai_scan'`、`state: 'structured'`，选项转 `QuestionOptionDraft`，答案里的字母（`B` / `A、C` / `AC`）认成正确项 | `fields.stem` 空 → 这一条失败；题干指纹命中已有的题 → 返回 `created: false`，detail 写"题库里已有同题干的题目 TR-xxxxx，没有重复入库"；`tag_path` 不存在 → 题照建、只提示没挂边 |
 
 三条横向规矩：
 
@@ -116,6 +127,12 @@ presentation 侧用 `export` 保住了原来的 import 路径。
   `handwriting_queue_page.dart`；`refresh()` 现在还会从库里把整理结果读回来。
 - **OCR 质量取决于模型**：解析严格意味着模型跑偏时用户看到的是"回复不符合契约"+原文，
   而不是一份残缺提案——这是有意的。
+- **题目卡片的编辑入口还没接**（task-70，进行中）：`questionDraftForIntake` 已能装配草稿，
+  队列卡片上点"改一下再存"回填收题页表单、保存后 `markAppliedLocally` 标已确认——UI 与
+  l10n 由 question-intake 接力。
+- **确认前的预检还没接**（task-71，进行中）："这条会新建还是复用""挂在哪个标签下"
+  "为什么不能确认"目前只散落在确认后的 detail 里；预检纯逻辑（`handwriting_proposal_preview.dart`）
+  由 reasoning-core 交付后，队列卡片会在确认按钮前先给出目标路径与阻断原因。
 
 ## 5. 验收记录
 
@@ -131,3 +148,16 @@ presentation 侧用 `export` 保住了原来的 import 路径。
 - `flutter test test/domain/services/intake test/features/questions --concurrency=1` → `+88 All tests passed!`
   （其中这 26 例是本轮新增，其余 62 例是既有 questions 回归）。
 - `dart analyze lib test` → `94 issues found.`（0 error / 0 warning，与本片之前的基线同数）。
+
+2026-10-20（Lead，轮次一百二十八：第四类产物"题目"）：
+
+- `app/test/domain/services/intake/handwriting_proposals_test.dart` 新增 group「题目提案（第四类产物）」20 例：
+  契约里的 question 示例、`fields.stem` 必填、选项标签必须 A 起连续且不重复、非题目带
+  `options` 拒绝、题目空选项/超 26 项拒绝、`confidence` 越界、旧三类输出逐字节不变；
+- `app/test/features/questions/application/handwriting_proposal_service_test.dart` 新增 10 例：
+  成功入库（题干/选项/答案字母/题型/题号）、`fields.stem` 空不写库、重复题干不重复入库、
+  挂标签、标签不存在照建不挂边、纯文字题、答案非字母不猜正确项、多选 `A、C` 与 `AC`、
+  `questionDraftForIntake` 只装配不写库、题干空拿不到草稿；
+- `flutter test test/features/questions/application/handwriting_proposal_service_test.dart --concurrency=1`
+  → `+29 All tests passed`；`dart analyze` 该文件 `No issues found`。
+- 提交 `a004aca`："feat(intake): 拍照整理出「题目」——第四类产物可确认入库"。
