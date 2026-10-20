@@ -60,7 +60,7 @@ void main() {
     // New modules say what they actually do: no writing before save, proposals
     // before data, ordering only.
     expect(find.textContaining('题干指纹'), findsOneWidget);
-    expect(find.textContaining('三类待确认产物'), findsOneWidget);
+    expect(find.textContaining('四类待确认产物'), findsOneWidget);
     expect(find.textContaining('今日清单'), findsOneWidget);
     // The ranking section it grew out of is still there.
     expect(find.text('总分怎么算'), findsOneWidget);
