@@ -1536,6 +1536,43 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsCardGroupsHint =>
       '卡组就是标签树：给一个标签设每日新卡/复习上限，它整棵子树都算这个卡组；判分方式与卡片类型也在这里改。';
+  @override
+  String get reviewReminderSettingTitle => '复习提醒';
+
+  @override
+  String get reviewReminderSettingOff => '关';
+
+  @override
+  String reviewReminderSettingOn(String time) => '每天 $time · 有到期卡片时提醒';
+
+  @override
+  String get reviewReminderDialogTitle => '复习提醒';
+
+  @override
+  String get reviewReminderDialogBody =>
+      '到点若还有到期卡片，就用系统通知提醒你一次。应用没开也会响；系统没给通知权限时不会弹。';
+
+  @override
+  String get reviewReminderToggleTitle => '开启复习提醒';
+
+  @override
+  String get reviewReminderToggleHint => '只提醒到期卡片，不改复习计划。';
+
+  @override
+  String get reviewReminderTimeLabel => '提醒时间';
+
+  @override
+  String get reviewReminderNotificationTitle => 'Furnace 复习提醒';
+
+  @override
+  String reviewReminderNotificationDueBody(int count) =>
+      '有 $count 张卡片到期，花几分钟复习一下。';
+
+  @override
+  String get reviewReminderNotificationSoonBody => '有卡片到复习时间了。';
+
+  @override
+  String get reviewReminderPermissionDenied => '系统没给通知权限，这个提醒不会弹出来。';
 
   @override
   String get settingsQuestionBankHint => '题库总览、收题、组卷、拍照整理、材料入库，都从这一页进。';

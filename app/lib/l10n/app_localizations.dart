@@ -2835,6 +2835,78 @@ abstract class AppLocalizations {
   /// **'A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.'**
   String get settingsCardGroupsHint;
 
+  /// No description provided for @reviewReminderSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review reminder'**
+  String get reviewReminderSettingTitle;
+
+  /// No description provided for @reviewReminderSettingOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get reviewReminderSettingOff;
+
+  /// No description provided for @reviewReminderSettingOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day at {time} when cards are due'**
+  String reviewReminderSettingOn(String time);
+
+  /// No description provided for @reviewReminderDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review reminder'**
+  String get reviewReminderDialogTitle;
+
+  /// No description provided for @reviewReminderDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'At that time, if cards are still due, a system notification reminds you once. It fires even when the app is closed; it will not appear if notifications are not allowed.'**
+  String get reviewReminderDialogBody;
+
+  /// No description provided for @reviewReminderToggleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable review reminder'**
+  String get reviewReminderToggleTitle;
+
+  /// No description provided for @reviewReminderToggleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only reminds you about due cards; it does not change the review plan.'**
+  String get reviewReminderToggleHint;
+
+  /// No description provided for @reviewReminderTimeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder time'**
+  String get reviewReminderTimeLabel;
+
+  /// No description provided for @reviewReminderNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Furnace review reminder'**
+  String get reviewReminderNotificationTitle;
+
+  /// No description provided for @reviewReminderNotificationDueBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} card(s) are due; a few minutes of review will clear them.'**
+  String reviewReminderNotificationDueBody(int count);
+
+  /// No description provided for @reviewReminderNotificationSoonBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Some cards are due for review.'**
+  String get reviewReminderNotificationSoonBody;
+
+  /// No description provided for @reviewReminderPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are not allowed, so this reminder will not appear.'**
+  String get reviewReminderPermissionDenied;
+
   /// No description provided for @settingsQuestionBankHint.
   ///
   /// In en, this message translates to:

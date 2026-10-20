@@ -24,6 +24,7 @@ import 'appearance_section.dart';
 import 'about_page.dart';
 import 'capability_vocabulary_page.dart';
 import 'data_section.dart';
+import 'review_reminder_section.dart';
 import 'usage_doc_page.dart';
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) {
@@ -63,6 +64,8 @@ class SettingsPage extends ConsumerWidget {
           ),
           // Whole-workspace export/import (.tfpkg).
           const DataSection(),
+          // 复习提醒：开关 + 每天提醒时刻（v28 两列，排程在 features/anki）。
+          const ReviewReminderSection(),
           ListTile(
             leading: const Icon(Icons.menu_book_outlined),
             title: Text(l10n.settingsUsageDoc),
