@@ -22,6 +22,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_serial_batch.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
@@ -761,6 +762,225 @@ class ReadQuestionTool extends AiTool {
       return '';
     }
     return CapabilityAction.subjectLabelsZh[subjectKey] ?? subjectKey;
+  }
+
+  String _sourceLevelOf(String key) => switch (key.trim()) {
+        'gaokao' => '高考真题',
+        'provincial_diagnostic' => '省市诊断',
+        'elite_school' => '名校测试',
+        'school' => '校内题',
+        'personal' => '自建题',
+        'unknown' => '',
+        _ => key.trim(),
+      };
+}
+
+/// 批量读题（轮次一百三十）：用户把"整卷题号"贴进来时，一次核对/读出这一批。
+///
+/// 为什么需要它：`read_question` 一次只读一道题。用户说"这套卷子 1..20 我录了
+/// 几道、缺哪几道"或"把 3、5 到 9 号找出来讲讲"时，逐号调用既慢又把对话塞满。
+/// 这个工具复用 `domain/services/questions/question_serial_batch.dart` 的题号/
+/// 区间解析，把清单变成一组**摘要**：哪些号在库、哪些号缺、每道题的学科/来源/
+/// 题干摘要/有没有答案/解析/选项/配图。
+///
+/// 刻意只给摘要、不给完整题干：讲题请用 `read_question`。这样一次读 200 道也
+/// 不会撑爆上下文。AI 不出题：清单里的号在库里没有就如实报缺，绝不补写题干。
+class ReadQuestionsBySerialsTool extends AiTool {
+  ReadQuestionsBySerialsTool({required AppDatabase db}) : _db = db;
+
+  final AppDatabase _db;
+
+  /// 一次最多读多少道（默认与硬上限）。超出的号由解析器截断并记 `truncated`。
+  static const int defaultMaxCount = 50;
+  static const int hardMaxCount = 200;
+
+  @override
+  String get name => 'read_questions_by_serials';
+
+  @override
+  String get description => '按一份题号清单批量读题库里已有的题：`serials` 支持逗号/顿号/'
+      '空白分隔、区间（`1..20`、`3-9`）、`TR-00042` / `42` 两种写法。返回每个号在不在库，'
+      '以及每道题的题号、学科、来源、题干摘要、有没有答案/解析、选项数与配图数。'
+      '用在用户贴出一整卷题号（如「1..20 里我录了几道」「5 到 9 号都找出来」）时。'
+      '**只读**：不写库、不出题——库里没有的号如实报缺，绝不生成题干。';
+
+  @override
+  Map<String, Object?> get parameters => {
+        'type': 'object',
+        'properties': {
+          'serials': {
+            'type': 'string',
+            'description': '题号清单，例如 `1..20`、`TR-00001, 3, 5-8`；逗号/顿号/空白分隔，'
+                '区间用 `..` 或 `-`。',
+          },
+          'max_count': {
+            'type': 'integer',
+            'description': '最多读多少道（默认 $defaultMaxCount，上限 $hardMaxCount）。',
+          },
+        },
+        'required': <String>['serials'],
+      };
+
+  /// 只读、无 action：与 `read_question` 同一中性组合（`write` + 可逆），
+  /// 让 `ApprovalEngine` 在任何权限模式下都不逐条询问。
+  @override
+  ToolRisk riskFor(String action) => ToolRisk.write; // unused: no actions
+
+  @override
+  bool reversibleFor(String action) => true;
+
+  @override
+  bool get readOnly => true;
+
+  @override
+  bool get availableOnCurrentPlatform => true;
+
+  @override
+  Future<ToolResult> run(ToolInvocation invocation) async {
+    try {
+      final args = ToolArgs(invocation.arguments);
+      final serialsText = args.optString('serials');
+      if (serialsText == null) {
+        throw ToolArgError(
+          '缺少题号清单：给 `serials`，例如 `1..20` 或 `TR-00001, 3, 5-8`',
+        );
+      }
+      final requestedMax = args.optInt('max_count') ?? defaultMaxCount;
+      final maxCount = requestedMax <= 0
+          ? defaultMaxCount
+          : (requestedMax < hardMaxCount ? requestedMax : hardMaxCount);
+
+      final batch = parseQuestionSerialBatch(serialsText, maxCount: maxCount);
+      if (batch.serials.isEmpty) {
+        final rejected = batch.rejectedSegments;
+        throw ToolArgError(
+          rejected.isEmpty
+              ? '读不出题号清单 `$serialsText`：给 `1..20`、`TR-00001, 3, 5-8` 这类写法'
+                  '（逗号/顿号/空白分隔，区间用 `..` 或 `-`）'
+              : '清单里没有可用的题号（${_labelsOf(rejected)} 没认出来）：'
+                  '给 `1..20`、`TR-00001, 3, 5-8` 这类写法',
+        );
+      }
+
+      final repository = QuestionRepository(_db);
+      final rows = await repository.search(
+        serialNos: batch.serials.toSet(),
+        limit: batch.serials.length,
+      );
+      // 题号跨设备 append 导入可能撞号（docs/QUESTION_BANK_DESIGN.md §11.1）：
+      // 一个号对应多条时按 search 的价值序取第一条，不在这里报错。
+      final bySerial = <int, Question>{};
+      for (final row in rows) {
+        final serialNo = row.serialNo;
+        if (serialNo != null) {
+          bySerial.putIfAbsent(serialNo, () => row);
+        }
+      }
+
+      final foundIds = [for (final row in bySerial.values) row.id];
+      final optionCounts = <String, int>{};
+      final imageCounts = <String, int>{};
+      if (foundIds.isNotEmpty) {
+        final optionRows = await (_db.select(_db.questionOptions)
+              ..where((t) => t.questionId.isIn(foundIds)))
+            .get();
+        for (final row in optionRows) {
+          optionCounts[row.questionId] =
+              (optionCounts[row.questionId] ?? 0) + 1;
+        }
+        final attachmentRows = await (_db.select(_db.attachments)
+              ..where((t) =>
+                  t.ownerType.equals('question') & t.ownerId.isIn(foundIds)))
+            .get();
+        for (final row in attachmentRows) {
+          imageCounts[row.ownerId] = (imageCounts[row.ownerId] ?? 0) + 1;
+        }
+      }
+
+      final questions = <Map<String, Object?>>[];
+      final missing = <String>[];
+      for (final serial in batch.serials) {
+        final row = bySerial[serial];
+        if (row == null) {
+          missing.add(formatQuestionSerial(serial));
+          continue;
+        }
+        questions.add({
+          'serial_no': serial,
+          'serial_label': formatQuestionSerial(serial),
+          'id': row.id,
+          'subject_key': row.subjectKey,
+          'subject': _subjectOf(row.subjectKey),
+          'source_level': row.sourceLevel,
+          'source_level_zh': _sourceLevelOf(row.sourceLevel),
+          'source_label': row.sourceLabel,
+          'year': row.year,
+          'region': row.region,
+          'stem_preview': previewStem(row.stem),
+          'has_answer': _hasText(row.answer),
+          'has_solution': _hasText(row.solution),
+          'option_count': optionCounts[row.id] ?? 0,
+          'image_count': imageCounts[row.id] ?? 0,
+        });
+      }
+
+      return ToolResult(
+        ok: true,
+        summary: _summaryOf(
+          batch: batch,
+          foundCount: questions.length,
+          missing: missing,
+        ),
+        modelResult: {
+          'rule': 'library_only',
+          'requested_count': batch.count,
+          'found_count': questions.length,
+          'missing_count': missing.length,
+          'truncated': batch.truncated,
+          'rejected_segments': batch.rejectedSegments,
+          'questions': questions,
+          'missing': missing,
+        },
+      );
+    } on ToolArgError catch (e) {
+      // 模型给错了参数：变成它能读、能改的结果，而不是异常。
+      return ToolResult.failure(e.message);
+    }
+  }
+
+  String _summaryOf({
+    required QuestionSerialBatch batch,
+    required int foundCount,
+    required List<String> missing,
+  }) {
+    final missingCount = missing.length;
+    final parts = <String>[
+      '要 ${batch.count} 道题号',
+      if (foundCount == 0) '库里一道都没有' else '找到 $foundCount 道',
+      if (missingCount > 0) '缺 $missingCount 道（${_labelsOf(missing)}）',
+      if (batch.truncated) '题号太多，只读了前 ${batch.count} 个',
+      if (batch.rejectedSegments.isNotEmpty)
+        '有 ${batch.rejectedSegments.length} 段没认出来'
+            '（${_labelsOf(batch.rejectedSegments)}）',
+    ];
+    return '${parts.join('，')}。这些是题库里已有的题，我不会自己出题。';
+  }
+
+  String _labelsOf(List<String> labels) {
+    if (labels.length <= 6) {
+      return labels.join('、');
+    }
+    return '${labels.take(6).join('、')} 等';
+  }
+
+  bool _hasText(String? text) => (text ?? '').trim().isNotEmpty;
+
+  String _subjectOf(String subjectKey) {
+    final key = subjectKey.trim();
+    if (key.isEmpty) {
+      return '';
+    }
+    return CapabilityAction.subjectLabelsZh[key] ?? key;
   }
 
   String _sourceLevelOf(String key) => switch (key.trim()) {

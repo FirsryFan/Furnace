@@ -122,6 +122,11 @@ class ToolRegistry {
       // 答案/解析/知识点/解题链动作。只读；AI 不出题，它只看得见库里已有的题
       // (tools/question_tools.dart)。
       ReadQuestionTool(db: db),
+      // 批量读题 (轮次一百三十): 用户贴出一整卷题号（1..20 / TR-00001, 3, 5-8）时，
+      // 一次核对哪些号在库、哪些缺，每道只回摘要（讲题仍走 read_question）。
+      // 题号/区间解析在 domain/services/questions/question_serial_batch.dart，
+      // 工具自己不做字符串处理、不写库、不出题 (tools/question_tools.dart)。
+      ReadQuestionsBySerialsTool(db: db),
       // 用途 1 的另一半 (Q9/Q11/Q13): 「现在该练什么」——按危险/发展区读数从题库凑卷，
       // 凑不齐就如实报缺哪些知识点。读数与页面同源
       // (`cognitive/application/library_diagnosis_reader.dart`)，

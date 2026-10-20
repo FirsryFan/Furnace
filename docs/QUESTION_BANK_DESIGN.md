@@ -383,14 +383,37 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 验收：`flutter test test/features/ai/read_question_tool_test.dart` → 15 例全绿（定位 8、内容 6、只读 1）；
   `dart analyze lib/features/ai test/features/ai` → 0 error / 0 warning。
 - 未做：工具面返回的是**整段**题干/解析（只读工具默认摘要原则的例外，因为解题必须看全文），
-  超长题干没有分页；批量读题工具尚未接线。
+  超长题干没有分页；批量读题已由 §14.2 的 `read_questions_by_serials` 补上（只回摘要，不进全文）。
 - 整卷题号批量解析（task-81，轮次一百三十，纯逻辑）：`domain/services/questions/question_serial_batch.dart`
   的 `parseQuestionSerialBatch(raw, {maxCount = 200})` 支持半/全角逗号、顿号、半/全角分号、Unicode 空白
   分隔，区间 `1..5` / `3-7` / `1~5` / `1—5`（升降序统一升序、重叠相邻合并、去重升序、超限截断并置
   `truncated`、超大区间有 `kQuestionSerialBatchHardLimit` 防撑爆内存），认不出的段进 `rejectedSegments`
   （区间一端非法整段拒绝，不猜一半），永不抛异常；+51 例。批量读题工具下一步接它。
 
-### 14.2 组卷页手工指定 / 排除（question-intake 交付）
+### 14.2 AI 工具 `read_questions_by_serials`（只读，轮次一百三十一）
+
+用户贴出"整卷题号"（"1..20 里我录了几道""5 到 9 号都找出来"）时的工具面。一个号一个号调
+`read_question` 既慢又会把整段题干塞满上下文，所以这个工具只回**摘要**：
+
+- 文件：`app/lib/features/ai/tools/question_tools.dart` 的 `ReadQuestionsBySerialsTool`，注册在
+  `tool_registry.dart`（紧跟 `ReadQuestionTool`）；清单解析完全复用 §16.3 的
+  `parseQuestionSerialBatch`（工具自己不做字符串处理）。
+- 参数：`serials`（必填，如 `1..20`、`TR-00001, 3, 5-8`）、`max_count`（默认 50，上限 200；
+  <=0 回落默认；超上限钳到 200）。解析器负责区间/分隔符/去重升序/截断（`truncated`）。
+- 返回：`requested_count/found_count/missing_count/truncated/rejected_segments`、
+  `questions[]`（`serial_no/serial_label/id/subject/subject_key/source_level_zh/source_label/
+  year/region/stem_preview/has_answer/has_solution/option_count/image_count`）、`missing[]`（补零题号）。
+- 口径：一个题号对应多条时按 `QuestionRepository.search` 的价值序取第一条（题号跨设备 append 导入
+  可能撞号，§11.1）；库里没有的号进 `missing`，认不出的段原样进 `rejected_segments`，
+  整段清单都没可用题号时返回可读失败——**不猜、不生成题干**（AI 不出题）。
+- 只读：`readOnly=true`，`riskFor/reversibleFor` 与 `read_question` 同一中性组合，任何权限模式
+  都不逐条询问；测试逐表比对调用前后快照不变。
+- 验收：`flutter test test/features/ai/read_questions_by_serials_tool_test.dart` → 16 例全绿
+  （只读 2、清单口径 4、摘要 6、边界 3、注册与 schema 1）；
+  `dart analyze lib/features/ai/tools/question_tools.dart lib/features/ai/domain/tool_registry.dart test/features/ai/read_questions_by_serials_tool_test.dart` → No issues。
+- 未做：不返回知识点/解题链动作（要这两样请对单题调 `read_question`）；没有分页（超 200 道截断）。
+
+### 14.3 组卷页手工指定 / 排除（question-intake 交付）
 
 `compose_paper` 与组卷 provider 早就有 `manualIncludeQuestionIds` / `manualExcludeQuestionIds`（轮次一百二十五
 上游切片，task-32/34 的语义：排除 > 必收 > 保底 > 填充），本轮补 UI：
@@ -526,6 +549,6 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
   `dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。
 - 在途：task-82（question-intake）题目详情页「题目来源」入口 + 缩略图 `cacheWidth/cacheHeight` 接线 +
   3 个 l10n key；完成后 Lead 统一提交并按切片写 PROGRESS。
-- 未做（下一批）：批量读题 AI 工具（接 §16.3）、题库列表题号搜索接新解析器之外的多号搜索、
-  来源链接写入/纠错的 UI、缩略图磁盘缓存。
+- 未做（下一批）：题库列表题号搜索接新解析器之外的多号搜索、来源链接写入/纠错的 UI、缩略图磁盘缓存。
+- 轮次一百三十一已补：批量读题 AI 工具 `read_questions_by_serials`（§14.2）。
 
