@@ -615,6 +615,63 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
   `E:/dsh-tmp-aot/test-132-full.txt`）；四目录组合 → **+1005** 全绿（日志 `E:/dsh-tmp-aot/test-132-slices.txt`）。
 - 门禁事故：第一次全量跑在 `+3324 loading review_page_test.dart` 处 CPU 冻结 5 分钟，手动 kill；怀疑与
   teammate 并发跑测试争用，改为同一时刻只跑一个 `flutter test` 后重跑通过。
-- 未做：整卷页粘贴的界面入口（预览 / 批量入库）与真实浏览器「保存页面」HTML 端到端；题源链接的
-  「改原题链接」UI；搜索框多号结果顺序只由代码顺序保证（测试断言命中与去重）；真机输入法未手测。
+- 未做（部分已在轮次一百三十三补上，见 §18）：整卷页粘贴的界面入口（预览 / 批量入库，§18.3 已做对话框）；题源链接的
+  「改原题链接」UI（§18.4，task-92）；搜索框多号结果顺序只由代码顺序保证（测试断言命中与去重）；真机输入法未手测。
+
+## 18. 整卷页对照题库、题源链接解析与编辑（轮次一百三十三，2026-10-21）
+
+这一轮把「手上有整页试卷、但不知道库里有没有」做成一条可用的链路：粘贴整卷页 → 对照 → 缺题清单 → 逐题补录；
+顺带把「原题链接」从只读变成可改可清。四个切片（task-88/89/90/91，task-92 在途）。
+
+### 18.1 整卷对照的数据与应用层（Lead，task-88）
+
+- 数据层 `QuestionRepository.byZujuanQuestionIds(Set<String>)`：逐项 trim 去空，空集返回空 map；
+  只查 `zujuan_question_id` 非空的题，按 `updatedAt` 降序 / `id` 升序，结果按 zujuan id 分组；
+  同一 zujuan id 若有多行（历史重复入库）原样保留，由调用方取第一行（最新）。
+- 应用层 `features/questions/application/zujuan_paper_progress.dart`：
+  `loadZujuanPaperProgress({required QuestionRepository repository, required ZujuanPaperExtract extract})`
+  返回 `ZujuanPaperProgress{extract, matched, missingQuestionIds, missingLinks}`——
+  按试卷页题号顺序逐 id 取库中最新一行，命中进 `matched`（`serialLabel` 用全仓一致的
+  `questionSerialLabel`，未编号显示「TR-未编号」；`stemPreview` 压空白取前 60 个 rune，多了加 …），
+  缺题进 `missingQuestionIds`；`missingLinks` 逐 id 用 `zujuanQuestionDetailUrl` 重算（缺 bankId 跳过）。
+  `extract` 为空时直接返回空 progress、**不查库**。为什么不放 UI 层：AI 工具要复用同一套匹配与预览口径。
+- 测试 +20 例（仓储 8 / 应用层 12）：空集、trim 精确、不做前导零归一、同 id 多行降序、顺序跟试卷页、
+  预览截断、未编号占位、无 bankId 无链接、warnings/truncated 透传。
+
+### 18.2 AI 只读工具 `read_zujuan_paper`（threadflow-engine，task-90）
+
+- 工具 26 → 27：参数 `text`（必填）+ `max_count`（默认 50、硬上限 200）；
+  流程 `parseZujuanPaperText` → 空则 `ToolArgError`（说明要整卷页/题页形状）→ `loadZujuanPaperProgress`。
+- 只读：结果带 `rule: 'library_only'`、计数、`truncated`、`warnings`、
+  `matched`（4 键：zujuan_question_id / question_id / serial_no / stem_preview）、
+  `missing`（zujuan_question_id + 可空 link）、条件 `missing_omitted`；摘要写明
+  「我只读题库，不会去组卷网抓页面」，缺题题号最多列 3 个。
+- 测试 +17 例；`read_questions_by_serials` 无回归（+16）。
+
+### 18.3 收题页「整卷对照」对话框（question-intake，task-91）
+
+- 收题页第三个入口（Key `zujuan-paper-open`）打开 `zujuan_paper_dialog.dart`：粘贴整卷页 URL / 整页文字 →
+  解析 → 显示「共 N 道 · 已收录 M 道 · 缺 K 道」+ 已收录行（题号 + 题干预览）+ 缺题行（有链接显示链接、
+  无链接显示「（无链接）」+ 原因说明）+ 一键复制缺题链接。空白或认不出显示空态文案且不查库；
+  全部已收录或缺题无链接时复制按钮禁用。
+- l10n 18 个 `zujuanPaper*` key（zh/en 五文件手改，未跑 gen-l10n）。
+- 测试 +11（对话框）+ 1（入口）：纯函数链接判定、空态两次不查库（计数仓储断言）、全缺/部分命中、
+  复制写剪贴板、无 bankId 提示与禁用、入口打开。presentation 目录 +310 全绿（基线 298）。
+
+### 18.4 题源链接的输入解析与「改原题链接」（reasoning-core task-89 + question-intake task-92）
+
+- 域层 `parseZujuanSourceInput(raw)` → `ZujuanSourceInput{sourceUrl?, zujuanQuestionId?, zujuanBankId?}`：
+  接受完整 http(s) 组卷网题目页 URL（先 `questionSourceFor` 归一，**只有组卷网 host 才抽两个 id**）、
+  裸路径 `/10q<id>.html`、别的站 URL（只存 sourceUrl）；纯数字 / 相对路径 / `javascript:` 等 → null；
+  拒绝口径与已知边界见 `docs/ZUJUAN_LINKS_DESIGN.md` §10（+40 例，zujuan 目录 +252）。
+- 详情页「原题链接」编辑（task-92，已完成）：来源行复制按钮旁「改原题链接」，无来源行时低权重「添加原题链接」（同一 Key）；
+  对话框初值=现有 sourceUrl，输入实时预览三个字段，三行全空/认不出禁用保存；保存走 `updateSourceLinks`
+  （null=该列不动，别站 URL 只写 sourceUrl、不冲掉已有 zujuan id），「清空链接」二次确认后三列清空；+10 + 3 例。提交 `86ab39d`。
+
+### 18.5 未做（本轮之后）
+
+- 整卷对照的「批量补录缺失题」：目前只有缺题清单与链接复制，逐题录入仍要走粘贴题面 / 定点找题。
+- 真实组卷网整页文本/浏览器「保存页面」HTML 的端到端手测（各层有构造样本测试，未实测真页面）。
+- 三按钮同排的窄屏（<400dp）溢出未验证，后续可换 `Wrap`。
+- 同一题在题库里重复入库时，read_zujuan_paper 只取最新一行、不做合并提示。
 

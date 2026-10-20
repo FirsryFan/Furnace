@@ -293,3 +293,113 @@ knowledgePoints / zujuanQuestionId / zujuanBankId / sourceUrl / warnings / isPar
 - 难度、题型、专题字段解析后丢弃；若要保留需先扩`ZujuanPastedQuestion` 契约与表列。
 - 不保存"是否已在组卷网找到这道题"的人工状态；不做答案图片下载、不做登录态。
 
+## 9. 整卷页对照题库（轮次一百三十三）
+
+用户场景：浏览器里打开组卷网一套卷的详情页（`/<bank>p<paper>.html`，例 `/10p3076310.html`），
+想知道"这页里哪几道我题库里还没有"。这一轮把"整卷页 → 题号清单 → 与题库对照 → 缺题链接"
+接起来，纯本地、纯只读：不联网、不抓页面、不写库。
+
+### 9.1 抽取（已有，轮次一百三十二）
+
+NaN``
+lib/domain/services/zujuan/zujuan_paper_extract.dart
+NaN``
+
+的 `parseZujuanPaperText(raw)`：粘整页 HTML 或纯文本都能认（`/<bank>q<id>.html` 与 `/q<id>.html`
+两种形状），抽出 `paperId`/`bankId`/`title`/按出现顺序去重后的 `questionIds`（上限 200，超出
+NaNtruncated=true` 并给 warning）/`questionLinks`（可能比 ids 短：没有 bankId 时生成不出）。
+永不抛异常；空输入返回空结果。这一层已在轮次一百三十二交付，本轮只消费它。
+
+### 9.2 数据层：按组卷网 questionid 批量查题
+
+NaNQuestionRepository.byZujuanQuestionIds(Set<String>)`：
+
+- 输入空集合、或全部 trim 后为空 → 空 map，不查库；
+- `where zujuan_question_id IN (...)`；同一组卷网 id 可能有多行（历史重复入库，库上
+  没有唯一约束），顺序固定为 **`updatedAt` 降序、`id` 升序**，调用方取第一行当"最新一行"；
+- 匹配口径是 trim 后**精确相等**，不做大小写/前导零归一——归一属于解析层，数据层只认
+  库里存的字符串。
+
+### 9.3 应用层：loadZujuanPaperProgress
+
+NaN``dart
+Future<ZujuanPaperProgress> loadZujuanPaperProgress({
+  required QuestionRepository repository,
+  required ZujuanPaperExtract extract,
+});
+NaN``
+
+- 位置：`lib/features/questions/application/zujuan_paper_progress.dart`。
+- 抽取为空（一个题号都没抽到）→ 直接返回空结果，**不查库**；界面因此能区分"没认出"
+  与"认出了但全缺"。
+- 命中顺序 = 试卷页题目出现顺序（不按题号、不按入库时间）；同一题号多行只保留最新一行。
+- `ZujuanPaperMatchedQuestion{zujuanQuestionId, questionId, serialLabel, stemPreview, sourceUrl}`：
+  `serialLabel` = `TR-00001`，没编号时 `TR-未编号`；`stemPreview` = 题干压空白后前 60 个
+  Unicode 码点，截断时末尾带省略号。
+- `ZujuanPaperProgress`：`matched` / `missingQuestionIds` / `missingLinks`（用 `extract.bankId`
+  逐 id 调 `zujuanQuestionDetailUrl` 生成；没有 bankId 时为空列表，长度可小于缺题数）/
+  `questionCount` / `matchedCount` / `missingCount` / `isEmpty` / `hasMissingLinks` /
+  `missingLinksText`（一行一个，可直接进剪贴板）/ `warnings` / `truncated` 透传。
+- 这一层不联网、不写库；为什么不在 UI 里拼：缺题清单还要给 AI 工具
+  `read_zujuan_paper` 用，两处口径必须一致。
+
+### 9.4 验收证据（本轮已完成部分）
+
+- `flutter test test/data/repositories/question_repository_zujuan_ids_test.dart test/features/questions/application/zujuan_paper_progress_test.dart --concurrency=1`
+  → **+20 All tests passed**（仓库 8 例 + 应用层 12 例）；
+
+### 9.5 未做（本轮或后续）
+
+- 组卷网页面本身不抓取（WAF，见 §8.1）：整页内容要用户自己复制粘进来。
+- 缺题链接只给"去打开"的 URL，不在 App 内打开浏览器（没有 url_launcher）。
+- 答案/解析图片不自动下载，仍要用户登录后自己看（见 §8.1 结尾口径）。
+
+## 10. 题源链接的输入解析（轮次一百三十三，task-89）
+
+给「题目详情页改原题链接」用的域层解析：`parseZujuanSourceInput(String raw)` →
+NaNZujuanSourceInput{sourceUrl?, zujuanQuestionId?, zujuanBankId?, isEmpty, toJson}`；认不出返回 null，永不抛。
+位置：`lib/domain/services/zujuan/zujuan_source_input.dart`。
+
+接受的输入形态（口径与拒绝理由）：
+
+1. **完整 http(s) URL**：先交给 `questionSourceFor`（`question_source.dart`）规范化——去 fragment、
+   去默认端口、scheme/host 小写、path/query 逐字节保留、不升降级、拒绝 `javascript:`/`data:` 等。
+   规范化后再看 path 是否命中 `(?<![0-9A-Za-z_])(?:([0-9]{1,6}))?q([0-9]{1,12})\.html`。
+   **只有 host 命中组卷网**（`zujuan.xkw.com` 或 `*.zujuan.xkw.com`，口径同 `question_source.dart` 的
+   `isZujuan`）才抽两个 id；别的站一律只收 `sourceUrl`、id 留 null——`zujuanQuestionId` 的语义
+   是"组卷网原题 id"，在别站路径里捡到 `10q5.html` 就填进去等于猜。
+2. **裸路径/文件名**：`/10q35583902.html`、`10q35583902.html`、`q35583902.html`（大小写不敏感）——
+   用 `zujuanQuestionDetailUrl` 重建标准链接；缺 bank 时 `sourceUrl=null`、只填题号。
+3. **别的站的绝对 URL**：只给 `sourceUrl`（链接可信但不知道组卷网 id）。
+4. 纯数字、只有 bank、`javascript:`/`data:`/`file:`/`mailto:`/`ftp:`、相对普通路径、随机文字 → **null**（不猜）。
+
+已知边界（都有测试固定）：
+
+- 裸路径只认"整串就是文件名/路径形状"；`/foo/10q123.html`、`10q35583902.html?x=1`、末尾多一段的都不认。
+  从浏览器地址栏粘来的带目录路径目前认不出，属已知限制。
+- id 位数字段原样保留：不剥前导零、不补零（`0042` 就是 `0042`，与数据层精确匹配口径一致）。
+- path 不做百分号解码：`/%31%30q5.html` 会在字面串上命中而得到 bank=`30`、qid=`5`；
+  这是"不改写用户粘贴的 URL"的直接结果，真实场景罕见，暂不处理。
+- URL 里的 query 保留（有的站用 query 记来源），fragment 去掉。
+
+验收：`flutter test test/domain/services/zujuan --concurrency=1` → **+252 All tests passed**
+（既有 212 + 本层 40：完整 URL 10 / 路径形状 11 / 别的站 5 / 拒绝 3 / 值对象 7 / 不抛与确定性 4）；
+`dart analyze lib/domain/services/zujuan test/domain/services/zujuan` → No issues found。
+
+## 11. 整卷对照的界面与 AI 工具（轮次一百三十三，task-90 / task-91）
+
+§9 的数据/应用层被两条入口直接消费，口径完全一致（同一个 `loadZujuanPaperProgress`）：
+
+- **AI 工具 `read_zujuan_paper`**（第 27 个工具）：参数 `text` + `max_count`（默认 50、上限 200），
+  只读、不联网；结果 `rule='library_only'`、count 三件、`truncated`、`warnings`、
+  `matched`（4 键，无 source_url）、`missing`（逐 id 重算 link）、`missing_omitted`。
+  摘要明确「只读题库，不会去组卷网抓页面」——这条是刻意的能力边界说明，模型不应暗示能上网补题。
+- **收题页「整卷对照」对话框**：第三个入口 → 粘贴 → 统计行 + 已收录 + 缺题 + 复制缺题链接；
+  空白/认不出只显示空态且不查库；无 `bankId` 时缺题行标「（无链接）」并说明原因、复制禁用。
+  l10n 18 个 `zujuanPaper*` key（zh/en）。测试 +11 + 1 入口，presentation 目录 +310 全绿。
+
+- **详情页「原题链接」编辑**（§10 的解析器在这里落地，task-92）：来源行「改原题链接」/ 无来源时的「添加原题链接」→
+  对话框三字段实时预览 → 保存 `updateSourceLinks`（null=不动，别站 URL 不冲掉旧 id）→ 清空需二次确认。
+
+未做：批量补录缺失题（仍逐题走粘贴题面 / 定点找题）、真实整页文本端到端手测、窄屏三按钮换行、真机软键盘遮挡未验。
+

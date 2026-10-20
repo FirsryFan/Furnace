@@ -2,6 +2,43 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十三：整卷页对照题库、题源链接可改（Lead + 三个 teammate）
+
+**起点**：轮次一百三十二（HEAD `abfab15`）。本轮把「手上有整页试卷，但不知道库里有没有」做成闭环：
+粘贴整卷页 → 与题库按组卷网题号对照 → 已收录/缺题清单 → 复制缺题链接；并把「原题链接」从只读变成可改可清。
+task-88（Lead）、task-89（reasoning-core）、task-90（threadflow-engine）、task-91/92（question-intake）全部 completed（rev3），
+git 由 Lead 统一提交，成员只写各自作用域。
+
+**A. 整卷对照的数据与应用层（task-88，Lead）**：`QuestionRepository.byZujuanQuestionIds(Set<String>)` 只查
+`zujuan_question_id` 非空的题（updatedAt 降序 / id 升序，结果按 zujuan id 分组）；应用层
+`features/questions/application/zujuan_paper_progress.dart` 的 `loadZujuanPaperProgress` 按试卷页题号顺序逐 id 取最新一行，
+命中给 `serialLabel`（全仓一致口径，未编号显示 TR-未编号）与 `stemPreview`（压空白取前 60 rune + …），
+缺题给 `missingQuestionIds` 与逐 id 重算的 `missingLinks`（缺 bankId 跳过）；extract 为空时不查库。+20 例（仓储 8 / 应用 12）。提交 `02313bf`。
+
+**B. 题源链接输入解析（task-89，reasoning-core）**：`domain/services/zujuan/zujuan_source_input.dart` 的
+`parseZujuanSourceInput(raw)` 认三类输入——完整 http(s) 组卷网题目页 URL（先 `questionSourceFor` 归一，
+**只有 host 命中组卷网才抽两个 id**，别站只收 sourceUrl）、裸路径 `/10q<id>.html`（用 `zujuanQuestionDetailUrl` 重建链接）、
+别的站 URL；纯数字 / 相对路径 / `javascript:` 等一律 null，永不抛。+40 例，zujuan 目录 **+252** 全绿。提交 `cd2d1e4`。
+
+**C. AI 只读工具 `read_zujuan_paper`（task-90，threadflow-engine）**：第 27 个工具，参数 `text` + `max_count`
+（默认 50、硬上限 200）；粘贴整卷页文本 → `parseZujuanPaperText` → `loadZujuanPaperProgress`，
+返回 `rule='library_only'`、计数、warnings、matched（4 键）与 missing（逐 id 重算链接），摘要写明「只读题库，
+不会去组卷网抓页面」。+17 例，`read_questions_by_serials` 无回归。提交 `bec8f88`。
+
+**D. 收题页「整卷对照」对话框（task-91，question-intake）**：第三个入口 → 粘贴 → 「共 N 道 · 已收录 M 道 · 缺 K 道」+
+已收录行 + 缺题行（有链接/无链接）+ 一键复制缺题链接；空白或认不出只显示空态且**不查库**；无 bankId 时说明原因并禁用复制。
+l10n 18 个 `zujuanPaper*` key；+11 + 1 例，presentation 目录 **+310** 全绿。提交 `73e92a7`。
+
+**E. 详情页可编辑原题链接（task-92，question-intake）**：来源行「复制」旁加「改原题链接」；没有来源行的题目在同一位置
+显示低权重「添加原题链接」；对话框实时用 `parseZujuanSourceInput` 预览三个字段，保存走 `updateSourceLinks`
+（null=该列不动，别站 URL 不冲掉旧 id），「清空链接」二次确认后三列清空；成功后 invalidate 详情 provider。
+l10n 17 key；+10 + 3 例，presentation 目录 **+323** 全绿。提交 `86ab39d`。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；全量 `flutter test --concurrency=1` →
+**+4476 ~2 All tests passed**，9 分 12 秒（EXIT=0；日志 `E:/dsh-tmp-aot/test-133-full.txt`）。
+
+**未做**：整卷对照的「批量补录缺失题」（仍逐题走粘贴题面 / 定点找题）；真实组卷网整页文本与浏览器「保存页面」HTML 端到端手测；
+三按钮同排的窄屏溢出未验证；真机软键盘遮挡编辑对话框未手测；英文文案未母语校对。
 ## 2026-10-21 轮次一百三十二：题库搜索、整卷页粘贴抽取、题源链接写入（Lead + 三个 teammate）
 
 **起点**：轮次一百三十一（HEAD `6677a93`）。本轮继续把「少让用户手敲」往前推：搜索框一次贴多号/区间/

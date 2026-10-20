@@ -156,7 +156,7 @@ class ToolSpec {
 > 或写出用户目录之外的文件），无法可靠撤回。因此 `run_skill` 的 `reversible = false`，
 > **在两种模式下都逐条确认**（依 D13b）。这不是保守，是能力边界：能撤回的才敢自动。
 
-**2026-10-21 实测：当前真正注册的工具清单（26 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
+**2026-10-21 实测：当前真正注册的工具清单（27 个）**——上表是设计期的"预计 15 个"，实现以代码为准，
 清单本身在 `app/lib/features/ai/domain/tool_registry.dart` 的 `ToolRegistry.forApp`（模块聚合被遵守：
 22 个工具覆盖任务/日程/认知/材料/题库/卡片/标签/文档，而不是把 60+ 个仓库方法逐个铺开）：
 
@@ -175,6 +175,7 @@ class ToolSpec {
 | `find_questions_by_capability` | 同上 | 只读（按能力动作找题） | — |
 | `read_question` | 同上 | 只读（按 id/题号读整道题：题干/选项/答案/解析/知识点/最新链动作/配图数） | — |
 | `read_questions_by_serials` | 同上 | 只读（整卷题号清单批量读：区间/逗号分隔 → 每个号在不在库 + 摘要，缺号与坏段如实报） | — |
+| `read_zujuan_paper` | `tools/zujuan_paper_tool.dart` | 只读（粘贴组卷网整卷页文本 → 与题库按 `zujuan_question_id` 对照：已收录题号/摘要 + 缺题与逐 id 重算的链接；不抓页面不联网） | — |
 | `compose_paper` | `tools/paper_tools.dart` | 只读（从已有题库凑卷，不出题） | — |
 | `audit_question_intake` | `tools/question_audit_tools.dart` | 只读（题库入库体检摘要，26 判据只报不改） | — |
 | `get_learning_advice` | `tools/learning_advice_tools.dart` | 只读（洞察 + 画像 + 题库题数 → 确定性建议） | — |
