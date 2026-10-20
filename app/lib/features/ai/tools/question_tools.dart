@@ -27,6 +27,25 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
 
+/// 附件角色在**读侧**折叠后的两类（v27 `attachments.role`，镜像 `QuestionImageRole`）。
+///
+/// 为什么在这里复制字面量、不 import `question_media_store.dart`：那个文件要
+/// `dart:io` + `path_provider`，AI 工具层保持只依赖 drift / 纯 Dart，不把 IO 栈
+/// 拖进来。角色词表改动时两处一起改：见 `tables.dart` 的 `Attachments.role` 注释
+/// 与 `question_media_store.dart` 的 `effectiveQuestionImageRole`。
+///
+/// 语义与 `effectiveQuestionImageRole` 一致：NULL / 空串 / 纯空白都算题干配图；
+/// 不认识的值（例如以后新增的角色）**两桶都不算**，只如实不计。
+bool _isStemQuestionImageRole(String? stored) {
+  final role = stored?.trim() ?? '';
+  return role.isEmpty || role == 'stem';
+}
+
+bool _isAnswerQuestionImageRole(String? stored) {
+  final role = stored?.trim() ?? '';
+  return role == 'answer' || role == 'solution';
+}
+
 /// 在已有题库里给一道题（或一组条件）找相似题。
 class FindSimilarQuestionsTool extends AiTool {
   FindSimilarQuestionsTool({required AppDatabase db}) : _db = db;
@@ -534,7 +553,8 @@ class FindQuestionsByCapabilityTool extends AiTool {
   }
 }
 
-/// 读一道题的完整内容（题干 / 选项 / 答案 / 解析 / 知识点 / 解题链动作 / 配图数）。
+/// 读一道题的完整内容（题干 / 选项 / 答案 / 解析 / 知识点 / 解题链动作
+/// / 题干配图与答案/解析截图数）。
 ///
 /// 用户口径：AI **不出题**，只解题 / 拆题 / 找相似题。要解题先得看见题——
 /// 对话里在此之前只能靠 `find_similar_questions` 拿题干摘要，模型讲不清一道具体题
@@ -551,7 +571,7 @@ class ReadQuestionTool extends AiTool {
   @override
   String get description => '读题库里一道题的完整内容：给 `question_id` 或题号 `serial`'
       '（如 TR-00042 / 42），返回完整题干、选项、答案、解析、知识点、最新一条解题链的'
-      '能力动作、配图数。用在你需要讲清 / 拆解一道**用户库里已有的题**的时候'
+      '能力动作、题干配图数与答案/解析截图数。用在你需要讲清 / 拆解一道**用户库里已有的题**的时候'
       '（例如用户问「帮我讲讲这道题」）。**只读**：不写库、不生成题干、不猜题——'
       '库里没有就如实说没有。';
 
@@ -633,6 +653,15 @@ class ReadQuestionTool extends AiTool {
             ..where((t) =>
                 t.ownerType.equals('question') & t.ownerId.equals(row.id)))
           .get();
+      var stemImageCount = 0;
+      var answerImageCount = 0;
+      for (final attachment in attachmentRows) {
+        if (_isStemQuestionImageRole(attachment.role)) {
+          stemImageCount += 1;
+        } else if (_isAnswerQuestionImageRole(attachment.role)) {
+          answerImageCount += 1;
+        }
+      }
 
       return ToolResult(
         ok: true,
@@ -643,7 +672,8 @@ class ReadQuestionTool extends AiTool {
           pointIds: pointIds,
           pointNames: corpus.knowledgePointNames,
           actionTypes: actionTypes,
-          imageCount: attachmentRows.length,
+          stemImageCount: stemImageCount,
+          answerImageCount: answerImageCount,
         ),
         modelResult: {
           'rule': 'library_only',
@@ -682,7 +712,8 @@ class ReadQuestionTool extends AiTool {
           ],
           'action_types': actionTypes,
           'action_labels_zh': actionLabels,
-          'image_count': attachmentRows.length,
+          'image_count': stemImageCount,
+          'answer_image_count': answerImageCount,
         },
       );
     } on ToolArgError catch (e) {
@@ -716,7 +747,8 @@ class ReadQuestionTool extends AiTool {
     required List<String> pointIds,
     required Map<String, String> pointNames,
     required List<String> actionTypes,
-    required int imageCount,
+    required int stemImageCount,
+    required int answerImageCount,
   }) {
     final subject = _subjectOf(row.subjectKey);
     final source = _sourceLevelOf(row.sourceLevel);
@@ -735,7 +767,8 @@ class ReadQuestionTool extends AiTool {
           ? '没挂知识点'
           : '知识点 ${pointIds.length} 个（${_namesOf(pointIds, pointNames)}）',
       if (actionTypes.isNotEmpty) '最新解题链动作 ${actionTypes.length} 个',
-      if (imageCount > 0) '配图 $imageCount 张',
+      if (stemImageCount > 0) '配图 $stemImageCount 张',
+      if (answerImageCount > 0) '答案/解析截图 $answerImageCount 张',
     ];
     final head = meta.isEmpty ? serialLabel : '$serialLabel（$meta）';
     return '$head：$stem。${parts.join('，')}。这些是题库里已有的题，我不会自己出题。';
@@ -781,7 +814,7 @@ class ReadQuestionTool extends AiTool {
 /// 几道、缺哪几道"或"把 3、5 到 9 号找出来讲讲"时，逐号调用既慢又把对话塞满。
 /// 这个工具复用 `domain/services/questions/question_serial_batch.dart` 的题号/
 /// 区间解析，把清单变成一组**摘要**：哪些号在库、哪些号缺、每道题的学科/来源/
-/// 题干摘要/有没有答案/解析/选项/配图。
+/// 题干摘要/有没有答案/解析/选项/题干配图与答案/解析截图数。
 ///
 /// 刻意只给摘要、不给完整题干：讲题请用 `read_question`。这样一次读 200 道也
 /// 不会撑爆上下文。AI 不出题：清单里的号在库里没有就如实报缺，绝不补写题干。
@@ -800,7 +833,8 @@ class ReadQuestionsBySerialsTool extends AiTool {
   @override
   String get description => '按一份题号清单批量读题库里已有的题：`serials` 支持逗号/顿号/'
       '空白分隔、区间（`1..20`、`3-9`）、`TR-00042` / `42` 两种写法。返回每个号在不在库，'
-      '以及每道题的题号、学科、来源、题干摘要、有没有答案/解析、选项数与配图数。'
+      '以及每道题的题号、学科、来源、题干摘要、有没有答案/解析、选项数、'
+      '题干配图数与答案/解析截图数。'
       '用在用户贴出一整卷题号（如「1..20 里我录了几道」「5 到 9 号都找出来」）时。'
       '**只读**：不写库、不出题——库里没有的号如实报缺，绝不生成题干。';
 
@@ -879,7 +913,8 @@ class ReadQuestionsBySerialsTool extends AiTool {
 
       final foundIds = [for (final row in bySerial.values) row.id];
       final optionCounts = <String, int>{};
-      final imageCounts = <String, int>{};
+      final stemImageCounts = <String, int>{};
+      final answerImageCounts = <String, int>{};
       if (foundIds.isNotEmpty) {
         final optionRows = await (_db.select(_db.questionOptions)
               ..where((t) => t.questionId.isIn(foundIds)))
@@ -893,7 +928,13 @@ class ReadQuestionsBySerialsTool extends AiTool {
                   t.ownerType.equals('question') & t.ownerId.isIn(foundIds)))
             .get();
         for (final row in attachmentRows) {
-          imageCounts[row.ownerId] = (imageCounts[row.ownerId] ?? 0) + 1;
+          if (_isStemQuestionImageRole(row.role)) {
+            stemImageCounts[row.ownerId] =
+                (stemImageCounts[row.ownerId] ?? 0) + 1;
+          } else if (_isAnswerQuestionImageRole(row.role)) {
+            answerImageCounts[row.ownerId] =
+                (answerImageCounts[row.ownerId] ?? 0) + 1;
+          }
         }
       }
 
@@ -920,7 +961,8 @@ class ReadQuestionsBySerialsTool extends AiTool {
           'has_answer': _hasText(row.answer),
           'has_solution': _hasText(row.solution),
           'option_count': optionCounts[row.id] ?? 0,
-          'image_count': imageCounts[row.id] ?? 0,
+          'image_count': stemImageCounts[row.id] ?? 0,
+          'answer_image_count': answerImageCounts[row.id] ?? 0,
         });
       }
 

@@ -18,7 +18,7 @@ import 'package:furnace/features/ai/tools/question_tools.dart';
 ///  1. **只读**：一次调用不改任何表，`ApprovalEngine` 在任何权限模式下都不逐条询问；
 ///  2. **清单口径**：逗号/顿号/空白分隔、区间 `1..3`、`TR-00042`/`42` 写法、去重升序；
 ///  3. **摘要完整**：每个号在不在库，以及题号/学科/来源/题干摘要/有无答案/解析/
-///     选项数/配图数；
+///     选项数/题干配图与答案/解析截图数；
 ///  4. **缺号如实报**：库里没有的号进 `missing`，坏段进 `rejected_segments`，
 ///     绝不生成题干；
 ///  5. 边界：缺参、整段认不出、`max_count` 截断与上限、注册表可达。
@@ -74,14 +74,19 @@ void main() {
     return ingested.question;
   }
 
-  Future<void> seedAttachment({required String ownerId}) async {
+  Future<void> seedAttachment({
+    required String ownerId,
+    String? role,
+    String? id,
+  }) async {
     await db.into(db.attachments).insert(
           AttachmentsCompanion.insert(
-            id: 'att-$ownerId',
+            id: id ?? 'att-$ownerId',
             ownerType: 'question',
             ownerId: ownerId,
             relPath: 'question_images/$ownerId/att/photo.png',
             mime: const Value('image/png'),
+            role: Value(role),
             createdAt: 1,
           ),
         );
@@ -235,6 +240,7 @@ void main() {
       expect(row['has_solution'], isTrue);
       expect(row['option_count'], 2);
       expect(row['image_count'], 1);
+      expect(row['answer_image_count'], 0);
     });
 
     test('marks an empty shell as missing answer/solution/options', () async {
@@ -248,6 +254,7 @@ void main() {
       expect(row['has_solution'], isFalse);
       expect(row['option_count'], 0);
       expect(row['image_count'], 0);
+      expect(row['answer_image_count'], 0);
     });
 
     test('reports missing serials honestly, with labels', () async {
@@ -336,6 +343,55 @@ void main() {
 
       expect(result.ok, isTrue);
       expect(serialsOf(result), [1, 2]);
+    });
+  });
+
+  group('配图分类（题干配图与答案/解析截图）', () {
+    test('每行分别报题干配图数与答案/解析截图数', () async {
+      final first = await seedQuestion(stem: '第一道题');
+      final second = await seedQuestion(stem: '第二道题');
+      // 旧行 role 为 NULL + 'stem' → 题干配图 2 张；'answer' → 答案截图 1 张。
+      await seedAttachment(ownerId: first.id, id: 'att-first-null');
+      await seedAttachment(
+          ownerId: first.id, id: 'att-first-stem', role: 'stem');
+      await seedAttachment(
+        ownerId: first.id,
+        id: 'att-first-answer',
+        role: 'answer',
+      );
+      // 只有解析截图：题干配图 0、答案/解析截图 1。
+      await seedAttachment(
+        ownerId: second.id,
+        id: 'att-second-solution',
+        role: 'solution',
+      );
+
+      final result = await tool.run(invoke({'serials': '1..2'}));
+      final rows = [
+        for (final row in modelOf(result)['questions']! as List)
+          row as Map<String, Object?>,
+      ];
+
+      expect(rows, hasLength(2));
+      expect(rows[0]['image_count'], 2);
+      expect(rows[0]['answer_image_count'], 1);
+      expect(rows[1]['image_count'], 0);
+      expect(rows[1]['answer_image_count'], 1);
+    });
+
+    test('没有附件时两个键都是 0（键始终存在）', () async {
+      await seedQuestion(stem: '没配图的题');
+
+      final result = await tool.run(invoke({'serials': '1'}));
+      final row = (modelOf(result)['questions']! as List).single
+          as Map<String, Object?>;
+
+      expect(row['image_count'], 0);
+      expect(row['answer_image_count'], 0);
+      expect(
+        row.keys,
+        containsAll(<String>['image_count', 'answer_image_count']),
+      );
     });
   });
 

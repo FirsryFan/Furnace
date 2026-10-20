@@ -173,8 +173,8 @@ class ToolSpec {
 | `check_transcribe_run` | 同上 | 只读（校验 / `execute:true` 只演练不落库） | — |
 | `find_similar_questions` | `tools/question_tools.dart` | 只读（题库同型邻居） | — |
 | `find_questions_by_capability` | 同上 | 只读（按能力动作找题） | — |
-| `read_question` | 同上 | 只读（按 id/题号读整道题：题干/选项/答案/解析/知识点/最新链动作/配图数） | — |
-| `read_questions_by_serials` | 同上 | 只读（整卷题号清单批量读：区间/逗号分隔 → 每个号在不在库 + 摘要，缺号与坏段如实报） | — |
+| `read_question` | 同上 | 只读（按 id/题号读整道题：题干/选项/答案/解析/知识点/最新链动作/题干配图数/答案截图数） | — |
+| `read_questions_by_serials` | 同上 | 只读（整卷题号清单批量读：区间/逗号分隔 → 每个号在不在库 + 摘要含两类配图数，缺号与坏段如实报） | — |
 | `read_zujuan_paper` | `tools/zujuan_paper_tool.dart` | 只读（粘贴组卷网整卷页文本 → 与题库按 `zujuan_question_id` 对照：已收录题号/摘要 + 缺题与逐 id 重算的链接；不抓页面不联网） | — |
 | `compose_paper` | `tools/paper_tools.dart` | 只读（从已有题库凑卷，不出题） | — |
 | `audit_question_intake` | `tools/question_audit_tools.dart` | 只读（题库入库体检摘要，26 判据只报不改） | — |

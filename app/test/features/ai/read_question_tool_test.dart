@@ -16,7 +16,7 @@ import 'package:furnace/features/ai/tools/question_tools.dart';
 ///  1. **只读**：一次调用不改任何表，`ApprovalEngine` 在任何权限模式下都不逐条询问；
 ///  2. **只读库里已有的题**：按 `question_id` 或题号（TR-00042 / 42）定位，
 ///     库里没有就如实说没有，绝不生成题干；
-///  3. **内容完整**：题干/选项顺序/答案/解析/知识点/最新解题链动作/配图数；
+///  3. **内容完整**：题干/选项顺序/答案/解析/知识点/最新解题链动作/题干配图与答案截图数；
 ///  4. 边界：缺参、坏题号、查无此号、无编号题、没有答案/解析的脏行。
 void main() {
   late AppDatabase db;
@@ -117,6 +117,7 @@ void main() {
     required String id,
     required String ownerType,
     required String ownerId,
+    String? role,
   }) async {
     await db.into(db.attachments).insert(
           AttachmentsCompanion.insert(
@@ -125,6 +126,7 @@ void main() {
             ownerId: ownerId,
             relPath: 'question_images/$ownerId/$id/photo.png',
             mime: const Value('image/png'),
+            role: Value(role),
             createdAt: 1,
           ),
         );
@@ -429,6 +431,7 @@ void main() {
       expect(result.ok, isTrue);
       final model = result.modelResult! as Map<String, Object?>;
       expect(model['image_count'], 2);
+      expect(model['answer_image_count'], 0);
       expect(result.summary, contains('配图 2 张'));
     });
 
@@ -441,8 +444,106 @@ void main() {
       final model = result.modelResult! as Map<String, Object?>;
       expect(model['answer'], isNull);
       expect(model['solution'], isNull);
+      expect(model['image_count'], 0);
+      expect(model['answer_image_count'], 0);
       expect(result.summary, contains('库里没存答案'));
       expect(result.summary, contains('没存解析'));
+    });
+  });
+
+  group('配图分类（题干配图与答案/解析截图）', () {
+    test('按 role 分开计数，题干配图与答案截图互不混算', () async {
+      final question = await seedQuestion(stem: '看图求面积。');
+      // 旧行 role 为 NULL → 题干配图；'stem' 同桶。
+      await seedAttachment(
+        id: 'att-null-1',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+      await seedAttachment(
+        id: 'att-null-2',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+      await seedAttachment(
+        id: 'att-stem',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'stem',
+      );
+      // 'answer' / 'solution' → 答案/解析截图桶。
+      await seedAttachment(
+        id: 'att-answer',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'answer',
+      );
+      await seedAttachment(
+        id: 'att-solution',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'solution',
+      );
+      // 不是这个题主（ownerType 不同）的截图不计。
+      await seedAttachment(
+        id: 'att-ai-answer',
+        ownerType: 'ai_message',
+        ownerId: question.id,
+        role: 'answer',
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      expect(result.ok, isTrue);
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 3);
+      expect(model['answer_image_count'], 2);
+      expect(result.summary, contains('配图 3 张'));
+      expect(result.summary, contains('答案/解析截图 2 张'));
+    });
+
+    test('只有答案截图时 image_count 为 0，摘要不提「配图」', () async {
+      final question = await seedQuestion(stem: '答案只存了截图。');
+      await seedAttachment(
+        id: 'att-answer-only',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'answer',
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      expect(result.ok, isTrue);
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 0);
+      expect(model['answer_image_count'], 1);
+      expect(result.summary, contains('答案/解析截图 1 张'));
+      expect(result.summary, isNot(contains('配图 ')));
+    });
+
+    test('未知 role 两桶都不计，只数其它可用角色', () async {
+      final question = await seedQuestion(stem: '以后新增的角色。');
+      await seedAttachment(
+        id: 'att-future',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'future_role',
+      );
+      await seedAttachment(
+        id: 'att-stem',
+        ownerType: 'question',
+        ownerId: question.id,
+        role: 'stem',
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      expect(result.ok, isTrue);
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 1);
+      expect(model['answer_image_count'], 0);
+      expect(result.summary, contains('配图 1 张'));
+      expect(result.summary, isNot(contains('截图')));
     });
   });
 }
