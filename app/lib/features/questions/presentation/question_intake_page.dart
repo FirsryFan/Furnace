@@ -38,6 +38,8 @@ import 'question_media_view.dart';
 import 'handwriting_queue_page.dart';
 import 'question_paper_page.dart';
 import 'question_vocab_labels.dart';
+import 'zujuan_paste_dialog.dart';
+import 'zujuan_pick_panel.dart';
 
 /// `QuestionDraft` 的字段是裸字符串（表里也是 `text()`），仓储没有导出常量，
 /// 这里给本页用到的取值一个名字，免得字符串在页面里飘。
@@ -369,6 +371,47 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     );
   }
 
+  // ── 组卷网找题 ──────────────────────────────────────────────────────────────
+
+  /// 打开「定点找题」面板：把筛选条件拼成组卷网检索链接，复制到浏览器打开。
+  ///
+  /// App 不抓页面（站点有反爬），这里只负责把筛选表达准确，答案/解析仍要用户
+  /// 登录后在网站上取。
+  void _openZujuanPick() {
+    unawaited(showZujuanPickPanel(
+      context,
+      l10n: AppLocalizations.of(context),
+      initialSubjectKey: _subjectKey,
+    ));
+  }
+
+  /// 打开「粘贴组卷网题面」对话框：解析 → 勾选/改题干 → 批量入库。
+  ///
+  /// 批量入库的逐条容错在对话框里做；这里只负责把汇总告诉用户。
+  Future<void> _openZujuanPaste() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final summary = await showZujuanPasteDialog(
+      context,
+      l10n: l10n,
+      initialSubjectKey: _subjectKey,
+    );
+    if (summary == null || !mounted) {
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.zujuanPasteSummary(
+            summary.saved,
+            summary.duplicates,
+            summary.failed,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(Question question) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -484,6 +527,8 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
                   onAddOption: _addOption,
                   onRemoveOption: _removeOption,
                   onSubmit: _submit,
+                  onOpenZujuanPick: _openZujuanPick,
+                  onOpenZujuanPaste: _openZujuanPaste,
                 ),
                 const SizedBox(height: 12),
                 _HandwritingCard(
@@ -610,6 +655,8 @@ class _IntakeFormCard extends StatelessWidget {
     required this.onAddOption,
     required this.onRemoveOption,
     required this.onSubmit,
+    required this.onOpenZujuanPick,
+    required this.onOpenZujuanPaste,
   });
 
   final TextEditingController stemController;
@@ -632,6 +679,8 @@ class _IntakeFormCard extends StatelessWidget {
   final VoidCallback onAddOption;
   final ValueChanged<int> onRemoveOption;
   final VoidCallback onSubmit;
+  final VoidCallback onOpenZujuanPick;
+  final VoidCallback onOpenZujuanPaste;
 
   @override
   Widget build(BuildContext context) {
@@ -645,6 +694,28 @@ class _IntakeFormCard extends StatelessWidget {
             Text(
               l10n.questionIntakePasteSection,
               style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: zujuanPickOpenButtonKey,
+                    onPressed: onOpenZujuanPick,
+                    icon: const Icon(Icons.travel_explore),
+                    label: Text(l10n.zujuanPickOpenButton),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: zujuanPasteOpenButtonKey,
+                    onPressed: onOpenZujuanPaste,
+                    icon: const Icon(Icons.content_paste_go),
+                    label: Text(l10n.zujuanPasteOpenButton),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             TextField(

@@ -3400,6 +3400,127 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionIntakeSourceUnknown => '未标注';
 
   @override
+  String get zujuanPickOpenButton => '定点找题';
+
+  @override
+  String get zujuanPickTitle => '定点找题';
+
+  @override
+  String get zujuanPickIntro => '选筛选条件，复制链接到浏览器打开组卷网；App 只生成链接，不抓取页面。';
+
+  @override
+  String get zujuanPickSubject => '学科';
+
+  @override
+  String get zujuanPickKnowledgePoint => '知识点 id';
+
+  @override
+  String get zujuanPickKnowledgePointHint => '留空 = 该学科全部知识点';
+
+  @override
+  String get zujuanPickDifficulty => '难度';
+
+  @override
+  String get zujuanPickAny => '不限';
+
+  @override
+  String get zujuanPickYear => '年份';
+
+  @override
+  String get zujuanPickYearEarlier => '更早';
+
+  @override
+  String get zujuanPickProvince => '省份';
+
+  @override
+  String get zujuanPickGrade => '年级';
+
+  @override
+  String get zujuanPickGradeSenior1 => '高一';
+
+  @override
+  String get zujuanPickGradeSenior2 => '高二';
+
+  @override
+  String get zujuanPickGradeSenior3 => '高三';
+
+  @override
+  String get zujuanPickSort => '排序';
+
+  @override
+  String get zujuanPickUrl => '检索链接';
+
+  @override
+  String get zujuanPickCopy => '复制链接';
+
+  @override
+  String get zujuanPickCopied => '检索链接已复制：到浏览器粘贴打开';
+
+  @override
+  String get zujuanPickNoScrapeHint =>
+      'App 不抓取组卷网页面（站点有反爬）；要看答案与解析，请你在浏览器里登录组卷网后查看。';
+
+  @override
+  String get zujuanPickLoginHint =>
+      '登录后可看答案与解析（免费账号每天约 30 道）；把看过的题面/答案/解析粘回来，用「粘贴组卷网题面」入库。';
+
+  @override
+  String get zujuanPasteOpenButton => '粘贴组卷网题面';
+
+  @override
+  String get zujuanPasteTitle => '粘贴组卷网题面';
+
+  @override
+  String get zujuanPasteIntro => '从组卷网复制题目文本（可以多题），解析后预览、勾选、改题干，再按「全部入库」。';
+
+  @override
+  String get zujuanPasteLoginHint =>
+      '组卷网答案需登录后查看（免费账号每天约 30 道）；把答案/解析一起粘进来会自动识别。';
+
+  @override
+  String get zujuanPasteInputLabel => '题面文本';
+
+  @override
+  String get zujuanPasteInputHint => '粘贴含【答案】【解析】的题面；多题之间用空行分隔';
+
+  @override
+  String get zujuanPasteParse => '解析';
+
+  @override
+  String get zujuanPasteParseEmpty => '这段文本里没解析出题目：粘贴至少一道题的题干再试。';
+
+  @override
+  String zujuanPastePreviewTitle(int count) => '解析出 $count 道题';
+
+  @override
+  String get zujuanPasteItemStem => '题干（可改）';
+
+  @override
+  String zujuanPasteItemOptions(int count) => '$count 个选项';
+
+  @override
+  String zujuanPasteItemSource(String source) => '来源：$source';
+
+  @override
+  String zujuanPasteItemYear(int year) => '$year 年';
+
+  @override
+  String get zujuanPastePartial => '识别不完整：请核对题干与选项';
+
+  @override
+  String get zujuanPasteImport => '全部入库';
+
+  @override
+  String get zujuanPasteImporting => '正在入库…';
+
+  @override
+  String get zujuanPasteNothingSelected => '没有勾选任何题：先勾选要入库的题。';
+
+  @override
+  String zujuanPasteSummary(int saved, int duplicates, int failed) =>
+      '已入库 $saved 道 · 重复 $duplicates 道 · 失败 $failed 道';
+
+  @override
   String get questionDetailTitle => '题目详情';
 
   @override

@@ -161,6 +161,11 @@ skill 侧同样写明：HeadlessChrome 被阻断、请求过密触发 IP 级阻�
 ⇒ 分工：**App 负责"把范围定准、把链接给对、把用户带回来的题面收进来"**；抓取与登录态留给浏览器
 （现有 `zujuan-finder` 内置 skill / 扩展桥是那条路线的工具）。
 
+**用户本人登录是完全可行的**：在浏览器里人工登录组卷网账号后，答案与解析（整张 JPEG）正常可见，
+每日限额约 30 道。App 不做的是替用户维持登录态、代登录、批量下载；用户在浏览器看过之后，
+把题面/答案/解析的文字粘回 App 即可入库（答案以图片形式随题保存留到后续版本）。
+所以文案不要写成"拿不到答案"，要写成"答案要你自己登录看一眼"。
+
 ### 8.2 定点筛选链接：`zujuan_query.dart`
 
 ```dart
@@ -219,21 +224,40 @@ knowledgePoints / zujuanQuestionId / zujuanBankId / sourceUrl / warnings / isPar
 `sourceUrl` 优先用原文里的链接、没有就用 bank+question id 拼、答案/解析空白转 null；三列来源字段
 随 v26 落库（见 `docs/DATA_MODEL.md` §15）。15 例测试。
 
-### 8.5 收题页 UI（task-66，question-intake）
+### 8.5 收题页 UI（task-66，question-intake，已交付）
 
-两个入口按钮（定点找题 / 粘贴组卷网题面）在收题表单标题行下：定点面板只做**筛选 + 实时 URL + 复制**，
-并明写"App 不抓页面、答案需登录且每天约 30 道"；粘贴对话框做可勾选、可改题干的预览，再批量入库并
-汇总成功/重复/失败。l10n 五文件手改。**本节待该任务完成后补实际控件与测试证据**。
+两个等宽入口按钮在收题表单标题行下（`question_intake_page.dart:703/:712`）：
 
-### 8.6 这一轮的验收证据（截至目前）
+| 入口 | 文件 | 做什么 |
+|---|---|---|
+| 定点找题 | `app/lib/features/questions/presentation/zujuan_pick_panel.dart` | 底部表：学科 / 知识点 id / 难度 / 年份 / 省份 / 年级 / 排序 → **实时拼 URL**（`zujuanPickUrlFor`）→ SelectableText 显示 → 「复制链接」写剪贴板、关表、SnackBar |
+| 粘贴组卷网题面 | `app/lib/features/questions/presentation/zujuan_paste_dialog.dart` | 粘贴文本 → `parseZujuanPaste` → 可改题干、可取消勾选 → 逐条 `ingest` → 汇总 saved / duplicates / failed；单条异常不中断 |
 
-`flutter test test/domain/services/zujuan` → +122 All tests passed（link 19 + query 50 + paste 47 等）；
-`flutter test test/features/questions/application/zujuan_paste_import_test.dart` → +15；
-`flutter test test/data/database/v26_migration_test.dart` → +3。
+- 面板的学科默认值取题库当前学科（`zujuanPickDefaultSubject`），学科不对时回退数学；
+  知识点 id、省份码非法时**不拼坏链接**，字段留空即不加筛选段。
+- 文案按 §8.1 口径：面板明写"App 不抓页面；要看答案与解析，得你自己在浏览器登录组卷网
+  （免费账号每天约 30 道），把看到的题面/答案解析粘回来"；粘贴对话框还有一行同样的登录提示小字
+  （`zujuanPickNoScrapeHint` / `zujuanPickLoginHint` / `zujuanPasteLoginHint`）。
+- l10n 五文件手改（未跑 gen-l10n）：`zujuanPick*` 21 个 + `zujuanPaste*` 18 个 = 39 个 key。
+- 粘贴对话框里 `ingest` 返回 `created:false` 计为"重复"（题干指纹命中），不计失败。
+
+测试：`zujuan_pick_panel_test.dart` 11 例（6 纯逻辑 + 5 交互，含剪贴板平台通道断言）、
+`zujuan_paste_dialog_test.dart` 10 例（1 纯逻辑 + 9 widget：取消勾选 / 改题干 / 重复 / partial /
+异常不中断 / 关闭不写库）、收题页入口 2 例。
+
+### 8.6 这一轮的验收证据
+
+- `flutter test test/domain/services/zujuan` → +122 All tests passed（link 19 + query 50 + paste 47 等）；
+- `flutter test test/features/questions/application/zujuan_paste_import_test.dart` → +15；
+- `flutter test test/data/database/v26_migration_test.dart` → +3；
+- `flutter test --concurrency=1 test/features/questions/presentation` → +272 All tests passed
+  （基线 249 + 定点面板/粘贴对话框/入口 23）；
+- `dart analyze lib test` → 92 issues / 0 error / 0 warning。
 
 ### 8.7 未做 / 已知限制
 
-- 真实粘贴样本、筛选链接的联网可达性都未人工验证（WAF）；答案与解析（JPEG）不在导入范围。
+- 真实粘贴样本、筛选链接的联网可达性都未人工验证（WAF）；答案与解析（JPEG）不自动下载，
+  需要用户自己登录查看后把文字补进来（后续版本可加"答案截图随题保存"）。
 - 知识点列表只解析、不入库（`QuestionDraft` 没有知识点字段，题目与知识点目前靠标签/相似题，不靠外键）。
 - 难度、题型、专题字段解析后丢弃；若要保留需先扩`ZujuanPastedQuestion` 契约与表列。
 - 不保存"是否已在组卷网找到这道题"的人工状态；不做答案图片下载、不做登录态。

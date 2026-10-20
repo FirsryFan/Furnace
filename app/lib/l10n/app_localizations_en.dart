@@ -3547,6 +3547,134 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionIntakeSourceUnknown => 'Unlabelled';
 
   @override
+  String get zujuanPickOpenButton => 'Find by filters';
+
+  @override
+  String get zujuanPickTitle => 'Find questions by filters';
+
+  @override
+  String get zujuanPickIntro =>
+      'Pick filters and copy the link to open Zujuan in a browser; the app only builds the link and does not fetch pages.';
+
+  @override
+  String get zujuanPickSubject => 'Subject';
+
+  @override
+  String get zujuanPickKnowledgePoint => 'Knowledge point id';
+
+  @override
+  String get zujuanPickKnowledgePointHint =>
+      'Leave empty for all knowledge points of the subject';
+
+  @override
+  String get zujuanPickDifficulty => 'Difficulty';
+
+  @override
+  String get zujuanPickAny => 'Any';
+
+  @override
+  String get zujuanPickYear => 'Year';
+
+  @override
+  String get zujuanPickYearEarlier => 'Earlier';
+
+  @override
+  String get zujuanPickProvince => 'Province';
+
+  @override
+  String get zujuanPickGrade => 'Grade';
+
+  @override
+  String get zujuanPickGradeSenior1 => 'Grade 10';
+
+  @override
+  String get zujuanPickGradeSenior2 => 'Grade 11';
+
+  @override
+  String get zujuanPickGradeSenior3 => 'Grade 12';
+
+  @override
+  String get zujuanPickSort => 'Sort';
+
+  @override
+  String get zujuanPickUrl => 'Search link';
+
+  @override
+  String get zujuanPickCopy => 'Copy link';
+
+  @override
+  String get zujuanPickCopied => 'Search link copied: paste it in a browser';
+
+  @override
+  String get zujuanPickNoScrapeHint =>
+      'The app does not fetch Zujuan pages (the site blocks scraping). To see answers and solutions, sign in to Zujuan in your browser and view them there.';
+
+  @override
+  String get zujuanPickLoginHint =>
+      'Answers and solutions are visible after signing in to Zujuan (free accounts see about 30 questions per day). Paste viewed stems, answers, and solutions back in with Paste Zujuan questions.';
+
+  @override
+  String get zujuanPasteOpenButton => 'Paste Zujuan questions';
+
+  @override
+  String get zujuanPasteTitle => 'Paste Zujuan questions';
+
+  @override
+  String get zujuanPasteIntro =>
+      'Copy question text from Zujuan (multiple questions are fine), parse it, then preview, select, edit stems, and import.';
+
+  @override
+  String get zujuanPasteLoginHint =>
+      'Zujuan answers require signing in (free accounts see about 30 questions per day). Paste answers and solutions in too and they will be recognized.';
+
+  @override
+  String get zujuanPasteInputLabel => 'Question text';
+
+  @override
+  String get zujuanPasteInputHint =>
+      'Paste question text with answers and solutions; separate questions with blank lines';
+
+  @override
+  String get zujuanPasteParse => 'Parse';
+
+  @override
+  String get zujuanPasteParseEmpty =>
+      'No questions were parsed from this text: paste at least one question stem and try again.';
+
+  @override
+  String zujuanPastePreviewTitle(int count) => '$count question(s) parsed';
+
+  @override
+  String get zujuanPasteItemStem => 'Stem (editable)';
+
+  @override
+  String zujuanPasteItemOptions(int count) => '$count option(s)';
+
+  @override
+  String zujuanPasteItemSource(String source) => 'Source: $source';
+
+  @override
+  String zujuanPasteItemYear(int year) => '$year';
+
+  @override
+  String get zujuanPastePartial =>
+      'Incomplete parse: check the stem and options';
+
+  @override
+  String get zujuanPasteImport => 'Import all';
+
+  @override
+  String get zujuanPasteImporting => 'Importing…';
+
+  @override
+  String get zujuanPasteNothingSelected =>
+      'Nothing selected: check the questions to import first.';
+
+  @override
+  String zujuanPasteSummary(int saved, int duplicates, int failed) =>
+      'Imported $saved · duplicates $duplicates · failed $failed';
+
+  @override
   String get questionDetailTitle => 'Question detail';
 
   @override

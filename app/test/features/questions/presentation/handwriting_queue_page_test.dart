@@ -24,6 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
@@ -41,6 +42,7 @@ void main() {
   late AppDatabase db;
   late TagRepository tags;
   late AnkiRepository anki;
+  late QuestionRepository questions;
   late Directory root;
   late FakeIntakeStore store;
 
@@ -52,6 +54,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     tags = TagRepository(db);
     anki = AnkiRepository(db);
+    questions = QuestionRepository(db);
     root = Directory.systemTemp.createTempSync('furnace_hw_queue_');
     store = FakeIntakeStore(database: db, root: root);
   });
@@ -68,6 +71,7 @@ void main() {
         store: store,
         tags: tags,
         anki: anki,
+        questions: questions,
         adapter: adapter,
       );
 

@@ -35,6 +35,8 @@ import 'package:furnace/features/questions/presentation/drop_intake_filter.dart'
 import 'package:furnace/features/questions/presentation/drop_intake_reader.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
+import 'package:furnace/features/questions/presentation/zujuan_paste_dialog.dart';
+import 'package:furnace/features/questions/presentation/zujuan_pick_panel.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../support/picked_file_fakes.dart';
@@ -641,5 +643,53 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('定点找题入口：打开面板能选条件，关闭后面板消失', (tester) async {
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.tap(find.byKey(zujuanPickOpenButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(zujuanPickSheetKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(zujuanPickSheetKey),
+        matching: find.text(strings.zujuanPickTitle),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(zujuanPickSheetKey),
+        matching: find.widgetWithText(TextButton, strings.commonClose),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(zujuanPickSheetKey), findsNothing);
+  });
+
+  testWidgets('粘贴组卷网题面入口：打开对话框，直接关闭不写库', (tester) async {
+    await pumpPage(tester);
+    final strings = l10n(tester);
+
+    await tester.tap(find.byKey(zujuanPasteOpenButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(zujuanPasteDialogKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(zujuanPasteDialogKey),
+        matching: find.text(strings.zujuanPasteTitle),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byTooltip(strings.commonClose));
+    await tester.pumpAndSettle();
+    expect(find.byKey(zujuanPasteDialogKey), findsNothing);
+    expect(await repository.all(), isEmpty);
   });
 }

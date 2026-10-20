@@ -6047,6 +6047,240 @@ abstract class AppLocalizations {
   /// **'Unlabelled'**
   String get questionIntakeSourceUnknown;
 
+  /// No description provided for @zujuanPickOpenButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Find by filters'**
+  String get zujuanPickOpenButton;
+
+  /// No description provided for @zujuanPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find questions by filters'**
+  String get zujuanPickTitle;
+
+  /// No description provided for @zujuanPickIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick filters and copy the link to open Zujuan in a browser; the app only builds the link and does not fetch pages.'**
+  String get zujuanPickIntro;
+
+  /// No description provided for @zujuanPickSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject'**
+  String get zujuanPickSubject;
+
+  /// No description provided for @zujuanPickKnowledgePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge point id'**
+  String get zujuanPickKnowledgePoint;
+
+  /// No description provided for @zujuanPickKnowledgePointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for all knowledge points of the subject'**
+  String get zujuanPickKnowledgePointHint;
+
+  /// No description provided for @zujuanPickDifficulty.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty'**
+  String get zujuanPickDifficulty;
+
+  /// No description provided for @zujuanPickAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any'**
+  String get zujuanPickAny;
+
+  /// No description provided for @zujuanPickYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get zujuanPickYear;
+
+  /// No description provided for @zujuanPickYearEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get zujuanPickYearEarlier;
+
+  /// No description provided for @zujuanPickProvince.
+  ///
+  /// In en, this message translates to:
+  /// **'Province'**
+  String get zujuanPickProvince;
+
+  /// No description provided for @zujuanPickGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade'**
+  String get zujuanPickGrade;
+
+  /// No description provided for @zujuanPickGradeSenior1.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade 10'**
+  String get zujuanPickGradeSenior1;
+
+  /// No description provided for @zujuanPickGradeSenior2.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade 11'**
+  String get zujuanPickGradeSenior2;
+
+  /// No description provided for @zujuanPickGradeSenior3.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade 12'**
+  String get zujuanPickGradeSenior3;
+
+  /// No description provided for @zujuanPickSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get zujuanPickSort;
+
+  /// No description provided for @zujuanPickUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Search link'**
+  String get zujuanPickUrl;
+
+  /// No description provided for @zujuanPickCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get zujuanPickCopy;
+
+  /// No description provided for @zujuanPickCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Search link copied: paste it in a browser'**
+  String get zujuanPickCopied;
+
+  /// No description provided for @zujuanPickNoScrapeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The app does not fetch Zujuan pages (the site blocks scraping). To see answers and solutions, sign in to Zujuan in your browser and view them there.'**
+  String get zujuanPickNoScrapeHint;
+
+  /// No description provided for @zujuanPickLoginHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Answers and solutions are visible after signing in to Zujuan (free accounts see about 30 questions per day). Paste viewed stems, answers, and solutions back in with Paste Zujuan questions.'**
+  String get zujuanPickLoginHint;
+
+  /// No description provided for @zujuanPasteOpenButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Zujuan questions'**
+  String get zujuanPasteOpenButton;
+
+  /// No description provided for @zujuanPasteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Zujuan questions'**
+  String get zujuanPasteTitle;
+
+  /// No description provided for @zujuanPasteIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy question text from Zujuan (multiple questions are fine), parse it, then preview, select, edit stems, and import.'**
+  String get zujuanPasteIntro;
+
+  /// No description provided for @zujuanPasteLoginHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Zujuan answers require signing in (free accounts see about 30 questions per day). Paste answers and solutions in too and they will be recognized.'**
+  String get zujuanPasteLoginHint;
+
+  /// No description provided for @zujuanPasteInputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Question text'**
+  String get zujuanPasteInputLabel;
+
+  /// No description provided for @zujuanPasteInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste question text with answers and solutions; separate questions with blank lines'**
+  String get zujuanPasteInputHint;
+
+  /// No description provided for @zujuanPasteParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse'**
+  String get zujuanPasteParse;
+
+  /// No description provided for @zujuanPasteParseEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions were parsed from this text: paste at least one question stem and try again.'**
+  String get zujuanPasteParseEmpty;
+
+  /// No description provided for @zujuanPastePreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} question(s) parsed'**
+  String zujuanPastePreviewTitle(int count);
+
+  /// No description provided for @zujuanPasteItemStem.
+  ///
+  /// In en, this message translates to:
+  /// **'Stem (editable)'**
+  String get zujuanPasteItemStem;
+
+  /// No description provided for @zujuanPasteItemOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} option(s)'**
+  String zujuanPasteItemOptions(int count);
+
+  /// No description provided for @zujuanPasteItemSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {source}'**
+  String zujuanPasteItemSource(String source);
+
+  /// No description provided for @zujuanPasteItemYear.
+  ///
+  /// In en, this message translates to:
+  /// **'{year}'**
+  String zujuanPasteItemYear(int year);
+
+  /// No description provided for @zujuanPastePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete parse: check the stem and options'**
+  String get zujuanPastePartial;
+
+  /// No description provided for @zujuanPasteImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import all'**
+  String get zujuanPasteImport;
+
+  /// No description provided for @zujuanPasteImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get zujuanPasteImporting;
+
+  /// No description provided for @zujuanPasteNothingSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing selected: check the questions to import first.'**
+  String get zujuanPasteNothingSelected;
+
+  /// No description provided for @zujuanPasteSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {saved} · duplicates {duplicates} · failed {failed}'**
+  String zujuanPasteSummary(int saved, int duplicates, int failed);
+
   /// No description provided for @questionDetailTitle.
   ///
   /// In en, this message translates to:
