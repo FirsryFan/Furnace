@@ -78,12 +78,18 @@ Future<Map<String, int>> objectCountByTagId({
 `tagTreeSortModeToStorage(mode)`。**本轮只做会话内记忆，不做数据库迁移**——排序偏好是
 展示偏好，不该为了它加一列 schema；等设置页面需要跨设备/跨重启时再落到 `local_settings`。
 
-## 5. UI 接线口径（question-intake，同轮）
+## 5. UI 接线（已交付，threadflow-engine，轮次一百二十八）
 
-- 页面用 `buildTagTreeView` 替换写死的 `name.compareTo`；展开状态仍按 tag id 保留；
-- AppBar 排序选择器三种模式（中文名走 l10n）；切换立即重排；
-- `byObjectCount` 模式在 tile 上显示内容量角标（只在该模式显示，避免平时干扰）；
-- 计数与标签一起异步加载；加载中按 0 处理，不阻塞树显示。
+- `tag_tree_page.dart` 用 `buildTagTreeView` 替换写死的 `name.compareTo`：
+  `tagObjectCountsProvider`（`objectCountByTagId()`，默认直接计数）+ `tagTreeSortModeProvider`
+  （`StateProvider<TagTreeSortMode>`，默认 `alphabetical`）→ 树；展开状态仍按 tag id 保留；
+- AppBar `PopupMenuButton<TagTreeSortMode>` 三档 `CheckedPopupMenuItem`，切换立即重排；
+- `byObjectCount` 模式在 tile 尾部显示内容量角标（`ValueKey('tag-object-count-<tagId>')`），
+  其他模式不显示；
+- 计数与标签异步：`valueOrNull ?? const {}`，未到按 0，不阻塞树显示，不写库、无迁移。
+- **未接 l10n**：本轮 tooltip 与三档模式名直接用 `TagTreeSortMode.labelZh`（l10n 五文件由
+  question-intake 独占写，避免冲突）；排序偏好只在会话内（`tagTreeSortModeProvider`），
+  跨重启持久化留到以后（`tagTreeSortModeToStorage` 已备好）。
 
 ## 6. 刻意未做
 
@@ -100,4 +106,6 @@ Future<Map<String, int>> objectCountByTagId({
   环、计数、偏好编解码；
 - `app/test/data/repositories/tag_repository_test.dart`：直接/累计计数、`objectTypes` 过滤、
   空集合与 `tags` 全量返回；
-- UI：`app/test/features/tags/presentation/tag_tree_page_test.dart`（question-intake）。
+- UI：`app/test/features/tags/presentation/tag_tree_page_test.dart`（threadflow-engine，8 例：
+  默认字典序无角标、按内容量重排+角标、按添加时间、展开状态跨重排保留、切回字典序复原、
+  空库不崩、计数 pending 按 0、选择器三档打勾与即时重排）。

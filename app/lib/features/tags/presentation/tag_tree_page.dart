@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/tags/tag_tree_sort.dart';
+import '../../../domain/services/tags/tag_tree_view.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// All tags, flat. The tree is assembled in memory so a rename or move only
@@ -13,20 +15,24 @@ final allTagsProvider = FutureProvider<List<Tag>>((ref) {
   return ref.watch(tagRepositoryProvider).getAllTags();
 });
 
-/// One node of the rendered tag tree.
-class _TagNode {
-  _TagNode({required this.tag, required this.children});
+/// How many objects hang directly on each tag. The tree needs this twice: the
+/// "by object count" ordering and the count badge.
+///
+/// It is a separate provider so the tree can render from [allTagsProvider]
+/// before the counts arrive - a missing count simply means 0, it never blocks
+/// the tree or turns the page into a spinner.
+final tagObjectCountsProvider = FutureProvider<Map<String, int>>((ref) {
+  ref.watchDatabaseRevision();
+  return ref.watch(tagRepositoryProvider).objectCountByTagId();
+});
 
-  final Tag tag;
-  final List<_TagNode> children;
-
-  String get label => _labelOf(tag);
-
-  /// The full path breadcrumb segments (blueprint: default shows the leaf,
-  /// tapping reveals the whole path - no hover, this must work on touch).
-  List<String> get segments =>
-      label.split('/').where((s) => s.isNotEmpty).toList();
-}
+/// The sort mode picked in the app bar.
+///
+/// Session-scoped on purpose: this round does not write preferences (and does
+/// not touch the l10n files). [tagTreeSortModeToStorage] is the stable value
+/// ready for that wiring later; a restart falls back to alphabetical.
+final tagTreeSortModeProvider =
+    StateProvider<TagTreeSortMode>((ref) => TagTreeSortMode.alphabetical);
 
 /// The authoritative display/query path of a tag.
 String _labelOf(Tag tag) =>
@@ -47,35 +53,63 @@ class TagTreePage extends ConsumerStatefulWidget {
 class _TagTreePageState extends ConsumerState<TagTreePage> {
   final _expanded = <String>{};
 
-  List<_TagNode> _buildTree(List<Tag> tags) {
-    final byParent = <String?, List<Tag>>{};
-    for (final tag in tags) {
-      byParent.putIfAbsent(tag.parentId, () => []).add(tag);
-    }
-    for (final list in byParent.values) {
-      list.sort((a, b) => a.name.compareTo(b.name));
-    }
-
-    List<_TagNode> childrenOf(String? parentId) {
-      final children = byParent[parentId] ?? const <Tag>[];
-      return [
-        for (final child in children)
-          _TagNode(tag: child, children: childrenOf(child.id)),
-      ];
-    }
-
-    return childrenOf(null);
-  }
+  /// Maps the flat drift rows to the pure-logic tree builder: assembly, the
+  /// three ordering modes and the parent/child edges all live in
+  /// domain/services/tags/tag_tree_view.dart. This page only keeps the
+  /// expansion state (keyed by tag id) and renders the result.
+  TagTreeView _treeOf(
+    List<Tag> tags,
+    Map<String, int> objectCounts,
+    TagTreeSortMode mode,
+  ) =>
+      buildTagTreeView(
+        tags: <TagTreeViewTag>[
+          for (final tag in tags)
+            TagTreeViewTag(
+              id: tag.id,
+              parentId: tag.parentId,
+              name: tag.name,
+              path: tag.path,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(tag.createdAt),
+              description: tag.description,
+            ),
+        ],
+        objectCounts: objectCounts,
+        mode: mode,
+      );
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final tagsAsync = ref.watch(allTagsProvider);
+    final mode = ref.watch(tagTreeSortModeProvider);
+    // Counts loading must not hold the tree back: until they land every tag
+    // simply shows 0, and the page rebuilds by itself when they arrive.
+    final objectCounts =
+        ref.watch(tagObjectCountsProvider).valueOrNull ?? const <String, int>{};
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.navTags),
         actions: [
+          // Mode names come straight from the domain enum for now: the l10n
+          // files are being edited by another member this round, so wiring
+          // these three labels into AppLocalizations is a follow-up.
+          PopupMenuButton<TagTreeSortMode>(
+            tooltip: '排序',
+            icon: const Icon(Icons.sort),
+            initialValue: mode,
+            onSelected: (next) =>
+                ref.read(tagTreeSortModeProvider.notifier).state = next,
+            itemBuilder: (context) => <PopupMenuEntry<TagTreeSortMode>>[
+              for (final option in TagTreeSortMode.values)
+                CheckedPopupMenuItem<TagTreeSortMode>(
+                  value: option,
+                  checked: option == mode,
+                  child: Text(option.labelZh),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: l10n.tagsNewTop,
             icon: const Icon(Icons.create_new_folder_outlined),
@@ -106,12 +140,20 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
               ),
             );
           }
-          final tree = _buildTree(tags);
+          final tree = _treeOf(tags, objectCounts, mode);
+          final tagsById = <String, Tag>{
+            for (final tag in tags) tag.id: tag,
+          };
           return ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: [
-              for (final node in tree)
-                ..._renderNode(context, node, depth: 0),
+              for (final root in tree.roots)
+                ..._renderNode(
+                  context,
+                  root,
+                  tagsById: tagsById,
+                  showObjectCount: mode == TagTreeSortMode.byObjectCount,
+                ),
             ],
           );
         },
@@ -121,32 +163,40 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
 
   List<Widget> _renderNode(
     BuildContext context,
-    _TagNode node, {
-    required int depth,
+    TagTreeViewNode node, {
+    required Map<String, Tag> tagsById,
+    required bool showObjectCount,
   }) {
-    final hasChildren = node.children.isNotEmpty;
-    final isExpanded = _expanded.contains(node.tag.id);
+    final tag = tagsById[node.tagId]!;
+    final hasChildren = node.hasChildren;
+    final isExpanded = _expanded.contains(node.tagId);
     final widgets = <Widget>[
       _TagTile(
         node: node,
-        depth: depth,
+        tag: tag,
         hasChildren: hasChildren,
         expanded: isExpanded,
+        showObjectCount: showObjectCount,
         onToggle: () => setState(() {
           if (isExpanded) {
-            _expanded.remove(node.tag.id);
+            _expanded.remove(node.tagId);
           } else {
-            _expanded.add(node.tag.id);
+            _expanded.add(node.tagId);
           }
         }),
-        onAddChild: () => _addTag(context, parent: node.tag),
-        onRename: () => _renameTag(context, node.tag),
-        onDelete: () => _deleteTag(context, node.tag),
+        onAddChild: () => _addTag(context, parent: tag),
+        onRename: () => _renameTag(context, tag),
+        onDelete: () => _deleteTag(context, tag),
       ),
     ];
     if (hasChildren && isExpanded) {
       for (final child in node.children) {
-        widgets.addAll(_renderNode(context, child, depth: depth + 1));
+        widgets.addAll(_renderNode(
+          context,
+          child,
+          tagsById: tagsById,
+          showObjectCount: showObjectCount,
+        ));
       }
     }
     return widgets;
@@ -275,19 +325,24 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
 class _TagTile extends StatelessWidget {
   const _TagTile({
     required this.node,
-    required this.depth,
+    required this.tag,
     required this.hasChildren,
     required this.expanded,
+    required this.showObjectCount,
     required this.onToggle,
     required this.onAddChild,
     required this.onRename,
     required this.onDelete,
   });
 
-  final _TagNode node;
-  final int depth;
+  final TagTreeViewNode node;
+
+  /// The drift row behind [node], used by the add/rename/delete dialogs
+  /// (they predate the pure-logic tree and still take a `Tag`).
+  final Tag tag;
   final bool hasChildren;
   final bool expanded;
+  final bool showObjectCount;
   final VoidCallback onToggle;
   final VoidCallback onAddChild;
   final VoidCallback onRename;
@@ -305,7 +360,7 @@ class _TagTile extends StatelessWidget {
       onSecondaryTap: () => _showMenu(context),
       onLongPress: () => _showMenu(context),
       child: ListTile(
-        contentPadding: EdgeInsets.only(left: 12 + depth * 18.0, right: 4),
+        contentPadding: EdgeInsets.only(left: 12 + node.depth * 18.0, right: 4),
         leading: hasChildren
             ? IconButton(
                 visualDensity: VisualDensity.compact,
@@ -320,14 +375,26 @@ class _TagTile extends StatelessWidget {
                 child: Icon(Icons.sell_outlined,
                     size: 16, color: theme.colorScheme.outline),
               ),
-        title: Text(node.tag.name, style: theme.textTheme.bodyLarge),
-        subtitle: _PathCrumbs(segments: node.segments),
+        title: Text(node.name, style: theme.textTheme.bodyLarge),
+        subtitle: _PathCrumbs(
+          segments: node.path.split('/').where((s) => s.isNotEmpty).toList(),
+        ),
         onTap: hasChildren ? onToggle : null,
-        trailing: PopupMenuButton<String>(
-          tooltip: l10n.commonEdit,
-          icon: const Icon(Icons.more_vert),
-          onSelected: _handle,
-          itemBuilder: (context) => _menuItems(context),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showObjectCount)
+              _ObjectCountBadge(
+                key: ValueKey<String>('tag-object-count-${node.tagId}'),
+                count: node.objectCount,
+              ),
+            PopupMenuButton<String>(
+              tooltip: l10n.commonEdit,
+              icon: const Icon(Icons.more_vert),
+              onSelected: _handle,
+              itemBuilder: (context) => _menuItems(context),
+            ),
+          ],
         ),
       ),
     );
@@ -400,6 +467,32 @@ class _TagTile extends StatelessWidget {
       case 'delete':
         onDelete();
     }
+  }
+}
+
+/// How much content hangs on one tag, shown only while sorting by content
+/// count (in the other modes the row stays as quiet as before).
+class _ObjectCountBadge extends StatelessWidget {
+  const _ObjectCountBadge({super.key, required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$count',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
+      ),
+    );
   }
 }
 
