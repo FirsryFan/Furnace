@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/domain/services/media/thumbnail_spec.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
@@ -178,6 +179,65 @@ void main() {
     expect(await mediaStore.list(question.id), isEmpty);
     expect(find.text(_zh.questionImageDeleted), findsOneWidget);
     expect(find.byType(Image), findsNothing);
+  });
+
+  testWidgets('配图：缩略图按显示尺寸与设备像素比限制解码尺寸', (tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'page-1.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+    await _waitForText(tester, _zh.questionImageCount(1));
+    await _waitForType(tester, Image);
+
+    // 详情页缩略图默认 size=96；测试视口 DPR=1.0。
+    final expected = thumbnailDecodeSpec(
+      logicalWidth: 96,
+      logicalHeight: 96,
+      devicePixelRatio: tester.view.devicePixelRatio,
+    );
+    expect(expected.isEmpty, isFalse);
+
+    // Image.memory(cacheWidth:) 把它包成 ResizeImage：断言在 provider 上。
+    final image = tester.widget<Image>(find.byType(Image));
+    final provider = image.image;
+    expect(provider, isA<ResizeImage>());
+    final resize = provider as ResizeImage;
+    expect(resize.width, expected.cacheWidth);
+    expect(resize.height, expected.cacheHeight);
+  });
+
+  testWidgets('配图：点开的大图不限制解码尺寸', (tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'page-1.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+    await _waitForText(tester, _zh.questionImageCount(1));
+    await _waitForType(tester, Image);
+
+    await tester.tap(find.byType(Image));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+
+    final dialogImage = tester.widget<Image>(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(Image),
+      ),
+    );
+    // 大图不传 cacheWidth/cacheHeight：provider 不是 ResizeImage。
+    expect(dialogImage.image, isNot(isA<ResizeImage>()));
   });
 }
 

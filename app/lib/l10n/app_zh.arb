@@ -1742,6 +1742,9 @@
   "questionDetailEditSourceTitle": "改一改来源",
   "questionDetailEditSourceHint": "留空的字段 = 不改那一列；题干、答案与选项一个字不动。",
   "questionDetailEditSourceYearBad": "年份要写 1900–2200 之间的整数",
+  "questionSourceCopyLink": "复制原题链接",
+  "questionSourceCopyDone": "原题链接已复制",
+  "questionSourceZujuan": "组卷网原题",
   "questionDetailCorrectOption": "正确答案",
   "questionDetailYear": "{year} 年",
   "@questionDetailYear": {

@@ -6395,6 +6395,24 @@ abstract class AppLocalizations {
   /// **'The year must be an integer between 1900 and 2200'**
   String get questionDetailEditSourceYearBad;
 
+  /// No description provided for @questionSourceCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy original link'**
+  String get questionSourceCopyLink;
+
+  /// No description provided for @questionSourceCopyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Original link copied'**
+  String get questionSourceCopyDone;
+
+  /// No description provided for @questionSourceZujuan.
+  ///
+  /// In en, this message translates to:
+  /// **'Zujuan original'**
+  String get questionSourceZujuan;
+
   /// No description provided for @questionDetailCorrectOption.
   ///
   /// In en, this message translates to:

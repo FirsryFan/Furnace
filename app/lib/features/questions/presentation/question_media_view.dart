@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
+import '../../../domain/services/media/thumbnail_spec.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/question_media_providers.dart';
@@ -245,6 +246,13 @@ class QuestionImageTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    // 解码尺寸按「显示尺寸 × 设备像素比」算（上限 1024）：格子里只显示
+    // 48-96 逻辑像素，按原图解码一张手机照片要几十 MB（thumbnail_spec.dart）。
+    final decode = thumbnailDecodeSpec(
+      logicalWidth: size.round(),
+      logicalHeight: size.round(),
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+    );
     final bytesAsync = ref.watch(questionImageBytesProvider(image.relPath));
     final bytes = bytesAsync.valueOrNull;
     final Widget content;
@@ -275,6 +283,9 @@ class QuestionImageTile extends ConsumerWidget {
               bytes,
               width: size,
               height: size,
+              // 空 spec 表示尺寸非法：Flutter 断言 cache 必须 > 0，宁可不传。
+              cacheWidth: decode.isEmpty ? null : decode.cacheWidth,
+              cacheHeight: decode.isEmpty ? null : decode.cacheHeight,
               fit: BoxFit.cover,
               gaplessPlayback: true,
               errorBuilder: (context, error, stackTrace) => SizedBox(

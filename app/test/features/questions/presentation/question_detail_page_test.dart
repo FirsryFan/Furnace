@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/domain/services/questions/question_source.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
@@ -654,6 +655,119 @@ void main() {
     expect((copies.single.arguments as Map<Object?, Object?>)['text'], url);
     expect(find.text(_zh.questionZujuanUrlCopied), findsOneWidget);
   });
+
+  testWidgets('题目来源：没有可信链接时整块不出现', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsNothing);
+    expect(find.text(_zh.questionSourceCopyLink), findsNothing);
+  });
+
+  testWidgets('题目来源：普通站 sourceUrl 显示 host，复制规范化链接',
+      (WidgetTester tester) async {
+    final database = _newDatabase();
+    const rawUrl = 'https://Example.com:443/p/1?x=1#frag';
+    final question = await _seedQuestion(database, sourceUrl: rawUrl);
+    final expected = questionSourceFor(sourceUrl: rawUrl)!;
+
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
+    expect(find.text(expected.host), findsOneWidget);
+    expect(find.text(_zh.questionSourceZujuan), findsNothing);
+
+    await tester.tap(find.byKey(questionSourceCopyButtonKey));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final copies = calls
+        .where((call) => call.method == 'Clipboard.setData')
+        .toList(growable: false);
+    expect(copies, hasLength(1));
+    expect(
+      (copies.single.arguments as Map<Object?, Object?>)['text'],
+      expected.url,
+    );
+    expect(find.text(_zh.questionSourceCopyDone), findsOneWidget);
+  });
+
+  testWidgets('题目来源：只有组卷网 id 时重建详情页链接', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      zujuanQuestionId: '35583902',
+      zujuanBankId: '10',
+    );
+    const expectedUrl = 'https://zujuan.xkw.com/10q35583902.html';
+
+    final calls = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (MethodCall call) async {
+        calls.add(call);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
+    expect(find.text(_zh.questionSourceZujuan), findsOneWidget);
+
+    await tester.tap(find.byKey(questionSourceCopyButtonKey));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final copies = calls
+        .where((call) => call.method == 'Clipboard.setData')
+        .toList(growable: false);
+    expect(copies, hasLength(1));
+    expect(
+      (copies.single.arguments as Map<Object?, Object?>)['text'],
+      expectedUrl,
+    );
+  });
+
+  testWidgets('题目来源：组卷网 sourceUrl 显示「组卷网原题」而不是 host',
+      (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      sourceUrl: 'https://zujuan.xkw.com/10q35583902.html',
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
+    expect(find.text(_zh.questionSourceZujuan), findsOneWidget);
+    expect(find.text('zujuan.xkw.com'), findsNothing);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -663,9 +777,14 @@ AppDatabase _newDatabase() {
   return database;
 }
 
-Future<Question> _seedQuestion(AppDatabase database) async {
+Future<Question> _seedQuestion(
+  AppDatabase database, {
+  String? sourceUrl,
+  String? zujuanQuestionId,
+  String? zujuanBankId,
+}) async {
   final result = await QuestionRepository(database).ingest(
-    const QuestionDraft(
+    QuestionDraft(
       stem: _stem,
       answer: '5',
       solution: '韦达定理：两根之和等于 -b/a。',
@@ -675,7 +794,10 @@ Future<Question> _seedQuestion(AppDatabase database) async {
       year: 2024,
       region: '江苏',
       difficulty: 4,
-      options: <QuestionOptionDraft>[
+      sourceUrl: sourceUrl,
+      zujuanQuestionId: zujuanQuestionId,
+      zujuanBankId: zujuanBankId,
+      options: const <QuestionOptionDraft>[
         QuestionOptionDraft(label: 'A', content: '3', sortOrder: 0),
         QuestionOptionDraft(
           label: 'B',

@@ -3598,6 +3598,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailEditSourceYearBad => '年份要写 1900–2200 之间的整数';
 
   @override
+  String get questionSourceCopyLink => '复制原题链接';
+
+  @override
+  String get questionSourceCopyDone => '原题链接已复制';
+
+  @override
+  String get questionSourceZujuan => '组卷网原题';
+
+  @override
   String get questionDetailCorrectOption => '正确答案';
 
   @override

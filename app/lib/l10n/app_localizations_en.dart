@@ -3756,6 +3756,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'The year must be an integer between 1900 and 2200';
 
   @override
+  String get questionSourceCopyLink => 'Copy original link';
+
+  @override
+  String get questionSourceCopyDone => 'Original link copied';
+
+  @override
+  String get questionSourceZujuan => 'Zujuan original';
+
+  @override
   String get questionDetailCorrectOption => 'correct';
 
   @override

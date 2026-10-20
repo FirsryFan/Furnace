@@ -1862,6 +1862,9 @@
   "questionDetailEditSourceTitle": "Edit the source",
   "questionDetailEditSourceHint": "A field left empty is left unchanged; the stem, answer and options are never touched.",
   "questionDetailEditSourceYearBad": "The year must be an integer between 1900 and 2200",
+  "questionSourceCopyLink": "Copy original link",
+  "questionSourceCopyDone": "Original link copied",
+  "questionSourceZujuan": "Zujuan original",
   "questionDetailCorrectOption": "correct",
   "questionDetailYear": "{year}",
   "@questionDetailYear": {

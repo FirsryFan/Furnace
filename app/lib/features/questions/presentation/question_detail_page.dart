@@ -19,6 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
@@ -26,6 +27,7 @@ import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
+import '../../../domain/services/questions/question_source.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
@@ -39,6 +41,9 @@ import 'question_intake_page.dart';
 import 'question_media_view.dart';
 import 'question_vocab_labels.dart';
 import 'question_zujuan_search.dart';
+
+/// 复制「原题链接」按钮的 key（测试定位用）。
+const Key questionSourceCopyButtonKey = Key('question-source-copy');
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
@@ -178,6 +183,14 @@ class _QuestionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final question = detail.question;
 
+    // 「点回去核对原题」只认可信的绝对 http(s) 链接，或组卷网两个数字 id；
+    // 别的（相对路径、javascript: 之类）一律当作没有来源（question_source.dart）。
+    final source = questionSourceFor(
+      sourceUrl: question.sourceUrl,
+      zujuanQuestionId: question.zujuanQuestionId,
+      zujuanBankId: question.zujuanBankId,
+    );
+
     final meta = <String>[
       question.subjectKey.trim().isEmpty
           ? l10n.questionIntakeSubjectNone
@@ -222,6 +235,8 @@ class _QuestionCard extends StatelessWidget {
                   ),
               ],
             ),
+            // 来源行自己有顶部 8 间距；没有可信链接时整块不出现。
+            if (source != null) _QuestionSourceLine(source: source),
             const SizedBox(height: 8),
             SelectableText(question.stem, style: theme.textTheme.titleMedium),
             if (question.difficulty != null) ...[
@@ -743,6 +758,63 @@ class _LabelledText extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 「题目来源」：一行链接图标 + 来源名 + 复制按钮；没有可信链接时整块不出现
+/// （调用方已经判过 [questionSourceFor] 为 null，这里不再兜底）。
+///
+/// 只复制链接，不打开浏览器：App 不内置 url_launcher（链接交给浏览器打开）。
+/// 组卷网来源显示「组卷网原题」，其它站显示规范化后的 host。
+class _QuestionSourceLine extends StatelessWidget {
+  const _QuestionSourceLine({required this.source});
+
+  final QuestionSourceRef source;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            Icons.link,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              source.isZujuan ? l10n.questionSourceZujuan : source.host,
+              style: theme.textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton.icon(
+            key: questionSourceCopyButtonKey,
+            onPressed: () => _copyQuestionSource(context, source),
+            icon: const Icon(Icons.copy_outlined, size: 16),
+            label: Text(l10n.questionSourceCopyLink),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 复制规范化后的原题链接，写进剪贴板后再提示（顺序与题号复制一致，
+/// 既有测试用的就是 SystemChannels.platform 的 `Clipboard.setData`）。
+Future<void> _copyQuestionSource(
+  BuildContext context,
+  QuestionSourceRef source,
+) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  await Clipboard.setData(ClipboardData(text: source.url));
+  if (!context.mounted) return;
+  messenger.showSnackBar(SnackBar(content: Text(l10n.questionSourceCopyDone)));
 }
 
 /// 来源（`origin`）：手工 / 拍照扫描 / Furnace 内建。
