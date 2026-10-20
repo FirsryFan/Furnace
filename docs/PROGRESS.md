@@ -2,6 +2,54 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十五：复习提醒（本地通知）——「flashcard 推送」的推送半边（Lead + 三个 teammate）
+
+**起点**：轮次一百三十四（HEAD `180b83d`）。上一轮把答案截图变成题目的一部分；这一轮补「五应用领域」里
+唯一没有网络依赖的缺口——复习提醒：到点若还有到期卡就弹一条本地通知，让「今天该复习」离开 App 也成立。
+task-97（Lead）、task-98（reasoning-core）、task-99（threadflow-engine）、task-100（question-intake）
+全部 completed；Lead 另做启动与复习结束的重排接线、修掉一处核心通知服务的初始化缺陷、写 docs 与提交。
+（同步半边仍缺网络层，这一轮不做；「闪存卡显示题号」需要卡片↔题目的创建路径，当前不存在，暂缓。）
+
+**为什么只排「下一次」而不是每日重复**：`flutter_local_notifications` 的 repeating 在 fire 时读不到库，
+到期数却在变；改成四个时机重排——启动首帧、`AppLifecycleState.resumed`、一轮复习做完、设置改动——
+每次 cancel 旧 id 再排新的，复习完今晚全部卡片后能自动改到明天。
+
+**A. schema v28：复习提醒的开关与时刻（task-97，Lead）**：`local_settings` 加可空
+`review_reminder_enabled` / `review_reminder_minutes`（NULL = 用户没选过，读作关闭 / 出厂 20:00，
+迁移不回填）；schemaVersion 27→28，`_upgradeV27ToV28` + `_ensureColumns` 同款自愈，`database.g.dart`
+重生成；`SettingsRepository` 四个读写方法（分钟 0..1439 之外抛 ArgumentError，不 clamp；关开关不清时刻）、
+`AnkiRepository.nextDueAtAfter`（下一次到点，没有则 null）。新增 11 例（v28 迁移 4 + settings 3 +
+anki 4），三个文件一起跑 +20 例（含既有用例）。提交 `14f769d`。
+
+**B. 纯逻辑 + 应用层 + 通知接口（task-98 reasoning-core / task-99 threadflow-engine）**：
+`review_reminder_plan.dart`（纯 Dart 不读时钟）四态 dueNow / dueSoon / nothingDue / disabled；
+时刻取严格晚于 now 的下一次 HH:mm（20:00:00.000 算明天、19:59:59.999 算今天），永不抛，66 例。
+`ReminderNotifier` 接口 + `ReviewReminderService`（读设置 → 数到期 + 找下一次到点 → 规划 →
+不排就 cancel、排就 cancel-then-schedule；时间来源统一走注入 clock；插件异常原样外抛），21 例。
+**顺带修一处核心缺陷**：`NotificationService` 原构造函数里立即 `_plugin.initialize(...)`，widget test
+没有平台实现，我加的启动首帧 refresh 让每个 pump HomeShell 的既有测试都抛 `LateInitializationError`；
+改为惰性初始化（构造函数只 `initializeTimeZones()`，`_ensureInitialized()` 在真正排程/取消时才调插件），
+行为不变，测试里只余被 catch 的一行 `debugPrint`。提交 `4a124ea`。
+
+**C. 设置页「复习提醒」开关与时刻（task-100，question-intake）**：`review_reminder_section.dart`
+（ListTile 入口、对话框开关 + 时间行、写库 → invalidate → refresh、权限被拒弹 SnackBar、取消时间选择不写库）、
+`review_reminder_texts.dart`（把 l10n 映射成通知文案）、设置页 DataSection 后接线、12 个 l10n 键五文件手改
+（不跑 gen-l10n）。6 例测试；`test/features/settings` 整目录 34 例全绿。提交 `17eb147`。
+
+**D. 启动 / 回到前台 / 复习结束的重排（Lead）**：`home_shell.dart` 首帧后
+`addPostFrameCallback` + resumed 时 refresh（`_reminderRefreshing` 防重入，失败只 `debugPrint`）；
+`review_page.dart` 在 `_advance()` 走到队列末尾时 refresh 一次（`_reminderRefreshed` 每轮重置）。
+接线测试 2 例：HomeShell 启动首帧 refresh 一次 + resumed 再 refresh；一张 essay 卡答完进结束态后 refresh 一次。
+提交 `9ad76ca`。
+
+**门禁（真实输出）**：`dart analyze lib test` → 92 issues / 0 error / 0 warning（基线）；
+全量 `flutter test --concurrency=1` → **+4621 ~2 All tests passed，10 分 12 秒，EXIT=0**
+（日志 `E:/dsh-tmp-aot/test-135-full.txt`）；切片：纯逻辑 +66、应用层 +21、settings 整目录 34、
+wiring+narrow+settings 组合 +36、复习页两文件 +15。
+
+**未做 / 已知限制**：真正的每日重复（App 连续多天不打开则不会提醒）；通知点击深链（点开只到首页）；
+真机通知与 DST/时区未手测；Windows 点击回调与激活 ID 未接；服务端推送（同步半边）未做。
+
 ## 2026-10-21 轮次一百三十四：答案与解析截图随题保存（Lead + 三个 teammate）
 
 **起点**：轮次一百三十三（HEAD `90ae17b`）。用户口径（m05424）：「注意用户可以人工登录组卷网账号
