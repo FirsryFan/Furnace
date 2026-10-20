@@ -23,6 +23,7 @@ import '../tools/learning_advice_tools.dart';
 import '../tools/practice_recommendation_tools.dart';
 import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
+import '../tools/zujuan_paper_tool.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
 import '../tools/ingest_tools.dart';
@@ -127,6 +128,11 @@ class ToolRegistry {
       // 题号/区间解析在 domain/services/questions/question_serial_batch.dart，
       // 工具自己不做字符串处理、不写库、不出题 (tools/question_tools.dart)。
       ReadQuestionsBySerialsTool(db: db),
+      // 整卷页对照 (轮次一百三十三): 用户粘来组卷网试卷页（URL/整页 HTML/纯文本）时，
+      // 解析出这一页的题号并对照题库说清「已收录几道、缺哪几道」（缺题尽量给详情链接）。
+      // 抽取在 domain/services/zujuan/zujuan_paper_extract.dart，对照在
+      // questions/application/zujuan_paper_progress.dart；工具只读、不联网、不出题。
+      ReadZujuanPaperTool(db: db),
       // 用途 1 的另一半 (Q9/Q11/Q13): 「现在该练什么」——按危险/发展区读数从题库凑卷，
       // 凑不齐就如实报缺哪些知识点。读数与页面同源
       // (`cognitive/application/library_diagnosis_reader.dart`)，
