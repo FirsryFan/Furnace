@@ -1,4 +1,4 @@
-/// 拍照整理的「三类待确认产物」服务与队列（`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4）。
+/// 拍照整理的「四类待确认产物」服务与队列（`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4）。
 ///
 /// 领域层（`domain/services/intake/handwriting_proposals.dart`）只负责**把模型
 /// 回复变成结构化提案**，一句话都不写库。这一层负责另外两件事：
@@ -6,12 +6,15 @@
 ///  * [HandwritingProposalService.proposeFor]：读照片 → 问模型 → 得到提案。
 ///    与解题管道同一条失败哲学：**不抛异常**，成功失败都返回一个结果对象，
 ///    把「没配模型」「文件不在了」「格式不认识」「回复不合契约」分开告诉用户。
-///  * [HandwritingProposalService.applyAll]：用户点确认之后才写库。三类产物的
+///  * [HandwritingProposalService.applyAll]：用户点确认之后才写库。四类产物的
 ///    写法都照抄既有规矩：标签挂在**已有**路径下；知识点进 `knowledge_points`；
-///    闪存卡建模板后**必须**建卡状态（否则卡片进不了复习队列）。
+///    闪存卡建模板后**必须**建卡状态（否则卡片进不了复习队列）；题目走
+///    [QuestionRepository.ingest]（题干必须来自照片，答错的选项不猜，只按照片
+///    里写明的答案标）。
 ///
-/// 提案**不写学习数据**：用户说"确认前不写库"，指的是标签 / 知识点 / 闪存卡
-/// 三样东西。提案本身从 v13 起单独落两张表
+///
+/// 提案**不写学习数据**：用户说"确认前不写库"，指的是标签 / 知识点 / 闪存卡 /
+/// 题目四样东西。提案本身从 v13 起单独落两张表
 /// （[HandwritingProposalRepository]）：不落的话，拍三页整理出十二条提案、重启
 /// 就全没了，"哪条我已经确认过"也会跟着消失——确认过的东西再确认一次就是重复
 /// 写库。**只有这一层写提案表，学习数据仍然只在用户点确认之后才动。**
@@ -26,9 +29,12 @@ import 'package:path_provider/path_provider.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/handwriting_proposal_repository.dart';
+import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../domain/services/intake/handwriting_proposals.dart';
+import '../../../domain/services/questions/question_number.dart'
+    show formatQuestionSerial;
 import '../../../domain/services/scheduling/thread_balance_inputs.dart'
     show kKnowledgePointObjectType;
 import '../../ai/application/ai_providers.dart';
@@ -190,20 +196,23 @@ class HandwritingProposalService {
     required HandwritingIntakeStore store,
     required TagRepository tags,
     required AnkiRepository anki,
+    required QuestionRepository questions,
     required ModelAdapter? adapter,
   })  : _store = store,
         _tags = tags,
         _anki = anki,
+        _questions = questions,
         _adapter = adapter;
 
   final HandwritingIntakeStore _store;
   final TagRepository _tags;
   final AnkiRepository _anki;
+  final QuestionRepository _questions;
 
   /// 唯一出网点；`null` 表示这台设备上没有可用模型（离线默认）。
   final ModelAdapter? _adapter;
 
-  /// 看一张照片，拿回三类待确认产物。
+  /// 看一张照片，拿回四类待确认产物。
   Future<HandwritingProposalRun> proposeFor(String relPath) async {
     final bytes = await _store.readBytes(relPath);
     if (bytes == null) {
@@ -309,6 +318,8 @@ class HandwritingProposalService {
           return await _applyKnowledgePoint(proposal);
         case HandwritingProposalKind.flashcard:
           return await _applyFlashcard(proposal);
+        case HandwritingProposalKind.question:
+          return await _applyQuestion(proposal);
       }
     } on Object catch (error) {
       return HandwritingApplyOutcome(
@@ -470,6 +481,121 @@ class HandwritingProposalService {
           '建了知识点「${proposal.titleZh}」+ ${proposal.cards.length} 张卡片（已进复习队列）$tagNote',
     );
   }
+
+  /// 题目：题干必须来自照片，选项照抄照片里的字母与顺序。
+  ///
+  /// 答案只做**认字母**这一件事：答案写成 `B` 或 `A、C` 时对应选项标成正确、
+  /// 题型落到 `single_choice` / `multi_choice`；答案是一段文字（解答题）就原样
+  /// 进 `answer`，题型保持 `solution`。**不替用户猜答案**。
+  Future<HandwritingApplyOutcome> _applyQuestion(
+    HandwritingProposal proposal,
+  ) async {
+    final stem = (proposal.fields['stem'] ?? '').trim();
+    if (stem.isEmpty) {
+      return HandwritingApplyOutcome(
+        proposalId: proposal.id,
+        kind: proposal.kind,
+        titleZh: proposal.titleZh,
+        ok: false,
+        failureReason: '题目缺少题干（fields.stem 为空），没有写库',
+      );
+    }
+
+    final answer = _textOrNull(proposal.fields['answer']);
+    final solution = _textOrNull(proposal.fields['solution']);
+    final correctLabels = _answerOptionLabels(answer, proposal.options);
+    final options = <QuestionOptionDraft>[
+      for (var i = 0; i < proposal.options.length; i++)
+        QuestionOptionDraft(
+          label: proposal.options[i].label,
+          content: proposal.options[i].content,
+          isCorrect: correctLabels.contains(proposal.options[i].label),
+          sortOrder: i,
+        ),
+    ];
+    final questionType = options.isEmpty
+        ? 'solution'
+        : (correctLabels.length > 1 ? 'multi_choice' : 'single_choice');
+
+    final tagPath = (proposal.fields['tag_path'] ?? '').trim();
+    final tag = tagPath.isEmpty ? null : await _tags.getTagByPath(tagPath);
+
+    final result = await _questions.ingest(
+      QuestionDraft(
+        stem: stem,
+        answer: answer,
+        solution: solution,
+        questionType: questionType,
+        sourceLabel: '拍照整理',
+        origin: 'ai_scan',
+        state: 'structured',
+        options: options,
+        tagIds: <String>{if (tag != null) tag.id},
+      ),
+    );
+
+    final serialNo = result.question.serialNo;
+    final serialLabel = serialNo == null
+        ? '（未编号）'
+        : formatQuestionSerial(serialNo);
+    if (!result.created) {
+      return HandwritingApplyOutcome(
+        proposalId: proposal.id,
+        kind: proposal.kind,
+        titleZh: proposal.titleZh,
+        ok: true,
+        targetId: result.question.id,
+        detailZh: '题库里已有同题干的题目 $serialLabel，没有重复入库（选项与标签也没写）',
+      );
+    }
+
+    final optionNote = options.isEmpty ? '纯文字题' : '${options.length} 个选项';
+    final tagNote = tagPath.isEmpty
+        ? ''
+        : (tag == null
+            ? '，但标签 `$tagPath` 不存在，没挂边'
+            : '，并挂到 `$tagPath`');
+    return HandwritingApplyOutcome(
+      proposalId: proposal.id,
+      kind: proposal.kind,
+      titleZh: proposal.titleZh,
+      ok: true,
+      targetId: result.question.id,
+      detailZh: '建了题目 $serialLabel（$optionNote）$tagNote',
+    );
+  }
+}
+
+/// 空串/纯空白视为「没有写」。
+String? _textOrNull(String? raw) {
+  final text = (raw ?? '').trim();
+  return text.isEmpty ? null : text;
+}
+
+final RegExp _answerLabelPattern = RegExp(r'^[A-Z](?:[\s、,，/]*[A-Z])*$');
+
+/// 从答案文本里认出选项字母（`B` / `A、C` / `AC`）；认不出就返回空集。
+///
+/// 只在答案**整段都是字母**时才当选项答案：答案正文里顺带出现字母的（例如
+/// 「选 B 因为……」）不当成选项标签，避免把解析文字误当选择。
+Set<String> _answerOptionLabels(
+  String? answer,
+  List<HandwritingOptionDraft> options,
+) {
+  if (answer == null || options.isEmpty) {
+    return const <String>{};
+  }
+  final normalized = answer.toUpperCase().trim();
+  if (!_answerLabelPattern.hasMatch(normalized)) {
+    return const <String>{};
+  }
+  final known = <String>{for (final option in options) option.label};
+  return <String>{
+    for (final rune in normalized.runes)
+      if (rune >= 0x41 && rune <= 0x5A)
+        if (known.contains(String.fromCharCode(rune)))
+          String.fromCharCode(rune),
+  };
 }
 
 /// 队列状态：待整理的照片 + 内存里的提案 + 已确认过哪些。
@@ -727,6 +853,7 @@ final handwritingProposalServiceProvider =
           store: ref.watch(handwritingIntakeStoreProvider),
           tags: ref.watch(tagRepositoryProvider),
           anki: ref.watch(ankiRepositoryProvider),
+          questions: ref.watch(questionRepositoryProvider),
           adapter: ref.watch(modelAdapterProvider),
         ));
 

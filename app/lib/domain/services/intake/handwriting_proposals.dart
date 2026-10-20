@@ -1,7 +1,8 @@
-/// 拍照 → 手写整理的「三类待确认产物」提案（`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4）。
+/// 拍照 → 手写整理的「四类待确认产物」提案（`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4）。
 ///
-/// 这条通路的产物**不是题目**，而是一张照片整理出来的三样东西：
-/// ① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）③ MindNet 知识点节点。
+/// 这条通路整理一张照片，产出四种**待确认**的东西：
+/// ① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）③ MindNet 知识点节点
+/// ④ 题目草稿（照片本身就是题目时；用户逐个确认后才会入库）。
 /// 用户的口径是「确认前不写库」，所以这一层只产出**提案**：模型看完照片后交回
 /// 一份严格的 JSON，解析器把它变成结构化的 [HandwritingProposal] 列表，写库是
 /// 上层（`features/questions/application/handwriting_proposal_service.dart`）在
@@ -10,6 +11,8 @@
 /// 三条纪律写在提示词里，也写在测试里：
 ///  * **只整理、不编造**：照片里没有的信息不许出现；不确定的地方降低
 ///    `confidence` 并写进 `rationale`，而不是猜一个像样的答案。
+///  * **题目只誊写**：题干/选项/答案/解析必须是照片原文；不改写题意、不补全
+///    缺失选项、不做题判对错。看不清就降 `confidence`，没有答案/解析就省略字段。
 ///  * **只挂不改**：标签只能挂到**已有**路径下（`parent_path`），或作为新叶子；
 ///    不许在整理照片时顺手重构标签树。
 ///  * **闪存卡必须带卡片**：没有 question/answer 的闪存卡进不了复习队列，所以
@@ -24,11 +27,12 @@ import 'dart:convert';
 
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 
-/// 三类待确认产物。`storageKey` 是模型看到的键，`labelZh` 只给人看。
+/// 四类待确认产物。`storageKey` 是模型看到的键，`labelZh` 只给人看。
 enum HandwritingProposalKind {
   tag('tag', '标签'),
   knowledgePoint('knowledge_point', '知识点'),
-  flashcard('flashcard', '闪存卡');
+  flashcard('flashcard', '闪存卡'),
+  question('question', '题目');
 
   const HandwritingProposalKind(this.storageKey, this.labelZh);
 
@@ -105,6 +109,55 @@ class HandwritingCardDraft {
       };
 }
 
+/// 题目提案里的一个选项。
+///
+/// 只誊写照片里本来就有选项：照片没有选项（纯文字题、解答题）时整个 `options`
+/// 字段省略，**不**替模型补齐。label 归一成单个大写字母（`trim` + `toUpperCase`），
+/// 内容 `trim` 后必须非空——空选项说明模型没看清，宁可报错也不入库一个空壳。
+class HandwritingOptionDraft {
+  const HandwritingOptionDraft({
+    required this.label,
+    required this.content,
+  });
+
+  /// 单个大写字母 A-Z。
+  final String label;
+
+  /// 选项正文（照片原文，不改写）。
+  final String content;
+
+  /// 从 [toJson] 的输出还原（持久化用）。
+  ///
+  /// 与解析模型回复同一套严格口径：label 不是单个字母、content 为空都抛
+  /// [HandwritingProposalParseException]。[path] 只用于错误文案里的字段路径。
+  factory HandwritingOptionDraft.fromJson(
+    Map<String, Object?> json, {
+    String path = 'options',
+  }) {
+    final rawLabel = json['label']?.toString() ?? '';
+    final label = rawLabel.trim().toUpperCase();
+    if (!_optionLabelPattern.hasMatch(label)) {
+      throw HandwritingProposalParseException(
+        '`$path.label` 不合法：`$rawLabel`。label 必须是单个大写字母 A-Z',
+      );
+    }
+    final content = json['content']?.toString().trim() ?? '';
+    if (content.isEmpty) {
+      throw HandwritingProposalParseException(
+        '`$path.content` 为空：选项内容必须来自照片',
+      );
+    }
+    return HandwritingOptionDraft(label: label, content: content);
+  }
+
+  Map<String, Object?> toJson() => {
+        'label': label,
+        'content': content,
+      };
+}
+
+final RegExp _optionLabelPattern = RegExp(r'^[A-Z]$');
+
 /// 一条待确认产物。
 class HandwritingProposal {
   const HandwritingProposal({
@@ -115,6 +168,7 @@ class HandwritingProposal {
     this.confidence = defaultProposalConfidence,
     this.fields = const <String, String>{},
     this.cards = const <HandwritingCardDraft>[],
+    this.options = const <HandwritingOptionDraft>[],
     this.sourceRef = '',
   });
 
@@ -137,6 +191,12 @@ class HandwritingProposal {
 
   /// 仅闪存卡有：卡片列表（至少一张）。
   final List<HandwritingCardDraft> cards;
+
+  /// 仅题目有：选项列表（可以为空 = 纯文字题/解答题；非空时 A、B、C… 连续）。
+  ///
+  /// 解析/读回路径都传 [List.unmodifiable]；直接 `const` 构造时调用方自己保证
+  /// 不修改传入列表（与 [cards] 同一约定）。
+  final List<HandwritingOptionDraft> options;
 
   /// 来源照片的相对路径（`handwriting_intake/...`），用于回显与重跑。
   final String sourceRef;
@@ -175,6 +235,8 @@ class HandwritingProposal {
         'fields': fields,
         if (cards.isNotEmpty)
           'cards': [for (final card in cards) card.toJson()],
+        if (options.isNotEmpty)
+          'options': [for (final option in options) option.toJson()],
         'source_ref': sourceRef,
       };
 
@@ -276,6 +338,23 @@ const String handwritingProposalJsonContract = '''
       "cards": [
         {"question": "动量守恒的条件是什么？", "answer": "系统所受合外力为零。", "type": "essay"}
       ]
+    },
+    {
+      "kind": "question",
+      "title": "第 3 题（动量守恒）",
+      "rationale": "照片这一页就是一道完整的选择题，题干/选项/答案/解析都拍到了",
+      "confidence": 0.83,
+      "fields": {
+        "stem": "照片里的题干原文（含小问），原样誊写",
+        "answer": "照片里给出的答案",
+        "solution": "照片里给出的解析"
+      },
+      "options": [
+        {"label": "A", "content": "选项 A 的照片原文"},
+        {"label": "B", "content": "选项 B 的照片原文"},
+        {"label": "C", "content": "选项 C 的照片原文"},
+        {"label": "D", "content": "选项 D 的照片原文"}
+      ]
     }
   ]
 }''';
@@ -311,7 +390,10 @@ List<ChatMessage> handwritingProposalMessages({
    或者作为新的顶层叶子；不要为了整理这张照片重构标签树。
 4. 闪存卡必须给出 cards（至少一张），question/answer 都必须是照片里的内容；
    答案要能在不看照片时独立读懂（不要写"如上图"）。
-5. 三种 kind 只允许：tag / knowledge_point / flashcard。
+5. 四种 kind 只允许：tag / knowledge_point / flashcard / question。
+6. 题目提案（kind=question）只做誊写：题干/选项/答案/解析必须来自照片原文，
+   不改写题意、不补全缺失选项、不做题、不判断对错；看不清就在 rationale 写明
+   并降低 confidence；照片里没有答案/解析就省略对应字段，绝不自己解题补上。
 
 已有的标签路径（parent_path 只能从中选，空字符串表示新建顶层标签）：
 $tags
@@ -324,7 +406,7 @@ $handwritingProposalJsonContract''';
 
   final userText = '''
 这是一张手写/纸质材料的照片，文件名：$fileName。
-请把它整理成三类待确认产物（标签 / 知识点 / 闪存卡），按契约交回 JSON。''';
+请把它整理成四类待确认产物（标签 / 知识点 / 闪存卡 / 题目），按契约交回 JSON。''';
 
   return <ChatMessage>[
     ChatMessage.system(system),
@@ -415,6 +497,7 @@ HandwritingProposal _proposalFrom(
   }
 
   final cards = _parseCards(entry['cards'], index, kind);
+  final options = _parseOptions(entry['options'], index, kind);
   _requireFields(kind, fields, index);
 
   return HandwritingProposal(
@@ -425,6 +508,7 @@ HandwritingProposal _proposalFrom(
     confidence: _parseConfidence(entry['confidence'], index),
     fields: Map<String, String>.unmodifiable(fields),
     cards: List<HandwritingCardDraft>.unmodifiable(cards),
+    options: List<HandwritingOptionDraft>.unmodifiable(options),
     sourceRef: entry['source_ref']?.toString().trim() ?? '',
   );
 }
@@ -480,6 +564,85 @@ List<HandwritingCardDraft> _parseCards(
   return cards;
 }
 
+/// 解析题目选项：只有 question 允许；出现就必须是 1..26 条、label 从 A 连续。
+///
+/// 缺省（照片里没有选项）合法；空数组不合法——模型给了 `options: []` 说明它
+/// 要么没看清、要么在凑字段，两种都不该被静默接受。
+List<HandwritingOptionDraft> _parseOptions(
+  Object? raw,
+  int index,
+  HandwritingProposalKind kind,
+) {
+  if (kind != HandwritingProposalKind.question) {
+    if (raw != null) {
+      throw HandwritingProposalParseException(
+        '`proposals[$index]`（${kind.storageKey}）不该有 options',
+      );
+    }
+    return const <HandwritingOptionDraft>[];
+  }
+  if (raw == null) {
+    return const <HandwritingOptionDraft>[];
+  }
+  if (raw is! List) {
+    throw HandwritingProposalParseException(
+      '`proposals[$index].options` 不是数组',
+    );
+  }
+  if (raw.isEmpty) {
+    throw HandwritingProposalParseException(
+      '`proposals[$index]`（question）的 options 是空数组：照片里有选项才写，没有就省略',
+    );
+  }
+  if (raw.length > 26) {
+    throw HandwritingProposalParseException(
+      '`proposals[$index].options` 最多 26 条（实际 ${raw.length} 条）',
+    );
+  }
+  final options = <HandwritingOptionDraft>[];
+  for (var i = 0; i < raw.length; i++) {
+    final entry = raw[i];
+    if (entry is! Map) {
+      throw HandwritingProposalParseException(
+        '`proposals[$index].options[$i]` 不是对象',
+      );
+    }
+    options.add(HandwritingOptionDraft.fromJson(
+      Map<String, Object?>.from(entry),
+      path: 'proposals[$index].options[$i]',
+    ));
+  }
+  final expected = <String>[];
+  for (var i = 0; i < options.length; i++) {
+    expected.add(String.fromCharCode(65 + i));
+  }
+  final labels = options.map((option) => option.label).toList();
+  final duplicate = _firstDuplicate(labels);
+  if (duplicate != null) {
+    throw HandwritingProposalParseException(
+      '`proposals[$index].options` label 重复：`$duplicate`',
+    );
+  }
+  for (var i = 0; i < options.length; i++) {
+    if (options[i].label != expected[i]) {
+      throw HandwritingProposalParseException(
+        '`proposals[$index].options[$i].label` 应为 `${expected[i]}`（选项要按 A、B、C… 连续）',
+      );
+    }
+  }
+  return options;
+}
+
+String? _firstDuplicate(List<String> values) {
+  final seen = <String>{};
+  for (final value in values) {
+    if (!seen.add(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
 /// 与 `CreateKnowledgeCardsTool.cardTypes` 同一组取值。
 const Set<String> _cardTypes = <String>{'fill_blank', 'mcq', 'essay'};
 
@@ -495,6 +658,8 @@ void _requireFields(
       _require(fields, 'content', kind, index, hint: '知识点的正文必须来自照片，不能留空');
     case HandwritingProposalKind.flashcard:
       _require(fields, 'content', kind, index, hint: '闪存卡正文是以后挖空的依据，必须来自照片');
+    case HandwritingProposalKind.question:
+      _require(fields, 'stem', kind, index, hint: '题面必须来自照片，不能留空');
   }
 }
 

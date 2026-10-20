@@ -9,6 +9,8 @@
 ///  3. **缺省的 confidence 是 0.5（不知道）**，不是 1.0（很确定）。
 library;
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/domain/services/intake/handwriting_proposals.dart';
 
@@ -189,8 +191,8 @@ void main() {
 
       test('kind 未知要列出可用取值；title 不能空', () {
         expectThrows(
-          '{"proposals": [{"kind": "question", "title": "x"}]}',
-          'tag / knowledge_point / flashcard',
+          '{"proposals": [{"kind": "mindmap", "title": "x"}]}',
+          'tag / knowledge_point / flashcard / question',
         );
         expectThrows(
           '{"proposals": [{"kind": "tag", "title": "  "}]}',
@@ -333,10 +335,10 @@ void main() {
       expectThrows(
         <String, Object?>{
           'proposals': <Object?>[
-            <String, Object?>{'id': 'tag-0', 'kind': 'question', 'title': 'T'},
+            <String, Object?>{'id': 'tag-0', 'kind': 'mindmap', 'title': 'T'},
           ],
         },
-        'tag / knowledge_point / flashcard',
+        'tag / knowledge_point / flashcard / question',
       );
       expectThrows(
         <String, Object?>{
@@ -416,6 +418,299 @@ void main() {
       final restored = HandwritingProposalSet.fromJson(empty.toJson());
       expect(restored.isEmpty, isTrue);
       expect(restored.sourceRef, 'handwriting_intake/hw-9');
+    });
+  });
+
+  group('题目提案（第四类产物）', () {
+    void expectQuestionThrows(String raw, Object messagePart) {
+      expect(
+        () => parseHandwritingProposals(raw, sourceRef: 'hw/qx.png'),
+        throwsA(
+          isA<HandwritingProposalParseException>().having(
+            (error) => error.message,
+            'message',
+            contains(messagePart.toString()),
+          ),
+        ),
+      );
+    }
+
+    test('纯题干：kind=question、stem 进 fields、无 options', () {
+      const raw = '{"proposals": [{"kind": "question", "title": "第 3 题", '
+          '"rationale": "照片里是一道纯文字题", "confidence": 0.7, '
+          '"fields": {"stem": "照片里的题干原文"}}]}';
+      final set = parseHandwritingProposals(raw, sourceRef: 'hw/q1.png');
+      final proposal = set.proposals.single;
+      expect(proposal.kind, HandwritingProposalKind.question);
+      expect(proposal.id, 'question-0');
+      expect(proposal.fields['stem'], '照片里的题干原文');
+      expect(proposal.options, isEmpty);
+      expect(proposal.cards, isEmpty);
+      expect(set.countOf(HandwritingProposalKind.question), 1);
+      expect(proposal.toJson().containsKey('options'), isFalse);
+    });
+
+    test('带选项：label 归一大写、内容 trim、toJson 输出 options', () {
+      const raw = '{"proposals": [{"kind": "question", "title": "选择题", '
+          '"fields": {"stem": "题干"}, "options": ['
+          '{"label": " a ", "content": " 甲 "}, '
+          '{"label": "B", "content": "乙"}, '
+          '{"label": "C", "content": "丙"}, '
+          '{"label": "D", "content": "丁"}]}]}';
+      final proposal = parseHandwritingProposals(raw, sourceRef: 'hw/q2.png')
+          .proposals
+          .single;
+      expect(proposal.options, hasLength(4));
+      expect(
+        proposal.options.map((option) => option.label).toList(),
+        const <String>['A', 'B', 'C', 'D'],
+      );
+      expect(proposal.options.first.content, '甲');
+      final options = proposal.toJson()['options'] as List<Object?>;
+      expect(options, hasLength(4));
+      expect((options.first as Map<String, Object?>)['label'], 'A');
+    });
+
+    test('带答案与解析：fields 里 stem/answer/solution 都在', () {
+      final proposal = parseHandwritingProposals(
+        '{"proposals": [{"kind": "question", "title": "T", '
+        '"fields": {"stem": "题干", "answer": "B", "solution": "因为加速度恒定"}, '
+        '"options": [{"label": "A", "content": "甲"}, {"label": "B", "content": "乙"}]}]}',
+        sourceRef: 'hw/q3.png',
+      ).proposals.single;
+      expect(proposal.fields['stem'], '题干');
+      expect(proposal.fields['answer'], 'B');
+      expect(proposal.fields['solution'], '因为加速度恒定');
+    });
+
+    test('题目缺 fields.stem 报错（题面必须来自照片）', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T"}]}',
+        '缺少 fields.stem',
+      );
+    });
+
+    test('question 带 cards 报错', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"cards": [{"question": "Q", "answer": "A"}]}]}',
+        '不该有 cards',
+      );
+    });
+
+    test('options 不是数组报错', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": {}}]}',
+        '不是数组',
+      );
+    });
+
+    test('options 是空数组报错（有选项才写，没有就省略）', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": []}]}',
+        '空数组',
+      );
+    });
+
+    test('options 超过 26 条报错', () {
+      final raw = jsonEncode(<String, Object?>{
+        'proposals': <Object?>[
+          <String, Object?>{
+            'kind': 'question',
+            'title': 'T',
+            'fields': <String, Object?>{'stem': '题干'},
+            'options': <Object?>[
+              for (var index = 0; index < 27; index += 1)
+                <String, Object?>{'label': 'A', 'content': '内容'},
+            ],
+          },
+        ],
+      });
+      expectQuestionThrows(raw, '最多 26 条');
+    });
+
+    test('options 条目不是对象报错', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": [7]}]}',
+        '不是对象',
+      );
+    });
+
+    test('选项 label 非法报错', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": [{"label": "AB", "content": "甲"}]}]}',
+        '必须是单个大写字母 A-Z',
+      );
+    });
+
+    test('选项 label 重复报错', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": [{"label": "A", "content": "甲"}, {"label": "A", "content": "乙"}]}]}',
+        '重复',
+      );
+    });
+
+    test('选项 label 必须从 A 起连续', () {
+      const suffix = '（选项要按 A、B、C… 连续）';
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+        '"options": [{"label": "A", "content": "甲"}, {"label": "C", "content": "丙"}]}]}',
+        suffix,
+      );
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+        '"options": [{"label": "B", "content": "乙"}, {"label": "C", "content": "丙"}]}]}',
+        suffix,
+      );
+    });
+
+    test('选项内容不能为空', () {
+      expectQuestionThrows(
+        '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+            '"options": [{"label": "A", "content": "   "}]}]}',
+        '为空',
+      );
+    });
+
+    test('非题目 kind 带 options 直接拒绝', () {
+      const samples = <String>[
+        '{"proposals": [{"kind": "tag", "title": "T", "fields": {"parent_path": "A/B"}, '
+            '"options": [{"label": "A", "content": "甲"}]}]}',
+        '{"proposals": [{"kind": "knowledge_point", "title": "K", "fields": {"content": "C"}, '
+            '"options": [{"label": "A", "content": "甲"}]}]}',
+        '{"proposals": [{"kind": "flashcard", "title": "F", "fields": {"content": "C"}, '
+            '"cards": [{"question": "Q", "answer": "A"}], '
+            '"options": [{"label": "A", "content": "甲"}]}]}',
+      ];
+      for (final raw in samples) {
+        expectQuestionThrows(raw, '不该有 options');
+      }
+    });
+
+    test('options 经 toJson/fromJson 往返不丢内容', () {
+      const raw =
+          '{"proposals": [{"kind": "question", "title": "T", "fields": {"stem": "题干"}, '
+          '"options": [{"label": "A", "content": "甲"}, {"label": "B", "content": "乙"}]}]}';
+      final set = parseHandwritingProposals(raw, sourceRef: 'hw/q5.png');
+      final restored = HandwritingProposalSet.fromJson(set.toJson());
+      expect(restored.toJson(), set.toJson());
+      expect(
+        restored.proposals.single.options
+            .map((option) => option.content)
+            .toList(),
+        const <String>['甲', '乙'],
+      );
+    });
+
+    test('HandwritingOptionDraft.fromJson 归一 label 并校验', () {
+      final draft = HandwritingOptionDraft.fromJson(
+        <String, Object?>{'label': ' b ', 'content': ' 乙 '},
+      );
+      expect(draft.label, 'B');
+      expect(draft.content, '乙');
+      expect(draft.toJson()['label'], 'B');
+      expect(
+        () => HandwritingOptionDraft.fromJson(
+          <String, Object?>{'label': 'AB', 'content': 'x'},
+        ),
+        throwsA(isA<HandwritingProposalParseException>()),
+      );
+      expect(
+        () => HandwritingOptionDraft.fromJson(
+          <String, Object?>{'label': 'A', 'content': '   '},
+        ),
+        throwsA(
+          isA<HandwritingProposalParseException>().having(
+            (error) => error.message,
+            'message',
+            contains('content'),
+          ),
+        ),
+      );
+    });
+
+    test('JSON 契约仍是合法 JSON，且题目示例选项 A-D 齐全', () {
+      final decoded =
+          jsonDecode(handwritingProposalJsonContract) as Map<String, Object?>;
+      final proposals =
+          (decoded['proposals'] as List<Object?>).cast<Map<String, Object?>>();
+      expect(
+        proposals.map((proposal) => proposal['kind']).toList(),
+        const <String>['tag', 'knowledge_point', 'flashcard', 'question'],
+      );
+      final fields = proposals.last['fields'] as Map<String, Object?>;
+      expect((fields['stem'] as String).trim(), isNotEmpty);
+      final options = (proposals.last['options'] as List<Object?>)
+          .cast<Map<String, Object?>>();
+      expect(
+        options.map((option) => option['label']).toList(),
+        const <String>['A', 'B', 'C', 'D'],
+      );
+      expect(
+        options
+            .every((option) => (option['content'] as String).trim().isNotEmpty),
+        isTrue,
+      );
+    });
+
+    test('提示词讲明四类产物与题目只誊写', () {
+      final messages = handwritingProposalMessages(
+        fileName: 'hw-3/page.png',
+        mime: 'image/png',
+        base64: 'QUJD',
+      );
+      final system = messages.first.content ?? '';
+      expect(
+        system,
+        contains('四种 kind 只允许：tag / knowledge_point / flashcard / question'),
+      );
+      expect(system, contains('只做誊写'));
+      expect(system, contains('不改写题意'));
+      expect(system, contains('不补全缺失选项'));
+      expect(system, contains('不做题'));
+      final user = messages.last.content ?? '';
+      expect(user, contains('四类待确认产物'));
+      expect(user, contains('题目'));
+    });
+
+    test('旧三类 JSON 照常解析，且不凭空多出 options', () {
+      const raw = '{"proposals": ['
+          '{"kind": "tag", "title": "T", "fields": {"parent_path": "文化课/物理"}}, '
+          '{"kind": "knowledge_point", "title": "K", "fields": {"content": "动量守恒"}}, '
+          '{"kind": "flashcard", "title": "F", "fields": {"content": "条件"}, '
+          '"cards": [{"question": "Q", "answer": "A"}]}'
+          ']}';
+      final set = parseHandwritingProposals(raw, sourceRef: 'hw/old.png');
+      expect(
+        set.proposals.map((proposal) => proposal.kind).toList(),
+        const <HandwritingProposalKind>[
+          HandwritingProposalKind.tag,
+          HandwritingProposalKind.knowledgePoint,
+          HandwritingProposalKind.flashcard,
+        ],
+      );
+      expect(
+        set.proposals.map((proposal) => proposal.id).toList(),
+        const <String>['tag-0', 'knowledge_point-1', 'flashcard-2'],
+      );
+      expect(set.countOf(HandwritingProposalKind.question), 0);
+      for (final proposal in set.proposals) {
+        expect(proposal.toJson().containsKey('options'), isFalse);
+      }
+    });
+
+    test('题目没有选项时 toJson 不带 options，且解析结果确定', () {
+      const raw = '{"proposals": [{"kind": "question", "title": "T", '
+          '"fields": {"stem": "题干"}}]}';
+      final once = parseHandwritingProposals(raw, sourceRef: 'hw/q6.png');
+      final twice = parseHandwritingProposals(raw, sourceRef: 'hw/q6.png');
+      expect(once.proposals.single.toJson().containsKey('options'), isFalse);
+      expect(twice.toJson(), once.toJson());
     });
   });
 }

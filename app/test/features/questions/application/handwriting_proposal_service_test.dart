@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/services/intake/handwriting_proposals.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
@@ -35,6 +36,7 @@ void main() {
   late AppDatabase db;
   late TagRepository tags;
   late AnkiRepository anki;
+  late QuestionRepository questions;
   late Directory root;
   late FakeIntakeStore store;
 
@@ -42,6 +44,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     tags = TagRepository(db);
     anki = AnkiRepository(db);
+    questions = QuestionRepository(db);
     root = Directory.systemTemp.createTempSync('furnace_intake_proposal_');
     store = FakeIntakeStore(database: db, root: root);
   });
@@ -58,6 +61,7 @@ void main() {
         store: store,
         tags: tags,
         anki: anki,
+        questions: questions,
         adapter: adapter,
       );
 
@@ -304,6 +308,178 @@ void main() {
       expect(report.outcomes.single.proposalId, 'tag-0');
       expect(await anki.getKnowledgePoints(), isEmpty);
       expect(await tags.getTagByPath('文化课/物理/力学/动量守恒'), isNotNull);
+    });
+  });
+
+  group('题目（第四类产物）', () {
+    Future<HandwritingProposalSet> setOf(List<String> proposals) async =>
+        parseHandwritingProposals(
+          reply(proposals),
+          sourceRef: 'handwriting_intake/hw/1/page.png',
+        );
+
+    const questionJson = '{"kind": "question", "title": "动量守恒判断", '
+        '"fields": {"stem": "下列情况中动量守恒的是？", "answer": "B"}, '
+        '"options": ['
+        '{"label": "A", "content": "合外力不为零"},'
+        '{"label": "B", "content": "合外力为零"},'
+        '{"label": "C", "content": "内力远大于外力"}'
+        ']}';
+
+    test('题目：题干、选项、答案字母与题型一起入库', () async {
+      final set = await setOf(<String>[questionJson]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      expect(report.allOk, isTrue, reason: report.outcomes.first.failureReason);
+      final question = (await db.select(db.questions).get()).single;
+      expect(question.stem, '下列情况中动量守恒的是？');
+      expect(question.answer, 'B');
+      expect(question.questionType, 'single_choice');
+      expect(question.origin, 'ai_scan');
+      expect(question.state, 'structured');
+      expect(question.sourceLabel, '拍照整理');
+      // v24 的题号在入库事务里分配，拍出来的题也必须有号。
+      expect(question.serialNo, isNotNull);
+      expect(report.outcomes.single.detailZh, contains('建了题目'));
+
+      final options = await db.select(db.questionOptions).get();
+      options.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      expect(options.map((option) => option.label), ['A', 'B', 'C']);
+      expect(options.map((option) => option.isCorrect), [false, true, false]);
+      expect(options.map((option) => option.sortOrder), [0, 1, 2]);
+      expect(options.map((option) => option.questionId).toSet(), {question.id});
+    });
+
+    test('题干为空：直接失败，不写一条空题', () async {
+      const set = HandwritingProposalSet(
+        sourceRef: 'handwriting_intake/hw/1/page.png',
+        proposals: <HandwritingProposal>[
+          HandwritingProposal(
+            id: 'question-0',
+            kind: HandwritingProposalKind.question,
+            titleZh: '看不清的题目',
+            fields: <String, String>{'answer': 'B'},
+          ),
+        ],
+      );
+
+      final report = await serviceWith(null).applyAll(set);
+
+      expect(report.allOk, isFalse);
+      expect(report.outcomes.single.failureReason, contains('缺少题干'));
+      expect(await db.select(db.questions).get(), isEmpty);
+    });
+
+    test('同题干已经有了：不重复入库，并告诉用户是哪一道', () async {
+      final set = await setOf(<String>[questionJson]);
+      final service = serviceWith(null);
+
+      final first = await service.applyAll(set);
+      final second = await service.applyAll(set);
+
+      expect(first.outcomes.single.ok, isTrue);
+      expect(second.outcomes.single.ok, isTrue);
+      expect(second.outcomes.single.detailZh, contains('没有重复入库'));
+      expect(second.outcomes.single.detailZh, contains('TR-'));
+      expect(second.outcomes.single.targetId, first.outcomes.single.targetId);
+      expect(await db.select(db.questions).get(), hasLength(1));
+      expect(await db.select(db.questionOptions).get(), hasLength(3));
+    });
+
+    test('题目也能挂标签：object_tags 记在题目上', () async {
+      final tag = await seedTagPath('文化课/物理/力学');
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "动量题", '
+            '"fields": {"stem": "质量为 m 的小球碰撞后……", '
+            '"tag_path": "文化课/物理/力学"}}',
+      ]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      final question = (await db.select(db.questions).get()).single;
+      expect(report.outcomes.single.ok, isTrue);
+      expect(report.outcomes.single.detailZh, contains('并挂到'));
+      final links = await db.select(db.objectTags).get();
+      expect(links, hasLength(1));
+      expect(links.single.objectType, 'question');
+      expect(links.single.objectId, question.id);
+      expect(links.single.tagId, tag.id);
+    });
+
+    test('题目标签路径不存在：题照建，明说没挂边', () async {
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "动量题", '
+            '"fields": {"stem": "质量为 m 的小球碰撞后……", '
+            '"tag_path": "其实/没有/这个路径"}}',
+      ]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      expect(report.outcomes.single.ok, isTrue);
+      expect(report.outcomes.single.detailZh, contains('没挂边'));
+      expect(await db.select(db.questions).get(), hasLength(1));
+      expect(await db.select(db.objectTags).get(), isEmpty);
+    });
+
+    test('纯文字题：没有选项时按解答题入库，答案正文原样保留', () async {
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "动量守恒条件", '
+            '"fields": {"stem": "说明动量守恒的条件。", "answer": "合外力为零。", '
+            '"solution": "由动量定理……"}}',
+      ]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      final question = (await db.select(db.questions).get()).single;
+      expect(report.outcomes.single.detailZh, contains('纯文字题'));
+      expect(question.questionType, 'solution');
+      expect(question.answer, '合外力为零。');
+      expect(question.solution, '由动量定理……');
+      expect(await db.select(db.questionOptions).get(), isEmpty);
+    });
+
+    test('答案不是字母时不猜：选项照存，正确项留空', () async {
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "动量题", '
+            '"fields": {"stem": "下列说法正确的是？", "answer": "合外力为零时动量守恒"}, '
+            '"options": [{"label": "A", "content": "甲"}, '
+        '{"label": "B", "content": "乙"}]}',
+      ]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      final question = (await db.select(db.questions).get()).single;
+      final options = await db.select(db.questionOptions).get();
+      expect(report.outcomes.single.ok, isTrue);
+      expect(question.questionType, 'single_choice');
+      expect(question.answer, '合外力为零时动量守恒');
+      expect(options, hasLength(2));
+      expect(options.every((option) => !option.isCorrect), isTrue);
+    });
+
+    test('多选题：A、C 与 AC 都认成两个正确选项', () async {
+      const optionsJson = '"options": [{"label": "A", "content": "甲"}, '
+          '{"label": "B", "content": "乙"}, {"label": "C", "content": "丙"}]';
+      final set = await setOf(<String>[
+        '{"kind": "question", "title": "多选一", '
+            '"fields": {"stem": "多选第一题", "answer": "A、C"}, $optionsJson}',
+        '{"kind": "question", "title": "多选二", '
+            '"fields": {"stem": "多选第二题", "answer": "AC"}, $optionsJson}',
+      ]);
+
+      final report = await serviceWith(null).applyAll(set);
+
+      expect(report.appliedCount, 2, reason: report.outcomes.first.failureReason);
+      final questions = await db.select(db.questions).get();
+      expect(questions.map((question) => question.questionType).toSet(),
+          {'multi_choice'});
+      final correct = await (db.select(db.questionOptions)
+            ..where((row) => row.isCorrect.equals(true)))
+          .get();
+      // 两题各 A、C 两个正确项。
+      expect(correct, hasLength(4));
+      expect(correct.map((option) => option.label).toSet(), {'A', 'C'});
     });
   });
 
