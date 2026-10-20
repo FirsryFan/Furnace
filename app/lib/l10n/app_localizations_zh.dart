@@ -3670,6 +3670,61 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionSourceZujuan => '组卷网原题';
 
   @override
+  String get questionSourceEdit => '改原题链接';
+
+  @override
+  String get questionSourceAdd => '添加原题链接';
+
+  @override
+  String get questionSourceEditTitle => '改原题链接';
+
+  @override
+  String get questionSourceEditInputLabel => '粘贴原题链接或组卷网题目页';
+
+  @override
+  String get questionSourceEditInputHint =>
+      '例如 /10q35583902.html 或 https://zujuan.xkw.com/10q35583902.html';
+
+  @override
+  String get questionSourceEditPreviewUrl => '链接';
+
+  @override
+  String get questionSourceEditPreviewQuestionId => '组卷网题号';
+
+  @override
+  String get questionSourceEditPreviewBankId => '组卷网 bankId';
+
+  @override
+  String get questionSourceEditPreviewNoUrl => '不保存链接';
+
+  @override
+  String get questionSourceEditEmptyHint =>
+      '没认出链接或题号：粘贴完整链接、/10q...html 路径，或组卷网题号（如 10q35583902.html）。';
+
+  @override
+  String get questionSourceEditSave => '保存';
+
+  @override
+  String get questionSourceEditSaved => '原题链接已保存';
+
+  @override
+  String questionSourceEditFailed(String error) {
+    return '保存原题链接失败：$error';
+  }
+
+  @override
+  String get questionSourceEditClear => '清空链接';
+
+  @override
+  String get questionSourceEditClearConfirm => '清空后这道题就没有原题链接了，确定要清空？';
+
+  @override
+  String get questionSourceEditCleared => '原题链接已清空';
+
+  @override
+  String get questionSourceCancel => '取消';
+
+  @override
   String get questionDetailCorrectOption => '正确答案';
 
   @override

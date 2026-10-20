@@ -39,6 +39,7 @@ import 'question_audit_view.dart';
 import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
+import 'question_source_edit_dialog.dart';
 import 'question_vocab_labels.dart';
 import 'question_zujuan_search.dart';
 
@@ -79,6 +80,11 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
       _running = false;
       _lastRun = result;
     });
+  }
+
+  /// 改原题链接：加 / 改 / 清空都在对话框里完成（对话框自己 invalidate 详情）。
+  Future<void> _editSourceLinks(Question question) async {
+    await showQuestionSourceEditDialog(context, question: question);
   }
 
   /// 改来源：只动"来源元信息"四列（题干与答案一个字不改）。
@@ -140,6 +146,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             _QuestionCard(
               detail: detail,
               onEditSource: () => _editSource(detail.question),
+              onEditSourceLinks: () => _editSourceLinks(detail.question),
             ),
           if (detail != null)
             QuestionImagesSection(
@@ -170,12 +177,19 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
 /// 题目本身：题干、选项、答案、解析、来源与质量。
 class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({required this.detail, this.onEditSource});
+  const _QuestionCard({
+    required this.detail,
+    this.onEditSource,
+    this.onEditSourceLinks,
+  });
 
   final QuestionDetail detail;
 
   /// 「改来源」（可空：没给缝就不摆这个按钮 —— 与页面上别的可注入动作同一个做法）。
   final VoidCallback? onEditSource;
+
+  /// 「改原题链接」：加/改/清空都走同一个对话框；没有可信链接时也留入口。
+  final VoidCallback? onEditSourceLinks;
 
   @override
   Widget build(BuildContext context) {
@@ -235,8 +249,26 @@ class _QuestionCard extends StatelessWidget {
                   ),
               ],
             ),
-            // 来源行自己有顶部 8 间距；没有可信链接时整块不出现。
-            if (source != null) _QuestionSourceLine(source: source),
+            // 来源行自己有顶部 8 间距；没有可信链接时不给来源名，但仍留一个
+            // 低权重「添加原题链接」入口（用户手里可能有链接，只是还没入库）。
+            if (source != null)
+              _QuestionSourceLine(
+                source: source,
+                onEditSourceLinks: onEditSourceLinks,
+              )
+            else if (onEditSourceLinks != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextButton.icon(
+                    key: questionSourceEditButtonKey,
+                    onPressed: onEditSourceLinks,
+                    icon: const Icon(Icons.add_link, size: 16),
+                    label: Text(l10n.questionSourceAdd),
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             SelectableText(question.stem, style: theme.textTheme.titleMedium),
             if (question.difficulty != null) ...[
@@ -760,15 +792,18 @@ class _LabelledText extends StatelessWidget {
   }
 }
 
-/// 「题目来源」：一行链接图标 + 来源名 + 复制按钮；没有可信链接时整块不出现
-/// （调用方已经判过 [questionSourceFor] 为 null，这里不再兜底）。
+/// 「题目来源」：一行链接图标 + 来源名 + 复制按钮 + 编辑按钮。
 ///
 /// 只复制链接，不打开浏览器：App 不内置 url_launcher（链接交给浏览器打开）。
-/// 组卷网来源显示「组卷网原题」，其它站显示规范化后的 host。
+/// 组卷网来源显示「组卷网原题」，其它站显示规范化后的 host。没有可信链接时
+/// 调用方不摆这一行，改摆「添加原题链接」入口（同一个 key）。
 class _QuestionSourceLine extends StatelessWidget {
-  const _QuestionSourceLine({required this.source});
+  const _QuestionSourceLine({required this.source, this.onEditSourceLinks});
 
   final QuestionSourceRef source;
+
+  /// 打开「改原题链接」对话框；可空（没给缝就不摆编辑按钮）。
+  final VoidCallback? onEditSourceLinks;
 
   @override
   Widget build(BuildContext context) {
@@ -798,6 +833,13 @@ class _QuestionSourceLine extends StatelessWidget {
             icon: const Icon(Icons.copy_outlined, size: 16),
             label: Text(l10n.questionSourceCopyLink),
           ),
+          if (onEditSourceLinks != null)
+            TextButton.icon(
+              key: questionSourceEditButtonKey,
+              onPressed: onEditSourceLinks,
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: Text(l10n.questionSourceEdit),
+            ),
         ],
       ),
     );

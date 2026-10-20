@@ -6521,6 +6521,108 @@ abstract class AppLocalizations {
   /// **'Zujuan original'**
   String get questionSourceZujuan;
 
+  /// No description provided for @questionSourceEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit source link'**
+  String get questionSourceEdit;
+
+  /// No description provided for @questionSourceAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add source link'**
+  String get questionSourceAdd;
+
+  /// No description provided for @questionSourceEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit source link'**
+  String get questionSourceEditTitle;
+
+  /// No description provided for @questionSourceEditInputLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the original link or a Zujuan question page'**
+  String get questionSourceEditInputLabel;
+
+  /// No description provided for @questionSourceEditInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. /10q35583902.html or https://zujuan.xkw.com/10q35583902.html'**
+  String get questionSourceEditInputHint;
+
+  /// No description provided for @questionSourceEditPreviewUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get questionSourceEditPreviewUrl;
+
+  /// No description provided for @questionSourceEditPreviewQuestionId.
+  ///
+  /// In en, this message translates to:
+  /// **'Zujuan question id'**
+  String get questionSourceEditPreviewQuestionId;
+
+  /// No description provided for @questionSourceEditPreviewBankId.
+  ///
+  /// In en, this message translates to:
+  /// **'Zujuan bankId'**
+  String get questionSourceEditPreviewBankId;
+
+  /// No description provided for @questionSourceEditPreviewNoUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'No link saved'**
+  String get questionSourceEditPreviewNoUrl;
+
+  /// No description provided for @questionSourceEditEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not recognise a link or question id: paste a full URL, a /10q...html path, or a Zujuan question id (e.g. 10q35583902.html).'**
+  String get questionSourceEditEmptyHint;
+
+  /// No description provided for @questionSourceEditSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get questionSourceEditSave;
+
+  /// No description provided for @questionSourceEditSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Original link saved'**
+  String get questionSourceEditSaved;
+
+  /// No description provided for @questionSourceEditFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the original link: {error}'**
+  String questionSourceEditFailed(String error);
+
+  /// No description provided for @questionSourceEditClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear link'**
+  String get questionSourceEditClear;
+
+  /// No description provided for @questionSourceEditClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the original link from the question. Clear it?'**
+  String get questionSourceEditClearConfirm;
+
+  /// No description provided for @questionSourceEditCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Original link cleared'**
+  String get questionSourceEditCleared;
+
+  /// No description provided for @questionSourceCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get questionSourceCancel;
+
   /// No description provided for @questionDetailCorrectOption.
   ///
   /// In en, this message translates to:

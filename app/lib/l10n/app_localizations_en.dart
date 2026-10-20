@@ -3832,6 +3832,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionSourceZujuan => 'Zujuan original';
 
   @override
+  String get questionSourceEdit => 'Edit source link';
+
+  @override
+  String get questionSourceAdd => 'Add source link';
+
+  @override
+  String get questionSourceEditTitle => 'Edit source link';
+
+  @override
+  String get questionSourceEditInputLabel =>
+      'Paste the original link or a Zujuan question page';
+
+  @override
+  String get questionSourceEditInputHint =>
+      'e.g. /10q35583902.html or https://zujuan.xkw.com/10q35583902.html';
+
+  @override
+  String get questionSourceEditPreviewUrl => 'Link';
+
+  @override
+  String get questionSourceEditPreviewQuestionId => 'Zujuan question id';
+
+  @override
+  String get questionSourceEditPreviewBankId => 'Zujuan bankId';
+
+  @override
+  String get questionSourceEditPreviewNoUrl => 'No link saved';
+
+  @override
+  String get questionSourceEditEmptyHint =>
+      'Could not recognise a link or question id: paste a full URL, a /10q...html path, or a Zujuan question id (e.g. 10q35583902.html).';
+
+  @override
+  String get questionSourceEditSave => 'Save';
+
+  @override
+  String get questionSourceEditSaved => 'Original link saved';
+
+  @override
+  String questionSourceEditFailed(String error) {
+    return 'Could not save the original link: $error';
+  }
+
+  @override
+  String get questionSourceEditClear => 'Clear link';
+
+  @override
+  String get questionSourceEditClearConfirm =>
+      'This removes the original link from the question. Clear it?';
+
+  @override
+  String get questionSourceEditCleared => 'Original link cleared';
+
+  @override
+  String get questionSourceCancel => 'Cancel';
+
+  @override
   String get questionDetailCorrectOption => 'correct';
 
   @override

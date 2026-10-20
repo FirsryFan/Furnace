@@ -32,6 +32,7 @@ import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_source_edit_dialog.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
 import 'package:furnace/features/questions/presentation/question_zujuan_search.dart';
@@ -767,6 +768,76 @@ void main() {
     expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
     expect(find.text(_zh.questionSourceZujuan), findsOneWidget);
     expect(find.text('zujuan.xkw.com'), findsNothing);
+  });
+
+  testWidgets('没有原题链接：详情页留「添加原题链接」入口，点开是空的编辑框', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsNothing);
+    expect(find.byKey(questionSourceEditButtonKey), findsOneWidget);
+    expect(find.text(_zh.questionSourceAdd), findsOneWidget);
+
+    await tester.tap(find.byKey(questionSourceEditButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(questionSourceEditDialogKey), findsOneWidget);
+    final field = tester.widget<TextField>(
+      find.byKey(questionSourceEditInputKey),
+    );
+    expect(field.controller!.text, isEmpty);
+  });
+
+  testWidgets('有原题链接：来源行复制按钮旁有编辑入口，编辑框带出现有链接', (WidgetTester tester) async {
+    final database = _newDatabase();
+    const url = 'https://old.example.com/a';
+    final question = await _seedQuestion(database, sourceUrl: url);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
+    expect(find.byKey(questionSourceEditButtonKey), findsOneWidget);
+
+    await tester.tap(find.byKey(questionSourceEditButtonKey));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(
+      find.byKey(questionSourceEditInputKey),
+    );
+    expect(field.controller!.text, url);
+  });
+
+  testWidgets('改完链接保存：详情页立刻换成新的来源行', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    await tester.tap(find.byKey(questionSourceEditButtonKey));
+    await tester.pumpAndSettle();
+    expect(find.byKey(questionSourceEditDialogKey), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(questionSourceEditInputKey),
+      'https://zujuan.xkw.com/10q35583902.html',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(questionSourceEditSaveKey));
+    await _waitForText(tester, _zh.questionSourceZujuan);
+    // 来源行在新数据回来时就重建了，对话框退场动画可能还没走完。
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(questionSourceEditDialogKey), findsNothing);
+    expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
+    final row = await QuestionRepository(database).byId(question.id);
+    expect(row!.sourceUrl, 'https://zujuan.xkw.com/10q35583902.html');
+    expect(row.zujuanQuestionId, '35583902');
+    expect(row.zujuanBankId, '10');
   });
 }
 
