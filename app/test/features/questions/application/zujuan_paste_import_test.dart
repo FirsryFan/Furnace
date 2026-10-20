@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_paste.dart';
 import 'package:furnace/features/questions/application/zujuan_paste_import.dart';
