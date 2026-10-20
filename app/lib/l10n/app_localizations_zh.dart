@@ -3494,19 +3494,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get zujuanPasteParseEmpty => '这段文本里没解析出题目：粘贴至少一道题的题干再试。';
 
   @override
-  String zujuanPastePreviewTitle(int count) => '解析出 $count 道题';
+  String zujuanPastePreviewTitle(int count) {
+    return '解析出 $count 道题';
+  }
 
   @override
   String get zujuanPasteItemStem => '题干（可改）';
 
   @override
-  String zujuanPasteItemOptions(int count) => '$count 个选项';
+  String zujuanPasteItemOptions(int count) {
+    return '$count 个选项';
+  }
 
   @override
-  String zujuanPasteItemSource(String source) => '来源：$source';
+  String zujuanPasteItemSource(String source) {
+    return '来源：$source';
+  }
 
   @override
-  String zujuanPasteItemYear(int year) => '$year 年';
+  String zujuanPasteItemYear(int year) {
+    return '$year 年';
+  }
 
   @override
   String get zujuanPastePartial => '识别不完整：请核对题干与选项';
@@ -3521,8 +3529,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get zujuanPasteNothingSelected => '没有勾选任何题：先勾选要入库的题。';
 
   @override
-  String zujuanPasteSummary(int saved, int duplicates, int failed) =>
-      '已入库 $saved 道 · 重复 $duplicates 道 · 失败 $failed 道';
+  String zujuanPasteSummary(int saved, int duplicates, int failed) {
+    return '已入库 $saved 道 · 重复 $duplicates 道 · 失败 $failed 道';
+  }
 
   @override
   String get questionDetailTitle => '题目详情';
@@ -3909,10 +3918,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String handwritingQueuePreviewBlockedSummary(
-    int ready,
-    int needsReview,
-    int blocked,
-  ) {
+      int ready, int needsReview, int blocked) {
     return '$ready 条能确认、$needsReview 条要先看一眼、$blocked 条不能确认';
   }
 

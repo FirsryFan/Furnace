@@ -3645,19 +3645,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'No questions were parsed from this text: paste at least one question stem and try again.';
 
   @override
-  String zujuanPastePreviewTitle(int count) => '$count question(s) parsed';
+  String zujuanPastePreviewTitle(int count) {
+    return '$count question(s) parsed';
+  }
 
   @override
   String get zujuanPasteItemStem => 'Stem (editable)';
 
   @override
-  String zujuanPasteItemOptions(int count) => '$count option(s)';
+  String zujuanPasteItemOptions(int count) {
+    return '$count option(s)';
+  }
 
   @override
-  String zujuanPasteItemSource(String source) => 'Source: $source';
+  String zujuanPasteItemSource(String source) {
+    return 'Source: $source';
+  }
 
   @override
-  String zujuanPasteItemYear(int year) => '$year';
+  String zujuanPasteItemYear(int year) {
+    return '$year';
+  }
 
   @override
   String get zujuanPastePartial =>
@@ -3674,8 +3682,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing selected: check the questions to import first.';
 
   @override
-  String zujuanPasteSummary(int saved, int duplicates, int failed) =>
-      'Imported $saved · duplicates $duplicates · failed $failed';
+  String zujuanPasteSummary(int saved, int duplicates, int failed) {
+    return 'Imported $saved · duplicates $duplicates · failed $failed';
+  }
 
   @override
   String get questionDetailTitle => 'Question detail';
@@ -4083,10 +4092,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String handwritingQueuePreviewBlockedSummary(
-    int ready,
-    int needsReview,
-    int blocked,
-  ) {
+      int ready, int needsReview, int blocked) {
     return '$ready ready, $needsReview to review, $blocked blocked';
   }
 

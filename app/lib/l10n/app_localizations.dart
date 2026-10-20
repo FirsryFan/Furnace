@@ -6946,10 +6946,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{ready} ready, {needsReview} to review, {blocked} blocked'**
   String handwritingQueuePreviewBlockedSummary(
-    int ready,
-    int needsReview,
-    int blocked,
-  );
+      int ready, int needsReview, int blocked);
 
   /// No description provided for @questionPaperDifficultyLabel.
   ///
