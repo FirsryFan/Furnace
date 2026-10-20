@@ -505,6 +505,46 @@ class QuestionRepository {
     return updated > 0;
   }
 
+  /// 按组卷网题目 id（`questions.zujuan_question_id`）批量查题——整卷页对照用。
+  ///
+  /// 返回 `zujuanQuestionId → 该 id 下的题目行`。同一组卷网 id 可能有多行
+  /// （历史重复入库，库上没有唯一约束），顺序固定为 **updatedAt 降序、id 升序**，
+  /// 调用方取第一行当"最新的一行"；本方法不替调用方挑行，也不合并。
+  ///
+  /// 空集合、或全部 trim 后为空 → 空 map，不查库。匹配口径是 trim 后精确相等
+  /// （组卷网 id 是外部字符串，不做大小写/前导零归一——那是解析层的活）。
+  Future<Map<String, List<Question>>> byZujuanQuestionIds(
+    Set<String> zujuanQuestionIds,
+  ) async {
+    final ids = <String>{};
+    for (final raw in zujuanQuestionIds) {
+      final trimmed = raw.trim();
+      if (trimmed.isNotEmpty) {
+        ids.add(trimmed);
+      }
+    }
+    if (ids.isEmpty) {
+      return const {};
+    }
+    final rows = await (_db.select(_db.questions)
+          ..where((t) =>
+              t.zujuanQuestionId.isIn(ids) & t.zujuanQuestionId.isNotNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.updatedAt),
+            (t) => OrderingTerm.asc(t.id),
+          ]))
+        .get();
+    final grouped = <String, List<Question>>{};
+    for (final row in rows) {
+      final key = row.zujuanQuestionId;
+      if (key == null || !ids.contains(key)) {
+        continue;
+      }
+      (grouped[key] ??= <Question>[]).add(row);
+    }
+    return grouped;
+  }
+
   /// 删除题目并显式清理它的一切（本项目没有外键，级联不会自己发生）。
   Future<void> deleteQuestion(String id) async {
     await _db.transaction(() async {
