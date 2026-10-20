@@ -2,6 +2,44 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十八：标签树排序落盘 + 题库包按标签路径筛选（Lead + 两个 teammate）
+
+**起点**：轮次一百三十七收尾（HEAD `4c61193`）。这一轮补的都是「上一轮只做了一半」的事：标签树的
+三档排序上一轮只做了会话内切换、重启就回字典序；题库包导出上一轮能按学科/来源/题号筛，但纯逻辑
+早就支持标签路径、界面没暴露。task-110（Lead，schema v29）、task-111（reasoning-core，标签路径选项
+纯逻辑）、task-112（question-intake，排序偏好恢复 + 标签路径筛选 UI）、task-113（threadflow-engine，
+v0.5.9 发布说明草稿）全部 completed。
+
+**A. 标签树排序偏好落盘（task-110 + task-112，schema v29）**：`local_settings` 增
+`tag_tree_sort_mode`（TEXT nullable，NULL=出厂字典序；存域层 code `alphabetical` / `object_count` /
+`created_at`，不存中文），`database.dart` 版本 28 -> 29 + `_upgradeV28ToV29` + `_ensureColumns` 自愈；
+`SettingsRepository.getTagTreeSortMode` / `updateTagTreeSortMode`（trim、空白写 NULL、null 恢复出厂、
+未知 code 不拒绝且读侧降级为字典序）。`tag_tree_page.dart` 的 provider 改为 AsyncNotifier：启动读库
+恢复、切换先改内存态再异步写库（写失败只 debugPrint），偏好加载期间按字典序渲染不空白。测试
+`v29_migration_test.dart` 4 例 + settings_repository +3 例 + tag_tree +5 例。
+
+**B. 题库包导出按标签路径筛选（task-111 + task-112）**：纯逻辑 `question_pack_tag_options.dart`
+（157 行，路径归一/去重保序、题数降序 -> 路径升序、已选永久保留且可超上限、不可变、永不抛，43 例）；
+设置页新增 `question_pack_tag_path_picker.dart`（221 行，搜索 + 复选的二级对话框，选项 = 标签树路径
++ `object_tags(object_type='question')` 计数，空库/无匹配分开提示，取消保留旧选择），导出筛选主对话框
+多一个「标签路径」按钮（未选「选择标签路径」/已选「标签：已选 N 条」），`questionPackSelectionFromFilter`
+增 `tagPaths` 并归一进 `QuestionPackSelection`。l10n 五文件各 +8 key（两个 `count:int`）手改未跑 gen-l10n。
+测试 picker 10 例 + 导出筛选 +3 例 + section 8 键断言。
+
+**C. v0.5.9 发布说明草稿（task-113）**：仓库外 `E:/FirsryOS/THREADRIPPER/release-059-draft.md` 103 行，
+按 `git log v0.5.8..HEAD` 的提交面整理 A-F 六块 + 验证 5 条（数字留给 Lead 构建后回填）+ 已知未做 10 条；
+同时点出「标签树排序」这一条必须真的接线（本轮已接）才能写进发布说明。
+
+**D. 门禁与提交**：`dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；组合测试
+`test/data/database test/data/repositories/settings_repository_test.dart test/domain/services/package
+test/features/tags test/features/settings` -> +459 All tests passed；全量 `flutter test --concurrency=1`
+-> +4991 ~2 All tests passed，9 分 57 秒，EXIT=0（日志 `E:/dsh-tmp-aot/test-138-full.txt`；上一轮基线
++4923，本轮 +68）。提交拆 4 个切片（schema v29 / 标签树 UI / 标签路径筛选 / docs），git 由 Lead 统一
+提交，未 push GitHub；随后准备 v0.5.9 双端发布件（提交与 tag 见发布记录）。
+
+**未做 / 未验证**：标签树只有三档排序、没有手动拖拽排序；en 界面排序菜单项与标签路径按钮仍是中文；
+标签路径筛选是平面多选、没有子树级联（选父不自动选子）；题号多段筛选仍未做；v0.5.9 双端构建与真机
+验收见发布说明「已知未做」。
 ## 2026-10-21 轮次一百三十七：题库包选择性导出 + 导入预检 + 导出告警上屏（Lead + 三个 teammate）
 
 **起点**：轮次一百三十六收尾（HEAD `4e6df91`）。上一轮把题库打成了 `.tqb`，但只能「整库导出」、

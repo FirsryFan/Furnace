@@ -885,7 +885,60 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
   `dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；全量
   `flutter test --concurrency=1` -> +4923 ~2 All tests passed，9 分 54 秒（日志 `E:/dsh-tmp-aot/test-137-full.txt`）。
 - 未做 / 未验证：仍未用真实 `.tqb`（跨设备/跨版本）端到端；真机 FilePicker 未手测；
-  筛选对话框没有「按标签路径」与「按题号多段」输入（纯逻辑已支持 tagPaths，UI 本轮没暴露）；
+  筛选对话框没有「按标签路径」与「按题号多段」输入（纯逻辑已支持 tagPaths；标签路径已在一百三十八补，见 §22.2，题号多段仍未暴露）；
   导入后不合并重复题的图片/标签；不做导入前自动备份（append 模式）。
+
+## 22. 题库包第三轮：按标签路径筛选与排序偏好落盘（轮次一百三十八，2026-10-21）
+
+### 22.1 标签路径选项纯逻辑（task-111 reasoning-core）
+
+- `lib/domain/services/package/question_pack_tag_options.dart`（157 行）：`QuestionPackTagPathOption`
+  （`path` / `questionCount` / `selected` / `weight` / `isEmpty` / `toJson` / `==` / `hashCode` / `toString`）；
+  `questionPackTagPathOptions({tagPaths, questionCountByPath, selectedPaths, maxOptionCount = 200})`；
+  `normalizeQuestionPackTagPath`；`selectedQuestionPackTagPaths`。
+- 口径：路径 trim、去空、按归一路径去重保序；计数缺省 0、负数归 0；排序 = 题数降序 -> 路径
+  UTF-16 升序；`selected` 精确匹配、不改动顺序、超上限也补回（结果总数可超过上限）；
+  `maxOptionCount <= 0` 只留已选；返回不可变列表、永不抛。43 例。
+
+### 22.2 设置页标签路径筛选（task-112 question-intake）
+
+- 新增 `lib/features/settings/presentation/question_pack_tag_path_picker.dart`（221 行）：
+  `questionPackTagPathOptionsProvider`（`watchDatabaseRevision` + `getAllTags` +
+  `objectCountByTagId(objectTypes: {'question'})`）、`questionPackTagPathOptionsFromTags`（路径为空
+  退化 `tag.name`、空名字丢弃、同一路径题数相加）、`QuestionPackTagPathPickerDialog`（搜索框 +
+  复选列表，行文案「路径 · N 道」；空库与无匹配分开提示；取消返回 null 且不动旧选择；确认返回
+  选中集合；已选但已从题库消失的路径计 0，仍能取消勾选）。
+- `question_pack_export_filter_dialog.dart`（235 -> 299 行）：`questionPackSelectionFromFilter` 增
+  `tagPaths` 参数，经 `selectedQuestionPackTagPaths` 归一并进 `QuestionPackSelection`；主对话框新增
+  「标签路径」按钮（key `question-pack-filter-tag-paths`），未选显示「选择标签路径」、已选显示
+  「标签：已选 N 条」。
+- l10n 五文件各 +8 key（`settingsQuestionPackFilterTags` / `FilterTagSelect` / `FilterTagsSelected`
+  (`count:int`) / `TagPickerTitle` / `TagPickerSearch` / `TagPickerEmpty` / `TagPickerNoMatch` /
+  `settingsQuestionPackTagQuestionCount`(`count:int`)），手改未跑 gen-l10n。
+- 测试：新增 `question_pack_tag_path_picker_test.dart` 10 例（纯逻辑 4 + 对话框 6）、导出筛选 +3、
+  section +8 键断言、tag tree +5。
+
+### 22.3 标签树排序偏好落盘（task-110 Lead + task-112 question-intake）
+
+- schema v29：`local_settings.tag_tree_sort_mode`（TEXT nullable，NULL = 出厂字典序；存域层 code
+  `alphabetical` / `object_count` / `created_at`，不存中文）。`database.dart` schemaVersion 28 -> 29 +
+  `_upgradeV28ToV29` + `_ensureColumns` 自愈补列；`SettingsRepository.getTagTreeSortMode` /
+  `updateTagTreeSortMode`（trim；空白写 NULL；null = 恢复出厂；未知 code 不拒绝，读侧降级为字典序）。
+  迁移与读写口径见 `docs/DATA_MODEL.md` §18。
+- `tag_tree_page.dart`（559 行）：`tagTreeSortModeProvider` 改为
+  `AsyncNotifierProvider<TagTreeSortModeController, TagTreeSortMode>`；启动读库恢复偏好，切换时先更新
+  内存态再写库，写失败只 `debugPrint` 不影响本次会话；偏好加载期间树按字典序渲染不空白。
+- 测试：`v29_migration_test.dart` 4 例（真实 v28 升级、缺列自愈、空白/未知 code/null 清回出厂、
+  新库无行）+ `settings_repository_test.dart` +3 例；`tag_tree_page_test.dart` +5 例（启动恢复、
+  切换写库、写失败仍生效）。
+
+### 22.4 门禁与未做
+
+- 组合测试：`flutter test test/data/database test/data/repositories/settings_repository_test.dart
+  test/domain/services/package test/features/tags test/features/settings --concurrency=1` ->
+  +459 All tests passed；`dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）。
+- 未做：标签树只有三档排序，没有手动拖拽排序；en 界面排序菜单与标签路径按钮仍是中文；
+  标签路径筛选是平面多选，没有子树级联（选父不自动选子）；题号多段筛选仍未做。
+
 
 
