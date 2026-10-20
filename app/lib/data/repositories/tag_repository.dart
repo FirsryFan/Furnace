@@ -287,6 +287,73 @@ class TagRepository {
         .get();
   }
 
+  /// How many objects carry each tag, for the tag tree's "sort by content"
+  /// mode (`tag_tree_sort.dart`).
+  ///
+  /// Direct mode ([includeDescendants] = false) counts only links attached to
+  /// the tag itself, grouped by `tag_id`; tags without objects are omitted
+  /// (callers read a missing key as 0). With [objectTypes] non-null only those
+  /// `object_type`s are counted (`WHERE object_type IN (...)`); an empty set
+  /// counts nothing.
+  ///
+  /// Subtree mode ([includeDescendants] = true) counts each tag plus all of its
+  /// descendants, and returns **every** tag id in `tags` (0 when the subtree
+  /// has no objects) so the UI can look a count up by id. The rollup uses the
+  /// `parent_id` chain in memory - `path` is a derived cache and recursive SQL
+  /// is not used here.
+  ///
+  /// Read-only: no table is written, and repeated calls on the same database
+  /// state return the same counts.
+  Future<Map<String, int>> objectCountByTagId({
+    bool includeDescendants = false,
+    Set<String>? objectTypes,
+  }) async {
+    final direct = await _directObjectCounts(objectTypes);
+    if (!includeDescendants) {
+      return direct;
+    }
+
+    final allTags = await _db.select(_db.tags).get();
+    final parentById = <String, String?>{
+      for (final tag in allTags) tag.id: tag.parentId,
+    };
+    final totals = <String, int>{for (final tag in allTags) tag.id: 0};
+    direct.forEach((tagId, count) {
+      // Walk up the parent chain; every ancestor counts the same link once.
+      // Unknown tag ids (debris links) are ignored: they are not tags the tree
+      // can show. The visited set only guards against a corrupt parent cycle.
+      String? current = tagId;
+      final visited = <String>{};
+      while (current != null && parentById.containsKey(current)) {
+        if (!visited.add(current)) {
+          break;
+        }
+        totals[current] = totals[current]! + count;
+        current = parentById[current];
+      }
+    });
+    return totals;
+  }
+
+  /// Direct counts, grouped by `tag_id`; empty set means "no object type".
+  Future<Map<String, int>> _directObjectCounts(Set<String>? objectTypes) async {
+    if (objectTypes != null && objectTypes.isEmpty) {
+      return <String, int>{};
+    }
+    final count = _db.objectTags.id.count();
+    final query = _db.selectOnly(_db.objectTags)
+      ..addColumns([_db.objectTags.tagId, count])
+      ..groupBy([_db.objectTags.tagId]);
+    if (objectTypes != null) {
+      query.where(_db.objectTags.objectType.isIn(objectTypes));
+    }
+    final rows = await query.get();
+    return {
+      for (final row in rows)
+        row.read(_db.objectTags.tagId)!: row.read(count) ?? 0,
+    };
+  }
+
   // --- internals -----------------------------------------------------------
 
   Future<String> _requirePath(String tagId) async {
