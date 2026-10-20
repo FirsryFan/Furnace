@@ -15,18 +15,29 @@
 ///    解析成题目草稿 → 人工确认后入库。本文件只负责最后一步的纯文本解析。
 ///
 /// 解析口径（务实、容错优先）：
-///  * 题目边界：行首数字序号（1. / 1．/ 1、/ (1) / （1））连续递增处优先；
-///    没有可用序号时按空行分段，只有「上一题已完成」或「下一段像新题开头」
-///    才切分（宁可少切，不把一题切碎）。
-///  * 题干/选项：行首或行内的 A. / A、/ A． 标签（A-H）抽选项；同一行多个选项、
-///    每个选项跨行续写都支持。认选项时要求从 A 连续递增，避免把题干里的
-///    「A、B 两点」误当选项。
-///  * 元数据：【答案】【解析】【详解】【解答】【分析】【知识点】【考点】【难度】
-///    【出处】【来源】【题型】【专题】以及「答案：」「解析：」等行内标签；
-///    答案与解析保留原文换行，知识点按、，,；;空白切分去重；难度/题型/专题
-///    只识别、不落字段（题目草稿契约里没有对应字段，也绝不混进题干）。
+///  * 题目边界：行首数字序号（1. / 1．/ 1、/ (1) / （1））或「第 12 题」连续
+///    递增处优先；没有可用序号时按空行分段，只有「上一题已完成」或「下一段像
+///    新题开头」才切分（宁可少切，不把一题切碎）。题首/题间的板块标题
+///    （一、选择题 / 第Ⅰ卷）、试卷标题行、考试说明行、裸来源行会随题并入，
+///    解析时剥掉，不留在题干里。
+///  * 题干/选项：行首或行内的 A. / A．/ A、/ A：/ A) / A） 标签（A-H）抽选项；
+///    同一行多个选项、每个选项跨行续写都支持。认选项时要求从 A 连续递增，
+///    避免把题干里的「A、B 两点」误当选项；编号异常（不从 A 起、缺号、重复、
+///    内容为空）不再静默：异常行整行跳过、不混进题干，warnings 给中文原因与
+///    原文片段（isPartial 置 true，交人工核对）。
+///  * 图片占位：[图片] / （图略）/ 图1 等纯文本占位只在题干/选项里原样保留，
+///    并给「请人工补图」的告警（非结构告警，不改变 isPartial）。
+///  * 元数据：【答案】【解析】【详解】【解答】【分析】【点睛】【知识点】【考点】
+///    【难度】【出处】【来源】【题型】【专题】以及「答案：」「解析：」等行内标签；
+///    「故选：B」「故选B」也认：题干/选项区只认整行（抽答案、不进题干），解析区
+///    无论夹在句中都会抽答案且解析原文保留；【答案】与解析「故选」不一致、标记后
+///    没内容（如【答案】【解析】…）时如实留空并告警，绝不猜。答案与解析保留
+///    原文换行，知识点按、，,；;空白切分去重；难度/题型/专题只识别、不落字段。
+///  * 分值：题干末尾或单独一行的（6分）/（本小题满分12分）剥离并写进
+///    ZujuanPastedQuestion.score（只留数字，可为空），不进题干。
 ///  * 来源与年份：题首或题干首行末尾的括号（如（2023·湖南·长沙·一模）/
-///    （2024届湖南省长沙市…））以及【出处】行，抽 sourceLabel / year / region。
+///    （2024届湖南省长沙市…））、题首裸来源行（2026届高三上期末 /
+///    2026·江苏·模拟）以及【出处】行，抽 sourceLabel / year / region。
 ///  * 组卷网 ID：文本里出现 10q123456.html、10q123456、qid=123456、
 ///    bankid=10 或组卷网详情页 URL 时，抽 zujuanQuestionId / zujuanBankId /
 ///    sourceUrl；两个 ID 齐全且没抓到 URL 时用 zujuanQuestionId 拼详情页链接。
@@ -38,7 +49,15 @@
 ///  * 纯文本里分不清「解答题的小题号 (1)(2)」和「多题序号 (1)(2)」：
 ///    只有各段带选项/答案/（　）括号时才按多题切分，否则视为同一题的小问。
 ///  * 题干里没有序号、也没有（　）括号/选项/元数据的两段纯文字会被当成一题。
-///  * 来源括号只认题首、题干首行末尾、以及【出处】/【来源】行；夹在中间的不动。
+///  * 板块标题/试卷标题/说明行只在题干还没开始时剥；题干中间出现的整行说明
+///    文字按正文保留（宁可多留，不静默删字）。
+///  * 图片占位只是提示：纯文本不含图，图表题入库后仍需人工补图；行内公式
+///    （$...$ 与 \(...\)）原样保留、不解析不校验。
+///  * 分值只认括号里的「N分」；「共 N 分」「本大题共…」这类说明行不当分值。
+///  * 选项编号异常时跳过异常行，该题可能变成 isPartial 或题干变短，需要人工
+///    核对（warnings 已给原因与原文片段）。
+///  * 来源括号只认题首、题干首行末尾、题首裸来源行、以及【出处】/【来源】行；
+///    夹在中间的不动。
 ///  * 【答案】在未登录页读不到是站点限制（SKILL.md:167），解析器只能如实留空。
 library;
 
@@ -63,11 +82,47 @@ const String _warningQuestionIdWithoutBankId = '只识别到题目 ID，缺少 b
 /// 只识别到 bankId、缺题目 ID 时的告警。
 const String _warningBankIdWithoutQuestionId = '只识别到 bankId，缺少题目 ID，无法拼详情页链接';
 
-/// 结构类告警：出现任意一条即 isPartial == true，入库前必须人工看。
-const Set<String> _structuralWarnings = <String>{
+/// 选项编号不是从 A 开始（编号异常 → 选项不可信，必须人工看）。
+const String _warningOptionNotFromA = '选项编号不是从 A 开始';
+
+/// 选项编号缺号。
+const String _warningOptionMissingNumber = '选项缺号';
+
+/// 选项编号重复。
+const String _warningOptionDuplicateNumber = '选项编号重复';
+
+/// 选项内容为空。
+const String _warningOptionEmptyContent = '选项内容为空';
+
+/// 【答案】标记存在但没读到内容。
+const String _warningEmptyAnswerMarker = '【答案】标记存在但答案内容为空，请人工核对';
+
+/// 【解析】标记存在但没读到内容。
+const String _warningEmptySolutionMarker = '【解析】标记存在但解析内容为空，请人工核对';
+
+/// 题干/选项里出现图片占位或图注：纯文本没有图，入库前要人工补图。
+const String _warningImagePlaceholder =
+    '题干/选项含图片占位或图注（如 [图片]、图1），纯文本不含图，入库前需人工补图';
+
+/// 结构类告警前缀：命中任意一条即 isPartial == true，入库前必须人工看。
+///
+/// 选项编号类告警是动态文案（带原始行），所以用「前缀」而不是整串相等判断。
+const List<String> _structuralWarningPrefixes = <String>[
   _warningUnrecognizedStructure,
   _warningEmptyStem,
-};
+  _warningOptionNotFromA,
+  _warningOptionMissingNumber,
+  _warningOptionDuplicateNumber,
+  _warningOptionEmptyContent,
+];
+
+/// 告警是否属于结构类（决定 isPartial）：按前缀判断，兼容带原始行的动态文案。
+bool _isStructuralWarning(String warning) {
+  for (final prefix in _structuralWarningPrefixes) {
+    if (warning.startsWith(prefix)) return true;
+  }
+  return false;
+}
 
 const List<String> _answerLabels = <String>['答案'];
 
@@ -169,12 +224,14 @@ final RegExp _markerTagPattern = RegExp(r'〔\s*/?\s*(?:加点|波浪线|着重�
 final RegExp _strongOrdinalPattern =
     RegExp(r'^\s*(\d{1,3})\s*(?:[.．](?!\d)|、)\s*');
 final RegExp _weakOrdinalPattern = RegExp(r'^\s*[（(]\s*(\d{1,3})\s*[)）]\s*');
+final RegExp _numberedOrdinalPattern =
+    RegExp(r'^\s*第\s*(\d{1,3})\s*题\s*[.．、:：]?\s*');
 final RegExp _answerBracketPattern = RegExp(r'[（(][\s\u3000]*[)）]');
 final RegExp _trailingAnswerBracketPattern = RegExp(r'[（(][\s\u3000]*[)）]\s*$');
 final RegExp _leadingSourcePattern = RegExp(r'^[（(]([^（）()]{2,80})[)）]\s*');
 final RegExp _trailingSourcePattern = RegExp(r'[（(]([^（）()]{2,80})[)）]\s*$');
 final RegExp _yearInTextPattern = RegExp(r'(?:19|20)\d{2}');
-final RegExp _optionLabelPattern = RegExp(r'([A-H])\s*[.．、:：]');
+final RegExp _optionLabelPattern = RegExp(r'([A-H])\s*[.．、:：)）]');
 final RegExp _enumeratedLetterPattern = RegExp(r'^[B-H]');
 final RegExp _urlPattern = RegExp(r'https?://[^\s<>"“”‘’()（）《》，。；：！？、]+');
 final RegExp _detailPathPattern = RegExp(r'/(?:(\d{1,4}))?q(\d{3,})\.html');
@@ -225,6 +282,49 @@ final RegExp _bareMetadataSpacePattern = RegExp(
   '^(答案|解析|详解|解答|分析|点评|点睛|知识点|考点|难度系数|难度|出处|来源|题型|专题)[\\s　]+',
 );
 
+/// 「故选：B」「故选 B」「故选AB」这类答案标记（组卷网解析里很常见）。
+final RegExp _selectedAnswerPattern =
+    RegExp(r'故\s*选\s*[:：]?\s*([A-H](?:\s*[、,，]?\s*[A-H])*)');
+
+/// 行首分值（（6分）/（本小题满分12分）），从题干剥离，不猜题。
+final RegExp _leadingScorePattern = RegExp(
+  r'^[（(]\s*(?:本小题|本题)?\s*(?:满分)?\s*(\d+(?:\.\d+)?)\s*分\s*[)）]\s*',
+);
+
+/// 行尾分值（（12分）），从题干剥离。
+final RegExp _trailingScorePattern = RegExp(
+  r'[（(]\s*(?:本小题|本题)?\s*(?:满分)?\s*(\d+(?:\.\d+)?)\s*分\s*[)）]\s*$',
+);
+
+/// 整行只有一个括号来源（（2023·湖南·长沙·一模））。
+final RegExp _fullLineParenPattern = RegExp(r'^[（(]([^（）()]{2,80})[)）]$');
+
+/// 板块标题：一、选择题 / 二、填空题 …（只是版式，不进题干）。
+final RegExp _sectionHeadingPattern = RegExp(
+  r'^[一二三四五六七八九十]+\s*[、.．]\s*(?:'
+  r'选择题|填空题|解答题|判断题|实验题|计算题|简答题|综合题|论述题|阅读题|'
+  r'写作题|非选择题|选考题|必考题|现代文阅读|文言文阅读|语言文字运用|名篇名句默写'
+  r')',
+);
+
+/// 卷次标题：第Ⅰ卷 / 第 II 卷（只是版式，不进题干）。
+final RegExp _sectionVolumePattern = RegExp(r'^第\s*[ⅠⅡⅢⅣⅤⅥIVX]+\s*卷');
+
+/// 试卷标题行：2024年普通高等学校招生全国统一考试…（只是版式，不进题干）。
+final RegExp _paperTitlePattern = RegExp(
+  r'^(?:19|20)\d{2}\s*年.{0,40}(?:普通高等学校|招生|统一考试|考试|试卷)',
+);
+
+/// 考试说明行：本大题共…小题 / 注意事项 / 考试时间…（不进题干）。
+final RegExp _instructionPrefixPattern = RegExp(
+  r'^(?:本大题|本卷|注意事项|考试时间|考生注意|满分\s*\d|共\s*\d+\s*小题)',
+);
+
+/// 图片占位/图注：纯文本不含图，命中就告警提示人工补图。
+final RegExp _imagePlaceholderPattern = RegExp(
+  r'\[图片\]|【图片】|［图片］|（图略）|\(图略\)|（略图）|\(略图\)|'
+  r'如图|见图|[上下]图|图略|图\s*[1-9]\d?(?!\d)',
+);
 // ---------------------------------------------------------------------------
 // 公开 API
 // ---------------------------------------------------------------------------
@@ -251,6 +351,7 @@ class ZujuanPastedQuestion {
     this.sourceLabel,
     this.year,
     this.region,
+    this.score,
     List<String> knowledgePoints = const <String>[],
     this.zujuanQuestionId,
     this.zujuanBankId,
@@ -284,6 +385,9 @@ class ZujuanPastedQuestion {
   /// 从来源里抽出的地区（如 湖南；识别不到为 null，不猜）。
   final String? region;
 
+  /// 从（6分）/（本小题满分12分）这类分值标记抽出的分值（识别不到为 null，不猜）。
+  final double? score;
+
   /// 知识点（按出现顺序去重）。
   final List<String> knowledgePoints;
 
@@ -303,7 +407,7 @@ class ZujuanPastedQuestion {
   bool get isPartial {
     if (stem.trim().isEmpty) return true;
     for (final warning in warnings) {
-      if (_structuralWarnings.contains(warning)) return true;
+      if (_isStructuralWarning(warning)) return true;
     }
     return false;
   }
@@ -378,9 +482,25 @@ List<List<String>> _splitQuestionBlocks(List<String> lines) {
   final starts = _ordinalSplitStarts(lines);
   if (starts.length >= 2) {
     final blocks = _blocksFromStarts(lines, starts);
-    if (blocks.length >= 2) return blocks;
+    if (blocks.length >= 2) return _mergePreambleBlocks(blocks);
   }
-  return _blankLineBlocks(lines);
+  return _mergePreambleBlocks(_blankLineBlocks(lines));
+}
+
+/// 把「题目开始前」的纯前导段（板块标题 / 试卷标题 / 考试说明 / 来源行）
+/// 并进下一块：否则首序号前的这些行会变成一道只有标题的假题。
+///
+/// 若整段文本全是前导行（只有来源、没有题），保持原样，交给兜底单题口径。
+List<List<String>> _mergePreambleBlocks(List<List<String>> blocks) {
+  if (blocks.length < 2) return blocks;
+  var merged = blocks;
+  while (merged.length >= 2 && merged.first.every(_isPreambleLine)) {
+    merged = <List<String>>[
+      <String>[...merged.first, ...merged[1]],
+      ...merged.sublist(2),
+    ];
+  }
+  return merged;
 }
 
 List<int> _ordinalSplitStarts(List<String> lines) {
@@ -416,6 +536,15 @@ List<_OrdinalCandidate> _ordinalCandidates(List<String> lines) {
     final strong = _strongOrdinalPattern.firstMatch(line);
     if (strong != null) {
       final ordinal = int.parse(strong.group(1)!);
+      if (ordinal <= _maxOrdinal) {
+        candidates.add(_OrdinalCandidate(
+            lineIndex: index, ordinal: ordinal, strong: true));
+      }
+      continue;
+    }
+    final numbered = _numberedOrdinalPattern.firstMatch(line);
+    if (numbered != null) {
+      final ordinal = int.parse(numbered.group(1)!);
       if (ordinal <= _maxOrdinal) {
         candidates.add(_OrdinalCandidate(
             lineIndex: index, ordinal: ordinal, strong: true));
@@ -553,6 +682,13 @@ _OrdinalMatch? _matchOrdinal(String line) {
       return _OrdinalMatch(ordinal: ordinal, ordinalEnd: strong.end);
     }
   }
+  final numbered = _numberedOrdinalPattern.firstMatch(line);
+  if (numbered != null) {
+    final ordinal = int.parse(numbered.group(1)!);
+    if (ordinal <= _maxOrdinal) {
+      return _OrdinalMatch(ordinal: ordinal, ordinalEnd: numbered.end);
+    }
+  }
   final weak = _weakOrdinalPattern.firstMatch(line);
   if (weak != null) {
     final ordinal = int.parse(weak.group(1)!);
@@ -598,6 +734,59 @@ bool _looksLikeQuestionText(String text) {
     if (text.contains(word)) return true;
   }
   return false;
+}
+
+/// 一行是不是「题目还没开始」的前导信息（板块标题 / 试卷标题 / 考试说明 / 来源行）。
+bool _isPreambleLine(String line) {
+  final trimmed = line.trim();
+  if (trimmed.isEmpty) return true;
+  if (_isSectionHeading(trimmed)) return true;
+  if (_isPaperTitle(trimmed)) return true;
+  if (_isInstructionLine(trimmed)) return true;
+  if (_fullLineSource(trimmed) != null) return true;
+  if (_asBareSourceLine(trimmed) != null) return true;
+  return false;
+}
+
+/// 板块标题（一、选择题 / 第Ⅰ卷）只是版式，不进题干。
+bool _isSectionHeading(String line) {
+  return _sectionHeadingPattern.hasMatch(line) ||
+      _sectionVolumePattern.hasMatch(line);
+}
+
+/// 试卷标题行（2024年普通高等学校招生全国统一考试…）只是版式，不进题干。
+bool _isPaperTitle(String line) => _paperTitlePattern.hasMatch(line);
+
+/// 考试说明行（本大题共…小题 / 注意事项 / 考试时间…）不进题干。
+bool _isInstructionLine(String line) =>
+    _instructionPrefixPattern.hasMatch(line);
+
+/// 整行就是一个来源括号（如（2023·湖南·长沙·一模））时返回括号里的来源。
+String? _fullLineSource(String line) {
+  final match = _fullLineParenPattern.firstMatch(line.trim());
+  if (match == null) return null;
+  final candidate = match.group(1)!.trim();
+  return _looksLikeSource(candidate) ? candidate : null;
+}
+
+/// 整行就是一条裸来源（如 2026届高三上期末 / 2026·江苏·模拟）时返回它。
+///
+/// 判断刻意严格：带括号、句末标点、逗号、题面特征词、选项标签的都不算，
+/// 避免把题干吞成来源。
+String? _asBareSourceLine(String line) {
+  final text = line.trim();
+  if (text.length < 4 || text.length > 40) return null;
+  if (text.contains('（') || text.contains('(')) return null;
+  if (text.contains('）') || text.contains(')')) return null;
+  if (text.contains('。') || text.contains('？') || text.contains('?')) {
+    return null;
+  }
+  if (text.contains('，') || text.contains(',')) return null;
+  if (_answerBracketPattern.hasMatch(text)) return null;
+  if (_looksLikeQuestionText(text)) return null;
+  if (_optionLabelHits(text).isNotEmpty) return null;
+  if (!_looksLikeSource(text)) return null;
+  return text;
 }
 
 bool _startsWithEnumeratedLetter(String content) {
@@ -674,6 +863,22 @@ List<_MetadataPiece>? _metadataPieces(String line) {
     ));
   }
   return pieces;
+}
+
+String _lettersOf(String text) => text.replaceAll(RegExp(r'[^A-H]'), '');
+
+List<String> _lettersOfList(String text) {
+  return <String>[
+    for (var index = 0; index < text.length; index++) text[index],
+  ];
+}
+
+bool _onlyPunctuation(String text) {
+  const allowed = '。.．，,；;、！!？? ';
+  for (var index = 0; index < text.length; index++) {
+    if (!allowed.contains(text[index])) return false;
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -783,6 +988,7 @@ class _BlockParser {
 
   int? _ordinal;
   String? _sourceLabel;
+  double? _score;
   final List<String> _stemLines = <String>[];
   final List<_OptionBuilder> _optionBuilders = <_OptionBuilder>[];
   final List<String> _answerLines = <String>[];
@@ -792,6 +998,11 @@ class _BlockParser {
   int? _expectedOptionCodeUnit;
   bool _metadataFound = false;
   bool _sourceFound = false;
+  bool _answerLabelSeen = false;
+  bool _solutionLabelSeen = false;
+  String? _selectedLetters;
+  bool _optionBroken = false;
+  final List<String> _notes = <String>[];
 
   ZujuanPastedQuestion parse() {
     for (var index = 0; index < _lines.length; index++) {
@@ -800,37 +1011,130 @@ class _BlockParser {
         _onBlankLine();
         continue;
       }
-      var content = line;
-      if (index == 0) {
-        final ordinalMatch = _matchOrdinal(content);
-        if (ordinalMatch != null) {
-          _ordinal = ordinalMatch.ordinal;
-          content = content.substring(ordinalMatch.ordinalEnd).trim();
-        }
-        if (content.isEmpty) continue;
-        final leadingSource = _consumeLeadingSource(content);
-        if (leadingSource != null) {
-          _sourceLabel = leadingSource.source;
-          _sourceFound = true;
-          content = leadingSource.rest;
-          if (content.isEmpty) continue;
-        }
-      }
+      // 板块标题 / 试卷标题只是版式，不进题干。
+      if (_isSectionHeading(line) || _isPaperTitle(line)) continue;
+      var content = _consumeLeadingQuestionInfo(line);
+      if (content.isEmpty) continue;
+      if (_isInstructionLine(content) && _stemIsEmpty) continue;
       final metadata = _metadataPieces(content);
       if (metadata != null) {
         _applyMetadata(metadata);
         continue;
       }
+      if (_tryConsumeSelectedAnswer(content)) continue;
       if (_target == _Target.stem || _target == _Target.option) {
-        final optionLine = _parseOptionLine(content, index);
-        if (optionLine != null) {
-          _applyOptionLine(optionLine);
+        final optionResult = _parseOptionLine(content, index);
+        if (optionResult.line != null) {
+          _applyOptionLine(optionResult.line!);
+          _notes.addAll(optionResult.warnings);
+          continue;
+        }
+        if (optionResult.warnings.isNotEmpty) {
+          // 编号异常的选项行：给明确原因后整行跳过，绝不把选项文本混进题干。
+          _notes.addAll(optionResult.warnings);
           continue;
         }
       }
       _appendContent(content);
     }
     return _build();
+  }
+
+  bool get _stemIsEmpty => _stemLines.every((line) => line.trim().isEmpty);
+
+  /// 题干开始前的前导信息：题号、来源行、来源括号、分值。可连续出现。
+  ///
+  /// 只在「题干还没写任何字」时生效；一旦题干有内容，正文里的
+  /// 「2026届」这类字样不会被当成来源。
+  String _consumeLeadingQuestionInfo(String line) {
+    if (_target != _Target.stem || !_stemIsEmpty) return line;
+    var text = line.trim();
+    while (text.isNotEmpty) {
+      if (_ordinal == null) {
+        final ordinalMatch = _matchOrdinal(text);
+        if (ordinalMatch != null) {
+          _ordinal = ordinalMatch.ordinal;
+          text = text.substring(ordinalMatch.ordinalEnd).trim();
+          continue;
+        }
+      }
+      final fullSource = _fullLineSource(text);
+      if (fullSource != null) {
+        _setSource(fullSource);
+        return '';
+      }
+      final bareSource = _asBareSourceLine(text);
+      if (bareSource != null) {
+        _setSource(bareSource);
+        return '';
+      }
+      final leadingSource = _consumeLeadingSource(text);
+      if (leadingSource != null) {
+        _setSource(leadingSource.source);
+        text = leadingSource.rest;
+        continue;
+      }
+      final scoreMatch = _leadingScorePattern.firstMatch(text);
+      if (scoreMatch != null) {
+        _score ??= double.parse(scoreMatch.group(1)!);
+        text = text.substring(scoreMatch.end).trim();
+        continue;
+      }
+      break;
+    }
+    return text;
+  }
+
+  void _setSource(String source) {
+    final trimmed = source.trim();
+    if (trimmed.isEmpty) return;
+    _sourceFound = true;
+    final current = _sourceLabel;
+    if (current == null || current.isEmpty) {
+      _sourceLabel = trimmed;
+    } else if (current != trimmed) {
+      _sourceLabel = '$current $trimmed';
+    }
+  }
+
+  /// 「故选：B」「故选B」：题干/选项区里只当答案标记，不进题干或选项；
+  /// 解析区里保留原文，同时抽出答案字母。
+  bool _tryConsumeSelectedAnswer(String line) {
+    final match = _selectedAnswerPattern.firstMatch(line);
+    if (match == null) return false;
+    final letters = _lettersOf(match.group(1)!);
+    if (letters.isEmpty) return false;
+    final wholeLine =
+        match.start == 0 && _onlyPunctuation(line.trim().substring(match.end));
+    if (_target == _Target.answer) {
+      if (!wholeLine || _joinOrNull(_answerLines) != null) return false;
+      _answerLines.add(letters);
+      return true;
+    }
+    if (_target == _Target.solution) {
+      _recordSelected(letters);
+      _appendContent(line);
+      return true;
+    }
+    if (_target == _Target.stem || _target == _Target.option) {
+      if (!wholeLine) return false;
+      _recordSelected(letters);
+      return true;
+    }
+    return false;
+  }
+
+  void _recordSelected(String letters) {
+    final current = _selectedLetters;
+    if (current == null) {
+      _selectedLetters = letters;
+      return;
+    }
+    final merged = <String>[];
+    for (final letter in _lettersOfList(current + letters)) {
+      if (!merged.contains(letter)) merged.add(letter);
+    }
+    _selectedLetters = merged.join();
   }
 
   void _onBlankLine() {
@@ -857,7 +1161,10 @@ class _BlockParser {
         continue;
       }
       _metadataFound = true;
-      _target = _targetOfLabel(label);
+      final target = _targetOfLabel(label);
+      if (target == _Target.answer) _answerLabelSeen = true;
+      if (target == _Target.solution) _solutionLabelSeen = true;
+      _target = target;
       _appendContent(piece.text);
     }
   }
@@ -908,40 +1215,68 @@ class _BlockParser {
     }
   }
 
-  _OptionLine? _parseOptionLine(String line, int index) {
+  _OptionLineParse _parseOptionLine(String line, int index) {
     final hits = _optionLabelHits(line);
-    if (hits.isEmpty) return null;
+    if (hits.isEmpty) return const _OptionLineParse();
     final expectedCodeUnit = _expectedOptionCodeUnit;
     if (expectedCodeUnit != null) {
-      final expectedLetter = String.fromCharCode(expectedCodeUnit);
-      final startIndex = hits.indexWhere((hit) => hit.letter == expectedLetter);
-      if (startIndex < 0) return null;
-      final used = <_LabelHit>[];
-      var codeUnit = expectedCodeUnit;
-      for (var hitIndex = startIndex; hitIndex < hits.length; hitIndex++) {
-        if (hits[hitIndex].letter.codeUnitAt(0) != codeUnit) break;
-        used.add(hits[hitIndex]);
-        codeUnit += 1;
+      return _parseSubsequentOptionLine(line, hits, expectedCodeUnit);
+    }
+    return _parseFirstOptionLine(line, hits, index);
+  }
+
+  /// 已经有选项时：必须从「上一选项字母 + 1」开始；夹在前面的多余标签、
+  /// 缺号、重复编号都要给出中文原因，不静默丢。
+  _OptionLineParse _parseSubsequentOptionLine(
+      String line, List<_LabelHit> hits, int expectedCodeUnit) {
+    final expectedLetter = String.fromCharCode(expectedCodeUnit);
+    final startIndex = hits.indexWhere((hit) => hit.letter == expectedLetter);
+    if (startIndex < 0) {
+      final first = hits.first;
+      if (first.start > 0) return const _OptionLineParse();
+      if (first.letter.codeUnitAt(0) < expectedCodeUnit) {
+        return _OptionLineParse(warnings: <String>[
+          _optionDuplicateWarning(line, first.letter),
+        ]);
       }
-      final options = <ZujuanPastedOption>[];
-      for (var usedIndex = 0; usedIndex < used.length; usedIndex++) {
-        final contentEnd = usedIndex + 1 < used.length
-            ? used[usedIndex + 1].start
-            : line.length;
-        options.add(ZujuanPastedOption(
-          label: used[usedIndex].letter,
-          content:
-              line.substring(used[usedIndex].contentStart, contentEnd).trim(),
-        ));
-      }
-      return _OptionLine(
-        prefix: line.substring(0, hits[startIndex].start).trim(),
+      return _OptionLineParse(warnings: <String>[
+        _optionMissingWarning(line, expectedLetter),
+      ]);
+    }
+    if (startIndex > 0) {
+      // 期望字母前面还有别的选项标签：这一行不可信，整行跳过。
+      return _OptionLineParse(warnings: <String>[
+        _optionDuplicateWarning(line, hits.first.letter),
+      ]);
+    }
+    final used = <_LabelHit>[];
+    var codeUnit = expectedCodeUnit;
+    var hitIndex = 0;
+    while (hitIndex < hits.length &&
+        hits[hitIndex].letter.codeUnitAt(0) == codeUnit) {
+      used.add(hits[hitIndex]);
+      codeUnit += 1;
+      hitIndex += 1;
+    }
+    final options = _optionsFromHits(line, used, hits, hitIndex);
+    return _OptionLineParse(
+      line: _OptionLine(
+        prefix: '',
         options: options,
         lastLetter: used.last.letter,
-      );
-    }
+      ),
+      warnings: _leftoverOptionWarnings(
+          hits.sublist(hitIndex), used.last.letter, line),
+    );
+  }
+
+  /// 还一个选项都没认出来时：找从 A 开始的最长连续串；找不到就判断是不是
+  /// 编号不从 A 起（明确告警，不猜）。
+  _OptionLineParse _parseFirstOptionLine(
+      String line, List<_LabelHit> hits, int index) {
     _LabelHit? firstHit;
     var runLength = 0;
+    var firstHitIndex = -1;
     for (var hitIndex = 0; hitIndex < hits.length; hitIndex++) {
       if (hits[hitIndex].letter != 'A') continue;
       var length = 1;
@@ -956,39 +1291,135 @@ class _BlockParser {
       if (length > runLength) {
         runLength = length;
         firstHit = hits[hitIndex];
+        firstHitIndex = hitIndex;
       }
     }
-    if (firstHit == null) return null;
+    if (firstHit == null) return _firstOptionLineAnomaly(line, hits, index);
+    if (firstHitIndex > 0) return _notFromAOptionLine(line);
     final prefix = line.substring(0, firstHit.start).trim();
-    final firstHitIndex = hits.indexOf(firstHit);
     if (runLength < 2) {
       final nextLetter = _nextOptionLetter(index);
       final contentAfterLabel = line.substring(firstHit.contentStart).trim();
       if (nextLetter != 'B') {
-        if (prefix.isNotEmpty) return null;
-        if (_startsWithEnumeratedLetter(contentAfterLabel)) return null;
+        if (prefix.isNotEmpty) return const _OptionLineParse();
+        if (_startsWithEnumeratedLetter(contentAfterLabel)) {
+          return const _OptionLineParse();
+        }
       }
     }
-    final options = <ZujuanPastedOption>[];
-    var codeUnit = firstHit.letter.codeUnitAt(0);
+    final used = <_LabelHit>[];
+    var codeUnit = 'A'.codeUnitAt(0);
     var hitIndex = firstHitIndex;
     while (hitIndex < hits.length &&
         hits[hitIndex].letter.codeUnitAt(0) == codeUnit) {
-      final hasNext = hitIndex + 1 < hits.length &&
-          hits[hitIndex + 1].letter.codeUnitAt(0) == codeUnit + 1;
-      final contentEnd = hasNext ? hits[hitIndex + 1].start : line.length;
-      options.add(ZujuanPastedOption(
-        label: hits[hitIndex].letter,
-        content: line.substring(hits[hitIndex].contentStart, contentEnd).trim(),
-      ));
+      used.add(hits[hitIndex]);
       codeUnit += 1;
       hitIndex += 1;
     }
-    return _OptionLine(
-      prefix: prefix,
-      options: options,
-      lastLetter: options.last.label,
+    final options = _optionsFromHits(line, used, hits, hitIndex);
+    return _OptionLineParse(
+      line: _OptionLine(
+        prefix: prefix,
+        options: options,
+        lastLetter: used.last.letter,
+      ),
+      warnings: _leftoverOptionWarnings(
+          hits.sublist(hitIndex), used.last.letter, line),
     );
+  }
+
+  /// 还一个选项都没认出来、但行里确实有选项标签：判断是不是「不从 A 起」。
+  _OptionLineParse _firstOptionLineAnomaly(
+      String line, List<_LabelHit> hits, int index) {
+    if (_optionBroken && hits.first.start == 0) {
+      return _notFromAOptionLine(line);
+    }
+    if (hits.first.start > 0) return const _OptionLineParse();
+    for (var hitIndex = 0; hitIndex < hits.length; hitIndex++) {
+      var length = 1;
+      for (var nextIndex = hitIndex + 1; nextIndex < hits.length; nextIndex++) {
+        if (hits[nextIndex].letter.codeUnitAt(0) ==
+            hits[nextIndex - 1].letter.codeUnitAt(0) + 1) {
+          length += 1;
+        } else {
+          break;
+        }
+      }
+      if (length >= 2) return _notFromAOptionLine(line);
+    }
+    final nextLetter = _nextOptionLetter(index);
+    if (nextLetter != null &&
+        nextLetter.codeUnitAt(0) == hits.first.letter.codeUnitAt(0) + 1) {
+      return _notFromAOptionLine(line);
+    }
+    return const _OptionLineParse();
+  }
+
+  _OptionLineParse _notFromAOptionLine(String line) {
+    _optionBroken = true;
+    return _OptionLineParse(warnings: <String>[
+      _optionNotFromAWarning(line),
+    ]);
+  }
+
+  List<ZujuanPastedOption> _optionsFromHits(
+      String line, List<_LabelHit> used, List<_LabelHit> hits, int hitIndex) {
+    final options = <ZujuanPastedOption>[];
+    for (var usedIndex = 0; usedIndex < used.length; usedIndex++) {
+      final contentEnd = usedIndex + 1 < used.length
+          ? used[usedIndex + 1].start
+          : (hitIndex < hits.length ? hits[hitIndex].start : line.length);
+      options.add(ZujuanPastedOption(
+        label: used[usedIndex].letter,
+        content:
+            line.substring(used[usedIndex].contentStart, contentEnd).trim(),
+      ));
+    }
+    return options;
+  }
+
+  /// run 之后还剩下的标签：比已用字母小的算重复，跳号的算缺号；都被丢掉，
+  /// 不会并进选项内容。
+  List<String> _leftoverOptionWarnings(
+      List<_LabelHit> hits, String lastUsedLetter, String line) {
+    if (hits.isEmpty) return const <String>[];
+    final warnings = <String>[];
+    final usedCode = lastUsedLetter.codeUnitAt(0);
+    var nextCode = usedCode + 1;
+    for (final hit in hits) {
+      final hitCode = hit.letter.codeUnitAt(0);
+      if (hitCode <= usedCode) {
+        warnings.add(_optionDuplicateWarning(line, hit.letter));
+        continue;
+      }
+      if (hitCode > nextCode) {
+        warnings
+            .add(_optionMissingWarning(line, String.fromCharCode(nextCode)));
+      }
+      nextCode = hitCode + 1;
+    }
+    return warnings;
+  }
+
+  String _compactForWarning(String text) {
+    final compact = text.replaceAll(_horizontalSpacePattern, ' ').trim();
+    if (compact.length <= 40) return compact;
+    return '${compact.substring(0, 40)}…';
+  }
+
+  String _optionNotFromAWarning(String line) {
+    return '$_warningOptionNotFromA（识别到「${_compactForWarning(line)}」），'
+        '该行未计入选项，请人工核对';
+  }
+
+  String _optionMissingWarning(String line, String missing) {
+    return '$_warningOptionMissingNumber：缺少「$missing」'
+        '（识别到「${_compactForWarning(line)}」），该行未计入选项，请人工核对';
+  }
+
+  String _optionDuplicateWarning(String line, String letter) {
+    return '$_warningOptionDuplicateNumber：「$letter」'
+        '（识别到「${_compactForWarning(line)}」），该行未计入选项，请人工核对';
   }
 
   String? _nextOptionLetter(int lineIndex) {
@@ -1067,16 +1498,44 @@ class _BlockParser {
   }
 
   ZujuanPastedQuestion _build() {
+    _stripScoreFromStem();
     _stripTrailingSourceFromFirstStemLine();
     var stem = _normalizeStem();
     final raw = _lines.join('\n').trim();
     final ids = _extractIds(raw);
     final yearRegion = _extractYearRegion(_sourceLabel, raw);
-    final options = <ZujuanPastedOption>[];
-    for (final builder in _optionBuilders) {
-      options.add(ZujuanPastedOption(
-          label: builder.label, content: builder.content.trim()));
+    final options = <ZujuanPastedOption>[
+      for (final builder in _optionBuilders)
+        ZujuanPastedOption(
+            label: builder.label, content: builder.content.trim()),
+    ];
+    final notes = <String>[..._notes];
+    for (final option in options) {
+      if (option.content.isEmpty) {
+        notes.add('$_warningOptionEmptyContent：「${option.label}」，请人工核对');
+      }
     }
+    final answer = _joinOrNull(_answerLines);
+    final selected = _selectedLetters;
+    final effectiveAnswer = answer ?? selected;
+    if (answer != null && selected != null) {
+      final answerLetters = _lettersOf(answer);
+      if (answerLetters.isNotEmpty && answerLetters != selected) {
+        notes.add('「故选」与【答案】不一致（【答案】为「${_compactForWarning(answer)}」，'
+            '故选「$selected」），请人工核对');
+      }
+    }
+    if (_answerLabelSeen && effectiveAnswer == null) {
+      notes.add(_warningEmptyAnswerMarker);
+    }
+    final solution = _joinOrNull(_solutionLines);
+    if (_solutionLabelSeen && solution == null) {
+      notes.add(_warningEmptySolutionMarker);
+    }
+    final hasImagePlaceholder = _imagePlaceholderPattern.hasMatch(stem) ||
+        options
+            .any((option) => _imagePlaceholderPattern.hasMatch(option.content));
+    if (hasImagePlaceholder) notes.add(_warningImagePlaceholder);
     final recognized = _ordinal != null ||
         options.isNotEmpty ||
         _metadataFound ||
@@ -1098,21 +1557,49 @@ class _BlockParser {
       warnings.add(_warningEmptyStem);
     }
     warnings.addAll(ids.warnings);
+    warnings.addAll(_dedupeNotes(notes));
     return ZujuanPastedQuestion(
       ordinal: _ordinal,
       stem: stem,
       options: options,
-      answer: _joinOrNull(_answerLines),
-      solution: _joinOrNull(_solutionLines),
+      answer: effectiveAnswer,
+      solution: solution,
       sourceLabel: _sourceLabel,
       year: yearRegion.year,
       region: yearRegion.region,
+      score: _score,
       knowledgePoints: _splitKnowledgePoints(_knowledgePointLines),
       zujuanQuestionId: ids.questionId,
       zujuanBankId: ids.bankId,
       sourceUrl: ids.sourceUrl,
       warnings: warnings,
     );
+  }
+
+  /// 从题干行里剥离行尾分值（（6分）/（12分）），写进 score。只剥离最后一处。
+  void _stripScoreFromStem() {
+    for (var index = _stemLines.length - 1; index >= 0; index--) {
+      final line = _stemLines[index].trim();
+      if (line.isEmpty) continue;
+      final match = _trailingScorePattern.firstMatch(line);
+      if (match == null) continue;
+      _score ??= double.parse(match.group(1)!);
+      final stripped = line.substring(0, match.start).trim();
+      if (stripped.isEmpty) {
+        _stemLines.removeAt(index);
+      } else {
+        _stemLines[index] = stripped;
+      }
+      return;
+    }
+  }
+
+  List<String> _dedupeNotes(List<String> notes) {
+    final result = <String>[];
+    for (final note in notes) {
+      if (!result.contains(note)) result.add(note);
+    }
+    return result;
   }
 }
 
@@ -1169,6 +1656,15 @@ class _OptionLine {
   final String prefix;
   final List<ZujuanPastedOption> options;
   final String lastLetter;
+}
+
+/// 一行选项的解析结果：line 是认出来的选项行（null 表示这一行不是选项）；
+/// warnings 是编号异常等原因（非空时这一行必须整行跳过，不能混进题干）。
+class _OptionLineParse {
+  const _OptionLineParse({this.line, this.warnings = const <String>[]});
+
+  final _OptionLine? line;
+  final List<String> warnings;
 }
 
 class _OptionBuilder {

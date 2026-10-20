@@ -217,6 +217,37 @@ knowledgePoints / zujuanQuestionId / zujuanBankId / sourceUrl / warnings / isPar
 验收：47 例 7 组。**真实卡片样本未取得**（WAF 挡着），用例形态依据 skill 的 cardText 文档；
 接线后需用一张真实粘贴文本人工复核一次切分口径。
 
+#### 8.3.1 真实页面形态加固（轮次一百二十九，task-76）
+
+按 skill 文档里的真实页面结构（板块标题 / 试卷标题 / 题号 / 分值 / 答案 / 解析 / 图片占位 / 多选写法）
+又加固了一轮，`parseZujuanPaste` 签名不变，调用方无需改：
+
+- 新增字段 `ZujuanPastedQuestion.score`（`double?`）：只认题首/题尾括号里的「N 分」，`null` = 未识别，
+  **不猜**；
+- 题号新增「第 N 题」形态；选项分隔符扩到 `A.` `A．` `A、` `A：` `A)` `A）`（字母仍 A–H）；
+- **切题前导合并**：`_mergePreambleBlocks`（`zujuan_paste.dart:494`）只在「首块每一行都是前导」
+  （板块标题 / 试卷标题 / 考试说明 / 裸来源 / 整行括号来源）时才把它并进下一题，避免把板块标题
+  当成一道题；
+- **题首剥离**：`_consumeLeadingQuestionInfo`（:1049）循环剥 题号 → 整行括号来源 → 裸来源 →
+  行首来源括号 → 行首分值；来源进 `sourceLabel/year/region`，分值进 `score`；
+- **答案标记**：`_tryConsumeSelectedAnswer`（:1102）——题干/选项区只认**整行**的「故选：B」，
+  解析区任意位置都能抽答案且解析原文保留；「故选」与 `【答案】` 冲突、`【答案】`/`【解析】` 为空
+  都给中文告警；`【点睛】` 加入标签；
+- **选项编号异常**（不从 A 起 / 缺号 / 重复 / 内容为空）：整行跳过 + 中文 warning + `isPartial=true`，
+  不静默丢；
+- 图片占位只提示不改变 `isPartial`（图片本来就要用户自己配）；
+- 与旧行为差异（调用方可见）：①`【答案】` 后紧跟 `【解析】` 时旧版把解析当答案，现在答案留空 + 告警；
+  ②解析区「故选」现在会填 `answer`；③板块标题/试卷标题/裸来源/题首分值不再进题干；
+  ④选项编号异常行不再混进题干；⑤识别不出结构仍整段单题兜底 + 「未识别题目结构」告警（不变）。
+
+验收：`zujuan_paste_real_samples_test.dart` **46 例 11 组**（题号 / 选项布局 / 答案解析 / 多选 /
+分值 / 板块标题 / 裸来源 / 图片 / 公式 / 选项异常 / 混合长样本）；
+`flutter test test/domain/services/zujuan` → `+168 All tests passed`；
+`zujuan_paste_dialog_test.dart` → `+10`；
+`dart analyze lib/domain/services/zujuan test/domain/services/zujuan` → `No issues found!`。
+**仍未验证**：没有用真实扩展桥复制的页面原文跑过（样本按 skill 的页面结构改写）；化学式、表格、
+图片 OCR 未覆盖。
+
 ### 8.4 入库装配：`zujuan_paste_import.dart` + v26 来源字段
 
 `zujuanDraftFromPasted` / `zujuanDraftsFromPaste` 把解析结果转成 `QuestionDraft`：
