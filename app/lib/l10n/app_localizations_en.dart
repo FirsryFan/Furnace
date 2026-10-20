@@ -3454,6 +3454,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionImageLoadFailed => 'This image could not be loaded';
 
   @override
+  String get questionImageAdd => 'Add image';
+
+  @override
+  String questionImageAddDone(int count) {
+    return 'Added $count image(s)';
+  }
+
+  @override
+  String questionImageAddSkipped(int count) {
+    return 'Skipped $count file(s) that were not usable images';
+  }
+
+  @override
+  String questionImageAddFailed(String error) {
+    return 'Could not add images: $error';
+  }
+
+  @override
+  String get questionImageHeicUnsupported =>
+      'HEIC images are not supported yet; convert them to JPG or PNG first';
+
+  @override
+  String get questionImageDeleteTooltip => 'Delete this image';
+
+  @override
+  String get questionImageDeleteTitle => 'Delete this image?';
+
+  @override
+  String get questionImageDeleteAction => 'Delete';
+
+  @override
+  String questionImageDeleteConfirm(String fileName) {
+    return 'Removes "$fileName" from this question.';
+  }
+
+  @override
+  String get questionImageDeleted => 'Image deleted';
+
+  @override
+  String questionImageDeleteFailed(String error) {
+    return 'Could not delete the image: $error';
+  }
+
+  @override
+  String get questionImageEmptyHint =>
+      'No images yet; add a photo of the question (HEIC is not supported yet)';
+
+  @override
   String get questionIntakePhotoPending => 'Images waiting';
 
   @override

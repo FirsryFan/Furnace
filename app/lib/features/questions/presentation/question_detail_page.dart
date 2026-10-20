@@ -137,7 +137,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               onEditSource: () => _editSource(detail.question),
             ),
           if (detail != null)
-            QuestionImagesSection(questionId: widget.questionId),
+            QuestionImagesSection(
+              questionId: widget.questionId,
+              editable: true,
+            ),
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
           if (detail != null)
             QuestionZujuanSearchButton(stem: detail.question.stem),

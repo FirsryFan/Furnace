@@ -1690,6 +1690,53 @@
   },
   "questionImageOpenTooltip": "Open at full size",
   "questionImageLoadFailed": "This image could not be loaded",
+  "questionImageAdd": "Add image",
+  "questionImageAddDone": "Added {count} image(s)",
+  "@questionImageAddDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionImageAddSkipped": "Skipped {count} file(s) that were not usable images",
+  "@questionImageAddSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionImageAddFailed": "Could not add images: {error}",
+  "@questionImageAddFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionImageHeicUnsupported": "HEIC images are not supported yet; convert them to JPG or PNG first",
+  "questionImageDeleteTooltip": "Delete this image",
+  "questionImageDeleteTitle": "Delete this image?",
+  "questionImageDeleteAction": "Delete",
+  "questionImageDeleteConfirm": "Removes \"{fileName}\" from this question.",
+  "@questionImageDeleteConfirm": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "questionImageDeleted": "Image deleted",
+  "questionImageDeleteFailed": "Could not delete the image: {error}",
+  "@questionImageDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionImageEmptyHint": "No images yet; add a photo of the question (HEIC is not supported yet)",
   "questionIntakePhotoPending": "Images waiting",
   "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into tags, knowledge points, flashcards or questions.",
   "questionIntakePhotoSummary": "{mime} · .{extension}",

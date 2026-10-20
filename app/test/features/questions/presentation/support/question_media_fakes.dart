@@ -72,6 +72,7 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
   @override
   Future<Uint8List?> readBytes(String relPath) async => _bytes[relPath];
 
+  /// 写操作也只改内存：详情页的「加图/删图」用得到，但不碰真实磁盘。
   @override
   Future<QuestionImage> save({
     required String questionId,
@@ -80,14 +81,29 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
     String? mime,
     int? sortOrder,
     DateTime? now,
-  }) =>
-      throw UnsupportedError('测试替身是只读的：界面不该在测试里写图');
+  }) async =>
+      seed(
+          questionId: questionId, fileName: fileName, bytes: bytes, mime: mime);
 
   @override
-  Future<void> delete(QuestionImage image) =>
-      throw UnsupportedError('测试替身是只读的：界面不该在测试里删图');
+  Future<void> delete(QuestionImage image) async {
+    for (final images in _images.values) {
+      images.removeWhere((item) => item.attachmentId == image.attachmentId);
+    }
+    _bytes.remove(image.relPath);
+  }
 
   @override
-  Future<int> deleteForQuestion(String questionId) =>
-      throw UnsupportedError('测试替身是只读的：界面不该在测试里删图');
+  Future<int> deleteForQuestion(String questionId) async {
+    final images = _images[questionId];
+    if (images == null || images.isEmpty) {
+      return 0;
+    }
+    final removed = images.length;
+    for (final image in images) {
+      _bytes.remove(image.relPath);
+    }
+    images.clear();
+    return removed;
+  }
 }

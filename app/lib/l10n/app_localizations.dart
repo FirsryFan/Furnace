@@ -5891,6 +5891,78 @@ abstract class AppLocalizations {
   /// **'This image could not be loaded'**
   String get questionImageLoadFailed;
 
+  /// No description provided for @questionImageAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add image'**
+  String get questionImageAdd;
+
+  /// No description provided for @questionImageAddDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} image(s)'**
+  String questionImageAddDone(int count);
+
+  /// No description provided for @questionImageAddSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped {count} file(s) that were not usable images'**
+  String questionImageAddSkipped(int count);
+
+  /// No description provided for @questionImageAddFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add images: {error}'**
+  String questionImageAddFailed(String error);
+
+  /// No description provided for @questionImageHeicUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIC images are not supported yet; convert them to JPG or PNG first'**
+  String get questionImageHeicUnsupported;
+
+  /// No description provided for @questionImageDeleteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this image'**
+  String get questionImageDeleteTooltip;
+
+  /// No description provided for @questionImageDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this image?'**
+  String get questionImageDeleteTitle;
+
+  /// No description provided for @questionImageDeleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get questionImageDeleteAction;
+
+  /// No description provided for @questionImageDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Removes "{fileName}" from this question.'**
+  String questionImageDeleteConfirm(String fileName);
+
+  /// No description provided for @questionImageDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Image deleted'**
+  String get questionImageDeleted;
+
+  /// No description provided for @questionImageDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete the image: {error}'**
+  String questionImageDeleteFailed(String error);
+
+  /// No description provided for @questionImageEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No images yet; add a photo of the question (HEIC is not supported yet)'**
+  String get questionImageEmptyHint;
+
   /// No description provided for @questionIntakePhotoPending.
   ///
   /// In en, this message translates to:

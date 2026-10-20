@@ -217,9 +217,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   相似题 `rank(detailedReasons: true)` 在有共用知识点 / 同型动作 / 已知来源档位时追加「可核实依据：…」；
   组卷 `compose(detailedNotes: true)` 写「本卷第 N 题。」+ 排序依据 + 下一步，并新增 `PaperGapNote` 缺口解释
   （题库里没有 → 先收题；有候选但被题数/配额挤掉 → 调大上限）。**两个开关默认关闭**，默认 JSON / 分数 /
-  理由逐字节不变（测试钉住）。**接线未做**：`paper_plan_builder`、`compose_paper` 工具、
-  `similar_question_provider` 尚未打开开关，`PaperGapNote` 也还没有界面展示；详细文案为中文硬编码未接 l10n。
-  见 `docs/REASONING_LAYER_DESIGN.md` §31。
+  理由逐字节不变（测试钉住）。**界面接线已做（轮次一百二十九，Lead task-78）**：`paperPlanProvider` →
+  `buildPaperPlan(detailedNotes: true)`、`similarQuestionsProvider` → `rank(detailedReasons: true)`；
+  AI 工具（`compose_paper` 等）**有意保持短文案**。详细文案仍是中文硬编码未接 l10n；
+  `PaperGapNote` 仍只在领域层与测试里，没有单独界面块。见 `docs/REASONING_LAYER_DESIGN.md` §31/§32。
 4. ~~**拍照整理的主入口**~~ —— **已解决（轮次一百一十五，用户反馈 m29290）**：收题 / 组卷 /
    拍照整理 / 材料入库四个入口从设置页收进新的顶层目的地「题库」（`QuestionBankPage`），
    设置页只留一个「题库」门；知识库仍是一级目的地，是否降级见 `FEATURE_MATRIX.md` D4/R5。
@@ -280,14 +281,25 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 与收题页拍照 store 分开（owner 不同），细节见 `docs/DATA_MODEL.md` §13。
 - UI（轮次一百二十一，question-intake 交付）：详情页配图区 `QuestionImagesSection`、
   列表 48×48 首图缩略图 `QuestionCoverThumbnail`、点开 `Dialog + InteractiveViewer`（0.5–5 倍）
-  的 `showQuestionImageViewer`；空清单 / 读不出都不占版面（失败只给一行文案）。三处界面目前
-  都是**只读展示**。
+  的 `showQuestionImageViewer`；空清单 / 读不出都不占版面（失败只给一行文案）。
+- **增删入口（轮次一百二十九，question-intake task-75）**：`QuestionImagesSection` 加
+  `editable`（默认 false，列表等只读调用不变），题目详情页传 `editable: true`：
+  - 添加：`FilePicker` 多选 png/jpg/jpeg/webp/gif/bmp → 逐文件校验（HEIC 提示转 JPG/PNG、
+    非图片 / 0 字节 / 读失败分别计数跳过，**单文件失败不整批失败**）→ `QuestionMediaStore.save`
+    → 手动 `ref.invalidate(questionImagesProvider(questionId))`（该 provider 不 watch 数据库
+    revision）→ SnackBar 汇总「已添加 N 张 · 跳过 K 个」；
+  - 删除：缩略图右上 `delete_outline`（不用 X，避免与大图关闭按钮撞图标）→ 确认对话框 →
+    `store.delete` → invalidate → SnackBar；
+  - 空清单只读仍零占位，编辑模式才留一行入口；l10n 12 个 `questionImage*` key。
+  - 测试：`question_image_edit_test.dart` 6 例（替身 FilePicker / store，不碰真实磁盘）；
+    详情页 22 例回归。真机 FilePicker 与真实磁盘增删**未手测**。
 - 删题清配图（轮次一百二十三，question-intake 交付）：唯一界面删题入口
   `question_intake_page.dart` 的 `_confirmDelete` 先 `QuestionMediaStore.deleteForQuestion(id)`
   再 `QuestionRepository.deleteQuestion(id)`；清图失败只 `debugPrint` 不阻断删题，SnackBar 带
   清理张数（l10n `questionIntakeDeletedWithImages`）。仓储层本身仍不碰文件系统（职责不变），
   grep 全库 `deleteQuestion` 只有这一处界面调用，无遗漏入口。
-- **未做**：图片压缩/缩略图生成未做（48×48 是解码整图后缩放）；界面里没有图片增删入口；
+- **未做**：图片压缩/缩略图生成未做（48×48 是解码整图后缩放）；真机系统文件选择器
+  （Windows 对话框 / Android 选择器）与真实磁盘增删**未手测**（widget test 全用替身）；
   OCR 不读题目配图（拍照整理仍是独立入口）。
 
 ### 11.3 与 §10 未做清单的关系

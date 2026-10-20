@@ -3310,6 +3310,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionImageLoadFailed => '这张图读不出来';
 
   @override
+  String get questionImageAdd => '添加图片';
+
+  @override
+  String questionImageAddDone(int count) {
+    return '已添加 $count 张';
+  }
+
+  @override
+  String questionImageAddSkipped(int count) {
+    return '有 $count 个文件不是可用的图片，已跳过';
+  }
+
+  @override
+  String questionImageAddFailed(String error) {
+    return '添加图片失败：$error';
+  }
+
+  @override
+  String get questionImageHeicUnsupported => 'HEIC 图片暂不支持，请先转成 JPG 或 PNG';
+
+  @override
+  String get questionImageDeleteTooltip => '删除这张图';
+
+  @override
+  String get questionImageDeleteTitle => '删除配图？';
+
+  @override
+  String get questionImageDeleteAction => '删除';
+
+  @override
+  String questionImageDeleteConfirm(String fileName) {
+    return '将从这道题里删掉「$fileName」。';
+  }
+
+  @override
+  String get questionImageDeleted => '已删除配图';
+
+  @override
+  String questionImageDeleteFailed(String error) {
+    return '删除配图失败：$error';
+  }
+
+  @override
+  String get questionImageEmptyHint => '还没有配图，可以加题目照片（HEIC 暂不支持）';
+
+  @override
   String get questionIntakePhotoPending => '待整理图片';
 
   @override
