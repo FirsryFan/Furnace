@@ -2,6 +2,50 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十四：答案与解析截图随题保存（Lead + 三个 teammate）
+
+**起点**：轮次一百三十三（HEAD `90ae17b`）。用户口径（m05424）：「注意用户可以人工登录组卷网账号
+获取答案」——答案/解析要登录才看得到、且是一整张 JPEG；这轮把「用户自己截下来的答案图」变成题目的一部分：
+随题保存（schema v27）、详情页可增删、导出 Word 进卷末附录、AI 读题时分开计数。
+task-93（Lead）、task-94（reasoning-core）、task-95（question-intake）、task-96（threadflow-engine）全部 completed，
+Lead 另做 docx 应用层接线 + Word 真机复测 + docs + git。
+
+**A. schema v27：attachments.role（task-93，Lead）**：`attachments` 加可空 `role`（NULL/空 = 旧行与别处附件，
+读作题干配图、**不回填**；stem / answer / solution 预留）。`QuestionMediaStore` 增 `QuestionImageRole` +
+`effectiveQuestionImageRole`，`save(role:)` 按角色内排 `sort_order`，`list(role:)` 不传=全部、stem 兼容 NULL 旧行；
+`deleteForQuestion` 两类一起清。迁移 `_upgradeV26ToV27` + `_ensureColumns` 同款自愈，`database.g.dart` 重生成。
++20 例（v27 迁移 3 + store 角色 7 + 既有回归）。提交 `7211858`。
+
+**B. 组卷 Word 导出支持答案截图（task-94 reasoning-core + Lead 接线）**：`PaperDocxQuestion.answerImages`、
+`answerImageCount`、`imageCount` 收窄为题干配图数、`answerImagesLabel`；附录解析之后渲染小标题 + 等比嵌图，
+跳过规则与题干图一致（note 带「第 N 题答案截图」）；答案区三个开关全 false 时不渲染。应用层
+`loadQuestionDocxAnswerImages` 只读 role=answer、与 stem 加载器共用参数化实现，`imageLoadNotes` 两类合并。
+纯逻辑 +12 例（目录 +169）、应用层 +5 例（+24）。Word COM 真测：样张加 620×860 答案截图后
+**2 页 / 553 字 / 3 图 / 29 OMath / PDF 208,132 B**，正文含「答案与解析截图」标签。提交 `9489fc6`。
+
+**C. AI 读题工具分开计数（task-96，threadflow-engine）**：`read_question` / `read_questions_by_serials` 的
+`image_count` 只数题干配图，新增 `answer_image_count`（answer/solution 同桶；未知 role 两桶都不计、每行两键恒在）；
+摘要分别报「配图 N 张」「答案/解析截图 M 张」。分类 helper 不 import 带 dart:io 的 store。+5 例，两文件 +36。
+提交 `a4f3646`。
+
+**D. 详情页「答案与解析截图」区（task-95，question-intake）**：`QuestionImagesSection` 抽
+`QuestionImagesSectionKind { stem, answer }`，按 kind 切 provider（新增 `questionAnswerImagesProvider`）、标题、
+空态、按钮、删除确认与 key，写入 `save(role:)`；详情页在题干配图区之后插入答案截图区（无图只留一行入口，
+不摆空相框）；逐文件跳过规则与题干配图一致；l10n 五文件手改 5 个 `questionAnswerImage*` key。
++7 例（`question_image_edit_test`），`flutter test test/features/questions` → **+600** 全绿。提交 `6ea122a`。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；全量
+`flutter test --concurrency=1` → **+4515 ~2 All tests passed**，9 分 23 秒（EXIT=0；日志
+`E:/dsh-tmp-aot/test-134-full.txt`）。
+
+**docs**：`docs/DATA_MODEL.md` §16（v27 附件角色）、`docs/DOCX_EXPORT_DESIGN.md` §15（答案截图渲染 +
+Word 真测）、`docs/QUESTION_BANK_DESIGN.md` §19（本轮四片）并回填 §11.2 / §16.1 / §16.4 的过时「未做」、
+`docs/AI_DESIGN.md` 两个工具行、`docs/ZUJUAN_LINKS_DESIGN.md` §8.7。
+
+**未做 / 未验证**：真机 FilePicker 选答案截图与真实磁盘落盘/删除未手测（widget test 用内存假 store）；
+真实 v27 库 role 往返只由 store 测试覆盖；大图查看器不显示角色标签；小屏两区连续摆放版面未真机看；
+英文文案未母语校对；答案 JPEG 仍不自动下载（不做 WAF/登录态代持），没有截图自动裁边/压缩。
+
 ## 2026-10-21 轮次一百三十三：整卷页对照题库、题源链接可改（Lead + 三个 teammate）
 
 **起点**：轮次一百三十二（HEAD `abfab15`）。本轮把「手上有整页试卷，但不知道库里有没有」做成闭环：

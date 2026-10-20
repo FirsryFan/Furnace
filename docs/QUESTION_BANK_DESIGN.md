@@ -307,6 +307,12 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - **未做**：不做图片重编码/不生成磁盘缩略图（磁盘上仍是原图，只在解码时缩）；真机系统文件选择器
   （Windows 对话框 / Android 选择器）与真实磁盘增删**未手测**（widget test 全用替身）；
   OCR 不读题目配图（拍照整理仍是独立入口）。
+- **答案与解析截图（轮次一百三十四，schema v27）**：`attachments.role` 区分用途（NULL/空 = 旧行按
+  题干配图读，stem = 题干配图，answer = 答案/解析截图，solution 预留），`QuestionMediaStore` 的
+  `save(role:) / list(role:)` 按角色分开排号与读取；题目详情页题干配图区之后新增「答案与解析截图」区
+  （复用 `QuestionImagesSection`，`kind: answer`，没有图只留一行入口）；导出的 Word 把答案截图放进
+  **卷末附录**（解析之后），AI 读题工具的 `image_count` 只数题干配图、新增 `answer_image_count`。
+  详细口径见 §19、`docs/DATA_MODEL.md` §16、`docs/DOCX_EXPORT_DESIGN.md` §15。
 
 ### 11.3 与 §10 未做清单的关系
 
@@ -524,7 +530,8 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
 - 验收：`flutter test test/domain/services/questions/question_source_test.dart` → +46 全绿；
   同目录全量 +244 无回归；`dart analyze lib/domain/services/questions test/domain/services/questions` → No issues。
 - 已接 UI（task-82）：详情页来源行「组卷网原题 / 复制原题链接」。
-- 未做：题源链接的写入/纠错入口（入库后改 sourceUrl）、打开器/真实浏览器验证。
+- 已做（task-92，轮次一百三十三）：详情页「改原题链接」（无来源行时「添加原题链接」），
+  保存走 `updateSourceLinks`，见 §18.4。未做：打开器/真实浏览器验证。
 
 ### 16.2 缩略图解码尺寸：`thumbnail_spec.dart`（Lead，task-79）
 
@@ -557,7 +564,8 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
   `dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。
 - 已交付（task-82，question-intake，轮次一百三十一）：题目详情页「题目来源」入口（+4 例）、缩略图
   `cacheWidth/cacheHeight` 接线（+2 例）、3 个 l10n key；详情页目录全量 +291 通过。
-- 未做（下一批）：题库列表题号搜索接新解析器之外的多号搜索、来源链接写入/纠错的 UI、缩略图磁盘缓存。
+- 未做（下一批）：缩略图磁盘缓存、题库列表（非收题页）的多号/区间搜索。此前记的「来源链接写入/纠错的 UI」
+  已由 task-92 补齐（§18.4）；收题页多号搜索并集见 §17.4。
 - 轮次一百三十一已补：批量读题 AI 工具 `read_questions_by_serials`（§14.2），task-82 接线已验收。
 - 轮次一百三十一还补：docs 回填本节四处在途说明（§11.2 / §13 / §16.1 / §16.4）为已交付。
 
@@ -674,4 +682,63 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
 - 真实组卷网整页文本/浏览器「保存页面」HTML 的端到端手测（各层有构造样本测试，未实测真页面）。
 - 三按钮同排的窄屏（<400dp）溢出未验证，后续可换 `Wrap`。
 - 同一题在题库里重复入库时，read_zujuan_paper 只取最新一行、不做合并提示。
+
+## 19. 答案与解析截图随题保存（轮次一百三十四，schema v27）
+
+用户口径（m05424）：「注意用户可以人工登录组卷网账号获取答案」——组卷网的答案/解析要登录才看得到，
+而且是**一整张 JPEG**，App 不做自动下载、也不代持登录态。这一轮把「用户自己截下来的答案图」变成
+题目的一部分：随题保存、详情页可增删、导出 Word 进附录、AI 读题时能分开数。
+
+### 19.1 数据层：attachments.role（Lead，task-93）
+
+- `attachments` 加一列可空 `role`（v27）：`NULL` / 空串 = 旧数据与别处附件，读作题干配图（**不回填**，
+  避免把别的 owner 多态附件误标）；`stem` = 题干配图；`answer` = 答案/解析截图；`solution` = 预留
+  （读侧先与 answer 同桶）。
+- `QuestionMediaStore`：`QuestionImageRole` 常量 + `effectiveQuestionImageRole(String?)` 折叠空/空白→stem；
+  `save(role:)` 按角色内排 `sort_order`（两类各自 0,1,2…）；`list(questionId, {String? role})` 不传=全部、
+  stem 同时匹配 `role IS NULL OR role='stem'`（旧行不丢）、其它精确匹配；`deleteForQuestion` 两类一起清；
+  返回的 `QuestionImage.role` 已折算（旧行读出 stem，不写回库）。
+- 应用层 `loadQuestionDocxImages` 显式只读 `role: stem`，答案图不再混进题干位置。
+- 迁移 `_upgradeV26ToV27`（attachments 存在才 addColumn）+ `_ensureColumns` 同款自愈（老文件被盖成 v27
+  会 `no such column: role`）；`database.g.dart` 用 build_runner 重生成。
+- 测试 +20：`v27_migration_test` 3 例（真实 v26 升级、被盖成 v27 缺列自愈、带角色关库重开）+
+  `question_media_store_test` 角色组 7 例（折算、缺省/显式角色、list 过滤、各自排号、删全部、未知角色原样落库），
+  以及既有用例的角色回归。提交 `7211858`。
+
+### 19.2 详情页「答案与解析截图」区（question-intake，task-95）
+
+- `QuestionImagesSection` 抽 `QuestionImagesSectionKind { stem, answer }`（默认 stem）：按 kind 切 provider
+  （`questionImagesProvider` 只读 stem / 新增 `questionAnswerImagesProvider` 读 answer）、标题、空态、
+  添加按钮、删除确认与 section key；写入 `save(role: …)`；新 4 个 key
+  （`questionImagesSectionKey` / `questionAnswerImagesSectionKey` / 添加 / 删除确认）。
+- 详情页位置：题干配图区之后、组卷网入口之前；没有答案图时**不摆空相框**，只留一行「添加答案截图」入口。
+- HEIC/非图片/0 字节/读失败逐文件跳过规则与题干配图完全一致（复用既有计数与 SnackBar）。
+- l10n 五文件手改 5 个 `questionAnswerImage*` key（未跑 gen-l10n）：标题「答案与解析截图」、添加、空态
+  （「在组卷网登录后截下答案/解析整图存进来（HEIC 暂不支持）」）、删除确认、已删提示。
+- 测试 +7（`question_image_edit_test` 新 group）：空态入口、落盘 role=answer 且题干区不动、两区各读各的、
+  删除两区互不影响、HEIC 跳过、只读区无增删入口、provider 层分流；测试替身同步 role 语义。
+  `flutter test test/features/questions --concurrency=1` → +600 全绿。
+
+### 19.3 导出 Word 与 AI 读题（reasoning-core task-94 + Lead 接线 + threadflow-engine task-96）
+
+- 纯逻辑 `paper_docx.dart`：`PaperDocxQuestion.answerImages`（默认空）、`PaperDocxBuildResult.answerImageCount`、
+  `imageCount` 收窄为题干配图数（`imageSkippedCount` 仍两类合计）、`PaperDocxLabels.answerImagesLabel`
+  （默认「答案与解析截图」）；附录里答案/解析/理由之后渲染小标题 + 等比缩放嵌图，跳过规则与题干图一致、
+  note 带「第 N 题答案截图」前缀；答案区三个开关全 false 时不渲染截图。+12 例（目录 +169 全绿）。
+- 应用层 `paper_docx_export.dart`：新增 `loadQuestionDocxAnswerImages`（role=answer，notePrefix='答案截图：'），
+  与 stem 加载器共用参数化实现；`QuestionDocxRow.toPaperDocxQuestion({images, answerImages})`；
+  `PaperDocxExportResult.answerImageCount` 透出；两类跳过告警都收。+5 例（`paper_docx_export_test` → +24 全绿）。
+- AI 工具：`read_question` / `read_questions_by_serials` 的 `image_count` 只数题干配图，新增
+  `answer_image_count`（answer/solution 同桶，未知 role 两桶都不计、每行两键恒在）；摘要分别报
+  「配图 N 张」「答案/解析截图 M 张」。分类 helper 刻意不 import 带 dart:io 的 store。+5 例，两文件 +36 全绿。
+- Word COM 真测：探针样张加一张 620×860 答案截图 → **2 页 / 553 字 / 3 图 / 29 OMath / PDF 208,132 B**，
+  正文含「答案与解析截图」标签（详见 `docs/DOCX_EXPORT_DESIGN.md` §15.4）。提交 `9489fc6`、`a4f3646`。
+
+### 19.4 未做 / 未验证
+
+- 真机 FilePicker 选答案截图与真实磁盘落盘/删除未手测（widget test 用内存假 store）。
+- 真实 v27 库的 role 往返只由 Lead 的 store 测试覆盖，UI 层经假 store 验证。
+- 大图查看器不看 role（答案截图与题干配图共用同一查看器，不显示角色标签）。
+- 小屏上「题干配图区 + 答案截图区」连续摆放的版面未真机看；英文文案未母语校对。
+- 答案 JPEG 仍不自动下载（不做 WAF/登录态代持）；没有「截图自动裁边/压缩」。
 

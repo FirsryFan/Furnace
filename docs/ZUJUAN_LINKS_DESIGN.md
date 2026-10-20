@@ -287,8 +287,9 @@ knowledgePoints / zujuanQuestionId / zujuanBankId / sourceUrl / warnings / isPar
 
 ### 8.7 未做 / 已知限制
 
-- 真实粘贴样本、筛选链接的联网可达性都未人工验证（WAF）；答案与解析（JPEG）不自动下载，
-  需要用户自己登录查看后把文字补进来（后续版本可加"答案截图随题保存"）。
+- 真实粘贴样本、筛选链接的联网可达性都未人工验证（WAF）；答案与解析（JPEG）**仍不自动下载**，
+  需要用户自己登录查看后把文字补进来；v27 起可以把截图随题保存（`attachments.role = 'answer'`，
+  详情页答案截图区，导出 Word 时进附录），但下载链路本身没有做（见 `docs/DATA_MODEL.md` §16）。
 - 知识点列表只解析、不入库（`QuestionDraft` 没有知识点字段，题目与知识点目前靠标签/相似题，不靠外键）。
 - 难度、题型、专题字段解析后丢弃；若要保留需先扩`ZujuanPastedQuestion` 契约与表列。
 - 不保存"是否已在组卷网找到这道题"的人工状态；不做答案图片下载、不做登录态。
