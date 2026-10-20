@@ -2,6 +2,46 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十六：题库包（.tqb）导出/导入（Lead + 三个 teammate）
+
+**起点**：轮次一百三十五（HEAD `299d142`）。轮次一百二十二把题目卷导成了 Word（给人看），这一轮补
+「导入导出」的另一半：把**题目 + 选项 + 标签路径 + 配图/答案截图 + 组卷网来源链接**打成一个 zip
+（.tqb），搬到另一台 Furnace 上。它和工作区备份（.tfpkg）刻意分工——.tfpkg 是整个工作区、replace、
+导入前自动备份；.tqb 只含题库子集、**只追加不覆盖**，所以导入前不备份（没有东西会被改写）。
+task-102（reasoning-core）、task-103（threadflow-engine）、task-104（Lead）、task-105（question-intake）
+全部 completed。
+
+**A. 纯逻辑：格式/记录/导入计划（task-102 + task-103）**：`question_pack_manifest.dart`（232 行，
+`format='furnace-question-bank'` / `version=1` / 导出时间 / App 版本 / 题数 / 图数，格式与版本不符给
+结构化错误）；`question_pack_record.dart`（732 行，21 字段题目记录，解码时逐字段校验并带 JSON 路径，
+5000 条上限，坏数据整包拒绝）；`question_pack_plan.dart`（283 行，先比目标库题干指纹、再比包内前序
+重复；缺标签只告警；媒体路径 `media/q<题序>/<图序>.<ext>`）。测试 81 + 53 例，目录 +134 全绿。
+
+**B. 数据/应用层与 zip 容器（task-104，Lead）**：`question_pack_source.dart`（247 行，一次读出题库与
+配图，按题号与 sort_order 排好，坏图只告警）；`question_pack_codec.dart`（194 行，manifest + questions +
+media 三条目，`peek` 只解 manifest，缺媒体整包失败）；`question_pack_service.dart`（332 行，
+`exportBytes` / `peek` / `importPack` + provider——导入只新增，题号按目标库最大号重新分配，标签只挂
+目标库已存在的路径，媒体按 role 落盘，报告分开数 created/skipped/media/warnings/failures）。
+测试 13 + 12 例，含内存库端到端 round-trip（题 + 选项 + 标签 + 答案截图真实落盘）。
+
+**C. 设置页 UI（task-105，question-intake）**：设置 -> 数据区末尾新增「题库包（.tqb）」小节：导出走
+保存对话框（空题库只提示）；导入只收 `.tqb`，先 peek 预览再确认，坏包只提示不写库；结果对话框给
+created/skipped/media 与告警条数、前 3 条失败原因；操作期间两行禁用防重入；成功后 invalidate 题库
+列表/计数/体检共四个 provider。l10n 13 个 key 五文件手改（未跑 gen-l10n），widget test 12 例。
+
+**门禁（真实输出）**：`dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；全量
+`flutter test --concurrency=1` -> **+4792 ~2 All tests passed，9 分 43 秒，EXIT=0**
+（日志 `E:/dsh-tmp-aot/test-136-full.txt`；轮次一百三十五基线 +4621 ~2，本轮新增 +171）。
+切片：`test/domain/services/package` +134、`test/data/package` + service +43、settings 12、
+settings + questions/presentation 两目录 +376。
+
+**提交**：`86345a7` 纯逻辑（6 文件 +3059）、`475065b` zip 容器与数据/应用层（5 文件 +1513）、
+`b979e3d` 设置页 UI + l10n（8 文件 +1033）、docs 提交。未 push（GitHub 由用户推）。
+
+**未做 / 已知限制**：真机 FilePicker 保存/选择未手测；未用真实跨设备 `.tqb` 样本端到端；5000 题大包
+的内存/耗时未测；导出 warnings 未上屏；重复题跳过不提供「合并图片/标签」；包内无知识点（只带标签
+路径，知识点要在目标库自己映射）；不做加密/分卷/压缩级别选择。
+
 ## 2026-10-21 轮次一百三十五：复习提醒（本地通知）——「flashcard 推送」的推送半边（Lead + 三个 teammate）
 
 **起点**：轮次一百三十四（HEAD `180b83d`）。上一轮把答案截图变成题目的一部分；这一轮补「五应用领域」里

@@ -742,3 +742,78 @@ goal round 7 的第一批：三块纯逻辑并行（Lead / threadflow-engine / r
 - 小屏上「题干配图区 + 答案截图区」连续摆放的版面未真机看；英文文案未母语校对。
 - 答案 JPEG 仍不自动下载（不做 WAF/登录态代持）；没有「截图自动裁边/压缩」。
 
+## 20. 题库包（.tqb）：题库的导出/导入（轮次一百三十六，2026-10-21）
+
+Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + 选项 + 标签路径 + 配图/答案截图 +
+组卷网来源链接**打成一个 zip 搬走。它和工作区备份（.tfpkg）刻意分工：.tfpkg 是整个工作区、replace
+模式、导入前自动备份；.tqb 只含题库子集、**只追加不覆盖**，所以导入前不备份（没有东西会被改写）。
+
+### 20.1 包格式
+
+- zip 内三条目：`manifest.json`、`questions.json`、`media/q<题序>/<图序>.<ext>`
+  （题序 1 起、图序 0 起，例 `media/q3/0.png`）。
+- manifest：`format='furnace-question-bank'`、`version=1`、`exported_at`（ISO8601）、`app_version`、
+  `question_count`、`media_count`、`generated_by`。format 不匹配报「不是题库包」，版本非 1 报
+  「不认识的题库包版本」。
+- questions.json 每条：题干/答案/解析、学科/题型/来源档位/来源标注/年份/地区/难度/难度来源/易错点、
+  origin/state、**题号 serial_no（只作参考，导入时不用）**、来源三元组 `source_url` /
+  `zujuan_question_id` / `zujuan_bank_id`、选项 `options[]`（label/content/is_correct/sort_order）、
+  标签路径 `tag_paths[]`、媒体 `media[]`（pack_path/file_name/mime/role/sort_order）。
+- 媒体扩展名白名单 png/jpg/jpeg/gif/webp/bmp/heic（统一分派到配图与答案截图两种 role，
+  未知 role 折成 stem）；**不导出**知识点、思维导图、卡片/复习状态、主题、应用外观。
+- 上限 5000 条（`kQuestionPackMaxRecords`），超了整包拒绝解码而不是截断。
+
+### 20.2 纯逻辑层（task-102 reasoning-core / task-103 threadflow-engine）
+
+- `lib/domain/services/package/question_pack_manifest.dart`（232 行）：`QuestionPackManifest` +
+  encode/decode + `QuestionPackException{message, path}`。record.dart 不 re-export 它，容器层要自己 import。
+- `question_pack_record.dart`（732 行）：`QuestionPackMedia` / `QuestionPackOption` /
+  `QuestionPackRecord`。校验在**解码时**做：题干非空、年份 1900..2100、题号 >=1、难度有限数值、
+  选项 label 去空格大写后单个 A-Z 且同题唯一、媒体 path 不许绝对路径/反斜杠/`..`、role 三选一；
+  错误带路径（`questions[1].options[0].label`）而不是「解析失败」。81 例。
+- `question_pack_plan.dart`（283 行）：`planQuestionPackImport({records, fingerprintOf,
+  existingFingerprints, existingTagPaths})` -> 每题一个 create / skip_duplicate 决策 + warnings +
+  missingTagPaths。判定顺序：先比目标题库已有指纹，再比包内前序重复；跳过与缺标签都进 warnings
+  （跳过按题序、缺标签按字典序、缺标签最多列 20 条再补一行「还有 N 条」）；`questionPackMediaPath`
+  生成/校验包内媒体路径。永不抛。53 例。
+- 目录内 `flutter test test/domain/services/package --concurrency=1` -> +134 全绿。
+
+### 20.3 数据层与应用层（task-104 Lead）
+
+- `lib/data/package/question_pack_source.dart`（247 行）：`readQuestionPackSource({database, readMedia})`
+  一次读 questions/question_options/tags/object_tags/attachments，按题号（无号排最后、再 id）与
+  sort_order 排好，配图按题序生成 `media/qN/M.ext`；扩展名不认识或读不到字节 -> 不进包、记
+  `skippedMedia` + warning（导出不因一张坏图整体失败）。
+- `lib/data/package/question_pack_codec.dart`（194 行）：`encodeQuestionPackArchive` /
+  `decodeQuestionPackArchive` / `readQuestionPackManifest`（peek 只解 manifest，不解题库体）。
+  缺 manifest/缺 questions.json/题目引用的媒体不在包里 -> 整包失败并指出 path；多余媒体条目忽略；
+  zip 解析异常包成 `QuestionPackException`。
+- `lib/features/questions/application/question_pack_service.dart`（332 行）：`exportBytes({now})` /
+  `peek(bytes)` / `importPack(bytes,{now})` + `questionPackServiceProvider`。导入流程：
+  decode -> 读目标库已有指纹与标签路径 -> plan -> 只对 create 决策 `ingest`（题号由目标库 MAX+1
+  重新分配；**标签只挂目标库已存在的路径**，缺的不新建只告警）-> 媒体 `store.save(role/sortOrder)`。
+  单题入库异常进 failures、单图落盘异常进 warnings，报告分开数 created/skipped/media。
+  13 + 12 例（含内存库端到端 round-trip：题 + 选项 + 标签 + 答案截图真实落盘往返）。
+- 设计取舍：不做「导入前自动备份」——additive 模式没有覆盖面；不保留来源题号——同号在目标库
+  可能已被别人占用，题号是「本库身份」不是「内容身份」；重复题按题干指纹跳过，不合并标签/图片。
+
+### 20.4 设置页 UI（task-105 question-intake）
+
+- 设置 -> 数据区末尾新增「题库包（.tqb）」小节（`_QuestionPackSection`，`data_section.dart` +272）：
+  导出 tile -> 空题库只提示不弹保存框 -> `FilePicker.saveFile` 写 `furnace-<yyyyMMddTHHmm>.tqb`；
+  导入 tile -> 只收 `.tqb` -> `peek` 坏包只提示不写库 -> 预览对话框（题数/图数 + 「只新增不覆盖」）
+  -> `importPack` -> 结果对话框（created/skipped/media + warnings 条数 + 前 3 条 failures）。
+  操作期间两行禁用防重入；成功后 invalidate 题库列表/计数/体检共四个 provider。**导出 warnings 还没上屏**。
+- l10n 13 个 key 五文件手改（未跑 gen-l10n）；12 例 widget test（导出/取消/空库/抛错、导入取消/
+  坏包/预览/结果/抛错、防重入、插值与大小格式化）。settings + presentation 两目录 +376 全绿。
+
+### 20.5 验收与未做
+
+- 门禁：`dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；全量
+  `flutter test --concurrency=1` -> **+4792 ~2 All tests passed，9 分 43 秒，EXIT=0**
+  （日志 `E:/dsh-tmp-aot/test-136-full.txt`）。
+- 未做 / 未验证：真机 FilePicker 保存/选择未手测；未用真实 `.tqb`（跨设备/跨版本）样本端到端；
+  5000 题大包的内存/耗时未测；导出 warnings 未上屏；重复题跳过不提供「合并图片/标签」；
+  包内无知识点（只带标签路径，知识点要在目标库自己映射）；不做加密/分卷/压缩级别选择。
+
+
