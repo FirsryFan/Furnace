@@ -1599,6 +1599,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsCardGroupsHint =>
       'A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.';
+
   @override
   String get reviewReminderSettingTitle => 'Review reminder';
 
@@ -1606,8 +1607,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewReminderSettingOff => 'Off';
 
   @override
-  String reviewReminderSettingOn(String time) =>
-      'Every day at $time when cards are due';
+  String reviewReminderSettingOn(String time) {
+    return 'Every day at $time when cards are due';
+  }
 
   @override
   String get reviewReminderDialogTitle => 'Review reminder';
@@ -1630,8 +1632,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewReminderNotificationTitle => 'Furnace review reminder';
 
   @override
-  String reviewReminderNotificationDueBody(int count) =>
-      '$count card(s) are due; a few minutes of review will clear them.';
+  String reviewReminderNotificationDueBody(int count) {
+    return '$count card(s) are due; a few minutes of review will clear them.';
+  }
 
   @override
   String get reviewReminderNotificationSoonBody =>
@@ -2013,6 +2016,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsQuestionPackPreviewNoNew =>
       'The package has no new questions to import';
+
   @override
   String get settingsQuestionPackFilterTags => 'Tag paths';
 
@@ -3666,7 +3670,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String questionImageDeleteConfirm(String fileName) {
-    return 'Removes "$fileName" from this question.';
+    return 'Removes \"$fileName\" from this question.';
   }
 
   @override

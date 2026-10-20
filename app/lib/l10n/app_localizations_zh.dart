@@ -1536,6 +1536,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsCardGroupsHint =>
       '卡组就是标签树：给一个标签设每日新卡/复习上限，它整棵子树都算这个卡组；判分方式与卡片类型也在这里改。';
+
   @override
   String get reviewReminderSettingTitle => '复习提醒';
 
@@ -1543,7 +1544,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewReminderSettingOff => '关';
 
   @override
-  String reviewReminderSettingOn(String time) => '每天 $time · 有到期卡片时提醒';
+  String reviewReminderSettingOn(String time) {
+    return '每天 $time · 有到期卡片时提醒';
+  }
 
   @override
   String get reviewReminderDialogTitle => '复习提醒';
@@ -1565,8 +1568,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewReminderNotificationTitle => 'Furnace 复习提醒';
 
   @override
-  String reviewReminderNotificationDueBody(int count) =>
-      '有 $count 张卡片到期，花几分钟复习一下。';
+  String reviewReminderNotificationDueBody(int count) {
+    return '有 $count 张卡片到期，花几分钟复习一下。';
+  }
 
   @override
   String get reviewReminderNotificationSoonBody => '有卡片到复习时间了。';
@@ -1927,6 +1931,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsQuestionPackPreviewNoNew => '包里没有可以导入的新题';
+
   @override
   String get settingsQuestionPackFilterTags => '标签路径';
 

@@ -3530,6 +3530,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The package has no new questions to import'**
   String get settingsQuestionPackPreviewNoNew;
+
   /// No description provided for @settingsQuestionPackFilterTags.
   ///
   /// In en, this message translates to:
@@ -6235,7 +6236,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionImageDeleteConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Removes "{fileName}" from this question.'**
+  /// **'Removes \"{fileName}\" from this question.'**
   String questionImageDeleteConfirm(String fileName);
 
   /// No description provided for @questionImageDeleted.
