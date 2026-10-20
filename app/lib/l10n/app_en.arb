@@ -1737,6 +1737,11 @@
     }
   },
   "questionImageEmptyHint": "No images yet; add a photo of the question (HEIC is not supported yet)",
+  "questionAnswerImageTitle": "Answer & solution screenshots",
+  "questionAnswerImageAdd": "Add answer screenshot",
+  "questionAnswerImageEmptyHint": "No answer screenshots yet: sign in on Zujuan and save a screenshot of the answer/solution (HEIC is not supported yet)",
+  "questionAnswerImageDeleteTitle": "Delete this screenshot?",
+  "questionAnswerImageDeleted": "Screenshot deleted",
   "questionIntakePhotoPending": "Images waiting",
   "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into tags, knowledge points, flashcards or questions.",
   "questionIntakePhotoSummary": "{mime} · .{extension}",

@@ -3356,6 +3356,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionImageEmptyHint => '还没有配图，可以加题目照片（HEIC 暂不支持）';
 
   @override
+  String get questionAnswerImageTitle => '答案与解析截图';
+
+  @override
+  String get questionAnswerImageAdd => '添加答案截图';
+
+  @override
+  String get questionAnswerImageEmptyHint =>
+      '还没有答案截图：在组卷网登录后截下答案/解析整图存进来（HEIC 暂不支持）';
+
+  @override
+  String get questionAnswerImageDeleteTitle => '删除这张截图？';
+
+  @override
+  String get questionAnswerImageDeleted => '已删除截图';
+
+  @override
   String get questionIntakePhotoPending => '待整理图片';
 
   @override

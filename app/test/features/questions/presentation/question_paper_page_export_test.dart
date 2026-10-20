@@ -481,7 +481,7 @@ class _ThrowingMediaStore extends FakeQuestionMediaStore {
   _ThrowingMediaStore({required super.database});
 
   @override
-  Future<List<QuestionImage>> list(String questionId) async {
+  Future<List<QuestionImage>> list(String questionId, {String? role}) async {
     throw StateError('图片目录不可用');
   }
 }

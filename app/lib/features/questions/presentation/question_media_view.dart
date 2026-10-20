@@ -1,10 +1,11 @@
-/// 题目编号与题目配图在界面上的读侧：编号徽章、配图缩略图、大图查看。
+/// 题目编号与题目配图在界面上的读侧：编号徽章、配图缩略图、大图查看、配图增删。
 ///
 /// 三份数据都是只读 provider：
 ///
 ///  * [questionSerialProvider]：题库列表的数据源（`PaperCandidate`）里没有编号，
 ///    所以按 id 单独读一次 `questions.serialNo`；
-///  * [questionImagesProvider]：走 `QuestionMediaStore.list` 的配图清单；
+///  * [questionImagesProvider]：题干配图清单（role=stem）；
+///  * [questionAnswerImagesProvider]：答案/解析截图清单（role=answer）；
 ///  * [questionImageBytesProvider]：按 relPath 读字节，缩略图与大图共用。
 ///
 /// 「没有图就不出现」是本文件的硬规则：空清单、读不出的图都不占版面，页面上不会
@@ -40,10 +41,24 @@ final questionSerialProvider =
   return row?.read(serialNo);
 });
 
-/// 一道题的配图清单（按 sortOrder、createdAt、id 排，store 已经排好）。
+/// 一道题的**题干配图**清单（role=stem；v27 之前的 NULL 旧行也算题干配图）。
+///
+/// 按 sortOrder、createdAt、id 排，store 已经排好。
 final questionImagesProvider =
     FutureProvider.autoDispose.family<List<QuestionImage>, String>(
-  (ref, questionId) => ref.watch(questionMediaStoreProvider).list(questionId),
+  (ref, questionId) => ref
+      .watch(questionMediaStoreProvider)
+      .list(questionId, role: QuestionImageRole.stem),
+);
+
+/// 一道题的**答案/解析截图**清单（role=answer）。
+///
+/// 组卷网登录后才看得到的整张答案图，单独一区，不和题干配图混。
+final questionAnswerImagesProvider =
+    FutureProvider.autoDispose.family<List<QuestionImage>, String>(
+  (ref, questionId) => ref
+      .watch(questionMediaStoreProvider)
+      .list(questionId, role: QuestionImageRole.answer),
 );
 
 /// 按 relPath 读一张图的字节；文件不在了返回 null。
@@ -62,6 +77,20 @@ const Key questionImageDeleteConfirmButtonKey =
 /// 某一张图的删除按钮 key；不同图不能撞车。
 Key questionImageDeleteButtonKey(String attachmentId) =>
     ValueKey<String>('question-image-delete-$attachmentId');
+
+/// 题干配图区块的根 key：同页还有答案截图区时，测试用它分开断言。
+const Key questionImagesSectionKey = Key('question-images-section');
+
+/// 答案/解析截图区块的根 key。
+const Key questionAnswerImagesSectionKey =
+    Key('question-answer-images-section');
+
+/// 「添加答案截图」按钮的 key（与题干配图的添加按钮分开）。
+const Key questionAnswerImageAddButtonKey = Key('question-answer-image-add');
+
+/// 删除答案截图时确认对话框里「删除」按钮的 key。
+const Key questionAnswerImageDeleteConfirmButtonKey =
+    Key('question-answer-image-delete-confirm');
 
 /// 添加配图时让用户选的扩展名。
 ///
@@ -400,21 +429,40 @@ Future<void> showQuestionImageViewer(
   );
 }
 
-/// 题目配图区块：没图就整个不出现，不让空相框占版面。
+/// 图片区块的用途：题干配图，还是答案/解析截图。
 ///
-/// 详情页传 `editable: true` 后多出「添加图片」入口与每张图右上角的删除按钮；
+/// 两者共用同一套「选图 → 校验 → 落盘 → 缩略图/大图 → 删除」流程，只有角色、
+/// 标题与入口文案不同；答案截图单独一区，不和题干配图混。
+enum QuestionImagesSectionKind {
+  /// 题干配图（[QuestionImageRole.stem]）。
+  stem,
+
+  /// 答案/解析截图（[QuestionImageRole.answer]）。
+  answer,
+}
+
+/// 题目图片区块：没图就整个不出现，不让空相框占版面。
+///
+/// 详情页传 `editable: true` 后多出添加入口与每张图右上角的删除按钮；
 /// 别的调用（列表缩略图等）默认只读，行为与以前一致。
+///
+/// [kind] 决定这一区存的是题干配图（默认）还是答案/解析截图：两区各自读自己的
+/// 清单、写自己的角色，互不混。
 class QuestionImagesSection extends ConsumerStatefulWidget {
   const QuestionImagesSection({
     super.key,
     required this.questionId,
     this.editable = false,
+    this.kind = QuestionImagesSectionKind.stem,
   });
 
   final String questionId;
 
   /// 是否允许在这里加图、删图。
   final bool editable;
+
+  /// 这一区存的是题干配图还是答案截图。
+  final QuestionImagesSectionKind kind;
 
   @override
   ConsumerState<QuestionImagesSection> createState() =>
@@ -424,6 +472,45 @@ class QuestionImagesSection extends ConsumerStatefulWidget {
 class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
   /// 添加/删除进行中：按钮一起禁用，避免同一张图被反复提交。
   bool _busy = false;
+
+  bool get _isAnswer => widget.kind == QuestionImagesSectionKind.answer;
+
+  /// 写库/读库时用的角色；题干配图与答案截图各排各的 sortOrder。
+  String get _role =>
+      _isAnswer ? QuestionImageRole.answer : QuestionImageRole.stem;
+
+  AutoDisposeFutureProvider<List<QuestionImage>> get _imagesProvider =>
+      _isAnswer
+          ? questionAnswerImagesProvider(widget.questionId)
+          : questionImagesProvider(widget.questionId);
+
+  Key get _sectionKey =>
+      _isAnswer ? questionAnswerImagesSectionKey : questionImagesSectionKey;
+
+  Key get _addButtonKey =>
+      _isAnswer ? questionAnswerImageAddButtonKey : questionImageAddButtonKey;
+
+  Key get _deleteConfirmButtonKey => _isAnswer
+      ? questionAnswerImageDeleteConfirmButtonKey
+      : questionImageDeleteConfirmButtonKey;
+
+  String _title(AppLocalizations l10n) => _isAnswer
+      ? l10n.questionAnswerImageTitle
+      : l10n.questionDetailImagesSection;
+
+  String _addLabel(AppLocalizations l10n) =>
+      _isAnswer ? l10n.questionAnswerImageAdd : l10n.questionImageAdd;
+
+  String _emptyHint(AppLocalizations l10n) => _isAnswer
+      ? l10n.questionAnswerImageEmptyHint
+      : l10n.questionImageEmptyHint;
+
+  String _deleteTitle(AppLocalizations l10n) => _isAnswer
+      ? l10n.questionAnswerImageDeleteTitle
+      : l10n.questionImageDeleteTitle;
+
+  String _deletedLabel(AppLocalizations l10n) =>
+      _isAnswer ? l10n.questionAnswerImageDeleted : l10n.questionImageDeleted;
 
   Future<void> _addImages() async {
     if (_busy) {
@@ -474,6 +561,7 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
           fileName: file.name,
           bytes: bytes,
           mime: mime,
+          role: _role,
         );
         saved++;
       } catch (_) {
@@ -485,8 +573,8 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
       return;
     }
     if (saved > 0) {
-      // questionImagesProvider 没有 watch 数据修订号：写完必须手动让它重读。
-      ref.invalidate(questionImagesProvider(widget.questionId));
+      // 图片清单 provider 不 watch 数据修订号：写完必须手动让它重读。
+      ref.invalidate(_imagesProvider);
     }
     final parts = <String>[
       if (saved > 0) l10n.questionImageAddDone(saved),
@@ -505,7 +593,7 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.questionImageDeleteTitle),
+        title: Text(_deleteTitle(l10n)),
         content: Text(l10n.questionImageDeleteConfirm(image.fileName)),
         actions: <Widget>[
           TextButton(
@@ -513,7 +601,7 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
             child: Text(l10n.commonClose),
           ),
           FilledButton(
-            key: questionImageDeleteConfirmButtonKey,
+            key: _deleteConfirmButtonKey,
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l10n.questionImageDeleteAction),
           ),
@@ -528,9 +616,9 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
       if (!mounted) {
         return;
       }
-      ref.invalidate(questionImagesProvider(widget.questionId));
+      ref.invalidate(_imagesProvider);
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.questionImageDeleted)),
+        SnackBar(content: Text(_deletedLabel(l10n))),
       );
     } catch (error) {
       messenger.showSnackBar(
@@ -543,9 +631,10 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final imagesAsync = ref.watch(questionImagesProvider(widget.questionId));
+    final imagesAsync = ref.watch(_imagesProvider);
     if (imagesAsync.hasError) {
       return Padding(
+        key: _sectionKey,
         padding: const EdgeInsets.only(top: 12),
         child: Text(
           l10n.questionImageLoadFailed,
@@ -560,19 +649,20 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
       }
       // 编辑模式也要有一个入口，但仍只占一行字，不摆空相框。
       return Padding(
+        key: _sectionKey,
         padding: const EdgeInsets.only(top: 8),
         child: Row(
           children: <Widget>[
             TextButton.icon(
-              key: questionImageAddButtonKey,
+              key: _addButtonKey,
               onPressed: _busy ? null : _addImages,
               icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: Text(l10n.questionImageAdd),
+              label: Text(_addLabel(l10n)),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                l10n.questionImageEmptyHint,
+                _emptyHint(l10n),
                 style: theme.textTheme.bodySmall,
               ),
             ),
@@ -581,6 +671,7 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
       );
     }
     return Card(
+      key: _sectionKey,
       margin: const EdgeInsets.only(top: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -590,13 +681,12 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
             Row(
               children: <Widget>[
                 Icon(
-                  Icons.photo_library_outlined,
+                  _isAnswer ? Icons.image_search : Icons.photo_library_outlined,
                   size: 18,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
-                Text(l10n.questionDetailImagesSection,
-                    style: theme.textTheme.titleSmall),
+                Text(_title(l10n), style: theme.textTheme.titleSmall),
                 const SizedBox(width: 8),
                 Text(
                   l10n.questionImageCount(images.length),
@@ -605,10 +695,10 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
                 if (widget.editable) ...<Widget>[
                   const Spacer(),
                   TextButton.icon(
-                    key: questionImageAddButtonKey,
+                    key: _addButtonKey,
                     onPressed: _busy ? null : _addImages,
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: Text(l10n.questionImageAdd),
+                    label: Text(_addLabel(l10n)),
                   ),
                 ],
               ],

@@ -5963,6 +5963,36 @@ abstract class AppLocalizations {
   /// **'No images yet; add a photo of the question (HEIC is not supported yet)'**
   String get questionImageEmptyHint;
 
+  /// No description provided for @questionAnswerImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer & solution screenshots'**
+  String get questionAnswerImageTitle;
+
+  /// No description provided for @questionAnswerImageAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add answer screenshot'**
+  String get questionAnswerImageAdd;
+
+  /// No description provided for @questionAnswerImageEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No answer screenshots yet: sign in on Zujuan and save a screenshot of the answer/solution (HEIC is not supported yet)'**
+  String get questionAnswerImageEmptyHint;
+
+  /// No description provided for @questionAnswerImageDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this screenshot?'**
+  String get questionAnswerImageDeleteTitle;
+
+  /// No description provided for @questionAnswerImageDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot deleted'**
+  String get questionAnswerImageDeleted;
+
   /// No description provided for @questionIntakePhotoPending.
   ///
   /// In en, this message translates to:

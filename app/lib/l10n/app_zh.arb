@@ -1617,6 +1617,11 @@
     }
   },
   "questionImageEmptyHint": "还没有配图，可以加题目照片（HEIC 暂不支持）",
+  "questionAnswerImageTitle": "答案与解析截图",
+  "questionAnswerImageAdd": "添加答案截图",
+  "questionAnswerImageEmptyHint": "还没有答案截图：在组卷网登录后截下答案/解析整图存进来（HEIC 暂不支持）",
+  "questionAnswerImageDeleteTitle": "删除这张截图？",
+  "questionAnswerImageDeleted": "已删除截图",
   "questionIntakePhotoPending": "待整理图片",
   "questionIntakeNoPhotos": "还没有拍照。选中的图片会存在本地，等 AI 整理成标签、知识点、闪存卡或题目。",
   "questionIntakePhotoSummary": "{mime} · .{extension}",

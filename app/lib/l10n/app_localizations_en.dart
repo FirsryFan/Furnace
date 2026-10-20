@@ -3502,6 +3502,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'No images yet; add a photo of the question (HEIC is not supported yet)';
 
   @override
+  String get questionAnswerImageTitle => 'Answer & solution screenshots';
+
+  @override
+  String get questionAnswerImageAdd => 'Add answer screenshot';
+
+  @override
+  String get questionAnswerImageEmptyHint =>
+      'No answer screenshots yet: sign in on Zujuan and save a screenshot of the answer/solution (HEIC is not supported yet)';
+
+  @override
+  String get questionAnswerImageDeleteTitle => 'Delete this screenshot?';
+
+  @override
+  String get questionAnswerImageDeleted => 'Screenshot deleted';
+
+  @override
   String get questionIntakePhotoPending => 'Images waiting';
 
   @override

@@ -1,8 +1,12 @@
-/// 题目配图的测试替身：只读内存里的图，不碰真实磁盘、不读 app support 目录。
+/// 题目配图的测试替身：内存里的图，不碰真实磁盘、不读 app support 目录。
 ///
-/// `questionImagesProvider` / `questionImageBytesProvider` 都走
-/// `questionMediaStoreProvider`；测试里 override 成这个替身，就能验证「题号 +
-/// 缩略图 / 大图」的渲染，而不用装 path_provider 的测试桩。
+/// `questionImagesProvider` / `questionAnswerImagesProvider` /
+/// `questionImageBytesProvider` 都走 `questionMediaStoreProvider`；测试里 override
+/// 成这个替身，就能验证「题号 + 缩略图 / 大图 / 加图 / 删图」的渲染，而不用装
+/// path_provider 的测试桩。
+///
+/// 角色（stem / answer）与真 store 同语义：`list` 不带 role 返回全部，带上则只返回
+/// 该角色；旧行没有 role 时按 stem 读（[effectiveQuestionImageRole]）。
 library;
 
 import 'dart:convert';
@@ -16,10 +20,10 @@ final Uint8List tinyPngBytes = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGO8pKHBwMDAxAAGAA5sASaNUVj9AAAAAElFTkSuQmCC',
 );
 
-/// 只读的 `QuestionMediaStore`：`list` / `readBytes` 返回种子数据，写操作直接报错。
+/// 内存版 `QuestionMediaStore`：读按角色过滤，写只改内存、不落盘。
 ///
-/// 页面在三处只读地用到配图（清单缩略图、详情缩略图、大图对话框），所以这个替身
-/// **只实现读**；将来界面真的加了「加图/删图」，这里的写方法会立刻炸出来提醒补替身。
+/// 页面在多处用到配图（清单缩略图、详情缩略图、大图对话框、加图/删图），所以这个
+/// 替身同时实现读与写；`save` 不传 role 时与真 store 一样默认写 stem。
 class FakeQuestionMediaStore extends QuestionMediaStore {
   FakeQuestionMediaStore({required super.database});
 
@@ -34,6 +38,7 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
     required String fileName,
     required Uint8List bytes,
     String? mime,
+    String role = QuestionImageRole.stem,
   }) {
     final images = _images.putIfAbsent(questionId, () => <QuestionImage>[]);
     final index = _sequence.update(
@@ -50,6 +55,7 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
       absolutePath: '/fake/$relPath',
       fileName: fileName,
       sortOrder: images.length,
+      role: role,
       mime: mime,
       createdAt: DateTime(2026, 10, 18),
     );
@@ -64,10 +70,18 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
   }
 
   @override
-  Future<List<QuestionImage>> list(String questionId) async =>
-      List<QuestionImage>.unmodifiable(
-        _images[questionId] ?? const <QuestionImage>[],
-      );
+  Future<List<QuestionImage>> list(String questionId, {String? role}) async {
+    final images = _images[questionId] ?? const <QuestionImage>[];
+    if (role == null) {
+      return List<QuestionImage>.unmodifiable(images);
+    }
+    final wanted = effectiveQuestionImageRole(role);
+    return List<QuestionImage>.unmodifiable(
+      images.where(
+        (image) => effectiveQuestionImageRole(image.role) == wanted,
+      ),
+    );
+  }
 
   @override
   Future<Uint8List?> readBytes(String relPath) async => _bytes[relPath];
@@ -80,10 +94,16 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
     required Uint8List bytes,
     String? mime,
     int? sortOrder,
+    String role = QuestionImageRole.stem,
     DateTime? now,
   }) async =>
       seed(
-          questionId: questionId, fileName: fileName, bytes: bytes, mime: mime);
+        questionId: questionId,
+        fileName: fileName,
+        bytes: bytes,
+        mime: mime,
+        role: role,
+      );
 
   @override
   Future<void> delete(QuestionImage image) async {

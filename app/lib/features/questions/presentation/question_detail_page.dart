@@ -153,6 +153,14 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               questionId: widget.questionId,
               editable: true,
             ),
+          // 答案与解析截图单独一区：组卷网登录后才看得到的整张答案图，不和题干配图混。
+          // 没有图时只留一行「添加答案截图」入口，不摆空相框。
+          if (detail != null)
+            QuestionImagesSection(
+              questionId: widget.questionId,
+              editable: true,
+              kind: QuestionImagesSectionKind.answer,
+            ),
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
           if (detail != null)
             QuestionZujuanSearchButton(stem: detail.question.stem),

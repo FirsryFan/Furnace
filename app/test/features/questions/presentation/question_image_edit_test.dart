@@ -21,6 +21,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/domain/services/media/thumbnail_spec.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
+import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_media_view.dart';
@@ -239,6 +240,293 @@ void main() {
     // 大图不传 cacheWidth/cacheHeight：provider 不是 ResizeImage。
     expect(dialogImage.image, isNot(isA<ResizeImage>()));
   });
+
+  group('答案与解析截图', () {
+    testWidgets('空态：答案区也留一行添加入口，不摆空相框', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+
+      await _pumpDetail(tester, database, question.id);
+      await _waitForText(tester, _stem);
+      await _waitForText(tester, _zh.questionAnswerImageEmptyHint);
+
+      expect(find.byKey(questionImageAddButtonKey), findsOneWidget);
+      expect(find.byKey(questionAnswerImageAddButtonKey), findsOneWidget);
+      expect(find.byKey(questionImagesSectionKey), findsOneWidget);
+      expect(find.byKey(questionAnswerImagesSectionKey), findsOneWidget);
+      // 没有图就只是入口行：两个区块的带图标题都不出现，也没有 Image。
+      expect(find.text(_zh.questionDetailImagesSection), findsNothing);
+      expect(find.text(_zh.questionAnswerImageTitle), findsNothing);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('添加：答案截图按 role=answer 落盘，题干配图区不受影响', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database);
+      _installPicker(<PlatformFile>[
+        FakePickedFile('answer-1.png', tinyPngBytes),
+        FakePickedFile('answer-2.png', tinyPngBytes),
+      ]);
+
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+      await _waitForText(tester, _stem);
+
+      await tester.tap(find.byKey(questionAnswerImageAddButtonKey));
+      await _waitForText(tester, _zh.questionImageAddDone(2));
+      await _waitForText(tester, _zh.questionImageCount(2));
+      // 张数先出来，缩略图随后才把字节读回来并渲染成 Image。
+      await _waitForCount(
+        tester,
+        find.descendant(
+          of: find.byKey(questionAnswerImagesSectionKey),
+          matching: find.byType(Image),
+        ),
+        2,
+      );
+
+      final answerImages = await mediaStore.list(
+        question.id,
+        role: QuestionImageRole.answer,
+      );
+      expect(answerImages.map((image) => image.fileName), <String>[
+        'answer-1.png',
+        'answer-2.png',
+      ]);
+      expect(
+        answerImages.every((image) => image.role == QuestionImageRole.answer),
+        isTrue,
+      );
+      // 答案截图没有混进题干配图：题干配图区仍是那行入口。
+      expect(
+        await mediaStore.list(question.id, role: QuestionImageRole.stem),
+        isEmpty,
+      );
+      expect(find.byKey(questionImageAddButtonKey), findsOneWidget);
+      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(questionAnswerImagesSectionKey),
+          matching: find.byType(Image),
+        ),
+        findsNWidgets(2),
+      );
+      // 题干配图区里没有图。
+      expect(
+        find.descendant(
+          of: find.byKey(questionImagesSectionKey),
+          matching: find.byType(Image),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('分区：题干配图与答案截图各读各的清单', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database)
+        ..seed(
+          questionId: question.id,
+          fileName: 'stem-1.png',
+          bytes: tinyPngBytes,
+        )
+        ..seed(
+          questionId: question.id,
+          fileName: 'answer-1.png',
+          bytes: tinyPngBytes,
+          role: QuestionImageRole.answer,
+        );
+
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+      await _waitForCount(tester, find.byType(Image), 2);
+
+      expect(find.text(_zh.questionDetailImagesSection), findsOneWidget);
+      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(questionImagesSectionKey),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(questionAnswerImagesSectionKey),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        (await mediaStore.list(question.id, role: QuestionImageRole.stem))
+            .single
+            .fileName,
+        'stem-1.png',
+      );
+      expect(
+        (await mediaStore.list(question.id, role: QuestionImageRole.answer))
+            .single
+            .fileName,
+        'answer-1.png',
+      );
+    });
+
+    testWidgets('删除：答案截图删掉后行与文件都没了，题干配图区不动', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database)
+        ..seed(
+          questionId: question.id,
+          fileName: 'stem-1.png',
+          bytes: tinyPngBytes,
+        );
+      final seeded = mediaStore.seed(
+        questionId: question.id,
+        fileName: 'answer-1.png',
+        bytes: tinyPngBytes,
+        role: QuestionImageRole.answer,
+      );
+
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+      await _waitForCount(tester, find.byType(Image), 2);
+
+      await tester.tap(find.byKey(questionImageDeleteButtonKey(
+        seeded.attachmentId,
+      )));
+      await tester.pumpAndSettle();
+      expect(find.text(_zh.questionAnswerImageDeleteTitle), findsOneWidget);
+      expect(
+        find.text(_zh.questionImageDeleteConfirm('answer-1.png')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(questionAnswerImageDeleteConfirmButtonKey));
+      await _waitForText(tester, _zh.questionAnswerImageEmptyHint);
+
+      expect(
+        await mediaStore.list(question.id, role: QuestionImageRole.answer),
+        isEmpty,
+      );
+      expect(await mediaStore.readBytes(seeded.relPath), isNull);
+      expect(find.text(_zh.questionAnswerImageDeleted), findsOneWidget);
+      // 题干配图还在。
+      expect(
+        await mediaStore.list(question.id, role: QuestionImageRole.stem),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('添加：HEIC 跳过、好的照收，提示分开说', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database);
+      _installPicker(<PlatformFile>[
+        FakePickedFile('shot.heic', Uint8List.fromList(<int>[1, 2, 3])),
+        FakePickedFile('ok.png', tinyPngBytes),
+      ]);
+
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+      await _waitForText(tester, _stem);
+
+      await tester.tap(find.byKey(questionAnswerImageAddButtonKey));
+      await _waitForTextContaining(tester, _zh.questionImageAddDone(1));
+
+      expect(
+        find.textContaining(_zh.questionImageHeicUnsupported),
+        findsOneWidget,
+      );
+      final answerImages = await mediaStore.list(
+        question.id,
+        role: QuestionImageRole.answer,
+      );
+      expect(answerImages.single.fileName, 'ok.png');
+      expect(
+        await mediaStore.list(question.id, role: QuestionImageRole.stem),
+        isEmpty,
+      );
+    });
+
+    testWidgets('只读：答案区默认只展示，不给增删入口', (tester) async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database);
+      final seeded = mediaStore.seed(
+        questionId: question.id,
+        fileName: 'answer-1.png',
+        bytes: tinyPngBytes,
+        role: QuestionImageRole.answer,
+      );
+
+      _bigSurface(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            appDatabaseProvider.overrideWithValue(database),
+            questionMediaStoreProvider.overrideWithValue(mediaStore),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: QuestionImagesSection(
+                  questionId: question.id,
+                  kind: QuestionImagesSectionKind.answer,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+      await _waitForType(tester, Image);
+
+      expect(find.byKey(questionAnswerImagesSectionKey), findsOneWidget);
+      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      expect(find.byKey(questionAnswerImageAddButtonKey), findsNothing);
+      expect(
+        find.byKey(questionImageDeleteButtonKey(seeded.attachmentId)),
+        findsNothing,
+      );
+    });
+
+    test('provider：题干配图只读 stem，答案截图只读 answer', () async {
+      final database = _newDatabase();
+      final question = await _seedQuestion(database);
+      final mediaStore = FakeQuestionMediaStore(database: database)
+        ..seed(
+          questionId: question.id,
+          fileName: 'stem-1.png',
+          bytes: tinyPngBytes,
+        )
+        ..seed(
+          questionId: question.id,
+          fileName: 'answer-1.png',
+          bytes: tinyPngBytes,
+          role: QuestionImageRole.answer,
+        );
+      final container = ProviderContainer(
+        overrides: <Override>[
+          appDatabaseProvider.overrideWithValue(database),
+          questionMediaStoreProvider.overrideWithValue(mediaStore),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final stemImages = await container.read(
+        questionImagesProvider(question.id).future,
+      );
+      final answerImages = await container.read(
+        questionAnswerImagesProvider(question.id).future,
+      );
+      expect(stemImages.map((image) => image.fileName), <String>['stem-1.png']);
+      expect(
+        answerImages.map((image) => image.fileName),
+        <String>['answer-1.png'],
+      );
+      expect(stemImages.single.role, QuestionImageRole.stem);
+      expect(answerImages.single.role, QuestionImageRole.answer);
+    });
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -358,6 +646,22 @@ Future<void> _waitForType(WidgetTester tester, Type type,
     }
   }
   fail('等了 12 秒也没等到这个控件：\$type');
+}
+
+/// 等到 finder 恰好命中 [count] 个控件（两个图片区块先后把字节读回来）。
+Future<void> _waitForCount(
+  WidgetTester tester,
+  Finder finder,
+  int count, {
+  int rounds = 120,
+}) async {
+  for (var i = 0; i < rounds; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (finder.evaluate().length == count) {
+      return;
+    }
+  }
+  fail('等了 12 秒也没等到 $count 个控件');
 }
 
 /// 读字节直接抛异常的选中文件：模拟磁盘读不出来，验证「单个失败不整批失败」。
