@@ -15,6 +15,8 @@ import 'dart:typed_data';
 // ignore: depend_on_referenced_packages
 import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:furnace/domain/services/package/question_pack_import_preview.dart';
+import 'package:furnace/domain/services/package/question_pack_selection.dart';
 import 'package:furnace/features/questions/application/question_pack_service.dart';
 import 'package:path/path.dart' as p;
 
@@ -123,9 +125,25 @@ final class FakeQuestionPackService implements QuestionPackService {
     mediaCount: 1,
   );
 
+  /// [peek] 的返回值（UI 已改用 [planImport]，保留为接口完整性）。
   QuestionPackPreview preview = const QuestionPackPreview(
     questionCount: 2,
     mediaCount: 1,
+  );
+
+  /// [planImport] 的返回值；缺省是「3 道题里新建 2、跳过 1、无告警」。
+  QuestionPackImportPreview importPreview = const QuestionPackImportPreview(
+    manifestQuestionCount: 3,
+    manifestMediaCount: 2,
+    recordCount: 3,
+    mediaCount: 2,
+    appVersion: '0.5.3',
+    exportedAt: null,
+    createCount: 2,
+    skipCount: 1,
+    missingTagCount: 0,
+    warnings: <String>[],
+    missingTagPaths: <String>[],
   );
 
   QuestionPackImportReport importReport = const QuestionPackImportReport(
@@ -138,6 +156,7 @@ final class FakeQuestionPackService implements QuestionPackService {
 
   Object? exportError;
   Object? previewError;
+  Object? planError;
   Object? importError;
 
   /// 挂住导出（挂起期间断言两行 tile 都被禁用）。
@@ -145,13 +164,24 @@ final class FakeQuestionPackService implements QuestionPackService {
 
   int exportCalls = 0;
   int peekCalls = 0;
+  int planCalls = 0;
   int importCalls = 0;
   final List<Uint8List> peekedBytes = <Uint8List>[];
+  final List<Uint8List> plannedBytes = <Uint8List>[];
   final List<Uint8List> importedBytes = <Uint8List>[];
 
+  /// 每次导出收到的筛选条件；[lastSelection] 是最后一次。
+  final List<QuestionPackSelection> selections = <QuestionPackSelection>[];
+  QuestionPackSelection? lastSelection;
+
   @override
-  Future<QuestionPackExportResult> exportBytes({DateTime? now}) async {
+  Future<QuestionPackExportResult> exportBytes({
+    DateTime? now,
+    QuestionPackSelection selection = const QuestionPackSelection(),
+  }) async {
     exportCalls++;
+    lastSelection = selection;
+    selections.add(selection);
     if (exportError != null) {
       throw exportError!;
     }
@@ -170,6 +200,16 @@ final class FakeQuestionPackService implements QuestionPackService {
       throw previewError!;
     }
     return preview;
+  }
+
+  @override
+  Future<QuestionPackImportPreview> planImport(Uint8List bytes) async {
+    planCalls++;
+    plannedBytes.add(bytes);
+    if (planError != null) {
+      throw planError!;
+    }
+    return importPreview;
   }
 
   @override

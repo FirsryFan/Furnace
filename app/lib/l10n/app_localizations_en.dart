@@ -1957,6 +1957,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsQuestionPackInvalid => 'This is not a valid .tqb file';
 
   @override
+  String get settingsQuestionPackFilterTitle => 'Export scope';
+
+  @override
+  String get settingsQuestionPackFilterSubjects => 'Subjects';
+
+  @override
+  String get settingsQuestionPackFilterSources => 'Source tiers';
+
+  @override
+  String get settingsQuestionPackFilterSerialRange => 'Serial number range';
+
+  @override
+  String get settingsQuestionPackFilterSerialHint => 'Leave blank for no limit';
+
+  @override
+  String get settingsQuestionPackFilterSerialFrom => 'Start serial';
+
+  @override
+  String get settingsQuestionPackFilterSerialTo => 'End serial';
+
+  @override
+  String get settingsQuestionPackFilterSerialInvalid =>
+      'Serial numbers can only contain digits';
+
+  @override
+  String get settingsQuestionPackFilterSerialReversed =>
+      'The start serial cannot be greater than the end serial';
+
+  @override
+  String get settingsQuestionPackFilterExport => 'Export';
+
+  @override
+  String get settingsQuestionPackFilterEmpty =>
+      'No questions match these filters; try widening them';
+
+  @override
+  String get settingsQuestionPackExportWarningsTitle => 'Export warnings';
+
+  @override
+  String settingsQuestionPackPreviewCreate(int count) {
+    return 'Will create $count question(s)';
+  }
+
+  @override
+  String settingsQuestionPackPreviewSkip(int count) {
+    return 'Skip $count (already in the bank, or duplicated in the package)';
+  }
+
+  @override
+  String settingsQuestionPackPreviewMissingTags(int count) {
+    return 'Missing $count tag(s); those questions will import without them';
+  }
+
+  @override
+  String get settingsQuestionPackPreviewNoNew =>
+      'The package has no new questions to import';
+
+  @override
   String get settingsBackupNote =>
       'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
 

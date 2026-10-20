@@ -3435,6 +3435,102 @@ abstract class AppLocalizations {
   /// **'This is not a valid .tqb file'**
   String get settingsQuestionPackInvalid;
 
+  /// No description provided for @settingsQuestionPackFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export scope'**
+  String get settingsQuestionPackFilterTitle;
+
+  /// No description provided for @settingsQuestionPackFilterSubjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Subjects'**
+  String get settingsQuestionPackFilterSubjects;
+
+  /// No description provided for @settingsQuestionPackFilterSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Source tiers'**
+  String get settingsQuestionPackFilterSources;
+
+  /// No description provided for @settingsQuestionPackFilterSerialRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial number range'**
+  String get settingsQuestionPackFilterSerialRange;
+
+  /// No description provided for @settingsQuestionPackFilterSerialHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank for no limit'**
+  String get settingsQuestionPackFilterSerialHint;
+
+  /// No description provided for @settingsQuestionPackFilterSerialFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Start serial'**
+  String get settingsQuestionPackFilterSerialFrom;
+
+  /// No description provided for @settingsQuestionPackFilterSerialTo.
+  ///
+  /// In en, this message translates to:
+  /// **'End serial'**
+  String get settingsQuestionPackFilterSerialTo;
+
+  /// No description provided for @settingsQuestionPackFilterSerialInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial numbers can only contain digits'**
+  String get settingsQuestionPackFilterSerialInvalid;
+
+  /// No description provided for @settingsQuestionPackFilterSerialReversed.
+  ///
+  /// In en, this message translates to:
+  /// **'The start serial cannot be greater than the end serial'**
+  String get settingsQuestionPackFilterSerialReversed;
+
+  /// No description provided for @settingsQuestionPackFilterExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get settingsQuestionPackFilterExport;
+
+  /// No description provided for @settingsQuestionPackFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions match these filters; try widening them'**
+  String get settingsQuestionPackFilterEmpty;
+
+  /// No description provided for @settingsQuestionPackExportWarningsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export warnings'**
+  String get settingsQuestionPackExportWarningsTitle;
+
+  /// No description provided for @settingsQuestionPackPreviewCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Will create {count} question(s)'**
+  String settingsQuestionPackPreviewCreate(int count);
+
+  /// No description provided for @settingsQuestionPackPreviewSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip {count} (already in the bank, or duplicated in the package)'**
+  String settingsQuestionPackPreviewSkip(int count);
+
+  /// No description provided for @settingsQuestionPackPreviewMissingTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing {count} tag(s); those questions will import without them'**
+  String settingsQuestionPackPreviewMissingTags(int count);
+
+  /// No description provided for @settingsQuestionPackPreviewNoNew.
+  ///
+  /// In en, this message translates to:
+  /// **'The package has no new questions to import'**
+  String get settingsQuestionPackPreviewNoNew;
+
   /// No description provided for @settingsBackupNote.
   ///
   /// In en, this message translates to:

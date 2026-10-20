@@ -869,6 +869,31 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsQuestionPackInvalid": "This is not a valid .tqb file",
+  "settingsQuestionPackFilterTitle": "Export scope",
+  "settingsQuestionPackFilterSubjects": "Subjects",
+  "settingsQuestionPackFilterSources": "Source tiers",
+  "settingsQuestionPackFilterSerialRange": "Serial number range",
+  "settingsQuestionPackFilterSerialHint": "Leave blank for no limit",
+  "settingsQuestionPackFilterSerialFrom": "Start serial",
+  "settingsQuestionPackFilterSerialTo": "End serial",
+  "settingsQuestionPackFilterSerialInvalid": "Serial numbers can only contain digits",
+  "settingsQuestionPackFilterSerialReversed": "The start serial cannot be greater than the end serial",
+  "settingsQuestionPackFilterExport": "Export",
+  "settingsQuestionPackFilterEmpty": "No questions match these filters; try widening them",
+  "settingsQuestionPackExportWarningsTitle": "Export warnings",
+  "settingsQuestionPackPreviewCreate": "Will create {count} question(s)",
+  "@settingsQuestionPackPreviewCreate": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewSkip": "Skip {count} (already in the bank, or duplicated in the package)",
+  "@settingsQuestionPackPreviewSkip": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewMissingTags": "Missing {count} tag(s); those questions will import without them",
+  "@settingsQuestionPackPreviewMissingTags": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewNoNew": "The package has no new questions to import",
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
   "navAi": "Chat",
   "aiTitle": "AI chat",

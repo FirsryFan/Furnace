@@ -872,6 +872,31 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsQuestionPackInvalid": "这个文件不是有效的 .tqb",
+  "settingsQuestionPackFilterTitle": "导出范围",
+  "settingsQuestionPackFilterSubjects": "学科",
+  "settingsQuestionPackFilterSources": "来源档位",
+  "settingsQuestionPackFilterSerialRange": "题号范围",
+  "settingsQuestionPackFilterSerialHint": "留空表示不限",
+  "settingsQuestionPackFilterSerialFrom": "起始题号",
+  "settingsQuestionPackFilterSerialTo": "结束题号",
+  "settingsQuestionPackFilterSerialInvalid": "题号只能填数字",
+  "settingsQuestionPackFilterSerialReversed": "起始题号不能大于结束题号",
+  "settingsQuestionPackFilterExport": "导出",
+  "settingsQuestionPackFilterEmpty": "没有符合这些条件的题目，试试放宽筛选",
+  "settingsQuestionPackExportWarningsTitle": "导出提示",
+  "settingsQuestionPackPreviewCreate": "将新增 {count} 道题",
+  "@settingsQuestionPackPreviewCreate": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewSkip": "跳过 {count} 道（题库里已有，或包里重复）",
+  "@settingsQuestionPackPreviewSkip": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewMissingTags": "缺 {count} 个标签（相关题导入后不挂这些标签）",
+  "@settingsQuestionPackPreviewMissingTags": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackPreviewNoNew": "包里没有可以导入的新题",
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
   "navAi": "对话",
   "aiTitle": "AI 对话",

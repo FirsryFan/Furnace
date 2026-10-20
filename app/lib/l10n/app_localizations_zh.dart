@@ -1875,6 +1875,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsQuestionPackInvalid => '这个文件不是有效的 .tqb';
 
   @override
+  String get settingsQuestionPackFilterTitle => '导出范围';
+
+  @override
+  String get settingsQuestionPackFilterSubjects => '学科';
+
+  @override
+  String get settingsQuestionPackFilterSources => '来源档位';
+
+  @override
+  String get settingsQuestionPackFilterSerialRange => '题号范围';
+
+  @override
+  String get settingsQuestionPackFilterSerialHint => '留空表示不限';
+
+  @override
+  String get settingsQuestionPackFilterSerialFrom => '起始题号';
+
+  @override
+  String get settingsQuestionPackFilterSerialTo => '结束题号';
+
+  @override
+  String get settingsQuestionPackFilterSerialInvalid => '题号只能填数字';
+
+  @override
+  String get settingsQuestionPackFilterSerialReversed => '起始题号不能大于结束题号';
+
+  @override
+  String get settingsQuestionPackFilterExport => '导出';
+
+  @override
+  String get settingsQuestionPackFilterEmpty => '没有符合这些条件的题目，试试放宽筛选';
+
+  @override
+  String get settingsQuestionPackExportWarningsTitle => '导出提示';
+
+  @override
+  String settingsQuestionPackPreviewCreate(int count) {
+    return '将新增 $count 道题';
+  }
+
+  @override
+  String settingsQuestionPackPreviewSkip(int count) {
+    return '跳过 $count 道（题库里已有，或包里重复）';
+  }
+
+  @override
+  String settingsQuestionPackPreviewMissingTags(int count) {
+    return '缺 $count 个标签（相关题导入后不挂这些标签）';
+  }
+
+  @override
+  String get settingsQuestionPackPreviewNoNew => '包里没有可以导入的新题';
+
+  @override
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
 
   @override

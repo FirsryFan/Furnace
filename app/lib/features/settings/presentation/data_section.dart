@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:furnace/domain/services/package/question_pack_import_preview.dart';
+import 'package:furnace/domain/services/package/question_pack_selection.dart';
 import 'package:furnace/features/questions/application/question_pack_service.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -15,6 +17,7 @@ import '../../questions/application/learning_advice_provider.dart';
 import '../../questions/application/question_audit_reader.dart';
 import '../../questions/presentation/question_intake_providers.dart';
 import '../application/appearance_providers.dart';
+import 'question_pack_export_filter_dialog.dart';
 import 'settings_page.dart' show currentProfileProvider;
 
 /// Data section of the settings page: whole-workspace backup and restore via
@@ -325,15 +328,31 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
   Future<void> _export() async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final QuestionPackSelection? selection =
+        await showDialog<QuestionPackSelection>(
+      context: context,
+      builder: (context) => const QuestionPackExportFilterDialog(),
+    );
+    if (selection == null || !mounted) {
+      return;
+    }
     setState(() => _busy = true);
     try {
-      final result = await ref.read(questionPackServiceProvider).exportBytes();
+      final result = await ref
+          .read(questionPackServiceProvider)
+          .exportBytes(selection: selection);
       if (!mounted) {
         return;
       }
       if (result.questionCount == 0) {
         messenger.showSnackBar(
-          SnackBar(content: Text(l10n.settingsQuestionPackExportEmpty)),
+          SnackBar(
+            content: Text(
+              selection.isEmpty
+                  ? l10n.settingsQuestionPackExportEmpty
+                  : l10n.settingsQuestionPackFilterEmpty,
+            ),
+          ),
         );
         return;
       }
@@ -344,6 +363,10 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
         type: FileType.any,
       );
       if (target == null) {
+        return;
+      }
+      if (result.warnings.isNotEmpty) {
+        await _showExportWarnings(l10n, result);
         return;
       }
       messenger.showSnackBar(
@@ -391,9 +414,9 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
         return;
       }
       final service = ref.read(questionPackServiceProvider);
-      final QuestionPackPreview preview;
+      final QuestionPackImportPreview preview;
       try {
-        preview = service.peek(bytes);
+        preview = await service.planImport(bytes);
       } catch (_) {
         messenger.showSnackBar(
           SnackBar(content: Text(l10n.settingsQuestionPackInvalid)),
@@ -424,31 +447,70 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
     }
   }
 
-  /// Shows what is inside the package and asks before writing anything.
+  /// Shows what `planImport` would do and asks before writing anything.
   Future<bool?> _askImportPreview(
     AppLocalizations l10n,
-    QuestionPackPreview preview,
+    QuestionPackImportPreview preview,
   ) {
+    final theme = Theme.of(context);
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.settingsQuestionPackImport),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.settingsQuestionPackImportPreview(
-                preview.questionCount,
-                preview.mediaCount,
-              ),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsQuestionPackImportPreview(
+                    preview.recordCount,
+                    preview.mediaCount,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (preview.createCount > 0)
+                  Text(
+                    l10n.settingsQuestionPackPreviewCreate(
+                      preview.createCount,
+                    ),
+                  ),
+                if (preview.skipCount > 0)
+                  Text(
+                    l10n.settingsQuestionPackPreviewSkip(preview.skipCount),
+                  ),
+                // 有跳过但零新增时也算「没有可导入的新题」。
+                if (preview.createCount == 0)
+                  Text(l10n.settingsQuestionPackPreviewNoNew),
+                if (preview.missingTagCount > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.settingsQuestionPackPreviewMissingTags(
+                      preview.missingTagCount,
+                    ),
+                  ),
+                ],
+                if (preview.warnings.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.settingsQuestionPackWarnings(
+                      preview.warnings.length,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final warning in preview.warnings)
+                    Text(warning, style: theme.textTheme.bodySmall),
+                ],
+                const SizedBox(height: 16),
+                Text(
+                  l10n.settingsQuestionPackImportConfirm,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.settingsQuestionPackImportConfirm,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -458,6 +520,50 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(l10n.settingsQuestionPackImport),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Warnings-only dialog after a successful export (images left out, etc.).
+  Future<void> _showExportWarnings(
+    AppLocalizations l10n,
+    QuestionPackExportResult result,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackExportWarningsTitle),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.settingsQuestionPackExportDone(
+                    result.questionCount,
+                    result.mediaCount,
+                    questionPackSizeText(result.bytes.length),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.settingsQuestionPackWarnings(result.warnings.length),
+                ),
+                const SizedBox(height: 8),
+                for (final warning in result.warnings)
+                  Text(warning, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonClose),
           ),
         ],
       ),
