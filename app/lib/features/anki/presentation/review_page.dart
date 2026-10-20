@@ -15,7 +15,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../application/judge_mode_preference.dart';
 import '../application/review_advisory.dart';
+import '../application/review_reminder_service.dart';
 import '../application/review_service.dart';
+import 'review_reminder_texts.dart';
 
 /// Practice screen (blueprint 4.3; user annotations 17, 18, 19).
 ///
@@ -116,6 +118,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   /// 时插回来的就是同一个实例），按对象查会让两次出现共享一个下限。
   List<DateTime?> _floors = const [];
 
+  /// 本轮结束时是否已经重排过复习提醒（见 [_refreshReviewReminder]）。
+  bool _reminderRefreshed = false;
+
   /// 本轮被强制绑定的单元（`知识点 id:单元键`）。
   ///
   /// 头部「待清」不能只看队列快照里的 `cardState.forced`：本轮答错产生的绑定写在
@@ -187,6 +192,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       // 的绑定会由 `cardState.forced` 重新带进来）。
       _floors = List<DateTime?>.filled(queue.length, null, growable: true);
       _sessionForced.clear();
+      // 新的一轮：下一轮做完时还要再重排一次提醒。
+      _reminderRefreshed = false;
     });
   }
 
@@ -512,8 +519,33 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _shownAt = DateTime.now();
     });
     _skipGatedCards();
+    if (_queue.isNotEmpty && _index >= _queue.length) {
+      // 这一轮做完了：今天已经没有到期卡，提醒该改到明天（服务内部是
+      // cancel-then-schedule，重复调用只会换成新的那一条）。
+      _refreshReviewReminder();
+    }
     if (_scroll.hasClients) {
       _scroll.jumpTo(0);
+    }
+  }
+
+  /// 队列清空后重排一次复习提醒。
+  ///
+  /// 每轮只排一次（[_reminderRefreshed] 在 `_load` 里重置）：一轮复习结束时
+  /// 重算一次就够，连按下一张不必反复 cancel-schedule。失败只记日志——一条
+  /// 提醒排不上不该影响复习结果。
+  Future<void> _refreshReviewReminder() async {
+    if (_reminderRefreshed || !mounted) {
+      return;
+    }
+    _reminderRefreshed = true;
+    try {
+      final l10n = AppLocalizations.of(context);
+      await ref
+          .read(reviewReminderServiceProvider)
+          .refresh(texts: reviewReminderTextsFor(l10n));
+    } on Object catch (error) {
+      debugPrint('复习提醒刷新失败：$error');
     }
   }
 

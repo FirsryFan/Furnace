@@ -7,7 +7,9 @@ import '../../core/state/data_change_bus.dart';
 import '../../core/theme/app_icons.dart';
 import '../../features/ai/application/ai_providers.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
+import '../../features/anki/application/review_reminder_service.dart';
 import '../../features/anki/presentation/knowledge_page.dart';
+import '../../features/anki/presentation/review_reminder_texts.dart';
 import '../../features/settings/application/appearance_providers.dart';
 import '../../features/tags/presentation/tag_tree_page.dart';
 import '../../features/packages/presentation/packages_page.dart';
@@ -80,10 +82,20 @@ class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
   int _selectedIndex = 0;
 
+  /// 是否正在重排复习提醒：启动首帧与回到前台可能挨着触发，只跑一次。
+  bool _reminderRefreshing = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 首帧之后再排：initState 里读不到 AppLocalizations，而且通知插件的初始化
+    // 不该挡在第一帧前面。排不上不影响界面（异常在方法里吞掉）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshReviewReminder();
+      }
+    });
   }
 
   @override
@@ -100,6 +112,33 @@ class _HomeShellState extends ConsumerState<HomeShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       DataChangeBus.instance.recordChange();
+      // 到期卡数随时钟变（跨过午夜、隔天再打开），回到前台就重算一次。
+      _refreshReviewReminder();
+    }
+  }
+
+  /// 重排「什么时候提醒复习」的那条本地通知。
+  ///
+  /// 排程是 cancel-then-schedule（见 `ReviewReminderService.refresh`），重复
+  /// 调用只会把旧通知换成新的，不会叠出两条。失败只记日志：一条提醒排不上，
+  /// 不该让外壳启动失败。
+  Future<void> _refreshReviewReminder() async {
+    if (_reminderRefreshing) {
+      return;
+    }
+    _reminderRefreshing = true;
+    try {
+      if (!mounted) {
+        return;
+      }
+      final l10n = AppLocalizations.of(context);
+      await ref
+          .read(reviewReminderServiceProvider)
+          .refresh(texts: reviewReminderTextsFor(l10n));
+    } on Object catch (error) {
+      debugPrint('复习提醒刷新失败：$error');
+    } finally {
+      _reminderRefreshing = false;
     }
   }
 
