@@ -897,6 +897,20 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsQuestionPackPreviewNoNew": "包里没有可以导入的新题",
+  "settingsQuestionPackFilterTags": "标签路径",
+  "settingsQuestionPackFilterTagSelect": "选择标签路径",
+  "settingsQuestionPackFilterTagsSelected": "标签：已选 {count} 条",
+  "@settingsQuestionPackFilterTagsSelected": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackTagPickerTitle": "按标签路径筛选",
+  "settingsQuestionPackTagPickerSearch": "搜索标签路径",
+  "settingsQuestionPackTagPickerEmpty": "还没有标签，先到「标签」页建一个",
+  "settingsQuestionPackTagPickerNoMatch": "没有匹配的标签路径",
+  "settingsQuestionPackTagQuestionCount": "{count} 道",
+  "@settingsQuestionPackTagQuestionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
   "navAi": "对话",
   "aiTitle": "AI 对话",

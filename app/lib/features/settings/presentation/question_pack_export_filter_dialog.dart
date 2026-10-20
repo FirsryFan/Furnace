@@ -1,19 +1,24 @@
-/// 题库包（`.tqb`）选择性导出的筛选对话框：学科、来源档位、题号范围。
+/// 题库包（`.tqb`）选择性导出的筛选对话框：学科、来源档位、标签路径、
+/// 题号范围。
 ///
-/// 三条约束都留空就是「全部导出」。这里只负责收集条件并返回
+/// 四条约束都留空就是「全部导出」。这里只负责收集条件并返回
 /// [QuestionPackSelection]；真正的筛题、读配图、打 zip 都在 service 层，
-/// 所以本文件不读数据库、不碰文件，纯逻辑部分（题号校验、条件组装）
-/// 抽成顶层函数便于单测。
+/// 所以本文件不直接读数据库（标签路径选项由
+/// `question_pack_tag_path_picker.dart` 的 provider 提供），纯逻辑部分
+/// （题号校验、条件组装）抽成顶层函数便于单测。
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/services/package/question_pack_selection.dart';
+import '../../../domain/services/package/question_pack_tag_options.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../questions/presentation/question_paper_page.dart'
     show subjectLabelOf;
 import '../../questions/presentation/question_vocab_labels.dart';
+import 'question_pack_tag_path_picker.dart';
 
 /// 来源档位的候选顺序（与收题页/组卷页同一套六档）。
 const List<String> questionPackFilterSourceLevels = <String>[
@@ -62,16 +67,21 @@ QuestionPackSerialRangeIssue questionPackSerialRangeIssue(
   return QuestionPackSerialRangeIssue.none;
 }
 
-/// 把对话框里的选择组装成筛选条件；题号两端为空串时各自不约束。
+/// 把对话框里的选择组装成筛选条件。
+///
+/// 题号两端为空串时各自不约束；标签路径走 [selectedQuestionPackTagPaths]
+/// 归一（trim、丢空、去重），返回不可变集合。
 QuestionPackSelection questionPackSelectionFromFilter({
   Set<String> subjectKeys = const <String>{},
   Set<String> sourceLevels = const <String>{},
+  Set<String> tagPaths = const <String>{},
   String? serialFrom,
   String? serialTo,
 }) {
   return QuestionPackSelection(
     subjectKeys: Set<String>.unmodifiable(subjectKeys),
     sourceLevels: Set<String>.unmodifiable(sourceLevels),
+    tagPaths: selectedQuestionPackTagPaths(tagPaths),
     serialFrom: normalizeSerialBound(serialFrom),
     serialTo: normalizeSerialBound(serialTo),
   );
@@ -80,18 +90,19 @@ QuestionPackSelection questionPackSelectionFromFilter({
 /// 「导出范围」对话框：返回用户确认的筛选条件，取消返回 null。
 ///
 /// 默认全不选——此时点「导出」就是导出整个题库。
-class QuestionPackExportFilterDialog extends StatefulWidget {
+class QuestionPackExportFilterDialog extends ConsumerStatefulWidget {
   const QuestionPackExportFilterDialog({super.key});
 
   @override
-  State<QuestionPackExportFilterDialog> createState() =>
+  ConsumerState<QuestionPackExportFilterDialog> createState() =>
       _QuestionPackExportFilterDialogState();
 }
 
 class _QuestionPackExportFilterDialogState
-    extends State<QuestionPackExportFilterDialog> {
+    extends ConsumerState<QuestionPackExportFilterDialog> {
   final Set<String> _subjectKeys = <String>{};
   final Set<String> _sourceLevels = <String>{};
+  Set<String> _tagPaths = const <String>{};
   final TextEditingController _serialFrom = TextEditingController();
   final TextEditingController _serialTo = TextEditingController();
 
@@ -108,9 +119,26 @@ class _QuestionPackExportFilterDialogState
   QuestionPackSelection _selection() => questionPackSelectionFromFilter(
         subjectKeys: _subjectKeys,
         sourceLevels: _sourceLevels,
+        tagPaths: _tagPaths,
         serialFrom: _serialFrom.text,
         serialTo: _serialTo.text,
       );
+
+  /// Opens the tag-path picker; cancelling it keeps the previous paths.
+  Future<void> _pickTagPaths() async {
+    final Set<String>? picked = await showDialog<Set<String>>(
+      context: context,
+      builder: (_) => QuestionPackTagPathPickerDialog(
+        initialSelection: _tagPaths,
+      ),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _tagPaths = selectedQuestionPackTagPaths(picked);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +200,24 @@ class _QuestionPackExportFilterDialogState
                       }),
                     ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.settingsQuestionPackFilterTags,
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const ValueKey<String>('question-pack-filter-tag-paths'),
+                onPressed: _pickTagPaths,
+                icon: const Icon(Icons.sell_outlined, size: 18),
+                label: Text(
+                  _tagPaths.isEmpty
+                      ? l10n.settingsQuestionPackFilterTagSelect
+                      : l10n.settingsQuestionPackFilterTagsSelected(
+                          _tagPaths.length,
+                        ),
+                ),
               ),
               const SizedBox(height: 16),
               Text(

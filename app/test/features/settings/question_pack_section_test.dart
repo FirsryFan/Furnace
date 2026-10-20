@@ -539,6 +539,20 @@ void main() {
     expect(zh.settingsQuestionPackFilterEmpty, isNotEmpty);
     expect(zh.settingsQuestionPackExportWarningsTitle, isNotEmpty);
     expect(zh.settingsQuestionPackPreviewNoNew, isNotEmpty);
+    expect(zh.settingsQuestionPackFilterTags, isNotEmpty);
+    expect(zh.settingsQuestionPackFilterTagSelect, isNotEmpty);
+    expect(zh.settingsQuestionPackTagPickerTitle, isNotEmpty);
+    expect(zh.settingsQuestionPackTagPickerSearch, isNotEmpty);
+    expect(zh.settingsQuestionPackTagPickerEmpty, isNotEmpty);
+    expect(zh.settingsQuestionPackTagPickerNoMatch, isNotEmpty);
+    expect(
+      zh.settingsQuestionPackFilterTagsSelected(3),
+      allOf(contains('3'), isNot(contains('{count}'))),
+    );
+    expect(
+      zh.settingsQuestionPackTagQuestionCount(4),
+      allOf(contains('4'), isNot(contains('{count}'))),
+    );
     expect(
       zh.settingsQuestionPackPreviewCreate(7),
       allOf(contains('7'), isNot(contains('{count}'))),
@@ -571,6 +585,14 @@ void main() {
     expect(en.settingsQuestionPackFilterTitle, isNotEmpty);
     expect(en.settingsQuestionPackExportWarningsTitle, isNotEmpty);
     expect(en.settingsQuestionPackPreviewNoNew, isNotEmpty);
+    expect(en.settingsQuestionPackFilterTags, isNotEmpty);
+    expect(en.settingsQuestionPackFilterTagSelect, isNotEmpty);
+    expect(en.settingsQuestionPackTagPickerTitle, isNotEmpty);
+    expect(en.settingsQuestionPackTagPickerSearch, isNotEmpty);
+    expect(en.settingsQuestionPackTagPickerEmpty, isNotEmpty);
+    expect(en.settingsQuestionPackTagPickerNoMatch, isNotEmpty);
+    expect(en.settingsQuestionPackFilterTagsSelected(3), contains('3'));
+    expect(en.settingsQuestionPackTagQuestionCount(4), contains('4'));
     expect(en.settingsQuestionPackPreviewCreate(7), contains('7'));
     expect(en.settingsQuestionPackPreviewSkip(8), contains('8'));
     expect(en.settingsQuestionPackPreviewMissingTags(9), contains('9'));

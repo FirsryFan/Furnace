@@ -2,18 +2,53 @@
 /// 题号校验、条件组装（空集=不约束）、取消返回 null、勾选与输入原样带回。
 library;
 
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:furnace/data/database/app_database_provider.dart';
+import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/package/question_pack_selection.dart';
 import 'package:furnace/features/settings/presentation/question_pack_export_filter_dialog.dart';
+import 'package:furnace/features/settings/presentation/question_pack_tag_path_picker.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 void main() {
   late AppLocalizations zh;
+  late AppDatabase db;
 
   setUpAll(() async {
     zh = await AppLocalizations.delegate.load(const Locale('zh'));
   });
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  /// One tag row, plus [questions] pretend question links on it.
+  Future<void> seedTag(String id, String path, {int questions = 0}) async {
+    await db.into(db.tags).insert(TagsCompanion.insert(
+          id: id,
+          name: path,
+          path: Value(path),
+          createdAt: 0,
+          updatedAt: 0,
+        ));
+    for (var index = 0; index < questions; index++) {
+      await db.into(db.objectTags).insert(ObjectTagsCompanion.insert(
+            id: 'obj-$id-$index',
+            tagId: id,
+            objectType: 'question',
+            objectId: 'question-$id-$index',
+            createdAt: 0,
+          ));
+    }
+  }
 
   group('questionPackSerialRangeIssue', () {
     test('两端留空/未填都算不限', () {
@@ -130,6 +165,18 @@ void main() {
         throwsUnsupportedError,
       );
     });
+
+    test('标签路径原样组装并归一（trim/丢空/去重/不可变）', () {
+      final QuestionPackSelection selection = questionPackSelectionFromFilter(
+        tagPaths: <String>{' 数学/函数 ', '数学/函数', '', '  '},
+      );
+      expect(selection.tagPaths, unorderedEquals(<String>{'数学/函数'}));
+      expect(selection.isEmpty, isFalse);
+      expect(
+        () => selection.tagPaths.add('数学/数列'),
+        throwsUnsupportedError,
+      );
+    });
   });
 
   test('来源档位候选覆盖六档且顺序稳定', () {
@@ -159,20 +206,25 @@ void main() {
 
       return () async {
         await tester.pumpWidget(
-          MaterialApp(
-            locale: const Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: Builder(
-                builder: (BuildContext context) => TextButton(
-                  onPressed: () async {
-                    result = await showDialog<QuestionPackSelection>(
-                      context: context,
-                      builder: (_) => const QuestionPackExportFilterDialog(),
-                    );
-                  },
-                  child: const Text('open'),
+          ProviderScope(
+            overrides: <Override>[
+              appDatabaseProvider.overrideWithValue(db),
+            ],
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: Builder(
+                  builder: (BuildContext context) => TextButton(
+                    onPressed: () async {
+                      result = await showDialog<QuestionPackSelection>(
+                        context: context,
+                        builder: (_) => const QuestionPackExportFilterDialog(),
+                      );
+                    },
+                    child: const Text('open'),
+                  ),
                 ),
               ),
             ),
@@ -231,6 +283,60 @@ void main() {
       expect(result!.subjectKeys, unorderedEquals(<String>{'math'}));
       expect(result.serialFrom, 7);
       expect(result.serialTo, 21);
+    });
+
+    testWidgets('标签路径：选择器确认后按钮显示计数并随导出带回', (tester) async {
+      await seedTag('t-math', '数学', questions: 2);
+      await seedTag('t-english', '英语');
+      final read = pumpDialog(tester);
+      await read();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('question-pack-filter-tag-paths')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('数学 · 2 道'), findsOneWidget);
+      await tester.tap(find.text('数学 · 2 道'));
+      await tester.pump();
+      await tester.tap(find.byKey(questionPackTagPickerConfirmKey));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(zh.settingsQuestionPackFilterTagsSelected(1)),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, zh.settingsQuestionPackFilterExport),
+      );
+      await tester.pumpAndSettle();
+      final QuestionPackSelection? result = await read();
+      expect(result, isNotNull);
+      expect(result!.tagPaths, unorderedEquals(<String>{'数学'}));
+    });
+
+    testWidgets('标签路径：取消选择器保留原来的选择', (tester) async {
+      await seedTag('t-math', '数学');
+      final read = pumpDialog(tester);
+      await read();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('question-pack-filter-tag-paths')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(questionPackTagPickerCancelKey));
+      await tester.pumpAndSettle();
+
+      expect(find.text(zh.settingsQuestionPackFilterTagSelect), findsOneWidget);
+
+      await tester.tap(
+        find.widgetWithText(FilledButton, zh.settingsQuestionPackFilterExport),
+      );
+      await tester.pumpAndSettle();
+      final QuestionPackSelection? result = await read();
+      expect(result, isNotNull);
+      expect(result!.tagPaths, isEmpty);
     });
   });
 }

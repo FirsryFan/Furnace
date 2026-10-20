@@ -1927,6 +1927,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsQuestionPackPreviewNoNew => '包里没有可以导入的新题';
+  @override
+  String get settingsQuestionPackFilterTags => '标签路径';
+
+  @override
+  String get settingsQuestionPackFilterTagSelect => '选择标签路径';
+
+  @override
+  String settingsQuestionPackFilterTagsSelected(int count) {
+    return '标签：已选 $count 条';
+  }
+
+  @override
+  String get settingsQuestionPackTagPickerTitle => '按标签路径筛选';
+
+  @override
+  String get settingsQuestionPackTagPickerSearch => '搜索标签路径';
+
+  @override
+  String get settingsQuestionPackTagPickerEmpty => '还没有标签，先到「标签」页建一个';
+
+  @override
+  String get settingsQuestionPackTagPickerNoMatch => '没有匹配的标签路径';
+
+  @override
+  String settingsQuestionPackTagQuestionCount(int count) {
+    return '$count 道';
+  }
 
   @override
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';

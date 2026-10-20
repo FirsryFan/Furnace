@@ -3530,6 +3530,53 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The package has no new questions to import'**
   String get settingsQuestionPackPreviewNoNew;
+  /// No description provided for @settingsQuestionPackFilterTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag paths'**
+  String get settingsQuestionPackFilterTags;
+
+  /// No description provided for @settingsQuestionPackFilterTagSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select tag paths'**
+  String get settingsQuestionPackFilterTagSelect;
+
+  /// No description provided for @settingsQuestionPackFilterTagsSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag paths: {count} selected'**
+  String settingsQuestionPackFilterTagsSelected(int count);
+
+  /// No description provided for @settingsQuestionPackTagPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by tag path'**
+  String get settingsQuestionPackTagPickerTitle;
+
+  /// No description provided for @settingsQuestionPackTagPickerSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tag paths'**
+  String get settingsQuestionPackTagPickerSearch;
+
+  /// No description provided for @settingsQuestionPackTagPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet. Create one on the Tags page first.'**
+  String get settingsQuestionPackTagPickerEmpty;
+
+  /// No description provided for @settingsQuestionPackTagPickerNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tag paths'**
+  String get settingsQuestionPackTagPickerNoMatch;
+
+  /// No description provided for @settingsQuestionPackTagQuestionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} question(s)'**
+  String settingsQuestionPackTagQuestionCount(int count);
 
   /// No description provided for @settingsBackupNote.
   ///

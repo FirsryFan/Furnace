@@ -2013,6 +2013,34 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsQuestionPackPreviewNoNew =>
       'The package has no new questions to import';
+  @override
+  String get settingsQuestionPackFilterTags => 'Tag paths';
+
+  @override
+  String get settingsQuestionPackFilterTagSelect => 'Select tag paths';
+
+  @override
+  String settingsQuestionPackFilterTagsSelected(int count) {
+    return 'Tag paths: $count selected';
+  }
+
+  @override
+  String get settingsQuestionPackTagPickerTitle => 'Filter by tag path';
+
+  @override
+  String get settingsQuestionPackTagPickerSearch => 'Search tag paths';
+
+  @override
+  String get settingsQuestionPackTagPickerEmpty =>
+      'No tags yet. Create one on the Tags page first.';
+
+  @override
+  String get settingsQuestionPackTagPickerNoMatch => 'No matching tag paths';
+
+  @override
+  String settingsQuestionPackTagQuestionCount(int count) {
+    return '$count question(s)';
+  }
 
   @override
   String get settingsBackupNote =>

@@ -894,6 +894,20 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsQuestionPackPreviewNoNew": "The package has no new questions to import",
+  "settingsQuestionPackFilterTags": "Tag paths",
+  "settingsQuestionPackFilterTagSelect": "Select tag paths",
+  "settingsQuestionPackFilterTagsSelected": "Tag paths: {count} selected",
+  "@settingsQuestionPackFilterTagsSelected": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackTagPickerTitle": "Filter by tag path",
+  "settingsQuestionPackTagPickerSearch": "Search tag paths",
+  "settingsQuestionPackTagPickerEmpty": "No tags yet. Create one on the Tags page first.",
+  "settingsQuestionPackTagPickerNoMatch": "No matching tag paths",
+  "settingsQuestionPackTagQuestionCount": "{count} question(s)",
+  "@settingsQuestionPackTagQuestionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
   "navAi": "Chat",
   "aiTitle": "AI chat",
