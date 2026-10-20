@@ -348,8 +348,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   每条「复制检索词 / 打开搜索页」，表头常驻「先切学科」提示；打开搜索页 = 复制 URL（不新增 url_launcher）。
   验收：`flutter test test/features/questions/presentation` → +133 通过（详情页 22 例含剪贴板断言）。
   真机剪贴板与浏览器粘贴**未手测**（未验证）。
-- 未做：题库无 bankId/questionId/sourceUrl 字段，详情/试卷链接暂用不上；候选质量受"领域词表只有生物"限制；
-  没有"我是否已在组卷网找到这道题"的记录。
+- 已做（task-65，v26）：`questions` 加 `sourceUrl` / `zujuanQuestionId` / `zujuanBankId`，粘贴入库时写详情页链接。
+- 未做：题源 URL 还没有"点回去 / 复制原题链接"的界面入口（详情页只显示来源文字）；候选质量受
+  "领域词表只有生物"限制；没有"我是否已在组卷网找到这道题"的记录。
 
 ## 14. 读题工具与组卷手工指定/排除（轮次一百二十五）
 
@@ -427,7 +428,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 - 应用层：`HandwritingProposalService.questionDraftForIntake(proposal)`（只装配 `QuestionDraft` 不写库，
   供「带到收题页编辑」）与 `_applyQuestion`（确认后 ingest；重复题干返回既有题号且不重复入库；
   tag_path 不存在题照建只提示；`markAppliedLocally` 供手动入库后只标已确认）。
-- 未做（在途 task-70）：队列卡片还没有「编辑题目字段 + 带到收题页」的入口。
+- 已做（task-70，轮次一百二十八）：队列卡片上题目提案有「编辑后保存」入口——应用层
+  `questionDraftForIntake(proposal)` 只装配 `QuestionDraft` 不写库，页面把草稿带到收题页校对后再入库
+  （`handwriting_queue_page.dart:496` 起）；其它三类产物确认即入库，没有这个入口。
 
 ### 15.3 确认前预检（用户说的「确认逻辑有待提升」）
 
@@ -439,8 +442,9 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   警告；题干空 → blocked。
 - 应用层：`HandwritingProposalService.previewFor(set)` 读库里现有标签路径与知识点标题后判定（只读），
   `HandwritingQueueNotifier.previewFor(relPath)` 供页面调用。42 例域层单测 + 4 例应用层单测。
-- 未做（在途 task-74）：卡片还没把 previewLines / warnings / blockers 渲染到确认按钮前，
-  blocked 条也还没禁勾选。
+- 已做（task-74，轮次一百二十八）：卡片把 `previewLines` / `warnings` / `blockers` 渲染在确认按钮前，
+  blocked 时整批「全部确认」按钮禁用（`handwriting_queue_page.dart:337/409/684` 起）；实测 42 例域层 +
+  4 例应用层 + widget 测试。
 
 ### 15.4 标签树同层三种排序
 
@@ -449,8 +453,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   偏好编解码 `tagTreeSortModeFromStorage/ToStorage`）。
 - 计数数据源：`TagRepository.objectCountByTagId({includeDescendants=false, Set<String>? objectTypes})`
   ——默认只算直接挂在标签上的对象，子树累计要显式打开。
-- 未做（在途 task-73）：页面仍是写死 `name.compareTo`，排序选择器与内容量角标未接。
-  完整口径见 `docs/TAG_TREE_SORT_DESIGN.md`。
+- 已做（task-73，轮次一百二十八）：页面顶部 `PopupMenuButton<TagTreeSortMode>` 选三种排序，偏好存在
+  `tagTreeSortModeProvider`（会话内，`tagTreeSortModeToStorage/FromStorage` 可编码持久化但还没写盘）；
+  每层用 `sortTagTreeSiblings`，内容量角标走 `objectCountByTagId`。完整口径见 `docs/TAG_TREE_SORT_DESIGN.md`。
+- 未做：排序偏好没有持久化到磁盘（重启回到字典序）。
 
 
 

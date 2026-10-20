@@ -45,6 +45,8 @@ FilePicker / store，不碰真实磁盘），详情页 22 例回归。
 **门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。全量
 `flutter test --concurrency=1` → **+4088 ~2 All tests passed**（9 分 04 秒，日志 `E:\dsh-tmp-aot\test-129-full.txt`，EXIT=0）。`dart format` 只格式化本轮改动文件。
 
+**docs 回填**：核对代码后，把 `QUESTION_BANK_DESIGN.md` 里三处过时的「未做（在途 task-70 / 74 / 73）」改成已交口径（编辑后带到收题页、预检结论渲染 + blocked 禁确认、排序选择器与内容量角标），§13 未做清单里「题库无 sourceUrl 字段」改为 v26 已加字段、只缺界面入口。
+
 **未做 / 未验证**：真机系统文件选择器（Windows 对话框 / Android 选择器）与真实磁盘增删未手测；
 组卷网粘贴仍未用真实页面原文跑（样本按 skill 文档结构改写）；内联选项抽取已知限制：题面与选项
 同一行且首标记不在行首不抽、`（A）` 括号样式不认、`A．甲、B．乙` 无空白不认；详细文案仍中文
