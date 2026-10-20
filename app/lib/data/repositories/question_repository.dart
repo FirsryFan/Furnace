@@ -46,6 +46,12 @@ String normalizeStem(String stem) => stem
     )
     .toLowerCase();
 
+/// 空串 / 全空白归一成 null（题源链接「清空这一列」的约定）。
+String? _blankToNull(String raw) {
+  final trimmed = raw.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
 /// 一条待入库的选项。
 class QuestionOptionDraft {
   const QuestionOptionDraft({
@@ -468,6 +474,35 @@ class QuestionRepository {
         updatedAt: Value(ms),
       ),
     );
+  }
+
+  /// 改**题源链接**（原题 URL / 组卷网题目 id / 组卷网试卷 id）。
+  ///
+  /// 与 [updateSource] 分开的理由：来源分级是封闭词表、写错会弄歪排序；链接是
+  /// 用户粘贴或入库带来的外部字符串，只需要归一空白、不参与排序。
+  ///
+  /// 约定：`null` = 这一列不动；空串或全空白 = 把这一列清空（写回 null）。
+  /// 返回是否真的改到了行（不存在的 id 返回 false，不抛）。
+  Future<bool> updateSourceLinks(
+    String id, {
+    String? sourceUrl,
+    String? zujuanQuestionId,
+    String? zujuanBankId,
+    DateTime? now,
+  }) async {
+    final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    Value<String?> linkValue(String? raw) =>
+        raw == null ? const Value.absent() : Value(_blankToNull(raw));
+    final updated =
+        await (_db.update(_db.questions)..where((t) => t.id.equals(id))).write(
+      QuestionsCompanion(
+        sourceUrl: linkValue(sourceUrl),
+        zujuanQuestionId: linkValue(zujuanQuestionId),
+        zujuanBankId: linkValue(zujuanBankId),
+        updatedAt: Value(ms),
+      ),
+    );
+    return updated > 0;
   }
 
   /// 删除题目并显式清理它的一切（本项目没有外键，级联不会自己发生）。
