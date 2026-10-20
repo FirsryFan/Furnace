@@ -127,14 +127,20 @@ presentation 侧用 `export` 保住了原来的 import 路径。
   `handwriting_queue_page.dart`；`refresh()` 现在还会从库里把整理结果读回来。
 - **OCR 质量取决于模型**：解析严格意味着模型跑偏时用户看到的是"回复不符合契约"+原文，
   而不是一份残缺提案——这是有意的。
-- **题目卡片的编辑入口还没接**（task-70，进行中）：`questionDraftForIntake` 已能装配草稿，
-  队列卡片上点"改一下再存"回填收题页表单、保存后 `markAppliedLocally` 标已确认——UI 与
-  l10n 由 question-intake 接力。
-- **确认前的预检：后端已通、UI 待接**。预检纯逻辑在 `handwriting_proposal_preview.dart`
-  （42 例单测），应用层已把"库里现在有什么"读出来接上：
-  `HandwritingProposalService.previewFor(set)` 与 `HandwritingQueueNotifier.previewFor(relPath)`
-  （队列里没有这批提案返回 `null`）。队列卡片还没把 `previewLines` / `verdict` / `blockers`
-  摆到确认按钮前，blocked 条也还没禁勾选——这部分是 task-70/task-74 的 UI 工作。
+- **题目卡片的编辑入口已接**（task-70，轮次一百二十八，question-intake）：队列卡片对
+  `kind == question` 展开题干/选项/答案/解析摘要（超长截断），右下「编辑后保存」按钮
+  （`key = handwriting-question-edit-<id>`，已确认/写库中禁用）；点它先用
+  `questionDraftForIntake` 装配草稿（题干空不给入口，只提示重拍或手填），再 push
+  `QuestionIntakePage(initialDraft/initialRelPath/initialProposalId)` 回填表单；保存成功后
+  调 `markAppliedLocally` 把这批提案标为已确认（失败只 debugPrint 不阻断写库），SnackBar
+  显示题号（无号说「未编号」）。收题页同时补了多选题型与草稿回填（选项按草稿重建）。
+- **确认前的预检已接（task-74，轮次一百二十八，question-intake）**：预检纯逻辑在
+  `handwriting_proposal_preview.dart`（42 例单测），应用层 `HandwritingProposalService.previewFor(set)`
+  与 `HandwritingQueueNotifier.previewFor(relPath)`（队列里没有这批提案返回 `null`）读出库里现有
+  标签路径与知识点标题后判定。队列页按「relPath + proposal ids」签名缓存预检，切照片或提案变化
+  才重算；卡片 `_ProposalPreviewBlock` 渲染 `previewLines`，needsReview 高亮 warnings（tertiary），
+  blocked 显示 blockers（error）并禁用该条「确认」；整批 `hasBlocked` 时禁用「全部确认」并显示
+  ready/needsReview/blocked 计数。预检失败只 debugPrint，退回「无预检」旧行为不崩。
 
 ## 5. 验收记录
 
@@ -163,3 +169,18 @@ presentation 侧用 `export` 保住了原来的 import 路径。
 - `flutter test test/features/questions/application/handwriting_proposal_service_test.dart --concurrency=1`
   → `+29 All tests passed`；`dart analyze` 该文件 `No issues found`。
 - 提交 `a004aca`："feat(intake): 拍照整理出「题目」——第四类产物可确认入库"。
+
+2026-10-21（轮次一百二十八收尾：队列编辑入库 + 确认前预检 UI）：
+
+- task-70（question-intake）队列题目卡片可编辑再入库：`handwriting_queue_page_test` 新增 4 例
+  （卡片展开题干/选项/答案/解析摘要、点编辑只预填不写库、入库后题库 1 行且 SnackBar 带 TR-00001、
+  返回队列变已确认且编辑按钮禁用、空题干无编辑入口），`flutter test test/features/questions/presentation`
+  → `+276 All tests passed`。
+- task-74（question-intake）确认前预检 UI：`handwriting_queue_page_test` 再新增 3 例（三种结论展示 +
+  blocked 单条禁点后不写库 + 整批全部确认禁用、无 blocked 时全确认一次写入、切照片重算预检），
+  同目录 `+279 All tests passed`；应用层 `previewFor` 的 4 例单测见 `handwriting_proposal_service_test`。
+- 各切片 `dart analyze` 作用域 `No issues found`；`dart analyze lib test` 保持 92 issues / 0 error /
+  0 warning；`dart format` 只格式化改动文件。
+- 未验证：真机整条链路（拍照 → 整理 → 编辑 → 入库 → 队列已确认）、预检失败降级路径的 widget 测试、
+  英文文案母语校对；真实模型回复仍用样例 JSON 模拟。
+

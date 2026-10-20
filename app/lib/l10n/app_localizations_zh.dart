@@ -3899,6 +3899,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get handwritingQuestionSavedUnnumbered => '已入库（未编号，拍照整理已标记为确认）';
 
   @override
+  String get handwritingQueuePreviewLoading => '正在预检…';
+
+  @override
+  String get handwritingQueuePreviewNeedsReview => '确认前看一眼';
+
+  @override
+  String get handwritingQueuePreviewBlocked => '不能确认';
+
+  @override
+  String handwritingQueuePreviewBlockedSummary(
+    int ready,
+    int needsReview,
+    int blocked,
+  ) {
+    return '$ready 条能确认、$needsReview 条要先看一眼、$blocked 条不能确认';
+  }
+
+  @override
   String get questionPaperDifficultyLabel => '目标难度';
 
   @override

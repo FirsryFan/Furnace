@@ -6923,6 +6923,34 @@ abstract class AppLocalizations {
   /// **'Saved (unnumbered; handwriting item marked as confirmed)'**
   String get handwritingQuestionSavedUnnumbered;
 
+  /// No description provided for @handwritingQueuePreviewLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking what will happen…'**
+  String get handwritingQueuePreviewLoading;
+
+  /// No description provided for @handwritingQueuePreviewNeedsReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review before confirming'**
+  String get handwritingQueuePreviewNeedsReview;
+
+  /// No description provided for @handwritingQueuePreviewBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot confirm'**
+  String get handwritingQueuePreviewBlocked;
+
+  /// No description provided for @handwritingQueuePreviewBlockedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{ready} ready, {needsReview} to review, {blocked} blocked'**
+  String handwritingQueuePreviewBlockedSummary(
+    int ready,
+    int needsReview,
+    int blocked,
+  );
+
   /// No description provided for @questionPaperDifficultyLabel.
   ///
   /// In en, this message translates to:

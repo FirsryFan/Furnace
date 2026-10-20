@@ -311,8 +311,12 @@ void main() {
     await waitForText(tester, zh.handwritingQueueReportSummary(1, 1));
 
     // 成功的那条给出人话说明；失败的那条如实说标签树里没有父路径。
-    expect(find.textContaining('新建标签'), findsOneWidget);
-    expect(find.textContaining('标签树里没有'), findsOneWidget);
+    // 预检区也会提到这两件事，所以这里用精确文案，不跟预检的提示混在一起。
+    expect(find.text('新建标签「文化课/物理/力学/动量守恒」'), findsOneWidget);
+    expect(
+      find.text('标签树里没有 `不存在的/路径`，先建这一层（或改挂别处）再确认'),
+      findsOneWidget,
+    );
     // 失败的条目没有被记成"已确认"，还能再试。
     expect(find.text(zh.handwritingProposalApplied), findsOneWidget);
     expect(find.text(zh.handwritingProposalApply), findsOneWidget);
@@ -485,6 +489,186 @@ void main() {
     expect(find.text('题目'), findsOneWidget);
     expect(find.text(zh.handwritingQuestionMissingStem), findsOneWidget);
     expect(find.text(zh.handwritingQuestionEditForIntake), findsNothing);
+  });
+
+  testWidgets('预检三种结论：ready 不提示、needsReview 高亮、blocked 禁止确认且整批不能全确认',
+      (tester) async {
+    final relPath = await seedPhoto();
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final seeded = HandwritingQueueState(
+      images: images,
+      sets: <String, HandwritingProposalSet>{
+        relPath: HandwritingProposalSet(
+          sourceRef: relPath,
+          proposals: const <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'tag-ready',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '动量守恒',
+              fields: <String, String>{'parent_path': '文化课/物理/力学'},
+            ),
+            HandwritingProposal(
+              id: 'point-review',
+              kind: HandwritingProposalKind.knowledgePoint,
+              titleZh: '动量守恒的条件',
+              fields: <String, String>{'content': ''},
+            ),
+            HandwritingProposal(
+              id: 'tag-blocked',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '量子纠缠',
+              fields: <String, String>{'parent_path': '不存在的/路径'},
+            ),
+          ],
+        ),
+      },
+    );
+    await pumpQueue(
+      tester,
+      initialRelPath: relPath,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    // ready：只给目标路径，没有额外高亮提示。
+    expect(find.text('目标路径：文化课/物理/力学/动量守恒'), findsOneWidget);
+    // needsReview：结论 + 具体 warning。
+    expect(find.text(zh.handwritingQueuePreviewNeedsReview), findsOneWidget);
+    expect(find.textContaining('知识点正文为空'), findsOneWidget);
+    // blocked：结论 + 具体 blocker + 整批总说明。
+    expect(find.text(zh.handwritingQueuePreviewBlocked), findsOneWidget);
+    expect(find.textContaining('标签树里没有'), findsOneWidget);
+    expect(
+      find.text(zh.handwritingQueuePreviewBlockedSummary(1, 1, 1)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(handwritingProposalPreviewKey('tag-blocked')),
+      findsOneWidget,
+    );
+
+    // 整批有 blocked → 全部确认禁用；单条 blocked 禁用，ready 仍可确认。
+    final applyAll = tester.widget<FilledButton>(
+      find.byKey(handwritingQueueApplyAllKey),
+    );
+    expect(applyAll.onPressed, isNull);
+    final blockedApply = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('tag-blocked')),
+    );
+    expect(blockedApply.onPressed, isNull);
+    final readyApply = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('tag-ready')),
+    );
+    expect(readyApply.onPressed, isNotNull);
+
+    // 点不能确认的那条：什么都不写（标签只有父路径那 3 个）。
+    await tester.tap(
+      find.byKey(handwritingProposalApplyKey('tag-blocked')),
+      warnIfMissed: false,
+    );
+    await settle(tester);
+    expect(await tags.getAllTags(), hasLength(3));
+    expect(await anki.getKnowledgePoints(), isEmpty);
+  });
+
+  testWidgets('没有不能确认的条目：全部确认可用并能一次写入', (tester) async {
+    final relPath = await seedPhoto();
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final seeded = HandwritingQueueState(
+      images: images,
+      sets: <String, HandwritingProposalSet>{
+        relPath: HandwritingProposalSet(
+          sourceRef: relPath,
+          proposals: const <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'tag-ready',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '动量守恒',
+              fields: <String, String>{'parent_path': '文化课/物理/力学'},
+            ),
+            HandwritingProposal(
+              id: 'point-review',
+              kind: HandwritingProposalKind.knowledgePoint,
+              titleZh: '动量守恒的条件',
+              fields: <String, String>{'content': ''},
+            ),
+          ],
+        ),
+      },
+    );
+    await pumpQueue(
+      tester,
+      initialRelPath: relPath,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    expect(find.text(zh.handwritingQueuePreviewBlocked), findsNothing);
+    expect(find.textContaining('条不能确认'), findsNothing);
+    final applyAll = tester.widget<FilledButton>(
+      find.byKey(handwritingQueueApplyAllKey),
+    );
+    expect(applyAll.onPressed, isNotNull);
+
+    await tester.tap(find.byKey(handwritingQueueApplyAllKey));
+    await waitForText(tester, zh.handwritingQueueReportSummary(2, 0));
+    expect(await tags.getAllTags(), hasLength(4));
+    expect(await anki.getKnowledgePoints(), hasLength(1));
+  });
+
+  testWidgets('切换照片后重算预检：上一张的结论不再显示', (tester) async {
+    final first = await seedPhoto('first.png');
+    final second = await seedPhoto('second.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final seeded = HandwritingQueueState(
+      images: images,
+      sets: <String, HandwritingProposalSet>{
+        first: HandwritingProposalSet(
+          sourceRef: first,
+          proposals: const <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'tag-first',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '动量守恒',
+              fields: <String, String>{'parent_path': '文化课/物理/力学'},
+            ),
+          ],
+        ),
+        second: HandwritingProposalSet(
+          sourceRef: second,
+          proposals: const <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'tag-second',
+              kind: HandwritingProposalKind.tag,
+              titleZh: '机械能守恒',
+              fields: <String, String>{'parent_path': '文化课/物理/力学'},
+            ),
+          ],
+        ),
+      },
+    );
+    await pumpQueue(
+      tester,
+      initialRelPath: first,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'second.png'));
+    await waitForText(tester, '会新建标签「机械能守恒」');
+    expect(find.text('会新建标签「动量守恒」'), findsNothing);
   });
 }
 

@@ -4073,6 +4073,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Saved (unnumbered; handwriting item marked as confirmed)';
 
   @override
+  String get handwritingQueuePreviewLoading => 'Checking what will happen…';
+
+  @override
+  String get handwritingQueuePreviewNeedsReview => 'Review before confirming';
+
+  @override
+  String get handwritingQueuePreviewBlocked => 'Cannot confirm';
+
+  @override
+  String handwritingQueuePreviewBlockedSummary(
+    int ready,
+    int needsReview,
+    int blocked,
+  ) {
+    return '$ready ready, $needsReview to review, $blocked blocked';
+  }
+
+  @override
   String get questionPaperDifficultyLabel => 'Target difficulty';
 
   @override

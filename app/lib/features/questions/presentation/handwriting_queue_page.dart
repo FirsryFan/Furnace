@@ -18,11 +18,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/services/intake/handwriting_proposal_preview.dart';
 import '../../../domain/services/intake/handwriting_proposals.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/handwriting_proposal_service.dart';
 import '../data/handwriting_intake_store.dart';
 import 'question_intake_page.dart';
+
+/// 「全部确认」按钮：整批里有一条不能确认时它必须是禁用的。
+const Key handwritingQueueApplyAllKey = Key('handwriting-queue-apply-all');
+
+/// 某条提案的「确认」按钮（被预检阻断时禁用）。
+Key handwritingProposalApplyKey(String proposalId) =>
+    ValueKey<String>('handwriting-proposal-apply-$proposalId');
+
+/// 某条提案的预检结论块（会写到哪 / 要看一眼什么 / 为什么不能确认）。
+Key handwritingProposalPreviewKey(String proposalId) =>
+    ValueKey<String>('handwriting-proposal-preview-$proposalId');
 
 /// 待确认队列页。
 ///
@@ -203,27 +215,126 @@ class _PhotoStrip extends StatelessWidget {
 }
 
 /// 选中照片的整理面板：整理按钮、失败面、提案列表、确认与汇总。
-class _SelectedPhotoPanel extends ConsumerWidget {
+class _SelectedPhotoPanel extends ConsumerStatefulWidget {
   const _SelectedPhotoPanel({required this.image, required this.queue});
 
   final PendingHandwritingImage image;
   final HandwritingQueueState queue;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SelectedPhotoPanel> createState() =>
+      _SelectedPhotoPanelState();
+}
+
+class _SelectedPhotoPanelState extends ConsumerState<_SelectedPhotoPanel> {
+  /// 这一批提案确认前的预检结果（只读）。加载中或失败时为 null。
+  HandwritingIntakePreview? _preview;
+  bool _previewLoading = false;
+
+  /// 触发预检的输入签名：照片路径 + 这一批提案的 id 序列。
+  String? _previewSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadPreviewIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SelectedPhotoPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _reloadPreviewIfNeeded();
+  }
+
+  /// 失败时不拿旧提案出来显示：这次没整理成功，就不该看到上次的结果。
+  HandwritingProposalSet? _setOf(HandwritingQueueState queue, String relPath) {
+    if (queue.failures[relPath] != null) {
+      return null;
+    }
+    return queue.sets[relPath];
+  }
+
+  String _signatureOf(HandwritingQueueState queue, String relPath) {
+    final set = _setOf(queue, relPath);
+    final ids = set == null
+        ? 'none'
+        : set.proposals.map((proposal) => proposal.id).join(',');
+    return '$relPath#$ids';
+  }
+
+  /// 照片/提案变了才重算；没变就沿用上一次结果，避免每帧读库。
+  void _reloadPreviewIfNeeded() {
+    final relPath = widget.image.relPath;
+    final signature = _signatureOf(widget.queue, relPath);
+    if (signature == _previewSignature) {
+      return;
+    }
+    _previewSignature = signature;
+    _preview = null;
+    _previewLoading = _setOf(widget.queue, relPath) != null;
+    if (!_previewLoading) {
+      return;
+    }
+    final future =
+        ref.read(handwritingQueueProvider.notifier).previewFor(relPath);
+    future.then(
+      (value) {
+        if (!mounted || _previewSignature != signature) {
+          return;
+        }
+        setState(() {
+          _preview = value;
+          _previewLoading = false;
+        });
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (!mounted || _previewSignature != signature) {
+          return;
+        }
+        debugPrint('确认前预检失败（界面按无预检降级）：$error');
+        setState(() {
+          _preview = null;
+          _previewLoading = false;
+        });
+      },
+    );
+  }
+
+  HandwritingProposalPreview? _previewOf(
+    HandwritingIntakePreview? previews,
+    String proposalId,
+  ) {
+    if (previews == null) {
+      return null;
+    }
+    for (final preview in previews.previews) {
+      if (preview.proposalId == proposalId) {
+        return preview;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final queue = widget.queue;
+    final image = widget.image;
     final notifier = ref.read(handwritingQueueProvider.notifier);
     final relPath = image.relPath;
 
     final analyzing = queue.analyzing.contains(relPath);
     final applying = queue.applying.contains(relPath);
     final failure = queue.failures[relPath];
-    // 失败时不拿旧提案出来显示：这次没整理成功，就不该看到上次的结果。
-    final set = failure == null ? queue.sets[relPath] : null;
+    final set = _setOf(queue, relPath);
     final report =
         queue.lastReport?.sourceRef == relPath ? queue.lastReport : null;
     final remaining = set != null && _hasRemaining(queue, relPath, set);
+    final previews = _preview;
+    // 预检说这一批里有一条不能确认：整批确认一起禁用。
+    final blockedBatch = previews?.hasBlocked ?? false;
 
     return Card(
       child: Padding(
@@ -294,7 +405,8 @@ class _SelectedPhotoPanel extends ConsumerWidget {
                       ),
                     ),
                     FilledButton.tonalIcon(
-                      onPressed: (applying || !remaining)
+                      key: handwritingQueueApplyAllKey,
+                      onPressed: (applying || !remaining || blockedBatch)
                           ? null
                           : () => notifier.applyAll(relPath),
                       icon: const Icon(Icons.done_all),
@@ -306,9 +418,45 @@ class _SelectedPhotoPanel extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (_previewLoading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            l10n.handwritingQueuePreviewLoading,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (previews != null && previews.hasBlocked)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      l10n.handwritingQueuePreviewBlockedSummary(
+                        previews.readyCount,
+                        previews.needsReviewCount,
+                        previews.blockedCount,
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 for (final proposal in set.proposals)
                   _ProposalCard(
                     proposal: proposal,
+                    preview: _previewOf(previews, proposal.id),
                     applied: queue.isApplied(relPath, proposal.id),
                     applying: applying,
                     outcome: _outcomeOf(report, proposal.id),
@@ -420,9 +568,13 @@ class _ProposalCard extends StatelessWidget {
     required this.outcome,
     required this.onApply,
     this.onEditForIntake,
+    this.preview,
   });
 
   final HandwritingProposal proposal;
+
+  /// 这条提案的确认前预检；未加载/加载失败时为 null（按旧行为显示）。
+  final HandwritingProposalPreview? preview;
   final bool applied;
   final bool applying;
   final HandwritingApplyOutcome? outcome;
@@ -461,6 +613,7 @@ class _ProposalCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (preview != null) _ProposalPreviewBlock(preview: preview!),
             if (proposal.kind == HandwritingProposalKind.question)
               _QuestionProposalDetails(
                 proposal: proposal,
@@ -506,7 +659,11 @@ class _ProposalCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton.icon(
-                onPressed: (applied || applying) ? null : onApply,
+                key: handwritingProposalApplyKey(proposal.id),
+                onPressed:
+                    (applied || applying || (preview?.isBlocked ?? false))
+                        ? null
+                        : onApply,
                 icon: Icon(
                   applied ? Icons.check_circle_outline : Icons.check,
                 ),
@@ -519,6 +676,85 @@ class _ProposalCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 一条提案的预检结论：会写到哪里（previewLines），以及要看一眼/不能确认的原因。
+///
+/// 文案全部来自领域层预检（`previewLines`/`warnings`/`blockers`），这里只按 verdict
+/// 上色加图标；ready 不额外提示，加载与判定本身不在这里做。
+class _ProposalPreviewBlock extends StatelessWidget {
+  const _ProposalPreviewBlock({required this.preview});
+
+  final HandwritingProposalPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final needsReview =
+        preview.verdict == HandwritingPreviewVerdict.needsReview;
+    final blocked = preview.isBlocked;
+    final hintColor = blocked
+        ? scheme.error
+        : needsReview
+            ? scheme.tertiary
+            : null;
+    final hintStyle = theme.textTheme.bodySmall?.copyWith(color: hintColor);
+    return Padding(
+      key: handwritingProposalPreviewKey(preview.proposalId),
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in preview.previewLines)
+            Text(line, style: theme.textTheme.bodySmall),
+          if (needsReview) ...[
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.visibility_outlined, size: 16, color: hintColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    l10n.handwritingQueuePreviewNeedsReview,
+                    style: hintStyle?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            for (final warning in preview.warnings)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, left: 20),
+                child: Text('• $warning', style: hintStyle),
+              ),
+          ],
+          if (blocked) ...[
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.block, size: 16, color: hintColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    l10n.handwritingQueuePreviewBlocked,
+                    style: hintStyle?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            for (final blocker in preview.blockers)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, left: 20),
+                child: Text('• $blocker', style: hintStyle),
+              ),
+          ],
+        ],
       ),
     );
   }
