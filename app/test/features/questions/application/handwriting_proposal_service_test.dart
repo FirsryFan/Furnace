@@ -25,6 +25,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/services/intake/handwriting_proposal_preview.dart';
 import 'package:furnace/domain/services/intake/handwriting_proposals.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
@@ -444,7 +445,7 @@ void main() {
         '{"kind": "question", "title": "动量题", '
             '"fields": {"stem": "下列说法正确的是？", "answer": "合外力为零时动量守恒"}, '
             '"options": [{"label": "A", "content": "甲"}, '
-        '{"label": "B", "content": "乙"}]}',
+            '{"label": "B", "content": "乙"}]}',
       ]);
 
       final report = await serviceWith(null).applyAll(set);
@@ -470,7 +471,8 @@ void main() {
 
       final report = await serviceWith(null).applyAll(set);
 
-      expect(report.appliedCount, 2, reason: report.outcomes.first.failureReason);
+      expect(report.appliedCount, 2,
+          reason: report.outcomes.first.failureReason);
       final questions = await db.select(db.questions).get();
       expect(questions.map((question) => question.questionType).toSet(),
           {'multi_choice'});
@@ -493,8 +495,8 @@ void main() {
             '{"label": "B", "content": "合外力为零"}]}',
       ]);
 
-      final draft = await serviceWith(null)
-          .questionDraftForIntake(set.proposals.single);
+      final draft =
+          await serviceWith(null).questionDraftForIntake(set.proposals.single);
 
       expect(draft, isNotNull);
       expect(draft!.stem, '下列情况中动量守恒的是？');
@@ -520,11 +522,122 @@ void main() {
         fields: <String, String>{'tag_path': '文化课/物理/力学'},
       );
 
-      final draft =
-          await serviceWith(null).questionDraftForIntake(proposal);
+      final draft = await serviceWith(null).questionDraftForIntake(proposal);
 
       expect(draft, isNull);
       expect(await db.select(db.questions).get(), isEmpty);
+    });
+  });
+
+  group('确认前预检（previewFor）', () {
+    Future<HandwritingProposalSet> setOf(List<String> proposals) async =>
+        parseHandwritingProposals(
+          reply(proposals),
+          sourceRef: 'handwriting_intake/hw/1/page.png',
+        );
+
+    test('标签：父层在库里就新建，完整路径已在库里就复用，父层不在就不能确认', () async {
+      await seedTagPath('文化课/物理/力学');
+      final set = await setOf(<String>[
+        '{"kind": "tag", "title": "动量守恒", '
+            '"fields": {"parent_path": "文化课/物理/力学"}}',
+        '{"kind": "tag", "title": "力学", '
+            '"fields": {"parent_path": "文化课/物理"}}',
+        '{"kind": "tag", "title": "光学", '
+            '"fields": {"parent_path": "文化课/物理/热学"}}',
+      ]);
+
+      final preview = await serviceWith(null).previewFor(set);
+
+      expect(preview.sourceRef, set.sourceRef);
+      expect(preview.previews, hasLength(3));
+      // 新建：目标路径拼好、会新建。
+      final create = preview.previews[0];
+      expect(create.verdict, HandwritingPreviewVerdict.ready);
+      expect(create.willCreate, isTrue);
+      expect(create.willReuse, isFalse);
+      expect(create.targetPath, '文化课/物理/力学/动量守恒');
+      expect(create.previewLines, isNotEmpty);
+      // 复用：整条路径已经在了。
+      final reuse = preview.previews[1];
+      expect(reuse.verdict, HandwritingPreviewVerdict.ready);
+      expect(reuse.willReuse, isTrue);
+      expect(reuse.willCreate, isFalse);
+      // 父层不存在：不能确认，原因直接可显示。
+      final blocked = preview.previews[2];
+      expect(blocked.verdict, HandwritingPreviewVerdict.blocked);
+      expect(blocked.isBlocked, isTrue);
+      expect(blocked.blockers, isNotEmpty);
+      expect(blocked.blockers.join(), contains('文化课/物理/热学'));
+
+      expect(preview.readyCount, 2);
+      expect(preview.blockedCount, 1);
+      expect(preview.hasBlocked, isTrue);
+      expect(preview.canApplyAll, isFalse);
+      // 预检只读：库里没多出标签（文化课/物理/力学 3 个）。
+      expect(await tags.getAllTags(), hasLength(3));
+    });
+
+    test('知识点：标题已在库里会复用；标签路径不存在只是警告、不阻断', () async {
+      await anki.createKnowledgePoint(
+        title: '动量守恒',
+        content: '合外力为零时动量守恒',
+        source: 'test',
+      );
+      final set = await setOf(<String>[
+        '{"kind": "knowledge_point", "title": "动量守恒", '
+            '"fields": {"content": "合外力为零时动量守恒", '
+            '"tag_path": "文化课/不存在"}}',
+      ]);
+
+      final preview = await serviceWith(null).previewFor(set);
+
+      final item = preview.previews.single;
+      expect(item.verdict, HandwritingPreviewVerdict.needsReview);
+      expect(item.willReuse, isTrue);
+      expect(item.willCreate, isFalse);
+      expect(item.blockers, isEmpty);
+      expect(item.warnings.join(), contains('标签树里没有'));
+      expect(preview.hasBlocked, isFalse);
+      expect(preview.canApplyAll, isTrue);
+    });
+
+    test('题目：缺答案缺解析只是提醒；题干为空就不能确认', () async {
+      final parsed = await setOf(<String>[
+        '{"kind": "question", "title": "只有题干", '
+            '"fields": {"stem": "下列情况中动量守恒的是？"}}',
+      ]);
+      // 题干为空的提案过不了严格解析（题面必须来自照片），手工构造一条来测预检。
+      const set = HandwritingProposalSet(
+        sourceRef: 'handwriting_intake/hw/1/page.png',
+        proposals: <HandwritingProposal>[
+          HandwritingProposal(
+            id: 'question-0',
+            kind: HandwritingProposalKind.question,
+            titleZh: '只有题干',
+            fields: <String, String>{'stem': '下列情况中动量守恒的是？'},
+          ),
+          HandwritingProposal(
+            id: 'question-1',
+            kind: HandwritingProposalKind.question,
+            titleZh: '看不清',
+            fields: <String, String>{'answer': 'B'},
+          ),
+        ],
+      );
+      expect(parsed.proposals.single.id, 'question-0');
+
+      final preview = await serviceWith(null).previewFor(set);
+
+      final bare = preview.previews[0];
+      expect(bare.verdict, HandwritingPreviewVerdict.needsReview);
+      expect(bare.warnings.join(), contains('没有答案'));
+      expect(bare.warnings.join(), contains('没有解析'));
+      expect(bare.blockers, isEmpty);
+
+      final empty = preview.previews[1];
+      expect(empty.verdict, HandwritingPreviewVerdict.blocked);
+      expect(empty.blockers.join(), contains('题面为空'));
     });
   });
 
@@ -576,6 +689,34 @@ void main() {
       expect(await tags.getAllTags(), hasLength(4));
       // 没有剩余提案可确认。
       expect(await notifier.applyAll(relPath), isNull);
+    });
+
+    test('队列里的预检：没整理过返回 null，整理后能看见会写到哪里', () async {
+      final relPath = await seedPhoto();
+      await seedTagPath('文化课/物理/力学');
+
+      final container = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final notifier = container.read(handwritingQueueProvider.notifier);
+
+      await notifier.refresh();
+      expect(await notifier.previewFor(relPath), isNull);
+      expect(
+        await notifier.previewFor('handwriting_intake/gone/page.png'),
+        isNull,
+      );
+
+      await notifier.analyze(relPath);
+
+      final preview = await notifier.previewFor(relPath);
+      expect(preview, isNotNull);
+      final item = preview!.previews.single;
+      expect(item.verdict, HandwritingPreviewVerdict.ready);
+      expect(item.targetPath, '文化课/物理/力学/动量守恒');
+      expect(preview.canApplyAll, isTrue);
     });
 
     test('整理失败：失败原因进 state，不留下旧提案；forget 可以清掉', () async {

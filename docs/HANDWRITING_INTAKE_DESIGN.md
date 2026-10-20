@@ -130,9 +130,11 @@ presentation 侧用 `export` 保住了原来的 import 路径。
 - **题目卡片的编辑入口还没接**（task-70，进行中）：`questionDraftForIntake` 已能装配草稿，
   队列卡片上点"改一下再存"回填收题页表单、保存后 `markAppliedLocally` 标已确认——UI 与
   l10n 由 question-intake 接力。
-- **确认前的预检还没接**（task-71，进行中）："这条会新建还是复用""挂在哪个标签下"
-  "为什么不能确认"目前只散落在确认后的 detail 里；预检纯逻辑（`handwriting_proposal_preview.dart`）
-  由 reasoning-core 交付后，队列卡片会在确认按钮前先给出目标路径与阻断原因。
+- **确认前的预检：后端已通、UI 待接**。预检纯逻辑在 `handwriting_proposal_preview.dart`
+  （42 例单测），应用层已把"库里现在有什么"读出来接上：
+  `HandwritingProposalService.previewFor(set)` 与 `HandwritingQueueNotifier.previewFor(relPath)`
+  （队列里没有这批提案返回 `null`）。队列卡片还没把 `previewLines` / `verdict` / `blockers`
+  摆到确认按钮前，blocked 条也还没禁勾选——这部分是 task-70/task-74 的 UI 工作。
 
 ## 5. 验收记录
 

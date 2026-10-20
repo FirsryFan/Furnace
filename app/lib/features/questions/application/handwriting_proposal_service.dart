@@ -32,6 +32,7 @@ import '../../../data/repositories/handwriting_proposal_repository.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
+import '../../../domain/services/intake/handwriting_proposal_preview.dart';
 import '../../../domain/services/intake/handwriting_proposals.dart';
 import '../../../domain/services/questions/question_number.dart'
     show formatQuestionSerial;
@@ -507,6 +508,31 @@ class HandwritingProposalService {
   /// 答案只做**认字母**这一件事：答案写成 `B` 或 `A、C` 时对应选项标成正确、
   /// 题型落到 `single_choice` / `multi_choice`；答案是一段文字（解答题）就原样
   /// 进 `answer`，题型保持 `solution`。**不替用户猜答案**。
+  /// 确认前预检：读一遍「库里现在有什么」，把这一批提案翻译成「确认后会发生什么」。
+  ///
+  /// 两棵已有节点集合来自既有仓储：标签的完整路径（`tags.path`，没有就退回名字）
+  /// 与知识点标题。只读，不写库；判定规则全在
+  /// `domain/services/intake/handwriting_proposal_preview.dart`（纯逻辑、有单测）。
+  Future<HandwritingIntakePreview> previewFor(
+      HandwritingProposalSet set) async {
+    final tags = await _tags.getAllTags();
+    final points = await _anki.getKnowledgePoints();
+    final tagPaths = <String>{};
+    for (final tag in tags) {
+      final path = tag.path?.trim();
+      final fallback = tag.name.trim();
+      final value = (path == null || path.isEmpty) ? fallback : path;
+      if (value.isNotEmpty) tagPaths.add(value);
+    }
+    return previewHandwritingProposals(
+      set,
+      existingTagPaths: tagPaths,
+      existingKnowledgePointTitles: <String>{
+        for (final point in points) point.title,
+      },
+    );
+  }
+
   Future<HandwritingApplyOutcome> _applyQuestion(
     HandwritingProposal proposal,
   ) async {
@@ -532,9 +558,8 @@ class HandwritingProposalService {
     );
 
     final serialNo = result.question.serialNo;
-    final serialLabel = serialNo == null
-        ? '（未编号）'
-        : formatQuestionSerial(serialNo);
+    final serialLabel =
+        serialNo == null ? '（未编号）' : formatQuestionSerial(serialNo);
     if (!result.created) {
       return HandwritingApplyOutcome(
         proposalId: proposal.id,
@@ -546,14 +571,11 @@ class HandwritingProposalService {
       );
     }
 
-    final optionNote = draft.options.isEmpty
-        ? '纯文字题'
-        : '${draft.options.length} 个选项';
+    final optionNote =
+        draft.options.isEmpty ? '纯文字题' : '${draft.options.length} 个选项';
     final tagNote = tagPath.isEmpty
         ? ''
-        : (tag == null
-            ? '，但标签 `$tagPath` 不存在，没挂边'
-            : '，并挂到 `$tagPath`');
+        : (tag == null ? '，但标签 `$tagPath` 不存在，没挂边' : '，并挂到 `$tagPath`');
     return HandwritingApplyOutcome(
       proposalId: proposal.id,
       kind: proposal.kind,
@@ -743,6 +765,15 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
       appliedIds: applied,
       loading: false,
     );
+  }
+
+  /// 确认前预检：这一批提案确认后会发生什么（目标路径 / 新建还是复用 / 缺什么）。
+  ///
+  /// 只读：不写库、不改提案。队列里没有这批提案时返回 `null`。
+  Future<HandwritingIntakePreview?> previewFor(String relPath) async {
+    final set = state.sets[relPath];
+    if (set == null) return null;
+    return _service.previewFor(set);
   }
 
   /// 整理一张照片（结果同时写进 state 与库，方便页面直接渲染 / 重启后还在）。
