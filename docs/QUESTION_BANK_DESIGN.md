@@ -123,8 +123,10 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
    §6 与本节共用**同一个** `ownerType`：进收题页的图片一律先当"待整理的手写/纸质材料"，
    整理成什么（题目 / 闪存卡 / MindNet 节点）是**下一步的产出**，不是落盘时就要决定的分类。
 2. 视觉模型 OCR + 整理（复用 `features/ai/domain/vision_payload.dart` 与 `ai_attachment_store.dart`）。
-3. 产出**三类待确认产物**：① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）
-   ③ MindNet 知识点节点（`knowledge_points` + 与标签的边）。
+3. 产出**四类待确认产物**：① 补充标签（挂到既有标签树）② 闪存卡（进复习队列前先确认）
+   ③ MindNet 知识点节点（`knowledge_points` + 与标签的边）④ **题目**（轮次一百二十八新增：题面只誊写照片里
+   真实内容、不改写题意、不补全缺失选项、不做题；确认后经 `QuestionRepository.ingest` 入库，
+   `sourceLabel='拍照整理'`、`origin='ai_scan'`、`state='structured'`，指纹去重）。
 4. 全部走"待确认任务"清单，用户逐个确认；**确认前不写学习数据**（标签 / 知识点 / 闪存卡
    都是确认后才写）。待确认清单**自身**从 schema v13 起落盘，见下面第 5 条。
 5. **落地**：§7.3–§7.4 的领域层与应用层见 `0ef0fa0`（Q13）——`handwriting_proposals.dart`
@@ -188,7 +190,7 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 |---|---|---|
 | ① schema v12 题目实体 | `tables.dart` 的 `Questions` / `QuestionOptions` / `ReasoningChains` / `ReasoningSteps`；v13 两张拍照整理表；`question_repository.dart`（指纹去重、来源分级、加工列白名单） | `v12_migration_test`、`v13_migration_test`、`question_repository_test` |
 | ② 收题页（粘贴优先） | `question_intake_page.dart`：粘贴 → AI/本机结构化 → 校对表 → 入库（未确认不写）；`file_picker` 选图入口 | `question_intake_page_test`、`question_repository_test` |
-| ③ 拍照手写整理 → 三类待确认产物 | `handwriting_proposals.dart`（标签/闪存卡/知识点三类提案 + 严格解析）、`handwriting_proposal_service.dart`、`handwriting_queue_page.dart`、schema v13 落盘 | `handwriting_proposals_test`、`handwriting_proposal_repository_test`、`handwriting_proposal_service_test`、`handwriting_intake_store_test`、`handwriting_queue_page_test` |
+| ③ 拍照手写整理 → 四类待确认产物（标签 / 知识点 / 闪存卡 / 题目） | `handwriting_proposals.dart`（标签/闪存卡/知识点三类提案 + 严格解析）、`handwriting_proposal_service.dart`、`handwriting_queue_page.dart`、schema v13 落盘 | `handwriting_proposals_test`、`handwriting_proposal_repository_test`、`handwriting_proposal_service_test`、`handwriting_intake_store_test`、`handwriting_queue_page_test` |
 | ④ 解题链 → 步骤 → 能力动作 → 卡点评估 | `question_reasoning_service.dart`、`capability_action.dart`、`stuck_point_evaluator.dart`、详情页展示与评估 | `question_reasoning_service_test`、`capability_action_test`、`stuck_point_evaluator_test`、`question_detail_page_test` |
 | ⑤ threadflow 两段式 | `time_window_engine.dart`（算法定时段/截止匹配）、`domain_balance.dart`（领域配额）、`thread_balance_inputs.dart`（MindNet 有效性）→ `thread_rank_service.dart` | `time_window_engine_test`、`domain_balance_test`、`thread_balance_inputs_test`、`thread_balance_provider_test` |
 
@@ -375,5 +377,68 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
   → No issues found。
 - 未做 / 未验证：真机弹窗与小屏滚动未手测；英文文案未母语校对；对话框搜索只过滤内存候选；
   题目详情页没有「一键设为必收/排除」入口（本轮只要求组卷页）。
+
+## 15. 定点找题、拍照整理出题目、确认前预检与标签树排序（轮次一百二十八，2026-10-20）
+
+用户这一轮的口径（m05023 / m05115 / m05424）：「定点组卷网找题」要真能用；拍照整理不能只产出
+标签/知识点/闪存卡，**要能直接存成题目**；待确认内容要说清楚「确认后会发生什么」；标签树同层
+要能按字典序 / 按内容量 / 按添加时间排。git 仍由 Lead 统一提交，成员只写各自作用域。
+
+### 15.1 定点组卷网找题（链接 + 粘贴入库）
+
+组卷网对非浏览器请求返回阿里云 WAF JS 挑战（纯 Dart HTTP 拿不到真页面），所以 App 不抓页面，
+改成两条腿：**把条件拼成可打开的链接** + **把用户粘回来的题面解析入库**。
+
+- 筛选链接：`domain/services/zujuan/zujuan_query.dart`（学科 / 知识点 id / 难度 / 年份 / 省份 /
+  年级 / 排序 → 组卷网查询串）与 `zujuan_link.dart`（搜索页 URL、题目详情 URL、试卷详情 URL，
+  base64 关键词编码与 skill 口径一致）。UI 是 `features/questions/presentation/zujuan_pick_panel.dart`
+  （底部表实时显示 URL、复制链接写剪贴板，学科默认 math，非法值不拼坏链接）。
+- 粘贴导入：`domain/services/zujuan/zujuan_paste.dart` 的 `parseZujuanPaste(raw)` 支持**整卷多题**
+  （按题号切块，去〔加点〕〔波浪线〕〔着重号〕标记，答案/解析/知识点/来源/详情页 id 都认；
+  永不抛异常，识别不出按单题兜底并标 `isPartial`）；应用层 `features/questions/application/zujuan_paste_import.dart`
+  转 `QuestionDraft`（origin 'zujuan'、state 'raw'、补详情页 sourceUrl）；UI `zujuan_paste_dialog.dart`
+  解析 → 勾选 → 改题干 → 批量入库 → 汇总 saved/duplicates/failed。
+- **来源字段（schema v26）**：`questions` 加 `sourceUrl` / `zujuanQuestionId` / `zujuanBankId`，
+  题库详情页可回看题源；v26 迁移测试 3 例。
+- 答案口径（用户 m05424）：**用户可以自己登录组卷网看答案与解析**（整张 JPEG、免费账号每天约 30 道）。
+  App 不代持登录态、不代登、不批量下载；界面文案不写「拿不到答案」，写「要你自己登录看一眼，
+  把看到的文字粘回来」。粘贴框旁有同样的登录提示。
+- 入口：收题页表单标题下两个等宽按钮「定点找题」「粘贴组卷网题面」。
+- 未做 / 未验证：真机复制出的链接是否在当前网络可达、真实粘贴文本样本未人工核对（只用样例字符串
+  模拟）；未做按题号/知识点批量抓取（WAF 阻塞），未接官方开放平台。
+
+### 15.2 拍照整理第四类产物「题目」
+
+- 领域层：`HandwritingProposalKind` 加 `question('question','题目')`；`HandwritingProposal.options`
+  （`HandwritingOptionDraft`：label 单字母 A–Z trim+大写、content 非空、标签不重复且从 A 连续）；
+  题目标必填 `fields.stem`，缺了直接解析失败；提示词加「只誊写、不改写、不补全、不做题」铁律。
+- 应用层：`HandwritingProposalService.questionDraftForIntake(proposal)`（只装配 `QuestionDraft` 不写库，
+  供「带到收题页编辑」）与 `_applyQuestion`（确认后 ingest；重复题干返回既有题号且不重复入库；
+  tag_path 不存在题照建只提示；`markAppliedLocally` 供手动入库后只标已确认）。
+- 未做（在途 task-70）：队列卡片还没有「编辑题目字段 + 带到收题页」的入口。
+
+### 15.3 确认前预检（用户说的「确认逻辑有待提升」）
+
+- 纯逻辑：`domain/services/intake/handwriting_proposal_preview.dart`——每条提案输出
+  `verdict`（ready 可以确认 / needsReview 确认前看一眼 / blocked 不能确认）、`targetPath`、
+  `willCreate` / `willReuse`、`previewLines`（2–5 行中文）、`warnings`、`blockers`、
+  同批重复的 `duplicateOfProposalId`；整批给 ready/needsReview/blocked 计数、`hasBlocked`、`canApplyAll`。
+  规则例：标签父层不存在 → blocked；完整路径已存在 → 复用；知识点标题已在 → 复用；题目缺答案/解析 →
+  警告；题干空 → blocked。
+- 应用层：`HandwritingProposalService.previewFor(set)` 读库里现有标签路径与知识点标题后判定（只读），
+  `HandwritingQueueNotifier.previewFor(relPath)` 供页面调用。42 例域层单测 + 4 例应用层单测。
+- 未做（在途 task-74）：卡片还没把 previewLines / warnings / blockers 渲染到确认按钮前，
+  blocked 条也还没禁勾选。
+
+### 15.4 标签树同层三种排序
+
+- 纯逻辑：`domain/services/tags/tag_tree_sort.dart`（三口径 `TagTreeSortMode` + `sortTagTreeSiblings`，
+  全序、不改入参）与 `tag_tree_view.dart`（孤儿、环、path、子树计数 `countDescendants`、
+  偏好编解码 `tagTreeSortModeFromStorage/ToStorage`）。
+- 计数数据源：`TagRepository.objectCountByTagId({includeDescendants=false, Set<String>? objectTypes})`
+  ——默认只算直接挂在标签上的对象，子树累计要显式打开。
+- 未做（在途 task-73）：页面仍是写死 `name.compareTo`，排序选择器与内容量角标未接。
+  完整口径见 `docs/TAG_TREE_SORT_DESIGN.md`。
+
 
 

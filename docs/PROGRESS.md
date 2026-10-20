@@ -2,6 +2,54 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百二十八：定点组卷网找题、拍照整理出题目、确认前预检、标签树三口径排序（Lead + 三个 teammate）
+
+**起点**：轮次一百二十七（HEAD `529188d`，tag `v0.5.7`，双端发布件已备在 `dist/`、未推 GitHub）。
+用户本轮诉求（m05023）：①拍照整理不能只产出标签/知识点/闪存卡，**要能直接存成题目**，题干可编辑；
+②"确认逻辑与待确认描述"不明确；③标签树同层要能按字典序/内容量/添加时间排序。随后 m05115
+「直接动手写代码」、m05424「用户可以人工登录组卷网账号获取答案」。本轮 12 个提交，
+task-66..task-74 全部 completed（rev3）；成员只写各自作用域，git 由 Lead 统一提交。
+
+**A. 定点组卷网找题（schema v26）**：先确认硬阻塞——组卷网对非浏览器请求返回阿里云 WAF JS
+挑战页（纯 Dart HTTP 拿不到真页面），所以 App 不抓页面，做两条腿：**筛选链接**与**粘贴导入**。
+筛选链接 = `zujuan_query.dart` / `zujuan_link.dart` 生成搜索页 URL（学科/知识点/难度/年份/
+省份/年级/排序），`zujuan_pick_panel.dart` 底部表实时显示并可复制；粘贴导入 = `parseZujuanPaste`
+支持**整卷多题**（题号切块、去〔加点〕〔波浪线〕〔着重号〕标记、答案/解析/知识点/来源/详情页 id，
+永不抛异常），`zujuan_paste_import.dart` 转 `QuestionDraft`，`zujuan_paste_dialog.dart` 解析→
+勾选→改题干→批量入库→汇总 saved/duplicates/failed。来源字段 v26（`sourceUrl/zujuanQuestionId/
+zujuanBankId`）让详情页能回看题源。答案口径按用户 m05424：**用户自己登录浏览器看**（整张 JPEG、
+每日约 30 道），App 不代持登录态；界面文案不写"拿不到答案"。测试 +122 domain、+15 粘贴导入、
++3 v26 迁移、+272 presentation。
+
+**B. 拍照整理第四类产物「题目」+ 编辑入库**：领域层 `HandwritingProposalKind.question` 与
+`options`（A–Z 连续、不重复）、`fields.stem` 必填、提示词铁律"只誊写不改写、不补全、不做题"；
+应用层 `questionDraftForIntake`（只装配不写库）与 `_applyQuestion`（ingest、指纹去重、
+标签不存在照建只提示、`markAppliedLocally`）。UI（task-70）：队列题目卡片展开题干/选项/答案/
+解析摘要，「编辑后保存」把草稿回填收题页表单，保存后标已确认并 SnackBar 显示题号；收题页补多选
+题型与草稿回填。测试 +20 域层、+10 应用层、+4 UI。
+
+**C. 确认前预检（用户说的"确认逻辑有待提升"）**：`handwriting_proposal_preview.dart` 给每条
+提案算 verdict（可以确认/确认前看一眼/不能确认）、目标路径、新建或复用、逐行中文预览、warnings、
+blockers、同批重复；整批给三类计数与 `canApplyAll`。应用层 `previewFor` 读库里现有标签路径与
+知识点标题（只读），队列页按签名缓存预检并上屏：blocked 条禁确认、整批有 blocked 禁"全部确认"、
+顶部显示计数；预检失败只降级不崩。42 例域层 + 4 例应用层 + 3 例 UI。
+
+**D. 标签树三口径排序**：纯逻辑 `tag_tree_sort.dart`（字典序 / 内容量降序 / 添加时间升序，
+全序、不改入参）与 `tag_tree_view.dart`（孤儿/环兜底、path、子树计数、偏好编解码）；
+数据源 `TagRepository.objectCountByTagId`（默认直接计数，子树累计显式开关）。UI（task-73）：
+页面改接 `buildTagTreeView`，AppBar 三档选择器切换即重排，按内容量模式显示内容量角标，
+计数异步未到按 0 不阻塞树。48 例纯逻辑 + 8 例 widget。**未接**：模式名暂用
+`TagTreeSortMode.labelZh`、偏好仅会话内。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）；各切片测试全绿
+（zujuan +122、intake 域 +77、tags +86、presentation +279、迁移 +3 等）。全量
+`flutter test --concurrency=1` → **3994 通过 / 2 跳过**（13 分 48 秒，v0.5.7 时 3667 / 2）。`dart format` 只格式化本轮改动文件。
+
+**未做 / 未验证**：真实组卷网页面粘贴文本只用样例字符串模拟（未人工核对真实复制内容）；真机
+整条链路（OS 拖拽微信图片、拍照整理→编辑→入库、预检异步、标签排序观感）未手测；英文文案未母语
+校对；WAF 与官方开放平台未接（自动抓取仍不可行）；标签排序偏好未持久化、模式名未接 l10n；
+内容量"直接计数 vs 子树累计"未做产品决定；题库删除清图片/图片增删入口/OCR 仍未做。
+
 ## 2026-10-20 轮次一百二十七：题号进复制与搜索、今日计划步骤可点、相似题与组卷理由更具体（Lead + 三个 teammate）
 
 **起点**：轮次一百二十六（HEAD `87da95f`）把今日计划与题号检索纯逻辑铺完。本轮把它们接到界面、补上

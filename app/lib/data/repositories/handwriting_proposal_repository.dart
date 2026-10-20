@@ -49,7 +49,7 @@ class HandwritingStoredRun {
       };
 }
 
-/// 「拍照 → 三类待确认产物」的持久化（schema v13，
+/// 「拍照 → 四类待确认产物」的持久化（schema v13，
 /// `docs/HANDWRITING_INTAKE_DESIGN.md` §4）。
 ///
 /// 存在这一层的理由，是提案**不是可再生的缓存**：
