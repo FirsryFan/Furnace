@@ -13,6 +13,9 @@
 ///    `confidence` 并写进 `rationale`，而不是猜一个像样的答案。
 ///  * **题目只誊写**：题干/选项/答案/解析必须是照片原文；不改写题意、不补全
 ///    缺失选项、不做题判对错。看不清就降 `confidence`，没有答案/解析就省略字段。
+///  * **题干里的内联选项会确定性抽出**：选项直接写在题干里（「A．… B．…」）时，
+///    解析层抽成结构化 `options`；`fields.stem` 存剥离后的题面、`fields.stem_original`
+///    保留原题面（追溯用）。抽不出就原样保留、不猜、不抛异常。
 ///  * **只挂不改**：标签只能挂到**已有**路径下（`parent_path`），或作为新叶子；
 ///    不许在整理照片时顺手重构标签树。
 ///  * **闪存卡必须带卡片**：没有 question/answer 的闪存卡进不了复习队列，所以
@@ -497,7 +500,24 @@ HandwritingProposal _proposalFrom(
   }
 
   final cards = _parseCards(entry['cards'], index, kind);
-  final options = _parseOptions(entry['options'], index, kind);
+  final rawOptions = entry['options'];
+  var options = _parseOptions(rawOptions, index, kind);
+  if (kind == HandwritingProposalKind.question && rawOptions == null) {
+    // 模型没给 options 时，从题面里确定性抽内联选项。失败（抽不出 / 不连续）
+    // 就原样保留题面，不猜、不抛异常——宁可让用户看到「无选项」，也不能把
+    // 正文里的「A、B两点」误当选项。
+    final stem = fields['stem'];
+    if (stem != null) {
+      final extraction = extractInlineOptions(stem);
+      if (extraction.succeeded) {
+        // 预览与入库都读 fields.stem，所以这里存剥离后的题面；原题面另存一份
+        // 供追溯（旧三类产物与无内联选项的题目不会出现这个键，输出逐字节不变）。
+        fields['stem'] = extraction.stem;
+        fields['stem_original'] = stem;
+        options = extraction.options;
+      }
+    }
+  }
   _requireFields(kind, fields, index);
 
   return HandwritingProposal(
@@ -722,4 +742,447 @@ String _bullets(List<String> items, {required String fallback}) {
     return head;
   }
   return '$head\n- （还有 ${items.length - 60} 条省略）';
+}
+
+// ---------------------------------------------------------------------------
+// 题干内联选项抽取
+// ---------------------------------------------------------------------------
+
+/// 从题面里抽取内联选项的结果。
+///
+/// [options] 非空即抽取成功；失败时 [failureReason] 是一句可直接显示的中文原因，
+/// [stem] 原样返回调用方传入的文本（**不猜、不抛异常**）。成功时：
+///  * [stem] = 第一个选项标记之前的文本（只去掉首尾空白，内部换行与 `$...$`
+///    公式原样保留）；
+///  * [options] 的 label 已归一成半角大写 A-Z，content 是标记之间文本的 trim。
+class InlineOptionExtraction {
+  const InlineOptionExtraction({
+    required this.stem,
+    required this.options,
+    this.failureReason,
+  });
+
+  /// 成功：剥离选项后的题面；失败：调用方传入的原文本。
+  final String stem;
+
+  /// 成功：A 起连续的选项；失败：空列表（不猜部分结果）。
+  final List<HandwritingOptionDraft> options;
+
+  /// 成功为 null；失败是一句中文原因。
+  final String? failureReason;
+
+  /// 是否抽到了至少两个连续的选项。
+  bool get succeeded => options.isNotEmpty;
+}
+
+/// 从题干文本里确定性抽取「A．… B．…」这类内联选项。
+///
+/// 规则（与题目的「只誊写、不编造」一致）：
+///  1. 只认**行首/段首**的选项标记（允许行首缩进）；同一行里连续写多个选项时，
+///     后续标记必须紧跟在同一行上一个已识别标记之后（「A．甲 B．乙」可以，
+///     「已知 A．甲」里的 A 不算——那更像正文）。
+///  2. 字母认半角 A-Z 与全角 Ａ-Ｚ；分隔符认 `.` `．` `、` `)` `）` `:` `：`。
+///  3. `$...$`、`$$...$$`、`\(...\)`、`\[...\]` 公式区间内的字母不参与识别；
+///     `【答案】` / `答案：` / `【解析】` 等答案解析行的整行都不参与；
+///     答案解析行也不会被算进最后一个选项的内容。
+///  4. 必须至少 2 个选项、字母从 A 起连续、不重复、不跳号。同一段文本里取
+///     「第一段以 A 起、至少 2 个连续标记」的链当选项，所以题干里行首的
+///     「A、B两点」这种枚举（只有一个 A 是选项标记）不会被误当选项链，
+///     它会留在题面里；链后若又出现更大的字母（跳号）或重复字母则整体判失败。
+///  5. 已知限制：题面和选项写在**同一行**、且第一个选项标记不在行首时
+///     （如「题干（ ）A．甲 B．乙」）不抽——只认行首/段首起步的选项；
+///     宁可让用户看到「无选项」，也不把正文里的字母当选项。
+///
+/// 纯函数：同一输入永远同一输出；不抛异常。
+InlineOptionExtraction extractInlineOptions(String raw) {
+  if (raw.trim().isEmpty) {
+    return InlineOptionExtraction(
+      stem: raw,
+      options: const <HandwritingOptionDraft>[],
+      failureReason: '题面是空的，没有可抽取的内容',
+    );
+  }
+
+  final formulaMask = _buildFormulaMask(raw);
+  final answerStarts = _answerLineStarts(raw);
+  final answerMask = _buildAnswerLineMask(raw, answerStarts);
+  final scanUnits = List<int>.filled(raw.length, _spaceUnit);
+  for (var i = 0; i < raw.length; i++) {
+    if (!formulaMask[i] && !answerMask[i]) {
+      scanUnits[i] = raw.codeUnitAt(i);
+    }
+  }
+  final scan = String.fromCharCodes(scanUnits);
+
+  final candidates = <_InlineMarker>[];
+  for (final match in _inlineOptionPattern.allMatches(scan)) {
+    final letterUnit = match.group(1)!.codeUnitAt(0);
+    final letterIndex = letterUnit >= _fullWidthUpperA
+        ? letterUnit - _fullWidthUpperA
+        : letterUnit - _upperA;
+    final start = match.start;
+    final lineStart = _lineStartIndexOf(raw, start);
+    final atLineStart = _isIndentOnly(raw, lineStart, start);
+    var inlineAfterPrevious = false;
+    if (!atLineStart && candidates.isNotEmpty && start > 0) {
+      final previous = candidates.last;
+      inlineAfterPrevious = _isInlineSpaceUnit(raw.codeUnitAt(start - 1)) &&
+          _lineStartIndexOf(raw, previous.start) == lineStart;
+    }
+    if (!atLineStart && !inlineAfterPrevious) {
+      continue;
+    }
+    candidates.add(_InlineMarker(
+      start: start,
+      end: match.end,
+      letterIndex: letterIndex,
+    ));
+  }
+
+  if (candidates.isEmpty) {
+    return InlineOptionExtraction(
+      stem: raw,
+      options: const <HandwritingOptionDraft>[],
+      failureReason: '没找到行首或段首的选项标记',
+    );
+  }
+
+  // 取「第一段以 A 起、至少 2 个连续标记」的链：题干里的行首枚举（如
+  // 「A、B两点」）可能先出现一个孤立的 A，真正的选项从后面某个 A 才开始。
+  var bestStart = -1;
+  var bestLength = 0;
+  for (var i = 0; i < candidates.length; i++) {
+    if (candidates[i].letterIndex != 0) {
+      continue;
+    }
+    var end = i;
+    var expected = 1;
+    while (end + 1 < candidates.length &&
+        candidates[end + 1].letterIndex == expected) {
+      end += 1;
+      expected += 1;
+    }
+    final runLength = end - i + 1;
+    if (runLength >= 2) {
+      bestStart = i;
+      bestLength = runLength;
+      break;
+    }
+    if (bestStart < 0) {
+      bestStart = i;
+      bestLength = runLength;
+    }
+  }
+
+  if (bestStart < 0) {
+    final first = candidates.first.letter;
+    return InlineOptionExtraction(
+      stem: raw,
+      options: const <HandwritingOptionDraft>[],
+      failureReason: '选项必须从 A 开始，第一个标记是「$first」（选项要按 A、B、C… 连续）',
+    );
+  }
+
+  if (bestLength < 2) {
+    return InlineOptionExtraction(
+      stem: raw,
+      options: const <HandwritingOptionDraft>[],
+      failureReason: _describeShortRun(candidates, bestStart),
+    );
+  }
+
+  final lastIndex = bestStart + bestLength - 1;
+  final tailIndex = lastIndex + 1;
+  if (tailIndex < candidates.length) {
+    final tail = candidates[tailIndex];
+    final lastLetterIndex = candidates[lastIndex].letterIndex;
+    if (tail.letterIndex <= lastLetterIndex) {
+      return InlineOptionExtraction(
+        stem: raw,
+        options: const <HandwritingOptionDraft>[],
+        failureReason: '选项字母重复：「${tail.letter}」出现了不止一次',
+      );
+    }
+    if (tail.letterIndex > lastLetterIndex) {
+      final missing = <String>[];
+      for (var index = lastLetterIndex + 1; index < tail.letterIndex; index++) {
+        missing.add(String.fromCharCode(_upperA + index));
+      }
+      final missingLabel = missing.map((letter) => '「$letter」').join('、');
+      return InlineOptionExtraction(
+        stem: raw,
+        options: const <HandwritingOptionDraft>[],
+        failureReason:
+            '选项字母不连续：「${candidates[lastIndex].letter}」之后直接是「${tail.letter}」，'
+            '缺少$missingLabel（选项要按 A、B、C… 连续）',
+      );
+    }
+  }
+
+  final stem = raw.substring(0, candidates[bestStart].start).trim();
+  if (stem.isEmpty) {
+    return InlineOptionExtraction(
+      stem: raw,
+      options: const <HandwritingOptionDraft>[],
+      failureReason: '选项标记前面没有题干：抽出的选项不能没有题面',
+    );
+  }
+
+  final options = <HandwritingOptionDraft>[];
+  for (var i = bestStart; i <= lastIndex; i++) {
+    final marker = candidates[i];
+    var contentEnd = raw.length;
+    if (i + 1 < candidates.length) {
+      contentEnd = candidates[i + 1].start;
+    }
+    final answerStart = _firstAnswerLineStartAfter(answerStarts, marker.end);
+    if (answerStart != null && answerStart < contentEnd) {
+      contentEnd = answerStart;
+    }
+    final content = raw.substring(marker.end, contentEnd).trim();
+    if (content.isEmpty) {
+      return InlineOptionExtraction(
+        stem: raw,
+        options: const <HandwritingOptionDraft>[],
+        failureReason: '选项「${marker.letter}」的内容为空：标记后面没有文字',
+      );
+    }
+    options.add(HandwritingOptionDraft(
+      label: marker.letter,
+      content: content,
+    ));
+  }
+
+  return InlineOptionExtraction(
+    stem: stem,
+    options: List<HandwritingOptionDraft>.unmodifiable(options),
+  );
+}
+
+const int _spaceUnit = 0x20;
+const int _tabUnit = 0x09;
+const int _ideographicSpaceUnit = 0x3000;
+const int _lineBreakUnit = 0x0A;
+const int _dollarUnit = 0x24;
+const int _backslashUnit = 0x5C;
+const int _openParenUnit = 0x28;
+const int _openBracketUnit = 0x5B;
+const int _upperA = 0x41;
+const int _fullWidthUpperA = 0xFF21;
+
+final String _lineBreakText = String.fromCharCode(_lineBreakUnit);
+
+final RegExp _inlineOptionPattern = RegExp('([A-ZＡ-Ｚ])([.．、)）:：])');
+
+bool _isInlineSpaceUnit(int unit) {
+  return unit == _spaceUnit ||
+      unit == _tabUnit ||
+      unit == _ideographicSpaceUnit;
+}
+
+/// 一个候选选项标记：字母 + 分隔符，位置按 UTF-16 code unit 计。
+class _InlineMarker {
+  const _InlineMarker({
+    required this.start,
+    required this.end,
+    required this.letterIndex,
+  });
+
+  final int start;
+  final int end;
+  final int letterIndex;
+
+  String get letter => String.fromCharCode(_upperA + letterIndex);
+}
+
+int _lineStartIndexOf(String raw, int index) {
+  var i = index - 1;
+  while (i >= 0) {
+    if (raw.codeUnitAt(i) == _lineBreakUnit) {
+      return i + 1;
+    }
+    i -= 1;
+  }
+  return 0;
+}
+
+bool _isIndentOnly(String raw, int lineStart, int index) {
+  for (var i = lineStart; i < index; i++) {
+    if (!_isInlineSpaceUnit(raw.codeUnitAt(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+List<bool> _buildFormulaMask(String raw) {
+  final mask = List<bool>.filled(raw.length, false);
+  var i = 0;
+  while (i < raw.length) {
+    final unit = raw.codeUnitAt(i);
+    if (unit == _backslashUnit && i + 1 < raw.length) {
+      final next = raw.codeUnitAt(i + 1);
+      if (next == _openParenUnit) {
+        i = _maskUntilDelimiter(raw, mask, i, _openParenUnit);
+        continue;
+      }
+      if (next == _openBracketUnit) {
+        i = _maskUntilDelimiter(raw, mask, i, _openBracketUnit);
+        continue;
+      }
+      i += 2;
+      continue;
+    }
+    if (unit != _dollarUnit) {
+      i += 1;
+      continue;
+    }
+    if (i + 1 < raw.length && raw.codeUnitAt(i + 1) == _dollarUnit) {
+      final close = raw.indexOf(r'$$', i + 2);
+      final end = close < 0 ? raw.length : close + 2;
+      _fillMask(mask, i, end);
+      i = end;
+      continue;
+    }
+    final close = _indexOfUnescapedDollar(raw, i + 1);
+    if (close < 0) {
+      // 落单的 `$`（多半是价格这类正文）不当作公式起点，避免掩掉后面的选项。
+      i += 1;
+      continue;
+    }
+    _fillMask(mask, i, close + 1);
+    i = close + 1;
+  }
+  return mask;
+}
+
+/// 掩掉从 [start] 起的 `\(...\)` / `\[...\]`；返回掩码结束位置。
+int _maskUntilDelimiter(String raw, List<bool> mask, int start, int openUnit) {
+  final closeUnit = openUnit == _openParenUnit ? 0x29 : 0x5D;
+  var i = start + 2;
+  while (i < raw.length) {
+    if (raw.codeUnitAt(i) == closeUnit &&
+        raw.codeUnitAt(i - 1) == _backslashUnit) {
+      final end = i + 1;
+      _fillMask(mask, start, end);
+      return end;
+    }
+    i += 1;
+  }
+  _fillMask(mask, start, raw.length);
+  return raw.length;
+}
+
+int _indexOfUnescapedDollar(String raw, int from) {
+  var i = from;
+  while (i < raw.length) {
+    final unit = raw.codeUnitAt(i);
+    if (unit == _backslashUnit) {
+      i += 2;
+      continue;
+    }
+    if (unit == _dollarUnit) {
+      return i;
+    }
+    i += 1;
+  }
+  return -1;
+}
+
+void _fillMask(List<bool> mask, int start, int end) {
+  final safeEnd = end > mask.length ? mask.length : end;
+  for (var i = start; i < safeEnd; i++) {
+    mask[i] = true;
+  }
+}
+
+const List<String> _answerLinePrefixes = <String>[
+  '【答案】',
+  '【解析】',
+  '【详解】',
+  '【解答】',
+  '【分析】',
+  '【点评】',
+  '【点睛】',
+  '【点拨】',
+  '答案：',
+  '答案:',
+  '解析：',
+  '解析:',
+  '详解：',
+  '详解:',
+  '解答：',
+  '解答:',
+  '分析：',
+  '分析:',
+];
+
+bool _looksLikeAnswerLine(String trimmedLine) {
+  for (final prefix in _answerLinePrefixes) {
+    if (trimmedLine.startsWith(prefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// 每一条答案解析行的起始下标（行内容会被整行掩掉，选项内容也不吞它们）。
+List<int> _answerLineStarts(String raw) {
+  final starts = <int>[];
+  var start = 0;
+  while (start < raw.length) {
+    var end = raw.indexOf(_lineBreakText, start);
+    if (end < 0) {
+      end = raw.length;
+    }
+    final trimmed = raw.substring(start, end).trim();
+    if (_looksLikeAnswerLine(trimmed)) {
+      starts.add(start);
+    }
+    if (end >= raw.length) {
+      break;
+    }
+    start = end + 1;
+  }
+  return starts;
+}
+
+List<bool> _buildAnswerLineMask(String raw, List<int> starts) {
+  final mask = List<bool>.filled(raw.length, false);
+  for (final start in starts) {
+    var end = raw.indexOf(_lineBreakText, start);
+    if (end < 0) {
+      end = raw.length;
+    }
+    _fillMask(mask, start, end);
+  }
+  return mask;
+}
+
+int? _firstAnswerLineStartAfter(List<int> starts, int position) {
+  for (final start in starts) {
+    if (start >= position) {
+      return start;
+    }
+  }
+  return null;
+}
+
+String _describeShortRun(List<_InlineMarker> candidates, int startIndex) {
+  if (startIndex + 1 >= candidates.length) {
+    return '至少需要 2 个选项（现在只有 1 个「${candidates[startIndex].letter}」）';
+  }
+  final next = candidates[startIndex + 1];
+  if (next.letterIndex == 0) {
+    return '选项字母重复：「A」出现了不止一次';
+  }
+  final missing = <String>[];
+  for (var index = 1; index < next.letterIndex; index++) {
+    missing.add(String.fromCharCode(_upperA + index));
+  }
+  final missingLabel = missing.isEmpty
+      ? ''
+      : '，缺少${missing.map((letter) => '「$letter」').join('、')}';
+  return '选项字母不连续：「A」之后直接是「${next.letter}」$missingLabel'
+      '（选项要按 A、B、C… 连续）';
 }
