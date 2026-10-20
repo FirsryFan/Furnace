@@ -20,6 +20,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/repository_providers.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/domain/services/tags/tag_tree_sort.dart';
 import 'package:furnace/features/tags/presentation/tag_tree_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -162,7 +164,8 @@ void main() {
     expect(countBadge, findsNothing);
     expect(
       ProviderScope.containerOf(tester.element(find.byType(TagTreePage)))
-          .read(tagTreeSortModeProvider),
+          .read(tagTreeSortModeProvider)
+          .value,
       TagTreeSortMode.alphabetical,
     );
   });
@@ -186,7 +189,8 @@ void main() {
     );
     expect(
       ProviderScope.containerOf(tester.element(find.byType(TagTreePage)))
-          .read(tagTreeSortModeProvider),
+          .read(tagTreeSortModeProvider)
+          .value,
       TagTreeSortMode.byObjectCount,
     );
   });
@@ -251,8 +255,11 @@ void main() {
       tester,
       overrides: <Override>[
         tagObjectCountsProvider.overrideWith((ref) => pending.future),
-        tagTreeSortModeProvider
-            .overrideWith((ref) => TagTreeSortMode.byObjectCount),
+        tagTreeSortModeProvider.overrideWith(
+          () => _FixedTagTreeSortModeController(
+            TagTreeSortMode.byObjectCount,
+          ),
+        ),
       ],
     );
 
@@ -304,4 +311,107 @@ void main() {
       [TagTreeSortMode.byObjectCount],
     );
   });
+
+  testWidgets('首次打开不落盘：按字典序，读取偏好本身不写库', (tester) async {
+    await seedFixture();
+    await pumpPage(tester);
+
+    expect(tileTitles(tester), ['alpha', 'beta', 'gamma']);
+    expect(await db.select(db.localSettings).get(), isEmpty);
+  });
+
+  testWidgets('落盘的档位在下次打开时恢复', (tester) async {
+    await seedFixture();
+    final SettingsRepository repo = SettingsRepository(db);
+    await repo.ensureSettings();
+    await repo.updateTagTreeSortMode(TagTreeSortMode.byCreatedAt.code);
+
+    await pumpPage(tester);
+
+    expect(tileTitles(tester), ['gamma', 'alpha', 'beta']);
+    expect(
+      ProviderScope.containerOf(tester.element(find.byType(TagTreePage)))
+          .read(tagTreeSortModeProvider)
+          .value,
+      TagTreeSortMode.byCreatedAt,
+    );
+  });
+
+  testWidgets('切换档位后写回 local_settings', (tester) async {
+    await seedFixture();
+    final SettingsRepository repo = SettingsRepository(db);
+    await repo.ensureSettings();
+    await pumpPage(tester);
+
+    await selectMode(tester, '按内容量');
+
+    // The menu handler writes fire-and-forget; give the write a few turns.
+    String? stored;
+    for (var attempt = 0; attempt < 50; attempt++) {
+      stored = await repo.getTagTreeSortMode();
+      if (stored != null) {
+        break;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(stored, 'object_count');
+  });
+
+  testWidgets('读偏好失败时回退字典序，页面不报错', (tester) async {
+    await seedFixture();
+    await pumpPage(
+      tester,
+      overrides: <Override>[
+        tagTreeSortModeProvider.overrideWith(
+          _ThrowingReadTagTreeSortModeController.new,
+        ),
+      ],
+    );
+
+    expect(tileTitles(tester), ['alpha', 'beta', 'gamma']);
+    expect(find.textContaining('settings unreadable'), findsNothing);
+  });
+
+  testWidgets('写偏好失败只记日志：本次会话的切换仍然生效', (tester) async {
+    await seedFixture();
+    await pumpPage(
+      tester,
+      overrides: <Override>[
+        settingsRepositoryProvider
+            .overrideWithValue(_ThrowingWriteSettingsRepository(db)),
+      ],
+    );
+
+    await selectMode(tester, '按内容量');
+
+    expect(tileTitles(tester), ['alpha', 'gamma', 'beta']);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+}
+
+/// Answers with a fixed mode without touching the settings repository.
+class _FixedTagTreeSortModeController extends TagTreeSortModeController {
+  _FixedTagTreeSortModeController(this.mode);
+
+  final TagTreeSortMode mode;
+
+  @override
+  Future<TagTreeSortMode> build() async => mode;
+}
+
+/// Simulates an unreadable settings table; the page must fall back to 字典序.
+class _ThrowingReadTagTreeSortModeController extends TagTreeSortModeController {
+  @override
+  Future<TagTreeSortMode> build() async =>
+      throw StateError('settings unreadable');
+}
+
+/// A settings repository whose writes fail; the session choice must survive.
+class _ThrowingWriteSettingsRepository extends SettingsRepository {
+  _ThrowingWriteSettingsRepository(super.db);
+
+  @override
+  Future<void> updateTagTreeSortMode(String? mode) async {
+    throw StateError('disk full');
+  }
 }

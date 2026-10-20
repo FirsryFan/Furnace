@@ -26,13 +26,41 @@ final tagObjectCountsProvider = FutureProvider<Map<String, int>>((ref) {
   return ref.watch(tagRepositoryProvider).objectCountByTagId();
 });
 
-/// The sort mode picked in the app bar.
+/// The sort mode picked in the app bar, persisted in `local_settings`
+/// (schema v29).
 ///
-/// Session-scoped on purpose: this round does not write preferences (and does
-/// not touch the l10n files). [tagTreeSortModeToStorage] is the stable value
-/// ready for that wiring later; a restart falls back to alphabetical.
+/// The first build reads the stored [TagTreeSortMode.code] and translates it
+/// with [tagTreeSortModeFromStorage] (NULL or an unknown code reads as 字典序);
+/// every switch writes the code back without waiting for the write. A failed
+/// write only logs: an unsaved preference must never block the tree, and the
+/// in-memory choice stays in effect for the session.
 final tagTreeSortModeProvider =
-    StateProvider<TagTreeSortMode>((ref) => TagTreeSortMode.alphabetical);
+    AsyncNotifierProvider<TagTreeSortModeController, TagTreeSortMode>(
+  TagTreeSortModeController.new,
+);
+
+/// Reads the stored tag-tree sort mode and persists every change.
+class TagTreeSortModeController extends AsyncNotifier<TagTreeSortMode> {
+  @override
+  Future<TagTreeSortMode> build() async {
+    final String? raw =
+        await ref.watch(settingsRepositoryProvider).getTagTreeSortMode();
+    return tagTreeSortModeFromStorage(raw);
+  }
+
+  /// Switches the tree immediately, then persists the choice.
+  Future<void> select(TagTreeSortMode mode) async {
+    state = AsyncData<TagTreeSortMode>(mode);
+    try {
+      await ref
+          .read(settingsRepositoryProvider)
+          .updateTagTreeSortMode(tagTreeSortModeToStorage(mode));
+    } catch (error) {
+      // Losing the preference is annoying, not fatal: keep the session choice.
+      debugPrint('Failed to persist tag tree sort mode: $error');
+    }
+  }
+}
 
 /// The authoritative display/query path of a tag.
 String _labelOf(Tag tag) =>
@@ -82,7 +110,10 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final tagsAsync = ref.watch(allTagsProvider);
-    final mode = ref.watch(tagTreeSortModeProvider);
+    final modeAsync = ref.watch(tagTreeSortModeProvider);
+    // Never paint the tree under a guessed order: until the stored mode lands
+    // one spinner beats showing 字典序 and jumping to the real order.
+    final mode = modeAsync.valueOrNull ?? TagTreeSortMode.alphabetical;
     // Counts loading must not hold the tree back: until they land every tag
     // simply shows 0, and the page rebuilds by itself when they arrive.
     final objectCounts =
@@ -100,7 +131,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
             icon: const Icon(Icons.sort),
             initialValue: mode,
             onSelected: (next) =>
-                ref.read(tagTreeSortModeProvider.notifier).state = next,
+                ref.read(tagTreeSortModeProvider.notifier).select(next),
             itemBuilder: (context) => <PopupMenuEntry<TagTreeSortMode>>[
               for (final option in TagTreeSortMode.values)
                 CheckedPopupMenuItem<TagTreeSortMode>(
@@ -117,47 +148,50 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
           ),
         ],
       ),
-      body: tagsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('$error')),
-        data: (tags) {
-          if (tags.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.account_tree_outlined,
-                      size: 44, color: Theme.of(context).colorScheme.outline),
-                  const SizedBox(height: 12),
-                  Text(l10n.tagsEmpty),
-                  const SizedBox(height: 12),
-                  IconButton.filled(
-                    tooltip: l10n.commonAdd,
-                    icon: const Icon(Icons.add),
-                    onPressed: () => _addTag(context, parent: null),
-                  ),
-                ],
-              ),
-            );
-          }
-          final tree = _treeOf(tags, objectCounts, mode);
-          final tagsById = <String, Tag>{
-            for (final tag in tags) tag.id: tag,
-          };
-          return ListView(
-            padding: const EdgeInsets.only(bottom: 24),
-            children: [
-              for (final root in tree.roots)
-                ..._renderNode(
-                  context,
-                  root,
-                  tagsById: tagsById,
-                  showObjectCount: mode == TagTreeSortMode.byObjectCount,
-                ),
-            ],
-          );
-        },
-      ),
+      body: modeAsync.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : tagsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('$error')),
+              data: (tags) {
+                if (tags.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.account_tree_outlined,
+                            size: 44,
+                            color: Theme.of(context).colorScheme.outline),
+                        const SizedBox(height: 12),
+                        Text(l10n.tagsEmpty),
+                        const SizedBox(height: 12),
+                        IconButton.filled(
+                          tooltip: l10n.commonAdd,
+                          icon: const Icon(Icons.add),
+                          onPressed: () => _addTag(context, parent: null),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                final tree = _treeOf(tags, objectCounts, mode);
+                final tagsById = <String, Tag>{
+                  for (final tag in tags) tag.id: tag,
+                };
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  children: [
+                    for (final root in tree.roots)
+                      ..._renderNode(
+                        context,
+                        root,
+                        tagsById: tagsById,
+                        showObjectCount: mode == TagTreeSortMode.byObjectCount,
+                      ),
+                  ],
+                );
+              },
+            ),
     );
   }
 
