@@ -2,6 +2,54 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百二十九：题目配图增删、粘贴解析加固、内联选项、详细理由接线（Lead + 三个 teammate）
+
+**起点**：轮次一百二十八（HEAD `2d63b16`，tag `v0.5.8`，双端发布件已备在 `dist/`、未推 GitHub）。
+本轮无新的用户功能指令，按 goal 继续把上一轮的"未接 / 未做"补上：详细理由接页面、拍照整理的题目
+能从题干里抽选项、组卷网粘贴解析扛真实页面形态、题目配图能在详情页增删。task-75..task-78 全部
+completed（rev3）；成员只写各自作用域，git 由 Lead 统一提交。
+
+**A. 详细理由接线（task-78，Lead）**：领域层上一轮已备好 `compose(detailedNotes: true)` /
+`rank(detailedReasons: true)`，但两个开关没打开。本轮 `paperPlanProvider` →
+`buildPaperPlan(detailedNotes: true)`、`similarQuestionsProvider` →
+`rank(detailedReasons: true)`；`compose_paper` 等 AI 工具**有意保持短文案**（工具输出给模型看，
+短文案省 token）。页面因此能回答"为什么排这道"：本卷第 N 题、需求 / 质量分 / 综合得分、排序权重，
+以及"为知识点「X」…下一步"；缺口解释句 `PaperGapNote` 仍只在领域层（没有单独界面块）。
+测试：`similar_question_provider_test` + `paper_plan_provider_test` **+33**（含详细文案断言），
+组卷页 `question_paper_page_test` 27 例改按详细文案断言后全绿。docs：`REASONING_LAYER_DESIGN.md`
+§32、`SIMILAR_QUESTIONS_DESIGN.md` §8。
+
+**B. 拍照整理的题目自动抽内联选项（task-77，reasoning-core）**：`handwriting_proposals.dart`
+新增纯函数 `extractInlineOptions` / `InlineOptionExtraction`，接进 `_proposalFrom`：模型没给
+`options` 时从题干里确定性抽「A．… B．…」——只认行首（可缩进）或同一行已接受标记后的 A–H，
+字母半角/全角、分隔符 `.` `．` `、` `)` `）` `:` `：`，必须 ≥2 项、从 A 起连续不重复，
+否则失败返回中文原因且**零改动**；公式区间（`$...$` / `$$...$$` / `\(...\)` / `\[...\]`）
+与 18 类答案/解析行整行掩掉，`A=1` / `B点` / `A、B两点` 不误伤。成功时 `fields.stem` 换成
+剥离题面、原题面进 `stem_original`。存量提案读回也会补抽（确定性、幂等、往返逐字节相等；旧三类
+输出不变）。42 例新测试，intake 域 **+119**。
+
+**C. 组卷网粘贴解析加固（task-76，threadflow-engine）**：按 skill 里的真实页面结构补：「第 N 题」
+题号、板块标题/试卷标题/裸来源前导合并、题首来源与分值剥离、新增
+`ZujuanPastedQuestion.score`（只认括号「N 分」）、`故选：B` 抽答案（解析区任意位置、与
+【答案】冲突告警）、`【点睛】` 进标签、选项编号异常（不从 A 起 / 缺号 / 重复 / 空内容）整行跳过 +
+中文告警 + `isPartial`、图片占位只提示。`parseZujuanPaste` 签名不变。46 例新测试，域层 **+168**、
+粘贴对话框 **+10**。**仍未用真实页面原文验证**（样本按页面结构改写）。
+
+**D. 题目详情页配图增删（task-75，question-intake）**：`QuestionImagesSection` 加 `editable`
+（默认 false，列表等只读调用不变），详情页传 true：FilePicker 多选 png/jpg/jpeg/webp/gif/bmp →
+逐文件跳过 HEIC / 非图片 / 0 字节 / 读异常（单文件失败不整批失败）→ `store.save` → 手动
+`invalidate(questionImagesProvider)` → SnackBar 汇总；删除走确认对话框 + `store.delete`。
+空清单只读仍零占位，编辑模式留一行「添加图片」入口；l10n 12 key。6 例新 widget test（替身
+FilePicker / store，不碰真实磁盘），详情页 22 例回归。
+
+**门禁**：`dart analyze lib test` → **92 issues / 0 error / 0 warning**（基线）。全量
+`flutter test --concurrency=1` → **+4088 ~2 All tests passed**（9 分 04 秒，日志 `E:\dsh-tmp-aot\test-129-full.txt`，EXIT=0）。`dart format` 只格式化本轮改动文件。
+
+**未做 / 未验证**：真机系统文件选择器（Windows 对话框 / Android 选择器）与真实磁盘增删未手测；
+组卷网粘贴仍未用真实页面原文跑（样本按 skill 文档结构改写）；内联选项抽取已知限制：题面与选项
+同一行且首标记不在行首不抽、`（A）` 括号样式不认、`A．甲、B．乙` 无空白不认；详细文案仍中文
+硬编码未接 l10n、`PaperGapNote` 无单独界面；拍照整理整条链路（真实模型回复）未端到端验证。
+
 ## 2026-10-21 轮次一百二十八：定点组卷网找题、拍照整理出题目、确认前预检、标签树三口径排序（Lead + 三个 teammate）
 
 **起点**：轮次一百二十七（HEAD `529188d`，tag `v0.5.7`，双端发布件已备在 `dist/`、未推 GitHub）。
