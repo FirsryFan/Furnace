@@ -2910,7 +2910,7 @@ abstract class AppLocalizations {
   /// No description provided for @docMaterialBody.
   ///
   /// In en, this message translates to:
-  /// **'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.'**
+  /// **'Photo intake turns one photo into four kinds of proposals - extra tags, flashcards, MindNet knowledge-point nodes and questions transcribed verbatim - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.'**
   String get docMaterialBody;
 
   /// No description provided for @docTodayTitle.
@@ -5588,8 +5588,14 @@ abstract class AppLocalizations {
   /// No description provided for @questionIntakeTypeSingleChoice.
   ///
   /// In en, this message translates to:
-  /// **'Multiple choice'**
+  /// **'Single choice'**
   String get questionIntakeTypeSingleChoice;
+
+  /// No description provided for @questionIntakeTypeMultiChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple choice'**
+  String get questionIntakeTypeMultiChoice;
 
   /// No description provided for @questionIntakeOptionsLabel.
   ///
@@ -5894,7 +5900,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionIntakeNoPhotos.
   ///
   /// In en, this message translates to:
-  /// **'No photos yet. Picked images are stored locally until the AI turns them into stems.'**
+  /// **'No photos yet. Picked images are stored locally until the AI turns them into tags, knowledge points, flashcards or questions.'**
   String get questionIntakeNoPhotos;
 
   /// No description provided for @questionIntakePhotoSummary.
@@ -6734,13 +6740,13 @@ abstract class AppLocalizations {
   /// No description provided for @handwritingQueueEntryHint.
   ///
   /// In en, this message translates to:
-  /// **'Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written'**
+  /// **'Turn photos into tags, knowledge points, flashcards or questions - confirmed one by one before anything is written'**
   String get handwritingQueueEntryHint;
 
   /// No description provided for @handwritingQueueSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'The model only organises what is on the page; every item is written only after you confirm it.'**
+  /// **'The model only organises what is really on the page (questions are transcribed, never invented); every item is written only after you confirm it.'**
   String get handwritingQueueSubtitle;
 
   /// No description provided for @handwritingQueueEmpty.
@@ -6788,7 +6794,7 @@ abstract class AppLocalizations {
   /// No description provided for @handwritingQueueNothingFound.
   ///
   /// In en, this message translates to:
-  /// **'The model proposed nothing to organise: this page may have no tags, knowledge points or cards.'**
+  /// **'The model proposed nothing to organise: this page may have no tags, knowledge points, cards or questions.'**
   String get handwritingQueueNothingFound;
 
   /// No description provided for @handwritingQueueFailureTitle.
@@ -6868,6 +6874,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} card(s)'**
   String handwritingProposalCardCount(int count);
+
+  /// No description provided for @handwritingQuestionMissingStem.
+  ///
+  /// In en, this message translates to:
+  /// **'The stem was not recognised; retake the photo or type it in'**
+  String get handwritingQuestionMissingStem;
+
+  /// No description provided for @handwritingQuestionOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Options ({count})'**
+  String handwritingQuestionOptions(int count);
+
+  /// No description provided for @handwritingQuestionAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer: {value}'**
+  String handwritingQuestionAnswer(String value);
+
+  /// No description provided for @handwritingQuestionSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Solution: {value}'**
+  String handwritingQuestionSolution(String value);
+
+  /// No description provided for @handwritingQuestionEmptyValue.
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get handwritingQuestionEmptyValue;
+
+  /// No description provided for @handwritingQuestionEditForIntake.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit and save'**
+  String get handwritingQuestionEditForIntake;
+
+  /// No description provided for @handwritingQuestionSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as {serial} (handwriting item marked as confirmed)'**
+  String handwritingQuestionSaved(String serial);
+
+  /// No description provided for @handwritingQuestionSavedUnnumbered.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved (unnumbered; handwriting item marked as confirmed)'**
+  String get handwritingQuestionSavedUnnumbered;
 
   /// No description provided for @questionPaperDifficultyLabel.
   ///

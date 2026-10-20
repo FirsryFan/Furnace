@@ -27,8 +27,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
+import '../application/handwriting_proposal_service.dart';
 import '../application/question_media_providers.dart';
 import '../data/handwriting_intake_store.dart';
 import 'drop_intake_reader.dart';
@@ -45,6 +47,7 @@ import 'zujuan_pick_panel.dart';
 /// 这里给本页用到的取值一个名字，免得字符串在页面里飘。
 const String _typeSolution = 'solution';
 const String _typeSingleChoice = 'single_choice';
+const String _typeMultiChoice = 'multi_choice';
 const String _originManual = 'manual';
 const String _originAiScan = 'ai_scan';
 const String _stateRaw = 'raw';
@@ -56,8 +59,23 @@ const String _stateRaw = 'raw';
 const Key dropIntakeHighlightKey = Key('drop-intake-highlight');
 
 /// 收题页。
+///
+/// 两种进入方式：默认是空白表单（粘贴建题）；拍照整理的题目提案通过
+/// [initialDraft] 预填同一张表单，用户改完按「入库」才写库。
 class QuestionIntakePage extends ConsumerStatefulWidget {
-  const QuestionIntakePage({super.key});
+  const QuestionIntakePage({
+    super.key,
+    this.initialDraft,
+    this.initialRelPath,
+    this.initialProposalId,
+  });
+
+  /// 拍照整理带过来的草稿：进页面预填表单，不直接写库。
+  final QuestionDraft? initialDraft;
+
+  /// 草稿对应的手写照片与提案 id：入库成功时把提案标成已确认（队列卡片变灰）。
+  final String? initialRelPath;
+  final String? initialProposalId;
 
   @override
   ConsumerState<QuestionIntakePage> createState() => _QuestionIntakePageState();
@@ -88,6 +106,51 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
   /// 有文件正拖在本页上方：画高亮层。
   bool _dragOver = false;
 
+  /// 拍照整理带过来的照片与提案：入库成功后把提案标成已确认；正常收题时是 null。
+  String? _proposalRelPath;
+  String? _proposalId;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.initialDraft;
+    if (draft != null) {
+      _applyDraft(draft);
+    }
+  }
+
+  /// 把拍照整理装配好的草稿回填到表单。
+  ///
+  /// 应用层没装配的字段（学段等）保持表单原样，留给用户补；选项整批替换（拍照
+  /// 整理只会给选择题带选项）。
+  void _applyDraft(QuestionDraft draft) {
+    _proposalRelPath = widget.initialRelPath;
+    _proposalId = widget.initialProposalId;
+    _stemController.text = draft.stem;
+    _answerController.text = draft.answer ?? '';
+    _solutionController.text = draft.solution ?? '';
+    _sourceLabelController.text = draft.sourceLabel;
+    _yearController.text = draft.year?.toString() ?? '';
+    _regionController.text = draft.region ?? '';
+    _difficultyController.text = draft.difficulty?.toString() ?? '';
+    _subjectKey = draft.subjectKey.isEmpty ? null : draft.subjectKey;
+    _questionType = draft.questionType;
+    _sourceLevel = draft.sourceLevel.isEmpty ? 'unknown' : draft.sourceLevel;
+    if (draft.options.isNotEmpty) {
+      for (final option in _options) {
+        option.dispose();
+      }
+      _options
+        ..clear()
+        ..addAll([
+          for (final option in draft.options)
+            _OptionDraft(label: option.label)
+              ..controller.text = option.content
+              ..isCorrect = option.isCorrect,
+        ]);
+    }
+  }
+
   @override
   void dispose() {
     for (final controller in [
@@ -108,7 +171,8 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
     super.dispose();
   }
 
-  bool get _isChoice => _questionType == _typeSingleChoice;
+  /// 单选题和多选题都有选项编辑区；只有解答题没有。
+  bool get _isChoice => _questionType != _typeSolution;
 
   // ── 入库 ────────────────────────────────────────────────────────────────────
 
@@ -175,11 +239,37 @@ class _QuestionIntakePageState extends ConsumerState<QuestionIntakePage> {
       if (!mounted) {
         return;
       }
-      messenger.showSnackBar(SnackBar(
-        content: Text(result.created
-            ? l10n.questionIntakeSaved(stem)
-            : l10n.questionIntakeDuplicate(stem)),
-      ));
+      final proposalRelPath = _proposalRelPath;
+      final proposalId = _proposalId;
+      if (proposalRelPath != null && proposalId != null) {
+        // 入库成功后把拍照整理那条提案标成已确认：只改队列状态，不写第二遍库。
+        // 标记失败不阻断入库结果，最多队列卡片看起来还没确认。
+        try {
+          await ref
+              .read(handwritingQueueProvider.notifier)
+              .markAppliedLocally(proposalRelPath, proposalId);
+        } catch (error) {
+          debugPrint('标记拍照整理提案已确认失败（已入库，继续）：$error');
+        }
+        // 同一个提案只标一次：之后再存别的题走普通收题路径。
+        _proposalRelPath = null;
+        _proposalId = null;
+        if (!mounted) {
+          return;
+        }
+        final serialNo = result.question.serialNo;
+        messenger.showSnackBar(SnackBar(
+          content: Text(serialNo == null
+              ? l10n.handwritingQuestionSavedUnnumbered
+              : l10n.handwritingQuestionSaved(formatQuestionSerial(serialNo))),
+        ));
+      } else {
+        messenger.showSnackBar(SnackBar(
+          content: Text(result.created
+              ? l10n.questionIntakeSaved(stem)
+              : l10n.questionIntakeDuplicate(stem)),
+        ));
+      }
       // 清掉的只有题干：学科/来源/年份通常是同一批题共用的，重打一遍最费事。
       _stemController.clear();
       _answerController.clear();
@@ -770,6 +860,10 @@ class _IntakeFormCard extends StatelessWidget {
                       DropdownMenuItem(
                         value: _typeSingleChoice,
                         child: Text(l10n.questionIntakeTypeSingleChoice),
+                      ),
+                      DropdownMenuItem(
+                        value: _typeMultiChoice,
+                        child: Text(l10n.questionIntakeTypeMultiChoice),
                       ),
                     ],
                     onChanged: (value) {

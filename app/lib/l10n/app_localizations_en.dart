@@ -1645,7 +1645,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docMaterialBody =>
-      'Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.';
+      'Photo intake turns one photo into four kinds of proposals - extra tags, flashcards, MindNet knowledge-point nodes and questions transcribed verbatim - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.';
 
   @override
   String get docTodayTitle => 'What to do today, and when';
@@ -3267,7 +3267,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionIntakeTypeSolution => 'Solution';
 
   @override
-  String get questionIntakeTypeSingleChoice => 'Multiple choice';
+  String get questionIntakeTypeSingleChoice => 'Single choice';
+
+  @override
+  String get questionIntakeTypeMultiChoice => 'Multiple choice';
 
   @override
   String get questionIntakeOptionsLabel => 'Options';
@@ -3455,7 +3458,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionIntakeNoPhotos =>
-      'No photos yet. Picked images are stored locally until the AI turns them into stems.';
+      'No photos yet. Picked images are stored locally until the AI turns them into tags, knowledge points, flashcards or questions.';
 
   @override
   String questionIntakePhotoSummary(String mime, String extension) {
@@ -3957,11 +3960,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get handwritingQueueEntryHint =>
-      'Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written';
+      'Turn photos into tags, knowledge points, flashcards or questions - confirmed one by one before anything is written';
 
   @override
   String get handwritingQueueSubtitle =>
-      'The model only organises what is on the page; every item is written only after you confirm it.';
+      'The model only organises what is really on the page (questions are transcribed, never invented); every item is written only after you confirm it.';
 
   @override
   String get handwritingQueueEmpty =>
@@ -3988,7 +3991,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get handwritingQueueNothingFound =>
-      'The model proposed nothing to organise: this page may have no tags, knowledge points or cards.';
+      'The model proposed nothing to organise: this page may have no tags, knowledge points, cards or questions.';
 
   @override
   String get handwritingQueueFailureTitle => 'This run failed';
@@ -4034,6 +4037,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String handwritingProposalCardCount(int count) {
     return '$count card(s)';
   }
+
+  @override
+  String get handwritingQuestionMissingStem =>
+      'The stem was not recognised; retake the photo or type it in';
+
+  @override
+  String handwritingQuestionOptions(int count) {
+    return 'Options ($count)';
+  }
+
+  @override
+  String handwritingQuestionAnswer(String value) {
+    return 'Answer: $value';
+  }
+
+  @override
+  String handwritingQuestionSolution(String value) {
+    return 'Solution: $value';
+  }
+
+  @override
+  String get handwritingQuestionEmptyValue => 'none';
+
+  @override
+  String get handwritingQuestionEditForIntake => 'Edit and save';
+
+  @override
+  String handwritingQuestionSaved(String serial) {
+    return 'Saved as $serial (handwriting item marked as confirmed)';
+  }
+
+  @override
+  String get handwritingQuestionSavedUnnumbered =>
+      'Saved (unnumbered; handwriting item marked as confirmed)';
 
   @override
   String get questionPaperDifficultyLabel => 'Target difficulty';

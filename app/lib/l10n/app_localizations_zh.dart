@@ -1580,7 +1580,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docMaterialBody =>
-      '拍照整理把一张照片变成三类待确认产物：补充标签、闪存卡、MindNet 知识点节点，确认前不写学习数据；资料入库把一段材料整理成知识点/卡片/连接三类提案，确认后才落库，撤回有记录可查。照片还能整理成一份带机制参数的 run/1 请求，「机制面板」里可以试跑/演练：演练只给读数，不直接改你的数据；你说「不装目标机制」就真的不装。';
+      '拍照整理把一张照片变成四类待确认产物：补充标签、闪存卡、MindNet 知识点节点、题目（原样誊写），确认前不写学习数据；资料入库把一段材料整理成知识点/卡片/连接三类提案，确认后才落库，撤回有记录可查。照片还能整理成一份带机制参数的 run/1 请求，「机制面板」里可以试跑/演练：演练只给读数，不直接改你的数据；你说「不装目标机制」就真的不装。';
 
   @override
   String get docTodayTitle => '今天做什么、什么时候做';
@@ -3134,6 +3134,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionIntakeTypeSingleChoice => '选择题';
 
   @override
+  String get questionIntakeTypeMultiChoice => '多选题';
+
+  @override
   String get questionIntakeOptionsLabel => '选项';
 
   @override
@@ -3310,7 +3313,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionIntakePhotoPending => '待整理图片';
 
   @override
-  String get questionIntakeNoPhotos => '还没有拍照。选中的图片会存在本地，等 AI 整理成题干。';
+  String get questionIntakeNoPhotos =>
+      '还没有拍照。选中的图片会存在本地，等 AI 整理成标签、知识点、闪存卡或题目。';
 
   @override
   String questionIntakePhotoSummary(String mime, String extension) {
@@ -3786,10 +3790,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get handwritingQueueTitle => '拍照整理';
 
   @override
-  String get handwritingQueueEntryHint => '把拍好的照片整理成标签、知识点和闪存卡，逐条确认才写库';
+  String get handwritingQueueEntryHint => '把拍好的照片整理成标签、知识点、闪存卡或题目，逐条确认才写库';
 
   @override
-  String get handwritingQueueSubtitle => 'AI 只整理、不出题：每一条都要你点确认才会写进库里。';
+  String get handwritingQueueSubtitle =>
+      'AI 只整理照片里真实存在的内容（题目原样誊写，不自己出题）：每一条都要你点确认才会写进库里。';
 
   @override
   String get handwritingQueueEmpty => '还没有拍照或选图。先去收题页拍一张，再回来整理。';
@@ -3813,7 +3818,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get handwritingQueueNotAnalyzed => '这张照片还没整理过。';
 
   @override
-  String get handwritingQueueNothingFound => '模型没给出可整理的产物：这张照片里可能没有标签、知识点或卡片。';
+  String get handwritingQueueNothingFound =>
+      '模型没给出可整理的产物：这张照片里可能没有标签、知识点、卡片或题目。';
 
   @override
   String get handwritingQueueFailureTitle => '这次整理失败了';
@@ -3859,6 +3865,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String handwritingProposalCardCount(int count) {
     return '$count 张卡片';
   }
+
+  @override
+  String get handwritingQuestionMissingStem => '没认出题干，重拍或手填';
+
+  @override
+  String handwritingQuestionOptions(int count) {
+    return '选项（$count 个）';
+  }
+
+  @override
+  String handwritingQuestionAnswer(String value) {
+    return '答案：$value';
+  }
+
+  @override
+  String handwritingQuestionSolution(String value) {
+    return '解析：$value';
+  }
+
+  @override
+  String get handwritingQuestionEmptyValue => '没有';
+
+  @override
+  String get handwritingQuestionEditForIntake => '编辑后保存';
+
+  @override
+  String handwritingQuestionSaved(String serial) {
+    return '已入库：$serial（拍照整理已标记为确认）';
+  }
+
+  @override
+  String get handwritingQuestionSavedUnnumbered => '已入库（未编号，拍照整理已标记为确认）';
 
   @override
   String get questionPaperDifficultyLabel => '目标难度';

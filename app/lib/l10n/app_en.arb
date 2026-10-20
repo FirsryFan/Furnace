@@ -731,7 +731,7 @@
   "docBankTitle": "Question bank and paper assembly",
   "docBankBody": "The intake page turns pasted text or picked images into drafts for proofreading: the AI only structures them, and nothing is written until you press save, while an identical question (same stem fingerprint) points at the existing row instead of duplicating it. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.",
   "docMaterialTitle": "Photos, materials and rehearsal",
-  "docMaterialBody": "Photo intake turns one photo into three kinds of proposals - extra tags, flashcards and MindNet knowledge-point nodes - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.",
+  "docMaterialBody": "Photo intake turns one photo into four kinds of proposals - extra tags, flashcards, MindNet knowledge-point nodes and questions transcribed verbatim - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.",
   "docTodayTitle": "What to do today, and when",
   "docTodayBody": "Today's list shows the cards due today; the rhythm layer reports alpha(tau) attention availability; conflicting tasks and schedule blocks are flagged and can be pushed back with one tap; the cognitive ranking tier only changes which card comes first, never due dates, and is recomputed only when you press the sort button. Counterfactual V(pi) and the retention probe likewise only affect ordering.",
   "docCognitiveTitle": "How to read the cognitive model",
@@ -1542,7 +1542,8 @@
   "questionIntakeSubjectNone": "Unlabelled",
   "questionIntakeQuestionTypeLabel": "Question type",
   "questionIntakeTypeSolution": "Solution",
-  "questionIntakeTypeSingleChoice": "Multiple choice",
+  "questionIntakeTypeSingleChoice": "Single choice",
+  "questionIntakeTypeMultiChoice": "Multiple choice",
   "questionIntakeOptionsLabel": "Options",
   "questionIntakeOptionLabel": "Option {label}",
   "@questionIntakeOptionLabel": {
@@ -1690,7 +1691,7 @@
   "questionImageOpenTooltip": "Open at full size",
   "questionImageLoadFailed": "This image could not be loaded",
   "questionIntakePhotoPending": "Images waiting",
-  "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into stems.",
+  "questionIntakeNoPhotos": "No photos yet. Picked images are stored locally until the AI turns them into tags, knowledge points, flashcards or questions.",
   "questionIntakePhotoSummary": "{mime} · .{extension}",
   "@questionIntakePhotoSummary": {
     "placeholders": {
@@ -2022,8 +2023,8 @@
   "questionSimilarGoIntake": "Add questions",
   "questionSimilarCrossSubject": "Cross-subject transfer",
   "handwritingQueueTitle": "Handwriting intake",
-  "handwritingQueueEntryHint": "Turn photos into tags, knowledge points and flashcards - confirmed one by one before anything is written",
-  "handwritingQueueSubtitle": "The model only organises what is on the page; every item is written only after you confirm it.",
+  "handwritingQueueEntryHint": "Turn photos into tags, knowledge points, flashcards or questions - confirmed one by one before anything is written",
+  "handwritingQueueSubtitle": "The model only organises what is really on the page (questions are transcribed, never invented); every item is written only after you confirm it.",
   "handwritingQueueEmpty": "No photos yet. Take one on the intake page, then come back here.",
   "handwritingQueueGoIntake": "Open intake page",
   "handwritingQueuePhotosLabel": "Photos to organise",
@@ -2031,7 +2032,7 @@
   "handwritingQueueAnalyze": "Organise this photo",
   "handwritingQueueAnalyzing": "Reading the photo...",
   "handwritingQueueNotAnalyzed": "This photo has not been organised yet.",
-  "handwritingQueueNothingFound": "The model proposed nothing to organise: this page may have no tags, knowledge points or cards.",
+  "handwritingQueueNothingFound": "The model proposed nothing to organise: this page may have no tags, knowledge points, cards or questions.",
   "handwritingQueueFailureTitle": "This run failed",
   "handwritingQueueForget": "Discard result",
   "handwritingQueueProposalsLabel": "Proposals to confirm",
@@ -2065,6 +2066,59 @@
   "@handwritingProposalCardCount": {
     "placeholders": {
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQuestionMissingStem": "The stem was not recognised; retake the photo or type it in",
+  "handwritingQuestionOptions": "Options ({count})",
+  "@handwritingQuestionOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQuestionAnswer": "Answer: {value}",
+  "@handwritingQuestionAnswer": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionSolution": "Solution: {value}",
+  "@handwritingQuestionSolution": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionEmptyValue": "none",
+  "handwritingQuestionEditForIntake": "Edit and save",
+  "handwritingQuestionSaved": "Saved as {serial} (handwriting item marked as confirmed)",
+  "@handwritingQuestionSaved": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionSavedUnnumbered": "Saved (unnumbered; handwriting item marked as confirmed)",
+  "handwritingQueuePreviewLoading": "Checking what will happen…",
+  "handwritingQueuePreviewNeedsReview": "Review before confirming",
+  "handwritingQueuePreviewBlocked": "Cannot confirm",
+  "handwritingQueuePreviewBlockedSummary": "{ready} ready, {needsReview} to review, {blocked} blocked",
+  "@handwritingQueuePreviewBlockedSummary": {
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "needsReview": {
+        "type": "int"
+      },
+      "blocked": {
         "type": "int"
       }
     }

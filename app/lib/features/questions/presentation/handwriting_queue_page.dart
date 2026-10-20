@@ -13,6 +13,8 @@
 ///    用户以为这次整理成功了（队列层也已经把旧 set 删掉了，这里是第二道保险）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -311,6 +313,15 @@ class _SelectedPhotoPanel extends ConsumerWidget {
                     applying: applying,
                     outcome: _outcomeOf(report, proposal.id),
                     onApply: () => notifier.applyProposal(relPath, proposal.id),
+                    onEditForIntake:
+                        proposal.kind == HandwritingProposalKind.question
+                            ? () => unawaited(_editForIntake(
+                                  context,
+                                  ref,
+                                  relPath,
+                                  proposal,
+                                ))
+                            : null,
                   ),
               ],
             ],
@@ -329,6 +340,33 @@ class _SelectedPhotoPanel extends ConsumerWidget {
               Text(l10n.handwritingQueueNotAnalyzed),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 「编辑后保存」：把题目提案的草稿带到收题页校对（应用层只装配，不写库）。
+  ///
+  /// 返回 null 表示题干是空的：这类提案连草稿都装不出来，卡片上只显示提示，不给
+  /// 这个入口。
+  Future<void> _editForIntake(
+    BuildContext context,
+    WidgetRef ref,
+    String relPath,
+    HandwritingProposal proposal,
+  ) async {
+    final draft = await ref
+        .read(handwritingProposalServiceProvider)
+        .questionDraftForIntake(proposal);
+    if (draft == null || !context.mounted) {
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => QuestionIntakePage(
+          initialDraft: draft,
+          initialRelPath: relPath,
+          initialProposalId: proposal.id,
         ),
       ),
     );
@@ -381,6 +419,7 @@ class _ProposalCard extends StatelessWidget {
     required this.applying,
     required this.outcome,
     required this.onApply,
+    this.onEditForIntake,
   });
 
   final HandwritingProposal proposal;
@@ -388,6 +427,9 @@ class _ProposalCard extends StatelessWidget {
   final bool applying;
   final HandwritingApplyOutcome? outcome;
   final VoidCallback onApply;
+
+  /// 题目提案的「编辑后保存」入口；其它 kind 为 null（它们确认即入库）。
+  final VoidCallback? onEditForIntake;
 
   @override
   Widget build(BuildContext context) {
@@ -419,6 +461,13 @@ class _ProposalCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (proposal.kind == HandwritingProposalKind.question)
+              _QuestionProposalDetails(
+                proposal: proposal,
+                applied: applied,
+                applying: applying,
+                onEditForIntake: onEditForIntake,
+              ),
             if (proposal.rationaleZh.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(proposal.rationaleZh),
@@ -512,4 +561,106 @@ String _confidenceBand(AppLocalizations l10n, double confidence) {
     return l10n.handwritingProposalConfidenceMedium;
   }
   return l10n.handwritingProposalConfidenceLow;
+}
+
+/// 解析摘要：卡片上只放一行，先折叠空白再截断；空解析返回空串。
+String handwritingProposalSolutionSummary(String? raw, {int maxChars = 80}) {
+  final collapsed = (raw ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (collapsed.length <= maxChars) {
+    return collapsed;
+  }
+  return '${collapsed.substring(0, maxChars)}…';
+}
+
+/// 题目提案的原文展示：题干、选项、答案、解析摘要，外加「编辑后保存」入口。
+///
+/// 题目是四类产物里唯一不能"确认即入库"的一种：确认只代表模型读对了，真正建题
+/// 要先生成 [QuestionDraft] 带到收题页校对，用户按「入库」才写库。这里显示的是
+/// 模型读出来的原文，不做润色；没认出题干时只给提示、不给入口。
+class _QuestionProposalDetails extends StatelessWidget {
+  const _QuestionProposalDetails({
+    required this.proposal,
+    required this.applied,
+    required this.applying,
+    required this.onEditForIntake,
+  });
+
+  final HandwritingProposal proposal;
+  final bool applied;
+  final bool applying;
+  final VoidCallback? onEditForIntake;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final stem = (proposal.fields['stem'] ?? '').trim();
+    if (stem.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, size: 18, color: scheme.error),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                l10n.handwritingQuestionMissingStem,
+                style: TextStyle(color: scheme.error),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final answer = (proposal.fields['answer'] ?? '').trim();
+    final solution = handwritingProposalSolutionSummary(
+      proposal.fields['solution'],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SelectableText(
+            stem,
+            key: Key('handwriting-question-stem-${proposal.id}'),
+          ),
+          if (proposal.options.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.handwritingQuestionOptions(proposal.options.length),
+              style: theme.textTheme.labelLarge,
+            ),
+            for (final option in proposal.options)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, left: 8),
+                child: Text('${option.label}. ${option.content}'),
+              ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            l10n.handwritingQuestionAnswer(
+              answer.isEmpty ? l10n.handwritingQuestionEmptyValue : answer,
+            ),
+          ),
+          Text(
+            l10n.handwritingQuestionSolution(
+              solution.isEmpty ? l10n.handwritingQuestionEmptyValue : solution,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: Key('handwriting-question-edit-${proposal.id}'),
+              onPressed: (applied || applying) ? null : onEditForIntake,
+              icon: const Icon(Icons.edit_note),
+              label: Text(l10n.handwritingQuestionEditForIntake),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

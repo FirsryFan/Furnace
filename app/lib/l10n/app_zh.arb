@@ -734,7 +734,7 @@
   "docBankTitle": "题库与组卷",
   "docBankBody": "收题页把粘贴的文本或选中的图片变成待校对草稿：AI 只做结构化，你不点「入库」就不会写库，同一道题（题干指纹相同）会指向已有题目而不是重复入库。组卷页只从已有题库里凑卷（优先危险/发展区知识点），凑不齐会如实列出缺哪些知识点——AI 不会自己出题；卷面可以复制成可打印的纯文本。认知模型页的「能力动作画像」还能点开，按解题链上的能力动作找题。",
   "docMaterialTitle": "拍照、资料与演练",
-  "docMaterialBody": "拍照整理把一张照片变成三类待确认产物：补充标签、闪存卡、MindNet 知识点节点，确认前不写学习数据；资料入库把一段材料整理成知识点/卡片/连接三类提案，确认后才落库，撤回有记录可查。照片还能整理成一份带机制参数的 run/1 请求，「机制面板」里可以试跑/演练：演练只给读数，不直接改你的数据；你说「不装目标机制」就真的不装。",
+  "docMaterialBody": "拍照整理把一张照片变成四类待确认产物：补充标签、闪存卡、MindNet 知识点节点、题目（原样誊写），确认前不写学习数据；资料入库把一段材料整理成知识点/卡片/连接三类提案，确认后才落库，撤回有记录可查。照片还能整理成一份带机制参数的 run/1 请求，「机制面板」里可以试跑/演练：演练只给读数，不直接改你的数据；你说「不装目标机制」就真的不装。",
   "docTodayTitle": "今天做什么、什么时候做",
   "docTodayBody": "今日清单列出今天到期的卡；节律层给出 α(τ) 注意力可用性读数；任务与日程块时间冲突会提示并可一键顺延；认知排序档位只改「先复习哪张」，不做到期时间，而且只有点顶栏排序按钮时才重算。反事实 V(π) 与留存探针同样只影响顺序。",
   "docCognitiveTitle": "认知模型读数怎么理解",
@@ -1423,6 +1423,7 @@
   "questionIntakeQuestionTypeLabel": "题型",
   "questionIntakeTypeSolution": "解答题",
   "questionIntakeTypeSingleChoice": "选择题",
+  "questionIntakeTypeMultiChoice": "多选题",
   "questionIntakeOptionsLabel": "选项",
   "questionIntakeOptionLabel": "选项 {label}",
   "@questionIntakeOptionLabel": {
@@ -1570,7 +1571,7 @@
   "questionImageOpenTooltip": "点开看大图",
   "questionImageLoadFailed": "这张图读不出来",
   "questionIntakePhotoPending": "待整理图片",
-  "questionIntakeNoPhotos": "还没有拍照。选中的图片会存在本地，等 AI 整理成题干。",
+  "questionIntakeNoPhotos": "还没有拍照。选中的图片会存在本地，等 AI 整理成标签、知识点、闪存卡或题目。",
   "questionIntakePhotoSummary": "{mime} · .{extension}",
   "@questionIntakePhotoSummary": {
     "placeholders": {
@@ -1902,8 +1903,8 @@
   "questionSimilarGoIntake": "去收题",
   "questionSimilarCrossSubject": "跨学科迁移",
   "handwritingQueueTitle": "拍照整理",
-  "handwritingQueueEntryHint": "把拍好的照片整理成标签、知识点和闪存卡，逐条确认才写库",
-  "handwritingQueueSubtitle": "AI 只整理、不出题：每一条都要你点确认才会写进库里。",
+  "handwritingQueueEntryHint": "把拍好的照片整理成标签、知识点、闪存卡或题目，逐条确认才写库",
+  "handwritingQueueSubtitle": "AI 只整理照片里真实存在的内容（题目原样誊写，不自己出题）：每一条都要你点确认才会写进库里。",
   "handwritingQueueEmpty": "还没有拍照或选图。先去收题页拍一张，再回来整理。",
   "handwritingQueueGoIntake": "去收题页",
   "handwritingQueuePhotosLabel": "待整理照片",
@@ -1911,7 +1912,7 @@
   "handwritingQueueAnalyze": "整理这张照片",
   "handwritingQueueAnalyzing": "正在看照片…",
   "handwritingQueueNotAnalyzed": "这张照片还没整理过。",
-  "handwritingQueueNothingFound": "模型没给出可整理的产物：这张照片里可能没有标签、知识点或卡片。",
+  "handwritingQueueNothingFound": "模型没给出可整理的产物：这张照片里可能没有标签、知识点、卡片或题目。",
   "handwritingQueueFailureTitle": "这次整理失败了",
   "handwritingQueueForget": "丢弃整理结果",
   "handwritingQueueProposalsLabel": "待确认的产物",
@@ -1945,6 +1946,59 @@
   "@handwritingProposalCardCount": {
     "placeholders": {
       "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQuestionMissingStem": "没认出题干，重拍或手填",
+  "handwritingQuestionOptions": "选项（{count} 个）",
+  "@handwritingQuestionOptions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQuestionAnswer": "答案：{value}",
+  "@handwritingQuestionAnswer": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionSolution": "解析：{value}",
+  "@handwritingQuestionSolution": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionEmptyValue": "没有",
+  "handwritingQuestionEditForIntake": "编辑后保存",
+  "handwritingQuestionSaved": "已入库：{serial}（拍照整理已标记为确认）",
+  "@handwritingQuestionSaved": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "handwritingQuestionSavedUnnumbered": "已入库（未编号，拍照整理已标记为确认）",
+  "handwritingQueuePreviewLoading": "正在预检…",
+  "handwritingQueuePreviewNeedsReview": "确认前看一眼",
+  "handwritingQueuePreviewBlocked": "不能确认",
+  "handwritingQueuePreviewBlockedSummary": "{ready} 条能确认、{needsReview} 条要先看一眼、{blocked} 条不能确认",
+  "@handwritingQueuePreviewBlockedSummary": {
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "needsReview": {
+        "type": "int"
+      },
+      "blocked": {
         "type": "int"
       }
     }

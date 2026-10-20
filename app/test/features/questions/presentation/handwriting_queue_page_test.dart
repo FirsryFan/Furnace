@@ -26,6 +26,8 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/services/intake/handwriting_proposals.dart';
+import 'package:furnace/domain/services/questions/question_number.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/handwriting_proposal_service.dart';
@@ -143,6 +145,7 @@ void main() {
     WidgetTester tester, {
     ModelAdapter? adapter,
     String? initialRelPath,
+    List<Override> overrides = const <Override>[],
   }) async {
     tester.view.physicalSize = const Size(1200, 4000);
     tester.view.devicePixelRatio = 1.0;
@@ -156,6 +159,7 @@ void main() {
           handwritingProposalServiceProvider.overrideWithValue(
             serviceWith(adapter),
           ),
+          ...overrides,
         ],
         child: MaterialApp(
           locale: const Locale('zh'),
@@ -350,6 +354,138 @@ void main() {
     expect(chipOf('first.png').selected, isTrue);
     expect(chipOf('second.png').selected, isFalse);
   });
+
+  // ── 题目提案：从照片到题库 ────────────────────────────────────────────────
+  //
+  // 题目是四类产物里唯一不能"确认即入库"的一种：确认只代表模型读对了，
+  // 真要建题得带着草稿去收题页校对，用户按「入库」才写库。这组测试盯三件事：
+  //  1. 卡片把模型读到的题干/选项/答案/解析原样显示（解析只做单行摘要）；
+  //  2. 点「编辑后保存」把草稿预填进收题页表单（不写库）；
+  //  3. 收题页入库成功后，题库有这道题、题号出现在提示里，拍照整理那条提案
+  //     被标成已确认（只标记，不重复写库）。
+
+  const stem = '质量 1 kg 的小球以 2 m/s 撞墙，以 1 m/s 反弹，求动量变化大小。';
+  const answer = '3 kg·m/s（方向与原速度相反）';
+  const solution = '取原方向为正：Δp = m(v2 - v1) = 1 × (-1 - 2) = -3，大小 3 kg·m/s。';
+  const questionProposal = '{"kind": "question", "title": "动量变化题", '
+      '"rationale": "照片里的第 2 题", "confidence": 0.7, '
+      '"fields": {"stem": "$stem", "answer": "$answer", '
+      '"solution": "$solution"}, '
+      '"options": [{"label": "A", "content": "3 kg·m/s"}, '
+      '{"label": "B", "content": "1 kg·m/s"}]}';
+
+  FakeModelAdapter questionAdapter() => FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[questionProposal])),
+      ]);
+
+  testWidgets('题目卡片：题干、选项、答案、解析摘要都显示', (tester) async {
+    await seedPhoto();
+    await seedParentPath('文化课/物理/力学');
+    await pumpQueue(tester, adapter: questionAdapter());
+
+    await tester.tap(find.text(zh.handwritingQueueAnalyze));
+    await waitForText(tester, zh.handwritingQuestionEditForIntake);
+
+    expect(find.text('题目'), findsOneWidget);
+    final stemWidget = tester.widget<SelectableText>(
+      find.byType(SelectableText),
+    );
+    expect(stemWidget.data, stem);
+    expect(find.text(zh.handwritingQuestionOptions(2)), findsOneWidget);
+    expect(find.text('A. 3 kg·m/s'), findsOneWidget);
+    expect(find.text('B. 1 kg·m/s'), findsOneWidget);
+    expect(find.text(zh.handwritingQuestionAnswer(answer)), findsOneWidget);
+    expect(find.text(zh.handwritingQuestionSolution(solution)), findsOneWidget);
+  });
+
+  testWidgets('点「编辑后保存」：草稿预填到收题页，但还没写库', (tester) async {
+    await seedPhoto();
+    await seedParentPath('文化课/物理/力学');
+    await pumpQueue(tester, adapter: questionAdapter());
+
+    await tester.tap(find.text(zh.handwritingQueueAnalyze));
+    await waitForText(tester, zh.handwritingQuestionEditForIntake);
+
+    await tester.tap(find.text(zh.handwritingQuestionEditForIntake));
+    await waitForText(tester, zh.questionIntakePasteSection);
+
+    expect(find.byType(QuestionIntakePage), findsOneWidget);
+    expect(find.widgetWithText(TextField, stem), findsOneWidget);
+    expect(find.widgetWithText(TextField, answer), findsOneWidget);
+    expect(find.widgetWithText(TextField, solution), findsOneWidget);
+    expect(find.widgetWithText(TextField, '3 kg·m/s'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '1 kg·m/s'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '拍照整理'), findsOneWidget);
+    // 预填只是表单内容：不按「入库」就什么都不写。
+    expect(await db.select(db.questions).get(), isEmpty);
+  });
+
+  testWidgets('入库后：题库有这道题、题号进提示、拍照整理卡片变已确认', (tester) async {
+    await seedPhoto();
+    await seedParentPath('文化课/物理/力学');
+    await pumpQueue(tester, adapter: questionAdapter());
+
+    await tester.tap(find.text(zh.handwritingQueueAnalyze));
+    await waitForText(tester, zh.handwritingQuestionEditForIntake);
+    await tester.tap(find.text(zh.handwritingQuestionEditForIntake));
+    await waitForText(tester, zh.questionIntakePasteSection);
+
+    await tester.ensureVisible(find.text(zh.questionIntakeSubmit));
+    await settle(tester);
+    await tester.tap(find.text(zh.questionIntakeSubmit));
+    await waitForText(
+      tester,
+      zh.handwritingQuestionSaved(formatQuestionSerial(1)),
+    );
+
+    final rows = await db.select(db.questions).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.stem, stem);
+    expect(rows.single.serialNo, 1);
+
+    // 中文界面下 `tester.pageBack()` 找不到 tooltip「Back」，直接点 AppBar 的返回键。
+    await tester.tap(find.byType(BackButton));
+    await waitForText(tester, zh.handwritingProposalApplied);
+    expect(find.text(zh.handwritingProposalApplied), findsOneWidget);
+    // 已确认之后不能再从卡片进收题页（那是第二遍入库）。
+    final editButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, zh.handwritingQuestionEditForIntake),
+    );
+    expect(editButton.onPressed, isNull);
+  });
+
+  testWidgets('题干为空：只提示重拍或手填，不给编辑入口', (tester) async {
+    final relPath = await seedPhoto();
+    final images = await store.pending();
+    final seeded = HandwritingQueueState(
+      images: images,
+      sets: <String, HandwritingProposalSet>{
+        relPath: HandwritingProposalSet(
+          sourceRef: relPath,
+          proposals: const <HandwritingProposal>[
+            HandwritingProposal(
+              id: 'question-empty',
+              kind: HandwritingProposalKind.question,
+              titleZh: '读不出题干',
+              fields: <String, String>{'answer': '42'},
+            ),
+          ],
+        ),
+      },
+    );
+    await pumpQueue(
+      tester,
+      initialRelPath: relPath,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    expect(find.text('题目'), findsOneWidget);
+    expect(find.text(zh.handwritingQuestionMissingStem), findsOneWidget);
+    expect(find.text(zh.handwritingQuestionEditForIntake), findsNothing);
+  });
 }
 
 /// 一个"永远不回答"的适配器：用来把「整理中」那一帧定住（`FakeModelAdapter`
@@ -370,4 +506,19 @@ final class _HangingAdapter implements ModelAdapter {
     _controller.add(const ModelTurnDone(finishReason: 'stop'));
     _controller.close();
   }
+}
+
+/// 用固定队列状态起页面的替身：正常 `refresh()` 会把状态换成磁盘与库里的真实
+/// 内容，而这条用例要的是一条"库里读不回来"的空题干提案（严格解析会拒绝空题干，
+/// 所以只能直接构造）。
+final class _SeededQueueNotifier extends HandwritingQueueNotifier {
+  _SeededQueueNotifier(this.seeded);
+
+  final HandwritingQueueState seeded;
+
+  @override
+  HandwritingQueueState build() => seeded;
+
+  @override
+  Future<void> refresh() async {}
 }
