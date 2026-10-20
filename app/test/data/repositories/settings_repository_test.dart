@@ -35,4 +35,40 @@ void main() {
     final settings = await repo.getSettings();
     expect(settings!.language, 'zh');
   });
+
+  group('review reminder (v28)', () {
+    test('no settings row yet reads as off / never picked', () async {
+      expect(await repo.getReviewReminderEnabled(), isFalse);
+      expect(await repo.getReviewReminderMinutes(), isNull);
+    });
+
+    test('writes and reads the switch and the minute of day', () async {
+      await repo.ensureSettings();
+      await repo.updateReviewReminderEnabled(true);
+      await repo.updateReviewReminderMinutes(1230);
+      expect(await repo.getReviewReminderEnabled(), isTrue);
+      expect(await repo.getReviewReminderMinutes(), 1230);
+
+      await repo.updateReviewReminderEnabled(false);
+      expect(await repo.getReviewReminderEnabled(), isFalse,
+          reason: '关掉开关不清时刻：用户再打开时还是上次选的时间');
+      expect(await repo.getReviewReminderMinutes(), 1230);
+    });
+
+    test('minutes outside 0..1439 throw ArgumentError and leave the row alone',
+        () async {
+      await repo.ensureSettings();
+      await expectLater(
+          repo.updateReviewReminderMinutes(-1), throwsArgumentError);
+      await expectLater(
+          repo.updateReviewReminderMinutes(1440), throwsArgumentError);
+      await expectLater(
+          repo.updateReviewReminderMinutes(1 << 30), throwsArgumentError);
+      expect(await repo.getReviewReminderMinutes(), isNull);
+
+      await repo.updateReviewReminderMinutes(0);
+      expect(await repo.getReviewReminderMinutes(), 0,
+          reason: '0 = 午夜，合法且必须与 NULL 区分');
+    });
+  });
 }

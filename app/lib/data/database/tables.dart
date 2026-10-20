@@ -128,6 +128,25 @@ class LocalSettings extends Table {
   /// 解析与 `docs/REASONING_LAYER_DESIGN.md` §4）。
   TextColumn get capabilityActionOverlayJson => text().nullable()();
 
+  // --- v28: 复习提醒（轮次一百三十五）---
+  //
+  // 与上面几列同一个契约：列可空、NULL 读作"用户没选过"——也就是提醒关闭、
+  // 时刻用出厂 20:00。迁移绝不写默认值，否则今天的时间会被冻进每一台已有安装，
+  // 以后改出厂时刻就达不到了（见 `docs/DATA_MODEL.md` §14）。
+
+  /// v28: 是否每天用系统通知提醒还有到期卡片要复习。
+  ///
+  /// NULL（旧行 / 用户没选过）读作 **false**：提醒是会弹系统通知的东西，升级不应
+  /// 替用户把它打开。仓库/域层负责把 NULL 翻成 false，界面不自己做这套翻译。
+  BoolColumn get reviewReminderEnabled => boolean().nullable()();
+
+  /// v28: 复习提醒时刻（本地时间的当天第几分钟，0..1439；1200 = 20:00）。
+  ///
+  /// NULL 读作域层的出厂值 `kDefaultReviewReminderMinutesOfDay`（今天 20:00），
+  /// 但表定义不 import 域层——读侧负责这个翻译。写入校验 0..1439，越界由
+  /// `SettingsRepository` 抛 ArgumentError，库里不存非法时刻。
+  IntColumn get reviewReminderMinutes => integer().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

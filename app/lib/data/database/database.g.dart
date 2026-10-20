@@ -406,6 +406,21 @@ class $LocalSettingsTable extends LocalSettings
       GeneratedColumn<String>(
           'capability_action_overlay_json', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _reviewReminderEnabledMeta =
+      const VerificationMeta('reviewReminderEnabled');
+  @override
+  late final GeneratedColumn<bool> reviewReminderEnabled =
+      GeneratedColumn<bool>('review_reminder_enabled', aliasedName, true,
+          type: DriftSqlType.bool,
+          requiredDuringInsert: false,
+          defaultConstraints: GeneratedColumn.constraintIsAlways(
+              'CHECK ("review_reminder_enabled" IN (0, 1))'));
+  static const VerificationMeta _reviewReminderMinutesMeta =
+      const VerificationMeta('reviewReminderMinutes');
+  @override
+  late final GeneratedColumn<int> reviewReminderMinutes = GeneratedColumn<int>(
+      'review_reminder_minutes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -437,6 +452,8 @@ class $LocalSettingsTable extends LocalSettings
         goalMechanismEnabled,
         goalBeta,
         capabilityActionOverlayJson,
+        reviewReminderEnabled,
+        reviewReminderMinutes,
         createdAt,
         updatedAt
       ];
@@ -536,6 +553,18 @@ class $LocalSettingsTable extends LocalSettings
               data['capability_action_overlay_json']!,
               _capabilityActionOverlayJsonMeta));
     }
+    if (data.containsKey('review_reminder_enabled')) {
+      context.handle(
+          _reviewReminderEnabledMeta,
+          reviewReminderEnabled.isAcceptableOrUnknown(
+              data['review_reminder_enabled']!, _reviewReminderEnabledMeta));
+    }
+    if (data.containsKey('review_reminder_minutes')) {
+      context.handle(
+          _reviewReminderMinutesMeta,
+          reviewReminderMinutes.isAcceptableOrUnknown(
+              data['review_reminder_minutes']!, _reviewReminderMinutesMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -593,6 +622,10 @@ class $LocalSettingsTable extends LocalSettings
       capabilityActionOverlayJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}capability_action_overlay_json']),
+      reviewReminderEnabled: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}review_reminder_enabled']),
+      reviewReminderMinutes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}review_reminder_minutes']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -693,6 +726,19 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// 添花的东西，不能让它挡住主流程（见 `capability_action_overlay.dart` 的宽容
   /// 解析与 `docs/REASONING_LAYER_DESIGN.md` §4）。
   final String? capabilityActionOverlayJson;
+
+  /// v28: 是否每天用系统通知提醒还有到期卡片要复习。
+  ///
+  /// NULL（旧行 / 用户没选过）读作 **false**：提醒是会弹系统通知的东西，升级不应
+  /// 替用户把它打开。仓库/域层负责把 NULL 翻成 false，界面不自己做这套翻译。
+  final bool? reviewReminderEnabled;
+
+  /// v28: 复习提醒时刻（本地时间的当天第几分钟，0..1439；1200 = 20:00）。
+  ///
+  /// NULL 读作域层的出厂值 `kDefaultReviewReminderMinutesOfDay`（今天 20:00），
+  /// 但表定义不 import 域层——读侧负责这个翻译。写入校验 0..1439，越界由
+  /// `SettingsRepository` 抛 ArgumentError，库里不存非法时刻。
+  final int? reviewReminderMinutes;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -713,6 +759,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.goalMechanismEnabled,
       this.goalBeta,
       this.capabilityActionOverlayJson,
+      this.reviewReminderEnabled,
+      this.reviewReminderMinutes,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -762,6 +810,12 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     if (!nullToAbsent || capabilityActionOverlayJson != null) {
       map['capability_action_overlay_json'] =
           Variable<String>(capabilityActionOverlayJson);
+    }
+    if (!nullToAbsent || reviewReminderEnabled != null) {
+      map['review_reminder_enabled'] = Variable<bool>(reviewReminderEnabled);
+    }
+    if (!nullToAbsent || reviewReminderMinutes != null) {
+      map['review_reminder_minutes'] = Variable<int>(reviewReminderMinutes);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -814,6 +868,12 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           capabilityActionOverlayJson == null && nullToAbsent
               ? const Value.absent()
               : Value(capabilityActionOverlayJson),
+      reviewReminderEnabled: reviewReminderEnabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewReminderEnabled),
+      reviewReminderMinutes: reviewReminderMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewReminderMinutes),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -844,6 +904,10 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       goalBeta: serializer.fromJson<double?>(json['goalBeta']),
       capabilityActionOverlayJson:
           serializer.fromJson<String?>(json['capabilityActionOverlayJson']),
+      reviewReminderEnabled:
+          serializer.fromJson<bool?>(json['reviewReminderEnabled']),
+      reviewReminderMinutes:
+          serializer.fromJson<int?>(json['reviewReminderMinutes']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -871,6 +935,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'goalBeta': serializer.toJson<double?>(goalBeta),
       'capabilityActionOverlayJson':
           serializer.toJson<String?>(capabilityActionOverlayJson),
+      'reviewReminderEnabled': serializer.toJson<bool?>(reviewReminderEnabled),
+      'reviewReminderMinutes': serializer.toJson<int?>(reviewReminderMinutes),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -894,6 +960,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<bool?> goalMechanismEnabled = const Value.absent(),
           Value<double?> goalBeta = const Value.absent(),
           Value<String?> capabilityActionOverlayJson = const Value.absent(),
+          Value<bool?> reviewReminderEnabled = const Value.absent(),
+          Value<int?> reviewReminderMinutes = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -926,6 +994,12 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         capabilityActionOverlayJson: capabilityActionOverlayJson.present
             ? capabilityActionOverlayJson.value
             : this.capabilityActionOverlayJson,
+        reviewReminderEnabled: reviewReminderEnabled.present
+            ? reviewReminderEnabled.value
+            : this.reviewReminderEnabled,
+        reviewReminderMinutes: reviewReminderMinutes.present
+            ? reviewReminderMinutes.value
+            : this.reviewReminderMinutes,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -963,6 +1037,12 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       capabilityActionOverlayJson: data.capabilityActionOverlayJson.present
           ? data.capabilityActionOverlayJson.value
           : this.capabilityActionOverlayJson,
+      reviewReminderEnabled: data.reviewReminderEnabled.present
+          ? data.reviewReminderEnabled.value
+          : this.reviewReminderEnabled,
+      reviewReminderMinutes: data.reviewReminderMinutes.present
+          ? data.reviewReminderMinutes.value
+          : this.reviewReminderMinutes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -988,6 +1068,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('goalBeta: $goalBeta, ')
           ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
+          ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
+          ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -995,26 +1077,29 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      language,
-      themeMode,
-      profileId,
-      activeThemeId,
-      aiEnabled,
-      aiApiKey,
-      aiBaseUrl,
-      aiModel,
-      aiPermissionMode,
-      aiMaxRounds,
-      ankiJudgeMode,
-      ankiCardTypePreference,
-      rhythmHintsEnabled,
-      goalMechanismEnabled,
-      goalBeta,
-      capabilityActionOverlayJson,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        language,
+        themeMode,
+        profileId,
+        activeThemeId,
+        aiEnabled,
+        aiApiKey,
+        aiBaseUrl,
+        aiModel,
+        aiPermissionMode,
+        aiMaxRounds,
+        ankiJudgeMode,
+        ankiCardTypePreference,
+        rhythmHintsEnabled,
+        goalMechanismEnabled,
+        goalBeta,
+        capabilityActionOverlayJson,
+        reviewReminderEnabled,
+        reviewReminderMinutes,
+        createdAt,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1037,6 +1122,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.goalBeta == this.goalBeta &&
           other.capabilityActionOverlayJson ==
               this.capabilityActionOverlayJson &&
+          other.reviewReminderEnabled == this.reviewReminderEnabled &&
+          other.reviewReminderMinutes == this.reviewReminderMinutes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1059,6 +1146,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<bool?> goalMechanismEnabled;
   final Value<double?> goalBeta;
   final Value<String?> capabilityActionOverlayJson;
+  final Value<bool?> reviewReminderEnabled;
+  final Value<int?> reviewReminderMinutes;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -1079,6 +1168,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.goalMechanismEnabled = const Value.absent(),
     this.goalBeta = const Value.absent(),
     this.capabilityActionOverlayJson = const Value.absent(),
+    this.reviewReminderEnabled = const Value.absent(),
+    this.reviewReminderMinutes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1100,6 +1191,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.goalMechanismEnabled = const Value.absent(),
     this.goalBeta = const Value.absent(),
     this.capabilityActionOverlayJson = const Value.absent(),
+    this.reviewReminderEnabled = const Value.absent(),
+    this.reviewReminderMinutes = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1122,6 +1215,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<bool>? goalMechanismEnabled,
     Expression<double>? goalBeta,
     Expression<String>? capabilityActionOverlayJson,
+    Expression<bool>? reviewReminderEnabled,
+    Expression<int>? reviewReminderMinutes,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1147,6 +1242,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (goalBeta != null) 'goal_beta': goalBeta,
       if (capabilityActionOverlayJson != null)
         'capability_action_overlay_json': capabilityActionOverlayJson,
+      if (reviewReminderEnabled != null)
+        'review_reminder_enabled': reviewReminderEnabled,
+      if (reviewReminderMinutes != null)
+        'review_reminder_minutes': reviewReminderMinutes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1170,6 +1269,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<bool?>? goalMechanismEnabled,
       Value<double?>? goalBeta,
       Value<String?>? capabilityActionOverlayJson,
+      Value<bool?>? reviewReminderEnabled,
+      Value<int?>? reviewReminderMinutes,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1192,6 +1293,10 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       goalBeta: goalBeta ?? this.goalBeta,
       capabilityActionOverlayJson:
           capabilityActionOverlayJson ?? this.capabilityActionOverlayJson,
+      reviewReminderEnabled:
+          reviewReminderEnabled ?? this.reviewReminderEnabled,
+      reviewReminderMinutes:
+          reviewReminderMinutes ?? this.reviewReminderMinutes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1254,6 +1359,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       map['capability_action_overlay_json'] =
           Variable<String>(capabilityActionOverlayJson.value);
     }
+    if (reviewReminderEnabled.present) {
+      map['review_reminder_enabled'] =
+          Variable<bool>(reviewReminderEnabled.value);
+    }
+    if (reviewReminderMinutes.present) {
+      map['review_reminder_minutes'] =
+          Variable<int>(reviewReminderMinutes.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1283,6 +1396,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('goalMechanismEnabled: $goalMechanismEnabled, ')
           ..write('goalBeta: $goalBeta, ')
           ..write('capabilityActionOverlayJson: $capabilityActionOverlayJson, ')
+          ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
+          ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -23169,6 +23284,8 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> goalMechanismEnabled,
   Value<double?> goalBeta,
   Value<String?> capabilityActionOverlayJson,
+  Value<bool?> reviewReminderEnabled,
+  Value<int?> reviewReminderMinutes,
   required int createdAt,
   required int updatedAt,
 });
@@ -23191,6 +23308,8 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> goalMechanismEnabled,
   Value<double?> goalBeta,
   Value<String?> capabilityActionOverlayJson,
+  Value<bool?> reviewReminderEnabled,
+  Value<int?> reviewReminderMinutes,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -23258,6 +23377,14 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get capabilityActionOverlayJson => $composableBuilder(
       column: $table.capabilityActionOverlayJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get reviewReminderEnabled => $composableBuilder(
+      column: $table.reviewReminderEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reviewReminderMinutes => $composableBuilder(
+      column: $table.reviewReminderMinutes,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
@@ -23334,6 +23461,14 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.capabilityActionOverlayJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get reviewReminderEnabled => $composableBuilder(
+      column: $table.reviewReminderEnabled,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reviewReminderMinutes => $composableBuilder(
+      column: $table.reviewReminderMinutes,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -23401,6 +23536,12 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get capabilityActionOverlayJson => $composableBuilder(
       column: $table.capabilityActionOverlayJson, builder: (column) => column);
 
+  GeneratedColumn<bool> get reviewReminderEnabled => $composableBuilder(
+      column: $table.reviewReminderEnabled, builder: (column) => column);
+
+  GeneratedColumn<int> get reviewReminderMinutes => $composableBuilder(
+      column: $table.reviewReminderMinutes, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -23451,6 +23592,8 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> goalMechanismEnabled = const Value.absent(),
             Value<double?> goalBeta = const Value.absent(),
             Value<String?> capabilityActionOverlayJson = const Value.absent(),
+            Value<bool?> reviewReminderEnabled = const Value.absent(),
+            Value<int?> reviewReminderMinutes = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -23472,6 +23615,8 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             goalMechanismEnabled: goalMechanismEnabled,
             goalBeta: goalBeta,
             capabilityActionOverlayJson: capabilityActionOverlayJson,
+            reviewReminderEnabled: reviewReminderEnabled,
+            reviewReminderMinutes: reviewReminderMinutes,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -23493,6 +23638,8 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> goalMechanismEnabled = const Value.absent(),
             Value<double?> goalBeta = const Value.absent(),
             Value<String?> capabilityActionOverlayJson = const Value.absent(),
+            Value<bool?> reviewReminderEnabled = const Value.absent(),
+            Value<int?> reviewReminderMinutes = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -23514,6 +23661,8 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             goalMechanismEnabled: goalMechanismEnabled,
             goalBeta: goalBeta,
             capabilityActionOverlayJson: capabilityActionOverlayJson,
+            reviewReminderEnabled: reviewReminderEnabled,
+            reviewReminderMinutes: reviewReminderMinutes,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

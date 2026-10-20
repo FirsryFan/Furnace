@@ -218,6 +218,25 @@ class AnkiRepository {
         .get();
   }
 
+  /// The earliest `due_at` strictly after [afterMillis], or `null` when no card
+  /// falls due beyond that moment.
+  ///
+  /// NULL `due_at` means "due now" and is already covered by
+  /// [getDueCardStates]; this answers the different question the review reminder
+  /// asks - "will anything fall due later today?" (schema v28, 轮次一百三十五).
+  /// A card due exactly at [afterMillis] is not "later", hence strictly bigger.
+  Future<int?> nextDueAtAfter(int afterMillis) async {
+    final row = await (_db.select(_db.cardStates)
+          ..where((t) =>
+              t.dueAt.isNotNull() & t.dueAt.isBiggerThanValue(afterMillis))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.dueAt, mode: OrderingMode.asc),
+          ])
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.dueAt;
+  }
+
   Future<void> updateCardState(
     String id, {
     int? dueAt,

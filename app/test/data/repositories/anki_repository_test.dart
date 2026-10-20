@@ -89,7 +89,8 @@ void main() {
       expect(before.encodingStrength, 0.6);
       expect(before.savings, 0.7);
 
-      await anki.updateModelState('cs-1', encodingStrength: 0.42, savings: 0.81);
+      await anki.updateModelState('cs-1',
+          encodingStrength: 0.42, savings: 0.81);
 
       final after = await readRow();
       expectEverythingElseUnchanged(before, after);
@@ -239,6 +240,50 @@ void main() {
       expect(samples.single.knowledgePointId, null);
       expect(samples.single.recalled, isTrue);
       expect(samples.single.intervalDays, null);
+    });
+  });
+
+  group('nextDueAtAfter (v28 review reminder)', () {
+    Future<void> seedCard(String id, int? dueAt) async {
+      await db.into(db.cardStates).insert(
+            CardStatesCompanion.insert(
+              id: id,
+              dueAt: Value(dueAt),
+              createdAt: 1,
+              updatedAt: 1,
+            ),
+          );
+    }
+
+    test('no cards at all -> null', () async {
+      expect(await anki.nextDueAtAfter(1000), null);
+    });
+
+    test('strictly after, so a card due exactly at the instant does not count',
+        () async {
+      await seedCard('cs-a', 900);
+      await seedCard('cs-b', 1000);
+      await seedCard('cs-c', 1001);
+      await seedCard('cs-d', 3000);
+
+      expect(await anki.nextDueAtAfter(1000), 1001);
+      expect(await anki.nextDueAtAfter(1001), 3000);
+    });
+
+    test('NULL due_at means due now and is not a future due time', () async {
+      // 无 due_at 的卡由 getDueCardStates 覆盖；这里问的是「之后还会不会到期」，
+      // NULL 不该被当成某个可比较的未来时刻。
+      await seedCard('cs-null', null);
+      expect(await anki.nextDueAtAfter(1000), null);
+
+      await seedCard('cs-later', 2000);
+      expect(await anki.nextDueAtAfter(1000), 2000);
+    });
+
+    test('nothing beyond the instant -> null', () async {
+      await seedCard('cs-past', 10);
+      await seedCard('cs-now', 1000);
+      expect(await anki.nextDueAtAfter(1000), null);
     });
   });
 }

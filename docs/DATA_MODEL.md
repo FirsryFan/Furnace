@@ -687,3 +687,40 @@ v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号�
 NULL 读回 NULL、读侧折算不回写；未知角色原样落库、读取时不计入两桶。
 
 
+
+## 17. v28：复习提醒的开关与时刻（轮次一百三十五）
+
+五应用领域里「flashcard 推送」的推送半边终于落地：设置页一个开关 + 一个每天的时刻，到点若还有到期卡片
+就用系统本地通知提醒一次。v28 只给单行设置表加两列可空字段，不新建表、不动调度数据。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.review_reminder_enabled` | BOOL，可空 | 是否每天提醒复习。**NULL = 用户没选过，读作 `false`** |
+| `local_settings.review_reminder_minutes` | INT，可空 | 提醒时刻 = 本地时间的当天第几分钟（0..1439，1200 = 20:00）。**NULL = 没选过，读作域层出厂值 20:00** |
+
+**为什么可空、为什么迁移不回填**：与 `goal_beta` / `capability_action_overlay_json` 同一套契约——
+回填会把今天的出厂值冻进每一台已有安装，以后想改出厂时刻就永远达不到了。提醒本身是会弹系统通知的
+东西，升级更不该替用户把它打开，所以 NULL 读作关闭。
+
+**读写口径**（`app/lib/data/repositories/settings_repository.dart`）：
+- `getReviewReminderEnabled()`：无设置行 / NULL → `false`。
+- `getReviewReminderMinutes()`：原样返回 `int?`；**`null` 不是 `0`**——0 是午夜、是用户能选的合法值，
+  两者必须可区分。出厂值翻译在域层（`kDefaultReviewReminderMinutesOfDay`），仓库不替它决定。
+- `updateReviewReminderEnabled(bool)` 直接写；`updateReviewReminderMinutes(int)` 校验 0..1439，越界抛
+  `ArgumentError`（不静默 clamp：clamp 出来的时刻与调用方要的不是一回事，还会伪装成用户的选择）。
+- 关掉开关不清时刻：用户再打开时还是上次选的时间。
+
+**到期侧数据**（`app/lib/data/repositories/anki_repository.dart`）：新增 `nextDueAtAfter(int afterMillis)`——
+返回严格大于该时刻的最小 `due_at`，没有则 `null`。`due_at` 为 NULL 的卡表示「现在到期」，已由
+`getDueCardStates` 覆盖，不算未来到期时刻。复习提醒据此判断「今天之后还会不会到期」。
+
+**迁移**：`_upgradeV27ToV28()` 对 `local_settings` 表两次 `addColumnIfMissing`（表不存在直接返回）；
+`_ensureColumns()` 的 `local_settings` 列表加同样两列做自愈（版本号已是 28 但老文件被盖掉时补列）。
+`database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重新生成（62 s，只
+`LocalSettingsCompanion` / 表类变化）。
+
+**测试锁的事实**（`app/test/data/database/v28_migration_test.dart` 4 例 +
+`settings_repository_test.dart` 复习提醒组 3 例 + `anki_repository_test.dart` `nextDueAtAfter` 组 4 例，共 +20 全绿）：
+真实 v27 文件升级后老设置行读作关 / 没选过、升级后能立刻写能读且关库重开不丢；伪造「版本 28 但缺列」的
+文件靠 `_ensureColumns` 补列后可读可写、0 与 NULL 区分；越界分钟抛 `ArgumentError` 且不写库；
+`nextDueAtAfter` 只认严格更大、恰好等于的时刻不算、NULL `due_at` 不当未来时刻、没有更晚到期返回 null。

@@ -173,5 +173,56 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the review-reminder switch (schema v28, 轮次一百三十五).
+  ///
+  /// No settings row / NULL column means "the user never made a choice" and
+  /// reads as `false`: a reminder that posts system notifications is opt-in, so
+  /// an upgrade must not turn it on for anybody (the same rule as
+  /// `goalMechanismEnabled` / `rhythmHintsEnabled`).
+  Future<bool> getReviewReminderEnabled() async {
+    final row = await getSettings();
+    return row?.reviewReminderEnabled ?? false;
+  }
+
+  /// Reads the review-reminder time of day (schema v28) as minutes since
+  /// local midnight, or `null` when the user never picked one.
+  ///
+  /// `null` is not 0: 0 is midnight, a legal deliberate choice, so the two stay
+  /// distinguishable. The caller turns `null` into the domain-layer shipped
+  /// default (today 20:00, `kDefaultReviewReminderMinutesOfDay`); this repository
+  /// never resolves the default itself - the number belongs to the domain layer.
+  Future<int?> getReviewReminderMinutes() async {
+    final row = await getSettings();
+    return row?.reviewReminderMinutes;
+  }
+
+  /// Persists the review-reminder switch (schema v28).
+  Future<void> updateReviewReminderEnabled(bool enabled) async {
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      reviewReminderEnabled: Value(enabled),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
+  /// Persists the review-reminder time of day (schema v28), in minutes since
+  /// local midnight.
+  ///
+  /// Throws [ArgumentError] outside 0..1439 instead of clamping: a silent clamp
+  /// would store a different time than the caller asked for and make the wrong
+  /// reminder look like the user's own choice. Conversion to the next actual
+  /// `DateTime` belongs to the domain layer (`planReviewReminder`).
+  Future<void> updateReviewReminderMinutes(int minutes) async {
+    if (minutes < 0 || minutes > 1439) {
+      throw ArgumentError.value(
+          minutes, 'minutes', 'review reminder minutes must be within 0..1439');
+    }
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      reviewReminderMinutes: Value(minutes),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

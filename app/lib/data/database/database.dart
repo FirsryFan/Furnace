@@ -106,9 +106,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28].
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration {
@@ -195,6 +195,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 27) {
           await _upgradeV26ToV27();
         }
+        if (from < 28) {
+          await _upgradeV27ToV28();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -249,6 +252,11 @@ class AppDatabase extends _$AppDatabase {
         // 老文件被盖成 v25 却没有这一列时，Drift 跳过 onUpgrade，映射器第一次读
         // 设置（解题前读词表）就抛错。
         localSettings.capabilityActionOverlayJson,
+        // v28（轮次一百三十五）：复习提醒的开关与时刻。同一个失败模式：老文件被
+        // 盖成 v28 却没有这两列时，Drift 跳过 onUpgrade，映射器第一次读设置就抛错。
+        // 两列都可空、语义由读侧解释，补列即可，没有回填这一步。
+        localSettings.reviewReminderEnabled,
+        localSettings.reviewReminderMinutes,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -781,6 +789,27 @@ class AppDatabase extends _$AppDatabase {
     }
     final m = Migrator(this);
     await _addColumnIfMissing(m, 'attachments', attachments.role);
+  }
+
+  /// v27 -> v28：复习提醒的开关与时刻（轮次一百三十五）。
+  ///
+  /// 纯新增、全可空：`review_reminder_enabled`（NULL 读作 false）与
+  /// `review_reminder_minutes`（NULL 读作出厂 20:00，即 1200）。迁移只补列，
+  /// 不回填——NULL 已经把「用户没选过」表达清楚，回填会把今天的出厂值冻进
+  /// 每一台已有安装，以后改出厂时刻就达不到了（与 `goalBeta` /
+  /// `capabilityActionOverlayJson` 同一个契约）。
+  ///
+  /// 表不存在就跳过：被盖成 v28 却缺表的文件由 [_ensureColumns] 的自愈建表，
+  /// 在这里 createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV27ToV28() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.reviewReminderEnabled);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.reviewReminderMinutes);
   }
 
   Future<void> _upgradeV4ToV5() async {
