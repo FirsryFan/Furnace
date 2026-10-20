@@ -137,7 +137,104 @@ https://zujuan.xkw.com/quessearch?keyword=<base64>&intent=question&b=0&urlSource
 
 - UI 已接线（题目详情页入口 + 底部候选表），但**真机剪贴板与浏览器粘贴未手测**；widget test 用 mock
   平台通道断言 `Clipboard.setData` 收到的内容。
-- 题库没有来源 id 字段，详情页/试卷页链接暂时用不上；也不保存"我是否已在组卷网找到这道题"。
+- 题库原来没有来源 id 字段，详情页/试卷页链接用不上；**v26 已补**（`source_url` /
+  `zujuan_question_id` / `zujuan_bank_id`），定点找题的链接与来源见 §8。仍不保存"我是否已在组卷网
+  找到这道题"的人工状态。
 - 不联网校验链接（避免依赖网络与登录态）；URL 规则以 skill 实测为准。
 - 领域词表只有生物学科（见 §4）；跨学科候选质量不均匀。
 - 站点改版/编码规则变化时，本文件与 zujuan_keywords.dart 需要按 skill 重新对齐（升级标准时同步）。
+## 8. 定点找题：筛选链接 + 粘贴题面入库（轮次一百二十八）
+
+§1–§7 做的是"从题干算检索词、给出搜索入口"。用户 m05080 问的是**定点**找题——按学科/知识点/难度/
+年份/省份把范围收窄，再到站点里取题。本节记录这一轮的实现与一个硬约束：**App 不抓页面**。
+
+### 8.1 为什么不内置抓取（实测，不是推测）
+
+2026-10-19 本机对 `https://zujuan.xkw.com/quessearch?...` 直接发 GET（Chrome UA）：**HTTP 200，但
+返回 23,670 字节的阿里云 WAF JS 挑战页**——`<textarea id="renderData">{"l1":"var arg1='5dfa5802…';"}</textarea>`、
+meta `aliyun_waf_aa`、混淆脚本算出 cookie `acw_sc__v2` 后 reload。纯 HTTP 客户端（Dart `HttpClient`、
+App 内 `fetch_page`）拿不到真页面；Flutter 没有 JS 引擎，桌面端也没有内置 webview。
+skill 侧同样写明：HeadlessChrome 被阻断、请求过密触发 IP 级阻断、robots.txt 本身返回挑战页，
+必须复用本机真实浏览器（Playwright/扩展桥）才通。再加上**答案与解析需登录、是整张 JPEG、免费账号
+每日 30 道**，把抓取塞进 App 既脆弱又高成本。
+
+⇒ 分工：**App 负责"把范围定准、把链接给对、把用户带回来的题面收进来"**；抓取与登录态留给浏览器
+（现有 `zujuan-finder` 内置 skill / 扩展桥是那条路线的工具）。
+
+### 8.2 定点筛选链接：`zujuan_query.dart`
+
+```dart
+enum ZujuanSubject { chinese, math, english, physics, chemistry, biology }
+ZujuanSubject? zujuanSubjectFor(String raw);        // 六英文键 / 六站点 path；其余 → null
+
+enum ZujuanDifficulty { easy, medium, hard }        // d1 / d2 / d3
+enum ZujuanSort { comprehensive, hottest, newest }  // o0 / o1 / o2
+
+class ZujuanQuerySpec { /* subject required + 知识点/难度/题型/分类/新题/年份/省份/年级/学期/排序/页码 */ }
+
+String zujuanFiltersOf(ZujuanQuerySpec spec);       // d→qt→fl→x→y→a→g→te→o→p
+String zujuanFilteredSearchUrl(ZujuanQuerySpec spec);
+String? zujuanKnowledgePointUrl({required ZujuanSubject subject, String? knowledgePointId});
+```
+
+- 学科表带三样东西：站点 path（语文 `gzyw`、数学 `gzsx`、英语 `gzyy`、物理 `gzwl`、化学 `gzhx`、
+  生物 `gzsw`）、知识点**根节点 id**（23177 / 27925 / 29978 / 41934 / 43452 / 44886）、以及该学科
+  自己的题型 id 表（逐学科不同，见 §3 与 skill `references/url-grammar.md`）。
+- 筛选段顺序与页码位置按 skill 实测：**页码 `p` 紧跟排序段、不加斜杠**（`/a370000o1p2/`；写成
+  `/a370000o1/p2/` 实测 404），第 1 页省略；非法值忽略而不是拼出坏链接；知识点 id 非法回退学科根节点。
+- 省份码只收 skill 列过的 8 个（山东 370000 / 广东 440000 / 四川 510000 / 浙江 330000 / 陕西 610000 /
+  北京 110000 / 重庆 500000 / 上海 310000）。**链接未联网实测**（WAF 挡着），规则来源是 skill 文档，
+  接线时人工抽查一次。
+
+验收：`flutter test test/domain/services/zujuan` 中 `zujuan_query_test.dart` 50 例（学科映射、筛选顺序、
+页码、非法值回退、省份表、spec 值对象）。
+
+### 8.3 粘贴题面解析：`zujuan_paste.dart`（纯逻辑，永不抛）
+
+用户在浏览器复制列表卡片/详情正文，粘进 App：
+
+```dart
+List<ZujuanPastedQuestion> parseZujuanPaste(String raw);   // 空/空白 → const []
+String normalizeZujuanMarkers(String raw);                  // 〔加点〕/〔波浪线〕/〔着重号〕去标记留字
+```
+
+`ZujuanPastedQuestion`：`ordinal / stem / options / answer / solution / sourceLabel / year / region /
+knowledgePoints / zujuanQuestionId / zujuanBankId / sourceUrl / warnings / isPartial`。
+
+口径：强序号（`1.`、`1、`）切题，弱序号（`(1)`）要所在段有选项/元数据等强信号且序号 ≥2 严格 +1
+连续才切，否则回退空行分段（解答题小问与解析里的步骤编号不拆）；选项 A–H、必须从 A 连续、跨行续写
+并入上一项（防把"A、B两点"当选项）；`【答案】【解析】【详解】【知识点】【出处】` 与 "答案：" 行内标签；
+答案/解析可同行切分、多行保留；来源/年份/地区从题首括号、题干首行末尾括号、出处行三处抽，不猜；
+题目 id 从 URL、`(d{1,4})q(d{3,})`、`qid=/bankid=` 三路抽，缺一个就**不拼链接**并给固定告警；
+识别不出结构时整段作单题草稿（`stem`=原文、`isPartial=true`、warning 说明），**不静默丢内容**。
+难度/题型只识别不落字段（当前契约没有这两个字段）。
+
+验收：47 例 7 组。**真实卡片样本未取得**（WAF 挡着），用例形态依据 skill 的 cardText 文档；
+接线后需用一张真实粘贴文本人工复核一次切分口径。
+
+### 8.4 入库装配：`zujuan_paste_import.dart` + v26 来源字段
+
+`zujuanDraftFromPasted` / `zujuanDraftsFromPaste` 把解析结果转成 `QuestionDraft`：
+`origin='zujuan'`、`state='raw'`、题干 trim 空则拒绝（批量跳过）、选项 `isCorrect=false`、
+`sourceUrl` 优先用原文里的链接、没有就用 bank+question id 拼、答案/解析空白转 null；三列来源字段
+随 v26 落库（见 `docs/DATA_MODEL.md` §15）。15 例测试。
+
+### 8.5 收题页 UI（task-66，question-intake）
+
+两个入口按钮（定点找题 / 粘贴组卷网题面）在收题表单标题行下：定点面板只做**筛选 + 实时 URL + 复制**，
+并明写"App 不抓页面、答案需登录且每天约 30 道"；粘贴对话框做可勾选、可改题干的预览，再批量入库并
+汇总成功/重复/失败。l10n 五文件手改。**本节待该任务完成后补实际控件与测试证据**。
+
+### 8.6 这一轮的验收证据（截至目前）
+
+`flutter test test/domain/services/zujuan` → +122 All tests passed（link 19 + query 50 + paste 47 等）；
+`flutter test test/features/questions/application/zujuan_paste_import_test.dart` → +15；
+`flutter test test/data/database/v26_migration_test.dart` → +3。
+
+### 8.7 未做 / 已知限制
+
+- 真实粘贴样本、筛选链接的联网可达性都未人工验证（WAF）；答案与解析（JPEG）不在导入范围。
+- 知识点列表只解析、不入库（`QuestionDraft` 没有知识点字段，题目与知识点目前靠标签/相似题，不靠外键）。
+- 难度、题型、专题字段解析后丢弃；若要保留需先扩`ZujuanPastedQuestion` 契约与表列。
+- 不保存"是否已在组卷网找到这道题"的人工状态；不做答案图片下载、不做登录态。
+

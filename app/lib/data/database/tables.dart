@@ -1129,6 +1129,27 @@ class Questions extends Table {
   IntColumn get year => integer().nullable()();
   TextColumn get region => text().nullable()();
 
+  /// 题目在外部站点（现在只有组卷网）的来源页链接（v26，轮次一百二十九）。
+  ///
+  /// 为什么要存 URL 而不只存人读的来源文字：定点找题是「链接去、题回来」，
+  /// 回来以后人还得能点回去核对原题与答案图；`sourceLabel` 写的是出处文字
+  /// （"2024 湖南师大附中月考"），它可能抄错，URL 是唯一可复查的锚点。
+  /// 可空：手写收题、拍照识别、自建题都没有外部来源。
+  TextColumn get sourceUrl => text().nullable()();
+
+  /// 组卷网的题目 id（URL 里 `<bankid>q<questionid>.html` 的 questionid）。
+  ///
+  /// 留着它就能**重建**详情页/答案页链接，也能按 qid 去重——比题干指纹更硬
+  /// （同一道题换排版、题干少一个字都可能换指纹）。可空：非组卷网来源。
+  TextColumn get zujuanQuestionId => text().nullable()();
+
+  /// 组卷网的学科 bankid（URL 里 `<bankid>q<questionid>.html` 的 bankid）。
+  ///
+  /// bankid 决定站点按哪个学科解释链接，缺了它拼出来的链接会落到别的学科
+  /// （站点按 bankId 静默过滤，错学科 0 条）。所以宁可两列都存、也不从
+  /// questionid 猜。可空同上。
+  TextColumn get zujuanBankId => text().nullable()();
+
   /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
   RealColumn get difficulty => real().nullable()();
 

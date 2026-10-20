@@ -613,3 +613,42 @@ v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号�
 且被解析成 customAction、loader 抛异常退回内置词表、空 overlay 行为不变）、
 `app/test/data/repositories/question_repository_test.dart`（`findBySerialNo` 与
 `search(serialNos:)` 的过滤语义）。
+
+## 15. v26：题目来源字段（组卷网定点找题，轮次一百二十八）
+
+定点找题的链路是"按筛选条件拿到组卷网列表链接 → 用户在浏览器里找到题 → 把题面粘回 App → 入库"。
+要重建链接、要能核对"这题是从哪来的"，题库就需要记住外部来源标识。v26 只加三列可空文本，
+其余结构不动。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `questions.source_url` | TEXT，可空 | 外部来源页的原始链接（组卷网题目详情页或用户粘贴里带的 URL）；**NULL = 没有外部来源**（自建题、拍照题） |
+| `questions.zujuan_question_id` | TEXT，可空 | 组卷网 `questionid`（详情页 `<bankid>q<questionid>.html` 的后半段） |
+| `questions.zujuan_bank_id` | TEXT，可空 | 组卷网 `bankid`（详情页路径的前半段，随学科变化） |
+
+**为什么三列都存、而不是只存 URL**：URL 会被站点改版/清洗丢参数；question/bank id 是稳定身份，
+可以随时用 `zujuanQuestionDetailUrl` 重建链接，也能做"这题我是不是已经收过"的人工核对。
+**为什么加 UNIQUE**：不加。题干指纹（`stem_fingerprint`）已经拦住同题重复入库；来源 id 是
+可后补、可缺失的元数据（粘贴文本里常常只有一个 id），加唯一约束会让首次迁移遇脏数据失败、
+也让"先入库后补来源"做不到。**NULL 不等于没有来源，只是没记录**。
+
+**写入路径**：`QuestionDraft` 新增 `sourceUrl / zujuanQuestionId / zujuanBankId` 三个可空字段，
+`QuestionRepository.ingest` 用 `Value(draft.xxx)` 原样写入；粘贴导入把 `origin` 写 `'zujuan'`、
+`state` 写 `'raw'`（题面是别人站的原文，先当原料，等用户整理后再 `structured`）。
+`app/lib/features/questions/application/zujuan_paste_import.dart` 是装配层：
+`zujuanDraftFromPasted(pasted, {required subjectKey, stemOverride})` 单条 +
+`zujuanDraftsFromPaste(raw, {required subjectKey, defaultSourceLevel})` 批量（只跳过空题干，
+不因一条坏草稿中断整批），选项的 `isCorrect` 一律 false（答案可能分小问，不猜）。
+
+**迁移**：`_upgradeV25ToV26()` 对 questions 表 `addColumnIfMissing` 三列，表不存在直接返回；
+`_ensureColumns()` 里加同样的自愈块（版本号已是 26 但列被老文件盖掉时补列）。
+`database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重新生成
+（耗时约 120 s；不要用默认短超时跑，会被杀在半路）。
+
+**测试锁的事实**（`app/test/data/database/v26_migration_test.dart`，3 例）：
+真实 v25 文件升级后老题原样保留、题号 1/2 在、三列 NULL，并能在 v26 上入库带来源的新题（题号 3）；
+带来源入库后关库重开（已 v26 不再迁移）仍读回 `source_url`/`zujuan_question_id`/`zujuan_bank_id` /
+`origin='zujuan'` / `state='raw'`；伪造 v26 缺列文件靠 `_ensureColumns` 补列后可读可写。
+装配层 `app/test/features/questions/application/zujuan_paste_import_test.dart` 15 例覆盖字段搬运、
+链接回填优先级、缺 id 不猜链接、空白归一、批量顺序与默认档位。
+

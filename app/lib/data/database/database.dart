@@ -105,9 +105,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
-  /// [_upgradeV23ToV24] / [_upgradeV24ToV25].
+  /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26].
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration {
@@ -187,6 +187,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 25) {
           await _upgradeV24ToV25();
+        }
+        if (from < 26) {
+          await _upgradeV25ToV26();
         }
       },
       beforeOpen: (details) async {
@@ -288,6 +291,14 @@ class AppDatabase extends _$AppDatabase {
     }
     if (await _tableExists('attachments')) {
       await _addColumnIfMissing(m, 'attachments', attachments.sortOrder);
+    }
+    // v26（轮次一百二十九）：题目的外部来源锚点（来源 URL + 组卷网 qid/bankid）。
+    // 同一个失败模式——老文件被盖成 v26 却没有这三列时，Drift 跳过 onUpgrade，
+    // 读题目的映射器第一次就抛错。三列全可空，补上即可，没有回填这一步。
+    if (await _tableExists('questions')) {
+      await _addColumnIfMissing(m, 'questions', questions.sourceUrl);
+      await _addColumnIfMissing(m, 'questions', questions.zujuanQuestionId);
+      await _addColumnIfMissing(m, 'questions', questions.zujuanBankId);
     }
     // v8 tables are healed the same way for the same reason. A missing *table*
     // is not a mapper crash but a silent "your plan is gone", which is why this
@@ -726,6 +737,25 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'local_settings', localSettings.capabilityActionOverlayJson);
+  }
+
+  /// v25 -> v26：题目的外部来源锚点（轮次一百二十九）。
+  ///
+  /// 三列都是纯新增、全可空：`questions.source_url`（组卷网来源页）、
+  /// `zujuan_question_id` / `zujuan_bank_id`（重建详情页与答案链接、按 qid
+  /// 去重要用）。老行读出来是 NULL，含义是「没有外部来源」，不是空字符串——
+  /// 界面按可空处理，不把 NULL 显示成空链接。
+  ///
+  /// 表不存在就跳过：被盖成 v26 的空文件由 [_ensureColumns] 建表自愈，
+  /// 在这里建表会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同一个道理）。
+  Future<void> _upgradeV25ToV26() async {
+    if (!await _tableExists('questions')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'questions', questions.sourceUrl);
+    await _addColumnIfMissing(m, 'questions', questions.zujuanQuestionId);
+    await _addColumnIfMissing(m, 'questions', questions.zujuanBankId);
   }
 
   Future<void> _upgradeV4ToV5() async {

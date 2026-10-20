@@ -74,6 +74,9 @@ class QuestionDraft {
     this.sourceLabel = '',
     this.year,
     this.region,
+    this.sourceUrl,
+    this.zujuanQuestionId,
+    this.zujuanBankId,
     this.difficulty,
     this.difficultySource,
     this.trapNote,
@@ -94,6 +97,14 @@ class QuestionDraft {
   final String sourceLabel;
   final int? year;
   final String? region;
+
+  /// 外部来源页链接（现在只有组卷网）；手写/拍照/自建题为 null。
+  final String? sourceUrl;
+
+  /// 组卷网 questionid / bankid：留着能重建链接、能按 qid 认题。
+  final String? zujuanQuestionId;
+  final String? zujuanBankId;
+
   final double? difficulty;
   final String? difficultySource;
   final String? trapNote;
@@ -196,6 +207,9 @@ class QuestionRepository {
               sourceLabel: Value(draft.sourceLabel),
               year: Value(draft.year),
               region: Value(draft.region),
+              sourceUrl: Value(draft.sourceUrl),
+              zujuanQuestionId: Value(draft.zujuanQuestionId),
+              zujuanBankId: Value(draft.zujuanBankId),
               difficulty: Value(draft.difficulty),
               difficultySource: Value(draft.difficultySource),
               stemFingerprint: Value(fingerprint),

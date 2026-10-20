@@ -17063,6 +17063,24 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<String> region = GeneratedColumn<String>(
       'region', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceUrlMeta =
+      const VerificationMeta('sourceUrl');
+  @override
+  late final GeneratedColumn<String> sourceUrl = GeneratedColumn<String>(
+      'source_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _zujuanQuestionIdMeta =
+      const VerificationMeta('zujuanQuestionId');
+  @override
+  late final GeneratedColumn<String> zujuanQuestionId = GeneratedColumn<String>(
+      'zujuan_question_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _zujuanBankIdMeta =
+      const VerificationMeta('zujuanBankId');
+  @override
+  late final GeneratedColumn<String> zujuanBankId = GeneratedColumn<String>(
+      'zujuan_bank_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _difficultyMeta =
       const VerificationMeta('difficulty');
   @override
@@ -17140,6 +17158,9 @@ class $QuestionsTable extends Questions
         sourceLabel,
         year,
         region,
+        sourceUrl,
+        zujuanQuestionId,
+        zujuanBankId,
         difficulty,
         difficultySource,
         stemFingerprint,
@@ -17215,6 +17236,22 @@ class $QuestionsTable extends Questions
     if (data.containsKey('region')) {
       context.handle(_regionMeta,
           region.isAcceptableOrUnknown(data['region']!, _regionMeta));
+    }
+    if (data.containsKey('source_url')) {
+      context.handle(_sourceUrlMeta,
+          sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta));
+    }
+    if (data.containsKey('zujuan_question_id')) {
+      context.handle(
+          _zujuanQuestionIdMeta,
+          zujuanQuestionId.isAcceptableOrUnknown(
+              data['zujuan_question_id']!, _zujuanQuestionIdMeta));
+    }
+    if (data.containsKey('zujuan_bank_id')) {
+      context.handle(
+          _zujuanBankIdMeta,
+          zujuanBankId.isAcceptableOrUnknown(
+              data['zujuan_bank_id']!, _zujuanBankIdMeta));
     }
     if (data.containsKey('difficulty')) {
       context.handle(
@@ -17299,6 +17336,12 @@ class $QuestionsTable extends Questions
           .read(DriftSqlType.int, data['${effectivePrefix}year']),
       region: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}region']),
+      sourceUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_url']),
+      zujuanQuestionId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}zujuan_question_id']),
+      zujuanBankId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}zujuan_bank_id']),
       difficulty: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}difficulty']),
       difficultySource: attachedDatabase.typeMapping.read(
@@ -17366,6 +17409,27 @@ class Question extends DataClass implements Insertable<Question> {
   final int? year;
   final String? region;
 
+  /// 题目在外部站点（现在只有组卷网）的来源页链接（v26，轮次一百二十九）。
+  ///
+  /// 为什么要存 URL 而不只存人读的来源文字：定点找题是「链接去、题回来」，
+  /// 回来以后人还得能点回去核对原题与答案图；`sourceLabel` 写的是出处文字
+  /// （"2024 湖南师大附中月考"），它可能抄错，URL 是唯一可复查的锚点。
+  /// 可空：手写收题、拍照识别、自建题都没有外部来源。
+  final String? sourceUrl;
+
+  /// 组卷网的题目 id（URL 里 `<bankid>q<questionid>.html` 的 questionid）。
+  ///
+  /// 留着它就能**重建**详情页/答案页链接，也能按 qid 去重——比题干指纹更硬
+  /// （同一道题换排版、题干少一个字都可能换指纹）。可空：非组卷网来源。
+  final String? zujuanQuestionId;
+
+  /// 组卷网的学科 bankid（URL 里 `<bankid>q<questionid>.html` 的 bankid）。
+  ///
+  /// bankid 决定站点按哪个学科解释链接，缺了它拼出来的链接会落到别的学科
+  /// （站点按 bankId 静默过滤，错学科 0 条）。所以宁可两列都存、也不从
+  /// questionid 猜。可空同上。
+  final String? zujuanBankId;
+
   /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
   final double? difficulty;
 
@@ -17404,6 +17468,9 @@ class Question extends DataClass implements Insertable<Question> {
       required this.sourceLabel,
       this.year,
       this.region,
+      this.sourceUrl,
+      this.zujuanQuestionId,
+      this.zujuanBankId,
       this.difficulty,
       this.difficultySource,
       required this.stemFingerprint,
@@ -17437,6 +17504,15 @@ class Question extends DataClass implements Insertable<Question> {
     }
     if (!nullToAbsent || region != null) {
       map['region'] = Variable<String>(region);
+    }
+    if (!nullToAbsent || sourceUrl != null) {
+      map['source_url'] = Variable<String>(sourceUrl);
+    }
+    if (!nullToAbsent || zujuanQuestionId != null) {
+      map['zujuan_question_id'] = Variable<String>(zujuanQuestionId);
+    }
+    if (!nullToAbsent || zujuanBankId != null) {
+      map['zujuan_bank_id'] = Variable<String>(zujuanBankId);
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<double>(difficulty);
@@ -17480,6 +17556,15 @@ class Question extends DataClass implements Insertable<Question> {
       year: year == null && nullToAbsent ? const Value.absent() : Value(year),
       region:
           region == null && nullToAbsent ? const Value.absent() : Value(region),
+      sourceUrl: sourceUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceUrl),
+      zujuanQuestionId: zujuanQuestionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zujuanQuestionId),
+      zujuanBankId: zujuanBankId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(zujuanBankId),
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
@@ -17518,6 +17603,9 @@ class Question extends DataClass implements Insertable<Question> {
       sourceLabel: serializer.fromJson<String>(json['sourceLabel']),
       year: serializer.fromJson<int?>(json['year']),
       region: serializer.fromJson<String?>(json['region']),
+      sourceUrl: serializer.fromJson<String?>(json['sourceUrl']),
+      zujuanQuestionId: serializer.fromJson<String?>(json['zujuanQuestionId']),
+      zujuanBankId: serializer.fromJson<String?>(json['zujuanBankId']),
       difficulty: serializer.fromJson<double?>(json['difficulty']),
       difficultySource: serializer.fromJson<String?>(json['difficultySource']),
       stemFingerprint: serializer.fromJson<String>(json['stemFingerprint']),
@@ -17545,6 +17633,9 @@ class Question extends DataClass implements Insertable<Question> {
       'sourceLabel': serializer.toJson<String>(sourceLabel),
       'year': serializer.toJson<int?>(year),
       'region': serializer.toJson<String?>(region),
+      'sourceUrl': serializer.toJson<String?>(sourceUrl),
+      'zujuanQuestionId': serializer.toJson<String?>(zujuanQuestionId),
+      'zujuanBankId': serializer.toJson<String?>(zujuanBankId),
       'difficulty': serializer.toJson<double?>(difficulty),
       'difficultySource': serializer.toJson<String?>(difficultySource),
       'stemFingerprint': serializer.toJson<String>(stemFingerprint),
@@ -17570,6 +17661,9 @@ class Question extends DataClass implements Insertable<Question> {
           String? sourceLabel,
           Value<int?> year = const Value.absent(),
           Value<String?> region = const Value.absent(),
+          Value<String?> sourceUrl = const Value.absent(),
+          Value<String?> zujuanQuestionId = const Value.absent(),
+          Value<String?> zujuanBankId = const Value.absent(),
           Value<double?> difficulty = const Value.absent(),
           Value<String?> difficultySource = const Value.absent(),
           String? stemFingerprint,
@@ -17592,6 +17686,12 @@ class Question extends DataClass implements Insertable<Question> {
         sourceLabel: sourceLabel ?? this.sourceLabel,
         year: year.present ? year.value : this.year,
         region: region.present ? region.value : this.region,
+        sourceUrl: sourceUrl.present ? sourceUrl.value : this.sourceUrl,
+        zujuanQuestionId: zujuanQuestionId.present
+            ? zujuanQuestionId.value
+            : this.zujuanQuestionId,
+        zujuanBankId:
+            zujuanBankId.present ? zujuanBankId.value : this.zujuanBankId,
         difficulty: difficulty.present ? difficulty.value : this.difficulty,
         difficultySource: difficultySource.present
             ? difficultySource.value
@@ -17624,6 +17724,13 @@ class Question extends DataClass implements Insertable<Question> {
           data.sourceLabel.present ? data.sourceLabel.value : this.sourceLabel,
       year: data.year.present ? data.year.value : this.year,
       region: data.region.present ? data.region.value : this.region,
+      sourceUrl: data.sourceUrl.present ? data.sourceUrl.value : this.sourceUrl,
+      zujuanQuestionId: data.zujuanQuestionId.present
+          ? data.zujuanQuestionId.value
+          : this.zujuanQuestionId,
+      zujuanBankId: data.zujuanBankId.present
+          ? data.zujuanBankId.value
+          : this.zujuanBankId,
       difficulty:
           data.difficulty.present ? data.difficulty.value : this.difficulty,
       difficultySource: data.difficultySource.present
@@ -17658,6 +17765,9 @@ class Question extends DataClass implements Insertable<Question> {
           ..write('sourceLabel: $sourceLabel, ')
           ..write('year: $year, ')
           ..write('region: $region, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('zujuanQuestionId: $zujuanQuestionId, ')
+          ..write('zujuanBankId: $zujuanBankId, ')
           ..write('difficulty: $difficulty, ')
           ..write('difficultySource: $difficultySource, ')
           ..write('stemFingerprint: $stemFingerprint, ')
@@ -17685,6 +17795,9 @@ class Question extends DataClass implements Insertable<Question> {
         sourceLabel,
         year,
         region,
+        sourceUrl,
+        zujuanQuestionId,
+        zujuanBankId,
         difficulty,
         difficultySource,
         stemFingerprint,
@@ -17711,6 +17824,9 @@ class Question extends DataClass implements Insertable<Question> {
           other.sourceLabel == this.sourceLabel &&
           other.year == this.year &&
           other.region == this.region &&
+          other.sourceUrl == this.sourceUrl &&
+          other.zujuanQuestionId == this.zujuanQuestionId &&
+          other.zujuanBankId == this.zujuanBankId &&
           other.difficulty == this.difficulty &&
           other.difficultySource == this.difficultySource &&
           other.stemFingerprint == this.stemFingerprint &&
@@ -17735,6 +17851,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String> sourceLabel;
   final Value<int?> year;
   final Value<String?> region;
+  final Value<String?> sourceUrl;
+  final Value<String?> zujuanQuestionId;
+  final Value<String?> zujuanBankId;
   final Value<double?> difficulty;
   final Value<String?> difficultySource;
   final Value<String> stemFingerprint;
@@ -17758,6 +17877,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     this.sourceLabel = const Value.absent(),
     this.year = const Value.absent(),
     this.region = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
+    this.zujuanQuestionId = const Value.absent(),
+    this.zujuanBankId = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.difficultySource = const Value.absent(),
     this.stemFingerprint = const Value.absent(),
@@ -17782,6 +17904,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     this.sourceLabel = const Value.absent(),
     this.year = const Value.absent(),
     this.region = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
+    this.zujuanQuestionId = const Value.absent(),
+    this.zujuanBankId = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.difficultySource = const Value.absent(),
     this.stemFingerprint = const Value.absent(),
@@ -17809,6 +17934,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     Expression<String>? sourceLabel,
     Expression<int>? year,
     Expression<String>? region,
+    Expression<String>? sourceUrl,
+    Expression<String>? zujuanQuestionId,
+    Expression<String>? zujuanBankId,
     Expression<double>? difficulty,
     Expression<String>? difficultySource,
     Expression<String>? stemFingerprint,
@@ -17833,6 +17961,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       if (sourceLabel != null) 'source_label': sourceLabel,
       if (year != null) 'year': year,
       if (region != null) 'region': region,
+      if (sourceUrl != null) 'source_url': sourceUrl,
+      if (zujuanQuestionId != null) 'zujuan_question_id': zujuanQuestionId,
+      if (zujuanBankId != null) 'zujuan_bank_id': zujuanBankId,
       if (difficulty != null) 'difficulty': difficulty,
       if (difficultySource != null) 'difficulty_source': difficultySource,
       if (stemFingerprint != null) 'stem_fingerprint': stemFingerprint,
@@ -17859,6 +17990,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       Value<String>? sourceLabel,
       Value<int?>? year,
       Value<String?>? region,
+      Value<String?>? sourceUrl,
+      Value<String?>? zujuanQuestionId,
+      Value<String?>? zujuanBankId,
       Value<double?>? difficulty,
       Value<String?>? difficultySource,
       Value<String>? stemFingerprint,
@@ -17882,6 +18016,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       sourceLabel: sourceLabel ?? this.sourceLabel,
       year: year ?? this.year,
       region: region ?? this.region,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      zujuanQuestionId: zujuanQuestionId ?? this.zujuanQuestionId,
+      zujuanBankId: zujuanBankId ?? this.zujuanBankId,
       difficulty: difficulty ?? this.difficulty,
       difficultySource: difficultySource ?? this.difficultySource,
       stemFingerprint: stemFingerprint ?? this.stemFingerprint,
@@ -17931,6 +18068,15 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     }
     if (region.present) {
       map['region'] = Variable<String>(region.value);
+    }
+    if (sourceUrl.present) {
+      map['source_url'] = Variable<String>(sourceUrl.value);
+    }
+    if (zujuanQuestionId.present) {
+      map['zujuan_question_id'] = Variable<String>(zujuanQuestionId.value);
+    }
+    if (zujuanBankId.present) {
+      map['zujuan_bank_id'] = Variable<String>(zujuanBankId.value);
     }
     if (difficulty.present) {
       map['difficulty'] = Variable<double>(difficulty.value);
@@ -17982,6 +18128,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
           ..write('sourceLabel: $sourceLabel, ')
           ..write('year: $year, ')
           ..write('region: $region, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('zujuanQuestionId: $zujuanQuestionId, ')
+          ..write('zujuanBankId: $zujuanBankId, ')
           ..write('difficulty: $difficulty, ')
           ..write('difficultySource: $difficultySource, ')
           ..write('stemFingerprint: $stemFingerprint, ')
@@ -30892,6 +31041,9 @@ typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
   Value<String> sourceLabel,
   Value<int?> year,
   Value<String?> region,
+  Value<String?> sourceUrl,
+  Value<String?> zujuanQuestionId,
+  Value<String?> zujuanBankId,
   Value<double?> difficulty,
   Value<String?> difficultySource,
   Value<String> stemFingerprint,
@@ -30916,6 +31068,9 @@ typedef $$QuestionsTableUpdateCompanionBuilder = QuestionsCompanion Function({
   Value<String> sourceLabel,
   Value<int?> year,
   Value<String?> region,
+  Value<String?> sourceUrl,
+  Value<String?> zujuanQuestionId,
+  Value<String?> zujuanBankId,
   Value<double?> difficulty,
   Value<String?> difficultySource,
   Value<String> stemFingerprint,
@@ -30970,6 +31125,16 @@ class $$QuestionsTableFilterComposer
 
   ColumnFilters<String> get region => $composableBuilder(
       column: $table.region, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceUrl => $composableBuilder(
+      column: $table.sourceUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get zujuanQuestionId => $composableBuilder(
+      column: $table.zujuanQuestionId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get zujuanBankId => $composableBuilder(
+      column: $table.zujuanBankId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnFilters(column));
@@ -31047,6 +31212,17 @@ class $$QuestionsTableOrderingComposer
   ColumnOrderings<String> get region => $composableBuilder(
       column: $table.region, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get sourceUrl => $composableBuilder(
+      column: $table.sourceUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get zujuanQuestionId => $composableBuilder(
+      column: $table.zujuanQuestionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get zujuanBankId => $composableBuilder(
+      column: $table.zujuanBankId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnOrderings(column));
 
@@ -31123,6 +31299,15 @@ class $$QuestionsTableAnnotationComposer
   GeneratedColumn<String> get region =>
       $composableBuilder(column: $table.region, builder: (column) => column);
 
+  GeneratedColumn<String> get sourceUrl =>
+      $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get zujuanQuestionId => $composableBuilder(
+      column: $table.zujuanQuestionId, builder: (column) => column);
+
+  GeneratedColumn<String> get zujuanBankId => $composableBuilder(
+      column: $table.zujuanBankId, builder: (column) => column);
+
   GeneratedColumn<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => column);
 
@@ -31188,6 +31373,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             Value<String> sourceLabel = const Value.absent(),
             Value<int?> year = const Value.absent(),
             Value<String?> region = const Value.absent(),
+            Value<String?> sourceUrl = const Value.absent(),
+            Value<String?> zujuanQuestionId = const Value.absent(),
+            Value<String?> zujuanBankId = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
             Value<String?> difficultySource = const Value.absent(),
             Value<String> stemFingerprint = const Value.absent(),
@@ -31212,6 +31400,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             sourceLabel: sourceLabel,
             year: year,
             region: region,
+            sourceUrl: sourceUrl,
+            zujuanQuestionId: zujuanQuestionId,
+            zujuanBankId: zujuanBankId,
             difficulty: difficulty,
             difficultySource: difficultySource,
             stemFingerprint: stemFingerprint,
@@ -31236,6 +31427,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             Value<String> sourceLabel = const Value.absent(),
             Value<int?> year = const Value.absent(),
             Value<String?> region = const Value.absent(),
+            Value<String?> sourceUrl = const Value.absent(),
+            Value<String?> zujuanQuestionId = const Value.absent(),
+            Value<String?> zujuanBankId = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
             Value<String?> difficultySource = const Value.absent(),
             Value<String> stemFingerprint = const Value.absent(),
@@ -31260,6 +31454,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             sourceLabel: sourceLabel,
             year: year,
             region: region,
+            sourceUrl: sourceUrl,
+            zujuanQuestionId: zujuanQuestionId,
+            zujuanBankId: zujuanBankId,
             difficulty: difficulty,
             difficultySource: difficultySource,
             stemFingerprint: stemFingerprint,
