@@ -803,7 +803,7 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
   导出 tile -> 空题库只提示不弹保存框 -> `FilePicker.saveFile` 写 `furnace-<yyyyMMddTHHmm>.tqb`；
   导入 tile -> 只收 `.tqb` -> `peek` 坏包只提示不写库 -> 预览对话框（题数/图数 + 「只新增不覆盖」）
   -> `importPack` -> 结果对话框（created/skipped/media + warnings 条数 + 前 3 条 failures）。
-  操作期间两行禁用防重入；成功后 invalidate 题库列表/计数/体检共四个 provider。**导出 warnings 还没上屏**。
+  操作期间两行禁用防重入；成功后 invalidate 题库列表/计数/体检共四个 provider。（导出 warnings 的展示在轮次一百三十七补上，见 §21.4。）
 - l10n 13 个 key 五文件手改（未跑 gen-l10n）；12 例 widget test（导出/取消/空库/抛错、导入取消/
   坏包/预览/结果/抛错、防重入、插值与大小格式化）。settings + presentation 两目录 +376 全绿。
 
@@ -813,7 +813,79 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
   `flutter test --concurrency=1` -> **+4792 ~2 All tests passed，9 分 43 秒，EXIT=0**
   （日志 `E:/dsh-tmp-aot/test-136-full.txt`）。
 - 未做 / 未验证：真机 FilePicker 保存/选择未手测；未用真实 `.tqb`（跨设备/跨版本）样本端到端；
-  5000 题大包的内存/耗时未测；导出 warnings 未上屏；重复题跳过不提供「合并图片/标签」；
+  5000 题大包的内存/耗时未测；重复题跳过不提供「合并图片/标签」；
   包内无知识点（只带标签路径，知识点要在目标库自己映射）；不做加密/分卷/压缩级别选择。
+
+## 21. 题库包第二轮：选择性导出、导入预检、导出告警上屏（轮次一百三十七，2026-10-21）
+
+### 21.1 筛选题库包记录（纯逻辑，task-106 reasoning-core）
+
+- `lib/domain/services/package/question_pack_selection.dart`（247 行）：`QuestionPackSelection`
+  （`subjectKeys` / `sourceLevels` / `tagPaths` / `serialFrom` / `serialTo`，`isEmpty` / `hasSerialRange` /
+  `toJson` / `==`）；`questionPackRecordMatchesSelection(record, selection)`；
+  `selectQuestionPackRecords({records, selection})`（保序、不可变）；
+  `questionPackFieldsMatchSelection(...)`（数据层筛行版，先筛再读配图字节）；
+  `normalizeSerialBound(String?) -> int?`（纯半角数字，`'0012' -> 12`、`'0' -> 0`，其余 null）。
+- 口径：空选择=全部；集合空=不约束；多维 AND；学科/来源 trim 后区分大小写；标签路径任一交集
+  即命中；题号区间含两端、`serialNo == null` 且有区间 -> 不命中、`from > to` 交换归一、
+  `<= 0` 视为该端未给；永不抛。
+- 回归 bug（Lead 的导出测试抓到）：`_SerialRange.of` 原来 `final int upper = to ?? from!;`，只给
+  `serialFrom` 时区间退化成 `[from, from]`（`serialFrom: 2` 只命中题号 2，漏 3）。改成只给 from 时
+  上界用无界哨兵 `_unboundedAbove = 9223372036854775807`、只给 to 时下界仍 1；补 5 例回归
+  （只 from / 只 to / 反向 / null 题号 / 非正边界）。测试 838 行 9 组 59 例。
+
+### 21.2 导入前预检聚合（纯逻辑，task-107 threadflow-engine）
+
+- `lib/domain/services/package/question_pack_import_preview.dart`（236 行）：`QuestionPackImportPreview`
+  11 字段（manifest 题数/媒体数、recordCount、mediaCount、appVersion、exportedAt、createCount、
+  skipCount、missingTagCount、warnings、missingTagPaths；`isEmpty` / `hasWarnings` / `isFullyNew` /
+  `hasManifestMismatch` / `summaryZh` / `toJson`）；`buildQuestionPackImportPreview({manifest, records, plan})`。
+- 口径：`mediaCount = Σ record.media.length`；warnings 顺序 = manifest 层（清单数与实际数不符）->
+  plan.warnings 原序，完全相同去重；`summaryZh` 固定 2–4 行、只给日志/调试，**UI 不显示**；
+  `exportedAt` 在模型上可空只是方便直接构造（manifest 里必填）。34 例。
+
+### 21.3 数据层 / 应用层（task-108 Lead）
+
+- `lib/data/package/question_pack_source.dart`（236 行）：`readQuestionPackSource({database, readMedia,
+  selection = const QuestionPackSelection()})`。先按题号排序再按 `questionPackFieldsMatchSelection`
+  筛行——**未选中的题不读配图字节**；包内题号按筛选后从 1 重新编号。
+- `lib/features/questions/application/question_pack_service.dart`（321 行）：`exportBytes({now,
+  selection = const QuestionPackSelection()})`；新增 `planImport(Uint8List bytes) ->
+  Future<QuestionPackImportPreview>`（decode -> 读目标库已有指纹/标签路径 -> `planQuestionPackImport`
+  -> 聚合预览；**不写库、不落图**；坏包抛 `QuestionPackException` / `FormatException`）。
+  预检与实际导入共用同一套计划函数，口径不会分叉。
+- 测试 `test/features/questions/application/question_pack_selection_export_test.dart`（408 行 19 例）：
+  选择性导出 12 例（空选择=全部、学科/来源/题号单边与反向、标签直接挂、多条件 AND、包内重编号、
+  未选中不读媒体字节、0 命中空包、清单计数、筛选不改库）+ `planImport` 7 例（全新增、全重复、缺标签、
+  坏包、筛选导出包、预检不写库、预览字段）。注意 zip 条目带生成时间戳，字节不保证逐次相同，断言比
+  解包后的记录而不是字节长度。
+
+### 21.4 设置页 UI（task-109 question-intake）
+
+- 新增 `lib/features/settings/presentation/question_pack_export_filter_dialog.dart`（235 行）：
+  `questionPackSerialRangeIssue(rawFrom, rawTo)`（`invalidFrom` / `invalidTo` / `reversed`）、
+  `questionPackSelectionFromFilter(...)`、`QuestionPackExportFilterDialog`（默认全不选=全部；学科 chips
+  用 `subjectLabelOf`、来源六档 chips、题号起止数字框实时校验、非法时禁用导出；取消返回 null）。
+- 改 `lib/features/settings/presentation/data_section.dart`（621 行）：导出按钮先弹筛选对话框
+  （取消直接 return）-> `exportBytes(selection:)` -> 0 题按「全部/筛选」两种文案提示且不弹保存框 ->
+  `FilePicker.saveFile` -> warnings 非空弹「导出提示」对话框，否则 SnackBar。导入改用 `planImport`
+  取代 `peek`（坏包只提示、不写库）-> 预览显示 recordCount/mediaCount + create/skip/无新题/missingTags/
+  warnings（可滚）-> 确认后 `importPack` -> 刷新 4 个题库 provider。
+- l10n 五文件各 +16 key（13 无参 + 3 个 `count:int` 有参），手改未跑 gen-l10n。
+- 测试：`question_pack_section_test.dart` 19 例（含筛选后 selection 断言、内联错、warnings 对话框、导入
+  预览各态），新增 `question_pack_export_filter_test.dart` 12 例（纯函数 + 对话框 widget）；
+  `flutter test test/features/settings` -> 65 全绿。
+- 已知限制：en 界面学科 chip 仍显示中文词表名（沿用 `subjectLabelOf`，本轮不加学科 l10n key）；
+  导出 warnings 用对话框展示（比 SnackBar 更能列全）；真机 FilePicker 仍未手测。
+
+### 21.5 门禁与未做
+
+- 组合测试：`flutter test test/data/package test/domain/services/package test/features/settings
+  test/features/questions/application --concurrency=1` -> +600 All tests passed；
+  `dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；全量
+  `flutter test --concurrency=1` -> +4923 ~2 All tests passed，9 分 54 秒（日志 `E:/dsh-tmp-aot/test-137-full.txt`）。
+- 未做 / 未验证：仍未用真实 `.tqb`（跨设备/跨版本）端到端；真机 FilePicker 未手测；
+  筛选对话框没有「按标签路径」与「按题号多段」输入（纯逻辑已支持 tagPaths，UI 本轮没暴露）；
+  导入后不合并重复题的图片/标签；不做导入前自动备份（append 模式）。
 
 

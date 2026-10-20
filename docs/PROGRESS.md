@@ -2,6 +2,42 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-21 轮次一百三十七：题库包选择性导出 + 导入预检 + 导出告警上屏（Lead + 三个 teammate）
+
+**起点**：轮次一百三十六收尾（HEAD `4e6df91`）。上一轮把题库打成了 `.tqb`，但只能「整库导出」、
+导入前只看到清单里的题数/图数，导出时被跳过的坏图也没有任何提示。这一轮补三件事：导出前按
+**学科 / 来源档位 / 题号范围**筛选；导入前用**跟实际导入同一套合并计划**做预检（将新增几道、
+跳过几道重复、缺几个标签）；导出后把 warnings（配图没进包的原因）上屏。task-106（reasoning-core）、
+task-107（threadflow-engine）、task-108（Lead）、task-109（question-intake）全部 completed。
+
+**A. 纯逻辑：筛选与预检（task-106 + task-107）**：`question_pack_selection.dart`（247 行，
+`QuestionPackSelection` + 记录/字段两版匹配函数 + `normalizeSerialBound`；空选择=全部、集合空=不约束、
+多维 AND、题号含两端、from>to 交换、<=0 视为未给、永不抛）；`question_pack_import_preview.dart`
+（236 行，11 字段预检聚合 + `summaryZh` 给日志、UI 不用；warnings 按 manifest 层 -> 计划层顺序合并去重）。
+测试 59 + 34 例，目录 +93。期间 Lead 的导出测试抓到 `_SerialRange.of` 单边题号 bug（只给 serialFrom
+时区间退化成 `[from, from]`），改用无界哨兵并补 5 例回归。
+
+**B. 数据/应用层（task-108，Lead）**：`question_pack_source.dart`（236 行）的 `readQuestionPackSource`
+接受 `selection`，**先筛行再读配图字节**（未选中的题不进包、不读图）；`question_pack_service.dart`
+（321 行）`exportBytes({now, selection})` + 新增 `planImport(bytes)`（解码 -> 对账清单 -> 合并计划 ->
+预览，不写库不落图），预检与 `importPack` 共用同一套计划函数。新增 19 例（选择性导出 12 + 预检 7）。
+
+**C. 设置页 UI（task-109，question-intake）**：新增 `question_pack_export_filter_dialog.dart`（235 行，
+学科/来源六档 chips + 题号起止实时校验，默认全不选=全部）；`data_section.dart`（621 行）导出流程改成
+「先弹筛选 -> 导出 -> 0 题按全部/筛选分文案 -> 保存框 -> warnings 非空弹导出提示」，导入流程用
+`planImport` 取代 `peek`，预览对话框显示新增/跳过/无新题/缺标签/warnings 后才写库。l10n 五文件各
++16 key（13 无参 + 3 个 count:int）手改未跑 gen-l10n。测试 settings 19 例 + 筛选对话框 12 例，
+settings 目录 65 全绿。
+
+**D. 门禁与提交**：`dart analyze lib test` -> 92 issues / 0 error / 0 warning（基线）；
+组合测试 `test/data/package test/domain/services/package test/features/settings
+test/features/questions/application` -> +600 All tests passed；全量 `flutter test --concurrency=1` ->
++4923 ~2 All tests passed，9 分 54 秒，EXIT=0（日志 `E:/dsh-tmp-aot/test-137-full.txt`）。
+提交拆 4 个切片（纯逻辑 / 数据应用层 / UI+l10n / docs），git 由 Lead 统一提交，未 push GitHub。
+
+**未做 / 未验证**：真实 `.tqb` 跨设备/跨版本端到端仍未手测；真机 FilePicker 未手测；筛选对话框本轮
+没暴露「按标签路径」条件（纯逻辑已支持）；en 界面学科 chip 仍显示中文词表名；导入不合并重复题的
+图片/标签。
 ## 2026-10-21 轮次一百三十六：题库包（.tqb）导出/导入（Lead + 三个 teammate）
 
 **起点**：轮次一百三十五（HEAD `299d142`）。轮次一百二十二把题目卷导成了 Word（给人看），这一轮补
