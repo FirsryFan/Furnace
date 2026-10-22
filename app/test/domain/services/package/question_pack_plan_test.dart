@@ -6,8 +6,14 @@ QuestionPackRecord _record({
   required String stem,
   List<String> tagPaths = const <String>[],
   int? serialNo,
+  String? zujuanQuestionId,
 }) =>
-    QuestionPackRecord(stem: stem, tagPaths: tagPaths, serialNo: serialNo);
+    QuestionPackRecord(
+      stem: stem,
+      tagPaths: tagPaths,
+      serialNo: serialNo,
+      zujuanQuestionId: zujuanQuestionId,
+    );
 
 String _fingerprint(String stem) => 'fp:${stem.trim().toLowerCase()}';
 
@@ -19,12 +25,18 @@ QuestionPackImportPlan _plan(
   Iterable<String> existingStems = const <String>[],
   Set<String> existingTagPaths = const <String>{},
   String Function(String stem)? fingerprintOf,
+  Map<String, String> existingQuestionIdByZujuanQuestionId =
+      const <String, String>{},
+  bool updateExisting = true,
 }) =>
     planQuestionPackImport(
       records: records,
       fingerprintOf: fingerprintOf ?? _fingerprint,
       existingFingerprints: _existingFingerprintsOf(existingStems),
       existingTagPaths: existingTagPaths,
+      existingQuestionIdByZujuanQuestionId:
+          existingQuestionIdByZujuanQuestionId,
+      updateExisting: updateExisting,
     );
 
 void main() {
@@ -62,6 +74,7 @@ void main() {
       expect(plan.missingTagPaths, isEmpty);
       expect(plan.toJson(), <String, Object?>{
         'create_count': 0,
+        'update_count': 0,
         'skip_count': 0,
         'decisions': <Object?>[],
         'warnings': <Object?>[],
@@ -591,6 +604,7 @@ void main() {
       );
       expect(plan.toJson(), <String, Object?>{
         'create_count': 1,
+        'update_count': 0,
         'skip_count': 0,
         'decisions': <Map<String, Object?>>[
           <String, Object?>{
@@ -716,6 +730,598 @@ void main() {
             questionIndex: 1, mediaIndex: 0, extension: 'png.'),
         throwsArgumentError,
       );
+    });
+  });
+
+  group('questionPackSourceKey', () {
+    test('null 题号返回 null', () {
+      expect(questionPackSourceKey(zujuanQuestionId: null), isNull);
+    });
+
+    test('空串返回 null', () {
+      expect(questionPackSourceKey(zujuanQuestionId: ''), isNull);
+    });
+
+    test('只有空白返回 null（含制表、换行与全角空格）', () {
+      expect(questionPackSourceKey(zujuanQuestionId: '   '), isNull);
+      expect(questionPackSourceKey(zujuanQuestionId: '\t\n'), isNull);
+      expect(questionPackSourceKey(zujuanQuestionId: '　'), isNull);
+    });
+
+    test('trim 两侧空白后返回题号', () {
+      expect(questionPackSourceKey(zujuanQuestionId: ' 123456 '), '123456');
+      expect(questionPackSourceKey(zujuanQuestionId: '\t7\n'), '7');
+    });
+
+    test('不校验格式，非数字题号原样保留', () {
+      expect(questionPackSourceKey(zujuanQuestionId: ' q-abc '), 'q-abc');
+      expect(
+        questionPackSourceKey(zujuanQuestionId: '10q35583902'),
+        '10q35583902',
+      );
+    });
+
+    test('不改变大小写与内部字符', () {
+      expect(questionPackSourceKey(zujuanQuestionId: ' AbC '), 'AbC');
+      expect(questionPackSourceKey(zujuanQuestionId: 'a b'), 'a b');
+    });
+
+    test('bankId 不参与认题：同一题号得到同一个键', () {
+      expect(
+        questionPackSourceKey(zujuanQuestionId: '42'),
+        questionPackSourceKey(zujuanQuestionId: ' 42 '),
+      );
+    });
+  });
+
+  group('QuestionPackAction 与 QuestionPackDecision：update 扩展', () {
+    test('update 常量的机器可读值', () {
+      expect(QuestionPackAction.update, 'update');
+    });
+
+    test('labelZh 更新', () {
+      expect(QuestionPackAction.labelZh(QuestionPackAction.update), '更新');
+    });
+
+    test('更新决策的 toJson 带 existing_question_id，不带 skip_reason', () {
+      const QuestionPackDecision decision = QuestionPackDecision(
+        index: 3,
+        action: QuestionPackAction.update,
+        stemPreview: '改过公式的题',
+        serialNo: 7,
+        existingQuestionId: 'q-42',
+      );
+      expect(decision.toJson(), <String, Object?>{
+        'index': 3,
+        'action': 'update',
+        'stem_preview': '改过公式的题',
+        'serial_no': 7,
+        'existing_question_id': 'q-42',
+      });
+    });
+
+    test('新建/跳过决策省略 existing_question_id', () {
+      const QuestionPackDecision create = QuestionPackDecision(
+        index: 0,
+        action: QuestionPackAction.create,
+        stemPreview: '新题',
+      );
+      const QuestionPackDecision skip = QuestionPackDecision(
+        index: 1,
+        action: QuestionPackAction.skipDuplicate,
+        stemPreview: '重复题',
+        skipReason: '题库里已经有同一道题（题干指纹相同）',
+      );
+      expect(create.toJson().containsKey('existing_question_id'), isFalse);
+      expect(skip.toJson().containsKey('existing_question_id'), isFalse);
+    });
+
+    test('值语义包含 existingQuestionId', () {
+      const QuestionPackDecision a = QuestionPackDecision(
+        index: 1,
+        action: QuestionPackAction.update,
+        stemPreview: '题干',
+        existingQuestionId: 'q-1',
+      );
+      const QuestionPackDecision b = QuestionPackDecision(
+        index: 1,
+        action: QuestionPackAction.update,
+        stemPreview: '题干',
+        existingQuestionId: 'q-1',
+      );
+      const QuestionPackDecision c = QuestionPackDecision(
+        index: 1,
+        action: QuestionPackAction.update,
+        stemPreview: '题干',
+        existingQuestionId: 'q-2',
+      );
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a == c, isFalse);
+    });
+
+    test('toString 带 existingQuestionId', () {
+      const QuestionPackDecision decision = QuestionPackDecision(
+        index: 2,
+        action: QuestionPackAction.update,
+        stemPreview: '题干',
+        existingQuestionId: 'q-9',
+      );
+      expect(decision.toString(), contains('existingQuestionId: q-9'));
+    });
+  });
+
+  group('planQuestionPackImport：按组卷网题号更新', () {
+    test('映射命中题号时更新，不新建也不跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '老题（改了公式）', zujuanQuestionId: '999001'),
+          _record(stem: '新题'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'999001': 'q-1'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.update);
+      expect(plan.decisions[0].existingQuestionId, 'q-1');
+      expect(plan.decisions[0].skipReason, isNull);
+      expect(plan.decisions[1].action, QuestionPackAction.create);
+      expect(plan.createCount, 1);
+      expect(plan.updateCount, 1);
+      expect(plan.skipCount, 0);
+      expect(plan.createIndexes, <int>[1]);
+      expect(plan.updatedIndexes, <int>[0]);
+      expect(plan.warnings, isEmpty);
+    });
+
+    test('题号两侧空白按 trim 后查表', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '题', zujuanQuestionId: ' 126 '),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'126': 'q-126'},
+      );
+      expect(plan.decisions.single.action, QuestionPackAction.update);
+      expect(plan.decisions.single.existingQuestionId, 'q-126');
+    });
+
+    test('映射值原样透传（不要求是数字 id）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '题', zujuanQuestionId: '77'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{
+          '77': 'local-42'
+        },
+      );
+      expect(plan.decisions.single.existingQuestionId, 'local-42');
+      expect(
+          plan.decisions.single.toJson()['existing_question_id'], 'local-42');
+    });
+
+    test('update 优先于题库已有指纹跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '老题', zujuanQuestionId: '888'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'888': 'q-8'},
+      );
+      expect(plan.decisions.single.action, QuestionPackAction.update);
+      expect(plan.decisions.single.existingQuestionId, 'q-8');
+      expect(plan.skipCount, 0);
+      expect(plan.warnings, isEmpty);
+    });
+
+    test('update 不因包内同指纹被跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '同一题干'),
+          _record(stem: '同一题干', zujuanQuestionId: '777'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'777': 'q-7'},
+      );
+      expect(
+        plan.decisions.map((QuestionPackDecision d) => d.action),
+        <String>[QuestionPackAction.create, QuestionPackAction.update],
+      );
+      expect(plan.updatedIndexes, <int>[1]);
+      expect(plan.decisions[1].existingQuestionId, 'q-7');
+    });
+
+    test('更新决策透传 serialNo 与 stemPreview', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '  改过的   题干 ', serialNo: 15, zujuanQuestionId: '1'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'1': 'q-1'},
+      );
+      final QuestionPackDecision decision = plan.decisions.single;
+      expect(decision.action, QuestionPackAction.update);
+      expect(decision.serialNo, 15);
+      expect(decision.stemPreview, '改过的 题干');
+      expect(decision.toJson()['serial_no'], 15);
+    });
+
+    test('多个更新时 updatedIndexes 升序且计数正确', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '乙'),
+          _record(stem: '丙', zujuanQuestionId: 'c'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{
+          'a': 'q-a',
+          'c': 'q-c',
+        },
+      );
+      expect(plan.updateCount, 2);
+      expect(plan.updatedIndexes, <int>[0, 2]);
+      expect(plan.createCount, 1);
+      expect(plan.createIndexes, <int>[1]);
+      expect(plan.skipCount, 0);
+    });
+
+    test('更新、新建、跳过混合时三种计数相加等于决策数', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '老题'),
+          _record(stem: '丙'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+      );
+      expect(plan.updateCount, 1);
+      expect(plan.createCount, 1);
+      expect(plan.skipCount, 1);
+      expect(plan.decisions.length, 3);
+    });
+
+    test('包内同题号第二条跳过（映射命中场景）并给告警', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '题一（新公式）', zujuanQuestionId: 'X1'),
+          _record(stem: '题一（又改了一次）', zujuanQuestionId: 'X1'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X1': 'q-1'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.update);
+      expect(plan.decisions[1].action, QuestionPackAction.skipDuplicate);
+      expect(plan.decisions[1].skipReason, '与包内第 1 道题是同一个组卷网题号');
+      expect(
+        plan.warnings,
+        <String>['包内第 2 道与第 1 道是同一个组卷网题号，只导入前一道'],
+      );
+      expect(plan.updateCount, 1);
+      expect(plan.skipCount, 1);
+      expect(plan.updatedIndexes, <int>[0]);
+    });
+
+    test('包内同题号第二条跳过（映射未命中，第一条新建）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'X2'),
+          _record(stem: '乙', zujuanQuestionId: 'X2'),
+        ],
+      );
+      expect(
+        plan.decisions.map((QuestionPackDecision d) => d.action),
+        <String>[QuestionPackAction.create, QuestionPackAction.skipDuplicate],
+      );
+      expect(plan.decisions[1].skipReason, '与包内第 1 道题是同一个组卷网题号');
+      expect(
+        plan.warnings,
+        <String>['包内第 2 道与第 1 道是同一个组卷网题号，只导入前一道'],
+      );
+    });
+
+    test('包内同题号第二条指纹也命中题库时按旧指纹原因跳过（指纹优先于包内题号）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'X3'),
+          _record(stem: '老题干', zujuanQuestionId: 'X3'),
+        ],
+        existingStems: <String>['老题干'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X3': 'q-3'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.update);
+      expect(plan.decisions[1].action, QuestionPackAction.skipDuplicate);
+      expect(
+        plan.decisions[1].skipReason,
+        '题库里已经有同一道题（题干指纹相同）',
+      );
+      expect(plan.warnings, <String>['第 2 道题与题库已有题目重复，导入时跳过']);
+    });
+
+    test('空题号不参与题号去重（旧行为：不同题干都新建）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: ''),
+          _record(stem: '乙', zujuanQuestionId: '   '),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'': 'q-empty'},
+      );
+      expect(
+        plan.decisions.map((QuestionPackDecision d) => d.action),
+        <String>[QuestionPackAction.create, QuestionPackAction.create],
+      );
+      expect(plan.updateCount, 0);
+      expect(plan.warnings, isEmpty);
+    });
+
+    test('空题号与真题号混排：只有真题号命中 update', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: ' 42 '),
+          _record(stem: '乙', zujuanQuestionId: '  '),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'42': 'q-42'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.update);
+      expect(plan.decisions[1].action, QuestionPackAction.create);
+      expect(plan.updateCount, 1);
+    });
+
+    test('映射不含该题号时按指纹/新建判定', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '老题', zujuanQuestionId: 'X9'),
+          _record(stem: '新题', zujuanQuestionId: 'Y9'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'其他': 'q-9'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.skipDuplicate);
+      expect(
+        plan.decisions[0].skipReason,
+        '题库里已经有同一道题（题干指纹相同）',
+      );
+      expect(plan.decisions[1].action, QuestionPackAction.create);
+      expect(plan.updateCount, 0);
+    });
+
+    test('空映射不抛异常，全部按指纹/新建判定', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'q1'),
+        ],
+        existingQuestionIdByZujuanQuestionId: const <String, String>{},
+      );
+      expect(plan.decisions.single.action, QuestionPackAction.create);
+      expect(plan.updateCount, 0);
+      expect(plan.updatedIndexes, isEmpty);
+    });
+
+    test('映射只读不写', () {
+      final Map<String, String> existingById = <String, String>{'q1': 'id-1'};
+      _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'q1'),
+        ],
+        existingQuestionIdByZujuanQuestionId: existingById,
+      );
+      expect(existingById, <String, String>{'q1': 'id-1'});
+    });
+
+    test('指纹函数对每道题仍恰好调用一次（含 update 记录）', () {
+      var calls = 0;
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '乙'),
+          _record(stem: '丙'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+        fingerprintOf: (String stem) {
+          calls++;
+          return _fingerprint(stem);
+        },
+      );
+      expect(calls, 3);
+      expect(plan.updateCount, 1);
+      expect(plan.createCount, 2);
+    });
+
+    test('更新记录也贡献缺失标签告警，且缺失标签告警排在跳过告警之后', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(
+            stem: '甲',
+            zujuanQuestionId: 'a',
+            tagPaths: <String>['升级标签'],
+          ),
+          _record(stem: '老题'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+      );
+      expect(plan.warnings, <String>[
+        '第 2 道题与题库已有题目重复，导入时跳过',
+        '标签 升级标签 在题库里不存在，导入后相关题不挂这个标签',
+      ]);
+      expect(plan.missingTagPaths, <String>['升级标签']);
+    });
+
+    test('全是更新时没有告警', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '乙', zujuanQuestionId: 'b'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{
+          'a': 'q-a',
+          'b': 'q-b',
+        },
+      );
+      expect(plan.updateCount, 2);
+      expect(plan.hasWarnings, isFalse);
+      expect(plan.warnings, isEmpty);
+      expect(plan.missingTagPaths, isEmpty);
+    });
+
+    test('跳过告警按题序排列（包内题号跳过与题库指纹跳过混排）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'X5'),
+          _record(stem: '乙', zujuanQuestionId: 'X5'),
+          _record(stem: '老题'),
+        ],
+        existingStems: <String>['老题'],
+      );
+      expect(plan.warnings, <String>[
+        '包内第 2 道与第 1 道是同一个组卷网题号，只导入前一道',
+        '第 3 道题与题库已有题目重复，导入时跳过',
+      ]);
+    });
+
+    test('同一个题号在包内出现三次：后续都按第 1 道跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'X6'),
+          _record(stem: '乙', zujuanQuestionId: 'X6'),
+          _record(stem: '丙', zujuanQuestionId: 'X6'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X6': 'q-6'},
+      );
+      expect(
+        plan.decisions.map((QuestionPackDecision d) => d.action),
+        <String>[
+          QuestionPackAction.update,
+          QuestionPackAction.skipDuplicate,
+          QuestionPackAction.skipDuplicate,
+        ],
+      );
+      expect(plan.decisions[1].skipReason, '与包内第 1 道题是同一个组卷网题号');
+      expect(plan.decisions[2].skipReason, '与包内第 1 道题是同一个组卷网题号');
+      expect(plan.warnings, <String>[
+        '包内第 2 道与第 1 道是同一个组卷网题号，只导入前一道',
+        '包内第 3 道与第 1 道是同一个组卷网题号，只导入前一道',
+      ]);
+    });
+
+    test('更新记录也算包内已出现：后面同指纹记录按包内指纹跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '同一题干', zujuanQuestionId: 'X7'),
+          _record(stem: '同一题干'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X7': 'q-7'},
+      );
+      expect(plan.decisions[0].action, QuestionPackAction.update);
+      expect(plan.decisions[1].action, QuestionPackAction.skipDuplicate);
+      expect(plan.decisions[1].skipReason, '与包内第 1 道题重复（题干指纹相同）');
+      expect(plan.warnings, <String>['包内第 2 道与第 1 道是同一道题，只导入前一道']);
+    });
+
+    test('plan.toJson 带 update_count 与决策里的 existing_question_id', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '乙'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+      );
+      final Map<String, Object?> json = plan.toJson();
+      expect(json.keys.toList(), <String>[
+        'create_count',
+        'update_count',
+        'skip_count',
+        'decisions',
+        'warnings',
+        'missing_tag_paths',
+      ]);
+      expect(json['create_count'], 1);
+      expect(json['update_count'], 1);
+      expect(json['skip_count'], 0);
+      final List<Object?> decisions = json['decisions']! as List<Object?>;
+      final Map<String, Object?> first = decisions[0]! as Map<String, Object?>;
+      final Map<String, Object?> second = decisions[1]! as Map<String, Object?>;
+      expect(first['action'], 'update');
+      expect(first['existing_question_id'], 'q-a');
+      expect(second.containsKey('existing_question_id'), isFalse);
+    });
+
+    test('空包 + 非空映射：空计划、updateCount 为 0', () {
+      final QuestionPackImportPlan plan = _plan(
+        const <QuestionPackRecord>[],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+      );
+      expect(plan.isEmpty, isTrue);
+      expect(plan.updateCount, 0);
+      expect(plan.updatedIndexes, isEmpty);
+      expect(plan.toJson()['update_count'], 0);
+    });
+  });
+
+  group('planQuestionPackImport：updateExisting=false 回退旧行为', () {
+    test('映射命中也不更新，题库已有指纹仍跳过', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '老题', zujuanQuestionId: 'X7'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X7': 'q-7'},
+        updateExisting: false,
+      );
+      expect(plan.decisions.single.action, QuestionPackAction.skipDuplicate);
+      expect(plan.decisions.single.existingQuestionId, isNull);
+      expect(plan.updateCount, 0);
+      expect(
+        plan.decisions.single.skipReason,
+        '题库里已经有同一道题（题干指纹相同）',
+      );
+    });
+
+    test('同题号两条不同题干都新建（旧行为，不做题号去重）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'X8'),
+          _record(stem: '乙', zujuanQuestionId: 'X8'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'X8': 'q-8'},
+        updateExisting: false,
+      );
+      expect(
+        plan.decisions.map((QuestionPackDecision d) => d.action),
+        <String>[QuestionPackAction.create, QuestionPackAction.create],
+      );
+      expect(plan.updateCount, 0);
+      expect(plan.warnings, isEmpty);
+    });
+
+    test('输出与不带题号的旧调用逐字段一致', () {
+      final QuestionPackImportPlan legacy = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲'),
+          _record(stem: '老题'),
+        ],
+        existingStems: <String>['老题'],
+      );
+      final QuestionPackImportPlan fallback = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+          _record(stem: '老题', zujuanQuestionId: 'b'),
+        ],
+        existingStems: <String>['老题'],
+        existingQuestionIdByZujuanQuestionId: <String, String>{
+          'a': 'q-a',
+          'b': 'q-b',
+        },
+        updateExisting: false,
+      );
+      expect(fallback.toJson(), legacy.toJson());
+      expect(fallback.warnings, legacy.warnings);
+      expect(fallback.missingTagPaths, legacy.missingTagPaths);
+    });
+
+    test('updateExisting 缺省为 true（不传也会更新）', () {
+      final QuestionPackImportPlan plan = _plan(
+        <QuestionPackRecord>[
+          _record(stem: '甲', zujuanQuestionId: 'a'),
+        ],
+        existingQuestionIdByZujuanQuestionId: <String, String>{'a': 'q-a'},
+      );
+      expect(plan.decisions.single.action, QuestionPackAction.update);
+      expect(plan.updateCount, 1);
     });
   });
 }
