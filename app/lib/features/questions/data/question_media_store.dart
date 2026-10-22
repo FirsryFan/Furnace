@@ -248,16 +248,38 @@ class QuestionMediaStore {
     await _deleteFile(image.relPath);
   }
 
-  /// 删掉一道题的所有图（行 + 文件），返回删了几张。
+  /// 删掉一道题的图（行 + 文件），返回删了几张。
   ///
   /// 题目删除时由界面层在 `deleteQuestion` 前后调用；仓储不碰文件系统，所以
   /// 文件清理只能落在这里。
-  Future<int> deleteForQuestion(String questionId) async {
+  ///
+  /// [roles] 为 `null` 时删这道题的**全部**图（既有行为，旧调用点不用改）。
+  /// 传了集合就只删这些角色（轮次一百四十五，包再导入时按角色换图）：
+  ///  - `stem` 连带 `role IS NULL` 的 v27 旧行（与 [list] 同一口径，旧题库的
+  ///    题干配图不会因为折不出角色而漏删）；
+  ///  - 其它角色值按 trim 后**精确匹配**；集合里的空白字符串按读侧口径折成
+  ///    `stem`（见 [effectiveQuestionImageRole]）。
+  ///  - **空集合 = 什么都不删**：表示「这次不更新图片」，不是「删光」。
+  Future<int> deleteForQuestion(String questionId, {Set<String>? roles}) async {
+    if (roles != null && roles.isEmpty) {
+      return 0;
+    }
     final images = await list(questionId);
-    for (final image in images) {
+    if (roles == null) {
+      for (final image in images) {
+        await delete(image);
+      }
+      return images.length;
+    }
+    final wanted = <String>{
+      for (final role in roles) effectiveQuestionImageRole(role),
+    };
+    final doomed =
+        images.where((image) => wanted.contains(image.role)).toList();
+    for (final image in doomed) {
       await delete(image);
     }
-    return images.length;
+    return doomed.length;
   }
 
   Future<int> _nextSortOrder(String questionId, String role) async {

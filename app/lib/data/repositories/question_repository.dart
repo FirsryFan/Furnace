@@ -555,6 +555,121 @@ class QuestionRepository {
     return updated > 0;
   }
 
+  /// 按「题库包记录」更新一道**已经存在**的题（轮次一百四十五，包再导入用）。
+  ///
+  /// 与 [updateSource] / [updateSourceLinks] 的区别：那些是界面上的定点修改，
+  /// 这里是**整条记录的补丁**——包里写了什么就补什么，没写的不动。补丁语义：
+  ///
+  ///  - [stem] 必填；trim 空 → [ArgumentError]（与 [ingest] 同口径）。题干总会
+  ///    覆盖，并按新题干重算 `questions.stem_fingerprint`。
+  ///  - 可空字符串字段（[answer] / [solution] / [subjectKey] / [questionType] /
+  ///    [sourceLevel] / [sourceLabel] / [region] / [sourceUrl] /
+  ///    [zujuanQuestionId] / [zujuanBankId] / [difficultySource] / [trapNote] /
+  ///    [origin] / [state]）：`null` 或 trim 后空白 = 这一列不动；非空 = 覆盖
+  ///    （写 trim 后的值）。答案/解析也走这条规则：包里没写答案时传 null/空串，
+  ///    旧答案保留——这样「先收题干、后补答案」不会被空值冲掉。
+  ///  - [year] / [difficulty]：`null` = 不动；非 `null` = 覆盖。
+  ///  - [options] 非空 → 事务内先删这道题的全部 `question_options` 再按
+  ///    [QuestionOptionDraft.sortOrder] 插入；空列表 = 保留旧选项（表示包里没
+  ///    带选项，而不是「把选项清空」）。
+  ///  - [additionalTagIds] → 只补挂缺失的 `object_tags`（insertOrIgnore），
+  ///    不删除已有标签；空白 id 忽略。
+  ///  - 题名 / 题号 / `createdAt` 绝不覆盖；`updatedAt` 写成 [now]。整个更新在
+  ///    一个事务里（题目行 + 选项 + 标签边）。
+  ///
+  /// 返回 UPDATE 命中的行数：题目不存在时返回 0，不抛；[questionId] trim 后
+  /// 为空也返回 0。
+  Future<int> updateFromPack({
+    required String questionId,
+    required String stem,
+    String? answer,
+    String? solution,
+    String? subjectKey,
+    String? questionType,
+    String? sourceLevel,
+    String? sourceLabel,
+    int? year,
+    String? region,
+    String? sourceUrl,
+    String? zujuanQuestionId,
+    String? zujuanBankId,
+    double? difficulty,
+    String? difficultySource,
+    String? trapNote,
+    String? origin,
+    String? state,
+    List<QuestionOptionDraft> options = const <QuestionOptionDraft>[],
+    Set<String> additionalTagIds = const <String>{},
+    DateTime? now,
+  }) async {
+    final id = questionId.trim();
+    final cleanStem = stem.trim();
+    if (cleanStem.isEmpty) {
+      throw ArgumentError('题干不能为空');
+    }
+    if (id.isEmpty) {
+      return 0;
+    }
+    final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    // 空值 = 不动（Value.absent），不是「写成 NULL」：包记录只补不带删。
+    Value<String> requiredTextPatch(String? raw) {
+      final cleaned = raw?.trim() ?? '';
+      return cleaned.isEmpty ? const Value.absent() : Value(cleaned);
+    }
+
+    Value<String?> nullableTextPatch(String? raw) {
+      final cleaned = raw?.trim() ?? '';
+      return cleaned.isEmpty ? const Value.absent() : Value(cleaned);
+    }
+
+    var updated = 0;
+    await _db.transaction(() async {
+      updated = await (_db.update(_db.questions)..where((t) => t.id.equals(id)))
+          .write(QuestionsCompanion(
+        stem: Value(cleanStem),
+        stemFingerprint: Value(stemFingerprint(cleanStem)),
+        answer: nullableTextPatch(answer),
+        solution: nullableTextPatch(solution),
+        subjectKey: requiredTextPatch(subjectKey),
+        questionType: requiredTextPatch(questionType),
+        sourceLevel: requiredTextPatch(sourceLevel),
+        sourceLabel: requiredTextPatch(sourceLabel),
+        year: year == null ? const Value.absent() : Value(year),
+        region: nullableTextPatch(region),
+        sourceUrl: nullableTextPatch(sourceUrl),
+        zujuanQuestionId: nullableTextPatch(zujuanQuestionId),
+        zujuanBankId: nullableTextPatch(zujuanBankId),
+        difficulty:
+            difficulty == null ? const Value.absent() : Value(difficulty),
+        difficultySource: nullableTextPatch(difficultySource),
+        trapNote: nullableTextPatch(trapNote),
+        origin: requiredTextPatch(origin),
+        state: requiredTextPatch(state),
+        updatedAt: Value(ms),
+      ));
+      if (updated == 0) {
+        return;
+      }
+      if (options.isNotEmpty) {
+        await (_db.delete(_db.questionOptions)
+              ..where((t) => t.questionId.equals(id)))
+            .go();
+        await _insertOptions(id, options, ms);
+      }
+      final tagIds = <String>{};
+      for (final raw in additionalTagIds) {
+        final tagId = raw.trim();
+        if (tagId.isNotEmpty) {
+          tagIds.add(tagId);
+        }
+      }
+      if (tagIds.isNotEmpty) {
+        await _linkTags(id, tagIds, ms);
+      }
+    });
+    return updated;
+  }
+
   /// 按组卷网题目 id（`questions.zujuan_question_id`）批量查题——整卷页对照用。
   ///
   /// 返回 `zujuanQuestionId → 该 id 下的题目行`。同一组卷网 id 可能有多行
@@ -593,6 +708,32 @@ class QuestionRepository {
       (grouped[key] ??= <Question>[]).add(row);
     }
     return grouped;
+  }
+
+  /// 组卷网题目 id → 本地题目 id 的索引（轮次一百四十五，包再导入用）。
+  ///
+  /// 只读 `zujuan_question_id` 非空的行；key 是 **trim 后**的题号，trim 后为空
+  /// 的 qid 跳过（不建索引）。同一个组卷网 id 可能有多行（库里没有唯一约束，
+  /// 历史重复入库），取 **updatedAt 降序、id 升序**的第一行——与
+  /// [byZujuanQuestionIds] 的行序一致，也就是「最新改过的那一行」；本方法不报
+  /// 冲突、不合并。没有可用行时返回空 map。
+  Future<Map<String, String>> questionIdsByZujuanQuestionId() async {
+    final rows = await (_db.select(_db.questions)
+          ..where((t) => t.zujuanQuestionId.isNotNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.updatedAt),
+            (t) => OrderingTerm.asc(t.id),
+          ]))
+        .get();
+    final index = <String, String>{};
+    for (final row in rows) {
+      final key = row.zujuanQuestionId?.trim() ?? '';
+      if (key.isEmpty) {
+        continue;
+      }
+      index.putIfAbsent(key, () => row.id);
+    }
+    return index;
   }
 
   /// 删除题目并显式清理它的一切（本项目没有外键，级联不会自己发生）。

@@ -53,7 +53,8 @@ void main() {
       bytes: bytesOf([1, 2, 3, 4]),
     );
 
-    expect(image.relPath, startsWith('${QuestionMediaStore.directoryName}/q-test/'));
+    expect(image.relPath,
+        startsWith('${QuestionMediaStore.directoryName}/q-test/'));
     expect(image.relPath, endsWith('ch1-page3.png'));
     expect(image.relPath, contains(image.attachmentId));
     // 入库路径必须是 POSIX 相对路径：Windows 上反斜杠写进数据库，换台机器就读不回来。
@@ -168,8 +169,10 @@ void main() {
     expect(file.existsSync(), isFalse);
     expect(await attachmentCount('q-test'), 0);
     // <题>/<附件>/ 两层空目录都应被收掉，只留下 question_images/ 根。
-    expect(Directory('${support.path}/${QuestionMediaStore.directoryName}/q-test')
-        .existsSync(), isFalse);
+    expect(
+        Directory('${support.path}/${QuestionMediaStore.directoryName}/q-test')
+            .existsSync(),
+        isFalse);
   });
 
   test('deleteForQuestion：只删这道题的图，别的题不动', () async {
@@ -280,7 +283,8 @@ void main() {
       expect(effectiveQuestionImageRole('   '), QuestionImageRole.stem);
       expect(effectiveQuestionImageRole('stem'), QuestionImageRole.stem);
       expect(effectiveQuestionImageRole('answer'), QuestionImageRole.answer);
-      expect(effectiveQuestionImageRole('solution'), QuestionImageRole.solution);
+      expect(
+          effectiveQuestionImageRole('solution'), QuestionImageRole.solution);
       // 不认识的也原样留着：读侧不假装它是题干图。
       expect(effectiveQuestionImageRole('weird'), 'weird');
     });
@@ -353,15 +357,16 @@ void main() {
 
       final stems = await store.list('q-role', role: QuestionImageRole.stem);
       // 排序是 sortOrder 优先：旧行缺省 0，新题干图接在它后面（1）。
-      expect(stems.map((image) => image.fileName),
-          ['legacy.png', 'new-stem.png']);
+      expect(
+          stems.map((image) => image.fileName), ['legacy.png', 'new-stem.png']);
       expect(stems.map((image) => image.role),
           [QuestionImageRole.stem, QuestionImageRole.stem],
           reason: 'NULL 旧行读出来折成 stem，但库里仍是 NULL');
       // 写入时按角色分别排号：旧行的 NULL 算 stem，所以新 stem 图接在 1。
       expect(stems.last.sortOrder, 1);
 
-      final answers = await store.list('q-role', role: QuestionImageRole.answer);
+      final answers =
+          await store.list('q-role', role: QuestionImageRole.answer);
       expect(answers.map((image) => image.fileName), ['answer.png']);
 
       final rawRows = await (db.select(db.attachments)
@@ -429,6 +434,118 @@ void main() {
       expect(await store.list('q-role', role: QuestionImageRole.stem), isEmpty);
       final all = await store.list('q-role');
       expect(all.single.role, 'scan_extra');
+    });
+  });
+
+  group('按角色删除（v27 的 attachments.role，轮次一百四十五）', () {
+    test('roles 传 {answer}：只删答案截图，题干图和别的题的图都不动', () async {
+      final stem = await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+      final answer = await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+      final other = await store.save(
+        questionId: 'q-other',
+        fileName: 'other.png',
+        bytes: bytesOf([3]),
+      );
+
+      final removed = await store.deleteForQuestion(
+        'q-role',
+        roles: {QuestionImageRole.answer},
+      );
+
+      expect(removed, 1);
+      expect(File(answer.absolutePath).existsSync(), isFalse);
+      expect(await attachmentCount('q-role'), 1);
+      expect(File(stem.absolutePath).existsSync(), isTrue);
+      expect(File(other.absolutePath).existsSync(), isTrue);
+      expect(await store.list('q-role'), hasLength(1));
+    });
+
+    test('roles 传 {stem}：连带 role IS NULL 的旧行一起删', () async {
+      await db.into(db.attachments).insert(
+            AttachmentsCompanion.insert(
+              id: 'att-legacy',
+              ownerType: QuestionMediaStore.ownerType,
+              ownerId: 'q-legacy',
+              relPath: 'question_images/q-legacy/att-legacy/legacy.png',
+              createdAt: 1,
+            ),
+          );
+      final answer = await store.save(
+        questionId: 'q-legacy',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      final removed = await store.deleteForQuestion(
+        'q-legacy',
+        roles: {QuestionImageRole.stem},
+      );
+
+      expect(removed, 1);
+      final rows = await (db.select(db.attachments)
+            ..where((t) => t.ownerId.equals('q-legacy')))
+          .get();
+      expect(rows.map((row) => row.id), isNot(contains('att-legacy')));
+      expect(rows.map((row) => row.id), hasLength(1));
+      expect(File(answer.absolutePath).existsSync(), isTrue);
+    });
+
+    test('roles 传空集合：什么都不删（表示这次不动图片）', () async {
+      final stem = await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+
+      expect(
+        await store.deleteForQuestion('q-role', roles: const <String>{}),
+        0,
+      );
+      expect(File(stem.absolutePath).existsSync(), isTrue);
+      expect(await attachmentCount('q-role'), 1);
+    });
+
+    test('roles 传图里没有的角色：返回 0，不误删', () async {
+      await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+
+      expect(
+        await store
+            .deleteForQuestion('q-role', roles: {QuestionImageRole.solution}),
+        0,
+      );
+      expect(await attachmentCount('q-role'), 1);
+    });
+
+    test('roles 里的空白字符串按读侧口径折成 stem', () async {
+      final stem = await store.save(
+        questionId: 'q-role',
+        fileName: 'stem.png',
+        bytes: bytesOf([1]),
+      );
+      final answer = await store.save(
+        questionId: 'q-role',
+        fileName: 'answer.png',
+        bytes: bytesOf([2]),
+        role: QuestionImageRole.answer,
+      );
+
+      expect(await store.deleteForQuestion('q-role', roles: const {'  '}), 1);
+      expect(File(stem.absolutePath).existsSync(), isFalse);
+      expect(File(answer.absolutePath).existsSync(), isTrue);
     });
   });
 }
