@@ -2,6 +2,69 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百三十九：题库「读起来像题库」+ 三处交互修复（Lead + 三个 teammate）
+
+**起点**：轮次一百三十八收尾（HEAD `0370a94`，v0.5.9）。这一轮来自用户 m09439 的七条界面反馈，
+外加抓题 agent m09454 的公式方案（我方选 B：Furnace 侧渲染 `$…$` LaTeX，抓题侧继续把公式转
+LaTeX、非公式图保留原图、整卡 PNG 兜底）。七条反馈里五条在这一轮落地：题目图片与文字排在一起、
+去掉不必要的卡片底座、题库总览只留必要信息 + 命名、闪存卡答案框默认聚焦、AI 对话三处（拖拽方向/
+新对话滚动/工具结果消失）；另外两条（编辑标签减少鼠标移动、AI 对话界面细节）分别由「标签树多选
+批量」和对话三修覆盖。
+
+**A. schema v30 题目自定义题名（task-115，Lead）**：`questions.title` TEXT nullable，NULL = 还没
+名字、界面回落题干摘要；自动命名只填空不覆盖用户改名。`database.dart` 版本 29 -> 30 +
+`_upgradeV29ToV30` + `_ensureColumns` 自愈，迁移不回填；`QuestionRepository.setQuestionTitle` /
+`setQuestionTitles`（一次事务、空白写 NULL、返回命中行数）。`database.g.dart` 由 build_runner
+重新生成。迁移与读写口径见 `docs/DATA_MODEL.md` §19；测试 `v30_migration_test` 3 例 +
+`question_repository_title_test` 5 例。
+
+**B. 题名生成与题干图片占位切分纯逻辑（task-116，reasoning-core；切分器 Lead）**：
+`question_title_suggestion.dart`（538 行）首句 -> 去题号/来源括号 -> 去 `$` 定界符 -> 拼「知识点名 ·
+核心短语」/「学科中文名 · 核心短语」，限长 32 runes，冲突加「（2）」，另给
+`normalizeQuestionTitle` / `isValidQuestionTitle(80)` / `uniqueQuestionTitle`，55 例；
+`question_stem_segments.dart` 把题干里的「［图N］」切成文字段与插图段（全角数字/括号不必配对，
+越界与重复 N 原文保留不吞字，imageCount<=0 整段原样），33 例。
+
+**C. 题库总览读表与 provider（task-120，Lead）**：`question_library_reader.dart` 一次读完
+questions + attachments（role NULL 视作题干图）+ object_tags/tags，给出
+`QuestionLibraryEntry`（serialLabel/displayTitle/stemPreview/coverImage/tagPaths）与
+`QuestionLibrarySnapshot`（truncated/untitledCount/subjectKeys）；`questionLibraryOverviewProvider`
+watch 库版本自动重读，12 例。
+
+**D. 题库页与详情页重做（task-121 + task-118，question-intake）**：题库页（619 行）空态去卡片、
+每行封面 128x96（按 DPR 解码缩略图）+ 题名/摘要 + 题号 + 学科 + 前 3 标签 + 体检徽标 + ⋮（改名/
+自动命名/复制题号），AppBar 批量自动命名未命名题，14 例；新增 `question_title_dialog.dart`
+（294 行，预填/自动生成/清除/80 上限校验/写库后 invalidate），8 例；详情页去 Card 底座，题干按占位
+把大图插进文字流、未引用图接末尾，含 `$…$` 的段落用 `GptMarkdown(useDollarSignsForLatex: true)`
+渲染，答案截图放答案段后，题名行可改名，+3 例。
+
+**E. AI 对话三修 + 闪存卡聚焦（task-117，threadflow-engine）**：输入框拖拽 `_dragDistance -= dy`
+（原 `+=` 方向反）；新对话/首次加载等消息加载完成再 postFrame 滚到 `maxScrollExtent`（用户主动
+上滚查看历史时不抢滚动）；工具结果不再只剩空对话泡——消息列表以前跳过 `roleTool` 行、已执行面板
+只来自内存，现在 `listCommittedActions` 与内存记录按 toolCallId 去重合并，`roleTool` 行渲染
+`_ToolResultTile`（摘要 + 原文 + 失败/撤销标记 + 撤销入口）。`review_page` 答案框改显式 FocusNode，
+换卡后自动聚焦（跳过选择题/已判分/时间门）。测试 ai_chat_page 12 例（+5）、review_page 15 例（+3）。
+docs/AI_DESIGN.md §7.1。
+
+**F. 标签树多选批量（task-119，threadflow-engine + Lead 接线）**：多选模式整行勾选、箭头仍只展开、
+⋮ 让位；底部条「已选 N 项 / 全选·清空选择 / 批量移动 / 批量删除」；删除确认列前 5 名 + 子树级联
+说明，移动目标排除被选自身与全部后代防环，逐个执行并汇总失败；`_batchBusy` 执行期锁入口。
+24 例（原 13 + 11）。Lead 接线 13 个 tags l10n key + 通用动词 `commonMove` + `tagsSort`；docs/
+TAG_TREE_SORT_DESIGN.md §8（并修正 §5 的「未接 l10n」口径）。
+
+**G. l10n**：五文件共 41 个新 key（题名/题库 26 + tags 13 + `commonMove` + `tagsSort`），手改 ARB 后
+跑 `flutter gen-l10n` 同步生成文件；13 个带参 getter 的占位符类型在 ARB 里声明齐全。
+
+**H. 门禁与提交**：`dart analyze lib test` -> 92 issues / 0 error / 0 warning；全量
+`flutter test --concurrency=1` -> +5139 ~2 All tests passed，11 分 22 秒，EXIT=0
+（日志 `E:/dsh-tmp-aot/test-139-full.txt`；上一轮 +4991 ~2，本轮 +148）。提交按八片拆（schema v30 / 纯逻辑 /
+总览读表 / 题库与详情页 UI / AI 对话 / 闪存卡聚焦 / 标签树批量 / docs），git 由 Lead 统一提交，
+未 push GitHub；随后出 v0.6.0 双端发布件。
+
+**未做 / 未验证**：大图从占位高度到真实高度的跳变、SVG 不支持、相似题等下方区块仍是 Card、平板
+真机滚动手感与 500 条列表性能未测；闪存卡里仍不显示题号（cards 与 questions 无外键）；en 界面排序
+模式名仍是中文；组卷网抓题仍由专属 agent 产出 .tqb，Furnace 只负责导入与显示。
+
 ## 2026-10-21 轮次一百三十八：标签树排序落盘 + 题库包按标签路径筛选（Lead + 两个 teammate）
 
 **起点**：轮次一百三十七收尾（HEAD `4c61193`）。这一轮补的都是「上一轮只做了一半」的事：标签树的
