@@ -257,21 +257,30 @@ void main() {
     expect(archive.mediaBytes[first.media[1].packPath], equals(_answerJpeg));
   });
 
-  test('第二次导入同一包：0 新增 / 2 跳过，题目、选项、配图都不重复', () async {
+  test('第二次导入同一包：0 新增，带题号的更新、无题号的仍跳过，都不重复', () async {
     final bytes = _harvestPack().bytes;
     final first = await target.service.importPack(bytes, now: _importNow);
     expect(first.createdCount, 2);
     expect(first.mediaCount, 2);
+    final firstRows = await _questionsBySerial(target);
 
+    // 抓题包第一条带 zujuanQuestionId，第二次导入走「按组卷网题号原地更新」，
+    // 不再新建也不再按指纹跳过：轮次一百四十五的新语义。
+    // 第二条没有题号，仍按题干指纹跳过。
     final second = await target.service.importPack(bytes, now: _importNow);
     expect(second.createdCount, 0);
-    expect(second.skippedCount, 2);
-    expect(second.mediaCount, 0);
+    expect(second.updatedCount, 1);
+    expect(second.skippedCount, 1);
+    expect(second.mediaCount, 2);
     expect(second.failures, isEmpty);
     expect(second.warnings, isNotEmpty);
 
     final rows = await _questionsBySerial(target);
     expect(rows, hasLength(2));
+    // 更新不换题号与题名：还是第一次导入分配的两个 id 与题号。
+    expect(rows.map((row) => row.id).toList(),
+        firstRows.map((row) => row.id).toList());
+    expect(rows.map((row) => row.serialNo).toList(), <int?>[1, 2]);
     expect(
         await target.db.select(target.db.questionOptions).get(), hasLength(4));
     expect(await target.db.select(target.db.attachments).get(), hasLength(2));
@@ -296,7 +305,7 @@ void main() {
     expect(rows[4].stem, _secondStem);
   });
 
-  test('planImport 预检与实际导入口径一致：先 2 新增，后 2 跳过', () async {
+  test('planImport 预检与实际导入口径一致：先 2 新增，后 1 更新 + 1 跳过', () async {
     final pack = _harvestPack();
     final before = await target.service.planImport(pack.bytes);
     expect(before.recordCount, 2);
@@ -312,7 +321,8 @@ void main() {
 
     final after = await target.service.planImport(pack.bytes);
     expect(after.createCount, 0);
-    expect(after.skipCount, 2);
+    expect(after.updateCount, 1);
+    expect(after.skipCount, 1);
     expect(after.missingTagCount, 1);
   });
 }

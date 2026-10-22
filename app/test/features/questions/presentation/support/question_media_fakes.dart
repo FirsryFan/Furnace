@@ -114,16 +114,35 @@ class FakeQuestionMediaStore extends QuestionMediaStore {
   }
 
   @override
-  Future<int> deleteForQuestion(String questionId) async {
+  Future<int> deleteForQuestion(
+    String questionId, {
+    Set<String>? roles,
+  }) async {
     final images = _images[questionId];
     if (images == null || images.isEmpty) {
       return 0;
     }
-    final removed = images.length;
-    for (final image in images) {
+    final wanted = roles
+        ?.map(
+          (role) => role.trim().isEmpty ? QuestionImageRole.stem : role.trim(),
+        )
+        .map(effectiveQuestionImageRole)
+        .toSet();
+    if (wanted != null && wanted.isEmpty) {
+      return 0;
+    }
+    final removedImages = wanted == null
+        ? List<QuestionImage>.of(images)
+        : images
+            .where(
+              (image) =>
+                  wanted.contains(effectiveQuestionImageRole(image.role)),
+            )
+            .toList(growable: false);
+    for (final image in removedImages) {
       _bytes.remove(image.relPath);
     }
-    images.clear();
-    return removed;
+    images.removeWhere(removedImages.contains);
+    return removedImages.length;
   }
 }

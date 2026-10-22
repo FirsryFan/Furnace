@@ -6,11 +6,12 @@
 ///  - [QuestionPackService.planImport]：导入前预检（解码 + 对账 + 合并计划，不写库）；
 ///  - [QuestionPackService.importPack]：解码 → 定合并计划 → 逐题入库 → 存配图。
 ///
-/// 导入口径（与 `docs/QUESTION_BANK_DESIGN.md` §20 一致）：**只新增，不覆盖、
-/// 不删除**。同题干（stemFingerprint 相同）跳过并计入 skippedCount；题号不保留，
-/// 由 `QuestionRepository.ingest` 重新分配——两台机器各导过同一个包时号会撞，
-/// 编号方案本身接受这一点（见 DATA_MODEL §13）。标签只挂题库里**已存在**的路径，
-/// 缺的写进 warnings。导入前不自动备份：append 模式不会动已有数据。
+/// 导入口径（与 `docs/QUESTION_BANK_DESIGN.md` §20/§29 一致）：默认**只新增**，
+/// 同题干（stemFingerprint 相同）跳过并计入 skippedCount；题号不保留，由
+/// `QuestionRepository.ingest` 重新分配。带 `zujuanQuestionId` 且题库里已有同题号
+/// 的题会走 update：题干/答案/解析/来源字段按「包里非空才覆盖」打补丁，配图按
+/// 包里出现过的角色整体替换，title/serialNo 保留；更新数记进 updatedCount，
+/// 不占 skippedCount。标签只挂题库里**已存在**的路径，缺的写进 warnings。
 library;
 
 import 'dart:typed_data';
@@ -86,10 +87,14 @@ class QuestionPackImportReport {
     required this.mediaCount,
     required this.warnings,
     required this.failures,
+    this.updatedCount = 0,
   });
 
   /// 新建了几道题。
   final int createdCount;
+
+  /// 按组卷网题号更新了几道题库里已有的题（同题号再导入升级答案/配图）。
+  final int updatedCount;
 
   /// 因重复跳过了几道题（题库已有 + 包内重复）。
   final int skippedCount;
@@ -182,6 +187,8 @@ class QuestionPackService {
       fingerprintOf: stemFingerprint,
       existingFingerprints: await _existingFingerprints(),
       existingTagPaths: tagByPath.keys.toSet(),
+      existingQuestionIdByZujuanQuestionId:
+          await _questions.questionIdsByZujuanQuestionId(),
     );
     return buildQuestionPackImportPreview(
       manifest: archive.manifest,
@@ -202,16 +209,18 @@ class QuestionPackService {
       fingerprintOf: stemFingerprint,
       existingFingerprints: await _existingFingerprints(),
       existingTagPaths: tagByPath.keys.toSet(),
+      existingQuestionIdByZujuanQuestionId:
+          await _questions.questionIdsByZujuanQuestionId(),
     );
 
     final warnings = <String>[...plan.warnings];
     final failures = <String>[];
     var created = 0;
+    var updated = 0;
     var mediaSaved = 0;
     var skipped = plan.skipCount;
 
     for (final decision in plan.decisions) {
-      if (decision.action != QuestionPackAction.create) continue;
       final record = archive.records[decision.index];
       final humanIndex = decision.index + 1;
 
@@ -222,6 +231,73 @@ class QuestionPackService {
         final tag = tagByPath[path];
         if (tag != null) tagIds.add(tag.id);
       }
+
+      if (decision.action == QuestionPackAction.update) {
+        final existingId = decision.existingQuestionId?.trim() ?? '';
+        if (existingId.isEmpty) {
+          failures.add('第 $humanIndex 道题计划更新，但没带题库里的题目 id，没有更新');
+          continue;
+        }
+        try {
+          final changed = await _questions.updateFromPack(
+            questionId: existingId,
+            stem: record.stem,
+            answer: _nullIfBlank(record.answer),
+            solution: _nullIfBlank(record.solution),
+            subjectKey: _nullIfBlank(record.subjectKey),
+            questionType: _nullIfBlank(record.questionType),
+            sourceLevel: _nullIfBlank(record.sourceLevel),
+            sourceLabel: _nullIfBlank(record.sourceLabel),
+            year: record.year,
+            region: _nullIfBlank(record.region),
+            sourceUrl: _nullIfBlank(record.sourceUrl),
+            zujuanQuestionId: _nullIfBlank(record.zujuanQuestionId),
+            zujuanBankId: _nullIfBlank(record.zujuanBankId),
+            difficulty: record.difficulty,
+            difficultySource: _nullIfBlank(record.difficultySource),
+            trapNote: _nullIfBlank(record.trapNote),
+            origin: _nullIfBlank(record.origin),
+            state: _nullIfBlank(record.state),
+            options: <QuestionOptionDraft>[
+              for (final option in record.options)
+                QuestionOptionDraft(
+                  label: option.label,
+                  content: option.content,
+                  isCorrect: option.isCorrect,
+                  sortOrder: option.sortOrder,
+                ),
+            ],
+            additionalTagIds: tagIds,
+            now: now,
+          );
+          if (changed == 0) {
+            failures.add(
+              '第 $humanIndex 道题要更新的原题（$existingId）在题库里找不到了，没有更新',
+            );
+            continue;
+          }
+          final roles = <String>{
+            for (final media in record.media)
+              if (media.role.trim().isNotEmpty) media.role.trim(),
+          };
+          if (roles.isNotEmpty) {
+            await _mediaStore.deleteForQuestion(existingId, roles: roles);
+          }
+          updated++;
+          mediaSaved += await _saveMediaFor(
+            record: record,
+            questionId: existingId,
+            humanIndex: humanIndex,
+            mediaBytes: archive.mediaBytes,
+            warnings: warnings,
+            now: now,
+          );
+        } on Object catch (error) {
+          failures.add('第 $humanIndex 道题没有更新：$error');
+        }
+        continue;
+      }
+      if (decision.action != QuestionPackAction.create) continue;
 
       try {
         final result = await _questions.ingest(
@@ -234,33 +310,14 @@ class QuestionPackService {
           continue;
         }
         created++;
-
-        for (final media in record.media) {
-          final mediaBytes = archive.mediaBytes[media.packPath];
-          if (mediaBytes == null) {
-            warnings.add(
-              '第 $humanIndex 道题的配图 ${media.packPath} 在包里找不到，没有导入',
-            );
-            continue;
-          }
-          final fileName = _fileNameForMedia(media);
-          try {
-            await _mediaStore.save(
-              questionId: result.question.id,
-              fileName: fileName,
-              bytes: mediaBytes,
-              mime: media.mime,
-              sortOrder: media.sortOrder,
-              role: media.role,
-              now: now,
-            );
-            mediaSaved++;
-          } on Object catch (error) {
-            warnings.add(
-              '第 $humanIndex 道题的配图 $fileName 没存进题库目录：$error',
-            );
-          }
-        }
+        mediaSaved += await _saveMediaFor(
+          record: record,
+          questionId: result.question.id,
+          humanIndex: humanIndex,
+          mediaBytes: archive.mediaBytes,
+          warnings: warnings,
+          now: now,
+        );
       } on Object catch (error) {
         failures.add('第 $humanIndex 道题没有导入：$error');
       }
@@ -268,11 +325,51 @@ class QuestionPackService {
 
     return QuestionPackImportReport(
       createdCount: created,
+      updatedCount: updated,
       skippedCount: skipped,
       mediaCount: mediaSaved,
       warnings: List<String>.unmodifiable(warnings),
       failures: List<String>.unmodifiable(failures),
     );
+  }
+
+  /// 把一道题在包里的配图逐张落到题库目录，返回成功张数（失败只记 warning）。
+  Future<int> _saveMediaFor({
+    required QuestionPackRecord record,
+    required String questionId,
+    required int humanIndex,
+    required Map<String, Uint8List> mediaBytes,
+    required List<String> warnings,
+    DateTime? now,
+  }) async {
+    var saved = 0;
+    for (final media in record.media) {
+      final bytes = mediaBytes[media.packPath];
+      if (bytes == null) {
+        warnings.add(
+          '第 $humanIndex 道题的配图 ${media.packPath} 在包里找不到，没有导入',
+        );
+        continue;
+      }
+      final fileName = _fileNameForMedia(media);
+      try {
+        await _mediaStore.save(
+          questionId: questionId,
+          fileName: fileName,
+          bytes: bytes,
+          mime: media.mime,
+          sortOrder: media.sortOrder,
+          role: media.role,
+          now: now,
+        );
+        saved++;
+      } on Object catch (error) {
+        warnings.add(
+          '第 $humanIndex 道题的配图 $fileName 没存进题库目录：$error',
+        );
+      }
+    }
+    return saved;
   }
 
   QuestionDraft _draftOf(

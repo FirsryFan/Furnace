@@ -70,7 +70,10 @@ final class _RecordingMediaStore extends FakeQuestionMediaStore {
   Object? deleteForQuestionError;
 
   @override
-  Future<int> deleteForQuestion(String questionId) async {
+  Future<int> deleteForQuestion(
+    String questionId, {
+    Set<String>? roles,
+  }) async {
     deletedForQuestion.add(questionId);
     final error = deleteForQuestionError;
     if (error != null) {

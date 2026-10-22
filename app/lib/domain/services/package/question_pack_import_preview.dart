@@ -27,6 +27,7 @@ class QuestionPackImportPreview {
     required this.createCount,
     required this.skipCount,
     required this.missingTagCount,
+    this.updateCount = 0,
     required this.warnings,
     required this.missingTagPaths,
     this.snapshotLikeCount = 0,
@@ -57,6 +58,12 @@ class QuestionPackImportPreview {
   /// 会跳过的题目数（来自导入计划）。
   final int skipCount;
 
+  /// 会按组卷网题号更新已有题库题目的数量（来自导入计划）。
+  ///
+  /// 只有带 `zujuanQuestionId` 且题库里已有同题号的记录才算；这些记录不进
+  /// [skipCount]。默认 0，给「旧包/无来源号」的纯新增场景与历史构造点用。
+  final int updateCount;
+
   /// 题库里不存在的标签路径个数（等于 [missingTagPaths] 的长度）。
   final int missingTagCount;
 
@@ -79,8 +86,11 @@ class QuestionPackImportPreview {
   /// 有需要用户注意的提示。
   bool get hasWarnings => warnings.isNotEmpty;
 
-  /// 包里每道题都会新建（空包不算、有跳过就不算）。
-  bool get isFullyNew => createCount > 0 && skipCount == 0;
+  /// 有题目会被更新（按组卷网题号对上题库已有题目）。
+  bool get hasUpdates => updateCount > 0;
+
+  /// 包里每道题都会新建（空包不算、有跳过或更新就不算）。
+  bool get isFullyNew => createCount > 0 && skipCount == 0 && updateCount == 0;
 
   /// 包清单写的题数/媒体数与实际读到的对不上。
   bool get hasManifestMismatch =>
@@ -91,7 +101,7 @@ class QuestionPackImportPreview {
   /// 第 1 行：包里共 N 道题、M 张配图（导出自 App X，yyyy-MM-dd HH:mm）；
   /// 括号内按需出现，时间不转换时区（按 [exportedAt] 自身的年月日时分格式化）。
   /// 第 2 行：仅当 [snapshotLikeCount] 大于 0（整卡快照提示）。
-  /// 第 3 行：新增 / 跳过 / 两者都有 / 都没有可导入的新题。
+  /// 第 3 行：新增 / 更新 / 跳过（有哪几类说哪几类）/ 都没有可导入的题。
   /// 第 4 行：仅当 [missingTagCount] 大于 0。
   /// 第 5 行：仅当 [warnings] 非空。
   List<String> get summaryZh {
@@ -107,7 +117,11 @@ class QuestionPackImportPreview {
       lines.add('整卡快照：$snapshotLikeCount 道题（公式在整图里）');
     }
     lines.add(
-      _secondSummaryLine(createCount: createCount, skipCount: skipCount),
+      _secondSummaryLine(
+        createCount: createCount,
+        skipCount: skipCount,
+        updateCount: updateCount,
+      ),
     );
     if (missingTagCount > 0) {
       lines.add('有 $missingTagCount 个标签在本题库里不存在，相关题导入后不挂这些标签');
@@ -127,6 +141,7 @@ class QuestionPackImportPreview {
         'app_version': appVersion,
         'exported_at': exportedAt?.toIso8601String(),
         'create_count': createCount,
+        'update_count': updateCount,
         'skip_count': skipCount,
         'missing_tag_count': missingTagCount,
         'snapshot_like_count': snapshotLikeCount,
@@ -147,6 +162,7 @@ class QuestionPackImportPreview {
         other.appVersion == appVersion &&
         other.exportedAt == exportedAt &&
         other.createCount == createCount &&
+        other.updateCount == updateCount &&
         other.skipCount == skipCount &&
         other.missingTagCount == missingTagCount &&
         other.snapshotLikeCount == snapshotLikeCount &&
@@ -163,6 +179,7 @@ class QuestionPackImportPreview {
         appVersion,
         exportedAt,
         createCount,
+        updateCount,
         skipCount,
         missingTagCount,
         snapshotLikeCount,
@@ -173,7 +190,8 @@ class QuestionPackImportPreview {
   @override
   String toString() => 'QuestionPackImportPreview(recordCount: $recordCount, '
       'mediaCount: $mediaCount, createCount: $createCount, '
-      'skipCount: $skipCount, missingTagCount: $missingTagCount, '
+      'updateCount: $updateCount, skipCount: $skipCount, '
+      'missingTagCount: $missingTagCount, '
       'snapshotLikeCount: $snapshotLikeCount, '
       'warnings: ${warnings.length})';
 }
@@ -228,6 +246,7 @@ QuestionPackImportPreview buildQuestionPackImportPreview({
     appVersion: manifest.appVersion,
     exportedAt: manifest.exportedAt,
     createCount: plan.createCount,
+    updateCount: plan.updateCount,
     skipCount: plan.skipCount,
     missingTagCount: plan.missingTagPaths.length,
     snapshotLikeCount: snapshotLikeCount,
@@ -257,13 +276,20 @@ String _firstSummaryLine({
   return '$head（${details.join('，')}）';
 }
 
-String _secondSummaryLine({required int createCount, required int skipCount}) {
-  if (createCount == 0 && skipCount == 0) {
-    return '包里没有可以导入的新题';
+String _secondSummaryLine({
+  required int createCount,
+  required int skipCount,
+  required int updateCount,
+}) {
+  if (createCount == 0 && skipCount == 0 && updateCount == 0) {
+    return '包里没有可以导入的题';
   }
   final List<String> parts = <String>[];
   if (createCount > 0) {
     parts.add('导入后新增 $createCount 道');
+  }
+  if (updateCount > 0) {
+    parts.add('按组卷网题号更新已有 $updateCount 道');
   }
   if (skipCount > 0) {
     parts.add('跳过 $skipCount 道（题库里已有同一道题，或包里重复）');

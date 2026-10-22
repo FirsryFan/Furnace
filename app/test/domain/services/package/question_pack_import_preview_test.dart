@@ -54,20 +54,25 @@ QuestionPackRecord _stemSnapshotRecord({
 
 QuestionPackImportPlan _plan({
   int create = 0,
+  int update = 0,
   int skip = 0,
   List<String> warnings = const <String>[],
   List<String> missingTagPaths = const <String>[],
 }) =>
     QuestionPackImportPlan(
       decisions: <QuestionPackDecision>[
-        for (var index = 0; index < create + skip; index++)
+        for (var index = 0; index < create + update + skip; index++)
           QuestionPackDecision(
             index: index,
             action: index < create
                 ? QuestionPackAction.create
-                : QuestionPackAction.skipDuplicate,
+                : index < create + update
+                    ? QuestionPackAction.update
+                    : QuestionPackAction.skipDuplicate,
+            existingQuestionId:
+                index < create + update && index >= create ? 'q$index' : null,
             stemPreview: '第 $index 道',
-            skipReason: index < create ? null : '题库里已经有同一道题（题干指纹相同）',
+            skipReason: index < create + update ? null : '题库里已经有同一道题（题干指纹相同）',
           ),
       ],
       warnings: warnings,
@@ -93,6 +98,7 @@ QuestionPackImportPreview _direct({
   String appVersion = '0.5.8+137',
   DateTime? exportedAt,
   int createCount = 1,
+  int updateCount = 0,
   int skipCount = 0,
   int? missingTagCount,
   List<String> warnings = const <String>[],
@@ -107,6 +113,7 @@ QuestionPackImportPreview _direct({
       appVersion: appVersion,
       exportedAt: exportedAt,
       createCount: createCount,
+      updateCount: updateCount,
       skipCount: skipCount,
       missingTagCount: missingTagCount ?? missingTagPaths.length,
       warnings: warnings,
@@ -381,13 +388,41 @@ void main() {
       expect(preview.summaryZh[1], '跳过 2 道（题库里已有同一道题，或包里重复）');
     });
 
+    test('只有更新时第二行给更新数，并标记 hasUpdates', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 3, mediaCount: 0),
+        records: <QuestionPackRecord>[_record(), _record(), _record()],
+        plan: _plan(update: 3),
+      );
+      expect(preview.summaryZh[1], '按组卷网题号更新已有 3 道');
+      expect(preview.updateCount, 3);
+      expect(preview.hasUpdates, isTrue);
+      expect(preview.isFullyNew, isFalse);
+    });
+
+    test('新增、更新、跳过同时出现时按顺序拼一行', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 6, mediaCount: 0),
+        records: List<QuestionPackRecord>.generate(6, (_) => _record()),
+        plan: _plan(create: 2, update: 3, skip: 1),
+      );
+      expect(
+        preview.summaryZh[1],
+        '导入后新增 2 道，按组卷网题号更新已有 3 道，'
+        '跳过 1 道（题库里已有同一道题，或包里重复）',
+      );
+      expect(preview.createCount, 2);
+      expect(preview.updateCount, 3);
+      expect(preview.skipCount, 1);
+    });
+
     test('一道也导不进去时第二行是固定文案', () {
       final QuestionPackImportPreview preview = _previewOf(
         manifest: _manifest(questionCount: 2, mediaCount: 0),
         records: <QuestionPackRecord>[_record(), _record()],
         plan: _plan(),
       );
-      expect(preview.summaryZh[1], '包里没有可以导入的新题');
+      expect(preview.summaryZh[1], '包里没有可以导入的题');
     });
 
     test('缺失标签非 0 时第三行', () {
@@ -472,6 +507,7 @@ void main() {
         'app_version',
         'exported_at',
         'create_count',
+        'update_count',
         'skip_count',
         'missing_tag_count',
         'snapshot_like_count',
@@ -482,7 +518,15 @@ void main() {
       expect(json['record_count'], 1);
       expect(json['media_count'], 1);
       expect(json['create_count'], 1);
+      expect(json['update_count'], 0);
       expect(json['missing_tag_count'], 1);
+    });
+
+    test('全新字段 update_count 默认 0、按 actual 输出', () {
+      expect(_direct().updateCount, 0);
+      expect(_direct().hasUpdates, isFalse);
+      expect(_direct(updateCount: 4).toJson()['update_count'], 4);
+      expect(_direct(createCount: 0, updateCount: 4).isFullyNew, isFalse);
     });
 
     test('exportedAt 为空时 exported_at 输出 null', () {
