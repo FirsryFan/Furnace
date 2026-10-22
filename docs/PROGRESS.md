@@ -2,6 +2,50 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百四十：题库批量操作——多选、批量打标签、导出选中、批量删除（Lead + 三个 teammate）
+
+**起点**：轮次一百三十九收尾（HEAD `455f36a`，v0.6.0）。这一轮来自用户 m09439 第 5 条反馈
+「让鼠标移动尽量减少」：题库页此前没有给题目打标签的 UI 入口，处理一批题只能一道道点进详情
+页；标签树也只能逐个点 ⋮ 菜单。本轮把「处理多道题」做成一条路径：多选 → 打标签 / 导出
+选中 / 删除。
+
+**五个切片（六个提交）**
+1. `3531ca3` 按题目 id 集合导出（Lead）：`readQuestionPackSource` 加 `questionIds`，只保留
+   选中题、未知 id 忽略、与筛选条件取交集；媒体字节仍在过滤后读，未选中的题一张图都不解码。
+   `exportBytes` 透传该参数。测试 +8 例（含「未选中题不读配图字节」的读取计数断言）。
+2. `725200b` TagRepository 批量挂载/摘除（threadflow-engine）：`addTagToObjects` /
+   `removeTagFromObjects` 一次事务先查已有行、只插缺失、返回真实新增/删除数；重复调用返回 0
+   不抛。测试 +11 例（该文件合计 27 例）。
+3. `24392ad` 纯逻辑批量打标签计划（reasoning-core）：`question_bulk_tag_plan.dart` 的
+   `planQuestionBulkTag` 只做纯计算（不查库、不判未知题），给出可用/缺失路径、每路径待挂题、
+   链接数、受影响题数、已挂跳过数；任何输入不抛、结果不可变。测试 6 组 37 例。
+4. `43f6f40` 应用层 `tagQuestions`（Lead）：读标签词表（path 优先回落 name）→ 逐题读已挂标签
+   → 计划 → 逐路径写库；单路径失败只进 `failedTagPaths`，不拖垮整批；
+   `affectedQuestionCount` 只数真正新增过链接的题。测试 9 例（内存库 + 真实 TagRepository）。
+5. `97eb566` 题库页多选 UI（question-intake）：多选态 AppBar（已选 N 项/全选/清空/退出）、
+   底部动作条（打标签/导出选中/删除，操作中禁用并显示进度条）、行首 Checkbox、长按进多选；
+   全选只作用于当前学科筛选下的题；导出选中 0 题不弹保存框；删除先确认（前 3 个题名预览）、
+   逐题清配图再删题、单题失败不中断整批。新对话框 `question_bulk_tag_dialog.dart`（标签路径
+   可搜索多选）。l10n 五文件手改 21 个 key。测试 +17 例（该目录 +368，基线 351）。
+6. `docs` 本条 + `QUESTION_BANK_DESIGN.md` §24（24.1–24.6）。
+
+**门禁（提交前实测）**
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（基线 92；本轮修掉一条历史 info）。
+- 全量 `flutter test --concurrency=1` → **+5221 ~2 All tests passed**，11 分 08 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-140-full.txt`；上一轮基线 +5139，本轮 +82）。
+- 切片组合：`test/features/questions/application`+`test/features/settings` +384、
+  `test/features/questions/presentation` +368（基线 351）、`tag_repository_test.dart` +27、
+  `test/domain/services/questions` +450（基线 413）。
+- l10n：zh/en ARB 各 1405 个 key 对齐，21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历史
+  未声明键不是本轮引入）。
+
+**未做 / 未验证**：真机 Windows 的 `FilePicker.saveFile`/`pickFiles` 未手测；多选态行尾「⋮」
+菜单仍可打开（改名/自动命名/复制题号仍作用于单题）；导出 warnings 在批量路径未单独上屏；
+批量打标签不提供摘标签入口（数据层 `removeTagFromObjects` 已就绪，界面未接）；一次选中数千题
+的性能与确认框滚动未验证。
+
+**发布**：未打新 tag、未出新包（用户没要求）；dist 最新仍是 v0.6.0 三件，未 push GitHub。
+
 ## 2026-10-23 轮次一百三十九：题库「读起来像题库」+ 三处交互修复（Lead + 三个 teammate）
 
 **起点**：轮次一百三十八收尾（HEAD `0370a94`，v0.5.9）。这一轮来自用户 m09439 的七条界面反馈，

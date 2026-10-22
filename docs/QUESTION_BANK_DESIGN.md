@@ -1030,6 +1030,104 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
 - 未做 / 未验证：大图从占位高度到真实高度的跳变、SVG 图不支持、相似题等下方区块仍是 Card、
   平板真机滚动手感与 500 条列表性能未测；en 界面题名相关文案已进 l10n，但排序模式名仍是中文。
 
+## 24. 题库批量操作：按 id 导出、批量打标签（轮次一百四十）
+
+轮次一百四十解决用户反馈「处理几个题要一道道点开、鼠标来回跑」：题库页进入多选后，
+一次选中多道题做三件事——打标签、导出选中、删除。数据层与纯逻辑先行，UI 最后接线。
+
+### 24.1 题库包按题目 id 集合导出（task-122，Lead）
+
+- `app/lib/data/package/question_pack_source.dart`：`readQuestionPackSource` 新增
+  `Set<String> questionIds = const <String>{}`。非空时只保留这些题（trim 后比较，未知 id
+  安静忽略），空集合 = 不按 id 约束；与 `QuestionPackSelection` 取交集。过滤发生在读配图
+  字节之前，未选中题的图片不会从磁盘读出来、更不会进包；包内题序按筛选后从 1 重新编号。
+- `app/lib/features/questions/application/question_pack_service.dart`：`exportBytes` 透传
+  `questionIds`（设置页的「按标签路径筛选导出」与此互不影响）。
+- 测试 `app/test/features/questions/application/question_pack_selection_export_test.dart`
+  新增 8 例：只导出选中且保留原题号、未知/空白 id 忽略、空集合全量、与 selection 交集、
+  包内序号从 1 重排、未选中题不读配图字节、清单计数按选中后、导出不改库行数。该文件合计 27 例。
+
+### 24.2 TagRepository 批量挂/摘标签（task-123，threadflow-engine）
+
+- `addTagToObjects({tagId, objectIds, objectType = 'question'})`：一次事务，先查已存在的
+  `(tagId, objectType, objectId IN ids)`，只插缺失行（`insertOrIgnore`），返回**真实新增数**；
+  重复调用返回 0 而不是报错。`removeTagFromObjects` 同口径，返回真实删除行数。
+  输入统一 trim/去空/保序去重；空输入立即返回 0。
+- 测试 `app/test/data/repositories/tag_repository_test.dart` 新增 11 例（该文件合计 27 例）：
+  批量挂载计数、重复挂载 0、混合已挂只计新增、空输入、objectType 隔离、批量摘只删指定对象等。
+
+### 24.3 纯逻辑：批量打标签计划（task-124，reasoning-core）
+
+- `app/lib/domain/services/questions/question_bulk_tag_plan.dart`：
+  `QuestionBulkTagPlan`（`usableTagPaths` / `missingTagPaths` / `questionIdsByTagPath` /
+  `linkCount` / `affectedQuestionCount` / `skippedExistingLinkCount`）与
+  `planQuestionBulkTag({questionIds, tagPaths, knownTagPaths, existingTagPathsByQuestionId})`。
+- 口径：空输入给空计划；词表里没有的路径进 `missingTagPaths`（保序、不产生挂载）；已挂的
+  (题, 路径) 对只计入跳过数；**不查库、不判未知题**（所以结果里没有 unknownQuestionCount）；
+  任何输入不抛；结果列表与 map 全不可变。
+- 测试 `app/test/domain/services/questions/question_bulk_tag_plan_test.dart` 6 组 37 例；
+  `test/domain/services/questions` 目录 +450 全绿（基线 413 无回归）。
+
+### 24.4 应用层：tagQuestions（task-125，Lead）
+
+- `app/lib/features/questions/application/question_bulk_tagging.dart`：
+  `kQuestionBulkTagObjectType = 'question'`；`QuestionBulkTagReport{addedLinks, skippedLinks,
+  affectedQuestionCount, missingTagPaths, failedTagPaths, isEmpty, hasMissingTagPaths,
+  hasFailures}`；`tagQuestions({required TagRepository tags, required Iterable<String> questionIds,
+  required Iterable<String> tagPaths})`。
+- 流程：读标签词表（路径取 `tag.path`，为空回落 `tag.name`）→ 逐题读 `tagsForObject` 已挂
+  标签 → `planQuestionBulkTag` → 逐路径 `addTagToObjects`。某条路径抛异常只进
+  `failedTagPaths`，其它路径照常写；`affectedQuestionCount` 只数真正新增过链接的题，写入
+  失败时不会虚报。`isEmpty` 是「没有任何动作且没有任何问题」，全部已挂（只有 skipped）时
+  仍为 false，便于界面如实报告「跳过 N 条」。
+- 测试 `app/test/features/questions/application/question_bulk_tagging_test.dart` 9 例（内存库 +
+  真实 TagRepository）：新增计数、已挂跳过、缺失路径不写行、重复调用新增 0、空输入不碰库、
+  去空白去重、单路径写入失败不拖垮整批、路径大小写敏感、标签 path 为 NULL 回落 name。
+
+### 24.5 题库页多选与三个批量动作（task-126，question-intake）
+
+- `app/lib/features/questions/presentation/question_bank_page.dart`（619 → 1012 行）：多选态
+  AppBar（已选 N 项 / 全选 / 清空 / 退出）、底部动作条（打标签 / 导出选中 / 删除，操作中禁用
+  并显示进度条）、行首 Checkbox、长按任意行直接进多选并选中该行；普通态只有「题库里有题」时
+  才出现多选入口。全选只作用于当前学科筛选下的题，不会偷偷选中被筛掉的。
+  新增顶层 Key：`questionBankSelectKey` / `questionBankExitSelectionKey` /
+  `questionBankSelectAllKey` / `questionBankClearSelectionKey` /
+  `questionBankTagSelectedKey` / `questionBankExportSelectedKey` /
+  `questionBankDeleteSelectedKey`；纯函数 `questionBankDeletePreview`（前 3 个题名用「、」
+  连接，超出追加「等 N 道」）与两个本地 helper（文件大小、文件名时间戳），不跨 feature
+  import 设置页。
+- 打标签：新文件 `app/lib/features/questions/presentation/question_bulk_tag_dialog.dart`
+  （175 行）：读 `tagRepositoryProvider.getAllTags()`，路径排序、可搜索、多选，确认直接执行
+  `tagQuestions`（不再二次确认）；SnackBar 依次报告新增/跳过、缺失路径数、失败路径。
+- 导出选中：`questionPackServiceProvider.exportBytes(questionIds: 选中集合)` → 0 题只提示、
+  不弹保存框 → `FilePicker.saveFile` 默认名 `furnace-<时间戳>-selected.tqb`；取消保存静默，
+  成功提示题数与文件大小。
+- 删除：先确认（标题「删除 N 道题？」+ 前 3 个题名预览），逐题
+  `questionMediaStore.deleteForQuestion` → `questionRepository.deleteQuestion`，单题失败不
+  中断整批、最后汇总失败数；完成后退出多选。
+- l10n 21 个新 key（11 个无参 + 10 个带参，中英都填），五个文件手改、未跑 gen-l10n。
+- 测试：新文件 `app/test/features/questions/presentation/question_bank_bulk_test.dart`（541 行，
+  17 例：16 widget + 1 纯函数 `questionBankDeletePreview`），既有
+  `question_bank_page_test.dart` +2 处入口断言；`test/features/questions/presentation`
+  目录 +368 全绿（基线 351，+17，无回归）。
+
+### 24.6 门禁与未做（轮次一百四十）
+
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（基线 92；本轮把一条历史
+  info 修掉后回到 91，没有新增问题）。
+- 全量 `flutter test --concurrency=1` → **+5221 ~2 All tests passed**，11 分 08 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-140-full.txt`；上一轮基线 +5139，本轮 +82）。
+- 未做 / 未验证：真机 Windows 的 `FilePicker.saveFile` 与 `pickFiles` 未手测；多选态行尾
+  「⋮」菜单仍可打开（改名/自动命名/复制题号在多选态下仍作用于单题，没有禁用）；导出
+  warnings 在批量路径未单独上屏（只在导入侧提示）；批量打标签不提供「摘标签」入口（数据层
+  `removeTagFromObjects` 已就绪，界面未接）；一次选中数千题的性能与确认框滚动未验证。
+
+切片组合：`flutter test test/features/questions/application test/features/settings` +384、
+`test/features/questions/presentation` +368（基线 351）、`test/data/repositories/tag_repository_test.dart`
++27、`test/domain/services/questions` +450（基线 413）。l10n 五个文件校验：zh/en ARB 各 1405 个
+key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历史未声明键不是本轮引入）。
+
+
 
 
 
