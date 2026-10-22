@@ -330,6 +330,29 @@ scripts/**         配套脚本
 
 **决策 D16**：不做"输入框旁加 AI 按钮"的分散入口（用户明确否掉）。AI 只通过对话页触达，避免同一能力有两个入口、两套状态。
 
+### 7.1 对话界面的三处修复（轮次一百三十九，threadflow-engine）
+
+用户反馈三件具体的事，都是「看起来能点，实际不按预期走」：
+
+1. **输入框拖拽方向反了**：`_resizeInput` 里 `_dragDistance += dy`，向上拖（dy<0）行数反而
+   减少。改为 `_dragDistance -= dy`，并加测试按新语义断言（向上拖变高、向下拖变矮、夹在
+   1–12 行）。
+2. **新对话停在最上方**：`_newConversation` 只切换会话、没有滚动；首次加载历史也没有「落到
+   最新一条」。改为记住首个待滚动会话 id（`_pendingInitialScrollConversationId`），等消息
+   **加载完成**后才 postFrame `jumpTo(maxScrollExtent)`（空列表上滚是空操作，早滚会被覆盖）；
+   用户已经主动上滚查看历史时不再抢滚动。
+3. **工具调用结果消失，只剩空对话泡**：两个原因叠在一起——消息列表渲染时直接跳过
+   `roleTool` / `roleSystem` 行，而「已执行」面板只来自内存里的 `_turn.executed`。离开页面或
+   重建后，库里持久化的 tool 行没人渲染、内存里的已执行记录也没了。改法：
+   - 读已提交动作（`listCommittedActions`）与内存 `_turn.executed` 按 **toolCallId 去重合并**；
+   - `roleTool` 行渲染 `_ToolResultTile`：一行摘要（成功/失败/已撤销 + 工具名），点开看原文
+     （JSON 的 ok/summary/error 解析出摘要，非 JSON 兜底原文）；
+   - 有撤销快照时 tile 上直接给撤销入口，撤销后 invalidate 动作 provider。
+
+**验收**：`app/test/features/ai/ai_chat_page_test.dart` 12 例（原 7 + 新 5：拖拽按新语义、40 条
+历史打开即滚到底且上滚后切换侧栏不跳回、持久化 tool 结果 4 例含去重）。
+
+
 ---
 
 ## 8. 数据层（schema v5 → v6）

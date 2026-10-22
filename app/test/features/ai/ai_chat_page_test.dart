@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -141,30 +143,31 @@ void main() {
 
       final start = tester.getSize(input).height;
 
-      // Down two lines (24 logical pixels per line).
-      await tester.drag(handle, const Offset(0, 48));
+      // Up two lines (24 logical pixels per line). The handle sits under the
+      // box, so dragging it up makes the box taller.
+      await tester.drag(handle, const Offset(0, -48));
       await tester.pumpAndSettle();
       final taller = tester.getSize(input).height;
       expect(taller, greaterThan(start));
 
       // Far past the maximum: the box stops at the limit instead of following
       // the pointer, and dragging further changes nothing.
-      await tester.drag(handle, const Offset(0, 2000));
+      await tester.drag(handle, const Offset(0, -2000));
       await tester.pumpAndSettle();
       final capped = tester.getSize(input).height;
       expect(capped, greaterThan(taller));
-      await tester.drag(handle, const Offset(0, 400));
+      await tester.drag(handle, const Offset(0, -400));
       await tester.pumpAndSettle();
       expect(tester.getSize(input).height, capped,
           reason: 'the maximum is a real limit');
 
       // And back down to the minimum.
-      await tester.drag(handle, const Offset(0, -4000));
+      await tester.drag(handle, const Offset(0, 4000));
       await tester.pumpAndSettle();
       final smallest = tester.getSize(input).height;
       expect(smallest, lessThan(start));
       expect(smallest, greaterThan(0));
-      await tester.drag(handle, const Offset(0, -400));
+      await tester.drag(handle, const Offset(0, 400));
       await tester.pumpAndSettle();
       expect(tester.getSize(input).height, smallest,
           reason: 'the minimum is a real limit');
@@ -187,7 +190,8 @@ void main() {
       await pumpPage(tester);
 
       final list = find.byType(ListView);
-      final before = tester.widget<ListView>(list.first).controller?.offset ?? 0;
+      final before =
+          tester.widget<ListView>(list.first).controller?.offset ?? 0;
 
       await tester.drag(handle, const Offset(0, 96));
       await tester.pumpAndSettle();
@@ -236,6 +240,178 @@ void main() {
       // The thread and its input are still laid out, with nothing overflowing.
       expect(input, findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the thread', () {
+    testWidgets('opens at the newest message and does not jump back on rebuild',
+        (tester) async {
+      final repository = AiRepository(db);
+      final conversation = await repository.createConversation(title: '长对话');
+      for (var i = 0; i < 40; i++) {
+        await repository.addMessage(
+          conversationId: conversation.id,
+          role: AiRepository.roleUser,
+          content: '历史消息 $i',
+        );
+      }
+      await pumpPage(tester);
+
+      final list = find.byType(ListView).last;
+      final controller = tester.widget<ListView>(list).controller!;
+      expect(controller.position.maxScrollExtent, greaterThan(0),
+          reason: 'the conversation has to be long enough to scroll');
+      expect(controller.offset,
+          moreOrLessEquals(controller.position.maxScrollExtent, epsilon: 1),
+          reason: 'a reopened conversation starts at the newest message');
+
+      // The user scrolls up to read history. An unrelated rebuild (the sidebar
+      // toggle) must not yank them back down.
+      await tester.drag(list, const Offset(0, 400));
+      await tester.pumpAndSettle();
+      final reading = controller.offset;
+      expect(reading, lessThan(controller.position.maxScrollExtent));
+
+      await tester.tap(find.byKey(AiChatPage.sidebarToggleKey));
+      await tester.pumpAndSettle();
+      expect(controller.offset, moreOrLessEquals(reading, epsilon: 1),
+          reason: 'the initial scroll happens once, not on every rebuild');
+    });
+  });
+
+  group('persisted tool results', () {
+    /// Seeds a committed turn whose tool call is already in the database.
+    Future<void> seedToolTurn({
+      String toolCallId = 'call_seed',
+      String? content,
+      String status = AiRepository.statusExecuted,
+      String? beforeJson,
+      String? afterJson,
+      bool recordAction = true,
+    }) async {
+      final repository = AiRepository(db);
+      final conversation = await repository.createConversation();
+      final assistant = await repository.addMessage(
+        conversationId: conversation.id,
+        role: AiRepository.roleAssistant,
+        content: '我来处理。',
+      );
+      await repository.addMessage(
+        conversationId: conversation.id,
+        role: AiRepository.roleTool,
+        toolCallId: toolCallId,
+        content: content,
+      );
+      if (recordAction) {
+        await repository.recordAction(
+          conversationId: conversation.id,
+          toolName: 'manage_task',
+          risk: 'write',
+          argsJson: '{}',
+          toolCallId: toolCallId,
+          status: status,
+          beforeJson: beforeJson,
+          afterJson: afterJson,
+        );
+        await repository.attachMessageId(
+          conversationId: conversation.id,
+          toolCallId: toolCallId,
+          messageId: assistant.id,
+        );
+      }
+    }
+
+    testWidgets('shows a committed call again, with its result on demand',
+        (tester) async {
+      await seedToolTurn(
+        content: jsonEncode({
+          'ok': true,
+          'summary': '已创建任务「写作业」',
+          'result': {'marker': 'unique-result-marker'},
+        }),
+        beforeJson: '{}',
+        afterJson: '{}',
+      );
+
+      await pumpPage(tester);
+
+      // The row used to be dropped altogether; now its summary is the first
+      // line, so reopening a conversation does not lose what the model did.
+      expect(find.textContaining('已创建任务「写作业」'), findsOneWidget);
+      expect(find.textContaining('unique-result-marker'), findsNothing,
+          reason: 'the raw payload is available on request, not by default');
+
+      await tester.tap(find.textContaining('已创建任务「写作业」'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('unique-result-marker'), findsOneWidget,
+          reason: 'tapping the tile reveals the result');
+
+      // Executed with a snapshot, so history can still undo it.
+      expect(find.text('撤销'), findsOneWidget);
+    });
+
+    testWidgets('offers no undo when the call left no snapshot',
+        (tester) async {
+      await seedToolTurn(
+        content: jsonEncode({'ok': true, 'summary': '只读查询完成'}),
+        recordAction: false,
+      );
+      await pumpPage(tester);
+
+      expect(find.textContaining('只读查询完成'), findsOneWidget);
+      expect(find.text('撤销'), findsNothing,
+          reason: 'an undo button with no snapshot would lie');
+    });
+
+    testWidgets('a failed call reads differently from a success',
+        (tester) async {
+      await seedToolTurn(
+        content: jsonEncode({
+          'ok': false,
+          'summary': '执行失败：数据库锁',
+          'error': '执行失败：数据库锁',
+        }),
+      );
+      await pumpPage(tester);
+
+      expect(find.textContaining('执行失败：数据库锁'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget,
+          reason: 'a failure must not look like a success');
+    });
+
+    testWidgets('a call shown in memory is not also shown from the database',
+        (tester) async {
+      adapter = FakeModelAdapter([
+        FakeModelAdapter.callTool(
+          'manage_task',
+          {'action': 'create', 'title': '去重用例'},
+          id: 'call_dedupe',
+        ),
+        FakeModelAdapter.answer('加好了。'),
+      ]);
+      final repository = AiRepository(db);
+      await repository.saveConfig(
+        const AiConfig(
+          enabled: true,
+          apiKey: 'sk-test',
+          permissionMode: AiPermissionMode.auto,
+        ),
+        fallbackLanguage: 'zh',
+      );
+      final conversation = await repository.createConversation();
+      await pumpPage(tester);
+
+      await tester.enterText(input, '建一个任务');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pumpAndSettle();
+
+      final rows = await repository.listMessages(conversation.id);
+      expect(
+          rows.where((row) => row.role == AiRepository.roleTool), hasLength(1),
+          reason:
+              'the turn must have committed for this test to mean anything');
+      expect(find.textContaining('已创建任务「去重用例」'), findsOneWidget,
+          reason: 'the in-memory tile and the stored row are one call');
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -19,6 +20,16 @@ import '../domain/approval_engine.dart';
 import '../domain/vision_payload.dart';
 import '../infrastructure/ai_attachment_store.dart';
 import 'ai_message_markup.dart';
+
+/// 已落库的 tool 调用记录，按 toolCallId 就能对上持久化的 tool 消息。
+///
+/// 页面用它做两件事：把历史 `roleTool` 行渲染成结果块（[AiActionRecord] 提供
+/// 工具名与撤销条件），以及把同一调用的内存态 [_ExecutedTile] 藏起来——一次调用
+/// 只显示一次。未落库的调用不会出现在这里，所以还在跑的 turn 不受影响。
+final _conversationActionsProvider =
+    FutureProvider.family<List<AiActionRecord>, String>((ref, conversationId) {
+  return ref.watch(aiRepositoryProvider).listCommittedActions(conversationId);
+});
 
 /// The AI conversation screen.
 ///
@@ -60,6 +71,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   /// a panel that blanked out at that moment would be useless as a summary.
   final TurnUsageNotifier _usage = TurnUsageNotifier();
   AgentTurnState _turn = const AgentTurnState();
+
+  /// 刚打开、还没滚动到底的对话 id。
+  ///
+  /// 打开已有对话时要等消息加载完再滚一次到底（否则长对话从顶部开始），但只滚
+  /// 一次：每次 rebuild 都强制跳会把正在翻历史的用户拽回底部。
+  String? _pendingInitialScrollConversationId;
 
   /// Images picked but not yet sent. They are already files on disk (that is
   /// what makes the thumbnail work without holding megabytes in memory); the
@@ -131,6 +148,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
     _subscription?.cancel();
     _conversationId = conversationId;
+    // 消息加载完后滚到底一次（新对话与打开已有对话同一条路径）。
+    _pendingInitialScrollConversationId = conversationId;
     final loop = ref.read(agentLoopProvider(conversationId));
     _loop = loop;
     _turn = loop?.state ?? const AgentTurnState();
@@ -156,11 +175,34 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     });
   }
 
+  /// 对话第一次有消息时滚到底，且只做一次。
+  ///
+  /// 流式回复与提交新消息走 [_scrollToEnd]；这里是「打开一个已有对话」的入口：
+  /// 没有它，长对话从顶部开始，用户得自己翻到今天。只在下一次仍然指向同一个对话
+  /// 时生效，然后立刻清掉标记，所以后续 rebuild（侧栏开关、provider 变化）不会把
+  /// 正在看历史的用户拽回底部。
+  void _scheduleInitialScroll(String conversationId) {
+    if (_pendingInitialScrollConversationId != conversationId) {
+      return;
+    }
+    _pendingInitialScrollConversationId = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _conversationId != conversationId) {
+        return;
+      }
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     final loop = _loop;
     final id = _conversationId;
-    if ((text.isEmpty && _pendingImages.isEmpty) || loop == null || id == null) {
+    if ((text.isEmpty && _pendingImages.isEmpty) ||
+        loop == null ||
+        id == null) {
       return;
     }
     if (_turn.generating || _turn.hasPending || _preparingImages) {
@@ -239,6 +281,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   void _invalidateConversation(String id) {
     ref.invalidate(messagesProvider(id));
     ref.invalidate(messageImagesProvider(id));
+    // 历史 tool 行靠这张表显示工具名与撤销：每次 turn 提交/撤销都会变。
+    ref.invalidate(_conversationActionsProvider(id));
   }
 
   /// Which key sends and which one breaks the line.
@@ -300,8 +344,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   /// Resizes the message box: one line per [_dragPixelsPerLine] dragged.
+  ///
+  /// Dragging **up** grows the box (`dy` is negative then), which is the direction
+  /// the handle points; dragging down shrinks it. A pure sum is kept in
+  /// [_dragDistance] so passing a limit and coming back returns at once.
   void _resizeInput(double dy) {
-    _dragDistance += dy;
+    _dragDistance -= dy;
     // Truncation toward zero gives the same feel up and down, and the limits
     // clamp rather than wrap: a drag that runs past the maximum simply stops,
     // and reversing it comes back at once.
@@ -346,6 +394,20 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     _invalidateConversation(id);
   }
 
+  /// 历史 tool 行的撤销回调：只有执行成功且带快照的调用才真的能撤。
+  ///
+  /// 还在内存里的调用由 [_ExecutedTile] 提供撤销；这一条服务的是重新打开页面后
+  /// 从数据库读回来的调用——它们不在 [AgentLoop] 的内存状态里，所以实际执行依赖
+  /// loop 能按数据库记录撤销（见 agent_loop.dart 的 undoExecuted）。
+  VoidCallback? _undoFor(AiActionRecord? action) {
+    if (action == null ||
+        action.status != AiRepository.statusExecuted ||
+        (action.beforeJson == null && action.afterJson == null)) {
+      return null;
+    }
+    return () => _undo(action.id);
+  }
+
   Future<void> _newConversation() async {
     final repository = ref.read(aiRepositoryProvider);
     final created = await repository.createConversation();
@@ -372,8 +434,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final conversations = ref.watch(conversationsProvider);
     // Resolved once, here, so the toggle and the list it controls can never
     // disagree about whether the list is offered at this width.
-    final hasSidebar =
-        MediaQuery.sizeOf(context).width >= _sidebarBreakpoint;
+    final hasSidebar = MediaQuery.sizeOf(context).width >= _sidebarBreakpoint;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.aiTitle),
@@ -468,11 +529,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
     }
     final messages = ref.watch(messagesProvider(id));
+    // 已落库的工具调用：历史 tool 行靠它对上工具名/撤销，并与内存态去重。
+    final actions = ref.watch(_conversationActionsProvider(id));
     // Absolute paths, resolved outside the widget so the bubbles stay
     // synchronous; a conversation whose files are gone simply shows no pictures.
-    final imagesByMessage =
-        ref.watch(messageImagesProvider(id)).valueOrNull ??
-            const <String, List<AiMessageImage>>{};
+    final imagesByMessage = ref.watch(messageImagesProvider(id)).valueOrNull ??
+        const <String, List<AiMessageImage>>{};
     final config = ref.watch(aiConfigProvider).valueOrNull;
 
     return Column(
@@ -483,40 +545,69 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           child: messages.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('$e')),
-            data: (rows) => ListView(
-              controller: _scroll,
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (rows.isEmpty && _turn.streamingText.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 48),
-                    child: Center(
-                      child: Text(
-                        l10n.aiEmptyHint,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge,
+            data: (rows) {
+              // 消息到了才滚：这一步必须发生在第一帧布局之后，见方法注释。
+              _scheduleInitialScroll(id);
+              final actionsByToolCall = <String, AiActionRecord>{
+                for (final action
+                    in actions.valueOrNull ?? const <AiActionRecord>[])
+                  if (action.toolCallId != null &&
+                      action.toolCallId!.isNotEmpty)
+                    action.toolCallId!: action,
+              };
+              // 同一个调用只显示一次：已落库的 tool 行已经能显示结果，内存态就藏起来。
+              final persistedCallIds = <String>{
+                for (final row in rows)
+                  if (row.role == AiRepository.roleTool &&
+                      row.toolCallId != null)
+                    row.toolCallId!,
+              };
+              final persistedActionIds = <String>{
+                for (final action in actionsByToolCall.values)
+                  if (persistedCallIds.contains(action.toolCallId)) action.id,
+              };
+              return ListView(
+                controller: _scroll,
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (rows.isEmpty && _turn.streamingText.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 48),
+                      child: Center(
+                        child: Text(
+                          l10n.aiEmptyHint,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
                       ),
                     ),
-                  ),
-                for (final row in rows)
-                  if (row.role != AiRepository.roleTool &&
-                      row.role != AiRepository.roleSystem)
-                    _MessageBubble(
-                      row: row,
-                      images: imagesByMessage[row.id] ?? const [],
-                    ),
-                if (_turn.streamingText.isNotEmpty)
-                  _MessageBubble.streaming(_turn.streamingText),
-                for (final call in _turn.executed)
-                  _ExecutedTile(
-                    call: call,
-                    l10n: l10n,
-                    onUndo: call.result.isUndoable
-                        ? () => _undo(call.actionId)
-                        : null,
-                  ),
-              ],
-            ),
+                  for (final row in rows)
+                    if (row.role == AiRepository.roleTool)
+                      _ToolResultTile(
+                        row: row,
+                        l10n: l10n,
+                        action: actionsByToolCall[row.toolCallId],
+                        onUndo: _undoFor(actionsByToolCall[row.toolCallId]),
+                      )
+                    else if (row.role != AiRepository.roleSystem)
+                      _MessageBubble(
+                        row: row,
+                        images: imagesByMessage[row.id] ?? const [],
+                      ),
+                  if (_turn.streamingText.isNotEmpty)
+                    _MessageBubble.streaming(_turn.streamingText),
+                  for (final call in _turn.executed)
+                    if (!persistedActionIds.contains(call.actionId))
+                      _ExecutedTile(
+                        call: call,
+                        l10n: l10n,
+                        onUndo: call.result.isUndoable
+                            ? () => _undo(call.actionId)
+                            : null,
+                      ),
+                ],
+              );
+            },
           ),
         ),
         if (_turn.error != null) _ErrorBanner(text: _turn.error!),
@@ -527,8 +618,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             onApprove: _approve,
             onReject: _reject,
           ),
-        if (_turn.generating)
-          const LinearProgressIndicator(minHeight: 2),
+        if (_turn.generating) const LinearProgressIndicator(minHeight: 2),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -787,7 +877,8 @@ class _ConversationList extends StatelessWidget {
               dense: true,
               selected: c.id == selectedId,
               leading: const Icon(Icons.chat_bubble_outline, size: 18),
-              title: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              title:
+                  Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
               onTap: () => onSelect(c.id),
             ),
         ],
@@ -870,7 +961,8 @@ class _ModeBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.settingsAiPermissionAuto,
-                style: TextStyle(fontSize: 12, color: scheme.onSecondaryContainer),
+                style:
+                    TextStyle(fontSize: 12, color: scheme.onSecondaryContainer),
               ),
             ),
           ],
@@ -912,7 +1004,9 @@ class _MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 560),
         decoration: BoxDecoration(
-          color: _isUser ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+          color: _isUser
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -1060,6 +1154,172 @@ class _ExecutedTile extends StatelessWidget {
   }
 }
 
+/// One tool call that is already written into the conversation, as a result block.
+///
+/// Before this existed, reopening a conversation dropped every `roleTool` row on
+/// the floor (the list skipped them and only in-memory [_ExecutedTile]s were
+/// shown), so a turn looked as if the model had answered without doing anything.
+/// The payload is the same JSON the loop gave the model: `summary`, `ok`,
+/// `error`, and the full result under `result`. The summary is shown at all
+/// times, the raw payload only on request, because a result can be huge.
+class _ToolResultTile extends StatefulWidget {
+  const _ToolResultTile({
+    required this.row,
+    required this.l10n,
+    required this.onUndo,
+    this.action,
+  });
+
+  final AiMessage row;
+  final AppLocalizations l10n;
+  final AiActionRecord? action;
+  final VoidCallback? onUndo;
+
+  @override
+  State<_ToolResultTile> createState() => _ToolResultTileState();
+}
+
+class _ToolResultTileState extends State<_ToolResultTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final payload = _ToolResultPayload.parse(widget.row.content);
+    // Rejected after the fact means the user undid it; the original tool payload
+    // still says ok, so the action status is the only place that knows.
+    final undone = widget.action?.status == AiRepository.statusRejected;
+    final failed = !undone && payload.ok == false;
+    final title = undone
+        ? l10n.aiUndone
+        : ((failed ? (payload.error ?? payload.summary) : payload.summary) ??
+            payload.raw.split('\n').first);
+    final toolName = widget.action?.toolName;
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => setState(() => _expanded = !_expanded),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    undone
+                        ? Icons.undo
+                        : (failed
+                            ? Icons.error_outline
+                            : Icons.check_circle_outline),
+                    size: 20,
+                    color: undone
+                        ? scheme.outline
+                        : (failed ? scheme.error : scheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title.isEmpty ? l10n.aiAutoExecuted : title,
+                          style: TextStyle(
+                            color: failed ? scheme.error : null,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          toolName == null
+                              ? l10n.aiAutoExecuted
+                              : '${l10n.aiAutoExecuted} · $toolName',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.onUndo != null && !undone)
+                    TextButton(
+                      onPressed: widget.onUndo,
+                      child: Text(l10n.aiUndo),
+                    )
+                  else
+                    Icon(
+                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: scheme.outline,
+                    ),
+                ],
+              ),
+              if (_expanded) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: SelectableText(
+                    payload.raw,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The decoded contents of a persisted `tool` message.
+///
+/// The loop writes [ToolResult.toModelJson], so a row normally looks like
+/// `{"ok":true,"summary":"…","result":…}`. Anything else (an older row, a tool
+/// that returned a non-JSON string) is still shown raw instead of hidden.
+class _ToolResultPayload {
+  const _ToolResultPayload({
+    required this.raw,
+    this.ok,
+    this.summary,
+    this.error,
+  });
+
+  final String raw;
+  final bool? ok;
+  final String? summary;
+  final String? error;
+
+  static _ToolResultPayload parse(String? content) {
+    final raw = content ?? '';
+    if (raw.isEmpty) {
+      return const _ToolResultPayload(raw: '');
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final ok = decoded['ok'];
+        final summary = decoded['summary'];
+        final error = decoded['error'];
+        return _ToolResultPayload(
+          raw: raw,
+          ok: ok is bool ? ok : null,
+          summary:
+              summary is String && summary.trim().isNotEmpty ? summary : null,
+          error: error is String && error.trim().isNotEmpty ? error : null,
+        );
+      }
+    } on FormatException {
+      // Not JSON: fall through and show the text as-is.
+    }
+    return _ToolResultPayload(raw: raw);
+  }
+}
+
 /// The batch approval list: what the model wants to do, before it happens.
 class _ApprovalPanel extends StatelessWidget {
   const _ApprovalPanel({
@@ -1077,8 +1337,8 @@ class _ApprovalPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final needsOwnConfirm =
-        pending.where((p) => p.decision.disposition == ToolDisposition.individualApproval);
+    final needsOwnConfirm = pending.where(
+        (p) => p.decision.disposition == ToolDisposition.individualApproval);
     return Material(
       color: scheme.surfaceContainerHigh,
       child: Padding(
