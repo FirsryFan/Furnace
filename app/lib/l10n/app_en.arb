@@ -1756,6 +1756,19 @@
   "questionBulkTagSearchHint": "Search tag paths",
   "questionBulkTagNoMatch": "No matching tags",
   "questionBulkTagConfirm": "Add tags",
+  "questionBankSearchHint": "Search number, title, stem, source, or tags",
+  "questionBankTagFilterTitle": "Filter by tags",
+  "questionBankTagFilterSelected": "{count} tags selected",
+  "@questionBankTagFilterSelected": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankFilterClear": "Clear filters",
+  "questionBankFilteredCount": "{shown} of {total} questions",
+  "@questionBankFilteredCount": {
+    "placeholders": { "shown": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "questionBankFilterNoMatch": "No questions match the filters",
+  "questionBankTagFilterClear": "Clear tags",
   "questionIntakePasteSection": "Paste a question",
   "questionIntakePhotoSection": "Photograph / pick images",
   "questionIntakeLibrarySection": "Question bank",

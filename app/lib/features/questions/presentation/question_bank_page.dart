@@ -4,7 +4,8 @@
 /// 题目命名（自己命名或自动生成），图片要大一点。于是这一页：
 ///
 /// * 上面四个按钮 = 往题库里加东西的全部入口；
-/// * 一行小字统计 + 学科筛选 chips；
+/// * 搜索框 + 标签筛选 + 学科筛选 chips（三者 AND，可一键清除）；
+/// * 一行小字统计；
 /// * 每行 = 封面图（128×96）+ 题名（没题名时用题干摘要兜底）+ 题号徽章、
 ///   学科、标签叶子名；行尾 ⋮ 菜单可改名 / 自动命名 / 复制题号。
 ///
@@ -26,6 +27,7 @@ import '../../../domain/services/questions/question_number.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
 import '../application/question_bulk_tagging.dart';
+import '../application/question_library_filter.dart';
 import '../application/question_library_provider.dart';
 import '../application/question_media_providers.dart';
 import '../application/question_pack_service.dart';
@@ -34,6 +36,8 @@ import 'question_audit_view.dart';
 import 'question_bulk_tag_dialog.dart';
 import 'question_detail_page.dart';
 import 'question_intake_page.dart';
+import 'question_library_filter_bar.dart';
+import 'question_library_tag_filter_dialog.dart';
 import 'question_media_view.dart';
 import 'question_paper_page.dart' show QuestionPaperPage, subjectLabelOf;
 import 'question_title_dialog.dart';
@@ -116,9 +120,12 @@ class QuestionBankPage extends ConsumerStatefulWidget {
 }
 
 class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
-  /// 空串 = 全部学科。学科键是稳定 snake_case（`CapabilityAction.subjectKeys`），
-  /// 筛选比较只用键，显示名走 `subjectLabelOf`。
-  String _subjectKey = '';
+  /// 搜索 + 标签 + 学科三个条件（AND）。学科键是稳定 snake_case
+  /// （`CapabilityAction.subjectKeys`），筛选比较只用键，显示名走 `subjectLabelOf`。
+  QuestionLibraryFilter _filter = QuestionLibraryFilter.empty;
+
+  /// 搜索框文字；清除筛选要连输入框一起清空，所以 controller 放页面 State。
+  late final TextEditingController _search;
 
   /// 批量自动命名进行中：防重入，也让按钮变成进度圈。
   bool _autoNaming = false;
@@ -131,6 +138,57 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
 
   /// 批量操作（打标签/导出/删除）进行中：防重入并禁用动作条。
   bool _bulkBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _search = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// 改筛选条件：筛选的任何变化都必须走这里 setState，列表与计数一起刷新。
+  void _applyFilter(QuestionLibraryFilter filter) {
+    setState(() => _filter = filter);
+  }
+
+  /// 只清搜索词（输入框里的 ×）：标签筛选保留。
+  void _clearSearchText() {
+    _search.clear();
+    _applyFilter(_filter.copyWith(text: ''));
+  }
+
+  /// 一键清除全部筛选条件，并同步清空搜索框文字。
+  void _clearFilter() {
+    _search.clear();
+    _applyFilter(QuestionLibraryFilter.empty);
+  }
+
+  /// 已选标签路径排序后给筛选条展示（Set 顺序不稳定）。
+  List<String> get _selectedTagPaths => _filter.tagPaths.toList()..sort();
+
+  void _removeTagPath(String path) {
+    final next = <String>{..._filter.tagPaths}..remove(path);
+    _applyFilter(_filter.copyWith(tagPaths: next));
+  }
+
+  /// 标签筛选：词表来自当前题库快照（只用已挂到题上的路径，避免选了查不到题）；
+  /// 对话框返回 `null` = 取消，空集 = 清除标签筛选。
+  Future<void> _openTagFilter(QuestionLibrarySnapshot snapshot) async {
+    final picked = await showQuestionLibraryTagFilterDialog(
+      context,
+      tagPaths: snapshot.tagPaths,
+      initialSelection: _filter.tagPaths,
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    _applyFilter(_filter.copyWith(tagPaths: picked));
+  }
 
   void _open(Widget page) {
     Navigator.of(context).push(
@@ -206,7 +264,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     if (snapshot == null) {
       return;
     }
-    final titles = suggestBulkQuestionTitles(snapshot.entries);
+    final titles = suggestBulkQuestionTitles(_visibleEntries(snapshot));
     if (titles.isEmpty) {
       _showSnack(l10n.questionBankAutoNameNothing);
       return;
@@ -257,18 +315,12 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     }
   }
 
-  /// 当前学科筛选下用户看得到的路：全选只作用于这些题，不会偷偷选中被筛掉的。
+  /// 当前筛选下用户看得到的路：全选/自动命名只作用于这些题，不会偷偷包含
+  /// 被筛掉的。匹配口径全部在 `question_library_filter.dart`（纯逻辑、可单测）。
   List<QuestionLibraryEntry> _visibleEntries(
     QuestionLibrarySnapshot snapshot,
-  ) {
-    if (_subjectKey.isEmpty) {
-      return snapshot.entries;
-    }
-    return <QuestionLibraryEntry>[
-      for (final entry in snapshot.entries)
-        if (entry.subjectKey == _subjectKey) entry,
-    ];
-  }
+  ) =>
+      filterQuestionLibraryEntries(snapshot.entries, _filter);
 
   void _enterSelection() {
     setState(() {
@@ -476,6 +528,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     final l10n = AppLocalizations.of(context);
     final overviewAsync = ref.watch(questionLibraryOverviewProvider);
     final snapshot = overviewAsync.valueOrNull;
+    final visibleEntries = snapshot == null
+        ? const <QuestionLibraryEntry>[]
+        : _visibleEntries(snapshot);
 
     return Scaffold(
       appBar: AppBar(
@@ -518,7 +573,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                     onPressed: _enterSelection,
                     icon: const Icon(Icons.checklist),
                   ),
-                if (snapshot != null && snapshot.untitledCount > 0)
+                if (visibleEntries.any((entry) => !entry.hasTitle))
                   IconButton(
                     key: questionBankAutoNameKey,
                     tooltip: l10n.questionBankAutoNameTooltip,
@@ -637,6 +692,20 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ] else ...[
+                    QuestionLibraryFilterBar(
+                      searchController: _search,
+                      selectedTagPaths: _selectedTagPaths,
+                      shownCount: shown.length,
+                      totalCount: snapshot.entries.length,
+                      filterActive: _filter.isNotEmpty,
+                      onSearchChanged: (value) =>
+                          _applyFilter(_filter.copyWith(text: value)),
+                      onClearSearch: _clearSearchText,
+                      onOpenTagFilter: () => _openTagFilter(snapshot),
+                      onRemoveTagPath: _removeTagPath,
+                      onClear: _clearFilter,
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
@@ -665,55 +734,82 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                         children: <Widget>[
                           ChoiceChip(
                             label: Text(l10n.questionBankAllSubjects),
-                            selected: _subjectKey.isEmpty,
-                            onSelected: (_) => setState(() => _subjectKey = ''),
+                            selected: _filter.subjectKey.isEmpty,
+                            onSelected: (_) =>
+                                _applyFilter(_filter.copyWith(subjectKey: '')),
                           ),
                           for (final key in subjects)
                             ChoiceChip(
                               label: Text(subjectLabelOf(l10n, key)),
-                              selected: _subjectKey == key,
-                              onSelected: (_) =>
-                                  setState(() => _subjectKey = key),
+                              selected: _filter.subjectKey == key,
+                              onSelected: (_) => _applyFilter(
+                                _filter.copyWith(subjectKey: key),
+                              ),
                             ),
                         ],
                       ),
                     ],
                     const SizedBox(height: 8),
-                    if (shown.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          l10n.questionBankNoMatch,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                   ],
                 ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-            sliver: SliverList.separated(
-              itemCount: shown.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final entry = shown[index];
-                return _QuestionRow(
-                  entry: entry,
-                  selectionMode: _selecting,
-                  selected: _selected.contains(entry.questionId),
-                  onToggle: () => _toggleSelection(entry.questionId),
-                  onEnterSelection: () => _enterSelectionWith(entry.questionId),
-                  onOpen: () => _open(
-                    QuestionDetailPage(questionId: entry.questionId),
+          if (shown.isEmpty && !snapshot.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Icons.filter_alt_off_outlined,
+                        size: 40,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.questionBankFilterNoMatch,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        key: questionBankNoMatchClearFilterKey,
+                        onPressed: _clearFilter,
+                        child: Text(l10n.questionBankFilterClear),
+                      ),
+                    ],
                   ),
-                  onRename: () => _rename(entry, existingTitles),
-                  onAutoName: () => _autoNameEntry(entry, existingTitles),
-                );
-              },
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              sliver: SliverList.separated(
+                itemCount: shown.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final entry = shown[index];
+                  return _QuestionRow(
+                    entry: entry,
+                    selectionMode: _selecting,
+                    selected: _selected.contains(entry.questionId),
+                    onToggle: () => _toggleSelection(entry.questionId),
+                    onEnterSelection: () =>
+                        _enterSelectionWith(entry.questionId),
+                    onOpen: () => _open(
+                      QuestionDetailPage(questionId: entry.questionId),
+                    ),
+                    onRename: () => _rename(entry, existingTitles),
+                    onAutoName: () => _autoNameEntry(entry, existingTitles),
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

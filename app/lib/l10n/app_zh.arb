@@ -1636,6 +1636,19 @@
   "questionBulkTagSearchHint": "搜索标签路径",
   "questionBulkTagNoMatch": "没有匹配的标签",
   "questionBulkTagConfirm": "添加标签",
+  "questionBankSearchHint": "搜索题号、题名、题干、来源或标签",
+  "questionBankTagFilterTitle": "按标签筛选",
+  "questionBankTagFilterSelected": "已选 {count} 个标签",
+  "@questionBankTagFilterSelected": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankFilterClear": "清除筛选",
+  "questionBankFilteredCount": "已筛出 {shown} / 共 {total} 道",
+  "@questionBankFilteredCount": {
+    "placeholders": { "shown": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "questionBankFilterNoMatch": "没有符合筛选条件的题",
+  "questionBankTagFilterClear": "清除标签",
   "questionIntakePasteSection": "粘贴建题",
   "questionIntakePhotoSection": "拍照 / 选图",
   "questionIntakeLibrarySection": "题库列表",

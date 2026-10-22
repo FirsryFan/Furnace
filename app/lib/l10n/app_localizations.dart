@@ -6197,6 +6197,48 @@ abstract class AppLocalizations {
   /// **'Add tags'**
   String get questionBulkTagConfirm;
 
+  /// No description provided for @questionBankSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search number, title, stem, source, or tags'**
+  String get questionBankSearchHint;
+
+  /// No description provided for @questionBankTagFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by tags'**
+  String get questionBankTagFilterTitle;
+
+  /// No description provided for @questionBankTagFilterSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags selected'**
+  String questionBankTagFilterSelected(int count);
+
+  /// No description provided for @questionBankFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get questionBankFilterClear;
+
+  /// No description provided for @questionBankFilteredCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{shown} of {total} questions'**
+  String questionBankFilteredCount(int shown, int total);
+
+  /// No description provided for @questionBankFilterNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions match the filters'**
+  String get questionBankFilterNoMatch;
+
+  /// No description provided for @questionBankTagFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear tags'**
+  String get questionBankTagFilterClear;
+
   /// No description provided for @questionIntakePasteSection.
   ///
   /// In en, this message translates to:

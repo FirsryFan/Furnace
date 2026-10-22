@@ -3658,6 +3658,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionBulkTagConfirm => 'Add tags';
 
   @override
+  String get questionBankSearchHint => 'Search number, title, stem, source, or tags';
+
+  @override
+  String get questionBankTagFilterTitle => 'Filter by tags';
+
+  @override
+  String questionBankTagFilterSelected(int count) {
+    return '$count tags selected';
+  }
+
+  @override
+  String get questionBankFilterClear => 'Clear filters';
+
+  @override
+  String questionBankFilteredCount(int shown, int total) {
+    return '$shown of $total questions';
+  }
+
+  @override
+  String get questionBankFilterNoMatch => 'No questions match the filters';
+
+  @override
+  String get questionBankTagFilterClear => 'Clear tags';
+
+  @override
   String get questionIntakePasteSection => 'Paste a question';
 
   @override

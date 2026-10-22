@@ -3510,6 +3510,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionBulkTagConfirm => '添加标签';
 
   @override
+  String get questionBankSearchHint => '搜索题号、题名、题干、来源或标签';
+
+  @override
+  String get questionBankTagFilterTitle => '按标签筛选';
+
+  @override
+  String questionBankTagFilterSelected(int count) {
+    return '已选 $count 个标签';
+  }
+
+  @override
+  String get questionBankFilterClear => '清除筛选';
+
+  @override
+  String questionBankFilteredCount(int shown, int total) {
+    return '已筛出 $shown / 共 $total 道';
+  }
+
+  @override
+  String get questionBankFilterNoMatch => '没有符合筛选条件的题';
+
+  @override
+  String get questionBankTagFilterClear => '清除标签';
+
+  @override
   String get questionIntakePasteSection => '粘贴建题';
 
   @override
