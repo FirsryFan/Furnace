@@ -1,6 +1,45 @@
 # 开发进度
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
+## 2026-10-23 轮次一百四十五：题库包按组卷网题号更新已有题目（Lead + 三个 teammate）
+
+**起点**：轮次一百四十四收尾（HEAD `b15e04b`，v0.6.0-26）。此前重复导入同一个 `.tqb` 只会
+「按题干指纹全部跳过」：抓题 agent 更新过答案、解析或配图的包，导回去什么都不会变；而真实抓题包
+30/30 都带 `zujuan_question_id`。本轮把「题号相同 ⇒ 原地更新」做成默认行为，题名与题号仍归用户。
+
+**五个切片（四个代码提交 + docs，git 由 Lead 统一提交）**
+1. 合并计划（reasoning-core，task-144）：`QuestionPackAction.update`、
+   `questionPackSourceKey`、`planQuestionPackImport` 的
+   `existingQuestionIdByZujuanQuestionId` / `updateExisting` 入参、`updateCount` /
+   `updatedIndexes`；判定顺序 update → 指纹跳过 → 包内同题号跳过 → 包内同指纹 → create；
+   `updateExisting:false` 与旧版逐字段一致。测试 53 → 94 例。
+2. 数据层（threadflow-engine，task-145）：`QuestionRepository.updateFromPack`（补丁语义、
+   `options` 非空整体替换、标签只补挂、题名/题号/createdAt 不动）、
+   `questionIdsByZujuanQuestionId()`、`QuestionMediaStore.deleteForQuestion(roles:)`
+   （只删包里出现过的角色，没配图不删）。题库更新 12 例 + 媒体角色 5 例。
+3. 服务层接线 + 预检模型（Lead，task-146）：`planImport`/`importPack` 同查题号映射并传入计划；
+   update 分支只传包里非空字段（不用 create 默认值刷掉用户值）、失败计入 failures 不计数、
+   成功后按角色删图再落图；`QuestionPackImportPreview.updateCount/hasUpdates`、
+   `QuestionPackImportReport.updatedCount`、`summaryZh` 合并成「新增/更新/跳过」一行。
+   预检 +3 例、更新流程 9 例。
+4. 设置页（question-intake，task-147）：预检提示会更新几道、「没有可导入的新题」改为
+   create+update 都为零、确认说明补覆盖范围、结果对话框显示更新数；3 个 l10n key；
+   测试 19 → 23 例。
+5. docs：`QUESTION_BANK_DESIGN.md` §29（合并计划 / 数据层 / 服务层 / 真实包验收 / 设置页与门禁）
+   + 本条 PROGRESS。
+
+**真实抓题包双导（本机临时测试，已删除测试文件）**：`furnace-zujuan-2026-10-22T16-03-02.tqb`
+（19,444,730 B，30 题 / 60 媒体，题号 30/30 非空）。第一次 created=30；第二次
+planImport update=30/create=0/skip=0，importPack **updated=30**（678 ms）；两轮后仍是 30 行，
+题号不变、用户改过的题名保留、题干图与答案图张数不变。
+
+**门禁**：`dart analyze lib test` → 91 issues / 0 error / 0 warning；全量
+`flutter test --concurrency=1` → **+5580 ~2，10:38**（上一轮 +5506）；前一次全量暴露的
+2 例失败（抓题包往返测试仍按「第二次全部跳过」断言）已按新语义修正。
+
+**未做 / 风险**：Windows 真机上的预检结果对话框未做视觉验收；update 会用包里值覆盖题干/答案/
+解析与对应角色配图，目前没有回滚；预检的「自动更新」没有 UI 开关（`updateExisting` 只在服务层）；
+l10n 三文件手改未跑 gen-l10n。
 ## 2026-10-23 轮次一百四十四：其余「只有题干」的列表接上快照感知显示（Lead + 三个 teammate）
 
 **起点**：轮次一百四十三收尾（HEAD `d5c7217`，v0.6.0-21）。上一轮只把整卡快照包在题库总览 / 详情页 /

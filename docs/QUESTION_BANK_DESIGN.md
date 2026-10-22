@@ -1509,6 +1509,90 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   （域层既有口径，列表显示 `$x^2$` 而不是渲染后的公式）；无摘录标签是域层硬编码中文，en 界面仍显中文；
   provider 未就绪时先显示原文（含 ［图N］）有极短闪烁，未做骨架屏；组卷三 view 的重复 helper 未合并。
 
+## 29. 题库包再导入：按组卷网题号更新已有题目（轮次一百四十五，2026-10-23）
+
+### 29.1 合并计划：新增 update 动作（task-144 reasoning-core）
+
+- `question_pack_plan.dart`（327 → 439 行）：`QuestionPackAction.update`（`labelZh`「更新」）；
+  `QuestionPackDecision.existingQuestionId`（`toJson` 仅非 null 输出 `existing_question_id`，`==` 带上）；
+  顶层 `String? questionPackSourceKey({required String? zujuanQuestionId})`（trim 后空 -> null；
+  **只按题号认题**，bankId 只用于重建链接）；`planQuestionPackImport` 增
+  `existingQuestionIdByZujuanQuestionId`（默认空 map）与 `updateExisting`（默认 true）；
+  `QuestionPackImportPlan.updateCount` / `updatedIndexes` / `toJson.update_count`；
+  `skipCount = decisions.length - createCount - updateCount`（update **不占**跳过数）。
+- 判定顺序：**update（题号首次出现且映射命中）-> 题库指纹跳过 -> 包内同题号跳过+warning
+  -> 包内同指纹跳过 -> create**。两处显式细化：同一题号在包内第二次出现不再 update（落到
+  跳过分支，避免同一道题被计划更新两次）；update 记录也登记指纹，后面的同题干记录按包内指纹跳过。
+- `updateExisting: false` 完全不认题号（既不 update 也不做包内题号去重），输出与升级前逐字段一致
+  （有测试直接比较 `toJson`/warnings/missingTagPaths）。
+- 测试 `question_pack_plan_test.dart` 721 → 1327 行，**94 例**（旧 53 保留适配 + 新 41）。
+
+### 29.2 数据层原语（task-145 threadflow-engine）
+
+- `question_repository.dart` 新增 `updateFromPack`（:582 起）：补丁语义——字符串 null/trim 空白
+  = 不覆盖、非空 = trim 后覆盖；题干总是覆盖并重算 `stemFingerprint`（trim 空抛
+  `ArgumentError`）；`options` 非空 = 事务内删旧插新、空列表 = 保留；`additionalTagIds` 只
+  `insertOrIgnore` 补挂、不删旧标签；`title`/`serialNo`/`createdAt` 不动，`updatedAt = now`；
+  单事务，题目不存在返回 0 不抛。
+- 新增 `questionIdsByZujuanQuestionId()`（:720）：跳过 trim 空题号，同 key 多行按
+  `updatedAt` 降序、id 升序取第一行。
+- `question_media_store.dart` 的 `deleteForQuestion`（:263）增可选 `roles`：`null` = 旧行为删全部；
+  空集合返回 0；`'stem'` 连带匹配 `role IS NULL` 的旧行；其它角色精确匹配；集合内空白折成 stem。
+- 测试：`question_repository_pack_update_test.dart` 12 例 + media store 追加 5 例（17 -> 22）。
+
+### 29.3 服务层接线（Lead task-146）
+
+- `QuestionPackService.planImport` 与 `importPack` 都先查 `questionIdsByZujuanQuestionId()`，把
+  「题号 -> 题目 id」映射传进 `planQuestionPackImport`（预检与实际导入必须同一入口，否则会出现
+  「预检说更新、实际却新建」）。
+- `importPack` 对 `action == update` 的决策调 `updateFromPack`：只传**包里非空**的字段（不能用
+  `_draftOf` 的 create 默认值 `questionType='solution'` / `sourceLevel='unknown'` /
+  `origin='manual'` / `state='structured'` 去刷掉用户已有值）；返回 0 记进 failures、不计数；
+  成功后按「包里实际出现过的角色集合」`deleteForQuestion(roles:)` 再复用
+  `_saveMediaFor` 落图（包里没有配图 -> 一张都不删），单张保存失败只记 warning。
+- `QuestionPackImportReport.updatedCount` 新增（构造默认 0，旧测试/fakes 不用改）；preview 新增
+  `updateCount` / `hasUpdates`，`isFullyNew` 改为三数都为零才算，`summaryZh` 第 3 行改
+  「新增 / 更新 / 跳过」合并行，`toJson` 加 `update_count`。
+- 新测试 `question_pack_update_test.dart` **9 例**：同包导两次第二次 0 新建/3 更新且题号不变、
+  答案与解析文字覆盖、只带答案图时题干图保留答案图替换、无配图不删图、题名与题号不覆盖、
+  无题号仍按指纹跳过、`planImport.updateCount` 与实际一致、选项非空整体替换/空保留、
+  标签只补不删。
+
+### 29.4 真实抓题包验收（本机临时测试，已删除测试文件）
+
+- 包：`E:/FirsryOS/THREADRIPPER/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`
+  （19,444,730 B；30 题 / 60 媒体；`zujuan_question_id` 与 `zujuan_bank_id` **30/30 全非空**，
+  所以真实包能走「按题号更新」而不是退回指纹跳过）。
+- 第一次 `importPack`：created=30 / updated=0 / skipped=0 / media=60 / warnings=0 / failures=0，836 ms。
+- 第二次 `planImport`：update=30 / create=0 / skip=0 / warnings=1（整卡快照包提示）。
+- 第二次 `importPack`：created=0 / **updated=30** / skipped=0 / media=60 / warnings=0 / failures=0，
+  678 ms；两轮后题库仍是 30 行、题号不变、用户改过的题名保留、题干图与答案图张数不变。
+
+### 29.5 设置页提示与全量门禁（task-147 + Lead 收尾）
+
+- 设置页 `data_section.dart` 的题库包分区：类 doc 改成「无题号追加、带题号原地更新，题号与
+  用户题名保留」；预检对话框在 `preview.updateCount > 0` 时加一行「会更新 N 道题库里已有的
+  组卷网原题（题号与你起的题名保留）」；「没有可导入的新题」改为
+  `createCount == 0 && updateCount == 0` 才显示；确认说明在 `preview.hasUpdates` 时追加
+  「更新会覆盖题干 / 答案 / 解析与配图中包里出现过的内容」；结果对话框
+  `report.updatedCount > 0` 时显示「更新 N 道」。
+- l10n 新增 3 个 key：`settingsQuestionPackPreviewUpdate(count:int)`、
+  `settingsQuestionPackImportUpdated(count:int)`、`settingsQuestionPackImportUpdateNote`
+  （五文件手改，未跑 gen-l10n）；同时修正既有 `settingsQuestionPackImportConfirm` 的
+  「只会新增题目，不覆盖已有题」——有更新时这句与事实矛盾，改成「新增的题不会覆盖已有题」，
+  覆盖范围由 UpdateNote 单独说明。
+- 测试替身：`FakeQuestionMediaStore`（`question_media_fakes.dart`）与 `_RecordingMediaStore`
+  （`question_intake_page_test.dart`）补齐 `deleteForQuestion(roles:)` 新签名；替身支持
+  roles 过滤与「空集合删 0 张」语义。**全量 analyze 才抓得到 test 里的 invalid_override**。
+- 抓题包往返测试改期望（`question_pack_harvest_roundtrip_test.dart`）：第二次导入同一包，
+  第一条带题号 → `updatedCount = 1`，第二条无题号 → `skippedCount = 1`；`planImport` 预检与
+  实际口径一致（`updateCount = 1` / `skipCount = 1`），题目 id、题号、选项与配图数量不变。
+- 门禁：`dart analyze lib test` → **91 issues / 0 error / 0 warning**；全量
+  `flutter test --concurrency=1` → **+5580 ~2，10:38**；相关 scoped 测试：plan 94 例、
+  预检 +155（preview/plan/update 三文件）、设置 82 例、抓题包往返 10 例；`dart format` 全绿。
+
+
+
 
 
 
