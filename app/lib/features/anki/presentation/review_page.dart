@@ -100,6 +100,13 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   final _answer = TextEditingController();
   final _scroll = ScrollController();
 
+  /// 答案框的焦点。
+  ///
+  /// 光靠 `TextField(autofocus: true)` 不够：换卡时 Element 被复用，autofocus
+  /// 只在第一次挂载时触发，答完一张后必须再点一下输入框才能打下一张。这里显式
+  /// 持有节点，在「真的可以作答」的时机重新请求焦点（见 [_focusAnswer]）。
+  final _answerFocus = FocusNode();
+
   List<ReviewItem> _queue = const [];
   int _index = 0;
   bool _loading = true;
@@ -149,6 +156,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   void dispose() {
     _revisionSubscription.close();
     _answer.dispose();
+    _answerFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -194,6 +202,33 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _sessionForced.clear();
       // 新的一轮：下一轮做完时还要再重排一次提醒。
       _reminderRefreshed = false;
+    });
+    // 队列加载完第一张就可以直接打字，不必先点一下输入框。
+    _focusAnswer();
+  }
+
+  /// 把焦点放回答案框，但只在「现在真的可以作答」时做。
+  ///
+  /// 三道门槛都是必要的：选择题没有答案框；已判分的卡输入框是禁用的；时间下限
+  /// 还没到的强制卡还在等待态、根本没渲染输入框。抢焦点会让人以为可以提前作答。
+  void _focusAnswer() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loading) {
+        return;
+      }
+      final item = _current;
+      if (item == null ||
+          item.kind == ReviewItemKind.mcq ||
+          _feedback != null) {
+        return;
+      }
+      final floor = _index < _floors.length ? _floors[_index] : null;
+      if (floor != null && DateTime.now().isBefore(floor)) {
+        return;
+      }
+      if (!_answerFocus.hasFocus) {
+        _answerFocus.requestFocus();
+      }
     });
   }
 
@@ -527,6 +562,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     if (_scroll.hasClients) {
       _scroll.jumpTo(0);
     }
+    // 下一张如果是打字题，焦点直接回到答案框；选择题/等待态由 _focusAnswer 自己跳过。
+    _focusAnswer();
   }
 
   /// 队列清空后重排一次复习提醒。
@@ -763,6 +800,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                 ] else
                   TextField(
                     controller: _answer,
+                    focusNode: _answerFocus,
                     autofocus: true,
                     enabled: _feedback == null,
                     textInputAction: TextInputAction.done,

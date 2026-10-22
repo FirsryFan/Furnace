@@ -447,4 +447,72 @@ void main() {
     // The press answers its own question out loud: it did not count as a review.
     expect(find.text('已记下「读过、没测」：这次不算复习，到期日不变'), findsOneWidget);
   });
+
+  // The answer box is rebuilt in place when the card changes, so 'autofocus'
+  // cannot carry the focus: the page has to move it with the card.
+  testWidgets('a typing card puts the cursor in the answer box on open',
+      (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+    );
+
+    await pumpReview(tester, db);
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.focusNode, isNotNull,
+        reason: 'the page owns the node so it can follow the card');
+    expect(field.focusNode!.hasFocus, isTrue,
+        reason: 'typing must not cost an extra tap');
+  });
+
+  testWidgets('after advancing, the next typing card takes the focus back',
+      (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '第一题：光合作用的场所是？',
+      answer: '叶绿体',
+    );
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '第二题：光合作用的场所是？',
+      answer: '叶绿体',
+    );
+
+    await pumpReview(tester, db);
+
+    await tester.enterText(find.byType(TextField), '叶绿体');
+    await tester.tap(find.byTooltip('提交'));
+    await settle(tester);
+
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.arrow_forward));
+    await settle(tester);
+
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, isEmpty, reason: 'a new card, a new answer');
+    expect(field.focusNode!.hasFocus, isTrue,
+        reason: 'the focus follows the card, not the first mount');
+  });
+
+  testWidgets('a choice card has no answer box to focus', (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'mcq',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+      options: ['线粒体', '叶绿体', '细胞核'],
+    );
+
+    await pumpReview(tester, db);
+
+    expect(find.byType(TextField), findsNothing,
+        reason: 'a choice card is answered by tapping, not typing');
+  });
 }
