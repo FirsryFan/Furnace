@@ -166,7 +166,7 @@ void main() {
     expect(find.byType(Card), findsNothing);
   });
 
-  testWidgets('学科筛选：走读表（组合查询），选中后只剩该学科的题，能切回全部', (tester) async {
+  testWidgets('单学科筛选：走读表（组合查询），选中后只剩该学科的题，能切回全部', (tester) async {
     await seedQuestion(id: 'q-math', stem: '数学的分类讨论题。', subjectKey: 'math');
     await seedQuestion(
       id: 'q-phys',
@@ -193,7 +193,7 @@ void main() {
     expect(find.text('物理的分类讨论题。'), findsOneWidget);
 
     // 点「物理」：只剩物理那道（筛选走读表，不是在已加载结果里过滤）。
-    await tester.tap(find.widgetWithText(ChoiceChip, '物理'));
+    await tester.tap(find.widgetWithText(FilterChip, '物理'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -202,13 +202,62 @@ void main() {
 
     // 切回「全部学科」：两道都回来。
     await tester.tap(
-      find.widgetWithText(ChoiceChip, zh.capabilityActionQuestionsAllSubjects),
+      find.widgetWithText(FilterChip, zh.capabilityActionQuestionsAllSubjects),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('数学的分类讨论题。'), findsOneWidget);
     expect(find.text('物理的分类讨论题。'), findsOneWidget);
+  });
+
+  testWidgets('学科多选：选两个学科只剩这两科，取消一个只剩另一个，清空恢复全部', (tester) async {
+    await seedQuestion(id: 'q-math', stem: '数学的分类讨论题。', subjectKey: 'math');
+    await seedQuestion(id: 'q-phys', stem: '物理的分类讨论题。', subjectKey: 'physics');
+    await seedQuestion(
+        id: 'q-chem', stem: '化学的分类讨论题。', subjectKey: 'chemistry');
+    for (final id in <String>['q-math', 'q-phys', 'q-chem']) {
+      await seedChain(questionId: id, actions: const <String>['case_split']);
+    }
+
+    await pumpPage(tester, 'case_split');
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+    expect(find.text('化学的分类讨论题。'), findsOneWidget);
+
+    // 选中「数学」：只剩数学（一次读表查询，学科集合只有一个）。
+    await tester.tap(find.widgetWithText(FilterChip, '数学'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsNothing);
+    expect(find.text('化学的分类讨论题。'), findsNothing);
+
+    // 再选「物理」：数学 + 物理都出现（不是替代，是多选）。
+    await tester.tap(find.widgetWithText(FilterChip, '物理'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+    expect(find.text('化学的分类讨论题。'), findsNothing);
+
+    // 再点一次「数学」取消它：只剩物理。
+    await tester.tap(find.widgetWithText(FilterChip, '数学'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('数学的分类讨论题。'), findsNothing);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+    expect(find.text('化学的分类讨论题。'), findsNothing);
+
+    // 「全部学科」= 清空选择，三科都回来。
+    await tester.tap(
+      find.widgetWithText(FilterChip, zh.capabilityActionQuestionsAllSubjects),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('数学的分类讨论题。'), findsOneWidget);
+    expect(find.text('物理的分类讨论题。'), findsOneWidget);
+    expect(find.text('化学的分类讨论题。'), findsOneWidget);
   });
 
   testWidgets('叠加第二个动作 + 「都要出现」：列表收窄；清掉后恢复并收起开关', (tester) async {

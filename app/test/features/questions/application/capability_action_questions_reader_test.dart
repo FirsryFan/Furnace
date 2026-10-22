@@ -12,23 +12,25 @@ import 'package:furnace/features/questions/application/question_corpus_reader.da
 void main() {
   late AppDatabase db;
 
-  test('查询是值对象：归一化后同一条查询相等（能当 provider family 的键）', () {
+  test('查询是值对象：学科多选归一化后同一条查询相等（能当 provider family 的键）', () {
     const a = CapabilityQuestionQuery(
       actionTypes: <String>['case_split', ' sanity_check ', ''],
-      subjectKey: ' physics ',
+      subjectKeys: <String>[' physics ', 'chemistry', 'physics', ''],
     );
     const b = CapabilityQuestionQuery(
       actionTypes: <String>['sanity_check', 'case_split'],
-      subjectKey: 'physics',
+      subjectKeys: <String>['chemistry', 'physics'],
     );
     expect(a, b);
     expect(a.hashCode, b.hashCode);
+    // 归一化：学科去空/trim/去重/排序；动作去空/trim/去重。
+    expect(a.normalized().subjectKeys, <String>['chemistry', 'physics']);
     expect(
       a,
       isNot(
         const CapabilityQuestionQuery(
           actionTypes: <String>['case_split'],
-          subjectKey: 'physics',
+          subjectKeys: <String>['physics'],
         ),
       ),
     );
@@ -37,20 +39,40 @@ void main() {
       isNot(
         const CapabilityQuestionQuery(
           actionTypes: <String>['case_split', 'sanity_check'],
+          subjectKeys: <String>['physics', 'chemistry', 'biology'],
         ),
       ),
-      reason: '学科不同就不相等',
+      reason: '学科集合不同就不相等',
     );
     expect(
       a,
       isNot(
         const CapabilityQuestionQuery(
           actionTypes: <String>['case_split', 'sanity_check'],
-          subjectKey: 'physics',
+          subjectKeys: <String>['physics'],
+        ),
+      ),
+      reason: '多选 chemistry 与只选 physics 是不同的查询',
+    );
+    expect(
+      a,
+      isNot(
+        const CapabilityQuestionQuery(
+          actionTypes: <String>['case_split', 'sanity_check'],
+          subjectKeys: <String>['physics', 'chemistry'],
           requireAll: true,
         ),
       ),
       reason: 'requireAll 不同就不相等',
+    );
+    // 空集合 = 不限学科；空白串不构成一个学科。
+    expect(
+      const CapabilityQuestionQuery(subjectKeys: <String>['', '  ']),
+      const CapabilityQuestionQuery(),
+    );
+    expect(
+      const CapabilityQuestionQuery(),
+      isNot(const CapabilityQuestionQuery(subjectKeys: <String>['physics'])),
     );
   });
 
@@ -238,13 +260,13 @@ void main() {
       db,
       const CapabilityQuestionQuery(
         actionTypes: <String>['case_split'],
-        subjectKey: 'physics',
+        subjectKeys: <String>['physics'],
       ),
     );
     expect(physics.map((row) => row.questionId).toList(), <String>['q-phys']);
     final physicsOnly = await readQuestionsForCapabilities(
       db,
-      const CapabilityQuestionQuery(subjectKey: 'physics'),
+      const CapabilityQuestionQuery(subjectKeys: <String>['physics']),
     );
     expect(
       physicsOnly.map((row) => row.questionId).toList(),
@@ -255,6 +277,68 @@ void main() {
     // 动作与学科都空：不把整个题库倒出来。
     expect(
       await readQuestionsForCapabilities(db, const CapabilityQuestionQuery()),
+      isEmpty,
+    );
+  });
+
+  test('多学科筛选：命中任一学科即可；trim/去重不影响；无命中返回空', () async {
+    for (final id in <String>['q-math', 'q-phys', 'q-chem', 'q-other']) {
+      await seedQuestion(id: id);
+      await seedChain(
+        questionId: id,
+        chainId: 'chain-$id',
+        createdAt: 10,
+        actions: const <String>['case_split'],
+      );
+    }
+    await (db.update(db.questions)..where((t) => t.id.equals('q-math')))
+        .write(const QuestionsCompanion(subjectKey: Value('math')));
+    await (db.update(db.questions)..where((t) => t.id.equals('q-phys')))
+        .write(const QuestionsCompanion(subjectKey: Value('physics')));
+    await (db.update(db.questions)..where((t) => t.id.equals('q-chem')))
+        .write(const QuestionsCompanion(subjectKey: Value('chemistry')));
+
+    // 一次查询里给两个学科：库里这两个学科的题都要（不是"且"）。
+    final two = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(
+        actionTypes: <String>['case_split'],
+        subjectKeys: <String>[' physics ', 'math', 'physics'],
+      ),
+    );
+    expect(
+      two.map((row) => row.questionId).toList(),
+      <String>['q-math', 'q-phys'],
+    );
+
+    // 只按学科（不按动作）：多学科集合同样可用。
+    final subjectsOnly = await readQuestionsForCapabilities(
+      db,
+      const CapabilityQuestionQuery(
+        subjectKeys: <String>['chemistry', 'physics'],
+      ),
+    );
+    expect(
+      subjectsOnly.map((row) => row.questionId).toList(),
+      <String>['q-chem', 'q-phys'],
+    );
+    expect(subjectsOnly.every((row) => row.matchedActionTypes.isEmpty), isTrue);
+
+    // 没有这个学科：空表（多学科里任一学科都没有 = 空）。
+    expect(
+      await readQuestionsForCapabilities(
+        db,
+        const CapabilityQuestionQuery(
+            subjectKeys: <String>['biology', 'history']),
+      ),
+      isEmpty,
+    );
+    // 空白学科归一化后 = 不限学科；动作也空 → 返回空表（不导库）。
+    expect(
+      await readQuestionsForCapabilities(
+        db,
+        const CapabilityQuestionQuery(subjectKeys: <String>['', '  ']),
+      ),
       isEmpty,
     );
   });

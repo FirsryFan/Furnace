@@ -10,6 +10,11 @@
 /// 学科筛选（轮次一百零八）：同一页可以只看某个学科。筛选**走读表**（
 /// `readQuestionsForCapabilities`，与工具面的组合查询同一份函数），不是在前端把已经
 /// 加载的结果过滤一下 —— 否则"页面上看到的"和"模型查到的"迟早会分叉（D2）。
+///
+/// 学科多选（轮次一百四十七）：点多个学科 chip = 这几个学科里的题都要（读表按学科集合
+/// 过滤，一次查询）；再点一次已选 chip 取消；「全部学科」清空选择。换叠加动作 /
+/// 切换「都要出现」时清空学科选择 —— 可选学科是从当前动作的查询结果里算出来的，
+/// 留着旧选中态只会问出一张空表却没有可点的 chip。
 library;
 
 import 'package:flutter/material.dart';
@@ -36,8 +41,10 @@ class CapabilityActionQuestionsPage extends ConsumerStatefulWidget {
 
 class _CapabilityActionQuestionsPageState
     extends ConsumerState<CapabilityActionQuestionsPage> {
-  /// 学科筛选（空串 = 全部学科）。
-  String _subjectKey = '';
+  /// 学科筛选（可多选；空集 = 全部学科）。
+  ///
+  /// 用 `Set` 是因为 chip 的选择语义是"并集"：`{'math', 'physics'}` = 数学或物理的题。
+  final Set<String> _subjectKeys = <String>{};
 
   /// 再叠加一个动作（空串 = 不叠加）；与页面入口那一个动作一起构成 `actionTypes`。
   String _secondAction = '';
@@ -63,7 +70,7 @@ class _CapabilityActionQuestionsPageState
   CapabilityQuestionQuery get _query => CapabilityQuestionQuery(
         actionTypes: _actionTypes,
         requireAll: _requireAll,
-        subjectKey: _subjectKey,
+        subjectKeys: _subjectKeys.toList(),
       );
 
   @override
@@ -73,7 +80,7 @@ class _CapabilityActionQuestionsPageState
     // 题干一行文本（快照题显示摘录/标签）一次取全表，传给每一行。
     final displays = ref.watch(questionStemDisplayProvider).valueOrNull;
     final base = ref.watch(questionsForCapabilitiesProvider(_baseQuery));
-    final rows = _subjectKey.isEmpty
+    final rows = _subjectKeys.isEmpty
         ? base
         : ref.watch(questionsForCapabilitiesProvider(_query));
 
@@ -142,6 +149,8 @@ class _CapabilityActionQuestionsPageState
         onChanged: (value) => setState(() {
           _secondAction = value ?? '';
           if (_secondAction.isEmpty) _requireAll = false;
+          // 可选学科随动作组合变化：清空选择，避免留下夹在空表里的旧选中态。
+          _subjectKeys.clear();
         }),
       ),
       if (_secondAction.isNotEmpty)
@@ -149,7 +158,10 @@ class _CapabilityActionQuestionsPageState
           dense: true,
           contentPadding: EdgeInsets.zero,
           value: _requireAll,
-          onChanged: (value) => setState(() => _requireAll = value),
+          onChanged: (value) => setState(() {
+            _requireAll = value;
+            _subjectKeys.clear();
+          }),
           title: Text(l10n.capabilityActionQuestionsRequireAll),
         ),
     ];
@@ -171,18 +183,24 @@ class _CapabilityActionQuestionsPageState
         spacing: 8,
         runSpacing: 4,
         children: [
-          ChoiceChip(
+          FilterChip(
             label: Text(l10n.capabilityActionQuestionsAllSubjects),
-            selected: _subjectKey.isEmpty,
-            onSelected: (_) => setState(() => _subjectKey = ''),
+            selected: _subjectKeys.isEmpty,
+            onSelected: (_) => setState(_subjectKeys.clear),
           ),
           for (final subject in subjects)
-            ChoiceChip(
+            FilterChip(
               label: Text(
                 CapabilityAction.subjectLabelsZh[subject] ?? subject,
               ),
-              selected: _subjectKey == subject,
-              onSelected: (_) => setState(() => _subjectKey = subject),
+              selected: _subjectKeys.contains(subject),
+              onSelected: (selected) => setState(() {
+                if (selected) {
+                  _subjectKeys.add(subject);
+                } else {
+                  _subjectKeys.remove(subject);
+                }
+              }),
             ),
         ],
       ),

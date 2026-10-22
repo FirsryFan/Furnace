@@ -345,8 +345,10 @@ class FindSimilarQuestionsTool extends AiTool {
 /// 模型要能**直接查到**哪几道题会练到这个动作，而不是让用户自己去题库里翻；但它仍然
 /// 只从已有题库里找，**不出题**。
 ///
-/// 组合问法（轮次一百零七）：`action_types` + `match`（任一 / 全部）+ `subject_key`
-/// —— "分类讨论和回代检验都得用上的题""分类讨论类的物理题还剩几道"都能问。
+/// 组合问法（轮次一百零七）：`action_types` + `match`（任一 / 全部）+ 学科
+/// —— "分类讨论和回代检验都得用上的题""分类讨论类的物理、化学题还剩几道"都能问。
+/// 学科筛选在轮次一百四十七升级为多选（`subject_keys`，任一命中）；`subject_key`
+/// 保留为单值兼容别名，两者都给时以 `subject_keys` 为准。
 class FindQuestionsByCapabilityTool extends AiTool {
   FindQuestionsByCapabilityTool({required AppDatabase db}) : _db = db;
 
@@ -366,7 +368,8 @@ class FindQuestionsByCapabilityTool extends AiTool {
       '返回链上出现过这些动作的题（题干摘要 + 学科 + 来源 + 命中动作 + 链上全部动作）。'
       '用在"我在某个动作上反复卡住，该练哪几道"的时候；配套的读数在认知模型页的'
       '「能力动作画像」（那条画像回答"哪个动作最该练"，这个工具回答"练哪几道"）。'
-      '可以组合：给多个 `action_types` + `match`（`any` 任一 / `all` 全部）+ `subject_key` 学科。'
+      '可以组合：给多个 `action_types` + `match`（`any` 任一 / `all` 全部）+ '
+      '`subject_keys` 学科（数组，可多个，任一命中即可；`subject_key` 是单值兼容别名）。'
       '**只读**：不写数据、不生成题干、不落库——只报库里已有的题，没有就说没有。'
       '口径：只认每道题**最新一条**解题链的动作序列；没解过链的题不会出现在结果里。';
 
@@ -378,7 +381,7 @@ class FindQuestionsByCapabilityTool extends AiTool {
             'type': 'array',
             'items': {'type': 'string'},
             'description': '能力动作 key 列表（词表里的稳定标识，如 `case_split`）。'
-                '与 `action_type` 二选一或一起给（合并去重）；都不给时必须给 `subject_key`。'
+                '与 `action_type` 二选一或一起给（合并去重）；都不给时必须给 `subject_keys` / `subject_key`。'
                 '不认识的 key 会失败并列出可用值。',
           },
           'action_type': {
@@ -391,9 +394,16 @@ class FindQuestionsByCapabilityTool extends AiTool {
             'description': '多个动作时怎么算命中：`any`（默认，命中一个就算）或 `all`'
                 '（每个动作都要出现在最新一条链里）。',
           },
+          'subject_keys': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': '只在这些学科里找（字符串数组，如 `["math", "physics"]`；任一学科命中即可）；'
+                '不给 = 不限学科。与 `subject_key` 一起给时以本参数为准。',
+          },
           'subject_key': {
             'type': 'string',
-            'description': '只在这个学科里找（如 `math` / `physics`）；不给 = 不限学科。',
+            'description':
+                '单个学科（`subject_keys` 的兼容别名；只在没给 `subject_keys` 时生效）。',
           },
           'limit': {
             'type': 'integer',
@@ -425,16 +435,25 @@ class FindQuestionsByCapabilityTool extends AiTool {
         if (raw.trim().isNotEmpty) raw.trim(),
       if (single.isNotEmpty) single,
     }.toList();
-    final subjectKey = (args.optString('subject_key') ?? '').trim();
+    // 学科多选（轮次一百四十七）：`subject_keys` 是主参数；`subject_key` 是单值兼容别名。
+    // 两者都给时以 `subject_keys` 为准（数组非空即算"给了"），并如实回报实际用的学科。
+    final subjectKeys = <String>{
+      for (final raw in args.optStringList('subject_keys') ?? const <String>[])
+        if (raw.trim().isNotEmpty) raw.trim(),
+    }.toList();
+    final singleSubjectKey = (args.optString('subject_key') ?? '').trim();
+    final usedSubjectKeys = subjectKeys.isEmpty && singleSubjectKey.isNotEmpty
+        ? <String>[singleSubjectKey]
+        : subjectKeys;
     final match = (args.optString('match') ?? 'any').trim();
 
     if (match != 'any' && match != 'all') {
       throw ToolArgError('`match` 只能是 `any` 或 `all`（收到 `$match`）');
     }
-    if (actions.isEmpty && subjectKey.isEmpty) {
+    if (actions.isEmpty && usedSubjectKeys.isEmpty) {
       throw ToolArgError(
-        '缺少查询条件：至少给一个 `action_types`（数组）/ `action_type`（单个）'
-        '或 `subject_key`',
+        '缺少查询条件：至少给一个 `action_types`（数组）/ `action_type`（单个）/ '
+        '`subject_keys`（数组）/ `subject_key`（单个兼容）',
       );
     }
     final unknown = <String>[
@@ -452,7 +471,7 @@ class FindQuestionsByCapabilityTool extends AiTool {
 
     final query = CapabilityQuestionQuery(
       actionTypes: actions,
-      subjectKey: subjectKey,
+      subjectKeys: usedSubjectKeys,
       requireAll: match == 'all',
     );
     final rows = await readQuestionsForCapabilities(_db, query);
@@ -462,7 +481,7 @@ class FindQuestionsByCapabilityTool extends AiTool {
     if (rows.isEmpty) {
       return ToolResult(
         ok: true,
-        summary: _emptySummary(actions, subjectKey),
+        summary: _emptySummary(actions, usedSubjectKeys),
         modelResult: {
           'query': _queryJson(query),
           'returned': 0,
@@ -509,17 +528,22 @@ class FindQuestionsByCapabilityTool extends AiTool {
 
   Map<String, Object?> _queryJson(CapabilityQuestionQuery query) {
     final normalized = query.normalized();
+    final subjects = _subjectsOf(normalized.subjectKeys);
     return {
       'action_types': normalized.actionTypes,
       'action_labels_zh': _labelsOf(normalized.actionTypes),
-      'subject_key': normalized.subjectKey,
-      'subject': _subjectOf(normalized.subjectKey),
+      // 学科多选：`subject_keys` 是本次实际用的学科（归一化、排序后），`subjects`
+      // 是同一组的中文名；`subject_key` / `subject` 是单学科兼容字段，多学科时为空串。
+      'subject_keys': normalized.subjectKeys,
+      'subjects': subjects,
+      'subject_key': subjects.length == 1 ? normalized.subjectKeys.single : '',
+      'subject': subjects.length == 1 ? subjects.single : '',
       'match': normalized.requireAll ? 'all' : 'any',
     };
   }
 
-  String _emptySummary(List<String> actions, String subjectKey) {
-    final subject = subjectKey.isEmpty ? '' : '「${_subjectOf(subjectKey)}」';
+  String _emptySummary(List<String> actions, List<String> subjectKeys) {
+    final subject = _subjectPhrase(subjectKeys);
     if (actions.isEmpty) {
       return '题库里还没有解过链的$subject题——我不会自己出题；先去某道题的详情页按一次'
           '「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
@@ -536,9 +560,8 @@ class FindQuestionsByCapabilityTool extends AiTool {
   ) {
     final normalized = query.normalized();
     final labels = _labelsOf(normalized.actionTypes);
-    final subject = normalized.subjectKey.isEmpty
-        ? ''
-        : '「${_subjectOf(normalized.subjectKey)}」里的';
+    final subjectPhrase = _subjectPhrase(normalized.subjectKeys);
+    final subject = subjectPhrase.isEmpty ? '' : '$subjectPhrase里的';
     final String rule;
     if (labels.isEmpty) {
       rule = '解过链的$subject';
@@ -559,6 +582,22 @@ class FindQuestionsByCapabilityTool extends AiTool {
   List<String> _labelsOf(List<String> keys) => <String>[
         for (final key in keys) CapabilityAction.byKey(key)?.labelZh ?? key,
       ];
+
+  List<String> _subjectsOf(List<String> subjectKeys) => <String>[
+        for (final key in subjectKeys) _subjectOf(key),
+      ];
+
+  /// 一组学科的中文短语：`「物理」` / `「物理」或「化学」`，空集返回空串。
+  String _subjectPhrase(List<String> subjectKeys) {
+    final labels = _subjectsOf(subjectKeys);
+    if (labels.isEmpty) {
+      return '';
+    }
+    if (labels.length == 1) {
+      return '「${labels.single}」';
+    }
+    return labels.map((label) => '「$label」').join('或');
+  }
 
   String _subjectOf(String subjectKey) {
     if (subjectKey.trim().isEmpty) {

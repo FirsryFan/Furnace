@@ -329,4 +329,99 @@ void main() {
       throwsA(isA<ToolArgError>()),
     );
   });
+
+  test('subject_keys 多学科：任一命中、归一化、与 subject_key 兼容别名', () async {
+    final math = await seedQuestion(stem: '数学分类讨论题。', subjectKey: 'math');
+    final physics = await seedQuestion(stem: '物理分类讨论题。', subjectKey: 'physics');
+    final chemistry =
+        await seedQuestion(stem: '化学分类讨论题。', subjectKey: 'chemistry');
+    for (final id in <String>[math, physics, chemistry]) {
+      await seedChain(
+        questionId: id,
+        chainId: 'chain-$id',
+        createdAt: 10,
+        actions: const <String>['case_split'],
+      );
+    }
+
+    List<String> idsOf(ToolResult result) => <String>[
+          for (final row in (result.modelResult!
+              as Map<String, Object?>)['questions']! as List<Object?>)
+            (row! as Map<String, Object?>)['id']! as String,
+        ];
+    Map<String, Object?> queryOf(ToolResult result) =>
+        (result.modelResult! as Map<String, Object?>)['query']!
+            as Map<String, Object?>;
+
+    // 多个学科 = 任一命中（数学 + 物理），化学不在结果里。
+    final multi = await tool.run(invoke({
+      'action_types': <String>['case_split'],
+      'subject_keys': <String>[' physics ', 'math', 'physics'],
+    }));
+    expect(multi.ok, isTrue, reason: multi.summary);
+    expect(idsOf(multi).toSet(), <String>{math, physics});
+    final multiQuery = queryOf(multi);
+    expect(multiQuery['subject_keys'], <String>['math', 'physics']);
+    expect(multiQuery['subjects'], <String>['数学', '物理']);
+    expect(multiQuery['subject_key'], '', reason: '多学科时兼容字段留空');
+    expect(multiQuery['subject'], '');
+    expect(multi.summary, contains('数学'));
+    expect(multi.summary, contains('物理'));
+    expect(multi.summary, isNot(contains('化学')));
+
+    // 只按学科（不按动作）：多学科集合同样可用，摘要给中文名。
+    final subjectsOnly = await tool.run(invoke({
+      'subject_keys': <String>['chemistry', 'physics'],
+    }));
+    expect(subjectsOnly.ok, isTrue, reason: subjectsOnly.summary);
+    expect(idsOf(subjectsOnly).toSet(), <String>{physics, chemistry});
+    expect(subjectsOnly.summary, contains('物理'));
+    expect(subjectsOnly.summary, contains('化学'));
+
+    // 兼容别名：只给 subject_key 时按单学科走，旧调用不破。
+    final alias = await tool.run(invoke({
+      'action_type': 'case_split',
+      'subject_key': 'physics',
+    }));
+    expect(idsOf(alias), <String>[physics]);
+    final aliasQuery = queryOf(alias);
+    expect(aliasQuery['subject_key'], 'physics');
+    expect(aliasQuery['subject'], '物理');
+    expect(aliasQuery['subject_keys'], <String>['physics']);
+
+    // 两者都给：subject_keys 为准，subject_key 被忽略，并如实回报实际用的学科。
+    final precedence = await tool.run(invoke({
+      'action_type': 'case_split',
+      'subject_keys': <String>['math'],
+      'subject_key': 'physics',
+    }));
+    expect(idsOf(precedence), <String>[math]);
+    final precedenceQuery = queryOf(precedence);
+    expect(precedenceQuery['subject_keys'], <String>['math']);
+    expect(precedenceQuery['subject_key'], 'math');
+
+    // subject_keys 全空白 = 没给：回落到 subject_key 别名。
+    final blankArray = await tool.run(invoke({
+      'action_type': 'case_split',
+      'subject_keys': <String>['', '  '],
+      'subject_key': 'chemistry',
+    }));
+    expect(queryOf(blankArray)['subject_keys'], <String>['chemistry']);
+    expect(idsOf(blankArray).toSet(), <String>{chemistry});
+
+    // 动作与学科都空（只给空白 subject_keys）→ 参数错，不导库。
+    expect(
+      () => tool.run(invoke({
+        'subject_keys': <String>['', '  ']
+      })),
+      throwsA(isA<ToolArgError>()),
+    );
+
+    // 参数 schema 暴露 subject_keys 数组与 subject_key 兼容别名。
+    final properties = tool.parameters['properties']! as Map<String, Object?>;
+    final subjectKeysSchema =
+        properties['subject_keys']! as Map<String, Object?>;
+    expect(subjectKeysSchema['type'], 'array');
+    expect(properties['subject_key'], isA<Map<String, Object?>>());
+  });
 }

@@ -192,58 +192,74 @@ class CapabilityQuestionRow {
 ///
 /// 单动作是最常见的问法（画像点开的那一行），但对话里经常是组合问法：
 /// "我一碰到**分类讨论**和**回代检验**就卡，给我两道两道都得用上的题"（`requireAll`），
-/// 或者"分类讨论类的**物理**题还有几道"（[subjectKey]）。
+/// 或者"分类讨论类的**物理**、**化学**题还有几道"（[subjectKeys]，可以一次选多个学科）。
+///
+/// [subjectKeys] 是"或"不是"且"：一道题在库里只有一个学科键，多选 = 这几个学科里的题都要。
 class CapabilityQuestionQuery {
   const CapabilityQuestionQuery({
     this.actionTypes = const <String>[],
-    this.subjectKey = '',
+    this.subjectKeys = const <String>[],
     this.requireAll = false,
   });
 
   /// 要筛的动作 key（去空、去重；空 = 不按动作筛，只按学科）。
   final List<String> actionTypes;
 
-  /// 只要这个学科（空 = 不限）。
-  final String subjectKey;
+  /// 只要这些学科里的题（trim/去空/去重/排序后比较；空 = 不限学科）。
+  ///
+  /// 存 `List` 而不是 `Set` 是为了保持 `const` 构造与既有调用点；归一化
+  /// （[normalized]）负责把它变成稳定顺序，`==`/`hashCode` 按集合比。
+  final List<String> subjectKeys;
 
   /// `true` = 最新链里**每个**动作都得出现；`false` = 命中一个就算。
   final bool requireAll;
 
-  /// 归一化后的查询：去空/去重，学科 trim。
+  /// 归一化后的查询：动作去空/去重，学科 trim/去空/去重/**排序**。
+  ///
+  /// 学科排序是刻意的：`==`/`hashCode` 要让 `['physics', 'math']` 与
+  /// `['math', 'physics']` 相等，归一化后直接用有序 List 比就够，也便于测试与日志。
   CapabilityQuestionQuery normalized() => CapabilityQuestionQuery(
         actionTypes: actionTypes
             .map((action) => action.trim())
             .where((action) => action.isNotEmpty)
             .toSet()
             .toList(),
-        subjectKey: subjectKey.trim(),
+        subjectKeys: <String>{
+          for (final subject in subjectKeys)
+            if (subject.trim().isNotEmpty) subject.trim(),
+        }.toList()
+          ..sort(),
         requireAll: requireAll,
       );
 
-  /// 值相等（按**归一化后**的动作集合 + 学科 + `requireAll` 比）。
+  /// 值相等（按**归一化后**的动作集合 + 学科集合 + `requireAll` 比）。
   ///
   /// 这不是锦上添花：它让 `CapabilityQuestionQuery` 能当 Riverpod family 的键 ——
   /// 页面重建时同一个查询不会重复读表，`Set`/`==` 也让人在测试里直接比查询。
+  /// 学科多选时顺序/重复/空白不影响相等：chips 的点选顺序不同仍是同一个查询。
   @override
   bool operator ==(Object other) {
     if (other is! CapabilityQuestionQuery) return false;
     final mine = normalized();
     final theirs = other.normalized();
-    final mineSet = mine.actionTypes.toSet();
-    final theirsSet = theirs.actionTypes.toSet();
-    return mine.subjectKey == theirs.subjectKey &&
-        mine.requireAll == theirs.requireAll &&
-        mineSet.length == theirsSet.length &&
-        mineSet.containsAll(theirsSet);
+    final mineActions = mine.actionTypes.toSet();
+    final theirsActions = theirs.actionTypes.toSet();
+    final mineSubjects = mine.subjectKeys.toSet();
+    final theirsSubjects = theirs.subjectKeys.toSet();
+    return mine.requireAll == theirs.requireAll &&
+        mineActions.length == theirsActions.length &&
+        mineActions.containsAll(theirsActions) &&
+        mineSubjects.length == theirsSubjects.length &&
+        mineSubjects.containsAll(theirsSubjects);
   }
 
   @override
   int get hashCode {
     final normalizedQuery = normalized();
     return Object.hash(
-      normalizedQuery.subjectKey,
       normalizedQuery.requireAll,
       Object.hashAllUnordered(normalizedQuery.actionTypes),
+      Object.hashAllUnordered(normalizedQuery.subjectKeys),
     );
   }
 }
@@ -265,10 +281,10 @@ Future<List<CapabilityQuestionRow>> readQuestionsForAction(
       CapabilityQuestionQuery(actionTypes: <String>[actionType]),
     );
 
-/// 组合查询：按一组动作（任一 / 全部）+ 学科筛题库里解过链的题。
+/// 组合查询：按一组动作（任一 / 全部）+ 一组学科（任一命中）筛题库里解过链的题。
 ///
 /// 三条纪律：
-/// 1. **动作与学科都不能为空**：两个都空就没有"问的是什么" —— 返回空表，不把整个
+/// 1. **动作与学科不能同时为空**：两个都空就没有"问的是什么" —— 返回空表，不把整个
 ///    解过链的题库倒出来（那不是查询，那是导出）。
 /// 2. **只认最新一条链**（与 [readQuestionsForAction] 同一份口径）。
 /// 3. **命中项如实回报**（[CapabilityQuestionRow.matchedActionTypes]）：模型/界面得能
@@ -278,7 +294,7 @@ Future<List<CapabilityQuestionRow>> readQuestionsForCapabilities(
   CapabilityQuestionQuery query,
 ) async {
   final wanted = query.normalized();
-  if (wanted.actionTypes.isEmpty && wanted.subjectKey.isEmpty) {
+  if (wanted.actionTypes.isEmpty && wanted.subjectKeys.isEmpty) {
     return const <CapabilityQuestionRow>[];
   }
 
@@ -310,8 +326,8 @@ Future<List<CapabilityQuestionRow>> readQuestionsForCapabilities(
     for (final entry in matched.entries)
       if (byId[entry.key] != null &&
           byId[entry.key]!.stem.trim().isNotEmpty &&
-          (wanted.subjectKey.isEmpty ||
-              byId[entry.key]!.subjectKey.trim() == wanted.subjectKey))
+          (wanted.subjectKeys.isEmpty ||
+              wanted.subjectKeys.contains(byId[entry.key]!.subjectKey.trim())))
         CapabilityQuestionRow(
           questionId: entry.key,
           stem: byId[entry.key]!.stem.trim(),

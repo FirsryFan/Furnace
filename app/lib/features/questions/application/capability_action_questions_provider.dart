@@ -23,7 +23,7 @@ final questionsForActionProvider = FutureProvider.autoDispose
   return readQuestionsForAction(ref.watch(appDatabaseProvider), actionType);
 });
 
-/// 组合查询（一组动作 任一/全部 + 学科）对应的题目清单。
+/// 组合查询（一组动作 任一/全部 + 一组学科 任一命中）对应的题目清单。
 final questionsForCapabilitiesProvider = FutureProvider.autoDispose
     .family<List<CapabilityQuestionRow>, CapabilityQuestionQuery>(
         (ref, query) async {
