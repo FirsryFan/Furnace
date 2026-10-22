@@ -272,6 +272,96 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('被挡下的快照题：那一行用摘录，并补「整题截图」小标签', (tester) async {
+      await _seedTaggedQuestion(
+        db,
+        questionId: 'q-math-1',
+        stem: '求函数单调区间',
+        knowledgePointId: 'kp-math-1',
+        tagId: 'tag-math-1',
+        tagName: '函数',
+        tagPath: '数学/函数',
+        subjectKey: 'math',
+      );
+      await _seedTaggedQuestion(
+        db,
+        questionId: 'q-math-2',
+        stem: '求集合交集［图1］［图2］',
+        knowledgePointId: 'kp-math-2',
+        tagId: 'tag-math-2',
+        tagName: '集合',
+        tagPath: '数学/集合',
+        subjectKey: 'math',
+      );
+      await _seedStemAttachment(db, questionId: 'q-math-2');
+      final container = await _pumpPaperPage(tester, db: db);
+      container.read(paperSpecProvider.notifier).setDomainMax('数学', 1);
+      await _settle(tester);
+
+      final plan = _readPlan(container);
+      expect(plan.quotaBlockedByDomain.single.questionId, 'q-math-2');
+      final outcome = find.byKey(paperDomainQuotaOutcomeKey);
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(zh.paperDomainQuotaBlockedItem('数学', 1, '求集合交集')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('被挡的快照题没有正文摘录：显示标签本身，不再叠一个小徽标', (tester) async {
+      await _seedTaggedQuestion(
+        db,
+        questionId: 'q-math-1',
+        stem: '求函数单调区间',
+        knowledgePointId: 'kp-math-1',
+        tagId: 'tag-math-1',
+        tagName: '函数',
+        tagPath: '数学/函数',
+        subjectKey: 'math',
+      );
+      await _seedTaggedQuestion(
+        db,
+        questionId: 'q-math-2',
+        stem: '［图1］［图2］',
+        knowledgePointId: 'kp-math-2',
+        tagId: 'tag-math-2',
+        tagName: '集合',
+        tagPath: '数学/集合',
+        subjectKey: 'math',
+      );
+      await _seedStemAttachment(db, questionId: 'q-math-2');
+      final container = await _pumpPaperPage(tester, db: db);
+      container.read(paperSpecProvider.notifier).setDomainMax('数学', 1);
+      await _settle(tester);
+
+      final plan = _readPlan(container);
+      expect(plan.quotaBlockedByDomain.single.questionId, 'q-math-2');
+      final outcome = find.byKey(paperDomainQuotaOutcomeKey);
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.textContaining('整题截图'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsNothing,
+      );
+    });
   });
 }
 
@@ -402,6 +492,25 @@ Future<void> _seedTaggedQuestion(
           tagId: tagId,
           objectType: 'question',
           objectId: questionId,
+          createdAt: _ts,
+        ),
+      );
+}
+
+/// 一张题干图：role 为 NULL 或 'stem' 都按题干图算（v27 旧行是 NULL）。
+Future<void> _seedStemAttachment(
+  AppDatabase db, {
+  required String questionId,
+  String? role = 'stem',
+}) {
+  return db.into(db.attachments).insert(
+        AttachmentsCompanion.insert(
+          id: 'att-$questionId',
+          ownerType: 'question',
+          ownerId: questionId,
+          relPath: 'question_images/$questionId/att-$questionId/photo.png',
+          mime: const Value<String>('image/png'),
+          role: Value<String?>(role),
           createdAt: _ts,
         ),
       );

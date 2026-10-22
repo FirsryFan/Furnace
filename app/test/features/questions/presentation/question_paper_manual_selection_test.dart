@@ -320,6 +320,97 @@ void main() {
           find.text(zh.paperManualSelectionConflictTitle(1)), findsOneWidget);
     });
   });
+
+  group('widget：快照题的题干一行文本', () {
+    testWidgets('必收名单行用正文摘录，并补「整题截图」小标签', (tester) async {
+      await _seedQuestion(
+        db,
+        id: 'q-snap',
+        stem: '求函数单调区间［图1］［图2］',
+      );
+      await _seedStemAttachment(db, questionId: 'q-snap');
+      final container = await _pumpPaperPage(tester, db: db);
+      container
+          .read(paperSpecProvider.notifier)
+          .setManualIncludeIds(<String>{'q-snap'});
+      await _settle(tester);
+
+      final row = find.byKey(paperManualSelectionIncludeRowKey('q-snap'));
+      expect(
+        find.descendant(of: row, matching: find.text('求函数单调区间')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('没有正文摘录时行文本就是「整题截图」标签，不再叠一个小徽标', (tester) async {
+      await _seedQuestion(db, id: 'q-snap', stem: '［图1］［图2］');
+      await _seedStemAttachment(db, questionId: 'q-snap');
+      final container = await _pumpPaperPage(tester, db: db);
+      container
+          .read(paperSpecProvider.notifier)
+          .setManualIncludeIds(<String>{'q-snap'});
+      await _settle(tester);
+
+      final row = find.byKey(paperManualSelectionIncludeRowKey('q-snap'));
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.textContaining('整题截图'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('候选对话框里的快照题用摘录，不露［图N］占位', (tester) async {
+      await _seedQuestion(
+        db,
+        id: 'q-snap',
+        stem: '求函数单调区间［图1］［图2］',
+      );
+      await _seedStemAttachment(db, questionId: 'q-snap');
+      await _seedQuestion(db, id: 'q-plain', stem: '求集合交集');
+      await _pumpPaperPage(tester, db: db);
+      await _openPicker(tester);
+
+      final picker = find.byKey(paperManualSelectionPickerKey);
+      expect(
+        find.descendant(of: picker, matching: find.text('求函数单调区间')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: picker,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: picker,
+          matching: find.text('求函数单调区间［图1］［图2］'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: picker, matching: find.text('求集合交集')),
+        findsOneWidget,
+      );
+    });
+  });
 }
 
 /// 纯函数用例的 PaperPlan：只有手工名单相关字段有意义。
@@ -423,6 +514,25 @@ Future<void> _seedQuestion(
           createdAt: _ts,
           updatedAt: _ts,
           subjectKey: const Value<String>('math'),
+        ),
+      );
+}
+
+/// 一张题干图：role 为 NULL 或 'stem' 都按题干图算（v27 旧行是 NULL）。
+Future<void> _seedStemAttachment(
+  AppDatabase db, {
+  required String questionId,
+  String? role = 'stem',
+}) {
+  return db.into(db.attachments).insert(
+        AttachmentsCompanion.insert(
+          id: 'att-$questionId',
+          ownerType: 'question',
+          ownerId: questionId,
+          relPath: 'question_images/$questionId/att-$questionId/photo.png',
+          mime: const Value<String>('image/png'),
+          role: Value<String?>(role),
+          createdAt: _ts,
         ),
       );
 }

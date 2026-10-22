@@ -352,6 +352,76 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('被挡下的快照题：那一行用摘录，并补「整题截图」小标签', (tester) async {
+      await _seedQuestion(db, id: 'q-math-1', stem: '数学题一', subjectKey: 'math');
+      await _seedQuestion(
+        db,
+        id: 'q-math-2',
+        stem: '数学题二［图1］［图2］',
+        subjectKey: 'math',
+      );
+      await _seedStemAttachment(db, questionId: 'q-math-2');
+      final container = await _pumpPaperPage(tester, db: db);
+      container.read(paperSpecProvider.notifier).setSubjectMax('math', 1);
+      await _settle(tester);
+
+      final plan = _readPlan(container);
+      expect(plan.quotaBlockedQuestions.single.questionId, 'q-math-2');
+      final outcome = find.byKey(paperSubjectQuotaOutcomeKey);
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(
+            zh.paperSubjectQuotaBlockedItem(
+              paperSubjectLabelOf(zh, 'math'),
+              1,
+              '数学题二',
+            ),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('被挡的快照题没有正文摘录：显示标签本身，不再叠一个小徽标', (tester) async {
+      await _seedQuestion(db, id: 'q-math-1', stem: '数学题一', subjectKey: 'math');
+      await _seedQuestion(
+        db,
+        id: 'q-math-2',
+        stem: '［图1］［图2］',
+        subjectKey: 'math',
+      );
+      await _seedStemAttachment(db, questionId: 'q-math-2');
+      final container = await _pumpPaperPage(tester, db: db);
+      container.read(paperSpecProvider.notifier).setSubjectMax('math', 1);
+      await _settle(tester);
+
+      final plan = _readPlan(container);
+      expect(plan.quotaBlockedQuestions.single.questionId, 'q-math-2');
+      final outcome = find.byKey(paperSubjectQuotaOutcomeKey);
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.textContaining('整题截图'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: outcome,
+          matching: find.text(zh.questionBankSnapshotBadge),
+        ),
+        findsNothing,
+      );
+    });
   });
 }
 
@@ -440,6 +510,25 @@ Future<void> _seedQuestion(
           trapNote: Value(trapNote),
           difficulty: Value(difficulty),
           answer: Value(answer),
+        ),
+      );
+}
+
+/// 一张题干图：role 为 NULL 或 'stem' 都按题干图算（v27 旧行是 NULL）。
+Future<void> _seedStemAttachment(
+  AppDatabase db, {
+  required String questionId,
+  String? role = 'stem',
+}) {
+  return db.into(db.attachments).insert(
+        AttachmentsCompanion.insert(
+          id: 'att-$questionId',
+          ownerType: 'question',
+          ownerId: questionId,
+          relPath: 'question_images/$questionId/att-$questionId/photo.png',
+          mime: const Value<String>('image/png'),
+          role: Value<String?>(role),
+          createdAt: _ts,
         ),
       );
 }

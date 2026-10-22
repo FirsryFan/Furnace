@@ -5,7 +5,9 @@
 ///    clearManualSelection）：页面不自己存一份「已选题目」；
 /// 2. 卷子生成后的问题名单全部来自 [PaperPlan]：missing（题库里没有）、
 ///    skipped（被目标题数挤掉）、conflict（与排除冲突）——只报不改，不静默丢；
-/// 3. 题号用 [QuestionSerialBadgeById] 异步读，题干用 `questionStemsProvider`；
+/// 3. 题号用 [QuestionSerialBadgeById] 异步读，题干用 `questionStemDisplayProvider`
+///    （快照感知：有正文摘录用摘录，没有就用「整题截图」标签）；候选过滤仍用
+///    `questionStemsProvider` 的原题干（避免只搜到截断/清洗后的预览）；
 ///    找不到的 id（缺失名单）直接显示原始 id，不摆「未编号」冒充一道题。
 library;
 
@@ -15,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
+import '../application/question_stem_display_provider.dart';
 import 'question_media_view.dart';
 
 /// 已选手工名单卡片（名单为空时不渲染）。
@@ -76,6 +79,39 @@ String paperManualStemPreview(String stem, {int maxChars = 20}) {
   if (folded.isEmpty || maxChars <= 0) return folded;
   if (folded.length <= maxChars) return folded;
   return '${folded.substring(0, maxChars)}…';
+}
+
+/// 一行题干：display 为空或文本为空时回退题号；否则折白/截断（[paperManualStemPreview]）。
+String _stemTextOf(String questionId, QuestionStemDisplay? display) {
+  final text = display?.text.trim() ?? '';
+  if (text.isEmpty) return questionId;
+  return paperManualStemPreview(display!.text);
+}
+
+/// 一次读全表的题干一行文本；数据未到时用空 map（各行回退成题号）。
+Map<String, QuestionStemDisplay> _watchStemDisplays(WidgetRef ref) =>
+    ref.watch(questionStemDisplayProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => const <String, QuestionStemDisplay>{},
+        );
+
+/// 快照题的小标签：只在「有正文摘录」时摆——没有摘录时 [QuestionStemDisplay.text]
+/// 本身就是「整题截图 · N 处公式/图」，再摆一次会重复（照题库列表的同一条口径）。
+bool _showsSnapshotBadge(QuestionStemDisplay? display) =>
+    display != null && display.isSnapshot && display.hasExcerpt;
+
+/// 「整题截图」小标签（不加卡片，只占行尾一小段）。
+Widget _snapshotBadge(BuildContext context) {
+  final theme = Theme.of(context);
+  return Padding(
+    padding: const EdgeInsets.only(left: 6),
+    child: Text(
+      AppLocalizations.of(context).questionBankSnapshotBadge,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 /// 候选过滤：题干或题目 id 包含 query（不区分大小写）；空 query 全留。
@@ -188,10 +224,7 @@ class PaperManualSelectionSection extends ConsumerWidget {
     if (includeIds.isEmpty && excludeIds.isEmpty) {
       return const SizedBox.shrink();
     }
-    final stems = ref.watch(questionStemsProvider).maybeWhen(
-          data: (value) => value,
-          orElse: () => const <String, String>{},
-        );
+    final displays = _watchStemDisplays(ref);
     final notifier = ref.read(paperSpecProvider.notifier);
 
     return Card(
@@ -221,7 +254,7 @@ class PaperManualSelectionSection extends ConsumerWidget {
                 _ManualSelectionRow(
                   key: paperManualSelectionIncludeRowKey(questionId),
                   questionId: questionId,
-                  stem: stems[questionId],
+                  display: displays[questionId],
                   removeKey: paperManualSelectionIncludeRemoveKey(questionId),
                   onRemove: () => notifier.toggleManualInclude(questionId),
                 ),
@@ -237,7 +270,7 @@ class PaperManualSelectionSection extends ConsumerWidget {
                 _ManualSelectionRow(
                   key: paperManualSelectionExcludeRowKey(questionId),
                   questionId: questionId,
-                  stem: stems[questionId],
+                  display: displays[questionId],
                   removeKey: paperManualSelectionExcludeRemoveKey(questionId),
                   onRemove: () => notifier.toggleManualExclude(questionId),
                 ),
@@ -262,22 +295,20 @@ class _ManualSelectionRow extends StatelessWidget {
   const _ManualSelectionRow({
     super.key,
     required this.questionId,
-    required this.stem,
+    required this.display,
     required this.removeKey,
     required this.onRemove,
   });
 
   final String questionId;
-  final String? stem;
+  final QuestionStemDisplay? display;
   final Key removeKey;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final text = (stem == null || stem!.trim().isEmpty)
-        ? questionId
-        : paperManualStemPreview(stem!);
+    final text = _stemTextOf(questionId, display);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -285,6 +316,7 @@ class _ManualSelectionRow extends StatelessWidget {
           QuestionSerialBadgeById(questionId: questionId, copyable: false),
           const SizedBox(width: 8),
           Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
+          if (_showsSnapshotBadge(display)) _snapshotBadge(context),
           IconButton(
             key: removeKey,
             tooltip: l10n.paperManualSelectionRemove,
@@ -333,6 +365,7 @@ class _PaperManualSelectionDialogState
           data: (value) => value,
           orElse: () => const <String, String>{},
         );
+    final displays = _watchStemDisplays(ref);
 
     return AlertDialog(
       key: paperManualSelectionPickerKey,
@@ -382,7 +415,7 @@ class _PaperManualSelectionDialogState
                       final id = candidate.questionId;
                       return _ManualPickerRow(
                         questionId: id,
-                        stem: stems[id],
+                        display: displays[id],
                         included: includeIds.contains(id),
                         excluded: excludeIds.contains(id),
                         onToggleInclude: () => notifier.toggleManualInclude(id),
@@ -409,7 +442,7 @@ class _PaperManualSelectionDialogState
 class _ManualPickerRow extends StatelessWidget {
   const _ManualPickerRow({
     required this.questionId,
-    required this.stem,
+    required this.display,
     required this.included,
     required this.excluded,
     required this.onToggleInclude,
@@ -417,7 +450,7 @@ class _ManualPickerRow extends StatelessWidget {
   });
 
   final String questionId;
-  final String? stem;
+  final QuestionStemDisplay? display;
   final bool included;
   final bool excluded;
   final VoidCallback onToggleInclude;
@@ -427,9 +460,7 @@ class _ManualPickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final text = (stem == null || stem!.trim().isEmpty)
-        ? questionId
-        : paperManualStemPreview(stem!);
+    final text = _stemTextOf(questionId, display);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -437,6 +468,7 @@ class _ManualPickerRow extends StatelessWidget {
           QuestionSerialBadgeById(questionId: questionId, copyable: false),
           const SizedBox(width: 8),
           Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
+          if (_showsSnapshotBadge(display)) _snapshotBadge(context),
           IconButton(
             key: paperManualPickerIncludeKey(questionId),
             tooltip: l10n.paperManualSelectionPickerInclude,
@@ -475,10 +507,7 @@ class PaperManualSelectionOutcome extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final groups = paperManualIssueGroups(plan);
-    final stems = ref.watch(questionStemsProvider).maybeWhen(
-          data: (value) => value,
-          orElse: () => const <String, String>{},
-        );
+    final displays = _watchStemDisplays(ref);
 
     return Card(
       key: paperManualSelectionOutcomeKey,
@@ -506,7 +535,7 @@ class PaperManualSelectionOutcome extends ConsumerWidget {
               for (final questionId in groups[index].visibleIds)
                 _ManualIssueRow(
                   questionId: questionId,
-                  stem: stems[questionId],
+                  display: displays[questionId],
                 ),
               if (groups[index].hasHidden)
                 Text(
@@ -535,15 +564,15 @@ String _issueGroupTitle(AppLocalizations l10n, PaperManualIssueGroup group) {
 }
 
 class _ManualIssueRow extends StatelessWidget {
-  const _ManualIssueRow({required this.questionId, required this.stem});
+  const _ManualIssueRow({required this.questionId, required this.display});
 
   final String questionId;
-  final String? stem;
+  final QuestionStemDisplay? display;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    if (stem == null || stem!.trim().isEmpty) {
+    if (display == null || display!.text.trim().isEmpty) {
       // 题库里根本没有这个 id：直接显示原始 id，不摆「未编号」冒充一道题。
       return Padding(
         padding: const EdgeInsets.only(bottom: 4),
@@ -558,11 +587,12 @@ class _ManualIssueRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              paperManualStemPreview(stem!),
+              _stemTextOf(questionId, display),
               overflow: TextOverflow.ellipsis,
               style: textTheme.bodySmall,
             ),
           ),
+          if (_showsSnapshotBadge(display)) _snapshotBadge(context),
         ],
       ),
     );

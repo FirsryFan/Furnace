@@ -19,6 +19,7 @@ import '../../../domain/services/paper/domain_quota.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
+import '../application/question_stem_display_provider.dart';
 
 /// 配额编辑区根节点（widget 测试用它定位整块）。
 const Key paperDomainQuotaSectionKey = Key('paper-domain-quota-section');
@@ -160,6 +161,32 @@ String paperDomainQuotaStemPreview(String stem, {int maxChars = 24}) {
   if (text.isEmpty) return '';
   if (text.length <= maxChars) return text;
   return '${text.substring(0, maxChars)}…';
+}
+
+/// 一次读全表的题干一行文本；数据未到时用空 map（各行回退成题号）。
+Map<String, QuestionStemDisplay> _watchStemDisplays(WidgetRef ref) =>
+    ref.watch(questionStemDisplayProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => const <String, QuestionStemDisplay>{},
+        );
+
+/// 快照题的小标签：只在「有正文摘录」时摆——没有摘录时 [QuestionStemDisplay.text]
+/// 本身就是「整题截图 · N 处公式/图」，再摆一次会重复（与题库列表同口径）。
+bool _showsSnapshotBadge(QuestionStemDisplay? display) =>
+    display != null && display.isSnapshot && display.hasExcerpt;
+
+/// 「整题截图」小标签（不加卡片，只占行尾一小段）。
+Widget _snapshotBadge(BuildContext context) {
+  final theme = Theme.of(context);
+  return Padding(
+    padding: const EdgeInsets.only(left: 6),
+    child: Text(
+      AppLocalizations.of(context).questionBankSnapshotBadge,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 /// 配额编辑区。
@@ -399,10 +426,7 @@ class PaperDomainQuotaOutcome extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final stems = ref.watch(questionStemsProvider).maybeWhen(
-          data: (map) => map,
-          orElse: () => const <String, String>{},
-        );
+    final displays = _watchStemDisplays(ref);
     final preview = paperDomainQuotaBlockedPreview(blocked);
     final hidden = paperDomainQuotaBlockedHidden(blocked);
 
@@ -438,12 +462,21 @@ class PaperDomainQuotaOutcome extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               for (final item in preview)
-                Text(
-                  l10n.paperDomainQuotaBlockedItem(
-                    item.domain,
-                    item.domainLimit,
-                    _blockedDescription(item, stems),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.paperDomainQuotaBlockedItem(
+                          item.domain,
+                          item.domainLimit,
+                          _blockedDescription(item, displays),
+                        ),
+                      ),
+                    ),
+                    if (_showsSnapshotBadge(displays[item.questionId]))
+                      _snapshotBadge(context),
+                  ],
                 ),
               if (hidden > 0)
                 Text(
@@ -489,12 +522,13 @@ class PaperDomainQuotaOutcome extends ConsumerWidget {
     );
   }
 
-  /// 被挡题的那一行：优先题干前 24 字，题干为空/读不到时回退到题号。
+  /// 被挡题的那一行：优先题干一行文本（快照题用摘录），空时回退到题号。
   String _blockedDescription(
     DomainQuotaBlockedQuestion item,
-    Map<String, String> stems,
+    Map<String, QuestionStemDisplay> displays,
   ) {
-    final preview = paperDomainQuotaStemPreview(stems[item.questionId] ?? '');
+    final preview =
+        paperDomainQuotaStemPreview(displays[item.questionId]?.text ?? '');
     return preview.isEmpty ? item.questionId : preview;
   }
 }
