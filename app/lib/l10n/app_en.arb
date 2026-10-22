@@ -35,6 +35,7 @@
   "commonEnd": "End",
   "commonClear": "Clear",
   "commonRefresh": "Refresh",
+  "commonMove": "Move",
   "settingsLanguage": "Language",
   "settingsLanguageSystem": "System default",
   "settingsLanguageZh": "中文",
@@ -538,6 +539,35 @@
     "placeholders": { "label": { "type": "String" } }
   },
   "tagsDeleteBody": "Its whole subtree is deleted, and events/items carrying this tag lose it.",
+  "tagsSelectMode": "Select",
+  "tagsSelectedCount": "{count} selected",
+  "@tagsSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsSelectAll": "Select all",
+  "tagsClearSelection": "Clear selection",
+  "tagsBatchDelete": "Delete selected",
+  "tagsBatchMove": "Move selected",
+  "tagsBatchDeleteTitle": "Delete {count} tags?",
+  "@tagsBatchDeleteTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsBatchDeletePreview": "{names} ({count} total)",
+  "@tagsBatchDeletePreview": {
+    "placeholders": { "names": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "tagsMoveDialogTitle": "Move to",
+  "tagsMoveToRoot": "Top level",
+  "tagsSort": "Sort",
+  "tagsBatchBusy": "Working…",
+  "tagsBatchResultDone": "{action} {count} tags",
+  "@tagsBatchResultDone": {
+    "placeholders": { "action": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "tagsBatchResultMixed": "{success} succeeded, {failed} failed: {errors}",
+  "@tagsBatchResultMixed": {
+    "placeholders": { "success": { "type": "int" }, "failed": { "type": "int" }, "errors": { "type": "String" } }
+  },
 
   "threadTitle": "Thread",
   "threadSort": "Update & sort",
@@ -1623,6 +1653,56 @@
   "questionBankUntitled": "(no stem)",
   "questionBankPointCount": "{count} knowledge points",
   "@questionBankPointCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionTitleUntitled": "Untitled question",
+  "questionTitleDialogTitle": "Name this question",
+  "questionTitleFieldLabel": "Title",
+  "questionTitleFieldHint": "A short name you can recognize at a glance",
+  "questionTitleEditTooltip": "Edit title",
+  "questionTitleRename": "Rename",
+  "questionTitleAutoGenerate": "Generate",
+  "questionTitleClear": "Clear title",
+  "questionTitleAutoFilled": "Generated from the stem - edit it if needed",
+  "questionTitleInvalid": "The title cannot contain line breaks or tabs, and is at most {maxLength} characters",
+  "@questionTitleInvalid": {
+    "placeholders": { "maxLength": { "type": "int" } }
+  },
+  "questionTitleSaveFailed": "Could not save the title: {error}",
+  "@questionTitleSaveFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionTitleSaved": "Title saved",
+  "questionTitleCleared": "Title cleared",
+  "questionTitleAutoNamed": "Named automatically: {title}",
+  "@questionTitleAutoNamed": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "questionBankCopySerial": "Copy question number",
+  "questionBankRowMenuTooltip": "More actions",
+  "questionBankAutoNameTooltip": "Auto-name untitled questions",
+  "questionBankAutoNameMenu": "Auto-name",
+  "questionBankAutoNameDialogTitle": "Auto-name {count} questions?",
+  "@questionBankAutoNameDialogTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankAutoNameDialogBody": "Builds short names from the stem and subject; existing titles are kept, and you can rename any of them afterwards.",
+  "questionBankAutoNameStart": "Start naming",
+  "questionBankAutoNameDone": "Named {count} questions automatically",
+  "@questionBankAutoNameDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankAutoNameNothing": "Nothing to name",
+  "questionBankAutoNameFailed": "Auto-naming failed: {error}",
+  "@questionBankAutoNameFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBankAutoNamePartial": "Named {done}; {failed} could not be saved",
+  "@questionBankAutoNamePartial": {
+    "placeholders": { "done": { "type": "int" }, "failed": { "type": "int" } }
+  },
+  "questionBankTruncated": "Showing the latest {count}; use search for more",
+  "@questionBankTruncated": {
     "placeholders": { "count": { "type": "int" } }
   },
   "questionIntakePasteSection": "Paste a question",

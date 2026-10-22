@@ -941,4 +941,95 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
   标签路径筛选是平面多选，没有子树级联（选父不自动选子）；题号多段筛选仍未做。
 
 
+## 23. 题库的「可读」一面：题名、总览、图文混排（轮次一百三十九，schema v30）
+
+这一轮不是加数据，而是把已经存在的题**读起来像题库**：给题一个名字、总览只留必要信息、
+详情页图文混排并把公式渲染出来。用户反馈原话（m09439）：「题目图片应该直接呈现大图与文字
+放在一起」「很多文字不需要放在一个卡片底座上」「题库整体预览……呈现必要信息、标签和题目
+命名」「让鼠标移动尽量减少」。
+
+### 23.1 题名列（schema v30，Lead）
+
+- `questions.title` TEXT nullable：NULL = 还没名字，界面回落题干摘要；自动命名只填空，
+  **不覆盖用户改过的名字**。长度与去重归域层（见 §23.2），仓库不截断。
+- `database.dart` schemaVersion 29 -> 30 + `_upgradeV29ToV30` + `_ensureColumns` 自愈；
+  迁移不回填（旧题保持 NULL，等用户/批量命名）。迁移口径与测试见 `docs/DATA_MODEL.md` §19。
+- `QuestionRepository.setQuestionTitle(id, title?)`（返回是否命中）与
+  `setQuestionTitles(Map<String, String?>)`（一次事务、返回命中行数；key trim 后为空跳过；
+  title null/空白 -> 写 NULL）。
+
+### 23.2 题名生成纯逻辑（reasoning-core，task-116）
+
+`app/lib/domain/services/questions/question_title_suggestion.dart`（538 行）：
+
+- `QuestionTitleSuggestion suggestQuestionTitle({stem, subjectKey, questionType,
+  knowledgePointNames, existingTitles, maxLength = 32})`：核心短语 = 题干首句（全角
+  。！？；与换行切）-> 去题号/来源括号（小数 2.5 不误剥、条件括号不剥）-> 删 Markdown 图与
+  `［图N］` -> 去 `$` 定界符保留内部 -> 压空白去尾标点；再按「知识点名 · 核心短语」或
+  「学科中文名 · 核心短语」拼总长 <= maxLength（runes）。
+- `normalizeQuestionTitle` / `isValidQuestionTitle(maxLength = 80)` / `uniqueQuestionTitle`
+  （冲突加「（2）」…「（99）」）；空题干兜底「未命名题目」。
+- **自动命名只在长度/冲突上做保证，不承诺语义一定准确**——用户随时改名，名字优先于摘要。
+- 测试 55 例。
+
+### 23.3 题库总览读表与 provider（Lead，task-120）
+
+- `app/lib/features/questions/application/question_library_reader.dart`：一次读
+  questions（updatedAt 降序 / id 升序，limit+1 判 truncated）+ attachments（ownerType='question'，
+  role NULL 视作 stem，按 sortOrder -> attachmentId）+ object_tags/tags（objectType='question'）。
+  纯读表、不 import `dart:io`。
+  - `QuestionLibraryImage`（role/isStem/isAnswer/isSolution）、`QuestionLibraryEntry`
+    （serialLabel「TR-00042」或「未编号」、displayTitle（无名字回落题干摘要）、stemPreview
+    压空白截 60 字、coverImage 题干图 -> 答案图 -> 解析图、tagPaths、imageCount）、
+    `QuestionLibrarySnapshot`（totalCount/truncated/untitledCount/subjectKeys/tagPaths）。
+- `question_library_provider.dart`：`questionLibraryOverviewProvider`（autoDispose，
+  watchDatabaseRevision -> 库一改就重读）。测试 12 例。
+
+### 23.4 题库页重做（question-intake，task-121）
+
+`app/lib/features/questions/presentation/question_bank_page.dart`（619 行）——从「一堆 Card 列表」
+改成「少信息 + 大图 + 名字 + 标签」：
+
+- 空态只两行文字，没有 Card 底座；统计行 + truncated 提示 + 学科 ChoiceChip 筛选 + 无匹配态。
+- 每行 `_EntryRow`：封面 128x96（`thumbnailDecodeSpec` 按 DPR 解码，不整图解码）+
+  题名（无则题干摘要）+ 题号（dense）+ 学科 + 前 3 个标签叶子 + 「+N」+ 体检徽标 +
+  ⋮ 菜单（改名 / 自动命名 / 复制题号）。
+- AppBar 批量自动命名：只为未命名题生成（`suggestBulkQuestionTitles`），一次事务写出，
+  完成 SnackBar 报「命名了 N 道 / 部分失败」。
+- 测试 14 例（原 7 + 新 7）。
+
+### 23.5 题名对话框（question-intake）
+
+`app/lib/features/questions/presentation/question_title_dialog.dart`（294 行）：
+
+- `showQuestionTitleDialog` 返回 `QuestionTitleDialogResult`；输入框预填当前名字，旁边
+  「自动生成」用 `suggestQuestionTitleForEntry`（题目行）+ `suggestBulkQuestionTitles`；
+  「清除」= 写 NULL 回到摘要兜底；保存前 `normalizeQuestionTitle` + `isValidQuestionTitle`
+  （80 上限），失败就地提示不写库。
+- 写库成功后 invalidate `questionLibraryOverviewProvider` 与 `questionDetailProvider`。
+- 测试 8 例。
+
+### 23.6 详情页图文混排与公式（question-intake，task-118；Lead 提供切分器）
+
+- 题干图片占位切分纯逻辑（Lead）`app/lib/domain/services/questions/question_stem_segments.dart`：
+  `splitQuestionStemImages(stem, {imageCount})` 认 `［图1］`/`[图 1]`/`【图１】`（全角数字、
+  括号不必配对）；N 从 1 对应第 N 张题干图；越界/重复 N 原文保留不吞字；返回
+  `QuestionStemLayout{segments, unplacedImageOrders, referencedImageCount}`，另给
+  `questionStemPlainText`。测试 33 例。
+- `question_media_view.dart` 新增 `QuestionRichText`（无公式走纯 `SelectableText`；含成对
+  `$…$`/`\(…\)` 才用 `GptMarkdown(useDollarSignsForLatex: true)`）与 `QuestionInlineImage`
+  （全宽、圆角、maxHeight=屏高 60%、按 DPR 只传 cacheWidth、占位框、点击看大图、可删）。
+- `question_detail_page.dart`：`_QuestionBody` 去掉 Card 底座（间距 + 小节标题 + 分隔线）；
+  `_QuestionStemView` 按占位把大图插进题干流、未被引用的图按顺序接末尾；答案截图放在
+  「答案」段之后；题名行未命名回退「未命名题目」+ 笔形按钮改名。测试 +3 例（图文顺序且公式
+  不残留字面 $、无占位图接末尾、答案截图位置）。
+
+### 23.7 门禁与未做
+
+- 各片门禁见 `docs/PROGRESS.md` 轮次一百三十九；全量数字以 Lead 收尾跑的真实输出为准。
+- 未做 / 未验证：大图从占位高度到真实高度的跳变、SVG 图不支持、相似题等下方区块仍是 Card、
+  平板真机滚动手感与 500 条列表性能未测；en 界面题名相关文案已进 l10n，但排序模式名仍是中文。
+
+
+
 

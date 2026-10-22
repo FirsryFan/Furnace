@@ -29,6 +29,7 @@
   "commonEnd": "结束",
   "commonClear": "清除",
   "commonRefresh": "刷新",
+  "commonMove": "移动",
   "settingsLanguage": "语言",
   "settingsLanguageSystem": "跟随系统",
   "settingsLanguageZh": "中文",
@@ -541,6 +542,35 @@
     "placeholders": { "label": { "type": "String" } }
   },
   "tagsDeleteBody": "它的整棵子树会一起删除，已挂载该标签的事件/闪存卡会失去这个标签。",
+  "tagsSelectMode": "多选",
+  "tagsSelectedCount": "已选 {count} 项",
+  "@tagsSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsSelectAll": "全选",
+  "tagsClearSelection": "清空选择",
+  "tagsBatchDelete": "批量删除",
+  "tagsBatchMove": "批量移动",
+  "tagsBatchDeleteTitle": "删除 {count} 个标签？",
+  "@tagsBatchDeleteTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsBatchDeletePreview": "{names}（共 {count} 个）",
+  "@tagsBatchDeletePreview": {
+    "placeholders": { "names": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "tagsMoveDialogTitle": "批量移动到",
+  "tagsMoveToRoot": "顶层",
+  "tagsSort": "排序",
+  "tagsBatchBusy": "处理中…",
+  "tagsBatchResultDone": "已{action} {count} 个标签",
+  "@tagsBatchResultDone": {
+    "placeholders": { "action": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "tagsBatchResultMixed": "成功 {success} 个、失败 {failed} 个：{errors}",
+  "@tagsBatchResultMixed": {
+    "placeholders": { "success": { "type": "int" }, "failed": { "type": "int" }, "errors": { "type": "String" } }
+  },
 
   "threadTitle": "Thread",
   "threadSort": "更新与排序",
@@ -1505,6 +1535,56 @@
   "questionBankNoMatch": "这个学科下还没有题",
   "questionBankUntitled": "（题干没读到）",
   "questionBankPointCount": "{count} 个知识点",
+  "questionTitleUntitled": "未命名题目",
+  "questionTitleDialogTitle": "题目命名",
+  "questionTitleFieldLabel": "题名",
+  "questionTitleFieldHint": "给这道题起个短名，能一眼认出来就行",
+  "questionTitleEditTooltip": "改题名",
+  "questionTitleRename": "改名",
+  "questionTitleAutoGenerate": "自动生成",
+  "questionTitleClear": "清除题名",
+  "questionTitleAutoFilled": "已按题干生成，可再改",
+  "questionTitleInvalid": "题名不能含换行或制表符，最长 {maxLength} 个字符",
+  "@questionTitleInvalid": {
+    "placeholders": { "maxLength": { "type": "int" } }
+  },
+  "questionTitleSaveFailed": "保存题名失败：{error}",
+  "@questionTitleSaveFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionTitleSaved": "题名已保存",
+  "questionTitleCleared": "题名已清除",
+  "questionTitleAutoNamed": "已自动命名为「{title}」",
+  "@questionTitleAutoNamed": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "questionBankCopySerial": "复制题号",
+  "questionBankRowMenuTooltip": "更多操作",
+  "questionBankAutoNameTooltip": "自动命名没有题名的题",
+  "questionBankAutoNameMenu": "自动命名",
+  "questionBankAutoNameDialogTitle": "自动命名 {count} 道题？",
+  "@questionBankAutoNameDialogTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankAutoNameDialogBody": "按题干核心短语和学科生成短名；已有题名不动，生成后可以逐题改。",
+  "questionBankAutoNameStart": "开始命名",
+  "questionBankAutoNameDone": "已自动命名 {count} 道题",
+  "@questionBankAutoNameDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankAutoNameNothing": "没有需要命名的题",
+  "questionBankAutoNameFailed": "自动命名失败：{error}",
+  "@questionBankAutoNameFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBankAutoNamePartial": "已命名 {done} 道，{failed} 道没写进库",
+  "@questionBankAutoNamePartial": {
+    "placeholders": { "done": { "type": "int" }, "failed": { "type": "int" } }
+  },
+  "questionBankTruncated": "只显示最近 {count} 道，更多请用搜索",
+  "@questionBankTruncated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "questionIntakePasteSection": "粘贴建题",
   "questionIntakePhotoSection": "拍照 / 选图",
   "questionIntakeLibrarySection": "题库列表",

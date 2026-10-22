@@ -28,6 +28,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/question_source.dart';
+import '../../../domain/services/questions/question_stem_segments.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
@@ -40,6 +41,7 @@ import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
 import 'question_source_edit_dialog.dart';
+import 'question_title_dialog.dart';
 import 'question_vocab_labels.dart';
 import 'question_zujuan_search.dart';
 
@@ -85,6 +87,19 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
   /// 改原题链接：加 / 改 / 清空都在对话框里完成（对话框自己 invalidate 详情）。
   Future<void> _editSourceLinks(Question question) async {
     await showQuestionSourceEditDialog(context, question: question);
+  }
+
+  /// 改题名：对话框自己写库并 invalidate 题库总览 / 本题详情（同一套逻辑也在
+  /// 题库列表的 ⋮ 菜单里用）。这里不重复写库，也不重复 invalidate。
+  Future<void> _editTitle(Question question) async {
+    await showQuestionTitleDialog(
+      context,
+      questionId: question.id,
+      stem: question.stem,
+      currentTitle: question.title,
+      subjectKey: question.subjectKey,
+      questionType: question.questionType,
+    );
   }
 
   /// 改来源：只动"来源元信息"四列（题干与答案一个字不改）。
@@ -143,23 +158,11 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           else if (missing)
             Text(l10n.questionDetailQuestionMissing)
           else if (detail != null)
-            _QuestionCard(
+            _QuestionBody(
               detail: detail,
+              onEditTitle: () => _editTitle(detail.question),
               onEditSource: () => _editSource(detail.question),
               onEditSourceLinks: () => _editSourceLinks(detail.question),
-            ),
-          if (detail != null)
-            QuestionImagesSection(
-              questionId: widget.questionId,
-              editable: true,
-            ),
-          // 答案与解析截图单独一区：组卷网登录后才看得到的整张答案图，不和题干配图混。
-          // 没有图时只留一行「添加答案截图」入口，不摆空相框。
-          if (detail != null)
-            QuestionImagesSection(
-              questionId: widget.questionId,
-              editable: true,
-              kind: QuestionImagesSectionKind.answer,
             ),
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
           if (detail != null)
@@ -184,14 +187,21 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 }
 
 /// 题目本身：题干、选项、答案、解析、来源与质量。
-class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({
+///
+/// 不再套卡片底座：题干、图片、选项、答案直接铺在页面背景上，靠小节标题、
+/// 间距和细分隔线分段（需求原文：「很多文字不需要放在一个卡片底座上」）。
+class _QuestionBody extends StatelessWidget {
+  const _QuestionBody({
     required this.detail,
+    this.onEditTitle,
     this.onEditSource,
     this.onEditSourceLinks,
   });
 
   final QuestionDetail detail;
+
+  /// 「改题名」（可空：没给缝就不摆这个按钮）。题名是自己起的标签，不是题干。
+  final VoidCallback? onEditTitle;
 
   /// 「改来源」（可空：没给缝就不摆这个按钮 —— 与页面上别的可注入动作同一个做法）。
   final VoidCallback? onEditSource;
@@ -229,113 +239,239 @@ class _QuestionCard extends StatelessWidget {
     final answer = question.answer?.trim() ?? '';
     final solution = question.solution?.trim() ?? '';
     final trapNote = question.trapNote?.trim() ?? '';
+    // 题名是用户自己起的扫描标签：没起名就明确显示「未命名」，不拿题干冒充。
+    final title = (question.title ?? '').trim();
+    final hasTitle = title.isNotEmpty;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                QuestionSerialBadge(serialNo: question.serialNo),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            QuestionSerialBadge(serialNo: question.serialNo),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    hasTitle ? title : l10n.questionTitleUntitled,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: hasTitle
+                        ? theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          )
+                        : theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
                     meta.join(' · '),
                     style: theme.textTheme.bodySmall,
                   ),
-                ),
-                // 「改来源」：来源分级/来源说明/年份/地区都是"事后也可能知道"的
-                // 元信息，题干与答案不动。
-                if (onEditSource != null)
-                  TextButton.icon(
-                    onPressed: onEditSource,
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: Text(l10n.questionDetailEditSource),
-                  ),
-              ],
+                ],
+              ),
             ),
-            // 来源行自己有顶部 8 间距；没有可信链接时不给来源名，但仍留一个
-            // 低权重「添加原题链接」入口（用户手里可能有链接，只是还没入库）。
-            if (source != null)
-              _QuestionSourceLine(
-                source: source,
-                onEditSourceLinks: onEditSourceLinks,
-              )
-            else if (onEditSourceLinks != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: TextButton.icon(
-                    key: questionSourceEditButtonKey,
-                    onPressed: onEditSourceLinks,
-                    icon: const Icon(Icons.add_link, size: 16),
-                    label: Text(l10n.questionSourceAdd),
-                  ),
-                ),
+            if (onEditTitle != null)
+              IconButton(
+                key: questionTitleEditButtonKey,
+                tooltip: l10n.questionTitleEditTooltip,
+                onPressed: onEditTitle,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                visualDensity: VisualDensity.compact,
               ),
-            const SizedBox(height: 8),
-            SelectableText(question.stem, style: theme.textTheme.titleMedium),
-            if (question.difficulty != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                l10n.questionDetailDifficulty(_number(question.difficulty!)),
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            if (detail.options.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                l10n.questionIntakeOptionsLabel,
-                style: theme.textTheme.titleSmall,
-              ),
-              for (final option in detail.options)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${option.label}. '),
-                      Expanded(child: Text(option.content)),
-                      if (option.isCorrect)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: Text(
-                            l10n.questionDetailCorrectOption,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-            if (answer.isNotEmpty)
-              _LabelledText(
-                  label: l10n.questionIntakeAnswerLabel, value: answer),
-            if (solution.isNotEmpty)
-              _LabelledText(
-                label: l10n.questionIntakeSolutionLabel,
-                value: solution,
-              ),
-            if (trapNote.isNotEmpty)
-              _LabelledText(
-                  label: l10n.questionDetailTrapNote, value: trapNote),
-            if (question.aiQuality != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  l10n.questionDetailAiQuality(_number(question.aiQuality!)),
-                  style: theme.textTheme.bodySmall,
-                ),
+            // 「改来源」：来源分级/来源说明/年份/地区都是"事后也可能知道"的
+            // 元信息，题干与答案不动。
+            if (onEditSource != null)
+              TextButton.icon(
+                onPressed: onEditSource,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: Text(l10n.questionDetailEditSource),
               ),
           ],
         ),
-      ),
+        // 来源行自己有顶部 8 间距；没有可信链接时不给来源名，但仍留一个
+        // 低权重「添加原题链接」入口（用户手里可能有链接，只是还没入库）。
+        if (source != null)
+          _QuestionSourceLine(
+            source: source,
+            onEditSourceLinks: onEditSourceLinks,
+          )
+        else if (onEditSourceLinks != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: TextButton.icon(
+                key: questionSourceEditButtonKey,
+                onPressed: onEditSourceLinks,
+                icon: const Icon(Icons.add_link, size: 16),
+                label: Text(l10n.questionSourceAdd),
+              ),
+            ),
+          ),
+        const SizedBox(height: 12),
+        // 题干与题干配图混排：文字段/图片段按「［图1］」占位拆分，
+        // 没被占位引用的图接在题干文字末尾（见 question_stem_segments.dart）。
+        _QuestionStemView(
+          questionId: question.id,
+          stem: question.stem,
+        ),
+        if (question.difficulty != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            l10n.questionDetailDifficulty(_number(question.difficulty!)),
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+        if (detail.options.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            l10n.questionIntakeOptionsLabel,
+            style: theme.textTheme.titleSmall,
+          ),
+          for (final option in detail.options)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 选项标签加粗、内容走公式渲染（$…$ 会排成数学）。
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Text(
+                      '${option.label}.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: QuestionRichText(text: option.content),
+                  ),
+                  if (option.isCorrect)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        l10n.questionDetailCorrectOption,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+        if (answer.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _LabelledText(
+            label: l10n.questionIntakeAnswerLabel,
+            value: answer,
+          ),
+          // 答案截图紧跟答案段：组卷网登录后才看得到的整张答案图，
+          // 和题干配图分开存、也分开显示。
+          const SizedBox(height: 8),
+          QuestionImagesSection(
+            questionId: question.id,
+            editable: true,
+            kind: QuestionImagesSectionKind.answer,
+          ),
+        ],
+        if (solution.isNotEmpty)
+          _LabelledText(
+            label: l10n.questionIntakeSolutionLabel,
+            value: solution,
+          ),
+        if (trapNote.isNotEmpty)
+          _LabelledText(
+            label: l10n.questionDetailTrapNote,
+            value: trapNote,
+          ),
+        if (answer.isEmpty) ...[
+          // 没有文字答案时也不藏编辑入口：不是每道题都有现成答案，
+          // 用户可能先只截了一张答案图。
+          const SizedBox(height: 8),
+          QuestionImagesSection(
+            questionId: question.id,
+            editable: true,
+            kind: QuestionImagesSectionKind.answer,
+          ),
+        ],
+        if (question.aiQuality != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              l10n.questionDetailAiQuality(_number(question.aiQuality!)),
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 题干 + 题干配图的图文混排流。
+///
+/// 图片按题干的「［图1］」占位插入文字之间；没有占位的图接在题干末尾，
+/// 仍以大图展示，不再退回一行小缩略图。图片数据没加载出来时先只显示文字，
+/// 加载完成后同一位置补上图（重建即可，不做占位动画）。
+class _QuestionStemView extends ConsumerWidget {
+  const _QuestionStemView({required this.questionId, required this.stem});
+
+  final String questionId;
+  final String stem;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final images = ref.watch(questionImagesProvider(questionId)).valueOrNull;
+    final layout = splitQuestionStemImages(
+      stem,
+      imageCount: images?.length ?? 0,
+    );
+
+    Widget imageAt(int order) {
+      final list = images;
+      if (list == null || order < 0 || order >= list.length) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: QuestionInlineImage(
+          questionId: questionId,
+          image: list[order],
+          editable: true,
+        ),
+      );
+    }
+
+    return Column(
+      key: questionStemImagesKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (final segment in layout.segments)
+          if (segment.isText)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: QuestionRichText(
+                text: segment.text,
+                style: theme.textTheme.titleMedium,
+              ),
+            )
+          else
+            imageAt(segment.imageOrder ?? -1),
+        for (final order in layout.unplacedImageOrders) imageAt(order),
+        // 末尾一行只留「添加配图 + 已加 N 张」，图片本身已经混排在上面。
+        QuestionImagesSection(
+          questionId: questionId,
+          editable: true,
+          showImages: false,
+        ),
+      ],
     );
   }
 }
@@ -793,7 +929,9 @@ class _LabelledText extends StatelessWidget {
         children: [
           Text(label, style: theme.textTheme.labelSmall),
           const SizedBox(height: 2),
-          Text(value),
+          // 答案/解析/理由里也可能有 $…$ 公式：和题干走同一个渲染口径，
+          // 但字号跟随正文（题干是 titleMedium，这些是默认 body 风格）。
+          QuestionRichText(text: value),
         ],
       ),
     );

@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/domain/services/questions/question_source.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
@@ -32,11 +33,14 @@ import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_media_view.dart';
+import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
 import 'package:furnace/features/questions/presentation/question_source_edit_dialog.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
 import 'package:furnace/features/questions/presentation/question_zujuan_search.dart';
 import 'package:furnace/l10n/app_localizations.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../support/picked_file_fakes.dart';
 import 'support/question_media_fakes.dart';
@@ -402,7 +406,7 @@ void main() {
     expect(find.text(_zh.questionSerialCopied('TR-00001')), findsOneWidget);
   });
 
-  testWidgets('配图：详情页有缩略图，点开是可缩放的大图', (WidgetTester tester) async {
+  testWidgets('配图：详情页是大图，点开可缩放', (WidgetTester tester) async {
     final database = _newDatabase();
     final question = await _seedQuestion(database);
     final mediaStore = FakeQuestionMediaStore(database: database)
@@ -419,12 +423,18 @@ void main() {
       adapter: null,
       mediaStore: mediaStore,
     );
-    await _waitForText(tester, _zh.questionDetailImagesSection);
+    await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
     expect(find.text(_zh.questionImageCount(1)), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
+    // 没有「题目配图」这种独占区块标题：图直接跟在题干文字里。
+    expect(find.text(_zh.questionDetailImagesSection), findsNothing);
 
+    // 图片解码完成前只占位 180 高，先让占位排版落定再点（点的是图本身，
+    // 占位和真图都在 InkWell 里，都能打开大图）。
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(Image)).height, greaterThan(0));
     await tester.tap(find.byType(Image));
     await tester.pumpAndSettle();
 
@@ -434,6 +444,118 @@ void main() {
     await tester.tap(find.byIcon(Icons.close));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('题干图文混排：按［图N］占位插进文字，公式渲染成数学', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      stem: r'已知 $x^2-5x+6=0$，求两根之和。［图1］再检验。',
+    );
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'graph-1.png',
+        bytes: tinyPngBytes,
+      )
+      ..seed(
+        questionId: question.id,
+        fileName: 'graph-2.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final inlineImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForCount(tester, inlineImages, 2);
+
+    // 公式被排成数学：页面上没有任何字面的 $ 符号。
+    expect(find.byType(GptMarkdown), findsWidgets);
+    final plainTexts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data ?? text.textSpan?.toPlainText() ?? '')
+        .toList(growable: false);
+    expect(
+      plainTexts.where((text) => text.contains(r'$')),
+      isEmpty,
+      reason: '公式应被渲染，不能留下字面 \$ 定界符',
+    );
+
+    // 顺序：文字 → 图1（占位处）→ 后段文字 → 图2（没被引用的图接在末尾）。
+    final firstText = tester.getTopLeft(find.textContaining('已知').first).dy;
+    final firstImage = tester.getTopLeft(inlineImages.at(0)).dy;
+    final tailText = tester.getTopLeft(find.text('再检验。')).dy;
+    final secondImage = tester.getTopLeft(inlineImages.at(1)).dy;
+    expect(firstImage, greaterThan(firstText));
+    expect(tailText, greaterThan(firstImage));
+    expect(secondImage, greaterThan(tailText));
+  });
+
+  testWidgets('题干没有占位：配图接在题干文字末尾，仍是大图', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'page-1.png',
+        bytes: tinyPngBytes,
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final inlineImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForCount(tester, inlineImages, 1);
+
+    final stemBottom = tester.getBottomLeft(find.text(_stem)).dy;
+    final imageTop = tester.getTopLeft(inlineImages.first).dy;
+    expect(imageTop, greaterThanOrEqualTo(stemBottom));
+  });
+
+  testWidgets('答案截图显示在答案段之后', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'answer-1.png',
+        bytes: tinyPngBytes,
+        role: QuestionImageRole.answer,
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final answerImages = find.descendant(
+      of: find.byKey(questionAnswerImagesSectionKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForCount(tester, answerImages, 1);
+
+    final answerLabel =
+        tester.getTopLeft(find.text(_zh.questionIntakeAnswerLabel).first).dy;
+    final answerImage = tester.getTopLeft(answerImages.first).dy;
+    expect(answerImage, greaterThan(answerLabel));
+    expect(find.text(_zh.questionAnswerImageTitle), findsNothing);
   });
 
   testWidgets('没有配图：配图区块整个不出现，不留空相框', (WidgetTester tester) async {
@@ -839,6 +961,50 @@ void main() {
     expect(row.zujuanQuestionId, '35583902');
     expect(row.zujuanBankId, '10');
   });
+
+  testWidgets('详情页顶部显示题名与改名入口', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database, title: '二次函数最值题型');
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, '二次函数最值题型');
+
+    expect(find.text('二次函数最值题型'), findsOneWidget);
+    expect(find.byKey(questionTitleEditButtonKey), findsOneWidget);
+    expect(find.text(_zh.questionTitleUntitled), findsNothing);
+  });
+
+  testWidgets('没题名时标题位置给弱化占位，而不是空白', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionTitleUntitled);
+
+    expect(find.byKey(questionTitleEditButtonKey), findsOneWidget);
+  });
+
+  testWidgets('改题名保存：详情页立刻显示新名字，库里也写进去了', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database, title: '旧名字');
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, '旧名字');
+
+    await tester.tap(find.byKey(questionTitleEditButtonKey));
+    await tester.pumpAndSettle();
+    expect(find.byKey(questionTitleFieldKey), findsOneWidget);
+
+    await tester.enterText(find.byKey(questionTitleFieldKey), '新题名');
+    await tester.tap(find.byKey(questionTitleSaveButtonKey));
+    await _waitForText(tester, _zh.questionTitleSaved);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(questionTitleFieldKey), findsNothing);
+    expect(find.text('新题名'), findsOneWidget);
+    final row = await QuestionRepository(database).byId(question.id);
+    expect(row!.title, '新题名');
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -853,10 +1019,12 @@ Future<Question> _seedQuestion(
   String? sourceUrl,
   String? zujuanQuestionId,
   String? zujuanBankId,
+  String stem = _stem,
+  String? title,
 }) async {
   final result = await QuestionRepository(database).ingest(
     QuestionDraft(
-      stem: _stem,
+      stem: stem,
       answer: '5',
       solution: '韦达定理：两根之和等于 -b/a。',
       subjectKey: 'math',
@@ -879,6 +1047,12 @@ Future<Question> _seedQuestion(
       ],
     ),
   );
+  if (title != null) {
+    await QuestionRepository(database).setQuestionTitle(
+      result.question.id,
+      title,
+    );
+  }
   return result.question;
 }
 
@@ -1023,4 +1197,20 @@ Future<void> _waitForType(WidgetTester tester, Type type,
     }
   }
   fail('等了 12 秒也没等到这个控件：$type');
+}
+
+/// 等某个 finder 命中指定数量（图片字节异步读回来，widget 才会出现）。
+Future<void> _waitForCount(
+  WidgetTester tester,
+  Finder finder,
+  int count, {
+  int rounds = 120,
+}) async {
+  for (var i = 0; i < rounds; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (finder.evaluate().length == count) {
+      return;
+    }
+  }
+  fail('等了 12 秒也没等到 $count 个 $finder');
 }

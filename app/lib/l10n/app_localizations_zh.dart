@@ -96,6 +96,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonRefresh => '刷新';
 
   @override
+  String get commonMove => '移动';
+
+  @override
   String get settingsLanguage => '语言';
 
   @override
@@ -1152,6 +1155,58 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagsDeleteBody => '它的整棵子树会一起删除，已挂载该标签的事件/闪存卡会失去这个标签。';
+
+  @override
+  String get tagsSelectMode => '多选';
+
+  @override
+  String tagsSelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String get tagsSelectAll => '全选';
+
+  @override
+  String get tagsClearSelection => '清空选择';
+
+  @override
+  String get tagsBatchDelete => '批量删除';
+
+  @override
+  String get tagsBatchMove => '批量移动';
+
+  @override
+  String tagsBatchDeleteTitle(int count) {
+    return '删除 $count 个标签？';
+  }
+
+  @override
+  String tagsBatchDeletePreview(String names, int count) {
+    return '$names（共 $count 个）';
+  }
+
+  @override
+  String get tagsMoveDialogTitle => '批量移动到';
+
+  @override
+  String get tagsMoveToRoot => '顶层';
+
+  @override
+  String get tagsSort => '排序';
+
+  @override
+  String get tagsBatchBusy => '处理中…';
+
+  @override
+  String tagsBatchResultDone(String action, int count) {
+    return '已$action $count 个标签';
+  }
+
+  @override
+  String tagsBatchResultMixed(int success, int failed, String errors) {
+    return '成功 $success 个、失败 $failed 个：$errors';
+  }
 
   @override
   String get threadTitle => 'Thread';
@@ -3274,6 +3329,101 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String questionBankPointCount(int count) {
     return '$count 个知识点';
+  }
+
+  @override
+  String get questionTitleUntitled => '未命名题目';
+
+  @override
+  String get questionTitleDialogTitle => '题目命名';
+
+  @override
+  String get questionTitleFieldLabel => '题名';
+
+  @override
+  String get questionTitleFieldHint => '给这道题起个短名，能一眼认出来就行';
+
+  @override
+  String get questionTitleEditTooltip => '改题名';
+
+  @override
+  String get questionTitleRename => '改名';
+
+  @override
+  String get questionTitleAutoGenerate => '自动生成';
+
+  @override
+  String get questionTitleClear => '清除题名';
+
+  @override
+  String get questionTitleAutoFilled => '已按题干生成，可再改';
+
+  @override
+  String questionTitleInvalid(int maxLength) {
+    return '题名不能含换行或制表符，最长 $maxLength 个字符';
+  }
+
+  @override
+  String questionTitleSaveFailed(String error) {
+    return '保存题名失败：$error';
+  }
+
+  @override
+  String get questionTitleSaved => '题名已保存';
+
+  @override
+  String get questionTitleCleared => '题名已清除';
+
+  @override
+  String questionTitleAutoNamed(String title) {
+    return '已自动命名为「$title」';
+  }
+
+  @override
+  String get questionBankCopySerial => '复制题号';
+
+  @override
+  String get questionBankRowMenuTooltip => '更多操作';
+
+  @override
+  String get questionBankAutoNameTooltip => '自动命名没有题名的题';
+
+  @override
+  String get questionBankAutoNameMenu => '自动命名';
+
+  @override
+  String questionBankAutoNameDialogTitle(int count) {
+    return '自动命名 $count 道题？';
+  }
+
+  @override
+  String get questionBankAutoNameDialogBody =>
+      '按题干核心短语和学科生成短名；已有题名不动，生成后可以逐题改。';
+
+  @override
+  String get questionBankAutoNameStart => '开始命名';
+
+  @override
+  String questionBankAutoNameDone(int count) {
+    return '已自动命名 $count 道题';
+  }
+
+  @override
+  String get questionBankAutoNameNothing => '没有需要命名的题';
+
+  @override
+  String questionBankAutoNameFailed(String error) {
+    return '自动命名失败：$error';
+  }
+
+  @override
+  String questionBankAutoNamePartial(int done, int failed) {
+    return '已命名 $done 道，$failed 道没写进库';
+  }
+
+  @override
+  String questionBankTruncated(int count) {
+    return '只显示最近 $count 道，更多请用搜索';
   }
 
   @override

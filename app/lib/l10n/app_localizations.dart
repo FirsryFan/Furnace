@@ -272,6 +272,12 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get commonRefresh;
 
+  /// No description provided for @commonMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get commonMove;
+
   /// No description provided for @settingsLanguage.
   ///
   /// In en, this message translates to:
@@ -2144,6 +2150,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Its whole subtree is deleted, and events/items carrying this tag lose it.'**
   String get tagsDeleteBody;
+
+  /// No description provided for @tagsSelectMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get tagsSelectMode;
+
+  /// No description provided for @tagsSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String tagsSelectedCount(int count);
+
+  /// No description provided for @tagsSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get tagsSelectAll;
+
+  /// No description provided for @tagsClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get tagsClearSelection;
+
+  /// No description provided for @tagsBatchDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selected'**
+  String get tagsBatchDelete;
+
+  /// No description provided for @tagsBatchMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move selected'**
+  String get tagsBatchMove;
+
+  /// No description provided for @tagsBatchDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} tags?'**
+  String tagsBatchDeleteTitle(int count);
+
+  /// No description provided for @tagsBatchDeletePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'{names} ({count} total)'**
+  String tagsBatchDeletePreview(String names, int count);
+
+  /// No description provided for @tagsMoveDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to'**
+  String get tagsMoveDialogTitle;
+
+  /// No description provided for @tagsMoveToRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Top level'**
+  String get tagsMoveToRoot;
+
+  /// No description provided for @tagsSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get tagsSort;
+
+  /// No description provided for @tagsBatchBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get tagsBatchBusy;
+
+  /// No description provided for @tagsBatchResultDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{action} {count} tags'**
+  String tagsBatchResultDone(String action, int count);
+
+  /// No description provided for @tagsBatchResultMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'{success} succeeded, {failed} failed: {errors}'**
+  String tagsBatchResultMixed(int success, int failed, String errors);
 
   /// No description provided for @threadTitle.
   ///
@@ -5824,6 +5914,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} knowledge points'**
   String questionBankPointCount(int count);
+
+  /// No description provided for @questionTitleUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled question'**
+  String get questionTitleUntitled;
+
+  /// No description provided for @questionTitleDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this question'**
+  String get questionTitleDialogTitle;
+
+  /// No description provided for @questionTitleFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get questionTitleFieldLabel;
+
+  /// No description provided for @questionTitleFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A short name you can recognize at a glance'**
+  String get questionTitleFieldHint;
+
+  /// No description provided for @questionTitleEditTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit title'**
+  String get questionTitleEditTooltip;
+
+  /// No description provided for @questionTitleRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get questionTitleRename;
+
+  /// No description provided for @questionTitleAutoGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get questionTitleAutoGenerate;
+
+  /// No description provided for @questionTitleClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear title'**
+  String get questionTitleClear;
+
+  /// No description provided for @questionTitleAutoFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated from the stem - edit it if needed'**
+  String get questionTitleAutoFilled;
+
+  /// No description provided for @questionTitleInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The title cannot contain line breaks or tabs, and is at most {maxLength} characters'**
+  String questionTitleInvalid(int maxLength);
+
+  /// No description provided for @questionTitleSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the title: {error}'**
+  String questionTitleSaveFailed(String error);
+
+  /// No description provided for @questionTitleSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Title saved'**
+  String get questionTitleSaved;
+
+  /// No description provided for @questionTitleCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Title cleared'**
+  String get questionTitleCleared;
+
+  /// No description provided for @questionTitleAutoNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Named automatically: {title}'**
+  String questionTitleAutoNamed(String title);
+
+  /// No description provided for @questionBankCopySerial.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy question number'**
+  String get questionBankCopySerial;
+
+  /// No description provided for @questionBankRowMenuTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get questionBankRowMenuTooltip;
+
+  /// No description provided for @questionBankAutoNameTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-name untitled questions'**
+  String get questionBankAutoNameTooltip;
+
+  /// No description provided for @questionBankAutoNameMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-name'**
+  String get questionBankAutoNameMenu;
+
+  /// No description provided for @questionBankAutoNameDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-name {count} questions?'**
+  String questionBankAutoNameDialogTitle(int count);
+
+  /// No description provided for @questionBankAutoNameDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Builds short names from the stem and subject; existing titles are kept, and you can rename any of them afterwards.'**
+  String get questionBankAutoNameDialogBody;
+
+  /// No description provided for @questionBankAutoNameStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start naming'**
+  String get questionBankAutoNameStart;
+
+  /// No description provided for @questionBankAutoNameDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Named {count} questions automatically'**
+  String questionBankAutoNameDone(int count);
+
+  /// No description provided for @questionBankAutoNameNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to name'**
+  String get questionBankAutoNameNothing;
+
+  /// No description provided for @questionBankAutoNameFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-naming failed: {error}'**
+  String questionBankAutoNameFailed(String error);
+
+  /// No description provided for @questionBankAutoNamePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Named {done}; {failed} could not be saved'**
+  String questionBankAutoNamePartial(int done, int failed);
+
+  /// No description provided for @questionBankTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the latest {count}; use search for more'**
+  String questionBankTruncated(int count);
 
   /// No description provided for @questionIntakePasteSection.
   ///

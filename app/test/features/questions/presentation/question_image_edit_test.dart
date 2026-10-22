@@ -182,7 +182,7 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('配图：缩略图按显示尺寸与设备像素比限制解码尺寸', (tester) async {
+  testWidgets('配图：大图按显示宽度与设备像素比限制解码尺寸', (tester) async {
     final database = _newDatabase();
     final question = await _seedQuestion(database);
     final mediaStore = FakeQuestionMediaStore(database: database)
@@ -196,21 +196,23 @@ void main() {
     await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
-    // 详情页缩略图默认 size=96；测试视口 DPR=1.0。
+    // 大图铺满题面宽度：测试视口 1200 宽、页面左右各 16 → 1168；DPR=1.0。
+    // 长边 1024 上限会把 1168 压到 1024（thumbnail_spec.dart）。
     final expected = thumbnailDecodeSpec(
-      logicalWidth: 96,
-      logicalHeight: 96,
+      logicalWidth: 1200 - 32,
+      logicalHeight: 1200 - 32,
       devicePixelRatio: tester.view.devicePixelRatio,
     );
     expect(expected.isEmpty, isFalse);
+    expect(expected.cacheWidth, 1024);
 
-    // Image.memory(cacheWidth:) 把它包成 ResizeImage：断言在 provider 上。
+    // 只传 cacheWidth（高度按原图比例）：Image.memory 仍包成 ResizeImage。
     final image = tester.widget<Image>(find.byType(Image));
     final provider = image.image;
     expect(provider, isA<ResizeImage>());
     final resize = provider as ResizeImage;
     expect(resize.width, expected.cacheWidth);
-    expect(resize.height, expected.cacheHeight);
+    expect(resize.height, isNull);
   });
 
   testWidgets('配图：点开的大图不限制解码尺寸', (tester) async {
@@ -303,7 +305,8 @@ void main() {
         isEmpty,
       );
       expect(find.byKey(questionImageAddButtonKey), findsOneWidget);
-      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      // 去卡片后没有「答案与解析截图」这种独占区块标题：图直接跟在答案段后。
+      expect(find.text(_zh.questionAnswerImageTitle), findsNothing);
       expect(
         find.descendant(
           of: find.byKey(questionAnswerImagesSectionKey),
@@ -340,11 +343,12 @@ void main() {
       await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
       await _waitForCount(tester, find.byType(Image), 2);
 
-      expect(find.text(_zh.questionDetailImagesSection), findsOneWidget);
-      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      // 题干图混排在题干流里（没有「题目配图」独占标题），答案图在答案段后。
+      expect(find.text(_zh.questionDetailImagesSection), findsNothing);
+      expect(find.text(_zh.questionAnswerImageTitle), findsNothing);
       expect(
         find.descendant(
-          of: find.byKey(questionImagesSectionKey),
+          of: find.byKey(questionStemImagesKey),
           matching: find.byType(Image),
         ),
         findsOneWidget,
@@ -481,7 +485,9 @@ void main() {
       await _waitForType(tester, Image);
 
       expect(find.byKey(questionAnswerImagesSectionKey), findsOneWidget);
-      expect(find.text(_zh.questionAnswerImageTitle), findsOneWidget);
+      // 只读：图直接展示，没有（已删掉的）区块标题。
+      expect(find.text(_zh.questionAnswerImageTitle), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
       expect(find.byKey(questionAnswerImageAddButtonKey), findsNothing);
       expect(
         find.byKey(questionImageDeleteButtonKey(seeded.attachmentId)),

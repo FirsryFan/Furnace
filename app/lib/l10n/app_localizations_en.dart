@@ -96,6 +96,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonRefresh => 'Refresh';
 
   @override
+  String get commonMove => 'Move';
+
+  @override
   String get settingsLanguage => 'Language';
 
   @override
@@ -1187,6 +1190,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tagsDeleteBody =>
       'Its whole subtree is deleted, and events/items carrying this tag lose it.';
+
+  @override
+  String get tagsSelectMode => 'Select';
+
+  @override
+  String tagsSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get tagsSelectAll => 'Select all';
+
+  @override
+  String get tagsClearSelection => 'Clear selection';
+
+  @override
+  String get tagsBatchDelete => 'Delete selected';
+
+  @override
+  String get tagsBatchMove => 'Move selected';
+
+  @override
+  String tagsBatchDeleteTitle(int count) {
+    return 'Delete $count tags?';
+  }
+
+  @override
+  String tagsBatchDeletePreview(String names, int count) {
+    return '$names ($count total)';
+  }
+
+  @override
+  String get tagsMoveDialogTitle => 'Move to';
+
+  @override
+  String get tagsMoveToRoot => 'Top level';
+
+  @override
+  String get tagsSort => 'Sort';
+
+  @override
+  String get tagsBatchBusy => 'Working…';
+
+  @override
+  String tagsBatchResultDone(String action, int count) {
+    return '$action $count tags';
+  }
+
+  @override
+  String tagsBatchResultMixed(int success, int failed, String errors) {
+    return '$success succeeded, $failed failed: $errors';
+  }
 
   @override
   String get threadTitle => 'Thread';
@@ -3420,6 +3475,103 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String questionBankPointCount(int count) {
     return '$count knowledge points';
+  }
+
+  @override
+  String get questionTitleUntitled => 'Untitled question';
+
+  @override
+  String get questionTitleDialogTitle => 'Name this question';
+
+  @override
+  String get questionTitleFieldLabel => 'Title';
+
+  @override
+  String get questionTitleFieldHint =>
+      'A short name you can recognize at a glance';
+
+  @override
+  String get questionTitleEditTooltip => 'Edit title';
+
+  @override
+  String get questionTitleRename => 'Rename';
+
+  @override
+  String get questionTitleAutoGenerate => 'Generate';
+
+  @override
+  String get questionTitleClear => 'Clear title';
+
+  @override
+  String get questionTitleAutoFilled =>
+      'Generated from the stem - edit it if needed';
+
+  @override
+  String questionTitleInvalid(int maxLength) {
+    return 'The title cannot contain line breaks or tabs, and is at most $maxLength characters';
+  }
+
+  @override
+  String questionTitleSaveFailed(String error) {
+    return 'Could not save the title: $error';
+  }
+
+  @override
+  String get questionTitleSaved => 'Title saved';
+
+  @override
+  String get questionTitleCleared => 'Title cleared';
+
+  @override
+  String questionTitleAutoNamed(String title) {
+    return 'Named automatically: $title';
+  }
+
+  @override
+  String get questionBankCopySerial => 'Copy question number';
+
+  @override
+  String get questionBankRowMenuTooltip => 'More actions';
+
+  @override
+  String get questionBankAutoNameTooltip => 'Auto-name untitled questions';
+
+  @override
+  String get questionBankAutoNameMenu => 'Auto-name';
+
+  @override
+  String questionBankAutoNameDialogTitle(int count) {
+    return 'Auto-name $count questions?';
+  }
+
+  @override
+  String get questionBankAutoNameDialogBody =>
+      'Builds short names from the stem and subject; existing titles are kept, and you can rename any of them afterwards.';
+
+  @override
+  String get questionBankAutoNameStart => 'Start naming';
+
+  @override
+  String questionBankAutoNameDone(int count) {
+    return 'Named $count questions automatically';
+  }
+
+  @override
+  String get questionBankAutoNameNothing => 'Nothing to name';
+
+  @override
+  String questionBankAutoNameFailed(String error) {
+    return 'Auto-naming failed: $error';
+  }
+
+  @override
+  String questionBankAutoNamePartial(int done, int failed) {
+    return 'Named $done; $failed could not be saved';
+  }
+
+  @override
+  String questionBankTruncated(int count) {
+    return 'Showing the latest $count; use search for more';
   }
 
   @override

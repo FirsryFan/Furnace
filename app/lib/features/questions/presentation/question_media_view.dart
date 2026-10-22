@@ -18,6 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
@@ -120,6 +121,59 @@ String? questionImageAddMimeForName(String fileName) {
     return null;
   }
   return mime;
+}
+
+/// 题干图文混排流（文字段 + 内嵌大图）的根 key：测试用它把题干图与答案图分开。
+const Key questionStemImagesKey = Key('question-stem-images');
+
+/// 题目原文（题干/选项/答案/解析）的渲染。
+///
+/// 规则和 AI 消息体同一个口径：**原文是数据，不整段当 markdown 改写**。
+///
+///  * 没有公式的文本走 [SelectableText]：`*`、`_`、`#` 这些字符原样显示，
+///    不因为题面里恰巧出现就变成强调或列表；
+///  * 只有成对的 `$…$` / `\(…\)` 公式才把整段交给 [GptMarkdown]，
+///    打开 `useDollarSignsForLatex` 让公式真正排出来，而不是字面的美元符号。
+///
+/// 只认闭合的公式：单个 `$`（比如价格）仍按原文显示，避免半个定界符吃掉
+/// 后面的整段文字（与 AI 消息的「结构完整才解析」一致）。
+class QuestionRichText extends StatelessWidget {
+  const QuestionRichText({
+    super.key,
+    required this.text,
+    this.style,
+    this.textAlign,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final TextAlign? textAlign;
+
+  static final RegExp _dollarMath = RegExp(r'\$[^$\n]+?\$');
+  static final RegExp _parenMath = RegExp(r'\\\([^)\n]*?\\\)');
+
+  /// 是否含有完整闭合的行内公式定界符。
+  static bool containsMath(String text) =>
+      _dollarMath.hasMatch(text) || _parenMath.hasMatch(text);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!containsMath(text)) {
+      return SelectableText(text, style: style, textAlign: textAlign);
+    }
+    return SelectionArea(
+      child: GptMarkdown(
+        text,
+        style: style,
+        textAlign: textAlign ?? TextAlign.start,
+        useDollarSignsForLatex: true,
+        styleSheet: GptMarkdownStyleSheet(
+          link: LinkStyle(color: theme.colorScheme.primary),
+        ),
+      ),
+    );
+  }
 }
 
 /// 列表里用的题号文字：没编号时用 l10n 的占位，不把中文常量带进英文界面。
@@ -429,6 +483,212 @@ Future<void> showQuestionImageViewer(
   );
 }
 
+/// 正文里的大图：题干图文混排与答案截图共用。
+///
+/// * 全宽显示、圆角 12、等比缩放，最高不超过屏幕高度的 60%（竖长截图也
+///   不会把一屏占满，下面的内容还得能看见）；
+/// * 点开走 [showQuestionImageViewer]（可缩放，且不解码成缩略图）；
+/// * [editable] 时的右上角删除按钮复用详情页原来的确认流程与文案：
+///   删完让对应的清单 provider 重读，页面上这张图与编辑行一起更新；
+/// * 字节读不出来只给一块坏图占位，不崩、不整页失败。
+class QuestionInlineImage extends ConsumerStatefulWidget {
+  const QuestionInlineImage({
+    super.key,
+    required this.questionId,
+    required this.image,
+    this.kind = QuestionImagesSectionKind.stem,
+    this.editable = false,
+  });
+
+  final String questionId;
+
+  final QuestionImage image;
+
+  /// 删除确认与提示文案用哪一套（题干配图 / 答案截图）。
+  final QuestionImagesSectionKind kind;
+
+  /// 是否允许在这张图上直接删除。
+  final bool editable;
+
+  @override
+  ConsumerState<QuestionInlineImage> createState() =>
+      _QuestionInlineImageState();
+}
+
+class _QuestionInlineImageState extends ConsumerState<QuestionInlineImage> {
+  /// 删除进行中：按钮禁用，避免对同一张图重复提交。
+  bool _busy = false;
+
+  bool get _isAnswer => widget.kind == QuestionImagesSectionKind.answer;
+
+  AutoDisposeFutureProvider<List<QuestionImage>> get _imagesProvider =>
+      _isAnswer
+          ? questionAnswerImagesProvider(widget.questionId)
+          : questionImagesProvider(widget.questionId);
+
+  Key get _deleteConfirmButtonKey => _isAnswer
+      ? questionAnswerImageDeleteConfirmButtonKey
+      : questionImageDeleteConfirmButtonKey;
+
+  String _deleteTitle(AppLocalizations l10n) => _isAnswer
+      ? l10n.questionAnswerImageDeleteTitle
+      : l10n.questionImageDeleteTitle;
+
+  String _deletedLabel(AppLocalizations l10n) =>
+      _isAnswer ? l10n.questionAnswerImageDeleted : l10n.questionImageDeleted;
+
+  Future<void> _deleteImage() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_deleteTitle(l10n)),
+        content: Text(l10n.questionImageDeleteConfirm(widget.image.fileName)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonClose),
+          ),
+          FilledButton(
+            key: _deleteConfirmButtonKey,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.questionImageDeleteAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(questionMediaStoreProvider).delete(widget.image);
+      if (!mounted) {
+        return;
+      }
+      ref.invalidate(_imagesProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text(_deletedLabel(l10n))),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.questionImageDeleteFailed('$error'))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final bytes =
+        ref.watch(questionImageBytesProvider(widget.image.relPath)).valueOrNull;
+    // 竖长图最多占屏高 60%：下面还有答案/解析，不能让一张截图把整页顶走。
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.6;
+
+    final Widget content = LayoutBuilder(
+      builder: (context, constraints) {
+        final fallbackWidth = MediaQuery.sizeOf(context).width;
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : fallbackWidth;
+        Widget placeholderBox(IconData icon) => SizedBox(
+              width: width,
+              height: 180,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            );
+        Widget brokenPlaceholder() =>
+            placeholderBox(Icons.broken_image_outlined);
+        // 解码完成前 Image 的高度会塌成 0，页面先跳一下再撑开：给一个占位高度。
+        // 顺带让「图还在解码」时也能点开大图（bytes 已经读到了）。
+        Widget pendingPlaceholder() => placeholderBox(Icons.image_outlined);
+        if (bytes == null) {
+          return brokenPlaceholder();
+        }
+        // 解码尺寸按「显示宽度 × DPR」估算（长边 1024 上限）。只传 cacheWidth：
+        // 原图宽高比未知，同时传 cacheWidth/cacheHeight 会把图压变形；给宽度
+        // 让解码器自己按比例算高度。
+        final decode = thumbnailDecodeSpec(
+          logicalWidth: width.round(),
+          logicalHeight: width.round(),
+          devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        );
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => showQuestionImageViewer(
+                context,
+                image: widget.image,
+                bytes: bytes,
+              ),
+              child: Image.memory(
+                bytes,
+                width: width,
+                fit: BoxFit.contain,
+                cacheWidth: decode.isEmpty ? null : decode.cacheWidth,
+                gaplessPlayback: true,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded || frame != null) {
+                    return child;
+                  }
+                  return pendingPlaceholder();
+                },
+                errorBuilder: (context, error, stackTrace) =>
+                    brokenPlaceholder(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!widget.editable) {
+      return content;
+    }
+    return Stack(
+      children: <Widget>[
+        content,
+        Positioned(
+          top: 6,
+          right: 6,
+          child: IconButton(
+            key: questionImageDeleteButtonKey(widget.image.attachmentId),
+            tooltip: l10n.questionImageDeleteTooltip,
+            iconSize: 16,
+            visualDensity: VisualDensity.compact,
+            style: IconButton.styleFrom(
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+            onPressed: _busy ? null : _deleteImage,
+            // 不用 X：大图对话框也用 X 关闭，同一个页面里两个 X 会互相打架
+            // （既有详情页测试按 `find.byIcon(Icons.close)` 点关闭）。
+            icon: Icon(
+              Icons.delete_outline,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// 图片区块的用途：题干配图，还是答案/解析截图。
 ///
 /// 两者共用同一套「选图 → 校验 → 落盘 → 缩略图/大图 → 删除」流程，只有角色、
@@ -454,6 +714,7 @@ class QuestionImagesSection extends ConsumerStatefulWidget {
     required this.questionId,
     this.editable = false,
     this.kind = QuestionImagesSectionKind.stem,
+    this.showImages = true,
   });
 
   final String questionId;
@@ -463,6 +724,12 @@ class QuestionImagesSection extends ConsumerStatefulWidget {
 
   /// 这一区存的是题干配图还是答案截图。
   final QuestionImagesSectionKind kind;
+
+  /// 是否把图片本身也画在这里。
+  ///
+  /// 题干配图在详情页按占位符与文字混排（由调用方渲染），这里传 false，
+  /// 只保留末尾一行的添加入口与张数；答案截图没有混排问题，默认 true。
+  final bool showImages;
 
   @override
   ConsumerState<QuestionImagesSection> createState() =>
@@ -490,27 +757,12 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
   Key get _addButtonKey =>
       _isAnswer ? questionAnswerImageAddButtonKey : questionImageAddButtonKey;
 
-  Key get _deleteConfirmButtonKey => _isAnswer
-      ? questionAnswerImageDeleteConfirmButtonKey
-      : questionImageDeleteConfirmButtonKey;
-
-  String _title(AppLocalizations l10n) => _isAnswer
-      ? l10n.questionAnswerImageTitle
-      : l10n.questionDetailImagesSection;
-
   String _addLabel(AppLocalizations l10n) =>
       _isAnswer ? l10n.questionAnswerImageAdd : l10n.questionImageAdd;
 
   String _emptyHint(AppLocalizations l10n) => _isAnswer
       ? l10n.questionAnswerImageEmptyHint
       : l10n.questionImageEmptyHint;
-
-  String _deleteTitle(AppLocalizations l10n) => _isAnswer
-      ? l10n.questionAnswerImageDeleteTitle
-      : l10n.questionImageDeleteTitle;
-
-  String _deletedLabel(AppLocalizations l10n) =>
-      _isAnswer ? l10n.questionAnswerImageDeleted : l10n.questionImageDeleted;
 
   Future<void> _addImages() async {
     if (_busy) {
@@ -587,46 +839,6 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
     setState(() => _busy = false);
   }
 
-  Future<void> _deleteImage(QuestionImage image) async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(_deleteTitle(l10n)),
-        content: Text(l10n.questionImageDeleteConfirm(image.fileName)),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.commonClose),
-          ),
-          FilledButton(
-            key: _deleteConfirmButtonKey,
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.questionImageDeleteAction),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    try {
-      await ref.read(questionMediaStoreProvider).delete(image);
-      if (!mounted) {
-        return;
-      }
-      ref.invalidate(_imagesProvider);
-      messenger.showSnackBar(
-        SnackBar(content: Text(_deletedLabel(l10n))),
-      );
-    } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.questionImageDeleteFailed('$error'))),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -670,56 +882,43 @@ class _QuestionImagesSectionState extends ConsumerState<QuestionImagesSection> {
         ),
       );
     }
-    return Card(
+    // 图片本身不再套卡片底座：题干图按占位符混排在正文里，答案图
+    // 直接跟在答案后面；这里只补一行「添加 + 已加 N 张」的编辑入口。
+    return Column(
       key: _sectionKey,
-      margin: const EdgeInsets.only(top: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (widget.showImages)
+          for (final image in images)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: QuestionInlineImage(
+                questionId: widget.questionId,
+                image: image,
+                kind: widget.kind,
+                editable: widget.editable && !_busy,
+              ),
+            ),
+        if (widget.editable)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
               children: <Widget>[
-                Icon(
-                  _isAnswer ? Icons.image_search : Icons.photo_library_outlined,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
+                TextButton.icon(
+                  key: _addButtonKey,
+                  onPressed: _busy ? null : _addImages,
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text(_addLabel(l10n)),
                 ),
-                const SizedBox(width: 6),
-                Text(_title(l10n), style: theme.textTheme.titleSmall),
                 const SizedBox(width: 8),
                 Text(
                   l10n.questionImageCount(images.length),
                   style: theme.textTheme.bodySmall,
                 ),
-                if (widget.editable) ...<Widget>[
-                  const Spacer(),
-                  TextButton.icon(
-                    key: _addButtonKey,
-                    onPressed: _busy ? null : _addImages,
-                    icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: Text(_addLabel(l10n)),
-                  ),
-                ],
               ],
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                for (final image in images)
-                  QuestionImageTile(
-                    image: image,
-                    onDelete: widget.editable && !_busy
-                        ? () => _deleteImage(image)
-                        : null,
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }
