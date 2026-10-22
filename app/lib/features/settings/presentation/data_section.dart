@@ -28,8 +28,10 @@ import 'settings_page.dart' show currentProfileProvider;
 /// wrong choice of merge mode is recoverable.
 ///
 /// Also hosts the question-bank package (`.tqb`), which carries questions and
-/// their images only and never overwrites: it always appends, so no backup step
-/// is needed before importing one.
+/// their images only. Records without a zujuan.com question id are always
+/// appended; records that carry one update the matching question in place, so
+/// its serial number and the title the user gave it survive. No backup step is
+/// needed before importing one.
 class DataSection extends ConsumerWidget {
   const DataSection({super.key});
 
@@ -477,12 +479,18 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
                       preview.createCount,
                     ),
                   ),
+                if (preview.updateCount > 0)
+                  Text(
+                    l10n.settingsQuestionPackPreviewUpdate(
+                      preview.updateCount,
+                    ),
+                  ),
                 if (preview.skipCount > 0)
                   Text(
                     l10n.settingsQuestionPackPreviewSkip(preview.skipCount),
                   ),
-                // 有跳过但零新增时也算「没有可导入的新题」。
-                if (preview.createCount == 0)
+                // 零新增且零更新才算「没有可导入的新题」。
+                if (preview.createCount == 0 && preview.updateCount == 0)
                   Text(l10n.settingsQuestionPackPreviewNoNew),
                 if (preview.missingTagCount > 0) ...[
                   const SizedBox(height: 8),
@@ -508,6 +516,13 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
                   l10n.settingsQuestionPackImportConfirm,
                   style: theme.textTheme.bodySmall,
                 ),
+                if (preview.hasUpdates) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.settingsQuestionPackImportUpdateNote,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
               ],
             ),
           ),
@@ -591,6 +606,10 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
                 report.mediaCount,
               ),
             ),
+            if (report.updatedCount > 0)
+              Text(
+                l10n.settingsQuestionPackImportUpdated(report.updatedCount),
+              ),
             if (report.warnings.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(l10n.settingsQuestionPackWarnings(report.warnings.length)),

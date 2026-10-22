@@ -3507,6 +3507,24 @@ abstract class AppLocalizations {
   /// **'Import finished: {created} created, {skipped} skipped, {media} image(s) written'**
   String settingsQuestionPackImportDone(int created, int skipped, int media);
 
+  /// No description provided for @settingsQuestionPackPreviewUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Will update {count} existing question(s) from zujuan.com (serial number and your title are kept)'**
+  String settingsQuestionPackPreviewUpdate(int count);
+
+  /// No description provided for @settingsQuestionPackImportUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {count} existing question(s)'**
+  String settingsQuestionPackImportUpdated(int count);
+
+  /// No description provided for @settingsQuestionPackImportUpdateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating overwrites the stem, answer, solution and images carried by the package; serial numbers, your titles, and any images or tags not in the package are kept'**
+  String get settingsQuestionPackImportUpdateNote;
+
   /// No description provided for @settingsQuestionPackWarnings.
   ///
   /// In en, this message translates to:

@@ -1921,6 +1921,20 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String settingsQuestionPackPreviewUpdate(int count) {
+    return '会更新 $count 道题库里已有的组卷网原题（题号与你起的题名保留）';
+  }
+
+  @override
+  String settingsQuestionPackImportUpdated(int count) {
+    return '更新 $count 道已有题目';
+  }
+
+  @override
+  String get settingsQuestionPackImportUpdateNote =>
+      '更新会覆盖题干、答案、解析和配图中的对应内容；题号、你起的题名，以及包里没带的配图和标签都会保留';
+
+  @override
   String settingsQuestionPackWarnings(int count) {
     return '有 $count 条告警（例如标签对不上，已跳过）';
   }

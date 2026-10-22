@@ -884,7 +884,7 @@
       "media": { "type": "int" }
     }
   },
-  "settingsQuestionPackImportConfirm": "只会新增题目，不覆盖已有题；题干相同（按指纹）的题会被跳过",
+  "settingsQuestionPackImportConfirm": "新增的题不会覆盖已有题；题干相同（按指纹）的题会被跳过",
   "settingsQuestionPackImportDone": "导入完成：新建 {created} 题，跳过 {skipped} 题，写入 {media} 张图片",
   "@settingsQuestionPackImportDone": {
     "placeholders": {
@@ -893,6 +893,15 @@
       "media": { "type": "int" }
     }
   },
+  "settingsQuestionPackPreviewUpdate": "会更新 {count} 道题库里已有的组卷网原题（题号与你起的题名保留）",
+  "@settingsQuestionPackPreviewUpdate": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackImportUpdated": "更新 {count} 道已有题目",
+  "@settingsQuestionPackImportUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackImportUpdateNote": "更新会覆盖题干、答案、解析和配图中的对应内容；题号、你起的题名，以及包里没带的配图和标签都会保留",
   "settingsQuestionPackWarnings": "有 {count} 条告警（例如标签对不上，已跳过）",
   "@settingsQuestionPackWarnings": {
     "placeholders": { "count": { "type": "int" } }

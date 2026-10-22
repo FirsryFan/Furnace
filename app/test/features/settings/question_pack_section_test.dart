@@ -468,6 +468,120 @@ void main() {
     expect(find.text(zh.settingsQuestionPackPreviewSkip(3)), findsOneWidget);
   });
 
+  testWidgets('导入：预检显示会更新已有题目和覆盖说明', (tester) async {
+    final service = FakeQuestionPackService()
+      ..importPreview = const QuestionPackImportPreview(
+        manifestQuestionCount: 6,
+        manifestMediaCount: 2,
+        recordCount: 6,
+        mediaCount: 2,
+        appVersion: '0.5.3',
+        exportedAt: null,
+        createCount: 2,
+        skipCount: 1,
+        updateCount: 3,
+        missingTagCount: 0,
+        warnings: <String>[],
+        missingTagPaths: <String>[],
+      );
+    final picker = FakeQuestionPackPicker(
+      picked: [
+        FakeQuestionPackFile('bank.tqb', Uint8List.fromList(<int>[1])),
+      ],
+    );
+    await pumpSettings(tester, service: service, picker: picker);
+
+    await pickImportFile(tester);
+
+    expect(find.text(zh.settingsQuestionPackPreviewCreate(2)), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackPreviewUpdate(3)), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackPreviewSkip(1)), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackImportUpdateNote), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackImportConfirm), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackPreviewNoNew), findsNothing);
+  });
+
+  testWidgets('导入：零新增但有更新时不提示没有新题', (tester) async {
+    final service = FakeQuestionPackService()
+      ..importPreview = const QuestionPackImportPreview(
+        manifestQuestionCount: 5,
+        manifestMediaCount: 0,
+        recordCount: 5,
+        mediaCount: 0,
+        appVersion: '0.5.3',
+        exportedAt: null,
+        createCount: 0,
+        skipCount: 1,
+        updateCount: 4,
+        missingTagCount: 0,
+        warnings: <String>[],
+        missingTagPaths: <String>[],
+      );
+    final picker = FakeQuestionPackPicker(
+      picked: [
+        FakeQuestionPackFile('bank.tqb', Uint8List.fromList(<int>[1])),
+      ],
+    );
+    await pumpSettings(tester, service: service, picker: picker);
+
+    await pickImportFile(tester);
+
+    expect(find.text(zh.settingsQuestionPackPreviewNoNew), findsNothing);
+    expect(find.text(zh.settingsQuestionPackPreviewUpdate(4)), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackPreviewCreate(0)), findsNothing);
+    expect(find.text(zh.settingsQuestionPackImportUpdateNote), findsOneWidget);
+  });
+
+  testWidgets('导入：结果对话框显示更新了几道已有题目', (tester) async {
+    final service = FakeQuestionPackService()
+      ..importReport = const QuestionPackImportReport(
+        createdCount: 0,
+        updatedCount: 3,
+        skippedCount: 1,
+        mediaCount: 2,
+        warnings: <String>[],
+        failures: <String>[],
+      );
+    final picker = FakeQuestionPackPicker(
+      picked: [
+        FakeQuestionPackFile('bank.tqb', Uint8List.fromList(<int>[1])),
+      ],
+    );
+    await pumpSettings(tester, service: service, picker: picker);
+
+    await pickImportFile(tester);
+    await tester.tap(
+      find.widgetWithText(FilledButton, zh.settingsQuestionPackImport),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.settingsQuestionPackImportUpdated(3)), findsOneWidget);
+    expect(
+        find.text(zh.settingsQuestionPackImportDone(0, 1, 2)), findsOneWidget);
+  });
+
+  testWidgets('导入：纯新增包不显示更新行和覆盖说明', (tester) async {
+    final service = FakeQuestionPackService();
+    final picker = FakeQuestionPackPicker(
+      picked: [
+        FakeQuestionPackFile('bank.tqb', Uint8List.fromList(<int>[7])),
+      ],
+    );
+    await pumpSettings(tester, service: service, picker: picker);
+
+    await pickImportFile(tester);
+
+    expect(find.text(zh.settingsQuestionPackPreviewUpdate(0)), findsNothing);
+    expect(find.text(zh.settingsQuestionPackImportUpdateNote), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, zh.settingsQuestionPackImport),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.settingsQuestionPackImportUpdated(0)), findsNothing);
+  });
+
   testWidgets('导入：服务抛错时提示错误，不弹结果对话框', (tester) async {
     final service = FakeQuestionPackService()
       ..importError = StateError('disk full');
@@ -565,6 +679,15 @@ void main() {
       zh.settingsQuestionPackPreviewMissingTags(9),
       allOf(contains('9'), isNot(contains('{count}'))),
     );
+    expect(
+      zh.settingsQuestionPackPreviewUpdate(6),
+      allOf(contains('6'), isNot(contains('{count}'))),
+    );
+    expect(
+      zh.settingsQuestionPackImportUpdated(6),
+      allOf(contains('6'), isNot(contains('{count}'))),
+    );
+    expect(zh.settingsQuestionPackImportUpdateNote, isNotEmpty);
 
     expect(
       zh.settingsQuestionPackExportDone(7, 3, '1.5 KB'),
@@ -596,6 +719,9 @@ void main() {
     expect(en.settingsQuestionPackPreviewCreate(7), contains('7'));
     expect(en.settingsQuestionPackPreviewSkip(8), contains('8'));
     expect(en.settingsQuestionPackPreviewMissingTags(9), contains('9'));
+    expect(en.settingsQuestionPackPreviewUpdate(6), contains('6'));
+    expect(en.settingsQuestionPackImportUpdated(6), contains('6'));
+    expect(en.settingsQuestionPackImportUpdateNote, isNotEmpty);
     expect(en.settingsQuestionPackExportDone(7, 3, '1.5 KB'), contains('7'));
     expect(en.settingsQuestionPackImportPreview(7, 3), contains('7'));
     expect(en.settingsQuestionPackImportDone(1, 2, 3), contains('1'));

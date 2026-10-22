@@ -2002,6 +2002,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settingsQuestionPackPreviewUpdate(int count) {
+    return 'Will update $count existing question(s) from zujuan.com (serial number and your title are kept)';
+  }
+
+  @override
+  String settingsQuestionPackImportUpdated(int count) {
+    return 'Updated $count existing question(s)';
+  }
+
+  @override
+  String get settingsQuestionPackImportUpdateNote =>
+      'Updating overwrites the stem, answer, solution and images carried by the package; serial numbers, your titles, and any images or tags not in the package are kept';
+
+  @override
   String settingsQuestionPackWarnings(int count) {
     return 'Warnings: $count (for example, missing tags were skipped)';
   }

@@ -881,7 +881,7 @@
       "media": { "type": "int" }
     }
   },
-  "settingsQuestionPackImportConfirm": "Only new questions are added; identical stems (by fingerprint) are skipped",
+  "settingsQuestionPackImportConfirm": "Newly added questions never overwrite existing ones; identical stems (by fingerprint) are skipped",
   "settingsQuestionPackImportDone": "Import finished: {created} created, {skipped} skipped, {media} image(s) written",
   "@settingsQuestionPackImportDone": {
     "placeholders": {
@@ -890,6 +890,15 @@
       "media": { "type": "int" }
     }
   },
+  "settingsQuestionPackPreviewUpdate": "Will update {count} existing question(s) from zujuan.com (serial number and your title are kept)",
+  "@settingsQuestionPackPreviewUpdate": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackImportUpdated": "Updated {count} existing question(s)",
+  "@settingsQuestionPackImportUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsQuestionPackImportUpdateNote": "Updating overwrites the stem, answer, solution and images carried by the package; serial numbers, your titles, and any images or tags not in the package are kept",
   "settingsQuestionPackWarnings": "Warnings: {count} (for example, missing tags were skipped)",
   "@settingsQuestionPackWarnings": {
     "placeholders": { "count": { "type": "int" } }
