@@ -1,6 +1,71 @@
 # 开发进度
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
+
+## 2026-10-23 轮次一百四十七：队列批量整理、能力动作找题学科多选、题库筛选全库（Lead + 三个 teammate 并行）
+
+**起点**：轮次一百四十六收尾（HEAD `7efdb89`，v0.6.1 已推送）。本轮按"三片并行、Lead 统一审查/门禁/提交"推进：
+①收题页队列批量整理（目标③一次整理多张照片的过渡能力）②能力动作找题学科多选（`docs/MINDNET_ROADMAP.md`
+"仍未做"第⑥项）③题库筛选从"只筛前 500 题"改为"筛选生效时读全库"（v0.6.1 发布说明的已知限制）。
+桌面逐屏冒烟（task-150）因本机会话锁屏降级为"启动链路验收"，未计入门禁。
+
+**一、队列批量整理（question-intake）**
+- `app/lib/features/questions/application/handwriting_proposal_service.dart`（+191）：
+  `HandwritingBatchReport`（succeeded/failed/skipped/stopped/processedAt）、`HandwritingQueueState` 批次字段
+  （`batchTotal`/`batchIndex`/`batchRunning`/`batchStopRequested`/`batchReport`）、`analyzeAll()`（防重入、
+  候选快照、顺序 `proposeFor`、单张失败不中断、已整理/已失败跳过并计 skipped、结束写汇总）、`stopBatch()`
+  （只置停止标志，当前张做完即停，不再发新请求）。
+- `app/lib/features/questions/presentation/handwriting_queue_page.dart`（+108）：照片清单上方 `_BatchBar`
+  （"整理全部（N 张待整理）"、进度条"正在整理 i/N"、停止/停止中、结束汇总"成功 X 张、失败 Y 张、跳过 Z 张"）。
+- l10n 手改 5 个文件（未跑 gen-l10n，保持仓库 LF）：6 个新 key `handwritingQueueBatchAll(count)`、
+  `handwritingQueueBatchProgress(current,total)`、`handwritingQueueBatchStop`、`handwritingQueueBatchStopping`、
+  `handwritingQueueBatchReport(succeeded,failed,skipped)`、`handwritingQueueBatchStopped`。
+- 测试：`handwriting_proposal_service_test.dart` 33→38 例（批次快照/停止/失败混合/幂等/报表），
+  `handwriting_queue_page_test.dart` 15→17 例（按钮启用条件/进度/停止/汇总）。
+- 未做风险：真机未手测；"停止"不打断已发出的网络请求；批次报表只存于页面状态，重建后不保留；一次只整理
+  一张照片仍是 run 身份模型（多页/一次多图仍留待下一轮，见 `docs/HANDWRITING_INTAKE_DESIGN.md`）。
+
+**二、能力动作找题学科多选（reasoning-core）**
+- `app/lib/features/questions/application/question_corpus_reader.dart`：`CapabilityQuestionQuery.subjectKey`
+  改为 `subjectKeys` 集合（trim/去空/去重/排序的 `normalized()`；`==`/`hashCode` 与顺序无关，可作
+  Riverpod family 键）；`readQuestionsForCapabilities` 学科 IN 过滤（空集合=不限），`readQuestionsForAction` 不变。
+- `app/lib/features/ai/tools/question_tools.dart`：`find_questions_by_capability` 参数新增
+  `subject_keys`（array<string>），`subject_key` 保留为兼容别名；两者都给以 `subject_keys` 为准，结果如实回报
+  实际学科。
+- `app/lib/features/questions/presentation/capability_action_questions_page.dart`：学科 chip 改 `FilterChip`
+  多选（"全部学科"取消选择恢复全量；chip 只列真实出现学科）；切换叠加动作/切 requireAll 清空选择。
+- 测试：reader/page/tool 三文件均补用例全绿。未做风险：真实设备 chip 视觉与横向滚动未手测。
+
+**三、题库筛选全库（threadflow-engine）**
+- `app/lib/features/questions/application/question_library_provider.dart` 重写：读表限长改为
+  `questionLibraryReadLimit({required bool filterActive}) => filterActive ? 0 : 500`；
+  `questionLibraryOverviewProvider`（500 档）/ `questionLibraryFullProvider`（0=全库档）/
+  `questionLibrarySnapshotProvider`（`autoDispose.family<bool>` 按是否筛选选档）。
+- `app/lib/features/questions/presentation/question_bank_page.dart`：换档 loading 保留上一帧（搜索框不卸载、
+  焦点不丢）；改名/批量命名/批量标签/批量删除统一失效两档；筛选为空仍走 500 档（横幅提示不变）。
+- Lead 补缺口：`question_title_dialog.dart` 改名后原来只失效 500 档，Lead 补失效全库档（从详情页改名返回
+  筛选态题库会留旧题名）。
+- 测试：新建 `question_library_provider_test.dart` 8 例（两档 limit、换档、缓存/失效）；`question_bank_filter_test.dart`
+  15→17 例（第 600 题可筛出、清筛选回 500 档、筛选态改名立刻显示新题名）。
+- 未做风险：全库档在大库（万题级）的内存筛选与首帧耗时未测；筛选全库时无分页/虚拟列表。
+
+**四、桌面冒烟（task-150，降级）**
+- Release exe 启动/DB 打开/窗口响应/WM_CLOSE 后无残留进程已证实；但 PrintWindow 与 CopyFromScreen 均得到
+  全白/静止品牌图，会话处于锁屏（LockApp/LogonUI 在前台）→ 逐屏视觉（主页/设置/题库/详情/队列/组卷/闪存卡）
+  **全部未验证**。证据与脚本留在 `E:\dsh-tmp-aot\smoke-147\`；解锁后可重跑（约 5 分钟）。
+
+**门禁（Lead 实跑）**
+- `dart analyze lib test`：**91 issues / 0 error / 0 warning**，EXIT=0（与基线同）。
+- 全量 `flutter test --concurrency=1`：**+5600 ~2 All tests passed**，11:37，EXIT=0（基线 +5580，净增 20 例）。
+- 改动测试文件 scoped 合跑：**+47 All tests passed**，00:16，EXIT=0。
+- `dart format --set-exit-if-changed` 18 个 dart 文件：0 changed。
+- schema 无变化（仍 v30），本轮无迁移。
+
+**提交**：按片 4 个提交（reasoning / intake / question-bank / docs），Lead 统一提交，teammate 不写 git。
+
+**本次仍未做**：多页照片一次整理（需 run 身份模型改造）、批量整理失败重试、全库筛选分页、真实设备逐屏验收、
+v0.6.1 真机手测（桌面冒烟仅启动链路）。
+
 ## 2026-10-23 轮次一百四十六：v0.6.1 双端发布件（Lead + 三个 teammate 的轮次140–145 成果打包）
 
 **起点**：轮次一百四十五收尾（HEAD `7f29e4c`，v0.6.0-31）。v0.6.0 之后已攒 31 个提交 / 6 轮

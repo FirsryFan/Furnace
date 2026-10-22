@@ -1190,4 +1190,52 @@ static LearningAdvicePlan build({
   模型生成」）；`similar_question_provider_test.dart` 补 3 条（见 §31.1 口径）。
 - 未做：`PaperGapNote` 的界面/导出展示（下一片）、详细文案 l10n、`quality` 权重标定。
 
+## 33. 能力动作找题：学科筛选改多选（轮次一百四十七，task-149）
+
+MINDNET_ROADMAP §「仍未做」⑥ 记录的「按能力动作找题页学科筛选仍单选」在本片收口。口径一句话：
+**页面能问的 = AI 工具能问的 = 读表能筛的**，三层同一个「学科集合」，空集 = 不限学科。
+
+### 33.1 值对象与读表
+
+- `app/lib/features/questions/application/question_corpus_reader.dart`：`CapabilityQuestionQuery`
+  的 `subjectKey`（String）改为 `subjectKeys`（`Set<String>`，构造 `:198-203`，字段 `:212`）。
+  `normalized()` 对学科 trim → 去空 → 去重 → **排序**（`:227-228`），于是 `==`（`:247-248`）
+  与 `hashCode`（`:262`，顺序无关）都只认归一化集合——可以直接当 Riverpod family 的键，
+  选学科的顺序不同不会被当成两个查询。
+- `readQuestionsForCapabilities`：空条件 guard 不变（`:297`，动作集合与学科集合都空 → 空表，
+  不把题库倒出来）；学科过滤从「等值」改「IN」（`:329-330`）：
+  `wanted.subjectKeys.isEmpty || wanted.subjectKeys.contains(byId[...].subjectKey.trim())`。
+  `readQuestionsForAction`（`:259`）零改动，单学科语义由「集合只有一个元素」表达。
+
+### 33.2 AI 工具：`subject_keys` 为主，`subject_key` 兼容
+
+- `app/lib/features/ai/tools/question_tools.dart` 的 `find_questions_by_capability`：
+  schema 新增 `subject_keys`（array<string>，`:397`），旧 `subject_key` 降为**兼容别名**（`:406`）。
+  解析（`:438-456`）：`subject_keys` 非空以它为准，否则把 `subject_key` 包成单元素集合；
+  两者都空才 `ToolArgError`（与读表口径一致，空集合不是"不限"的工具语义，工具必须明说要什么）。
+- 如实回报（`:531-545`）：`_queryJson` 输出 `subject_keys` / `subjects`；`subject_key` / `subject`
+  只在**单学科**时给值，多学科不回一个假的单值。摘要句 `_subjectPhrase`（`:591`）生成
+  「物理」或「物理、化学」。
+
+### 33.3 页面：学科 chip 多选
+
+- `app/lib/features/questions/presentation/capability_action_questions_page.dart`：state 从
+  `String? _subjectKey`（`:40` 附近）改为 `Set<String> _subjectKeys`（`:47`）；`_query`（`:73`）
+  把集合塞进 `CapabilityQuestionQuery`。「全部学科」与每个真实出现过的学科都是 `FilterChip`
+  （`:186-201`）：点已选 chip = 取消该学科（清空即恢复全部），点「全部学科」= 清空集合。
+- 查询策略（`:83`）：集合空 → 直接用页面 base 查询（原行为）；集合非空 → 一次组合查询
+  `readQuestionsForCapabilities`，**不在前端过滤**（保证与工具/读表同一份口径）。
+- 切叠加动作（`:153`）或切「两个动作都得出现」开关（`:163`）时清空学科集合：旧的学科集合
+  是针对上一个动作生成的 chip，留着会查出一个空表。
+
+### 33.4 验收与未做
+
+- 新增/更新 3 个测试文件：reader 值对象 + 多学科读表 `+6`、页面多选交互 `+7`、
+  工具别名/优先级/schema `+9`；回归目录 `test/features/questions/application` **+406**、
+  `test/features/questions/presentation` **+408**、`test/features/ai` **+588** 全绿。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与基线一致，exit 0）。
+- 未做：学科 chip 的真机视觉留白/换行未手测；`subjectKey` 单值 API 已从读表移除，若其它分支
+  要单学科查询需自行包集合（grep 确认本片内无遗漏）；多选下的「动作侧叠第二个」组合未新增测试，
+  由既有用例覆盖（两个动作 × 多学科走同一`readQuestionsForCapabilities`）。
+
 

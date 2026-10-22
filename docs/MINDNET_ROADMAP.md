@@ -1948,7 +1948,9 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 **仍未做**：① OS 级拖入已做（轮次一百二十一，`desktop_drop` 0.8.4 + 魔数兜底，见 `docs/QUESTION_BANK_DESIGN.md` §10），真机与微信聊天记录临时路径未手测；
 ② ~~能力动作词表的编辑 UI 与文案~~ —— **已做（轮次一百二十五 task-29）**：overlay 持久化 v25、编辑操作层、推理接线在轮次一百二十三，编辑页 `capability_vocabulary_page.dart`（设置页入口、增删改/上下移/JSON 导入/保存放弃）在轮次一百二十五，见 `docs/QUESTION_BANK_DESIGN.md` §10 第 2 条；③ 组卷学科配额（轮次一百二十四 `subject_quota.dart` 纯逻辑）的 **provider / AI 工具 / 页面已接线**（`paper_tools.dart` 的 `subject_quota` 参数 + `paper_subject_quota_view.dart` 组卷页区块），**剩标定与按顶级领域标签祖先的领域映射**；相似题质量分量（`SimilarityWeights.quality`）默认 0 未标定；④ 题库入口是否升为顶层
 导航（当前刻意挂在设置页，见 `settings_page.dart` 的注释）；⑤ `kPreferredActionBoost` 仍是未标定先验
-（等标定协议）；⑥ 「按能力动作找题」页的学科筛选仍为单选（动作侧已经能叠第二个 + 任一/全部）。
+（等标定协议）；⑥ ~~「按能力动作找题」页的学科筛选仍为单选~~ —— **已做（轮次一百四十七 task-149）**：学科改多选（
+`CapabilityQuestionQuery.subjectKeys` 集合 + AI 工具 `subject_keys` 参数，空集=不限），口径见
+`docs/REASONING_LAYER_DESIGN.md` §33。
 
 ### 切片 4：测评层——抽象参数的先验来源（M1a–M1d，已完成 轮次二十三～二十五）
 

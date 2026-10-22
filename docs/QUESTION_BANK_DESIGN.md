@@ -1591,6 +1591,81 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   `flutter test --concurrency=1` → **+5580 ~2，10:38**；相关 scoped 测试：plan 94 例、
   预检 +155（preview/plan/update 三文件）、设置 82 例、抓题包往返 10 例；`dart format` 全绿。
 
+## 30. 待整理队列批量整理与题库筛选全库（轮次一百四十七，2026-10-23）
+
+本轮三片并行：①拍照整理队列「整理全部」（task-148 question-intake）②按能力动作找题的学科筛选
+由单选改多选（task-149 reasoning-core，口径见 `docs/REASONING_LAYER_DESIGN.md` §33）③题库页
+筛选生效时读全库（task-151 threadflow-engine）。三片都只动自己的写作用域，Lead 统一审查、补文档、
+跑全量门禁与提交。
+
+### 30.1 待整理队列「整理全部」（task-148 question-intake）
+
+- **背景**：`docs/HANDWRITING_INTAKE_DESIGN.md:144` 记「一次只整理一张照片」，而收题页拖拽入口
+  可以一次放多张（轮次一百二十一）——批量进队列后仍要逐张点「整理」，微信聊天记录一次拖十张就要
+  点十次。本片补「整理全部」，模型调用仍是**逐张串行**（run 身份仍是单图 source_ref，不改存储格式）。
+- **汇总值对象**：`app/lib/features/questions/application/handwriting_proposal_service.dart` 的
+  `HandwritingBatchReport`（:198）：`total` / `succeeded` / `failed` / `skipped` / `stopped`，
+  `processed => succeeded + failed`、`isEmpty`、`toJson`。
+- **状态**：`HandwritingQueueState` 增 `batchRunning` / `batchStopping` / `batchTotal` /
+  `batchCurrent` / `batchDone` / `lastBatchReport`（构造 :724，字段 :766，copyWith :802）；
+  批次状态放 notifier 而不是页面，离开队列页后批次照跑。
+- **候选**：`batchCandidates`（:775）= 不在 `sets`、不在 `failures`、不在 `analyzing` 的照片，
+  按清单顺序；`batchCandidateCount`（:785）就是按钮上的 N。已经整理过/已经失败的照片不再花
+  模型调用。
+- **`analyzeAll()`**（:926）：已有批次在跑时直接返回 `null`（防重入）；开始时对候选**拍快照**；
+  逐张 `await analyze(relPath)`，单张失败只进 `failures`、不中断；循环里再查一次 `sets` /
+  `failures`（排队期间用户自己整理了这张）→ 计入 skipped 不重复调用；结束写
+  `lastBatchReport`，`batchDone = processed`。
+- **`stopBatch()`**（:997）：只置停止标志，**当前这张整理完后**不再发起下一张；还没轮到的照片
+  不发起、不计数，汇总里 `stopped = true`，页面另起一行说明。已完成/已失败的结果照实保留。
+- **页面** `handwriting_queue_page.dart`：三个 Key（:40/:43/:46）；`_BatchBar`（:232）插在照片
+  清单上方（:127）。按钮 `handwritingBatchAnalyzeAllKey` 显示「整理全部（N 张待整理）」，候选
+  0 或批次运行中禁用；运行中显示「正在整理 i/N」+ `LinearProgressIndicator` +「停止」按钮
+  （按下后变「正在停止…」并禁用）；结束后 `handwritingBatchSummaryKey` 显示汇总，stopped 时追加
+  一行。
+- **l10n**：6 个 key 五文件手改（未跑 gen-l10n，全 LF）——`handwritingQueueBatchAll(count:int)` /
+  `BatchProgress(current:int,total:int)` / `BatchStop` / `BatchStopping` /
+  `BatchReport(succeeded:int,failed:int,skipped:int)` / `BatchStopped`；中文文案
+  「整理全部（{count} 张待整理）」「正在整理 {current}/{total}」「成功 {succeeded} 张、
+  失败 {failed} 张、跳过 {skipped} 张」「已停止，剩下的照片没有整理」。
+- **测试**：`handwriting_proposal_service_test.dart` 33 → **38 例**（新增「整理全部」group：顺序
+  调用、失败隔离、已整理跳过、停止后不再发起、汇总口径）；`handwriting_queue_page_test.dart`
+  15 → **17 例**（按钮显示待整理张数、运行中进度与停止）。presentation 目录 **+408** 全绿。
+- **未做 / 风险**：Windows 真机批量+停止交互未手测；「离开页面再回来继续跑」只有 notifier 层
+  保证、无 widget 测试；批次运行中新增/删除照片未测；逐张串行在 10+ 张时耗时较长（无并发、无
+  失败重试）；停止语义是「当前张做完」，不是立即取消进行中的模型调用。
+
+### 30.2 题库页筛选全库（task-151 threadflow-engine）
+
+- **背景**：`docs/QUESTION_BANK_DESIGN.md` §25「未做」记的「筛选在已加载的前 500 道快照上做，
+  题库超过 500 道时只筛前 500 道（`snapshot.truncated` 为真）」，是 v0.6.1 发布说明里的已知
+  限制。本片让**筛选生效时读全库**，不筛选时仍只读前 500 道。
+- **读表口径**：`app/lib/features/questions/application/question_library_provider.dart` 新增
+  `kQuestionLibraryOverviewLimit = 500`（:25）与 `questionLibraryReadLimit({required bool filterActive})`
+  （:29-30，false→500 / true→0，是两条读表实参的唯一来源）；`questionLibraryOverviewProvider`
+  （:40，limit 500）与 `questionLibraryFullProvider`（:50，limit 0）各一档；
+  `questionLibrarySnapshotProvider`（:62-67）是 `autoDispose.family<bool>`，按 filterActive
+  选档并 `ref.watch(source.future)`，页面只 watch 这一个 provider，切筛选条件时自动换档。
+- **页面** `question_bank_page.dart`：`_lastSnapshot`（:143-147）留住上一档最后一帧——换档
+  时新 provider 在 loading，没有它整页（含搜索框）会被进度圈顶掉、输入焦点丢失；
+  `_invalidateLibrary()`（:212-216）两档一起失效；`_refresh` 等当前档 future；改名/批量自动
+  命名/批量打标签/批量删除全部改走双档失效；body 三分支（:619-631）：有缓存→列表、无缓存且
+  error→错误页、否则进度圈。
+- **改名缺口（Lead 补）**：题目命名对话框原来只失效 `questionLibraryOverviewProvider`
+  （`question_title_dialog.dart:162`）——从**题目详情页**改名再返回筛选态题库会看到旧题名。
+  Lead 在对话框里补 `ref.invalidate(questionLibraryFullProvider)`，两条改名入口（题库行菜单 /
+  详情页笔形按钮）现在都同时失效两档。
+- **测试**：新建 `test/features/questions/application/question_library_provider_test.dart`
+  **8 例**（false→500 且 `kQuestionLibraryOverviewLimit==500`、true→0；501 题时总览
+  entries=500/totalCount=500/truncated=true/无第 501 题；全库档 entries=501/truncated=false/
+  含第 501 题且 `QuestionLibraryFilter` 能筛中；family 换档）；`question_bank_filter_test.dart`
+  15 → **17 例**（第 600 题筛选命中、清筛选回 500 档且截断横幅恢复；筛选态改名后列表立刻显示
+  新题名）。页面三文件（filter/page/bulk）+50 全绿。
+- **未做 / 风险**：换档 loading 期间 `_lastSnapshot` 仍是旧档（筛选态首帧可能短暂看到旧档的
+  筛后结果）；新档报错时有意继续显示旧数据而不是错误页；500 档滚动性能与全库（数千题）读表
+  内存上限未实测；真机换档闪烁未手测；未筛选时的 500 上限与截断横幅行为不变。
+
+
 
 
 
