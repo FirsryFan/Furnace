@@ -27,7 +27,7 @@
 - 构建期 `gen-l10n` 暴露轮次145 手改 ARB 后未重新生成：`app_localizations*.dart` 3 文件刷新
   （`settingsQuestionPackImportConfirm` zh/en 文案与 ARB 对齐），随本版提交。
 
-**发布件（dist/，gitignore，未入库、未 push）**
+**发布件（dist/，gitignore，未入库；已推送 GitHub 发布提交与 tag）**
 - `Furnace-0.6.1-windows-x64.zip`：20,400,437 B，SHA-256
   `68BD690CD0A39CF16E372B4D31906412DBB5B776BA37E2C71B9CD2EBBB0DC0A6`，35 entries，
   顶层 furnace.exe + 7 个 dll，`data/app.so` 在包，`kernel_blob` 0 条。
@@ -36,7 +36,10 @@
 - `RELEASE-v0.6.1.md` 由 Lead 写在 dist/（不入库），列行为变更、验证数字与已知未做。
 
 **未做 / 风险**：双端新功能均未真机手测（批量操作、筛选条、整卡快照版面、设置页更新对话框）；
-题库包更新无回滚、无 UI 开关；筛选只作用于已加载的前 500 题；英文新文案未母语校对；仓库仍未 push。
+题库包更新无回滚、无 UI 开关；筛选只作用于已加载的前 500 题；英文新文案未母语校对。
+
+**推送**：`git push origin main` `a6a5869..8bb65a4`（快进 175 个提交，origin/main 原为轮次一百二十一的
+`a6a5869`）；另补推此前远端缺失的 5 个 tag：`v0.5.4`、`v0.5.6`、`v0.5.8`、`v0.6.0`、`v0.6.1`（远端原有 15 个 tag）。
 
 ## 2026-10-23 轮次一百四十五：题库包按组卷网题号更新已有题目（Lead + 三个 teammate）
 
