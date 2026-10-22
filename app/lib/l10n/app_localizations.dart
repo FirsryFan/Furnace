@@ -6239,6 +6239,12 @@ abstract class AppLocalizations {
   /// **'Clear tags'**
   String get questionBankTagFilterClear;
 
+  /// No description provided for @questionBankSnapshotBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Card image'**
+  String get questionBankSnapshotBadge;
+
   /// No description provided for @questionIntakePasteSection.
   ///
   /// In en, this message translates to:

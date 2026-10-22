@@ -17,6 +17,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_snapshot_summary.dart';
 import '../../../domain/services/questions/question_stem_preview.dart';
 
 /// 题干图/答案图的角色（与 `QuestionMediaStore` 的 [QuestionImageRole] 同一组值；
@@ -73,6 +74,9 @@ class QuestionLibraryEntry {
     this.stemImages = const <QuestionLibraryImage>[],
     this.answerImages = const <QuestionLibraryImage>[],
     this.solutionImages = const <QuestionLibraryImage>[],
+    this.isSnapshotStem = false,
+    this.snapshotLabel,
+    this.snapshotExcerpt,
   });
 
   final String questionId;
@@ -100,15 +104,38 @@ class QuestionLibraryEntry {
   final List<QuestionLibraryImage> answerImages;
   final List<QuestionLibraryImage> solutionImages;
 
+  /// 题干图是「整题截图」（1 张大图 + 若干「［图N］」占位），正文只是碎片。
+  ///
+  /// 判定读表时用题干图数量 + 无尺寸兜底（B2）；界面要区分快照题时看这个字段。
+  final bool isSnapshotStem;
+
+  /// 快照题的中文标签（「整题截图 · 12 处公式/图」）；非快照题为 null。
+  final String? snapshotLabel;
+
+  /// 快照题从正文里剥掉占位后可读的摘录；没有可读正文时为 null。
+  final String? snapshotExcerpt;
+
   /// `TR-00042`；还没编号时给「未编号」，与详情页/搜索口径一致。
   String get serialLabel =>
       serialNo == null ? '未编号' : formatQuestionSerial(serialNo!);
 
-  /// 有名字用名字；没名字回落题干摘要（单行、折叠空白、截断到 40 字）。
+  /// 显示标题：题名 → 快照题可读摘录 → 快照标签 → 题干摘要。
+  ///
+  /// 整卡快照题的 [stemPreview] 是「…… ［图N］ ……」的碎片，直接上列表不好认；
+  /// 先给从正文里剥出来的可读摘要，没有摘要就给「整题截图 · N 处公式/图」，
+  /// 让用户知道这题的题面在图里。
   String get displayTitle {
     final named = (title ?? '').trim();
     if (named.isNotEmpty) {
       return named;
+    }
+    final excerpt = (snapshotExcerpt ?? '').trim();
+    if (excerpt.isNotEmpty) {
+      return excerpt;
+    }
+    final label = (snapshotLabel ?? '').trim();
+    if (label.isNotEmpty) {
+      return label;
     }
     final preview = stemPreview;
     return preview.isEmpty ? '（无题干）' : preview;
@@ -248,8 +275,16 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
     });
   }
 
-  final entries = <QuestionLibraryEntry>[
-    for (final row in rows)
+  final entries = <QuestionLibraryEntry>[];
+  for (final row in rows) {
+    final stemImages =
+        _imagesOf(imagesByQuestion[row.id], kQuestionLibraryStemRole);
+    // 只拿到题干图数量、没有像素尺寸：走 B2 兜底（1 图 + >=2 处占位即快照）。
+    final snapshot = summarizeQuestionStemSnapshot(
+      stem: row.stem,
+      stemImageCount: stemImages.length,
+    );
+    entries.add(
       QuestionLibraryEntry(
         questionId: row.id,
         serialNo: row.serialNo,
@@ -267,14 +302,19 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
           tagIdsByQuestion[row.id] ?? const <String>{},
           pathByTagId,
         ),
-        stemImages:
-            _imagesOf(imagesByQuestion[row.id], kQuestionLibraryStemRole),
+        stemImages: stemImages,
         answerImages:
             _imagesOf(imagesByQuestion[row.id], kQuestionLibraryAnswerRole),
         solutionImages:
             _imagesOf(imagesByQuestion[row.id], kQuestionLibrarySolutionRole),
+        isSnapshotStem: snapshot.isSnapshot,
+        snapshotLabel: snapshot.labelZh.isEmpty ? null : snapshot.labelZh,
+        snapshotExcerpt: snapshot.isSnapshot && snapshot.hasTextExcerpt
+            ? snapshot.textExcerpt
+            : null,
       ),
-  ];
+    );
+  }
 
   return QuestionLibrarySnapshot(
     entries: List<QuestionLibraryEntry>.unmodifiable(entries),

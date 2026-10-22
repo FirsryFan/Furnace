@@ -3535,6 +3535,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionBankTagFilterClear => '清除标签';
 
   @override
+  String get questionBankSnapshotBadge => '整题截图';
+
+  @override
   String get questionIntakePasteSection => '粘贴建题';
 
   @override

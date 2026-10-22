@@ -911,11 +911,8 @@ class _QuestionRow extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final cover = entry.coverImage;
-    final title = (entry.title ?? '').trim();
+    final hasTitle = entry.hasTitle;
     final leaves = questionBankTagLeafNames(entry.tagPaths);
-    final preview = entry.stemPreview.isEmpty
-        ? l10n.questionBankUntitled
-        : entry.stemPreview;
 
     return InkWell(
       key: ValueKey(questionBankRowKeyFor(entry.questionId)),
@@ -940,15 +937,15 @@ class _QuestionRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    title.isEmpty ? preview : title,
-                    maxLines: title.isEmpty ? 1 : 2,
+                    entry.displayTitle,
+                    maxLines: hasTitle ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: title.isEmpty
-                        ? theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          )
-                        : theme.textTheme.titleMedium?.copyWith(
+                    style: hasTitle
+                        ? theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
+                          )
+                        : theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                   ),
                   const SizedBox(height: 4),
@@ -968,6 +965,17 @@ class _QuestionRow extends ConsumerWidget {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      // 整卡截图题：只在标题没回落成「整题截图 · N 处公式/图」
+                      // 时补一个小标签，避免同一行出现两个「整题截图」。
+                      if (entry.isSnapshotStem &&
+                          ((entry.snapshotExcerpt ?? '').trim().isNotEmpty ||
+                              hasTitle))
+                        Text(
+                          l10n.questionBankSnapshotBadge,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       for (final leaf in leaves.take(3)) _TagPill(label: leaf),
                       if (leaves.length > 3)
                         _TagPill(label: '+${leaves.length - 3}'),

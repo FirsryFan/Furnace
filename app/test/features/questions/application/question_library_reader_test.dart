@@ -309,4 +309,74 @@ void main() {
       <String>['文化课/生物/基因工程', '文化课/生物/遗传'],
     );
   });
+
+  group('整卡快照题（题干图是整题截图）', () {
+    test('1 张图 + 3 处占位：判快照，标题用正文摘录，标签带处数', () async {
+      await insertQuestion(
+        id: 'q-card',
+        stem: '阅读下列材料，完成后面题目。'
+            '［图1］材料一：甲。'
+            '［图2］材料二：乙。'
+            '［图3］材料三：丙。',
+        updatedAt: 1,
+      );
+      await addAttachment(id: 'a-1', questionId: 'q-card', role: 'stem');
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.isSnapshotStem, isTrue);
+      expect(entry.snapshotLabel, '整题截图 · 3 处公式/图');
+      expect(entry.snapshotExcerpt, isNotNull);
+      expect(entry.snapshotExcerpt, contains('阅读下列材料'));
+      expect(entry.snapshotExcerpt, isNot(contains('［图')));
+      expect(entry.displayTitle, entry.snapshotExcerpt);
+      expect(entry.hasTitle, isFalse);
+    });
+
+    test('1 张图 + 1 处占位：不算快照，标题回落题干摘要', () async {
+      await insertQuestion(
+        id: 'q-inline',
+        stem: '如图所示，求下落时间［图1］。',
+        updatedAt: 1,
+      );
+      await addAttachment(id: 'a-1', questionId: 'q-inline', role: 'stem');
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.isSnapshotStem, isFalse);
+      expect(entry.snapshotLabel, isNull);
+      expect(entry.snapshotExcerpt, isNull);
+      expect(entry.displayTitle, entry.stemPreview);
+    });
+
+    test('2 张图 + 2 处占位：不算快照（B2 只认单图）', () async {
+      await insertQuestion(
+        id: 'q-two',
+        stem: '前图［图1］与后图［图2］分别求速度。',
+        updatedAt: 1,
+      );
+      await addAttachment(
+          id: 'a-1', questionId: 'q-two', role: 'stem', sortOrder: 0);
+      await addAttachment(
+          id: 'a-2', questionId: 'q-two', role: 'stem', sortOrder: 1);
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.isSnapshotStem, isFalse);
+      expect(entry.displayTitle, entry.stemPreview);
+    });
+
+    test('有用户题名时题名优先，快照字段仍然保留', () async {
+      await insertQuestion(
+        id: 'q-named',
+        stem: '阅读材料［图1］回答问题。［图2］',
+        title: '  整卡阅读题  ',
+        updatedAt: 1,
+      );
+      await addAttachment(id: 'a-1', questionId: 'q-named', role: 'stem');
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.isSnapshotStem, isTrue);
+      expect(entry.hasTitle, isTrue);
+      expect(entry.displayTitle, '整卡阅读题');
+      expect(entry.snapshotLabel, isNotNull);
+    });
+  });
 }

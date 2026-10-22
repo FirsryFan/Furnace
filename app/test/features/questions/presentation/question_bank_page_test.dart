@@ -277,6 +277,71 @@ void main() {
     expect(find.byType(QuestionPaperPage), findsOneWidget);
   });
 
+  testWidgets('整卡截图题：行里补「整题截图」小标签，标题用正文摘录', (tester) async {
+    final placeholders =
+        List<String>.generate(12, (index) => '［图${index + 1}］').join();
+    await _seedQuestion(
+      db,
+      id: 'q-snapshot',
+      stem: r'已知函数 $f(x)=x^2$，求最小值。' + placeholders,
+    );
+    await _addAttachment(
+      db,
+      id: 'att-snapshot',
+      questionId: 'q-snapshot',
+      relPath: 'media/q-snapshot/page.png',
+    );
+
+    await _pump(tester, db);
+
+    expect(find.text(zh.questionBankSnapshotBadge), findsOneWidget);
+    expect(find.text(r'已知函数 $f(x)=x^2$，求最小值'), findsOneWidget);
+    // 有可读摘录时标题不落到「整题截图 · N 处公式/图」。
+    expect(find.textContaining('整题截图 ·'), findsNothing);
+    expect(find.textContaining('［图'), findsNothing);
+  });
+
+  testWidgets('整卡截图题没有可读摘录时：标题回落「整题截图 · N 处公式/图」，不再重复小标签', (tester) async {
+    final placeholders =
+        List<String>.generate(12, (index) => '［图${index + 1}］').join();
+    await _seedQuestion(
+      db,
+      id: 'q-snapshot-plain',
+      stem: '，。$placeholders',
+    );
+    await _addAttachment(
+      db,
+      id: 'att-snapshot-plain',
+      questionId: 'q-snapshot-plain',
+      relPath: 'media/q-snapshot-plain/page.png',
+    );
+
+    await _pump(tester, db);
+
+    expect(find.text('整题截图 · 12 处公式/图'), findsOneWidget);
+    // 标题里已有「整题截图」，同一行不再重复小标签。
+    expect(find.text(zh.questionBankSnapshotBadge), findsNothing);
+  });
+
+  testWidgets('普通题（1 张图 1 处占位）不算整卡快照，不显示小标签', (tester) async {
+    await _seedQuestion(
+      db,
+      id: 'q-inline',
+      stem: '如图所示，求加速度。［图1］',
+    );
+    await _addAttachment(
+      db,
+      id: 'att-inline',
+      questionId: 'q-inline',
+      relPath: 'media/q-inline/page.png',
+    );
+
+    await _pump(tester, db);
+
+    expect(find.text(zh.questionBankSnapshotBadge), findsNothing);
+    expect(find.textContaining('整题截图'), findsNothing);
+  });
+
   test('shell 的目的地里多了一个「题库」，位置在闪存卡之后', () {
     final destinations = shellDestinations(
       l10n: zh,

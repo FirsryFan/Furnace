@@ -1769,6 +1769,7 @@
   },
   "questionBankFilterNoMatch": "No questions match the filters",
   "questionBankTagFilterClear": "Clear tags",
+  "questionBankSnapshotBadge": "Card image",
   "questionIntakePasteSection": "Paste a question",
   "questionIntakePhotoSection": "Photograph / pick images",
   "questionIntakeLibrarySection": "Question bank",

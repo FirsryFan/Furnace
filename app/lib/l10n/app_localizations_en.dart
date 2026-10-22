@@ -3685,6 +3685,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionBankTagFilterClear => 'Clear tags';
 
   @override
+  String get questionBankSnapshotBadge => 'Card image';
+
+  @override
   String get questionIntakePasteSection => 'Paste a question';
 
   @override

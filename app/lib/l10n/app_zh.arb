@@ -1649,6 +1649,7 @@
   },
   "questionBankFilterNoMatch": "没有符合筛选条件的题",
   "questionBankTagFilterClear": "清除标签",
+  "questionBankSnapshotBadge": "整题截图",
   "questionIntakePasteSection": "粘贴建题",
   "questionIntakePhotoSection": "拍照 / 选图",
   "questionIntakeLibrarySection": "题库列表",
