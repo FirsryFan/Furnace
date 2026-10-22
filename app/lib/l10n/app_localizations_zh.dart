@@ -4466,6 +4466,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get handwritingQueueNotAnalyzed => '这张照片还没整理过。';
 
   @override
+  String handwritingQueueBatchAll(int count) {
+    return '整理全部（$count 张待整理）';
+  }
+
+  @override
+  String handwritingQueueBatchProgress(int current, int total) {
+    return '正在整理 $current/$total';
+  }
+
+  @override
+  String get handwritingQueueBatchStop => '停止';
+
+  @override
+  String get handwritingQueueBatchStopping => '正在停止…';
+
+  @override
+  String handwritingQueueBatchReport(int succeeded, int failed, int skipped) {
+    return '成功 $succeeded 张、失败 $failed 张、跳过 $skipped 张';
+  }
+
+  @override
+  String get handwritingQueueBatchStopped => '已停止，剩下的照片没有整理';
+
+  @override
   String get handwritingQueueNothingFound =>
       '模型没给出可整理的产物：这张照片里可能没有标签、知识点、卡片或题目。';
 

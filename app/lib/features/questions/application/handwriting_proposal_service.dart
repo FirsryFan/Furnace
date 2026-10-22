@@ -191,6 +191,54 @@ class HandwritingApplyReport {
       };
 }
 
+/// 一次「整理全部」的汇总：成功 / 失败 / 跳过（开始前已经有结果或已经失败）。
+///
+/// [stopped] 表示用户中途按了停止：后面那些还没轮到的照片**没有**发起整理，
+/// 汇总里不计入成功/失败，页面另起一行说明。
+class HandwritingBatchReport {
+  const HandwritingBatchReport({
+    required this.total,
+    required this.succeeded,
+    required this.failed,
+    required this.skipped,
+    required this.stopped,
+  });
+
+  /// 这一批本来要整理的张数（开始时的候选数，不含跳过）。
+  final int total;
+
+  /// 这次整理成功（拿到提案并落库）的张数。
+  final int succeeded;
+
+  /// 这次整理失败的张数（失败原因进 failures，不中断后面的照片）。
+  final int failed;
+
+  /// 开始前就已经有整理结果或失败记录、这次没再花模型调用的张数。
+  final int skipped;
+
+  /// 用户在中途按了停止；没轮到的照片没有被整理。
+  final bool stopped;
+
+  /// 已经处理过的张数（等于 succeeded + failed）。
+  int get processed => succeeded + failed;
+
+  /// 这一批有没有真正发起过整理。
+  bool get isEmpty => total == 0;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+        'total': total,
+        'succeeded': succeeded,
+        'failed': failed,
+        'skipped': skipped,
+        'stopped': stopped,
+      };
+
+  @override
+  String toString() =>
+      'HandwritingBatchReport(total: $total, succeeded: $succeeded, '
+      'failed: $failed, skipped: $skipped, stopped: $stopped)';
+}
+
 /// 整理 + 写库。依赖全部注入，测试不需要网络、不需要 Riverpod 容器。
 class HandwritingProposalService {
   HandwritingProposalService({
@@ -668,6 +716,12 @@ class HandwritingQueueState {
     this.appliedIds = const <String>{},
     this.lastReport,
     this.loading = false,
+    this.batchRunning = false,
+    this.batchStopping = false,
+    this.batchTotal = 0,
+    this.batchCurrent = 0,
+    this.batchDone = 0,
+    this.lastBatchReport,
   });
 
   /// 磁盘上的待整理照片。
@@ -693,8 +747,42 @@ class HandwritingQueueState {
 
   final bool loading;
 
+  /// 「整理全部」正在跑：页面离开再回来也以这个字段为准。
+  final bool batchRunning;
+
+  /// 用户已经按了停止：当前这张整理完之后不再发起新的请求。
+  final bool batchStopping;
+
+  /// 这一批要整理的张数（开始时算好，进度分母）。
+  final int batchTotal;
+
+  /// 正在整理的顺序号（1 起；不在跑时为 0）。
+  final int batchCurrent;
+
+  /// 这一批已经处理完的张数（进度分子）。
+  final int batchDone;
+
+  /// 上一次「整理全部」的汇总；没跑过为 null。
+  final HandwritingBatchReport? lastBatchReport;
+
   bool isApplied(String relPath, String proposalId) =>
       appliedIds.contains('$relPath#$proposalId');
+
+  /// 还没整理、也没失败的照片：这就是「整理全部」的候选，按清单顺序。
+  ///
+  /// 已经有提案（[sets]）或已有失败记录（[failures]）的照片不算候选——
+  /// 再跑一遍只会多花一次模型调用，不会多出东西。
+  List<PendingHandwritingImage> get batchCandidates =>
+      <PendingHandwritingImage>[
+        for (final image in images)
+          if (!sets.containsKey(image.relPath) &&
+              !failures.containsKey(image.relPath) &&
+              !analyzing.contains(image.relPath))
+            image,
+      ];
+
+  /// 「整理全部」候选张数（按钮上的 N）。
+  int get batchCandidateCount => batchCandidates.length;
 
   HandwritingQueueState copyWith({
     List<PendingHandwritingImage>? images,
@@ -706,6 +794,13 @@ class HandwritingQueueState {
     HandwritingApplyReport? lastReport,
     bool? loading,
     bool clearReport = false,
+    bool? batchRunning,
+    bool? batchStopping,
+    int? batchTotal,
+    int? batchCurrent,
+    int? batchDone,
+    HandwritingBatchReport? lastBatchReport,
+    bool clearBatchReport = false,
   }) {
     return HandwritingQueueState(
       images: images ?? this.images,
@@ -716,6 +811,13 @@ class HandwritingQueueState {
       appliedIds: appliedIds ?? this.appliedIds,
       lastReport: clearReport ? null : (lastReport ?? this.lastReport),
       loading: loading ?? this.loading,
+      batchRunning: batchRunning ?? this.batchRunning,
+      batchStopping: batchStopping ?? this.batchStopping,
+      batchTotal: batchTotal ?? this.batchTotal,
+      batchCurrent: batchCurrent ?? this.batchCurrent,
+      batchDone: batchDone ?? this.batchDone,
+      lastBatchReport:
+          clearBatchReport ? null : (lastBatchReport ?? this.lastBatchReport),
     );
   }
 }
@@ -736,6 +838,9 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
 
   HandwritingProposalRepository get _repository =>
       ref.read(handwritingProposalRepositoryProvider);
+
+  /// 用户按了停止：等当前这张整理完，就不再发起下一张。
+  bool _batchStopRequested = false;
 
   /// 重新读磁盘上的待整理清单 + 库里的整理结果。
   ///
@@ -809,6 +914,92 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
       await _syncApplied(relPath);
     }
     return run;
+  }
+
+  /// 把队列里还没整理、也没失败的照片**逐张顺序**整理一遍。
+  ///
+  /// 单张失败不中断后面的照片（失败原因进 [failures]，与单张整理同一套状态
+  /// 语义）；已经整理过或已失败的照片跳过，不再花模型调用。批次状态放在 state
+  /// 里而不是页面里：离开页面后批次照跑，回来还能看到进度与汇总。
+  ///
+  /// 返回 `null` 表示已经有一批在跑（防重入）；否则返回这一批的汇总。
+  Future<HandwritingBatchReport?> analyzeAll() async {
+    if (state.batchRunning) {
+      return null;
+    }
+    final candidates = state.batchCandidates;
+    var skippedCount = state.images.length - candidates.length;
+    if (candidates.isEmpty) {
+      return HandwritingBatchReport(
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        skipped: skippedCount,
+        stopped: false,
+      );
+    }
+
+    _batchStopRequested = false;
+    state = state.copyWith(
+      batchRunning: true,
+      batchStopping: false,
+      batchTotal: candidates.length,
+      batchCurrent: 1,
+      batchDone: 0,
+      clearBatchReport: true,
+    );
+
+    var succeeded = 0;
+    var failed = 0;
+    for (var index = 0; index < candidates.length; index++) {
+      if (_batchStopRequested) {
+        break;
+      }
+      final relPath = candidates[index].relPath;
+      // 排队期间用户可能自己把这张整理了（或别的批次先处理了它）：
+      // 跳过，不重复调用模型。
+      if (state.sets.containsKey(relPath) ||
+          state.failures.containsKey(relPath)) {
+        skippedCount += 1;
+        continue;
+      }
+      state = state.copyWith(batchCurrent: index + 1);
+      final run = await analyze(relPath);
+      if (run.ok) {
+        succeeded += 1;
+      } else {
+        failed += 1;
+      }
+      state = state.copyWith(batchDone: index + 1);
+    }
+
+    final processed = succeeded + failed;
+    final stopped = _batchStopRequested && processed < candidates.length;
+    _batchStopRequested = false;
+    final report = HandwritingBatchReport(
+      total: candidates.length,
+      succeeded: succeeded,
+      failed: failed,
+      skipped: skippedCount,
+      stopped: stopped,
+    );
+    state = state.copyWith(
+      batchRunning: false,
+      batchStopping: false,
+      batchCurrent: 0,
+      batchDone: processed,
+      lastBatchReport: report,
+    );
+    return report;
+  }
+
+  /// 请当前批次在**这一张**整理完后停下；已经拿到的结果与失败记录照实保留。
+  void stopBatch() {
+    if (!state.batchRunning || state.batchStopping) {
+      return;
+    }
+    _batchStopRequested = true;
+    state = state.copyWith(batchStopping: true);
   }
 
   /// 确认**一条**提案并写库。

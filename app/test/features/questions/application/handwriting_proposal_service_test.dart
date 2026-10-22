@@ -13,6 +13,7 @@
 /// 也不需要真实的 app support 目录。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -877,4 +878,211 @@ void main() {
       expect(again.read(handwritingQueueProvider).sets, isEmpty);
     });
   });
+
+  group('整理全部（analyzeAll）', () {
+    ProviderContainer containerFor(ModelAdapter? adapter) {
+      final container = ProviderContainer(
+        overrides: <Override>[
+          appDatabaseProvider.overrideWithValue(db),
+          handwritingIntakeStoreProvider.overrideWithValue(store),
+          handwritingProposalServiceProvider.overrideWithValue(
+            serviceWith(adapter),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('已整理和已失败的照片跳过，只请求没整理过的', () async {
+      final failed = await seedPhoto('a.png');
+      final done = await seedPhoto('b.png');
+      final fresh = await seedPhoto('c.png');
+      await seedTagPath('文化课/物理/力学');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.failure('网络断了'),
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final container = containerFor(adapter);
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+      await notifier.analyze(failed);
+      await notifier.analyze(done);
+      expect(adapter.requests, hasLength(2));
+
+      final report = await notifier.analyzeAll();
+
+      expect(report, isNotNull);
+      expect(adapter.requests, hasLength(3));
+      expect(report!.total, 1);
+      expect(report.succeeded, 1);
+      expect(report.failed, 0);
+      expect(report.skipped, 2);
+      expect(report.stopped, isFalse);
+      final state = container.read(handwritingQueueProvider);
+      expect(state.sets.keys, contains(fresh));
+      expect(state.failures.keys, contains(failed));
+      expect(state.lastBatchReport, same(report));
+      expect(state.batchRunning, isFalse);
+      expect(state.batchCurrent, 0);
+      expect(state.batchDone, 1);
+    });
+
+    test('单张失败不中断这一批：后面的照片继续整理，汇总如实计数', () async {
+      final a = await seedPhoto('a.png');
+      final b = await seedPhoto('b.png');
+      final c = await seedPhoto('c.png');
+      await seedTagPath('文化课/物理/力学');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.failure('第一张没识别出来'),
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final container = containerFor(adapter);
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+
+      final report = await notifier.analyzeAll();
+
+      expect(report!.total, 3);
+      expect(report.succeeded, 2);
+      expect(report.failed, 1);
+      expect(report.skipped, 0);
+      expect(report.stopped, isFalse);
+      expect(report.processed, 3);
+      final state = container.read(handwritingQueueProvider);
+      // 磁盘清单的顺序由 store 决定，不假设 a/b/c 的先后：只看「谁被覆盖到」。
+      expect(state.sets, hasLength(2));
+      expect(state.failures, hasLength(1));
+      expect(
+        <String>{...state.sets.keys, ...state.failures.keys},
+        containsAll(<String>[a, b, c]),
+      );
+      expect(state.failures.values.single, contains('第一张没识别出来'));
+      expect(state.batchDone, 3);
+      expect(state.lastBatchReport!.succeeded, 2);
+    });
+
+    test('停止：当前这张整理完后不再发起下一张，汇总标 stopped', () async {
+      await seedPhoto('a.png');
+      await seedPhoto('b.png');
+      await seedPhoto('c.png');
+      await seedTagPath('文化课/物理/力学');
+      final adapter = _SteppedAdapter();
+      final container = containerFor(adapter);
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+
+      final firstCandidate = container
+          .read(handwritingQueueProvider)
+          .batchCandidates
+          .first
+          .relPath;
+      final batch = notifier.analyzeAll();
+      await _waitUntil(() => adapter.callCount == 1);
+      expect(container.read(handwritingQueueProvider).batchRunning, isTrue);
+      notifier.stopBatch();
+      expect(container.read(handwritingQueueProvider).batchStopping, isTrue);
+      adapter.finish(0, reply(<String>[tagProposal]));
+
+      final report = await batch;
+      expect(adapter.callCount, 1);
+      expect(report!.stopped, isTrue);
+      expect(report.total, 3);
+      expect(report.processed, 1);
+      expect(report.succeeded, 1);
+      expect(report.failed, 0);
+      final state = container.read(handwritingQueueProvider);
+      expect(state.sets.keys, contains(firstCandidate));
+      expect(state.sets, hasLength(1));
+      expect(state.images, hasLength(3));
+      expect(state.batchRunning, isFalse);
+      expect(state.batchStopping, isFalse);
+      expect(state.lastBatchReport!.stopped, isTrue);
+    });
+
+    test('全部整理完之后再点：没有候选，返回跳过张数', () async {
+      await seedPhoto('a.png');
+      await seedPhoto('b.png');
+      await seedTagPath('文化课/物理/力学');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final container = containerFor(adapter);
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+
+      final first = await notifier.analyzeAll();
+      expect(first!.succeeded, 2);
+      expect(first.skipped, 0);
+
+      final again = await notifier.analyzeAll();
+      expect(again, isNotNull);
+      expect(again!.total, 0);
+      expect(again.succeeded, 0);
+      expect(again.failed, 0);
+      expect(again.skipped, 2);
+      expect(adapter.requests, hasLength(2));
+    });
+
+    test('防重入：一批还在跑时再调返回 null', () async {
+      await seedPhoto('a.png');
+      await seedPhoto('b.png');
+      await seedTagPath('文化课/物理/力学');
+      final adapter = _SteppedAdapter();
+      final container = containerFor(adapter);
+      final notifier = container.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+
+      final batch = notifier.analyzeAll();
+      await _waitUntil(() => adapter.callCount == 1);
+      expect(await notifier.analyzeAll(), isNull);
+      adapter.finish(0, reply(<String>[tagProposal]));
+      await _waitUntil(() => adapter.callCount == 2);
+      adapter.finish(1, reply(<String>[tagProposal]));
+
+      final report = await batch;
+      expect(report!.succeeded, 2);
+      expect(adapter.callCount, 2);
+    });
+  });
+}
+
+/// 等一个条件成立：测试控制假模型的返回时机，必须先确定请求已经发出去了。
+Future<void> _waitUntil(bool Function() condition) async {
+  for (var attempt = 0; attempt < 200; attempt++) {
+    if (condition()) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  fail('等不到条件成立');
+}
+
+/// 可以按测试节奏逐张返回的假模型：用来在批次进行中按「停止」。
+class _SteppedAdapter implements ModelAdapter {
+  final List<StreamController<ModelEvent>> _controllers =
+      <StreamController<ModelEvent>>[];
+
+  int get callCount => _controllers.length;
+
+  @override
+  Stream<ModelEvent> runTurn({
+    required List<ChatMessage> messages,
+    required List<ModelToolSpec> tools,
+  }) {
+    final controller = StreamController<ModelEvent>();
+    _controllers.add(controller);
+    return controller.stream;
+  }
+
+  /// 让第 [index] 次请求返回一条答案（模型回复正文里放提案 JSON）。
+  void finish(int index, String text) {
+    final controller = _controllers[index];
+    controller.add(ModelTextDelta(text));
+    controller.add(const ModelTurnDone(finishReason: 'stop'));
+    controller.close();
+  }
 }

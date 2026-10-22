@@ -2374,6 +2374,42 @@
   "handwritingQueueAnalyze": "Organise this photo",
   "handwritingQueueAnalyzing": "Reading the photo...",
   "handwritingQueueNotAnalyzed": "This photo has not been organised yet.",
+  "handwritingQueueBatchAll": "Analyze all ({count} pending)",
+  "@handwritingQueueBatchAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchProgress": "Analyzing {current}/{total}",
+  "@handwritingQueueBatchProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchStop": "Stop",
+  "handwritingQueueBatchStopping": "Stopping…",
+  "handwritingQueueBatchReport": "Succeeded {succeeded}, failed {failed}, skipped {skipped}",
+  "@handwritingQueueBatchReport": {
+    "placeholders": {
+      "succeeded": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchStopped": "Stopped; remaining photos were not analysed",
   "handwritingQueueNothingFound": "The model proposed nothing to organise: this page may have no tags, knowledge points, cards or questions.",
   "handwritingQueueFailureTitle": "This run failed",
   "handwritingQueueForget": "Discard result",

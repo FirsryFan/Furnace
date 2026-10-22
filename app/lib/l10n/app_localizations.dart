@@ -7859,6 +7859,42 @@ abstract class AppLocalizations {
   /// **'This photo has not been organised yet.'**
   String get handwritingQueueNotAnalyzed;
 
+  /// No description provided for @handwritingQueueBatchAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze all ({count} pending)'**
+  String handwritingQueueBatchAll(int count);
+
+  /// No description provided for @handwritingQueueBatchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing {current}/{total}'**
+  String handwritingQueueBatchProgress(int current, int total);
+
+  /// No description provided for @handwritingQueueBatchStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get handwritingQueueBatchStop;
+
+  /// No description provided for @handwritingQueueBatchStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping…'**
+  String get handwritingQueueBatchStopping;
+
+  /// No description provided for @handwritingQueueBatchReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Succeeded {succeeded}, failed {failed}, skipped {skipped}'**
+  String handwritingQueueBatchReport(int succeeded, int failed, int skipped);
+
+  /// No description provided for @handwritingQueueBatchStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped; remaining photos were not analysed'**
+  String get handwritingQueueBatchStopped;
+
   /// No description provided for @handwritingQueueNothingFound.
   ///
   /// In en, this message translates to:

@@ -2254,6 +2254,42 @@
   "handwritingQueueAnalyze": "整理这张照片",
   "handwritingQueueAnalyzing": "正在看照片…",
   "handwritingQueueNotAnalyzed": "这张照片还没整理过。",
+  "handwritingQueueBatchAll": "整理全部（{count} 张待整理）",
+  "@handwritingQueueBatchAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchProgress": "正在整理 {current}/{total}",
+  "@handwritingQueueBatchProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchStop": "停止",
+  "handwritingQueueBatchStopping": "正在停止…",
+  "handwritingQueueBatchReport": "成功 {succeeded} 张、失败 {failed} 张、跳过 {skipped} 张",
+  "@handwritingQueueBatchReport": {
+    "placeholders": {
+      "succeeded": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingQueueBatchStopped": "已停止，剩下的照片没有整理",
   "handwritingQueueNothingFound": "模型没给出可整理的产物：这张照片里可能没有标签、知识点、卡片或题目。",
   "handwritingQueueFailureTitle": "这次整理失败了",
   "handwritingQueueForget": "丢弃整理结果",

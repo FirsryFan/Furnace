@@ -36,6 +36,15 @@ Key handwritingProposalApplyKey(String proposalId) =>
 Key handwritingProposalPreviewKey(String proposalId) =>
     ValueKey<String>('handwriting-proposal-preview-$proposalId');
 
+/// 「整理全部」：把队列里还没整理的照片一次跑完（运行中禁用并显示进度）。
+const Key handwritingBatchAnalyzeAllKey = Key('handwriting-batch-analyze-all');
+
+/// 批次运行中的「停止」：当前这张整理完后不再发起下一张。
+const Key handwritingBatchStopKey = Key('handwriting-batch-stop');
+
+/// 一次批次结束后的汇总行（成功 / 失败 / 跳过）。
+const Key handwritingBatchSummaryKey = Key('handwriting-batch-summary');
+
 /// 待确认队列页。
 ///
 /// [initialRelPath] 用于"从收题页点某张照片的「整理」"这条入口：进来就选中它。
@@ -115,6 +124,8 @@ class _HandwritingQueuePageState extends ConsumerState<HandwritingQueuePage> {
           else if (queue.images.isEmpty)
             _EmptyQueue(onOpenIntake: _openIntake)
           else ...[
+            _BatchBar(queue: queue),
+            const SizedBox(height: 12),
             _PhotoStrip(
               images: queue.images,
               selectedRelPath: selected?.relPath,
@@ -207,6 +218,103 @@ class _PhotoStrip extends StatelessWidget {
                   ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 「整理全部」主按钮：进度、停止、结束汇总。
+///
+/// 运行中禁用它并显示「正在整理 i/N」；批次状态在 notifier 里，页面被遮住或
+/// 离开再回来（`refresh()` 不会清批次字段）仍能看到进度与汇总。
+class _BatchBar extends ConsumerWidget {
+  const _BatchBar({required this.queue});
+
+  final HandwritingQueueState queue;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final notifier = ref.read(handwritingQueueProvider.notifier);
+    final running = queue.batchRunning;
+    final candidates = queue.batchCandidateCount;
+    final report = queue.lastBatchReport;
+    final progress = queue.batchTotal == 0
+        ? null
+        : (queue.batchDone / queue.batchTotal).clamp(0.0, 1.0);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: handwritingBatchAnalyzeAllKey,
+                    onPressed: (!running && candidates > 0)
+                        ? () => notifier.analyzeAll()
+                        : null,
+                    icon: running
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome),
+                    label: Text(
+                      running
+                          ? l10n.handwritingQueueBatchProgress(
+                              queue.batchCurrent,
+                              queue.batchTotal,
+                            )
+                          : l10n.handwritingQueueBatchAll(candidates),
+                    ),
+                  ),
+                ),
+                if (running) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    key: handwritingBatchStopKey,
+                    onPressed: queue.batchStopping ? null : notifier.stopBatch,
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: Text(
+                      queue.batchStopping
+                          ? l10n.handwritingQueueBatchStopping
+                          : l10n.handwritingQueueBatchStop,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (running)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: LinearProgressIndicator(value: progress),
+              ),
+            if (!running && report != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                l10n.handwritingQueueBatchReport(
+                  report.succeeded,
+                  report.failed,
+                  report.skipped,
+                ),
+                key: handwritingBatchSummaryKey,
+                style: theme.textTheme.labelLarge,
+              ),
+              if (report.stopped) ...[
+                const SizedBox(height: 2),
+                Text(
+                  l10n.handwritingQueueBatchStopped,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ],
           ],
         ),
       ),

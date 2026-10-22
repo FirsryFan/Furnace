@@ -4662,6 +4662,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'This photo has not been organised yet.';
 
   @override
+  String handwritingQueueBatchAll(int count) {
+    return 'Analyze all ($count pending)';
+  }
+
+  @override
+  String handwritingQueueBatchProgress(int current, int total) {
+    return 'Analyzing $current/$total';
+  }
+
+  @override
+  String get handwritingQueueBatchStop => 'Stop';
+
+  @override
+  String get handwritingQueueBatchStopping => 'Stopping…';
+
+  @override
+  String handwritingQueueBatchReport(int succeeded, int failed, int skipped) {
+    return 'Succeeded $succeeded, failed $failed, skipped $skipped';
+  }
+
+  @override
+  String get handwritingQueueBatchStopped =>
+      'Stopped; remaining photos were not analysed';
+
+  @override
   String get handwritingQueueNothingFound =>
       'The model proposed nothing to organise: this page may have no tags, knowledge points, cards or questions.';
 

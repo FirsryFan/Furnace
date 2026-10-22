@@ -670,6 +670,60 @@ void main() {
     await waitForText(tester, '会新建标签「机械能守恒」');
     expect(find.text('会新建标签「动量守恒」'), findsNothing);
   });
+
+  testWidgets('整理全部：按钮显示待整理张数，跑完显示汇总并禁用', (tester) async {
+    await seedPhoto('first.png');
+    await seedPhoto('second.png');
+    await seedParentPath('文化课/物理/力学');
+    final adapter = FakeModelAdapter(<List<ModelEvent>>[
+      FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      FakeModelAdapter.answer(reply(<String>[tagProposal])),
+    ]);
+    await pumpQueue(tester, adapter: adapter);
+
+    expect(find.text('整理全部（2 张待整理）'), findsOneWidget);
+    await tester.tap(find.byKey(handwritingBatchAnalyzeAllKey));
+    await waitForText(tester, '成功 2 张、失败 0 张、跳过 0 张');
+
+    expect(find.byKey(handwritingBatchSummaryKey), findsOneWidget);
+    expect(find.text(zh.handwritingQueueBatchStopped), findsNothing);
+    expect(adapter.requests, hasLength(2));
+    final button = tester.widget<FilledButton>(
+      find.byKey(handwritingBatchAnalyzeAllKey),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.text('整理全部（0 张待整理）'), findsOneWidget);
+  });
+
+  testWidgets('整理全部：运行中显示进度与停止，停止只停后面的照片', (tester) async {
+    await seedPhoto('first.png');
+    await seedPhoto('second.png');
+    await seedParentPath('文化课/物理/力学');
+    final adapter = _BatchSteppedAdapter();
+    await pumpQueue(tester, adapter: adapter);
+
+    await tester.tap(find.byKey(handwritingBatchAnalyzeAllKey));
+    for (var attempt = 0; attempt < 100 && adapter.callCount < 1; attempt++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(adapter.callCount, 1);
+    expect(find.text('正在整理 1/2'), findsOneWidget);
+    expect(find.byKey(handwritingBatchStopKey), findsOneWidget);
+    final running = tester.widget<FilledButton>(
+      find.byKey(handwritingBatchAnalyzeAllKey),
+    );
+    expect(running.onPressed, isNull);
+
+    await tester.tap(find.byKey(handwritingBatchStopKey));
+    await tester.pump();
+    expect(find.text(zh.handwritingQueueBatchStopping), findsOneWidget);
+
+    adapter.finish(0, reply(<String>[tagProposal]));
+    await waitForText(tester, '成功 1 张、失败 0 张、跳过 0 张');
+    expect(find.text('已停止，剩下的照片没有整理'), findsOneWidget);
+    expect(adapter.callCount, 1);
+    expect(find.text('整理全部（1 张待整理）'), findsOneWidget);
+  });
 }
 
 /// 一个"永远不回答"的适配器：用来把「整理中」那一帧定住（`FakeModelAdapter`
@@ -705,4 +759,29 @@ final class _SeededQueueNotifier extends HandwritingQueueNotifier {
 
   @override
   Future<void> refresh() async {}
+}
+
+/// 逐张返回的假模型：把「正在整理 i/N」这一帧定住，好在批次进行中按停止。
+final class _BatchSteppedAdapter implements ModelAdapter {
+  final List<StreamController<ModelEvent>> _controllers =
+      <StreamController<ModelEvent>>[];
+
+  int get callCount => _controllers.length;
+
+  @override
+  Stream<ModelEvent> runTurn({
+    required List<ChatMessage> messages,
+    required List<ModelToolSpec> tools,
+  }) {
+    final controller = StreamController<ModelEvent>();
+    _controllers.add(controller);
+    return controller.stream;
+  }
+
+  void finish(int index, String text) {
+    final controller = _controllers[index];
+    controller.add(ModelTextDelta(text));
+    controller.add(const ModelTurnDone(finishReason: 'stop'));
+    controller.close();
+  }
 }
