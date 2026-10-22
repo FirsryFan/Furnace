@@ -447,10 +447,12 @@ class QuestionDocxRow {
   PaperDocxQuestion toPaperDocxQuestion({
     List<PaperDocxImage> images = const <PaperDocxImage>[],
     List<PaperDocxImage> answerImages = const <PaperDocxImage>[],
+    String? stemOverride,
+    bool stemIsSnapshot = false,
   }) {
     return PaperDocxQuestion(
       questionId: questionId,
-      stem: stem,
+      stem: stemOverride ?? stem,
       serialNo: serialNo == null || serialNo! < 1
           ? null
           : formatQuestionSerial(serialNo!),
@@ -465,6 +467,7 @@ class QuestionDocxRow {
       solution: solution,
       images: images,
       answerImages: answerImages,
+      stemIsSnapshot: stemIsSnapshot,
     );
   }
 }

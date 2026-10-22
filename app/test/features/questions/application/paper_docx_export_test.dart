@@ -575,7 +575,8 @@ void main() {
     });
 
     test('两个 loader 各读各的角色，互不混入', () async {
-      final ingested = await repo.ingest(const QuestionDraft(stem: '两个 loader'));
+      final ingested =
+          await repo.ingest(const QuestionDraft(stem: '两个 loader'));
       await mediaStore.save(
         questionId: ingested.question.id,
         fileName: 'stem.png',
@@ -607,6 +608,82 @@ void main() {
         answers.imagesByQuestionId[ingested.question.id]!.single.fileName,
         'answer.png',
       );
+    });
+  });
+
+  group('整卡快照包装配（真实抓题包形态）', () {
+    test('1 张 1640x808 整题截图 + 多处占位：正文降级、图后置、计数如实', () async {
+      final ingested = await repo.ingest(
+        const QuestionDraft(
+          stem: '阅读下列材料，完成后面题目。'
+              '［图1］材料一……'
+              '［图2］材料二……'
+              '［图12］材料三……',
+          answer: 'B',
+          solution: '略。',
+        ),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'card.png',
+        bytes: tinyPng(width: 1640, height: 808),
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+        generatedAt: DateTime(2026, 10, 22, 20, 0),
+      );
+
+      expect(result.report.snapshotStemCount, 1);
+      expect(result.report.imageCount, 1);
+      expect(result.imageLoadNotes, isEmpty);
+      final xml = documentXml(result.bytes);
+      expect(xml, contains('本题题干是整题截图'));
+      expect(xml, contains('原题整图'));
+      expect(xml, contains('阅读下列材料'));
+      expect(xml, isNot(contains('［图')));
+      expect(
+        xml.indexOf('本题题干是整题截图'),
+        lessThan(xml.indexOf('原题整图')),
+      );
+      expect(zipNames(result.bytes), contains('word/media/image1.png'));
+    });
+
+    test('两张小图 + 两处占位：仍按图文混排，不触发快照降级', () async {
+      final ingested = await repo.ingest(
+        const QuestionDraft(
+          stem: '看图回答：前图［图1］后图［图2］两问。',
+          answer: 'A',
+          solution: '略。',
+        ),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'a.png',
+        bytes: tinyPng(width: 400, height: 240),
+      );
+      await mediaStore.save(
+        questionId: ingested.question.id,
+        fileName: 'b.png',
+        bytes: tinyPng(width: 400, height: 240),
+      );
+
+      final result = await buildPaperDocxExport(
+        db: db,
+        mediaStore: mediaStore,
+        plan: planOf(<String>[ingested.question.id]),
+      );
+
+      expect(result.report.snapshotStemCount, 0);
+      expect(result.report.imageCount, 2);
+      final xml = documentXml(result.bytes);
+      expect(xml, isNot(contains('本题题干是整题截图')));
+      expect(xml, isNot(contains('原题整图')));
+      expect(xml, contains('前图'));
+      expect(zipNames(result.bytes), contains('word/media/image1.png'));
+      expect(zipNames(result.bytes), contains('word/media/image2.png'));
     });
   });
 }

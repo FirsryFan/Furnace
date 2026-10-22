@@ -1092,6 +1092,104 @@ void main() {
       );
     });
   });
+
+  group('整卡快照题（正文降级 + 原题整图）', () {
+    PaperDocxBuildResult buildSnapshot({
+      String stem = '阅读材料……［图1］……［图12］……',
+      bool stemIsSnapshot = true,
+      List<PaperDocxImage> images = const <PaperDocxImage>[],
+      PaperDocxLabels labels = const PaperDocxLabels(),
+    }) {
+      return buildPaperDocx(
+        plan: samplePlan(items: <PaperItem>[paperItem('q1')]),
+        questions: <String, PaperDocxQuestion>{
+          'q1': PaperDocxQuestion(
+            questionId: 'q1',
+            serialNo: 'TR-00001',
+            stem: stem,
+            stemIsSnapshot: stemIsSnapshot,
+            images: images,
+            answer: 'B',
+            solution: '略',
+          ),
+        },
+        knowledgePointNames: const <String, String>{},
+        labels: labels,
+      );
+    }
+
+    final snapshotImage = PaperDocxImage(
+      bytes: Uint8List.fromList(<int>[1, 2, 3, 4]),
+      extension: 'png',
+      pixelWidth: 1640,
+      pixelHeight: 808,
+      fileName: 'card.png',
+    );
+
+    test('快照题：题干后补提示、配图前出「原题整图」小标题并计数', () {
+      final result = buildSnapshot(images: <PaperDocxImage>[snapshotImage]);
+      final document = _documentXml(result);
+      expect(document, contains('本题题干是整题截图'));
+      expect(document, contains('原题整图'));
+      expect(result.snapshotStemCount, 1);
+      expect(result.imageCount, 1);
+      expect(
+        document.indexOf('本题题干是整题截图'),
+        lessThan(document.indexOf('原题整图')),
+      );
+      // 图本身是 drawing 元素（不写文本 note），小标题要在它之前。
+      expect(document, contains('<w:drawing'));
+      expect(
+        document.indexOf('原题整图'),
+        lessThan(document.indexOf('<w:drawing')),
+      );
+    });
+
+    test('非快照题：不出提示与「原题整图」，计数为 0', () {
+      final result = buildSnapshot(
+        stemIsSnapshot: false,
+        images: <PaperDocxImage>[snapshotImage],
+      );
+      final document = _documentXml(result);
+      expect(document, isNot(contains('本题题干是整题截图')));
+      expect(document, isNot(contains('原题整图')));
+      expect(result.snapshotStemCount, 0);
+    });
+
+    test('快照题题干为空：仍写空题干占位与提示，计数为 1', () {
+      final result = buildSnapshot(stem: '   ');
+      final document = _documentXml(result);
+      expect(document, contains('题干为空'));
+      expect(document, contains('本题题干是整题截图'));
+      expect(result.missingStemCount, 1);
+      expect(result.snapshotStemCount, 1);
+    });
+
+    test('快照题没有配图：不写「原题整图」标题，但正文提示保留', () {
+      final result = buildSnapshot();
+      final document = _documentXml(result);
+      expect(document, contains('本题题干是整题截图'));
+      expect(document, isNot(contains('原题整图')));
+      expect(result.imageCount, 0);
+      expect(result.snapshotStemCount, 1);
+    });
+
+    test('两处提示文案可被 labels 覆盖（英文）', () {
+      final result = buildSnapshot(
+        images: <PaperDocxImage>[snapshotImage],
+        labels: const PaperDocxLabels(
+          snapshotStemNote:
+              '(the stem is a card screenshot; readable text only)',
+          snapshotImageLabel: 'Original question image',
+        ),
+      );
+      final document = _documentXml(result);
+      expect(document, contains('card screenshot'));
+      expect(document, contains('Original question image'));
+      expect(document, isNot(contains('本题题干是整题截图')));
+      expect(document, isNot(contains('原题整图')));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -46,6 +46,7 @@ class PaperDocxQuestion {
     this.solution,
     this.images = const <PaperDocxImage>[],
     this.answerImages = const <PaperDocxImage>[],
+    this.stemIsSnapshot = false,
   });
 
   final String questionId;
@@ -83,6 +84,14 @@ class PaperDocxQuestion {
   /// 只有答案区整段渲染时（includeAnswers/includeSolutions/includeReasons
   /// 至少一个为 true）才会出现在附录。
   final List<PaperDocxImage> answerImages;
+
+  /// 题干是「整卡快照」：正文 [stem] 已经过应用层降级（只留可读文字），
+  /// 原题在 [images] 里的一张整题截图上。
+  ///
+  /// 为 true 时题干后补一行小字提示，配图前加「原题整图」小标题，
+  /// 让 Word 里一眼看出「正文不是完整题面」。旧调用方不传 = false，
+  /// 导出字节与之前一致。
+  final bool stemIsSnapshot;
 }
 
 /// 一道选择题的选项。
@@ -143,6 +152,7 @@ class PaperDocxBuildResult {
     required this.imageSkippedNotes,
     required this.formulaFailures,
     this.answerImageCount = 0,
+    this.snapshotStemCount = 0,
   });
 
   final Uint8List bytes;
@@ -157,6 +167,9 @@ class PaperDocxBuildResult {
 
   /// 成功放进附录的答案/解析截图张数（题干配图不计入）。
   final int answerImageCount;
+
+  /// 题干是整卡快照的题目数（正文只渲染降级文字，原题看图）。
+  final int snapshotStemCount;
   final int formulaCount;
   final int formulaFailureCount;
   final int missingQuestionCount;
@@ -190,6 +203,8 @@ class PaperDocxLabels {
     this.answerLabel = '答案：',
     this.solutionLabel = '解析：',
     this.answerImagesLabel = '答案与解析截图',
+    this.snapshotStemNote = '（本题题干是整题截图，正文只保留可读文字，原题见下方整图）',
+    this.snapshotImageLabel = '原题整图',
     this.reasonLabel = '理由：',
     this.improvementLabel = '提升点：',
     this.backgroundLabel = '背景：',
@@ -248,6 +263,12 @@ class PaperDocxLabels {
 
   /// 附录里答案/解析截图前的标签行（默认「答案与解析截图」）。
   final String answerImagesLabel;
+
+  /// 整卡快照题的题干提示（正文只保留可读文字，原题在下方整图）。
+  final String snapshotStemNote;
+
+  /// 整卡快照题的配图小标题（默认「原题整图」）。
+  final String snapshotImageLabel;
   final String reasonLabel;
   final String improvementLabel;
   final String backgroundLabel;
@@ -489,6 +510,9 @@ class _Assembler {
   /// 成功放进附录的答案截图张数。
   int _answerImageCount = 0;
 
+  /// 题干是整卡快照的题目数。
+  int _snapshotStemCount = 0;
+
   /// 附录里是否已经出过标题：只有第一个标题另起一页。
   bool _appendixStarted = false;
 
@@ -606,6 +630,7 @@ class _Assembler {
   }
 
   void _addStem(PaperDocxQuestion question) {
+    if (question.stemIsSnapshot) _snapshotStemCount++;
     final lines = _splitLines(question.stem);
     if (lines.isEmpty) {
       missingStemCount++;
@@ -621,6 +646,7 @@ class _Assembler {
           spacingAfterTw: 60,
         ),
       );
+      if (question.stemIsSnapshot) _addSnapshotStemNote();
       return;
     }
     for (var index = 0; index < lines.length; index++) {
@@ -633,6 +659,25 @@ class _Assembler {
         ),
       );
     }
+    if (question.stemIsSnapshot) _addSnapshotStemNote();
+  }
+
+  /// 整卡快照题：正文文字后面补一行小字，说明原题在下方整图里。
+  void _addSnapshotStemNote() {
+    builder.addParagraph(
+      DocxParagraph(
+        inlines: <DocxInline>[
+          DocxText(
+            labels.snapshotStemNote,
+            sizeHalfPt: kDocxMetaHalfPt,
+            colorHex: '595959',
+          ),
+        ],
+        spacingBeforeTw: 20,
+        spacingAfterTw: 60,
+        keepNext: true,
+      ),
+    );
   }
 
   void _addOptions(PaperDocxQuestion question) {
@@ -662,6 +707,23 @@ class _Assembler {
   }
 
   void _addImages(int number, PaperDocxQuestion question) {
+    if (question.stemIsSnapshot && question.images.isNotEmpty) {
+      builder.addParagraph(
+        DocxParagraph(
+          inlines: <DocxInline>[
+            DocxText(
+              labels.snapshotImageLabel,
+              sizeHalfPt: kDocxMetaHalfPt,
+              bold: true,
+              colorHex: '595959',
+            ),
+          ],
+          spacingBeforeTw: 80,
+          spacingAfterTw: 40,
+          keepNext: true,
+        ),
+      );
+    }
     _appendImages(number, question.images, answerShot: false);
   }
 
@@ -1409,6 +1471,7 @@ class _Assembler {
       imageCount: _stemImageCount,
       imageSkippedCount: imageSkippedCount,
       answerImageCount: _answerImageCount,
+      snapshotStemCount: _snapshotStemCount,
       formulaCount: builder.mathCount,
       formulaFailureCount: formulaFailureCount,
       missingQuestionCount: missingQuestionLabels.length,

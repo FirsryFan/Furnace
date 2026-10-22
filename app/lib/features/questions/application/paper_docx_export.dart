@@ -19,6 +19,8 @@ import '../../../domain/services/export/docx_writer.dart';
 import '../../../domain/services/export/paper_docx.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/paper/paper_quality_report.dart';
+import '../../../domain/services/questions/question_snapshot_summary.dart';
+import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../data/question_media_store.dart';
 import 'question_corpus_reader.dart';
 
@@ -84,7 +86,8 @@ Future<PaperDocxExportResult> buildPaperDocxExport({
 
   final questions = <String, PaperDocxQuestion>{
     for (final entry in rows.entries)
-      entry.key: entry.value.toPaperDocxQuestion(
+      entry.key: _paperDocxQuestionFor(
+        entry.value,
         images:
             loaded.imagesByQuestionId[entry.key] ?? const <PaperDocxImage>[],
         answerImages: loadedAnswer.imagesByQuestionId[entry.key] ??
@@ -116,6 +119,34 @@ Future<PaperDocxExportResult> buildPaperDocxExport({
       ...loaded.notes,
       ...loadedAnswer.notes,
     ]),
+  );
+}
+
+/// 把一行题目素材装成装配层的题目对象：整卡快照题在这里降级。
+///
+/// 判定用真实像素尺寸（B1）：1 张 1640x808 的整题截图 + 多处「［图N］」占位
+/// 就是快照模式，此时
+/// * 题干换成占位中性化后的正文（占位变「…」），不再把 44 个 ［图N］ 打进 Word；
+/// * 配图仍按原顺序放到正文后面，装配层再补「原题整图」小标题；
+/// * 只有一张小图、占位一处的题不属于快照，行为与旧版一致。
+PaperDocxQuestion _paperDocxQuestionFor(
+  QuestionDocxRow row, {
+  required List<PaperDocxImage> images,
+  required List<PaperDocxImage> answerImages,
+}) {
+  final summary = summarizeQuestionStemSnapshot(
+    stem: row.stem,
+    stemImageCount: images.length,
+    imageSizes: <QuestionStemImageSize>[
+      for (final image in images)
+        QuestionStemImageSize(image.pixelWidth, image.pixelHeight),
+    ],
+  );
+  return row.toPaperDocxQuestion(
+    images: images,
+    answerImages: answerImages,
+    stemOverride: summary.isSnapshot ? summary.neutralizedStem : null,
+    stemIsSnapshot: summary.isSnapshot,
   );
 }
 
