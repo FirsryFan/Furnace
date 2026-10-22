@@ -426,4 +426,68 @@ void main() {
       );
     });
   });
+
+  group('整卡截图题（每条 item 各自标注）', () {
+    test('一批里混着快照与普通题，只有快照题命中并在摘要计数', () async {
+      final snapshot = await seedQuestion(stem: '读图回答。［图1］［图2］');
+      await seedAttachment(ownerId: snapshot.id, id: 'att-snapshot');
+      await seedQuestion(stem: '普通题，没有配图。');
+      final oneFigure = await seedQuestion(stem: '如图，回答问题。［图1］');
+      await seedAttachment(ownerId: oneFigure.id, id: 'att-one-placeholder');
+
+      final result = await tool.run(invoke({'serials': '1..3'}));
+      final rows = [
+        for (final row in modelOf(result)['questions']! as List)
+          row as Map<String, Object?>,
+      ];
+
+      expect(rows, hasLength(3));
+      expect(rows[0]['stem_is_snapshot'], isTrue);
+      expect(rows[0]['stem_snapshot_label'], '整题截图 · 2 处公式/图');
+      expect(rows[1]['stem_is_snapshot'], isFalse);
+      expect(rows[1]['stem_snapshot_label'], '');
+      expect(rows[2]['stem_is_snapshot'], isFalse);
+      expect(rows[2]['stem_snapshot_label'], '');
+      expect(result.summary, contains('其中 1 道题题干是整题截图。'));
+      expect(result.summary, endsWith('这些是题库里已有的题，我不会自己出题。'));
+    });
+
+    test('全是快照题时汇总 K 道，单条标签按各自占位数', () async {
+      final first = await seedQuestion(stem: '第一题。［图1］［图2］');
+      final second = await seedQuestion(stem: '第二题。［图1］［图2］［图3］');
+      await seedAttachment(ownerId: first.id, id: 'att-a');
+      await seedAttachment(ownerId: second.id, id: 'att-b');
+
+      final result = await tool.run(invoke({'serials': '1..2'}));
+      final rows = [
+        for (final row in modelOf(result)['questions']! as List)
+          row as Map<String, Object?>,
+      ];
+
+      expect(rows[0]['stem_is_snapshot'], isTrue);
+      expect(rows[0]['stem_snapshot_label'], '整题截图 · 2 处公式/图');
+      expect(rows[1]['stem_is_snapshot'], isTrue);
+      expect(rows[1]['stem_snapshot_label'], '整题截图 · 3 处公式/图');
+      expect(result.summary, contains('其中 2 道题题干是整题截图。'));
+    });
+
+    test('没有快照题时每条仍是 false + 空串，摘要不提快照', () async {
+      await seedQuestion(stem: '第一题');
+      await seedQuestion(stem: '第二题');
+      final withFigure = await seedQuestion(stem: '第三题，如图。［图1］');
+      await seedAttachment(ownerId: withFigure.id, id: 'att-c');
+
+      final result = await tool.run(invoke({'serials': '1..3'}));
+      final rows = [
+        for (final row in modelOf(result)['questions']! as List)
+          row as Map<String, Object?>,
+      ];
+
+      for (final row in rows) {
+        expect(row['stem_is_snapshot'], isFalse);
+        expect(row['stem_snapshot_label'], '');
+      }
+      expect(result.summary, isNot(contains('题干是整题截图')));
+    });
+  });
 }

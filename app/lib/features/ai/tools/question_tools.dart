@@ -23,6 +23,7 @@ import '../../../data/repositories/question_repository.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/questions/question_serial_batch.dart';
+import '../../../domain/services/questions/question_snapshot_summary.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
@@ -44,6 +45,20 @@ bool _isStemQuestionImageRole(String? stored) {
 bool _isAnswerQuestionImageRole(String? stored) {
   final role = stored?.trim() ?? '';
   return role == 'answer' || role == 'solution';
+}
+
+/// 题干是整卡截图时给摘要补的一句；非快照返回空串（既有摘要一字不改）。
+///
+/// 口径与 `question_snapshot_summary.dart` 的 [QuestionSnapshotSummary.labelZh]
+/// 一致：快照有占位报「N 处公式/图」，没有占位只说「整题截图」。
+String _snapshotClauseOf(QuestionSnapshotSummary snapshot) {
+  if (!snapshot.isSnapshot) {
+    return '';
+  }
+  final detail = snapshot.placeholderCount > 0
+      ? '（${snapshot.placeholderCount} 处公式/图）'
+      : '';
+  return '；题干是整题截图$detail，正文可能只是占位，原题看图片';
 }
 
 /// 在已有题库里给一道题（或一组条件）找相似题。
@@ -560,6 +575,10 @@ class FindQuestionsByCapabilityTool extends AiTool {
 /// 对话里在此之前只能靠 `find_similar_questions` 拿题干摘要，模型讲不清一道具体题
 /// 的选项与解析。这个工具补上「读题」这一步，它仍然**只读**：不写库、不出题；
 /// 题号解析复用 `domain/services/questions/question_number.dart`，与题库页同一口径。
+///
+/// 题干是整卡截图时（1 张题干图 + 至少 2 处「［图N］」占位且没有已知尺寸，
+/// B2 口径），`modelResult` 的 `stem_is_snapshot` 为 true、`stem_snapshot_label`
+/// 给「整题截图 · N 处公式/图」，摘要补一句让模型别把占位当正文。
 class ReadQuestionTool extends AiTool {
   ReadQuestionTool({required AppDatabase db}) : _db = db;
 
@@ -663,6 +682,13 @@ class ReadQuestionTool extends AiTool {
         }
       }
 
+      // 整卡快照口径交给领域层（task-135）；这里只按题干图数量复算，
+      // 不自己数「［图N］」占位。
+      final stemSnapshot = summarizeQuestionStemSnapshot(
+        stem: row.stem,
+        stemImageCount: stemImageCount,
+      );
+
       return ToolResult(
         ok: true,
         summary: _summaryOf(
@@ -674,6 +700,7 @@ class ReadQuestionTool extends AiTool {
           actionTypes: actionTypes,
           stemImageCount: stemImageCount,
           answerImageCount: answerImageCount,
+          stemSnapshot: stemSnapshot,
         ),
         modelResult: {
           'rule': 'library_only',
@@ -714,6 +741,8 @@ class ReadQuestionTool extends AiTool {
           'action_labels_zh': actionLabels,
           'image_count': stemImageCount,
           'answer_image_count': answerImageCount,
+          'stem_is_snapshot': stemSnapshot.isSnapshot,
+          'stem_snapshot_label': stemSnapshot.labelZh,
         },
       );
     } on ToolArgError catch (e) {
@@ -749,6 +778,7 @@ class ReadQuestionTool extends AiTool {
     required List<String> actionTypes,
     required int stemImageCount,
     required int answerImageCount,
+    required QuestionSnapshotSummary stemSnapshot,
   }) {
     final subject = _subjectOf(row.subjectKey);
     final source = _sourceLevelOf(row.sourceLevel);
@@ -771,7 +801,8 @@ class ReadQuestionTool extends AiTool {
       if (answerImageCount > 0) '答案/解析截图 $answerImageCount 张',
     ];
     final head = meta.isEmpty ? serialLabel : '$serialLabel（$meta）';
-    return '$head：$stem。${parts.join('，')}。这些是题库里已有的题，我不会自己出题。';
+    return '$head：$stem。${parts.join('，')}${_snapshotClauseOf(stemSnapshot)}。'
+        '这些是题库里已有的题，我不会自己出题。';
   }
 
   String _namesOf(List<String> ids, Map<String, String> names) {
@@ -818,6 +849,9 @@ class ReadQuestionTool extends AiTool {
 ///
 /// 刻意只给摘要、不给完整题干：讲题请用 `read_question`。这样一次读 200 道也
 /// 不会撑爆上下文。AI 不出题：清单里的号在库里没有就如实报缺，绝不补写题干。
+///
+/// 每条 item 都带 `stem_is_snapshot` / `stem_snapshot_label`（口径同
+/// `read_question`，按每条自己的题干图数量）；摘要里补「其中 K 道题题干是整题截图」。
 class ReadQuestionsBySerialsTool extends AiTool {
   ReadQuestionsBySerialsTool({required AppDatabase db}) : _db = db;
 
@@ -940,11 +974,20 @@ class ReadQuestionsBySerialsTool extends AiTool {
 
       final questions = <Map<String, Object?>>[];
       final missing = <String>[];
+      var snapshotCount = 0;
       for (final serial in batch.serials) {
         final row = bySerial[serial];
         if (row == null) {
           missing.add(formatQuestionSerial(serial));
           continue;
+        }
+        final stemImageCount = stemImageCounts[row.id] ?? 0;
+        final stemSnapshot = summarizeQuestionStemSnapshot(
+          stem: row.stem,
+          stemImageCount: stemImageCount,
+        );
+        if (stemSnapshot.isSnapshot) {
+          snapshotCount += 1;
         }
         questions.add({
           'serial_no': serial,
@@ -961,8 +1004,10 @@ class ReadQuestionsBySerialsTool extends AiTool {
           'has_answer': _hasText(row.answer),
           'has_solution': _hasText(row.solution),
           'option_count': optionCounts[row.id] ?? 0,
-          'image_count': stemImageCounts[row.id] ?? 0,
+          'image_count': stemImageCount,
           'answer_image_count': answerImageCounts[row.id] ?? 0,
+          'stem_is_snapshot': stemSnapshot.isSnapshot,
+          'stem_snapshot_label': stemSnapshot.labelZh,
         });
       }
 
@@ -972,6 +1017,7 @@ class ReadQuestionsBySerialsTool extends AiTool {
           batch: batch,
           foundCount: questions.length,
           missing: missing,
+          snapshotCount: snapshotCount,
         ),
         modelResult: {
           'rule': 'library_only',
@@ -994,6 +1040,7 @@ class ReadQuestionsBySerialsTool extends AiTool {
     required QuestionSerialBatch batch,
     required int foundCount,
     required List<String> missing,
+    required int snapshotCount,
   }) {
     final missingCount = missing.length;
     final parts = <String>[
@@ -1005,7 +1052,10 @@ class ReadQuestionsBySerialsTool extends AiTool {
         '有 ${batch.rejectedSegments.length} 段没认出来'
             '（${_labelsOf(batch.rejectedSegments)}）',
     ];
-    return '${parts.join('，')}。这些是题库里已有的题，我不会自己出题。';
+    final snapshotNote =
+        snapshotCount > 0 ? '其中 $snapshotCount 道题题干是整题截图。' : '';
+    return '${parts.join('，')}。$snapshotNote'
+        '这些是题库里已有的题，我不会自己出题。';
   }
 
   String _labelsOf(List<String> labels) {

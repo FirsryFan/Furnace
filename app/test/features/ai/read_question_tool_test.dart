@@ -546,4 +546,83 @@ void main() {
       expect(result.summary, isNot(contains('截图')));
     });
   });
+
+  group('整卡截图题（题干只有一张截图 + 多处占位）', () {
+    test('1 张题干图 + 2 处占位 → 快照，摘要明说正文可能只是占位', () async {
+      final question = await seedQuestion(
+        stem: '已知函数 f(x)=x^2。［图1］求单调区间。［图2］',
+      );
+      await seedAttachment(
+        id: 'att-snapshot',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      expect(result.ok, isTrue);
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 1);
+      expect(model['stem_is_snapshot'], isTrue);
+      expect(model['stem_snapshot_label'], '整题截图 · 2 处公式/图');
+      expect(result.summary, contains('；题干是整题截图（2 处公式/图）'));
+      expect(result.summary, contains('正文可能只是占位，原题看图片'));
+      expect(result.summary, endsWith('这些是题库里已有的题，我不会自己出题。'));
+    });
+
+    test('不是快照时两个键也出现：false + 空串，摘要不补快照句', () async {
+      final question = await seedQuestion(stem: '普通题干，没有配图。');
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      expect(result.ok, isTrue);
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(
+        model.keys,
+        containsAll(<String>['stem_is_snapshot', 'stem_snapshot_label']),
+      );
+      expect(model['stem_is_snapshot'], isFalse);
+      expect(model['stem_snapshot_label'], '');
+      expect(result.summary, isNot(contains('整题截图')));
+      expect(result.summary, isNot(contains('原题看图片')));
+    });
+
+    test('1 张题干图 + 1 处占位不按快照处理（B2 要至少 2 处）', () async {
+      final question = await seedQuestion(stem: '如图，求阴影面积。［图1］');
+      await seedAttachment(
+        id: 'att-one-placeholder',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 1);
+      expect(model['stem_is_snapshot'], isFalse);
+      expect(model['stem_snapshot_label'], '');
+      expect(result.summary, isNot(contains('整题截图')));
+    });
+
+    test('2 张题干图 + 2 处占位不按快照处理（B2 只认 1 张图）', () async {
+      final question = await seedQuestion(stem: '两幅图。［图1］［图2］');
+      await seedAttachment(
+        id: 'att-two-1',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+      await seedAttachment(
+        id: 'att-two-2',
+        ownerType: 'question',
+        ownerId: question.id,
+      );
+
+      final result = await tool.run(invoke({'question_id': question.id}));
+
+      final model = result.modelResult! as Map<String, Object?>;
+      expect(model['image_count'], 2);
+      expect(model['stem_is_snapshot'], isFalse);
+      expect(result.summary, isNot(contains('整题截图')));
+    });
+  });
 }
