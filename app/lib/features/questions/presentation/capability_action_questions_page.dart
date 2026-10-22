@@ -19,6 +19,7 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/capability_action_questions_provider.dart';
 import '../application/question_corpus_reader.dart';
+import '../application/question_stem_display_provider.dart';
 import 'question_detail_page.dart';
 import 'question_vocab_labels.dart';
 
@@ -69,6 +70,8 @@ class _CapabilityActionQuestionsPageState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    // 题干一行文本（快照题显示摘录/标签）一次取全表，传给每一行。
+    final displays = ref.watch(questionStemDisplayProvider).valueOrNull;
     final base = ref.watch(questionsForCapabilitiesProvider(_baseQuery));
     final rows = _subjectKey.isEmpty
         ? base
@@ -98,7 +101,11 @@ class _CapabilityActionQuestionsPageState
                 ? <Widget>[Text(l10n.capabilityActionQuestionsEmpty(_label))]
                 : <Widget>[
                     for (final row in items)
-                      _QuestionRow(row: row, actionLabel: _label),
+                      _QuestionRow(
+                        row: row,
+                        actionLabel: _label,
+                        display: displays?[row.questionId],
+                      ),
                   ],
           ),
         ],
@@ -184,10 +191,17 @@ class _CapabilityActionQuestionsPageState
 }
 
 class _QuestionRow extends StatelessWidget {
-  const _QuestionRow({required this.row, required this.actionLabel});
+  const _QuestionRow({
+    required this.row,
+    required this.actionLabel,
+    this.display,
+  });
 
   final CapabilityQuestionRow row;
   final String actionLabel;
+
+  /// 题干的一行显示文本；provider 未回来或这题没条目时为 null，回退原文。
+  final QuestionStemDisplay? display;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +219,7 @@ class _QuestionRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         title: Text(
-          row.stem,
+          display == null || display!.isEmpty ? row.stem : display!.text,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),

@@ -32,6 +32,7 @@ import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/handwriting_proposal_service.dart';
 import '../application/question_media_providers.dart';
+import '../application/question_stem_display_provider.dart';
 import '../data/handwriting_intake_store.dart';
 import 'drop_intake_reader.dart';
 import 'question_detail_page.dart';
@@ -1198,6 +1199,8 @@ class _IntakeLibrarySection extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final filter = ref.watch(questionLibraryFilterProvider);
     final library = ref.watch(questionLibraryProvider);
+    // 题干一行文本（快照题显示摘录/标签）；未回来时回退原文。
+    final displays = ref.watch(questionStemDisplayProvider).valueOrNull;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1305,7 +1308,10 @@ class _IntakeLibrarySection extends ConsumerWidget {
                                 ),
                                 Expanded(
                                   child: Text(
-                                    entry.question.stem,
+                                    _libraryStemText(
+                                      displays?[entry.question.id],
+                                      entry.question.stem,
+                                    ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1335,6 +1341,15 @@ class _IntakeLibrarySection extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// 列表一行：优先用题干显示文本（快照题=摘录/标签），没有时回退原文。
+  static String _libraryStemText(
+    QuestionStemDisplay? display,
+    String stem,
+  ) {
+    if (display == null || display.isEmpty) return stem;
+    return display.text;
   }
 
   static String _librarySubtitle(

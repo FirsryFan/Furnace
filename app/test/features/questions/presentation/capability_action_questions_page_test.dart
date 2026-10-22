@@ -75,6 +75,34 @@ void main() {
     }
   }
 
+  /// 给某道题插一行「题干图」附件：列表的题干显示文本只读 attachments 计数，
+  /// 不读图片字节，所以不需要真的落盘一个文件。
+  Future<void> seedStemImage({required String questionId}) async {
+    await db.into(db.attachments).insert(
+          AttachmentsCompanion.insert(
+            id: 'attachment-$questionId',
+            ownerType: 'question',
+            ownerId: questionId,
+            relPath: 'media/$questionId/page.png',
+            mime: const Value('image/png'),
+            sortOrder: const Value(0),
+            role: const Value('stem'),
+            createdAt: 1,
+          ),
+        );
+  }
+
+  /// 等显示文本从原文换成快照摘录（provider 解析是异步的）。
+  Future<void> waitForText(WidgetTester tester, String text) async {
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (find.text(text).evaluate().isNotEmpty) {
+        return;
+      }
+    }
+    fail('等了 2.4 秒也没等到这段文字：$text');
+  }
+
   Future<void> pumpPage(WidgetTester tester, String actionType) async {
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 1.0;
@@ -232,5 +260,40 @@ void main() {
     expect(find.byType(Switch), findsNothing);
     expect(find.text('两个动作都用上的题。'), findsOneWidget);
     expect(find.text('只用分类讨论的题。'), findsOneWidget);
+  });
+
+  testWidgets('整卡快照题：一行显示可读摘录，不露［图N］', (tester) async {
+    final placeholders =
+        List<String>.generate(12, (index) => '［图${index + 1}］').join();
+    final stem = '已知函数 \$f(x)=x^2\$，求最小值。$placeholders';
+    await seedQuestion(id: 'q-snapshot', stem: stem);
+    await seedStemImage(questionId: 'q-snapshot');
+    await seedChain(
+      questionId: 'q-snapshot',
+      actions: const <String>['case_split'],
+    );
+
+    await pumpPage(tester, 'case_split');
+    await waitForText(tester, r'已知函数 $f(x)=x^2$，求最小值');
+
+    expect(find.text(r'已知函数 $f(x)=x^2$，求最小值'), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
+  });
+
+  testWidgets('快照题没有正文摘录：一行退成「整题截图 · N 处公式/图」', (tester) async {
+    final stem =
+        '，。${List<String>.generate(12, (index) => '［图${index + 1}］').join()}';
+    await seedQuestion(id: 'q-snapshot-bare', stem: stem);
+    await seedStemImage(questionId: 'q-snapshot-bare');
+    await seedChain(
+      questionId: 'q-snapshot-bare',
+      actions: const <String>['case_split'],
+    );
+
+    await pumpPage(tester, 'case_split');
+    await waitForText(tester, '整题截图 · 12 处公式/图');
+
+    expect(find.text('整题截图 · 12 处公式/图'), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
   });
 }

@@ -36,6 +36,7 @@ import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
 import '../../../domain/services/srs/dsr_memory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/question_reasoning_service.dart';
+import '../application/question_stem_display_provider.dart';
 import '../application/similar_question_provider.dart';
 import 'question_audit_view.dart';
 import 'question_detail_providers.dart';
@@ -1137,9 +1138,12 @@ class _SimilarQuestionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final detail = ref.watch(questionDetailProvider(similar.questionId));
-    final stem = detail.valueOrNull?.question.stem.trim();
-    final loadingStem = detail.isLoading && !detail.hasValue;
+    // 只靠题干字符串的列表统一走「一行显示文本」：快照题显示摘录/标签，
+    // 不再把「［图N］」原始占位吐出来。
+    final displays = ref.watch(questionStemDisplayProvider);
+    final display = displays.valueOrNull?[similar.questionId];
+    final displayText = display?.text.trim() ?? '';
+    final loadingStem = displays.isLoading && !displays.hasValue;
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -1149,14 +1153,36 @@ class _SimilarQuestionTile extends ConsumerWidget {
           QuestionSerialBadgeById(questionId: similar.questionId),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              loadingStem
-                  ? '…'
-                  : (stem == null || stem.isEmpty
-                      ? l10n.questionDetailQuestionMissing
-                      : stem),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    loadingStem
+                        ? '…'
+                        : (displayText.isEmpty
+                            ? l10n.questionDetailQuestionMissing
+                            : displayText),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // 快照题有正文摘录时才补徽标（无摘录时 text 本身就是标签）。
+                if (display != null &&
+                    display.isSnapshot &&
+                    display.hasExcerpt) ...[
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      l10n.questionBankSnapshotBadge,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (similar.crossSubjectTransfer) ...[

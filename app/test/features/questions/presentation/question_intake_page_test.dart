@@ -20,6 +20,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,23 @@ void main() {
 
   AppLocalizations l10n(WidgetTester tester) =>
       AppLocalizations.of(tester.element(find.byType(QuestionIntakePage)));
+
+  /// 给某道题插一行「题干图」附件：收题清单的显示文本只读 attachments 计数，
+  /// 不读图片字节，所以不需要真的落盘一个文件。
+  Future<void> seedStemImage(String questionId) async {
+    await db.into(db.attachments).insert(
+          AttachmentsCompanion.insert(
+            id: 'attachment-$questionId',
+            ownerType: 'question',
+            ownerId: questionId,
+            relPath: 'media/$questionId/page.png',
+            mime: const Value('image/png'),
+            sortOrder: const Value(0),
+            role: const Value('stem'),
+            createdAt: 1,
+          ),
+        );
+  }
 
   /// 带 [label] 的输入框。表单里每个字段都是 `InputDecoration.labelText`，
   /// 所以从 label 往上找到 `TextField` 比按顺序数第几个输入框稳。
@@ -795,5 +813,32 @@ void main() {
 
     expect(find.text('第一题'), findsOneWidget);
     expect(find.text('第二题'), findsOneWidget);
+  });
+
+  testWidgets('收题清单：整卡快照题显示可读摘录，不露［图N］', (tester) async {
+    final placeholders =
+        List<String>.generate(12, (index) => '［图${index + 1}］').join();
+    final stem = '已知函数 \$f(x)=x^2\$，求最小值。$placeholders';
+    final ingested = await repository.ingest(QuestionDraft(stem: stem));
+    await seedStemImage(ingested.question.id);
+
+    await pumpPage(tester);
+    await expectTextEventually(tester, r'已知函数 $f(x)=x^2$，求最小值');
+
+    expect(find.text(r'已知函数 $f(x)=x^2$，求最小值'), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
+  });
+
+  testWidgets('收题清单：快照题没有正文摘录时显示「整题截图 · N 处公式/图」', (tester) async {
+    final stem =
+        '，。${List<String>.generate(12, (index) => '［图${index + 1}］').join()}';
+    final ingested = await repository.ingest(QuestionDraft(stem: stem));
+    await seedStemImage(ingested.question.id);
+
+    await pumpPage(tester);
+    await expectTextEventually(tester, '整题截图 · 12 处公式/图');
+
+    expect(find.text('整题截图 · 12 处公式/图'), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
   });
 }

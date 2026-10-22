@@ -27,12 +27,14 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
+import 'package:furnace/domain/services/paper/similar_questions.dart';
 import 'package:furnace/domain/services/questions/question_source.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
+import 'package:furnace/features/questions/application/similar_question_provider.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_media_view.dart';
 import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
@@ -1181,6 +1183,101 @@ void main() {
     final row = await QuestionRepository(database).byId(question.id);
     expect(row!.title, '新题名');
   });
+
+  testWidgets('相似题是整卡快照：显示可读摘录并带「整题截图」徽标', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final focus = await _seedQuestion(database);
+    final placeholders =
+        List<String>.generate(12, (index) => '［图${index + 1}］').join();
+    final stem = '已知函数 \$f(x)=x^2\$，求最小值。$placeholders';
+    final snapshot = await _seedQuestion(database, stem: stem);
+    await _addStemImage(database, questionId: snapshot.id);
+
+    await _pumpDetail(
+      tester,
+      database,
+      focus.id,
+      adapter: null,
+      overrides: <Override>[
+        similarQuestionsProvider.overrideWith(
+          (ref, questionId) => <SimilarQuestion>[
+            SimilarQuestion(
+              questionId: snapshot.id,
+              score: 0.8,
+              components: const <String, double>{'knowledge_point': 0.8},
+              reasonZh: '共用知识点「二次函数」',
+            ),
+          ],
+        ),
+      ],
+    );
+    await _waitForText(tester, r'已知函数 $f(x)=x^2$，求最小值');
+
+    expect(find.text(r'已知函数 $f(x)=x^2$，求最小值'), findsOneWidget);
+    expect(find.text(_zh.questionBankSnapshotBadge), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
+  });
+
+  testWidgets('相似题是整卡快照但没有正文摘录：显示整题截图标签，不摆徽标', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final focus = await _seedQuestion(database);
+    final stem =
+        '，。${List<String>.generate(12, (index) => '［图${index + 1}］').join()}';
+    final snapshot = await _seedQuestion(database, stem: stem);
+    await _addStemImage(database, questionId: snapshot.id);
+
+    await _pumpDetail(
+      tester,
+      database,
+      focus.id,
+      adapter: null,
+      overrides: <Override>[
+        similarQuestionsProvider.overrideWith(
+          (ref, questionId) => <SimilarQuestion>[
+            SimilarQuestion(
+              questionId: snapshot.id,
+              score: 0.7,
+              components: const <String, double>{'knowledge_point': 0.7},
+              reasonZh: '共用知识点「二次函数」',
+            ),
+          ],
+        ),
+      ],
+    );
+    await _waitForText(tester, '整题截图 · 12 处公式/图');
+
+    expect(find.text('整题截图 · 12 处公式/图'), findsOneWidget);
+    expect(find.text(_zh.questionBankSnapshotBadge), findsNothing);
+  });
+
+  testWidgets('相似题是普通题：显示原文，不摆整题截图徽标', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final focus = await _seedQuestion(database);
+    final similar = await _seedQuestion(database, stem: '普通相似题：求导。');
+
+    await _pumpDetail(
+      tester,
+      database,
+      focus.id,
+      adapter: null,
+      overrides: <Override>[
+        similarQuestionsProvider.overrideWith(
+          (ref, questionId) => <SimilarQuestion>[
+            SimilarQuestion(
+              questionId: similar.id,
+              score: 0.5,
+              components: const <String, double>{},
+              reasonZh: '题面相近',
+            ),
+          ],
+        ),
+      ],
+    );
+    await _waitForText(tester, '普通相似题：求导。');
+
+    expect(find.text('普通相似题：求导。'), findsOneWidget);
+    expect(find.text(_zh.questionBankSnapshotBadge), findsNothing);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -1232,6 +1329,27 @@ Future<Question> _seedQuestion(
   return result.question;
 }
 
+/// 给某道题插一行「题干图」附件：列表/相似题的显示文本只读 attachments 计数，
+/// 不读图片字节，所以不需要真的落盘一个文件。
+Future<void> _addStemImage(
+  AppDatabase database, {
+  required String questionId,
+  String fileName = 'page.png',
+}) async {
+  await database.into(database.attachments).insert(
+        AttachmentsCompanion.insert(
+          id: 'attachment-$questionId',
+          ownerType: 'question',
+          ownerId: questionId,
+          relPath: 'media/$questionId/$fileName',
+          mime: const Value('image/png'),
+          sortOrder: const Value(0),
+          role: const Value('stem'),
+          createdAt: 1,
+        ),
+      );
+}
+
 /// 一份合规的模型回复：两步，都带同一个知识提示 [hint]。
 ///
 /// 两步的风险刻意一个高（0.8）一个低（0.2），这样"整条链最高风险"和"这一步
@@ -1272,6 +1390,7 @@ Future<void> _pumpDetail(
   required ModelAdapter? adapter,
   FakeQuestionMediaStore? mediaStore,
   List<ZujuanSearchCandidate>? zujuanCandidates,
+  List<Override> overrides = const <Override>[],
 }) async {
   _bigSurface(tester);
   await tester.pumpWidget(
@@ -1287,6 +1406,7 @@ Future<void> _pumpDetail(
           questionZujuanCandidatesProvider.overrideWith(
             (ref, stem) => zujuanCandidates,
           ),
+        ...overrides,
       ],
       child: MaterialApp(
         locale: const Locale('zh'),
