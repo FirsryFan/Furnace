@@ -3498,7 +3498,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsQuestionPackImportConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Only new questions are added; identical stems (by fingerprint) are skipped'**
+  /// **'Newly added questions never overwrite existing ones; identical stems (by fingerprint) are skipped'**
   String get settingsQuestionPackImportConfirm;
 
   /// No description provided for @settingsQuestionPackImportDone.

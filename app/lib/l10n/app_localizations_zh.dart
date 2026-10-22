@@ -1912,8 +1912,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsQuestionPackImportConfirm =>
-      '只会新增题目，不覆盖已有题；题干相同（按指纹）的题会被跳过';
+  String get settingsQuestionPackImportConfirm => '新增的题不会覆盖已有题；题干相同（按指纹）的题会被跳过';
 
   @override
   String settingsQuestionPackImportDone(int created, int skipped, int media) {

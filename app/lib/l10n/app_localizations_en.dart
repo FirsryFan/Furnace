@@ -1994,7 +1994,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsQuestionPackImportConfirm =>
-      'Only new questions are added; identical stems (by fingerprint) are skipped';
+      'Newly added questions never overwrite existing ones; identical stems (by fingerprint) are skipped';
 
   @override
   String settingsQuestionPackImportDone(int created, int skipped, int media) {

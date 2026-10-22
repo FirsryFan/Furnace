@@ -1,6 +1,43 @@
 # 开发进度
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
+## 2026-10-23 轮次一百四十六：v0.6.1 双端发布件（Lead + 三个 teammate 的轮次140–145 成果打包）
+
+**起点**：轮次一百四十五收尾（HEAD `7f29e4c`，v0.6.0-31）。v0.6.0 之后已攒 31 个提交 / 6 轮
+（题库批量操作、搜索筛选、整卡快照包降级显示、抓题包按题号更新），用户手上没有能自己构建的环境，
+发布件由 Lead 准备；dist/ 属 gitignore，不入库。
+
+**版本与门禁**
+- `app/pubspec.yaml` `version: 0.6.1+20`；`app/lib/core/app_info.dart` `kAppVersion='0.6.1'`、
+  `kAppBuildNumber=20`。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（基线）；`test/core/app_info_test.dart` +2。
+- 全量 `flutter test --concurrency=1` → **+5580 ~2 All tests passed**，11 分 12 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-146-release-full.txt`）。
+- schema 不变：`database.dart:111` `int get schemaVersion => 30;`，本版无新迁移（v0.6.0 已到 v30）。
+
+**双端构建（本机实测）**
+- Windows：`scripts/build_windows.ps1` exit=0，flutter build 83.0s；产物
+  `E:/Document/furnace-build/build/windows/x64/runner/Release`（ASCII junction），28 文件 /
+  46,931,803 B（打包前删 `kernel_blob.bin` 105,422,664 B），`data/app.so` 21,283,720 B，
+  `furnace.exe` 版本资源 `0.6.1+20`；日志 `E:/dsh-tmp-aot/release-061-win.log`。
+- Android：`scripts/build_android.ps1` exit=0，Gradle assembleRelease 215.1s；APK 98,724,042 B；
+  apksigner 证书 `CN=Threadflow` SHA-256 `57de8b8f…f32e2db2`（与 v0.5.0–v0.6.0 同一把）；
+  aapt2：`com.furnace.app`、versionCode 20、versionName 0.6.1、minSdk 24、target/compileSdk 36；
+  日志 `E:/dsh-tmp-aot/release-061-android.log`。
+- 构建期 `gen-l10n` 暴露轮次145 手改 ARB 后未重新生成：`app_localizations*.dart` 3 文件刷新
+  （`settingsQuestionPackImportConfirm` zh/en 文案与 ARB 对齐），随本版提交。
+
+**发布件（dist/，gitignore，未入库、未 push）**
+- `Furnace-0.6.1-windows-x64.zip`：20,400,437 B，SHA-256
+  `68BD690CD0A39CF16E372B4D31906412DBB5B776BA37E2C71B9CD2EBBB0DC0A6`，35 entries，
+  顶层 furnace.exe + 7 个 dll，`data/app.so` 在包，`kernel_blob` 0 条。
+- `Furnace-0.6.1-android.apk`：98,724,042 B，SHA-256
+  `69C7270DDF409095F84C9EE27E0BB2E877D3D87147699EC987727F3D1489DC29`。
+- `RELEASE-v0.6.1.md` 由 Lead 写在 dist/（不入库），列行为变更、验证数字与已知未做。
+
+**未做 / 风险**：双端新功能均未真机手测（批量操作、筛选条、整卡快照版面、设置页更新对话框）；
+题库包更新无回滚、无 UI 开关；筛选只作用于已加载的前 500 题；英文新文案未母语校对；仓库仍未 push。
+
 ## 2026-10-23 轮次一百四十五：题库包按组卷网题号更新已有题目（Lead + 三个 teammate）
 
 **起点**：轮次一百四十四收尾（HEAD `b15e04b`，v0.6.0-26）。此前重复导入同一个 `.tqb` 只会
