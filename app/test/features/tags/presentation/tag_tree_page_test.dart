@@ -21,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/repository_providers.dart';
+import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/domain/services/tags/tag_tree_sort.dart';
 import 'package:furnace/features/tags/presentation/tag_tree_page.dart';
@@ -387,6 +388,301 @@ void main() {
     expect(tileTitles(tester), ['alpha', 'gamma', 'beta']);
     expect(find.byType(SnackBar), findsNothing);
   });
+
+  group('多选批量操作', () {
+    Future<void> enterSelection(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.checklist_outlined));
+      await tester.pumpAndSettle();
+    }
+
+    Finder dialogIcon(IconData icon) => find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byIcon(icon),
+        );
+
+    Future<void> selectRow(WidgetTester tester, String label) async {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    List<String> dialogTileTitles(WidgetTester tester) => <String>[
+          for (final tile in tester.widgetList<ListTile>(
+            find.descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(ListTile),
+            ),
+          ))
+            (tile.title! as Text).data!,
+        ];
+
+    testWidgets('进入多选出现勾选框与底部操作条；退出后消失、选择清空', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+
+      await enterSelection(tester);
+      expect(find.byType(Checkbox), findsNWidgets(3));
+      expect(find.text('已选 0 项'), findsOneWidget);
+      expect(find.text('全选'), findsOneWidget);
+      expect(find.text('批量删除'), findsOneWidget);
+      expect(find.text('批量移动'), findsOneWidget);
+      // 多选时单标签菜单让位给整行勾选。
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+
+      await selectRow(tester, 'alpha');
+      expect(find.text('已选 1 项'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.byType(Checkbox), findsNothing);
+      expect(find.text('已选 0 项'), findsNothing);
+
+      // 再次进入：上一次的选择没有残留。
+      await enterSelection(tester);
+      expect(find.text('已选 0 项'), findsOneWidget);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+    });
+
+    testWidgets('整行点击勾选/取消勾选，计数跟随，且不展开子层', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+
+      await selectRow(tester, 'alpha');
+      expect(find.text('已选 1 项'), findsOneWidget);
+      expect(find.text('alpha-a'), findsNothing);
+
+      await selectRow(tester, 'beta');
+      expect(find.text('已选 2 项'), findsOneWidget);
+      final checkboxes =
+          tester.widgetList<Checkbox>(find.byType(Checkbox)).toList();
+      expect(checkboxes[0].value, isTrue);
+      expect(checkboxes[1].value, isTrue);
+      expect(checkboxes[2].value, isFalse);
+
+      await selectRow(tester, 'alpha');
+      expect(find.text('已选 1 项'), findsOneWidget);
+      expect(
+        tester.widgetList<Checkbox>(find.byType(Checkbox)).first.value,
+        isFalse,
+      );
+    });
+
+    testWidgets('全选包含全部标签（含未展开的子层），再点取消全选', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+
+      await tester.tap(find.text('全选'));
+      await tester.pumpAndSettle();
+      expect(find.text('已选 5 项'), findsOneWidget);
+      expect(find.text('清空选择'), findsOneWidget);
+
+      await tester.tap(find.text('清空选择'));
+      await tester.pumpAndSettle();
+      expect(find.text('已选 0 项'), findsOneWidget);
+      expect(find.text('全选'), findsOneWidget);
+    });
+
+    testWidgets('展开箭头在多选中仍可展开子层，且不改变选择', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
+      await tester.pumpAndSettle();
+      expect(find.text('alpha-a'), findsOneWidget);
+      expect(find.text('已选 0 项'), findsOneWidget);
+
+      await selectRow(tester, 'alpha-a');
+      expect(find.text('已选 1 项'), findsOneWidget);
+    });
+
+    testWidgets('批量删除：确认后连同子树一起删，界面与库都刷新', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+      await selectRow(tester, 'alpha');
+      await selectRow(tester, 'beta');
+
+      await tester.tap(find.text('批量删除'));
+      await tester.pumpAndSettle();
+      expect(find.text('删除 2 个标签？'), findsOneWidget);
+      expect(find.text('alpha、beta（共 2 个）'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      await tester.tap(dialogIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      final rows = await db.select(db.tags).get();
+      expect(rows.map((row) => row.id).toList()..sort(), <String>['t-gamma']);
+      // alpha 的整棵子树 + beta 的 object_tags 一并删除，只剩 gamma 的 1 条。
+      expect(await db.select(db.objectTags).get(), hasLength(1));
+      expect(tileTitles(tester), <String>['gamma']);
+      expect(find.text('已删除 2 个标签'), findsOneWidget);
+      expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('批量删除点取消：一个标签都不删，选择保留', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+      await selectRow(tester, 'alpha');
+
+      await tester.tap(find.text('批量删除'));
+      await tester.pumpAndSettle();
+      await tester.tap(dialogIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(await db.select(db.tags).get(), hasLength(5));
+      expect(find.text('已选 1 项'), findsOneWidget);
+      expect(find.byType(Checkbox), findsNWidgets(3));
+    });
+
+    testWidgets('批量移动：逐个挂到目标父节点下，路径级联更新', (tester) async {
+      await seedFixture();
+      // seedTag 直接写行、不带 path；给目标父节点补上 path，移动后子层的
+      // 级联 path 才有父路径可拼（仓库用 getTagById(parentId).path）。
+      await (db.update(db.tags)..where((t) => t.id.equals('t-alpha')))
+          .write(const TagsCompanion(path: Value('alpha')));
+      await pumpPage(tester);
+      await enterSelection(tester);
+      await selectRow(tester, 'beta');
+      await selectRow(tester, 'gamma');
+
+      await tester.tap(find.text('批量移动'));
+      await tester.pumpAndSettle();
+      // seedTag 直接写行、不给 path，所以 _labelOf 退回 name。
+      expect(dialogTileTitles(tester),
+          <String>['顶层', 'alpha', 'alpha-a', 'alpha-b']);
+
+      await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('alpha'),
+      ));
+      await tester.pumpAndSettle();
+
+      final rows = <String, dynamic>{
+        for (final row in await db.select(db.tags).get()) row.id: row,
+      };
+      expect(rows['t-beta'].parentId, 't-alpha');
+      expect(rows['t-gamma'].parentId, 't-alpha');
+      expect(rows['t-beta'].path, 'alpha/beta');
+      expect(rows['t-gamma'].path, 'alpha/gamma');
+      expect(find.text('已移动 2 个标签'), findsOneWidget);
+      expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('移动目标列表排除被选标签自身与全部后代', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      await enterSelection(tester);
+      await selectRow(tester, 'alpha');
+
+      await tester.tap(find.text('批量移动'));
+      await tester.pumpAndSettle();
+
+      expect(dialogTileTitles(tester), <String>['顶层', 'beta', 'gamma']);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('alpha'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('批量删除失败：汇总成功/失败并退出多选，库不受影响', (tester) async {
+      await seedFixture();
+      await pumpPage(
+        tester,
+        overrides: <Override>[
+          tagRepositoryProvider.overrideWithValue(
+            _ThrowingDeleteTagRepository(db),
+          ),
+        ],
+      );
+      await enterSelection(tester);
+      await selectRow(tester, 'alpha');
+      await selectRow(tester, 'beta');
+
+      await tester.tap(find.text('批量删除'));
+      await tester.pumpAndSettle();
+      await tester.tap(dialogIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('成功 0 个、失败 2 个'), findsOneWidget);
+      expect(await db.select(db.tags).get(), hasLength(5));
+      expect(find.byType(Checkbox), findsNothing);
+    });
+
+    testWidgets('批量执行期间禁用入口，落定后恢复', (tester) async {
+      await seedFixture();
+      final repository = _HangingDeleteTagRepository(db);
+      await pumpPage(
+        tester,
+        overrides: <Override>[
+          tagRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      await enterSelection(tester);
+      await selectRow(tester, 'alpha');
+
+      await tester.tap(find.text('批量删除'));
+      await tester.pumpAndSettle();
+      await tester.tap(dialogIcon(Icons.delete_outline));
+      // settle 只等动画；删除仍卡在 gate 上，所以多选条保持锁定。
+      await tester.pumpAndSettle();
+
+      expect(find.text('处理中…'), findsOneWidget);
+      expect(find.text('已选 1 项'), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, '批量删除'))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, '批量移动'))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<TextButton>(find.widgetWithText(TextButton, '全选'))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<IconButton>(find.descendant(
+              of: find.byType(AppBar),
+              matching: find.widgetWithIcon(IconButton, Icons.close),
+            ))
+            .onPressed,
+        isNull,
+      );
+
+      repository.release();
+      await tester.pumpAndSettle();
+
+      // alpha 连同两个子层一起删：只剩 beta 与 gamma。
+      expect(find.text('已删除 1 个标签'), findsOneWidget);
+      expect(await db.select(db.tags).get(), hasLength(2));
+    });
+
+    testWidgets('普通模式不回归：没有勾选框，单标签菜单照旧', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+
+      expect(find.byType(Checkbox), findsNothing);
+      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.pumpAndSettle();
+      expect(find.text('新建子标签'), findsOneWidget);
+      expect(find.text('重命名'), findsOneWidget);
+      expect(find.text('删除'), findsOneWidget);
+    });
+  });
 }
 
 /// Answers with a fixed mode without touching the settings repository.
@@ -413,5 +709,37 @@ class _ThrowingWriteSettingsRepository extends SettingsRepository {
   @override
   Future<void> updateTagTreeSortMode(String? mode) async {
     throw StateError('disk full');
+  }
+}
+
+/// A tag repository whose deletion always fails; the batch flow must report the
+/// failures instead of tearing the page down.
+class _ThrowingDeleteTagRepository extends TagRepository {
+  // The super field `_db` is private to tag_repository.dart, so a super
+  // parameter cannot be spelled from this library.
+  // ignore: use_super_parameters
+  _ThrowingDeleteTagRepository(AppDatabase database) : super(database);
+
+  @override
+  Future<void> deleteTag(String id) async {
+    throw StateError('delete rejected for $id');
+  }
+}
+
+/// A tag repository whose deletion waits on a gate; the batch flow must lock its
+/// entry points until the delete settles.
+class _HangingDeleteTagRepository extends TagRepository {
+  // See _ThrowingDeleteTagRepository for the super-parameter note.
+  // ignore: use_super_parameters
+  _HangingDeleteTagRepository(AppDatabase database) : super(database);
+
+  final _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  Future<void> deleteTag(String id) async {
+    await _gate.future;
+    await super.deleteTag(id);
   }
 }

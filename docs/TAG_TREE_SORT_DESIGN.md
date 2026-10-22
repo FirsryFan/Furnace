@@ -87,9 +87,10 @@ Future<Map<String, int>> objectCountByTagId({
 - `byObjectCount` 模式在 tile 尾部显示内容量角标（`ValueKey('tag-object-count-<tagId>')`），
   其他模式不显示；
 - 计数与标签异步：`valueOrNull ?? const {}`，未到按 0，不阻塞树显示，不写库、无迁移。
-- **未接 l10n**：本轮 tooltip 与三档模式名直接用 `TagTreeSortMode.labelZh`（l10n 五文件由
-  question-intake 独占写，避免冲突）；排序偏好只在会话内（`tagTreeSortModeProvider`），
-  跨重启持久化留到以后（`tagTreeSortModeToStorage` 已备好）。
+- **l10n**：本轮只硬编码中文；轮次一百三十九已把排序按钮 tooltip 接成
+  `l10n.tagsSort`（三档模式名仍来自 `TagTreeSortMode.labelZh`，en 界面是中文，留给后续）。
+  排序偏好只在会话内（`tagTreeSortModeProvider`），跨重启持久化留到以后
+  （`tagTreeSortModeToStorage` 已备好）。
 
 ## 6. 刻意未做
 
@@ -109,3 +110,34 @@ Future<Map<String, int>> objectCountByTagId({
 - UI：`app/test/features/tags/presentation/tag_tree_page_test.dart`（threadflow-engine，8 例：
   默认字典序无角标、按内容量重排+角标、按添加时间、展开状态跨重排保留、切回字典序复原、
   空库不崩、计数 pending 按 0、选择器三档打勾与即时重排）。
+
+
+## 8. 多选批量操作与 l10n 接线（轮次一百三十九，task-119 + Lead 接线）
+
+**问题**：用户反馈「编辑标签要一个个点开、移到菜单、处理完再退出，很繁琐」——逐个标签改一棵
+树时，真正贵的是**重复的指针移动**，不是单次点击本身。
+
+**做法**：进入多选后整行变勾选，底部一条操作条，一次落在一批标签上。
+
+- 页面状态：`_selectionMode` / `_selected` / `_batchBusy`；退出多选、批量成功都清空选择
+  （被删的 id 不能留在集合里，否则下一次批量操作会指向不存在的行）。
+- 多选行：整行点击切换勾选；展开箭头保留（点箭头只展开、不勾选）；⋮ 菜单与长按/右键在
+  多选里隐藏，避免两套动作抢同一个入口。
+- 底部条：`已选 N 项` / 全选·清空选择 / 批量移动 / 批量删除；0 项时删除与移动禁用
+  （否则「全选」按钮永远出不来）。
+- 批量删除：确认框列出前 5 个标签名 + 总数，说明「整棵子树一起删除」，逐个 `deleteTag`；
+  失败逐个收集，最后 SnackBar 汇总「成功 N 个、失败 M 个：前 3 条原因」。
+- 批量移动：目标列表 = 顶层 + 其余标签，**排除被选标签自身与全部后代**（否则 `moveTag`
+  会按环拒绝）；逐个 `moveTag`，同样汇总成功/失败。
+- 执行期 `_batchBusy` 锁入口（多选开关、勾选、批量按钮都禁用），避免半途重入。
+- l10n：Lead 在轮次一百三十九接线 13 个 key——`tagsSelectMode` / `tagsSelectedCount` /
+  `tagsSelectAll` / `tagsClearSelection` / `tagsBatchDelete` / `tagsBatchMove` /
+  `tagsBatchDeleteTitle` / `tagsBatchDeletePreview` / `tagsMoveDialogTitle` /
+  `tagsMoveToRoot` / `tagsBatchBusy` / `tagsBatchResultDone` / `tagsBatchResultMixed`，
+  另加通用动词 `commonMove` 与 tooltip `tagsSort`；结果句用 `commonDelete` / `commonMove`
+  作 {action}。
+
+**验收**：`app/test/features/tags/presentation/tag_tree_page_test.dart` 24 例（原 13 + 新 11：
+进入/退出、勾选计数、全选与清空、箭头展开不改选择、级联删除、取消删除、路径级联移动、
+目标排除被选与后代、失败汇总、执行期禁用、普通模式不回归）。
+

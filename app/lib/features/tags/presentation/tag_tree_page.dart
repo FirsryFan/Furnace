@@ -81,6 +81,13 @@ class TagTreePage extends ConsumerStatefulWidget {
 class _TagTreePageState extends ConsumerState<TagTreePage> {
   final _expanded = <String>{};
 
+  /// 多选模式：进入后每行左侧出现勾选框，底部出现批量操作条。
+  bool _selectionMode = false;
+  final _selected = <String>{};
+
+  /// 批量删除/移动执行期间为 true：操作条与各入口一律禁用，避免重入。
+  bool _batchBusy = false;
+
   /// Maps the flat drift rows to the pure-logic tree builder: assembly, the
   /// three ordering modes and the parent/child edges all live in
   /// domain/services/tags/tag_tree_view.dart. This page only keeps the
@@ -122,32 +129,51 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.navTags),
-        actions: [
-          // Mode names come straight from the domain enum for now: the l10n
-          // files are being edited by another member this round, so wiring
-          // these three labels into AppLocalizations is a follow-up.
-          PopupMenuButton<TagTreeSortMode>(
-            tooltip: '排序',
-            icon: const Icon(Icons.sort),
-            initialValue: mode,
-            onSelected: (next) =>
-                ref.read(tagTreeSortModeProvider.notifier).select(next),
-            itemBuilder: (context) => <PopupMenuEntry<TagTreeSortMode>>[
-              for (final option in TagTreeSortMode.values)
-                CheckedPopupMenuItem<TagTreeSortMode>(
-                  value: option,
-                  checked: option == mode,
-                  child: Text(option.labelZh),
+        actions: _selectionMode
+            ? [
+                IconButton(
+                  tooltip: l10n.commonClose,
+                  icon: const Icon(Icons.close),
+                  onPressed: _batchBusy ? null : _exitSelectionMode,
                 ),
-            ],
-          ),
-          IconButton(
-            tooltip: l10n.tagsNewTop,
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => _addTag(context, parent: null),
-          ),
-        ],
+              ]
+            : [
+                // Mode names still come straight from the domain enum: only the
+                // button tooltip is localized this round.
+                PopupMenuButton<TagTreeSortMode>(
+                  tooltip: l10n.tagsSort,
+                  icon: const Icon(Icons.sort),
+                  initialValue: mode,
+                  onSelected: (next) =>
+                      ref.read(tagTreeSortModeProvider.notifier).select(next),
+                  itemBuilder: (context) => <PopupMenuEntry<TagTreeSortMode>>[
+                    for (final option in TagTreeSortMode.values)
+                      CheckedPopupMenuItem<TagTreeSortMode>(
+                        value: option,
+                        checked: option == mode,
+                        child: Text(option.labelZh),
+                      ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: l10n.tagsNewTop,
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  onPressed: () => _addTag(context, parent: null),
+                ),
+                // 多选入口（task-119）
+                IconButton(
+                  tooltip: l10n.tagsSelectMode,
+                  icon: const Icon(Icons.checklist_outlined),
+                  onPressed: _enterSelectionMode,
+                ),
+              ],
       ),
+      bottomNavigationBar: _selectionMode
+          ? _buildSelectionBar(
+              context,
+              tagsAsync.valueOrNull ?? const <Tag>[],
+            )
+          : null,
       body: modeAsync.isLoading
           ? const Center(child: CircularProgressIndicator())
           : tagsAsync.when(
@@ -211,6 +237,9 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
         hasChildren: hasChildren,
         expanded: isExpanded,
         showObjectCount: showObjectCount,
+        selectionMode: _selectionMode,
+        selected: _selected.contains(node.tagId),
+        onSelectToggle: () => _toggleSelected(node.tagId),
         onToggle: () => setState(() {
           if (isExpanded) {
             _expanded.remove(node.tagId);
@@ -354,6 +383,298 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     await ref.read(tagRepositoryProvider).deleteTag(tag.id);
     ref.invalidate(allTagsProvider);
   }
+
+  // --- 多选批量操作（task-119）-------------------------------------------
+  //
+  // 用户反馈：逐个点开菜单、移动、再退出太繁琐。多选后底部一条操作栏就能
+  // 批量删除/移动。选择只存在页面状态里，退出多选即清空；删除/移动成功后
+  // 同样清空（被删的 id 不能留在集合里，否则下一次批量操作会指向不存在的行）。
+
+  void _enterSelectionMode() {
+    if (_batchBusy) {
+      return;
+    }
+    setState(() {
+      _selectionMode = true;
+      _selected.clear();
+    });
+  }
+
+  void _exitSelectionMode() {
+    if (_batchBusy) {
+      return;
+    }
+    setState(() {
+      _selectionMode = false;
+      _selected.clear();
+    });
+  }
+
+  void _toggleSelected(String tagId) {
+    if (_batchBusy) {
+      return;
+    }
+    setState(() {
+      if (!_selected.remove(tagId)) {
+        _selected.add(tagId);
+      }
+    });
+  }
+
+  void _toggleSelectAll(List<Tag> tags) {
+    if (_batchBusy) {
+      return;
+    }
+    setState(() {
+      if (tags.isNotEmpty && _selected.length == tags.length) {
+        _selected.clear();
+      } else {
+        _selected
+          ..clear()
+          ..addAll(tags.map((tag) => tag.id));
+      }
+    });
+  }
+
+  /// 底部批量操作条。只要处于多选就显示（即使 0 项）——否则「全选」按钮
+  /// 永远出不来；删除/移动在 0 项时禁用。
+  Widget _buildSelectionBar(BuildContext context, List<Tag> tags) {
+    final l10n = AppLocalizations.of(context);
+    final allSelected = tags.isNotEmpty && _selected.length == tags.length;
+    final theme = Theme.of(context);
+    return BottomAppBar(
+      child: Row(
+        children: [
+          Text(
+            _batchBusy
+                ? l10n.tagsBatchBusy
+                : l10n.tagsSelectedCount(_selected.length),
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: tags.isEmpty || _batchBusy
+                ? null
+                : () => _toggleSelectAll(tags),
+            child: Text(
+              allSelected ? l10n.tagsClearSelection : l10n.tagsSelectAll,
+            ),
+          ),
+          const Spacer(),
+          FilledButton.tonal(
+            onPressed: _selected.isEmpty || _batchBusy
+                ? null
+                : () => _batchMove(context),
+            child: Text(l10n.tagsBatchMove),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: _selected.isEmpty || _batchBusy
+                ? null
+                : () => _batchDelete(context),
+            child: Text(l10n.tagsBatchDelete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _batchDelete(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final tags = ref.read(allTagsProvider).valueOrNull ?? const <Tag>[];
+    final byId = <String, Tag>{for (final tag in tags) tag.id: tag};
+    final ids = _selected.toList()..sort();
+    final preview = <String>[
+      for (final id in ids.take(5)) byId[id] == null ? id : _labelOf(byId[id]!),
+    ].join('、');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.tagsBatchDeleteTitle(ids.length)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.tagsBatchDeletePreview(preview, ids.length)),
+            const SizedBox(height: 12),
+            Text(l10n.tagsDeleteBody),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: l10n.commonCancel,
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          IconButton.filled(
+            tooltip: l10n.commonDelete,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final repository = ref.read(tagRepositoryProvider);
+    var success = 0;
+    final failures = <String>[];
+    setState(() => _batchBusy = true);
+    try {
+      for (final id in ids) {
+        try {
+          await repository.deleteTag(id);
+          success++;
+        } catch (error) {
+          failures.add('${byId[id] == null ? id : _labelOf(byId[id]!)}：$error');
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _batchBusy = false);
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selected.clear();
+      _selectionMode = false;
+    });
+    ref.invalidate(allTagsProvider);
+    ref.invalidate(tagObjectCountsProvider);
+    if (!context.mounted) {
+      return;
+    }
+    _showBatchResult(
+      context,
+      action: l10n.commonDelete,
+      success: success,
+      failures: failures,
+    );
+  }
+
+  Future<void> _batchMove(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final tags = ref.read(allTagsProvider).valueOrNull ?? const <Tag>[];
+    final byId = <String, Tag>{for (final tag in tags) tag.id: tag};
+    final ids = _selected.toList()..sort();
+
+    // 目标父节点不能是被选标签自身或它的后代，否则 moveTag 会按环拒绝。
+    final excluded = <String>{...ids};
+    final childrenByParent = <String, List<String>>{};
+    for (final tag in tags) {
+      final parentId = tag.parentId;
+      if (parentId != null) {
+        (childrenByParent[parentId] ??= <String>[]).add(tag.id);
+      }
+    }
+    final queue = <String>[...ids];
+    while (queue.isNotEmpty) {
+      final current = queue.removeLast();
+      for (final childId in childrenByParent[current] ?? const <String>[]) {
+        if (excluded.add(childId)) {
+          queue.add(childId);
+        }
+      }
+    }
+    final candidates = <Tag>[
+      for (final tag in tags)
+        if (!excluded.contains(tag.id)) tag,
+    ]..sort((a, b) => _labelOf(a).compareTo(_labelOf(b)));
+
+    final target = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.tagsMoveDialogTitle),
+        content: SizedBox(
+          width: 460,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.vertical_align_top),
+                title: Text(l10n.tagsMoveToRoot),
+                onTap: () => Navigator.of(context).pop(''),
+              ),
+              for (final tag in candidates)
+                ListTile(
+                  title: Text(_labelOf(tag)),
+                  onTap: () => Navigator.of(context).pop(tag.id),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: l10n.commonCancel,
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+    if (target == null) {
+      return;
+    }
+    final newParentId = target.isEmpty ? null : target;
+    final repository = ref.read(tagRepositoryProvider);
+    var success = 0;
+    final failures = <String>[];
+    setState(() => _batchBusy = true);
+    try {
+      for (final id in ids) {
+        try {
+          await repository.moveTag(id, newParentId);
+          success++;
+        } catch (error) {
+          failures.add('${byId[id] == null ? id : _labelOf(byId[id]!)}：$error');
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _batchBusy = false);
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selected.clear();
+      _selectionMode = false;
+    });
+    ref.invalidate(allTagsProvider);
+    ref.invalidate(tagObjectCountsProvider);
+    if (!context.mounted) {
+      return;
+    }
+    _showBatchResult(
+      context,
+      action: l10n.commonMove,
+      success: success,
+      failures: failures,
+    );
+  }
+
+  void _showBatchResult(
+    BuildContext context, {
+    required String action,
+    required int success,
+    required List<String> failures,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final message = failures.isEmpty
+        ? l10n.tagsBatchResultDone(action, success)
+        : l10n.tagsBatchResultMixed(
+            success,
+            failures.length,
+            failures.take(3).join('；'),
+          );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+    );
+  }
 }
 
 class _TagTile extends StatelessWidget {
@@ -363,6 +684,9 @@ class _TagTile extends StatelessWidget {
     required this.hasChildren,
     required this.expanded,
     required this.showObjectCount,
+    required this.selectionMode,
+    required this.selected,
+    required this.onSelectToggle,
     required this.onToggle,
     required this.onAddChild,
     required this.onRename,
@@ -377,6 +701,11 @@ class _TagTile extends StatelessWidget {
   final bool hasChildren;
   final bool expanded;
   final bool showObjectCount;
+
+  /// 多选模式下行首出现勾选框；点击整行 = 勾选/取消（展开仍走箭头）。
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onSelectToggle;
   final VoidCallback onToggle;
   final VoidCallback onAddChild;
   final VoidCallback onRename;
@@ -391,29 +720,52 @@ class _TagTile extends StatelessWidget {
     // row. The three-dot button stays only as a touch affordance, because a
     // menu that is always visible is exactly what the user pushed back on.
     return GestureDetector(
-      onSecondaryTap: () => _showMenu(context),
-      onLongPress: () => _showMenu(context),
+      // 多选时不弹单标签菜单：整行点击已经用于勾选。
+      onSecondaryTap: selectionMode ? null : () => _showMenu(context),
+      onLongPress: selectionMode ? null : () => _showMenu(context),
       child: ListTile(
         contentPadding: EdgeInsets.only(left: 12 + node.depth * 18.0, right: 4),
-        leading: hasChildren
-            ? IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: expanded ? l10n.tagsCollapse : l10n.tagsExpand,
-                icon: Icon(expanded
-                    ? Icons.keyboard_arrow_down
-                    : Icons.keyboard_arrow_right),
-                onPressed: onToggle,
+        leading: selectionMode
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    value: selected,
+                    visualDensity: VisualDensity.compact,
+                    onChanged: (_) => onSelectToggle(),
+                  ),
+                  if (hasChildren)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: expanded ? l10n.tagsCollapse : l10n.tagsExpand,
+                      icon: Icon(expanded
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_right),
+                      onPressed: onToggle,
+                    )
+                  else
+                    const SizedBox(width: 40),
+                ],
               )
-            : Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: Icon(Icons.sell_outlined,
-                    size: 16, color: theme.colorScheme.outline),
-              ),
+            : hasChildren
+                ? IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: expanded ? l10n.tagsCollapse : l10n.tagsExpand,
+                    icon: Icon(expanded
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_right),
+                    onPressed: onToggle,
+                  )
+                : Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: Icon(Icons.sell_outlined,
+                        size: 16, color: theme.colorScheme.outline),
+                  ),
         title: Text(node.name, style: theme.textTheme.bodyLarge),
         subtitle: _PathCrumbs(
           segments: node.path.split('/').where((s) => s.isNotEmpty).toList(),
         ),
-        onTap: hasChildren ? onToggle : null,
+        onTap: selectionMode ? onSelectToggle : (hasChildren ? onToggle : null),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -422,12 +774,13 @@ class _TagTile extends StatelessWidget {
                 key: ValueKey<String>('tag-object-count-${node.tagId}'),
                 count: node.objectCount,
               ),
-            PopupMenuButton<String>(
-              tooltip: l10n.commonEdit,
-              icon: const Icon(Icons.more_vert),
-              onSelected: _handle,
-              itemBuilder: (context) => _menuItems(context),
-            ),
+            if (!selectionMode)
+              PopupMenuButton<String>(
+                tooltip: l10n.commonEdit,
+                icon: const Icon(Icons.more_vert),
+                onSelected: _handle,
+                itemBuilder: (context) => _menuItems(context),
+              ),
           ],
         ),
       ),
