@@ -267,6 +267,146 @@ void main() {
     });
   });
 
+  group('按题目 id 集合导出（多选导出选中）', () {
+    test('只导出选中 id，其余题不进包', () async {
+      final first = await _seed(source, stem: '第一题。');
+      await _seed(source, stem: '第二题。');
+      final third = await _seed(source, stem: '第三题。');
+
+      final result = await source.service.exportBytes(
+        questionIds: <String>{first.id, third.id},
+      );
+      expect(result.questionCount, 2);
+      final records = decodeQuestionPackArchive(result.bytes).records;
+      expect(records.map((record) => record.stem), <String>['第一题。', '第三题。']);
+      expect(records.map((record) => record.serialNo), <int>[1, 3]);
+    });
+
+    test('未知 id 与空白 id 被忽略，不报错', () async {
+      await _seed(source, stem: '第一题。');
+
+      final result = await source.service.exportBytes(
+        questionIds: <String>{'no-such-question', '   ', ' '},
+      );
+      expect(result.questionCount, 0);
+      expect(decodeQuestionPackArchive(result.bytes).records, isEmpty);
+    });
+
+    test('空集合等价于不按 id 约束（全量）', () async {
+      await _seed(source, stem: '第一题。');
+      await _seed(source, stem: '第二题。');
+
+      final result = await source.service.exportBytes(
+        questionIds: const <String>{},
+      );
+      expect(result.questionCount, 2);
+    });
+
+    test('与 selection 取交集', () async {
+      await _seed(source, stem: '数学一。', subjectKey: 'math');
+      final mathTwo = await _seed(source, stem: '数学二。', subjectKey: 'math');
+      final physics = await _seed(source, stem: '物理一。', subjectKey: 'physics');
+
+      final result = await source.service.exportBytes(
+        selection: const QuestionPackSelection(subjectKeys: {'math'}),
+        questionIds: <String>{mathTwo.id, physics.id},
+      );
+      expect(result.questionCount, 1);
+      expect(
+        decodeQuestionPackArchive(result.bytes).records.single.stem,
+        '数学二。',
+      );
+    });
+
+    test('筛选后包内题序从 1 重新编号', () async {
+      await _seed(source, stem: '第一题。');
+      final second = await _seed(source, stem: '第二题。');
+      await _seed(source, stem: '第三题。');
+      await source.store.save(
+        questionId: second.id,
+        fileName: 'b.png',
+        bytes: pngBytes(8),
+      );
+
+      final result = await source.service.exportBytes(
+        questionIds: <String>{second.id},
+      );
+      final record = decodeQuestionPackArchive(result.bytes).records.single;
+      expect(record.stem, '第二题。');
+      expect(record.media.single.packPath, 'media/q1/0.png');
+    });
+
+    test('未选中的题不读配图字节，只读选中题的', () async {
+      final first = await _seed(source, stem: '第一题。');
+      final second = await _seed(source, stem: '第二题。');
+      await source.store.save(
+        questionId: first.id,
+        fileName: 'a.png',
+        bytes: pngBytes(9),
+      );
+      final secondImage = await source.store.save(
+        questionId: second.id,
+        fileName: 'b.png',
+        bytes: pngBytes(10),
+      );
+
+      final read = <String>[];
+      final snapshot = await readQuestionPackSource(
+        database: source.db,
+        readMedia: (relPath) async {
+          read.add(relPath);
+          return pngBytes(11);
+        },
+        questionIds: <String>{second.id},
+      );
+      expect(snapshot.questionCount, 1);
+      expect(read, <String>[secondImage.relPath]);
+      expect(snapshot.mediaBytes, hasLength(1));
+      expect(snapshot.records.single.stem, '第二题。');
+    });
+
+    test('清单计数按选中后的写', () async {
+      final first = await _seed(source, stem: '第一题。');
+      await _seed(source, stem: '第二题。');
+      await source.store.save(
+        questionId: first.id,
+        fileName: 'a.png',
+        bytes: pngBytes(12),
+      );
+
+      final result = await source.service.exportBytes(
+        questionIds: <String>{first.id},
+      );
+      final manifest = decodeQuestionPackArchive(result.bytes).manifest;
+      expect(manifest.questionCount, 1);
+      expect(manifest.mediaCount, 1);
+    });
+
+    test('导出选中不改库：题目与配图行数不变', () async {
+      final first = await _seed(source, stem: '第一题。');
+      await _seed(source, stem: '第二题。');
+      await source.store.save(
+        questionId: first.id,
+        fileName: 'a.png',
+        bytes: pngBytes(13),
+      );
+      final beforeQuestions =
+          (await source.db.select(source.db.questions).get()).length;
+      final beforeAttachments =
+          (await source.db.select(source.db.attachments).get()).length;
+
+      await source.service.exportBytes(questionIds: <String>{first.id});
+      expect(
+        (await source.db.select(source.db.questions).get()).length,
+        beforeQuestions,
+      );
+      expect(
+        (await source.db.select(source.db.attachments).get()).length,
+        beforeAttachments,
+      );
+    });
+  });
+
   group('导入前预检 planImport', () {
     test('全新增：createCount 等于包内题数，目标库不被写', () async {
       await _seed(source, stem: '第一题。');

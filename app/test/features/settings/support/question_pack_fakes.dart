@@ -174,14 +174,21 @@ final class FakeQuestionPackService implements QuestionPackService {
   final List<QuestionPackSelection> selections = <QuestionPackSelection>[];
   QuestionPackSelection? lastSelection;
 
+  /// 每次导出收到的题目 id 集合；[lastQuestionIds] 是最后一次。
+  final List<Set<String>> questionIdSets = <Set<String>>[];
+  Set<String>? lastQuestionIds;
+
   @override
   Future<QuestionPackExportResult> exportBytes({
     DateTime? now,
     QuestionPackSelection selection = const QuestionPackSelection(),
+    Set<String> questionIds = const <String>{},
   }) async {
     exportCalls++;
     lastSelection = selection;
     selections.add(selection);
+    lastQuestionIds = questionIds;
+    questionIdSets.add(questionIds);
     if (exportError != null) {
       throw exportError!;
     }

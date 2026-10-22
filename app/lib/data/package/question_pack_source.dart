@@ -65,14 +65,18 @@ class QuestionPackSourceSnapshot {
   bool get hasWarnings => warnings.isNotEmpty;
 }
 
-/// 从题库读出（可按 [selection] 筛选的）题目与它们的配图字节。
+/// 从题库读出（可按 [selection] 与 [questionIds] 筛选的）题目与它们的配图字节。
 ///
 /// 筛选在解码配图字节**之前**做：没选中的题不会读磁盘上的图片文件。
 /// 包内题号按筛选后的顺序从 1 重新编号——包只是一次导出的子集，不是题库快照。
+///
+/// [questionIds] 是界面「多选后导出选中」用的显式集合：非空时只保留这些题目，
+/// 集合里的未知 id 直接忽略；空集合表示不按 id 约束（与 [selection] 取交集）。
 Future<QuestionPackSourceSnapshot> readQuestionPackSource({
   required AppDatabase database,
   required QuestionPackMediaBytesReader readMedia,
   QuestionPackSelection selection = const QuestionPackSelection(),
+  Set<String> questionIds = const <String>{},
 }) async {
   final questionRows = await database.select(database.questions).get();
   final optionRows = await database.select(database.questionOptions).get();
@@ -125,19 +129,26 @@ Future<QuestionPackSourceSnapshot> readQuestionPackSource({
     });
   }
 
+  final wantedIds = <String>{
+    for (final id in questionIds)
+      if (id.trim() case final String trimmed when trimmed.isNotEmpty) trimmed,
+  };
+
   final ordered = <Question>[
-    for (final question in (List<Question>.of(questionRows)
-      ..sort(_compareQuestions)))
-      if (questionPackFieldsMatchSelection(
-        subjectKey: question.subjectKey,
-        sourceLevel: question.sourceLevel,
-        serialNo: question.serialNo,
-        tagPaths: <String>[
-          for (final tagId in tagIdsByQuestion[question.id] ?? const <String>{})
-            if (pathByTagId[tagId] case final String path) path,
-        ],
-        selection: selection,
-      ))
+    for (final question
+        in (List<Question>.of(questionRows)..sort(_compareQuestions)))
+      if ((wantedIds.isEmpty || wantedIds.contains(question.id)) &&
+          questionPackFieldsMatchSelection(
+            subjectKey: question.subjectKey,
+            sourceLevel: question.sourceLevel,
+            serialNo: question.serialNo,
+            tagPaths: <String>[
+              for (final tagId
+                  in tagIdsByQuestion[question.id] ?? const <String>{})
+                if (pathByTagId[tagId] case final String path) path,
+            ],
+            selection: selection,
+          ))
         question,
   ];
 

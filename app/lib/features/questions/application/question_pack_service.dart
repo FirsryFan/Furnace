@@ -125,17 +125,20 @@ class QuestionPackService {
   final QuestionMediaStore _mediaStore;
   final TagRepository _tags;
 
-  /// 导出（默认整个、可按 [selection] 筛选）题库为 `.tqb` 字节。
+  /// 导出（默认整个、可按 [selection] 或 [questionIds] 筛选）题库为 `.tqb` 字节。
   ///
   /// 筛选只影响包内容与清单计数，不改库；未选中的题不会读配图文件。
+  /// [questionIds] 是题库页多选后「导出选中」传进来的显式集合，空集合=不约束。
   Future<QuestionPackExportResult> exportBytes({
     DateTime? now,
     QuestionPackSelection selection = const QuestionPackSelection(),
+    Set<String> questionIds = const <String>{},
   }) async {
     final snapshot = await readQuestionPackSource(
       database: _database,
       readMedia: _mediaStore.readBytes,
       selection: selection,
+      questionIds: questionIds,
     );
     final manifest = QuestionPackManifest(
       exportedAt: now ?? DateTime.now(),
