@@ -26,6 +26,32 @@ QuestionPackRecord _record({String stem = '题干', int mediaCount = 0}) =>
       ],
     );
 
+/// 一道「整卡快照」题：题干末尾追加 [placeholderCount] 处「［图N］」占位，
+/// 媒体里放 [stemMedia] 张题干图（role 默认 stem）与 [answerMedia] 张答案截图。
+QuestionPackRecord _stemSnapshotRecord({
+  int placeholderCount = 2,
+  int stemMedia = 1,
+  int answerMedia = 0,
+  String stemPrefix = '读图作答：',
+}) {
+  final StringBuffer buffer = StringBuffer(stemPrefix);
+  for (var index = 1; index <= placeholderCount; index++) {
+    buffer.write('［图$index］');
+  }
+  return QuestionPackRecord(
+    stem: buffer.toString(),
+    media: <QuestionPackMedia>[
+      for (var index = 0; index < stemMedia; index++)
+        QuestionPackMedia(packPath: 'media/stem-$index.png'),
+      for (var index = 0; index < answerMedia; index++)
+        QuestionPackMedia(
+          packPath: 'media/answer-$index.jpg',
+          role: 'answer',
+        ),
+    ],
+  );
+}
+
 QuestionPackImportPlan _plan({
   int create = 0,
   int skip = 0,
@@ -71,6 +97,7 @@ QuestionPackImportPreview _direct({
   int? missingTagCount,
   List<String> warnings = const <String>[],
   List<String> missingTagPaths = const <String>[],
+  int snapshotLikeCount = 0,
 }) =>
     QuestionPackImportPreview(
       manifestQuestionCount: manifestQuestionCount,
@@ -84,6 +111,7 @@ QuestionPackImportPreview _direct({
       missingTagCount: missingTagCount ?? missingTagPaths.length,
       warnings: warnings,
       missingTagPaths: missingTagPaths,
+      snapshotLikeCount: snapshotLikeCount,
     );
 
 void main() {
@@ -446,6 +474,7 @@ void main() {
         'create_count',
         'skip_count',
         'missing_tag_count',
+        'snapshot_like_count',
         'warnings',
         'missing_tag_paths',
       ]);
@@ -501,6 +530,215 @@ void main() {
       expect(text, contains('recordCount: 2'));
       expect(text, contains('createCount: 1'));
       expect(text, contains('skipCount: 1'));
+    });
+  });
+
+  group('整卡快照（题干只有一张整题截图）', () {
+    const String snapshotWarning = '这个包是整卡快照包：1 道题的题干只有一张整题截图，'
+        '公式以「［图N］」占位显示；详情页会按原题整图展示。';
+
+    test('两处占位 + 一张题干图：命中计数并给告警', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[_stemSnapshotRecord()],
+        plan: _plan(create: 1),
+      );
+      expect(preview.snapshotLikeCount, 1);
+      expect(preview.warnings, <String>[snapshotWarning]);
+      expect(preview.hasWarnings, isTrue);
+    });
+
+    test('只出现一处占位不算快照', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(placeholderCount: 1),
+        ],
+        plan: _plan(create: 1),
+      );
+      expect(preview.snapshotLikeCount, 0);
+      expect(preview.warnings, isEmpty);
+    });
+
+    test('题干图两张不算快照（不是一张整题截图）', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 2),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(placeholderCount: 5, stemMedia: 2),
+        ],
+        plan: _plan(create: 1),
+      );
+      expect(preview.snapshotLikeCount, 0);
+      expect(preview.warnings, isEmpty);
+    });
+
+    test('没有题干图（只有答案截图）不算快照', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(
+            placeholderCount: 3,
+            stemMedia: 0,
+            answerMedia: 1,
+          ),
+        ],
+        plan: _plan(create: 1),
+      );
+      expect(preview.snapshotLikeCount, 0);
+      expect(preview.warnings, isEmpty);
+    });
+
+    test('多道题命中时按题计数、告警只一条', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 3, mediaCount: 3),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(),
+          _stemSnapshotRecord(placeholderCount: 1),
+          _stemSnapshotRecord(placeholderCount: 4),
+        ],
+        plan: _plan(create: 3),
+      );
+      expect(preview.snapshotLikeCount, 2);
+      expect(preview.warnings, <String>[
+        '这个包是整卡快照包：2 道题的题干只有一张整题截图，'
+            '公式以「［图N］」占位显示；详情页会按原题整图展示。',
+      ]);
+    });
+
+    test('全角/半角/【】与全角数字都计入占位次数', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[
+          const QuestionPackRecord(
+            stem: '读图：［图1］[图 2]【图３】',
+            media: <QuestionPackMedia>[
+              QuestionPackMedia(packPath: 'media/stem.png'),
+            ],
+          ),
+        ],
+        plan: _plan(create: 1),
+      );
+      expect(preview.snapshotLikeCount, 1);
+    });
+
+    test('answer 与 solution 截图不算题干图', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 3),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(answerMedia: 2),
+        ],
+        plan: _plan(create: 1),
+      );
+      // _stemSnapshotRecord 默认 1 张题干图 + 2 张答案截图 = 3 张媒体。
+      expect(preview.mediaCount, 3);
+      expect(preview.snapshotLikeCount, 1);
+    });
+
+    test('warnings 顺序：清单层 → 快照提示 → 计划警告', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 3, mediaCount: 1),
+        records: <QuestionPackRecord>[_stemSnapshotRecord()],
+        plan: _plan(create: 1, warnings: <String>['甲', '乙']),
+      );
+      expect(preview.warnings, <String>[
+        '包清单写着 3 道题，实际读到 1 道',
+        snapshotWarning,
+        '甲',
+        '乙',
+      ]);
+    });
+
+    test('计划警告与快照提示文案相同时只保留快照那一条', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[_stemSnapshotRecord()],
+        plan: _plan(create: 1, warnings: <String>[snapshotWarning]),
+      );
+      expect(preview.warnings, <String>[snapshotWarning]);
+    });
+
+    test('summaryZh 快照行在包内容行之后、新增行之前', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[_stemSnapshotRecord()],
+        plan: _plan(create: 1),
+      );
+      expect(preview.summaryZh, <String>[
+        '包里共 1 道题、1 张配图（导出自 App 0.5.8+137，2026-10-21 04:40）',
+        '整卡快照：1 道题（公式在整图里）',
+        '导入后新增 1 道',
+        '另有 1 条提示（见下）',
+      ]);
+    });
+
+    test('不命中时 summaryZh 不出现快照行', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(placeholderCount: 1),
+        ],
+        plan: _plan(create: 1),
+      );
+      expect(preview.summaryZh, hasLength(2));
+      expect(
+        preview.summaryZh.any((String line) => line.contains('整卡快照')),
+        isFalse,
+      );
+    });
+
+    test('toJson 的 snapshot_like_count 紧跟 missing_tag_count', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 1, mediaCount: 1),
+        records: <QuestionPackRecord>[_stemSnapshotRecord()],
+        plan: _plan(create: 1, missingTagPaths: <String>['数学/函数']),
+      );
+      final Map<String, Object?> json = preview.toJson();
+      final List<String> keys = json.keys.toList();
+      expect(
+        keys.indexOf('snapshot_like_count'),
+        keys.indexOf('missing_tag_count') + 1,
+      );
+      expect(json['snapshot_like_count'], 1);
+    });
+
+    test('直接构造时 snapshotLikeCount 默认 0，也可显式传入', () {
+      expect(_direct().snapshotLikeCount, 0);
+      expect(_direct().toJson()['snapshot_like_count'], 0);
+
+      final QuestionPackImportPreview explicit = _direct(snapshotLikeCount: 3);
+      expect(explicit.snapshotLikeCount, 3);
+      expect(explicit.toJson()['snapshot_like_count'], 3);
+      expect(explicit == _direct(snapshotLikeCount: 3), isTrue);
+      expect(explicit == _direct(), isFalse);
+    });
+
+    test('空包不产生快照告警', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 0, mediaCount: 0),
+        records: const <QuestionPackRecord>[],
+        plan: _plan(),
+      );
+      expect(preview.snapshotLikeCount, 0);
+      expect(preview.warnings, isEmpty);
+      expect(preview.summaryZh, hasLength(2));
+    });
+
+    test('命中时既有计数与清单对账不受影响', () {
+      final QuestionPackImportPreview preview = _previewOf(
+        manifest: _manifest(questionCount: 2, mediaCount: 2),
+        records: <QuestionPackRecord>[
+          _stemSnapshotRecord(),
+          _record(mediaCount: 1),
+        ],
+        plan: _plan(create: 2),
+      );
+      expect(preview.recordCount, 2);
+      expect(preview.mediaCount, 2);
+      expect(preview.createCount, 2);
+      expect(preview.skipCount, 0);
+      expect(preview.manifestQuestionCount, 2);
+      expect(preview.hasManifestMismatch, isFalse);
+      expect(preview.snapshotLikeCount, 1);
     });
   });
 }

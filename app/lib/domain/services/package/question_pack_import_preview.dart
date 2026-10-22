@@ -29,6 +29,7 @@ class QuestionPackImportPreview {
     required this.missingTagCount,
     required this.warnings,
     required this.missingTagPaths,
+    this.snapshotLikeCount = 0,
   });
 
   /// 包清单（manifest.json）里写的题目条数。
@@ -59,8 +60,14 @@ class QuestionPackImportPreview {
   /// 题库里不存在的标签路径个数（等于 [missingTagPaths] 的长度）。
   final int missingTagCount;
 
-  /// 合并后的提示：先包清单层（题数/媒体数对不上），再导入计划原顺序，
-  /// 完全相同字符串只保留第一次出现。
+  /// 「整卡快照」题数：题干里有两处以上「［图N］」占位、但题干图（role 为
+  /// stem）只有 1 张整题截图的题。默认 0；通过
+  /// [buildQuestionPackImportPreview] 构造时逐条统计，直接构造时可显式传入。
+  final int snapshotLikeCount;
+
+  /// 合并后的提示：先包清单层（题数/媒体数对不上），再整卡快照提示
+  /// （见 [snapshotLikeCount]），再导入计划原顺序，完全相同字符串只保留
+  /// 第一次出现。
   final List<String> warnings;
 
   /// 包里出现、题库里没有的标签路径（原样来自导入计划）。
@@ -79,13 +86,14 @@ class QuestionPackImportPreview {
   bool get hasManifestMismatch =>
       manifestQuestionCount != recordCount || manifestMediaCount != mediaCount;
 
-  /// 确定性的中文摘要，每行一条；至少两行，可能到四行。
+  /// 确定性的中文摘要，每行一条；至少两行，最多五行。
   ///
   /// 第 1 行：包里共 N 道题、M 张配图（导出自 App X，yyyy-MM-dd HH:mm）；
   /// 括号内按需出现，时间不转换时区（按 [exportedAt] 自身的年月日时分格式化）。
-  /// 第 2 行：新增 / 跳过 / 两者都有 / 都没有可导入的新题。
-  /// 第 3 行：仅当 [missingTagCount] 大于 0。
-  /// 第 4 行：仅当 [warnings] 非空。
+  /// 第 2 行：仅当 [snapshotLikeCount] 大于 0（整卡快照提示）。
+  /// 第 3 行：新增 / 跳过 / 两者都有 / 都没有可导入的新题。
+  /// 第 4 行：仅当 [missingTagCount] 大于 0。
+  /// 第 5 行：仅当 [warnings] 非空。
   List<String> get summaryZh {
     final List<String> lines = <String>[
       _firstSummaryLine(
@@ -94,8 +102,13 @@ class QuestionPackImportPreview {
         appVersion: appVersion,
         exportedAt: exportedAt,
       ),
-      _secondSummaryLine(createCount: createCount, skipCount: skipCount),
     ];
+    if (snapshotLikeCount > 0) {
+      lines.add('整卡快照：$snapshotLikeCount 道题（公式在整图里）');
+    }
+    lines.add(
+      _secondSummaryLine(createCount: createCount, skipCount: skipCount),
+    );
     if (missingTagCount > 0) {
       lines.add('有 $missingTagCount 个标签在本题库里不存在，相关题导入后不挂这些标签');
     }
@@ -116,6 +129,7 @@ class QuestionPackImportPreview {
         'create_count': createCount,
         'skip_count': skipCount,
         'missing_tag_count': missingTagCount,
+        'snapshot_like_count': snapshotLikeCount,
         'warnings': <String>[...warnings],
         'missing_tag_paths': <String>[...missingTagPaths],
       };
@@ -135,6 +149,7 @@ class QuestionPackImportPreview {
         other.createCount == createCount &&
         other.skipCount == skipCount &&
         other.missingTagCount == missingTagCount &&
+        other.snapshotLikeCount == snapshotLikeCount &&
         _listEquals<String>(other.warnings, warnings) &&
         _listEquals<String>(other.missingTagPaths, missingTagPaths);
   }
@@ -150,6 +165,7 @@ class QuestionPackImportPreview {
         createCount,
         skipCount,
         missingTagCount,
+        snapshotLikeCount,
         Object.hashAll(warnings),
         Object.hashAll(missingTagPaths),
       );
@@ -158,6 +174,7 @@ class QuestionPackImportPreview {
   String toString() => 'QuestionPackImportPreview(recordCount: $recordCount, '
       'mediaCount: $mediaCount, createCount: $createCount, '
       'skipCount: $skipCount, missingTagCount: $missingTagCount, '
+      'snapshotLikeCount: $snapshotLikeCount, '
       'warnings: ${warnings.length})';
 }
 
@@ -171,8 +188,12 @@ QuestionPackImportPreview buildQuestionPackImportPreview({
   required QuestionPackImportPlan plan,
 }) {
   var mediaCount = 0;
+  var snapshotLikeCount = 0;
   for (final QuestionPackRecord record in records) {
     mediaCount += record.media.length;
+    if (_looksLikeSnapshotRecord(record)) {
+      snapshotLikeCount++;
+    }
   }
 
   final List<String> warnings = <String>[];
@@ -189,6 +210,12 @@ QuestionPackImportPreview buildQuestionPackImportPreview({
   if (manifest.mediaCount != mediaCount) {
     addWarning('包清单写着 ${manifest.mediaCount} 张配图，实际读到 $mediaCount 张');
   }
+  if (snapshotLikeCount > 0) {
+    addWarning(
+      '这个包是整卡快照包：$snapshotLikeCount 道题的题干只有一张整题截图，'
+      '公式以「［图N］」占位显示；详情页会按原题整图展示。',
+    );
+  }
   for (final String warning in plan.warnings) {
     addWarning(warning);
   }
@@ -203,6 +230,7 @@ QuestionPackImportPreview buildQuestionPackImportPreview({
     createCount: plan.createCount,
     skipCount: plan.skipCount,
     missingTagCount: plan.missingTagPaths.length,
+    snapshotLikeCount: snapshotLikeCount,
     warnings: List<String>.unmodifiable(warnings),
     missingTagPaths: List<String>.unmodifiable(plan.missingTagPaths),
   );
@@ -263,4 +291,29 @@ bool _listEquals<T>(List<T> left, List<T> right) {
     }
   }
   return true;
+}
+
+/// 命中「整卡快照」特征的最少占位次数。
+const int _kSnapshotLikeMinPlaceholders = 2;
+
+/// 「［图N］」占位，与 question_stem_segments.dart 里的正则同一口径：
+/// 全角/半角方括号与【】、全角数字、N 为 1~3 位。
+final RegExp _figurePlaceholderPattern = RegExp(
+  r'[［\[【]\s*图\s*([0-9０-９]{1,3})\s*[］\]】]',
+);
+
+/// 这道题像不像「整卡快照」：题干里「［图N］」占位出现两次以上，且题干图
+/// （role 为 stem）恰好 1 张（整题截图）。answer/solution 截图不计入。
+bool _looksLikeSnapshotRecord(QuestionPackRecord record) {
+  if (_figurePlaceholderPattern.allMatches(record.stem).length <
+      _kSnapshotLikeMinPlaceholders) {
+    return false;
+  }
+  var stemMedia = 0;
+  for (final QuestionPackMedia item in record.media) {
+    if (item.role == 'stem') {
+      stemMedia++;
+    }
+  }
+  return stemMedia == 1;
 }
