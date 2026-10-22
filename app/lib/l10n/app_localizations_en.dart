@@ -3575,6 +3575,89 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get questionBankSelect => 'Select multiple';
+
+  @override
+  String questionBankSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get questionBankSelectAll => 'Select all';
+
+  @override
+  String get questionBankClearSelection => 'Clear selection';
+
+  @override
+  String get questionBankTagSelected => 'Add tags';
+
+  @override
+  String get questionBankExportSelected => 'Export selected';
+
+  @override
+  String get questionBankDeleteSelected => 'Delete';
+
+  @override
+  String questionBankDeleteTitle(int count) {
+    return 'Delete $count questions?';
+  }
+
+  @override
+  String questionBankDeleteBody(String preview) {
+    return 'About to delete: $preview. This cannot be undone.';
+  }
+
+  @override
+  String questionBankDeleteDone(int count) {
+    return 'Deleted $count questions';
+  }
+
+  @override
+  String questionBankDeleteFailed(int count) {
+    return '$count could not be deleted';
+  }
+
+  @override
+  String questionBankTagDone(int added, int skipped) {
+    return 'Added $added links; skipped $skipped (already tagged)';
+  }
+
+  @override
+  String questionBankTagMissing(int count) {
+    return '$count tag paths no longer exist';
+  }
+
+  @override
+  String questionBankExportDone(int count, String sizeText) {
+    return 'Exported $count questions ($sizeText)';
+  }
+
+  @override
+  String get questionBankExportEmpty => 'The selected questions are no longer in the bank';
+
+  @override
+  String questionBankExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String questionBankTagFailed(String error) {
+    return 'Tagging failed: $error';
+  }
+
+  @override
+  String get questionBulkTagDialogTitle => 'Tag selected questions';
+
+  @override
+  String get questionBulkTagSearchHint => 'Search tag paths';
+
+  @override
+  String get questionBulkTagNoMatch => 'No matching tags';
+
+  @override
+  String get questionBulkTagConfirm => 'Add tags';
+
+  @override
   String get questionIntakePasteSection => 'Paste a question';
 
   @override

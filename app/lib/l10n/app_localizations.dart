@@ -6071,6 +6071,132 @@ abstract class AppLocalizations {
   /// **'Showing the latest {count}; use search for more'**
   String questionBankTruncated(int count);
 
+  /// No description provided for @questionBankSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select multiple'**
+  String get questionBankSelect;
+
+  /// No description provided for @questionBankSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String questionBankSelectedCount(int count);
+
+  /// No description provided for @questionBankSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get questionBankSelectAll;
+
+  /// No description provided for @questionBankClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get questionBankClearSelection;
+
+  /// No description provided for @questionBankTagSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags'**
+  String get questionBankTagSelected;
+
+  /// No description provided for @questionBankExportSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Export selected'**
+  String get questionBankExportSelected;
+
+  /// No description provided for @questionBankDeleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get questionBankDeleteSelected;
+
+  /// No description provided for @questionBankDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} questions?'**
+  String questionBankDeleteTitle(int count);
+
+  /// No description provided for @questionBankDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'About to delete: {preview}. This cannot be undone.'**
+  String questionBankDeleteBody(String preview);
+
+  /// No description provided for @questionBankDeleteDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} questions'**
+  String questionBankDeleteDone(int count);
+
+  /// No description provided for @questionBankDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} could not be deleted'**
+  String questionBankDeleteFailed(int count);
+
+  /// No description provided for @questionBankTagDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {added} links; skipped {skipped} (already tagged)'**
+  String questionBankTagDone(int added, int skipped);
+
+  /// No description provided for @questionBankTagMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tag paths no longer exist'**
+  String questionBankTagMissing(int count);
+
+  /// No description provided for @questionBankExportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {count} questions ({sizeText})'**
+  String questionBankExportDone(int count, String sizeText);
+
+  /// No description provided for @questionBankExportEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected questions are no longer in the bank'**
+  String get questionBankExportEmpty;
+
+  /// No description provided for @questionBankExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String questionBankExportFailed(String error);
+
+  /// No description provided for @questionBankTagFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagging failed: {error}'**
+  String questionBankTagFailed(String error);
+
+  /// No description provided for @questionBulkTagDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag selected questions'**
+  String get questionBulkTagDialogTitle;
+
+  /// No description provided for @questionBulkTagSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tag paths'**
+  String get questionBulkTagSearchHint;
+
+  /// No description provided for @questionBulkTagNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tags'**
+  String get questionBulkTagNoMatch;
+
+  /// No description provided for @questionBulkTagConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags'**
+  String get questionBulkTagConfirm;
+
   /// No description provided for @questionIntakePasteSection.
   ///
   /// In en, this message translates to:

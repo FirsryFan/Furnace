@@ -3427,6 +3427,89 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get questionBankSelect => '多选';
+
+  @override
+  String questionBankSelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String get questionBankSelectAll => '全选';
+
+  @override
+  String get questionBankClearSelection => '清空选择';
+
+  @override
+  String get questionBankTagSelected => '打标签';
+
+  @override
+  String get questionBankExportSelected => '导出选中';
+
+  @override
+  String get questionBankDeleteSelected => '删除';
+
+  @override
+  String questionBankDeleteTitle(int count) {
+    return '删除 $count 道题？';
+  }
+
+  @override
+  String questionBankDeleteBody(String preview) {
+    return '将删除：$preview。删除后无法恢复。';
+  }
+
+  @override
+  String questionBankDeleteDone(int count) {
+    return '已删除 $count 道';
+  }
+
+  @override
+  String questionBankDeleteFailed(int count) {
+    return '$count 道删除失败';
+  }
+
+  @override
+  String questionBankTagDone(int added, int skipped) {
+    return '新增 $added 条标签链接，跳过 $skipped 条（已挂）';
+  }
+
+  @override
+  String questionBankTagMissing(int count) {
+    return '$count 个标签路径已不存在';
+  }
+
+  @override
+  String questionBankExportDone(int count, String sizeText) {
+    return '已导出 $count 道题（$sizeText）';
+  }
+
+  @override
+  String get questionBankExportEmpty => '选中的题目已不在题库里';
+
+  @override
+  String questionBankExportFailed(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
+  String questionBankTagFailed(String error) {
+    return '打标签失败：$error';
+  }
+
+  @override
+  String get questionBulkTagDialogTitle => '给选中题目打标签';
+
+  @override
+  String get questionBulkTagSearchHint => '搜索标签路径';
+
+  @override
+  String get questionBulkTagNoMatch => '没有匹配的标签';
+
+  @override
+  String get questionBulkTagConfirm => '添加标签';
+
+  @override
   String get questionIntakePasteSection => '粘贴建题';
 
   @override

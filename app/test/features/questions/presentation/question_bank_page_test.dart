@@ -56,6 +56,8 @@ void main() {
     // 空题库没有可筛的学科，也没有需要自动命名的题。
     expect(find.text(zh.questionBankAllSubjects), findsNothing);
     expect(find.byKey(questionBankAutoNameKey), findsNothing);
+    // 空题库也没有可多选的题，多选入口同样不出现。
+    expect(find.byKey(questionBankSelectKey), findsNothing);
   });
 
   testWidgets('有题时列出题名/题干、统计与学科筛选（筛选真的过滤列表）', (tester) async {
@@ -66,6 +68,8 @@ void main() {
     await _pump(tester, db);
 
     expect(find.text(zh.questionBankSummary(2, 2)), findsOneWidget);
+    // 有题时才有「多选」入口。
+    expect(find.byKey(questionBankSelectKey), findsOneWidget);
     // 旧的长 intro 摘要卡已按用户反馈删掉。
     expect(find.text(zh.questionBankIntro), findsNothing);
     expect(find.text('求二次函数最小值'), findsOneWidget);

@@ -15,6 +15,7 @@ library;
 
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,9 +25,13 @@ import '../../../domain/services/media/thumbnail_spec.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
+import '../application/question_bulk_tagging.dart';
 import '../application/question_library_provider.dart';
+import '../application/question_media_providers.dart';
+import '../application/question_pack_service.dart';
 import 'handwriting_queue_page.dart';
 import 'question_audit_view.dart';
+import 'question_bulk_tag_dialog.dart';
 import 'question_detail_page.dart';
 import 'question_intake_page.dart';
 import 'question_media_view.dart';
@@ -35,6 +40,27 @@ import 'question_title_dialog.dart';
 
 /// AppBar 上「自动命名缺名的题」按钮。
 const Key questionBankAutoNameKey = Key('question-bank-auto-name');
+
+/// AppBar 上「进入多选」按钮。
+const Key questionBankSelectKey = Key('question-bank-select');
+
+/// 多选态 AppBar 左上角「退出多选」按钮。
+const Key questionBankExitSelectionKey = Key('question-bank-exit-selection');
+
+/// 多选态 AppBar「全选」按钮。
+const Key questionBankSelectAllKey = Key('question-bank-select-all');
+
+/// 多选态 AppBar「清空选择」按钮。
+const Key questionBankClearSelectionKey = Key('question-bank-clear-selection');
+
+/// 多选态底部「打标签」按钮。
+const Key questionBankTagSelectedKey = Key('question-bank-tag-selected');
+
+/// 多选态底部「导出选中」按钮。
+const Key questionBankExportSelectedKey = Key('question-bank-export-selected');
+
+/// 多选态底部「删除选中」按钮。
+const Key questionBankDeleteSelectedKey = Key('question-bank-delete-selected');
 
 /// 列表行按题 id 生成 key：`question-bank-row-<questionId>`（测试定位用）。
 String questionBankRowKeyFor(String questionId) =>
@@ -54,6 +80,33 @@ List<String> questionBankTagLeafNames(List<String> tagPaths) {
   return leaves;
 }
 
+/// 批量删除确认里的题目预览：取前 [max] 个题名用「、」连接；
+/// 实际数量多于预览时追加「等 N 道」；没有可读题名时返回空串。
+String questionBankDeletePreview(
+  Iterable<String> titles, {
+  int max = 3,
+}) {
+  final names = <String>[];
+  var total = 0;
+  for (final title in titles) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      continue;
+    }
+    total++;
+    if (names.length < max) {
+      names.add(trimmed);
+    }
+  }
+  if (names.isEmpty) {
+    return '';
+  }
+  if (total > names.length) {
+    return '${names.join('、')} 等 $total 道';
+  }
+  return names.join('、');
+}
+
 /// 题库总览页。
 class QuestionBankPage extends ConsumerStatefulWidget {
   const QuestionBankPage({super.key});
@@ -69,6 +122,15 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
 
   /// 批量自动命名进行中：防重入，也让按钮变成进度圈。
   bool _autoNaming = false;
+
+  /// 多选态：AppBar 与底部动作条换成一整套批量操作。
+  bool _selecting = false;
+
+  /// 多选态选中的题 id（跨学科筛选保留；退出多选即清空）。
+  final Set<String> _selected = <String>{};
+
+  /// 批量操作（打标签/导出/删除）进行中：防重入并禁用动作条。
+  bool _bulkBusy = false;
 
   void _open(Widget page) {
     Navigator.of(context).push(
@@ -195,6 +257,220 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     }
   }
 
+  /// 当前学科筛选下用户看得到的路：全选只作用于这些题，不会偷偷选中被筛掉的。
+  List<QuestionLibraryEntry> _visibleEntries(
+    QuestionLibrarySnapshot snapshot,
+  ) {
+    if (_subjectKey.isEmpty) {
+      return snapshot.entries;
+    }
+    return <QuestionLibraryEntry>[
+      for (final entry in snapshot.entries)
+        if (entry.subjectKey == _subjectKey) entry,
+    ];
+  }
+
+  void _enterSelection() {
+    setState(() {
+      _selecting = true;
+      _selected.clear();
+    });
+  }
+
+  void _enterSelectionWith(String questionId) {
+    setState(() {
+      _selecting = true;
+      _selected
+        ..clear()
+        ..add(questionId);
+    });
+  }
+
+  void _exitSelection() {
+    setState(() {
+      _selecting = false;
+      _selected.clear();
+    });
+  }
+
+  void _toggleSelection(String questionId) {
+    setState(() {
+      if (!_selected.remove(questionId)) {
+        _selected.add(questionId);
+      }
+    });
+  }
+
+  void _selectAll(QuestionLibrarySnapshot snapshot) {
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(<String>[
+          for (final entry in _visibleEntries(snapshot)) entry.questionId,
+        ]);
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selected.clear();
+    });
+  }
+
+  /// 批量打标签：对话框里选路径 → 应用层 `tagQuestions` 写库 → SnackBar 报告。
+  /// 不做二次确认（Lead 定：确认动作就是对话框里的「添加标签」）。
+  Future<void> _bulkTag() async {
+    if (_bulkBusy || _selected.isEmpty) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final picked = await showQuestionBulkTagDialog(context);
+    if (picked == null || picked.isEmpty || !mounted) {
+      return;
+    }
+    setState(() => _bulkBusy = true);
+    try {
+      final report = await tagQuestions(
+        tags: ref.read(tagRepositoryProvider),
+        questionIds: _selected,
+        tagPaths: picked,
+      );
+      ref.invalidate(questionLibraryOverviewProvider);
+      if (!mounted) {
+        return;
+      }
+      final parts = <String>[
+        l10n.questionBankTagDone(report.addedLinks, report.skippedLinks),
+        if (report.hasMissingTagPaths)
+          l10n.questionBankTagMissing(report.missingTagPaths.length),
+        if (report.hasFailures)
+          l10n.questionBankTagFailed(report.failedTagPaths.join('、')),
+      ];
+      _showSnack(parts.join(' · '));
+    } catch (error) {
+      if (mounted) {
+        _showSnack(l10n.questionBankTagFailed('$error'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _bulkBusy = false);
+      }
+    }
+  }
+
+  /// 批量导出：只导出选中的题（`questionIds` 非空即只导这些），用户取消保存静默。
+  Future<void> _bulkExport() async {
+    if (_bulkBusy || _selected.isEmpty) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    setState(() => _bulkBusy = true);
+    try {
+      final result = await ref
+          .read(questionPackServiceProvider)
+          .exportBytes(questionIds: _selected.toSet());
+      if (!mounted) {
+        return;
+      }
+      if (result.questionCount == 0) {
+        _showSnack(l10n.questionBankExportEmpty);
+        return;
+      }
+      final target = await FilePicker.saveFile(
+        dialogTitle: l10n.questionBankExportSelected,
+        fileName: 'furnace-${_questionBankTimestamp()}-selected.tqb',
+        bytes: result.bytes,
+        type: FileType.any,
+      );
+      if (target == null || !mounted) {
+        return;
+      }
+      _showSnack(
+        l10n.questionBankExportDone(
+          result.questionCount,
+          _questionBankSizeText(result.bytes.length),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        _showSnack(l10n.questionBankExportFailed('$error'));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _bulkBusy = false);
+      }
+    }
+  }
+
+  /// 批量删除：逐题清配图 + 删题；单题失败不中断整批，最后汇总失败数。
+  Future<void> _bulkDelete() async {
+    if (_bulkBusy || _selected.isEmpty) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final snapshot = ref.read(questionLibraryOverviewProvider).valueOrNull;
+    final titles = <String>[
+      for (final entry in snapshot?.entries ?? const <QuestionLibraryEntry>[])
+        if (_selected.contains(entry.questionId)) entry.displayTitle,
+    ];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.questionBankDeleteTitle(_selected.length)),
+        content: Text(
+          l10n.questionBankDeleteBody(questionBankDeletePreview(titles)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.questionBankDeleteSelected),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    final ids = _selected.toList();
+    setState(() => _bulkBusy = true);
+    final mediaStore = ref.read(questionMediaStoreProvider);
+    final repository = ref.read(questionRepositoryProvider);
+    var failed = 0;
+    for (final questionId in ids) {
+      try {
+        try {
+          await mediaStore.deleteForQuestion(questionId);
+        } catch (error) {
+          // 配图清不掉也继续删题：附件残留不影响题目本身。
+          debugPrint('deleteForQuestion($questionId) failed: $error');
+        }
+        await repository.deleteQuestion(questionId);
+      } catch (error) {
+        failed++;
+        debugPrint('deleteQuestion($questionId) failed: $error');
+      }
+    }
+    ref.invalidate(questionLibraryOverviewProvider);
+    if (!mounted) {
+      return;
+    }
+    final done = ids.length - failed;
+    setState(() {
+      _bulkBusy = false;
+      _selecting = false;
+      _selected.clear();
+    });
+    _showSnack(
+      failed <= 0
+          ? l10n.questionBankDeleteDone(done)
+          : '${l10n.questionBankDeleteDone(done)} · ${l10n.questionBankDeleteFailed(failed)}',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -203,27 +479,65 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.navQuestions),
-        actions: <Widget>[
-          if (snapshot != null && snapshot.untitledCount > 0)
-            IconButton(
-              key: questionBankAutoNameKey,
-              tooltip: l10n.questionBankAutoNameTooltip,
-              onPressed: _autoNaming ? null : _autoNameMissing,
-              icon: _autoNaming
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_fix_high),
-            ),
-          IconButton(
-            tooltip: l10n.questionBankRefresh,
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(questionLibraryOverviewProvider),
-          ),
-        ],
+        leading: _selecting
+            ? IconButton(
+                key: questionBankExitSelectionKey,
+                tooltip: l10n.questionBankClearSelection,
+                onPressed: _bulkBusy ? null : _exitSelection,
+                icon: const Icon(Icons.close),
+              )
+            : null,
+        title: Text(
+          _selecting
+              ? l10n.questionBankSelectedCount(_selected.length)
+              : l10n.navQuestions,
+        ),
+        actions: _selecting
+            ? <Widget>[
+                IconButton(
+                  key: questionBankSelectAllKey,
+                  tooltip: l10n.questionBankSelectAll,
+                  onPressed: _bulkBusy || snapshot == null
+                      ? null
+                      : () => _selectAll(snapshot),
+                  icon: const Icon(Icons.done_all),
+                ),
+                IconButton(
+                  key: questionBankClearSelectionKey,
+                  tooltip: l10n.questionBankClearSelection,
+                  onPressed:
+                      _bulkBusy || _selected.isEmpty ? null : _clearSelection,
+                  icon: const Icon(Icons.deselect),
+                ),
+              ]
+            : <Widget>[
+                if (snapshot != null && snapshot.entries.isNotEmpty)
+                  IconButton(
+                    key: questionBankSelectKey,
+                    tooltip: l10n.questionBankSelect,
+                    onPressed: _enterSelection,
+                    icon: const Icon(Icons.checklist),
+                  ),
+                if (snapshot != null && snapshot.untitledCount > 0)
+                  IconButton(
+                    key: questionBankAutoNameKey,
+                    tooltip: l10n.questionBankAutoNameTooltip,
+                    onPressed: _autoNaming ? null : _autoNameMissing,
+                    icon: _autoNaming
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_fix_high),
+                  ),
+                IconButton(
+                  tooltip: l10n.questionBankRefresh,
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () =>
+                      ref.invalidate(questionLibraryOverviewProvider),
+                ),
+              ],
       ),
       body: overviewAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -238,6 +552,49 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
         ),
         data: _buildBody,
       ),
+      bottomNavigationBar: _selecting ? _buildSelectionBar(l10n) : null,
+    );
+  }
+
+  /// 多选态底部动作条：打标签 / 导出选中 / 删除；批量操作进行中禁用并显示进度条。
+  Widget _buildSelectionBar(AppLocalizations l10n) {
+    return BottomAppBar(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (_bulkBusy) const LinearProgressIndicator(minHeight: 2),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextButton.icon(
+                  key: questionBankTagSelectedKey,
+                  onPressed: _bulkBusy || _selected.isEmpty ? null : _bulkTag,
+                  icon: const Icon(Icons.label_outline),
+                  label: Text(l10n.questionBankTagSelected),
+                ),
+              ),
+              Expanded(
+                child: TextButton.icon(
+                  key: questionBankExportSelectedKey,
+                  onPressed:
+                      _bulkBusy || _selected.isEmpty ? null : _bulkExport,
+                  icon: const Icon(Icons.save_alt),
+                  label: Text(l10n.questionBankExportSelected),
+                ),
+              ),
+              Expanded(
+                child: TextButton.icon(
+                  key: questionBankDeleteSelectedKey,
+                  onPressed:
+                      _bulkBusy || _selected.isEmpty ? null : _bulkDelete,
+                  icon: const Icon(Icons.delete_outline),
+                  label: Text(l10n.questionBankDeleteSelected),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -245,11 +602,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final subjects = snapshot.subjectKeys;
-    final shown = _subjectKey.isEmpty
-        ? snapshot.entries
-        : snapshot.entries
-            .where((entry) => entry.subjectKey == _subjectKey)
-            .toList();
+    final shown = _visibleEntries(snapshot);
     final existingTitles = <String>[
       for (final entry in snapshot.entries)
         if (entry.hasTitle) entry.title!.trim(),
@@ -348,6 +701,10 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 final entry = shown[index];
                 return _QuestionRow(
                   entry: entry,
+                  selectionMode: _selecting,
+                  selected: _selected.contains(entry.questionId),
+                  onToggle: () => _toggleSelection(entry.questionId),
+                  onEnterSelection: () => _enterSelectionWith(entry.questionId),
                   onOpen: () => _open(
                     QuestionDetailPage(questionId: entry.questionId),
                   ),
@@ -420,12 +777,23 @@ enum _QuestionRowAction { rename, autoName, copySerial }
 class _QuestionRow extends ConsumerWidget {
   const _QuestionRow({
     required this.entry,
+    required this.selectionMode,
+    required this.selected,
+    required this.onToggle,
+    required this.onEnterSelection,
     required this.onOpen,
     required this.onRename,
     required this.onAutoName,
   });
 
   final QuestionLibraryEntry entry;
+
+  /// 多选态：点整行 = 勾选/取消；行首长按也能进入多选。
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onToggle;
+  final VoidCallback onEnterSelection;
+
   final VoidCallback onOpen;
   final VoidCallback onRename;
   final VoidCallback onAutoName;
@@ -455,12 +823,18 @@ class _QuestionRow extends ConsumerWidget {
 
     return InkWell(
       key: ValueKey(questionBankRowKeyFor(entry.questionId)),
-      onTap: onOpen,
+      onTap: selectionMode ? onToggle : onOpen,
+      onLongPress: selectionMode ? null : onEnterSelection,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            if (selectionMode)
+              Checkbox(
+                value: selected,
+                onChanged: (_) => onToggle(),
+              ),
             if (cover != null) ...[
               _QuestionCover(image: cover),
               const SizedBox(width: 12),
@@ -617,3 +991,22 @@ class _TagPill extends StatelessWidget {
     );
   }
 }
+
+/// 导出确认里的文件大小（"3 B" / "1.5 KB" / "2.0 MB"）。
+String _questionBankSizeText(int bytes) {
+  if (bytes < 1024) {
+    return '$bytes B';
+  }
+  final kilobytes = bytes / 1024;
+  if (kilobytes < 1024) {
+    return '${kilobytes.toStringAsFixed(1)} KB';
+  }
+  return '${(kilobytes / 1024).toStringAsFixed(1)} MB';
+}
+
+/// 导出文件名里的时间戳（`furnace-20261021T0430-selected.tqb`）。
+String _questionBankTimestamp() => DateTime.now()
+    .toIso8601String()
+    .substring(0, 16)
+    .replaceAll(':', '')
+    .replaceAll('-', '');

@@ -1585,6 +1585,57 @@
   "@questionBankTruncated": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "questionBankSelect": "多选",
+  "questionBankSelectedCount": "已选 {count} 项",
+  "@questionBankSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankSelectAll": "全选",
+  "questionBankClearSelection": "清空选择",
+  "questionBankTagSelected": "打标签",
+  "questionBankExportSelected": "导出选中",
+  "questionBankDeleteSelected": "删除",
+  "questionBankDeleteTitle": "删除 {count} 道题？",
+  "@questionBankDeleteTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankDeleteBody": "将删除：{preview}。删除后无法恢复。",
+  "@questionBankDeleteBody": {
+    "placeholders": { "preview": { "type": "String" } }
+  },
+  "questionBankDeleteDone": "已删除 {count} 道",
+  "@questionBankDeleteDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankDeleteFailed": "{count} 道删除失败",
+  "@questionBankDeleteFailed": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankTagDone": "新增 {added} 条标签链接，跳过 {skipped} 条（已挂）",
+  "@questionBankTagDone": {
+    "placeholders": { "added": { "type": "int" }, "skipped": { "type": "int" } }
+  },
+  "questionBankTagMissing": "{count} 个标签路径已不存在",
+  "@questionBankTagMissing": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankExportDone": "已导出 {count} 道题（{sizeText}）",
+  "@questionBankExportDone": {
+    "placeholders": { "count": { "type": "int" }, "sizeText": { "type": "String" } }
+  },
+  "questionBankExportEmpty": "选中的题目已不在题库里",
+  "questionBankExportFailed": "导出失败：{error}",
+  "@questionBankExportFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBankTagFailed": "打标签失败：{error}",
+  "@questionBankTagFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBulkTagDialogTitle": "给选中题目打标签",
+  "questionBulkTagSearchHint": "搜索标签路径",
+  "questionBulkTagNoMatch": "没有匹配的标签",
+  "questionBulkTagConfirm": "添加标签",
   "questionIntakePasteSection": "粘贴建题",
   "questionIntakePhotoSection": "拍照 / 选图",
   "questionIntakeLibrarySection": "题库列表",

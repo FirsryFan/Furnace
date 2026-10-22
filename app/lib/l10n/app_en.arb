@@ -1705,6 +1705,57 @@
   "@questionBankTruncated": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "questionBankSelect": "Select multiple",
+  "questionBankSelectedCount": "{count} selected",
+  "@questionBankSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankSelectAll": "Select all",
+  "questionBankClearSelection": "Clear selection",
+  "questionBankTagSelected": "Add tags",
+  "questionBankExportSelected": "Export selected",
+  "questionBankDeleteSelected": "Delete",
+  "questionBankDeleteTitle": "Delete {count} questions?",
+  "@questionBankDeleteTitle": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankDeleteBody": "About to delete: {preview}. This cannot be undone.",
+  "@questionBankDeleteBody": {
+    "placeholders": { "preview": { "type": "String" } }
+  },
+  "questionBankDeleteDone": "Deleted {count} questions",
+  "@questionBankDeleteDone": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankDeleteFailed": "{count} could not be deleted",
+  "@questionBankDeleteFailed": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankTagDone": "Added {added} links; skipped {skipped} (already tagged)",
+  "@questionBankTagDone": {
+    "placeholders": { "added": { "type": "int" }, "skipped": { "type": "int" } }
+  },
+  "questionBankTagMissing": "{count} tag paths no longer exist",
+  "@questionBankTagMissing": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionBankExportDone": "Exported {count} questions ({sizeText})",
+  "@questionBankExportDone": {
+    "placeholders": { "count": { "type": "int" }, "sizeText": { "type": "String" } }
+  },
+  "questionBankExportEmpty": "The selected questions are no longer in the bank",
+  "questionBankExportFailed": "Export failed: {error}",
+  "@questionBankExportFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBankTagFailed": "Tagging failed: {error}",
+  "@questionBankTagFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionBulkTagDialogTitle": "Tag selected questions",
+  "questionBulkTagSearchHint": "Search tag paths",
+  "questionBulkTagNoMatch": "No matching tags",
+  "questionBulkTagConfirm": "Add tags",
   "questionIntakePasteSection": "Paste a question",
   "questionIntakePhotoSection": "Photograph / pick images",
   "questionIntakeLibrarySection": "Question bank",
