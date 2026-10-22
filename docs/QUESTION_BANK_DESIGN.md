@@ -1330,6 +1330,104 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   与截图当随文图导出，未做快照专用排版；题库总览/相似题/AI 读题工具仍显示原始占位文本；
   真实 30 题包尚未在 App 真机上手工导入点一遍。
 
+## 27. 整卡快照包的三处降级显示：docx / AI 读题 / 题库列表（轮次一百四十三，2026-10-23）
+
+轮次一百四十二把「整卡快照包」在详情页做对了（正文省略号 + 末尾原题整图），但另外三处仍在显示原始占位：
+**Word 导出**把「［图N］」和整题截图当随文图排版；**AI 读题工具**只报 `image_count`，模型不知道题干只是
+截图；**题库列表**标题是「…… ［图12］ ……」的碎片。本轮把这三处一起降到可读形态，判定统一复用轮次
+一百四十二的渲染计划，不新增第二套阈值。
+
+### 27.1 题干快照摘要（纯逻辑，task-135 reasoning-core）
+
+- 新文件 `app/lib/domain/services/questions/question_snapshot_summary.dart`（222 行）：
+  `class QuestionSnapshotSummary`（`isSnapshot` / `placeholderCount` / `imageCount` /
+  `neutralizedStem` / `labelZh` / `textExcerpt` / `hasTextExcerpt` / `isEmpty`）；
+  `summarizeQuestionStemSnapshot({required String stem, required int stemImageCount,
+  List<QuestionStemImageSize?> imageSizes = const [], int excerptMaxLength = 60})`；
+  `const kQuestionSnapshotExcerptMaxLength = 60`。
+- 判定直接复用 `planQuestionStemRender`（B1 真实尺寸大图 / B2 尺寸未知 + 1 图 + 占位≥2），不重复实现。
+  快照时：`neutralizedStem` = 按序拼文字段（占位已变「…」）；`labelZh` = `整题截图 · N 处公式/图`
+  （无占位时 `整题截图`）；`textExcerpt` = 原 stem 删占位 → 折叠空白 → 连续省略号压一个 → 剥首尾
+  标点 → runes 截 60（截断后不足 4 runes 视为没有摘录）。非快照时 `labelZh` 空、`textExcerpt` 走
+  `questionStemPreview`，摘要不参与任何判定。
+- 已知口径差异：快照摘录**保留 `$` 定界符**（与非快照 `questionStemPreview` 去定界符不同），
+  因为摘录要如实反映正文；占位正则在 `question_stem_segments.dart` / `question_stem_preview.dart` /
+  本文件各有一份私有实现，改规则需三处同步（三份都已被各自测试钉住）。
+- 测试：`app/test/domain/services/questions/question_snapshot_summary_test.dart`（375 行、5 组 34 例）：
+  快照判定 B1/B2、`neutralizedStem` 段落拼接、label 文案、摘录清洗/截断/不足 4 字、非快照等价
+  `stemPreview`、退化输入不抛。实跑 `+34 All tests passed`。
+
+### 27.2 Word 导出：正文降级 + 原题整图（task-137 Lead）
+
+- `app/lib/domain/services/export/paper_docx.dart`（+63 行）：`PaperDocxQuestion.stemIsSnapshot`
+  （默认 false，旧调用逐字节不变）；`PaperDocxLabels.snapshotStemNote`（默认「（本题题干是整题截图，
+  正文只保留可读文字，原题见下方整图）」）与 `snapshotImageLabel`（默认「原题整图」）；
+  `PaperDocxBuildResult.snapshotStemCount`。`_addStem` 在题干后追加一行 9pt 灰 meta 小字
+  （keepNext）；`_addImages` 在快照且图片非空时先加「原题整图」小标题（9pt 灰加粗、keepNext）。
+  空题干也走提示分支，计数不丢。
+- 应用层 `app/lib/features/questions/application/paper_docx_export.dart`：新增私有
+  `_paperDocxQuestionFor`，把该题题干图的**真实像素尺寸**（`readImageInfo` 已给出）组
+  `List<QuestionStemImageSize?>` 调 `summarizeQuestionStemSnapshot`；快照时 `stem` 换成
+  `neutralizedStem`、`stemIsSnapshot: true`。`question_corpus_reader.dart` 的
+  `QuestionDocxRow.toPaperDocxQuestion` 加 `String? stemOverride, bool stemIsSnapshot = false` 透传。
+- 测试：`paper_docx_test.dart` 新增 5 例（提示在「原题整图」前、小标题在 `<w:drawing` 前、
+  非快照不出提示、空题干计数、无图不出标题、英文 labels）→ 该文件 `+59`；
+  `paper_docx_export_test.dart` 新增 2 例（1640×808 整图 + 12 处占位 → `snapshotStemCount=1`、
+  xml 含提示/原题整图、不含 `［图`、图入 zip；两张 400×240 + 2 占位 → 非快照两图都入 zip）→
+  该文件 `+26`。注意 docx 图片的 note 只进 `imagePlacements`，断言图位置要用 `<w:drawing`。
+- **真实包 Word 验收**（临时测试 + Word COM，脚本与产物在 `E:/dsh-tmp-aot/snapshot-docx/`）：
+  导入真实 30 题包（created 30 / media 60），取前 3 道（全部快照）组卷导出：
+  `bytes=2,766,181`、`snapshotStemCount=3`、`stemImages=3`、`answerShots=3`、`imageNotes=0`；
+  Word 打开 `OPEN_MS=2178`、**5 页**、1746 字、6 个 InlineShapes、含「整题截图」与「原题整图」、
+  **不含原始「［图1］」**、含「参考答案与解析」、PDF `530,767 B`。探针未注入 LaTeX→OMML 编译器，
+  所以该样张 `OMath=0`（生产界面会注入，见轮次一百二十二）。
+
+### 27.3 AI 读题工具标注快照题（task-136 threadflow-engine）
+
+- `app/lib/features/ai/tools/question_tools.dart`（+53/−3）：新增顶层 `_snapshotClauseOf`；
+  `read_question` 在附件分桶后按既有 `image_count` 口径（role NULL/空/stem）算快照，
+  `modelResult` 末尾新增两个键——`stem_is_snapshot`（bool，**恒出现**）与
+  `stem_snapshot_label`（非快照为空串，键也恒出现，schema 稳定）；摘要固定尾句前插
+  「；题干是整题截图（N 处公式/图），正文可能只是占位，原题看图片」。`read_questions_by_serials`
+  逐条同样两键，摘要多「其中 K 道题题干是整题截图。」（K=0 不出现）。description/参数 schema、
+  `previewStem`、只读性均未改。
+- 工具层只拿得到题干图**数量**、没有像素尺寸，所以只命中 **B2**（1 图 + 占位≥2）；B1 大图在工具层
+  不会命中——偏保守、不误报。以后附件能提供尺寸时把 `imageSizes` 传进来即可覆盖 B1。
+- 测试：`read_question_tool_test.dart` +4 例、`read_questions_by_serials_tool_test.dart` +3 例
+  （快照/非快照/1 图 1 占位/2 图 2 占位、混合批摘要计数、无快照摘要不提）；两文件 `+43`，
+  `test/features/ai` 目录 `+587` 零回归。
+
+### 27.4 题库总览：快照字段 + badge + 可读标题（task-138 Lead / task-139 question-intake）
+
+- 读表 `app/lib/features/questions/application/question_library_reader.dart`：
+  `QuestionLibraryEntry` 新增 `isSnapshotStem` / `snapshotLabel` / `snapshotExcerpt`；
+  读表时每题用题干图张数调 `summarizeQuestionStemSnapshot`（**不传尺寸 → 只走 B2**，列表不为判定
+  去读图片字节）。`displayTitle` 优先序改为：用户题名 → 快照可读摘录 → 快照标签 → `stemPreview`
+  →「（无题干）」；非快照题的 `snapshotExcerpt` 恒为 null（否则普通题会多出一个「摘录」字段）。
+- 列表 `question_bank_page.dart`（+19/−11）：标题行统一 `entry.displayTitle`（有题名 titleMedium/w600、
+  最多 2 行；否则 bodyMedium/onSurfaceVariant、1 行）；题号行在学科后加 badge
+  `l10n.questionBankSnapshotBadge`（zh「整题截图」/en「Card image」，纯 Text 无卡片底座）。
+  badge 条件 = `isSnapshotStem && (有可读摘录 || 有用户题名)`——**标题已经回落成「整题截图 · N 处
+  公式/图」时不重复显示 badge**，避免同一行两个「整题截图」。
+- l10n 仅新增 1 个无参 key，五文件手改、未跑 gen-l10n（zh keys=1668 / en keys=1699，ARB JSON 可解析、
+  无字面花括号）。
+- 测试：reader `question_library_reader_test.dart` +4 例（1 图 3 占位→快照/标签/摘录标题、
+  1 图 1 占位→非快照、2 图 2 占位→非快照、有题名时题名优先），该文件 `+17`；
+  `question_bank_page_test.dart` +3 例（有摘录→badge + 摘录标题、无摘录→标题即标签且无 badge、
+  普通题无 badge），`test/features/questions/presentation` `+391`（基线 388，+3，无回归）。
+
+### 27.5 门禁与未做（轮次一百四十三）
+
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与轮次一百四十一起同一基线，无新增）。
+- 全量 `flutter test --concurrency=1` → **+5449 ~2 All tests passed**，10 分 56 秒，EXIT=0（日志 `E:/dsh-tmp-aot/test-143-full.txt`；上轮 +5394，本轮 +55）。
+- 切片：`test/domain/services/export test/domain/services/questions test/features/questions/application
+  test/features/ai` 组合 → **+1695 All tests passed**（含本轮 34+5+2+4+3+4 例与全部既有用例）。
+- 未做 / 未验证：真机 Windows / Android 上「正文 + 整题截图」的版面与新 badge 的长中文换行未手测；
+  44 处占位极限包未单独验证；题库列表判定只有 B2（不读图片尺寸），真实库里「题目有图但 attachments
+  行缺失」时不会出 badge；AI 工具同样只有 B2；`questionBankUntitled` 这个 l10n key 在列表改造后已无
+  业务引用（保留未删，删 key 涉及五文件生成物）；空题干题的列表标题从「题干没读到」变成
+  reader 的「（无题干）」（DB 里 stem 必填，真实数据概率低但未抽样验证）。
+
 
 
 

@@ -2,6 +2,44 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百四十三：整卡快照包的三处降级显示（Lead + 三个 teammate）
+
+**起点**：轮次一百四十二收尾（HEAD `9766c3f`，v0.6.0-16）。上一轮把整卡快照包在详情页做对了，
+但 Word 导出、AI 读题工具、题库列表三处仍显示原始「［图N］」占位，词不达意。本轮把这三处一起降级：
+题干快照摘要纯逻辑 → docx 快照排版 → AI 工具标注 → 题库列表标题与 badge。
+
+**五个切片（四个代码提交 + 一个 docs 提交）**
+1. `question_snapshot_summary.dart`（reasoning-core，222 行）：`summarizeQuestionStemSnapshot`
+   复用 `planQuestionStemRender` 判定 B1/B2；快照给 `neutralizedStem`/`labelZh`/`textExcerpt`，
+   非快照等价 `questionStemPreview`。测试 34 例。
+2. `paper_docx.dart`（Lead，+63 行）：`PaperDocxQuestion.stemIsSnapshot`、labels
+   `snapshotStemNote`/`snapshotImageLabel`、`PaperDocxBuildResult.snapshotStemCount`；正文后加
+   「本题题干是整题截图」小字、图片前加「原题整图」小标题。应用层用真实像素尺寸（`readImageInfo`）
+   调摘要，`QuestionDocxRow.toPaperDocxQuestion` 加 `stemOverride/stemIsSnapshot` 透传。
+   测试 domain +5 / app +2；真实 30 题包取前 3 题导出，Word COM 实测 5 页 / 1746 字 / 6 图 /
+   含两处提示 / 无原始占位 / PDF 530,767 B。
+3. `question_tools.dart`（threadflow-engine，+53/−3）：`read_question` 与
+   `read_questions_by_serials` 的 modelResult 新增 `stem_is_snapshot`（恒出现）与
+   `stem_snapshot_label`；摘要按快照追加说明；工具层只有图数量 → 只命中 B2。测试 +7 例，
+   `test/features/ai` +587 零回归。
+4. 题库总览（Lead + question-intake）：reader 新增 `isSnapshotStem/snapshotLabel/snapshotExcerpt`，
+   `displayTitle` 改为 题名→摘录→标签→`stemPreview`→「（无题干）」；列表标题统一 `displayTitle`、
+   题号行加 `questionBankSnapshotBadge`（badge 条件 = 快照且有摘录或题名，避免同屏两个「整题截图」）。
+   reader +4 例、presentation +391（基线 388）、l10n 五文件仅 1 个无参 key。
+5. docs 提交：`docs/QUESTION_BANK_DESIGN.md` §27、`docs/PROGRESS.md` 本轮条目。
+
+**门禁（真实输出）**
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与上一轮同基线，无新增）。
+- 切片组合（export + domain/questions + application + ai）→ **+1695 All tests passed**。
+- 全量 `flutter test --concurrency=1` → **+5449 ~2 All tests passed**，10 分 56 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-143-full.txt`；上轮 +5394，本轮 +55）。
+- 只对改动文件 `dart format`（本轮 0~1 changed，生成物 `app_localizations_en.dart` 例外）。
+
+**未做 / 未验证**
+真机（Windows / Android）上「正文 + 整题截图」的版面与 badge 长中文换行未手测；44 处占位极限包
+未单独验证；题库列表与 AI 工具都只有 B2 判定（读不到图片尺寸，`attachments` 行缺失时不出 badge /
+不提快照）；`questionBankUntitled` 已无业务引用但未删 key；空题干题的列表标题从「题干没读到」
+变为 reader 的「（无题干）」。
 ## 2026-10-23 轮次一百四十二：真实抓题包验收 + 整卡快照包降级（Lead + 两个 teammate）
 
 **起点**：轮次一百四十一收尾（HEAD `7dd3a43`，v0.6.0-11）。外部抓题专属 agent 交付了第一个真实
