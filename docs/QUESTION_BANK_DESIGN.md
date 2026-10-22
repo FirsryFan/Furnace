@@ -1127,6 +1127,115 @@ Word 是给人看的，题库包是给另一台 Furnace 用的：把**题目 + �
 +27、`test/domain/services/questions` +450（基线 413）。l10n 五个文件校验：zh/en ARB 各 1405 个
 key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历史未声明键不是本轮引入）。
 
+## 25. 题库页：可读摘要 + 搜索 + 标签筛选（轮次一百四十一，2026-10-23）
+
+抓题专属 agent 产出的 `.tqb` 题干是给渲染层准备的：公式包在 `$…$` 里、题干图片只留
+「［图N］」占位。题库列表此前直接显示原始题干（一堆美元符与方括号），并且只有学科 chips，
+没有搜索、也不能按标签找题。本轮把这两件事拆成纯逻辑层先做扎实，UI 再接线。
+
+### 25.1 题干可读摘要（新增纯逻辑）
+
+- 新文件 `app/lib/domain/services/questions/question_stem_preview.dart`：
+  `String questionStemPreview(String stem, {int maxLength = kQuestionStemPreviewMaxLength})`。
+  常量：`kQuestionStemPreviewMaxLength = 60`、`kQuestionStemPreviewImageToken = '［图］'`。
+- 口径：`$$…$$` / `$…$` 去掉**定界符**保留内部（`$x^2$` → `x^2`）；没配对的美元符直接删；
+  Markdown 图片删除、Markdown 链接只留文字；`[图1]` / `［图2］` / `【图12】` / 全角数字占位统一换成
+  `［图］`（没有数字的方括号与越界序号不动）；所有空白折叠成一个半角空格后 trim；按 **runes**
+  截断到 `maxLength` 并在超出时补 `…`（不会把 emoji 切成半个）；`maxLength <= 0` 或空题干返回空串；
+  不抛异常。
+- 接入：`app/lib/features/questions/application/question_library_reader.dart` 的
+  `QuestionLibraryEntry.stemPreview` 改为调用它，`displayTitle` 的兜底随之变成可读文本；
+  旧的本地 `_preview`（只折空白 + 按 UTF-16 截断）删除。
+- 测试：新文件 `app/test/domain/services/questions/question_stem_preview_test.dart` 25 例；
+  `test/features/questions/application/question_library_reader_test.dart` 补 1 例断言公式/占位收口
+  （该文件共 13 例）。两文件实跑均 All tests passed，`dart analyze` No issues。
+
+### 25.2 筛选纯逻辑（新增）
+
+- 新文件 `app/lib/features/questions/application/question_library_filter.dart`（195 行）：
+  `class QuestionLibraryFilter { const QuestionLibraryFilter({String subjectKey = '', Set<String> tagPaths = const <String>{}, String text = ''}); }`
+  （`static const empty`、`isEmpty`/`isNotEmpty`、`copyWith`、Set 顺序无关的 `==`/`hashCode`、`toString`）；
+  `bool questionLibraryEntryMatches(QuestionLibraryEntry entry, QuestionLibraryFilter filter)`；
+  `List<QuestionLibraryEntry> filterQuestionLibraryEntries(Iterable<QuestionLibraryEntry> entries, QuestionLibraryFilter filter)`
+  （保序、返回 `List.unmodifiable`；空筛选返回全部条目的不可变副本）。
+- 口径：三层之间 **AND**。学科空=不限、否则精确（大小写敏感）；标签空集=不限、否则多选 **ANY**
+  且按**子树**匹配（命中条件 `q == p || q.startsWith('$p/')`，选了父路径也能找到挂在子路径的题，
+  反向不成立，`文化课/学科群` 不会被 `文化课/学科` 误命中）；文字空=不限，否则先按题号解析
+  （复用 `question_number_query.dart`，认 `TR-42` / `#42` / `42` / 全角数字），题号命中即真，
+  未命中再对题名、题干、题号标签、学科、来源、标签路径做大小写不敏感子串匹配。
+- 构造不归一字段（保持 `const`），判定时按需 trim：全空白标签项等价于空集，`subjectKey`/`text`
+  的空白等价于不限；`==` 仍按原始字段比较（已知且有意的小差异，doc 已写明）。
+- 测试：新文件 `app/test/features/questions/application/question_library_filter_test.dart`
+  （744 行、8 组 62 例：空筛选/学科/标签子树/文字/题号/组合/copyWith 与相等性/过滤列表与健壮性）。
+  实跑 `+62 All tests passed`、`dart analyze` No issues。
+- 已知待办：`app/lib/features/questions/presentation/question_intake_providers.dart:35` 另有一个
+  **同名旧类** `QuestionLibraryFilter`（字段为学科/来源/状态/题干/题号集合，供收题页搜索用）。
+  两者目前互不 import（各自 analyze 通过），但同一文件同时 import 会命名冲突；后续把旧类改名
+  （建议 `QuestionIntakeFilter`）或迁到收题页专用文件。本轮未动 presentation 旧类。
+
+### 25.3 题库页 UI（搜索框 + 标签筛选 + 空态）
+
+- 改 `app/lib/features/questions/presentation/question_bank_page.dart`：页面状态从单个
+  `_subjectKey` 改为 `QuestionLibraryFilter _filter`（:125），另加搜索 `TextEditingController`
+  `_search`（:145，initState 建、dispose 释放）。方法：`_applyFilter`、`_clearSearchText`（只清
+  输入框并重筛）、`_clearFilter`（学科/标签/文字全清，并同步清空输入框）、`_selectedTagPaths`、
+  `_removeTagPath`、`_openTagFilter`。列表统一走 `_visibleEntries`
+  （`filterQuestionLibraryEntries(snapshot.entries, _filter)`，:320）。
+- 学科 chips 现在写 `_filter.subjectKey`（:737-745），与搜索、标签三条件 **AND**；自动命名
+  「缺名题」与全选都只作用于 `visibleEntries`（筛出的题），不会偷偷处理被筛掉的题；多选态改筛选
+  不清空已选，但已选里看不见的项不显示。
+- 新文件 `app/lib/features/questions/presentation/question_library_filter_bar.dart`（175 行）：
+  搜索框（输入即筛）、标签筛选按钮、已选标签 chips（Wrap，显式 `Tooltip` 显示完整路径）、
+  「筛出 X / 共 Y 道」计数、清除筛选按钮。顶层 Key：`questionBankSearchKey` /
+  `questionBankSearchClearKey` / `questionBankTagFilterKey` / `questionBankClearFilterKey` /
+  `questionBankFilteredCountKey` / `questionBankNoMatchClearFilterKey`；另有测试定位用
+  `String questionBankTagChipKeyFor(String path)` `questionLibraryTagChipLabel(String path)`
+  （已选 chip 显示叶子名，完整路径放 Tooltip）。
+- 新文件 `app/lib/features/questions/presentation/question_library_tag_filter_dialog.dart`
+  （190 行）：`Future<Set<String>?> showQuestionLibraryTagFilterDialog(BuildContext context, {required List<String> tagPaths, Set<String> initialSelection})`——
+  返回值三态：`null` = 取消（不改），空集 = 清除标签筛选，非空 = 选中的路径集合。对话框里的候选
+  路径由页面传入 `snapshot.tagPaths`（不单独读库）；可搜索的 `CheckboxListTile` 多选。
+- 无命中时用 `SliverFillRemaining` 居中空态 + 「清除筛选」按钮（:759-782），不再显示空列表。
+- l10n：五个文件手改、未跑 gen-l10n；新增 7 个 key：
+  `questionBankSearchHint` / `questionBankTagFilterTitle` / `questionBankTagFilterSelected(int)` /
+  `questionBankFilterClear` / `questionBankFilteredCount(int shown, int total)` /
+  `questionBankFilterNoMatch` / `questionBankTagFilterClear`，并复用批量打标签已有的
+  `questionBulkTagSearchHint` / `questionBulkTagNoMatch`。两个带参 key 都有 `@meta` 声明，
+  ARB 里没有字面花括号。
+- 修掉一个真实 bug：`InputChip` 自带的 tooltip 只在 `onPressed`/`onSelected` 非空时渲染
+  （Flutter SDK `chip.dart:1440-1442`），已选标签 chip 原本看不到完整路径——改为显式
+  `Tooltip(message: path)` 包一层。
+- 测试：新文件 `app/test/features/questions/presentation/question_bank_filter_test.dart`
+  （375 行、15 例：题号搜索 / 题干片段搜索 / 无命中空态与清除 / 清除筛选同步清空输入框 /
+  父路径命中子孙 / 两路径并集 + chip key + tooltip / 点 chip 删除 / 对话框清除 / 对话框搜索 /
+  学科 + 搜索 AND / 计数 / 多选态全选只选筛出 / 多选态改筛选保留已选 / 搜索 × 只清文字 /
+  无标签库提示）。既有测试未改；`test/features/questions/presentation` 目录 **+383 全绿**
+  （基线 368，+15，无回归）。
+
+### 25.4 门禁与未做（轮次一百四十一）
+
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与轮次一百四十同一基线，
+  本轮没有新增问题）。
+- 全量 `flutter test --concurrency=1` → **+5334 ~2 All tests passed**，10 分 34 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-141-full.txt`；上一轮基线 +5221，本轮 +113）。
+- 切片组合：`test/domain/services/questions/question_stem_preview_test.dart` +
+  `question_library_reader_test.dart` + `question_library_filter_test.dart` +
+  `question_pack_harvest_roundtrip_test.dart` → **+110**；
+  `test/features/questions/presentation` → **+383**（基线 368）。`dart format -o none
+  --set-exit-if-changed` 检查本轮 11 个改动 Dart 文件 → 0 changed。
+- l10n 五个文件手改（未跑 gen-l10n）：zh/en ARB key 集合一致，7 个新 key 双语齐全，
+  两个带参 key 的 `@meta` 与实现里的插值对得上，ARB 没有字面花括号；生成文件的 getter
+  齐全（非带参 key 不带 `@meta` 与仓库既有 1412 个 key 的惯例一致）。
+- 未做 / 未验证：真机 Windows / Android 未手测筛选与筛选条布局；筛选在**已加载的**
+  `readQuestionLibrary(limit: 500)` 快照上做，题库超过 500 道时界面只筛前 500 道
+  （`snapshot.truncated` 为真且标签候选也只来自这 500 道）；多选态同时筛到 0 道的同屏
+  交互未覆盖；旧 key `questionBankNoMatch` 已无 lib 引用但保留未删；`question_intake_providers.dart`
+  的同名旧类 `QuestionLibraryFilter` 仍未改名（见 §25.2）；抓题包回归用的是合成包，
+  外部 agent 产出的真实 30 题包尚未在 App 里手工导入对照。
+
+
+
+
 
 
 

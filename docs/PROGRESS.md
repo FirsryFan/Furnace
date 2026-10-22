@@ -2,6 +2,46 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百四十一：题库页搜索 + 标签筛选 + 可读摘要（Lead + 三个 teammate）
+
+**起点**：轮次一百四十收尾（HEAD `68cf9c3`，v0.6.0-6）。外部抓题 agent 产出的 `.tqb` 题干是
+给渲染层准备的（公式包在 `$…$` 里、图片只留「［图N］」占位），题库列表此前直接显示原文；
+题库页也只有学科 chips，没有搜索、不能按标签找题。本轮把「看得懂、找得到」补齐：可读摘要
+纯逻辑 → 筛选纯逻辑 → 抓题包回归 → 页面接线。
+
+**五个切片（四个代码提交 + 一个 docs 提交）**
+1. `76507ae` 题干可读摘要（Lead）：新 `question_stem_preview.dart`（公式去定界符留内容、
+   图片占位统一成「［图］」、Markdown 清理、空白折叠、按 runes 截 60 字），题库读表的
+   `stemPreview`/`displayTitle` 接上；25 例 + reader 补 1 例。
+2. `7baea9d` 题库筛选纯逻辑（reasoning-core）：新 `question_library_filter.dart`（195 行）——
+   学科精确、标签多选按子树 ANY、文字先题号解析再子串匹配，三层 AND；62 例。
+3. `f090fd6` 抓题包 `.tqb` 端到端回归（threadflow-engine）：合成包（`$…$`、图占位、选项、
+   来源三字段、题干图 + 答案截图）导入 → 导出 → 再解码，钉住题干原样、题号重排、来源回写、
+   媒体 role/字节保真、重复导入不重复；10 例，生产代码零改动。
+4. `9e993af` 题库页搜索 + 标签筛选（question-intake）：页面改 `QuestionLibraryFilter _filter` +
+   `_visibleEntries`；新筛选条（搜索框/标签按钮/已选 chips/计数/清除）与可搜索标签多选对话框；
+   无命中居中空态；自动命名与全选只作用筛出的题；l10n 7 新 key + 复用 2 个；15 例，
+   `test/features/questions/presentation` +383（基线 368）；顺手修了 InputChip 自带 tooltip
+   在无回调 chip 上不渲染的真实 bug。
+5. docs：`docs/QUESTION_BANK_DESIGN.md` §25（25.1–25.4）+ 本轮 PROGRESS。
+
+**门禁（真实输出）**
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与上轮同一基线，无新增）。
+- 全量 `flutter test --concurrency=1` → **+5334 ~2 All tests passed**，10 分 34 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-141-full.txt`；上轮基线 +5221，本轮 +113）。
+- 切片：摘要/筛选/读表/抓题包四文件 **+110**；presentation **+383**；
+  `dart format -o none --set-exit-if-changed` 检查本轮 11 个 Dart 文件 → 0 changed；
+  l10n 五文件 zh/en key 对齐、7 个新 key 占位符与 `@meta` 一致。
+
+**未做 / 未验证 / 下一批候选**
+- 真机筛选条布局未手测；筛选只作用于已加载的 `limit: 500` 快照，题库超过 500 道时只能筛前
+  500 道；多选态 + 筛到 0 道的同屏交互未覆盖。
+- `question_intake_providers.dart` 的同名旧类 `QuestionLibraryFilter` 仍未改名（两文件不互相
+  import 才没冲突）；旧 key `questionBankNoMatch` 已无 lib 引用但保留未删。
+- 抓题包回归是合成包，外部 agent 产出的真实 30 题包尚未在 App 里手工导入对照。
+- 下一批候选：真实 `.tqb` 导入验收与题干图片大图/全文；v0.6.1 双端包；quality 标定；
+  五个应用领域的剩余接线。
+
 ## 2026-10-23 轮次一百四十：题库批量操作——多选、批量打标签、导出选中、批量删除（Lead + 三个 teammate）
 
 **起点**：轮次一百三十九收尾（HEAD `455f36a`，v0.6.0）。这一轮来自用户 m09439 第 5 条反馈
