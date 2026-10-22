@@ -277,4 +277,226 @@ void main() {
       expect((await db.select(db.objectTags).get()).length, linkRows);
     });
   });
+
+  group('addTagToObjects / removeTagFromObjects：批量挂/摘标签', () {
+    Future<Tag> makeTag([String name = '批量']) => tags.createTag(name: name);
+
+    Future<Set<String>> linked(
+      Tag tag, {
+      String type = 'question',
+    }) async =>
+        (await tags.objectLinksForTag(tag.id))
+            .where((link) => link.objectType == type)
+            .map((link) => link.objectId)
+            .toSet();
+
+    Future<List<ObjectTag>> linksOf(Tag tag) => tags.objectLinksForTag(tag.id);
+
+    test('一次挂多题：返回真实新增数，链接可按题反查', () async {
+      final tag = await makeTag();
+
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['q-1', 'q-2', 'q-3'],
+        ),
+        3,
+      );
+
+      expect(await linked(tag), {'q-1', 'q-2', 'q-3'});
+      expect((await db.select(db.objectTags).get()).length, 3);
+      final back = await tags.tagsForObject(
+        objectType: 'question',
+        objectId: 'q-2',
+      );
+      expect(back.map((t) => t.id), [tag.id]);
+    });
+
+    test('重复挂同一批：第二次返回 0，链接行数不变', () async {
+      final tag = await makeTag();
+      const ids = ['q-1', 'q-2', 'q-3'];
+
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ids), 3);
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ids), 0);
+      expect((await db.select(db.objectTags).get()).length, 3);
+    });
+
+    test('混合已挂/未挂：只计真正新增的', () async {
+      final tag = await makeTag();
+      expect(
+        await tags.addTagToObjects(tagId: tag.id, objectIds: ['q-a']),
+        1,
+      );
+
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['q-a', 'q-b', 'q-c'],
+        ),
+        2,
+      );
+      expect(await linked(tag), {'q-a', 'q-b', 'q-c'});
+    });
+
+    test('空集合/空白 tagId/空白 objectId：立即 0 且不抛', () async {
+      final tag = await makeTag();
+
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: []), 0);
+      expect(await tags.removeTagFromObjects(tagId: tag.id, objectIds: []), 0);
+      expect(
+        await tags.addTagToObjects(
+          tagId: '   ',
+          objectIds: ['q-1'],
+        ),
+        0,
+      );
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['  ', '', '\t'],
+        ),
+        0,
+      );
+      expect(
+        await tags.removeTagFromObjects(tagId: tag.id, objectIds: ['   ']),
+        0,
+      );
+      expect(await db.select(db.objectTags).get(), isEmpty);
+      // 空 objectType 也是调用方的空输入，不能写出一条类型为空的链接。
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['q-1'],
+          objectType: ' ',
+        ),
+        0,
+      );
+    });
+
+    test('默认 objectType 是 question，可切换到别的类型（不写死）', () async {
+      final tag = await makeTag();
+
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ['q-1']), 1);
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['kp-1'],
+          objectType: 'knowledge_point',
+        ),
+        1,
+      );
+
+      expect(await linked(tag), {'q-1'});
+      expect(await linked(tag, type: 'knowledge_point'), {'kp-1'});
+      final rows = await db.select(db.objectTags).get();
+      expect(rows.map((row) => row.objectType).toSet(), {
+        'question',
+        'knowledge_point',
+      });
+    });
+
+    test('objectType 隔离：同 id 在不同类型名下互不影响', () async {
+      final tag = await makeTag();
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ['x-1']), 1);
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: ['x-1'],
+          objectType: 'note',
+        ),
+        1,
+      );
+      expect((await db.select(db.objectTags).get()).length, 2);
+
+      expect(
+        await tags.removeTagFromObjects(tagId: tag.id, objectIds: ['x-1']),
+        1,
+      );
+      expect(await linked(tag), isEmpty);
+      expect(await linked(tag, type: 'note'), {'x-1'});
+    });
+
+    test('批量摘：只删指定对象，返回真实删除数', () async {
+      final tag = await makeTag();
+      await tags.addTagToObjects(
+        tagId: tag.id,
+        objectIds: ['q-1', 'q-2', 'q-3'],
+      );
+
+      expect(
+        await tags.removeTagFromObjects(tagId: tag.id, objectIds: ['q-2']),
+        1,
+      );
+      expect(await linked(tag), {'q-1', 'q-3'});
+    });
+
+    test('摘不存在的链接：返回 0，别的链接不受影响', () async {
+      final tag = await makeTag();
+      await tags.addTagToObjects(tagId: tag.id, objectIds: ['q-1']);
+
+      expect(
+        await tags.removeTagFromObjects(
+          tagId: tag.id,
+          objectIds: ['q-9', 'q-8'],
+        ),
+        0,
+      );
+      expect(await linked(tag), {'q-1'});
+    });
+
+    test('同 id 重复传：只插一条，摘也只删一条', () async {
+      final tag = await makeTag();
+
+      expect(
+        await tags.addTagToObjects(
+          tagId: tag.id,
+          objectIds: [' q-1 ', 'q-1', 'q-2'],
+        ),
+        2,
+      );
+      expect((await db.select(db.objectTags).get()).length, 2);
+
+      expect(
+        await tags.removeTagFromObjects(
+          tagId: tag.id,
+          objectIds: ['q-1', ' q-1 ', 'q-2'],
+        ),
+        2,
+      );
+      expect(await db.select(db.objectTags).get(), isEmpty);
+    });
+
+    test('tagId 前后空白按 trim 处理，且不会串到别的标签', () async {
+      final first = await makeTag('语文');
+      final second = await makeTag('数学');
+
+      expect(
+        await tags.addTagToObjects(
+          tagId: '  ${first.id}  ',
+          objectIds: ['q-1'],
+        ),
+        1,
+      );
+      expect(await linked(first), {'q-1'});
+      expect(await linked(second), isEmpty);
+
+      expect(
+        await tags.removeTagFromObjects(
+          tagId: ' ${first.id} ',
+          objectIds: ['q-1'],
+        ),
+        1,
+      );
+      expect(await db.select(db.objectTags).get(), isEmpty);
+    });
+
+    test('挂 20 题一次走完：计数准确，第二次为 0', () async {
+      final tag = await makeTag();
+      final ids = [for (var i = 0; i < 20; i++) 'q-$i'];
+
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ids), 20);
+      expect(await tags.addTagToObjects(tagId: tag.id, objectIds: ids), 0);
+      expect(await linksOf(tag), hasLength(20));
+    });
+  });
 }

@@ -42,9 +42,7 @@ class TagRepository {
             updatedAt: now,
           ),
         );
-    return (await _db.select(_db.tags)
-          ..where((t) => t.id.equals(id)))
-        .getSingle();
+    return (_db.select(_db.tags)..where((t) => t.id.equals(id))).getSingle();
   }
 
   /// Imports a full node subtree as tags (Mindnet "系" import, spec 1.4.3).
@@ -194,6 +192,112 @@ class TagRepository {
                 t.objectId.equals(objectId),
           ))
         .go();
+  }
+
+  /// Links [tagId] to many objects of [objectType] in **one transaction**.
+  ///
+  /// A batch flow ("tag these twenty questions at once") used to loop over
+  /// [addTagToObject]; that opened one statement per object. Here the ids are
+  /// trimmed, blanks dropped and duplicates collapsed (first occurrence wins)
+  /// before a single multi-row insert runs.
+  ///
+  /// Existing links are **skipped, not errors**: the return value is the number
+  /// of genuinely new rows, so a second identical call returns 0. That keeps
+  /// double taps harmless without callers pre-filtering.
+  ///
+  /// [objectType] defaults to `question` for convenience but is never
+  /// hard-coded inside the repository - pass the caller's own domain key
+  /// (`knowledge_point`, ...).
+  Future<int> addTagToObjects({
+    required String tagId,
+    required Iterable<String> objectIds,
+    String objectType = 'question',
+  }) async {
+    final cleanTagId = tagId.trim();
+    final cleanType = objectType.trim();
+    final ids = _cleanObjectIds(objectIds);
+    if (cleanTagId.isEmpty || cleanType.isEmpty || ids.isEmpty) {
+      return 0;
+    }
+    return _db.transaction(() async {
+      final existing = await (_db.selectOnly(_db.objectTags)
+            ..addColumns([_db.objectTags.objectId])
+            ..where(
+              _db.objectTags.tagId.equals(cleanTagId) &
+                  _db.objectTags.objectType.equals(cleanType) &
+                  _db.objectTags.objectId.isIn(ids),
+            ))
+          .map((row) => row.read(_db.objectTags.objectId)!)
+          .get();
+      final known = existing.toSet();
+      final missing = <String>[
+        for (final objectId in ids)
+          if (!known.contains(objectId)) objectId,
+      ];
+      if (missing.isEmpty) {
+        return 0;
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await _db.batch((batch) {
+        batch.insertAll(
+          _db.objectTags,
+          [
+            for (final objectId in missing)
+              ObjectTagsCompanion.insert(
+                id: _newId('link'),
+                tagId: cleanTagId,
+                objectType: cleanType,
+                objectId: objectId,
+                createdAt: now,
+              ),
+          ],
+          mode: InsertMode.insertOrIgnore,
+        );
+      });
+      return missing.length;
+    });
+  }
+
+  /// Removes many links of [tagId] to [objectIds] of [objectType] at once.
+  ///
+  /// Same cleaning as [addTagToObjects] (trim, drop blanks, de-duplicate) and a
+  /// single transaction. Returns how many links were really deleted; ids that
+  /// were not linked are skipped and do not make the call fail.
+  Future<int> removeTagFromObjects({
+    required String tagId,
+    required Iterable<String> objectIds,
+    String objectType = 'question',
+  }) async {
+    final cleanTagId = tagId.trim();
+    final cleanType = objectType.trim();
+    final ids = _cleanObjectIds(objectIds);
+    if (cleanTagId.isEmpty || cleanType.isEmpty || ids.isEmpty) {
+      return 0;
+    }
+    return _db.transaction(() async {
+      return (_db.delete(_db.objectTags)
+            ..where(
+              (t) =>
+                  t.tagId.equals(cleanTagId) &
+                  t.objectType.equals(cleanType) &
+                  t.objectId.isIn(ids),
+            ))
+          .go();
+    });
+  }
+
+  /// Trimmed, blank-free, de-duplicated ids in first-seen order.
+  static List<String> _cleanObjectIds(Iterable<String> objectIds) {
+    final seen = <String>{};
+    final clean = <String>[];
+    for (final objectId in objectIds) {
+      final id = objectId.trim();
+      if (id.isEmpty || !seen.add(id)) {
+        continue;
+      }
+      clean.add(id);
+    }
+    return clean;
   }
 
   Future<List<Tag>> tagsForObject({
