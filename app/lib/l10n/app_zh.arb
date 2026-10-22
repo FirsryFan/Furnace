@@ -1796,6 +1796,7 @@
   "questionZujuanOpenUrl": "打开搜索页",
   "questionZujuanUrlCopied": "搜索页链接已复制：到浏览器粘贴打开",
   "questionDetailImagesSection": "题目配图",
+  "questionDetailOriginalCardImage": "原题整图",
   "questionImageCount": "共 {count} 张",
   "@questionImageCount": {
     "placeholders": {

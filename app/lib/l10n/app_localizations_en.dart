@@ -3633,7 +3633,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get questionBankExportEmpty => 'The selected questions are no longer in the bank';
+  String get questionBankExportEmpty =>
+      'The selected questions are no longer in the bank';
 
   @override
   String questionBankExportFailed(String error) {
@@ -3658,7 +3659,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionBulkTagConfirm => 'Add tags';
 
   @override
-  String get questionBankSearchHint => 'Search number, title, stem, source, or tags';
+  String get questionBankSearchHint =>
+      'Search number, title, stem, source, or tags';
 
   @override
   String get questionBankTagFilterTitle => 'Filter by tags';
@@ -3885,6 +3887,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionDetailImagesSection => 'Question images';
+
+  @override
+  String get questionDetailOriginalCardImage => 'Original question image';
 
   @override
   String questionImageCount(int count) {

@@ -15,6 +15,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -593,6 +594,181 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
+  testWidgets('整卡快照：正文占位变省略号，图只放末尾并带「原题整图」', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final placeholders = List<String>.generate(
+      12,
+      (index) => '［图${index + 1}］',
+    ).join();
+    final question = await _seedQuestion(
+      database,
+      stem: '整题截图：$placeholders完。',
+    );
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'full-page.png',
+        bytes: _pngHeader(width: 1640, height: 808),
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final stemImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForText(tester, _zh.questionDetailOriginalCardImage);
+    await _waitForCount(tester, stemImages, 1);
+
+    // 题干正文在 SelectableText 里，用 find.textContaining 才能扫到。
+    expect(
+      find.textContaining('［图'),
+      findsNothing,
+      reason: '快照模式下正文不能再露出［图N］占位',
+    );
+    expect(
+      find.textContaining('…'),
+      findsWidgets,
+      reason: '占位应被替换成省略号',
+    );
+
+    final headingTop =
+        tester.getTopLeft(find.text(_zh.questionDetailOriginalCardImage)).dy;
+    final imageTop = tester.getTopLeft(stemImages.first).dy;
+    expect(imageTop, greaterThan(headingTop));
+  });
+
+  testWidgets('正常包：两张小图按占位内联，没有整卡标题', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      stem: '前段文字［图1］中间文字［图2］后段文字。',
+    );
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'small-1.png',
+        bytes: _pngHeader(width: 400, height: 300),
+      )
+      ..seed(
+        questionId: question.id,
+        fileName: 'small-2.png',
+        bytes: _pngHeader(width: 400, height: 300),
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final stemImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForCount(tester, stemImages, 2);
+
+    expect(find.text(_zh.questionDetailOriginalCardImage), findsNothing);
+    expect(find.textContaining('［图'), findsNothing);
+
+    final firstText = tester.getTopLeft(find.text('前段文字')).dy;
+    final firstImage = tester.getTopLeft(stemImages.at(0)).dy;
+    final middleText = tester.getTopLeft(find.text('中间文字')).dy;
+    final secondImage = tester.getTopLeft(stemImages.at(1)).dy;
+    expect(firstImage, greaterThan(firstText));
+    expect(middleText, greaterThan(firstImage));
+    expect(secondImage, greaterThan(middleText));
+  });
+
+  testWidgets('单张小图 + 单个占位：仍按占位内联', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      stem: '看图［图1］作答。',
+    );
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'one.png',
+        bytes: _pngHeader(width: 400, height: 300),
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final stemImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForCount(tester, stemImages, 1);
+
+    expect(find.text(_zh.questionDetailOriginalCardImage), findsNothing);
+    expect(find.textContaining('［图'), findsNothing);
+    final imageTop = tester.getTopLeft(stemImages.first).dy;
+    final afterText = tester.getTopLeft(find.text('作答。')).dy;
+    expect(afterText, greaterThan(imageTop));
+  });
+
+  testWidgets('单张大图（>=1000x400）：按整卡快照放到正文末尾', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database, stem: '见［图1］。');
+    final mediaStore = FakeQuestionMediaStore(database: database)
+      ..seed(
+        questionId: question.id,
+        fileName: 'snapshot.png',
+        bytes: _pngHeader(width: 1640, height: 808),
+      );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      mediaStore: mediaStore,
+    );
+    final stemImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    await _waitForText(tester, _zh.questionDetailOriginalCardImage);
+    await _waitForCount(tester, stemImages, 1);
+
+    expect(find.text('见…。'), findsOneWidget);
+    expect(find.textContaining('［图'), findsNothing);
+    final headingTop =
+        tester.getTopLeft(find.text(_zh.questionDetailOriginalCardImage)).dy;
+    final imageTop = tester.getTopLeft(stemImages.first).dy;
+    expect(imageTop, greaterThan(headingTop));
+  });
+
+  testWidgets('有占位但没配图：不崩，占位原样保留', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(
+      database,
+      stem: '这道题没有配图［图1］。',
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, '这道题没有配图［图1］。');
+
+    final stemImages = find.descendant(
+      of: find.byKey(questionStemImagesKey),
+      matching: find.byType(QuestionInlineImage),
+    );
+    expect(stemImages, findsNothing);
+    expect(find.text(_zh.questionDetailOriginalCardImage), findsNothing);
+    expect(find.textContaining('［图1］'), findsOneWidget);
+  });
   test('组卷网候选 provider：空白题干为空，正常题干每条候选都带搜索链接', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -1213,4 +1389,22 @@ Future<void> _waitForCount(
     }
   }
   fail('等了 12 秒也没等到 $count 个 $finder');
+}
+
+/// 24 字节的 PNG 文件头（签名 + IHDR + 宽高）：`readImageSize` 只读文件头，
+/// 不需要真的像素数据；`Image.memory` 解码失败会走 errorBuilder 占位。
+Uint8List _pngHeader({required int width, required int height}) {
+  final builder = BytesBuilder();
+  builder.add(<int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  builder.add(<int>[0, 0, 0, 13]);
+  builder.add('IHDR'.codeUnits);
+  for (final value in <int>[width, height]) {
+    builder.add(<int>[
+      (value >> 24) & 0xFF,
+      (value >> 16) & 0xFF,
+      (value >> 8) & 0xFF,
+      value & 0xFF,
+    ]);
+  }
+  return builder.toBytes();
 }

@@ -6581,6 +6581,12 @@ abstract class AppLocalizations {
   /// **'Question images'**
   String get questionDetailImagesSection;
 
+  /// No description provided for @questionDetailOriginalCardImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Original question image'**
+  String get questionDetailOriginalCardImage;
+
   /// No description provided for @questionImageCount.
   ///
   /// In en, this message translates to:

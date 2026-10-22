@@ -1916,6 +1916,7 @@
   "questionZujuanOpenUrl": "Open search page",
   "questionZujuanUrlCopied": "Search page link copied: paste it in a browser to open",
   "questionDetailImagesSection": "Question images",
+  "questionDetailOriginalCardImage": "Original question image",
   "questionImageCount": "{count} image(s)",
   "@questionImageCount": {
     "placeholders": {

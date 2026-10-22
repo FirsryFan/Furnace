@@ -3730,6 +3730,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailImagesSection => '题目配图';
 
   @override
+  String get questionDetailOriginalCardImage => '原题整图';
+
+  @override
   String questionImageCount(int count) {
     return '共 $count 张';
   }

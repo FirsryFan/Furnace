@@ -23,12 +23,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/media/image_size.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/question_source.dart';
-import '../../../domain/services/questions/question_stem_segments.dart';
+import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
@@ -414,11 +415,15 @@ class _QuestionBody extends StatelessWidget {
   }
 }
 
-/// 题干 + 题干配图的图文混排流。
+/// 题干 + 题干配图的渲染流。
 ///
-/// 图片按题干的「［图1］」占位插入文字之间；没有占位的图接在题干末尾，
-/// 仍以大图展示，不再退回一行小缩略图。图片数据没加载出来时先只显示文字，
-/// 加载完成后同一位置补上图（重建即可，不做占位动画）。
+/// 摆法由 [planQuestionStemRender] 决定：普通题的图按「［图1］」占位内联，
+/// 没被占位引用的图接在题干末尾；整卡截图（尺寸够大的一张整题图，或 1 图 +
+/// 多个占位却拿不到尺寸）不内联——正文里的占位变成「…」，图统一放到正文
+/// 末尾、前面加一行「原题整图」小标题，避免一张巨图插在正文中间。
+///
+/// 图片数据没加载出来时先按「没有图」渲染文字，加载完成后同一位置重建；
+/// 个别图读不出来只会少一张图，不会抛。
 class _QuestionStemView extends ConsumerWidget {
   const _QuestionStemView({required this.questionId, required this.stem});
 
@@ -428,10 +433,28 @@ class _QuestionStemView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final images = ref.watch(questionImagesProvider(questionId)).valueOrNull;
-    final layout = splitQuestionStemImages(
+
+    // 逐图读像素尺寸：字节还没回来 / 头部解析失败都填 null，交给 plan 兜底。
+    final imageSizes = <QuestionStemImageSize?>[];
+    if (images != null) {
+      for (final image in images) {
+        final bytes =
+            ref.watch(questionImageBytesProvider(image.relPath)).valueOrNull;
+        final size = bytes == null ? null : readImageSize(bytes);
+        imageSizes.add(
+          size == null || !size.isValid
+              ? null
+              : QuestionStemImageSize(size.width, size.height),
+        );
+      }
+    }
+
+    final plan = planQuestionStemRender(
       stem,
       imageCount: images?.length ?? 0,
+      imageSizes: imageSizes,
     );
 
     Widget imageAt(int order) {
@@ -453,7 +476,7 @@ class _QuestionStemView extends ConsumerWidget {
       key: questionStemImagesKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        for (final segment in layout.segments)
+        for (final segment in plan.segments)
           if (segment.isText)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -464,7 +487,15 @@ class _QuestionStemView extends ConsumerWidget {
             )
           else
             imageAt(segment.imageOrder ?? -1),
-        for (final order in layout.unplacedImageOrders) imageAt(order),
+        if (plan.isSnapshot && plan.hasTrailingImages)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(
+              l10n.questionDetailOriginalCardImage,
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+        for (final order in plan.trailingImageOrders) imageAt(order),
         // 末尾一行只留「添加配图 + 已加 N 张」，图片本身已经混排在上面。
         QuestionImagesSection(
           questionId: questionId,
