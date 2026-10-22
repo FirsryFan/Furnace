@@ -1142,6 +1142,16 @@ class Questions extends Table {
   /// NULL 的含义是"还没编号"，界面上显示占位，不是 0 号。
   IntColumn get serialNo => integer().nullable()();
 
+  /// 题名（v30，轮次一百三十九）：用户自己起的名字，或域层自动生成的短名。
+  ///
+  /// 为什么不从题干现算：题库总览要按名字扫读、还要能重命名——题干前 20 字
+  /// 常常是同一种题型的相同开头（"已知函数 f(x)…"），扫读时全是重影。
+  /// 列存下来才有“稳定、可改、可去重”的语义；自动生成只是**填空**，
+  /// 填过之后用户改过就不再自动覆盖。可空表示“还没名字”，界面回落题干摘要。
+  /// 长度与合法性由域层纯逻辑 `question_title_suggestion.dart` 把关，
+  /// 仓库只 trim、空串写 NULL（与 `source_url` 同一契约），不在这里做长度截断。
+  TextColumn get title => text().nullable()();
+
   /// 题干（纯文本；公式保留 LaTeX 原样）。
   TextColumn get stem => text()();
 

@@ -757,3 +757,37 @@ code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由�
 文件靠 `_ensureColumns` 补列后可读可写；空白串存成 NULL、未知 code 原样保留且读侧降级成字典序、
 `null` 清回出厂；新库没有设置行时读作没选过。
 
+## 19. v30：题目自定义题名（`questions.title`，轮次一百三十九）
+
+题库总览要按名字扫读、要能重命名。此前题目没有名字列，界面只能拿题干前两行当标题——
+同一种题型的开头往往一模一样（「已知函数 f(x)…」「如图所示…」），扫读全是重影，
+也搜不出「那道传送带题」。v30 给 `questions` 加一列可空文本。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `questions.title` | TEXT，可空 | 用户自己起的名字，或域层自动生成的短名。**NULL = 还没名字**，界面回落题干摘要 |
+
+**为什么不每次从题干现算**：题干前 N 字不是名字——它不稳定（换排版/加公式就变）、不可改、
+也不能表达「这道题考什么」。存成列之后才有「稳定、可改、可去重」的语义；自动生成只是**填空**，
+写进去之后用户改过就不再被自动覆盖。长度（32）、去重后缀「（2）」、保留原名的边界归域层纯逻辑
+`app/lib/domain/services/questions/question_title_suggestion.dart`，仓库不碰这些规则。
+
+**读写口径**（`app/lib/data/repositories/question_repository.dart`）：
+- `setQuestionTitle(String id, String? title)`：改一道题的名字，返回是否命中；不存在返回 `false`，不抛。
+- `setQuestionTitles(Map<String, String?> titles)`：一次事务批量改，返回真正 UPDATE 命中的行数；
+  key 空白/不存在的 id 静默跳过；没有任何有效条目时不写库、返回 0。
+- 两个入口都只做存储归一：两端 `trim`；`null`、空串、全空白一律写 **NULL**（没有第三种空值），
+  与 `source_url` 同一契约；**不在这里截断长度**——截断/去重是域层的事，仓库越权会让 UI 与
+  自动命名拿到不同口径。
+
+**迁移**：`_upgradeV29ToV30()` 对 `questions` `addColumnIfMissing` 一列（表不存在直接返回）；
+`_ensureColumns()` 的 `questions` 块加同一列做自愈（版本号已是 30 但老文件被盖掉时补列）。
+迁移**不回填**：回填会把一批由旧模型生成的短名冻在每一台老安装上，用户看不出「这是自动生成的」，
+与 `review_reminder_minutes` / `goal_beta` 同一个契约。`database.g.dart` 由
+`dart run build_runner build --delete-conflicting-outputs` 重新生成（71 s，`Questions`/`QuestionsCompanion` 变化）。
+
+**测试锁的事实**（`app/test/data/database/v30_migration_test.dart` 3 例 +
+`app/test/data/repositories/question_repository_title_test.dart` 5 例，共 +8 全绿）：
+真实 v29 文件升级后老题目读作没有题名、升级后立刻能命名且关库重开不丢；伪造「版本 30 但缺列」的
+文件靠 `_ensureColumns` 补列后可读可写；空白串清成 NULL、批量改名只统计命中行、不存在的 id 不抛；
+`updatedAt` 由调用方给的时刻驱动；题名不影响题干指纹去重（第二次同题干仍返回 `created: false`）。

@@ -17220,6 +17220,11 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<int> serialNo = GeneratedColumn<int>(
       'serial_no', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _stemMeta = const VerificationMeta('stem');
   @override
   late final GeneratedColumn<String> stem = GeneratedColumn<String>(
@@ -17364,6 +17369,7 @@ class $QuestionsTable extends Questions
   List<GeneratedColumn> get $columns => [
         id,
         serialNo,
+        title,
         stem,
         answer,
         solution,
@@ -17405,6 +17411,10 @@ class $QuestionsTable extends Questions
     if (data.containsKey('serial_no')) {
       context.handle(_serialNoMeta,
           serialNo.isAcceptableOrUnknown(data['serial_no']!, _serialNoMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
     }
     if (data.containsKey('stem')) {
       context.handle(
@@ -17533,6 +17543,8 @@ class $QuestionsTable extends Questions
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       serialNo: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}serial_no']),
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title']),
       stem: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}stem'])!,
       answer: attachedDatabase.typeMapping
@@ -17598,6 +17610,16 @@ class Question extends DataClass implements Insertable<Question> {
   /// `AppDatabase.backfillQuestionSerialNumbers` 补）、以及 append 导入。
   /// NULL 的含义是"还没编号"，界面上显示占位，不是 0 号。
   final int? serialNo;
+
+  /// 题名（v30，轮次一百三十九）：用户自己起的名字，或域层自动生成的短名。
+  ///
+  /// 为什么不从题干现算：题库总览要按名字扫读、还要能重命名——题干前 20 字
+  /// 常常是同一种题型的相同开头（"已知函数 f(x)…"），扫读时全是重影。
+  /// 列存下来才有“稳定、可改、可去重”的语义；自动生成只是**填空**，
+  /// 填过之后用户改过就不再自动覆盖。可空表示“还没名字”，界面回落题干摘要。
+  /// 长度与合法性由域层纯逻辑 `question_title_suggestion.dart` 把关，
+  /// 仓库只 trim、空串写 NULL（与 `source_url` 同一契约），不在这里做长度截断。
+  final String? title;
 
   /// 题干（纯文本；公式保留 LaTeX 原样）。
   final String stem;
@@ -17674,6 +17696,7 @@ class Question extends DataClass implements Insertable<Question> {
   const Question(
       {required this.id,
       this.serialNo,
+      this.title,
       required this.stem,
       this.answer,
       this.solution,
@@ -17702,6 +17725,9 @@ class Question extends DataClass implements Insertable<Question> {
     map['id'] = Variable<String>(id);
     if (!nullToAbsent || serialNo != null) {
       map['serial_no'] = Variable<int>(serialNo);
+    }
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
     }
     map['stem'] = Variable<String>(stem);
     if (!nullToAbsent || answer != null) {
@@ -17758,6 +17784,8 @@ class Question extends DataClass implements Insertable<Question> {
       serialNo: serialNo == null && nullToAbsent
           ? const Value.absent()
           : Value(serialNo),
+      title:
+          title == null && nullToAbsent ? const Value.absent() : Value(title),
       stem: Value(stem),
       answer:
           answer == null && nullToAbsent ? const Value.absent() : Value(answer),
@@ -17809,6 +17837,7 @@ class Question extends DataClass implements Insertable<Question> {
     return Question(
       id: serializer.fromJson<String>(json['id']),
       serialNo: serializer.fromJson<int?>(json['serialNo']),
+      title: serializer.fromJson<String?>(json['title']),
       stem: serializer.fromJson<String>(json['stem']),
       answer: serializer.fromJson<String?>(json['answer']),
       solution: serializer.fromJson<String?>(json['solution']),
@@ -17839,6 +17868,7 @@ class Question extends DataClass implements Insertable<Question> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'serialNo': serializer.toJson<int?>(serialNo),
+      'title': serializer.toJson<String?>(title),
       'stem': serializer.toJson<String>(stem),
       'answer': serializer.toJson<String?>(answer),
       'solution': serializer.toJson<String?>(solution),
@@ -17867,6 +17897,7 @@ class Question extends DataClass implements Insertable<Question> {
   Question copyWith(
           {String? id,
           Value<int?> serialNo = const Value.absent(),
+          Value<String?> title = const Value.absent(),
           String? stem,
           Value<String?> answer = const Value.absent(),
           Value<String?> solution = const Value.absent(),
@@ -17892,6 +17923,7 @@ class Question extends DataClass implements Insertable<Question> {
       Question(
         id: id ?? this.id,
         serialNo: serialNo.present ? serialNo.value : this.serialNo,
+        title: title.present ? title.value : this.title,
         stem: stem ?? this.stem,
         answer: answer.present ? answer.value : this.answer,
         solution: solution.present ? solution.value : this.solution,
@@ -17925,6 +17957,7 @@ class Question extends DataClass implements Insertable<Question> {
     return Question(
       id: data.id.present ? data.id.value : this.id,
       serialNo: data.serialNo.present ? data.serialNo.value : this.serialNo,
+      title: data.title.present ? data.title.value : this.title,
       stem: data.stem.present ? data.stem.value : this.stem,
       answer: data.answer.present ? data.answer.value : this.answer,
       solution: data.solution.present ? data.solution.value : this.solution,
@@ -17971,6 +18004,7 @@ class Question extends DataClass implements Insertable<Question> {
     return (StringBuffer('Question(')
           ..write('id: $id, ')
           ..write('serialNo: $serialNo, ')
+          ..write('title: $title, ')
           ..write('stem: $stem, ')
           ..write('answer: $answer, ')
           ..write('solution: $solution, ')
@@ -18001,6 +18035,7 @@ class Question extends DataClass implements Insertable<Question> {
   int get hashCode => Object.hashAll([
         id,
         serialNo,
+        title,
         stem,
         answer,
         solution,
@@ -18030,6 +18065,7 @@ class Question extends DataClass implements Insertable<Question> {
       (other is Question &&
           other.id == this.id &&
           other.serialNo == this.serialNo &&
+          other.title == this.title &&
           other.stem == this.stem &&
           other.answer == this.answer &&
           other.solution == this.solution &&
@@ -18057,6 +18093,7 @@ class Question extends DataClass implements Insertable<Question> {
 class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String> id;
   final Value<int?> serialNo;
+  final Value<String?> title;
   final Value<String> stem;
   final Value<String?> answer;
   final Value<String?> solution;
@@ -18083,6 +18120,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   const QuestionsCompanion({
     this.id = const Value.absent(),
     this.serialNo = const Value.absent(),
+    this.title = const Value.absent(),
     this.stem = const Value.absent(),
     this.answer = const Value.absent(),
     this.solution = const Value.absent(),
@@ -18110,6 +18148,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   QuestionsCompanion.insert({
     required String id,
     this.serialNo = const Value.absent(),
+    this.title = const Value.absent(),
     required String stem,
     this.answer = const Value.absent(),
     this.solution = const Value.absent(),
@@ -18140,6 +18179,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   static Insertable<Question> custom({
     Expression<String>? id,
     Expression<int>? serialNo,
+    Expression<String>? title,
     Expression<String>? stem,
     Expression<String>? answer,
     Expression<String>? solution,
@@ -18167,6 +18207,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (serialNo != null) 'serial_no': serialNo,
+      if (title != null) 'title': title,
       if (stem != null) 'stem': stem,
       if (answer != null) 'answer': answer,
       if (solution != null) 'solution': solution,
@@ -18196,6 +18237,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   QuestionsCompanion copyWith(
       {Value<String>? id,
       Value<int?>? serialNo,
+      Value<String?>? title,
       Value<String>? stem,
       Value<String?>? answer,
       Value<String?>? solution,
@@ -18222,6 +18264,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return QuestionsCompanion(
       id: id ?? this.id,
       serialNo: serialNo ?? this.serialNo,
+      title: title ?? this.title,
       stem: stem ?? this.stem,
       answer: answer ?? this.answer,
       solution: solution ?? this.solution,
@@ -18256,6 +18299,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     }
     if (serialNo.present) {
       map['serial_no'] = Variable<int>(serialNo.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
     }
     if (stem.present) {
       map['stem'] = Variable<String>(stem.value);
@@ -18334,6 +18380,7 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     return (StringBuffer('QuestionsCompanion(')
           ..write('id: $id, ')
           ..write('serialNo: $serialNo, ')
+          ..write('title: $title, ')
           ..write('stem: $stem, ')
           ..write('answer: $answer, ')
           ..write('solution: $solution, ')
@@ -31313,6 +31360,7 @@ typedef $$CognitivePriorsTableProcessedTableManager = ProcessedTableManager<
 typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
   required String id,
   Value<int?> serialNo,
+  Value<String?> title,
   required String stem,
   Value<String?> answer,
   Value<String?> solution,
@@ -31340,6 +31388,7 @@ typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
 typedef $$QuestionsTableUpdateCompanionBuilder = QuestionsCompanion Function({
   Value<String> id,
   Value<int?> serialNo,
+  Value<String?> title,
   Value<String> stem,
   Value<String?> answer,
   Value<String?> solution,
@@ -31379,6 +31428,9 @@ class $$QuestionsTableFilterComposer
 
   ColumnFilters<int> get serialNo => $composableBuilder(
       column: $table.serialNo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get stem => $composableBuilder(
       column: $table.stem, builder: (column) => ColumnFilters(column));
@@ -31464,6 +31516,9 @@ class $$QuestionsTableOrderingComposer
 
   ColumnOrderings<int> get serialNo => $composableBuilder(
       column: $table.serialNo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get stem => $composableBuilder(
       column: $table.stem, builder: (column) => ColumnOrderings(column));
@@ -31552,6 +31607,9 @@ class $$QuestionsTableAnnotationComposer
 
   GeneratedColumn<int> get serialNo =>
       $composableBuilder(column: $table.serialNo, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<String> get stem =>
       $composableBuilder(column: $table.stem, builder: (column) => column);
@@ -31645,6 +31703,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<int?> serialNo = const Value.absent(),
+            Value<String?> title = const Value.absent(),
             Value<String> stem = const Value.absent(),
             Value<String?> answer = const Value.absent(),
             Value<String?> solution = const Value.absent(),
@@ -31672,6 +31731,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
               QuestionsCompanion(
             id: id,
             serialNo: serialNo,
+            title: title,
             stem: stem,
             answer: answer,
             solution: solution,
@@ -31699,6 +31759,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String id,
             Value<int?> serialNo = const Value.absent(),
+            Value<String?> title = const Value.absent(),
             required String stem,
             Value<String?> answer = const Value.absent(),
             Value<String?> solution = const Value.absent(),
@@ -31726,6 +31787,7 @@ class $$QuestionsTableTableManager extends RootTableManager<
               QuestionsCompanion.insert(
             id: id,
             serialNo: serialNo,
+            title: title,
             stem: stem,
             answer: answer,
             solution: solution,

@@ -476,6 +476,56 @@ class QuestionRepository {
     );
   }
 
+  /// 改**题名**（v30，轮次一百三十九）。
+  ///
+  /// 与 [updateProcessing] 分开的理由：题名是给人扫读/检索的标签，不是 AI 的
+  /// 加工产物；长度、空值、去重后缀这些口径留给域层纯逻辑
+  /// `question_title_suggestion.dart`，仓库只做存储归一（trim、空串 → NULL）。
+  /// 返回是否真的改到了行（不存在的 id 返回 false，不抛）。
+  Future<bool> setQuestionTitle(
+    String id,
+    String? title, {
+    DateTime? now,
+  }) async {
+    final changed = await setQuestionTitles({id: title}, now: now);
+    return changed > 0;
+  }
+
+  /// 批量改题名：一次事务。
+  ///
+  /// `titles` 的 key 是不存在/空白的 id 时静默跳过；`null`、空串、全空白都
+  /// 写成 NULL（「还没有名字」）——不存在“第三种空值”。没有任何有效条目时
+  /// 不写库、返回 0；返回真正被 UPDATE 命中的行数。
+  Future<int> setQuestionTitles(
+    Map<String, String?> titles, {
+    DateTime? now,
+  }) async {
+    final normalized = <String, String?>{};
+    titles.forEach((id, title) {
+      final key = id.trim();
+      if (key.isEmpty) {
+        return;
+      }
+      normalized[key] = title == null ? null : _blankToNull(title);
+    });
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    final ms = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    var changed = 0;
+    await _db.transaction(() async {
+      for (final entry in normalized.entries) {
+        changed += await (_db.update(_db.questions)
+              ..where((t) => t.id.equals(entry.key)))
+            .write(QuestionsCompanion(
+          title: Value(entry.value),
+          updatedAt: Value(ms),
+        ));
+      }
+    });
+    return changed;
+  }
+
   /// 改**题源链接**（原题 URL / 组卷网题目 id / 组卷网试卷 id）。
   ///
   /// 与 [updateSource] 分开的理由：来源分级是封闭词表、写错会弄歪排序；链接是

@@ -106,9 +106,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30].
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration {
@@ -200,6 +200,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 29) {
           await _upgradeV28ToV29();
+        }
+        if (from < 30) {
+          await _upgradeV29ToV30();
         }
       },
       beforeOpen: (details) async {
@@ -322,6 +325,10 @@ class AppDatabase extends _$AppDatabase {
       await _addColumnIfMissing(m, 'questions', questions.sourceUrl);
       await _addColumnIfMissing(m, 'questions', questions.zujuanQuestionId);
       await _addColumnIfMissing(m, 'questions', questions.zujuanBankId);
+      // v30（轮次一百三十九）：题目自定义题名。同一个失败模式——老文件被盖成
+      // v30 却没有这一列时，Drift 跳过 onUpgrade，读题目的映射器第一次就抛
+      // no such column。列可空，补上即可，没有回填这一步。
+      await _addColumnIfMissing(m, 'questions', questions.title);
     }
     // v8 tables are healed the same way for the same reason. A missing *table*
     // is not a mapper crash but a silent "your plan is gone", which is why this
@@ -837,6 +844,23 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'local_settings', localSettings.tagTreeSortMode);
+  }
+
+  /// v29 -> v30：题目自定义题名 `questions.title`（轮次一百三十九）。
+  ///
+  /// 纯新增一列、可空：NULL 的语义是「还没名字」，读侧回落题干摘要；
+  /// 自动命名只在用户点「自动命名」或批量补名时写入，不做迁移期回填——
+  /// 回填会在每一台老安装上冻住一批由旧模型生成的短名，用户改过一次之前
+  /// 都看不出「这是自动生成的」，与 `reviewReminderMinutes` 同一个契约。
+  ///
+  /// 表不存在就跳过：被盖成 v30 却缺表的文件由 [_ensureColumns] 的自愈建表，
+  /// 在这里 createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV29ToV30() async {
+    if (!await _tableExists('questions')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'questions', questions.title);
   }
 
   Future<void> _upgradeV4ToV5() async {
