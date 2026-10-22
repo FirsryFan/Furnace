@@ -176,6 +176,27 @@ void main() {
     expect(entries[1].stemPreview.endsWith('…'), isTrue);
   });
 
+  test('题干摘要：公式去定界符、图片占位收成 [图]', () async {
+    await insertQuestion(
+      id: 'q-1',
+      stem: r'已知 $f(x)=x^2$，图象如图［图1］所示。',
+      updatedAt: 2,
+    );
+    await insertQuestion(
+      id: 'q-2',
+      stem: r'求 $$\frac{a}{b}$$ 的值',
+      updatedAt: 1,
+    );
+
+    final entries = (await readQuestionLibrary(db)).entries;
+    expect(
+      entries[0].stemPreview,
+      '已知 f(x)=x^2，图象如图［图］所示。',
+    );
+    expect(entries[0].displayTitle, '已知 f(x)=x^2，图象如图［图］所示。');
+    expect(entries[1].stemPreview, r'求 \frac{a}{b} 的值');
+  });
+
   test('标签：只认 objectType=question，路径去重排序', () async {
     await insertQuestion(id: 'q-1', stem: '挂了两个标签', updatedAt: 1);
     await addTagLink(tagId: 't-b', path: '文化课/生物/基因工程', questionId: 'q-1');

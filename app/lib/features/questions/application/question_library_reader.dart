@@ -17,6 +17,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_stem_preview.dart';
 
 /// 题干图/答案图的角色（与 `QuestionMediaStore` 的 [QuestionImageRole] 同一组值；
 /// 这里不复用那个类型，是为了让读表层不 import `dart:io`）。
@@ -113,8 +114,8 @@ class QuestionLibraryEntry {
     return preview.isEmpty ? '（无题干）' : preview;
   }
 
-  /// 题干摘要（单行、折叠空白、截断到 60 字），供列表副标题兜底。
-  String get stemPreview => _preview(stem, max: 60);
+  /// 题干摘要（单行、去 LaTeX 定界符与图片占位标记、折叠空白、截断到 60 字）。
+  String get stemPreview => questionStemPreview(stem);
 
   bool get hasTitle => (title ?? '').trim().isNotEmpty;
 
@@ -300,12 +301,4 @@ List<QuestionLibraryImage> _imagesOf(
       if (image.role == role) image,
   ];
   return List<QuestionLibraryImage>.unmodifiable(matching);
-}
-
-String _preview(String stem, {required int max}) {
-  final collapsed = stem.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (collapsed.length <= max) {
-    return collapsed;
-  }
-  return '${collapsed.substring(0, max)}…';
 }
