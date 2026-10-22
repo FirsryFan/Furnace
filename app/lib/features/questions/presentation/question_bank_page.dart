@@ -9,9 +9,10 @@
 /// * 每行 = 封面图（128×96）+ 题名（没题名时用题干摘要兜底）+ 题号徽章、
 ///   学科、标签叶子名；行尾 ⋮ 菜单可改名 / 自动命名 / 复制题号。
 ///
-/// 数据走 `questionLibraryOverviewProvider`（一次读全题目 + 题名 + 标签 + 图片
-/// 清单，见 `question_library_reader.dart`）；页面只读，写库只发生在命名对话框
-/// 与批量自动命名里，写完让 provider 失效。
+/// 数据走 `questionLibrarySnapshotProvider`：不筛选读前 500 题，筛选生效读全库
+/// （否则第 500 题之后的题永远筛不到）；一次拿全题目 + 题名 + 标签 + 图片清单，
+/// 见 `question_library_reader.dart`。页面只读，写库只发生在命名对话框与批量
+/// 自动命名里，写完让两档数据源一起失效。
 library;
 
 import 'dart:async';
@@ -139,6 +140,12 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   /// 批量操作（打标签/导出/删除）进行中：防重入并禁用动作条。
   bool _bulkBusy = false;
 
+  /// 上一档数据源的最后一帧快照。
+  ///
+  /// 「不筛选 ⇄ 筛选生效」会换 provider，新 provider 加载完前有一段 loading；
+  /// 留住上一档数据，整页（含搜索框）就不会被进度圈顶掉，输入焦点也不丢。
+  QuestionLibrarySnapshot? _lastSnapshot;
+
   @override
   void initState() {
     super.initState();
@@ -202,17 +209,26 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _refresh() async {
+  /// 两档数据源一起失效：不筛选读前 500 题，筛选生效读全库。
+  void _invalidateLibrary() {
     ref.invalidate(questionLibraryOverviewProvider);
-    await ref.read(questionLibraryOverviewProvider.future);
+    ref.invalidate(questionLibraryFullProvider);
+  }
+
+  Future<void> _refresh() async {
+    _invalidateLibrary();
+    await ref.read(questionLibrarySnapshotProvider(_filter.isNotEmpty).future);
   }
 
   /// 改名：对话框自己写库并 invalidate，这里只拿题库里其它行的题名做去重参考。
+  ///
+  /// 写完再让两档数据源一起失效：筛选档读的是全库 provider，只失效总览会
+  /// 在筛选状态下留下旧题名。
   Future<void> _rename(
     QuestionLibraryEntry entry,
     List<String> existingTitles,
   ) async {
-    await showQuestionTitleDialog(
+    final result = await showQuestionTitleDialog(
       context,
       questionId: entry.questionId,
       stem: entry.stem,
@@ -221,6 +237,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       questionType: entry.questionType,
       existingTitles: existingTitles,
     );
+    if (result != null && result.changed) {
+      _invalidateLibrary();
+    }
   }
 
   /// 单行自动命名：直接按题干生成一个建议题名写库（用户不满意可以再改名）。
@@ -241,7 +260,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       await ref
           .read(questionRepositoryProvider)
           .setQuestionTitle(entry.questionId, title);
-      ref.invalidate(questionLibraryOverviewProvider);
+      _invalidateLibrary();
       if (!mounted) {
         return;
       }
@@ -260,7 +279,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       return;
     }
     final l10n = AppLocalizations.of(context);
-    final snapshot = ref.read(questionLibraryOverviewProvider).valueOrNull;
+    final snapshot = ref
+        .read(questionLibrarySnapshotProvider(_filter.isNotEmpty))
+        .valueOrNull;
     if (snapshot == null) {
       return;
     }
@@ -293,8 +314,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     try {
       final changed =
           await ref.read(questionRepositoryProvider).setQuestionTitles(titles);
-      ref.invalidate(questionLibraryOverviewProvider);
-      await ref.read(questionLibraryOverviewProvider.future);
+      _invalidateLibrary();
+      await ref
+          .read(questionLibrarySnapshotProvider(_filter.isNotEmpty).future);
       if (!mounted) {
         return;
       }
@@ -387,7 +409,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
         questionIds: _selected,
         tagPaths: picked,
       );
-      ref.invalidate(questionLibraryOverviewProvider);
+      _invalidateLibrary();
       if (!mounted) {
         return;
       }
@@ -460,7 +482,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       return;
     }
     final l10n = AppLocalizations.of(context);
-    final snapshot = ref.read(questionLibraryOverviewProvider).valueOrNull;
+    final snapshot = ref
+        .read(questionLibrarySnapshotProvider(_filter.isNotEmpty))
+        .valueOrNull;
     final titles = <String>[
       for (final entry in snapshot?.entries ?? const <QuestionLibraryEntry>[])
         if (_selected.contains(entry.questionId)) entry.displayTitle,
@@ -506,7 +530,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
         debugPrint('deleteQuestion($questionId) failed: $error');
       }
     }
-    ref.invalidate(questionLibraryOverviewProvider);
+    _invalidateLibrary();
     if (!mounted) {
       return;
     }
@@ -526,8 +550,13 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final overviewAsync = ref.watch(questionLibraryOverviewProvider);
-    final snapshot = overviewAsync.valueOrNull;
+    final filterActive = _filter.isNotEmpty;
+    final overviewAsync =
+        ref.watch(questionLibrarySnapshotProvider(filterActive));
+    final snapshot = overviewAsync.valueOrNull ?? _lastSnapshot;
+    if (overviewAsync.valueOrNull != null) {
+      _lastSnapshot = overviewAsync.valueOrNull;
+    }
     final visibleEntries = snapshot == null
         ? const <QuestionLibraryEntry>[]
         : _visibleEntries(snapshot);
@@ -589,24 +618,23 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 IconButton(
                   tooltip: l10n.questionBankRefresh,
                   icon: const Icon(Icons.refresh),
-                  onPressed: () =>
-                      ref.invalidate(questionLibraryOverviewProvider),
+                  onPressed: _invalidateLibrary,
                 ),
               ],
       ),
-      body: overviewAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              l10n.questionBankFailed('$error'),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        data: _buildBody,
-      ),
+      body: snapshot != null
+          ? _buildBody(snapshot)
+          : overviewAsync.hasError
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      l10n.questionBankFailed('${overviewAsync.error}'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : const Center(child: CircularProgressIndicator()),
       bottomNavigationBar: _selecting ? _buildSelectionBar(l10n) : null,
     );
   }

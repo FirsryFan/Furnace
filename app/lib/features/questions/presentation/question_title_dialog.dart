@@ -1,7 +1,8 @@
 /// 题目命名对话框：题库列表行的「改名」与题目详情页的笔形按钮共用同一个入口。
 ///
-/// 对话框自己负责写库（`setQuestionTitle`）并让题库总览/题目详情两个读表
-/// provider 失效，调用方拿到的只是「用户最终改成了什么」，不需要再碰 repository。
+/// 对话框自己负责写库（`setQuestionTitle`）并让题库两档数据源（前 500 题总览 /
+/// 筛选生效时的全库）与题目详情读表 provider 一起失效，调用方拿到的只是「用户
+/// 最终改成了什么」，不需要再碰 repository。
 /// 列表顶部的批量自动命名复用下面的纯函数 [suggestBulkQuestionTitles]。
 library;
 
@@ -160,6 +161,9 @@ class _QuestionTitleDialogState extends ConsumerState<QuestionTitleDialog> {
           .read(questionRepositoryProvider)
           .setQuestionTitle(widget.questionId, normalized);
       ref.invalidate(questionLibraryOverviewProvider);
+      // 题库页在筛选生效时读全库（questionLibraryFullProvider），只失效总览会
+      // 让「从详情页改名后返回筛选态题库」看到旧题名。
+      ref.invalidate(questionLibraryFullProvider);
       ref.invalidate(questionDetailProvider(widget.questionId));
       if (!mounted) {
         return;

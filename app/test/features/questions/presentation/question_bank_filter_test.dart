@@ -18,6 +18,7 @@ import 'package:furnace/features/questions/application/question_media_providers.
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_library_filter_bar.dart';
 import 'package:furnace/features/questions/presentation/question_library_tag_filter_dialog.dart';
+import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import 'support/question_media_fakes.dart';
@@ -321,6 +322,61 @@ void main() {
     expect(find.byKey(questionBankFilteredCountKey), findsNothing);
     expect(find.text('无标签题'), findsOneWidget);
   });
+
+  testWidgets('筛选生效时读全库：第 600 题也筛得出来，清掉筛选回到 500 档', (tester) async {
+    await _seedManyQuestions(
+      db,
+      count: 600,
+      lastStem: '第六百题：独有标记',
+    );
+    await _pump(tester, db);
+
+    // 未筛选：只读前 500 题，第 600 题不在列表里，横幅说明只读了 500 题。
+    expect(_row('q-0600'), findsNothing);
+    expect(find.text(zh.questionBankTruncated(500)), findsOneWidget);
+
+    await _search(tester, '独有标记');
+
+    expect(_row('q-0600'), findsOneWidget);
+    final countText = tester.widget<Text>(
+      find.byKey(questionBankFilteredCountKey),
+    );
+    expect(countText.data, zh.questionBankFilteredCount(1, 600));
+    // 筛选档读全库，不再显示「只读了前 500 题」的横幅。
+    expect(find.text(zh.questionBankTruncated(500)), findsNothing);
+
+    // 清掉筛选：回到 500 档，第 600 题重新藏起来。
+    await tester.tap(find.byKey(questionBankClearFilterKey));
+    await tester.pumpAndSettle();
+
+    expect(_row('q-0600'), findsNothing);
+    expect(find.text(zh.questionBankTruncated(500)), findsOneWidget);
+  });
+
+  testWidgets('筛选生效时改名：全库档跟着刷新，列表立刻显示新题名', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedQuestion(db, id: 'q2', stem: '求小球的加速度');
+    await _pump(tester, db);
+
+    await _search(tester, '二次函数');
+    expect(_row('q1'), findsOneWidget);
+    expect(_row('q2'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(zh.questionTitleRename));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(questionTitleFieldKey), '二次函数最值题型');
+    await tester.tap(find.byKey(questionTitleSaveButtonKey));
+    await tester.pumpAndSettle();
+
+    // 筛选仍生效，但列表已经拿到新题名（两档数据源一起失效并重读）。
+    expect(find.byKey(questionBankFilteredCountKey), findsOneWidget);
+    expect(find.text('二次函数最值题型'), findsOneWidget);
+    final row = await (db.select(db.questions)..where((t) => t.id.equals('q1')))
+        .getSingle();
+    expect(row.title, '二次函数最值题型');
+  });
 }
 
 Finder _row(String id) => find.byKey(ValueKey(questionBankRowKeyFor(id)));
@@ -382,6 +438,27 @@ Future<void> _seedQuestion(
           serialNo: Value(serialNo),
         ),
       );
+}
+
+Future<void> _seedManyQuestions(
+  AppDatabase db, {
+  required int count,
+  String? lastStem,
+}) {
+  return db.batch((batch) {
+    batch.insertAll(db.questions, [
+      for (var index = 1; index <= count; index++)
+        QuestionsCompanion.insert(
+          id: 'q-${index.toString().padLeft(4, '0')}',
+          stem:
+              index == count ? (lastStem ?? '第$index题：普通题干') : '第$index题：普通题干',
+          createdAt: _ts,
+          updatedAt: _ts,
+          subjectKey: const Value(''),
+          sourceLevel: const Value('gaokao'),
+        ),
+    ]);
+  });
 }
 
 Future<void> _addTagLink(
