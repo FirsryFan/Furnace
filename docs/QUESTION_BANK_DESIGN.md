@@ -1230,8 +1230,105 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   `readQuestionLibrary(limit: 500)` 快照上做，题库超过 500 道时界面只筛前 500 道
   （`snapshot.truncated` 为真且标签候选也只来自这 500 道）；多选态同时筛到 0 道的同屏
   交互未覆盖；旧 key `questionBankNoMatch` 已无 lib 引用但保留未删；`question_intake_providers.dart`
-  的同名旧类 `QuestionLibraryFilter` 仍未改名（见 §25.2）；抓题包回归用的是合成包，
-  外部 agent 产出的真实 30 题包尚未在 App 里手工导入对照。
+  的同名旧类 `QuestionLibraryFilter` 仍未改名（见 §25.2）；抓题包回归用的是合成包；外部 agent 产出的真实 30 题包已在轮次一百四十二验收（见 §26）。
+## 26. 真实抓题包验收与「整卡快照包」降级（轮次一百四十二，2026-10-23）
+
+外部抓题专属 agent 在 2026-10-22 交付了第一个真实 `.tqb` 包（30 道物理/数学/化学题）。
+这一轮先做验收：包能不能无损导入、渲染层会不会把「整卡截图 + ［图N］占位」的题库渲染成
+一堆裸露占位符。结论是**导入无损、渲染必须降级**——整卡快照包的题干正文不该内联整张截图。
+
+### 26.1 真实包画像（`E:/FirsryOS/THREADRIPPER/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`）
+
+- 19,444,730 B；manifest：`format=furnace-question-bank`、`version=1`、`app_version=0.5.9+18`、
+  `generated_by=zujuan-harvest/1.0`、`exported_at=2026-10-22T16:03:20.815Z`、`question_count=30`、
+  `media_count=60`；记录与媒体键完全对齐（再编码 18,130,177 B，30 题/60 媒体）。
+- 学科：物理 10 / 数学 10 / 化学 10；来源档位全部 `gaokao`；题型 `solution` 24、`multi_choice` 4、
+  `single_choice` 2；`origin=manual`、`state=structured`、`tag_paths=[]`、`serial_no` 未填。
+- 来源字段：`source_url` / `zujuan_question_id` / `zujuan_bank_id` 30 题齐全，`year` 30、`region` 23、
+  `difficulty` 30；按 id 重建详情链接与 `source_url` 不一致 0 条。
+- 答案与解析：文字 0 条（答案全部是**截图**：30 张 JPEG，16 竖 14 横）；选项：24 题没有选项、
+  6 题各有 4 个选项且 `is_correct` 全 false。
+- 题干：长度 55…768（平均 321）字符；`$` 定界符奇偶全部配对；「［图N］」占位共 **451 处**；
+  每题恰好 **1 张题干图**（PNG，全部宽 1640，高 400…3046）；重复题干 0 条。
+- 判定：**28 道题**「1 张题干图 + ≥2 处占位」= 整卡快照包；另外 2 道只有 1 处占位。
+  实测题干图尺寸全部 ≥1640×400 → 渲染计划的尺寸规则（§26.3 B1）对 **30 道题全部** 判为 snapshot，
+  覆盖了「只有 1 处占位」的两道。
+
+### 26.2 探针工具（`app/tool/question_pack_probe.dart`，本轮入库）
+
+- 纯 Dart 只读工具，不碰数据库、不写包：`dart run tool/question_pack_probe.dart <包.tqb> [报告.json]`。
+  输出题目/学科/来源/占位/题干图/答案图/字节/清单一致性等统计并给出 alerts。
+- 本轮修了一个真实 bug：`stemImageTotal` 从未累加导致「题干图 0 张」误报。新增
+  `records_snapshot_like`（占位次数 ≥2 且题干图 1 张）与 alert「整卡快照包：详情页应把这张图当原题
+  整图，不要内联」，原「占位溢出」alert 改为扣除快照记录后的差值提示。
+- 真实包报告：`E:/dsh-tmp-aot/probe-real-tqb-1603.json`（alerts 3 条：快照 28 / 答案都是截图 / 24 题没选项）。
+
+### 26.3 题干图片渲染计划（新增纯逻辑，task-131）
+
+- 新文件 `app/lib/domain/services/questions/question_stem_image_plan.dart`（343 行，只 import
+  `question_stem_segments.dart`）：`enum QuestionStemImageMode { none, inline, snapshot }`；
+  `class QuestionStemImageSize { const QuestionStemImageSize(this.width, this.height); }`；
+  `class QuestionStemRenderPlan`（`mode` / `segments` / `trailingImageOrders` / `snapshotImageOrders` /
+  `imageCount` / `placeholderCount` / `referencedImageCount` / `neutralizedPlaceholderCount` + 4 个
+  getter，列表不可变、`==` 深比较）；
+  `QuestionStemRenderPlan planQuestionStemRender(String stem, {required int imageCount,
+  List<QuestionStemImageSize?> imageSizes = const <QuestionStemImageSize?>[],
+  int snapshotMinWidth = defaultStemSnapshotMinWidth, int snapshotMinHeight = defaultStemSnapshotMinHeight})`。
+- 规则：**A** 无图 → none（原文不改写）；**B1** 任一已知尺寸宽 ≥1000 且高 ≥400 → snapshot；
+  **B2** 尺寸全未知且 1 张图且占位 ≥2 处 → snapshot（数量兜底）；**C** 否则 inline，复用
+  `splitQuestionStemImages`，越界占位中性化成「…」，没被引用的图按升序进 trailing。
+- snapshot 模式：正文里每个占位替换成一个「…」（相邻文字段合并），`trailingImageOrders` = 全部题干图
+  （整卡截图渲染在正文末尾），`referencedImageCount=0`；不抛异常、无 IO/随机数。
+- 契约没写死的 5 个边界已写在文件 doc 里：空题干各模式段数差异、`referencedImageCount` 仅 inline 非 0、
+  `placeholderCount` 与模式无关、B2 的「尺寸全为空」按字面（有任何非 null 项就不走 B2）、阈值不夹取。
+- 测试：`app/test/domain/services/questions/question_stem_image_plan_test.dart`（594 行、5 组 40 例），
+  覆盖 12 处占位整卡、混合尺寸、1000×400 边界与 999×399、B2 触发/不触发、越界中性化、全角数字、
+  列表不可变与值语义。实跑 `+40 All tests passed`。
+
+### 26.4 详情页接线（task-133，`question_detail_page.dart`）
+
+- `_QuestionStemView`（:427 起）：`questionImagesProvider` 拿题干图，逐图 `questionImageBytesProvider`
+  → `readImageSize(bytes)`（`app/lib/data/media/image_size.dart`，只读文件头）→ `QuestionStemImageSize?`
+  （bytes 未到 / 解析失败填 null），再 `planQuestionStemRender(stem, imageCount: images.length,
+  `imageSizes: ...)`。
+- 渲染：`plan.segments` 按 text/image 段顺序输出（文字段 `QuestionRichText`、图段沿用原内联大图组件）；
+  `plan.trailingImageOrders` 在正文后按序输出大图；`plan.isSnapshot` 时在尾图第一张前显示小标题
+  `questionDetailOriginalCardImage`（zh「原题整图」/ en「Original question image」）。inline 模式与改造前
+  逐段一致；个别图字节没回来不抛（plan 尺寸填 null，缺 bytes 的图跳过）。
+- 效果：整卡快照包的正文从「数处 ［图N］ + 一张内联截图」变成「正文省略号 + 末尾一张原题整图」。
+- l10n：五个文件手改、未跑 gen-l10n，仅新增 1 个无占位 key（`questionDetailOriginalCardImage`）。
+- 测试：`question_detail_page_test.dart` +5 例（12 占位整卡→尾图+标题；2 张 400×300 内联且 y 序；
+  单小图内联；单 1640×808 快照；有占位无图不崩）。`test/features/questions/presentation` → **+388**
+  （基线 383，+5，无回归）。
+
+### 26.5 导入预检识别整卡快照包（task-132，`question_pack_import_preview.dart`）
+
+- `QuestionPackImportPreview` 新增 `snapshotLikeCount`（`toJson` 新键 `snapshot_like_count`，紧跟
+  `missing_tag_count`）；判定与 §26.2 的探针同口径（占位 ≥2 次且 `role='stem'` 媒体恰好 1 张），
+  占位正则与 `question_stem_segments.dart` 一致（全角/半角方括号与【】、全角数字、1~3 位）。
+- warnings 顺序：清单题数不符 → 清单媒体数不符 → 快照告警 → `plan.warnings`（同文案去重）；
+  `summaryZh` 命中时多一行「整卡快照：N 道题（公式在整图里）」（包内容行之后、新增/跳过行之前）。
+- 测试：既有 34 例零回归 + 新增 15 例（`question_pack_import_preview_test.dart` 506→744 行）；
+  `test/domain/services/package` → **+285** 全绿。真实包 `planImport` 实测 warning 文案：
+  「这个包是整卡快照包：28 道题的题干只有一张整题截图，公式以「［图N］」占位显示；详情页会按原题整图展示。」
+### 26.6 门禁与未做（轮次一百四十二）
+
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与轮次一百四十一起同一基线，本轮没有新增问题）。
+- 全量 `flutter test --concurrency=1` → **+5394 ~2 All tests passed**，11 分 18 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-142-full.txt`；上一轮基线 +5334，本轮 +60 = 计划 40 + 预检 15 + 详情页 5）。
+- 切片：`question_stem_image_plan_test` +40、`test/domain/services/package` +285（含新增 15）、
+  `test/features/questions/presentation` +388（基线 383）、`question_pack_import_preview_test` 单文件 +49。
+  只 format 本轮改动文件（0 changed；`app_localizations_en.dart` 生成文件补 format 1 次后稳定）。
+- 真实包导入验收（临时测试，跑完已删除；日志 `E:/dsh-tmp-aot/test-142-real-import.txt`）：
+  `import_ms=839`、`export_ms=2255`、created 30 / skipped 0 / media 60 / warnings 0 / failures 0；
+  题号 `1..30`；`untitled=30`（抓题包不带题名，可自动命名）；题干图 30 张全部宽 1640；
+  答案图 16 竖 / 14 横；`export_bytes=18,128,543`；`preview_warnings=1`（即 §26.5 的快照告警文案）。
+  另有单条真实结论：**30 道题的题干图最小高度正好 400**，尺寸规则 B1 的 `>=400` 把它们全部覆盖。
+- 未做 / 未验证：真机（Windows / Android）上的大图渲染与性能未手测；44 处占位极限包与「大小图混合」
+  包未单独断言；单图 + ≥2 占位、图字节尚未回来时 B2 会先判快照、字节到达后若尺寸小会翻回 inline
+  （plan 契约如此，多图小图不受影响）；**docx 导出**对整卡快照包仍按原逻辑把题干原文（带 ［图N］）
+  与截图当随文图导出，未做快照专用排版；题库总览/相似题/AI 读题工具仍显示原始占位文本；
+  真实 30 题包尚未在 App 真机上手工导入点一遍。
 
 
 
