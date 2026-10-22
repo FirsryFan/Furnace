@@ -1,6 +1,42 @@
 # 开发进度
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
+## 2026-10-23 轮次一百四十四：其余「只有题干」的列表接上快照感知显示（Lead + 三个 teammate）
+
+**起点**：轮次一百四十三收尾（HEAD `d5c7217`，v0.6.0-21）。上一轮只把整卡快照包在题库总览 / 详情页 /
+Word / AI 读题四处做对，组卷候选、相似题、能力动作题、收题页题库列表仍直接显示原始题干（整卡包是
+「…… ［图12］ ……」碎片、普通题的 `$…$` 也原样露美元符）。本轮把这四处统一接到同一个纯函数，判定仍复用
+渲染计划的 B2，不新增第二套阈值。
+
+**四个切片（四个代码提交 + docs）**
+1. `question_stem_display.dart`（reasoning-core，127 行）：`QuestionStemDisplay` +
+   `resolveQuestionStemDisplay({stem, imageCount, maxLength})`；内部只调 `summarizeQuestionStemSnapshot`
+   （不传尺寸 → 只走 B2）；快照 text=摘录或标签、普通题 text=`questionStemPreview`；不抛。测试 32 例，
+   `test/domain/services/questions` +581（基线 549）。
+2. 读表 + provider（Lead）：`question_stem_display_reader.dart`（77 行）一次读 questions + attachments
+   分组计数（`ownerType='question'`、role NULL 或 stem；答案截图不计），`questionIds` 可过滤；
+   `question_stem_display_provider.dart`（25 行，autoDispose + `watchDatabaseRevision`）。测试 +11。
+3. 组卷页三个 view（threadflow-engine）：手动名单 / 领域配额 / 学科配额改接 display；
+   `questionStemsProvider` 仍只喂手动候选过滤（不缩召回）；徽标仅 `isSnapshot && hasExcerpt` 时摆，
+   无摘录时 text 本身已是「整题截图 · N 处公式/图」。测试 manual +3 / domain +2 / subject +2。
+4. 相似题 / 能力动作题 / 收题页列表（question-intake）：详情页 `_SimilarQuestionTile` 改 watch display
+   provider（加载中 '…'、缺失回落既有文案、摘要+条件徽标）；能力动作页父级取 map 传参，行组件保持
+   Stateless；收题页题库列表标题走 display。测试合计 +7，l10n 零新增。
+5. docs：`QUESTION_BANK_DESIGN.md` §28、`PROGRESS.md` 本轮条目。
+
+**门禁（真实输出）**
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与上一轮同基线，无新增）。
+- `test/domain/services/questions` **+581**（基线 549，+32）、reader 单文件 **+11**、
+  `test/features/questions/presentation` **+405**（基线 391，两片合计 +14）。
+- 全量 `flutter test --concurrency=1` → **+5506 ~2 All tests passed**，11 分 04 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-144-full.txt`；上轮 +5449，本轮 +57 = 32+11+7+7）。
+- 两片 presentation 目录门禁由两位成员各自独立跑到 +405，结果一致；format 各片 0 changed。
+
+**未做 / 未验证**
+真机（Windows / Android）未手测组卷三 view 的徽标换行与收题页列表；provider 在数据版本变化后的重读
+只靠 `watchDatabaseRevision`，本轮未单测；快照摘录保留字面 `$` 定界符（域层既有口径）；无摘录标签为
+域层硬编码中文，en 界面仍显中文；provider 未就绪时先显示原文（含 ［图N］）有极短闪烁，未做骨架屏；
+组卷三 view 各复制了一份私有 helper，合并成公共 widget 需另开任务。
 
 ## 2026-10-23 轮次一百四十三：整卡快照包的三处降级显示（Lead + 三个 teammate）
 

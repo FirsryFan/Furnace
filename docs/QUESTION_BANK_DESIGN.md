@@ -1428,6 +1428,87 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   业务引用（保留未删，删 key 涉及五文件生成物）；空题干题的列表标题从「题干没读到」变成
   reader 的「（无题干）」（DB 里 stem 必填，真实数据概率低但未抽样验证）。
 
+## 28. 其余「只有题干」的列表：快照感知的一行文本（轮次一百四十四，2026-10-23）
+
+轮次一百四十三把整卡快照包在**题库总览 / 详情页 / Word 导出 / AI 读题**四处做对了，但还有四个界面
+只有题干字符串：**组卷候选（手动名单 / 领域配额 / 学科配额）**、**详情页相似题**、**能力动作题列表**、
+**收题页题库列表**。它们此前直接显示原始题干，整卡快照包在这些地方就是「…… ［图12］ ……」的碎片，
+普通题的 `$…$` 公式也原样露美元符。本轮把这四处统一接到同一个纯函数上，判定仍复用轮次一百四十二的
+渲染计划，不新增第二套阈值。
+
+### 28.1 列表显示文本纯逻辑（task-140 reasoning-core）
+
+- 新文件 `app/lib/domain/services/questions/question_stem_display.dart`（127 行，纯 Dart）：
+  `class QuestionStemDisplay { text / label / isSnapshot / hasExcerpt / imageCount / placeholderCount /
+  isEmpty / == / hashCode / toString }`；
+  `QuestionStemDisplay resolveQuestionStemDisplay({required String stem, required int imageCount,
+  int maxLength = kQuestionStemPreviewMaxLength})`。
+- 口径：内部只调 `summarizeQuestionStemSnapshot(stem:, stemImageCount:, excerptMaxLength:)`，
+  **不传 imageSizes → 列表只走 B2**（1 图 + 占位≥2），不为一行文本去读图片字节。快照题
+  `text = hasExcerpt ? textExcerpt : labelZh`（纯占位题不会在列表留下半行省略号）；普通题
+  `text = questionStemPreview(stem, maxLength:)`、`label = ''`；`imageCount < 0` 归一为 0；
+  `maxLength <= 0` 不崩；永不抛异常。
+- 测试：`app/test/domain/services/questions/question_stem_display_test.dart`（308 行、4 组 32 例：快照 B2、
+  普通题、边界与不抛、值语义）；`test/domain/services/questions` 目录 **+581 全绿**（基线 549，无回归）。
+
+### 28.2 读表 + provider（task-141 Lead）
+
+- 新文件 `app/lib/features/questions/application/question_stem_display_reader.dart`（77 行，纯读表、
+  不 import `dart:io`）：`Future<Map<String, QuestionStemDisplay>> readQuestionStemDisplays(AppDatabase db,
+  {Set<String>? questionIds, int maxLength = 60})`。题目行查 questions（id + stem，`questionIds` trim
+  后过滤、空集返回空 map、未知 id 安静忽略）；题干图张数用 drift `selectOnly(attachments)` +
+  `addColumns([ownerId, count])` + `groupBy([ownerId])`，条件 `ownerType = 'question'` 且
+  `role IS NULL OR role = 'stem'`——答案/解析截图不参与快照判定，v27 前 role 为 NULL 的旧行照旧算题干图。
+- 新文件 `question_stem_display_provider.dart`（25 行）：`questionStemDisplayProvider`
+  （`FutureProvider.autoDispose<Map<String, QuestionStemDisplay>>`，`watchDatabaseRevision` + 上面的读表，
+  与 `paper_plan_provider.dart` 的 `questionStemsProvider` 同一写法）。
+- 测试：`app/test/features/questions/application/question_stem_display_reader_test.dart`（156 行、11 例：
+  空库 / 普通题 preview / 1 图 2 占位 B2 快照 + 摘录 / 纯占位无摘录用标签 / 答案截图不计 /
+  role=NULL 计入 / 其它 ownerType 不计 / questionIds 过滤与空集 / maxLength 透传 / 多题互不影响 /
+  空题干不抛）。实跑 `+11 All tests passed`，scoped analyze No issues。
+
+### 28.3 组卷页三个 view 接上 display（task-142 threadflow-engine）
+
+- `paper_manual_selection_view.dart`：`questionStemsProvider` **仍只喂** `paperManualFilterCandidates`
+  过滤（不换成 display.text，避免只搜前 60 rune 造成召回变化）；名单卡 / 候选对话框 / 结果卡三类名单
+  行改接 `questionStemDisplayProvider`，每行文本由 `_stemTextOf` 取 `display.text`，未就绪回退题号；
+  `isSnapshot && hasExcerpt` 时在文本后摆 `l10n.questionBankSnapshotBadge` 小标签（无摘录时 text 本身
+  已是「整题截图 · N 处公式/图」，不叠第二个「整题截图」）。
+- `paper_domain_quota_view.dart` / `paper_subject_quota_view.dart`：同构接线；被挡行从单个 `Text` 改
+  `Row(Expanded(文案) + 条件徽标)`；`_blockedDescription` 改收 `Map<String, QuestionStemDisplay>`，
+  空文本回退题号。三个 `paper*StemPreview` 函数定义保留，只作用在 display.text 上。
+- 注意：三个 view 各自复制了一份私有 `_watchStemDisplays` / `_showsSnapshotBadge` / `_snapshotBadge`
+  helper（各自写作用域内无共享文件）；要合并成公共 widget 需另开任务。
+- 测试：三个既有测试文件各 +3 / +2 / +2 例（`_seedStemAttachment` 插 role='stem' 的 attachments 行造
+  B2 快照；钉住「有摘录摆徽标 / 无摘录不叠」两种）；`test/features/questions/presentation` **+405 全绿**
+  （基线 391；本轮两片合计 +14）。
+
+### 28.4 相似题 / 能力动作题 / 收题页列表（task-143 question-intake）
+
+- `question_detail_page.dart`（+37/−11）：`_SimilarQuestionTile` 不再 watch `questionDetailProvider`，改
+  watch `questionStemDisplayProvider`；加载中（无 value）显示 '…'，无该 id / 空文本回落
+  `questionDetailQuestionMissing`，否则 `display.text`；标题 `Row` 末尾仅 `isSnapshot && hasExcerpt`
+  时摆快照 badge。
+- `capability_action_questions_page.dart`（+17/−3）：父级 `ConsumerState` 取一次 display map 传参，
+  `_QuestionRow` 保持 StatelessWidget（新增 `QuestionStemDisplay? display`），为空时回退 `row.stem`
+  （不空白）。
+- `question_intake_page.dart`（+16/−1）：`_IntakeLibrarySection` 取 display map，题库列表标题走
+  `_libraryStemText`（display 空回退 `entry.question.stem`）；副标题/删除/缩略图未动。
+- 测试：三个测试文件合计 +7 例（快照摘录不露［图、无摘录退成标签、普通题原文无 badge；详情页另覆盖
+  相似题 badge 出现一次）。l10n 未新增 key（复用 `questionBankSnapshotBadge`）。
+
+### 28.5 门禁与未做（轮次一百四十四）
+
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（与轮次一百四十一起同一基线，无新增）。
+- 全量 `flutter test --concurrency=1` → **+5506 ~2 All tests passed**，11 分 04 秒，EXIT=0
+  （日志 `E:/dsh-tmp-aot/test-144-full.txt`；上一轮基线 +5449，本轮 +57 = 32+11+7+7）。
+- 切片：`test/domain/services/questions` **+581**（基线 549，+32）、`question_stem_display_reader_test`
+  **+11**、`test/features/questions/presentation` **+405**（基线 391，+14）。
+- 未做 / 未验证：真机（Windows / Android）未手测这三个组卷 view 的徽标换行与收题页列表；provider 在
+  **数据版本变化后的重读**只靠 `watchDatabaseRevision`，本轮未单测；快照摘录**保留字面 `$` 定界符**
+  （域层既有口径，列表显示 `$x^2$` 而不是渲染后的公式）；无摘录标签是域层硬编码中文，en 界面仍显中文；
+  provider 未就绪时先显示原文（含 ［图N］）有极短闪烁，未做骨架屏；组卷三 view 的重复 helper 未合并。
+
 
 
 
