@@ -1708,13 +1708,48 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 `HandwritingQueueNotifier.applyProposal`），详情与边界见 `docs/HANDWRITING_INTAKE_DESIGN.md` §4
 与文末「轮次一百四十九」条目。`handwriting_queue_page_test.dart` 25 → **28 例**。
 
+## 32. 备份「一键恢复」（轮次一百五十一，2026-10-24）
 
+§31.1 留下的边界：导入前备份只能看和删，恢复仍要走「导入题库包」再手动找文件。本轮把恢复做成一键：
+备份列表每行加恢复按钮，走与导入完全相同的预检 + 报告链路。teammate（threadflow-engine）只动服务层/设置页
+与其测试，l10n 与文档、提交由 Lead 做。
 
+### 32.1 服务层
+- `app/lib/features/questions/application/question_pack_service.dart`：
+  - 新增 `Future<Uint8List> readBackupBytes(String path)`（`:462`）：只读，不删除也不改写备份；
+    校验与 `deleteBackup` 共用新抽出的 `_validatedBackupPath(Directory, String, {required String action})`
+    （`:475`）——`normalize` 后父目录必须是 `<documents>/question_pack_backups`、后缀必须 `.tqb`，
+    否则 `ArgumentError`（目录外即使不存在也拒绝）；文件不存在/读失败由 `readAsBytes` 抛
+    `FileSystemException`，文案交给调用方。
+  - `deleteBackup` 改用同一校验（action='删除'），错误文案与行为不变（「只能删除导入前备份目录里的 .tqb」）。
 
+### 32.2 设置页
+- `app/lib/features/settings/presentation/data_section.dart`：
+  - `_QuestionPackSectionState._restoreFromBackup(QuestionPackBackup)`（`:413-476`）：确认框
+    （标题「导入前备份」、正文 `settingsQuestionPackRestoreConfirm(name)` + `…ConfirmBody`）→
+    `readBackupBytes` → `planImport` → 复用 `_askImportPreview`（与导入同一份预检：新增/更新/跳过/
+    缺标签/警告）→ `importPack` → `_refreshQuestionViews()` + `unawaited(_reloadBackups())` +
+    `_showImportReport`；任一步取消都不写库；失败 SnackBar `settingsQuestionPackRestoreFailed(error)`。
+  - 备份对话框每行 trailing 改为 `Row(mainAxisSize: min)`：`Icons.restore`（tooltip
+    `settingsQuestionPackRestoreTooltip`）+ 原删除按钮（`:957-972`）；两者共用一个 `_busy`
+    互斥，任一进行中两个按钮都禁用；恢复完成后对话框 `_load()` 重读列表。
+- **语义**：恢复 = `importPack` 的「按题号更新已有题 + 追加备份里没有的题」，**不删**当前题库中
+  备份里没有的题；恢复写库前 `importPack` 会再自动备份一次当前题库，所以备份列表会多一份新备份
+  （预期行为，不是 bug）。
 
-
-
-
-
-
-
+### 32.3 l10n 与测试
+- l10n（Lead 手改 ARB + `flutter gen-l10n`，5 个 key）：`settingsQuestionPackRestoreTooltip`、
+  `settingsQuestionPackRestoreAction`、`settingsQuestionPackRestoreConfirm(name)`、
+  `settingsQuestionPackRestoreConfirmBody`、`settingsQuestionPackRestoreFailed(error)`。
+- 测试：`question_pack_service_test.dart` 21 → **24 例**（读出字节与原文件一致且文件仍在；
+  目录外库文件/目录外 stray `.tqb`/目录内非 `.tqb` 均 `ArgumentError`；目录内不存在抛
+  `FileSystemException`）；`question_pack_section_test.dart` 28 → **31 例**（恢复全链路：按钮存在 →
+  确认含文件名+说明 → 期间两个按钮都禁用 → `readBackupBytes`/`planImport`/`importPack` 参数是备份
+  字节 → 导入报告 → 列表重读且备份仍在；确认取消不调用；读取失败提示 RestoreFailed 且未进预检），
+  `support/question_pack_fakes.dart` 补 `backupBytes`/`readBackupBytesError`/`readBackupBytesCalls`/
+  `readBackupBytesPaths`。
+- 门禁：`dart format` 5 个改动文件 0 changed；`dart analyze lib test` 91 issues / 0 error / 0 warning；
+  两个 scoped 测试 +55 全绿；全量 `flutter test --concurrency=1` 结果见本轮 PROGRESS。
+- **未做 / 风险**：恢复没有进度指示（大题库仍是对话框转圈 → 完成报告）；恢复中途失败不会回滚
+  （已导入的部分保留，但恢复前自动备份的那份在备份列表里可再次恢复）；备份多时无分页；
+  未真机验证 path_provider 默认文档目录；恢复是「先确认语义、再在预检框确认一次」两步确认。

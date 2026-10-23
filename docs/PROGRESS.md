@@ -2,6 +2,50 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十一：备份「一键恢复」（Lead + threadflow-engine）
+
+**起点**：轮次一百五十（v0.6.2 发布，HEAD `73770d2`，已推送）。上一轮 §31.1 明确留的边界——导入前备份
+只能看和删，恢复仍要走「导入题库包」再手动找文件。本轮把恢复做成一键：备份列表每行加恢复按钮，走与导入
+完全相同的预检 + 报告链路。队友（threadflow-engine）只动服务层/设置页与其测试；l10n、文档、git 提交由
+Lead 统一做。
+
+**行为**：设置 → 数据 → 题库包 →「导入前备份」→ 每行新增恢复按钮 → 确认（说明恢复语义）→ 预检
+（新增/更新/跳过/缺标签/警告，与导入一致）→ 导入 → 题库视图刷新、备份列表重读、导入报告。恢复 =
+按题号更新已有题 + 追加备份里没有的题，**不删**当前题库里备份没有的题；恢复写库前 `importPack` 会再
+自动备份一次当前题库，所以备份列表会多一份新备份（预期，不是 bug）。
+
+**服务层**（`app/lib/features/questions/application/question_pack_service.dart`）
+- 新增 `readBackupBytes(path)`（`:462`）：只读，不删不改备份；校验与删除共用新抽出的
+  `_validatedBackupPath`（`:475`，父目录必须是备份目录、后缀 `.tqb`，否则 `ArgumentError`；
+  不存在/读失败抛 `FileSystemException` 交给调用方）。
+- `deleteBackup` 改用同一校验，错误文案与行为不变。
+
+**设置页**（`app/lib/features/settings/presentation/data_section.dart`）
+- `_restoreFromBackup`（`:413-476`）：确认框（语义说明）→ `readBackupBytes` → `planImport` →
+  复用 `_askImportPreview` → `importPack` → `_refreshQuestionViews` + `_reloadBackups` +
+  `_showImportReport`；任一步取消都不写库；失败 SnackBar `settingsQuestionPackRestoreFailed`。
+- 备份对话框每行 trailing 改为 Row：`Icons.restore`（`:957-972`）+ 原删除按钮；共用一个 `_busy`
+  互斥，任一进行中两个按钮都禁用；恢复完成后 `_load()` 重读列表。
+
+**l10n**（Lead 手改 ARB + `flutter gen-l10n`，5 个 key）：`settingsQuestionPackRestoreTooltip`、
+`settingsQuestionPackRestoreAction`、`settingsQuestionPackRestoreConfirm(name)`、
+`settingsQuestionPackRestoreConfirmBody`、`settingsQuestionPackRestoreFailed(error)`。
+
+**测试与门禁**
+- `question_pack_service_test.dart` 21 → **24 例**；`question_pack_section_test.dart` 28 → **31 例**
+  （本轮 +6）；`support/question_pack_fakes.dart` 补 `backupBytes`/`readBackupBytesError`/
+  `readBackupBytesCalls`/`readBackupBytesPaths`。
+- 两个 scoped 测试：`+55: All tests passed!`（00:17）。
+- 全量 `flutter test --concurrency=1`：**+5644 ~2 All tests passed**（10:06，EXIT=0；基线 +5638，本轮净增 6，
+  日志 `E:/dsh-tmp-aot/test-151-full.txt`）。
+- `dart analyze lib test` = 91 issues / 0 error / 0 warning；`dart format` 5 个改动文件 0 changed。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §32（服务层/设置页/语义/测试/未做）。
+
+**未做 / 风险**：恢复没有进度指示（大题库仍是对话框转圈→完成报告）；恢复中途失败不回滚（已导入部分
+保留，但恢复前自动备份的那份可在列表里再次恢复）；备份多时无分页；未真机验证 path_provider 文档目录；
+恢复是「先确认语义、再在预检框确认一次」两步确认。
+
 ## 2026-10-23 轮次一百五十：v0.6.2 双端发布件（轮次147–149 成果打包）
 
 **起点**：轮次一百四十九收尾（HEAD `0dccdf0`，已推送）。v0.6.1 之后攒了 3 轮 / 16 个提交
