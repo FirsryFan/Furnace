@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_attempt_repository.dart';
+import 'package:furnace/data/repositories/repository_providers.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
@@ -462,6 +463,116 @@ void main() {
         .getSingle();
     expect(row.title, '二次函数最值题型');
   });
+
+  testWidgets('行菜单：只有答错过的题才出现「清除记录」', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false, count: 2);
+    await _pump(tester, db);
+    expect(_wrongBadge('q1'), findsOneWidget);
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(ValueKey(questionBankClearAttemptsKeyFor('q1'))),
+      findsOneWidget,
+    );
+    expect(find.text(zh.questionDetailAttemptClearAction), findsOneWidget);
+  });
+
+  testWidgets('行菜单：没答错过的题没有「清除记录」项', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: true);
+    await _pump(tester, db);
+    expect(_wrongBadge('q1'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(ValueKey(questionBankClearAttemptsKeyFor('q1'))),
+      findsNothing,
+    );
+    expect(find.text(zh.questionDetailAttemptClearAction), findsNothing);
+  });
+
+  testWidgets('清除记录：确认后作答清空、徽标消失、题还在列表', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedQuestion(db, id: 'q2', stem: '求小球的加速度');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false, count: 2);
+    await _pump(tester, db);
+    expect(_wrongBadge('q1'), findsOneWidget);
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(ValueKey(questionBankClearAttemptsKeyFor('q1'))));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.text(zh.questionDetailAttemptClearConfirmTitle), findsOneWidget);
+    await tester.tap(find.text(zh.questionDetailAttemptClearAction));
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.questionDetailAttemptClearDone), findsOneWidget);
+    expect(_wrongBadge('q1'), findsNothing);
+    expect(_row('q1'), findsOneWidget);
+    expect(_row('q2'), findsOneWidget);
+    final rows = await db.select(db.questionAttempts).get();
+    expect(rows, isEmpty);
+  });
+
+  testWidgets('清除记录：取消时作答与徽标都保留', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false, count: 2);
+    await _pump(tester, db);
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(ValueKey(questionBankClearAttemptsKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(zh.commonCancel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.questionDetailAttemptClearDone), findsNothing);
+    expect(_wrongBadge('q1'), findsOneWidget);
+    final rows = await db.select(db.questionAttempts).get();
+    expect(rows, hasLength(2));
+  });
+
+  testWidgets('清除记录：写库抛错时给失败提示，作答不清空', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '求二次函数的最小值');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false, count: 2);
+    await _pump(
+      tester,
+      db,
+      overrides: [
+        questionAttemptRepositoryProvider.overrideWithValue(
+          _ThrowingAttemptRepository(db),
+        ),
+      ],
+    );
+
+    await tester.tap(find.byKey(ValueKey(questionBankRowMenuKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(ValueKey(questionBankClearAttemptsKeyFor('q1'))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(zh.questionDetailAttemptClearAction));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        zh.questionDetailAttemptClearFailed('Exception: deliberate failure'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(zh.questionDetailAttemptClearDone), findsNothing);
+    expect(_wrongBadge('q1'), findsOneWidget);
+    final rows = await db.select(db.questionAttempts).get();
+    expect(rows, hasLength(2));
+  });
 }
 
 Finder _row(String id) => find.byKey(ValueKey(questionBankRowKeyFor(id)));
@@ -482,7 +593,11 @@ Future<void> _openTagFilter(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _pump(WidgetTester tester, AppDatabase db) async {
+Future<void> _pump(
+  WidgetTester tester,
+  AppDatabase db, {
+  List<Override> overrides = const [],
+}) async {
   tester.view.physicalSize = const Size(1200, 2000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -496,6 +611,7 @@ Future<void> _pump(WidgetTester tester, AppDatabase db) async {
         cognitiveLibraryDiagnosisProvider.overrideWith(
           (ref) async => LibraryDiagnosis.notRun,
         ),
+        ...overrides,
       ],
       child: const MaterialApp(
         locale: Locale('zh'),
@@ -591,4 +707,14 @@ Future<void> _addTagLink(
           createdAt: _ts,
         ),
       );
+}
+
+/// 写库必抛错的作答仓储替身：验证「清除记录」失败提示与不清空语义。
+class _ThrowingAttemptRepository extends QuestionAttemptRepository {
+  _ThrowingAttemptRepository(super._db);
+
+  @override
+  Future<int> deleteForQuestion(String questionId) async {
+    throw Exception('deliberate failure');
+  }
 }

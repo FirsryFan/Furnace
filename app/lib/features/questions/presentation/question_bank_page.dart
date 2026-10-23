@@ -76,6 +76,11 @@ String questionBankRowKeyFor(String questionId) =>
 String questionBankWrongBadgeKeyFor(String questionId) =>
     'question-bank-wrong-badge-$questionId';
 
+/// 行菜单「清除作答记录」项按题 id 生成 key：
+/// `question-bank-clear-attempts-<id>`（只有答错过的行才出现）。
+String questionBankClearAttemptsKeyFor(String questionId) =>
+    'question-bank-clear-attempts-$questionId';
+
 /// 标签路径的叶子名（`文化课/学科/数学` → `数学`），去重保序。
 List<String> questionBankTagLeafNames(List<String> tagPaths) {
   final leaves = <String>[];
@@ -276,6 +281,50 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       }
       _showSnack(l10n.questionBankAutoNameFailed('$error'));
     }
+  }
+
+  /// 清除某道题的自测作答记录（行菜单「清除记录」）。
+  ///
+  /// 错题本的唯一数据来源是 `question_attempts`；清掉后这道题不再算「答错过」，
+  /// 行内「错 N 次」徽标消失，题目本身不动。确认框写明不可撤销；写库触发
+  /// databaseRevision，两档题库数据源会自动重读（这里再显式失效一次，兜底）。
+  Future<void> _clearAttempts(QuestionLibraryEntry entry) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.questionDetailAttemptClearConfirmTitle),
+        content: Text(l10n.questionDetailAttemptClearConfirmBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.questionDetailAttemptClearAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    try {
+      await ProviderScope.containerOf(context, listen: false)
+          .read(questionAttemptRepositoryProvider)
+          .deleteForQuestion(entry.questionId);
+    } catch (error) {
+      if (mounted) {
+        _showSnack(l10n.questionDetailAttemptClearFailed('$error'));
+      }
+      return;
+    }
+    _invalidateLibrary();
+    if (!mounted) {
+      return;
+    }
+    _showSnack(l10n.questionDetailAttemptClearDone);
   }
 
   /// 批量自动命名：只补没有题名的行，一次事务写库，失败按命中数汇总。
@@ -843,6 +892,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                     ),
                     onRename: () => _rename(entry, existingTitles),
                     onAutoName: () => _autoNameEntry(entry, existingTitles),
+                    onClearAttempts: () => _clearAttempts(entry),
                   );
                 },
               ),
@@ -900,8 +950,11 @@ class _EntryRow extends StatelessWidget {
   }
 }
 
-/// 行尾 ⋮ 菜单的三项动作。
-enum _QuestionRowAction { rename, autoName, copySerial }
+/// 行尾 ⋮ 菜单的动作。
+///
+/// 「清除记录」只在自测答错过的行（[QuestionLibraryEntry.hasWrongAttempt]）出现，
+/// 其它行仍是原来的三项。
+enum _QuestionRowAction { rename, autoName, copySerial, clearAttempts }
 
 /// 一道题：封面大图 + 题名/题干摘要 + 题号/学科/标签 + 体检徽章 + ⋮ 菜单。
 ///
@@ -917,6 +970,7 @@ class _QuestionRow extends ConsumerWidget {
     required this.onOpen,
     required this.onRename,
     required this.onAutoName,
+    required this.onClearAttempts,
   });
 
   final QuestionLibraryEntry entry;
@@ -930,6 +984,9 @@ class _QuestionRow extends ConsumerWidget {
   final VoidCallback onOpen;
   final VoidCallback onRename;
   final VoidCallback onAutoName;
+
+  /// 清除这道题的自测作答记录（菜单项只在此题答错过时才出现）。
+  final VoidCallback onClearAttempts;
 
   void _copySerial(BuildContext context, AppLocalizations l10n) {
     final serialNo = entry.serialNo;
@@ -1038,6 +1095,8 @@ class _QuestionRow extends ConsumerWidget {
                     onAutoName();
                   case _QuestionRowAction.copySerial:
                     _copySerial(context, l10n);
+                  case _QuestionRowAction.clearAttempts:
+                    onClearAttempts();
                 }
               },
               itemBuilder: (context) => <PopupMenuEntry<_QuestionRowAction>>[
@@ -1054,6 +1113,15 @@ class _QuestionRow extends ConsumerWidget {
                   enabled: entry.serialNo != null,
                   child: Text(l10n.questionBankCopySerial),
                 ),
+                // 只有答错过的题才有记录可清；没错过的行菜单保持原三项。
+                if (entry.hasWrongAttempt)
+                  PopupMenuItem<_QuestionRowAction>(
+                    key: ValueKey(
+                      questionBankClearAttemptsKeyFor(entry.questionId),
+                    ),
+                    value: _QuestionRowAction.clearAttempts,
+                    child: Text(l10n.questionDetailAttemptClearAction),
+                  ),
               ],
             ),
           ],
