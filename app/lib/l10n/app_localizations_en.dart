@@ -5238,4 +5238,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsQuestionPackBackupDeleteFailed(String error) {
     return 'Failed to delete backup: $error';
   }
+
+  @override
+  String get settingsQuestionPackRestoreTooltip => 'Restore from this backup';
+
+  @override
+  String get settingsQuestionPackRestoreAction => 'Restore';
+
+  @override
+  String settingsQuestionPackRestoreConfirm(String name) {
+    return 'Restore the question bank from \"$name\"?';
+  }
+
+  @override
+  String get settingsQuestionPackRestoreConfirmBody =>
+      'Questions in the backup are updated into the current bank by number. The current bank is backed up again first; questions not present in the backup are kept.';
+
+  @override
+  String settingsQuestionPackRestoreFailed(String error) {
+    return 'Restore failed: $error';
+  }
 }

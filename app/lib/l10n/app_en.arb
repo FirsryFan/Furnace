@@ -2809,5 +2809,24 @@
         "type": "String"
       }
     }
+  },
+  "settingsQuestionPackRestoreTooltip": "Restore from this backup",
+  "settingsQuestionPackRestoreAction": "Restore",
+  "settingsQuestionPackRestoreConfirm": "Restore the question bank from \"{name}\"?",
+  "@settingsQuestionPackRestoreConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackRestoreConfirmBody": "Questions in the backup are updated into the current bank by number. The current bank is backed up again first; questions not present in the backup are kept.",
+  "settingsQuestionPackRestoreFailed": "Restore failed: {error}",
+  "@settingsQuestionPackRestoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

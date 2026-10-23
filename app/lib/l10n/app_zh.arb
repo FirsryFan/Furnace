@@ -2689,5 +2689,24 @@
         "type": "String"
       }
     }
+  },
+  "settingsQuestionPackRestoreTooltip": "从备份恢复",
+  "settingsQuestionPackRestoreAction": "恢复",
+  "settingsQuestionPackRestoreConfirm": "用「{name}」恢复题库？",
+  "@settingsQuestionPackRestoreConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackRestoreConfirmBody": "备份里的题目会按题号更新到当前题库；恢复前会自动再备份一次当前题库，备份里没有的题目会保留。",
+  "settingsQuestionPackRestoreFailed": "恢复失败：{error}",
+  "@settingsQuestionPackRestoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

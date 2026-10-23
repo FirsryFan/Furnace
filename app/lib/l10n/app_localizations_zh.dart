@@ -5024,4 +5024,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsQuestionPackBackupDeleteFailed(String error) {
     return '删除备份失败：$error';
   }
+
+  @override
+  String get settingsQuestionPackRestoreTooltip => '从备份恢复';
+
+  @override
+  String get settingsQuestionPackRestoreAction => '恢复';
+
+  @override
+  String settingsQuestionPackRestoreConfirm(String name) {
+    return '用「$name」恢复题库？';
+  }
+
+  @override
+  String get settingsQuestionPackRestoreConfirmBody =>
+      '备份里的题目会按题号更新到当前题库；恢复前会自动再备份一次当前题库，备份里没有的题目会保留。';
+
+  @override
+  String settingsQuestionPackRestoreFailed(String error) {
+    return '恢复失败：$error';
+  }
 }

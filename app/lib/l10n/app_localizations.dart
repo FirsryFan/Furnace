@@ -8749,6 +8749,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to delete backup: {error}'**
   String settingsQuestionPackBackupDeleteFailed(String error);
+
+  /// No description provided for @settingsQuestionPackRestoreTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from this backup'**
+  String get settingsQuestionPackRestoreTooltip;
+
+  /// No description provided for @settingsQuestionPackRestoreAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get settingsQuestionPackRestoreAction;
+
+  /// No description provided for @settingsQuestionPackRestoreConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore the question bank from \"{name}\"?'**
+  String settingsQuestionPackRestoreConfirm(String name);
+
+  /// No description provided for @settingsQuestionPackRestoreConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions in the backup are updated into the current bank by number. The current bank is backed up again first; questions not present in the backup are kept.'**
+  String get settingsQuestionPackRestoreConfirmBody;
+
+  /// No description provided for @settingsQuestionPackRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed: {error}'**
+  String settingsQuestionPackRestoreFailed(String error);
 }
 
 class _AppLocalizationsDelegate
