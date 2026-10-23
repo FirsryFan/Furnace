@@ -2,6 +2,51 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十七：v0.6.8 双端发布（Lead，goal round 38）
+
+**起点**：轮次一百六十六收尾（HEAD `5b9ee0a`，工作树干净，origin/main 同步）。
+选片理由：v0.6.7 之后已攒两轮 9 个提交（轮次一百六十五自测防剧透、轮次一百六十六题库排序 + 详情页翻页），
+都是用户打开就能看到的功能，直接出安装包。**无 schema 变更（仍 v33）、无新迁移、不调模型。**
+
+**版本**：`app/pubspec.yaml` `version: 0.6.8+27`；`app/lib/core/app_info.dart`
+`kAppVersion='0.6.8'`、`kAppBuildNumber=27`；`flutter test test/core/app_info_test.dart --concurrency=1`
+→ `+2: All tests passed`。
+
+**构建（scripts/build_windows.ps1 + scripts/build_android.ps1，同一后台 job，日志 E:/dsh-tmp-aot/build-167.log）**
+- Windows：exit=0；`data/app.so` 21,513,096 B（@2026-10-24 05:52:41）、`furnace.exe` 版本资源 0.6.8+27；
+  打包前删 `data/flutter_assets/kernel_blob.bin` 110,766,568 B。
+- Android：exit=0；Gradle assembleRelease **100.3s**；APK 99,363,198 B；
+  aapt2 badging：`versionCode 27` / `versionName 0.6.8` / minSdk 24 / targetSdk 36 / compileSdk 36；
+  证书 SHA-256 `57de8b8fed7e4a44cb278ae83b147744dd3918124465634fd135e0bbf32e2db2`（与 v0.5.0–v0.6.7 同）。
+- 发布件（dist/，gitignore）：
+  - `Furnace-0.6.8-android.apk` 99,363,198 B，SHA-256 `C4E2D926B223F92D981B60CEC0956887562AD44143DBA46582FA4D4CBDF6D303`；
+  - `Furnace-0.6.8-windows-x64.zip` 20,495,010 B / 28 entries / 解压 47,161,803 B（28 files）/
+    顶层 `furnace.exe` + 6 dll / `data/app.so` 在包 / `kernel_blob` 0 条，
+    SHA-256 `CF16169BB23D2D48405A7426422B2FFB2A9D5BAF27CA36B482F0AE0B946242A5`；
+  - `RELEASE-v0.6.8.md`（下载表 / A 自测整页防剧透 / B 题库排序 / C 详情页翻页 / 验证 / 已知未做 / 发布说明）。
+
+**发布提交与推送**
+- `73efc82` chore(release): v0.6.8（`app/pubspec.yaml` + `app/lib/core/app_info.dart`）已用
+  `E:/dsh-tmp-aot/rest-push.ps1`（GitHub REST git data API + 代理 127.0.0.1:7890）推送，
+  REMOTE_VERIFY equals_local=True、ORIGIN_AHEAD 0；远端 main = `73efc82`。
+- tag：本地 `v0.6.8` 为 annotated tag 对象 `4cde025`（tagger 2026-10-24T05:56:56+08:00），
+  指向 `73efc82`；用 `E:/dsh-tmp-aot/rest-tag-068.ps1` 推送（POST /git/tags + POST /git/refs），
+  远端 `refs/tags/v0.6.8` 对象 `9388491`（GitHub API 重建，sha 与本地不同属正常），
+  API GET /git/tags/9388491 验证 `object.sha = 73efc82`、type=commit。
+
+**打包教训（本轮踩到）**
+- `[IO.Compression.ZipFile]::CreateFromDirectory` 在中文仓库路径上静默生成 22 B 空 zip（0 entries）；
+  必须从 ASCII junction 路径 `E:\Document\furnace-build\build\windows\x64\runner\Release` 打包。
+- `Copy-Item` 用变量拼目标路径曾静默没复制且不报错；改用绝对路径重复制并复核 `Length` 才可靠。
+
+**门禁**：功能提交 `5b9ee0a` 上的全量 `flutter test --concurrency=1` = `+5844 ~2: All tests passed`
+（10:47，EXIT 0，日志 `E:/dsh-tmp-aot/test-166-full.txt`，基线 +5818）；`dart analyze lib test` =
+91 issues / 0 error / 0 warning；发布提交只改版本号，已复跑 `test/core/app_info_test.dart`（+2）。
+
+**未做 / 风险**：双端新行为仍未真机手测（防剧透 / 排序 / 翻页）；排序偏好不持久化、题号与错题优先读全库；
+翻页无「跳题号」与进度显示；题号无 UNIQUE 约束仍可能重号；微信拖拽收题仍无真机证据；英文未母语化；
+无网络同步。**PROGRESS 本条。**
+
 ## 2026-10-24 轮次一百六十六：题库页排序 + 详情页按题号翻「上一题 / 下一题」（Lead + reasoning-core + question-intake + threadflow-engine）
 
 **起点**：轮次一百六十五收尾（HEAD `9d83ada`，v0.6.7 已发布并推送，工作树干净）。
