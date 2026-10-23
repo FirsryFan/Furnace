@@ -126,6 +126,38 @@ class HandwritingProposalRun {
       );
 }
 
+/// 一次多图/多页整理的结果：来源 id + 参与的照片（按选择顺序）+ 提案。
+class HandwritingMultiRun {
+  const HandwritingMultiRun({
+    required this.sourceRef,
+    required this.photoRelPaths,
+    required this.set,
+    required this.analyzedAt,
+  });
+
+  /// `multi:<fnv-1a 十六进制>`，同一组照片（与顺序无关）总是同一个 id。
+  final String sourceRef;
+
+  /// 参与整理的照片相对路径，按用户选择顺序。
+  final List<String> photoRelPaths;
+
+  final HandwritingProposalSet set;
+
+  final DateTime analyzedAt;
+}
+
+/// 多图/多页整理的稳定来源 id：同一组照片（顺序无关）总是同一个 id，
+/// 重新整理同一组照片是整批替换，不产生第二条 run。
+String multiSourceRefFor(List<String> relPaths) {
+  final sorted = <String>[...relPaths]..sort();
+  var hash = 0xcbf29ce484222325;
+  for (final unit in sorted.join('\u0000').codeUnits) {
+    hash ^= unit;
+    hash = (hash * 0x100000001b3) & 0x7FFFFFFFFFFFFFFF;
+  }
+  return 'multi:${hash.toRadixString(16).padLeft(16, '0')}';
+}
+
 /// 一条提案写库后的结果。
 class HandwritingApplyOutcome {
   const HandwritingApplyOutcome({
@@ -333,6 +365,104 @@ class HandwritingProposalService {
     }
 
     return HandwritingProposalRun(sourceRef: relPath, set: set, rawReply: raw);
+  }
+
+  /// 看多张照片（多页/连拍），一次调用模型拿回合并后的提案。
+  ///
+  /// 与单张整理的区别只有三处：提示词里带 N 张图（`handwritingProposalMessagesForPhotos`）、
+  /// 来源 id 是 `multi:<hash>`、照片缺失/格式不对时直接失败（不静默少给一张——
+  /// 少一页的整理结果看起来"成功"但证据不全，比失败更糟）。
+  Future<HandwritingProposalRun> proposeForMany(List<String> relPaths) async {
+    final sourceRef = multiSourceRefFor(relPaths);
+    if (relPaths.length < 2) {
+      return HandwritingProposalRun(
+        sourceRef: sourceRef,
+        failureReason: '合并整理至少要两张照片',
+      );
+    }
+
+    final photos = <HandwritingPhotoInput>[];
+    for (final relPath in relPaths) {
+      final bytes = await _store.readBytes(relPath);
+      if (bytes == null) {
+        // 多图失败也用 multi sourceRef 作键，页面把它归到这一组而不是某张照片；
+        // 具体是哪张不在了写进原因里，用户才好去队列里补拍。
+        return HandwritingProposalRun.modelFailure(
+          sourceRef,
+          '照片不在了：$relPath（可能已经被删除）',
+        );
+      }
+      final fileName = _fileNameOf(relPath);
+      final mime = HandwritingIntakeStore.mimeForName(fileName);
+      if (mime == null) {
+        return HandwritingProposalRun.unsupportedFormat(sourceRef, fileName);
+      }
+      photos.add(
+        HandwritingPhotoInput(
+          fileName: fileName,
+          mime: mime,
+          base64: base64Encode(bytes),
+        ),
+      );
+    }
+
+    final adapter = _adapter;
+    if (adapter == null) {
+      return HandwritingProposalRun.modelFailure(
+        sourceRef,
+        '没有可用的模型适配器（离线或未配置）',
+      );
+    }
+
+    final tags = await _tags.getAllTags();
+    final points = await _anki.getKnowledgePoints();
+
+    final messages = handwritingProposalMessagesForPhotos(
+      photos: photos,
+      existingTagPaths: <String>[
+        for (final tag in tags)
+          if ((tag.path ?? '').trim().isNotEmpty) tag.path!.trim(),
+      ],
+      existingKnowledgePointTitles: <String>[
+        for (final point in points) point.title,
+      ],
+    );
+
+    final buffer = StringBuffer();
+    String? failure;
+    await for (final event in adapter.runTurn(
+      messages: messages,
+      tools: const <ModelToolSpec>[],
+    )) {
+      switch (event) {
+        case ModelTextDelta(:final text):
+          buffer.write(text);
+        case ModelFailure(:final message):
+          failure = message;
+        case ModelToolCall():
+        case ModelTurnDone():
+          break;
+      }
+    }
+
+    final raw = buffer.toString();
+    if (failure != null) {
+      return HandwritingProposalRun.modelFailure(
+        sourceRef,
+        '模型调用失败：$failure',
+        rawReply: raw.isEmpty ? null : raw,
+      );
+    }
+
+    final HandwritingProposalSet set;
+    try {
+      set = parseHandwritingProposals(raw, sourceRef: sourceRef);
+    } on HandwritingProposalParseException catch (error) {
+      return HandwritingProposalRun.parseFailure(sourceRef, error, raw);
+    }
+
+    return HandwritingProposalRun(
+        sourceRef: sourceRef, set: set, rawReply: raw);
   }
 
   /// 把 [set] 里（默认全部）的提案写库。
@@ -722,6 +852,7 @@ class HandwritingQueueState {
     this.batchCurrent = 0,
     this.batchDone = 0,
     this.lastBatchReport,
+    this.multiRuns = const <HandwritingMultiRun>[],
   });
 
   /// 磁盘上的待整理照片。
@@ -765,8 +896,41 @@ class HandwritingQueueState {
   /// 上一次「整理全部」的汇总；没跑过为 null。
   final HandwritingBatchReport? lastBatchReport;
 
+  /// 多图/多页整理出来的 run（最近整理的在前）。
+  final List<HandwritingMultiRun> multiRuns;
+
   bool isApplied(String relPath, String proposalId) =>
       appliedIds.contains('$relPath#$proposalId');
+
+  /// 某次整理（单图 relPath 或多图 sourceRef）的提案；没有返回 null。
+  HandwritingProposalSet? setFor(String sourceRef) {
+    final single = sets[sourceRef];
+    if (single != null) {
+      return single;
+    }
+    for (final run in multiRuns) {
+      if (run.sourceRef == sourceRef) {
+        return run.set;
+      }
+    }
+    return null;
+  }
+
+  /// 某次多图整理；没有返回 null。
+  HandwritingMultiRun? multiRunOf(String sourceRef) {
+    for (final run in multiRuns) {
+      if (run.sourceRef == sourceRef) {
+        return run;
+      }
+    }
+    return null;
+  }
+
+  /// 已经参与过多图整理的照片相对路径。
+  Set<String> get mergedPhotoPaths => <String>{
+        for (final run in multiRuns)
+          for (final relPath in run.photoRelPaths) relPath,
+      };
 
   /// 还没整理、也没失败的照片：这就是「整理全部」的候选，按清单顺序。
   ///
@@ -777,6 +941,7 @@ class HandwritingQueueState {
         for (final image in images)
           if (!sets.containsKey(image.relPath) &&
               !failures.containsKey(image.relPath) &&
+              !mergedPhotoPaths.contains(image.relPath) &&
               !analyzing.contains(image.relPath))
             image,
       ];
@@ -800,6 +965,7 @@ class HandwritingQueueState {
     int? batchCurrent,
     int? batchDone,
     HandwritingBatchReport? lastBatchReport,
+    List<HandwritingMultiRun>? multiRuns,
     bool clearBatchReport = false,
   }) {
     return HandwritingQueueState(
@@ -818,6 +984,7 @@ class HandwritingQueueState {
       batchDone: batchDone ?? this.batchDone,
       lastBatchReport:
           clearBatchReport ? null : (lastBatchReport ?? this.lastBatchReport),
+      multiRuns: multiRuns ?? this.multiRuns,
     );
   }
 }
@@ -852,21 +1019,41 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     final onDisk = <String>{for (final image in images) image.relPath};
 
     final sets = <String, HandwritingProposalSet>{};
+    final multiRuns = <HandwritingMultiRun>[];
     final applied = <String>{};
     for (final run in await _repository.runs()) {
-      if (!onDisk.contains(run.sourceRef)) {
-        await _repository.deleteRun(run.sourceRef);
-        continue;
+      if (run.isMulti) {
+        // 参与的照片缺一张就整批作废：整理结果引用的是"这几页合起来"的证据，
+        // 少一页还留着，等于把不完整的证据当完整的用。
+        if (!run.sourcePhotos.every(onDisk.contains)) {
+          await _repository.deleteRun(run.sourceRef);
+          continue;
+        }
+        multiRuns.add(
+          HandwritingMultiRun(
+            sourceRef: run.sourceRef,
+            photoRelPaths: run.sourcePhotos,
+            set: run.proposalSet,
+            analyzedAt: run.analyzedAt,
+          ),
+        );
+      } else {
+        if (!onDisk.contains(run.sourceRef)) {
+          await _repository.deleteRun(run.sourceRef);
+          continue;
+        }
+        sets[run.sourceRef] = run.proposalSet;
       }
-      sets[run.sourceRef] = run.proposalSet;
       for (final proposalId in run.appliedProposalIds) {
         applied.add('${run.sourceRef}#$proposalId');
       }
     }
+    multiRuns.sort((a, b) => b.analyzedAt.compareTo(a.analyzedAt));
 
     state = state.copyWith(
       images: images,
       sets: sets,
+      multiRuns: multiRuns,
       appliedIds: applied,
       loading: false,
     );
@@ -875,8 +1062,8 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
   /// 确认前预检：这一批提案确认后会发生什么（目标路径 / 新建还是复用 / 缺什么）。
   ///
   /// 只读：不写库、不改提案。队列里没有这批提案时返回 `null`。
-  Future<HandwritingIntakePreview?> previewFor(String relPath) async {
-    final set = state.sets[relPath];
+  Future<HandwritingIntakePreview?> previewFor(String sourceRef) async {
+    final set = state.setFor(sourceRef);
     if (set == null) return null;
     return _service.previewFor(set);
   }
@@ -912,6 +1099,55 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
         rawReply: run.rawReply,
       );
       await _syncApplied(relPath);
+    }
+    return run;
+  }
+
+  /// 把多张照片（多页/连拍）当成**一次**整理：一次模型调用，提案可以跨页合并。
+  ///
+  /// 与单张整理共用同一套状态语义，只是键换成 `multi:<hash>`：`analyzing`、
+  /// `failures`、`appliedIds` 都用这个键，页面不需要为多图单开一套。
+  /// 同一组照片重新整理是整批替换（旧的 run 先移除再插到最前）。
+  Future<HandwritingProposalRun> analyzeMulti(List<String> relPaths) async {
+    final sourceRef = multiSourceRefFor(relPaths);
+    state = state.copyWith(
+      analyzing: <String>{...state.analyzing, sourceRef},
+      failures: _without(state.failures, sourceRef),
+    );
+    final run = await _service.proposeForMany(relPaths);
+
+    final multiRuns = List<HandwritingMultiRun>.of(state.multiRuns)
+      ..removeWhere((item) => item.sourceRef == sourceRef);
+    final failures = Map<String, String>.of(state.failures);
+    if (run.ok) {
+      multiRuns.insert(
+        0,
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: List<String>.of(relPaths),
+          set: run.set!,
+          analyzedAt: DateTime.now(),
+        ),
+      );
+      failures.remove(sourceRef);
+    } else {
+      failures[sourceRef] = run.failureReason ?? '整理失败';
+    }
+
+    state = state.copyWith(
+      multiRuns: multiRuns,
+      failures: failures,
+      analyzing: <String>{...state.analyzing}..remove(sourceRef),
+    );
+
+    if (run.ok) {
+      await _repository.saveRun(
+        set: run.set!,
+        analyzedAt: DateTime.now(),
+        rawReply: run.rawReply,
+        sourcePhotos: List<String>.of(relPaths),
+      );
+      await _syncApplied(sourceRef);
     }
     return run;
   }
@@ -1007,51 +1243,51 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
   /// 已经确认过的提案不再重复写（返回 `null`）：写库是新建而不是更新，点两次
   /// 就会得到两个一模一样的知识点——宁可什么都不做。
   Future<HandwritingApplyReport?> applyProposal(
-    String relPath,
+    String sourceRef,
     String proposalId,
   ) async {
-    final set = state.sets[relPath];
-    if (set == null || state.isApplied(relPath, proposalId)) {
+    final set = state.setFor(sourceRef);
+    if (set == null || state.isApplied(sourceRef, proposalId)) {
       return null;
     }
-    state = state.copyWith(applying: <String>{...state.applying, relPath});
+    state = state.copyWith(applying: <String>{...state.applying, sourceRef});
     final report = await _service.applyAll(set, onlyIds: <String>{proposalId});
-    return await _finishApply(relPath, report);
+    return await _finishApply(sourceRef, report);
   }
 
   /// 用户已经在**收题页**把它手动入库了（拍照整理出的题目可以带着草稿去编辑）：
   /// 只把这条提案标成已确认，**不再写一次库**——写第二遍就是重复。
-  Future<void> markAppliedLocally(String relPath, String proposalId) async {
+  Future<void> markAppliedLocally(String sourceRef, String proposalId) async {
     await _repository.markApplied(
-      sourceRef: relPath,
+      sourceRef: sourceRef,
       proposalId: proposalId,
       appliedAt: DateTime.now(),
     );
     state = state.copyWith(
-      appliedIds: <String>{...state.appliedIds, '$relPath#$proposalId'},
+      appliedIds: <String>{...state.appliedIds, '$sourceRef#$proposalId'},
     );
   }
 
   /// 确认这张照片上**还没确认过**的全部提案。
-  Future<HandwritingApplyReport?> applyAll(String relPath) async {
-    final set = state.sets[relPath];
+  Future<HandwritingApplyReport?> applyAll(String sourceRef) async {
+    final set = state.setFor(sourceRef);
     if (set == null) {
       return null;
     }
     final remaining = <String>{
       for (final proposal in set.proposals)
-        if (!state.isApplied(relPath, proposal.id)) proposal.id,
+        if (!state.isApplied(sourceRef, proposal.id)) proposal.id,
     };
     if (remaining.isEmpty) {
       return null;
     }
-    state = state.copyWith(applying: <String>{...state.applying, relPath});
+    state = state.copyWith(applying: <String>{...state.applying, sourceRef});
     final report = await _service.applyAll(set, onlyIds: remaining);
-    return await _finishApply(relPath, report);
+    return await _finishApply(sourceRef, report);
   }
 
   Future<HandwritingApplyReport> _finishApply(
-    String relPath,
+    String sourceRef,
     HandwritingApplyReport report,
   ) async {
     final applied = <String>{...state.appliedIds};
@@ -1059,16 +1295,16 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     for (final outcome in report.outcomes) {
       if (outcome.ok) {
         await _repository.markApplied(
-          sourceRef: relPath,
+          sourceRef: sourceRef,
           proposalId: outcome.proposalId,
           appliedAt: moment,
         );
-        applied.add('$relPath#${outcome.proposalId}');
+        applied.add('$sourceRef#${outcome.proposalId}');
       }
     }
     state = state.copyWith(
       appliedIds: applied,
-      applying: <String>{...state.applying}..remove(relPath),
+      applying: <String>{...state.applying}..remove(sourceRef),
       lastReport: report,
     );
     return report;
@@ -1076,9 +1312,9 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
 
   /// 用库里的确认状态覆盖内存里这条照片的那一部分（重新整理之后调用：
   /// 内容逐字没变的那几条，用户之前的确认不该被抹掉）。
-  Future<void> _syncApplied(String relPath) async {
-    final stored = await _repository.runOf(relPath);
-    final prefix = '$relPath#';
+  Future<void> _syncApplied(String sourceRef) async {
+    final stored = await _repository.runOf(sourceRef);
+    final prefix = '$sourceRef#';
     final applied = <String>{
       for (final id in state.appliedIds)
         if (!id.startsWith(prefix)) id,
@@ -1088,15 +1324,19 @@ class HandwritingQueueNotifier extends Notifier<HandwritingQueueState> {
     state = state.copyWith(appliedIds: applied);
   }
 
-  /// 忘掉这张照片的整理结果（库里删掉提案与 run 行，**照片本身不动**）。
-  Future<void> forget(String relPath) async {
-    await _repository.deleteRun(relPath);
+  /// 忘掉一次整理的整理结果（单张照片或多图 run；库里删掉提案与 run 行，
+  /// **照片本身不动**）。
+  Future<void> forget(String sourceRef) async {
+    await _repository.deleteRun(sourceRef);
     final sets = Map<String, HandwritingProposalSet>.of(state.sets)
-      ..remove(relPath);
-    final prefix = '$relPath#';
+      ..remove(sourceRef);
+    final multiRuns = List<HandwritingMultiRun>.of(state.multiRuns)
+      ..removeWhere((run) => run.sourceRef == sourceRef);
+    final prefix = '$sourceRef#';
     state = state.copyWith(
       sets: sets,
-      failures: _without(state.failures, relPath),
+      multiRuns: multiRuns,
+      failures: _without(state.failures, sourceRef),
       appliedIds: <String>{
         for (final id in state.appliedIds)
           if (!id.startsWith(prefix)) id,

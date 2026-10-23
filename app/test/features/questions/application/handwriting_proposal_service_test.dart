@@ -1048,6 +1048,153 @@ void main() {
       expect(adapter.callCount, 2);
     });
   });
+
+  group('多图整理（analyzeMulti）', () {
+    ProviderContainer containerWith(ModelAdapter? adapter) {
+      final container = ProviderContainer(
+        overrides: <Override>[
+          appDatabaseProvider.overrideWithValue(db),
+          handwritingIntakeStoreProvider.overrideWithValue(store),
+          handwritingProposalServiceProvider.overrideWithValue(
+            serviceWith(adapter),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('同一组照片的 sourceRef 与顺序无关；换一张就是另一组', () {
+      final a = multiSourceRefFor(<String>['p1.png', 'p2.png']);
+      final b = multiSourceRefFor(<String>['p2.png', 'p1.png']);
+      final c = multiSourceRefFor(<String>['p1.png', 'p3.png']);
+
+      expect(a, startsWith('multi:'));
+      expect(a, b);
+      expect(c, isNot(a));
+    });
+
+    test('少于两张：直接失败，不调用模型', () async {
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[]);
+      final service = serviceWith(adapter);
+
+      final run = await service.proposeForMany(<String>['only.png']);
+
+      expect(run.ok, isFalse);
+      expect(run.failureReason, contains('至少要两张'));
+      expect(adapter.requests, isEmpty);
+    });
+
+    test('两张照片一次调用：user 消息带两张图，提案落在 multi: 来源下', () async {
+      final first = await seedPhoto('page1.png');
+      final second = await seedPhoto('page2.png');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final service = serviceWith(adapter);
+
+      final run = await service.proposeForMany(<String>[first, second]);
+
+      expect(run.ok, isTrue);
+      expect(run.sourceRef, multiSourceRefFor(<String>[first, second]));
+      expect(run.set!.sourceRef, run.sourceRef);
+      expect(run.set!.proposals, hasLength(1));
+
+      final request = adapter.requests.single;
+      final user = request.messages.last;
+      expect(user.role, 'user');
+      expect(user.images, hasLength(2));
+      expect(user.content, contains('第 1 页'));
+      expect(user.content, contains('page1.png'));
+      expect(user.content, contains('page2.png'));
+      expect(request.messages.first.role, 'system');
+    });
+
+    test('照片少了一张：如实说照片不在了，不拿剩下的照片凑数', () async {
+      final first = await seedPhoto('page1.png');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final service = serviceWith(adapter);
+
+      final run = await service.proposeForMany(<String>[
+        first,
+        'handwriting_intake/gone/page2.png',
+      ]);
+
+      expect(run.ok, isFalse);
+      expect(run.failureReason, contains('照片不在了'));
+      expect(adapter.requests, isEmpty);
+    });
+
+    test('队列：多图 run 入库，重启从库恢复、可全部确认、忘掉后不复活', () async {
+      final first = await seedPhoto('page1.png');
+      final second = await seedPhoto('page2.png');
+      await seedTagPath('文化课/物理/力学');
+      final sourceRef = multiSourceRefFor(<String>[first, second]);
+
+      final before = containerWith(
+        FakeModelAdapter(<List<ModelEvent>>[
+          FakeModelAdapter.answer(reply(<String>[tagProposal])),
+        ]),
+      );
+      final notifier = before.read(handwritingQueueProvider.notifier);
+      await notifier.refresh();
+
+      final run = await notifier.analyzeMulti(<String>[first, second]);
+      expect(run.ok, isTrue);
+
+      var state = before.read(handwritingQueueProvider);
+      expect(state.multiRuns, hasLength(1));
+      expect(state.multiRuns.single.photoRelPaths, <String>[first, second]);
+      expect(state.setFor(sourceRef), isNotNull);
+      expect(state.multiRunOf(sourceRef)!.set.proposals, hasLength(1));
+      // 参与过多图整理的照片不再是单图/批量整理的候选。
+      expect(state.mergedPhotoPaths, <String>{first, second});
+      expect(
+        state.batchCandidates.map((image) => image.relPath),
+        isNot(contains(first)),
+      );
+      expect(state.failures, isEmpty);
+      expect(state.analyzing, isEmpty);
+
+      // 重启：新容器、同一个库与磁盘目录。
+      final after = containerWith(null);
+      await after.read(handwritingQueueProvider.notifier).refresh();
+      state = after.read(handwritingQueueProvider);
+      expect(state.multiRuns, hasLength(1));
+      expect(state.multiRuns.single.sourceRef, sourceRef);
+      expect(
+        state.multiRuns.single.set.proposals.single.titleZh,
+        '动量守恒',
+      );
+
+      final applyReport = await after
+          .read(handwritingQueueProvider.notifier)
+          .applyAll(sourceRef);
+      expect(applyReport!.allOk, isTrue);
+      expect(await tags.getAllTags(), hasLength(4));
+      expect(
+        after.read(handwritingQueueProvider).isApplied(sourceRef, 'tag-0'),
+        isTrue,
+      );
+
+      await after.read(handwritingQueueProvider.notifier).forget(sourceRef);
+      expect(after.read(handwritingQueueProvider).multiRuns, isEmpty);
+
+      final again = containerWith(null);
+      await again.read(handwritingQueueProvider.notifier).refresh();
+      expect(again.read(handwritingQueueProvider).multiRuns, isEmpty);
+      // 照片本身没动：队列里还在。
+      expect(
+        again
+            .read(handwritingQueueProvider)
+            .images
+            .map((image) => image.relPath),
+        containsAll(<String>[first, second]),
+      );
+    });
+  });
 }
 
 /// 等一个条件成立：测试控制假模型的返回时机，必须先确定请求已经发出去了。
