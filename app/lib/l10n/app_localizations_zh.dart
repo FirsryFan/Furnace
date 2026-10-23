@@ -5092,6 +5092,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailSelfTestHiddenHint => '自测中：答案与解析在提交后显示。';
 
   @override
+  String get questionDetailSelfTestSpoilerHidden =>
+      '自测中：AI 解题、相似题与找原题先收起，提交后显示。';
+
+  @override
   String questionDetailAttemptHistory(int total, int correct) {
     return '自测 $total 次 · 答对 $correct 次';
   }

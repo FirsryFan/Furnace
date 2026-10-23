@@ -5307,6 +5307,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Self-testing: answers and solutions appear after you submit.';
 
   @override
+  String get questionDetailSelfTestSpoilerHidden =>
+      'Self-testing: AI solution, similar questions and original-question search are hidden until you submit.';
+
+  @override
   String questionDetailAttemptHistory(int total, int correct) {
     return 'Self-tested $total time(s) · $correct correct';
   }

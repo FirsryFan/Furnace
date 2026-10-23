@@ -2879,6 +2879,7 @@
     }
   },
   "questionDetailSelfTestHiddenHint": "Self-testing: answers and solutions appear after you submit.",
+  "questionDetailSelfTestSpoilerHidden": "Self-testing: AI solution, similar questions and original-question search are hidden until you submit.",
   "questionDetailAttemptHistory": "Self-tested {total} time(s) · {correct} correct",
   "@questionDetailAttemptHistory": {
     "placeholders": { "total": { "type": "int" }, "correct": { "type": "int" } }

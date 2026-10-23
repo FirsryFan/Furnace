@@ -8852,6 +8852,12 @@ abstract class AppLocalizations {
   /// **'Self-testing: answers and solutions appear after you submit.'**
   String get questionDetailSelfTestHiddenHint;
 
+  /// No description provided for @questionDetailSelfTestSpoilerHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-testing: AI solution, similar questions and original-question search are hidden until you submit.'**
+  String get questionDetailSelfTestSpoilerHidden;
+
   /// No description provided for @questionDetailAttemptHistory.
   ///
   /// In en, this message translates to:
