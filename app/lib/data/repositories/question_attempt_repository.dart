@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../domain/services/questions/attempt_history.dart';
+import '../../domain/services/questions/attempt_stats.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
@@ -76,6 +77,13 @@ class QuestionAttemptRepository {
         .go();
   }
 
+  /// 删**一条**作答记录（详情页自测明细的逐条删除），返回删除行数；
+  /// 传不存在的 id 返回 0——不是错误，说明这行已经被别处删掉了。
+  Future<int> deleteAttempt(String id) {
+    return (_db.delete(_db.questionAttempts)..where((t) => t.id.equals(id)))
+        .go();
+  }
+
   /// 全部作答记录条数（设置页「学习数据」显示与"0 条禁用"判断用）。
   Future<int> countAll() async {
     final count = _db.questionAttempts.id.count();
@@ -88,6 +96,23 @@ class QuestionAttemptRepository {
   /// 只清 [QuestionAttempts]；题目、标签、闪存卡复习日志都不动。清完题库里的
   /// "错过"筛选与"错 N 次"徽标会随之消失（它们都是这个表的派生结果）。
   Future<int> deleteAll() => _db.delete(_db.questionAttempts).go();
+
+  /// 全库自测统计（题库页顶部那一行）：判分成功的作答总条数 + 答对条数。
+  ///
+  /// 与 [countAll] 的区别：这里一次把两个数读回来，且**只统计落过库的判分成功作答**
+  /// （空选、非客观题本来就不落库）。空表时 SUM 是 NULL，按 0 处理。
+  Future<QuestionAttemptStats> stats() async {
+    final row = await _db.customSelect(
+      'SELECT COUNT(*) AS total, '
+      'SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) AS correct '
+      'FROM question_attempts',
+      readsFrom: {_db.questionAttempts},
+    ).getSingle();
+    return QuestionAttemptStats(
+      total: row.read<int?>('total') ?? 0,
+      correct: row.read<int?>('correct') ?? 0,
+    );
+  }
 
   /// 勾选 label 的落库形状：JSON 数组文本（trim → 大写 → 去空 → 去重 → 升序）。
   ///

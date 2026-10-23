@@ -235,4 +235,61 @@ void main() {
     expect(await questions.byId(second), isNotNull);
     expect(await repo.deleteAll(), 0);
   });
+
+  test('stats 空表为 0，跨题累计答对条数与正确率', () async {
+    expect((await repo.stats()).total, 0);
+    expect((await repo.stats()).correct, 0);
+    expect((await repo.stats()).isEmpty, isTrue);
+    expect((await repo.stats()).percent, 0);
+
+    final first = await seedQuestion(stem: '统计第一题');
+    final second = await seedQuestion(stem: '统计第二题');
+    await repo.record(
+      questionId: first,
+      selectedLabels: const <String>['A'],
+      isCorrect: true,
+    );
+    await repo.record(
+      questionId: first,
+      selectedLabels: const <String>['B'],
+      isCorrect: false,
+    );
+    await repo.record(
+      questionId: second,
+      selectedLabels: const <String>['A'],
+      isCorrect: true,
+    );
+
+    final stats = await repo.stats();
+    expect(stats.total, 3);
+    expect(stats.correct, 2);
+    expect(stats.incorrect, 1);
+    expect(stats.isNotEmpty, isTrue);
+    expect(stats.percent, 67); // 66.6… 四舍五入
+
+    await repo.deleteAll();
+    expect((await repo.stats()).isEmpty, isTrue);
+  });
+
+  test('deleteAttempt 只删指定一条，其它记录与题库不动', () async {
+    final questionId = await seedQuestion(stem: '逐条删除的题');
+    final base = DateTime.fromMillisecondsSinceEpoch(1700000000000);
+    final ids = <String>[];
+    for (var i = 0; i < 3; i++) {
+      ids.add(await repo.record(
+        questionId: questionId,
+        selectedLabels: const <String>['A'],
+        isCorrect: i == 0,
+        now: base.add(Duration(milliseconds: i)),
+      ));
+    }
+
+    expect(await repo.deleteAttempt(ids[1]), 1);
+    expect(await repo.deleteAttempt(ids[1]), 0);
+    expect(await repo.deleteAttempt('no-such-id'), 0);
+    final history = await repo.historyFor(questionId);
+    expect(history.map((entry) => entry.id), [ids[2], ids[0]]);
+    expect(await questions.byId(questionId), isNotNull);
+    expect(await repo.countAll(), 2);
+  });
 }
