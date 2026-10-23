@@ -758,6 +758,12 @@ class QuestionRepository {
             ..where(
                 (t) => t.objectType.equals('question') & t.objectId.equals(id)))
           .go();
+      // v32（轮次一百五十五）：自测作答记录跟着题一起走。不删的话，删完再导入
+      // 同一道题（同题号更新会复用 id 的情况除外）会留下"孤儿作答"，历史页
+      // 还能凭空读出几次自测。本项目没有外键级联，必须显式清。
+      await (_db.delete(_db.questionAttempts)
+            ..where((t) => t.questionId.equals(id)))
+          .go();
       await (_db.delete(_db.questions)..where((t) => t.id.equals(id))).go();
     });
   }

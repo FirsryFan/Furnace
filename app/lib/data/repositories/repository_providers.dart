@@ -12,6 +12,7 @@ import 'knowledge_edge_repository.dart';
 import 'mind_map_repository.dart';
 import 'material_intake_repository.dart';
 import 'package_repository.dart';
+import 'question_attempt_repository.dart';
 import 'question_repository.dart';
 import 'review_plan_repository.dart';
 import 'settings_repository.dart';
@@ -94,6 +95,13 @@ final assessmentRepositoryProvider = Provider<AssessmentRepository>((ref) {
 /// 只追加：题干与选项入库后不再改写，加工只写 state/trapNote/difficulty/aiQuality。
 final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
   return QuestionRepository(ref.watch(appDatabaseProvider));
+});
+
+/// 自测作答记录（docs/QUESTION_BANK_DESIGN.md §34，schema v32）：一次提交一行，
+/// 只追加；详情页读「做过几次、对几次、最近一次何时对错」，写库走 record()。
+final questionAttemptRepositoryProvider =
+    Provider<QuestionAttemptRepository>((ref) {
+  return QuestionAttemptRepository(ref.watch(appDatabaseProvider));
 });
 
 final ankiStatsServiceProvider = Provider<AnkiStatsService>((ref) {

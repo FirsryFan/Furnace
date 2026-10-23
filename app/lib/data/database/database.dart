@@ -72,6 +72,8 @@ part 'database.g.dart';
     KnowledgeEdges,
     // v20 (undo ledger for material intake batches, §2-C ⑦)
     MaterialIntakeUndoLogs,
+    // v32（自测作答记录，轮次一百五十五；docs/QUESTION_BANK_DESIGN.md §34）
+    QuestionAttempts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -99,16 +101,18 @@ class AppDatabase extends _$AppDatabase {
   /// connections that used to be deferred now land as **clue edges** (strictly
   /// directed, `ls` kept but flagged uncalibrated), which is the §2-C ④ decision
   /// (`E:\Document\MindNet\docs\MEMORY_RECORD.md` §3.5 keeps containment in the
-  /// tag tree and clues in the graph). See [_upgradeV6ToV7] /
+  /// tag tree and clues in the graph). v32 adds `question_attempts`: every
+  /// submitted self-test attempt that got scored, so "做过几次、对几次、最近一次
+  /// 何时对错" survives a restart (轮次一百五十五). See [_upgradeV6ToV7] /
   /// [_upgradeV7ToV8] / [_upgradeV8ToV9] / [_upgradeV9ToV10] /
   /// [_upgradeV10ToV11] / [_upgradeV11ToV12] / [_upgradeV12ToV13] /
   /// [_upgradeV13ToV14] / [_upgradeV14ToV15] / [_upgradeV15ToV16] /
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32].
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration {
@@ -206,6 +210,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 31) {
           await _upgradeV30ToV31();
+        }
+        if (from < 32) {
+          await _upgradeV31ToV32();
         }
       },
       beforeOpen: (details) async {
@@ -404,6 +411,12 @@ class AppDatabase extends _$AppDatabase {
     // confirmed connection would look like it was never made.
     if (!await _tableExists('knowledge_edges')) {
       await m.createTable(knowledgeEdges);
+    }
+    // v32（轮次一百五十五）：自测作答记录表。同一个失败模式——老文件被盖成 v32
+    // 却没有这张表时，详情页读作答历史会抛 no such table。表是全新建的，
+    // 没有列要补，建表即可。
+    if (!await _tableExists('question_attempts')) {
+      await m.createTable(questionAttempts);
     }
   }
 
@@ -892,6 +905,20 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'handwriting_intake_runs', handwritingIntakeRuns.sourcePhotos);
+  }
+
+  /// v31 -> v32：自测作答记录 `question_attempts`（轮次一百五十五）。
+  ///
+  /// 纯新增一张表：表里全是**新事件**，老库没有任何一行需要回填或搬家。
+  /// 已存在（版本号被盖高、或 [_ensureColumns] 自愈先一步建过）就跳过——
+  /// 与「给不存在的表补列」不同，createTable 本身是安全的
+  /// （v11 -> v12 起就是这个写法）。
+  Future<void> _upgradeV31ToV32() async {
+    if (await _tableExists('question_attempts')) {
+      return;
+    }
+    final m = Migrator(this);
+    await m.createTable(questionAttempts);
   }
 
   Future<void> _upgradeV4ToV5() async {

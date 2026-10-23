@@ -23143,6 +23143,337 @@ class MaterialIntakeUndoLogsCompanion
   }
 }
 
+class $QuestionAttemptsTable extends QuestionAttempts
+    with TableInfo<$QuestionAttemptsTable, QuestionAttempt> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuestionAttemptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _questionIdMeta =
+      const VerificationMeta('questionId');
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+      'question_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _selectedLabelsMeta =
+      const VerificationMeta('selectedLabels');
+  @override
+  late final GeneratedColumn<String> selectedLabels = GeneratedColumn<String>(
+      'selected_labels', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _isCorrectMeta =
+      const VerificationMeta('isCorrect');
+  @override
+  late final GeneratedColumn<bool> isCorrect = GeneratedColumn<bool>(
+      'is_correct', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_correct" IN (0, 1))'));
+  static const VerificationMeta _attemptedAtMeta =
+      const VerificationMeta('attemptedAt');
+  @override
+  late final GeneratedColumn<int> attemptedAt = GeneratedColumn<int>(
+      'attempted_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, questionId, selectedLabels, isCorrect, attemptedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'question_attempts';
+  @override
+  VerificationContext validateIntegrity(Insertable<QuestionAttempt> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+          _questionIdMeta,
+          questionId.isAcceptableOrUnknown(
+              data['question_id']!, _questionIdMeta));
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    if (data.containsKey('selected_labels')) {
+      context.handle(
+          _selectedLabelsMeta,
+          selectedLabels.isAcceptableOrUnknown(
+              data['selected_labels']!, _selectedLabelsMeta));
+    }
+    if (data.containsKey('is_correct')) {
+      context.handle(_isCorrectMeta,
+          isCorrect.isAcceptableOrUnknown(data['is_correct']!, _isCorrectMeta));
+    } else if (isInserting) {
+      context.missing(_isCorrectMeta);
+    }
+    if (data.containsKey('attempted_at')) {
+      context.handle(
+          _attemptedAtMeta,
+          attemptedAt.isAcceptableOrUnknown(
+              data['attempted_at']!, _attemptedAtMeta));
+    } else if (isInserting) {
+      context.missing(_attemptedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuestionAttempt map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuestionAttempt(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      questionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}question_id'])!,
+      selectedLabels: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}selected_labels'])!,
+      isCorrect: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_correct'])!,
+      attemptedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempted_at'])!,
+    );
+  }
+
+  @override
+  $QuestionAttemptsTable createAlias(String alias) {
+    return $QuestionAttemptsTable(attachedDatabase, alias);
+  }
+}
+
+class QuestionAttempt extends DataClass implements Insertable<QuestionAttempt> {
+  final String id;
+
+  /// 作答的是哪道题。
+  final String questionId;
+
+  /// 勾选的选项 label（JSON 数组，已归一化：trim → 大写 → 去空 → 去重 → 升序）。
+  /// 单选用一个元素，多选用多个；填空/解答题现在不判分，不会写到这里。
+  final String selectedLabels;
+
+  /// 这次判对了吗。只存判分成功的作答，所以这一列不允许 NULL。
+  final bool isCorrect;
+
+  /// 提交作答的时刻（epoch ms）。
+  final int attemptedAt;
+  const QuestionAttempt(
+      {required this.id,
+      required this.questionId,
+      required this.selectedLabels,
+      required this.isCorrect,
+      required this.attemptedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['question_id'] = Variable<String>(questionId);
+    map['selected_labels'] = Variable<String>(selectedLabels);
+    map['is_correct'] = Variable<bool>(isCorrect);
+    map['attempted_at'] = Variable<int>(attemptedAt);
+    return map;
+  }
+
+  QuestionAttemptsCompanion toCompanion(bool nullToAbsent) {
+    return QuestionAttemptsCompanion(
+      id: Value(id),
+      questionId: Value(questionId),
+      selectedLabels: Value(selectedLabels),
+      isCorrect: Value(isCorrect),
+      attemptedAt: Value(attemptedAt),
+    );
+  }
+
+  factory QuestionAttempt.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuestionAttempt(
+      id: serializer.fromJson<String>(json['id']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+      selectedLabels: serializer.fromJson<String>(json['selectedLabels']),
+      isCorrect: serializer.fromJson<bool>(json['isCorrect']),
+      attemptedAt: serializer.fromJson<int>(json['attemptedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'questionId': serializer.toJson<String>(questionId),
+      'selectedLabels': serializer.toJson<String>(selectedLabels),
+      'isCorrect': serializer.toJson<bool>(isCorrect),
+      'attemptedAt': serializer.toJson<int>(attemptedAt),
+    };
+  }
+
+  QuestionAttempt copyWith(
+          {String? id,
+          String? questionId,
+          String? selectedLabels,
+          bool? isCorrect,
+          int? attemptedAt}) =>
+      QuestionAttempt(
+        id: id ?? this.id,
+        questionId: questionId ?? this.questionId,
+        selectedLabels: selectedLabels ?? this.selectedLabels,
+        isCorrect: isCorrect ?? this.isCorrect,
+        attemptedAt: attemptedAt ?? this.attemptedAt,
+      );
+  QuestionAttempt copyWithCompanion(QuestionAttemptsCompanion data) {
+    return QuestionAttempt(
+      id: data.id.present ? data.id.value : this.id,
+      questionId:
+          data.questionId.present ? data.questionId.value : this.questionId,
+      selectedLabels: data.selectedLabels.present
+          ? data.selectedLabels.value
+          : this.selectedLabels,
+      isCorrect: data.isCorrect.present ? data.isCorrect.value : this.isCorrect,
+      attemptedAt:
+          data.attemptedAt.present ? data.attemptedAt.value : this.attemptedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionAttempt(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('selectedLabels: $selectedLabels, ')
+          ..write('isCorrect: $isCorrect, ')
+          ..write('attemptedAt: $attemptedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, questionId, selectedLabels, isCorrect, attemptedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuestionAttempt &&
+          other.id == this.id &&
+          other.questionId == this.questionId &&
+          other.selectedLabels == this.selectedLabels &&
+          other.isCorrect == this.isCorrect &&
+          other.attemptedAt == this.attemptedAt);
+}
+
+class QuestionAttemptsCompanion extends UpdateCompanion<QuestionAttempt> {
+  final Value<String> id;
+  final Value<String> questionId;
+  final Value<String> selectedLabels;
+  final Value<bool> isCorrect;
+  final Value<int> attemptedAt;
+  final Value<int> rowid;
+  const QuestionAttemptsCompanion({
+    this.id = const Value.absent(),
+    this.questionId = const Value.absent(),
+    this.selectedLabels = const Value.absent(),
+    this.isCorrect = const Value.absent(),
+    this.attemptedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  QuestionAttemptsCompanion.insert({
+    required String id,
+    required String questionId,
+    this.selectedLabels = const Value.absent(),
+    required bool isCorrect,
+    required int attemptedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        questionId = Value(questionId),
+        isCorrect = Value(isCorrect),
+        attemptedAt = Value(attemptedAt);
+  static Insertable<QuestionAttempt> custom({
+    Expression<String>? id,
+    Expression<String>? questionId,
+    Expression<String>? selectedLabels,
+    Expression<bool>? isCorrect,
+    Expression<int>? attemptedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (questionId != null) 'question_id': questionId,
+      if (selectedLabels != null) 'selected_labels': selectedLabels,
+      if (isCorrect != null) 'is_correct': isCorrect,
+      if (attemptedAt != null) 'attempted_at': attemptedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  QuestionAttemptsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? questionId,
+      Value<String>? selectedLabels,
+      Value<bool>? isCorrect,
+      Value<int>? attemptedAt,
+      Value<int>? rowid}) {
+    return QuestionAttemptsCompanion(
+      id: id ?? this.id,
+      questionId: questionId ?? this.questionId,
+      selectedLabels: selectedLabels ?? this.selectedLabels,
+      isCorrect: isCorrect ?? this.isCorrect,
+      attemptedAt: attemptedAt ?? this.attemptedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    if (selectedLabels.present) {
+      map['selected_labels'] = Variable<String>(selectedLabels.value);
+    }
+    if (isCorrect.present) {
+      map['is_correct'] = Variable<bool>(isCorrect.value);
+    }
+    if (attemptedAt.present) {
+      map['attempted_at'] = Variable<int>(attemptedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionAttemptsCompanion(')
+          ..write('id: $id, ')
+          ..write('questionId: $questionId, ')
+          ..write('selectedLabels: $selectedLabels, ')
+          ..write('isCorrect: $isCorrect, ')
+          ..write('attemptedAt: $attemptedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -23209,6 +23540,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $KnowledgeEdgesTable knowledgeEdges = $KnowledgeEdgesTable(this);
   late final $MaterialIntakeUndoLogsTable materialIntakeUndoLogs =
       $MaterialIntakeUndoLogsTable(this);
+  late final $QuestionAttemptsTable questionAttempts =
+      $QuestionAttemptsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -23259,7 +23592,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         materialIntakeBatches,
         materialIntakeProposals,
         knowledgeEdges,
-        materialIntakeUndoLogs
+        materialIntakeUndoLogs,
+        questionAttempts
       ];
 }
 
@@ -34180,6 +34514,182 @@ typedef $$MaterialIntakeUndoLogsTableProcessedTableManager
         ),
         MaterialIntakeUndoLogRow,
         PrefetchHooks Function()>;
+typedef $$QuestionAttemptsTableCreateCompanionBuilder
+    = QuestionAttemptsCompanion Function({
+  required String id,
+  required String questionId,
+  Value<String> selectedLabels,
+  required bool isCorrect,
+  required int attemptedAt,
+  Value<int> rowid,
+});
+typedef $$QuestionAttemptsTableUpdateCompanionBuilder
+    = QuestionAttemptsCompanion Function({
+  Value<String> id,
+  Value<String> questionId,
+  Value<String> selectedLabels,
+  Value<bool> isCorrect,
+  Value<int> attemptedAt,
+  Value<int> rowid,
+});
+
+class $$QuestionAttemptsTableFilterComposer
+    extends Composer<_$AppDatabase, $QuestionAttemptsTable> {
+  $$QuestionAttemptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get selectedLabels => $composableBuilder(
+      column: $table.selectedLabels,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isCorrect => $composableBuilder(
+      column: $table.isCorrect, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attemptedAt => $composableBuilder(
+      column: $table.attemptedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$QuestionAttemptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuestionAttemptsTable> {
+  $$QuestionAttemptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get selectedLabels => $composableBuilder(
+      column: $table.selectedLabels,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isCorrect => $composableBuilder(
+      column: $table.isCorrect, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attemptedAt => $composableBuilder(
+      column: $table.attemptedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$QuestionAttemptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuestionAttemptsTable> {
+  $$QuestionAttemptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => column);
+
+  GeneratedColumn<String> get selectedLabels => $composableBuilder(
+      column: $table.selectedLabels, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCorrect =>
+      $composableBuilder(column: $table.isCorrect, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptedAt => $composableBuilder(
+      column: $table.attemptedAt, builder: (column) => column);
+}
+
+class $$QuestionAttemptsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $QuestionAttemptsTable,
+    QuestionAttempt,
+    $$QuestionAttemptsTableFilterComposer,
+    $$QuestionAttemptsTableOrderingComposer,
+    $$QuestionAttemptsTableAnnotationComposer,
+    $$QuestionAttemptsTableCreateCompanionBuilder,
+    $$QuestionAttemptsTableUpdateCompanionBuilder,
+    (
+      QuestionAttempt,
+      BaseReferences<_$AppDatabase, $QuestionAttemptsTable, QuestionAttempt>
+    ),
+    QuestionAttempt,
+    PrefetchHooks Function()> {
+  $$QuestionAttemptsTableTableManager(
+      _$AppDatabase db, $QuestionAttemptsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuestionAttemptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuestionAttemptsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuestionAttemptsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> questionId = const Value.absent(),
+            Value<String> selectedLabels = const Value.absent(),
+            Value<bool> isCorrect = const Value.absent(),
+            Value<int> attemptedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionAttemptsCompanion(
+            id: id,
+            questionId: questionId,
+            selectedLabels: selectedLabels,
+            isCorrect: isCorrect,
+            attemptedAt: attemptedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String questionId,
+            Value<String> selectedLabels = const Value.absent(),
+            required bool isCorrect,
+            required int attemptedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              QuestionAttemptsCompanion.insert(
+            id: id,
+            questionId: questionId,
+            selectedLabels: selectedLabels,
+            isCorrect: isCorrect,
+            attemptedAt: attemptedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$QuestionAttemptsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $QuestionAttemptsTable,
+    QuestionAttempt,
+    $$QuestionAttemptsTableFilterComposer,
+    $$QuestionAttemptsTableOrderingComposer,
+    $$QuestionAttemptsTableAnnotationComposer,
+    $$QuestionAttemptsTableCreateCompanionBuilder,
+    $$QuestionAttemptsTableUpdateCompanionBuilder,
+    (
+      QuestionAttempt,
+      BaseReferences<_$AppDatabase, $QuestionAttemptsTable, QuestionAttempt>
+    ),
+    QuestionAttempt,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -34277,4 +34787,6 @@ class $AppDatabaseManager {
   $$MaterialIntakeUndoLogsTableTableManager get materialIntakeUndoLogs =>
       $$MaterialIntakeUndoLogsTableTableManager(
           _db, _db.materialIntakeUndoLogs);
+  $$QuestionAttemptsTableTableManager get questionAttempts =>
+      $$QuestionAttemptsTableTableManager(_db, _db.questionAttempts);
 }

@@ -1583,3 +1583,35 @@ class KnowledgeEdges extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// 一次「自测作答」的记录（schema v32，轮次一百五十五）。
+///
+/// 一行 = 一次**判分成功**的提交。空选、非客观题这类"没有可判"的提交根本不落库，
+/// 否则"做过几次"会被误触的次数污染。同一道题可以有很多行：历史是追加的，
+/// 后面再改答案也不会改写已经发生的作答。
+///
+/// 与 `review_logs` 分开：那是闪存卡的复习测试记录（参与调度），这里是题库里
+/// 点开一道题、自己先做一遍的记录（学习痕迹，不参与调度）。
+@DataClassName('QuestionAttempt')
+class QuestionAttempts extends Table {
+  @override
+  String get tableName => 'question_attempts';
+
+  TextColumn get id => text()();
+
+  /// 作答的是哪道题。
+  TextColumn get questionId => text().references(Questions, #id)();
+
+  /// 勾选的选项 label（JSON 数组，已归一化：trim → 大写 → 去空 → 去重 → 升序）。
+  /// 单选用一个元素，多选用多个；填空/解答题现在不判分，不会写到这里。
+  TextColumn get selectedLabels => text().withDefault(const Constant('[]'))();
+
+  /// 这次判对了吗。只存判分成功的作答，所以这一列不允许 NULL。
+  BoolColumn get isCorrect => boolean()();
+
+  /// 提交作答的时刻（epoch ms）。
+  IntColumn get attemptedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
