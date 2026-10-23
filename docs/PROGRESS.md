@@ -2,6 +2,48 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十：设置页「学习数据」清空全部作答记录（Lead + threadflow-engine 并行）
+
+**起点**：轮次一百五十九收尾（HEAD `e26c0e7`，v0.6.5 已发布，schema v32，全量 +5748 全绿，工作树干净）。
+选片理由：轮次一百五十八的 §37 边界里明写着「没有『清空全部作答记录』的全局入口」——此前只能
+整题清空（详情页历史行 / 题库行菜单），全库没有入口。本轮在设置页补「学习数据」小节：显示自测作答
+记录总条数 + 一键清空（清空后题库「错题本」筛选与「错 N 次」徽标一起消失）。**无 schema 变更（仍 v32）、
+不调模型、不动排序权重**；仍不做单条删除与正确率统计。
+
+**片 1：仓储（Lead）**
+- `app/lib/data/repositories/question_attempt_repository.dart`：新增 `countAll()`（:80，`selectOnly` +
+  `id.count()`，空表 0）与 `deleteAll()`（:90，返回删除行数，只清 `question_attempts`）。
+- 测试 6 → **8 例**（:192 countAll 空表 0 / 跨题累加 / 单题清空后减一；:218 deleteAll 返回行数、
+  再调返回 0、两题题目仍在）。
+
+**片 2：l10n（Lead）**
+- `app_zh.arb`/`app_en.arb` 新增 10 个 key：`settingsClearAttemptsTitle/Subtitle(count)/Empty/Action/
+  ConfirmTitle/ConfirmBody(count)/Done(count)/Failed(error)/ReadFailed` + `settingsStudyDataTitle`；
+  `cd app && flutter gen-l10n` exit 0（5 个文件变更：ARB 各 +60 行、生成文件 +60/+39/+38 行）。
+- 教训：**不要用 read→join→write 改 ARB**——`tools.read` 默认只读 2000 行，ARB 有 2844/2937 行，
+  会截断文件（本轮发生过一次，已 `git checkout` 恢复后改用 `tools.edit` 锚点插入）。
+
+**片 3：设置页「学习数据」UI（threadflow-engine，task-171）**
+- `data_section.dart`：:15 import；:61 在 `_QuestionPackSection` 之后接 `const _StudyDataSection()`；
+  :1069-1070 顶层 key；:1077-1207 组件（initState `unawaited(_load())`、副标题三态、0 条/读取失败/
+  清空中整行禁用、确认框 → `deleteAll()` → SnackBar → 重读，`hideCurrentSnackBar` 防堆叠）。
+- 新增 `test/features/settings/study_data_section_test.dart` **6 例**（有记录/0 条禁用/取消/确认删除/
+  读失败/删失败）；`test/features/settings` 93 → **99 例**全绿。
+
+**门禁（Lead 实跑）**
+- 7 个改动 dart 文件 `dart format --set-exit-if-changed` → **0 changed**。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**，EXIT 0。
+- scoped：question_attempt_repository_test +8、study_data_section_test +6、question_pack_section_test +34
+  = **+48 全绿**。
+- 全量 `flutter test --concurrency=1` → **+5756 ~2 All tests passed，10:14，EXIT 0**
+  （日志 `E:/dsh-tmp-aot/test-160-full.txt`；上轮基线 +5748，净增 8 = 仓储 2 + 设置页 6）。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §38（38.1 仓储 / 38.2 设置页 UI / 38.3 l10n、测试、门禁与边界）；
+§37.3 的「没有清空全部作答记录的全局入口」一行改为指向 §38。
+
+**仍未做**：不能删单条作答记录；清空不可撤销、无备份（`.tqb` 题库包不含作答记录）；没有正确率/学习统计；
+跨页刷新依赖既有 DataChangeBus 但未加跨页 UI 断言；真机未手测；英文未母语化。
+
 ## 2026-10-24 轮次一百五十九：v0.6.5 双端发布（错题本筛选 + 作答明细与清除）
 
 **起点**：轮次一百五十八收尾（HEAD `0a7ea8c`，schema v32，全量 +5748 全绿，工作树干净）。
