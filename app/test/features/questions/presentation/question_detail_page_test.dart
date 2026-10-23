@@ -1438,6 +1438,8 @@ void main() {
     await _waitForText(tester, _stem);
 
     expect(find.byKey(questionAttemptHistoryKey), findsNothing);
+    expect(find.byKey(questionAttemptDetailToggleKey), findsNothing);
+    expect(find.byKey(questionAttemptClearKey), findsNothing);
     expect(find.textContaining('最近一次'), findsNothing);
   });
 
@@ -1561,6 +1563,239 @@ void main() {
     expect(find.text(_zh.questionDetailSelfTestCorrect), findsOneWidget);
     expect(find.byKey(questionAttemptHistoryKey), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('自测历史：有历史时明细与清除按钮都在', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    await QuestionAttemptRepository(database).record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(1, 1));
+
+    expect(find.byKey(questionAttemptDetailToggleKey), findsOneWidget);
+    expect(find.byKey(questionAttemptClearKey), findsOneWidget);
+    expect(
+      find.text(_zh.questionDetailAttemptDetailToggle(1)),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('自测历史：展开明细按新到旧逐条显示，再点收起', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final attempts = QuestionAttemptRepository(database);
+    final first = await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+    final second = await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['A'],
+      isCorrect: false,
+      now: DateTime(2026, 10, 21, 8, 30),
+    );
+    final third = await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 22, 21, 5),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(3, 2));
+
+    await tester.tap(find.byKey(questionAttemptDetailToggleKey));
+    await tester.pump();
+
+    Finder entry(String id) => find.byKey(questionAttemptEntryKeyFor(id));
+    expect(entry(first), findsOneWidget);
+    expect(entry(second), findsOneWidget);
+    expect(entry(third), findsOneWidget);
+    // 新→旧：第三条在第一行，第一条在最后一行。
+    expect(
+      tester.getTopLeft(entry(third)).dy,
+      lessThan(tester.getTopLeft(entry(second)).dy),
+    );
+    expect(
+      tester.getTopLeft(entry(second)).dy,
+      lessThan(tester.getTopLeft(entry(first)).dy),
+    );
+    expect(
+      find.descendant(
+        of: entry(third),
+        matching: find.text('2026-10-22 21:05'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: entry(second),
+        matching: find.text(_zh.questionDetailSelfTestIncorrect),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: entry(first),
+        matching: find.text(_zh.questionDetailSelfTestCorrect),
+      ),
+      findsOneWidget,
+    );
+    // 展开后按钮文案变成「收起明细」。
+    expect(find.text(_zh.questionDetailAttemptDetailHide), findsOneWidget);
+
+    await tester.tap(find.byKey(questionAttemptDetailToggleKey));
+    await tester.pump();
+    expect(entry(first), findsNothing);
+    expect(entry(second), findsNothing);
+    expect(entry(third), findsNothing);
+    expect(
+      find.text(_zh.questionDetailAttemptDetailToggle(3)),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('自测历史：清除先确认，取消后记录仍在', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final attempts = QuestionAttemptRepository(database);
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['A'],
+      isCorrect: false,
+      now: DateTime(2026, 10, 21, 8, 30),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(2, 1));
+
+    await tester.tap(find.byKey(questionAttemptClearKey));
+    await tester.pump();
+
+    expect(
+      find.text(_zh.questionDetailAttemptClearConfirmTitle),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_zh.questionDetailAttemptClearConfirmBody),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(TextButton, _zh.commonCancel));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byKey(questionAttemptHistoryKey), findsOneWidget);
+    expect(await attempts.historyFor(question.id), hasLength(2));
+  });
+
+  testWidgets('自测历史：确认清除后本题记录清空、历史行消失、别的题不受影响', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final other = await _seedQuestion(database, stem: '另一道题：求 1+1。');
+    final attempts = QuestionAttemptRepository(database);
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['A'],
+      isCorrect: false,
+      now: DateTime(2026, 10, 21, 8, 30),
+    );
+    await attempts.record(
+      questionId: other.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(2, 1));
+
+    await tester.tap(find.byKey(questionAttemptClearKey));
+    await tester.pump();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(
+          FilledButton,
+          _zh.questionDetailAttemptClearAction,
+        ),
+      ),
+    );
+    await tester.pump();
+    await _waitForGone(tester, find.byKey(questionAttemptHistoryKey));
+
+    expect(
+      find.text(_zh.questionDetailAttemptClearDone),
+      findsOneWidget,
+    );
+    expect(await attempts.historyFor(question.id), isEmpty);
+    expect(await attempts.historyFor(other.id), hasLength(1));
+  });
+
+  testWidgets('自测历史：清除失败弹失败提示且历史行仍在', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final attempts = QuestionAttemptRepository(database);
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      overrides: <Override>[
+        questionAttemptRepositoryProvider.overrideWithValue(
+          _FailingDeleteAttemptRepository(database),
+        ),
+      ],
+    );
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(1, 1));
+
+    await tester.tap(find.byKey(questionAttemptClearKey));
+    await tester.pump();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(
+          FilledButton,
+          _zh.questionDetailAttemptClearAction,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.textContaining(_zh.questionDetailAttemptClearFailed('')),
+      findsOneWidget,
+    );
+    expect(find.byKey(questionAttemptHistoryKey), findsOneWidget);
+    expect(await attempts.historyFor(question.id), hasLength(1));
   });
 }
 
@@ -1803,6 +2038,21 @@ Future<void> _waitForCount(
   fail('等了 12 秒也没等到 $count 个 $finder');
 }
 
+/// 等某个 finder 一个都命不中（删除后 provider 重读走异步，不能只 pump 一帧）。
+Future<void> _waitForGone(
+  WidgetTester tester,
+  Finder finder, {
+  int rounds = 120,
+}) async {
+  for (var i = 0; i < rounds; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (finder.evaluate().isEmpty) {
+      return;
+    }
+  }
+  fail('等了 12 秒这个控件还在：$finder');
+}
+
 /// 24 字节的 PNG 文件头（签名 + IHDR + 宽高）：`readImageSize` 只读文件头，
 /// 不需要真的像素数据；`Image.memory` 解码失败会走 errorBuilder 占位。
 Uint8List _pngHeader({required int width, required int height}) {
@@ -1832,6 +2082,16 @@ final class _FailingAttemptRepository extends QuestionAttemptRepository {
     required bool isCorrect,
     DateTime? now,
   }) async {
+    throw StateError('磁盘满了');
+  }
+}
+
+/// 删除必失败的作答仓储：证明清除失败会提示、历史行不会被误删。
+final class _FailingDeleteAttemptRepository extends QuestionAttemptRepository {
+  _FailingDeleteAttemptRepository(super.database);
+
+  @override
+  Future<int> deleteForQuestion(String questionId) async {
     throw StateError('磁盘满了');
   }
 }

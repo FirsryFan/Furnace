@@ -62,6 +62,17 @@ Key questionSelfTestOptionKey(String label) =>
 /// 自测历史摘要行的 key（测试定位用）。
 const Key questionAttemptHistoryKey = Key('question-attempt-history');
 
+/// 自测历史里「查看/收起明细」按钮的 key（测试定位用）。
+const Key questionAttemptDetailToggleKey =
+    Key('question-attempt-detail-toggle');
+
+/// 自测历史里「清除记录」按钮的 key（测试定位用）。
+const Key questionAttemptClearKey = Key('question-attempt-clear');
+
+/// 自测历史里的单条作答记录 key：`question-attempt-entry-<id>`（测试定位用）。
+Key questionAttemptEntryKeyFor(String id) =>
+    ValueKey<String>('question-attempt-entry-$id');
+
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
   const QuestionDetailPage({super.key, required this.questionId});
@@ -701,21 +712,97 @@ class _SelfTestResultBanner extends StatelessWidget {
 ///
 /// 读 [questionAttemptHistoryProvider]（落库后经 `DataChangeBus` 自动重读）；
 /// 加载中、读失败、或一次都没做过时**整块不渲染**——空白占位只会让页面更乱。
-class _AttemptHistoryLine extends ConsumerWidget {
+///
+/// 展开状态是本组件的本地状态（不落库、不进 provider）：离开页面再回来，
+/// 历史行回到收起的默认样子。
+class _AttemptHistoryLine extends ConsumerStatefulWidget {
   const _AttemptHistoryLine({required this.questionId});
 
   final String questionId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final history =
-        ref.watch(questionAttemptHistoryProvider(questionId)).valueOrNull;
+  ConsumerState<_AttemptHistoryLine> createState() =>
+      _AttemptHistoryLineState();
+}
+
+class _AttemptHistoryLineState extends ConsumerState<_AttemptHistoryLine> {
+  /// 是否展开了逐条明细。
+  bool _expanded = false;
+
+  /// 删除请求在飞：防重入，也把按钮禁掉避免连点。
+  bool _clearing = false;
+
+  /// 清除本题全部作答记录：先确认，再删；失败只弹提示，不动页面。
+  ///
+  /// 删除成功后显式失效 [questionAttemptHistoryProvider]——生产里写库会经
+  /// `DataChangeBus` 自动重读，但测试（以及没装写拦截器的环境）没有那层，
+  /// 题号行必须自己消失，不能等下一次页面重建。
+  Future<void> _clearRecords() async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.questionDetailAttemptClearConfirmTitle),
+        content: Text(l10n.questionDetailAttemptClearConfirmBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.questionDetailAttemptClearAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() => _clearing = true);
+    try {
+      await ProviderScope.containerOf(context, listen: false)
+          .read(questionAttemptRepositoryProvider)
+          .deleteForQuestion(widget.questionId);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _clearing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.questionDetailAttemptClearFailed('$error')),
+        ),
+      );
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    ref.invalidate(questionAttemptHistoryProvider(widget.questionId));
+    setState(() {
+      _clearing = false;
+      _expanded = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.questionDetailAttemptClearDone)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final history = ref
+        .watch(questionAttemptHistoryProvider(widget.questionId))
+        .valueOrNull;
     if (history == null || history.isEmpty) {
       return const SizedBox.shrink();
     }
     final latest = history.latest!;
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     final at = _formatAttemptTime(latest.attemptedAt);
     return Padding(
       key: questionAttemptHistoryKey,
@@ -725,19 +812,68 @@ class _AttemptHistoryLine extends ConsumerWidget {
         children: <Widget>[
           Text(
             l10n.questionDetailAttemptHistory(history.total, history.correct),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: muted,
           ),
           const SizedBox(height: 2),
           Text(
             latest.isCorrect
                 ? l10n.questionDetailAttemptLastCorrect(at)
                 : l10n.questionDetailAttemptLastIncorrect(at),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: muted,
           ),
+          // 两个次级动作放同一行；窄屏时 Wrap 自己折行，不挤成溢出。
+          Wrap(
+            spacing: 4,
+            children: <Widget>[
+              TextButton(
+                key: questionAttemptDetailToggleKey,
+                onPressed: () => setState(() => _expanded = !_expanded),
+                child: Text(
+                  _expanded
+                      ? l10n.questionDetailAttemptDetailHide
+                      : l10n.questionDetailAttemptDetailToggle(history.total),
+                ),
+              ),
+              TextButton(
+                key: questionAttemptClearKey,
+                onPressed: _clearing ? null : _clearRecords,
+                child: Text(l10n.questionDetailAttemptClearAction),
+              ),
+            ],
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (final entry in history.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        key: questionAttemptEntryKeyFor(entry.id),
+                        children: <Widget>[
+                          Text(
+                            _formatAttemptTime(entry.attemptedAt),
+                            style: muted,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            entry.isCorrect
+                                ? l10n.questionDetailSelfTestCorrect
+                                : l10n.questionDetailSelfTestIncorrect,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: entry.isCorrect
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
