@@ -56,6 +56,185 @@ void main() {
       expect(system, contains('标签树现在还是空的'));
       expect(system, contains('还没有知识点'));
     });
+
+    test('多图：3 张照片 → 2 条消息、3 个 image part 按顺序、逐页标注', () {
+      final messages = handwritingProposalMessagesForPhotos(
+        photos: const <HandwritingPhotoInput>[
+          HandwritingPhotoInput(
+            fileName: 'hw-9/page-1.png',
+            mime: 'image/png',
+            base64: 'PAGE1',
+          ),
+          HandwritingPhotoInput(
+            fileName: 'hw-9/page-2.jpg',
+            mime: 'image/jpeg',
+            base64: 'PAGE2',
+          ),
+          HandwritingPhotoInput(
+            fileName: 'hw-9/page-3.png',
+            mime: 'image/png',
+            base64: 'PAGE3',
+          ),
+        ],
+      );
+
+      expect(messages, hasLength(2));
+      expect(messages.first.role, 'system');
+      expect(messages.last.role, 'user');
+
+      final system = messages.first.content ?? '';
+      expect(system, contains('3 张照片'));
+      expect(system, contains('第 1 页到第 3 页'));
+      expect(system, contains('同一道题跨页时合并成**一条** question 提案'));
+      expect(system, contains('第几页'));
+      expect(system, contains(handwritingProposalJsonContract));
+
+      final user = messages.last;
+      final userText = user.content ?? '';
+      expect(userText, contains('第 1 页：hw-9/page-1.png'));
+      expect(userText, contains('第 2 页：hw-9/page-2.jpg'));
+      expect(userText, contains('第 3 页：hw-9/page-3.png'));
+      expect(userText, isNot(contains('第 4 页')));
+      expect(user.images, hasLength(3));
+      expect(
+        user.images.map((image) => image.base64).toList(),
+        const <String>['PAGE1', 'PAGE2', 'PAGE3'],
+      );
+      expect(
+        user.images.map((image) => image.mime).toList(),
+        const <String>['image/png', 'image/jpeg', 'image/png'],
+      );
+    });
+
+    test('多图：2 张是下限，仍然逐页标注', () {
+      final messages = handwritingProposalMessagesForPhotos(
+        photos: const <HandwritingPhotoInput>[
+          HandwritingPhotoInput(
+            fileName: 'a.png',
+            mime: 'image/png',
+            base64: 'QQ==',
+          ),
+          HandwritingPhotoInput(
+            fileName: 'b.png',
+            mime: 'image/png',
+            base64: 'Qg==',
+          ),
+        ],
+      );
+
+      expect(messages, hasLength(2));
+      expect(messages.last.images, hasLength(2));
+      final system = messages.first.content ?? '';
+      expect(system, contains('2 张照片'));
+      expect(system, contains('第 1 页到第 2 页'));
+      final user = messages.last.content ?? '';
+      expect(user, contains('第 1 页：a.png'));
+      expect(user, contains('第 2 页：b.png'));
+      expect(user, isNot(contains('第 3 页')));
+    });
+
+    test('多图不足 2 张：assert 暴露调用方 bug，不悄悄降级成单图', () {
+      expect(
+        () => handwritingProposalMessagesForPhotos(
+          photos: const <HandwritingPhotoInput>[],
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => handwritingProposalMessagesForPhotos(
+          photos: const <HandwritingPhotoInput>[
+            HandwritingPhotoInput(
+              fileName: 'only.png',
+              mime: 'image/png',
+              base64: 'QQ==',
+            ),
+          ],
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('多图的 JSON 契约与六条铁律和单图逐字一致，只多出页规则', () {
+      final single = handwritingProposalMessages(
+        fileName: 'hw-9/page-1.png',
+        mime: 'image/png',
+        base64: 'PAGE1',
+        existingTagPaths: const ['文化课/物理/力学'],
+        existingKnowledgePointTitles: const ['动量守恒的条件'],
+      );
+      final multi = handwritingProposalMessagesForPhotos(
+        photos: const <HandwritingPhotoInput>[
+          HandwritingPhotoInput(
+            fileName: 'hw-9/page-1.png',
+            mime: 'image/png',
+            base64: 'PAGE1',
+          ),
+          HandwritingPhotoInput(
+            fileName: 'hw-9/page-2.png',
+            mime: 'image/png',
+            base64: 'PAGE2',
+          ),
+        ],
+        existingTagPaths: const ['文化课/物理/力学'],
+        existingKnowledgePointTitles: const ['动量守恒的条件'],
+      );
+
+      final singleSystem = single.first.content ?? '';
+      final multiSystem = multi.first.content ?? '';
+
+      // 单图开头逐字没变（这次只是把提示词抽成了一份共用的）。
+      expect(
+        singleSystem,
+        startsWith(
+          '你是一个「手写/纸质材料整理员」。用户给你一张照片，'
+          '你要把它整理成**待确认的产物提案**，\n交回一份 JSON。',
+        ),
+      );
+
+      // 契约段及其后内容逐字节相同：多图只在前面多一段页说明和几条页规则。
+      final singleTail =
+          singleSystem.substring(singleSystem.indexOf('只输出 JSON'));
+      final multiTail = multiSystem.substring(multiSystem.indexOf('只输出 JSON'));
+      expect(multiTail, singleTail);
+      expect(singleTail, endsWith(handwritingProposalJsonContract));
+
+      // 铁律 1-6 与标签/知识点清单原样在；页规则 7-9 追加在它们后面。
+      final sharedRules = singleSystem.substring(
+        singleSystem.indexOf('1. 只整理'),
+        singleSystem.indexOf('\n\n已有的标签路径'),
+      );
+      expect(sharedRules, contains('6. 题目提案（kind=question）只做誊写'));
+      expect(multiSystem, contains(sharedRules));
+      final pageRulesAt = multiSystem.indexOf('7. 按第 1 页到第 2 页的顺序读这些照片');
+      expect(pageRulesAt, greaterThan(multiSystem.indexOf(sharedRules)));
+      expect(multiSystem, contains('8. 同一道题跨页时合并成**一条** question 提案'));
+      expect(multiSystem, contains('9. 看不清、拍漏或不确定时'));
+    });
+
+    test('多图也如实带上已有标签路径与知识点标题', () {
+      final messages = handwritingProposalMessagesForPhotos(
+        photos: const <HandwritingPhotoInput>[
+          HandwritingPhotoInput(
+            fileName: 'p1.png',
+            mime: 'image/png',
+            base64: 'QQ==',
+          ),
+          HandwritingPhotoInput(
+            fileName: 'p2.png',
+            mime: 'image/png',
+            base64: 'Qg==',
+          ),
+        ],
+        existingTagPaths: const ['文化课/物理/力学', '文化课/物理/电磁学'],
+        existingKnowledgePointTitles: const ['动量守恒的条件'],
+      );
+      final system = messages.first.content ?? '';
+      expect(system, contains('- 文化课/物理/力学'));
+      expect(system, contains('- 文化课/物理/电磁学'));
+      expect(system, contains('- 动量守恒的条件'));
+      expect(system, isNot(contains('标签树现在还是空的')));
+      expect(system, isNot(contains('还没有知识点')));
+    });
   });
 
   group('解析', () {

@@ -370,6 +370,9 @@ const String handwritingProposalJsonContract = '''
 /// * [existingTagPaths] 标签树里已有的路径（POSIX 分隔），写进 system 消息，
 ///   让模型优先挂到已有路径下而不是造一棵新树。
 /// * [existingKnowledgePointTitles] 已有知识点标题，避免重复建点。
+///
+/// 这是**一张**照片的版本；同一份材料的多页照片请用
+/// [handwritingProposalMessagesForPhotos]。
 List<ChatMessage> handwritingProposalMessages({
   required String fileName,
   required String mime,
@@ -380,32 +383,11 @@ List<ChatMessage> handwritingProposalMessages({
   final tags = _bullets(existingTagPaths, fallback: '（标签树现在还是空的）');
   final points = _bullets(existingKnowledgePointTitles, fallback: '（还没有知识点）');
 
-  final system = '''
-你是一个「手写/纸质材料整理员」。用户给你一张照片，你要把它整理成**待确认的产物提案**，
-交回一份 JSON。用户会逐条确认后才会写进数据库，所以你的任务是把照片看懂、说清楚，
-**不是**替用户决定。
-
-铁律（违反任何一条，这次整理就是失败的）：
-1. 只整理照片里**真实存在**的内容。照片里没有的信息一律不许写出来——不要补充定义、
-   不要补全例题、不要用常识填空。看不清的地方就降低 confidence 并在 rationale 里说明"看不清"。
-2. 你不做题、不出题、不改写题意。照片里的题目原样引用即可。
-3. 标签只能挂到**已有**路径下（fields.parent_path 用下面列出的路径之一），
-   或者作为新的顶层叶子；不要为了整理这张照片重构标签树。
-4. 闪存卡必须给出 cards（至少一张），question/answer 都必须是照片里的内容；
-   答案要能在不看照片时独立读懂（不要写"如上图"）。
-5. 四种 kind 只允许：tag / knowledge_point / flashcard / question。
-6. 题目提案（kind=question）只做誊写：题干/选项/答案/解析必须来自照片原文，
-   不改写题意、不补全缺失选项、不做题、不判断对错；看不清就在 rationale 写明
-   并降低 confidence；照片里没有答案/解析就省略对应字段，绝不自己解题补上。
-
-已有的标签路径（parent_path 只能从中选，空字符串表示新建顶层标签）：
-$tags
-
-已有的知识点标题（不要重复建点）：
-$points
-
-只输出 JSON，不要解释、不要 Markdown 代码块之外的东西。契约：
-$handwritingProposalJsonContract''';
+  final system = _handwritingSystemMessage(
+    opening: _singlePhotoOpening,
+    tags: tags,
+    points: points,
+  );
 
   final userText = '''
 这是一张手写/纸质材料的照片，文件名：$fileName。
@@ -419,6 +401,138 @@ $handwritingProposalJsonContract''';
     ),
   ];
 }
+
+/// 多图整理里的一张照片。
+///
+/// 与单图函数的三个位置参数同义，只是把「文件名 + MIME + base64」收拢成一个值
+/// 对象，多图调用点不用并排维护三个等长列表。纯数据：不读文件、不编码、不校验。
+class HandwritingPhotoInput {
+  const HandwritingPhotoInput({
+    required this.fileName,
+    required this.mime,
+    required this.base64,
+  });
+
+  /// 照片文件名，写进 user 消息里的「第 k 页：<fileName>」。
+  final String fileName;
+
+  /// `image/png` 等 MIME。
+  final String mime;
+
+  /// Base64 图片本体（不含 `data:` 前缀）。
+  final String base64;
+}
+
+/// 构造「看多页照片 → 交回四类产物提案」的两条消息：`[system, user]`。
+///
+/// 与 [handwritingProposalMessages] 相比只多了「页」的概念：
+/// * user 消息按 [photos] 的顺序挂上全部图片（[ChatMessage] 本来就支持多图）；
+/// * system 与 user 都写明这是第 1..N 页，并要求同一道题跨页时合并成一条、
+///   看不清时在 rationale 里写清是第几页；
+/// * 铁律 1-6、标签/知识点清单与 JSON 契约和单图**逐字相同**——两套文案迟早
+///   会漂移，所以共用 [_handwritingSystemMessage]。
+///
+/// 只接受至少 2 张：单张请用 [handwritingProposalMessages]。不足 2 张是调用方
+/// 的 bug，用 assert 暴露，不自动降级成单图协议。
+List<ChatMessage> handwritingProposalMessagesForPhotos({
+  required List<HandwritingPhotoInput> photos,
+  List<String> existingTagPaths = const <String>[],
+  List<String> existingKnowledgePointTitles = const <String>[],
+}) {
+  assert(
+    photos.length >= 2,
+    '多图整理至少需要 2 张照片（只有 1 张请用 handwritingProposalMessages）',
+  );
+  final tags = _bullets(existingTagPaths, fallback: '（标签树现在还是空的）');
+  final points = _bullets(existingKnowledgePointTitles, fallback: '（还没有知识点）');
+  final count = photos.length;
+
+  final system = _handwritingSystemMessage(
+    opening: _multiPhotoOpening(count),
+    tags: tags,
+    points: points,
+    extraRules: _multiPhotoExtraRules(count),
+  );
+
+  final pages = <String>[
+    for (var i = 0; i < photos.length; i++)
+      '第 ${i + 1} 页：${photos[i].fileName}',
+  ].join('\n');
+
+  final userText = '''
+这是同一份手写/纸质材料的 $count 张照片，按第 1 页到第 $count 页的顺序：
+$pages
+请把它们整理成四类待确认产物（标签 / 知识点 / 闪存卡 / 题目），按契约交回 JSON。''';
+
+  return <ChatMessage>[
+    ChatMessage.system(system),
+    ChatMessage.user(
+      userText,
+      images: <ChatImagePart>[
+        for (final photo in photos)
+          ChatImagePart(mime: photo.mime, base64: photo.base64),
+      ],
+    ),
+  ];
+}
+
+/// 单图/多图共用的 system 提示词。
+///
+/// 铁律、标签/知识点清单、JSON 契约这几段**只在这里出现一次**，单图与多图
+/// 只换开头一段（一张照片 vs 第 1..N 页）和多图额外的几条规则。
+String _handwritingSystemMessage({
+  required String opening,
+  required String tags,
+  required String points,
+  String extraRules = '',
+}) {
+  final extra = extraRules.isEmpty ? '' : '\n$extraRules';
+  return '''
+$opening
+
+铁律（违反任何一条，这次整理就是失败的）：
+1. 只整理照片里**真实存在**的内容。照片里没有的信息一律不许写出来——不要补充定义、
+   不要补全例题、不要用常识填空。看不清的地方就降低 confidence 并在 rationale 里说明"看不清"。
+2. 你不做题、不出题、不改写题意。照片里的题目原样引用即可。
+3. 标签只能挂到**已有**路径下（fields.parent_path 用下面列出的路径之一），
+   或者作为新的顶层叶子；不要为了整理这张照片重构标签树。
+4. 闪存卡必须给出 cards（至少一张），question/answer 都必须是照片里的内容；
+   答案要能在不看照片时独立读懂（不要写"如上图"）。
+5. 四种 kind 只允许：tag / knowledge_point / flashcard / question。
+6. 题目提案（kind=question）只做誊写：题干/选项/答案/解析必须来自照片原文，
+   不改写题意、不补全缺失选项、不做题、不判断对错；看不清就在 rationale 写明
+   并降低 confidence；照片里没有答案/解析就省略对应字段，绝不自己解题补上。$extra
+
+已有的标签路径（parent_path 只能从中选，空字符串表示新建顶层标签）：
+$tags
+
+已有的知识点标题（不要重复建点）：
+$points
+
+只输出 JSON，不要解释、不要 Markdown 代码块之外的东西。契约：
+$handwritingProposalJsonContract''';
+}
+
+/// 单图提示词的开头一段（多图有自己的开头，其余部分共用）。
+const String _singlePhotoOpening = '你是一个「手写/纸质材料整理员」。用户给你一张照片，'
+    '你要把它整理成**待确认的产物提案**，\n'
+    '交回一份 JSON。用户会逐条确认后才会写进数据库，所以你的任务是把照片看懂、说清楚，\n'
+    '**不是**替用户决定。';
+
+/// 多图提示词的开头一段：说明照片是同一份材料的第 1..N 页。
+String _multiPhotoOpening(int count) => '你是一个「手写/纸质材料整理员」。用户给你 $count 张照片'
+    '（同一份材料的第 1 页到第 $count 页，按顺序拍下），'
+    '你要把它们整理成**待确认的产物提案**，\n'
+    '交回一份 JSON。用户会逐条确认后才会写进数据库，所以你的任务是把照片看懂、说清楚，\n'
+    '**不是**替用户决定。';
+
+/// 多图额外规则（接在铁律 1-6 之后，编号 7-9）。
+String _multiPhotoExtraRules(int count) => '7. 按第 1 页到第 $count 页的顺序读这些照片，'
+    '页与页之间要接得上（上一页没说完的句子，可能在下一页接着写）。\n'
+    '8. 同一道题跨页时合并成**一条** question 提案，不要拆成两条；'
+    'rationale 里写清它出现在第几页到第几页。\n'
+    '9. 看不清、拍漏或不确定时，在 rationale 里写明是**第几页**看不清；'
+    '不要用别的页的内容替它填空。';
 
 /// 解析模型回复。
 ///
