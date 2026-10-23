@@ -8929,6 +8929,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide details'**
   String get questionDetailAttemptDetailHide;
+
+  /// Settings, study data: clear every self-test attempt record.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear attempt records'**
+  String get settingsClearAttemptsTitle;
+
+  /// Settings, study data: row subtitle showing the attempt record count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} self-test records. Clearing also removes the wrong-answer markers in the question bank.'**
+  String settingsClearAttemptsSubtitle(int count);
+
+  /// Settings, study data: row subtitle when there are no attempt records.
+  ///
+  /// In en, this message translates to:
+  /// **'No self-test records yet'**
+  String get settingsClearAttemptsEmpty;
+
+  /// Settings: confirm button of the clear attempt records dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get settingsClearAttemptsAction;
+
+  /// Settings: clear attempt records confirmation dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all attempt records?'**
+  String get settingsClearAttemptsConfirmTitle;
+
+  /// Settings: clear attempt records confirmation dialog body.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes all {count} self-test records; the wrong-answer markers and wrong-count badges in the question bank disappear with them. This cannot be undone.'**
+  String settingsClearAttemptsConfirmBody(int count);
+
+  /// Settings: clear attempt records success message.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {count} attempt records'**
+  String settingsClearAttemptsDone(int count);
+
+  /// Settings: clear attempt records failure message.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear failed: {error}'**
+  String settingsClearAttemptsFailed(String error);
+
+  /// Settings, study data: row subtitle when the count could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read attempt records'**
+  String get settingsClearAttemptsReadFailed;
+
+  /// Settings: study data section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Study data'**
+  String get settingsStudyDataTitle;
 }
 
 class _AppLocalizationsDelegate

@@ -2933,5 +2933,65 @@
   "questionDetailAttemptDetailHide": "Hide details",
   "@questionDetailAttemptDetailHide": {
     "description": "Question detail attempt history: collapse the per-attempt list."
+  },
+  "settingsClearAttemptsTitle": "Clear attempt records",
+  "@settingsClearAttemptsTitle": {
+    "description": "Settings, study data: clear every self-test attempt record."
+  },
+  "settingsClearAttemptsSubtitle": "{count} self-test records. Clearing also removes the wrong-answer markers in the question bank.",
+  "@settingsClearAttemptsSubtitle": {
+    "description": "Settings, study data: row subtitle showing the attempt record count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsEmpty": "No self-test records yet",
+  "@settingsClearAttemptsEmpty": {
+    "description": "Settings, study data: row subtitle when there are no attempt records."
+  },
+  "settingsClearAttemptsAction": "Clear",
+  "@settingsClearAttemptsAction": {
+    "description": "Settings: confirm button of the clear attempt records dialog."
+  },
+  "settingsClearAttemptsConfirmTitle": "Clear all attempt records?",
+  "@settingsClearAttemptsConfirmTitle": {
+    "description": "Settings: clear attempt records confirmation dialog title."
+  },
+  "settingsClearAttemptsConfirmBody": "This deletes all {count} self-test records; the wrong-answer markers and wrong-count badges in the question bank disappear with them. This cannot be undone.",
+  "@settingsClearAttemptsConfirmBody": {
+    "description": "Settings: clear attempt records confirmation dialog body.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsDone": "Cleared {count} attempt records",
+  "@settingsClearAttemptsDone": {
+    "description": "Settings: clear attempt records success message.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsFailed": "Clear failed: {error}",
+  "@settingsClearAttemptsFailed": {
+    "description": "Settings: clear attempt records failure message.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsClearAttemptsReadFailed": "Could not read attempt records",
+  "@settingsClearAttemptsReadFailed": {
+    "description": "Settings, study data: row subtitle when the count could not be read."
+  },
+  "settingsStudyDataTitle": "Study data",
+  "@settingsStudyDataTitle": {
+    "description": "Settings: study data section title."
   }
 }

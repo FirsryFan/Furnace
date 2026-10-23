@@ -5142,4 +5142,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionDetailAttemptDetailHide => '收起明细';
+
+  @override
+  String get settingsClearAttemptsTitle => '清空作答记录';
+
+  @override
+  String settingsClearAttemptsSubtitle(int count) {
+    return '共 $count 次自测记录。清空后题库里的错题标记会一起消失。';
+  }
+
+  @override
+  String get settingsClearAttemptsEmpty => '还没有自测记录';
+
+  @override
+  String get settingsClearAttemptsAction => '清空';
+
+  @override
+  String get settingsClearAttemptsConfirmTitle => '清空全部作答记录？';
+
+  @override
+  String settingsClearAttemptsConfirmBody(int count) {
+    return '将删除全部 $count 条自测记录，题库里的错题标记与「错 N 次」徽标会一起消失。此操作不能撤销。';
+  }
+
+  @override
+  String settingsClearAttemptsDone(int count) {
+    return '已清空 $count 条作答记录';
+  }
+
+  @override
+  String settingsClearAttemptsFailed(String error) {
+    return '清空失败：$error';
+  }
+
+  @override
+  String get settingsClearAttemptsReadFailed => '读取作答记录失败';
+
+  @override
+  String get settingsStudyDataTitle => '学习数据';
 }

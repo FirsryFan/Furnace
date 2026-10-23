@@ -2840,5 +2840,65 @@
   "questionDetailAttemptDetailHide": "收起明细",
   "@questionDetailAttemptDetailHide": {
     "description": "详情页自测历史行：收起逐条作答记录。"
+  },
+  "settingsClearAttemptsTitle": "清空作答记录",
+  "@settingsClearAttemptsTitle": {
+    "description": "设置页学习数据：清空全部自测作答记录。"
+  },
+  "settingsClearAttemptsSubtitle": "共 {count} 次自测记录。清空后题库里的错题标记会一起消失。",
+  "@settingsClearAttemptsSubtitle": {
+    "description": "设置页学习数据：列表行副标题，显示记录条数。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsEmpty": "还没有自测记录",
+  "@settingsClearAttemptsEmpty": {
+    "description": "设置页学习数据：没有作答记录时的副标题。"
+  },
+  "settingsClearAttemptsAction": "清空",
+  "@settingsClearAttemptsAction": {
+    "description": "设置页清空作答记录确认框的确认按钮。"
+  },
+  "settingsClearAttemptsConfirmTitle": "清空全部作答记录？",
+  "@settingsClearAttemptsConfirmTitle": {
+    "description": "设置页清空作答记录确认框标题。"
+  },
+  "settingsClearAttemptsConfirmBody": "将删除全部 {count} 条自测记录，题库里的错题标记与「错 N 次」徽标会一起消失。此操作不能撤销。",
+  "@settingsClearAttemptsConfirmBody": {
+    "description": "设置页清空作答记录确认框正文。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsDone": "已清空 {count} 条作答记录",
+  "@settingsClearAttemptsDone": {
+    "description": "设置页清空作答记录成功提示。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsClearAttemptsFailed": "清空失败：{error}",
+  "@settingsClearAttemptsFailed": {
+    "description": "设置页清空作答记录失败提示。",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsClearAttemptsReadFailed": "读取作答记录失败",
+  "@settingsClearAttemptsReadFailed": {
+    "description": "设置页学习数据：读取记录条数失败时的副标题。"
+  },
+  "settingsStudyDataTitle": "学习数据",
+  "@settingsStudyDataTitle": {
+    "description": "设置页学习数据小节标题。"
   }
 }

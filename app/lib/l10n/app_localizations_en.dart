@@ -5358,4 +5358,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionDetailAttemptDetailHide => 'Hide details';
+
+  @override
+  String get settingsClearAttemptsTitle => 'Clear attempt records';
+
+  @override
+  String settingsClearAttemptsSubtitle(int count) {
+    return '$count self-test records. Clearing also removes the wrong-answer markers in the question bank.';
+  }
+
+  @override
+  String get settingsClearAttemptsEmpty => 'No self-test records yet';
+
+  @override
+  String get settingsClearAttemptsAction => 'Clear';
+
+  @override
+  String get settingsClearAttemptsConfirmTitle => 'Clear all attempt records?';
+
+  @override
+  String settingsClearAttemptsConfirmBody(int count) {
+    return 'This deletes all $count self-test records; the wrong-answer markers and wrong-count badges in the question bank disappear with them. This cannot be undone.';
+  }
+
+  @override
+  String settingsClearAttemptsDone(int count) {
+    return 'Cleared $count attempt records';
+  }
+
+  @override
+  String settingsClearAttemptsFailed(String error) {
+    return 'Clear failed: $error';
+  }
+
+  @override
+  String get settingsClearAttemptsReadFailed =>
+      'Could not read attempt records';
+
+  @override
+  String get settingsStudyDataTitle => 'Study data';
 }
