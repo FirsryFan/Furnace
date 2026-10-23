@@ -36,6 +36,7 @@ import 'package:furnace/features/questions/presentation/question_intake_page.dar
 import 'package:furnace/l10n/app_localizations.dart';
 
 import '../support/picked_file_fakes.dart';
+import 'support/question_media_fakes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -82,6 +83,13 @@ void main() {
     final image = await store.save(
       FakePickedFile(name, Uint8List.fromList(<int>[1, 2, 3, 4])),
     );
+    return image.relPath;
+  }
+
+  /// 落一张**能解码**的 PNG：多图卡片的缩略图走 `Image.memory`，坏字节只会
+  /// 显示占位图（那张通路另有用例）。
+  Future<String> seedPngPhoto([String name = 'page.png']) async {
+    final image = await store.save(FakePickedFile(name, tinyPngBytes));
     return image.relPath;
   }
 
@@ -139,6 +147,22 @@ void main() {
       }
     }
     fail('等了 ${rounds * 50} 毫秒也没等到这段文字：$text');
+  }
+
+  /// 轮询等到**包含**某段文字的组件出现：多选失败原因是一整行拼接文案，
+  /// `find.text` 精确匹配不到。
+  Future<void> waitForTextContaining(
+    WidgetTester tester,
+    String text, {
+    int rounds = 60,
+  }) async {
+    for (var i = 0; i < rounds; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      if (find.textContaining(text).evaluate().isNotEmpty) {
+        return;
+      }
+    }
+    fail('等了 ${rounds * 50} 毫秒也没等到包含这段文字的内容：$text');
   }
 
   Future<void> pumpQueue(
@@ -724,6 +748,330 @@ void main() {
     expect(adapter.callCount, 1);
     expect(find.text('整理全部（1 张待整理）'), findsOneWidget);
   });
+
+  // ── 多图/多页合并整理 ───────────────────────────────────────────────────
+  //
+  // 多张照片合成**一次**模型调用：勾选顺序就是交给模型的顺序，成功后的结果
+  // 卡片只读（整组确认 / 忘掉），不把「跨页合并成一条」的语义重新拆碎。
+
+  testWidgets('合并整理模式：入口切换、chip 变多选、底部栏显示张数规则', (tester) async {
+    await seedPhoto('first.png');
+    await seedPhoto('second.png');
+    await pumpQueue(tester);
+
+    // 普通模式：每张照片一个单选 chip，单图面板里有「整理」。
+    expect(find.byType(ChoiceChip), findsNWidgets(2));
+    expect(find.text(zh.handwritingQueueAnalyze), findsOneWidget);
+    expect(find.byType(FilterChip), findsNothing);
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+
+    // 多选模式：chip 变成可勾选，单图面板让位给底部操作栏。
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.byType(FilterChip), findsNWidgets(2));
+    expect(find.text(zh.handwritingQueueAnalyze), findsNothing);
+    expect(find.text(zh.handwritingMergeButton(0)), findsOneWidget);
+    expect(find.text(zh.handwritingMergeNeedTwo), findsOneWidget);
+    expect(find.text(zh.handwritingMergeModeExit), findsOneWidget);
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+
+    expect(find.byType(ChoiceChip), findsNWidgets(2));
+    expect(find.text(zh.handwritingMergeModeEnter), findsOneWidget);
+    expect(find.text(zh.handwritingMergeButton(0)), findsNothing);
+  });
+
+  testWidgets('已合并照片：普通模式挂徽标，多选模式下禁选并说明原因', (tester) async {
+    final first = await seedPhoto('first.png');
+    final second = await seedPngPhoto('second.png');
+    final third = await seedPngPhoto('third.png');
+    final fourth = await seedPhoto('fourth.png');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[second, third]);
+    final seeded = HandwritingQueueState(
+      images: images,
+      sets: <String, HandwritingProposalSet>{
+        first: HandwritingProposalSet(
+          sourceRef: first,
+          proposals: const <HandwritingProposal>[],
+        ),
+      },
+      multiRuns: <HandwritingMultiRun>[
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: <String>[second, third],
+          set: HandwritingProposalSet(
+            sourceRef: sourceRef,
+            proposals: const <HandwritingProposal>[],
+          ),
+          analyzedAt: DateTime(2026, 10, 23),
+        ),
+      ],
+    );
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    // 普通模式：参与过多图整理的两张挂「已合并」小标记。
+    expect(find.text(zh.handwritingMergedBadge), findsNWidgets(2));
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+
+    FilterChip chipOf(String relPath) => tester.widget<FilterChip>(
+          find.byKey(handwritingMergePhotoKey(relPath)),
+        );
+    expect(chipOf(first).onSelected, isNull); // 已经有单图提案
+    expect(chipOf(second).onSelected, isNull); // 已经参与过多图整理
+    expect(chipOf(third).onSelected, isNull);
+    expect(chipOf(fourth).onSelected, isNotNull);
+    // 三张不可选各有一个说明原因的 tooltip。
+    expect(find.byTooltip(zh.handwritingMergeUnselectable), findsNWidgets(3));
+  });
+
+  testWidgets('少于两张：合并按钮禁用并提示；选到两张才可点', (tester) async {
+    final first = await seedPhoto('first.png');
+    final second = await seedPhoto('second.png');
+    await pumpQueue(tester);
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+
+    FilledButton runButton() =>
+        tester.widget<FilledButton>(find.byKey(handwritingMergeRunKey));
+    expect(runButton().onPressed, isNull);
+    expect(find.text(zh.handwritingMergeNeedTwo), findsOneWidget);
+
+    await tester.tap(find.byKey(handwritingMergePhotoKey(first)));
+    await settle(tester);
+    expect(runButton().onPressed, isNull);
+    expect(find.text(zh.handwritingMergeNeedTwo), findsOneWidget);
+
+    await tester.tap(find.byKey(handwritingMergePhotoKey(second)));
+    await settle(tester);
+    expect(runButton().onPressed, isNotNull);
+    expect(find.text(zh.handwritingMergeHint), findsOneWidget);
+    expect(find.text(zh.handwritingMergeButton(2)), findsOneWidget);
+  });
+
+  testWidgets('合并整理：按勾选顺序调 analyzeMulti，成功后退出多选并出结果卡片', (tester) async {
+    final first = await seedPhoto('first.png');
+    final second = await seedPngPhoto('second.png');
+    final images = await store.pending();
+    final recorder = _RecordingQueueNotifier(
+      HandwritingQueueState(images: images),
+    );
+    final adapter = FakeModelAdapter(<List<ModelEvent>>[
+      FakeModelAdapter.answer(reply(<String>[tagProposal])),
+    ]);
+    await pumpQueue(
+      tester,
+      adapter: adapter,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(() => recorder),
+      ],
+    );
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+    // 勾选顺序与清单顺序相反：交给模型的顺序必须按勾的先后。
+    await tester.tap(find.byKey(handwritingMergePhotoKey(second)));
+    await settle(tester);
+    await tester.tap(find.byKey(handwritingMergePhotoKey(first)));
+    await settle(tester);
+    await tester.tap(find.byKey(handwritingMergeRunKey));
+    await waitForText(tester, zh.handwritingMergeRunTitle(2));
+
+    expect(recorder.analyzeMultiCalls, hasLength(1));
+    expect(recorder.analyzeMultiCalls.single, <String>[second, first]);
+    final sourceRef = multiSourceRefFor(<String>[second, first]);
+    expect(find.byKey(handwritingMergeRunCardKey(sourceRef)), findsOneWidget);
+    // 成功之后自动退出多选：chip 回到单选，底部操作栏消失。
+    expect(find.byType(FilterChip), findsNothing);
+    expect(find.byType(ChoiceChip), findsNWidgets(2));
+    expect(find.byKey(handwritingMergeRunKey), findsNothing);
+  });
+
+  testWidgets('多图结果卡片：N 张缩略图 + 提案，只读、不给单条确认', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    final seeded = HandwritingQueueState(
+      images: images,
+      multiRuns: <HandwritingMultiRun>[
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: <String>[first, second],
+          set: HandwritingProposalSet(
+            sourceRef: sourceRef,
+            proposals: const <HandwritingProposal>[
+              HandwritingProposal(
+                id: 'tag-merged',
+                kind: HandwritingProposalKind.tag,
+                titleZh: '动量守恒',
+                fields: <String, String>{'parent_path': '文化课/物理/力学'},
+              ),
+            ],
+          ),
+          analyzedAt: DateTime(2026, 10, 23),
+        ),
+      ],
+    );
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider
+            .overrideWith(() => _SeededQueueNotifier(seeded)),
+      ],
+    );
+
+    final card = find.byKey(handwritingMergeRunCardKey(sourceRef));
+    expect(card, findsOneWidget);
+    expect(find.text(zh.handwritingMergeRunTitle(2)), findsOneWidget);
+    expect(find.text('动量守恒'), findsOneWidget);
+    // 多图卡片只做整组确认：单条「确认」按钮不出现。
+    expect(find.byKey(handwritingProposalApplyKey('tag-merged')), findsNothing);
+
+    // 预检回来之后：两张缩略图都能解码，「全部确认」可用。
+    await waitForText(tester, '会新建标签「动量守恒」');
+    expect(
+      find.descendant(of: card, matching: find.byType(Image)),
+      findsNWidgets(2),
+    );
+    final applyAll = tester.widget<FilledButton>(
+      find.byKey(handwritingMergeApplyAllKey(sourceRef)),
+    );
+    expect(applyAll.onPressed, isNotNull);
+  });
+
+  testWidgets('多图卡片全部确认：调 applyAll(sourceRef) 并真的写库', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    final seeded = HandwritingQueueState(
+      images: images,
+      multiRuns: <HandwritingMultiRun>[
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: <String>[first, second],
+          set: HandwritingProposalSet(
+            sourceRef: sourceRef,
+            proposals: const <HandwritingProposal>[
+              HandwritingProposal(
+                id: 'tag-merged',
+                kind: HandwritingProposalKind.tag,
+                titleZh: '动量守恒',
+                fields: <String, String>{'parent_path': '文化课/物理/力学'},
+              ),
+            ],
+          ),
+          analyzedAt: DateTime(2026, 10, 23),
+        ),
+      ],
+    );
+    final recorder = _RecordingQueueNotifier(seeded);
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(() => recorder),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    expect(await tags.getTagByPath('文化课/物理/力学/动量守恒'), isNull);
+
+    await tester.tap(find.byKey(handwritingMergeApplyAllKey(sourceRef)));
+    await waitForText(tester, zh.handwritingProposalApplied);
+
+    expect(recorder.applyAllCalls, <String>[sourceRef]);
+    expect(await tags.getTagByPath('文化课/物理/力学/动量守恒'), isNotNull);
+  });
+
+  testWidgets('忘掉多图整理：调 forget(sourceRef)，卡片从队列消失', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    final seeded = HandwritingQueueState(
+      images: images,
+      multiRuns: <HandwritingMultiRun>[
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: <String>[first, second],
+          set: HandwritingProposalSet(
+            sourceRef: sourceRef,
+            proposals: const <HandwritingProposal>[
+              HandwritingProposal(
+                id: 'tag-merged',
+                kind: HandwritingProposalKind.tag,
+                titleZh: '动量守恒',
+                fields: <String, String>{'parent_path': '文化课/物理/力学'},
+              ),
+            ],
+          ),
+          analyzedAt: DateTime(2026, 10, 23),
+        ),
+      ],
+    );
+    final recorder = _RecordingQueueNotifier(seeded);
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(() => recorder),
+      ],
+    );
+
+    expect(find.byKey(handwritingMergeRunCardKey(sourceRef)), findsOneWidget);
+
+    await tester.tap(find.byKey(handwritingMergeForgetKey(sourceRef)));
+    for (var i = 0; i < 100; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (find
+          .byKey(handwritingMergeRunCardKey(sourceRef))
+          .evaluate()
+          .isEmpty) {
+        break;
+      }
+    }
+    expect(find.byKey(handwritingMergeRunCardKey(sourceRef)), findsNothing);
+    expect(recorder.forgetCalls, <String>[sourceRef]);
+  });
+
+  testWidgets('合并整理失败：底部栏如实报原因，仍留在多选模式可重试', (tester) async {
+    final first = await seedPhoto('first.png');
+    final second = await seedPhoto('second.png');
+    final adapter = FakeModelAdapter(<List<ModelEvent>>[
+      FakeModelAdapter.failure('网络断了'),
+    ]);
+    await pumpQueue(tester, adapter: adapter);
+
+    await tester.tap(find.byKey(handwritingMergeModeKey));
+    await settle(tester);
+    await tester.tap(find.byKey(handwritingMergePhotoKey(first)));
+    await settle(tester);
+    await tester.tap(find.byKey(handwritingMergePhotoKey(second)));
+    await settle(tester);
+    await tester.tap(find.byKey(handwritingMergeRunKey));
+    await waitForTextContaining(tester, '模型调用失败：网络断了');
+
+    expect(find.textContaining(zh.handwritingMergeRunFailed), findsOneWidget);
+    // 失败不退出多选：勾选还在，按钮可以再点。
+    expect(find.byType(FilterChip), findsNWidgets(2));
+    expect(
+      tester.widget<FilledButton>(find.byKey(handwritingMergeRunKey)).onPressed,
+      isNotNull,
+    );
+  });
 }
 
 /// 一个"永远不回答"的适配器：用来把「整理中」那一帧定住（`FakeModelAdapter`
@@ -759,6 +1107,42 @@ final class _SeededQueueNotifier extends HandwritingQueueNotifier {
 
   @override
   Future<void> refresh() async {}
+}
+
+/// 记录多图整理相关调用的替身：状态固定为 [seeded]，其余方法走真实现
+/// （真实现会更新状态、写库，页面能看到结果卡片）。
+final class _RecordingQueueNotifier extends HandwritingQueueNotifier {
+  _RecordingQueueNotifier(this.seeded);
+
+  final HandwritingQueueState seeded;
+
+  final List<List<String>> analyzeMultiCalls = <List<String>>[];
+  final List<String> applyAllCalls = <String>[];
+  final List<String> forgetCalls = <String>[];
+
+  @override
+  HandwritingQueueState build() => seeded;
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<HandwritingProposalRun> analyzeMulti(List<String> relPaths) {
+    analyzeMultiCalls.add(List<String>.of(relPaths));
+    return super.analyzeMulti(relPaths);
+  }
+
+  @override
+  Future<HandwritingApplyReport?> applyAll(String sourceRef) {
+    applyAllCalls.add(sourceRef);
+    return super.applyAll(sourceRef);
+  }
+
+  @override
+  Future<void> forget(String sourceRef) {
+    forgetCalls.add(sourceRef);
+    return super.forget(sourceRef);
+  }
 }
 
 /// 逐张返回的假模型：把「正在整理 i/N」这一帧定住，好在批次进行中按停止。
