@@ -131,6 +131,31 @@ class QuestionPackImportReport {
   bool get hasBackup => backupPath != null;
 }
 
+/// 一份「导入前自动备份」的 `.tqb` 文件。
+///
+/// 备份由 [QuestionPackService.importPack] 落盘（题库非空时先整份导出到
+/// `<documents>/question_pack_backups/`）；设置页只负责列出与删除。
+class QuestionPackBackup {
+  const QuestionPackBackup({
+    required this.path,
+    required this.name,
+    required this.sizeBytes,
+    required this.modifiedAt,
+  });
+
+  /// 备份文件绝对路径；删除时原样传回 [QuestionPackService.deleteBackup]。
+  final String path;
+
+  /// 文件名（不含目录），例如 `题库备份-20261023-060810-123.tqb`。
+  final String name;
+
+  /// 文件字节数；显示成可读大小是 UI 的事（服务层不猜格式）。
+  final int sizeBytes;
+
+  /// 文件最后修改时间（本地时区）；列表按它新→旧排序。
+  final DateTime modifiedAt;
+}
+
 /// 题库包的导出/导入服务。
 class QuestionPackService {
   QuestionPackService({
@@ -370,6 +395,72 @@ class QuestionPackService {
       backupPath: backupPath,
       backupError: backupError,
     );
+  }
+
+  /// 列出 `<documents>/question_pack_backups/` 里的 `.tqb` 备份，按修改时间新→旧。
+  ///
+  /// 目录还不存在（从没导入过）返回空表；单个文件读不到 stat 就跳过——列表只是
+  /// 给人看的，不该因为一个坏文件整页失败。同一毫秒的备份按文件名升序兜底，
+  /// 保证列表顺序确定。
+  Future<List<QuestionPackBackup>> listBackups() async {
+    final documents = await _documentsDirectory();
+    final directory = Directory(
+      p.join(documents.path, kQuestionPackBackupFolderName),
+    );
+    if (!await directory.exists()) {
+      return const <QuestionPackBackup>[];
+    }
+    final backups = <QuestionPackBackup>[];
+    await for (final entity in directory.list()) {
+      if (entity is! File) continue;
+      if (p.extension(entity.path).toLowerCase() != '.tqb') continue;
+      try {
+        final stat = await entity.stat();
+        backups.add(
+          QuestionPackBackup(
+            path: entity.path,
+            name: p.basename(entity.path),
+            sizeBytes: stat.size,
+            modifiedAt: stat.modified,
+          ),
+        );
+      } on FileSystemException catch (error) {
+        debugPrint('question pack backup stat failed: $error');
+      }
+    }
+    backups.sort((a, b) {
+      final byModified = b.modifiedAt.compareTo(a.modifiedAt);
+      return byModified != 0 ? byModified : a.name.compareTo(b.name);
+    });
+    return List<QuestionPackBackup>.unmodifiable(backups);
+  }
+
+  /// 删除一份导入前备份；只允许删备份目录里的 `.tqb`。
+  ///
+  /// 路径先规范化（`normalize` + `absolute`）再校验父目录，防止把库文件或其他
+  /// 路径传进来误删；备份目录外的一律抛 [ArgumentError]。文件已经不在了视为删除
+  /// 成功——并发下第二个删除动作不该让界面报错。目录外的「不存在路径」同样抛错，
+  /// 免得拿任意路径当探针。
+  Future<void> deleteBackup(String path) async {
+    final documents = await _documentsDirectory();
+    final directory = Directory(
+      p.join(documents.path, kQuestionPackBackupFolderName),
+    );
+    final backupDirectory = p.normalize(directory.absolute.path);
+    final target = p.normalize(File(path).absolute.path);
+    if (p.extension(target).toLowerCase() != '.tqb' ||
+        p.dirname(target) != backupDirectory) {
+      throw ArgumentError.value(
+        path,
+        'path',
+        '只能删除导入前备份目录里的 .tqb',
+      );
+    }
+    final file = File(target);
+    if (!await file.exists()) {
+      return;
+    }
+    await file.delete();
   }
 
   /// 本机题库现有题目数（一次 COUNT；备份只在这个数 > 0 时做）。

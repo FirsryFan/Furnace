@@ -154,10 +154,15 @@ final class FakeQuestionPackService implements QuestionPackService {
     failures: <String>[],
   );
 
+  /// [listBackups] 的返回值；删除成功会同步从这里移除（模拟刷新后条目变少）。
+  List<QuestionPackBackup> backups = const <QuestionPackBackup>[];
+
   Object? exportError;
   Object? previewError;
   Object? planError;
   Object? importError;
+  Object? listBackupsError;
+  Object? deleteBackupError;
 
   /// 挂住导出（挂起期间断言两行 tile 都被禁用）。
   Completer<void>? exportGate;
@@ -166,6 +171,8 @@ final class FakeQuestionPackService implements QuestionPackService {
   int peekCalls = 0;
   int planCalls = 0;
   int importCalls = 0;
+  int listBackupsCalls = 0;
+  final List<String> deletedBackupPaths = <String>[];
   final List<Uint8List> peekedBytes = <Uint8List>[];
   final List<Uint8List> plannedBytes = <Uint8List>[];
   final List<Uint8List> importedBytes = <Uint8List>[];
@@ -230,5 +237,24 @@ final class FakeQuestionPackService implements QuestionPackService {
       throw importError!;
     }
     return importReport;
+  }
+
+  @override
+  Future<List<QuestionPackBackup>> listBackups() async {
+    listBackupsCalls++;
+    if (listBackupsError != null) {
+      throw listBackupsError!;
+    }
+    return backups;
+  }
+
+  @override
+  Future<void> deleteBackup(String path) async {
+    deletedBackupPaths.add(path);
+    if (deleteBackupError != null) {
+      throw deleteBackupError!;
+    }
+    backups =
+        backups.where((backup) => backup.path != path).toList(growable: false);
   }
 }

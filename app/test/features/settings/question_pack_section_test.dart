@@ -97,6 +97,28 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 一份假备份（路径在假 documents 目录下；删除只需要 path）。
+  QuestionPackBackup backupOf(
+    String name, {
+    int sizeBytes = 2048,
+    DateTime? modifiedAt,
+  }) =>
+      QuestionPackBackup(
+        path: '/fake/question_pack_backups/$name',
+        name: name,
+        sizeBytes: sizeBytes,
+        modifiedAt: modifiedAt ?? DateTime(2026, 10, 23, 6, 8),
+      );
+
+  /// 点「导入前备份」入口，等清单对话框出来。
+  Future<void> openBackups(WidgetTester tester) async {
+    await tester.tap(find.text(zh.settingsQuestionPackBackupsTitle));
+    await tester.pumpAndSettle();
+  }
+
+  Finder inDialog(Finder matching) =>
+      find.descendant(of: find.byType(AlertDialog), matching: matching);
+
   testWidgets('设置页有题库包区块和导出/导入两条入口', (tester) async {
     final service = FakeQuestionPackService();
     await pumpSettings(tester, service: service);
@@ -618,6 +640,10 @@ void main() {
     expect(tile(tester, zh.settingsQuestionPackExport).enabled, isFalse);
     expect(tile(tester, zh.settingsQuestionPackExport).onTap, isNull);
     expect(tile(tester, zh.settingsQuestionPackImport).onTap, isNull);
+    expect(
+      tile(tester, zh.settingsQuestionPackBackupsTitle).onTap,
+      isNull,
+    );
 
     await tester.tap(find.text(zh.settingsQuestionPackExport),
         warnIfMissed: false);
@@ -628,6 +654,123 @@ void main() {
     await tester.pumpAndSettle();
     expect(picker.saveCalls, 1);
     expect(tile(tester, zh.settingsQuestionPackExport).onTap, isNotNull);
+    expect(
+      tile(tester, zh.settingsQuestionPackBackupsTitle).onTap,
+      isNotNull,
+    );
+  });
+
+  testWidgets('备份：入口常驻，没有备份时显示空态，对话框里也是空态', (tester) async {
+    final service = FakeQuestionPackService();
+    await pumpSettings(tester, service: service);
+
+    expect(find.text(zh.settingsQuestionPackBackupsTitle), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackBackupsEmpty), findsOneWidget);
+    expect(tile(tester, zh.settingsQuestionPackBackupsTitle).enabled, isTrue);
+    expect(service.listBackupsCalls, 1);
+
+    await openBackups(tester);
+
+    expect(
+      inDialog(find.text(zh.settingsQuestionPackBackupsEmpty)),
+      findsOneWidget,
+    );
+    expect(service.listBackupsCalls, greaterThanOrEqualTo(2));
+  });
+
+  testWidgets('备份：入口副标题显示份数与总大小，对话框列出文件名、大小和日期', (tester) async {
+    final newer = backupOf(
+      '题库备份-20261023-060810-123.tqb',
+      sizeBytes: 4096,
+      modifiedAt: DateTime(2026, 10, 23, 6, 8),
+    );
+    final older = backupOf(
+      '题库备份-20261022-231500-000.tqb',
+      sizeBytes: 1024,
+      modifiedAt: DateTime(2026, 10, 22, 23, 15),
+    );
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[newer, older];
+    await pumpSettings(tester, service: service);
+
+    final row = tile(tester, zh.settingsQuestionPackBackupsTitle);
+    final subtitle = (row.subtitle! as Text).data!;
+    expect(subtitle, contains('2 份'));
+    expect(subtitle, contains('5.0 KB'));
+
+    await openBackups(tester);
+
+    expect(inDialog(find.text(newer.name)), findsOneWidget);
+    expect(inDialog(find.text(older.name)), findsOneWidget);
+    expect(find.textContaining('4.0 KB · 2026-10-23 06:08'), findsOneWidget);
+    expect(find.textContaining('1.0 KB · 2026-10-22 23:15'), findsOneWidget);
+  });
+
+  testWidgets('备份：删除先确认，成功后提示并刷新列表', (tester) async {
+    final newer = backupOf('题库备份-20261023-060810-123.tqb');
+    final older = backupOf('题库备份-20261022-231500-000.tqb');
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[newer, older];
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    await tester.tap(inDialog(find.byIcon(Icons.delete_outline)).first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(zh.settingsQuestionPackBackupDeleteConfirm(newer.name)),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.widgetWithText(
+        FilledButton,
+        zh.settingsQuestionPackBackupDeleteTooltip,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.deletedBackupPaths, <String>[newer.path]);
+    expect(find.text(zh.settingsQuestionPackBackupDeleteDone), findsOneWidget);
+    expect(inDialog(find.text(newer.name)), findsNothing);
+    expect(inDialog(find.text(older.name)), findsOneWidget);
+  });
+
+  testWidgets('备份：删除失败时提示原因，备份仍在列表里', (tester) async {
+    final only = backupOf('题库备份-20261023-060810-123.tqb');
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[only]
+      ..deleteBackupError = StateError('disk full');
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    await tester.tap(inDialog(find.byIcon(Icons.delete_outline)).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(
+        FilledButton,
+        zh.settingsQuestionPackBackupDeleteTooltip,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.deletedBackupPaths, <String>[only.path]);
+    expect(find.textContaining('disk full'), findsOneWidget);
+    expect(service.backups, hasLength(1));
+    expect(inDialog(find.text(only.name)), findsOneWidget);
+  });
+
+  testWidgets('备份：清单读取失败不挡入口，只显示说明', (tester) async {
+    final service = FakeQuestionPackService()
+      ..listBackupsError = StateError('denied');
+    await pumpSettings(tester, service: service);
+
+    expect(find.text(zh.settingsQuestionPackBackupsHint), findsOneWidget);
+    expect(find.text(zh.settingsQuestionPackBackupsEmpty), findsNothing);
+    expect(tile(tester, zh.settingsQuestionPackBackupsTitle).enabled, isTrue);
+
+    await openBackups(tester);
+
+    expect(find.textContaining('denied'), findsOneWidget);
   });
 
   test('题库包新增文案中英文齐全，占位符真的插值', () {
@@ -688,6 +831,20 @@ void main() {
       allOf(contains('6'), isNot(contains('{count}'))),
     );
     expect(zh.settingsQuestionPackImportUpdateNote, isNotEmpty);
+
+    expect(zh.settingsQuestionPackBackupsTitle, isNotEmpty);
+    expect(zh.settingsQuestionPackBackupsEmpty, isNotEmpty);
+    expect(zh.settingsQuestionPackBackupsHint, isNotEmpty);
+    expect(zh.settingsQuestionPackBackupDeleteTooltip, isNotEmpty);
+    expect(zh.settingsQuestionPackBackupDeleteDone, isNotEmpty);
+    expect(
+      zh.settingsQuestionPackBackupDeleteConfirm('a.tqb'),
+      allOf(contains('a.tqb'), isNot(contains('{name}'))),
+    );
+    expect(
+      zh.settingsQuestionPackBackupDeleteFailed('disk full'),
+      allOf(contains('disk full'), isNot(contains('{error}'))),
+    );
 
     expect(
       zh.settingsQuestionPackExportDone(7, 3, '1.5 KB'),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -30,8 +31,9 @@ import 'settings_page.dart' show currentProfileProvider;
 /// Also hosts the question-bank package (`.tqb`), which carries questions and
 /// their images only. Records without a zujuan.com question id are always
 /// appended; records that carry one update the matching question in place, so
-/// its serial number and the title the user gave it survive. No backup step is
-/// needed before importing one.
+/// its serial number and the title the user gave it survive. Before writing,
+/// [QuestionPackService.importPack] snapshots the current bank into a `.tqb`
+/// backup (listed in this section) when it is not empty.
 class DataSection extends ConsumerWidget {
   const DataSection({super.key});
 
@@ -280,6 +282,13 @@ String questionPackTimestamp() => DateTime.now()
     .replaceAll(':', '')
     .replaceAll('-', '');
 
+/// 备份文件的修改时间（本地时区）：`2026-10-23 06:08`。
+String _backupTimeText(DateTime time) {
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${time.year}-${two(time.month)}-${two(time.day)} '
+      '${two(time.hour)}:${two(time.minute)}';
+}
+
 /// Question-bank package (`.tqb`): questions plus their images, for moving the
 /// bank between installs without touching the rest of the workspace.
 ///
@@ -301,6 +310,18 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
   /// One package operation at a time: the tiles disable while it runs, so a
   /// double tap cannot export or import twice.
   bool _busy = false;
+
+  /// 当前导入前备份；行副标题与对话框共用这份清单。
+  List<QuestionPackBackup> _backups = const <QuestionPackBackup>[];
+
+  /// 清单是否已经读过一次（没读完前副标题显示说明，不显示「没有备份」）。
+  bool _backupsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_reloadBackups());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,8 +347,62 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
           enabled: !_busy,
           onTap: _busy ? null : _import,
         ),
+        ListTile(
+          leading: const Icon(Icons.settings_backup_restore),
+          title: Text(l10n.settingsQuestionPackBackupsTitle),
+          subtitle: Text(_backupsSubtitle(l10n)),
+          enabled: !_busy,
+          onTap: _busy ? null : _showBackups,
+        ),
       ],
     );
+  }
+
+  /// 读一次备份目录；失败只记日志（副标题退回说明文案，不让设置页报错）。
+  Future<void> _reloadBackups() async {
+    try {
+      final backups = await ref.read(questionPackServiceProvider).listBackups();
+      if (!mounted) return;
+      setState(() {
+        _backups = backups;
+        _backupsLoaded = true;
+      });
+    } on Object catch (error) {
+      // 读失败保持 _backupsLoaded = false：副标题退回说明文案，不假装「没有备份」。
+      debugPrint('list question pack backups failed: $error');
+    }
+  }
+
+  /// 行副标题：份数 + 总大小；空表/未读完时给对应文案。
+  String _backupsSubtitle(AppLocalizations l10n) {
+    if (!_backupsLoaded) {
+      return l10n.settingsQuestionPackBackupsHint;
+    }
+    if (_backups.isEmpty) {
+      return l10n.settingsQuestionPackBackupsEmpty;
+    }
+    final total = _backups.fold<int>(
+      0,
+      (sum, backup) => sum + backup.sizeBytes,
+    );
+    return '${l10n.settingsQuestionPackBackupsHint}（${_backups.length} 份，'
+        '共 ${questionPackSizeText(total)}）';
+  }
+
+  /// 打开备份清单；关闭后重读一次（对话框里可能删过文件）。
+  Future<void> _showBackups() async {
+    await _reloadBackups();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => _QuestionPackBackupsDialog(
+        listBackups: () => ref.read(questionPackServiceProvider).listBackups(),
+        deleteBackup: (path) =>
+            ref.read(questionPackServiceProvider).deleteBackup(path),
+      ),
+    );
+    if (!mounted) return;
+    await _reloadBackups();
   }
 
   Future<void> _export() async {
@@ -440,6 +515,7 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
         return;
       }
       _refreshQuestionViews();
+      unawaited(_reloadBackups());
       await _showImportReport(l10n, report);
     } catch (error) {
       messenger.showSnackBar(
@@ -658,6 +734,150 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
     ref.invalidate(questionCorpusCountProvider);
     ref.invalidate(questionAuditCorpusProvider);
     ref.invalidate(questionAuditReportProvider);
+  }
+}
+
+/// 导入前备份清单：列出 `<documents>/question_pack_backups/` 里的 `.tqb`，逐份可删。
+class _QuestionPackBackupsDialog extends StatefulWidget {
+  const _QuestionPackBackupsDialog({
+    required this.listBackups,
+    required this.deleteBackup,
+  });
+
+  /// 读当前备份（每次删除后重读，成功与否以磁盘为准）。
+  final Future<List<QuestionPackBackup>> Function() listBackups;
+
+  /// 删一份备份；失败抛出，由对话框提示。
+  final Future<void> Function(String path) deleteBackup;
+
+  @override
+  State<_QuestionPackBackupsDialog> createState() =>
+      _QuestionPackBackupsDialogState();
+}
+
+class _QuestionPackBackupsDialogState
+    extends State<_QuestionPackBackupsDialog> {
+  List<QuestionPackBackup>? _backups;
+  Object? _loadError;
+  bool _deleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final backups = await widget.listBackups();
+      if (!mounted) return;
+      setState(() {
+        _backups = backups;
+        _loadError = null;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _loadError = error);
+    }
+  }
+
+  Future<void> _confirmDelete(QuestionPackBackup backup) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackBackupsTitle),
+        content:
+            Text(l10n.settingsQuestionPackBackupDeleteConfirm(backup.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.settingsQuestionPackBackupDeleteTooltip),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      await widget.deleteBackup(backup.path);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsQuestionPackBackupDeleteDone)),
+      );
+      await _load();
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.settingsQuestionPackBackupDeleteFailed('$error')),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deleting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final backups = _backups;
+    return AlertDialog(
+      title: Text(l10n.settingsQuestionPackBackupsTitle),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.settingsQuestionPackBackupsHint,
+                style: theme.textTheme.bodySmall,
+              ),
+              if (_loadError != null) ...[
+                const SizedBox(height: 12),
+                Text(_loadError.toString(), style: theme.textTheme.bodySmall),
+              ] else if (backups != null && backups.isEmpty) ...[
+                const SizedBox(height: 12),
+                Text(l10n.settingsQuestionPackBackupsEmpty),
+              ] else if (backups != null) ...[
+                const SizedBox(height: 8),
+                for (final backup in backups)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.archive_outlined),
+                    title: Text(backup.name),
+                    subtitle: Text(
+                      '${questionPackSizeText(backup.sizeBytes)} · '
+                      '${_backupTimeText(backup.modifiedAt)}',
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: l10n.settingsQuestionPackBackupDeleteTooltip,
+                      onPressed:
+                          _deleting ? null : () => _confirmDelete(backup),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonClose),
+        ),
+      ],
+    );
   }
 }
 

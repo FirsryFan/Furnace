@@ -337,6 +337,119 @@ void main() {
     );
   });
 
+  group('备份管理', () {
+    Directory backupDirectory() => Directory(
+          p.join(source.support.path, kQuestionPackBackupFolderName),
+        );
+
+    File writeBackup(
+      String name, {
+      DateTime? modifiedAt,
+      List<int> bytes = const <int>[1, 2, 3],
+    }) {
+      final directory = backupDirectory()..createSync(recursive: true);
+      final file = File(p.join(directory.path, name))..writeAsBytesSync(bytes);
+      if (modifiedAt != null) {
+        file.setLastModifiedSync(modifiedAt);
+      }
+      return file;
+    }
+
+    test('listBackups：没备份过时返回空表', () async {
+      expect(backupDirectory().existsSync(), isFalse);
+
+      expect(await source.service.listBackups(), isEmpty);
+    });
+
+    test('listBackups：只收 .tqb，按修改时间新→旧，同时间按文件名升序', () async {
+      writeBackup(
+        '题库备份-20261023-060000-000.tqb',
+        modifiedAt: DateTime(2026, 10, 23, 6),
+        bytes: const <int>[1],
+      );
+      writeBackup(
+        '题库备份-20261023-060810-000.tqb',
+        modifiedAt: DateTime(2026, 10, 23, 6, 8, 10),
+        bytes: const <int>[1, 2, 3, 4],
+      );
+      writeBackup(
+        '题库备份-20261023-060810-001.tqb',
+        modifiedAt: DateTime(2026, 10, 23, 6, 8, 10),
+        bytes: const <int>[1, 2],
+      );
+      writeBackup('readme.txt', modifiedAt: DateTime(2026, 10, 23, 7));
+
+      final backups = await source.service.listBackups();
+
+      expect(
+        backups.map((backup) => backup.name).toList(),
+        <String>[
+          '题库备份-20261023-060810-000.tqb',
+          '题库备份-20261023-060810-001.tqb',
+          '题库备份-20261023-060000-000.tqb',
+        ],
+      );
+      expect(backups.first.sizeBytes, 4);
+      expect(backups.first.modifiedAt, DateTime(2026, 10, 23, 6, 8, 10));
+      expect(
+        backups.first.path,
+        p.join(backupDirectory().path, '题库备份-20261023-060810-000.tqb'),
+      );
+      expect(
+        backups.every(
+          (backup) => p.dirname(backup.path) == backupDirectory().path,
+        ),
+        isTrue,
+      );
+    });
+
+    test('deleteBackup：删掉备份目录里的 .tqb', () async {
+      final file = writeBackup('题库备份-20261023-060810-123.tqb');
+      expect(file.existsSync(), isTrue);
+
+      await source.service.deleteBackup(file.path);
+
+      expect(file.existsSync(), isFalse);
+      expect(await source.service.listBackups(), isEmpty);
+    });
+
+    test('deleteBackup：备份目录外的路径被拒（防误删库文件）', () async {
+      final databaseFile = File(p.join(source.support.path, 'furnace.db'))
+        ..writeAsStringSync('not a backup');
+      await expectLater(
+        source.service.deleteBackup(databaseFile.path),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(databaseFile.existsSync(), isTrue);
+
+      // 扩展名像备份、但放错目录的也拒：校验靠父目录，不只查后缀。
+      final strayPack = File(p.join(source.support.path, 'manual.tqb'))
+        ..writeAsBytesSync(const <int>[1]);
+      await expectLater(
+        source.service.deleteBackup(strayPack.path),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(strayPack.existsSync(), isTrue);
+    });
+
+    test('deleteBackup：文件已经不在时视为删除成功', () async {
+      final missing = p.join(
+        backupDirectory().path,
+        '题库备份-20261023-060810-999.tqb',
+      );
+
+      await source.service.deleteBackup(missing);
+
+      // 目录外的不存在路径仍被拒绝（否则成了任意路径探针）。
+      await expectLater(
+        source.service.deleteBackup(
+          p.join(source.support.path, '题库备份-20261023-060810-999.tqb'),
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+  });
+
   group('导入前自动备份', () {
     test('已有题目：先备份现有题库，路径在 documents 下且字节能读回', () async {
       await _seedQuestion(source, stem: '来源题一。');
