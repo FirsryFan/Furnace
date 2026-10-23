@@ -90,6 +90,21 @@ const List<int> paperPerKnowledgePointCapOptions = <int>[1, 2, 3, 4, 5];
 /// "页面唯一的 TextButton" 来找它，所以给复制按钮一个稳定的 key。
 const Key questionPaperCopyButtonKey = Key('paper-copy');
 
+/// 「未覆盖」缺口清单出现详细解释句时的容器 key（`PaperGapNote` 有数据才有）。
+///
+/// 缺口清单有两级信息：一行「• 名称」（永远有）和一句「为什么、下一步做什么」
+/// （领域层 `PaperPlan.uncoveredKnowledgePointNotes` 给，页面不自己写）。这个 key
+/// 用来断言解释句这一级真的上了页面，而不是只把领域层的字段传进来就断了。
+const Key questionPaperUncoveredNotesKey =
+    Key('question-paper-uncovered-notes');
+
+/// 「这轮被挤掉」缺口清单出现详细解释句时的容器 key。
+const Key questionPaperDeferredNotesKey = Key('question-paper-deferred-notes');
+
+/// 缺口清单里单个知识点的详细解释块（按知识点 id 生成）。
+Key questionPaperGapNoteKeyFor(String knowledgePointId) =>
+    ValueKey<String>('question-paper-gap-note-$knowledgePointId');
+
 /// 组卷页。
 class QuestionPaperPage extends ConsumerWidget {
   const QuestionPaperPage({super.key});
@@ -454,6 +469,8 @@ class _PaperBody extends ConsumerWidget {
           ),
         if (plan.uncoveredKnowledgePointIds.isNotEmpty)
           _GapSection(
+            sectionKey: questionPaperUncoveredNotesKey,
+            notes: plan.uncoveredKnowledgePointNotes,
             title: l10n.questionPaperUncoveredTitle,
             body: l10n.questionPaperUncoveredBody,
             ids: plan.uncoveredKnowledgePointIds,
@@ -461,6 +478,8 @@ class _PaperBody extends ConsumerWidget {
           ),
         if (plan.deferredKnowledgePointIds.isNotEmpty)
           _GapSection(
+            sectionKey: questionPaperDeferredNotesKey,
+            notes: plan.deferredKnowledgePointNotes,
             title: l10n.questionPaperDeferredTitle,
             body: l10n.questionPaperDeferredBody,
             ids: plan.deferredKnowledgePointIds,
@@ -609,12 +628,23 @@ class _PaperItemCard extends StatelessWidget {
 }
 
 /// 缺口清单：标题 + 为什么 + 逐个知识点。
+///
+/// 每个知识点有两种排法（领域层只管给句子，选哪种是排版）：
+/// * 领域层给了 `PaperGapNote`（`PaperPlan.uncoveredKnowledgePointNotes` /
+///   `deferredKnowledgePointNotes`，页面用 `detailedNotes: true` 组卷）→ 两行：
+///   第一行「• 名称」（labelMedium），第二行「为什么、下一步做什么」（bodyMedium）。
+///   第一行刻意保留 `• ` 前缀：它和旧的单行清单逐字一致，旧测试不用改也就证明
+///   「知识点一个没丢」；第二行才是这次新用上的领域层解释句。
+/// * 没有对应 note（或整份 plan 没开 detailedNotes）→ 退回旧的「• 名称」单行，
+///   与本次改动前逐字相同。防御的是任一 id 缺 note 时整行消失。
 class _GapSection extends StatelessWidget {
   const _GapSection({
     required this.title,
     required this.body,
     required this.ids,
     required this.knowledgePointNames,
+    this.notes = const <PaperGapNote>[],
+    this.sectionKey,
   });
 
   final String title;
@@ -622,9 +652,19 @@ class _GapSection extends StatelessWidget {
   final List<String> ids;
   final AsyncValue<Map<String, String>> knowledgePointNames;
 
+  /// 领域层给的详细解释句；空表 = 不出解释句（与旧页面逐字一致）。
+  final List<PaperGapNote> notes;
+
+  /// 有解释句时给这份清单的 key（空表时不挂，保持旧树形状）。
+  final Key? sectionKey;
+
   @override
   Widget build(BuildContext context) {
+    final notesById = <String, PaperGapNote>{
+      for (final note in notes) note.knowledgePointId: note,
+    };
     return Card(
+      key: notesById.isEmpty ? null : sectionKey,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -635,13 +675,52 @@ class _GapSection extends StatelessWidget {
             Text(body),
             const SizedBox(height: 8),
             for (final id in ids)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child:
-                    Text('• ${knowledgePointNameOf(knowledgePointNames, id)}'),
+              _GapEntry(
+                knowledgePointId: id,
+                note: notesById[id],
+                knowledgePointNames: knowledgePointNames,
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 缺口清单里的一行：有解释句就两行，否则旧的「• 名称」单行。
+class _GapEntry extends StatelessWidget {
+  const _GapEntry({
+    required this.knowledgePointId,
+    required this.note,
+    required this.knowledgePointNames,
+  });
+
+  final String knowledgePointId;
+  final PaperGapNote? note;
+  final AsyncValue<Map<String, String>> knowledgePointNames;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = this.note;
+    if (note == null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+          '• ${knowledgePointNameOf(knowledgePointNames, knowledgePointId)}',
+        ),
+      );
+    }
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      key: questionPaperGapNoteKeyFor(knowledgePointId),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('• ${note.labelZh}', style: textTheme.labelMedium),
+          const SizedBox(height: 2),
+          Text(note.messageZh, style: textTheme.bodyMedium),
+        ],
       ),
     );
   }

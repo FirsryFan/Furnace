@@ -355,6 +355,92 @@ void main() {
     expect(find.text(zh.questionPaperUncoveredTitle), findsNothing);
   });
 
+  testWidgets('缺口解释句：未覆盖知识点带上领域层为什么/下一步，旧「•」不重复', (tester) async {
+    await _seedKnowledgePoint(db, id: 'kp-a', title: 'Alpha', tagId: 'tag-a');
+    await _seedKnowledgePoint(db, id: 'kp-e', title: 'Epsilon', tagId: 'tag-e');
+    await _seedQuestion(
+      db,
+      id: 'q-a',
+      stem: 'Alpha 高考题',
+      subjectKey: 'math',
+      sourceLevel: 'gaokao',
+    );
+    await _seedQuestion(
+      db,
+      id: 'q-e',
+      stem: 'Epsilon 自建题',
+      subjectKey: 'math',
+      sourceLevel: 'personal',
+    );
+    await _linkQuestionToTag(db, questionId: 'q-a', tagId: 'tag-a');
+    await _linkQuestionToTag(db, questionId: 'q-e', tagId: 'tag-e');
+
+    await _pumpPaperPage(
+      tester,
+      db: db,
+      diagnosis: const LibraryDiagnosis(
+        byKnowledgePoint: {
+          'kp-a': BottleneckType.danger,
+          'kp-e': BottleneckType.danger,
+        },
+        fastLayerRan: true,
+        rounds: 3,
+      ),
+    );
+
+    _container(tester)
+        .read(paperSpecProvider.notifier)
+        .setMinSourceLevel('gaokao');
+    await _settle(tester);
+
+    // 这一节整体挂 key；单个知识点的解释块也挂 key（下一轮只想定位它时用）。
+    expect(find.byKey(questionPaperUncoveredNotesKey), findsOneWidget);
+    final note = find.byKey(questionPaperGapNoteKeyFor('kp-e'));
+    expect(note, findsOneWidget);
+    // 第一行仍是旧的「• 名称」，第二行才是领域层的解释句（页面不另写措辞）。
+    expect(
+      find.descendant(of: note, matching: find.text('• Epsilon')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: note, matching: find.textContaining('知识点「Epsilon」')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: note,
+        matching: find.textContaining('题库里一道候选都没有'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: note,
+        matching: find.textContaining('先收这个知识点的题'),
+      ),
+      findsOneWidget,
+    );
+    // 有解释句的那一条不再画旧「•」行：整页只有一处「• Epsilon」。
+    expect(find.text('• Epsilon'), findsOneWidget);
+    expect(find.text(zh.questionPaperDeferredTitle), findsNothing);
+    expect(find.byKey(questionPaperDeferredNotesKey), findsNothing);
+  });
+
+  testWidgets('缺口解释句为空时回落旧的「• 名称」清单，知识点不丢', (tester) async {
+    await _pumpPaperPage(
+      tester,
+      db: db,
+      plan: _planWithGaps(deferredIds: const <String>['kp-late']),
+    );
+
+    expect(find.text(zh.questionPaperDeferredTitle), findsOneWidget);
+    // 没有解释句 → 按旧口径只画「• 名称」；没登记名字就用 id 兜底。
+    expect(find.text('• kp-late'), findsOneWidget);
+    // 没解释句就不挂解释句容器的 key，树形状与旧版一致。
+    expect(find.byKey(questionPaperDeferredNotesKey), findsNothing);
+    expect(find.text(zh.questionPaperUncoveredTitle), findsNothing);
+  });
+
   testWidgets('收题页 AppBar 有进组卷页的入口', (tester) async {
     final supportRoot =
         Directory.systemTemp.createTempSync('furnace_paper_entry_');
@@ -927,6 +1013,7 @@ Future<ProviderContainer> _pumpPaperPage(
   WidgetTester tester, {
   required AppDatabase db,
   LibraryDiagnosis diagnosis = LibraryDiagnosis.notRun,
+  PaperPlan? plan,
 }) async {
   tester.view.physicalSize = const Size(1200, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -939,6 +1026,8 @@ Future<ProviderContainer> _pumpPaperPage(
         appDatabaseProvider.overrideWithValue(db),
         cognitiveLibraryDiagnosisProvider
             .overrideWith((ref) async => diagnosis),
+        // 少数用例要锁「页面怎么排缺口」而不是组卷器怎么算，直接把卷面注入。
+        if (plan != null) paperPlanProvider.overrideWith((ref) async => plan),
       ],
       child: const MaterialApp(
         locale: Locale('zh'),
@@ -1135,6 +1224,46 @@ PaperPlan _planOf(List<String> ids) {
     byKnowledgePoint: const <String, int>{'kp1': 2},
     candidateCount: ids.length,
     requestedCount: ids.length,
+    overallNeed: 1,
+    weights: const PaperWeights(),
+  );
+}
+
+/// 手工拼一份带缺口的卷面（只填页面会读到的字段）。
+///
+/// 注入 `paperPlanProvider` 用：这里要锁的是「页面怎么排缺口」，不是组卷器
+/// 怎么算出缺口；因此 items 固定一道题，免得落进空卷分支（空卷不画缺口）。
+PaperPlan _planWithGaps({
+  List<String> uncoveredIds = const <String>[],
+  List<String> deferredIds = const <String>[],
+  List<PaperGapNote> uncoveredNotes = const <PaperGapNote>[],
+  List<PaperGapNote> deferredNotes = const <PaperGapNote>[],
+}) {
+  return PaperPlan(
+    items: <PaperItem>[
+      const PaperItem(
+        questionId: 'q-1',
+        subjectKey: 'math',
+        sourceLevel: 'gaokao',
+        questionType: 'solution',
+        knowledgePointId: 'kp1',
+        matchedKnowledgePointIds: <String>['kp1'],
+        zone: PaperZone.danger,
+        need: 1,
+        quality: 0.7,
+        score: 0.8,
+        reasonZh: '危险区，优先补',
+        improvementNote: '练完能稳定拿分',
+        backgroundZh: '文化课/数学/二次函数',
+      ),
+    ],
+    uncoveredKnowledgePointIds: uncoveredIds,
+    deferredKnowledgePointIds: deferredIds,
+    uncoveredKnowledgePointNotes: uncoveredNotes,
+    deferredKnowledgePointNotes: deferredNotes,
+    byKnowledgePoint: const <String, int>{'kp1': 1},
+    candidateCount: 1,
+    requestedCount: 1,
     overallNeed: 1,
     weights: const PaperWeights(),
   );
