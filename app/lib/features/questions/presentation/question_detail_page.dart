@@ -59,6 +59,19 @@ const Key questionSelfTestSubmitKey = Key('question-self-test-submit');
 Key questionSelfTestOptionKey(String label) =>
     ValueKey<String>('question-self-test-option-$label');
 
+/// 自测防剧透提示的 key：自测未提交时，AI 解题/相似题/找原题三个区块被收起，
+/// 在这里显示一句说明（测试定位用）。
+const Key questionDetailSpoilerGuardHintKey =
+    Key('question-detail-spoiler-guard-hint');
+
+/// AI 解题区块的 key：自测未提交时整块不渲染（测试定位用）。
+const Key questionDetailReasoningSectionKey =
+    Key('question-detail-reasoning-section');
+
+/// 相似题区块的 key：自测未提交时整块不渲染（测试定位用）。
+const Key questionDetailSimilarSectionKey =
+    Key('question-detail-similar-section');
+
 /// 自测历史摘要行的 key（测试定位用）。
 const Key questionAttemptHistoryKey = Key('question-attempt-history');
 
@@ -92,6 +105,19 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
   /// 本次按下按钮的结果。`null` = 这次进来还没按过——于是页面只显示库里那条链。
   ReasoningRunResult? _lastRun;
+
+  /// 自测防剧透：题目正文打开了自测且还没提交时，本页把会剧透步骤的区块
+  /// （AI 解题、相似题、找原题）整块收起，提交或结束自测后恢复。
+  bool _spoilersHidden = false;
+
+  void _onSelfTestChanged(bool active) {
+    if (!mounted || _spoilersHidden == active) {
+      return;
+    }
+    setState(() {
+      _spoilersHidden = active;
+    });
+  }
 
   Future<void> _solve() async {
     if (_running) {
@@ -192,23 +218,43 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               onEditTitle: () => _editTitle(detail.question),
               onEditSource: () => _editSource(detail.question),
               onEditSourceLinks: () => _editSourceLinks(detail.question),
+              onSelfTestChanged: _onSelfTestChanged,
             ),
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
-          if (detail != null)
+          // 自测未提交时连它一起收起：找原题等于把答案摆到眼前。
+          if (detail != null && !_spoilersHidden)
             QuestionZujuanSearchButton(stem: detail.question.stem),
           // 入库体检：只报不改；体检没跑出来/失败时整块零高度，不挡下面的解题入口。
+          // 它不剧透解法，自测中也保留。
           if (detail != null)
             QuestionAuditSection(questionId: widget.questionId),
-          const SizedBox(height: 16),
-          _ReasoningSection(
-            questionId: widget.questionId,
-            running: _running,
-            lastRun: _lastRun,
-            enabled: detail != null,
-            onSolve: _solve,
-          ),
-          const SizedBox(height: 16),
-          _SimilarQuestionsSection(questionId: widget.questionId),
+          if (_spoilersHidden)
+            Padding(
+              key: questionDetailSpoilerGuardHintKey,
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l10n.questionDetailSelfTestSpoilerHidden,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            )
+          else ...[
+            const SizedBox(height: 16),
+            _ReasoningSection(
+              key: questionDetailReasoningSectionKey,
+              questionId: widget.questionId,
+              running: _running,
+              lastRun: _lastRun,
+              enabled: detail != null,
+              onSolve: _solve,
+            ),
+            const SizedBox(height: 16),
+            _SimilarQuestionsSection(
+              key: questionDetailSimilarSectionKey,
+              questionId: widget.questionId,
+            ),
+          ],
         ],
       ),
     );
@@ -225,6 +271,7 @@ class _QuestionBody extends StatefulWidget {
     this.onEditTitle,
     this.onEditSource,
     this.onEditSourceLinks,
+    this.onSelfTestChanged,
   });
 
   final QuestionDetail detail;
@@ -237,6 +284,10 @@ class _QuestionBody extends StatefulWidget {
 
   /// 「改原题链接」：加/改/清空都走同一个对话框；没有可信链接时也留入口。
   final VoidCallback? onEditSourceLinks;
+
+  /// 自测防剧透状态变化：true = 打开自测且未提交（父页面据此收起会剧透的区块），
+  /// false = 没在自测 / 已提交 / 已结束。可选：测试里可以只关心正文。
+  final ValueChanged<bool>? onSelfTestChanged;
 
   @override
   State<_QuestionBody> createState() => _QuestionBodyState();
@@ -268,12 +319,18 @@ class _QuestionBodyState extends State<_QuestionBody> {
           ObjectiveOption(label: option.label, isCorrect: option.isCorrect),
       ];
 
+  /// 把「现在要不要防剧透」告诉父页面：只有「自测中且未提交」这一段要藏。
+  void _notifySelfTestChanged() {
+    widget.onSelfTestChanged?.call(_answersHidden);
+  }
+
   void _toggleSelfTest() {
     setState(() {
       _selfTest = !_selfTest;
       _selectedLabels.clear();
       _attempt = null;
     });
+    _notifySelfTestChanged();
   }
 
   void _toggleOption(String label) {
@@ -299,6 +356,8 @@ class _QuestionBodyState extends State<_QuestionBody> {
     setState(() {
       _attempt = result;
     });
+    // 提交后答案面恢复，剧透区块也跟着回来。
+    _notifySelfTestChanged();
     // 只有「判得出对错」的提交才落库（空选/非客观题没有可判的东西）；
     // 写库失败不该把这次作答变成错误，所以异步吞掉。
     if (result.isCorrect || result.isIncorrect) {
@@ -1042,6 +1101,7 @@ class _QuestionStemView extends ConsumerWidget {
 /// 推理管道区块：按钮 + 失败面 + 链与卡点评估。
 class _ReasoningSection extends ConsumerWidget {
   const _ReasoningSection({
+    super.key,
     required this.questionId,
     required this.running,
     required this.lastRun,
@@ -1590,7 +1650,7 @@ String _number(double value) {
 /// 一道都不像时（空列表）只给空态 + 去收题入口：**不许拿"看着像"的题凑数**，
 /// 这是本片用户口径里最硬的一条。
 class _SimilarQuestionsSection extends ConsumerWidget {
-  const _SimilarQuestionsSection({required this.questionId});
+  const _SimilarQuestionsSection({super.key, required this.questionId});
 
   final String questionId;
 

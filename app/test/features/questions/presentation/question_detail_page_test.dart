@@ -1430,6 +1430,110 @@ void main() {
     expect(submit.onPressed, isNull);
   });
 
+  testWidgets('自测防剧透：未提交时收起 AI 解题/相似题/找原题，提交后恢复', (
+    WidgetTester tester,
+  ) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final similar = await _seedQuestion(database, stem: '普通相似题：求导。');
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      zujuanCandidates: const <ZujuanSearchCandidate>[
+        ZujuanSearchCandidate(
+          keyword: '求两根之和',
+          url: 'https://zujuan.xkw.com/1q1.html',
+        ),
+      ],
+      overrides: <Override>[
+        similarQuestionsProvider.overrideWith(
+          (ref, questionId) => <SimilarQuestion>[
+            SimilarQuestion(
+              questionId: similar.id,
+              score: 0.5,
+              components: const <String, double>{},
+              reasonZh: '题面相近',
+            ),
+          ],
+        ),
+      ],
+    );
+    await _waitForText(tester, '普通相似题：求导。');
+
+    // 平时三块都在：AI 解题、相似题、找原题（有候选才出现）。
+    expect(find.byKey(questionDetailReasoningSectionKey), findsOneWidget);
+    expect(find.byKey(questionDetailSimilarSectionKey), findsOneWidget);
+    expect(find.byKey(questionZujuanSearchButtonKey), findsOneWidget);
+    expect(find.byKey(questionDetailSpoilerGuardHintKey), findsNothing);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+
+    // 自测未提交：三块整块收起，只留一句说明。
+    expect(find.byKey(questionDetailReasoningSectionKey), findsNothing);
+    expect(find.byKey(questionDetailSimilarSectionKey), findsNothing);
+    expect(find.byKey(questionZujuanSearchButtonKey), findsNothing);
+    expect(find.byKey(questionDetailSpoilerGuardHintKey), findsOneWidget);
+    expect(
+      find.text(_zh.questionDetailSelfTestSpoilerHidden),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(questionSelfTestOptionKey('B')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+
+    // 提交后答案面恢复，会剧透的区块也一起回来。
+    expect(find.byKey(questionDetailReasoningSectionKey), findsOneWidget);
+    expect(find.byKey(questionDetailSimilarSectionKey), findsOneWidget);
+    expect(find.byKey(questionZujuanSearchButtonKey), findsOneWidget);
+    expect(find.byKey(questionDetailSpoilerGuardHintKey), findsNothing);
+  });
+
+  testWidgets('自测防剧透：不提交直接结束自测，区块也恢复', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final similar = await _seedQuestion(database, stem: '普通相似题：求导。');
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      overrides: <Override>[
+        similarQuestionsProvider.overrideWith(
+          (ref, questionId) => <SimilarQuestion>[
+            SimilarQuestion(
+              questionId: similar.id,
+              score: 0.5,
+              components: const <String, double>{},
+              reasonZh: '题面相近',
+            ),
+          ],
+        ),
+      ],
+    );
+    await _waitForText(tester, '普通相似题：求导。');
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    expect(find.byKey(questionDetailReasoningSectionKey), findsNothing);
+    expect(find.byKey(questionDetailSimilarSectionKey), findsNothing);
+    expect(find.byKey(questionDetailSpoilerGuardHintKey), findsOneWidget);
+
+    // 没提交就退出自测：防剧透跟着解除。
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    expect(find.byKey(questionDetailReasoningSectionKey), findsOneWidget);
+    expect(find.byKey(questionDetailSimilarSectionKey), findsOneWidget);
+    expect(find.byKey(questionDetailSpoilerGuardHintKey), findsNothing);
+    expect(find.text(_zh.questionDetailSelfTest), findsOneWidget);
+  });
+
   testWidgets('自测历史：一次都没做过时整块不出现', (WidgetTester tester) async {
     final database = _newDatabase();
     final question = await _seedQuestion(database);
