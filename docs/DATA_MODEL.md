@@ -829,3 +829,58 @@ code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由�
 真实 v30 文件升级后老 run 读作单图（`isMulti == false`）、升级后立刻能存多图清单且关库重开不丢；
 伪造「版本 31 但缺 `source_photos` 列」的文件靠 `_ensureColumns` 补列后可读可写（这条会经过
 `_tableFor`，是补 case 的直接来源）；坏 JSON / `[]` / 混入非字符串元素一律读成单图、不抛异常。
+## 21. v32：题库「自测作答」记录（`question_attempts`，轮次一百五十五）
+
+轮次一百五十四给题目详情页加了「自测」（选择题先作答、提交后判分），但判分结果只活在
+`_QuestionBodyState` 的内存里：关掉详情页，这次做没做、对没对就没了。v32 给题库加一张
+**只追加**的作答表，把「判分成功」的提交落下来，详情页读它显示「自测几次 / 对几次 / 最近一次」。
+
+| 表 | 列 | 类型 | 语义 |
+| --- | --- | --- | --- |
+| `question_attempts` | `id` | TEXT PK | `Ids.next('qa')` |
+| | `question_id` | TEXT references `questions(id)` | 作答的是哪道题 |
+| | `selected_labels` | TEXT，默认 `'[]'` | JSON 字符串数组，已归一化（trim → 大写 → 去空 → 去重 → 升序） |
+| | `is_correct` | BOOL，非空 | 这次判对了吗；只存判分成功的作答，所以不需要「NULL = 没判过」 |
+| | `attempted_at` | INT，非空 | 提交时刻（epoch ms） |
+
+**口径**（表定义 `app/lib/data/database/tables.dart:1595-1617`）：
+- 一行 = 一次**判分成功**的提交；空选（`emptySelection`）、非客观题（`notObjective`）根本不落库，
+  否则「做过几次」会被误触的次数污染。
+- **只追加**：改答案、重做一遍都是新行；历史是既成事实，不更新也不覆盖。
+- 与 `review_logs` 分开：那是闪存卡复习测试（参与调度），这里是题库里点开一道题自己先做一遍的
+  学习痕迹，**不参与任何调度与排序权重**。
+- 归一化落在 `QuestionAttemptRepository.encodeSelectedLabels()`（`app/lib/data/repositories/question_attempt_repository.dart:83`），
+  不交给调用方：界面传进来的 label 可能带空格或大小写不同，存进去的形状必须唯一。
+- 排序口径两处各写一次且必须相同：**`attempted_at` 降序，同一毫秒按 `id` 升序**
+  （SQL 在 `historyFor`，领域层在 `QuestionAttemptHistory.fromEntries`）。
+
+**迁移**：`_upgradeV31ToV32()`（`app/lib/data/database/database.dart:916`）表已存在直接返回，
+否则 `Migrator.createTable(questionAttempts)`；`_ensureColumns()` 自愈（:419）在版本号已是 32
+但表被盖没时补建；`schemaVersion => 32`（:115）。`database.g.dart` 由
+`dart run build_runner build --delete-conflicting-outputs` 重新生成（57 s、814 outputs）。
+本迁移只新建表、**不改已有表的任何列**，所以没有回填问题。
+
+**删题连带清理**：本项目不用外键级联，`QuestionRepository.deleteQuestion()` 的事务里显式补一行
+`await (_db.delete(_db.questionAttempts)..where((t) => t.questionId.equals(id))).go();`
+（`app/lib/data/repositories/question_repository.dart:764`，在 objectTags 之后、questions 之前）。
+
+**读写接口**（`app/lib/data/repositories/question_attempt_repository.dart`）：
+- `record({questionId, selectedLabels, isCorrect, DateTime? now})`（:22）→ 插入一行并返回 id；
+- `historyFor(questionId, {limit = 200})`（:46）→ 新→旧的 `QuestionAttemptEntry` 列表；
+  `limit <= 0` 直接返回空表（不先去数据库拿一行再丢掉）；
+- `deleteForQuestion(questionId)`（:73）→ 删除行数（删题事务内部用）。
+- provider：`questionAttemptRepositoryProvider`（`app/lib/data/repositories/repository_providers.dart:102`）；
+  详情页只读视图 `questionAttemptHistoryProvider`（`app/lib/features/questions/presentation/question_detail_providers.dart:55`，
+  `FutureProvider.autoDispose.family` + `ref.watchDatabaseRevision()`，写库后自动重读）。
+
+**测试锁的事实**（`app/test/data/database/v32_migration_test.dart` 4 例、
+`app/test/data/repositories/question_attempt_repository_test.dart` 6 例、
+`app/test/domain/services/questions/attempt_history_test.dart` 16 例，全绿）：
+- 真实 v31 文件升级后 `user_version` = 32、原题还在、作答表可写可读且关库重开不丢；
+- 被盖成「版本 32 但缺 `question_attempts` 表」的老文件靠 `_ensureColumns` 自愈建表，可写可读；
+- v30 老库一路升到 32（同一次迁移里 v30→v31 补 `source_photos`、v31→v32 建表都生效）；
+- 健康 v32 库重开不重建表、行还在；
+- 仓储层：label 归一化 `[' b','a ','A','']` → `["A","B"]`、`attempted_at` 是 epoch 毫秒、
+  新→旧排序、同毫秒按 id 升序、limit 生效、`deleteForQuestion` 只删该题、
+  `deleteQuestion` 连带清空该题作答且不碰别的题。
+

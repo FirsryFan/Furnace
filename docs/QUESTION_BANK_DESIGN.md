@@ -1869,4 +1869,73 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   如产品需要整页防剧透，另开一片。
 - 自测中选项文字不可长按选中复制（整行点击所需），退出自测恢复。
 - 真机手动自测未验证（只有 widget test 证据）。
+## 35. 自测作答记录落库与详情页历史行（轮次一百五十五，2026-10-24）
+
+> 上一节（§34）的自测判分只在内存里：关掉详情页就什么都不剩。本节把「判分成功」的提交
+> 追加进新表 `question_attempts`（schema **v31 → v32**），详情页读它显示
+> 「自测 N 次 · 答对 M 次」和「最近一次答对/答错：yyyy-MM-dd HH:mm」。
+> 仍然**不调模型、不参与调度**：这只是学习痕迹，不是错题本，也不改任何排序权重。
+
+### 35.1 域层与数据层
+
+- 领域层 `app/lib/domain/services/questions/attempt_history.dart`（81 行，纯 Dart 零 import，
+  task-163 reasoning-core）：`QuestionAttemptEntry`（:10，id/questionId/isCorrect/attemptedAt）、
+  `QuestionAttemptHistory.fromEntries(entries)`（:43）——排序 **`attemptedAt` 降序、同一毫秒
+  `id` 升序**，`entries` 为 `List.unmodifiable`，并派生 `isEmpty/total/correct/incorrect/latest/latestIsCorrect`。
+  单测 `app/test/domain/services/questions/attempt_history_test.dart` **16 例**。
+- 表 `question_attempts`（`app/lib/data/database/tables.dart:1595`）：`id` TEXT PK、
+  `question_id` 引用 `questions.id`、`selected_labels` TEXT 默认 `'[]'`（JSON 数组）、
+  `is_correct` BOOL、`attempted_at` INT（epoch ms）。只存**判分成功**的提交（`correct`/`incorrect`），
+  只追加，不更新不覆盖。
+- 仓储 `app/lib/data/repositories/question_attempt_repository.dart`：
+  `record(...)`（:22，`Ids.next('qa')`，label 归一化 trim→大写→去空→去重→升序后 `jsonEncode`）、
+  `historyFor(questionId, {limit = 200})`（:46，SQL `ORDER BY attempted_at DESC, id ASC LIMIT`，
+  `limit <= 0` 直接空表）、`deleteForQuestion`（:73）。
+- provider：`questionAttemptRepositoryProvider`（`repository_providers.dart:102`）、
+  详情页 `questionAttemptHistoryProvider`（`question_detail_providers.dart:55`，
+  `FutureProvider.autoDispose.family` 且 `ref.watchDatabaseRevision()` → 写库自动刷新）。
+- schema v32：`database.dart` `schemaVersion => 32`（:115）、`onUpgrade` 的
+  `if (from < 32) await _upgradeV31ToV32()`（:215）、`_upgradeV31ToV32()`（:916，
+  表存在直接返回否则 `Migrator.createTable`）、`_ensureColumns()` 自愈（:419）；
+  `database.g.dart` 用 build_runner 重生成。删题事务里显式删该题作答
+  （`question_repository.dart:764`，本项目无外键级联）。
+- l10n 3 key（Lead 手改 ARB + `flutter gen-l10n`）：`questionDetailAttemptHistory(total, correct)`、
+  `questionDetailAttemptLastCorrect(at)`、`questionDetailAttemptLastIncorrect(at)`。
+
+### 35.2 详情页 UI（task-164 question-intake）
+
+文件 `app/lib/features/questions/presentation/question_detail_page.dart`（+89/-…）：
+
+- 新 key `questionAttemptHistoryKey = Key('question-attempt-history')`（:63）。
+- `_submit()`（:276）先算出 `result` 再 `setState`；**只有 `result.isCorrect || result.isIncorrect`**
+  才 `_recordAttempt(result)`（:295）——空选、不可判分不写库。写库是 fire-and-forget：
+  `ProviderScope.containerOf(context, listen: false).read(questionAttemptRepositoryProvider).record(...)`，
+  外层 try/catch + `debugPrint`，失败只记日志，界面照常显示判分。
+- 历史行 `_AttemptHistoryLine`（:704）插在选项区块之后、答案区块之前（调用点 :583），
+  `ConsumerWidget` 读 `questionAttemptHistoryProvider(questionId).valueOrNull`：
+  loading/error/空历史一律 `SizedBox.shrink()`（不占位、不报错）；有历史时两行 `bodySmall`：
+  「自测 N 次 · 答对 M 次」+「最近一次答对/答错：时间」。
+- `_formatAttemptTime`（:748）→ `yyyy-MM-dd HH:mm`（本地时区，与任务详情页同一写法，手写 padLeft）。
+
+测试 `app/test/features/questions/presentation/question_detail_page_test.dart` 49 → **54 例**（+5）：
+①无记录不显示历史块；②种 3 条（2 对 1 错）→ 显示「3 次 · 答对 2 次」+ 最近一次（按时间取最新）；
+③自测选 B 提交 → 落库 1 条 `isCorrect=true` 且历史行自动刷新；④选 A 提交 → 落库 `isCorrect=false`
+且显示「最近一次答错」；⑤写库抛异常（`_FailingAttemptRepository`）→ 判分横幅照常显示、无异常。
+新增 helper 参数 `_newDatabase({bool observeWrites = false})`（:1572，仅自动刷新用例装
+`instrumentWrites`），其余用例与既有 helper 行为不变。
+
+### 35.3 测试、门禁与边界
+
+- 测试：`v32_migration_test.dart` 4 例（真实 v31→32 / v32 缺表自愈 / v30 一路升 32 / 健康库重开），
+  `question_attempt_repository_test.dart` 6 例，`attempt_history_test.dart` 16 例，
+  `question_detail_page_test.dart` 54 例。scoped 全绿。
+- 门禁：本轮改动手写文件 format `0 changed`；`dart analyze lib test` = 91 issues / 0 error / 0 warning；
+  全量 `flutter test --concurrency=1` 见 `docs/PROGRESS.md` 轮次一百五十五条目。
+- 边界与未做：
+  - **只有作答记录，没有错题本**：没有「做错过」筛选、没有正确率统计页、没有按作答历史的推荐；
+  - 同一道题重复自测 → 每次各记一行（这是设计，不是去重）；
+  - 写库失败只 `debugPrint`，用户看不到任何提示（判分本身不受影响）；
+  - 自测时 AI 解题区/知识点链仍可见（§34.3 的已知缺口，本片未动）；
+  - 真机未手测；历史行显示的是**最近一次**，没有逐条列表页（要看明细需要另开一片）。
+
 

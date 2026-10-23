@@ -2,6 +2,65 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十五：自测作答记录落库（schema v32）+ 详情页历史行（Lead + 两个 teammate 并行）
+
+**起点**：轮次一百五十四收尾（HEAD `0743f91`，工作树干净）。选片理由：上一轮的「自测」判分
+只活在 `_QuestionBodyState` 的内存里，关掉详情页就什么都不剩；把「判分成功」的提交落库后，
+详情页能显示「自测几次 / 对几次 / 最近一次对错」，也为后面的错题本（题库「做错过」筛选）铺数据。
+**新增一张表、schema v31 → v32**，仍然不调模型、不参与调度。
+
+**片 1：domain 纯逻辑（task-163 reasoning-core）**
+- 新 `app/lib/domain/services/questions/attempt_history.dart`（81 行、零 import）：
+  `QuestionAttemptEntry`（id/questionId/isCorrect/attemptedAt）、`QuestionAttemptHistory.fromEntries`，
+  排序 `attemptedAt` 降序 + 同毫秒 `id` 升序，派生 `isEmpty/total/correct/incorrect/latest/latestIsCorrect`。
+- `app/test/domain/services/questions/attempt_history_test.dart` **16 例**。
+
+**片 2：数据层（Lead）**
+- schema v32：新表 `question_attempts`（`app/lib/data/database/tables.dart:1595`，id/key、question_id 引用
+  questions、selected_labels JSON 默认 `'[]'`、is_correct、attempted_at epoch ms；只追加、只存判分成功的提交）；
+  `database.dart` `schemaVersion => 32`（:115）、`onUpgrade` 的 `_upgradeV31ToV32()`（:215/:916）、
+  `_ensureColumns()` 自愈（:419）；`database.g.dart` 用 build_runner 重生成（57 s、814 outputs）。
+- 新仓储 `app/lib/data/repositories/question_attempt_repository.dart`：`record`（:22，归一化后 jsonEncode）、
+  `historyFor`（:46，`ORDER BY attempted_at DESC, id ASC LIMIT`，limit<=0 直接空表）、
+  `deleteForQuestion`（:73）、`encodeSelectedLabels`（:83，trim→大写→去空→去重→升序）。
+- `question_repository.dart:764` 的 `deleteQuestion` 事务里显式删该题作答（本项目无外键级联）。
+- provider：`questionAttemptRepositoryProvider`（`repository_providers.dart:102`）。
+
+**片 3：详情页 UI（task-164 question-intake）**
+- `app/lib/features/questions/presentation/question_detail_page.dart`（+89）：`questionAttemptHistoryKey`（:63）；
+  `_submit` 判分后只在 `isCorrect || isIncorrect` 时 fire-and-forget 写库（`_recordAttempt` :295，
+  try/catch + debugPrint，不阻断界面）；`_AttemptHistoryLine`（:704）放在选项后答案前（调用点 :583），
+  loading/error/空历史整块 `SizedBox.shrink`，有历史显示「自测 N 次 · 答对 M 次」+「最近一次答对/答错：时间」；
+  `_formatAttemptTime` → `yyyy-MM-dd HH:mm`。
+- `question_detail_providers.dart:55` 新增 `questionAttemptHistoryProvider`（autoDispose.family +
+  `ref.watchDatabaseRevision()`，写库自动重读）。
+- l10n 3 key（Lead 手改 ARB + gen-l10n）：`questionDetailAttemptHistory(total,correct)`、
+  `questionDetailAttemptLastCorrect(at)`、`questionDetailAttemptLastIncorrect(at)`。
+- 测试 49 → **54 例**（+5：无记录不显示 / 种 3 条显示统计 / 答对落库并自动刷新 / 答错落库 /
+  写库失败仍正常判分）。
+
+**片 4：迁移与仓储测试（task-165 threadflow-engine）**
+- `app/test/data/database/v32_migration_test.dart`（192 行、**4 例**）：真实 v31 文件升 32 后原题还在、
+  作答可写可读且重开不丢；版本 32 但缺表靠自愈建表；v30 一路升 32（同遍迁移里 v30→v31 补列 +
+  v31→v32 建表都生效）；健康 v32 重开不重建表。
+- `app/test/data/repositories/question_attempt_repository_test.dart`（191 行、**6 例**）：record 落库与
+  label 归一化（`[' b','a ','A','']` → `["A","B"]`）、新→旧排序、同毫秒 id 升序、limit、`deleteForQuestion`、
+  `deleteQuestion` 连带清空该题作答且不碰别的题。
+
+**门禁（本机实测）**
+- format：本轮手写 4 个 dart 文件 + 数据层 7 文件均 `0 changed`；
+  `dart analyze lib test` = **91 issues / 0 error / 0 warning**。
+- scoped：`objective` 无改动；`question_detail_page_test` `+54`；`v32_migration_test` +
+  `question_attempt_repository_test` `+10`。
+- 全量 `flutter test --concurrency=1` → **+5716 ~2 All tests passed**（10:22，EXIT=0；
+  日志 `E:/dsh-tmp-aot/test-155-full.txt`；基线 +5685，净增 31 = 16 + 4 + 6 + 5）。
+
+**提交**：l10n 3 key → domain attempt_history → schema v32 数据层 → 详情页历史行 → v32 迁移/仓储测试 → 本条 docs。
+
+**未做 / 风险**：只有作答记录、没有错题本（无「做错过」筛选、无正确率页、不参与推荐排序）；
+同一道题重复自测每次各记一行（设计如此）；写库失败只 debugPrint、用户无感；自测时 AI 解题区
+仍可见（§34.3 旧缺口）；真机未手测；历史行只有「最近一次」，没有明细列表页。
+
 ## 2026-10-24 轮次一百五十四：题目详情页自测——选择题客观判分（Lead + 两个 teammate 并行）
 
 **起点**：轮次一百五十三收尾（HEAD `2cc1c2c`，v0.6.3 已推送、工作树干净）。选片理由：
