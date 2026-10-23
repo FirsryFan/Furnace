@@ -3026,5 +3026,29 @@
         "type": "String"
       }
     }
+  },
+  "questionLibrarySortTooltip": "Sort",
+  "@questionLibrarySortTooltip": {
+    "description": "Tooltip for the question library sort entry."
+  },
+  "questionLibrarySortNewest": "Newest",
+  "@questionLibrarySortNewest": {
+    "description": "Question library sort: newest first (default)."
+  },
+  "questionLibrarySortSerial": "Serial no.",
+  "@questionLibrarySortSerial": {
+    "description": "Question library sort: ascending serial number, missing serials last."
+  },
+  "questionLibrarySortWrongFirst": "Wrong first",
+  "@questionLibrarySortWrongFirst": {
+    "description": "Question library sort: most wrong attempts first."
+  },
+  "questionDetailPreviousQuestion": "Previous question",
+  "@questionDetailPreviousQuestion": {
+    "description": "Question detail: jump to the previous question by serial number."
+  },
+  "questionDetailNextQuestion": "Next question",
+  "@questionDetailNextQuestion": {
+    "description": "Question detail: jump to the next question by serial number."
   }
 }

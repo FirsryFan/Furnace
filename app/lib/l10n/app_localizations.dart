@@ -9019,6 +9019,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to delete record: {error}'**
   String questionDetailAttemptEntryDeleteFailed(String error);
+
+  /// Tooltip for the question library sort entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get questionLibrarySortTooltip;
+
+  /// Question library sort: newest first (default).
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get questionLibrarySortNewest;
+
+  /// Question library sort: ascending serial number, missing serials last.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial no.'**
+  String get questionLibrarySortSerial;
+
+  /// Question library sort: most wrong attempts first.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong first'**
+  String get questionLibrarySortWrongFirst;
+
+  /// Question detail: jump to the previous question by serial number.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous question'**
+  String get questionDetailPreviousQuestion;
+
+  /// Question detail: jump to the next question by serial number.
+  ///
+  /// In en, this message translates to:
+  /// **'Next question'**
+  String get questionDetailNextQuestion;
 }
 
 class _AppLocalizationsDelegate

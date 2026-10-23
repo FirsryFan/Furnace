@@ -5417,4 +5417,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String questionDetailAttemptEntryDeleteFailed(String error) {
     return 'Failed to delete record: $error';
   }
+
+  @override
+  String get questionLibrarySortTooltip => 'Sort';
+
+  @override
+  String get questionLibrarySortNewest => 'Newest';
+
+  @override
+  String get questionLibrarySortSerial => 'Serial no.';
+
+  @override
+  String get questionLibrarySortWrongFirst => 'Wrong first';
+
+  @override
+  String get questionDetailPreviousQuestion => 'Previous question';
+
+  @override
+  String get questionDetailNextQuestion => 'Next question';
 }

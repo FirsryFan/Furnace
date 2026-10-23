@@ -2933,5 +2933,29 @@
         "type": "String"
       }
     }
+  },
+  "questionLibrarySortTooltip": "排序",
+  "@questionLibrarySortTooltip": {
+    "description": "题库页排序入口的提示。"
+  },
+  "questionLibrarySortNewest": "最新",
+  "@questionLibrarySortNewest": {
+    "description": "题库排序：默认，最近入库的在前。"
+  },
+  "questionLibrarySortSerial": "题号",
+  "@questionLibrarySortSerial": {
+    "description": "题库排序：按题号升序，没有题号的排在最后。"
+  },
+  "questionLibrarySortWrongFirst": "错题优先",
+  "@questionLibrarySortWrongFirst": {
+    "description": "题库排序：自测答错次数多的排前面。"
+  },
+  "questionDetailPreviousQuestion": "上一题",
+  "@questionDetailPreviousQuestion": {
+    "description": "详情页：按题号跳到上一题。"
+  },
+  "questionDetailNextQuestion": "下一题",
+  "@questionDetailNextQuestion": {
+    "description": "详情页：按题号跳到下一题。"
   }
 }

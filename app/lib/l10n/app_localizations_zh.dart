@@ -5200,4 +5200,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String questionDetailAttemptEntryDeleteFailed(String error) {
     return '删除记录失败：$error';
   }
+
+  @override
+  String get questionLibrarySortTooltip => '排序';
+
+  @override
+  String get questionLibrarySortNewest => '最新';
+
+  @override
+  String get questionLibrarySortSerial => '题号';
+
+  @override
+  String get questionLibrarySortWrongFirst => '错题优先';
+
+  @override
+  String get questionDetailPreviousQuestion => '上一题';
+
+  @override
+  String get questionDetailNextQuestion => '下一题';
 }
