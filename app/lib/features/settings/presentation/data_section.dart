@@ -399,10 +399,81 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
         listBackups: () => ref.read(questionPackServiceProvider).listBackups(),
         deleteBackup: (path) =>
             ref.read(questionPackServiceProvider).deleteBackup(path),
+        restoreBackup: _restoreFromBackup,
       ),
     );
     if (!mounted) return;
     await _reloadBackups();
+  }
+
+  /// 从一份导入前备份恢复题库：确认 → 读字节 → 预检 → 导入 → 刷新并报告。
+  ///
+  /// 恢复是「按题号更新 + 追加缺题」：备份里没有的当前题目不会被删；
+  /// [QuestionPackService.importPack] 写库前还会再自动备份一次当前题库。
+  Future<void> _restoreFromBackup(QuestionPackBackup backup) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackBackupsTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.settingsQuestionPackRestoreConfirm(backup.name)),
+            const SizedBox(height: 8),
+            Text(
+              l10n.settingsQuestionPackRestoreConfirmBody,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.settingsQuestionPackRestoreAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    final service = ref.read(questionPackServiceProvider);
+    setState(() => _busy = true);
+    try {
+      final bytes = await service.readBackupBytes(backup.path);
+      final preview = await service.planImport(bytes);
+      if (!mounted) {
+        return;
+      }
+      final approved = await _askImportPreview(l10n, preview);
+      if (approved != true || !mounted) {
+        return;
+      }
+      final report = await service.importPack(bytes);
+      if (!mounted) {
+        return;
+      }
+      _refreshQuestionViews();
+      unawaited(_reloadBackups());
+      await _showImportReport(l10n, report);
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.settingsQuestionPackRestoreFailed('$error')),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
   }
 
   Future<void> _export() async {
@@ -737,18 +808,23 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
   }
 }
 
-/// 导入前备份清单：列出 `<documents>/question_pack_backups/` 里的 `.tqb`，逐份可删。
+/// 导入前备份清单：列出 `<documents>/question_pack_backups/` 里的 `.tqb`，
+/// 逐份可恢复、可删。
 class _QuestionPackBackupsDialog extends StatefulWidget {
   const _QuestionPackBackupsDialog({
     required this.listBackups,
     required this.deleteBackup,
+    required this.restoreBackup,
   });
 
-  /// 读当前备份（每次删除后重读，成功与否以磁盘为准）。
+  /// 读当前备份（每次删除/恢复后重读，成功与否以磁盘为准）。
   final Future<List<QuestionPackBackup>> Function() listBackups;
 
   /// 删一份备份；失败抛出，由对话框提示。
   final Future<void> Function(String path) deleteBackup;
+
+  /// 用一份备份恢复题库（确认、预检与结果提示都在父级做）。
+  final Future<void> Function(QuestionPackBackup backup) restoreBackup;
 
   @override
   State<_QuestionPackBackupsDialog> createState() =>
@@ -759,7 +835,9 @@ class _QuestionPackBackupsDialogState
     extends State<_QuestionPackBackupsDialog> {
   List<QuestionPackBackup>? _backups;
   Object? _loadError;
-  bool _deleting = false;
+
+  /// 恢复或删除进行中：两个按钮一起禁用，避免重叠操作。
+  bool _busy = false;
 
   @override
   void initState() {
@@ -803,7 +881,7 @@ class _QuestionPackBackupsDialogState
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _deleting = true);
+    setState(() => _busy = true);
     try {
       await widget.deleteBackup(backup.path);
       messenger.showSnackBar(
@@ -818,7 +896,24 @@ class _QuestionPackBackupsDialogState
       );
     } finally {
       if (mounted) {
-        setState(() => _deleting = false);
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  /// 恢复一份备份；成功后重读列表（恢复前会自动再备份一次当前题库）。
+  Future<void> _restore(QuestionPackBackup backup) async {
+    setState(() => _busy = true);
+    try {
+      await widget.restoreBackup(backup);
+      if (!mounted) return;
+      await _load();
+    } on Object catch (error) {
+      // 失败文案由父级 SnackBar 统一提示，这里只记日志兜底。
+      debugPrint('restore question pack backup failed: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
       }
     }
   }
@@ -859,11 +954,21 @@ class _QuestionPackBackupsDialogState
                       '${questionPackSizeText(backup.sizeBytes)} · '
                       '${_backupTimeText(backup.modifiedAt)}',
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: l10n.settingsQuestionPackBackupDeleteTooltip,
-                      onPressed:
-                          _deleting ? null : () => _confirmDelete(backup),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.restore),
+                          tooltip: l10n.settingsQuestionPackRestoreTooltip,
+                          onPressed: _busy ? null : () => _restore(backup),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: l10n.settingsQuestionPackBackupDeleteTooltip,
+                          onPressed:
+                              _busy ? null : () => _confirmDelete(backup),
+                        ),
+                      ],
                     ),
                   ),
               ],

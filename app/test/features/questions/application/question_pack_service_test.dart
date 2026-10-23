@@ -448,6 +448,57 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+
+    test('readBackupBytes：读出与备份文件一致的字节，且不动文件', () async {
+      final file = writeBackup(
+        '题库备份-20261023-060810-123.tqb',
+        bytes: const <int>[9, 8, 7, 6],
+      );
+
+      final bytes = await source.service.readBackupBytes(file.path);
+
+      expect(bytes, const <int>[9, 8, 7, 6]);
+      expect(file.existsSync(), isTrue);
+      expect(file.readAsBytesSync(), const <int>[9, 8, 7, 6]);
+    });
+
+    test('readBackupBytes：目录外路径、非 .tqb 都被拒', () async {
+      final databaseFile = File(p.join(source.support.path, 'furnace.db'))
+        ..writeAsStringSync('not a backup');
+      await expectLater(
+        source.service.readBackupBytes(databaseFile.path),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // 后缀像备份、但放错目录的也拒：校验靠父目录，不只查后缀。
+      final strayPack = File(p.join(source.support.path, 'manual.tqb'))
+        ..writeAsBytesSync(const <int>[1]);
+      await expectLater(
+        source.service.readBackupBytes(strayPack.path),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // 目录里但后缀不对的同样拒。
+      final wrongExtension = File(
+        p.join(backupDirectory().path, '题库备份-20261023-060810-123.zip'),
+      )..createSync(recursive: true);
+      await expectLater(
+        source.service.readBackupBytes(wrongExtension.path),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('readBackupBytes：备份目录里的文件不存在时抛 FileSystemException', () async {
+      final missing = p.join(
+        backupDirectory().path,
+        '题库备份-20261023-060810-999.tqb',
+      );
+
+      await expectLater(
+        source.service.readBackupBytes(missing),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
   });
 
   group('导入前自动备份', () {

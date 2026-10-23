@@ -446,6 +446,37 @@ class QuestionPackService {
     final directory = Directory(
       p.join(documents.path, kQuestionPackBackupFolderName),
     );
+    final target = _validatedBackupPath(directory, path, action: '删除');
+    final file = File(target);
+    if (!await file.exists()) {
+      return;
+    }
+    await file.delete();
+  }
+
+  /// 读出一份导入前备份的字节，供「从备份恢复」使用。
+  ///
+  /// 校验与 [deleteBackup] 同一套：路径规范化后父目录必须是备份目录、后缀必须
+  /// 是 `.tqb`，否则抛 [ArgumentError]；只读，不删除也不改写备份。文件已经不在
+  /// 或读失败时由 [File.readAsBytes] 自然抛 [FileSystemException]，文案交给调用方。
+  Future<Uint8List> readBackupBytes(String path) async {
+    final documents = await _documentsDirectory();
+    final directory = Directory(
+      p.join(documents.path, kQuestionPackBackupFolderName),
+    );
+    final target = _validatedBackupPath(directory, path, action: '读取');
+    return File(target).readAsBytes();
+  }
+
+  /// 把 [path] 校验并规范化为备份目录里的 `.tqb` 绝对路径。
+  ///
+  /// 备份目录外的一律抛 [ArgumentError]（连不存在的路径也拒，免得拿任意路径
+  /// 当探针）；[action] 只用于错误文案（删除/读取）。
+  String _validatedBackupPath(
+    Directory directory,
+    String path, {
+    required String action,
+  }) {
     final backupDirectory = p.normalize(directory.absolute.path);
     final target = p.normalize(File(path).absolute.path);
     if (p.extension(target).toLowerCase() != '.tqb' ||
@@ -453,14 +484,10 @@ class QuestionPackService {
       throw ArgumentError.value(
         path,
         'path',
-        '只能删除导入前备份目录里的 .tqb',
+        '只能$action导入前备份目录里的 .tqb',
       );
     }
-    final file = File(target);
-    if (!await file.exists()) {
-      return;
-    }
-    await file.delete();
+    return target;
   }
 
   /// 本机题库现有题目数（一次 COUNT；备份只在这个数 > 0 时做）。

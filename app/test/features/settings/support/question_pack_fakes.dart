@@ -157,12 +157,16 @@ final class FakeQuestionPackService implements QuestionPackService {
   /// [listBackups] 的返回值；删除成功会同步从这里移除（模拟刷新后条目变少）。
   List<QuestionPackBackup> backups = const <QuestionPackBackup>[];
 
+  /// [readBackupBytes] 返回的字节（恢复时应原样交给 planImport/importPack）。
+  Uint8List backupBytes = Uint8List.fromList(<int>[7, 7, 7]);
+
   Object? exportError;
   Object? previewError;
   Object? planError;
   Object? importError;
   Object? listBackupsError;
   Object? deleteBackupError;
+  Object? readBackupBytesError;
 
   /// 挂住导出（挂起期间断言两行 tile 都被禁用）。
   Completer<void>? exportGate;
@@ -172,7 +176,9 @@ final class FakeQuestionPackService implements QuestionPackService {
   int planCalls = 0;
   int importCalls = 0;
   int listBackupsCalls = 0;
+  int readBackupBytesCalls = 0;
   final List<String> deletedBackupPaths = <String>[];
+  final List<String> readBackupBytesPaths = <String>[];
   final List<Uint8List> peekedBytes = <Uint8List>[];
   final List<Uint8List> plannedBytes = <Uint8List>[];
   final List<Uint8List> importedBytes = <Uint8List>[];
@@ -256,5 +262,15 @@ final class FakeQuestionPackService implements QuestionPackService {
     }
     backups =
         backups.where((backup) => backup.path != path).toList(growable: false);
+  }
+
+  @override
+  Future<Uint8List> readBackupBytes(String path) async {
+    readBackupBytesCalls++;
+    readBackupBytesPaths.add(path);
+    if (readBackupBytesError != null) {
+      throw readBackupBytesError!;
+    }
+    return backupBytes;
   }
 }

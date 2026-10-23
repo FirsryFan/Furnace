@@ -773,6 +773,126 @@ void main() {
     expect(find.textContaining('denied'), findsOneWidget);
   });
 
+  testWidgets('备份：每份都能恢复，确认后读字节→预检→导入并重读列表', (tester) async {
+    final only = backupOf('题库备份-20261023-060810-123.tqb');
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[only];
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    expect(
+      inDialog(find.widgetWithIcon(IconButton, Icons.restore)),
+      findsOneWidget,
+    );
+
+    await tester.tap(inDialog(find.byIcon(Icons.restore)).first);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(zh.settingsQuestionPackRestoreConfirm(only.name)),
+      findsOneWidget,
+    );
+    expect(
+      find.text(zh.settingsQuestionPackRestoreConfirmBody),
+      findsOneWidget,
+    );
+
+    // 恢复进行中两个按钮一起禁用，防重复触发。
+    for (final icon in <IconData>[Icons.restore, Icons.delete_outline]) {
+      final button = tester.widget<IconButton>(
+        inDialog(find.widgetWithIcon(IconButton, icon)),
+      );
+      expect(button.onPressed, isNull);
+    }
+
+    final listCallsBefore = service.listBackupsCalls;
+    await tester.tap(
+      find.widgetWithText(FilledButton, zh.settingsQuestionPackRestoreAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.readBackupBytesPaths, <String>[only.path]);
+    expect(service.plannedBytes, hasLength(1));
+    expect(service.plannedBytes.single, service.backupBytes);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, zh.settingsQuestionPackImport),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.importCalls, 1);
+    expect(service.importedBytes.single, service.backupBytes);
+    expect(
+      find.text(zh.settingsQuestionPackImportDone(2, 1, 1)),
+      findsOneWidget,
+    );
+    expect(service.deletedBackupPaths, isEmpty);
+
+    final reportDialog = find.ancestor(
+      of: find.text(zh.settingsQuestionPackImportDone(2, 1, 1)),
+      matching: find.byType(AlertDialog),
+    );
+    await tester.tap(
+      find.descendant(
+        of: reportDialog,
+        matching: find.widgetWithText(TextButton, zh.commonClose),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.listBackupsCalls, greaterThan(listCallsBefore));
+    expect(inDialog(find.text(only.name)), findsOneWidget);
+    final restoreButton = tester.widget<IconButton>(
+      inDialog(find.widgetWithIcon(IconButton, Icons.restore)),
+    );
+    expect(restoreButton.onPressed, isNotNull);
+  });
+
+  testWidgets('备份：恢复确认时取消，不读字节也不导入', (tester) async {
+    final only = backupOf('题库备份-20261023-060810-123.tqb');
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[only];
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    await tester.tap(inDialog(find.byIcon(Icons.restore)).first);
+    await tester.pumpAndSettle();
+    await tester.tap(inDialog(find.text(zh.commonCancel)));
+    await tester.pumpAndSettle();
+
+    expect(service.readBackupBytesCalls, 0);
+    expect(service.planCalls, 0);
+    expect(service.importCalls, 0);
+    expect(inDialog(find.text(only.name)), findsOneWidget);
+  });
+
+  testWidgets('备份：读取失败时提示恢复失败，对话框与备份都还在', (tester) async {
+    final only = backupOf('题库备份-20261023-060810-123.tqb');
+    final service = FakeQuestionPackService()
+      ..backups = <QuestionPackBackup>[only]
+      ..readBackupBytesError = StateError('disk gone');
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    await tester.tap(inDialog(find.byIcon(Icons.restore)).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, zh.settingsQuestionPackRestoreAction),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.readBackupBytesCalls, 1);
+    expect(service.planCalls, 0);
+    expect(
+      find.text(zh.settingsQuestionPackRestoreFailed('Bad state: disk gone')),
+      findsOneWidget,
+    );
+    expect(inDialog(find.text(only.name)), findsOneWidget);
+    final restoreButton = tester.widget<IconButton>(
+      inDialog(find.widgetWithIcon(IconButton, Icons.restore)),
+    );
+    expect(restoreButton.onPressed, isNotNull);
+  });
+
   test('题库包新增文案中英文齐全，占位符真的插值', () {
     expect(zh.settingsQuestionPackSection, isNotEmpty);
     expect(zh.settingsQuestionPackExport, isNotEmpty);
@@ -846,6 +966,18 @@ void main() {
       allOf(contains('disk full'), isNot(contains('{error}'))),
     );
 
+    expect(zh.settingsQuestionPackRestoreTooltip, isNotEmpty);
+    expect(zh.settingsQuestionPackRestoreAction, isNotEmpty);
+    expect(zh.settingsQuestionPackRestoreConfirmBody, isNotEmpty);
+    expect(
+      zh.settingsQuestionPackRestoreConfirm('a.tqb'),
+      allOf(contains('a.tqb'), isNot(contains('{name}'))),
+    );
+    expect(
+      zh.settingsQuestionPackRestoreFailed('disk full'),
+      allOf(contains('disk full'), isNot(contains('{error}'))),
+    );
+
     expect(
       zh.settingsQuestionPackExportDone(7, 3, '1.5 KB'),
       allOf(contains('7'), contains('3'), contains('1.5 KB')),
@@ -884,6 +1016,14 @@ void main() {
     expect(en.settingsQuestionPackImportDone(1, 2, 3), contains('1'));
     expect(en.settingsQuestionPackWarnings(5), contains('5'));
     expect(en.settingsQuestionPackFailures(5), contains('5'));
+    expect(en.settingsQuestionPackRestoreTooltip, isNotEmpty);
+    expect(en.settingsQuestionPackRestoreAction, isNotEmpty);
+    expect(en.settingsQuestionPackRestoreConfirmBody, isNotEmpty);
+    expect(en.settingsQuestionPackRestoreConfirm('a.tqb'), contains('a.tqb'));
+    expect(
+      en.settingsQuestionPackRestoreFailed('disk full'),
+      contains('disk full'),
+    );
   });
 
   test('questionPackSizeText 按 B/KB/MB 显示', () {
