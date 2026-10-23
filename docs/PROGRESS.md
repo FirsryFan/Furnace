@@ -2,6 +2,36 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十四：v0.6.7 双端发布（题号高水位 v33 + 多段题号搜索 + 组卷缺口原因）
+
+**起点**：轮次一百六十三收尾（HEAD `fa54dc0`，schema v33，全量 +5816 全绿，工作树干净）。
+v0.6.6 之后只有轮次一百六十三的 5 个提交，但含 **schema v32→v33 迁移**与三个用户点得到的界面变化，出一版安装包。
+
+**版本**：`app/pubspec.yaml` `version: 0.6.7+26`；`app/lib/core/app_info.dart`
+`kAppVersion='0.6.7'`、`kAppBuildNumber=26`；`test/core/app_info_test.dart` +2 通过。
+**schema v33**（相对 v0.6.6 的 v32 有迁移：新表 `question_serial_counters`，不回填历史、只抬水位）。
+
+**Windows**（`scripts/build_windows.ps1`，ASCII junction `E:\Document\furnace-build`）：exit=0；
+`data/app.so` 21,496,712 B @04:58:24；`furnace.exe` 版本资源 `0.6.7+26`；
+打包前删 `kernel_blob.bin` 110,766,568 B；zip **28 entries / 20,488,374 B / 解压 47,145,419 B**，
+顶层 exe + 6 个 dll，`data/app.so` 在包、`kernel_blob` 0 条；
+SHA-256 `AE107F2AFF542851E75BBCC313C4D4646DF49EE1D74B4AD4D3A111D01687D93B`。
+
+**Android**（`scripts/build_android.ps1`）：exit=0，Gradle assembleRelease **119.2s**；
+APK **99,346,814 B（94.7 MB）** SHA-256 `5ADD367296A183A1E4F92957EAA4B1B9532BF45AECE19AEB90C12D2F23E6C4A8`；
+aapt2 `versionCode 26` / `versionName 0.6.7`、minSdk 24 / targetSdk 36 / compileSdk 36；
+证书 `57de8b8f…f32e2db2`。
+
+**dist/**（gitignore，未入库）：`Furnace-0.6.7-android.apk`、`Furnace-0.6.7-windows-x64.zip`、
+`RELEASE-v0.6.7.md`（下载表 / A 题号高水位 / B 多段题号搜索 / C 组卷缺口原因 / 验证数字 / 已知未做 / 发布说明）。
+
+**门禁沿用**：功能提交 `fa54dc0` 上全量 `flutter test --concurrency=1` = +5816 ~2 All tests passed
+（10:23，EXIT 0，日志 `E:/dsh-tmp-aot/test-163-full2.txt`）；`dart analyze lib test` = 91 / 0 / 0；
+发布提交只改版本号与本文档，已复跑 `test/core/app_info_test.dart` +2 通过。
+
+**未做 / 风险**：双端新行为未真机手测；题号仍无 UNIQUE；迁移前删掉的号与外部改号高水位不知道；
+多段题号只接题库搜索；`PaperGapNote.messageZh` 中文硬编码；英文未母语化；无网络同步。
+
 ## 2026-10-24 轮次一百六十三：编号高水位 v33 + 多段题号搜索 + 组卷缺口解释句（Lead + 3 teammate 并行）
 
 **起点**：轮次一百六十二收尾（HEAD `f7220b7`，schema v32，v0.6.6 已发布，全量 +5777 全绿，工作树干净）。
