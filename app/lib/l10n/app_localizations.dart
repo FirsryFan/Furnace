@@ -8779,6 +8779,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore failed: {error}'**
   String settingsQuestionPackRestoreFailed(String error);
+
+  /// No description provided for @settingsQuestionPackBackupPruneAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Prune old backups'**
+  String get settingsQuestionPackBackupPruneAction;
+
+  /// No description provided for @settingsQuestionPackBackupPruneTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete older backups, keeping the most recent {keep}'**
+  String settingsQuestionPackBackupPruneTooltip(int keep);
+
+  /// No description provided for @settingsQuestionPackBackupPruneConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the oldest {count} backup(s), keeping the most recent {keep}? This cannot be undone.'**
+  String settingsQuestionPackBackupPruneConfirm(int count, int keep);
+
+  /// No description provided for @settingsQuestionPackBackupPruneDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count} old backup(s)'**
+  String settingsQuestionPackBackupPruneDone(int count);
+
+  /// No description provided for @settingsQuestionPackBackupPruneFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pruning old backups failed: {error}'**
+  String settingsQuestionPackBackupPruneFailed(String error);
 }
 
 class _AppLocalizationsDelegate

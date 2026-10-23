@@ -5044,4 +5044,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsQuestionPackRestoreFailed(String error) {
     return '恢复失败：$error';
   }
+
+  @override
+  String get settingsQuestionPackBackupPruneAction => '清理旧备份';
+
+  @override
+  String settingsQuestionPackBackupPruneTooltip(int keep) {
+    return '删除更早的备份，只保留最近 $keep 份';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneConfirm(int count, int keep) {
+    return '将删除最早的 $count 份备份，只保留最近 $keep 份。删除后无法恢复。';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneDone(int count) {
+    return '已删除 $count 份旧备份';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneFailed(String error) {
+    return '清理旧备份失败：$error';
+  }
 }

@@ -5258,4 +5258,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsQuestionPackRestoreFailed(String error) {
     return 'Restore failed: $error';
   }
+
+  @override
+  String get settingsQuestionPackBackupPruneAction => 'Prune old backups';
+
+  @override
+  String settingsQuestionPackBackupPruneTooltip(int keep) {
+    return 'Delete older backups, keeping the most recent $keep';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneConfirm(int count, int keep) {
+    return 'Delete the oldest $count backup(s), keeping the most recent $keep? This cannot be undone.';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneDone(int count) {
+    return 'Deleted $count old backup(s)';
+  }
+
+  @override
+  String settingsQuestionPackBackupPruneFailed(String error) {
+    return 'Pruning old backups failed: $error';
+  }
 }

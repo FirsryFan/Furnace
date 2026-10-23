@@ -2828,5 +2828,41 @@
         "type": "String"
       }
     }
+  },
+  "settingsQuestionPackBackupPruneAction": "Prune old backups",
+  "settingsQuestionPackBackupPruneTooltip": "Delete older backups, keeping the most recent {keep}",
+  "@settingsQuestionPackBackupPruneTooltip": {
+    "placeholders": {
+      "keep": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsQuestionPackBackupPruneConfirm": "Delete the oldest {count} backup(s), keeping the most recent {keep}? This cannot be undone.",
+  "@settingsQuestionPackBackupPruneConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "keep": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsQuestionPackBackupPruneDone": "Deleted {count} old backup(s)",
+  "@settingsQuestionPackBackupPruneDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsQuestionPackBackupPruneFailed": "Pruning old backups failed: {error}",
+  "@settingsQuestionPackBackupPruneFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }
