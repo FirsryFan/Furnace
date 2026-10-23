@@ -2,6 +2,41 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十三：v0.6.3 双端发布件（轮次24–25 成果打包）
+
+**起点**：轮次一百五十二收尾（HEAD `9cedd14`，已推送）。v0.6.2 之后攒了 2 轮 / 7 个提交
+（备份一键恢复、多图整理卡编辑后保存、备份保留策略与清理入口），打成双端发布件。dist/ 属 gitignore，
+不入库；本版只改版本号与文档，功能代码未动。
+
+**版本与门禁**
+- `app/pubspec.yaml` `version: 0.6.3+22`；`app/lib/core/app_info.dart` `kAppVersion='0.6.3'`、
+  `kAppBuildNumber=22`；`test/core/app_info_test.dart` +2 通过。
+- 全量 `flutter test --concurrency=1` 在功能提交 `9cedd14` 上 **+5654 ~2 All tests passed**
+  （10:47，EXIT=0）；发布提交只改版本号，未重复跑全量。
+- `dart analyze lib test` = 91 issues / 0 error / 0 warning；`dart format` 10 个改动文件 0 changed；
+  schema 仍 v31（本版无新迁移）。
+
+**双端构建（本机实测）**
+- Windows：`scripts/build_windows.ps1` exit=0（build_runner + flutter build，从 ASCII junction 构建）；
+  产物 `data/app.so` 21,398,408 B @01:15:21；`furnace.exe` 版本资源 `0.6.3+22`；打包前删
+  `kernel_blob.bin` 110,766,568 B；zip 28 entries / 20,447,619 B / 解压 47,047,115 B，顶层
+  exe + 6 个 dll，`data/app.so` 在包，`kernel_blob` 0 条。
+- Android：`scripts/build_android.ps1` exit=0，Gradle assembleRelease **137.4s**；APK 99,051,902 B；
+  apksigner 证书与 v0.5.0–v0.6.2 同一把 `57de8b8f…f32e2db2`；aapt2：`com.furnace.app`、
+  versionCode 22、versionName 0.6.3、minSdk 24、target/compileSdk 36。
+
+**发布件（dist/，gitignore，未入库）**
+- `Furnace-0.6.3-android.apk`：99,051,902 B，SHA-256 `C86315EA…8CAACB222`。
+- `Furnace-0.6.3-windows-x64.zip`：20,447,619 B，SHA-256 `ACB3120F…242D1B9AB0`。
+- `RELEASE-v0.6.3.md`：下载表、A–C 行为变更、验证数字、已知未做。
+
+**推送**：github.com HTTPS 仍被阻断，沿用轮次23 的 REST git data API 脚本推发布提交；
+tag `v0.6.3` 用 rest-tag.ps1 经 refs API 推（blob/tree/commit sha 与本地一致）。
+
+**未做 / 风险**：双端新界面均未真机手测（恢复链路、多图卡编辑入口、清理按钮）；备份无自动清理、
+无分页、清理不可撤销；恢复中途失败不回滚（靠恢复前自动备份兜底）；多图卡不能重拍某页；
+英文未母语校对；同步网络层仍未做。
+
 ## 2026-10-24 轮次一百五十二：多图卡片编辑后保存、备份保留策略（Lead + 两个 teammate 并行）
 
 **起点**：轮次一百五十一收尾（HEAD `655f23e`，已推送）。本轮补上一轮明说留下的两个边界：
