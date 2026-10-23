@@ -359,6 +359,43 @@ void main() {
     // 没有配 AI key 时：标签、Thread、Time、闪存卡、题库、知识库、设置。
     expect(destinations, hasLength(7));
   });
+
+  testWidgets('有自测记录时顶部多一行「自测 N 次 · 答对 M 次（P%）」', (tester) async {
+    await _seedQuestion(db, id: 'q-attempts', stem: '求二次函数最小值');
+    await _addAttempt(db,
+        id: 'qa-1', questionId: 'q-attempts', isCorrect: true);
+    await _addAttempt(db,
+        id: 'qa-2', questionId: 'q-attempts', isCorrect: false);
+    await _addAttempt(db,
+        id: 'qa-3', questionId: 'q-attempts', isCorrect: true);
+
+    await _pump(tester, db);
+
+    expect(find.byKey(questionBankAttemptStatsKey), findsOneWidget);
+    // 3 次里答对 2 次 → 67%（四舍五入）。
+    expect(find.text(zh.questionBankAttemptStats(3, 2, 67)), findsOneWidget);
+    // 原有的题数统计行还在。
+    expect(find.text(zh.questionBankSummary(1, 0)), findsOneWidget);
+  });
+
+  testWidgets('全库 0 条作答记录时「自测统计」行不渲染（不占位）', (tester) async {
+    await _seedQuestion(db, id: 'q-no-attempts', stem: '求小球的加速度');
+
+    await _pump(tester, db);
+
+    expect(find.byKey(questionBankAttemptStatsKey), findsNothing);
+    expect(find.textContaining('自测 '), findsNothing);
+  });
+
+  testWidgets('1 对 1 错时百分比是 50%', (tester) async {
+    await _seedQuestion(db, id: 'q-half', stem: '已知函数 f(x)=x^2，求最小值');
+    await _addAttempt(db, id: 'qa-ok', questionId: 'q-half', isCorrect: true);
+    await _addAttempt(db, id: 'qa-no', questionId: 'q-half', isCorrect: false);
+
+    await _pump(tester, db);
+
+    expect(find.text(zh.questionBankAttemptStats(2, 1, 50)), findsOneWidget);
+  });
 }
 
 Future<void> _pump(
@@ -408,6 +445,22 @@ Future<void> _seedQuestion(
           sourceLevel: Value(sourceLevel),
           serialNo: Value(serialNo),
           title: Value(title),
+        ),
+      );
+}
+
+Future<void> _addAttempt(
+  AppDatabase db, {
+  required String id,
+  required String questionId,
+  required bool isCorrect,
+}) {
+  return db.into(db.questionAttempts).insert(
+        QuestionAttemptsCompanion.insert(
+          id: id,
+          questionId: questionId,
+          isCorrect: isCorrect,
+          attemptedAt: _ts,
         ),
       );
 }

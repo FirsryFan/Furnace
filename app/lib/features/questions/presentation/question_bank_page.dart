@@ -28,6 +28,7 @@ import '../../../domain/services/media/thumbnail_spec.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
+import '../application/question_attempt_stats_provider.dart';
 import '../application/question_bulk_tagging.dart';
 import '../application/question_library_filter.dart';
 import '../application/question_library_provider.dart';
@@ -75,6 +76,9 @@ String questionBankRowKeyFor(String questionId) =>
 /// 行内「错 N 次」徽标按题 id 生成 key：`question-bank-wrong-badge-<id>`。
 String questionBankWrongBadgeKeyFor(String questionId) =>
     'question-bank-wrong-badge-$questionId';
+
+/// 顶部「自测统计」一行（全库有作答记录时才出现）。
+const Key questionBankAttemptStatsKey = Key('question-bank-attempt-stats');
 
 /// 行菜单「清除作答记录」项按题 id 生成 key：
 /// `question-bank-clear-attempts-<id>`（只有答错过的行才出现）。
@@ -738,6 +742,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   Widget _buildBody(QuestionLibrarySnapshot snapshot) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final attemptStats = ref.watch(questionAttemptStatsProvider).valueOrNull;
     final subjects = snapshot.subjectKeys;
     final shown = _visibleEntries(snapshot);
     final existingTitles = <String>[
@@ -812,6 +817,20 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                           ),
                       ],
                     ),
+                    if (attemptStats != null && attemptStats.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.questionBankAttemptStats(
+                          attemptStats.total,
+                          attemptStats.correct,
+                          attemptStats.percent,
+                        ),
+                        key: questionBankAttemptStatsKey,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     if (subjects.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Wrap(
