@@ -2287,6 +2287,121 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   这是既有口径，不是本轮退化。
 - 真机未手测；英文未母语化。
 
+## 42. 题库页排序：最新 / 题号 / 错题优先（轮次一百六十六，2026-10-24）
+
+> 题库页原来没有任何排序入口：列表顺序就是读表顺序（`created_at` 升序），题号和错题数都只能看
+> 不能用来排。本节加一个 AppBar 排序菜单，三种口径：**最新**（默认，维持读表顺序）、**题号**
+> （`serial_no` 升序，未编号最后）、**错题优先**（`wrongAttemptCount` 降序）。无 schema 变更
+> （仍 v33）、不调模型、排序只影响显示层。
+
+### 42.1 领域纯函数（reasoning-core）
+
+- 新文件 `app/lib/features/questions/application/question_library_sort.dart`（88 行）：
+  `enum QuestionLibrarySort { newest, serial, wrongFirst }`（:22）与
+  `List<QuestionLibraryEntry> sortQuestionLibraryEntries(List<QuestionLibraryEntry> entries, QuestionLibrarySort sort)`（:36-48）。
+- `_stableSorted`（:50-64）：先用下标数组排序、再按下标取回条目——Dart `List.sort` 不保证稳定，
+  而「错题优先」同次数时必须保持原顺序，所以显式做稳定排序。
+- `_compareSerial`（:66-84）：`serialNo` 升序；null 排最后；同号（含都是 null）按 `questionId` 升序兜底。
+- `_compareWrongFirst`（:86-88）：`wrongAttemptCount` 降序，相等交给稳定排序保序。
+- 三种排序都返回 `List.unmodifiable` 新列表（`newest` 也不返回入参本身），不原地改入参；不读 IO、
+  不用时间/随机数——同一输入两次排序结果相同。
+- 测试 `app/test/features/questions/application/question_library_sort_test.dart`（292 行，**17 例**，6 组）：
+  空表/单条、newest 原样、serial 升序与 null 最后、wrongFirst 降序与同次数稳定、返回表不可变且入参不被改、
+  30 条混合表确定性与稳定。
+
+### 42.2 页面接线（question-intake）
+
+- `app/lib/features/questions/presentation/question_bank_page.dart`：
+  - 顶层 key：`questionBankSortMenuKey`（:75，`Key('question-bank-sort-menu')`）与
+    `questionBankSortMenuItemKey(QuestionLibrarySort sort)`（:78）。
+  - `_QuestionBankPageState` 加 `QuestionLibrarySort _sort = QuestionLibrarySort.newest`（:175）。
+  - 新 getter `bool get _readsFullLibrary => _filter.isNotEmpty || _sort != QuestionLibrarySort.newest`（:217-218）：
+    题号/错题优先要按全库排，所以借道既有的「筛选才读全库」档；5 处 provider 入参统一换成它
+    （:274 `_refresh`、:381 `_autoNameMissing`、:416 `_bulkDelete`、:586 `build` 的 read、:654 `build` 的 watch）。
+  - `_visibleEntries`（:439-445）= 先 `filterQuestionLibraryEntries` 再 `sortQuestionLibraryEntries`；
+    多选、全选、批量改名/打标签/删除都走 `_visibleEntries`（如 :483），排序对它们同样生效。
+  - AppBar 刷新按钮前加 `PopupMenuButton<QuestionLibrarySort>`（:719-742，`Icons.sort`、
+    tooltip `l10n.questionLibrarySortTooltip`、`initialValue` 当前档、`onSelected` 只 `setState`），
+    菜单项左侧当前档带 `Icons.check`、其它档留等宽 `SizedBox`（:139）。
+  - 口径：`newest` 不读全库（仍是 500 条总览档，`kQuestionLibraryOverviewLimit`）；切到题号/错题优先
+    才读全库。排序纯显示层——不写库、不改任何统计行/筛选条计数。
+  - 多选态不显示排序菜单（只在非多选 actions 里），与既有多选工具条一致。
+- l10n 4 key（Lead 手改 `app/lib/l10n/app_zh.arb` / `app_en.arb` + `flutter gen-l10n` exit 0）：
+  `questionLibrarySortTooltip`（排序 / Sort）、`questionLibrarySortNewest`（最新 / Newest）、
+  `questionLibrarySortSerial`（题号 / Serial no.）、`questionLibrarySortWrongFirst`（错题优先 / Wrong first）；
+  getter 在 `app/lib/l10n/app_localizations.dart:9027-9045`。
+
+### 42.3 测试、门禁与边界
+
+- `app/test/features/questions/presentation/question_bank_page_test.dart` 20 → **24 例**（`group('排序菜单')` :402，+4）：
+  ①默认最新 = 读表顺序且仍读 500 条总览档（全库独有题不出现）；②选题号 → 1 < 2 < 5 升序且改读全库档；
+  ③错题优先 → 错题数 3 > 1 > 0 降序；④菜单当前项勾选跟随（默认 newest，选 wrongFirst 后勾跟随）。
+- 门禁：format 0 changed；`dart analyze` 两文件 No issues；scoped
+  `flutter test ...question_bank_page_test.dart --concurrency=1` → `+24: All tests passed!`；
+  全量见 `docs/PROGRESS.md` 轮次一百六十六。
+- 边界：**排序偏好不持久化**，重启回到「最新」（与标签树排序偏好的落盘处理不同，按现状不做）；
+  每切一次排序都可能触发一次全库读，超大题库（几千题）下的读表耗时未测；真机未验。
+
+## 43. 题目详情页按题号翻「上一题 / 下一题」（轮次一百六十六，2026-10-24）
+
+> 详情页原来只能通过题库列表进入，看完一道要退回列表再点下一道。本节按题号找当前题的**前后邻居**，
+> 在 AppBar 摆两个箭头直接翻（`pushReplacement`，不加深返回栈）。无 schema 变更（仍 v33）、不调模型、不写库。
+
+### 43.1 数据层（Lead）
+
+- `app/lib/data/repositories/question_repository.dart` 新顶层类：
+  `QuestionSerialNeighbor { questionId, serialNo }`（:164）与
+  `QuestionSerialNeighbors { previous, next; const QuestionSerialNeighbors.empty(); isEmpty/isNotEmpty }`（:175）。
+- `Future<QuestionSerialNeighbors> serialNeighbors(int serialNo)`（:349）：
+  - `serialNo < 1` 直接返回空邻居（号从 1 起，不做注定查不到的查询）；
+  - previous：`serial_no < ?`，`orderBy desc(serialNo), asc(createdAt), asc(id)`，`limit 1`；
+  - next：`serial_no > ?`，`orderBy asc(serialNo), asc(createdAt), asc(id)`，`limit 1`；
+  - 没有题号的题（`serial_no` 为 NULL）天然不参与 `<`/`>` 比较；
+  - 题号**没有 UNIQUE 约束**（§11.1：跨库合并允许同号），同号多题时按 `created_at`、再按 `id` 取第一道，
+    同一份库每次翻到的邻居是同一道，不会抖。
+- 测试 `app/test/data/repositories/question_repository_test.dart` 16 → **18 例**（+2）：
+  ①三题翻页邻居首尾各缺一头；②跳号（把第二题号改成 10）：`serialNeighbors(5)` 找最近的一道、
+  越界 99 只剩上一个、0 / -3 返回空邻居。
+
+### 43.2 provider（Lead）
+
+- `app/lib/features/questions/presentation/question_detail_providers.dart:69`
+  `final questionSerialNeighborsProvider = FutureProvider.autoDispose.family<QuestionSerialNeighbors?, String>`：
+  `ref.watchDatabaseRevision()` + 按 id 读题；**本题没有题号时返回 `null`**（没有翻页坐标），
+  否则返回 `repository.serialNeighbors(serialNo)`。
+
+### 43.3 UI（threadflow-engine）
+
+- `app/lib/features/questions/presentation/question_detail_page.dart`：
+  - 顶层 key：`questionDetailPreviousQuestionKey`（:97）、`questionDetailNextQuestionKey`（:101）。
+  - `_QuestionDetailPageState._openNeighbor(QuestionSerialNeighbor neighbor)`（:208）：
+    `Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => QuestionDetailPage(questionId: neighbor.questionId)))`
+    ——翻页不把旧题留在栈里，返回键直接回进入详情页之前的页面。
+  - build 只 watch 一次（:221-222）：`final neighborsAsync = ref.watch(questionSerialNeighborsProvider(widget.questionId)); final neighbors = neighborsAsync.valueOrNull;`
+  - AppBar `actions`（:230-247）：chevron_left / chevron_right 两个 `IconButton`，
+    tooltip 用 `l10n.questionDetailPreviousQuestion` / `questionDetailNextQuestion`。
+- 状态口径（按钮永远占位，不隐藏）：provider 返回 null（本题无题号）或 loading/error → 两个都
+  `onPressed: null`；有邻居但该侧没有上一道/下一道 → 该侧 `onPressed: null`，另一侧可用。
+
+### 43.4 测试、门禁与边界
+
+- `app/test/features/questions/presentation/question_detail_page_test.dart` 64 → **67 例**
+  （`group('按题号翻上一题 / 下一题')` :2034，+3）：
+  ①打开中间题 → 两箭头可点；按上一题切到题号 1（断言 `QuestionDetailPage.questionId` 变化、
+  AppBar 无 `BackButton` 证明是 pushReplacement），再连按两次下一题到题号 3（此时下一题禁用）；
+  ②打开第一题 → 两个 key 都在，上一个禁用、下一个可点；
+  ③用 `QuestionsCompanion(serialNo: Value<int?>(null))` 清空题号 → provider 返回 null，两按钮都禁用仍占位。
+  - 断言直接读 `QuestionDetailPage.questionId`（相似题区会重复邻居题干，`find.text` 不可靠）；
+    翻页后 `pump 500ms`（路由过渡 300ms），不用 `pumpAndSettle`（页面有无限动画风险）。
+- 门禁：format 0 changed；`dart analyze` 两文件 No issues；scoped
+  `flutter test ...question_detail_page_test.dart --concurrency=1` → `+67: All tests passed!`；
+  全量见 `docs/PROGRESS.md` 轮次一百六十六。
+- 边界：只做「题号相邻」翻页，**没有跳题号输入框**、不显示「第 N / 共 M 题」进度；翻页按当前页只读
+  一次邻居，翻过去后由新页面自己再查；'自测模式' 是各页本地 State，翻页等于换一页（自测中翻走会回到
+  未自测状态，与既有「切走再回来重置」口径一致）；小屏极窄时两个 action 会挤压标题，真机排版未验；
+  两个 SELECT 分开跑、不在同一事务里（同一份库内一致性足够，未加事务）。
+
+
 
 
 

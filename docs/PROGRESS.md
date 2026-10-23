@@ -2,7 +2,60 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
-## 2026-10-24 轮次一百六十五：自测整页防剧透（Lead）
+## 2026-10-24 轮次一百六十六：题库页排序 + 详情页按题号翻「上一题 / 下一题」（Lead + reasoning-core + question-intake + threadflow-engine）
+
+**起点**：轮次一百六十五收尾（HEAD `9d83ada`，v0.6.7 已发布并推送，工作树干净）。
+选片理由：题库页原来没有任何排序入口（只能按读表顺序看），题号与错题数都只显示不能用；
+详情页看完一道只能退回列表再点下一道。两件都是「题库已有数据、缺一个入口」的缺口，
+互补且都不需要 schema 迁移。**无 schema 变更（仍 v33）、不调模型、不写库。**
+
+**片 1：题库排序纯函数（reasoning-core，task-178）**
+- 新 `app/lib/features/questions/application/question_library_sort.dart`（88 行）：
+  `enum QuestionLibrarySort { newest, serial, wrongFirst }` :22、
+  `sortQuestionLibraryEntries(...)` :36-48；`_stableSorted` :50-64 用下标排序解决
+  Dart `List.sort` 不稳定；`_compareSerial` :66-84（升序、null 最后、同号按 id）；
+  `_compareWrongFirst` :86-88（降序、同次数保原序）；三种排序都返回不可变新列表。
+- 新测试 292 行 **17 例**（空表/单条、newest 原样、serial、wrongFirst、不可变、30 条大表确定性）。
+
+**片 2：题库页排序菜单（question-intake，task-179）**
+- `question_bank_page.dart`：顶层 key `questionBankSortMenuKey` :75 / `questionBankSortMenuItemKey` :78；
+  `_sort` :175；`_readsFullLibrary => _filter.isNotEmpty || _sort != newest` :217-218，
+  5 处 provider 入参统一换成它（:274/:381/:416/:586/:654）；`_visibleEntries` :439-445
+  先 filter 再 sort；AppBar 加 `PopupMenuButton<QuestionLibrarySort>` :719-742（当前档带勾选）。
+- 测试 20 → **24 例**（`group('排序菜单')` :402，+4）：默认最新仍读 500 总览档、题号升序且改读全库档、
+  错题优先降序、勾选跟随。
+
+**片 3：题号邻居数据层与 provider（Lead）**
+- `app/lib/data/repositories/question_repository.dart`：新 `QuestionSerialNeighbor` :164、
+  `QuestionSerialNeighbors` :175（含 `empty/isEmpty/isNotEmpty`）、
+  `serialNeighbors(int serialNo)` :349——previous 查 `<` 降序、next 查 `>` 升序，
+  同号多题按 `created_at`/id 兜底；`serialNo < 1` 直接空邻居。
+- `question_detail_providers.dart:69` `questionSerialNeighborsProvider`（无题号返回 null）。
+- 测试 `question_repository_test.dart` 16 → **18 例**（+2：三题首尾各缺一头、跳号找最近 + 越界 + 0/负数空）。
+- l10n 6 key（Lead 手改 ARB + `flutter gen-l10n` exit 0）：`questionLibrarySortTooltip/Newest/Serial/WrongFirst`、
+  `questionDetailPreviousQuestion`、`questionDetailNextQuestion`（getter `app_localizations.dart:9027-9057`）。
+
+**片 4：详情页 AppBar 翻页箭头（threadflow-engine，task-180）**
+- `question_detail_page.dart`：key :97/:101；`_openNeighbor` :208 用 `pushReplacement`（不加深返回栈）；
+  build 只 watch 一次 :221-222；AppBar actions :230-247。无题号 / loading / error → 两按钮禁用占位；
+  该侧无邻居 → 该侧禁用。
+- 测试 64 → **67 例**（新 group :2034，+3）：中间题双向翻页且无 BackButton、第一题上一个禁用、
+  清空题号后两按钮都禁用仍占位。
+
+**门禁（Lead 实跑）**：9 个改动的代码/测试 dart 文件 format 0 changed（3 个 l10n 生成文件由 gen-l10n 产出）；`dart analyze lib test` = **91 issues / 0 error /
+0 warning**（EXIT 0）；scoped 全绿（排序 +17、题库页 +24、详情页 +67、仓储 +18）；全量
+`flutter test --concurrency=1` = **`+5844 ~2: All tests passed`**（10:47，EXIT 0，日志
+`E:/dsh-tmp-aot/test-166-full.txt`；基线 +5818，净增 26）。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §42（题库页排序：42.1 纯函数 / 42.2 页面接线 / 42.3 测试门禁边界）
+与 §43（详情页按题号翻页：43.1 数据层 / 43.2 provider / 43.3 UI / 43.4 测试门禁边界）；
+`docs/DATA_MODEL.md` 不动（无迁移）。**PROGRESS 本条。**
+
+**未做 / 风险**：排序偏好不持久化（重启回「最新」）；切到题号/错题优先会读全库，几千题时的读表耗时未测；
+翻页没有跳题号输入框与「第 N / 共 M 题」进度；小屏极窄时 AppBar 两个 action 会挤压标题，真机未验；
+自测中翻页会随新页面回到未自测状态（既有口径）；英文未母语化；真机未手测。
+
+
 
 **起点**：轮次一百六十四收尾（HEAD `79a5e1f`，v0.6.7 已发布并推送，工作树干净）。
 选片理由：`docs/QUESTION_BANK_DESIGN.md` §34.3 边界「自测中只藏答案/解析/答案截图；「AI 解题」区、
