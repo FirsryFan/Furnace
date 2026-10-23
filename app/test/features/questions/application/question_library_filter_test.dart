@@ -1,6 +1,6 @@
 /// 题库筛选纯逻辑的单元测试。
 ///
-/// 覆盖 9 组：空筛选、学科、标签子树、文字、题号、错题本、组合、
+/// 覆盖 10 组：空筛选、学科、标签子树、文字、题号、多段题号、错题本、组合、
 /// copyWith/相等性、过滤列表与健壮性。全部纯 Dart 构造
 /// [QuestionLibraryEntry] 假数据，不读库。
 library;
@@ -475,6 +475,114 @@ void main() {
           const QuestionLibraryFilter(text: '42'),
         ),
         isTrue,
+      );
+    });
+  });
+
+  group('多段题号', () {
+    test('1-3 命中 1/2/3，不命中 4', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(text: '1-3');
+      expect(questionLibraryEntryMatches(_entry(serialNo: 1), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 2), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 3), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 4), filter), isFalse);
+    });
+
+    test('TR-2, 4 命中 2 与 4，前缀/大小写/分隔符都认', () {
+      for (final String text in <String>['TR-2, 4', 'tr-2,4', 'TR-2、4']) {
+        final QuestionLibraryFilter filter = QuestionLibraryFilter(text: text);
+        expect(
+          questionLibraryEntryMatches(_entry(serialNo: 2), filter),
+          isTrue,
+          reason: text,
+        );
+        expect(
+          questionLibraryEntryMatches(_entry(serialNo: 4), filter),
+          isTrue,
+          reason: text,
+        );
+        expect(
+          questionLibraryEntryMatches(_entry(serialNo: 3), filter),
+          isFalse,
+          reason: text,
+        );
+      }
+    });
+
+    test('1,3-4 命中 1/3/4，不命中 2', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(text: '1,3-4');
+      expect(questionLibraryEntryMatches(_entry(serialNo: 1), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 3), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 4), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 2), filter), isFalse);
+    });
+
+    test('5, TR-10 混合写法同时命中 5 与 10', () {
+      const QuestionLibraryFilter filter =
+          QuestionLibraryFilter(text: '5, TR-10');
+      expect(questionLibraryEntryMatches(_entry(serialNo: 5), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 10), filter), isTrue);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 9), filter), isFalse);
+    });
+
+    test('2-3 函数 含认不出的段：不因题号 2/3 命中，只按字面文字命中', () {
+      const QuestionLibraryFilter filter =
+          QuestionLibraryFilter(text: '2-3 函数');
+      expect(questionLibraryEntryMatches(_entry(serialNo: 2), filter), isFalse);
+      expect(questionLibraryEntryMatches(_entry(serialNo: 3), filter), isFalse);
+      expect(
+        questionLibraryEntryMatches(
+          _entry(serialNo: null, stem: '求 2-3 函数的最值'),
+          filter,
+        ),
+        isTrue,
+      );
+    });
+
+    test('单号 42 行为与旧一致', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(text: '42');
+      expect(questionLibraryEntryMatches(_entry(serialNo: 42), filter), isTrue);
+      expect(
+          questionLibraryEntryMatches(_entry(serialNo: 41), filter), isFalse);
+      expect(
+        questionLibraryEntryMatches(
+          _entry(serialNo: 7, stem: '全班共 42 人'),
+          filter,
+        ),
+        isTrue,
+      );
+    });
+
+    test('未编号的题不被多段号命中，但标题/题干子串仍可命中', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(text: '1-3');
+      expect(
+        questionLibraryEntryMatches(_entry(serialNo: null), filter),
+        isFalse,
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(serialNo: null, title: '1-3 章练习'),
+          filter,
+        ),
+        isTrue,
+      );
+    });
+
+    test('普通数字关键词仍回落题干子串（行为只增不改）', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(text: '2023');
+      expect(
+        questionLibraryEntryMatches(
+          _entry(serialNo: 7, stem: '2023 年全国卷改编'),
+          filter,
+        ),
+        isTrue,
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(serialNo: 7, stem: '默认题干'),
+          filter,
+        ),
+        isFalse,
       );
     });
   });

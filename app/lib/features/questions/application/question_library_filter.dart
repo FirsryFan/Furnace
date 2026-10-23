@@ -9,9 +9,12 @@
 /// * 标签：空集 = 不限；否则多选 **ANY**，且按**子树**匹配——命中条件为
 ///   `q == p` 或 `q.startsWith('$p/')`（p 是筛选路径，q 是题目直挂的标签路径），
 ///   即选了 `文化课/学科` 也会命中挂在 `文化课/学科/数学` 的题；反向不成立。
-/// * 文字：空 = 不限；先按题号解析（复用 [parseQuestionNumberQuery] 与
-///   [matchQuestionSerial]，认 `TR-42` / `#42` / `42` / 全角数字），题号命中即真；
-///   否则对题名、题干、题号标签、学科、来源、标签路径做大小写不敏感子串匹配。
+/// * 文字：空 = 不限；先按**多段题号清单**解析（`1-3` / `TR-2, 4` / `1,3-4`），
+///   规则完全复用 [parseQuestionSerialBatch]（本文件不重写解析；清单里有一段认
+///   不出时整段不算命中），题号在清单里即真；再按单号解析（复用
+///   [parseQuestionNumberQuery] 与 [matchQuestionSerial]，认 `TR-42` / `#42` /
+///   `42` / 全角数字），题号命中即真；否则对题名、题干、题号标签、学科、来源、
+///   标签路径做大小写不敏感子串匹配（行为只增不改：`2023` 这类输入仍能搜题干）。
 /// * 错题本：关 = 不限；开则只留 `hasWrongAttempt` 为真的题（自测答错过至少一次）。
 ///   作答记录来自 `question_attempts`，由读表层投影成 [QuestionLibraryEntry.wrongAttemptCount]。
 ///
@@ -20,6 +23,7 @@
 library;
 
 import '../../../domain/services/questions/question_number_query.dart';
+import '../../../domain/services/questions/question_serial_batch.dart';
 import 'question_library_reader.dart';
 
 /// 题库列表的筛选条件（不可变值对象）。
@@ -161,8 +165,18 @@ bool _matchesAnyTagPath(
   return false;
 }
 
-/// 文字匹配：题号命中即真，否则大小写不敏感子串。
+/// 文字匹配：多段题号 / 单号命中即真，否则大小写不敏感子串。
 bool _matchesText(QuestionLibraryEntry entry, String text) {
+  // 多段号清单（`1-3`、`TR-2, 4`、`1,3-4`）：整段都认得出才算命中；只要有一段
+  // 认不出（如 `2-3 函数`）就整段不认，退回下面的单号 / 子串老路径——行为只增
+  // 不改。解析规则见 [parseQuestionSerialBatch]，本文件不重写。
+  final QuestionSerialBatch batch = parseQuestionSerialBatch(text);
+  if (batch.serials.isNotEmpty &&
+      batch.rejectedSegments.isEmpty &&
+      entry.serialNo != null &&
+      batch.serials.contains(entry.serialNo)) {
+    return true;
+  }
   final QuestionNumberQuery? query = parseQuestionNumberQuery(text);
   if (query != null && matchQuestionSerial(entry.serialNo, query)) {
     return true;
