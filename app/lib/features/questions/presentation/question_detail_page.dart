@@ -90,6 +90,16 @@ Key questionAttemptEntryKeyFor(String id) =>
 Key questionAttemptEntryDeleteKeyFor(String id) =>
     ValueKey<String>('question-attempt-delete-$id');
 
+/// AppBar 上「上一题」按钮的 key（测试定位用）。
+///
+/// 没有邻居时按钮**禁用而不是隐藏**：翻页按钮的位置要稳，题号 1 与题号 100
+/// 看起来应该是同一个页面，只是箭头能不能按。
+const Key questionDetailPreviousQuestionKey =
+    Key('question-detail-previous-question');
+
+/// AppBar 上「下一题」按钮的 key（测试定位用）。
+const Key questionDetailNextQuestionKey = Key('question-detail-next-question');
+
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
   const QuestionDetailPage({super.key, required this.questionId});
@@ -191,15 +201,51 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     }
   }
 
+  /// 翻到相邻题：用 `pushReplacement` 而不是 `push`。
+  ///
+  /// 翻页是"在同一层里横向走"，不是"往下钻"——每按一次就往返回栈里堆一层，
+  /// 按十次后要按十次返回才能回到题库，那是 bug 不是功能。
+  void _openNeighbor(QuestionSerialNeighbor neighbor) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => QuestionDetailPage(questionId: neighbor.questionId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final detailAsync = ref.watch(questionDetailProvider(widget.questionId));
+    // 只 watch 一次：两个按钮读的都是这份邻居读数（loading/error/无题号 → 都禁用）。
+    final neighborsAsync =
+        ref.watch(questionSerialNeighborsProvider(widget.questionId));
+    final neighbors = neighborsAsync.valueOrNull;
     final detail = detailAsync.valueOrNull;
     final missing = detailAsync.hasValue && detail == null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.questionDetailTitle)),
+      appBar: AppBar(
+        title: Text(l10n.questionDetailTitle),
+        actions: [
+          IconButton(
+            key: questionDetailPreviousQuestionKey,
+            icon: const Icon(Icons.chevron_left),
+            tooltip: l10n.questionDetailPreviousQuestion,
+            onPressed: neighbors?.previous == null
+                ? null
+                : () => _openNeighbor(neighbors!.previous!),
+          ),
+          IconButton(
+            key: questionDetailNextQuestionKey,
+            icon: const Icon(Icons.chevron_right),
+            tooltip: l10n.questionDetailNextQuestion,
+            onPressed: neighbors?.next == null
+                ? null
+                : () => _openNeighbor(neighbors!.next!),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

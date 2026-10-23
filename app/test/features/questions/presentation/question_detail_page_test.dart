@@ -2030,6 +2030,110 @@ void main() {
     expect(find.byKey(questionAttemptEntryKeyFor(second)), findsOneWidget);
     expect(await attempts.historyFor(question.id), hasLength(2));
   });
+
+  group('按题号翻上一题 / 下一题', () {
+    /// 点一个翻页按钮并等路由切换动画走完。
+    ///
+    /// 不用 `pumpAndSettle`：详情页里有无限动画的风险条/进度条，会直接超时；
+    /// 路由过渡固定 300ms，多推几帧即可，之后旧路由已经移除，树里只会剩一个新的
+    /// `QuestionDetailPage`。
+    Future<void> tapNeighbor(WidgetTester tester, Key key) async {
+      await tester.tap(find.byKey(key));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
+    }
+
+    /// 当前页面在展示哪道题：直接读 widget 参数，比在正文里找题干可靠
+    /// （相似题区块也会把邻居题的题干排出来）。
+    String showingQuestionId(WidgetTester tester) => tester
+        .widget<QuestionDetailPage>(find.byType(QuestionDetailPage))
+        .questionId;
+
+    IconButton buttonOf(WidgetTester tester, Key key) =>
+        tester.widget<IconButton>(find.byKey(key));
+
+    testWidgets('打开中间那道题：两个箭头都能按，按完切到相邻题且返回栈不变深', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干：求两根之和。');
+      final second = await _seedQuestion(database, stem: '第二题题干：求两根之积。');
+      final third = await _seedQuestion(database, stem: '第三题题干：求判别式。');
+
+      await _pumpDetail(tester, database, second.id, adapter: null);
+      await _waitForText(tester, '第二题题干：求两根之积。');
+
+      expect(
+          find.byTooltip(_zh.questionDetailPreviousQuestion), findsOneWidget);
+      expect(find.byTooltip(_zh.questionDetailNextQuestion), findsOneWidget);
+      expect(buttonOf(tester, questionDetailPreviousQuestionKey).onPressed,
+          isNotNull);
+      expect(
+          buttonOf(tester, questionDetailNextQuestionKey).onPressed, isNotNull);
+
+      // 上一题 → 题号 1。
+      await tapNeighbor(tester, questionDetailPreviousQuestionKey);
+      await _waitForText(tester, '第一题题干：求两根之和。');
+      expect(showingQuestionId(tester), first.id);
+      // 已经是题号 1：上一个禁用、下一个还能按。
+      expect(buttonOf(tester, questionDetailPreviousQuestionKey).onPressed,
+          isNull);
+      expect(
+          buttonOf(tester, questionDetailNextQuestionKey).onPressed, isNotNull);
+      // pushReplacement 不加深返回栈：详情页仍是根路由，AppBar 不出现返回箭头。
+      expect(find.byType(BackButton), findsNothing);
+
+      // 下一题两次 → 题号 2 → 题号 3（最大号：下一个禁用）。
+      await tapNeighbor(tester, questionDetailNextQuestionKey);
+      await _waitForText(tester, '第二题题干：求两根之积。');
+      expect(showingQuestionId(tester), second.id);
+      await tapNeighbor(tester, questionDetailNextQuestionKey);
+      await _waitForText(tester, '第三题题干：求判别式。');
+      expect(showingQuestionId(tester), third.id);
+      expect(buttonOf(tester, questionDetailNextQuestionKey).onPressed, isNull);
+      expect(buttonOf(tester, questionDetailPreviousQuestionKey).onPressed,
+          isNotNull);
+    });
+
+    testWidgets('打开第一道题：上一题禁用（占位不消失），下一题可用', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干');
+      await _seedQuestion(database, stem: '第二题题干');
+
+      await _pumpDetail(tester, database, first.id, adapter: null);
+      await _waitForText(tester, '第一题题干');
+
+      // 按钮在，只是 onPressed 为空：位置稳定，不像"隐藏"那样让标题左右跳。
+      expect(find.byKey(questionDetailPreviousQuestionKey), findsOneWidget);
+      expect(find.byKey(questionDetailNextQuestionKey), findsOneWidget);
+      expect(buttonOf(tester, questionDetailPreviousQuestionKey).onPressed,
+          isNull);
+      expect(
+          buttonOf(tester, questionDetailNextQuestionKey).onPressed, isNotNull);
+      expect(showingQuestionId(tester), first.id);
+    });
+
+    testWidgets('题目没有题号：两个箭头都禁用、仍占位', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干');
+      final second = await _seedQuestion(database, stem: '第二题题干');
+      // 把题号清空 → `serialNeighborsProvider` 返回 null（没有可翻的坐标）。
+      await (database.update(database.questions)
+            ..where((t) => t.id.equals(second.id)))
+          .write(const QuestionsCompanion(serialNo: Value<int?>(null)));
+
+      await _pumpDetail(tester, database, second.id, adapter: null);
+      await _waitForText(tester, '第二题题干');
+
+      expect(find.byKey(questionDetailPreviousQuestionKey), findsOneWidget);
+      expect(find.byKey(questionDetailNextQuestionKey), findsOneWidget);
+      expect(buttonOf(tester, questionDetailPreviousQuestionKey).onPressed,
+          isNull);
+      expect(buttonOf(tester, questionDetailNextQuestionKey).onPressed, isNull);
+      // 邻居其实存在（题号 1 还在），但没有题号就无从定位前后，两个都不给按。
+      expect(showingQuestionId(tester), second.id);
+      expect(first.serialNo, 1);
+    });
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
