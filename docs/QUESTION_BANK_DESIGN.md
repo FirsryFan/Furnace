@@ -1753,3 +1753,42 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 - **未做 / 风险**：恢复没有进度指示（大题库仍是对话框转圈 → 完成报告）；恢复中途失败不会回滚
   （已导入的部分保留，但恢复前自动备份的那份在备份列表里可再次恢复）；备份多时无分页；
   未真机验证 path_provider 默认文档目录；恢复是「先确认语义、再在预检框确认一次」两步确认。
+
+## 33. 多图卡片「编辑后保存」与备份保留策略（轮次一百五十二，2026-10-24）
+
+### 33.1 多图卡片编辑后保存（task-159 question-intake）
+- 队列页抽出顶层 `editProposalForIntake(context, ref, sourceRef, proposal)`
+  （`handwriting_queue_page.dart` :71-99）：`questionDraftForIntake(proposal)` 拿草稿 →
+  `Navigator.push(QuestionIntakePage(initialDraft, initialRelPath: sourceRef, initialProposalId: proposal.id))`；
+  草稿为空或 context 已被卸载就直接返回。单图面板原来的私有 `_editForIntake` 删除，改调共用函数
+  （sourceRef=照片相对路径）。
+- `_MultiRunCardState` 的提案循环对 `kind == question` 传 `onEditForIntake`
+  （sourceRef = `run.sourceRef`，即 `multi:<16hex>`），其它产物传 null。
+- 为什么能共用：收题页入库成功后按 `<sourceRef>#<proposalId>` 调 `markAppliedLocally`，
+  正好与队列的 `isApplied` 键对上——多图 run 只是 sourceRef 前缀不同，不需要另一套回写。
+- `_MultiRunCard` 类注释改写为「整组展示不等于只能整组操作」：跨页合并语义由**提案组本身**承担，
+  不靠把按钮藏起来维持。
+- 测试 `handwriting_queue_page_test.dart` 28 → **31 例**（3 新例：只有题目提案有入口；
+  点编辑草稿预填收题页且不写库；编辑后入库题目进库、提案转已确认、编辑按钮禁用而 tag 提案仍可确认）。
+
+### 33.2 备份保留策略 prune（task-160 threadflow-engine）
+- 服务层 `question_pack_service.dart`：`kQuestionPackBackupKeepCount = 10`（:161-162）；
+  `pruneBackups({int keep = kQuestionPackBackupKeepCount})`（:467-500）：`keep < 0` 先抛
+  `ArgumentError.value`；`listBackups()` 按新→旧，不足或刚好 keep 份返回 `const <String>[]`；
+  否则 `backups.sublist(keep)` 逐份 `deleteBackup`，返回 `List.unmodifiable(removed)`。
+  **非原子**：中途某份删除失败立刻上抛、已删的不回滚，调用方重读列表即可看到磁盘真实状态。
+- 设置页 `data_section.dart`：父级注入 `pruneBackups`（:403-404）；备份对话框构造新增
+  required `pruneBackups`（:820/:833）；`_confirmPrune(backupCount)`（:910-957）二次确认
+  （`PruneConfirm(removeCount, keep)`），成功 `PruneDone(removed.length)`、失败
+  `PruneFailed('$error')`，两种情况都 `_load()`；仅 `backups.length > keep` 时显示
+  `TextButton.icon(Icons.cleaning_services, label: PruneAction)`（:996-1012），`_busy` 时禁用。
+- l10n（Lead 手改 ARB + `flutter gen-l10n`，5 个 key）：`settingsQuestionPackBackupPruneAction`、
+  `...PruneTooltip(keep)`、`...PruneConfirm(count, keep)`、`...PruneDone(count)`、
+  `...PruneFailed(error)`。
+- 测试：`question_pack_service_test.dart` 24 → **28 例**（12 份 keep=10 只删最旧 2 且路径钉住；
+  不足/刚好 no-op；目录不存在返回空表；`keep: -1` 抛 ArgumentError 且不删任何东西）；
+  `question_pack_section_test.dart` 31 → **34 例**（12 份出现清理按钮→确认→按 keep 清理并重读列表；
+  10 份不显示按钮；11 份 prune 抛 `StateError('locked')` 后提示原因且列表仍重读）；
+  `support/question_pack_fakes.dart` 补 `pruneBackupsError`/`pruneCalls`/`pruneKeeps`/`prunedPaths`。
+- **未做 / 风险**：只有手动清理，没有自动 prune（不会在导入/启动时悄悄删备份）；删除逐份 IO、无批量；
+  未真机验证；清理是「确认后再删」，不能撤销。

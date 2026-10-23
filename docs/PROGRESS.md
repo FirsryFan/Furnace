@@ -2,6 +2,54 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十二：多图卡片编辑后保存、备份保留策略（Lead + 两个 teammate 并行）
+
+**起点**：轮次一百五十一收尾（HEAD `655f23e`，已推送）。本轮补上一轮明说留下的两个边界：
+①多图整理卡片能逐条确认，但题目提案不能「编辑后保存」（单图卡片有）；②导入前备份只能看/删/恢复，
+超过 10 份只能一份份点删除。纪律不变：teammate 只写自己的写作用域、不碰 git；l10n、docs 与提交由
+Lead 统一做。先实查排除了三个伪缺口（题目配图添加/删除 UI、手动建题表单、题库搜索题号/题名都已存在）。
+
+**一、多图卡片编辑后保存（task-159 question-intake）**
+- `app/lib/features/questions/presentation/handwriting_queue_page.dart`：抽出顶层
+  `editProposalForIntake(context, ref, sourceRef, proposal)`（:71-99）——`questionDraftForIntake` 拿草稿 →
+  `Navigator.push(QuestionIntakePage(initialDraft, initialRelPath: sourceRef, initialProposalId: proposal.id))`；
+  单图面板删掉私有 `_editForIntake` 改调它（sourceRef=照片相对路径）。
+- 多图卡提案循环对 `kind == question` 传 `onEditForIntake`（sourceRef=`run.sourceRef`，即 `multi:<16hex>`），
+  其它产物 null；收题页入库后按 `<sourceRef>#<proposalId>` 写回已确认，与队列 `isApplied` 键一致。
+  `_MultiRunCard` 类注释改写为「整组展示不等于只能整组操作」。
+- `handwriting_queue_page_test.dart` 28 → **31 例**（3 新例：入口只给题目提案；点编辑草稿预填收题页且
+  不写库；编辑后入库题目进库、提案转已确认、编辑按钮禁用而 tag 提案确认仍可用）。
+
+**二、备份保留策略 prune（task-160 threadflow-engine）**
+- `app/lib/features/questions/application/question_pack_service.dart`：`kQuestionPackBackupKeepCount = 10`
+  （:161-162）；`pruneBackups({int keep = kQuestionPackBackupKeepCount})`（:467-500）：`keep < 0` 先抛
+  `ArgumentError`；`listBackups()` 按新→旧，不足/刚好 keep 份返回空表；否则 `sublist(keep)` 逐份
+  `deleteBackup`，返回 `List.unmodifiable`。**非原子**：中途失败上抛、已删不回滚，调用方重读列表。
+- `app/lib/features/settings/presentation/data_section.dart`：父级注入 `pruneBackups`（:403-404）；
+  备份对话框构造新增 required `pruneBackups`（:820/:833）；`_confirmPrune`（:910-957）二次确认 →
+  成功 `PruneDone(removed.length)`、失败 `PruneFailed('$error')`，两种情况都 `_load()`；
+  仅 `backups.length > keep` 时显示「清理旧备份」按钮（:996-1012），`_busy` 时禁用。
+- 测试：`question_pack_service_test.dart` 24 → **28 例**（12 份只删最旧 2 且路径钉住；不足/刚好 no-op；
+  目录不存在返回空表；`keep: -1` 抛错不删）；`question_pack_section_test.dart` 31 → **34 例**
+  （12 份出现按钮→确认→清理并重读；10 份无按钮；11 份 prune 抛 `StateError('locked')` 后提示且列表仍重读）；
+  `support/question_pack_fakes.dart` 补 `pruneBackupsError`/`pruneCalls`/`pruneKeeps`/`prunedPaths`。
+
+**l10n**（Lead 手改 ARB + `flutter gen-l10n`，5 个 key）：`settingsQuestionPackBackupPruneAction`、
+`settingsQuestionPackBackupPruneTooltip(keep)`、`settingsQuestionPackBackupPruneConfirm(count, keep)`、
+`settingsQuestionPackBackupPruneDone(count)`、`settingsQuestionPackBackupPruneFailed(error)`。
+
+**测试与门禁**
+- 三个 scoped 测试：`+93: All tests passed!`（00:33）。
+- 全量 `flutter test --concurrency=1`：**+5654 ~2 All tests passed**（10:47，EXIT=0；基线 +5644，
+  本轮净增 10，日志 `E:/dsh-tmp-aot/test-153-full.txt`）。
+- `dart analyze lib test` = 91 issues / 0 error / 0 warning；`dart format` 10 个改动文件 0 changed。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §33（33.1 多图卡片编辑后保存 / 33.2 备份保留策略 prune）；
+`docs/HANDWRITING_INTAKE_DESIGN.md` §4 边界补「多图卡片也能编辑后保存」并追加轮次一百五十二条目。
+
+**未做 / 风险**：真机多图卡编辑入口未手测；备份清理只有手动、无自动 prune；删除逐份 IO 无批量；
+多图卡仍不能逐条重拍某页；v0.6.3 未出包（恢复/prune/多图编辑尚未进发布件）。
+
 ## 2026-10-24 轮次一百五十一：备份「一键恢复」（Lead + threadflow-engine）
 
 **起点**：轮次一百五十（v0.6.2 发布，HEAD `73770d2`，已推送）。上一轮 §31.1 明确留的边界——导入前备份

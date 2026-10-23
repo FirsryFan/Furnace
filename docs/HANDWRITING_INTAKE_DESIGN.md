@@ -153,7 +153,10 @@ presentation 侧用 `export` 保住了原来的 import 路径。
     （再合一次只会多花模型调用，还可能把同一页重复入库）；已合并的照片在普通照片条上带「已合并」徽标。
   - **多图卡片可逐条确认、也可整批动作**（轮次一百四十九补）：展示 N 张缩略图 + 整组提案（带确认前
     预检），每条提案有自己的「确认」按钮（走 `HandwritingQueueNotifier.applyProposal`）、底部仍有
-    「全部确认」与「忘掉」；**没有逐条编辑入口**（逐条编辑仍走单图卡片与收题页），也没有逐条重拍某页。
+    「全部确认」与「忘掉」；题目提案还有「编辑后保存」（轮次一百五十二补，见下条）；没有逐条重拍某页。
+  - **多图卡片也能「编辑后保存」**（轮次一百五十二补）：题目提案带编辑入口，走与单图卡片共用的
+    `editProposalForIntake(context, ref, sourceRef, proposal)`；草稿预填收题页、入库后才算确认，
+    sourceRef 是 `multi:<16hex>`，入库回写键仍是 `<sourceRef>#<proposalId>`。
   - **没有选张数上限、也没有重排页面顺序**：选择顺序就是提示词里的页序；选 20 张会一次性发 20 张图，
     受模型上下文限制，客户端不做拦截（失败会退回 `modelFailure` 的人话原因）。
   - **归并靠模型**：跨页同一道题合并成一条题是提示词要求（页规则第 7–9 条），不是本地算法；
@@ -249,4 +252,17 @@ presentation 侧用 `export` 保住了原来的 import 路径。
 - 门禁（作用域）：`flutter test test/features/questions/presentation/handwriting_queue_page_test.dart`
   → `+28 All tests passed`；`dart format` 0 changed；`dart analyze` 两文件 `No issues found`。
 - 未验证：真机多图卡逐条确认的点击手感；真实模型返回多条提案时的实际分布。
+
+2026-10-24（轮次一百五十二：多图卡片编辑后保存）：
+
+- task-159（question-intake）：`handwriting_queue_page.dart` 抽出顶层
+  `editProposalForIntake(context, ref, sourceRef, proposal)`（:71-99），单图面板删私有 `_editForIntake`
+  改调它；`_MultiRunCardState` 对题目提案传 `onEditForIntake`（sourceRef=`run.sourceRef`，
+  即 `multi:<16hex>`），其它产物 null。收题页入库后按 `<sourceRef>#<proposalId>` 写回已确认，
+  与队列的 `isApplied` 键一致。类注释改为「整组展示不等于只能整组操作」。
+- `handwriting_queue_page_test.dart` 28 → **31 例**（入口只给题目提案；点编辑预填收题页且不写库；
+  编辑后入库题目进库、提案转已确认、编辑按钮禁用而 tag 提案确认仍可用）。
+- 门禁（作用域）：`flutter test test/features/questions/presentation/handwriting_queue_page_test.dart`
+  → `+31 All tests passed`；format/analyze 与全量见本轮 PROGRESS。
+- 未验证：真机多图卡编辑入口的点击手感；真实模型返回多条题目提案时的编辑体验。
 
