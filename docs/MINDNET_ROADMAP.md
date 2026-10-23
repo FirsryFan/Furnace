@@ -1967,8 +1967,13 @@ AI 工具 `compose_paper` 同源）。口径见 `docs/PAPER_COMPOSER_DESIGN.md` 
 - M1d（轮次二十五）：读数页合并展示——先验只改"还没复习过的卡"展示的起点 `R0`，旁边标"（测评先验）"；
   卡片一旦有自己的复习史，观测接管，先验不再说话。先验不写回 `card_states`、也不改 `ReviewAdvisory` 排序。
 - 设计文档在 `docs/ASSESSMENT_DESIGN.md`（含分板块 instrument 表、同步三分类、明确不做清单）。
-- 仍未做：板块化 instrument 的实现（物理/语文等各一套题目形态）、客观题的自动判分、
+- 仍未做：板块化 instrument 的实现（物理/语文等各一套题目形态）、
   以及用标定协议把这批先验的系数真正标出来（CALIBRATION §2）。
+- 客观题的自动判分：**题目详情页的选择题自测已可即时判分**（轮次一百五十四：
+  `app/lib/domain/services/questions/objective_answer.dart` 集合判定 + 详情页自测模式，
+  答对/答错/漏选/多选错项与正确答案标签都有；只覆盖 `single_choice`/`multi_choice`）。
+  但判分结果**不落库**，所以它还不是 assessment 意义上的"答题结果证据"——
+  先验重算、留档、作答历史仍缺，接 assessment 那一侧时要补一张作答记录表。
 
 ### 切片 4 的追加：M6 效果度量——"记忆效果好"从感觉变成两个数字（轮次二十六）
 

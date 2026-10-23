@@ -1792,3 +1792,81 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   `support/question_pack_fakes.dart` 补 `pruneBackupsError`/`pruneCalls`/`pruneKeeps`/`prunedPaths`。
 - **未做 / 风险**：只有手动清理，没有自动 prune（不会在导入/启动时悄悄删备份）；删除逐份 IO、无批量；
   未真机验证；清理是「确认后再删」，不能撤销。
+
+## 34. 题目详情页「自测」：客观题自动判分（轮次一百五十四，2026-10-24）
+
+> 目的：让「推荐练习 / 题库里点开一道题」不再一进页面就看见答案。选择题先作答、
+> 提交后立即判分，答错才告诉正确选项。**判分是即时核对，不落库**——没有作答历史、
+> 没有正确率统计，这是本片的边界（见文末「未做」）。
+
+### 34.1 域层纯逻辑（task-161 reasoning-core）
+
+新文件 `app/lib/domain/services/questions/objective_answer.dart`（198 行，纯 Dart 零 import）：
+
+- `enum ObjectiveAttemptStatus { notObjective, emptySelection, correct, incorrect }`（:33）
+- `class ObjectiveOption { const ObjectiveOption({required String label, required bool isCorrect}); }`（:44）
+- `class ObjectiveAttemptResult { status; selectedLabels; correctLabels; missingLabels; extraLabels;
+  bool get isCorrect; bool get isIncorrect; }`（:58）
+- `bool isObjectiveQuestionType(String questionType)`（:92）：`trim + toLowerCase` 后 ∈
+  `{single_choice, multi_choice}`；其它题型一律 false。
+- `bool canScoreObjectiveQuestion({required String questionType, required List<ObjectiveOption> options})`
+  （:100）：客观题型 **且** 至少一个非空 `isCorrect` 标签。
+- `ObjectiveAttemptResult scoreObjectiveAnswer({required String questionType,
+  required List<ObjectiveOption> options, required Iterable<String> selectedLabels})`（:116）。
+
+口径（doc comment 已写全）：
+- 题型不是客观题，或客观题但**没有任何正确标记** → `notObjective`，四个 label 列表全空
+  （不是「全错」——没有答案标记就判不了）。
+- 标签归一化 `trim + toUpperCase`，归一化后为空不参与；选择为空 → `emptySelection`
+  （`correctLabels` 仍填，missing/extra 空）。
+- 判对 = 选择集合与正确集合**完全相等**；漏选进 `missingLabels`、多选错项进 `extraLabels`；
+  `single_choice` 与 `multi_choice` 共用同一套集合判定（单选多选一项自然判错）。
+- 输出列表升序、去重、`List.unmodifiable`；任何输入不抛异常、同输入同输出。
+
+单测 `app/test/domain/services/questions/objective_answer_test.dart` 344 行 **25 例**：
+题型判定与可判分 5、单选判分 7、多选判分 5、不可判分 4、确定性与边界 4
+（含大写/空白归一化、重复选择去重、options 为空、无正确标记、确定性排序）。
+`dart analyze` 两文件 No issues；`flutter test` → `+25: All tests passed!`。
+
+### 34.2 详情页 UI（task-162 question-intake）
+
+文件 `app/lib/features/questions/presentation/question_detail_page.dart`（+342/-46）：
+
+- 顶层 key：`questionSelfTestToggleKey`（:55）、`questionSelfTestSubmitKey`（:56）、
+  `questionSelfTestOptionKey(label)` → `ValueKey('question-self-test-option-<label>')`（:59）。
+- `_QuestionBody` 由 Stateless 改 Stateful（:204），`_QuestionBodyState`（:232）本地持有
+  `_selfTest` / `_selectedLabels` / `_attempt`；`_answersHidden = _selfTest && !_submitted`
+  （未提交期间藏答案）。构造参数与回调签名不变，外层调用点零改动。
+- 选项标题行右侧：仅当 `canScoreObjectiveQuestion(...)` 为真时显示 toggle
+  （`questionDetailSelfTest` ↔ `questionDetailSelfTestExit`，:518）。
+- 自测未提交：隐藏每个选项的「正确答案」标记（`correctMark` 受 `_answersHidden` 控制）、
+  藏答案段 / 解析段 / 答案截图（三处 `&& !_answersHidden`）、显示
+  `questionDetailSelfTestHiddenHint`；选项行 `InkWell` 整行可点 + `Checkbox` + 选中高亮
+  （:287）；底部 `FilledButton`「提交答案」（:543/:551），无选择时 `onPressed: null`。
+- 提交后：`scoreObjectiveAnswer` 判分 → `_SelfTestResultBanner`（:608）显示回答正确 / 回答错误，
+  答错追加「正确答案：B」（`correctLabels.join('、')`，答对不显示）；答案/解析/标记全部恢复，
+  选项锁定、提交按钮消失；toggle 仍可点「结束自测」清空选择与结果、回到改动前原样。
+- 真 bug 修复：选项内容 `QuestionRichText`（`SelectableText`）会吃掉点击，让整行 `InkWell`
+  收不到 onTap → 自测分支包 `IgnorePointer(child: contentText())`（:364），点击落到整行。
+  该文件首次跑全量时 4 例失败即由此暴露。
+- l10n（Lead 手改 ARB + `flutter gen-l10n`）：`questionDetailSelfTest` / `...Exit` /
+  `...Submit` / `...Correct` / `...Incorrect` / `...CorrectLabels(labels)` / `...HiddenHint`
+  共 7 个 key（zh/en 同步）。
+
+测试 `app/test/features/questions/presentation/question_detail_page_test.dart` 43 → **49 例**
+（+6）：①入口存在 + 点开后正确标记/答案/解析消失、提示出现；②无选择提交按钮禁用、勾选/取消联动；
+③选错 A 提交 → 回答错误 + 正确答案：B + 答案解析恢复；④选对 B → 回答正确且不显示正确答案行；
+⑤非客观题（`fill_blank`）无入口、普通内容仍在；⑥提交后结束自测 → 选择/结果清空、再进自测提交仍禁用。
+`flutter test` 两文件 scoped `+74: All tests passed!`。
+
+### 34.3 边界与未做
+
+- **不落库**：这是「此刻对不对」的即时核对，不是作答记录；schema 仍 v31、无新迁移、无新表。
+  因此没有作答历史、正确率、错题本自动收集，也不影响任何排序权重。
+- 只覆盖 `single_choice` / `multi_choice`；填空/解答/作文没有客观判分。
+- 选项是复选框（单选也允许勾多个再提交）：判分交给域层集合比较，UI 不强制互斥。
+- 自测中只藏答案/解析/答案截图；「AI 解题」区、知识点 chip、相似题仍可见（它们可能剧透步骤）；
+  如产品需要整页防剧透，另开一片。
+- 自测中选项文字不可长按选中复制（整行点击所需），退出自测恢复。
+- 真机手动自测未验证（只有 widget test 证据）。
+

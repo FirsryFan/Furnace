@@ -2,6 +2,50 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十四：题目详情页自测——选择题客观判分（Lead + 两个 teammate 并行）
+
+**起点**：轮次一百五十三收尾（HEAD `2cc1c2c`，v0.6.3 已推送、工作树干净）。选片理由：
+`MINDNET_ROADMAP.md` 切片 4 的「仍未做」明列客观题自动判分；而题目详情页一进来就露答案
+（推荐练习点进去也一样），先作答、判完再给答案是最直接的一补。**不加表、不迁移**（schema 仍 v31）、
+判分不落库、不调模型。
+
+**片 1：域层纯逻辑（task-161 reasoning-core）**
+- 新 `app/lib/domain/services/questions/objective_answer.dart`（198 行、零 import）：
+  `ObjectiveAttemptStatus`（notObjective/emptySelection/correct/incorrect）、`ObjectiveOption`、
+  `ObjectiveAttemptResult`（status + selected/correct/missing/extra + isCorrect/isIncorrect）、
+  `isObjectiveQuestionType`、`canScoreObjectiveQuestion`、`scoreObjectiveAnswer`。
+- 口径：题型 trim+lower ∈ {single_choice, multi_choice}；没有任何 `isCorrect` 标记 → `notObjective`
+  （不是全错）；标签 trim+upper、空标签剔除；判对=集合完全相等，漏选进 missing、多错进 extra；
+  输出升序去重且 unmodifiable；不抛异常。
+- `app/test/domain/services/questions/objective_answer_test.dart` 344 行 **25 例**。
+
+**片 2：详情页 UI（task-162 question-intake）**
+- `app/lib/features/questions/presentation/question_detail_page.dart`（+342/-46）：`_QuestionBody`
+  改 Stateful 持 `_selfTest/_selectedLabels/_attempt`；`canScoreObjectiveQuestion` 为真才出现「自测」
+  toggle；未提交时藏正确标记、答案段、解析段、答案截图并给提示；选项整行可点（Checkbox + 高亮）；
+  提交按钮无选择时禁用；提交后 `_SelfTestResultBanner` 显示对错、答错才给正确答案；答案解析恢复并锁定；
+  结束自测清空。
+- 修掉一个真 bug：选项内容 `SelectableText` 吃掉点击，整行 `InkWell` 收不到 → 自测分支
+  `IgnorePointer`（该文件首跑 `+45 -4` 因此暴露）。
+- 测试 43 → **49 例**（+6）。
+- l10n 7 key（Lead 手改 ARB + gen-l10n）：`questionDetailSelfTest/Exit/Submit/Correct/Incorrect/CorrectLabels(labels)/HiddenHint`。
+
+**门禁（本机实测）**
+- format：4 个手写文件 `0 changed`；`dart analyze lib test` = 91 issues / 0 error / 0 warning。
+- scoped `objective_answer_test + question_detail_page_test` → `00:12 +74: All tests passed!`。
+- 全量 `flutter test --concurrency=1` → **+5685 ~2 All tests passed**（10:49，EXIT=0；
+  日志 `E:/dsh-tmp-aot/test-154-full.txt`；基线 +5654，净增 31 = 25 + 6）。
+
+**提交**：`3031f18` l10n 7 key；`104556b` 域层 objective_answer；`5939fbd` 详情页自测 UI；本条 docs。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §34（34.1 域层 API/口径/行号；34.2 UI key/行号/修 bug；
+34.3 边界）；`docs/MINDNET_ROADMAP.md` 把「客观题自动判分」从未做清单改成已做选择题自测判分、
+但点明判分不落库所以还不是 assessment 意义上的答题证据。
+
+**未做 / 风险**：判分不落库 → 无作答历史/正确率/错题本自动收集；只覆盖单选多选（填空/解答无判分）；
+选项是复选框、单选不强制互斥（靠判分兜底）；自测只藏答案/解析/答案截图，AI 解题区与知识点仍可见、
+可能剧透；自测中选项文字不可复制；真机手动自测未验；英文未母语校对。
+
 ## 2026-10-24 轮次一百五十三：v0.6.3 双端发布件（轮次24–25 成果打包）
 
 **起点**：轮次一百五十二收尾（HEAD `9cedd14`，已推送）。v0.6.2 之后攒了 2 轮 / 7 个提交
