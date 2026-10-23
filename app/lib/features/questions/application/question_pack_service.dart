@@ -158,6 +158,9 @@ class QuestionPackBackup {
 
 /// 题库包的导出/导入服务。
 class QuestionPackService {
+  /// 备份保留策略：默认只保留最近这么多份，更旧的由 [pruneBackups] 清理。
+  static const int kQuestionPackBackupKeepCount = 10;
+
   QuestionPackService({
     required AppDatabase database,
     required QuestionRepository questions,
@@ -452,6 +455,31 @@ class QuestionPackService {
       return;
     }
     await file.delete();
+  }
+
+  /// 清理旧备份：只保留最近 [keep] 份，返回被删掉的备份路径（按删除顺序）。
+  ///
+  /// 新旧按 [listBackups] 的顺序判断（修改时间新→旧）；不足或刚好 [keep] 份时
+  /// 什么都不做、返回空表。删除复用 [deleteBackup]（同一套目录内 `.tqb` 校验）。
+  /// **不做原子性**：中途某份删除失败会立刻向上抛（例如 [FileSystemException]），
+  /// 此前已经删掉的不回滚——调用方失败后重读列表即可看到磁盘真实状态。
+  /// [keep] 为负抛 [ArgumentError]（避免 `keep: -1` 变成清空全部备份）。
+  Future<List<String>> pruneBackups({
+    int keep = kQuestionPackBackupKeepCount,
+  }) async {
+    if (keep < 0) {
+      throw ArgumentError.value(keep, 'keep', '保留份数不能是负数');
+    }
+    final backups = await listBackups();
+    if (backups.length <= keep) {
+      return const <String>[];
+    }
+    final removed = <String>[];
+    for (final backup in backups.sublist(keep)) {
+      await deleteBackup(backup.path);
+      removed.add(backup.path);
+    }
+    return List<String>.unmodifiable(removed);
   }
 
   /// 读出一份导入前备份的字节，供「从备份恢复」使用。

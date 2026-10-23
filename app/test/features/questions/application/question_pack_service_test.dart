@@ -499,6 +499,64 @@ void main() {
         throwsA(isA<FileSystemException>()),
       );
     });
+    test('pruneBackups：保留最近 10 份，只删最旧的并返回路径', () async {
+      final files = <File>[
+        for (var i = 0; i < 12; i++)
+          writeBackup(
+            '题库备份-20261023-0608${i.toString().padLeft(2, '0')}-000.tqb',
+            modifiedAt: DateTime(2026, 10, 23, 6, i),
+          ),
+      ];
+
+      final removed = await source.service.pruneBackups();
+
+      // 新→旧后 10 份保留；最后两份（最旧）被删，返回顺序按删除顺序。
+      expect(removed, <String>[files[1].path, files[0].path]);
+      expect(await source.service.listBackups(), hasLength(10));
+      expect(files[0].existsSync(), isFalse);
+      expect(files[1].existsSync(), isFalse);
+      for (var i = 2; i < files.length; i++) {
+        expect(files[i].existsSync(), isTrue);
+      }
+    });
+
+    test('pruneBackups：不足或刚好 keep 份时不动文件', () async {
+      final files = <File>[
+        for (var i = 0; i < 3; i++)
+          writeBackup(
+            '题库备份-20261023-0608${i.toString().padLeft(2, '0')}-000.tqb',
+            modifiedAt: DateTime(2026, 10, 23, 6, i),
+          ),
+      ];
+
+      expect(await source.service.pruneBackups(), isEmpty);
+      // 刚好等于 keep 也不删（只删「超出保留份数」的）。
+      expect(await source.service.pruneBackups(keep: 3), isEmpty);
+
+      for (final file in files) {
+        expect(file.existsSync(), isTrue);
+      }
+      expect(await source.service.listBackups(), hasLength(3));
+    });
+
+    test('pruneBackups：备份目录不存在时返回空表', () async {
+      expect(backupDirectory().existsSync(), isFalse);
+
+      expect(await source.service.pruneBackups(), isEmpty);
+
+      expect(backupDirectory().existsSync(), isFalse);
+    });
+
+    test('pruneBackups：keep 为负抛 ArgumentError，不删任何东西', () async {
+      final file = writeBackup('题库备份-20261023-060800-000.tqb');
+
+      await expectLater(
+        source.service.pruneBackups(keep: -1),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      expect(file.existsSync(), isTrue);
+    });
   });
 
   group('导入前自动备份', () {

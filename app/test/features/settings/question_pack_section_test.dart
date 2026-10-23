@@ -110,6 +110,14 @@ void main() {
         modifiedAt: modifiedAt ?? DateTime(2026, 10, 23, 6, 8),
       );
 
+  /// 造 N 份假备份（文件名按秒递增，顺序即 fake 返回的新→旧顺序）。
+  List<QuestionPackBackup> manyBackups(int count) => <QuestionPackBackup>[
+        for (var i = 0; i < count; i++)
+          backupOf(
+            '题库备份-20261023-0608${i.toString().padLeft(2, '0')}-000.tqb',
+          ),
+      ];
+
   /// 点「导入前备份」入口，等清单对话框出来。
   Future<void> openBackups(WidgetTester tester) async {
     await tester.tap(find.text(zh.settingsQuestionPackBackupsTitle));
@@ -893,6 +901,104 @@ void main() {
     expect(restoreButton.onPressed, isNotNull);
   });
 
+  testWidgets('备份：超过 10 份时出现清理按钮，确认后按 keep 清理并重读列表', (tester) async {
+    final backups = manyBackups(12);
+    final service = FakeQuestionPackService()..backups = backups;
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    expect(
+      inDialog(find.text(zh.settingsQuestionPackBackupPruneAction)),
+      findsOneWidget,
+    );
+    final listCallsBefore = service.listBackupsCalls;
+
+    await tester.tap(
+      inDialog(
+        find.widgetWithText(
+          TextButton,
+          zh.settingsQuestionPackBackupPruneAction,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(zh.settingsQuestionPackBackupPruneConfirm(2, 10)),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.widgetWithText(
+        FilledButton,
+        zh.settingsQuestionPackBackupPruneAction,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.pruneCalls, 1);
+    expect(service.pruneKeeps, <int>[10]);
+    expect(
+        find.text(zh.settingsQuestionPackBackupPruneDone(2)), findsOneWidget);
+    expect(service.listBackupsCalls, greaterThan(listCallsBefore));
+    expect(service.backups, hasLength(10));
+    expect(inDialog(find.text(backups.first.name)), findsOneWidget);
+    expect(inDialog(find.text(backups.last.name)), findsNothing);
+    expect(inDialog(find.byType(ListTile)), findsNWidgets(10));
+  });
+
+  testWidgets('备份：不超过 10 份时不显示清理按钮', (tester) async {
+    final service = FakeQuestionPackService()..backups = manyBackups(10);
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    expect(
+      inDialog(find.text(zh.settingsQuestionPackBackupPruneAction)),
+      findsNothing,
+    );
+    expect(service.pruneCalls, 0);
+  });
+
+  testWidgets('备份：清理失败时提示原因，列表仍会重读', (tester) async {
+    final backups = manyBackups(11);
+    final service = FakeQuestionPackService()
+      ..backups = backups
+      ..pruneBackupsError = StateError('locked');
+    await pumpSettings(tester, service: service);
+    await openBackups(tester);
+
+    final listCallsBefore = service.listBackupsCalls;
+    await tester.tap(
+      inDialog(
+        find.widgetWithText(
+          TextButton,
+          zh.settingsQuestionPackBackupPruneAction,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(zh.settingsQuestionPackBackupPruneConfirm(1, 10)),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.widgetWithText(
+        FilledButton,
+        zh.settingsQuestionPackBackupPruneAction,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.pruneCalls, 1);
+    expect(
+      find.text(zh.settingsQuestionPackBackupPruneFailed('Bad state: locked')),
+      findsOneWidget,
+    );
+    expect(service.listBackupsCalls, greaterThan(listCallsBefore));
+    expect(service.backups, hasLength(11));
+    expect(inDialog(find.byType(ListTile)), findsNWidgets(11));
+  });
+
   test('题库包新增文案中英文齐全，占位符真的插值', () {
     expect(zh.settingsQuestionPackSection, isNotEmpty);
     expect(zh.settingsQuestionPackExport, isNotEmpty);
@@ -978,6 +1084,18 @@ void main() {
       allOf(contains('disk full'), isNot(contains('{error}'))),
     );
 
+    expect(zh.settingsQuestionPackBackupPruneAction, isNotEmpty);
+    expect(zh.settingsQuestionPackBackupPruneTooltip(10), contains('10'));
+    expect(
+      zh.settingsQuestionPackBackupPruneConfirm(2, 10),
+      allOf(contains('2'), contains('10'), isNot(contains('{count}'))),
+    );
+    expect(zh.settingsQuestionPackBackupPruneDone(2), contains('2'));
+    expect(
+      zh.settingsQuestionPackBackupPruneFailed('disk full'),
+      allOf(contains('disk full'), isNot(contains('{error}'))),
+    );
+
     expect(
       zh.settingsQuestionPackExportDone(7, 3, '1.5 KB'),
       allOf(contains('7'), contains('3'), contains('1.5 KB')),
@@ -1022,6 +1140,17 @@ void main() {
     expect(en.settingsQuestionPackRestoreConfirm('a.tqb'), contains('a.tqb'));
     expect(
       en.settingsQuestionPackRestoreFailed('disk full'),
+      contains('disk full'),
+    );
+    expect(en.settingsQuestionPackBackupPruneAction, isNotEmpty);
+    expect(en.settingsQuestionPackBackupPruneTooltip(10), contains('10'));
+    expect(
+      en.settingsQuestionPackBackupPruneConfirm(2, 10),
+      allOf(contains('2'), contains('10')),
+    );
+    expect(en.settingsQuestionPackBackupPruneDone(2), contains('2'));
+    expect(
+      en.settingsQuestionPackBackupPruneFailed('disk full'),
       contains('disk full'),
     );
   });

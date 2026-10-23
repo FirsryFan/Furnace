@@ -167,6 +167,7 @@ final class FakeQuestionPackService implements QuestionPackService {
   Object? listBackupsError;
   Object? deleteBackupError;
   Object? readBackupBytesError;
+  Object? pruneBackupsError;
 
   /// 挂住导出（挂起期间断言两行 tile 都被禁用）。
   Completer<void>? exportGate;
@@ -177,8 +178,13 @@ final class FakeQuestionPackService implements QuestionPackService {
   int importCalls = 0;
   int listBackupsCalls = 0;
   int readBackupBytesCalls = 0;
+  int pruneCalls = 0;
   final List<String> deletedBackupPaths = <String>[];
   final List<String> readBackupBytesPaths = <String>[];
+  final List<int> pruneKeeps = <int>[];
+
+  /// 非空时 [pruneBackups] 直接返回它、不改 [backups]（测「删了几份」用）。
+  List<String>? prunedPaths;
   final List<Uint8List> peekedBytes = <Uint8List>[];
   final List<Uint8List> plannedBytes = <Uint8List>[];
   final List<Uint8List> importedBytes = <Uint8List>[];
@@ -262,6 +268,29 @@ final class FakeQuestionPackService implements QuestionPackService {
     }
     backups =
         backups.where((backup) => backup.path != path).toList(growable: false);
+  }
+
+  /// 默认行为：按 [backups] 的新→旧顺序保留前 [keep] 份，返回被移除的路径。
+  @override
+  Future<List<String>> pruneBackups({
+    int keep = QuestionPackService.kQuestionPackBackupKeepCount,
+  }) async {
+    pruneCalls++;
+    pruneKeeps.add(keep);
+    if (pruneBackupsError != null) {
+      throw pruneBackupsError!;
+    }
+    final configured = prunedPaths;
+    if (configured != null) {
+      return configured;
+    }
+    if (backups.length <= keep) {
+      return const <String>[];
+    }
+    final removed =
+        backups.skip(keep).map((backup) => backup.path).toList(growable: false);
+    backups = backups.take(keep).toList(growable: false);
+    return removed;
   }
 
   @override

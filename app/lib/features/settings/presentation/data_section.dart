@@ -400,6 +400,8 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
         deleteBackup: (path) =>
             ref.read(questionPackServiceProvider).deleteBackup(path),
         restoreBackup: _restoreFromBackup,
+        pruneBackups: (keep) =>
+            ref.read(questionPackServiceProvider).pruneBackups(keep: keep),
       ),
     );
     if (!mounted) return;
@@ -815,6 +817,7 @@ class _QuestionPackBackupsDialog extends StatefulWidget {
     required this.listBackups,
     required this.deleteBackup,
     required this.restoreBackup,
+    required this.pruneBackups,
   });
 
   /// 读当前备份（每次删除/恢复后重读，成功与否以磁盘为准）。
@@ -825,6 +828,9 @@ class _QuestionPackBackupsDialog extends StatefulWidget {
 
   /// 用一份备份恢复题库（确认、预检与结果提示都在父级做）。
   final Future<void> Function(QuestionPackBackup backup) restoreBackup;
+
+  /// 清理旧备份，只保留最近 [keep] 份，返回被删掉的路径。
+  final Future<List<String>> Function(int keep) pruneBackups;
 
   @override
   State<_QuestionPackBackupsDialog> createState() =>
@@ -901,6 +907,57 @@ class _QuestionPackBackupsDialogState
     }
   }
 
+  /// 清理旧备份：确认后只保留最近 [QuestionPackService.kQuestionPackBackupKeepCount]
+  /// 份；成功/失败都会重读列表，以磁盘为准。
+  Future<void> _confirmPrune(int backupCount) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    const keep = QuestionPackService.kQuestionPackBackupKeepCount;
+    final removeCount = backupCount - keep;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsQuestionPackBackupsTitle),
+        content: Text(
+          l10n.settingsQuestionPackBackupPruneConfirm(removeCount, keep),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.settingsQuestionPackBackupPruneAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final removed = await widget.pruneBackups(keep);
+      messenger.showSnackBar(
+        SnackBar(
+          content:
+              Text(l10n.settingsQuestionPackBackupPruneDone(removed.length)),
+        ),
+      );
+      await _load();
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.settingsQuestionPackBackupPruneFailed('$error')),
+        ),
+      );
+      await _load();
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   /// 恢复一份备份；成功后重读列表（恢复前会自动再备份一次当前题库）。
   Future<void> _restore(QuestionPackBackup backup) async {
     setState(() => _busy = true);
@@ -936,6 +993,27 @@ class _QuestionPackBackupsDialogState
                 l10n.settingsQuestionPackBackupsHint,
                 style: theme.textTheme.bodySmall,
               ),
+              if (backups != null &&
+                  backups.length >
+                      QuestionPackService.kQuestionPackBackupKeepCount) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Tooltip(
+                    message: l10n.settingsQuestionPackBackupPruneTooltip(
+                      QuestionPackService.kQuestionPackBackupKeepCount,
+                    ),
+                    child: TextButton.icon(
+                      onPressed:
+                          _busy ? null : () => _confirmPrune(backups.length),
+                      icon: const Icon(Icons.cleaning_services),
+                      label: Text(
+                        l10n.settingsQuestionPackBackupPruneAction,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               if (_loadError != null) ...[
                 const SizedBox(height: 12),
                 Text(_loadError.toString(), style: theme.textTheme.bodySmall),
