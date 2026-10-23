@@ -2,6 +2,45 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十八：错题记录的逐条明细与清除（Lead + question-intake + threadflow-engine 并行）
+
+**起点**：轮次一百五十七收尾（HEAD `82044b2`，v0.6.4 已发布，schema v32，工作树干净）。
+选片理由：§36 的错题本筛选把「答错过的题」筛出来了，但作答记录只追加、详情页只显示最近一次——
+一道题只要错过一次就永远留在错题本里，哪怕之后连续答对；想看逐条记录也没有入口。本轮补
+**展开逐条明细**与**清除这道题的作答记录**（清完「错 N 次」徽标随之消失）。仍无 schema 变更
+（v32）、不调模型、不动排序权重。
+
+**片 1：l10n（Lead）**
+- `app/lib/l10n/app_zh.arb`/`app_en.arb` 新增 7 个 key：`questionDetailAttemptClearAction`、
+  `…ClearConfirmTitle`、`…ClearConfirmBody`、`…ClearDone`、`…ClearFailed(error)`、
+  `…DetailToggle(count)`、`…DetailHide`；`cd app && flutter gen-l10n` exit 0（5 个生成/ARB 文件）。
+
+**片 2：详情页（question-intake，task-169）**
+- `app/lib/features/questions/presentation/question_detail_page.dart`：`_AttemptHistoryLine` 改
+  `ConsumerStatefulWidget`（:718），本地 `_expanded`；明细开关（:829）展开 `history.entries`
+  逐条（时间 + 回答正确/错误，新→旧）；清除按钮（:838）→ 确认框 → `deleteForQuestion` → 成功
+  `ref.invalidate(questionAttemptHistoryProvider)` + SnackBar，失败提示且历史行保留。
+- 测试 54 → **59 例**（+5）。
+
+**片 3：题库行菜单（threadflow-engine，task-170）**
+- `app/lib/features/questions/presentation/question_bank_page.dart`：`_clearAttempts`（:291）确认框 →
+  `deleteForQuestion` → 成功失效两个 library provider + SnackBar，失败提示不失效；行菜单项
+  `_QuestionRowAction.clearAttempts`（:957）**仅 `entry.hasWrongAttempt`** 时出现（:1117-1124）。
+- 测试 21 → **26 例**（+5），`question_bank_page_test` +17 无回归。
+
+**门禁（Lead 实跑）**
+- 4 个改动 dart 文件 `dart format --set-exit-if-changed` → 0 changed。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**，EXIT 0。
+- scoped：question_detail_page_test +59、question_bank_filter_test +26、question_bank_page_test +17 全绿。
+- 全量 `flutter test --concurrency=1` → **+5748 ~2 All tests passed，10:06，EXIT 0**
+  （日志 `E:/dsh-tmp-aot/test-158-full.txt`；上轮基线 +5738，净增 10）。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §37（37.1 详情页 / 37.2 题库菜单 / 37.3 l10n、测试、
+门禁与边界）；§36 的「没有删除/重置入口」一行改为指向 §37。
+
+**仍未做**：没有全局「清空全部作答记录」，不能删单条记录（只能整题清空），清除不可撤销无备份，
+无正确率统计，明细展开状态不持久且最多 200 条，真机与英文排版未验证。
+
 ## 2026-10-24 轮次一百五十七：题库「错题本」筛选 + 行内错题徽标（Lead + 三个 teammate 并行）
 
 **起点**：轮次一百五十六收尾（HEAD `5b2a725`，v0.6.4 已发布，schema v32，工作树干净）。

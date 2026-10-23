@@ -1995,7 +1995,73 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   - 作答记录不参与推荐练习、相似题或 threadflow 任何权重（§35.3 的边界不变）；
   - 徽标只有次数，点开才能看最近一次对错（§35 的历史行），明细逐条列表未做；
   - 错题本与标签/学科组合只有 application 层单元测试覆盖，没有单独 UI 组合用例；真机未手测；
-  - 作答记录没有删除/重置入口（只随删题连带清）。
+  - 作答记录的清除与逐条明细见 §37（轮次一百五十八补）。
+
+## 37. 错题记录的明细与清除（轮次一百五十八，2026-10-24）
+
+> §36 把「答错过的题」筛了出来，但作答记录只追加、只能看最近一次：一道题只要错过一次，
+> 就永远待在错题本里，哪怕之后连续答对；想看逐条记录也没有入口。本节补两件事——
+> **展开逐条明细**与**清除这道题的作答记录**（清完题库里的「错 N 次」徽标随之消失）。
+> 仍然无 schema 变更（v32）、不调模型；清除是删 `question_attempts` 行，不删题目本身。
+
+### 37.1 详情页：展开明细 + 清除记录（task-169 question-intake）
+
+文件 `app/lib/features/questions/presentation/question_detail_page.dart`（+406/-10 含测试）：
+
+- 新顶层 key：`questionAttemptDetailToggleKey = Key('question-attempt-detail-toggle')`（:66）、
+  `questionAttemptClearKey = Key('question-attempt-clear')`（:70）、
+  `questionAttemptEntryKeyFor(id) = ValueKey('question-attempt-entry-<id>')`（:73）。
+- `_AttemptHistoryLine` 由 `ConsumerWidget` 改 `ConsumerStatefulWidget`（:718，State :728）——
+  展开状态是**页面本地 state**（`_expanded` :730），离开详情页再进回到收起；调用点
+  `_AttemptHistoryLine(questionId: question.id)` 不变，没有历史时仍整块 `SizedBox.shrink()`。
+- 历史行下方两个 `TextButton`：
+  - 明细开关（:829）：`questionDetailAttemptDetailToggle(history.total)`「查看明细（N 条）」↔
+    `questionDetailAttemptDetailHide`「收起明细」；展开后按 `history.entries`（已是新→旧）逐条
+    一行（:844-854），内容 `_formatAttemptTime(entry.attemptedAt)` + 「回答正确/回答错误」
+    （复用 `questionDetailSelfTestCorrect/Incorrect`），每条 `Row` 带 `questionAttemptEntryKeyFor`。
+  - 清除（:838）：`_clearing` 期间禁用；`_clearRecords()`（:740）先弹 `AlertDialog`
+    （标题 `…ClearConfirmTitle`、正文 `…ClearConfirmBody`、取消用 `commonCancel`、确认按钮复用
+    `…ClearAction`）→ 确认后 `ProviderScope.containerOf(context, listen: false).read(
+    questionAttemptRepositoryProvider).deleteForQuestion(questionId)` → 成功
+    `ref.invalidate(questionAttemptHistoryProvider(questionId))` + SnackBar `…ClearDone`；
+    失败 catch 后 SnackBar `…ClearFailed('$error')`，**不**invalidate、历史行保留。
+
+### 37.2 题库行菜单：清除记录（task-170 threadflow-engine）
+
+文件 `app/lib/features/questions/presentation/question_bank_page.dart`：
+
+- 新顶层 key 工厂 `questionBankClearAttemptsKeyFor(id) = 'question-bank-clear-attempts-<id>'`（:81）。
+- `_clearAttempts(QuestionLibraryEntry entry)`（:291）：确认框同 §37.1（标题/正文/取消/确认）→
+  `deleteForQuestion(entry.questionId)` → 成功 `_invalidateLibrary()`（overview + full 两档都失效，
+  :325）+ SnackBar `…ClearDone`；失败 SnackBar `…ClearFailed('$error')` 并 return（不失效、不报成功）；
+  每一步都有 `mounted` 检查。
+- 行菜单枚举 `_QuestionRowAction` 增加 `clearAttempts`（:957），行构造传 `onClearAttempts`（:895），
+  switch 分支（:1098）；菜单项**仅当 `entry.hasWrongAttempt`** 时出现（:1117-1124），没错过的行菜单
+  仍是原三项（重命名 / 自动命名 / 复制题号）。
+- 写库本身会 bump dataRevision 让两个 library provider 自动重读；显式 `_invalidateLibrary()` 是兜底。
+
+### 37.3 l10n、测试、门禁与边界
+
+- l10n（Lead 手改 ARB + `flutter gen-l10n`，7 个 key）：`questionDetailAttemptClearAction`（清除记录）、
+  `…ClearConfirmTitle`、`…ClearConfirmBody`（说明重置统计与错题标记、不可撤销）、`…ClearDone`、
+  `…ClearFailed(error)`、`…DetailToggle(count)`、`…DetailHide`。菜单项与确认按钮共用
+  `…ClearAction` 文案（确认框打开时菜单已关，测试里该文案唯一）。
+- 测试：`question_detail_page_test.dart` 54 → **59 例**（+5：有历史两按钮都在、展开新→旧再收起、
+  取消保留、确认清空且历史行消失/另一题不受影响、删除抛错时失败提示且历史行仍在；helper
+  `_waitForGone`、替身 `_FailingDeleteAttemptRepository`）；`question_bank_filter_test.dart` 21 → **26 例**
+  （+5：菜单项条件出现/没错过不出现、确认清除→作答清空+徽标消失+题仍在、取消保留、抛错时失败提示；
+  `_pump` 增加可选 `overrides` 参数、末尾 `_ThrowingAttemptRepository`）。
+- 门禁（Lead 实跑）：4 个改动 dart 文件 `dart format --set-exit-if-changed` **0 changed**；
+  `dart analyze lib test` = **91 issues / 0 error / 0 warning**；scoped 三文件全绿
+  （+59 / +26 / +17，题库页测试无回归）；全量 `flutter test --concurrency=1` 见 `docs/PROGRESS.md`
+  轮次一百五十八条目。
+- 边界与未做：
+  - 没有「清空全部作答记录」的全局入口，也不能删**单条**记录（只能整题清空）；
+  - 清除不可撤销、无备份；清完题库里的错题徽标与筛选结果消失，题目本身不动；
+  - 没有正确率统计（清除后从零计数）；
+  - 详情页的明细展开状态不持久（离开再进回到收起），明细最多展示仓储上限 200 条；
+  - 真机未手测；英文排版未验证。
+
 
 
 
