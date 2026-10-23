@@ -2,6 +2,49 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十三：编号高水位 v33 + 多段题号搜索 + 组卷缺口解释句（Lead + 3 teammate 并行）
+
+**起点**：轮次一百六十二收尾（HEAD `f7220b7`，schema v32，v0.6.6 已发布，全量 +5777 全绿，工作树干净）。
+选片理由：`docs/QUESTION_BANK_DESIGN.md` §11 诚实清单②「"发出即永久保留"未做到：删掉最大号那题后号会被
+下一题接手」、§11「题号多段筛选仍未做」、§10 诚实清单「PaperGapNote 只在领域层与测试里，没有单独界面块」。
+**schema v32 → v33（新增单行表 `question_serial_counters`），不调模型。**
+
+**片 1：schema v33 编号高水位（Lead）**
+- 表 `app/lib/data/database/tables.dart:1630`；`database.dart`：tables 列表 :78、v33 doc 链 :115-119、
+  `schemaVersion => 33` :121、onUpgrade :224、自愈建表 :433、`_upgradeV32ToV33()` :946（建表后把高水位
+  抬到现存最大号）、`_raiseQuestionSerialHighWaterToCurrentMax()` :1252。
+- `question_repository.dart` :206-218：同一事务内读 `MAX(serial_no)` + 读高水位行 →
+  `allocateQuestionSerial` → 插入 → `insertOnConflictUpdate(id:1,lastIssued:serialNo)`。
+- 包导入：`backfillQuestionSerialNumbers()` :1219 两个出口都抬水位，带号包导入的号同样不回收。
+- 测试：`v33_migration_test.dart` 新文件 **5 例**、仓储 15 → **16 例**（新增删最高号后不接手、
+  老库无高水位行、并发 6 题、模拟带号导入后抬水位）。
+
+**片 2：编号分配纯函数（reasoning-core/task-175）**
+- `domain/services/questions/question_serial_allocator.dart`（54 行纯 Dart）：`kMaxAllocatableQuestionSerial
+  = 999999999` :27、`allocateQuestionSerial({highestExisting,lastIssued})` :37（取合法候选最大 M，
+  无候选→1，否则 M+1，达上限饱和不回绕）。测试 **21 例**。
+
+**片 3：题库搜索支持多段题号（question-intake/task-177）**
+- `application/question_library_filter.dart` :172-178：`_matchesText` 开头复用 `parseQuestionSerialBatch`
+  （:26 import），批里无 rejected 段且题号命中 → true；原来的「单号 + 文本子串」回落未改。
+- 测试 82 例（+8：`TR-1,3,5`、范围、混无效段、单号不误判、无号题、文本回落）。
+
+**片 4：组卷缺口清单显示 PaperGapNote（threadflow-engine/task-176）**
+- `presentation/question_paper_page.dart`：:98/:102 section keys、:105 `questionPaperGapNoteKeyFor(id)`、
+  :472/:481 传 notes、:640 `_GapSection` 加 notes/sectionKey、:691 `_GapEntry` 有 note 两行
+  （「• labelZh」+ messageZh）、无 note 回落旧「• 名称」、notes 空完全旧行为。
+- 口径：保留「• 」前缀（labelZh=知识点名，与旧断言逐字一致，旧测试不改），Lead 已确认。
+- 测试 27 → **29 例**（真实 provider 解释句、notes 空回落）。
+
+**门禁（Lead 实跑）**：13 个改动 dart 文件 format 0 changed；`dart analyze lib test` = 91 issues /
+0 error / 0 warning；scoped 五文件 **+151**（v33 5 + 仓储 16 + 分配器 21 + 题库筛选 82 + 组卷页 29），
+另有 `v32_migration_test.dart` 4 例随 schema 升到 33 改 `user_version` 断言后全绿；
+全量 `flutter test --concurrency=1` = +5816 ~2 All tests passed（10:23，EXIT 0；基线 +5777）（基线 +5777）。
+
+**未做 / 风险**：编号仍无 UNIQUE（跨库合并可能同号）；高水位只保证「发过的号不再发」，不保证连续；
+迁移前删掉的号与被外部工具改的号不知道；多段题号只接题库搜索；`PaperGapNote.messageZh` 仍中文硬编码
+未接 l10n；空卷分支不渲染缺口小节（既有行为）；真机未手测。
+
 ## 2026-10-24 轮次一百六十二：v0.6.6 双端发布（清空全部作答记录 + 自测统计行 + 明细逐条删除）
 
 **起点**：轮次一百六十一收尾（HEAD `834ae64`，schema v32，全量 +5777 全绿，工作树干净）。

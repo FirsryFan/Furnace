@@ -522,9 +522,13 @@ Brier/ECE 会系统性地好看。因此：
 | `attachments.sort_order` | INTEGER 非空，默认 0 | 同一 owner 内多张图的展示顺序；老行补 0，新图由 `QuestionMediaStore` 取当前最大值 + 1，首张为 0 |
 
 **编号怎么发**：唯一插入点 `QuestionRepository.ingest` 在**同一个事务**里先读
-`SELECT MAX(serial_no)`，再用 `nextQuestionSerial`（`lib/domain/services/questions/question_number.dart`）
-算 `max + 1`，然后插入题目。事务内读-算-写保证并发不撞号；`QuestionDraft` 不带编号参数，
-调用方无法自己指定（编号是仓储的职责，不是收题页的）。
+`SELECT MAX(serial_no)`，再算 `max + 1`，然后插入题目。事务内读-算-写保证并发不撞号；
+`QuestionDraft` 不带编号参数，调用方无法自己指定（编号是仓储的职责，不是收题页的）。
+
+> v24 时用的是 `nextQuestionSerial`（`lib/domain/services/questions/question_number.dart`，
+> 纯 `max + 1`）；**v33 起改为** `allocateQuestionSerial(highestExisting: MAX, lastIssued: 高水位)`
+> （`lib/domain/services/questions/question_serial_allocator.dart`）+ 回写 `question_serial_counters`，
+> 见 §22。
 
 **老库回填**：`_upgradeV23ToV24()` 补两列后调 `backfillQuestionSerialNumbers()`——按
 `(created_at, id)` 升序给 `serial_no IS NULL` 的行逐行补 1..N，已有号不动。逐行 UPDATE 而
@@ -536,9 +540,10 @@ Brier/ECE 会系统性地好看。因此：
 1. **编号不加 UNIQUE**：`append` 导入是"整包 dump + 跳过 id 冲突"，两个库各自从 1 发号，
    合并后必然撞号。撞号只是显示重复，去重（UNIQUE）会让整包导入失败——不符合"纸端/设备端
    双向同步"的主线场景。冲突在 UI 上以"题号可能重复"呈现，后续要真唯一得引入命名空间/来源前缀。
-2. **号不回收只做到"不腾空"**：分配规则是"现存最大 + 1"，所以删掉**当前最大号**那道题后，
-   它的号会被下一道新题接手。真正"发出即永久保留"需要持久计数器（单独的表或 settings 行），
-   本轮没做；题库的不变量是只追加，删题是清理手段，不是常规操作。
+2. **号不回收只做到"不腾空"（v24 时）**：当时分配规则是"现存最大 + 1"，删掉**当前最大号**
+   那道题后它的号会被下一道新题接手。这条取舍在 **v33** 补上了：新增单行高水位表
+   `question_serial_counters`，分配取 `max(现存最大, 历史最大发放) + 1` 并回写，删号不再被接手
+   （见 §22）；题库的不变量仍是只追加，删题是清理手段。
 
 **题目图片**：复用 `attachments` 表（`owner_type = 'question'`、`owner_id = questionId`），
 新的 `QuestionMediaStore`（`lib/features/questions/data/question_media_store.dart`）负责"文件 +
@@ -565,7 +570,7 @@ v23 及更早的包没有 `serial_no` 列，导入后补号；v24 包自带号�
 排序、owner 隔离、同名不覆盖、越界文件名被剥成 basename、删行删文件收空目录）、
 `app/test/domain/services/questions/question_number_test.dart`（格式化/解析/发号边界）、
 `app/test/data/repositories/question_repository_test.dart`（入库 1/2、同指纹重复入库号不变、
-删掉最大号后下一题接手）、`app/test/data/package/tfpkg_test.dart`（编号随包走；v23 包没有
+删掉最大号后下一题不接手旧号——v33 高水位，见 §22）、`app/test/data/package/tfpkg_test.dart`（编号随包走；v23 包没有
 `serial_no` 时导入后补 1、2）。
 
 ## 14. v25：能力动作词表 overlay 持久化（轮次一百二十三）
@@ -883,4 +888,38 @@ code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由�
 - 仓储层：label 归一化 `[' b','a ','A','']` → `["A","B"]`、`attempted_at` 是 epoch 毫秒、
   新→旧排序、同毫秒按 id 升序、limit 生效、`deleteForQuestion` 只删该题、
   `deleteQuestion` 连带清空该题作答且不碰别的题。
+
+## 22. v33：题目编号高水位（`question_serial_counters`，轮次一百六十三）
+
+`docs/QUESTION_BANK_DESIGN.md` §11.1 的诚实清单②：分配规则是「现存最大 + 1」，删掉最大号那道题后号会被下一道题接手，「发出即永久保留」没做到。v33 加一张**单行**高水位表补上：分配改成 `max(现存最大号, 历史最大发放号) + 1`，并把发放号回写。题号从「尽量不回收」变成「不回收」。
+
+| 表 | 列 | 类型 | 语义 |
+| --- | --- | --- | --- |
+| `question_serial_counters` | `id` | INT PK | 固定 1（单行表，`app/lib/data/database/tables.dart:1630`） |
+| | `last_issued` | INT，非空 | 这个库发出去过的最大题号（>= 1） |
+
+**为什么单独一张表、而不是塞 `local_settings`**：这一行只被题库写入（`ingest` 的事务里），与设置项没有语义关系；「没有这一行」在这里正好表达「老库还没记过高水位」，分配器退回旧行为。
+
+**分配**（`QuestionRepository.ingest`，`app/lib/data/repositories/question_repository.dart:206-218`，全在同一个事务里）：
+
+- 读 `MAX(serial_no)`（原逻辑，不变）；
+- 读 `question_serial_counters` 第 1 行（可能没有）；
+- `allocateQuestionSerial(highestExisting: MAX, lastIssued: counter?.lastIssued)`（`app/lib/domain/services/questions/question_serial_allocator.dart:37`）：合法候选（>= 1）取最大者 M，都没有 → 1，否则 M + 1；M 达到 `kMaxAllocatableQuestionSerial = 999999999`（:27，与题号检索 9 位上限对齐）时饱和返回上限、不回绕负数；
+- `insertOnConflictUpdate(id: 1, lastIssued: serialNo)` 回写高水位。
+
+**迁移**：`_upgradeV32ToV33()`（`app/lib/data/database/database.dart:946`）表不存在就 `Migrator.createTable(questionSerialCounters)`，然后**把高水位抬到现存最大号**（`_raiseQuestionSerialHighWaterToCurrentMax()` :1252）——否则升级后先删最大号那题、再入库，号仍会被接手；`_ensureColumns()` 自愈（:433）在版本号已是 33 但表被盖没时补建（否则第一次 `ingest` 就 no such table，一道题也存不进去）；`schemaVersion => 33`（:121）。**历史不回填**：迁移前删掉的号已经无从知道，能做的只是把「现存的曾经发出去过的号」抬进高水位。
+
+**包导入**：`.tfpkg` 导入结束后统一调 `backfillQuestionSerialNumbers()`（:1219）补空号；带号的题（v24 包）一行不动，但补号结束会把高水位抬到现存最大号（:1232/:1244 两处出口都调同一个 helper），所以「带号导入 → 删掉那题 → 入库」也不会接手旧号。
+
+**为什么不会退化成 `MAX`**：`ingest` 每次都会写高水位；即使高水位行被手工清空，下一次 ingest 又按 `max(现存, 空)` 起算并写回。
+
+**测试锁的事实**（`app/test/data/database/v33_migration_test.dart` 5 例、`app/test/data/repositories/question_repository_test.dart` 16 例、`app/test/domain/services/questions/question_serial_allocator_test.dart` 21 例）：
+
+- 真实 v32 文件升级后 `user_version` = 33、老题原样在、高水位被抬到现存最大号；第一次 ingest 把高水位写成 2，删掉最大号那题后下一题拿 3，重开后还有效；
+- 升级后**还没入库**就先删掉最大号那题，下一题仍拿「旧最大号 + 1」（seed 生效的证明）；
+- 模拟 v24 包向题库写一个大号，导入后补号把高水位抬上去，删掉这道带号题再入库也不接手；
+- 被盖成「版本 33 但缺 `question_serial_counters` 表」的老文件靠 `_ensureColumns` 自愈建表；
+- v31 老库一路升到 33（v31→v32 建作答表与 v32→v33 建高水位表都生效）；
+- 没有高水位行时退回「现存最大 + 1」，这次分配后把高水位写进去；并发 `Future.wait` 6 道题不撞号。
+
 

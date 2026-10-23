@@ -238,14 +238,18 @@ key 永久稳定、不本地化；界面用 `labelZh`。候选清单（可增删
 
 - 口径：**一个题库一条序列**，不按学科分段。显示 `TR-00001`（`kQuestionSerialPrefix = 'TR'`、
   `kQuestionSerialMinDigits = 5`，超过 5 位不截断）；库里存整数 `questions.serial_no`。
-- 发放：`QuestionRepository.ingest` 事务内 `MAX(serial_no) + 1`（`nextQuestionSerial`），
-  调用方不能指定。指纹去重命中老题时**沿用老题号**，不消耗新号。
+- 发放：`QuestionRepository.ingest` 事务内先读 `MAX(serial_no)`，再按
+  `max(现存最大, 历史最大发放) + 1` 分配（`allocateQuestionSerial`），并回写单一高水位表
+  `question_serial_counters`（v33，见 §40.1）；调用方不能指定。指纹去重命中老题时**沿用老题号**，
+  不消耗新号。
 - 老库：v23 → v24 迁移 + `_ensureColumns` 自愈都调 `backfillQuestionSerialNumbers()`，
   按 `(created_at, id)` 升序补 1..N。
 - 包：`.tfpkg` 导入后回填，老包里的题也拿到号；v24 包自带号。
 - **未做（诚实清单）**：① 编号不加 UNIQUE（`append` 导入会撞号，宁重复不丢题），跨库合并后
-  可能看到两个同一编号——要真唯一得引入来源前缀/命名空间；② "发出即永久保留"未做到：
-  分配规则是"现存最大 + 1"，删掉最大号那题后号会被下一题接手，持久计数器留待后续。
+  可能看到两个同一编号——要真唯一得引入来源前缀/命名空间；② ~~"发出即永久保留"未做到：
+  分配规则是"现存最大 + 1"，删掉最大号那题后号会被下一题接手，持久计数器留待后续。~~
+  **已做（轮次一百六十三）**：v33 单行高水位表 `question_serial_counters`，删号不再被接手，
+  见 §40.1。
 - UI（轮次一百二十一，question-intake 交付）：新增 `question_media_view.dart` 的
   `QuestionSerialBadge` / `questionSerialProvider` / `questionSerialText`，题号在收题清单、题目详情、
   题库列表三处展示；徽章可点击复制（`Clipboard.setData` + SnackBar）。题库行用的是
@@ -2196,6 +2200,47 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   - 明细最多展示仓储上限 200 条，展开状态不持久；
   - 防连点按**整组**禁用，没有每行独立 loading；
   - 真机未手测；英文未母语化。
+
+
+## 40. 轮次一百六十三：编号高水位 v33 / 多段题号搜索 / 组卷缺口解释句（2026-10-24）
+
+对应 §11 诚实清单②「发出即永久保留」+「题号多段筛选」+ §10 诚实清单「PaperGapNote 没有单独界面块」，三片一起补。
+
+### 40.1 schema v33：`question_serial_counters` 高水位
+
+- 表（`app/lib/data/database/tables.dart:1630`）：`QuestionSerialCounters`，`@DataClassName('QuestionSerialCounterRow')`，tableName `question_serial_counters`，单行 `id` PK 固定 1 + `last_issued` INT 非空。为什么单独一张表：只被题库写、与设置项没有语义关系；「没有这一行」正好表达「老库还没记过高水位」。
+- 分配：`allocateQuestionSerial({highestExisting, lastIssued})`（`app/lib/domain/services/questions/question_serial_allocator.dart:37`）合法候选（>= 1）取最大 M，都没有 → 1，否则 M + 1；`kMaxAllocatableQuestionSerial = 999999999`（:27）饱和不回绕；纯函数不抛异常。
+- 接线（`question_repository.dart` :206-218，同一事务）：读 `MAX(serial_no)` → 读高水位行 → allocate → 插入题目 → `insertOnConflictUpdate(id: 1, lastIssued: serialNo)`；指纹去重命中老题时沿用旧号、不消耗新号。
+- 迁移（`database.dart:946 _upgradeV32ToV33()`）：表不存在就 `Migrator.createTable`，然后**把高水位抬到现存最大号**（`_raiseQuestionSerialHighWaterToCurrentMax()` :1252）——只建空表的话，升级后先删最大号那题再入库，旧号仍会被接手；`_ensureColumns` :433 自愈在版本号已是 33 但表被盖没时补建（否则第一次 ingest 就 no such table）；`schemaVersion => 33` :121。
+- 包导入：`backfillQuestionSerialNumbers()`（:1219）补完空号后同样把高水位抬到现存最大号（:1232/:1244 两个出口），带号包（v24 包）导入的号也「发出即不回收」。
+- 不回填历史：迁移前删掉的号无从知道；能保证的是从现在起不再回收。
+- 测试：`v33_migration_test.dart` 5 例（真实 v32 升级 / 升级后先删最大号再入库不接手 / 自愈建表 / 从 v31 一路升 33 / 健康 v33 重开）；`question_repository_test.dart` 16 例（含删最高号不接手、老库无高水位行、并发 6 题、模拟带号导入后补号抬水位）；分配器 21 例。
+
+### 40.2 题库搜索支持多段题号
+
+- 复用 `parseQuestionSerialBatch`（`app/lib/domain/services/questions/question_serial_batch.dart:103`，单次最多 200 个、硬上限 100000，此前只有 AI 题工具在用）。
+- `question_library_filter.dart` :172-178：`_matchesText` 开头先批解析；串非空、无 rejected 段、且 `entry.serialNo` 在集合里 → 命中；原来的「单号 parseQuestionNumberQuery → title/stem/serialLabel/subjectKey/sourceLabel/tagPaths 子串」回落一行未改。
+- 测试 82 例（+8：`TR-1,3,5` 逗号组、范围、批里混无效段、`TR-` 单号不误判、无号题不命中、文本回落）。
+- 边界：多段号只在题库页搜索生效；题号筛选里输错一段不会整体误解，而是拒绝该段后按文本搜。
+
+### 40.3 组卷缺口清单显示 PaperGapNote
+
+- 此前 `PaperGapNote`（`app/lib/domain/services/paper/paper_composer.dart:342`）只在领域层与测试里，组卷页 `_GapSection` 只显示「• 知识点名」，没人看到 `messageZh` 的「为什么/下一步」。
+- `question_paper_page.dart`：:98 `questionPaperUncoveredNotesKey`、:102 `questionPaperDeferredNotesKey`、:105 `questionPaperGapNoteKeyFor(id)`；:472/:481 两处 `_GapSection` 传 sectionKey + `notes`；:640 `_GapSection` 加可选 `notes` + sectionKey；:691 `_GapEntry`：有 note 按 ids 顺序显示两行（`• labelZh` labelMedium + `messageZh` bodyMedium），没有 note 的 id 回落旧「• 名称」；notes 为空完全是旧行为。
+- 口径：保留「• 」前缀（`labelZh` 在真实数据=知识点名，与旧断言逐字一致，旧测试不改）——Lead 复核接受。
+- 测试 29 例（+2：真实 provider 的解释句且「• 名称」不重复、notes 空回落旧清单）。
+
+### 40.4 门禁与边界
+
+- format 12 个改动 dart 文件 0 changed；`dart analyze lib test` = 91 issues / 0 error / 0 warning；scoped 五文件 +151；全量 `flutter test --concurrency=1` +5816 ~2 All tests passed（10:23，EXIT 0；基线 +5777）（基线 +5777）。
+- 边界与未做：
+  - 编号仍无 UNIQUE（跨库合并可能同号）；高水位只管「发过的号不再发」，不保证连续；
+  - 迁移前就删掉的号、以及数据库里被外部工具改号，高水位都不知道；
+  - 多段题号只接题库搜索；收题页与 AI 搜索工具仍各走各的解析；
+  - `PaperGapNote.messageZh` 仍是中文硬编码，未接 l10n；空卷分支（`plan.items.isEmpty`）不渲染缺口小节（既有行为）；
+  - v32 迁移测试随之把 `user_version` 断言从 32 改成 33（它只锁 v32 新增表/列的行为），4 例仍绿；
+  - 真机未手测。
+
 
 
 
