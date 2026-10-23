@@ -76,6 +76,19 @@ class QuestionAttemptRepository {
         .go();
   }
 
+  /// 全部作答记录条数（设置页「学习数据」显示与"0 条禁用"判断用）。
+  Future<int> countAll() async {
+    final count = _db.questionAttempts.id.count();
+    final query = _db.selectOnly(_db.questionAttempts)..addColumns([count]);
+    return query.map((row) => row.read(count) ?? 0).getSingle();
+  }
+
+  /// 清空全部题的作答记录，返回删除行数（设置页确认后调用；不可撤销）。
+  ///
+  /// 只清 [QuestionAttempts]；题目、标签、闪存卡复习日志都不动。清完题库里的
+  /// "错过"筛选与"错 N 次"徽标会随之消失（它们都是这个表的派生结果）。
+  Future<int> deleteAll() => _db.delete(_db.questionAttempts).go();
+
   /// 勾选 label 的落库形状：JSON 数组文本（trim → 大写 → 去空 → 去重 → 升序）。
   ///
   /// 归一化放在这里而不是调用方：界面传进来的是用户点出来的 label，可能带空格、

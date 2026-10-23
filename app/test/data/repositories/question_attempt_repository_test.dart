@@ -188,4 +188,51 @@ void main() {
     expect(await repo.historyFor(doomed), isEmpty);
     expect(await repo.historyFor(kept), hasLength(1));
   });
+
+  test('countAll 跨题累加，空表为 0', () async {
+    expect(await repo.countAll(), 0);
+    final first = await seedQuestion(stem: '计数第一题');
+    final second = await seedQuestion(stem: '计数第二题');
+    await repo.record(
+      questionId: first,
+      selectedLabels: const <String>['A'],
+      isCorrect: true,
+    );
+    await repo.record(
+      questionId: first,
+      selectedLabels: const <String>['B'],
+      isCorrect: false,
+    );
+    await repo.record(
+      questionId: second,
+      selectedLabels: const <String>['A'],
+      isCorrect: false,
+    );
+
+    expect(await repo.countAll(), 3);
+
+    await repo.deleteForQuestion(first);
+    expect(await repo.countAll(), 1);
+  });
+
+  test('deleteAll 清空全部作答并返回行数，再调为 0，题目仍在', () async {
+    final first = await seedQuestion(stem: '清空第一题');
+    final second = await seedQuestion(stem: '清空第二题');
+    for (final questionId in <String>[first, first, second]) {
+      await repo.record(
+        questionId: questionId,
+        selectedLabels: const <String>['A'],
+        isCorrect: true,
+      );
+    }
+
+    expect(await repo.countAll(), 3);
+    expect(await repo.deleteAll(), 3);
+    expect(await repo.countAll(), 0);
+    expect(await repo.historyFor(first), isEmpty);
+    expect(await repo.historyFor(second), isEmpty);
+    expect(await questions.byId(first), isNotNull);
+    expect(await questions.byId(second), isNotNull);
+    expect(await repo.deleteAll(), 0);
+  });
 }
