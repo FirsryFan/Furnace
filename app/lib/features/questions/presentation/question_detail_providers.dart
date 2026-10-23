@@ -16,6 +16,7 @@ import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/questions/attempt_history.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
@@ -46,6 +47,17 @@ final questionDetailProvider =
   return QuestionDetail(
     question: question,
     options: await repository.optionsOf(id),
+  );
+});
+
+/// 一道题的自测作答历史（新→旧）。没有记录时是**空历史**而不是 null：
+/// "还没自测过"是一份合法读数，界面按 isEmpty 决定要不要显示那一行。
+final questionAttemptHistoryProvider = FutureProvider.autoDispose
+    .family<QuestionAttemptHistory, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  final repository = ref.watch(questionAttemptRepositoryProvider);
+  return QuestionAttemptHistory.fromEntries(
+    await repository.historyFor(questionId),
   );
 });
 
@@ -162,8 +174,7 @@ final questionKnowledgeStatesProvider =
   final rows = await database.select(database.cardStates).get();
   final templates = await database.select(database.cardTemplates).get();
   final knowledgePointOfTemplate = <String, String>{
-    for (final template in templates)
-      template.id: template.knowledgePointId,
+    for (final template in templates) template.id: template.knowledgePointId,
   };
 
   final ordered = List<CardState>.of(rows)
@@ -187,8 +198,8 @@ final questionKnowledgeStatesProvider =
 ///
 /// 用与 ThreadFlow 段落 B 同一个解析器 [TaskKnowledgePointResolver]，只是把
 /// `sourceObjectType` 换成 `question`：同一份推导规则，不在题库页再写一遍。
-final questionKnowledgePointIdsProvider =
-    FutureProvider.autoDispose.family<List<String>, String>((ref, questionId) async {
+final questionKnowledgePointIdsProvider = FutureProvider.autoDispose
+    .family<List<String>, String>((ref, questionId) async {
   ref.watchDatabaseRevision();
   final database = ref.watch(appDatabaseProvider);
   final rows = await database.select(database.objectTags).get();

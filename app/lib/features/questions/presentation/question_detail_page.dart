@@ -59,6 +59,9 @@ const Key questionSelfTestSubmitKey = Key('question-self-test-submit');
 Key questionSelfTestOptionKey(String label) =>
     ValueKey<String>('question-self-test-option-$label');
 
+/// 自测历史摘要行的 key（测试定位用）。
+const Key questionAttemptHistoryKey = Key('question-attempt-history');
+
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
   const QuestionDetailPage({super.key, required this.questionId});
@@ -273,13 +276,33 @@ class _QuestionBodyState extends State<_QuestionBody> {
     if (!_selfTest || _submitted || _selectedLabels.isEmpty) {
       return;
     }
+    final result = scoreObjectiveAnswer(
+      questionType: widget.detail.question.questionType,
+      options: _objectiveOptions,
+      selectedLabels: _selectedLabels,
+    );
     setState(() {
-      _attempt = scoreObjectiveAnswer(
-        questionType: widget.detail.question.questionType,
-        options: _objectiveOptions,
-        selectedLabels: _selectedLabels,
-      );
+      _attempt = result;
     });
+    // 只有「判得出对错」的提交才落库（空选/非客观题没有可判的东西）；
+    // 写库失败不该把这次作答变成错误，所以异步吞掉。
+    if (result.isCorrect || result.isIncorrect) {
+      _recordAttempt(result);
+    }
+  }
+
+  /// 把这次判分追加进 `question_attempts`；失败只记日志，界面照常显示判分。
+  Future<void> _recordAttempt(ObjectiveAttemptResult result) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    try {
+      await container.read(questionAttemptRepositoryProvider).record(
+            questionId: widget.detail.question.id,
+            selectedLabels: result.selectedLabels,
+            isCorrect: result.isCorrect,
+          );
+    } catch (error, stackTrace) {
+      debugPrint('自测作答写库失败：$error\n$stackTrace');
+    }
   }
 
   /// 一行选项。普通模式与改动前一致；自测模式加复选框、整行可点选、选中高亮，
@@ -556,6 +579,8 @@ class _QuestionBodyState extends State<_QuestionBody> {
               ),
             ),
         ],
+        // 自测历史摘要：放在自测开关/选项这一带；一次没做过时整块不占位。
+        _AttemptHistoryLine(questionId: question.id),
         if (answer.isNotEmpty && !_answersHidden) ...[
           const SizedBox(height: 16),
           _LabelledText(
@@ -670,6 +695,60 @@ class _SelfTestResultBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 自测历史摘要：做过几次、对几次、最近一次何时对/错。
+///
+/// 读 [questionAttemptHistoryProvider]（落库后经 `DataChangeBus` 自动重读）；
+/// 加载中、读失败、或一次都没做过时**整块不渲染**——空白占位只会让页面更乱。
+class _AttemptHistoryLine extends ConsumerWidget {
+  const _AttemptHistoryLine({required this.questionId});
+
+  final String questionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history =
+        ref.watch(questionAttemptHistoryProvider(questionId)).valueOrNull;
+    if (history == null || history.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final latest = history.latest!;
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final at = _formatAttemptTime(latest.attemptedAt);
+    return Padding(
+      key: questionAttemptHistoryKey,
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            l10n.questionDetailAttemptHistory(history.total, history.correct),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            latest.isCorrect
+                ? l10n.questionDetailAttemptLastCorrect(at)
+                : l10n.questionDetailAttemptLastIncorrect(at),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 自测历史里的时间：`yyyy-MM-dd HH:mm`（本地时区，与任务详情页同一写法）。
+String _formatAttemptTime(DateTime at) {
+  String pad(int value) => value.toString().padLeft(2, '0');
+  return '${at.year}-${pad(at.month)}-${pad(at.day)} '
+      '${pad(at.hour)}:${pad(at.minute)}';
 }
 
 /// 题干 + 题干配图的渲染流。

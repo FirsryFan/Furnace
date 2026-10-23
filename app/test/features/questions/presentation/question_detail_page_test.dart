@@ -9,8 +9,9 @@
 ///  3. **"没有你的读数"看得见**：卡点评估里 `unmatchedHints` 是"本地没有读
 ///     数"，不是"这一步没问题"；界面上必须能区分这两件事。
 ///
-/// 数据库用内存库（不装 `instrumentWrites`——这里断言的是"写进去了没有"，
-/// 不是"界面自己刷新了吗"）；模型用 `FakeModelAdapter`。
+/// 数据库用内存库：默认不装 `instrumentWrites`（这里断言的是"写进去了没有"，
+/// 不是"界面自己刷新了吗"）；只有自测历史的自动刷新用例显式打开——
+/// 见 `_newDatabase(observeWrites: true)`。模型用 `FakeModelAdapter`。
 library;
 
 import 'dart:convert';
@@ -25,7 +26,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/question_attempt_repository.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
+import 'package:furnace/data/repositories/repository_providers.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/domain/services/paper/similar_questions.dart';
 import 'package:furnace/domain/services/questions/question_source.dart';
@@ -1426,11 +1429,151 @@ void main() {
         tester.widget<FilledButton>(find.byKey(questionSelfTestSubmitKey));
     expect(submit.onPressed, isNull);
   });
+
+  testWidgets('自测历史：一次都没做过时整块不出现', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionAttemptHistoryKey), findsNothing);
+    expect(find.textContaining('最近一次'), findsNothing);
+  });
+
+  testWidgets('自测历史：做过几次/对几次与最近一次对错都显示', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+    final attempts = QuestionAttemptRepository(database);
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 20, 9),
+    );
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['A'],
+      isCorrect: false,
+      now: DateTime(2026, 10, 21, 8, 30),
+    );
+    await attempts.record(
+      questionId: question.id,
+      selectedLabels: const <String>['B'],
+      isCorrect: true,
+      now: DateTime(2026, 10, 22, 21, 5),
+    );
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(3, 2));
+
+    expect(find.byKey(questionAttemptHistoryKey), findsOneWidget);
+    expect(find.text(_zh.questionDetailAttemptHistory(3, 2)), findsOneWidget);
+    expect(
+      find.text(_zh.questionDetailAttemptLastCorrect('2026-10-22 21:05')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_zh.questionDetailAttemptLastIncorrect('2026-10-21 08:30')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('自测历史：答对后落库一行，历史行自动刷新', (WidgetTester tester) async {
+    final database = _newDatabase(observeWrites: true);
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('B')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+
+    // 写库经 DbWriteInterceptor 触发 dataRevision，历史行自己重读。
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(1, 1));
+    expect(
+      find.textContaining(_zh.questionDetailAttemptLastCorrect('')),
+      findsOneWidget,
+    );
+
+    final entries =
+        await QuestionAttemptRepository(database).historyFor(question.id);
+    expect(entries, hasLength(1));
+    expect(entries.single.isCorrect, isTrue);
+  });
+
+  testWidgets('自测历史：答错也落库，最近一次显示答错', (WidgetTester tester) async {
+    final database = _newDatabase(observeWrites: true);
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('A')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+
+    await _waitForText(tester, _zh.questionDetailAttemptHistory(1, 0));
+    expect(
+      find.textContaining(_zh.questionDetailAttemptLastIncorrect('')),
+      findsOneWidget,
+    );
+
+    final entries =
+        await QuestionAttemptRepository(database).historyFor(question.id);
+    expect(entries, hasLength(1));
+    expect(entries.single.isCorrect, isFalse);
+  });
+
+  testWidgets('自测历史：落库失败不挡判分结果', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(
+      tester,
+      database,
+      question.id,
+      adapter: null,
+      overrides: <Override>[
+        questionAttemptRepositoryProvider.overrideWithValue(
+          _FailingAttemptRepository(database),
+        ),
+      ],
+    );
+    await _waitForText(tester, _stem);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('B')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 判分照常显示；写库失败只进日志，不动界面。
+    expect(find.text(_zh.questionDetailSelfTestCorrect), findsOneWidget);
+    expect(find.byKey(questionAttemptHistoryKey), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
-AppDatabase _newDatabase() {
-  final database = AppDatabase.forTesting(NativeDatabase.memory());
+///
+/// 默认不装 `instrumentWrites`：大多数用例断言的是"写进去了没有"，不是
+/// "界面自己刷新了吗"。需要证明写库会触发页面自动重读的用例（自测历史）
+/// 传 `observeWrites: true`，走与生产同一套 `DbWriteInterceptor`。
+AppDatabase _newDatabase({bool observeWrites = false}) {
+  final executor = observeWrites
+      ? instrumentWrites(NativeDatabase.memory())
+      : NativeDatabase.memory();
+  final database = AppDatabase.forTesting(executor);
   addTearDown(database.close);
   return database;
 }
@@ -1676,4 +1819,19 @@ Uint8List _pngHeader({required int width, required int height}) {
     ]);
   }
   return builder.toBytes();
+}
+
+/// 写库必失败的作答仓储：证明"落库失败不阻断判分结果"。
+final class _FailingAttemptRepository extends QuestionAttemptRepository {
+  _FailingAttemptRepository(super.database);
+
+  @override
+  Future<String> record({
+    required String questionId,
+    required Iterable<String> selectedLabels,
+    required bool isCorrect,
+    DateTime? now,
+  }) async {
+    throw StateError('磁盘满了');
+  }
 }
