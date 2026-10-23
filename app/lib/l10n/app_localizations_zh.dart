@@ -4958,4 +4958,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tasksDueAtConflictNoFreeMoment => '这个方向找不到空闲时段';
+
+  @override
+  String get handwritingMergeModeEnter => '选择照片';
+
+  @override
+  String get handwritingMergeModeExit => '取消选择';
+
+  @override
+  String handwritingMergeButton(int count) {
+    return '合并整理（$count 张）';
+  }
+
+  @override
+  String get handwritingMergeNeedTwo => '至少选两张照片才能合并整理。';
+
+  @override
+  String get handwritingMergeHint => '多页或连拍的照片按选择顺序交给模型：跨页的同一道题会合并成一条。';
+
+  @override
+  String handwritingMergeRunTitle(int count) {
+    return '多页整理（$count 张照片）';
+  }
+
+  @override
+  String get handwritingMergeRunFailed => '合并整理失败';
+
+  @override
+  String get handwritingMergedBadge => '已合并';
+
+  @override
+  String get handwritingMergeUnselectable => '已经整理过的照片不能参与合并';
+
+  @override
+  String settingsQuestionPackBackupCreated(String path) {
+    return '导入前已自动备份现有题库：$path';
+  }
+
+  @override
+  String get settingsQuestionPackBackupFailed => '导入前自动备份失败（不影响导入）';
 }

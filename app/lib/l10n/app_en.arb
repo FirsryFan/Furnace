@@ -2756,5 +2756,37 @@
         "type": "String"
       }
     }
-  }
+  },
+  "handwritingMergeModeEnter": "Select photos",
+  "handwritingMergeModeExit": "Cancel selection",
+  "handwritingMergeButton": "Merge {count} photo(s)",
+  "@handwritingMergeButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingMergeNeedTwo": "Select at least two photos to merge.",
+  "handwritingMergeHint": "Multi-page or burst photos are sent to the model in selection order; the same question across pages is merged into one item.",
+  "handwritingMergeRunTitle": "Multi-page intake ({count} photos)",
+  "@handwritingMergeRunTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingMergeRunFailed": "Merge failed",
+  "handwritingMergedBadge": "Merged",
+  "handwritingMergeUnselectable": "Photos that are already organised cannot be merged",
+  "settingsQuestionPackBackupCreated": "Existing question bank backed up before import: {path}",
+  "@settingsQuestionPackBackupCreated": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackBackupFailed": "Backup before import failed (import continues)"
 }

@@ -8641,6 +8641,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No free slot in that direction'**
   String get tasksDueAtConflictNoFreeMoment;
+
+  /// No description provided for @handwritingMergeModeEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Select photos'**
+  String get handwritingMergeModeEnter;
+
+  /// No description provided for @handwritingMergeModeExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel selection'**
+  String get handwritingMergeModeExit;
+
+  /// No description provided for @handwritingMergeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge {count} photo(s)'**
+  String handwritingMergeButton(int count);
+
+  /// No description provided for @handwritingMergeNeedTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least two photos to merge.'**
+  String get handwritingMergeNeedTwo;
+
+  /// No description provided for @handwritingMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-page or burst photos are sent to the model in selection order; the same question across pages is merged into one item.'**
+  String get handwritingMergeHint;
+
+  /// No description provided for @handwritingMergeRunTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-page intake ({count} photos)'**
+  String handwritingMergeRunTitle(int count);
+
+  /// No description provided for @handwritingMergeRunFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge failed'**
+  String get handwritingMergeRunFailed;
+
+  /// No description provided for @handwritingMergedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged'**
+  String get handwritingMergedBadge;
+
+  /// No description provided for @handwritingMergeUnselectable.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos that are already organised cannot be merged'**
+  String get handwritingMergeUnselectable;
+
+  /// No description provided for @settingsQuestionPackBackupCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing question bank backed up before import: {path}'**
+  String settingsQuestionPackBackupCreated(String path);
+
+  /// No description provided for @settingsQuestionPackBackupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup before import failed (import continues)'**
+  String get settingsQuestionPackBackupFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -2636,5 +2636,37 @@
         "type": "String"
       }
     }
-  }
+  },
+  "handwritingMergeModeEnter": "选择照片",
+  "handwritingMergeModeExit": "取消选择",
+  "handwritingMergeButton": "合并整理（{count} 张）",
+  "@handwritingMergeButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingMergeNeedTwo": "至少选两张照片才能合并整理。",
+  "handwritingMergeHint": "多页或连拍的照片按选择顺序交给模型：跨页的同一道题会合并成一条。",
+  "handwritingMergeRunTitle": "多页整理（{count} 张照片）",
+  "@handwritingMergeRunTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "handwritingMergeRunFailed": "合并整理失败",
+  "handwritingMergedBadge": "已合并",
+  "handwritingMergeUnselectable": "已经整理过的照片不能参与合并",
+  "settingsQuestionPackBackupCreated": "导入前已自动备份现有题库：{path}",
+  "@settingsQuestionPackBackupCreated": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackBackupFailed": "导入前自动备份失败（不影响导入）"
 }

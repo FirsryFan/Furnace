@@ -5169,4 +5169,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksDueAtConflictNoFreeMoment => 'No free slot in that direction';
+
+  @override
+  String get handwritingMergeModeEnter => 'Select photos';
+
+  @override
+  String get handwritingMergeModeExit => 'Cancel selection';
+
+  @override
+  String handwritingMergeButton(int count) {
+    return 'Merge $count photo(s)';
+  }
+
+  @override
+  String get handwritingMergeNeedTwo => 'Select at least two photos to merge.';
+
+  @override
+  String get handwritingMergeHint =>
+      'Multi-page or burst photos are sent to the model in selection order; the same question across pages is merged into one item.';
+
+  @override
+  String handwritingMergeRunTitle(int count) {
+    return 'Multi-page intake ($count photos)';
+  }
+
+  @override
+  String get handwritingMergeRunFailed => 'Merge failed';
+
+  @override
+  String get handwritingMergedBadge => 'Merged';
+
+  @override
+  String get handwritingMergeUnselectable =>
+      'Photos that are already organised cannot be merged';
+
+  @override
+  String settingsQuestionPackBackupCreated(String path) {
+    return 'Existing question bank backed up before import: $path';
+  }
+
+  @override
+  String get settingsQuestionPackBackupFailed =>
+      'Backup before import failed (import continues)';
 }
