@@ -2,6 +2,59 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十一：自测统计行 + 自测明细逐条删除（Lead + 3 teammate 并行）
+
+**起点**：轮次一百六十收尾（HEAD `d23209b`，schema v32，v0.6.5 已发布，全量 +5756 全绿，工作树干净）。
+选片理由：`docs/QUESTION_BANK_DESIGN.md` §38.3 与 §37.3 的边界里明写着两处缺口——「只能清**全部**作答
+记录，不能删单条」与「没有正确率 / 学习统计」。本轮补两片界面：①题库页顶部一行「自测 N 次 · 答对 M 次（P%）」
+**全库**统计 ②题目详情页自测明细每行一个删除按钮。**无 schema 变更（仍 v32）、不落新表、不调模型**。
+
+**片 1：仓储 + 领域（Lead + reasoning-core/task-172）**
+- `question_attempt_repository.dart`：新增 `deleteAttempt(id)`（:82-85，返删除行数，不存在返回 0）与
+  `stats()`（:104-115，`customSelect` 一次读回 `COUNT(*) AS total` + `SUM(CASE WHEN is_correct = 1 …)`，
+  `readsFrom: {questionAttempts}`；**空表 SUM 为 NULL**，必须 `read<int?>() ?? 0`，首版 `read<int>`
+  在空表抛 type cast 错，已改）。
+- 领域 `domain/services/questions/attempt_stats.dart`（40 行纯 Dart）：`QuestionAttemptStats`（const +
+  三条 assert）、`empty`、`incorrect`、`isEmpty/isNotEmpty`、`percent = total==0 ? 0 : round(correct*100/total)`。
+- 测试：仓储 8 → **10 例**（stats 空表/三行 2 对 1 错→67%；deleteAttempt 删一条/再删 0/不存在 0/其余仍在）；
+  领域 **13 例**（percent 取整 2/3→67、1/8→13、199/200→100、1<<40 大数无溢出）。
+
+**片 2：l10n（Lead）**
+- 4 个 key（tools.edit 追加 ARB，未用 read→write）：`questionBankAttemptStats(total, correct, percent)`
+  （「自测 {total} 次 · 答对 {correct} 次（{percent}%）」/ 英文 "Self-tests: …"）、
+  `questionDetailAttemptEntryDeleteTooltip/DeleteDone/DeleteFailed(error)`；`flutter gen-l10n` exit 0。
+
+**片 3：题库页统计行（threadflow-engine/task-173）**
+- 新 `application/question_attempt_stats_provider.dart`（20 行）：autoDispose FutureProvider，watch
+  `databaseRevision` + `repo.stats()`，写库自动重算。
+- `question_bank_page.dart`：:81 顶层 key；:745 `valueOrNull`；:820-833 题数统计行之后插一行
+  `bodySmall/onSurfaceVariant`；null（加载中/读失败）或 0 条整行不渲染、不占位。
+- 测试 `question_bank_page_test.dart` 17 → **20 例**（3 条 2 对 1 错→「自测 3 次 · 答对 2 次（67%）」、
+  0 条不渲染、1 对 1 错→50%；新增 `_addAttempt` helper）。
+
+**片 4：详情页逐条删除（question-intake/task-174）**
+- `question_detail_page.dart`：:77 key `questionAttemptEntryDeleteKeyFor(id)`；:740 `_deletingEntryId`
+  （请求在飞整组禁用）；:803-833 `_deleteEntry`（`deleteAttempt` → 成功 `ref.invalidate(questionAttemptHistoryProvider)`
+  + SnackBar Done；失败 SnackBar Failed 且行不动；各 await 后有 mounted 检查）；:917-928 行尾紧凑
+  `Icons.delete_outline` IconButton；删最后一条整块历史行消失（既有 isEmpty 逻辑）。
+- 测试 `question_detail_page_test.dart` 59 → **62 例**（按钮 key 对应/删一条统计 (3,2)→(2,1) 其余仍在/
+  失败提示且行仍在；替身 `_FailingEntryDeleteAttemptRepository`）。
+
+**门禁（Lead 实跑）**
+- 9 个改动/新增 dart 文件 `dart format --set-exit-if-changed` → **0 changed**。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**，EXIT 0。
+- scoped：仓储 +10、领域 +13、题库页 +20、详情页 +62 全绿（Lead 复跑三个 UI/仓储测试文件）。
+- 全量 `flutter test --concurrency=1` → **+5777 ~2 All tests passed，10:39，EXIT 0**
+  （日志 `E:/dsh-tmp-aot/test-161-full.txt`；上轮基线 +5756，净增 21 = 仓储 2 + 领域 13 + 题库页 3 + 详情页 3）。
+
+**文档**：`docs/QUESTION_BANK_DESIGN.md` 新增 §39（39.1 仓储与领域 / 39.2 详情页逐条删除 / 39.3 题库页
+统计行 / 39.4 l10n、测试、门禁与边界）；§37.3 与 §38.3 的四条相关边界（不能删单条、没有正确率统计、
+只能清全部、没有学习统计）改为指向 §39。
+
+**仍未做**：统计行是全库口径、不随筛选/学科过滤、不显示趋势；百分比只有整数；逐条删除不可撤销、
+无回收站；明细上限 200 条且展开状态不持久；防连点是整组禁用（无每行独立 loading）；真机未手测；
+英文未母语化。v0.6.6 未出包（v0.6.5 之后已攒轮次一百六十 + 一百六十一两轮）。
+
 ## 2026-10-24 轮次一百六十：设置页「学习数据」清空全部作答记录（Lead + threadflow-engine 并行）
 
 **起点**：轮次一百五十九收尾（HEAD `e26c0e7`，v0.6.5 已发布，schema v32，全量 +5748 全绿，工作树干净）。
