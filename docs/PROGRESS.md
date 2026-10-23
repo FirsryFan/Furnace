@@ -2,6 +2,97 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百四十八：多页照片一次整理（schema v31）、题库包导入前自动备份（Lead + 三个 teammate 并行）
+
+**起点**：轮次一百四十七收尾（HEAD `e06c4b7`）。本轮补目标③拍照整理的最后一个明确缺口——
+`docs/HANDWRITING_INTAKE_DESIGN.md` 一直写着"一次只整理一张照片，多页连拍/一次多图未做"；另并行两片：
+把多图整理做成队列页可操作的能力，以及题库包导入前自动备份（v0.6.1 发布说明里的已知风险）。纪律不变：
+Lead 统一提交、l10n 与 schema 生成文件只有 Lead 动、四个写作用域互斥。
+
+**一、schema v31 与存储（Lead）**
+- `app/lib/data/database/tables.dart`：`HandwritingIntakeRuns` 新列 `sourcePhotos`（TEXT 可空）；
+  NULL/空 = 单图整理（`sourceRef` 就是照片路径），非空 = JSON 路径数组且 `sourceRef` 为 `multi:<id>`。
+- `app/lib/data/database/database.dart`：schemaVersion 30→31；`onUpgrade` 新增 `if (from < 31) _upgradeV30ToV31()`；
+  `_upgradeV30ToV31` 只补列不回填（表不存在直接 return，交给 `_ensureColumns` 自愈建表）；
+  `_ensureColumns` 同时给 `handwriting_intake_runs` 补这一列（防"老文件被盖成 v31 却没列"）；`_tableFor` 登记该表
+  （自愈按表名解析，否则抛 unknown table）。`database.g.dart` 用 build_runner 重生成。
+- `app/lib/data/repositories/handwriting_proposal_repository.dart`：`HandwritingStoredRun.sourcePhotos/isMulti`；
+  `saveRun(sourcePhotos:)` 空列表写 NULL、非空 `jsonEncode`；`runs()/runOf()` 读回时 `_decodeSourcePhotos` 容忍坏 JSON
+  （降级成空=单图语义，不让一行坏数据把队列读崩）。
+- `app/lib/features/questions/application/handwriting_proposal_service.dart`：`multiSourceRefFor(List<String>)`——
+  照片路径先排序再 NUL 连接做 FNV-1a 63 位，返回 `multi:<16hex>`，**同一组照片与顺序无关**，重新整理是整批替换。
+  提案行 id 沿用 `'$sourceRef#$proposalId'`，与单图同一套确认状态表。
+- 新测试 `app/test/data/database/v31_migration_test.dart`（3 例）：v30 库加列后数据保留、表不存在跳过不崩、
+  自愈能补列；`_tableFor` 的 unknown table 行为实测。
+
+**二、多图提示词（reasoning-core）**
+- `app/lib/domain/services/intake/handwriting_proposals.dart`（+148）：`HandwritingPhotoInput`（fileName/mime/base64）；
+  `handwritingProposalMessagesForPhotos({required photos, existingTagPaths, existingKnowledgePointTitles})`——
+  system 与 user 都写明"同一份材料的第 1 页到第 N 页、按顺序拍下"，user 消息按页序挂 N 张 `ChatImagePart`；
+  新增页规则 7–9（页间接得上 / 跨页同一题合并成一条并写 rationale / 看不清写明第几页，不用别的页填空）。
+- 铁律 1–6、标签与知识点清单、JSON 契约抽成共用 `_handwritingSystemMessage`，单图函数改为委托它——
+  两套文案只换开头与额外规则，避免以后漂移。单图函数签名与行为不变。
+- 测试：`handwriting_proposals_test.dart` +179 行、新增 5 例（多图两条消息/图片数=N/页序/共用铁律与契约/assert≥2）。
+
+**三、多图服务与队列（Lead）**
+- `HandwritingProposalService.proposeForMany(List<String> relPaths)`：读 N 张字节→base64→一次
+  `adapter.runTurn`→按 `multi:<id>` 解析。失败一律如实报、不静默少给一张：<2 张直接拒、缺照片
+  （"照片不在了：<路径>"，失败键仍是这一组的 `multi:` ref）、格式不认识、无适配器、模型失败、解析失败。
+- `HandwritingMultiRun`（sourceRef/photoRelPaths/set/analyzedAt）；`HandwritingQueueState` 新增 `multiRuns`、
+  `setFor(sourceRef)`、`multiRunOf`、`mergedPhotoPaths`；`batchCandidates` 排除已参与多图的照片；
+  `refresh()` 读回多图 run，**参与照片缺一张就整批作废**（证据不全的整理结果不留），按 analyzedAt 倒序。
+- `HandwritingQueueNotifier.analyzeMulti(relPaths)`：同一组照片先移除旧 run 再插到最前（整批替换），
+  与单图共用 `analyzing/failures/appliedIds` 状态键；成功后 `saveRun(sourcePhotos:)` 并 `_syncApplied`。
+  `previewFor/applyProposal/applyAll/markAppliedLocally/forget/_finishApply` 参数由 `relPath` 统一改名为
+  `sourceRef`（单图传照片路径，多图传 `multi:`，行为不变）。
+- 测试：`handwriting_proposal_service_test.dart` 新增 5 例、文件共 43 例（多图组覆盖：sourceRef 顺序无关、<2 张不调模型、
+  两张一次调用且图片数=2、缺一张如实失败、队列入库/重启恢复/全部确认/忘掉不复活/缺照片整批清）。
+
+**四、队列页多图 UI（question-intake）**
+- `app/lib/features/questions/presentation/handwriting_queue_page.dart`（+720/-47）：
+  - AppBar 新增「选择照片」进入合并模式（照片清单为空或正在整理/批量整理时禁用），底部换成 `_MergeActionBar`
+    （张数规则、运行中、失败原因、「合并整理（N 张）」按钮，<2 张禁用）；照片条在合并模式变成可勾选
+    `_MergePhotoChip`：已整理出提案、正在整理、已属于某次多图 run 的照片禁选（Tooltip 说明），已合并的带「已合并」徽标。
+  - `_runMerge` 按**勾选顺序**调 `analyzeMulti`（页序=选择顺序）；成功退出合并模式并清选择，失败留在底部栏如实报。
+  - `_MultiRunCard`：标题「多页整理（N 张照片）」、N 张缩略图（读字节，读不到给占位）、整组提案（只读，
+    没有逐条确认）、确认前预检（复用 `previewFor`，失败降级为无预检）、「全部确认」（`applyAll(sourceRef)`，
+    applying/已无剩余/预检 blocked 时禁用）、结果汇总、「忘掉」（`forget(sourceRef)`）。
+  - 页面 keys 6 个（merge 模式/运行/照片 chip/结果卡/全部确认/忘掉）供测试与以后快捷键用。
+- 测试：`handwriting_queue_page_test.dart` 17→25 例（+384 行，新增 8 条 testWidgets）：入口切换、已合并徽标与禁选、<2 张禁用、
+  按勾选顺序调 analyzeMulti、多图卡渲染 N 缩略图+只读提案、全部确认写库、忘掉后卡片消失、失败如实报并可重试。
+
+**五、题库包导入前自动备份（threadflow-engine）**
+- `app/lib/features/questions/application/question_pack_service.dart`（+100）：
+  `QuestionPackImportReport` 新增 `backupPath/backupError/hasBackup`；`importPack` 在写库前若本机已有题目，
+  先把现有题库 `exportBytes` 成 `<documents>/question_pack_backups/题库备份-yyyyMMdd-HHmmss-SSS.tqb`；
+  备份失败只记 `backupError`、**不阻断导入**；同毫秒重复导入用 `-2`、`-3` 后缀避免覆盖；
+  documents 目录可注入（测试走临时目录，生产默认 path_provider）。
+- `app/lib/features/settings/presentation/data_section.dart`：导入结果里显示备份路径（SelectableText）或
+  备份失败提示（红色），并更新该段注释（不再说"没有 pre-import backup"）；
+  l10n 2 个新 key `settingsQuestionPackBackupCreated(path)` / `settingsQuestionPackBackupFailed`。
+- 测试：`question_pack_service_test.dart` 新增 4 例、文件共 16 例（已有题目先备份且字节能解码、空库不备份、备份失败不阻断入库、
+  同时间戳连续导入两份备份且第二份含第一份导入的题）。
+
+**门禁（Lead 实跑）**
+- `dart analyze lib test`：**91 issues / 0 error / 0 warning**，EXIT=0（与基线同）。
+- scoped 合跑：v31 迁移 **+3**、多图提示词 **+82**、多图服务/队列 **+43**、题库包 **+16**、队列页 **+25**，
+  全部 All tests passed、EXIT=0。
+- 全量 `flutter test --concurrency=1`：**+5625 ~2 All tests passed**，12:58，EXIT=0（基线 +5600，净增 25 例）。
+- `dart format --set-exit-if-changed` 17 个改动 dart 文件：0 changed。
+- schema 30→31（本轮唯一迁移；现有库升级只加一列、不回填）。
+
+**提交**：按片 7 个提交（schema / 多图提示词 / 多图服务与队列 / l10n / 队列页 UI / 题库包备份 / docs 收尾），
+Lead 统一提交（teammate 不写 git）。本地 HEAD `45e7fd2`（`e06c4b7..45e7fd2`）。
+
+**推送**：未成功。23:43–23:44 三次 `git push origin main` 均失败：`schannel: server closed abruptly (missing close_notify)`
+→ 加 `http.version=HTTP/1.1` 与重试后变成 `Recv failure: Connection was reset`；同时 `curl https://github.com`
+经系统代理（`http://127.0.0.1:7890`，端口可达）与 `--noproxy '*' ` 直连都返回 HTTP 000，判定为当时本机到 GitHub
+的网络不可达（非认证/仓库问题）。7 个提交都在本地 main，下轮网络恢复后直接 `git push origin main` 即可。
+
+**本次仍未做**：多图整理真机未手测（模型对多页合并的实际表现、N 张图请求耗时未测）；多图卡片不能逐条确认/编辑、
+也不能给某张照片单独重拍；选张数无上限、页面顺序不能拖动重排；备份文件只落盘，设置页没有"一键恢复/清理备份"
+（用户要回滚得自己去 documents 目录找文件）；合并模式未做拖拽排序与跨 run 合并。
+
 ## 2026-10-23 轮次一百四十七：队列批量整理、能力动作找题学科多选、题库筛选全库（Lead + 三个 teammate 并行）
 
 **起点**：轮次一百四十六收尾（HEAD `7efdb89`，v0.6.1 已推送）。本轮按"三片并行、Lead 统一审查/门禁/提交"推进：

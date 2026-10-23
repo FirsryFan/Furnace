@@ -791,3 +791,41 @@ code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由�
 真实 v29 文件升级后老题目读作没有题名、升级后立刻能命名且关库重开不丢；伪造「版本 30 但缺列」的
 文件靠 `_ensureColumns` 补列后可读可写；空白串清成 NULL、批量改名只统计命中行、不存在的 id 不抛；
 `updatedAt` 由调用方给的时刻驱动；题名不影响题干指纹去重（第二次同题干仍返回 `created: false`）。
+
+## 20. v31：多图/多页整理的来源照片清单（`handwriting_intake_runs.source_photos`，轮次一百四十八）
+
+拍照整理一直是「一个 run = 一张照片」：run 的主键 `source_ref` 就是那张照片的相对路径。
+要做「一次选 N 张、合并整理成一组成果」（多页连拍、同一题的正面/反面），run 的身份就不能
+再等于某一张照片的路径了——否则选 3 张只能写出 3 条互不相干的 run。v31 给 run 表加一列可空
+文本，存这组照片的清单。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `handwriting_intake_runs.source_photos` | TEXT，可空 | JSON 字符串数组（照片相对路径，按用户选择顺序）。**NULL / `[]` = 单图 run**（`source_ref` 是照片路径）；非空 = 多图 run（`source_ref` 是 `multi:<id>`） |
+
+**多图 run 的身份**：`multiSourceRefFor(List<String> relPaths)`（应用层
+`app/lib/features/questions/application/handwriting_proposal_service.dart`）把路径**排序**后用
+`\u0000` 连接，做 64 位 FNV-1a 变体（每步 `& 0x7FFFFFFFFFFFFFFF` 掩到 63 位），输出
+`multi:<16 位十六进制>`。所以同一组照片无论选择顺序如何都得到同一个 id——重新整理同一组
+是**整批替换**（仓库按 `source_ref` 删旧行再写新行），不会越整理越多；提案 id 同步是
+`multi:<id>#<proposal_id>`，与单图 `<照片路径>#<proposal_id>` 同一命名契约。
+
+**迁移**：`_upgradeV30ToV31()` 对 `handwriting_intake_runs` `addColumnIfMissing` 一列
+（表不存在直接返回）；`_ensureColumns()` 的该表块加同一列做自愈（版本号已是 31 但老文件被盖掉时补列）；
+`_tableFor()` 的 switch 也登记了这张表——自愈补列走 `m.addColumn(_tableFor(name), column)`，
+漏登记会抛 `unknown table handwriting_intake_runs`（v31 迁移测试实测抓到过这个错误，补 case 后通过）。
+迁移**不回填**：NULL 本来就是「单图」的正确读法，回填只会给老 run 造一条假清单。
+`database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重新生成（88 s，804 outputs）。
+
+**读写口径**（`app/lib/data/repositories/handwriting_proposal_repository.dart`）：
+- `HandwritingStoredRun.sourcePhotos` 默认 `const []`，`isMulti => sourcePhotos.isNotEmpty`；
+- `saveRun(..., List<String> sourcePhotos = const [])`：空清单写 **NULL**（单图语义，不存 `[]`），
+  非空才 `jsonEncode`；`runs()` / `runOf(sourceRef)` 读回时 `_decodeSourcePhotos` 解析；
+- `_decodeSourcePhotos(String? raw)` 对坏 JSON / 非数组 / 数组里的非字符串与空白项一律**容忍**
+  （降级成空清单 = 单图语义），不让一行坏数据把整条队列读崩。与 `source_url` 的「空串归 NULL、
+  UI 与自动命名同一口径」是同一个原则。
+
+**测试锁的事实**（`app/test/data/database/v31_migration_test.dart` 3 例全绿）：
+真实 v30 文件升级后老 run 读作单图（`isMulti == false`）、升级后立刻能存多图清单且关库重开不丢；
+伪造「版本 31 但缺 `source_photos` 列」的文件靠 `_ensureColumns` 补列后可读可写（这条会经过
+`_tableFor`，是补 case 的直接来源）；坏 JSON / `[]` / 混入非字符串元素一律读成单图、不抛异常。

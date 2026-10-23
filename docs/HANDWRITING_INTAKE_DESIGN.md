@@ -1,6 +1,6 @@
 # 拍照 → 四类待确认产物（手写整理）
 
-`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4 的落地设计。一句话：**一张手写照片进来，
+`docs/QUESTION_BANK_DESIGN.md` §7.3–§7.4 的落地设计。一句话：**一张（或一组）手写照片进来，
 一份提案出去，用户点过之后才写库。**
 
 轮次一百二十八把产物从三类扩到四类（加了**题目**）：照片里的题干、选项、答案、解析
@@ -26,7 +26,7 @@
 | 不做"部分成功"的静默降级 | 提案解析**严格**：结构性错误一律抛 `HandwritingProposalParseException`。少写一条而用户以为整理完了，比直接报错更糟 |
 | 不自己造标签树 | 父路径不存在 → 只报这一条。标签树是几个系统共用的语言（见 `docs/QUESTION_BANK_DESIGN.md` §5），凭空加一层会让别人的路径分类失效 |
 | 不做兜底猜测 | 图片格式认不出来就说"认不出"；模型没配就说"没有可用的模型适配器"；照片不在了就说"照片不在了" |
-| 本轮不持久化提案 | 见 §4 |
+| 不做多图之外的编辑流水线 | 多图 run 目前只有整批确认/忘掉（见 §4）；逐条编辑仍走单图卡片与收题页 |
 
 ## 2. 输入 / 输出契约
 
@@ -43,7 +43,9 @@
 | `HandwritingCardDraft` | `question`、`answer`、`type`（缺省 `essay`，只认 `fill_blank` / `mcq` / `essay`） |
 | `HandwritingProposalSet` | `sourceRef` + `proposals`，`isEmpty` / `countOf(kind)` |
 | 缺省置信度 | `defaultProposalConfidence = 0.5`——模型没说就是"不知道"，不是"很确定" |
-| `handwritingProposalMessages(...)` | 返回 `[system, user]`：system 写铁律 + JSON 契约 + 已有标签路径/知识点标题（各最多 60 条，超出注明省略数），user 带 `ChatImagePart` |
+| `handwritingProposalMessages(...)` | 单图：返回 `[system, user]`，system 写铁律 + JSON 契约 + 已有标签路径/知识点标题（各最多 60 条，超出注明省略数），user 带**一张** `ChatImagePart` |
+| `HandwritingPhotoInput{fileName, mime, base64}` | 多图提示词的输入原子（一张照片的元数据 + 字节） |
+| `handwritingProposalMessagesForPhotos({photos, ...})` | 多图/多页：system 与单图**共用同一个 builder**（铁律/契约只写一处），user 文本说明「这是第 1..N 页，按顺序看，跨页的同一道题可以合并」，再按序带 N 个 `ChatImagePart`；`assert(photos.length >= 2)` |
 | `parseHandwritingProposals(raw, {sourceRef})` | 取最外层 `{...}`（容忍 ```json 代码块与前后寒暄），空 `proposals` 合法 |
 
 必填字段（缺了就是异常，异常文案直接给用户看）：
@@ -60,9 +62,12 @@
 | 符号 | 作用 |
 |---|---|
 | `HandwritingProposalService.proposeFor(relPath)` | 读照片 → 认格式 → 调模型 → 解析。返回 `HandwritingProposalRun{ok, set, failureReason, rawReply}`，**从不抛异常** |
+| `HandwritingProposalService.proposeForMany(relPaths)` | 多图/多页整理：一次请求把 N 张照片按选择顺序交给模型（`handwritingProposalMessagesForPhotos`），返回同一个 `HandwritingProposalRun`；少于 2 张直接失败「合并整理至少要两张照片」。`set.sourceRef` 是 `multiSourceRefFor(relPaths)`，不是任何一张照片的路径 |
+| `HandwritingMultiRun{sourceRef, photoRelPaths, set, analyzedAt}` | 多图 run 的内存形态：`photoRelPaths` 按用户选择顺序；`sourceRef` 是 `multi:<16 位十六进制>` |
+| `multiSourceRefFor(List<String> relPaths)`（顶层） | 多图 run 的稳定 id：路径排序后用 NUL 连接做 63 位 FNV-1a，输出 `multi:<16 hex>`。**同一组照片与顺序无关**，所以重新整理同一组是整批替换而不是新增一条 |
 | `HandwritingProposalService.applyAll(set, {onlyIds})` | 只写被确认的那些提案，返回 `HandwritingApplyReport{outcomes, appliedCount, failedCount, allOk, appliedIds}` |
-| `HandwritingQueueState` | 队列状态：`images` / `sets` / `failures` / `analyzing` / `applying` / `appliedIds` / `lastReport`；`isApplied(relPath, proposalId)` 的键是 `'$relPath#$proposalId'` |
-| `HandwritingQueueNotifier` | `refresh()`（读磁盘清单 + 从库里恢复提案与确认状态；照片已不在磁盘的整理记录顺手清掉）、`analyze(relPath)`（成功后写库）、`applyProposal(relPath, proposalId)`、`applyAll(relPath)`、`forget(relPath)`（库里删掉整理记录，**照片本身不动**） |
+| `HandwritingQueueState` | 队列状态：`images` / `sets` / `multiRuns` / `failures` / `analyzing` / `applying` / `appliedIds` / `lastReport`；`isApplied(sourceRef, proposalId)` 的键是 `'$sourceRef#$proposalId'`；`setFor(sourceRef)` 先查单图 `sets` 再查多图 `multiRuns`；`mergedPhotoPaths` 是所有多图 run 照片的并集（批量整理会跳过它们）；`multiRunOf(sourceRef)` 查多图 run |
+| `HandwritingQueueNotifier` | `refresh()`（读磁盘清单 + 从库里恢复单图/多图提案与确认状态；**多图 run 只要有一张照片不在磁盘就整条清掉**，单图 run 照片不在也清）、`analyze(relPath)`（成功后写库）、`analyzeMulti(relPaths)`（多图：同一组照片重整理整批替换，成功后写 `source_photos`）、`applyProposal(sourceRef, proposalId)`、`applyAll(sourceRef)`、`forget(sourceRef)`（从单图/多图两侧删整理记录，**照片本身不动**） |
 | `handwritingProposalServiceProvider` | store / tags / anki 来自既有 provider，adapter 来自 `modelAdapterProvider` |
 | `handwritingProposalRepositoryProvider` | `HandwritingProposalRepository(ref.watch(appDatabaseProvider))`（schema v13） |
 | `handwritingQueueProvider` | `NotifierProvider<HandwritingQueueNotifier, HandwritingQueueState>` |
@@ -73,15 +78,15 @@
 
 | 表 | 列 |
 |---|---|
-| `handwriting_intake_runs` | `source_ref`（PK，照片相对路径）、`analyzed_at`、`raw_reply?`、`created_at`。**零提案也留一行**——「整理过但照片里没东西」重启后不能退回「没整理过」 |
+| `handwriting_intake_runs` | `source_ref`（PK；单图=照片相对路径，多图=`multi:<16 hex>`）、`source_photos?`（schema v31：多图 run 的照片 JSON 路径数组，NULL/`[]`=单图）、`analyzed_at`、`raw_reply?`、`created_at`。**零提案也留一行**——「整理过但照片里没东西」重启后不能退回「没整理过」 |
 | `handwriting_proposals` | `id`（PK = `<source_ref>#<proposal_id>`）、`source_ref`、`proposal_id`、`sort_index`（不按 id 排，否则字典序把三类产物打散）、`kind`、`payload_json`（`HandwritingProposal.toJson()` 文本）、`applied_at?`（NULL = 未确认）、`created_at` / `updated_at` |
 
 `HandwritingProposalRepository`（`app/lib/data/repositories/handwriting_proposal_repository.dart`）：
 
 | 方法 | 口径 |
 |---|---|
-| `saveRun({set, analyzedAt, rawReply})` | 一张照片只有一条 run：删旧行再写新行。**按 `payload_json` 逐字相同的那几条保留 `applied_at`**，其余清成 NULL |
-| `runs()` / `runOf(sourceRef)` | run 行按 `analyzed_at` 倒序；提案行按 `sort_index` 正序；还原走领域层 `fromJson`（JSON 契约只有一份） |
+| `saveRun({set, analyzedAt, rawReply, sourcePhotos = const []})` | 一个 `source_ref` 只有一条 run：删旧行再写新行。`sourcePhotos` 空写 **NULL**（单图语义，不存 `[]`），非空才 `jsonEncode`。**按 `payload_json` 逐字相同的那几条保留 `applied_at`**，其余清成 NULL |
+| `runs()` / `runOf(sourceRef)` | run 行按 `analyzed_at` 倒序；提案行按 `sort_index` 正序；还原走领域层 `fromJson`（JSON 契约只有一份）。`HandwritingStoredRun.sourcePhotos` / `isMulti` 由 `_decodeSourcePhotos` 解析：坏 JSON、非数组、混入非字符串/空白项一律降级成空清单（=单图语义），不抛 |
 | `markApplied({sourceRef, proposalId, appliedAt})` | 只更新 `applied_at IS NULL` 的行——用户手滑点第二次不改第一次的时间 |
 | `deleteRun(sourceRef)` / `deleteAll()` | 删提案 + run 行；**照片不动** |
 
@@ -141,9 +146,17 @@ presentation 侧用 `export` 保住了原来的 import 路径。
   `handwriting_intake_runs` + `handwriting_proposals` 两张表里，重启后 `refresh()` 恢复。
   界线仍然清楚：**这三张表只存提案与确认状态，标签 / 知识点 / 闪存卡仍然只在用户点确认
   之后才写**——"确认前不写库"说的是学习数据，不是"待确认清单"。
-- **一次只整理一张照片**：提示词只带一张图；多页连拍 / 一次多图未做。**收题页的拖拽入口
-  可以一次放多张照片**（轮次一百二十一），但那是"批量放进待整理队列"（每张各存一个
-  `handwriting_intake_runs`），整理仍是逐张整理。
+- ~~**一次只整理一张照片**~~ → 已补（schema v31，轮次一百四十八）：队列页 AppBar 有「选择照片」
+  进入合并模式，勾选 ≥2 张点「合并整理（N 张）」，一次请求把 N 张图按顺序交给模型，产出一组
+  共享 `multi:<id>` 的提案（照片清单存 `handwriting_intake_runs.source_photos`）。边界与仍差的部分：
+  - **不能和单图混选**：已整理出提案、正在整理、已属于某次多图 run 的照片在合并模式里禁选
+    （再合一次只会多花模型调用，还可能把同一页重复入库）；已合并的照片在普通照片条上带「已合并」徽标。
+  - **多图卡片只做整批动作**：只读展示 N 张缩略图 + 整组提案（带确认前预检），动作只有「全部确认」与
+    「忘掉」，没有逐条确认/逐条预检的编辑入口（单图卡片的逐条入口不受影响）。
+  - **没有选张数上限、也没有重排页面顺序**：选择顺序就是提示词里的页序；选 20 张会一次性发 20 张图，
+    受模型上下文限制，客户端不做拦截（失败会退回 `modelFailure` 的人话原因）。
+  - **归并靠模型**：跨页同一道题合并成一条题是提示词要求（页规则第 7–9 条），不是本地算法；
+    模型仍按铁律只誊写照片里有的内容。
 - **图片格式靠扩展名**（`HandwritingIntakeStore.mimeForName`）：认不出直接报"认不出…"。
   轮次一百二十一之后 `mimeForName` 委托给 `lib/data/media/image_mime.dart` 的
   `imageMimeForName`（扩展名白名单：jpg/jpeg/png/gif/webp/heic/bmp，大小写不敏感）；
