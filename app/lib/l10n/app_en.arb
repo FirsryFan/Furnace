@@ -2788,5 +2788,26 @@
       }
     }
   },
-  "settingsQuestionPackBackupFailed": "Backup before import failed (import continues)"
+  "settingsQuestionPackBackupFailed": "Backup before import failed (import continues)",
+  "settingsQuestionPackBackupsTitle": "Pre-import backups",
+  "settingsQuestionPackBackupsEmpty": "No pre-import backups yet. Importing a question pack will first export the current bank as a backup.",
+  "settingsQuestionPackBackupsHint": "Before each pack import, the current bank is exported to a .tqb file in the app documents directory. Deleting a backup removes only that file; the question bank is untouched.",
+  "settingsQuestionPackBackupDeleteTooltip": "Delete this backup",
+  "settingsQuestionPackBackupDeleteConfirm": "Delete backup \"{name}\"? Only this backup file is removed; questions in the bank are untouched.",
+  "@settingsQuestionPackBackupDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackBackupDeleteDone": "Backup deleted",
+  "settingsQuestionPackBackupDeleteFailed": "Failed to delete backup: {error}",
+  "@settingsQuestionPackBackupDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

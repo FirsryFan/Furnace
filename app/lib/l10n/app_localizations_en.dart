@@ -5211,4 +5211,31 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsQuestionPackBackupFailed =>
       'Backup before import failed (import continues)';
+
+  @override
+  String get settingsQuestionPackBackupsTitle => 'Pre-import backups';
+
+  @override
+  String get settingsQuestionPackBackupsEmpty =>
+      'No pre-import backups yet. Importing a question pack will first export the current bank as a backup.';
+
+  @override
+  String get settingsQuestionPackBackupsHint =>
+      'Before each pack import, the current bank is exported to a .tqb file in the app documents directory. Deleting a backup removes only that file; the question bank is untouched.';
+
+  @override
+  String get settingsQuestionPackBackupDeleteTooltip => 'Delete this backup';
+
+  @override
+  String settingsQuestionPackBackupDeleteConfirm(String name) {
+    return 'Delete backup \"$name\"? Only this backup file is removed; questions in the bank are untouched.';
+  }
+
+  @override
+  String get settingsQuestionPackBackupDeleteDone => 'Backup deleted';
+
+  @override
+  String settingsQuestionPackBackupDeleteFailed(String error) {
+    return 'Failed to delete backup: $error';
+  }
 }

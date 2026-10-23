@@ -2668,5 +2668,26 @@
       }
     }
   },
-  "settingsQuestionPackBackupFailed": "导入前自动备份失败（不影响导入）"
+  "settingsQuestionPackBackupFailed": "导入前自动备份失败（不影响导入）",
+  "settingsQuestionPackBackupsTitle": "导入前备份",
+  "settingsQuestionPackBackupsEmpty": "还没有导入前备份。导入题库包时会先自动把现有题库导出成一份备份。",
+  "settingsQuestionPackBackupsHint": "每次导入题库包前，本机会把当前题库整份导出到应用文档目录；删除备份只删这个文件，不影响题库。",
+  "settingsQuestionPackBackupDeleteTooltip": "删除这个备份",
+  "settingsQuestionPackBackupDeleteConfirm": "删除备份「{name}」？只会删这个备份文件，题库里的题目不受影响。",
+  "@settingsQuestionPackBackupDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsQuestionPackBackupDeleteDone": "已删除备份",
+  "settingsQuestionPackBackupDeleteFailed": "删除备份失败：{error}",
+  "@settingsQuestionPackBackupDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

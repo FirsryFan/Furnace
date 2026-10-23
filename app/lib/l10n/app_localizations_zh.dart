@@ -4997,4 +4997,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsQuestionPackBackupFailed => '导入前自动备份失败（不影响导入）';
+
+  @override
+  String get settingsQuestionPackBackupsTitle => '导入前备份';
+
+  @override
+  String get settingsQuestionPackBackupsEmpty =>
+      '还没有导入前备份。导入题库包时会先自动把现有题库导出成一份备份。';
+
+  @override
+  String get settingsQuestionPackBackupsHint =>
+      '每次导入题库包前，本机会把当前题库整份导出到应用文档目录；删除备份只删这个文件，不影响题库。';
+
+  @override
+  String get settingsQuestionPackBackupDeleteTooltip => '删除这个备份';
+
+  @override
+  String settingsQuestionPackBackupDeleteConfirm(String name) {
+    return '删除备份「$name」？只会删这个备份文件，题库里的题目不受影响。';
+  }
+
+  @override
+  String get settingsQuestionPackBackupDeleteDone => '已删除备份';
+
+  @override
+  String settingsQuestionPackBackupDeleteFailed(String error) {
+    return '删除备份失败：$error';
+  }
 }

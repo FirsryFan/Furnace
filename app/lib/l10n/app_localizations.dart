@@ -8707,6 +8707,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Backup before import failed (import continues)'**
   String get settingsQuestionPackBackupFailed;
+
+  /// No description provided for @settingsQuestionPackBackupsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-import backups'**
+  String get settingsQuestionPackBackupsTitle;
+
+  /// No description provided for @settingsQuestionPackBackupsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No pre-import backups yet. Importing a question pack will first export the current bank as a backup.'**
+  String get settingsQuestionPackBackupsEmpty;
+
+  /// No description provided for @settingsQuestionPackBackupsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Before each pack import, the current bank is exported to a .tqb file in the app documents directory. Deleting a backup removes only that file; the question bank is untouched.'**
+  String get settingsQuestionPackBackupsHint;
+
+  /// No description provided for @settingsQuestionPackBackupDeleteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this backup'**
+  String get settingsQuestionPackBackupDeleteTooltip;
+
+  /// No description provided for @settingsQuestionPackBackupDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete backup \"{name}\"? Only this backup file is removed; questions in the bank are untouched.'**
+  String settingsQuestionPackBackupDeleteConfirm(String name);
+
+  /// No description provided for @settingsQuestionPackBackupDeleteDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup deleted'**
+  String get settingsQuestionPackBackupDeleteDone;
+
+  /// No description provided for @settingsQuestionPackBackupDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete backup: {error}'**
+  String settingsQuestionPackBackupDeleteFailed(String error);
 }
 
 class _AppLocalizationsDelegate
