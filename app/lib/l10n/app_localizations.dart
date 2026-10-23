@@ -8887,6 +8887,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} wrong'**
   String questionBankWrongCount(int count);
+
+  /// Action in the question detail attempt history and the bank row menu: delete this question's attempt records.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear records'**
+  String get questionDetailAttemptClearAction;
+
+  /// Title of the clear-attempts confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear attempt records?'**
+  String get questionDetailAttemptClearConfirmTitle;
+
+  /// Body of the clear-attempts confirmation dialog: consequences and irreversibility.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-test counts and the wrong-answer mark for this question will be reset. This cannot be undone.'**
+  String get questionDetailAttemptClearConfirmBody;
+
+  /// Snackbar after attempt records were cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempt records cleared'**
+  String get questionDetailAttemptClearDone;
+
+  /// Snackbar when clearing attempt records failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear failed: {error}'**
+  String questionDetailAttemptClearFailed(String error);
+
+  /// Question detail attempt history: expand the per-attempt list.
+  ///
+  /// In en, this message translates to:
+  /// **'Show details ({count})'**
+  String questionDetailAttemptDetailToggle(int count);
+
+  /// Question detail attempt history: collapse the per-attempt list.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide details'**
+  String get questionDetailAttemptDetailHide;
 }
 
 class _AppLocalizationsDelegate

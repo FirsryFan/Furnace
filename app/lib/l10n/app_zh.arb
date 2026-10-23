@@ -2802,5 +2802,43 @@
         "type": "int"
       }
     }
+  },
+  "questionDetailAttemptClearAction": "清除记录",
+  "@questionDetailAttemptClearAction": {
+    "description": "题目详情页自测历史、题库行菜单里的动作：清掉这道题的全部作答记录。"
+  },
+  "questionDetailAttemptClearConfirmTitle": "清除作答记录？",
+  "@questionDetailAttemptClearConfirmTitle": {
+    "description": "清除作答记录的确认框标题。"
+  },
+  "questionDetailAttemptClearConfirmBody": "清除后这道题的自测次数与对错统计归零，题库里的错题标记也会消失。此操作不能撤销。",
+  "@questionDetailAttemptClearConfirmBody": {
+    "description": "清除作答记录的确认说明：后果与不可撤销。"
+  },
+  "questionDetailAttemptClearDone": "已清除作答记录",
+  "@questionDetailAttemptClearDone": {
+    "description": "清除作答记录成功的提示。"
+  },
+  "questionDetailAttemptClearFailed": "清除失败：{error}",
+  "@questionDetailAttemptClearFailed": {
+    "description": "清除作答记录失败的提示。",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailAttemptDetailToggle": "查看明细（{count} 条）",
+  "@questionDetailAttemptDetailToggle": {
+    "description": "详情页自测历史行：展开逐条作答记录。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailAttemptDetailHide": "收起明细",
+  "@questionDetailAttemptDetailHide": {
+    "description": "详情页自测历史行：收起逐条作答记录。"
   }
 }

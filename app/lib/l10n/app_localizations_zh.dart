@@ -5116,4 +5116,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String questionBankWrongCount(int count) {
     return '错 $count 次';
   }
+
+  @override
+  String get questionDetailAttemptClearAction => '清除记录';
+
+  @override
+  String get questionDetailAttemptClearConfirmTitle => '清除作答记录？';
+
+  @override
+  String get questionDetailAttemptClearConfirmBody =>
+      '清除后这道题的自测次数与对错统计归零，题库里的错题标记也会消失。此操作不能撤销。';
+
+  @override
+  String get questionDetailAttemptClearDone => '已清除作答记录';
+
+  @override
+  String questionDetailAttemptClearFailed(String error) {
+    return '清除失败：$error';
+  }
+
+  @override
+  String questionDetailAttemptDetailToggle(int count) {
+    return '查看明细（$count 条）';
+  }
+
+  @override
+  String get questionDetailAttemptDetailHide => '收起明细';
 }

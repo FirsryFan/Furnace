@@ -5332,4 +5332,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String questionBankWrongCount(int count) {
     return '$count wrong';
   }
+
+  @override
+  String get questionDetailAttemptClearAction => 'Clear records';
+
+  @override
+  String get questionDetailAttemptClearConfirmTitle => 'Clear attempt records?';
+
+  @override
+  String get questionDetailAttemptClearConfirmBody =>
+      'Self-test counts and the wrong-answer mark for this question will be reset. This cannot be undone.';
+
+  @override
+  String get questionDetailAttemptClearDone => 'Attempt records cleared';
+
+  @override
+  String questionDetailAttemptClearFailed(String error) {
+    return 'Clear failed: $error';
+  }
+
+  @override
+  String questionDetailAttemptDetailToggle(int count) {
+    return 'Show details ($count)';
+  }
+
+  @override
+  String get questionDetailAttemptDetailHide => 'Hide details';
 }

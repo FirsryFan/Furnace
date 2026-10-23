@@ -2903,5 +2903,35 @@
   "@questionBankWrongCount": {
     "description": "Per-row badge in the question bank: how many times this question was answered wrong.",
     "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailAttemptClearAction": "Clear records",
+  "@questionDetailAttemptClearAction": {
+    "description": "Action in the question detail attempt history and the bank row menu: delete this question's attempt records."
+  },
+  "questionDetailAttemptClearConfirmTitle": "Clear attempt records?",
+  "@questionDetailAttemptClearConfirmTitle": {
+    "description": "Title of the clear-attempts confirmation dialog."
+  },
+  "questionDetailAttemptClearConfirmBody": "Self-test counts and the wrong-answer mark for this question will be reset. This cannot be undone.",
+  "@questionDetailAttemptClearConfirmBody": {
+    "description": "Body of the clear-attempts confirmation dialog: consequences and irreversibility."
+  },
+  "questionDetailAttemptClearDone": "Attempt records cleared",
+  "@questionDetailAttemptClearDone": {
+    "description": "Snackbar after attempt records were cleared."
+  },
+  "questionDetailAttemptClearFailed": "Clear failed: {error}",
+  "@questionDetailAttemptClearFailed": {
+    "description": "Snackbar when clearing attempt records failed.",
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionDetailAttemptDetailToggle": "Show details ({count})",
+  "@questionDetailAttemptDetailToggle": {
+    "description": "Question detail attempt history: expand the per-attempt list.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailAttemptDetailHide": "Hide details",
+  "@questionDetailAttemptDetailHide": {
+    "description": "Question detail attempt history: collapse the per-attempt list."
   }
 }
