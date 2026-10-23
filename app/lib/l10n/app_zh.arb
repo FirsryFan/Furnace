@@ -2744,5 +2744,19 @@
         "type": "String"
       }
     }
-  }
+  },
+  "questionDetailSelfTest": "自测",
+  "questionDetailSelfTestExit": "结束自测",
+  "questionDetailSelfTestSubmit": "提交答案",
+  "questionDetailSelfTestCorrect": "回答正确",
+  "questionDetailSelfTestIncorrect": "回答错误",
+  "questionDetailSelfTestCorrectLabels": "正确答案：{labels}",
+  "@questionDetailSelfTestCorrectLabels": {
+    "placeholders": {
+      "labels": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailSelfTestHiddenHint": "自测中：答案与解析在提交后显示。"
 }

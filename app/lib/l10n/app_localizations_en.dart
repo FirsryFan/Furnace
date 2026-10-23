@@ -5281,4 +5281,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsQuestionPackBackupPruneFailed(String error) {
     return 'Pruning old backups failed: $error';
   }
+
+  @override
+  String get questionDetailSelfTest => 'Self test';
+
+  @override
+  String get questionDetailSelfTestExit => 'End self-test';
+
+  @override
+  String get questionDetailSelfTestSubmit => 'Submit answer';
+
+  @override
+  String get questionDetailSelfTestCorrect => 'Correct';
+
+  @override
+  String get questionDetailSelfTestIncorrect => 'Incorrect';
+
+  @override
+  String questionDetailSelfTestCorrectLabels(String labels) {
+    return 'Correct answer: $labels';
+  }
+
+  @override
+  String get questionDetailSelfTestHiddenHint =>
+      'Self-testing: answers and solutions appear after you submit.';
 }

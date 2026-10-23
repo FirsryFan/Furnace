@@ -2864,5 +2864,19 @@
         "type": "String"
       }
     }
-  }
+  },
+  "questionDetailSelfTest": "Self test",
+  "questionDetailSelfTestExit": "End self-test",
+  "questionDetailSelfTestSubmit": "Submit answer",
+  "questionDetailSelfTestCorrect": "Correct",
+  "questionDetailSelfTestIncorrect": "Incorrect",
+  "questionDetailSelfTestCorrectLabels": "Correct answer: {labels}",
+  "@questionDetailSelfTestCorrectLabels": {
+    "placeholders": {
+      "labels": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailSelfTestHiddenHint": "Self-testing: answers and solutions appear after you submit."
 }

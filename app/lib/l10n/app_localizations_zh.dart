@@ -5067,4 +5067,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsQuestionPackBackupPruneFailed(String error) {
     return '清理旧备份失败：$error';
   }
+
+  @override
+  String get questionDetailSelfTest => '自测';
+
+  @override
+  String get questionDetailSelfTestExit => '结束自测';
+
+  @override
+  String get questionDetailSelfTestSubmit => '提交答案';
+
+  @override
+  String get questionDetailSelfTestCorrect => '回答正确';
+
+  @override
+  String get questionDetailSelfTestIncorrect => '回答错误';
+
+  @override
+  String questionDetailSelfTestCorrectLabels(String labels) {
+    return '正确答案：$labels';
+  }
+
+  @override
+  String get questionDetailSelfTestHiddenHint => '自测中：答案与解析在提交后显示。';
 }

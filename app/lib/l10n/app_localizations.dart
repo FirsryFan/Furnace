@@ -8809,6 +8809,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pruning old backups failed: {error}'**
   String settingsQuestionPackBackupPruneFailed(String error);
+
+  /// No description provided for @questionDetailSelfTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Self test'**
+  String get questionDetailSelfTest;
+
+  /// No description provided for @questionDetailSelfTestExit.
+  ///
+  /// In en, this message translates to:
+  /// **'End self-test'**
+  String get questionDetailSelfTestExit;
+
+  /// No description provided for @questionDetailSelfTestSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit answer'**
+  String get questionDetailSelfTestSubmit;
+
+  /// No description provided for @questionDetailSelfTestCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct'**
+  String get questionDetailSelfTestCorrect;
+
+  /// No description provided for @questionDetailSelfTestIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect'**
+  String get questionDetailSelfTestIncorrect;
+
+  /// No description provided for @questionDetailSelfTestCorrectLabels.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct answer: {labels}'**
+  String questionDetailSelfTestCorrectLabels(String labels);
+
+  /// No description provided for @questionDetailSelfTestHiddenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-testing: answers and solutions appear after you submit.'**
+  String get questionDetailSelfTestHiddenHint;
 }
 
 class _AppLocalizationsDelegate
