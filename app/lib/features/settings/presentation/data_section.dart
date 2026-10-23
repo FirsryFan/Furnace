@@ -13,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/package/tfpkg_codec.dart';
 import '../../../data/package/tfpkg_service.dart';
+import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../questions/application/learning_advice_provider.dart';
 import '../../questions/application/question_audit_reader.dart';
@@ -57,6 +58,7 @@ class DataSection extends ConsumerWidget {
           onTap: () => _import(context, ref),
         ),
         const _QuestionPackSection(),
+        const _StudyDataSection(),
       ],
     );
   }
@@ -1058,6 +1060,146 @@ class _QuestionPackBackupsDialogState
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.commonClose),
+        ),
+      ],
+    );
+  }
+}
+
+/// 设置页「学习数据」小节的入口行 key：测试用来点这一行（0 条时它是禁用的）。
+const Key settingsClearAttemptsTileKey = Key('settings-clear-attempts');
+
+/// 学习数据：显示自测作答记录总条数，并提供「清空作答记录」入口。
+///
+/// 数据来源只有 `question_attempts`（schema v32）：清空它，题库里的「错 N 次」
+/// 徽标与错题本筛选会一起消失（都是这张表的派生结果），题目本身不动。
+/// 条数读不出来时整行禁用并给「读取失败」，不假装 0 条。
+class _StudyDataSection extends ConsumerStatefulWidget {
+  const _StudyDataSection();
+
+  @override
+  ConsumerState<_StudyDataSection> createState() => _StudyDataSectionState();
+}
+
+class _StudyDataSectionState extends ConsumerState<_StudyDataSection> {
+  /// 作答记录总条数；null = 还没读完（读失败见 [_readError]）。
+  int? _count;
+
+  /// 读条数失败的原因；非 null 时副标题给「读取失败」且整行禁用。
+  String? _readError;
+
+  /// 清空请求进行中：整行禁用，避免连点重复删。
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  /// 读一次总条数（进入页面、清空之后各一次）。
+  Future<void> _load() async {
+    try {
+      final count =
+          await ref.read(questionAttemptRepositoryProvider).countAll();
+      if (!mounted) return;
+      setState(() {
+        _count = count;
+        _readError = null;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _count = null;
+        _readError = '$error';
+      });
+    }
+  }
+
+  /// 行副标题：读取失败 → 读取中 → 0 条 → 共 N 条，优先级固定。
+  String _subtitle(AppLocalizations l10n) {
+    if (_readError != null) {
+      return l10n.settingsClearAttemptsReadFailed;
+    }
+    final count = _count;
+    if (count == null) {
+      return '';
+    }
+    if (count == 0) {
+      return l10n.settingsClearAttemptsEmpty;
+    }
+    return l10n.settingsClearAttemptsSubtitle(count);
+  }
+
+  /// 确认后清空全部作答记录；成功/失败都给 SnackBar，两种都重读条数。
+  Future<void> _clearAll() async {
+    final count = _count;
+    if (count == null || count == 0 || _busy) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsClearAttemptsConfirmTitle),
+        content: Text(l10n.settingsClearAttemptsConfirmBody(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.settingsClearAttemptsAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final removed =
+          await ref.read(questionAttemptRepositoryProvider).deleteAll();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(l10n.settingsClearAttemptsDone(removed))),
+        );
+    } on Object catch (error) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(l10n.settingsClearAttemptsFailed('$error')),
+          ),
+        );
+    }
+    await _load();
+    if (!mounted) return;
+    setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final enabled = _count != null && _count! > 0 && !_busy;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(
+          icon: Icons.insights_outlined,
+          title: l10n.settingsStudyDataTitle,
+        ),
+        ListTile(
+          key: settingsClearAttemptsTileKey,
+          leading: const Icon(Icons.delete_sweep_outlined),
+          title: Text(l10n.settingsClearAttemptsTitle),
+          subtitle: Text(_subtitle(l10n)),
+          enabled: enabled,
+          onTap: enabled ? _clearAll : null,
         ),
       ],
     );
