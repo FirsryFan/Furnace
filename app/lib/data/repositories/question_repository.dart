@@ -160,6 +160,32 @@ class ReasoningChainDraft {
   final List<ReasoningStepDraft> steps;
 }
 
+/// 一道邻居题：详情页翻页只需要 id 与题号。
+class QuestionSerialNeighbor {
+  const QuestionSerialNeighbor({
+    required this.questionId,
+    required this.serialNo,
+  });
+
+  final String questionId;
+  final int serialNo;
+}
+
+/// 详情页「上一题 / 下一题」的邻居：按题号前后各一道（都不含本题）。
+class QuestionSerialNeighbors {
+  const QuestionSerialNeighbors({this.previous, this.next});
+
+  const QuestionSerialNeighbors.empty()
+      : previous = null,
+        next = null;
+
+  final QuestionSerialNeighbor? previous;
+  final QuestionSerialNeighbor? next;
+
+  bool get isEmpty => previous == null && next == null;
+  bool get isNotEmpty => !isEmpty;
+}
+
 /// 题库仓储（`docs/QUESTION_BANK_DESIGN.md`）。
 ///
 /// 不变量：
@@ -311,6 +337,51 @@ class QuestionRepository {
           ..where((t) => t.serialNo.equals(serialNo))
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  /// 详情页「上一题 / 下一题」：按题号找前后最近的一道（都不含本题）。
+  ///
+  /// 题号是跨学科一条序列、且**不加 UNIQUE**（§11.1：跨库合并允许同号），所以：
+  /// - 没有题号的题不参与翻页（NULL 比较天然不命中）；
+  /// - 同号多题时按 `created_at` 升序、再按 `id` 升序取第一道，同一份库每次读到
+  ///   的邻居是同一道，翻页不会抖；
+  /// - 传 0 / 负数直接返回空邻居（号从 1 开始，不做注定查不到的查询）。
+  Future<QuestionSerialNeighbors> serialNeighbors(int serialNo) async {
+    if (serialNo < 1) {
+      return const QuestionSerialNeighbors.empty();
+    }
+    final previous = await (_db.select(_db.questions)
+          ..where((t) => t.serialNo.isSmallerThanValue(serialNo))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.serialNo),
+            (t) => OrderingTerm.asc(t.createdAt),
+            (t) => OrderingTerm.asc(t.id),
+          ])
+          ..limit(1))
+        .getSingleOrNull();
+    final next = await (_db.select(_db.questions)
+          ..where((t) => t.serialNo.isBiggerThanValue(serialNo))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.serialNo),
+            (t) => OrderingTerm.asc(t.createdAt),
+            (t) => OrderingTerm.asc(t.id),
+          ])
+          ..limit(1))
+        .getSingleOrNull();
+    return QuestionSerialNeighbors(
+      previous: previous == null
+          ? null
+          : QuestionSerialNeighbor(
+              questionId: previous.id,
+              serialNo: previous.serialNo!,
+            ),
+      next: next == null
+          ? null
+          : QuestionSerialNeighbor(
+              questionId: next.id,
+              serialNo: next.serialNo!,
+            ),
+    );
   }
 
   Future<List<Question>> all({int limit = 200}) => (_db.select(_db.questions)

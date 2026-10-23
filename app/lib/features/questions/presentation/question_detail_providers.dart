@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
+import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/questions/attempt_history.dart';
@@ -59,6 +60,22 @@ final questionAttemptHistoryProvider = FutureProvider.autoDispose
   return QuestionAttemptHistory.fromEntries(
     await repository.historyFor(questionId),
   );
+});
+
+/// 详情页「上一题 / 下一题」的邻居：按题号找前后最近的一道。
+///
+/// `null` = 这道题自己没有题号（还没回填 / 被清空），页面就不摆翻页按钮；
+/// `QuestionSerialNeighbors.isEmpty` = 它已经是题库里的最小或最大号。
+final questionSerialNeighborsProvider = FutureProvider.autoDispose
+    .family<QuestionSerialNeighbors?, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  final repository = ref.watch(questionRepositoryProvider);
+  final question = await repository.byId(questionId);
+  final serialNo = question?.serialNo;
+  if (serialNo == null) {
+    return null;
+  }
+  return repository.serialNeighbors(serialNo);
 });
 
 /// 库里最新的一条链，已经还原成解析器的产物形状。

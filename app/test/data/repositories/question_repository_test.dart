@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
@@ -404,5 +405,46 @@ void main() {
       stemContains: '过滤题二',
     );
     expect(both.single.id, second.question.id);
+  });
+
+  test('翻页邻居：按题号前后各一道，首尾各缺一头', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '翻页一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '翻页二'));
+    final third = await repo.ingest(const QuestionDraft(stem: '翻页三'));
+
+    final middle = await repo.serialNeighbors(2);
+    expect(middle.previous!.questionId, first.question.id);
+    expect(middle.previous!.serialNo, 1);
+    expect(middle.next!.questionId, third.question.id);
+    expect(middle.next!.serialNo, 3);
+
+    final head = await repo.serialNeighbors(1);
+    expect(head.previous, isNull);
+    expect(head.next!.questionId, second.question.id);
+
+    final tail = await repo.serialNeighbors(3);
+    expect(tail.previous!.questionId, second.question.id);
+    expect(tail.next, isNull);
+    expect(tail.isNotEmpty, isTrue);
+  });
+
+  test('翻页邻居：号不连续时找最近的一道；越界两头都空；0/负数空邻居', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '跳号一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '跳号二'));
+    // 把第二题的号改成 10，中间留空 3..9（模拟「删过题」或「包导入带号」）。
+    await (db.update(db.questions)
+          ..where((t) => t.id.equals(second.question.id)))
+        .write(const QuestionsCompanion(serialNo: Value(10)));
+
+    final between = await repo.serialNeighbors(5);
+    expect(between.previous!.questionId, first.question.id);
+    expect(between.next!.questionId, second.question.id);
+
+    final pastEnd = await repo.serialNeighbors(99);
+    expect(pastEnd.previous!.questionId, second.question.id);
+    expect(pastEnd.next, isNull);
+
+    expect((await repo.serialNeighbors(0)).isEmpty, isTrue);
+    expect((await repo.serialNeighbors(-3)).isEmpty, isTrue);
   });
 }
