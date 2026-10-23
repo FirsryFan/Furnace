@@ -73,6 +73,10 @@ const Key questionAttemptClearKey = Key('question-attempt-clear');
 Key questionAttemptEntryKeyFor(String id) =>
     ValueKey<String>('question-attempt-entry-$id');
 
+/// 自测历史明细里单条记录删除按钮的 key：`question-attempt-delete-<id>`（测试定位用）。
+Key questionAttemptEntryDeleteKeyFor(String id) =>
+    ValueKey<String>('question-attempt-delete-$id');
+
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
   const QuestionDetailPage({super.key, required this.questionId});
@@ -732,6 +736,9 @@ class _AttemptHistoryLineState extends ConsumerState<_AttemptHistoryLine> {
   /// 删除请求在飞：防重入，也把按钮禁掉避免连点。
   bool _clearing = false;
 
+  /// 正在删除的明细行 id；非 null 时所有单条删除按钮禁用（防连点）。
+  String? _deletingEntryId;
+
   /// 清除本题全部作答记录：先确认，再删；失败只弹提示，不动页面。
   ///
   /// 删除成功后显式失效 [questionAttemptHistoryProvider]——生产里写库会经
@@ -786,6 +793,42 @@ class _AttemptHistoryLineState extends ConsumerState<_AttemptHistoryLine> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.questionDetailAttemptClearDone)),
+    );
+  }
+
+  /// 删除明细里的单条作答记录：成功刷新历史，失败只提示、行不动。
+  ///
+  /// 只删这一行（[QuestionAttemptRepository.deleteAttempt]）；成功后显式失效
+  /// [questionAttemptHistoryProvider]——测试环境没有写拦截器，行必须自己消失。
+  Future<void> _deleteEntry(String entryId) async {
+    if (_deletingEntryId != null) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    setState(() => _deletingEntryId = entryId);
+    try {
+      await ProviderScope.containerOf(context, listen: false)
+          .read(questionAttemptRepositoryProvider)
+          .deleteAttempt(entryId);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _deletingEntryId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.questionDetailAttemptEntryDeleteFailed('$error')),
+        ),
+      );
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    ref.invalidate(questionAttemptHistoryProvider(widget.questionId));
+    setState(() => _deletingEntryId = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.questionDetailAttemptEntryDeleteDone)),
     );
   }
 
@@ -866,6 +909,23 @@ class _AttemptHistoryLineState extends ConsumerState<_AttemptHistoryLine> {
                               color: entry.isCorrect
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.error,
+                            ),
+                          ),
+                          const Spacer(),
+                          // 弱于内容的单条删除：小图标、紧凑点按区，整组防连点。
+                          IconButton(
+                            key: questionAttemptEntryDeleteKeyFor(entry.id),
+                            onPressed: _deletingEntryId == null
+                                ? () => _deleteEntry(entry.id)
+                                : null,
+                            tooltip:
+                                l10n.questionDetailAttemptEntryDeleteTooltip,
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 28,
+                              minHeight: 28,
                             ),
                           ),
                         ],
