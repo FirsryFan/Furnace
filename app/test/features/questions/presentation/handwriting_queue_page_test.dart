@@ -31,6 +31,7 @@ import 'package:furnace/domain/services/questions/question_number.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/handwriting_proposal_service.dart';
+import 'package:furnace/features/questions/data/handwriting_intake_store.dart';
 import 'package:furnace/features/questions/presentation/handwriting_queue_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -101,6 +102,29 @@ void main() {
           ? await tags.createTag(name: segment)
           : await tags.createTag(name: segment, parentId: parent.id);
     }
+  }
+
+  /// 一条「多图整理」结果的状态：照片与提案由调用方给，sourceRef 按照片顺序算。
+  HandwritingQueueState seededMultiRun({
+    required List<PendingHandwritingImage> images,
+    required List<String> photos,
+    required List<HandwritingProposal> proposals,
+  }) {
+    final sourceRef = multiSourceRefFor(photos);
+    return HandwritingQueueState(
+      images: images,
+      multiRuns: <HandwritingMultiRun>[
+        HandwritingMultiRun(
+          sourceRef: sourceRef,
+          photoRelPaths: photos,
+          set: HandwritingProposalSet(
+            sourceRef: sourceRef,
+            proposals: proposals,
+          ),
+          analyzedAt: DateTime(2026, 10, 23),
+        ),
+      ],
+    );
   }
 
   String reply(List<String> proposals) =>
@@ -752,7 +776,9 @@ void main() {
   // ── 多图/多页合并整理 ───────────────────────────────────────────────────
   //
   // 多张照片合成**一次**模型调用：勾选顺序就是交给模型的顺序，成功后的结果
-  // 卡片只读（整组确认 / 忘掉），不把「跨页合并成一条」的语义重新拆碎。
+  // 卡片可以整组确认（applyAll(sourceRef)），也可以逐条确认
+  // （applyProposal(sourceRef, proposalId)）——逐条确认不改「跨页合并成一条」
+  // 的归并语义，只是把写库的节奏交给用户。
 
   testWidgets('合并整理模式：入口切换、chip 变多选、底部栏显示张数规则', (tester) async {
     await seedPhoto('first.png');
@@ -898,7 +924,7 @@ void main() {
     expect(find.byKey(handwritingMergeRunKey), findsNothing);
   });
 
-  testWidgets('多图结果卡片：N 张缩略图 + 提案，只读、不给单条确认', (tester) async {
+  testWidgets('多图结果卡片：N 张缩略图 + 提案，每条都有独立确认', (tester) async {
     final first = await seedPngPhoto('page-1.png');
     final second = await seedPngPhoto('page-2.png');
     await seedParentPath('文化课/物理/力学');
@@ -937,8 +963,11 @@ void main() {
     expect(card, findsOneWidget);
     expect(find.text(zh.handwritingMergeRunTitle(2)), findsOneWidget);
     expect(find.text('动量守恒'), findsOneWidget);
-    // 多图卡片只做整组确认：单条「确认」按钮不出现。
-    expect(find.byKey(handwritingProposalApplyKey('tag-merged')), findsNothing);
+    // 每条提案都有自己的「确认」按钮；整批确认也还在（见下）。
+    final perItem = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('tag-merged')),
+    );
+    expect(perItem.onPressed, isNotNull);
 
     // 预检回来之后：两张缩略图都能解码，「全部确认」可用。
     await waitForText(tester, '会新建标签「动量守恒」');
@@ -1072,6 +1101,173 @@ void main() {
       isNotNull,
     );
   });
+
+  testWidgets('多图卡片逐条确认：只调 applyProposal，其余提案仍待确认、整批仍可用', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    final recorder = _RecordingQueueNotifier(
+      seededMultiRun(
+        images: images,
+        photos: <String>[first, second],
+        proposals: const <HandwritingProposal>[
+          HandwritingProposal(
+            id: 'tag-merged',
+            kind: HandwritingProposalKind.tag,
+            titleZh: '动量守恒',
+            fields: <String, String>{'parent_path': '文化课/物理/力学'},
+          ),
+          HandwritingProposal(
+            id: 'point-merged',
+            kind: HandwritingProposalKind.knowledgePoint,
+            titleZh: '动量守恒的条件',
+            fields: <String, String>{'content': '合外力为零'},
+          ),
+        ],
+      ),
+    );
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(() => recorder),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    await tester.tap(find.byKey(handwritingProposalApplyKey('tag-merged')));
+    await waitForText(tester, zh.handwritingProposalApplied);
+
+    // 只确认了这一条：调用带 sourceRef，另一条仍是待确认。
+    expect(recorder.applyProposalCalls, <String>['$sourceRef#tag-merged']);
+    expect(await tags.getTagByPath('文化课/物理/力学/动量守恒'), isNotNull);
+    final pointApply = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('point-merged')),
+    );
+    expect(pointApply.onPressed, isNotNull);
+    expect(find.text(zh.handwritingProposalApplied), findsOneWidget);
+    expect(
+      find.byKey(handwritingProposalApplyKey('point-merged')),
+      findsOneWidget,
+    );
+    // 还剩一条没确认：整批确认仍可用。
+    final applyAll = tester.widget<FilledButton>(
+      find.byKey(handwritingMergeApplyAllKey(sourceRef)),
+    );
+    expect(applyAll.onPressed, isNotNull);
+  });
+
+  testWidgets('多图卡片：预检 blocked 的提案不能单条确认，整批确认也禁用', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(
+          () => _SeededQueueNotifier(
+            seededMultiRun(
+              images: images,
+              photos: <String>[first, second],
+              proposals: const <HandwritingProposal>[
+                HandwritingProposal(
+                  id: 'tag-ready',
+                  kind: HandwritingProposalKind.tag,
+                  titleZh: '动量守恒',
+                  fields: <String, String>{'parent_path': '文化课/物理/力学'},
+                ),
+                HandwritingProposal(
+                  id: 'tag-blocked',
+                  kind: HandwritingProposalKind.tag,
+                  titleZh: '量子纠缠',
+                  fields: <String, String>{'parent_path': '不存在的/路径'},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    await waitForText(tester, zh.handwritingQueuePreviewBlocked);
+
+    expect(find.textContaining('标签树里没有'), findsOneWidget);
+    final blockedApply = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('tag-blocked')),
+    );
+    expect(blockedApply.onPressed, isNull);
+    // 能确认的那条照旧可点：blocked 只锁自己。
+    final readyApply = tester.widget<FilledButton>(
+      find.byKey(handwritingProposalApplyKey('tag-ready')),
+    );
+    expect(readyApply.onPressed, isNotNull);
+    final applyAll = tester.widget<FilledButton>(
+      find.byKey(handwritingMergeApplyAllKey(sourceRef)),
+    );
+    expect(applyAll.onPressed, isNull);
+
+    await tester.tap(
+      find.byKey(handwritingProposalApplyKey('tag-blocked')),
+      warnIfMissed: false,
+    );
+    await settle(tester);
+    // 点不动的条目什么都不写：标签只有父路径那 3 个。
+    expect(await tags.getAllTags(), hasLength(3));
+  });
+
+  testWidgets('多图卡片整批确认：单条按钮存在时 applyAll 仍一次写全部', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    final recorder = _RecordingQueueNotifier(
+      seededMultiRun(
+        images: images,
+        photos: <String>[first, second],
+        proposals: const <HandwritingProposal>[
+          HandwritingProposal(
+            id: 'tag-merged',
+            kind: HandwritingProposalKind.tag,
+            titleZh: '动量守恒',
+            fields: <String, String>{'parent_path': '文化课/物理/力学'},
+          ),
+          HandwritingProposal(
+            id: 'point-merged',
+            kind: HandwritingProposalKind.knowledgePoint,
+            titleZh: '动量守恒的条件',
+            fields: <String, String>{'content': '合外力为零'},
+          ),
+        ],
+      ),
+    );
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(() => recorder),
+      ],
+    );
+
+    await waitForText(tester, '会新建标签「动量守恒」');
+    expect(
+      find.byKey(handwritingProposalApplyKey('tag-merged')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(handwritingMergeApplyAllKey(sourceRef)));
+    await waitForText(tester, zh.handwritingQueueReportSummary(2, 0));
+
+    expect(recorder.applyAllCalls, <String>[sourceRef]);
+    expect(recorder.applyProposalCalls, isEmpty);
+    expect(await tags.getTagByPath('文化课/物理/力学/动量守恒'), isNotNull);
+    expect(await anki.getKnowledgePoints(), hasLength(1));
+    // 整批确认之后两条都变成「已确认」。
+    expect(find.text(zh.handwritingProposalApplied), findsNWidgets(2));
+  });
 }
 
 /// 一个"永远不回答"的适配器：用来把「整理中」那一帧定住（`FakeModelAdapter`
@@ -1117,6 +1313,7 @@ final class _RecordingQueueNotifier extends HandwritingQueueNotifier {
   final HandwritingQueueState seeded;
 
   final List<List<String>> analyzeMultiCalls = <List<String>>[];
+  final List<String> applyProposalCalls = <String>[];
   final List<String> applyAllCalls = <String>[];
   final List<String> forgetCalls = <String>[];
 
@@ -1130,6 +1327,15 @@ final class _RecordingQueueNotifier extends HandwritingQueueNotifier {
   Future<HandwritingProposalRun> analyzeMulti(List<String> relPaths) {
     analyzeMultiCalls.add(List<String>.of(relPaths));
     return super.analyzeMulti(relPaths);
+  }
+
+  @override
+  Future<HandwritingApplyReport?> applyProposal(
+    String sourceRef,
+    String proposalId,
+  ) {
+    applyProposalCalls.add('$sourceRef#$proposalId');
+    return super.applyProposal(sourceRef, proposalId);
   }
 
   @override

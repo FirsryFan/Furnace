@@ -733,7 +733,7 @@ class _MultiRunCardState extends ConsumerState<_MultiRunCard> {
                   applied: queue.isApplied(sourceRef, proposal.id),
                   applying: applying,
                   outcome: _outcomeOf(report, proposal.id),
-                  onApply: null,
+                  onApply: () => notifier.applyProposal(sourceRef, proposal.id),
                 ),
             ],
             if (report != null) ...[
@@ -1273,8 +1273,9 @@ class _ProposalCard extends StatelessWidget {
   final bool applying;
   final HandwritingApplyOutcome? outcome;
 
-  /// 逐条确认；多图卡片是整组确认，传 null 时不显示单条按钮。
-  final VoidCallback? onApply;
+  /// 逐条确认：只写这一条提案。单图面板与多图卡片都用它；已确认、
+  /// 正在确认或预检 blocked 时按钮禁用。
+  final VoidCallback onApply;
 
   /// 题目提案的「编辑后保存」入口；其它 kind 为 null（它们确认即入库）。
   final VoidCallback? onEditForIntake;
@@ -1352,45 +1353,24 @@ class _ProposalCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            if (onApply != null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  key: handwritingProposalApplyKey(proposal.id),
-                  onPressed:
-                      (applied || applying || (preview?.isBlocked ?? false))
-                          ? null
-                          : onApply,
-                  icon: Icon(
-                    applied ? Icons.check_circle_outline : Icons.check,
-                  ),
-                  label: Text(
-                    applied
-                        ? l10n.handwritingProposalApplied
-                        : l10n.handwritingProposalApply,
-                  ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                key: handwritingProposalApplyKey(proposal.id),
+                onPressed:
+                    (applied || applying || (preview?.isBlocked ?? false))
+                        ? null
+                        : onApply,
+                icon: Icon(
+                  applied ? Icons.check_circle_outline : Icons.check,
                 ),
-              )
-            else if (applied)
-              // 多图卡片没有逐条确认：已确认的只留一个只读状态，不再给按钮。
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 18,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      l10n.handwritingProposalApplied,
-                      style: TextStyle(color: scheme.primary),
-                    ),
-                  ],
+                label: Text(
+                  applied
+                      ? l10n.handwritingProposalApplied
+                      : l10n.handwritingProposalApply,
                 ),
               ),
+            ),
           ],
         ),
       ),
