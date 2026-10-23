@@ -2,6 +2,37 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十二：v0.6.6 双端发布（清空全部作答记录 + 自测统计行 + 明细逐条删除）
+
+**起点**：轮次一百六十一收尾（HEAD `834ae64`，schema v32，全量 +5777 全绿，工作树干净）。
+v0.6.5 之后攒了两轮（10 个提交）：轮次一百六十的「设置页学习数据清空全部作答记录」、一百六十一的
+「题库页自测统计行 + 自测明细逐条删除」。都是用户点得到的界面变化，出一版安装包。
+
+**版本**：`app/pubspec.yaml` `version: 0.6.6+25`；`app/lib/core/app_info.dart`
+`kAppVersion='0.6.6'`、`kAppBuildNumber=25`；`test/core/app_info_test.dart` +2 通过。
+**无 schema 变更**（仍 v32，与 v0.6.4/v0.6.5 一致，覆盖安装不动数据）。
+
+**Windows**（`scripts/build_windows.ps1`，ASCII junction `E:\Document\furnace-build`）：exit=0；
+`data/app.so` 21,496,712 B @04:06:54；`furnace.exe` 版本资源 `0.6.6+25`；
+打包前删 `kernel_blob.bin` 110,766,568 B；zip **28 entries / 20,482,750 B / 解压 47,145,419 B**，
+顶层 exe + 6 个 dll，`data/app.so` 在包，`kernel_blob` 0 条；SHA-256
+`7E5B34D967A34E66E32051FB43624ACC51D8D848CBDC3048B9FD7D7E51BDA45F`。
+
+**Android**（`scripts/build_android.ps1`）：exit=0，Gradle assembleRelease；APK
+`dist/Furnace-0.6.6-android.apk` **99,330,430 B**（94.7MB，与 v0.6.5 字节数巧合相同、sha 不同），
+SHA-256 `0B8A02379AB4D08C86100009C4032FF1AC971A36AC1984E6E6DF4F6A8243FB8A`；
+aapt2 `versionCode 25 / versionName 0.6.6`、minSdk 24 / targetSdk 36 / compileSdk 36；
+证书 `57de8b8fed7e4a44cb278ae83b147744dd3918124465634fd135e0bbf32e2db2`（与 v0.5.0–v0.6.5 同）。
+
+**发布件**：`dist/` 三件 = `Furnace-0.6.6-android.apk`、`Furnace-0.6.6-windows-x64.zip`、
+`RELEASE-v0.6.6.md`（下载表 / A 学习数据清空 / B 自测统计行 / C 明细逐条删除 / 验证数字 /
+已知未做 / 发布说明；已 present 给用户）。旧版 v0.5.8–v0.6.5 件仍在 `dist/`。
+
+**推送**：发布提交用 `E:/dsh-tmp-aot/rest-push.ps1`（GitHub REST git/data API + 代理
+127.0.0.1:7890，github.com HTTPS 仍被阻断）推送，提交 sha 与本地一致；
+tag `v0.6.6`（annotated）用 `E:/dsh-tmp-aot/rest-tag-066.ps1` 经 `POST /git/tags` + `POST /git/refs` 推送，
+API GET 校验目标 commit。
+
 ## 2026-10-24 轮次一百六十一：自测统计行 + 自测明细逐条删除（Lead + 3 teammate 并行）
 
 **起点**：轮次一百六十收尾（HEAD `d23209b`，schema v32，v0.6.5 已发布，全量 +5756 全绿，工作树干净）。
