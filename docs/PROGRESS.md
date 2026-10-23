@@ -2,6 +2,36 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十六：v0.6.4 双端发布（自测判分 + 作答记录）
+
+**起点**：轮次一百五十五收尾（HEAD `ad18da1`，schema v32 已落、全量 +5716 全绿、工作树干净）。
+v0.6.3 之后攒了两轮（10 个提交）：轮次一百五十四的「详情页自测判分」、一百五十五的
+「作答记录落库 + 历史行」。这两片都是用户直接点得到的界面变化，出一版安装包。
+
+**版本**：`app/pubspec.yaml` `version: 0.6.4+23`；`app/lib/core/app_info.dart`
+`kAppVersion='0.6.4'`、`kAppBuildNumber=23`；`test/core/app_info_test.dart` +2 通过。
+**schema v31 → v32**（本版含新表 `question_attempts`，覆盖安装自动迁移，不回填旧表）。
+
+**Windows**（`scripts/build_windows.ps1`，ASCII junction `E:\Document\furnace-build`）：exit=0；
+`data/app.so` 21,447,560 B @02:16:33；`furnace.exe` 版本资源 `0.6.4+23`；
+打包前删 `kernel_blob.bin` 110,766,568 B；zip **28 entries / 20,461,245 B / 解压 47,096,267 B**，
+顶层 exe + 6 个 dll，`kernel_blob` 0 条；SHA-256 `20CF3F5B30336019FC4C98A5D35354EF519BC0C2E3689A7B16193E97FE2C3005`。
+
+**Android**（`scripts/build_android.ps1`）：exit=0，Gradle assembleRelease 成功；
+APK **99,232,126 B（94.6 MB）** SHA-256 `F33C19215954E8BC3B37ABA1F3A60818FCED12E64C740FD4154F383D48706D89`；
+aapt2 `versionCode 23` / `versionName 0.6.4` / minSdk 24 / targetSdk 36 / compileSdk 36；
+证书同 v0.5.0–v0.6.3 `57de8b8fed7e4a44cb278ae83b147744dd3918124465634fd135e0bbf32e2db2`。
+
+**dist/**（gitignore、不入库）：`Furnace-0.6.4-android.apk`、`Furnace-0.6.4-windows-x64.zip`、
+`RELEASE-v0.6.4.md`（下载表 / A 自测判分 / B 作答记录 / 验证数字 / 已知未做 / 发布说明）；
+旧版 v0.5.8–v0.6.3 件仍在 `dist/`。
+
+**推送**：发布提交与 tag `v0.6.4` 走 `E:/dsh-tmp-aot/rest-push.ps1` + `rest-tag`（GitHub REST API，
+github.com HTTPS 仍被阻断）；提交 sha 与本地一致。
+
+**未做 / 风险**：双端新界面未真机手测；没有错题本/正确率页/「做错过」筛选；写库失败用户无感；
+自测中 AI 解题区仍可见；升级到 v32 后回退旧版看不到作答记录（旧版不崩）。
+
 ## 2026-10-24 轮次一百五十五：自测作答记录落库（schema v32）+ 详情页历史行（Lead + 两个 teammate 并行）
 
 **起点**：轮次一百五十四收尾（HEAD `0743f91`，工作树干净）。选片理由：上一轮的「自测」判分
