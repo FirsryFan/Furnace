@@ -5305,4 +5305,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionDetailSelfTestHiddenHint =>
       'Self-testing: answers and solutions appear after you submit.';
+
+  @override
+  String questionDetailAttemptHistory(int total, int correct) {
+    return 'Self-tested $total time(s) · $correct correct';
+  }
+
+  @override
+  String questionDetailAttemptLastCorrect(String at) {
+    return 'Last correct: $at';
+  }
+
+  @override
+  String questionDetailAttemptLastIncorrect(String at) {
+    return 'Last incorrect: $at';
+  }
 }

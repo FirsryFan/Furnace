@@ -8851,6 +8851,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Self-testing: answers and solutions appear after you submit.'**
   String get questionDetailSelfTestHiddenHint;
+
+  /// No description provided for @questionDetailAttemptHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-tested {total} time(s) · {correct} correct'**
+  String questionDetailAttemptHistory(int total, int correct);
+
+  /// No description provided for @questionDetailAttemptLastCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Last correct: {at}'**
+  String questionDetailAttemptLastCorrect(String at);
+
+  /// No description provided for @questionDetailAttemptLastIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Last incorrect: {at}'**
+  String questionDetailAttemptLastIncorrect(String at);
 }
 
 class _AppLocalizationsDelegate

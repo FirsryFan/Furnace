@@ -5090,4 +5090,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionDetailSelfTestHiddenHint => '自测中：答案与解析在提交后显示。';
+
+  @override
+  String questionDetailAttemptHistory(int total, int correct) {
+    return '自测 $total 次 · 答对 $correct 次';
+  }
+
+  @override
+  String questionDetailAttemptLastCorrect(String at) {
+    return '最近一次答对：$at';
+  }
+
+  @override
+  String questionDetailAttemptLastIncorrect(String at) {
+    return '最近一次答错：$at';
+  }
 }

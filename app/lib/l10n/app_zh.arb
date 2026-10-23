@@ -2758,5 +2758,32 @@
       }
     }
   },
-  "questionDetailSelfTestHiddenHint": "自测中：答案与解析在提交后显示。"
+  "questionDetailSelfTestHiddenHint": "自测中：答案与解析在提交后显示。",
+  "questionDetailAttemptHistory": "自测 {total} 次 · 答对 {correct} 次",
+  "@questionDetailAttemptHistory": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "correct": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailAttemptLastCorrect": "最近一次答对：{at}",
+  "@questionDetailAttemptLastCorrect": {
+    "placeholders": {
+      "at": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailAttemptLastIncorrect": "最近一次答错：{at}",
+  "@questionDetailAttemptLastIncorrect": {
+    "placeholders": {
+      "at": {
+        "type": "String"
+      }
+    }
+  }
 }

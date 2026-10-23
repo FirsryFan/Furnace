@@ -2878,5 +2878,17 @@
       }
     }
   },
-  "questionDetailSelfTestHiddenHint": "Self-testing: answers and solutions appear after you submit."
+  "questionDetailSelfTestHiddenHint": "Self-testing: answers and solutions appear after you submit.",
+  "questionDetailAttemptHistory": "Self-tested {total} time(s) · {correct} correct",
+  "@questionDetailAttemptHistory": {
+    "placeholders": { "total": { "type": "int" }, "correct": { "type": "int" } }
+  },
+  "questionDetailAttemptLastCorrect": "Last correct: {at}",
+  "@questionDetailAttemptLastCorrect": {
+    "placeholders": { "at": { "type": "String" } }
+  },
+  "questionDetailAttemptLastIncorrect": "Last incorrect: {at}",
+  "@questionDetailAttemptLastIncorrect": {
+    "placeholders": { "at": { "type": "String" } }
+  }
 }
