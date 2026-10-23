@@ -68,6 +68,36 @@ Key handwritingMergeApplyAllKey(String sourceRef) =>
 Key handwritingMergeForgetKey(String sourceRef) =>
     ValueKey<String>('handwriting-merge-forget-$sourceRef');
 
+/// 「编辑后保存」：把题目提案的草稿带到收题页校对（应用层只装配，不写库）。
+///
+/// [sourceRef] 是提案所属整理的键：单图是照片相对路径，多图是
+/// `multi:<16hex>`。收题页入库成功后按 `<sourceRef>#<proposalId>` 调
+/// `markAppliedLocally`，正好与队列里的已确认键对上。
+/// 拿不到草稿（题干是空的）就直接返回、什么都不做；这类提案在卡片上只显示
+/// 提示，不给这个入口。
+Future<void> editProposalForIntake(
+  BuildContext context,
+  WidgetRef ref,
+  String sourceRef,
+  HandwritingProposal proposal,
+) async {
+  final draft = await ref
+      .read(handwritingProposalServiceProvider)
+      .questionDraftForIntake(proposal);
+  if (draft == null || !context.mounted) {
+    return;
+  }
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => QuestionIntakePage(
+        initialDraft: draft,
+        initialRelPath: sourceRef,
+        initialProposalId: proposal.id,
+      ),
+    ),
+  );
+}
+
 /// 待确认队列页。
 ///
 /// [initialRelPath] 用于"从收题页点某张照片的「整理」"这条入口：进来就选中它。
@@ -542,10 +572,13 @@ class _MergeActionBar extends StatelessWidget {
   }
 }
 
-/// 一次多图/多页整理的结果卡片（只读）：照片缩略图 + 提案 + 全部确认 / 忘掉。
+/// 一次多图/多页整理的结果卡片：照片缩略图 + 提案 + 全部确认 / 逐条确认 /
+/// 编辑后保存 / 忘掉。
 ///
-/// 单图面板里那套「逐条确认 / 编辑后保存」不进来：多页合并出来的提案要按整组
-/// 一起看，逐条确认会让「跨页合并成一条」的语义在界面上重新碎掉。
+/// 整组展示不等于只能整组操作：整批确认仍是最省事的入口，但用户也可以逐条
+/// 确认（只写那一条），题目提案还能「编辑后保存」带去收题页校对再入库。
+/// 「跨页合并成一条」的语义由**提案本身**（一次整理产出的一组）承担，不靠把
+/// 按钮藏起来维持。
 class _MultiRunCard extends ConsumerStatefulWidget {
   const _MultiRunCard({required this.run, required this.queue});
 
@@ -734,6 +767,15 @@ class _MultiRunCardState extends ConsumerState<_MultiRunCard> {
                   applying: applying,
                   outcome: _outcomeOf(report, proposal.id),
                   onApply: () => notifier.applyProposal(sourceRef, proposal.id),
+                  onEditForIntake:
+                      proposal.kind == HandwritingProposalKind.question
+                          ? () => unawaited(editProposalForIntake(
+                                context,
+                                ref,
+                                sourceRef,
+                                proposal,
+                              ))
+                          : null,
                 ),
             ],
             if (report != null) ...[
@@ -1157,7 +1199,7 @@ class _SelectedPhotoPanelState extends ConsumerState<_SelectedPhotoPanel> {
                     onApply: () => notifier.applyProposal(relPath, proposal.id),
                     onEditForIntake:
                         proposal.kind == HandwritingProposalKind.question
-                            ? () => unawaited(_editForIntake(
+                            ? () => unawaited(editProposalForIntake(
                                   context,
                                   ref,
                                   relPath,
@@ -1182,33 +1224,6 @@ class _SelectedPhotoPanelState extends ConsumerState<_SelectedPhotoPanel> {
               Text(l10n.handwritingQueueNotAnalyzed),
             ],
           ],
-        ),
-      ),
-    );
-  }
-
-  /// 「编辑后保存」：把题目提案的草稿带到收题页校对（应用层只装配，不写库）。
-  ///
-  /// 返回 null 表示题干是空的：这类提案连草稿都装不出来，卡片上只显示提示，不给
-  /// 这个入口。
-  Future<void> _editForIntake(
-    BuildContext context,
-    WidgetRef ref,
-    String relPath,
-    HandwritingProposal proposal,
-  ) async {
-    final draft = await ref
-        .read(handwritingProposalServiceProvider)
-        .questionDraftForIntake(proposal);
-    if (draft == null || !context.mounted) {
-      return;
-    }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => QuestionIntakePage(
-          initialDraft: draft,
-          initialRelPath: relPath,
-          initialProposalId: proposal.id,
         ),
       ),
     );

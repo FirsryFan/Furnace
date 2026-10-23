@@ -1268,6 +1268,192 @@ void main() {
     // 整批确认之后两条都变成「已确认」。
     expect(find.text(zh.handwritingProposalApplied), findsNWidgets(2));
   });
+
+  // ── 多图卡片的题目提案：与单图同一套「编辑后保存」───────────────────────
+  //
+  // 多图整理出的题目提案同样要能带去收题页校对：sourceRef 是 `multi:<16hex>`，
+  // 收题页入库后按 `<sourceRef>#<proposalId>` 标记已确认，与队列的已确认键一致。
+  const multiQuestionStem = '质量 1 kg 的小球以 2 m/s 撞墙，以 1 m/s 反弹，求动量变化大小。';
+  const multiQuestionAnswer = '3 kg·m/s（方向与原速度相反）';
+  const multiQuestionSolution =
+      '取原方向为正：Δp = m(v2 - v1) = 1 × (-1 - 2) = -3，大小 3 kg·m/s。';
+
+  HandwritingProposal multiQuestionProposal() => const HandwritingProposal(
+        id: 'question-merged',
+        kind: HandwritingProposalKind.question,
+        titleZh: '动量变化题',
+        fields: <String, String>{
+          'stem': multiQuestionStem,
+          'answer': multiQuestionAnswer,
+          'solution': multiQuestionSolution,
+        },
+        options: <HandwritingOptionDraft>[
+          HandwritingOptionDraft(label: 'A', content: '3 kg·m/s'),
+          HandwritingOptionDraft(label: 'B', content: '1 kg·m/s'),
+        ],
+      );
+
+  const multiTagProposal = HandwritingProposal(
+    id: 'tag-merged',
+    kind: HandwritingProposalKind.tag,
+    titleZh: '动量守恒',
+    fields: <String, String>{'parent_path': '文化课/物理/力学'},
+  );
+
+  testWidgets('多图卡片：题目提案有「编辑后保存」，其它产物没有', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    final sourceRef = multiSourceRefFor(<String>[first, second]);
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(
+          () => _SeededQueueNotifier(
+            seededMultiRun(
+              images: images,
+              photos: <String>[first, second],
+              proposals: <HandwritingProposal>[
+                multiQuestionProposal(),
+                multiTagProposal,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await waitForText(tester, '动量变化题');
+    final card = find.byKey(handwritingMergeRunCardKey(sourceRef));
+    expect(card, findsOneWidget);
+    // 题目提案的「编辑后保存」在卡片里；标签提案没有这个入口（确认即入库）。
+    const editKey = Key('handwriting-question-edit-question-merged');
+    expect(
+      find.descendant(of: card, matching: find.byKey(editKey)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('handwriting-question-edit-tag-merged')),
+      findsNothing,
+    );
+    // 编辑入口与确认按钮并存：编辑不替代确认。
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.byKey(handwritingProposalApplyKey('question-merged')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('多图卡片点「编辑后保存」：草稿预填到收题页，还没写库', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(
+          () => _SeededQueueNotifier(
+            seededMultiRun(
+              images: images,
+              photos: <String>[first, second],
+              proposals: <HandwritingProposal>[
+                multiQuestionProposal(),
+                multiTagProposal,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+    await waitForText(tester, '动量变化题');
+
+    await tester.tap(
+      find.byKey(const Key('handwriting-question-edit-question-merged')),
+    );
+    await waitForText(tester, zh.questionIntakePasteSection);
+
+    expect(find.byType(QuestionIntakePage), findsOneWidget);
+    expect(find.widgetWithText(TextField, multiQuestionStem), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, multiQuestionAnswer),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(TextField, multiQuestionSolution),
+      findsOneWidget,
+    );
+    // 选项正文照抄进各自一行（字母标签是另一列，不在 TextField 文本里）。
+    expect(find.widgetWithText(TextField, '3 kg·m/s'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '1 kg·m/s'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '拍照整理'), findsOneWidget);
+    // 预填只是表单内容：不按「入库」就什么都不写。
+    expect(await db.select(db.questions).get(), isEmpty);
+  });
+
+  testWidgets('从多图卡片编辑后入库：题目进库、提案变为已确认', (tester) async {
+    final first = await seedPngPhoto('page-1.png');
+    final second = await seedPngPhoto('page-2.png');
+    await seedParentPath('文化课/物理/力学');
+    final images = await store.pending();
+    await pumpQueue(
+      tester,
+      overrides: <Override>[
+        handwritingQueueProvider.overrideWith(
+          () => _SeededQueueNotifier(
+            seededMultiRun(
+              images: images,
+              photos: <String>[first, second],
+              proposals: <HandwritingProposal>[
+                multiQuestionProposal(),
+                multiTagProposal,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+    await waitForText(tester, '动量变化题');
+
+    await tester.tap(
+      find.byKey(const Key('handwriting-question-edit-question-merged')),
+    );
+    await waitForText(tester, zh.questionIntakePasteSection);
+    await tester.ensureVisible(find.text(zh.questionIntakeSubmit));
+    await settle(tester);
+    await tester.tap(find.text(zh.questionIntakeSubmit));
+    await waitForText(
+      tester,
+      zh.handwritingQuestionSaved(formatQuestionSerial(1)),
+    );
+
+    final rows = await db.select(db.questions).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.stem, multiQuestionStem);
+    expect(rows.single.serialNo, 1);
+
+    await tester.tap(find.byType(BackButton));
+    await waitForText(tester, zh.handwritingProposalApplied);
+    expect(find.text(zh.handwritingProposalApplied), findsOneWidget);
+    expect(await db.select(db.questions).get(), hasLength(1));
+    // 已确认之后多图卡片里的编辑入口也禁用（不能再进第二遍入库）。
+    final editButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, zh.handwritingQuestionEditForIntake),
+    );
+    expect(editButton.onPressed, isNull);
+    // 另一条标签提案不受影响，仍可确认。
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(handwritingProposalApplyKey('tag-merged')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  });
 }
 
 /// 一个"永远不回答"的适配器：用来把「整理中」那一帧定住（`FakeModelAdapter`
