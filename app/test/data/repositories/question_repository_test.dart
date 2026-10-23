@@ -293,7 +293,7 @@ void main() {
     expect((await repo.byId(id))!.state, 'processed');
   });
 
-  test('题目编号：入库依次 1、2；重复入库不占新号；删题后接现存最大号 + 1', () async {
+  test('题目编号：入库依次 1、2；重复入库不占新号；删题后高水位不让旧号被接手', () async {
     final first = await repo.ingest(const QuestionDraft(stem: '编号测试一'));
     final second = await repo.ingest(const QuestionDraft(stem: '编号测试二'));
     expect(first.question.serialNo, 1);
@@ -304,13 +304,63 @@ void main() {
     expect(again.created, isFalse);
     expect(again.question.serialNo, 1);
 
-    // 删掉当前最大号那道题之后，下一道会不会接手那个号？会——分配只依赖
-    // "现存最大号 + 1"，而删题是物理删除。这是刻意接受的（题库不变量是只追加，
-    // 删题是清理手段），文档里把"严格不回收"列为未做，需要持久计数器。
+    // v33（轮次一百六十三）起，高水位表记着这个库发出去过的最大号：删掉最大号
+    // 那题之后，下一道题拿 3——旧号 2 不会被接手（§11「发出即永久保留」）。
     await repo.deleteQuestion(second.question.id);
     final third = await repo.ingest(const QuestionDraft(stem: '编号测试三'));
-    expect(third.question.serialNo, 2);
+    expect(third.question.serialNo, 3);
     expect(second.question.serialNo, 2);
+  });
+
+  test('老库没有高水位行：第一次 ingest 按现存最大号 + 1，之后由高水位接手', () async {
+    final first = await repo.ingest(const QuestionDraft(stem: '高水位一'));
+    final second = await repo.ingest(const QuestionDraft(stem: '高水位二'));
+    expect(first.question.serialNo, 1);
+    expect(second.question.serialNo, 2);
+
+    // 模拟刚迁移完的 v32 老库：高水位表还是空的（历史发放号无从回填）。
+    await db.delete(db.questionSerialCounters).go();
+    final third = await repo.ingest(const QuestionDraft(stem: '高水位三'));
+    expect(third.question.serialNo, 3, reason: '没有高水位时退回现存最大 + 1');
+
+    final counter = await db.select(db.questionSerialCounters).getSingle();
+    expect(counter.lastIssued, 3, reason: '这次分配把高水位写进去');
+
+    // 从此以后就只走高水位：删掉最大号也不会倒回去。
+    await repo.deleteQuestion(third.question.id);
+    final fourth = await repo.ingest(const QuestionDraft(stem: '高水位四'));
+    expect(fourth.question.serialNo, 4);
+  });
+
+  test('同时入库多道题：编号互不重复，高水位落在最后一号', () async {
+    final results =
+        await Future.wait(<Future<({Question question, bool created})>>[
+      for (var i = 0; i < 6; i++) repo.ingest(QuestionDraft(stem: '并发编号 $i')),
+    ]);
+    final serials = results.map((r) => r.question.serialNo).toList();
+    expect(serials.toSet(), hasLength(6), reason: '并发入库不能撞号');
+    expect(serials.toSet(), <int>{1, 2, 3, 4, 5, 6});
+
+    final counter = await db.select(db.questionSerialCounters).getSingle();
+    expect(counter.lastIssued, 6);
+  });
+
+  test('包导入后的补号把高水位抬到现存最大号：删掉带号题也不会被接手', () async {
+    final ingested = await repo.ingest(const QuestionDraft(stem: '模拟带号导入'));
+    // v24 包自带号，restoreTable 直接写 serial_no——这里用 UPDATE 模拟。
+    await db.customStatement(
+      'UPDATE questions SET serial_no = 50 WHERE id = ?',
+      [ingested.question.id],
+    );
+    await db.backfillQuestionSerialNumbers();
+
+    // 补号之后还没入库过就先删掉这道题：没有抬水位的话下一题会拿 1。
+    await repo.deleteQuestion(ingested.question.id);
+    final next = await repo.ingest(const QuestionDraft(stem: '导入后新题'));
+    expect(next.question.serialNo, 51);
+
+    final counter = await db.select(db.questionSerialCounters).getSingle();
+    expect(counter.lastIssued, 51);
   });
 
   test('按题号检索：findBySerialNo 精确命中，0、负数与不存在的号返回 null', () async {

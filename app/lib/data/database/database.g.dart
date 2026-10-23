@@ -23474,6 +23474,195 @@ class QuestionAttemptsCompanion extends UpdateCompanion<QuestionAttempt> {
   }
 }
 
+class $QuestionSerialCountersTable extends QuestionSerialCounters
+    with TableInfo<$QuestionSerialCountersTable, QuestionSerialCounterRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $QuestionSerialCountersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _lastIssuedMeta =
+      const VerificationMeta('lastIssued');
+  @override
+  late final GeneratedColumn<int> lastIssued = GeneratedColumn<int>(
+      'last_issued', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, lastIssued];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'question_serial_counters';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<QuestionSerialCounterRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('last_issued')) {
+      context.handle(
+          _lastIssuedMeta,
+          lastIssued.isAcceptableOrUnknown(
+              data['last_issued']!, _lastIssuedMeta));
+    } else if (isInserting) {
+      context.missing(_lastIssuedMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  QuestionSerialCounterRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return QuestionSerialCounterRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      lastIssued: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_issued'])!,
+    );
+  }
+
+  @override
+  $QuestionSerialCountersTable createAlias(String alias) {
+    return $QuestionSerialCountersTable(attachedDatabase, alias);
+  }
+}
+
+class QuestionSerialCounterRow extends DataClass
+    implements Insertable<QuestionSerialCounterRow> {
+  /// 固定 1（单行表）。
+  final int id;
+
+  /// 发出去的最大题号（>= 1）。
+  final int lastIssued;
+  const QuestionSerialCounterRow({required this.id, required this.lastIssued});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['last_issued'] = Variable<int>(lastIssued);
+    return map;
+  }
+
+  QuestionSerialCountersCompanion toCompanion(bool nullToAbsent) {
+    return QuestionSerialCountersCompanion(
+      id: Value(id),
+      lastIssued: Value(lastIssued),
+    );
+  }
+
+  factory QuestionSerialCounterRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return QuestionSerialCounterRow(
+      id: serializer.fromJson<int>(json['id']),
+      lastIssued: serializer.fromJson<int>(json['lastIssued']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'lastIssued': serializer.toJson<int>(lastIssued),
+    };
+  }
+
+  QuestionSerialCounterRow copyWith({int? id, int? lastIssued}) =>
+      QuestionSerialCounterRow(
+        id: id ?? this.id,
+        lastIssued: lastIssued ?? this.lastIssued,
+      );
+  QuestionSerialCounterRow copyWithCompanion(
+      QuestionSerialCountersCompanion data) {
+    return QuestionSerialCounterRow(
+      id: data.id.present ? data.id.value : this.id,
+      lastIssued:
+          data.lastIssued.present ? data.lastIssued.value : this.lastIssued,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionSerialCounterRow(')
+          ..write('id: $id, ')
+          ..write('lastIssued: $lastIssued')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, lastIssued);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is QuestionSerialCounterRow &&
+          other.id == this.id &&
+          other.lastIssued == this.lastIssued);
+}
+
+class QuestionSerialCountersCompanion
+    extends UpdateCompanion<QuestionSerialCounterRow> {
+  final Value<int> id;
+  final Value<int> lastIssued;
+  const QuestionSerialCountersCompanion({
+    this.id = const Value.absent(),
+    this.lastIssued = const Value.absent(),
+  });
+  QuestionSerialCountersCompanion.insert({
+    this.id = const Value.absent(),
+    required int lastIssued,
+  }) : lastIssued = Value(lastIssued);
+  static Insertable<QuestionSerialCounterRow> custom({
+    Expression<int>? id,
+    Expression<int>? lastIssued,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lastIssued != null) 'last_issued': lastIssued,
+    });
+  }
+
+  QuestionSerialCountersCompanion copyWith(
+      {Value<int>? id, Value<int>? lastIssued}) {
+    return QuestionSerialCountersCompanion(
+      id: id ?? this.id,
+      lastIssued: lastIssued ?? this.lastIssued,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (lastIssued.present) {
+      map['last_issued'] = Variable<int>(lastIssued.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('QuestionSerialCountersCompanion(')
+          ..write('id: $id, ')
+          ..write('lastIssued: $lastIssued')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -23542,6 +23731,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $MaterialIntakeUndoLogsTable(this);
   late final $QuestionAttemptsTable questionAttempts =
       $QuestionAttemptsTable(this);
+  late final $QuestionSerialCountersTable questionSerialCounters =
+      $QuestionSerialCountersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -23593,7 +23784,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         materialIntakeProposals,
         knowledgeEdges,
         materialIntakeUndoLogs,
-        questionAttempts
+        questionAttempts,
+        questionSerialCounters
       ];
 }
 
@@ -34690,6 +34882,135 @@ typedef $$QuestionAttemptsTableProcessedTableManager = ProcessedTableManager<
     ),
     QuestionAttempt,
     PrefetchHooks Function()>;
+typedef $$QuestionSerialCountersTableCreateCompanionBuilder
+    = QuestionSerialCountersCompanion Function({
+  Value<int> id,
+  required int lastIssued,
+});
+typedef $$QuestionSerialCountersTableUpdateCompanionBuilder
+    = QuestionSerialCountersCompanion Function({
+  Value<int> id,
+  Value<int> lastIssued,
+});
+
+class $$QuestionSerialCountersTableFilterComposer
+    extends Composer<_$AppDatabase, $QuestionSerialCountersTable> {
+  $$QuestionSerialCountersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastIssued => $composableBuilder(
+      column: $table.lastIssued, builder: (column) => ColumnFilters(column));
+}
+
+class $$QuestionSerialCountersTableOrderingComposer
+    extends Composer<_$AppDatabase, $QuestionSerialCountersTable> {
+  $$QuestionSerialCountersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastIssued => $composableBuilder(
+      column: $table.lastIssued, builder: (column) => ColumnOrderings(column));
+}
+
+class $$QuestionSerialCountersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $QuestionSerialCountersTable> {
+  $$QuestionSerialCountersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get lastIssued => $composableBuilder(
+      column: $table.lastIssued, builder: (column) => column);
+}
+
+class $$QuestionSerialCountersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $QuestionSerialCountersTable,
+    QuestionSerialCounterRow,
+    $$QuestionSerialCountersTableFilterComposer,
+    $$QuestionSerialCountersTableOrderingComposer,
+    $$QuestionSerialCountersTableAnnotationComposer,
+    $$QuestionSerialCountersTableCreateCompanionBuilder,
+    $$QuestionSerialCountersTableUpdateCompanionBuilder,
+    (
+      QuestionSerialCounterRow,
+      BaseReferences<_$AppDatabase, $QuestionSerialCountersTable,
+          QuestionSerialCounterRow>
+    ),
+    QuestionSerialCounterRow,
+    PrefetchHooks Function()> {
+  $$QuestionSerialCountersTableTableManager(
+      _$AppDatabase db, $QuestionSerialCountersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$QuestionSerialCountersTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$QuestionSerialCountersTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$QuestionSerialCountersTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> lastIssued = const Value.absent(),
+          }) =>
+              QuestionSerialCountersCompanion(
+            id: id,
+            lastIssued: lastIssued,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int lastIssued,
+          }) =>
+              QuestionSerialCountersCompanion.insert(
+            id: id,
+            lastIssued: lastIssued,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$QuestionSerialCountersTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $QuestionSerialCountersTable,
+        QuestionSerialCounterRow,
+        $$QuestionSerialCountersTableFilterComposer,
+        $$QuestionSerialCountersTableOrderingComposer,
+        $$QuestionSerialCountersTableAnnotationComposer,
+        $$QuestionSerialCountersTableCreateCompanionBuilder,
+        $$QuestionSerialCountersTableUpdateCompanionBuilder,
+        (
+          QuestionSerialCounterRow,
+          BaseReferences<_$AppDatabase, $QuestionSerialCountersTable,
+              QuestionSerialCounterRow>
+        ),
+        QuestionSerialCounterRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -34789,4 +35110,7 @@ class $AppDatabaseManager {
           _db, _db.materialIntakeUndoLogs);
   $$QuestionAttemptsTableTableManager get questionAttempts =>
       $$QuestionAttemptsTableTableManager(_db, _db.questionAttempts);
+  $$QuestionSerialCountersTableTableManager get questionSerialCounters =>
+      $$QuestionSerialCountersTableTableManager(
+          _db, _db.questionSerialCounters);
 }

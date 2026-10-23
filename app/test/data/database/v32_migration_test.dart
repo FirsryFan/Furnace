@@ -11,7 +11,10 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 /// v31 -> v32：自测作答记录 `question_attempts`（轮次一百五十五）。
 ///
 /// 这一版只**新增一张表**：没有一列需要回填，老的作答（此前并不存在）
-/// 也不会搬家。要锁的是三种真实文件状态：
+/// 也不会搬家。`AppDatabase` 的当前 schema 已到 v33，所以这些老文件重开后
+/// `user_version` 一律是 33；本文件只锁 v32 新增的表/列行为。要锁的是三种真实
+/// 文件状态：
+///
 ///
 ///  1. 真实 v31 文件升级到 32 后，老题原样还在，新表立刻可写、重开仍在；
 ///  2. 版本号已经被盖成 v32、却没有这张表的文件靠 beforeOpen 自愈建表
@@ -91,7 +94,7 @@ void main() {
     var db = AppDatabase.forTesting(NativeDatabase(built.file));
     var repo = QuestionAttemptRepository(db);
 
-    expect(await userVersionOf(db), 32);
+    expect(await userVersionOf(db), 33);
     final question = await QuestionRepository(db).byId(built.questionId);
     expect(question, isNotNull);
     expect(question!.stem, 'v32 迁移用的题');
@@ -109,7 +112,7 @@ void main() {
     expect(history.single.isCorrect, isTrue);
     await db.close();
 
-    // 已经是 v32，重开不再迁移；作答行必须原样还在。
+    // 已经是最新版本（33），重开不再迁移；作答行必须原样还在。
     db = AppDatabase.forTesting(NativeDatabase(built.file));
     repo = QuestionAttemptRepository(db);
     history = await repo.historyFor(built.questionId);
@@ -138,18 +141,18 @@ void main() {
     final history = await repo.historyFor(built.questionId);
     expect(history, hasLength(1));
     expect(history.single.isCorrect, isFalse);
-    expect(await userVersionOf(db), 32);
+    expect(await userVersionOf(db), 33);
     await db.close();
   });
 
-  test('v30 老库一路升到 32：补 source_photos 列与建作答表都生效', () async {
+  test('v30 老库一路升上来：补 source_photos 列与建作答表都生效', () async {
     final built = await buildOldDb(
       userVersion: 30,
       name: 'v30',
       dropSourcePhotos: true,
     );
     final db = AppDatabase.forTesting(NativeDatabase(built.file));
-    expect(await userVersionOf(db), 32);
+    expect(await userVersionOf(db), 33);
 
     // v30 -> v31：老 run 没有照片列，补列后读作单图。
     final runs = await HandwritingProposalRepository(db).runs();
@@ -170,7 +173,7 @@ void main() {
     await db.close();
   });
 
-  test('健康的 v32 库重开不会重建表，作答行还在', () async {
+  test('健康的 v32 库重开升到最新：不重建表，作答行还在', () async {
     final file = File('${tempDir.path}/healthy32.db');
     var db = AppDatabase.forTesting(NativeDatabase(file));
     final questionId = await seedQuestion(db);
@@ -186,7 +189,7 @@ void main() {
     final reopened = await QuestionAttemptRepository(db).historyFor(questionId);
     expect(reopened, hasLength(1));
     expect(reopened.single.id, recorded);
-    expect(await userVersionOf(db), 32);
+    expect(await userVersionOf(db), 33);
     await db.close();
   });
 }

@@ -74,6 +74,8 @@ part 'database.g.dart';
     MaterialIntakeUndoLogs,
     // v32（自测作答记录，轮次一百五十五；docs/QUESTION_BANK_DESIGN.md §34）
     QuestionAttempts,
+    // v33（题目编号高水位，轮次一百六十三；docs/QUESTION_BANK_DESIGN.md §11/§40）
+    QuestionSerialCounters,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -110,9 +112,13 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33].
+  ///
+  /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
+  /// question numbers ever issued, so "发出即永久保留" holds after the highest
+  /// numbered question is deleted (docs/QUESTION_BANK_DESIGN.md §11).
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   @override
   MigrationStrategy get migration {
@@ -213,6 +219,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 32) {
           await _upgradeV31ToV32();
+        }
+        if (from < 33) {
+          await _upgradeV32ToV33();
         }
       },
       beforeOpen: (details) async {
@@ -417,6 +426,12 @@ class AppDatabase extends _$AppDatabase {
     // 没有列要补，建表即可。
     if (!await _tableExists('question_attempts')) {
       await m.createTable(questionAttempts);
+    }
+    // v33（轮次一百六十三）：题目编号高水位表。同一个失败模式——老文件被盖成 v33
+    // 却没有这张表时，Drift 跳过 onUpgrade，第一次 ingest 分配编号就抛
+    // no such table，那意味着**一道题也存不进去**。表是纯新增，建表即可。
+    if (!await _tableExists('question_serial_counters')) {
+      await m.createTable(questionSerialCounters);
     }
   }
 
@@ -921,6 +936,21 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(questionAttempts);
   }
 
+  /// v32 -> v33：题目编号高水位 `question_serial_counters`（轮次一百六十三）。
+  ///
+  /// 纯新增一张单行表。老库没有"历史最大发放号"可回填（迁移之前号的分配就是
+  /// 「现存最大号 + 1」，删号的历史不在库里），但**现存最大号必须抬进高水位**：
+  /// 否则升级后先删掉最大号那题、再入库，号就会被接手，与 §11「发出即永久保留」
+  /// 冲突。所以建完表（或表已被 [_ensureColumns] 自愈先建过）立刻把高水位抬到
+  /// 当前最大号；之后每次 ingest 再按 `max(现存最大号, 高水位) + 1` 分配并回写。
+  Future<void> _upgradeV32ToV33() async {
+    if (!await _tableExists('question_serial_counters')) {
+      final m = Migrator(this);
+      await m.createTable(questionSerialCounters);
+    }
+    await _raiseQuestionSerialHighWaterToCurrentMax();
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1199,6 +1229,7 @@ class AppDatabase extends _$AppDatabase {
       'SELECT id FROM questions WHERE serial_no IS NULL ORDER BY created_at, id',
     ).get();
     if (pending.isEmpty) {
+      await _raiseQuestionSerialHighWaterToCurrentMax();
       return 0;
     }
     for (final row in pending) {
@@ -1208,7 +1239,41 @@ class AppDatabase extends _$AppDatabase {
         [next, row.read<String>('id')],
       );
     }
+    // 带号导入的包（v24 及更早的包里可能带大号）走不到上面的 UPDATE，但
+    // 它们的号同样“发出即不回收”：补号结束后把高水位抬到现存最大号。
+    await _raiseQuestionSerialHighWaterToCurrentMax();
     return pending.length;
+  }
+
+  /// 把编号高水位抬到当前题库最大号（只增不减；表不存在/没有题时什么都不做）。
+  ///
+  /// 迁移（v32→v33）与包导入后的补号都走这里：已有题号曾经“发出去过”，高水位
+  /// 不跟着抬，删掉那题之后号就会被接手。
+  Future<void> _raiseQuestionSerialHighWaterToCurrentMax() async {
+    if (!await _tableExists('questions') ||
+        !await _columnExists('questions', 'serial_no') ||
+        !await _tableExists('question_serial_counters')) {
+      return;
+    }
+    final maxRow = await customSelect(
+      'SELECT COALESCE(MAX(serial_no), 0) AS max_serial FROM questions',
+    ).getSingle();
+    final highest = maxRow.read<int>('max_serial');
+    if (highest < 1) {
+      return;
+    }
+    final counterRow = await (select(questionSerialCounters)
+          ..where((t) => t.id.equals(1)))
+        .getSingleOrNull();
+    if (counterRow != null && counterRow.lastIssued >= highest) {
+      return;
+    }
+    await into(questionSerialCounters).insertOnConflictUpdate(
+      QuestionSerialCountersCompanion.insert(
+        id: const Value(1),
+        lastIssued: highest,
+      ),
+    );
   }
 
   /// v1 -> v2: new tables, new columns, relaxed card_state /

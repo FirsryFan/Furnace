@@ -1615,3 +1615,28 @@ class QuestionAttempts extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// 题目编号的高水位（schema v33，轮次一百六十三）。
+///
+/// 只有一行（`id = 1`），`last_issued` 是这个库**发出去过的最大题号**。编号的
+/// 分配规则是 `max(现存最大号, last_issued) + 1`（域层
+/// `allocateQuestionSerial`），所以删掉最大号那道题以后，号不会被下一道题接手
+/// —— `docs/QUESTION_BANK_DESIGN.md` §11 要求的「发出即永久保留」。
+///
+/// 为什么单独一张表、而不是塞进 `local_settings`：这一行只被题库写入
+/// （`ingest` 的事务里），与设置项没有语义关系；而"没有这一行"在这里正好表达
+/// "老库还没记过高水位"——此时分配器退回「现存最大号 + 1」的旧行为。
+@DataClassName('QuestionSerialCounterRow')
+class QuestionSerialCounters extends Table {
+  @override
+  String get tableName => 'question_serial_counters';
+
+  /// 固定 1（单行表）。
+  IntColumn get id => integer()();
+
+  /// 发出去的最大题号（>= 1）。
+  IntColumn get lastIssued => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
