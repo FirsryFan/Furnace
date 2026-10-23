@@ -77,6 +77,7 @@ class QuestionLibraryEntry {
     this.isSnapshotStem = false,
     this.snapshotLabel,
     this.snapshotExcerpt,
+    this.wrongAttemptCount = 0,
   });
 
   final String questionId;
@@ -114,6 +115,14 @@ class QuestionLibraryEntry {
 
   /// 快照题从正文里剥掉占位后可读的摘录；没有可读正文时为 null。
   final String? snapshotExcerpt;
+
+  /// 自测里答错过的次数（`question_attempts` 中 `is_correct = 0` 的行数）。
+  ///
+  /// 0 表示没答错过（没做过、只做对过、或只做过不可判分的题）。
+  final int wrongAttemptCount;
+
+  /// 是否进错题本：至少答错过一次。
+  bool get hasWrongAttempt => wrongAttemptCount > 0;
 
   /// `TR-00042`；还没编号时给「未编号」，与详情页/搜索口径一致。
   String get serialLabel =>
@@ -243,6 +252,16 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
   final linkRows = await (db.select(db.objectTags)
         ..where((t) => t.objectType.equals('question') & t.objectId.isIn(ids)))
       .get();
+  // 错题本口径：只数答错的自测（`question_attempts.is_correct = 0`）；
+  // 做对过的题不进错题本，没做过的题也不进。
+  final wrongRows = await (db.select(db.questionAttempts)
+        ..where((t) => t.questionId.isIn(ids) & t.isCorrect.equals(false)))
+      .get();
+  final wrongCountByQuestion = <String, int>{};
+  for (final row in wrongRows) {
+    wrongCountByQuestion[row.questionId] =
+        (wrongCountByQuestion[row.questionId] ?? 0) + 1;
+  }
   final tagRows = await db.select(db.tags).get();
 
   final pathByTagId = <String, String>{
@@ -312,6 +331,7 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
         snapshotExcerpt: snapshot.isSnapshot && snapshot.hasTextExcerpt
             ? snapshot.textExcerpt
             : null,
+        wrongAttemptCount: wrongCountByQuestion[row.id] ?? 0,
       ),
     );
   }

@@ -4,7 +4,7 @@
 /// 多选」。筛选判定必须能脱离界面单独测：界面只负责收集输入、渲染命中的行，
 /// 判定规则（尤其标签按子树匹配）只该有一份实现，所以抽成本文件。
 ///
-/// 三层条件之间是 **AND**；每一层内部：
+/// 四层条件之间是 **AND**；每一层内部：
 /// * 学科：空 = 不限；否则按 `entry.subjectKey` 精确相等（大小写敏感）。
 /// * 标签：空集 = 不限；否则多选 **ANY**，且按**子树**匹配——命中条件为
 ///   `q == p` 或 `q.startsWith('$p/')`（p 是筛选路径，q 是题目直挂的标签路径），
@@ -12,6 +12,8 @@
 /// * 文字：空 = 不限；先按题号解析（复用 [parseQuestionNumberQuery] 与
 ///   [matchQuestionSerial]，认 `TR-42` / `#42` / `42` / 全角数字），题号命中即真；
 ///   否则对题名、题干、题号标签、学科、来源、标签路径做大小写不敏感子串匹配。
+/// * 错题本：关 = 不限；开则只留 `hasWrongAttempt` 为真的题（自测答错过至少一次）。
+///   作答记录来自 `question_attempts`，由读表层投影成 [QuestionLibraryEntry.wrongAttemptCount]。
 ///
 /// 纯逻辑：不读库、不依赖时间/随机数、不 import 界面或 `dart:io`；任何输入都
 /// 不抛异常。输入字段不在构造时归一（保持 `const` 可用），判定时按需 trim。
@@ -30,6 +32,7 @@ class QuestionLibraryFilter {
     this.subjectKey = '',
     this.tagPaths = const <String>{},
     this.text = '',
+    this.onlyWrong = false,
   });
 
   /// 不限任何条件。
@@ -44,11 +47,15 @@ class QuestionLibraryFilter {
   /// 搜索框原文；trim 后空 = 不搜索。
   final String text;
 
-  /// 是否没有任何有效筛选条件：学科、标签（去空白后）、文字都为空。
+  /// 错题本模式：只看自测答错过的题。
+  final bool onlyWrong;
+
+  /// 是否没有任何有效筛选条件：学科、标签（去空白后）、文字都为空、错题本关。
   bool get isEmpty =>
       subjectKey.trim().isEmpty &&
       _normalizedPaths(tagPaths).isEmpty &&
-      text.trim().isEmpty;
+      text.trim().isEmpty &&
+      !onlyWrong;
 
   /// [isEmpty] 的取反。
   bool get isNotEmpty => !isEmpty;
@@ -58,11 +65,13 @@ class QuestionLibraryFilter {
     String? subjectKey,
     Set<String>? tagPaths,
     String? text,
+    bool? onlyWrong,
   }) {
     return QuestionLibraryFilter(
       subjectKey: subjectKey ?? this.subjectKey,
       tagPaths: tagPaths ?? this.tagPaths,
       text: text ?? this.text,
+      onlyWrong: onlyWrong ?? this.onlyWrong,
     );
   }
 
@@ -71,16 +80,21 @@ class QuestionLibraryFilter {
       other is QuestionLibraryFilter &&
       other.subjectKey == subjectKey &&
       _sameStringSet(other.tagPaths, tagPaths) &&
-      other.text == text;
+      other.text == text &&
+      other.onlyWrong == onlyWrong;
 
   @override
-  int get hashCode =>
-      Object.hash(subjectKey, Object.hashAllUnordered(tagPaths), text);
+  int get hashCode => Object.hash(
+        subjectKey,
+        Object.hashAllUnordered(tagPaths),
+        text,
+        onlyWrong,
+      );
 
   @override
   String toString() =>
       'QuestionLibraryFilter(subjectKey: $subjectKey, tagPaths: $tagPaths, '
-      'text: $text)';
+      'text: $text, onlyWrong: $onlyWrong)';
 }
 
 /// 判断一道题是否命中筛选条件；`filter.isEmpty` 时全部命中。
@@ -94,6 +108,10 @@ bool questionLibraryEntryMatches(
 
   final String subjectKey = filter.subjectKey.trim();
   if (subjectKey.isNotEmpty && entry.subjectKey != subjectKey) {
+    return false;
+  }
+
+  if (filter.onlyWrong && !entry.hasWrongAttempt) {
     return false;
   }
 

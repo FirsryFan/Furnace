@@ -2,7 +2,7 @@
 ///
 /// 无状态：筛选值存在题库页 State 的 `QuestionLibraryFilter` 里，搜索框
 /// controller 也由页面持有并在这里复用（清除筛选时页面要能同步清空文字）。
-/// 搜索/标签/学科三个条件是 AND 关系；这个条只收集输入，不自己过滤。
+/// 搜索/标签/学科/错题本四个条件是 AND 关系；这个条只收集输入，不自己过滤。
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,9 @@ const Key questionBankSearchClearKey = Key('question-bank-search-clear');
 
 /// 「按标签筛选」按钮（测试定位用）；按钮文字同时显示已选标签数。
 const Key questionBankTagFilterKey = Key('question-bank-tag-filter');
+
+/// 「错题本」筛选 chip（测试定位用）：只看自测答错过的题。
+const Key questionBankWrongOnlyKey = Key('question-bank-wrong-only');
 
 /// 「清除筛选」按钮（测试定位用）；只在筛选生效时出现。
 const Key questionBankClearFilterKey = Key('question-bank-clear-filter');
@@ -54,6 +57,8 @@ class QuestionLibraryFilterBar extends StatelessWidget {
     required this.shownCount,
     required this.totalCount,
     required this.filterActive,
+    required this.onlyWrong,
+    required this.onToggleWrongOnly,
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onOpenTagFilter,
@@ -74,10 +79,16 @@ class QuestionLibraryFilterBar extends StatelessWidget {
   /// 是否有任何筛选生效（决定是否显示计数行）。
   final bool filterActive;
 
+  /// 错题本开关：只看自测答错过至少一次的题。
+  final bool onlyWrong;
+
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onOpenTagFilter;
   final ValueChanged<String> onRemoveTagPath;
+
+  /// 切换错题本开关（无状态条只管上报，筛选值由页面持有）。
+  final VoidCallback onToggleWrongOnly;
   final VoidCallback onClear;
 
   @override
@@ -126,6 +137,22 @@ class QuestionLibraryFilterBar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Tooltip(
+            message: l10n.questionBankWrongOnlyTooltip,
+            child: FilterChip(
+              key: questionBankWrongOnlyKey,
+              avatar: const Icon(Icons.error_outline, size: 18),
+              label: Text(l10n.questionBankWrongOnly),
+              selected: onlyWrong,
+              onSelected: (_) => onToggleWrongOnly(),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
         ),
         if (tagCount > 0) ...[
           const SizedBox(height: 8),

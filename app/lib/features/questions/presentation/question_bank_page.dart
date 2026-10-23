@@ -4,7 +4,8 @@
 /// 题目命名（自己命名或自动生成），图片要大一点。于是这一页：
 ///
 /// * 上面四个按钮 = 往题库里加东西的全部入口；
-/// * 搜索框 + 标签筛选 + 学科筛选 chips（三者 AND，可一键清除）；
+/// * 搜索框 + 标签筛选 + 学科筛选 + 错题本开关（四者 AND，可一键清除）；
+///   自测答错过的题在行内带「错 N 次」徽标；
 /// * 一行小字统计；
 /// * 每行 = 封面图（128×96）+ 题名（没题名时用题干摘要兜底）+ 题号徽章、
 ///   学科、标签叶子名；行尾 ⋮ 菜单可改名 / 自动命名 / 复制题号。
@@ -70,6 +71,10 @@ const Key questionBankDeleteSelectedKey = Key('question-bank-delete-selected');
 /// 列表行按题 id 生成 key：`question-bank-row-<questionId>`（测试定位用）。
 String questionBankRowKeyFor(String questionId) =>
     'question-bank-row-$questionId';
+
+/// 行内「错 N 次」徽标按题 id 生成 key：`question-bank-wrong-badge-<id>`。
+String questionBankWrongBadgeKeyFor(String questionId) =>
+    'question-bank-wrong-badge-$questionId';
 
 /// 标签路径的叶子名（`文化课/学科/数学` → `数学`），去重保序。
 List<String> questionBankTagLeafNames(List<String> tagPaths) {
@@ -726,6 +731,10 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                       shownCount: shown.length,
                       totalCount: snapshot.entries.length,
                       filterActive: _filter.isNotEmpty,
+                      onlyWrong: _filter.onlyWrong,
+                      onToggleWrongOnly: () => _applyFilter(
+                        _filter.copyWith(onlyWrong: !_filter.onlyWrong),
+                      ),
                       onSearchChanged: (value) =>
                           _applyFilter(_filter.copyWith(text: value)),
                       onClearSearch: _clearSearchText,
@@ -987,6 +996,11 @@ class _QuestionRow extends ConsumerWidget {
                         copyable: false,
                         dense: true,
                       ),
+                      if (entry.hasWrongAttempt)
+                        _WrongPill(
+                          questionId: entry.questionId,
+                          count: entry.wrongAttemptCount,
+                        ),
                       Text(
                         subjectLabelOf(l10n, entry.subjectKey),
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -1119,6 +1133,35 @@ class _TagPill extends StatelessWidget {
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
+      ),
+    );
+  }
+}
+
+/// 行内「错 N 次」徽标：自测答错过至少一次的题才有（错题本筛选的依据）。
+///
+/// 用错误色系与标签 pill 区分开；key 带题目 id 方便测试逐行断言。
+class _WrongPill extends StatelessWidget {
+  const _WrongPill({required this.questionId, required this.count});
+
+  final String questionId;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      key: ValueKey(questionBankWrongBadgeKeyFor(questionId)),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        l10n.questionBankWrongCount(count),
+        style: theme.textTheme.labelSmall?.copyWith(color: colors.error),
       ),
     );
   }
