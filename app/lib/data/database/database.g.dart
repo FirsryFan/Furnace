@@ -19781,9 +19781,15 @@ class $HandwritingIntakeRunsTable extends HandwritingIntakeRuns
   late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
       'created_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _sourcePhotosMeta =
+      const VerificationMeta('sourcePhotos');
+  @override
+  late final GeneratedColumn<String> sourcePhotos = GeneratedColumn<String>(
+      'source_photos', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns =>
-      [sourceRef, analyzedAt, rawReply, createdAt];
+      [sourceRef, analyzedAt, rawReply, createdAt, sourcePhotos];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -19819,6 +19825,12 @@ class $HandwritingIntakeRunsTable extends HandwritingIntakeRuns
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('source_photos')) {
+      context.handle(
+          _sourcePhotosMeta,
+          sourcePhotos.isAcceptableOrUnknown(
+              data['source_photos']!, _sourcePhotosMeta));
+    }
     return context;
   }
 
@@ -19836,6 +19848,8 @@ class $HandwritingIntakeRunsTable extends HandwritingIntakeRuns
           .read(DriftSqlType.string, data['${effectivePrefix}raw_reply']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      sourcePhotos: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_photos']),
     );
   }
 
@@ -19859,11 +19873,16 @@ class HandwritingIntakeRun extends DataClass
   /// 但被拒收的那一轮回复只有这里才有。
   final String? rawReply;
   final int createdAt;
+
+  /// 多图/多页整理涉及的照片相对路径（JSON 数组）。NULL/空 = 单图整理，
+  /// 来源就是 [sourceRef] 那条照片路径；非空时 [sourceRef] 是 `multi:<id>`。
+  final String? sourcePhotos;
   const HandwritingIntakeRun(
       {required this.sourceRef,
       required this.analyzedAt,
       this.rawReply,
-      required this.createdAt});
+      required this.createdAt,
+      this.sourcePhotos});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -19873,6 +19892,9 @@ class HandwritingIntakeRun extends DataClass
       map['raw_reply'] = Variable<String>(rawReply);
     }
     map['created_at'] = Variable<int>(createdAt);
+    if (!nullToAbsent || sourcePhotos != null) {
+      map['source_photos'] = Variable<String>(sourcePhotos);
+    }
     return map;
   }
 
@@ -19884,6 +19906,9 @@ class HandwritingIntakeRun extends DataClass
           ? const Value.absent()
           : Value(rawReply),
       createdAt: Value(createdAt),
+      sourcePhotos: sourcePhotos == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourcePhotos),
     );
   }
 
@@ -19895,6 +19920,7 @@ class HandwritingIntakeRun extends DataClass
       analyzedAt: serializer.fromJson<int>(json['analyzedAt']),
       rawReply: serializer.fromJson<String?>(json['rawReply']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
+      sourcePhotos: serializer.fromJson<String?>(json['sourcePhotos']),
     );
   }
   @override
@@ -19905,6 +19931,7 @@ class HandwritingIntakeRun extends DataClass
       'analyzedAt': serializer.toJson<int>(analyzedAt),
       'rawReply': serializer.toJson<String?>(rawReply),
       'createdAt': serializer.toJson<int>(createdAt),
+      'sourcePhotos': serializer.toJson<String?>(sourcePhotos),
     };
   }
 
@@ -19912,12 +19939,15 @@ class HandwritingIntakeRun extends DataClass
           {String? sourceRef,
           int? analyzedAt,
           Value<String?> rawReply = const Value.absent(),
-          int? createdAt}) =>
+          int? createdAt,
+          Value<String?> sourcePhotos = const Value.absent()}) =>
       HandwritingIntakeRun(
         sourceRef: sourceRef ?? this.sourceRef,
         analyzedAt: analyzedAt ?? this.analyzedAt,
         rawReply: rawReply.present ? rawReply.value : this.rawReply,
         createdAt: createdAt ?? this.createdAt,
+        sourcePhotos:
+            sourcePhotos.present ? sourcePhotos.value : this.sourcePhotos,
       );
   HandwritingIntakeRun copyWithCompanion(HandwritingIntakeRunsCompanion data) {
     return HandwritingIntakeRun(
@@ -19926,6 +19956,9 @@ class HandwritingIntakeRun extends DataClass
           data.analyzedAt.present ? data.analyzedAt.value : this.analyzedAt,
       rawReply: data.rawReply.present ? data.rawReply.value : this.rawReply,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      sourcePhotos: data.sourcePhotos.present
+          ? data.sourcePhotos.value
+          : this.sourcePhotos,
     );
   }
 
@@ -19935,13 +19968,15 @@ class HandwritingIntakeRun extends DataClass
           ..write('sourceRef: $sourceRef, ')
           ..write('analyzedAt: $analyzedAt, ')
           ..write('rawReply: $rawReply, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('sourcePhotos: $sourcePhotos')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(sourceRef, analyzedAt, rawReply, createdAt);
+  int get hashCode =>
+      Object.hash(sourceRef, analyzedAt, rawReply, createdAt, sourcePhotos);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -19949,7 +19984,8 @@ class HandwritingIntakeRun extends DataClass
           other.sourceRef == this.sourceRef &&
           other.analyzedAt == this.analyzedAt &&
           other.rawReply == this.rawReply &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.sourcePhotos == this.sourcePhotos);
 }
 
 class HandwritingIntakeRunsCompanion
@@ -19958,12 +19994,14 @@ class HandwritingIntakeRunsCompanion
   final Value<int> analyzedAt;
   final Value<String?> rawReply;
   final Value<int> createdAt;
+  final Value<String?> sourcePhotos;
   final Value<int> rowid;
   const HandwritingIntakeRunsCompanion({
     this.sourceRef = const Value.absent(),
     this.analyzedAt = const Value.absent(),
     this.rawReply = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.sourcePhotos = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HandwritingIntakeRunsCompanion.insert({
@@ -19971,6 +20009,7 @@ class HandwritingIntakeRunsCompanion
     required int analyzedAt,
     this.rawReply = const Value.absent(),
     required int createdAt,
+    this.sourcePhotos = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : sourceRef = Value(sourceRef),
         analyzedAt = Value(analyzedAt),
@@ -19980,6 +20019,7 @@ class HandwritingIntakeRunsCompanion
     Expression<int>? analyzedAt,
     Expression<String>? rawReply,
     Expression<int>? createdAt,
+    Expression<String>? sourcePhotos,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -19987,6 +20027,7 @@ class HandwritingIntakeRunsCompanion
       if (analyzedAt != null) 'analyzed_at': analyzedAt,
       if (rawReply != null) 'raw_reply': rawReply,
       if (createdAt != null) 'created_at': createdAt,
+      if (sourcePhotos != null) 'source_photos': sourcePhotos,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -19996,12 +20037,14 @@ class HandwritingIntakeRunsCompanion
       Value<int>? analyzedAt,
       Value<String?>? rawReply,
       Value<int>? createdAt,
+      Value<String?>? sourcePhotos,
       Value<int>? rowid}) {
     return HandwritingIntakeRunsCompanion(
       sourceRef: sourceRef ?? this.sourceRef,
       analyzedAt: analyzedAt ?? this.analyzedAt,
       rawReply: rawReply ?? this.rawReply,
       createdAt: createdAt ?? this.createdAt,
+      sourcePhotos: sourcePhotos ?? this.sourcePhotos,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -20021,6 +20064,9 @@ class HandwritingIntakeRunsCompanion
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
+    if (sourcePhotos.present) {
+      map['source_photos'] = Variable<String>(sourcePhotos.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -20034,6 +20080,7 @@ class HandwritingIntakeRunsCompanion
           ..write('analyzedAt: $analyzedAt, ')
           ..write('rawReply: $rawReply, ')
           ..write('createdAt: $createdAt, ')
+          ..write('sourcePhotos: $sourcePhotos, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -32512,6 +32559,7 @@ typedef $$HandwritingIntakeRunsTableCreateCompanionBuilder
   required int analyzedAt,
   Value<String?> rawReply,
   required int createdAt,
+  Value<String?> sourcePhotos,
   Value<int> rowid,
 });
 typedef $$HandwritingIntakeRunsTableUpdateCompanionBuilder
@@ -32520,6 +32568,7 @@ typedef $$HandwritingIntakeRunsTableUpdateCompanionBuilder
   Value<int> analyzedAt,
   Value<String?> rawReply,
   Value<int> createdAt,
+  Value<String?> sourcePhotos,
   Value<int> rowid,
 });
 
@@ -32543,6 +32592,9 @@ class $$HandwritingIntakeRunsTableFilterComposer
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourcePhotos => $composableBuilder(
+      column: $table.sourcePhotos, builder: (column) => ColumnFilters(column));
 }
 
 class $$HandwritingIntakeRunsTableOrderingComposer
@@ -32565,6 +32617,10 @@ class $$HandwritingIntakeRunsTableOrderingComposer
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourcePhotos => $composableBuilder(
+      column: $table.sourcePhotos,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$HandwritingIntakeRunsTableAnnotationComposer
@@ -32587,6 +32643,9 @@ class $$HandwritingIntakeRunsTableAnnotationComposer
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get sourcePhotos => $composableBuilder(
+      column: $table.sourcePhotos, builder: (column) => column);
 }
 
 class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
@@ -32624,6 +32683,7 @@ class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
             Value<int> analyzedAt = const Value.absent(),
             Value<String?> rawReply = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
+            Value<String?> sourcePhotos = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               HandwritingIntakeRunsCompanion(
@@ -32631,6 +32691,7 @@ class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
             analyzedAt: analyzedAt,
             rawReply: rawReply,
             createdAt: createdAt,
+            sourcePhotos: sourcePhotos,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -32638,6 +32699,7 @@ class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
             required int analyzedAt,
             Value<String?> rawReply = const Value.absent(),
             required int createdAt,
+            Value<String?> sourcePhotos = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               HandwritingIntakeRunsCompanion.insert(
@@ -32645,6 +32707,7 @@ class $$HandwritingIntakeRunsTableTableManager extends RootTableManager<
             analyzedAt: analyzedAt,
             rawReply: rawReply,
             createdAt: createdAt,
+            sourcePhotos: sourcePhotos,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

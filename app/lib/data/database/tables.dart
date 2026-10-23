@@ -1337,6 +1337,10 @@ class HandwritingIntakeRuns extends Table {
 
   IntColumn get createdAt => integer()();
 
+  /// 多图/多页整理涉及的照片相对路径（JSON 数组）。NULL/空 = 单图整理，
+  /// 来源就是 [sourceRef] 那条照片路径；非空时 [sourceRef] 是 `multi:<id>`。
+  TextColumn get sourcePhotos => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {sourceRef};
 }

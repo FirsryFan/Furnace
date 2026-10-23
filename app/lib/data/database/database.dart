@@ -106,9 +106,9 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31].
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration {
@@ -203,6 +203,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 30) {
           await _upgradeV29ToV30();
+        }
+        if (from < 31) {
+          await _upgradeV30ToV31();
         }
       },
       beforeOpen: (details) async {
@@ -329,6 +332,16 @@ class AppDatabase extends _$AppDatabase {
       // v30 却没有这一列时，Drift 跳过 onUpgrade，读题目的映射器第一次就抛
       // no such column。列可空，补上即可，没有回填这一步。
       await _addColumnIfMissing(m, 'questions', questions.title);
+    }
+    // v31（轮次一百四十八）：多图/多页整理的来源照片清单。同一个失败模式——
+    // 老文件被盖成 v31 却没有这一列时，Drift 跳过 onUpgrade，读整理记录的映射器
+    // 第一次就抛 no such column。列可空，补上即可，没有回填这一步。
+    if (await _tableExists('handwriting_intake_runs')) {
+      await _addColumnIfMissing(
+        m,
+        'handwriting_intake_runs',
+        handwritingIntakeRuns.sourcePhotos,
+      );
     }
     // v8 tables are healed the same way for the same reason. A missing *table*
     // is not a mapper crash but a silent "your plan is gone", which is why this
@@ -863,6 +876,24 @@ class AppDatabase extends _$AppDatabase {
     await _addColumnIfMissing(m, 'questions', questions.title);
   }
 
+  /// v30 -> v31：多图/多页整理的来源照片清单
+  /// `handwriting_intake_runs.source_photos`（轮次一百四十八）。
+  ///
+  /// 纯新增一列、可空：NULL/空 = 单图整理（`source_ref` 就是照片相对路径）；
+  /// 非空是 JSON 路径数组，此时 `source_ref` 是 `multi:<id>`（见
+  /// `multiSourceRefFor`）。迁移只补列、不回填——老 run 本来就是单图。
+  ///
+  /// 表不存在就跳过：被盖成 v31 却缺表的文件由 [_ensureColumns] 的自愈建表，
+  /// 在这里 createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV30ToV31() async {
+    if (!await _tableExists('handwriting_intake_runs')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'handwriting_intake_runs', handwritingIntakeRuns.sourcePhotos);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1089,6 +1120,11 @@ class AppDatabase extends _$AppDatabase {
         return questions;
       case 'attachments':
         return attachments;
+      // v31：自愈那一趟要给“手写整理跑”补 `source_photos`（多图整理的一组照片），
+      // 所以一个声称 v31 的文件必须能按名字解析到这张表 —— 否则自愈会抛
+      // unknown table（v31 迁移测试实测过）。
+      case 'handwriting_intake_runs':
+        return handwritingIntakeRuns;
       default:
         throw ArgumentError('unknown table $name');
     }

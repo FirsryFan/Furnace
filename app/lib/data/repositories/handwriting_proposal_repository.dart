@@ -27,12 +27,20 @@ class HandwritingStoredRun {
     required this.analyzedAt,
     required this.proposals,
     this.rawReply,
+    this.sourcePhotos = const <String>[],
   });
 
   final String sourceRef;
   final DateTime analyzedAt;
   final String? rawReply;
   final List<HandwritingStoredProposal> proposals;
+
+  /// 多图/多页整理涉及的照片（相对路径，按用户选择顺序）。
+  /// 空 = 单图整理，来源就是 [sourceRef]。
+  final List<String> sourcePhotos;
+
+  /// 一次整理是否来自多张照片。
+  bool get isMulti => sourcePhotos.isNotEmpty;
 
   /// 给领域层 / 队列状态用的提案集合（按整理时的次序）。
   HandwritingProposalSet get proposalSet => HandwritingProposalSet(
@@ -79,9 +87,12 @@ class HandwritingProposalRepository {
     required HandwritingProposalSet set,
     required DateTime analyzedAt,
     String? rawReply,
+    List<String> sourcePhotos = const <String>[],
   }) async {
     final sourceRef = set.sourceRef;
     final now = analyzedAt.millisecondsSinceEpoch;
+    final encodedPhotos =
+        sourcePhotos.isEmpty ? null : jsonEncode(sourcePhotos);
 
     await _db.transaction(() async {
       final existing = await (_db.select(_db.handwritingProposals)
@@ -123,6 +134,7 @@ class HandwritingProposalRepository {
               analyzedAt: now,
               rawReply: Value(rawReply),
               createdAt: now,
+              sourcePhotos: Value(encodedPhotos),
             ),
           );
     });
@@ -160,6 +172,7 @@ class HandwritingProposalRepository {
           analyzedAt: DateTime.fromMillisecondsSinceEpoch(run.analyzedAt),
           rawReply: run.rawReply,
           rows: bySource[run.sourceRef] ?? const <HandwritingProposalRow>[],
+          sourcePhotos: _decodeSourcePhotos(run.sourcePhotos),
         ),
     ];
   }
@@ -181,6 +194,7 @@ class HandwritingProposalRepository {
       analyzedAt: DateTime.fromMillisecondsSinceEpoch(run.analyzedAt),
       rawReply: run.rawReply,
       rows: rows,
+      sourcePhotos: _decodeSourcePhotos(run.sourcePhotos),
     );
   }
 
@@ -248,11 +262,13 @@ class HandwritingProposalRepository {
     required DateTime analyzedAt,
     required String? rawReply,
     required List<HandwritingProposalRow> rows,
+    List<String> sourcePhotos = const <String>[],
   }) {
     return HandwritingStoredRun(
       sourceRef: sourceRef,
       analyzedAt: analyzedAt,
       rawReply: rawReply,
+      sourcePhotos: sourcePhotos,
       proposals: List<HandwritingStoredProposal>.unmodifiable(
         rows.map(
           (row) => HandwritingStoredProposal(
@@ -266,5 +282,25 @@ class HandwritingProposalRepository {
         ),
       ),
     );
+  }
+
+  /// 读回多图整理的照片清单。坏 JSON 容忍成空（单图语义），
+  /// 不让一行坏数据把整条队列读崩。
+  List<String> _decodeSourcePhotos(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return const <String>[];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <String>[];
+      }
+      return <String>[
+        for (final item in decoded)
+          if (item is String && item.trim().isNotEmpty) item,
+      ];
+    } on FormatException {
+      return const <String>[];
+    }
   }
 }
