@@ -8869,6 +8869,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last incorrect: {at}'**
   String questionDetailAttemptLastIncorrect(String at);
+
+  /// Question bank filter toggle: only questions answered wrong in self-tests.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong answers'**
+  String get questionBankWrongOnly;
+
+  /// Tooltip for the wrong-answers filter toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only questions answered wrong in self-tests'**
+  String get questionBankWrongOnlyTooltip;
+
+  /// Per-row badge in the question bank: how many times this question was answered wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} wrong'**
+  String questionBankWrongCount(int count);
 }
 
 class _AppLocalizationsDelegate

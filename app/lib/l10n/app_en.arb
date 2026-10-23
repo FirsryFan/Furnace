@@ -2890,5 +2890,18 @@
   "questionDetailAttemptLastIncorrect": "Last incorrect: {at}",
   "@questionDetailAttemptLastIncorrect": {
     "placeholders": { "at": { "type": "String" } }
+  },
+  "questionBankWrongOnly": "Wrong answers",
+  "@questionBankWrongOnly": {
+    "description": "Question bank filter toggle: only questions answered wrong in self-tests."
+  },
+  "questionBankWrongOnlyTooltip": "Only questions answered wrong in self-tests",
+  "@questionBankWrongOnlyTooltip": {
+    "description": "Tooltip for the wrong-answers filter toggle."
+  },
+  "questionBankWrongCount": "{count} wrong",
+  "@questionBankWrongCount": {
+    "description": "Per-row badge in the question bank: how many times this question was answered wrong.",
+    "placeholders": { "count": { "type": "int" } }
   }
 }

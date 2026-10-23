@@ -5320,4 +5320,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String questionDetailAttemptLastIncorrect(String at) {
     return 'Last incorrect: $at';
   }
+
+  @override
+  String get questionBankWrongOnly => 'Wrong answers';
+
+  @override
+  String get questionBankWrongOnlyTooltip =>
+      'Only questions answered wrong in self-tests';
+
+  @override
+  String questionBankWrongCount(int count) {
+    return '$count wrong';
+  }
 }

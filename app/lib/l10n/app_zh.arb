@@ -2785,5 +2785,22 @@
         "type": "String"
       }
     }
+  },
+  "questionBankWrongOnly": "错题本",
+  "@questionBankWrongOnly": {
+    "description": "题库筛选条上的错题本开关：只看自测答错过的题。"
+  },
+  "questionBankWrongOnlyTooltip": "只看自测答错过的题",
+  "@questionBankWrongOnlyTooltip": {
+    "description": "错题本开关的悬停说明。"
+  },
+  "questionBankWrongCount": "错 {count} 次",
+  "@questionBankWrongCount": {
+    "description": "题库列表每行的错题徽标：这道题自测答错过几次。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

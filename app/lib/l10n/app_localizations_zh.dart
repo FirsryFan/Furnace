@@ -5105,4 +5105,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String questionDetailAttemptLastIncorrect(String at) {
     return '最近一次答错：$at';
   }
+
+  @override
+  String get questionBankWrongOnly => '错题本';
+
+  @override
+  String get questionBankWrongOnlyTooltip => '只看自测答错过的题';
+
+  @override
+  String questionBankWrongCount(int count) {
+    return '错 $count 次';
+  }
 }
