@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
@@ -335,6 +336,128 @@ void main() {
       throwsA(isA<QuestionPackException>()),
     );
   });
+
+  group('导入前自动备份', () {
+    test('已有题目：先备份现有题库，路径在 documents 下且字节能读回', () async {
+      await _seedQuestion(source, stem: '来源题一。');
+      await _seedQuestion(source, stem: '来源题二。');
+      final pack = await source.service.exportBytes();
+
+      final target = await _Harness.create();
+      addTearDown(target.dispose);
+      await _seedQuestion(target, stem: '目标已有题。');
+
+      final report = await target.service.importPack(pack.bytes);
+      expect(report.createdCount, 2);
+      expect(report.hasBackup, isTrue);
+      expect(report.backupError, isNull);
+
+      final backupPath = report.backupPath!;
+      expect(p.isAbsolute(backupPath), isTrue);
+      expect(
+        p.dirname(backupPath),
+        p.join(target.support.path, kQuestionPackBackupFolderName),
+      );
+      expect(p.basename(backupPath), startsWith('题库备份-'));
+      expect(p.basename(backupPath), endsWith('.tqb'));
+
+      final backupFile = File(backupPath);
+      expect(backupFile.existsSync(), isTrue);
+      final backupBytes = backupFile.readAsBytesSync();
+      final archive = decodeQuestionPackArchive(backupBytes);
+      // 备份的是「导入前」的题库，不含本次新导入的两道题。
+      expect(archive.records, hasLength(1));
+      expect(archive.records.single.stem, '目标已有题。');
+      final preview = await target.service.planImport(backupBytes);
+      expect(preview.recordCount, 1);
+    });
+
+    test('空库导入：不生成备份，backupPath 与 backupError 都是 null', () async {
+      await _seedQuestion(source, stem: '空库导入题。');
+      final pack = await source.service.exportBytes();
+
+      final target = await _Harness.create();
+      addTearDown(target.dispose);
+
+      final report = await target.service.importPack(pack.bytes);
+      expect(report.createdCount, 1);
+      expect(report.backupPath, isNull);
+      expect(report.backupError, isNull);
+      expect(report.hasBackup, isFalse);
+      expect(
+        Directory(
+          p.join(target.support.path, kQuestionPackBackupFolderName),
+        ).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('备份失败不阻断导入：backupError 记原因，题照常入库', () async {
+      await _seedQuestion(source, stem: '要导入的题。');
+      final pack = await source.service.exportBytes();
+
+      final target = await _Harness.create(
+        documentsDirectory: () async =>
+            throw const FileSystemException('备份目录不可写（测试注入）'),
+      );
+      addTearDown(target.dispose);
+      await _seedQuestion(target, stem: '目标已有题。');
+
+      final report = await target.service.importPack(pack.bytes);
+      expect(report.createdCount, 1);
+      expect(report.backupPath, isNull);
+      expect(report.backupError, isNotNull);
+      expect(report.backupError, contains('备份目录不可写'));
+
+      final stems = <String>[
+        for (final row in await target.db.select(target.db.questions).get())
+          row.stem,
+      ];
+      expect(stems, hasLength(2));
+      expect(stems, containsAll(<String>['目标已有题。', '要导入的题。']));
+    });
+
+    test('同一时间戳连续导入：两份备份，文件名用计数后缀避免覆盖', () async {
+      await _seedQuestion(source, stem: '待导入题。');
+      final pack = await source.service.exportBytes();
+
+      final target = await _Harness.create();
+      addTearDown(target.dispose);
+      await _seedQuestion(target, stem: '目标已有题。');
+      final now = DateTime.utc(2026, 10, 23, 6, 8, 10, 123);
+
+      final first = await target.service.importPack(pack.bytes, now: now);
+      final second = await target.service.importPack(pack.bytes, now: now);
+      expect(first.createdCount, 1);
+      expect(second.createdCount, 0);
+      expect(second.skippedCount, 1);
+      expect(first.backupPath, isNotNull);
+      expect(second.backupPath, isNotNull);
+      expect(first.backupPath, isNot(second.backupPath));
+      expect(
+        p.basename(first.backupPath!),
+        '题库备份-20261023-060810-123.tqb',
+      );
+      expect(
+        p.basename(second.backupPath!),
+        '题库备份-20261023-060810-123-2.tqb',
+      );
+
+      final backupDirectory = Directory(
+        p.join(target.support.path, kQuestionPackBackupFolderName),
+      );
+      final saved = backupDirectory.listSync().whereType<File>().toList();
+      expect(saved, hasLength(2));
+      final firstBackup = decodeQuestionPackArchive(
+        File(first.backupPath!).readAsBytesSync(),
+      );
+      expect(firstBackup.records, hasLength(1));
+      final secondBackup = decodeQuestionPackArchive(
+        File(second.backupPath!).readAsBytesSync(),
+      );
+      expect(secondBackup.records, hasLength(2));
+    });
+  });
 }
 
 /// 一个「数据库 + 临时 support 目录 + 三个仓库 + service」的小环境。
@@ -355,7 +478,9 @@ class _Harness {
   final QuestionMediaStore store;
   final QuestionPackService service;
 
-  static Future<_Harness> create() async {
+  static Future<_Harness> create({
+    Future<Directory> Function()? documentsDirectory,
+  }) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     final support =
         Directory.systemTemp.createTempSync('furnace_question_pack_');
@@ -370,6 +495,9 @@ class _Harness {
       questions: questions,
       mediaStore: store,
       tags: tags,
+      // 备份要落到 documents 目录：默认注入本测试的临时目录，避免碰真实
+      // path_provider（测试环境没有插件）。
+      documentsDirectory: documentsDirectory ?? () async => support,
     );
     return _Harness(
       db: db,

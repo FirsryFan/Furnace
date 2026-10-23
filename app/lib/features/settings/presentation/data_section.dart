@@ -284,8 +284,11 @@ String questionPackTimestamp() => DateTime.now()
 /// bank between installs without touching the rest of the workspace.
 ///
 /// Import only ever adds questions (identical stems are skipped by fingerprint),
-/// so unlike the workspace import there is no pre-import backup and no merge
-/// dialog: the package cannot overwrite what is already here.
+/// so there is no merge dialog: the package cannot overwrite what is already
+/// here. It still takes a safety net first — when the local bank already has
+/// questions, [QuestionPackService.importPack] backs it up to a `.tqb` snapshot
+/// in the app documents directory before writing (a backup failure only warns,
+/// it never blocks the import).
 class _QuestionPackSection extends ConsumerStatefulWidget {
   const _QuestionPackSection();
 
@@ -610,6 +613,20 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
               Text(
                 l10n.settingsQuestionPackImportUpdated(report.updatedCount),
               ),
+            if (report.backupPath != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                l10n.settingsQuestionPackBackupCreated(report.backupPath!),
+              ),
+            ] else if (report.backupError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                l10n.settingsQuestionPackBackupFailed,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
             if (report.warnings.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(l10n.settingsQuestionPackWarnings(report.warnings.length)),

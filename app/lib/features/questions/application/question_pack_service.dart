@@ -4,7 +4,8 @@
 ///  - [QuestionPackService.exportBytes]：读题库（可筛选）→ 打 zip → 返回字节（保存交给 UI）；
 ///  - [QuestionPackService.peek]：只读清单，给导入前的确认框用；
 ///  - [QuestionPackService.planImport]：导入前预检（解码 + 对账 + 合并计划，不写库）；
-///  - [QuestionPackService.importPack]：解码 → 定合并计划 → 逐题入库 → 存配图。
+///  - [QuestionPackService.importPack]：解码 → 定合并计划 → 备份现有题库 →
+///    逐题入库 → 存配图。
 ///
 /// 导入口径（与 `docs/QUESTION_BANK_DESIGN.md` §20/§29 一致）：默认**只新增**，
 /// 同题干（stemFingerprint 相同）跳过并计入 skippedCount；题号不保留，由
@@ -14,10 +15,13 @@
 /// 不占 skippedCount。标签只挂题库里**已存在**的路径，缺的写进 warnings。
 library;
 
-import 'dart:typed_data';
+import 'dart:io';
 
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/app_info.dart';
 import '../../../data/database/app_database_provider.dart';
@@ -34,6 +38,9 @@ import '../../../domain/services/package/question_pack_record.dart';
 import '../../../domain/services/package/question_pack_selection.dart';
 import '../data/question_media_store.dart';
 import 'question_media_providers.dart';
+
+/// 导入前自动备份的目录名（在 app documents 目录下）。
+const String kQuestionPackBackupFolderName = 'question_pack_backups';
 
 /// 一次导出的结果（字节 + 计数 + 导出时没带上的告警）。
 class QuestionPackExportResult {
@@ -88,6 +95,8 @@ class QuestionPackImportReport {
     required this.warnings,
     required this.failures,
     this.updatedCount = 0,
+    this.backupPath,
+    this.backupError,
   });
 
   /// 新建了几道题。
@@ -108,9 +117,18 @@ class QuestionPackImportReport {
   /// 单题级失败原因（题干空、入库异常……）；有失败不代表整包失败。
   final List<String> failures;
 
+  /// 导入前自动备份的 `.tqb` 绝对路径；本机原本没有题目时不备份（null）。
+  final String? backupPath;
+
+  /// 备份失败的原因（导入照常进行）；备份成功或不需要备份时为 null。
+  final String? backupError;
+
   bool get hasWarnings => warnings.isNotEmpty;
 
   bool get hasFailures => failures.isNotEmpty;
+
+  /// 这次导入前是否留下了备份文件。
+  bool get hasBackup => backupPath != null;
 }
 
 /// 题库包的导出/导入服务。
@@ -120,15 +138,21 @@ class QuestionPackService {
     required QuestionRepository questions,
     required QuestionMediaStore mediaStore,
     required TagRepository tags,
+    Future<Directory> Function()? documentsDirectory,
   })  : _database = database,
         _questions = questions,
         _mediaStore = mediaStore,
-        _tags = tags;
+        _tags = tags,
+        _documentsDirectory =
+            documentsDirectory ?? getApplicationDocumentsDirectory;
 
   final AppDatabase _database;
   final QuestionRepository _questions;
   final QuestionMediaStore _mediaStore;
   final TagRepository _tags;
+
+  /// backups 落到哪个 documents 目录（测试注入临时目录，生产走 path_provider）。
+  final Future<Directory> Function() _documentsDirectory;
 
   /// 导出（默认整个、可按 [selection] 或 [questionIds] 筛选）题库为 `.tqb` 字节。
   ///
@@ -198,6 +222,10 @@ class QuestionPackService {
   }
 
   /// 导入一个题库包：只新增，不覆盖、不删除。
+  ///
+  /// 写库前若本机已有题目，先把现有题库导出成
+  /// `<documents>/question_pack_backups/题库备份-<时间戳>.tqb`；备份失败只记
+  /// [QuestionPackImportReport.backupError]，不阻断导入。
   Future<QuestionPackImportReport> importPack(
     Uint8List bytes, {
     DateTime? now,
@@ -212,6 +240,15 @@ class QuestionPackService {
       existingQuestionIdByZujuanQuestionId:
           await _questions.questionIdsByZujuanQuestionId(),
     );
+
+    final backupNow = now ?? DateTime.now();
+    String? backupPath;
+    String? backupError;
+    if (await _questionCount() > 0) {
+      final backup = await _backupCurrentBank(now: backupNow);
+      backupPath = backup.path;
+      backupError = backup.error;
+    }
 
     final warnings = <String>[...plan.warnings];
     final failures = <String>[];
@@ -330,7 +367,55 @@ class QuestionPackService {
       mediaCount: mediaSaved,
       warnings: List<String>.unmodifiable(warnings),
       failures: List<String>.unmodifiable(failures),
+      backupPath: backupPath,
+      backupError: backupError,
     );
+  }
+
+  /// 本机题库现有题目数（一次 COUNT；备份只在这个数 > 0 时做）。
+  Future<int> _questionCount() async {
+    final count = _database.questions.id.count();
+    final row = await (_database.selectOnly(_database.questions)
+          ..addColumns([count]))
+        .getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  /// 把现有题库导出到 `<documents>/question_pack_backups/`，返回路径或失败原因。
+  ///
+  /// 备份失败不阻断导入：调用方只把 error 记进 report，导入照常继续。
+  Future<({String? path, String? error})> _backupCurrentBank({
+    required DateTime now,
+  }) async {
+    try {
+      final result = await exportBytes(now: now);
+      final documents = await _documentsDirectory();
+      final directory = Directory(
+        p.join(documents.path, kQuestionPackBackupFolderName),
+      );
+      await directory.create(recursive: true);
+      final file = await _writeBackupFile(directory, result.bytes, now);
+      return (path: file.path, error: null);
+    } on Object catch (error) {
+      debugPrint('question pack backup failed: $error');
+      return (path: null, error: '$error');
+    }
+  }
+
+  /// 写备份文件；同一毫秒内连续导入时用 `-2`、`-3` 后缀避免覆盖。
+  Future<File> _writeBackupFile(
+    Directory directory,
+    Uint8List bytes,
+    DateTime now,
+  ) async {
+    final base = _backupFileBaseName(now);
+    for (var suffix = 1;; suffix++) {
+      final name = suffix == 1 ? '$base.tqb' : '$base-$suffix.tqb';
+      final file = File(p.join(directory.path, name));
+      if (await file.exists()) continue;
+      await file.writeAsBytes(bytes, flush: true);
+      return file;
+    }
   }
 
   /// 把一道题在包里的配图逐张落到题库目录，返回成功张数（失败只记 warning）。
@@ -439,6 +524,15 @@ class QuestionPackService {
 String? _nullIfBlank(String? raw) {
   final trimmed = raw?.trim() ?? '';
   return trimmed.isEmpty ? null : trimmed;
+}
+
+/// 备份文件名（不含扩展名）：`题库备份-yyyyMMdd-HHmmss-SSS`（含毫秒，避免同秒冲突）。
+String _backupFileBaseName(DateTime now) {
+  String two(int value) => value.toString().padLeft(2, '0');
+  final date = '${now.year}${two(now.month)}${two(now.day)}';
+  final time = '${two(now.hour)}${two(now.minute)}${two(now.second)}';
+  final millis = now.millisecond.toString().padLeft(3, '0');
+  return '题库备份-$date-$time-$millis';
 }
 
 /// 包内媒体的落盘文件名：优先用包里记的原文件名，没记就用路径最后一段。
