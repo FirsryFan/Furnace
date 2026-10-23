@@ -28,6 +28,7 @@ import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
+import '../../../domain/services/questions/objective_answer.dart';
 import '../../../domain/services/questions/question_source.dart';
 import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
@@ -49,6 +50,14 @@ import 'question_zujuan_search.dart';
 
 /// 复制「原题链接」按钮的 key（测试定位用）。
 const Key questionSourceCopyButtonKey = Key('question-source-copy');
+
+/// 「自测」开关与「提交答案」按钮的 key（测试定位用）。
+const Key questionSelfTestToggleKey = Key('question-self-test-toggle');
+const Key questionSelfTestSubmitKey = Key('question-self-test-submit');
+
+/// 自测模式下单个选项行的 key：`question-self-test-option-<label>`。
+Key questionSelfTestOptionKey(String label) =>
+    ValueKey<String>('question-self-test-option-$label');
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
@@ -192,7 +201,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 ///
 /// 不再套卡片底座：题干、图片、选项、答案直接铺在页面背景上，靠小节标题、
 /// 间距和细分隔线分段（需求原文：「很多文字不需要放在一个卡片底座上」）。
-class _QuestionBody extends StatelessWidget {
+class _QuestionBody extends StatefulWidget {
   const _QuestionBody({
     required this.detail,
     this.onEditTitle,
@@ -212,9 +221,166 @@ class _QuestionBody extends StatelessWidget {
   final VoidCallback? onEditSourceLinks;
 
   @override
+  State<_QuestionBody> createState() => _QuestionBodyState();
+}
+
+/// 题目展示里的「自测」状态：本地 State，不落库、不进 Riverpod。
+///
+/// 自测只对能自动判分的客观题开放（域层 `canScoreObjectiveQuestion` 说了算）；
+/// 打开后先藏答案，提交后 `scoreObjectiveAnswer` 判分并恢复答案；结束自测时
+/// 选择与判分结果一起清空，页面回到改动前完全一致的样子。
+class _QuestionBodyState extends State<_QuestionBody> {
+  /// 自测是否打开（提交后仍是打开状态，只是选项锁定、答案已恢复）。
+  bool _selfTest = false;
+
+  /// 已勾选的选项 label。单选/多选都用复选框：判分交给域层，不在 UI 里
+  /// 替用户规定互斥。
+  final Set<String> _selectedLabels = <String>{};
+
+  /// 本次提交的判分结果；null = 还没提交。
+  ObjectiveAttemptResult? _attempt;
+
+  bool get _submitted => _attempt != null;
+
+  /// 自测打开但未提交：这段时间必须藏住正确答案标记、答案、解析与答案截图。
+  bool get _answersHidden => _selfTest && !_submitted;
+
+  List<ObjectiveOption> get _objectiveOptions => <ObjectiveOption>[
+        for (final option in widget.detail.options)
+          ObjectiveOption(label: option.label, isCorrect: option.isCorrect),
+      ];
+
+  void _toggleSelfTest() {
+    setState(() {
+      _selfTest = !_selfTest;
+      _selectedLabels.clear();
+      _attempt = null;
+    });
+  }
+
+  void _toggleOption(String label) {
+    if (!_selfTest || _submitted) {
+      return;
+    }
+    setState(() {
+      if (!_selectedLabels.add(label)) {
+        _selectedLabels.remove(label);
+      }
+    });
+  }
+
+  void _submit() {
+    if (!_selfTest || _submitted || _selectedLabels.isEmpty) {
+      return;
+    }
+    setState(() {
+      _attempt = scoreObjectiveAnswer(
+        questionType: widget.detail.question.questionType,
+        options: _objectiveOptions,
+        selectedLabels: _selectedLabels,
+      );
+    });
+  }
+
+  /// 一行选项。普通模式与改动前一致；自测模式加复选框、整行可点选、选中高亮，
+  /// 提交后锁定。未提交时**不显示**「正确答案」标记——否则自测没意义。
+  Widget _buildOptionRow(BuildContext context, QuestionOption option) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final selected = _selectedLabels.contains(option.label);
+    final selectable = _selfTest && !_submitted;
+
+    Widget labelText() => Text(
+          '${option.label}.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        );
+    Widget contentText() => QuestionRichText(text: option.content);
+    final correctMark = option.isCorrect && !_answersHidden
+        ? Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              l10n.questionDetailCorrectOption,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          )
+        : null;
+
+    if (!_selfTest) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: labelText(),
+            ),
+            Expanded(child: contentText()),
+            if (correctMark != null) correctMark,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: InkWell(
+        key: questionSelfTestOptionKey(option.label),
+        borderRadius: BorderRadius.circular(8),
+        onTap: selectable ? () => _toggleOption(option.label) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? theme.colorScheme.primaryContainer : null,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Checkbox(
+                value: selected,
+                onChanged:
+                    selectable ? (_) => _toggleOption(option.label) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 6, top: 10),
+                child: labelText(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  // 自测里整行都是点击目标：选项文字若是可选中的
+                  // SelectableText，会吃掉这次点击，让 InkWell 收不到。
+                  child: IgnorePointer(child: contentText()),
+                ),
+              ),
+              if (correctMark != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: correctMark,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final detail = widget.detail;
     final question = detail.question;
 
     // 「点回去核对原题」只认可信的绝对 http(s) 链接，或组卷网两个数字 id；
@@ -244,6 +410,12 @@ class _QuestionBody extends StatelessWidget {
     // 题名是用户自己起的扫描标签：没起名就明确显示「未命名」，不拿题干冒充。
     final title = (question.title ?? '').trim();
     final hasTitle = title.isNotEmpty;
+    // 自测只对客观题开放：题干类型、选项、正确项三件事任何一件不满足都不摆
+    // 入口（判据在域层，UI 不自己发明）。
+    final canSelfTest = canScoreObjectiveQuestion(
+      questionType: question.questionType,
+      options: _objectiveOptions,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -277,19 +449,19 @@ class _QuestionBody extends StatelessWidget {
                 ],
               ),
             ),
-            if (onEditTitle != null)
+            if (widget.onEditTitle != null)
               IconButton(
                 key: questionTitleEditButtonKey,
                 tooltip: l10n.questionTitleEditTooltip,
-                onPressed: onEditTitle,
+                onPressed: widget.onEditTitle,
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 visualDensity: VisualDensity.compact,
               ),
             // 「改来源」：来源分级/来源说明/年份/地区都是"事后也可能知道"的
             // 元信息，题干与答案不动。
-            if (onEditSource != null)
+            if (widget.onEditSource != null)
               TextButton.icon(
-                onPressed: onEditSource,
+                onPressed: widget.onEditSource,
                 icon: const Icon(Icons.edit_outlined, size: 16),
                 label: Text(l10n.questionDetailEditSource),
               ),
@@ -300,16 +472,16 @@ class _QuestionBody extends StatelessWidget {
         if (source != null)
           _QuestionSourceLine(
             source: source,
-            onEditSourceLinks: onEditSourceLinks,
+            onEditSourceLinks: widget.onEditSourceLinks,
           )
-        else if (onEditSourceLinks != null)
+        else if (widget.onEditSourceLinks != null)
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: const EdgeInsets.only(top: 8),
               child: TextButton.icon(
                 key: questionSourceEditButtonKey,
-                onPressed: onEditSourceLinks,
+                onPressed: widget.onEditSourceLinks,
                 icon: const Icon(Icons.add_link, size: 16),
                 label: Text(l10n.questionSourceAdd),
               ),
@@ -331,44 +503,60 @@ class _QuestionBody extends StatelessWidget {
         ],
         if (detail.options.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Text(
-            l10n.questionIntakeOptionsLabel,
-            style: theme.textTheme.titleSmall,
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l10n.questionIntakeOptionsLabel,
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              // 自测入口只对能自动判分的客观题出现：点开先藏答案，提交后
+              // 用域层判分，答错时告诉用户正确选项。
+              if (canSelfTest)
+                TextButton.icon(
+                  key: questionSelfTestToggleKey,
+                  onPressed: _toggleSelfTest,
+                  icon: Icon(
+                    _selfTest ? Icons.close : Icons.fact_check_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _selfTest
+                        ? l10n.questionDetailSelfTestExit
+                        : l10n.questionDetailSelfTest,
+                  ),
+                ),
+            ],
           ),
-          for (final option in detail.options)
+          if (_answersHidden)
             Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 选项标签加粗、内容走公式渲染（$…$ 会排成数学）。
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Text(
-                      '${option.label}.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: QuestionRichText(text: option.content),
-                  ),
-                  if (option.isCorrect)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Text(
-                        l10n.questionDetailCorrectOption,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                ],
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                l10n.questionDetailSelfTestHiddenHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          if (_attempt != null) _SelfTestResultBanner(result: _attempt!),
+          for (final option in detail.options) _buildOptionRow(context, option),
+          // 未选任何选项时禁用：自测要有一个明确的「我答完了」动作。
+          if (_selfTest && !_submitted)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  key: questionSelfTestSubmitKey,
+                  onPressed: _selectedLabels.isEmpty ? null : _submit,
+                  icon: const Icon(Icons.check),
+                  label: Text(l10n.questionDetailSelfTestSubmit),
+                ),
               ),
             ),
         ],
-        if (answer.isNotEmpty) ...[
+        if (answer.isNotEmpty && !_answersHidden) ...[
           const SizedBox(height: 16),
           _LabelledText(
             label: l10n.questionIntakeAnswerLabel,
@@ -383,7 +571,7 @@ class _QuestionBody extends StatelessWidget {
             kind: QuestionImagesSectionKind.answer,
           ),
         ],
-        if (solution.isNotEmpty)
+        if (solution.isNotEmpty && !_answersHidden)
           _LabelledText(
             label: l10n.questionIntakeSolutionLabel,
             value: solution,
@@ -393,7 +581,7 @@ class _QuestionBody extends StatelessWidget {
             label: l10n.questionDetailTrapNote,
             value: trapNote,
           ),
-        if (answer.isEmpty) ...[
+        if (answer.isEmpty && !_answersHidden) ...[
           // 没有文字答案时也不藏编辑入口：不是每道题都有现成答案，
           // 用户可能先只截了一张答案图。
           const SizedBox(height: 8),
@@ -412,6 +600,74 @@ class _QuestionBody extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// 自测判分后的结果横幅：对/错 +（答错时）正确选项 label。
+class _SelfTestResultBanner extends StatelessWidget {
+  const _SelfTestResultBanner({required this.result});
+
+  final ObjectiveAttemptResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final correct = result.isCorrect;
+    final background = correct
+        ? theme.colorScheme.primaryContainer
+        : theme.colorScheme.errorContainer;
+    final foreground = correct
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onErrorContainer;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            correct ? Icons.check_circle_outline : Icons.cancel_outlined,
+            color: foreground,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  correct
+                      ? l10n.questionDetailSelfTestCorrect
+                      : l10n.questionDetailSelfTestIncorrect,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                // 答对时不重复「正确答案：B」——那行只在答错时帮忙定位。
+                if (result.isIncorrect)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      l10n.questionDetailSelfTestCorrectLabels(
+                        result.correctLabels.join('、'),
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: foreground,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

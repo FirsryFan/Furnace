@@ -1278,6 +1278,154 @@ void main() {
     expect(find.text('普通相似题：求导。'), findsOneWidget);
     expect(find.text(_zh.questionBankSnapshotBadge), findsNothing);
   });
+
+  testWidgets('自测：选择题有入口，点开后藏起正确标记与答案/解析', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSelfTestToggleKey), findsOneWidget);
+    expect(find.text(_zh.questionDetailSelfTest), findsOneWidget);
+    expect(find.text(_zh.questionDetailCorrectOption), findsOneWidget);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsOneWidget);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+
+    expect(find.text(_zh.questionDetailSelfTestExit), findsOneWidget);
+    expect(find.text(_zh.questionDetailSelfTestHiddenHint), findsOneWidget);
+    expect(find.byKey(questionSelfTestSubmitKey), findsOneWidget);
+    // 自测中：正确标记、答案、解析（以及答案截图区）都不许出现。
+    expect(find.text(_zh.questionDetailCorrectOption), findsNothing);
+    expect(find.text(_zh.questionIntakeAnswerLabel), findsNothing);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsNothing);
+    expect(find.text('韦达定理：两根之和等于 -b/a。'), findsNothing);
+  });
+
+  testWidgets('自测：没选选项时提交禁用，选/取消跟着变', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+
+    FilledButton submit() =>
+        tester.widget<FilledButton>(find.byKey(questionSelfTestSubmitKey));
+    expect(submit().onPressed, isNull);
+
+    await tester.tap(find.byKey(questionSelfTestOptionKey('A')));
+    await tester.pump();
+    expect(submit().onPressed, isNotNull);
+
+    // 再点一次取消勾选：没有选择时按钮回到禁用。
+    await tester.tap(find.byKey(questionSelfTestOptionKey('A')));
+    await tester.pump();
+    expect(submit().onPressed, isNull);
+  });
+
+  testWidgets('自测：选错 A 提交——回答错误 + 正确答案：B，答案解析恢复', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('A')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+
+    expect(find.text(_zh.questionDetailSelfTestIncorrect), findsOneWidget);
+    expect(
+      find.text(_zh.questionDetailSelfTestCorrectLabels('B')),
+      findsOneWidget,
+    );
+    expect(find.text(_zh.questionDetailSelfTestCorrect), findsNothing);
+    // 提交后答案面恢复：正确标记、答案、解析都回来。
+    expect(find.text(_zh.questionDetailCorrectOption), findsOneWidget);
+    expect(find.text(_zh.questionIntakeAnswerLabel), findsWidgets);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsOneWidget);
+    expect(find.text('韦达定理：两根之和等于 -b/a。'), findsOneWidget);
+    expect(find.text(_zh.questionDetailSelfTestHiddenHint), findsNothing);
+    // 提交后锁定：按钮消失，开关仍显示「结束自测」。
+    expect(find.byKey(questionSelfTestSubmitKey), findsNothing);
+    expect(find.text(_zh.questionDetailSelfTestExit), findsOneWidget);
+  });
+
+  testWidgets('自测：选对 B 提交——回答正确，不显示正确答案行', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('B')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+
+    expect(find.text(_zh.questionDetailSelfTestCorrect), findsOneWidget);
+    expect(find.text(_zh.questionDetailSelfTestIncorrect), findsNothing);
+    // 答对时不再重复「正确答案：B」——没有冒号版的结果行。
+    expect(find.textContaining('正确答案：'), findsNothing);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsOneWidget);
+  });
+
+  testWidgets('自测：非客观题（填空）没有入口', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database, questionType: 'fill_blank');
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+
+    expect(find.byKey(questionSelfTestToggleKey), findsNothing);
+    expect(find.text(_zh.questionDetailSelfTest), findsNothing);
+    // 普通展示不受影响：正确标记、答案、解析照旧。
+    expect(find.text(_zh.questionDetailCorrectOption), findsOneWidget);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsOneWidget);
+  });
+
+  testWidgets('自测：提交后结束自测，页面回到原样且选择/结果清空', (WidgetTester tester) async {
+    final database = _newDatabase();
+    final question = await _seedQuestion(database);
+
+    await _pumpDetail(tester, database, question.id, adapter: null);
+    await _waitForText(tester, _stem);
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestOptionKey('B')));
+    await tester.pump();
+    await tester.tap(find.byKey(questionSelfTestSubmitKey));
+    await tester.pump();
+    expect(find.text(_zh.questionDetailSelfTestCorrect), findsOneWidget);
+
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+
+    // 与改动前一致：入口文案、正确标记、答案、解析都回来，提示/结果/复选框消失。
+    expect(find.text(_zh.questionDetailSelfTest), findsOneWidget);
+    expect(find.text(_zh.questionDetailSelfTestCorrect), findsNothing);
+    expect(find.text(_zh.questionDetailSelfTestHiddenHint), findsNothing);
+    expect(find.byKey(questionSelfTestSubmitKey), findsNothing);
+    expect(find.byType(Checkbox), findsNothing);
+    expect(find.text(_zh.questionDetailCorrectOption), findsOneWidget);
+    expect(find.text(_zh.questionIntakeAnswerLabel), findsWidgets);
+    expect(find.text(_zh.questionIntakeSolutionLabel), findsOneWidget);
+
+    // 再进自测：上一轮的选择与判分都已清空（提交按钮回到禁用）。
+    await tester.tap(find.byKey(questionSelfTestToggleKey));
+    await tester.pump();
+    expect(find.text(_zh.questionDetailSelfTestExit), findsOneWidget);
+    final submit =
+        tester.widget<FilledButton>(find.byKey(questionSelfTestSubmitKey));
+    expect(submit.onPressed, isNull);
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
@@ -1292,6 +1440,7 @@ Future<Question> _seedQuestion(
   String? sourceUrl,
   String? zujuanQuestionId,
   String? zujuanBankId,
+  String questionType = 'single_choice',
   String stem = _stem,
   String? title,
 }) async {
@@ -1301,7 +1450,7 @@ Future<Question> _seedQuestion(
       answer: '5',
       solution: '韦达定理：两根之和等于 -b/a。',
       subjectKey: 'math',
-      questionType: 'single_choice',
+      questionType: questionType,
       sourceLevel: 'gaokao',
       year: 2024,
       region: '江苏',
