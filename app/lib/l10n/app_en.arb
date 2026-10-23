@@ -2993,5 +2993,37 @@
   "settingsStudyDataTitle": "Study data",
   "@settingsStudyDataTitle": {
     "description": "Settings: study data section title."
+  },
+  "questionBankAttemptStats": "Self-tests: {total} · Correct: {correct} ({percent}%)",
+  "@questionBankAttemptStats": {
+    "description": "Question bank header: all self-test attempts and rounded correct percentage.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "correct": {
+        "type": "int"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailAttemptEntryDeleteTooltip": "Delete this record",
+  "@questionDetailAttemptEntryDeleteTooltip": {
+    "description": "Attempt detail list: delete tooltip for one record."
+  },
+  "questionDetailAttemptEntryDeleteDone": "Attempt record deleted",
+  "@questionDetailAttemptEntryDeleteDone": {
+    "description": "Attempt detail list: one record deleted."
+  },
+  "questionDetailAttemptEntryDeleteFailed": "Failed to delete record: {error}",
+  "@questionDetailAttemptEntryDeleteFailed": {
+    "description": "Attempt detail list: delete one record failed.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

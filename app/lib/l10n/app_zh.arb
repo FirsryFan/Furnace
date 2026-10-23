@@ -2900,5 +2900,37 @@
   "settingsStudyDataTitle": "学习数据",
   "@settingsStudyDataTitle": {
     "description": "设置页学习数据小节标题。"
+  },
+  "questionBankAttemptStats": "自测 {total} 次 · 答对 {correct} 次（{percent}%）",
+  "@questionBankAttemptStats": {
+    "description": "题库页顶部：全库自测作答次数与正确率（percent 为四舍五入整数百分比）。",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "correct": {
+        "type": "int"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailAttemptEntryDeleteTooltip": "删除这条记录",
+  "@questionDetailAttemptEntryDeleteTooltip": {
+    "description": "详情页自测明细：单条作答记录的删除按钮提示。"
+  },
+  "questionDetailAttemptEntryDeleteDone": "已删除这条作答记录",
+  "@questionDetailAttemptEntryDeleteDone": {
+    "description": "详情页自测明细：删除单条记录成功提示。"
+  },
+  "questionDetailAttemptEntryDeleteFailed": "删除记录失败：{error}",
+  "@questionDetailAttemptEntryDeleteFailed": {
+    "description": "详情页自测明细：删除单条记录失败提示。",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -8989,6 +8989,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Study data'**
   String get settingsStudyDataTitle;
+
+  /// Question bank header: all self-test attempts and rounded correct percentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-tests: {total} · Correct: {correct} ({percent}%)'**
+  String questionBankAttemptStats(int total, int correct, int percent);
+
+  /// Attempt detail list: delete tooltip for one record.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this record'**
+  String get questionDetailAttemptEntryDeleteTooltip;
+
+  /// Attempt detail list: one record deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Attempt record deleted'**
+  String get questionDetailAttemptEntryDeleteDone;
+
+  /// Attempt detail list: delete one record failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete record: {error}'**
+  String questionDetailAttemptEntryDeleteFailed(String error);
 }
 
 class _AppLocalizationsDelegate

@@ -5180,4 +5180,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsStudyDataTitle => '学习数据';
+
+  @override
+  String questionBankAttemptStats(int total, int correct, int percent) {
+    return '自测 $total 次 · 答对 $correct 次（$percent%）';
+  }
+
+  @override
+  String get questionDetailAttemptEntryDeleteTooltip => '删除这条记录';
+
+  @override
+  String get questionDetailAttemptEntryDeleteDone => '已删除这条作答记录';
+
+  @override
+  String questionDetailAttemptEntryDeleteFailed(String error) {
+    return '删除记录失败：$error';
+  }
 }

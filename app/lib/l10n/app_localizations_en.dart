@@ -5397,4 +5397,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsStudyDataTitle => 'Study data';
+
+  @override
+  String questionBankAttemptStats(int total, int correct, int percent) {
+    return 'Self-tests: $total · Correct: $correct ($percent%)';
+  }
+
+  @override
+  String get questionDetailAttemptEntryDeleteTooltip => 'Delete this record';
+
+  @override
+  String get questionDetailAttemptEntryDeleteDone => 'Attempt record deleted';
+
+  @override
+  String questionDetailAttemptEntryDeleteFailed(String error) {
+    return 'Failed to delete record: $error';
+  }
 }
