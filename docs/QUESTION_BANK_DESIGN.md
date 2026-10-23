@@ -1869,8 +1869,9 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   因此没有作答历史、正确率、错题本自动收集，也不影响任何排序权重。
 - 只覆盖 `single_choice` / `multi_choice`；填空/解答/作文没有客观判分。
 - 选项是复选框（单选也允许勾多个再提交）：判分交给域层集合比较，UI 不强制互斥。
-- 自测中只藏答案/解析/答案截图；「AI 解题」区、知识点 chip、相似题仍可见（它们可能剧透步骤）；
-  如产品需要整页防剧透，另开一片。
+- 自测中只藏答案/解析/答案截图；「AI 解题」区、知识点 chip、相似题、找原题当时仍可见
+  （它们可能剧透步骤）——轮次一百六十五补上整页防剧透（§41）：自测未提交时这三块收起，
+  提交或结束自测后恢复。
 - 自测中选项文字不可长按选中复制（整行点击所需），退出自测恢复。
 - 真机手动自测未验证（只有 widget test 证据）。
 ## 35. 自测作答记录落库与详情页历史行（轮次一百五十五，2026-10-24）
@@ -1939,7 +1940,7 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   - **只有作答记录，没有错题本**：没有「做错过」筛选、没有正确率统计页、没有按作答历史的推荐；
   - 同一道题重复自测 → 每次各记一行（这是设计，不是去重）；
   - 写库失败只 `debugPrint`，用户看不到任何提示（判分本身不受影响）；
-  - 自测时 AI 解题区/知识点链仍可见（§34.3 的已知缺口，本片未动）；
+  - 自测时 AI 解题区/知识点链曾仍可见（§34.3 的已知缺口，轮次一百六十五补上整页防剧透，见 §41）；
   - 真机未手测；历史行显示的是**最近一次**，没有逐条列表页（要看明细需要另开一片）。
 
 ## 36. 错题本：题库筛选与错题徽标（轮次一百五十七，2026-10-24）
@@ -2240,6 +2241,51 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   - `PaperGapNote.messageZh` 仍是中文硬编码，未接 l10n；空卷分支（`plan.items.isEmpty`）不渲染缺口小节（既有行为）；
   - v32 迁移测试随之把 `user_version` 断言从 32 改成 33（它只锁 v32 新增表/列的行为），4 例仍绿；
   - 真机未手测。
+
+## 41. 轮次一百六十五：自测整页防剧透（2026-10-24）
+
+> §34.3 / §35.3 登记的缺口：自测未提交时只藏答案/解析/答案截图，「AI 解题」区、知识点 chip、
+> 相似题、组卷网找原题仍可见——等于把思路与答案摆到眼前。本节把这三类区块在自测未提交期间
+> **整块收起**，提交或结束自测后恢复；无 schema 变更（仍 v33）、不调模型、不写库。
+
+### 41.1 UI（Lead 落）
+
+- `app/lib/features/questions/presentation/question_detail_page.dart`（1897 → 1965 行）新顶层 key：
+  `questionDetailSpoilerGuardHintKey`（:64）、`questionDetailReasoningSectionKey`（:68）、
+  `questionDetailSimilarSectionKey`（:72）。
+- `_QuestionDetailPageState`（:103）新增 `_spoilersHidden`（:111）与 `_onSelfTestChanged(bool active)`
+  （:113，mounted + 同值早退，避免每帧 setState）。
+- build（:194-261）：`_QuestionBody` 传 `onSelfTestChanged`（:221）；`QuestionZujuanSearchButton`
+  加条件 `detail != null && !_spoilersHidden`（:225）；`QuestionAuditSection` 保留（只报缺项/重复，
+  不剧透解法，:228）；`_spoilersHidden` 为真时显示一行提示（:231-241）并收起
+  `_ReasoningSection` / `_SimilarQuestionsSection`（:242-257），否则两区块照旧。
+- `_QuestionBody` 加可选 `ValueChanged<bool>? onSelfTestChanged`（:290）；
+  `_QuestionBodyState._notifySelfTestChanged()`（:323）向上报「当前等于 `_answersHidden`」；
+  `_toggleSelfTest()`（:327）与 `_submit()`（:347）在 setState 后各调一次——结束自测、提交后都会恢复。
+- `_ReasoningSection` / `_SimilarQuestionsSection` 构造函数补 `super.key`（测试按 key 定位整块）。
+- l10n 1 key（Lead 手改 `app_zh.arb`/`app_en.arb` + `flutter gen-l10n` exit 0）：
+  `questionDetailSelfTestSpoilerHidden`（zh「自测中：AI 解题、相似题与找原题先收起，提交后显示。」/
+  en「Self-testing: AI solution, similar questions and original-question search are hidden until you submit.」；
+  getter `app/lib/l10n/app_localizations.dart:8859`）。
+- 口径：只收起会剧透的三块；题目正文、选项、自测历史、入库体检保留。收起是**整块不渲染**，
+  不是灰化或折叠。
+
+### 41.2 测试与门禁
+
+- `app/test/features/questions/presentation/question_detail_page_test.dart` 62 → **64 例**（+2）：
+  ①带相似题 + 组卷网候选打开详情 → 三块都在；开自测 → 三块全消失、提示出现；提交后 → 三块回来、提示消失；
+  ②开自测后不提交直接结束 → 三块恢复、入口文案回到「自测」。
+- format 2 文件 0 changed；`dart analyze` 两文件 No issues；scoped
+  `flutter test ...question_detail_page_test.dart --concurrency=1` → `+64: All tests passed!` EXIT 0；
+  全量 `flutter test --concurrency=1` 见 `docs/PROGRESS.md` 轮次一百六十五条目。
+
+### 41.3 边界与未做
+
+- 防剧透只在**题目详情页**内：题库卡片、组卷预览等入口仍显示题干摘要，不做全局遮罩。
+- 只按「自测开关状态」收起；入口本来只在 `canScoreObjectiveQuestion` 为真时出现。
+- `_spoilersHidden` 是页面本地 State：切走再回来随重建回到 false（自测开关本身也不持久），
+  这是既有口径，不是本轮退化。
+- 真机未手测；英文未母语化。
 
 
 

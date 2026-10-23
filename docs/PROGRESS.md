@@ -2,6 +2,39 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百六十五：自测整页防剧透（Lead）
+
+**起点**：轮次一百六十四收尾（HEAD `79a5e1f`，v0.6.7 已发布并推送，工作树干净）。
+选片理由：`docs/QUESTION_BANK_DESIGN.md` §34.3 边界「自测中只藏答案/解析/答案截图；「AI 解题」区、
+知识点 chip、相似题仍可见（它们可能剧透步骤）」+ §35.3 再次登记同一缺口（:1942）⇒ 自测未提交时整页防剧透。
+**无 schema 变更（仍 v33）、不调模型、不写库。**
+
+**片：详情页自测防剧透（Lead）**
+- `app/lib/features/questions/presentation/question_detail_page.dart`（1897 → 1965 行）：
+  - 新顶层 key `questionDetailSpoilerGuardHintKey` :64 / `questionDetailReasoningSectionKey` :68 /
+    `questionDetailSimilarSectionKey` :72。
+  - `_QuestionDetailPageState` 加 `_spoilersHidden` :111 与 `_onSelfTestChanged` :113（mounted + 同值早退）。
+  - build :194-261：`QuestionZujuanSearchButton` 加 `detail != null && !_spoilersHidden` 条件 :225；
+    `QuestionAuditSection` 保留 :228（只报缺项/重复，不剧透解法）；隐藏时显示一行提示 :231-241，
+    同时收起 `_ReasoningSection` / `_SimilarQuestionsSection` :242-257。
+  - `_QuestionBody` 加可选 `ValueChanged<bool>? onSelfTestChanged` :290；
+    `_notifySelfTestChanged()` :323；`_toggleSelfTest()` :327 与 `_submit()` :347 在 setState 后各调一次。
+  - `_ReasoningSection` / `_SimilarQuestionsSection` 构造函数补 `super.key`。
+- l10n 1 key（Lead 手改 `app_zh.arb`/`app_en.arb` + `flutter gen-l10n` exit 0）：
+  `questionDetailSelfTestSpoilerHidden`（getter `app/lib/l10n/app_localizations.dart:8859`）。
+- 测试 `app/test/features/questions/presentation/question_detail_page_test.dart` 62 → **64 例**（+2）：
+  ①开自测收起三块 + 提示出现，提交后三块回来；
+  ②不提交直接结束自测，三块也恢复、入口文案回到「自测」。
+
+**门禁（Lead 实跑）**：format 2 文件 0 changed；`dart analyze lib test` = 91 issues / 0 error / 0 warning
+（EXIT 0）；scoped `flutter test ...question_detail_page_test.dart --concurrency=1` = `+64: All tests passed!`；
+全量 `flutter test --concurrency=1` = **`+5818 ~2: All tests passed`**（10:53，EXIT 0，日志
+`E:/dsh-tmp-aot/test-165-full.txt`；基线 +5816，净增 2）。
+
+**未做 / 风险**：防剧透只在题目详情页（题库卡片/组卷预览仍显示题干摘要，不做全局遮罩）；
+`_spoilersHidden` 是页面本地 State，切走再回来随重建重置（自测开关本身也不持久，既有口径）；
+真机未手测；英文未母语化。
+
 ## 2026-10-24 轮次一百六十四：v0.6.7 双端发布（题号高水位 v33 + 多段题号搜索 + 组卷缺口原因）
 
 **起点**：轮次一百六十三收尾（HEAD `fa54dc0`，schema v33，全量 +5816 全绿，工作树干净）。
