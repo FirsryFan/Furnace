@@ -2,6 +2,57 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-24 轮次一百五十七：题库「错题本」筛选 + 行内错题徽标（Lead + 三个 teammate 并行）
+
+**起点**：轮次一百五十六收尾（HEAD `5b2a725`，v0.6.4 已发布，schema v32，工作树干净）。
+选片理由：上一轮把自测判分落进 `question_attempts`，但记录只在单题详情页可见——题库里
+看不出哪道题错过、也没法只看错题。本轮把「作答记录」变成可用的筛选项，**无 schema 变更
+（仍 v32）、不调模型、不改任何排序权重**。不做独立错题本页，也不做正确率统计页。
+
+**片 1：数据与筛选（Lead）**
+- `app/lib/features/questions/application/question_library_reader.dart`：`QuestionLibraryEntry`
+  新增 `int wrongAttemptCount`（默认 0）与 `bool get hasWrongAttempt`；`readQuestionLibrary`
+  在对象标签查询后新查 `db.questionAttempts`（`questionId.isIn(ids) & isCorrect.equals(false)`），
+  按题计数填进投影。只数答错；limit 截断仍只查可见 ids（被截掉题的作答不影响可见行）；
+  删题事务已连带删作答（轮次一百五十五），不留脏计数。
+- `app/lib/features/questions/application/question_library_filter.dart`：`QuestionLibraryFilter`
+  新增 `bool onlyWrong`（默认 false），进 `isEmpty/copyWith/==/hashCode/toString`；
+  `questionLibraryEntryMatches` 在标签判定后加 `if (filter.onlyWrong && !entry.hasWrongAttempt) return false;`。
+  错题本与搜索/标签/学科是**同时满足**（四层条件 AND）。
+
+**片 2：筛选测试（task-166 reasoning-core）**
+- `app/test/features/questions/application/question_library_filter_test.dart` 62 → **74 例**（+12，
+  group「错题本」）：单独生效、与搜索/标签/学科 AND、`onlyWrong=false` 不影响结果、copyWith/==/hashCode、
+  空结果不抛等；`_entry` helper 加 `wrongAttemptCount` 参数默认 0。
+
+**片 3：读表测试（task-167 threadflow-engine）**
+- `app/test/features/questions/application/question_library_reader_test.dart` 17 → **23 例**（+6）：
+  2 错 + 1 对 → 2；只对 → 0；没做过 → 0；多题混合 `[2,0,1,0]`；limit=2 只按可见 id 查
+  （被截掉的题 3 错不影响可见行，放开 limit 后显示 3）；删题后重读不抛且 `db.questionAttempts` 为空。
+
+**片 4：筛选条与徽标 UI（task-168 question-intake）**
+- `question_library_filter_bar.dart`：key `questionBankWrongOnlyKey = Key('question-bank-wrong-only')`（:22）；
+  参数 `onlyWrong/onToggleWrongOnly`（:60-61）；搜索行下方 Tooltip + 「错题本」`FilterChip`
+  （:140-153，avatar `Icons.error_outline` 18、`visualDensity.compact`）。
+- `question_bank_page.dart`：key 工厂 `questionBankWrongBadgeKeyFor(id)`（:76）；FilterBar 接线
+  （:734-737）；行内 `_WrongPill`（:999-1003 调用、:1144-1170 实现，errorContainer 背景 + error 前景、
+  圆角 6）显示「错 N 次」；徽标不改点击行为，整行仍进详情页。
+- 测试 `question_bank_filter_test.dart` 17 → **21 例**（+4：徽标只在答错题出现；开「错题本」只剩
+  错题且 chip 选中；再点取消恢复；清除筛选把 onlyWrong 一起清），`question_bank_page_test.dart`
+  17 例无回归；新增 `_wrongBadge` finder（:469）与 `_seedAttempt` 造数（:532）。
+
+**l10n（Lead 手改 ARB + `flutter gen-l10n`，3 个 key）**：`questionBankWrongOnly`（错题本）、
+`questionBankWrongOnlyTooltip`（只看自测答错过的题）、`questionBankWrongCount(count)`（错 {count} 次）。
+
+**门禁**：10 个改动 dart 文件 `dart format --set-exit-if-changed` 0 changed；
+`dart analyze lib test` = **91 issues / 0 error / 0 warning**；scoped 四文件全绿
+（+74 / +23 / +21 / +17）；全量 `flutter test --concurrency=1` = **+5738 ~2，10:03，EXIT 0**
+（上轮基线 +5716，净增 22；日志 `E:/dsh-tmp-aot/test-157-full.txt`）。
+
+**未做 / 风险**：没有独立错题本页与正确率页；「错 N 次」只是计数，明细要点开详情页看最近一次；
+作答记录不参与推荐/相似题/threadflow 权重；错题本与标签/学科组合只有 application 层单测覆盖，
+没有单独 UI 用例；真机未手测。
+
 ## 2026-10-24 轮次一百五十六：v0.6.4 双端发布（自测判分 + 作答记录）
 
 **起点**：轮次一百五十五收尾（HEAD `ad18da1`，schema v32 已落、全量 +5716 全绿、工作树干净）。
