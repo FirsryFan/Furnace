@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/question_attempt_repository.dart';
+import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/questions/application/question_library_reader.dart';
 
 /// 题库总览读表（轮次一百三十九，task-120）：只锁**投影口径**，不锁像素。
@@ -377,6 +379,135 @@ void main() {
       expect(entry.hasTitle, isTrue);
       expect(entry.displayTitle, '整卡阅读题');
       expect(entry.snapshotLabel, isNotNull);
+    });
+  });
+
+  group('错题本：答错次数（question_attempts.is_correct = 0）', () {
+    late QuestionAttemptRepository attempts;
+    late QuestionRepository questions;
+
+    setUp(() {
+      attempts = QuestionAttemptRepository(db);
+      questions = QuestionRepository(db);
+    });
+
+    Future<void> recordAttempt(
+      String questionId, {
+      required bool isCorrect,
+      int at = 0,
+    }) async {
+      await attempts.record(
+        questionId: questionId,
+        selectedLabels: const <String>['A'],
+        isCorrect: isCorrect,
+        now: DateTime.fromMillisecondsSinceEpoch(at),
+      );
+    }
+
+    test('2 错 + 1 对：计数 2、进错题本', () async {
+      await insertQuestion(id: 'q-1', stem: '电场强度', updatedAt: 1);
+      await recordAttempt('q-1', isCorrect: false, at: 1000);
+      await recordAttempt('q-1', isCorrect: false, at: 2000);
+      await recordAttempt('q-1', isCorrect: true, at: 3000);
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.wrongAttemptCount, 2);
+      expect(entry.hasWrongAttempt, isTrue);
+    });
+
+    test('只答对过：不进错题本', () async {
+      await insertQuestion(id: 'q-1', stem: '只做对', updatedAt: 1);
+      await recordAttempt('q-1', isCorrect: true, at: 1000);
+      await recordAttempt('q-1', isCorrect: true, at: 2000);
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.wrongAttemptCount, 0);
+      expect(entry.hasWrongAttempt, isFalse);
+    });
+
+    test('没做过：默认 0', () async {
+      await insertQuestion(id: 'q-1', stem: '没做过', updatedAt: 1);
+
+      final entry = (await readQuestionLibrary(db)).entries.single;
+      expect(entry.wrongAttemptCount, 0);
+      expect(entry.hasWrongAttempt, isFalse);
+    });
+
+    test('多题混合：只数答错的那道，答对/没做不串味', () async {
+      await insertQuestion(id: 'q-a', stem: '错两次', updatedAt: 4);
+      await insertQuestion(id: 'q-b', stem: '只做对', updatedAt: 3);
+      await insertQuestion(id: 'q-c', stem: '错一次', updatedAt: 2);
+      await insertQuestion(id: 'q-d', stem: '没做过', updatedAt: 1);
+
+      await recordAttempt('q-a', isCorrect: false, at: 1000);
+      await recordAttempt('q-a', isCorrect: false, at: 2000);
+      await recordAttempt('q-b', isCorrect: true, at: 3000);
+      await recordAttempt('q-c', isCorrect: false, at: 4000);
+
+      final entries = (await readQuestionLibrary(db)).entries;
+      expect(
+        entries.map((entry) => entry.questionId).toList(),
+        <String>['q-a', 'q-b', 'q-c', 'q-d'],
+      );
+      expect(
+        entries.map((entry) => entry.wrongAttemptCount).toList(),
+        <int>[2, 0, 1, 0],
+      );
+      expect(
+        entries.map((entry) => entry.hasWrongAttempt).toList(),
+        <bool>[true, false, true, false],
+      );
+    });
+
+    test('limit 截断：只按可见 id 查，被截掉题的作答不影响可见行', () async {
+      await insertQuestion(id: 'q-new', stem: '最新', updatedAt: 300);
+      await insertQuestion(id: 'q-mid', stem: '中间', updatedAt: 200);
+      await insertQuestion(id: 'q-old', stem: '最旧', updatedAt: 100);
+
+      await recordAttempt('q-mid', isCorrect: false, at: 1000);
+      await recordAttempt('q-old', isCorrect: false, at: 2000);
+      await recordAttempt('q-old', isCorrect: false, at: 3000);
+      await recordAttempt('q-old', isCorrect: false, at: 4000);
+
+      final snapshot = await readQuestionLibrary(db, limit: 2);
+      expect(snapshot.truncated, isTrue);
+      expect(
+        snapshot.entries.map((entry) => entry.questionId).toList(),
+        <String>['q-new', 'q-mid'],
+      );
+      expect(
+        snapshot.entries.map((entry) => entry.wrongAttemptCount).toList(),
+        <int>[0, 1],
+      );
+      expect(snapshot.entries.last.hasWrongAttempt, isTrue);
+
+      // 放开 limit 就能看到被截掉那道题的错题次数。
+      final all = await readQuestionLibrary(db);
+      expect(
+        all.entries.map((entry) => entry.questionId).toList(),
+        <String>['q-new', 'q-mid', 'q-old'],
+      );
+      expect(
+        all.entries.map((entry) => entry.wrongAttemptCount).toList(),
+        <int>[0, 1, 3],
+      );
+    });
+
+    test('删题：该题与作答一起清掉，重读不抛异常', () async {
+      await insertQuestion(id: 'q-keep', stem: '留着', updatedAt: 2);
+      await insertQuestion(id: 'q-gone', stem: '要删', updatedAt: 1);
+      await recordAttempt('q-gone', isCorrect: false, at: 1000);
+      await recordAttempt('q-gone', isCorrect: false, at: 2000);
+
+      await questions.deleteQuestion('q-gone');
+
+      final snapshot = await readQuestionLibrary(db);
+      expect(
+        snapshot.entries.map((entry) => entry.questionId).toList(),
+        <String>['q-keep'],
+      );
+      expect(snapshot.entries.single.wrongAttemptCount, 0);
+      expect(await db.select(db.questionAttempts).get(), isEmpty);
     });
   });
 }

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/question_attempt_repository.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
@@ -245,6 +246,90 @@ void main() {
     expect(find.text(zh.questionBankFilteredCount(0, 2)), findsOneWidget);
   });
 
+  testWidgets('错题徽标：答错过的题显示「错 N 次」，只答对过的不显示', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '错两次的题');
+    await _seedQuestion(db, id: 'q2', stem: '只答对过的题');
+    await _seedQuestion(db, id: 'q3', stem: '没做过的题');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false, count: 2);
+    await _seedAttempt(db, questionId: 'q2', isCorrect: true);
+    await _pump(tester, db);
+
+    expect(_wrongBadge('q1'), findsOneWidget);
+    expect(find.text(zh.questionBankWrongCount(2)), findsOneWidget);
+    expect(_wrongBadge('q2'), findsNothing);
+    expect(_wrongBadge('q3'), findsNothing);
+  });
+
+  testWidgets('错题本开关：打开后只剩答错过的题，chip 选中且计数行出现', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '错过的题');
+    await _seedQuestion(db, id: 'q2', stem: '答对过的题');
+    await _seedQuestion(db, id: 'q3', stem: '没做过的题');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false);
+    await _seedAttempt(db, questionId: 'q2', isCorrect: true);
+    await _pump(tester, db);
+
+    await tester.tap(find.byKey(questionBankWrongOnlyKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('错过的题'), findsOneWidget);
+    expect(find.text('答对过的题'), findsNothing);
+    expect(find.text('没做过的题'), findsNothing);
+    expect(
+      tester.widget<FilterChip>(find.byKey(questionBankWrongOnlyKey)).selected,
+      isTrue,
+    );
+    expect(
+      tester.widget<Text>(find.byKey(questionBankFilteredCountKey)).data,
+      zh.questionBankFilteredCount(1, 3),
+    );
+    expect(find.byTooltip(zh.questionBankWrongOnlyTooltip), findsOneWidget);
+  });
+
+  testWidgets('错题本开关：再点一次取消，全部题目回来', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '错过的题');
+    await _seedQuestion(db, id: 'q2', stem: '没做过的题');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false);
+    await _pump(tester, db);
+
+    await tester.tap(find.byKey(questionBankWrongOnlyKey));
+    await tester.pumpAndSettle();
+    expect(_row('q2'), findsNothing);
+
+    await tester.tap(find.byKey(questionBankWrongOnlyKey));
+    await tester.pumpAndSettle();
+
+    expect(_row('q1'), findsOneWidget);
+    expect(_row('q2'), findsOneWidget);
+    expect(
+      tester.widget<FilterChip>(find.byKey(questionBankWrongOnlyKey)).selected,
+      isFalse,
+    );
+    expect(find.byKey(questionBankFilteredCountKey), findsNothing);
+  });
+
+  testWidgets('「清除筛选」同时清掉错题本开关', (tester) async {
+    await _seedQuestion(db, id: 'q1', stem: '错过的题');
+    await _seedQuestion(db, id: 'q2', stem: '没做过的题');
+    await _seedAttempt(db, questionId: 'q1', isCorrect: false);
+    await _pump(tester, db);
+
+    await tester.tap(find.byKey(questionBankWrongOnlyKey));
+    await tester.pumpAndSettle();
+    expect(_row('q2'), findsNothing);
+    expect(find.byKey(questionBankFilteredCountKey), findsOneWidget);
+
+    await tester.tap(find.byKey(questionBankClearFilterKey));
+    await tester.pumpAndSettle();
+
+    expect(_row('q1'), findsOneWidget);
+    expect(_row('q2'), findsOneWidget);
+    expect(
+      tester.widget<FilterChip>(find.byKey(questionBankWrongOnlyKey)).selected,
+      isFalse,
+    );
+    expect(find.byKey(questionBankFilteredCountKey), findsNothing);
+  });
+
   testWidgets('筛选计数显示「已筛出 X / 共 Y 道」', (tester) async {
     await _seedQuestion(db, id: 'q1', stem: '二次函数一');
     await _seedQuestion(db, id: 'q2', stem: '二次函数二');
@@ -381,6 +466,9 @@ void main() {
 
 Finder _row(String id) => find.byKey(ValueKey(questionBankRowKeyFor(id)));
 
+Finder _wrongBadge(String id) =>
+    find.byKey(ValueKey(questionBankWrongBadgeKeyFor(id)));
+
 TextField _searchField(WidgetTester tester) =>
     tester.widget<TextField>(find.byKey(questionBankSearchKey));
 
@@ -438,6 +526,24 @@ Future<void> _seedQuestion(
           serialNo: Value(serialNo),
         ),
       );
+}
+
+/// 造自测作答记录（错题徽标与错题本筛选的数据来源）。
+Future<void> _seedAttempt(
+  AppDatabase db, {
+  required String questionId,
+  required bool isCorrect,
+  int count = 1,
+}) async {
+  final attempts = QuestionAttemptRepository(db);
+  for (var index = 0; index < count; index++) {
+    await attempts.record(
+      questionId: questionId,
+      selectedLabels: const <String>['A'],
+      isCorrect: isCorrect,
+      now: DateTime(2026, 10, 20, 9, index),
+    );
+  }
 }
 
 Future<void> _seedManyQuestions(

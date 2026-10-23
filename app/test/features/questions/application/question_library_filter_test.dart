@@ -1,7 +1,8 @@
 /// 题库筛选纯逻辑的单元测试。
 ///
-/// 覆盖 8 组：空筛选、学科、标签子树、文字、题号、组合、copyWith/相等性、
-/// 过滤列表与健壮性。全部纯 Dart 构造 [QuestionLibraryEntry] 假数据，不读库。
+/// 覆盖 9 组：空筛选、学科、标签子树、文字、题号、错题本、组合、
+/// copyWith/相等性、过滤列表与健壮性。全部纯 Dart 构造
+/// [QuestionLibraryEntry] 假数据，不读库。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -716,6 +717,214 @@ void main() {
       );
     });
   });
+
+  group('错题本', () {
+    test('onlyWrong: true 只留答错过的题，且保序', () {
+      final List<QuestionLibraryEntry> entries = <QuestionLibraryEntry>[
+        _entry(questionId: 'q3', wrongAttemptCount: 2),
+        _entry(questionId: 'q1'),
+        _entry(questionId: 'q2', wrongAttemptCount: 1),
+        _entry(questionId: 'q4', wrongAttemptCount: 5),
+      ];
+      final List<QuestionLibraryEntry> result = filterQuestionLibraryEntries(
+        entries,
+        const QuestionLibraryFilter(onlyWrong: true),
+      );
+      expect(_ids(result), <String>['q3', 'q2', 'q4']);
+      expect(result.every((entry) => entry.hasWrongAttempt), isTrue);
+    });
+
+    test('onlyWrong: false（默认）时答错与没答错的题都在', () {
+      final List<QuestionLibraryEntry> entries = <QuestionLibraryEntry>[
+        _entry(questionId: 'q1', wrongAttemptCount: 3),
+        _entry(questionId: 'q2'),
+      ];
+      final List<QuestionLibraryEntry> result = filterQuestionLibraryEntries(
+        entries,
+        const QuestionLibraryFilter(),
+      );
+      expect(_ids(result), <String>['q1', 'q2']);
+      expect(
+        questionLibraryEntryMatches(entries[1], const QuestionLibraryFilter()),
+        isTrue,
+      );
+    });
+
+    test('onlyWrong 单独就构成有效筛选，默认构造仍是空筛选', () {
+      const QuestionLibraryFilter wrongOnly =
+          QuestionLibraryFilter(onlyWrong: true);
+      expect(wrongOnly.isEmpty, isFalse);
+      expect(wrongOnly.isNotEmpty, isTrue);
+      expect(const QuestionLibraryFilter().isEmpty, isTrue);
+      expect(const QuestionLibraryFilter(onlyWrong: false).isEmpty, isTrue);
+    });
+
+    test('hasWrongAttempt 由 wrongAttemptCount 派生', () {
+      expect(_entry(wrongAttemptCount: 0).hasWrongAttempt, isFalse);
+      expect(_entry(wrongAttemptCount: 1).hasWrongAttempt, isTrue);
+      expect(_entry(wrongAttemptCount: 7).hasWrongAttempt, isTrue);
+    });
+
+    test('与学科 AND：两者都满足才命中', () {
+      const QuestionLibraryFilter filter =
+          QuestionLibraryFilter(subjectKey: 'math', onlyWrong: true);
+      expect(
+        questionLibraryEntryMatches(_entry(subjectKey: 'math'), filter),
+        isFalse,
+        reason: '学科命中但没答错过',
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(subjectKey: 'physics', wrongAttemptCount: 2),
+          filter,
+        ),
+        isFalse,
+        reason: '答错过但学科不匹配',
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(subjectKey: 'math', wrongAttemptCount: 2),
+          filter,
+        ),
+        isTrue,
+      );
+    });
+
+    test('与标签 AND：标签子树命中且答错过才通过', () {
+      const QuestionLibraryFilter filter = QuestionLibraryFilter(
+        tagPaths: <String>{'文化课/学科'},
+        onlyWrong: true,
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(tagPaths: const <String>['文化课/学科/数学']),
+          filter,
+        ),
+        isFalse,
+        reason: '标签命中但没答错过',
+      );
+      expect(
+        questionLibraryEntryMatches(_entry(wrongAttemptCount: 1), filter),
+        isFalse,
+        reason: '答错过但没有命中标签',
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(
+            wrongAttemptCount: 1,
+            tagPaths: const <String>['文化课/学科/数学'],
+          ),
+          filter,
+        ),
+        isTrue,
+      );
+    });
+
+    test('与文字 AND：搜到的答错题命中，没答错的不命中', () {
+      const QuestionLibraryFilter filter =
+          QuestionLibraryFilter(text: '函数', onlyWrong: true);
+      expect(
+        questionLibraryEntryMatches(
+          _entry(title: '二次函数', wrongAttemptCount: 1),
+          filter,
+        ),
+        isTrue,
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(title: '二次函数'),
+          filter,
+        ),
+        isFalse,
+        reason: '文字命中但没答错过',
+      );
+      expect(
+        questionLibraryEntryMatches(
+          _entry(title: '集合', wrongAttemptCount: 1),
+          filter,
+        ),
+        isFalse,
+        reason: '答错过但文字不命中',
+      );
+    });
+
+    test('copyWith 只改 onlyWrong，无参 copyWith 保留原值', () {
+      const QuestionLibraryFilter base = QuestionLibraryFilter(
+        subjectKey: 'math',
+        tagPaths: <String>{'a'},
+        text: '函数',
+      );
+      final QuestionLibraryFilter copy = base.copyWith(onlyWrong: true);
+      expect(copy.onlyWrong, isTrue);
+      expect(copy.subjectKey, 'math');
+      expect(copy.tagPaths, <String>{'a'});
+      expect(copy.text, '函数');
+      expect(base.copyWith().onlyWrong, isFalse);
+      expect(copy.copyWith().onlyWrong, isTrue);
+      expect(base.copyWith(onlyWrong: false), base);
+    });
+
+    test('相等性与 hashCode 把 onlyWrong 算进去', () {
+      const QuestionLibraryFilter on =
+          QuestionLibraryFilter(subjectKey: 'math', onlyWrong: true);
+      const QuestionLibraryFilter onAgain =
+          QuestionLibraryFilter(subjectKey: 'math', onlyWrong: true);
+      const QuestionLibraryFilter off =
+          QuestionLibraryFilter(subjectKey: 'math');
+      expect(on, onAgain);
+      expect(on.hashCode, onAgain.hashCode);
+      expect(on, isNot(off));
+      expect(
+        QuestionLibraryFilter.empty,
+        const QuestionLibraryFilter(onlyWrong: false),
+      );
+    });
+
+    test('toString 含 onlyWrong', () {
+      expect(
+        const QuestionLibraryFilter(onlyWrong: true).toString(),
+        contains('onlyWrong: true'),
+      );
+      expect(
+        const QuestionLibraryFilter().toString(),
+        contains('onlyWrong: false'),
+      );
+    });
+
+    test('onlyWrong 过滤结果条数正确且不可变', () {
+      final List<QuestionLibraryEntry> entries = <QuestionLibraryEntry>[
+        _entry(questionId: 'q1', wrongAttemptCount: 2),
+        _entry(questionId: 'q2'),
+        _entry(questionId: 'q3', wrongAttemptCount: 1),
+      ];
+      final List<QuestionLibraryEntry> result = filterQuestionLibraryEntries(
+        entries,
+        const QuestionLibraryFilter(onlyWrong: true),
+      );
+      expect(result.length, 2);
+      expect(_ids(result), <String>['q1', 'q3']);
+      expect(
+        () => result.add(_entry(questionId: 'q9')),
+        throwsUnsupportedError,
+      );
+      expect(() => result.removeAt(0), throwsUnsupportedError);
+    });
+
+    test('没有答错题时返回空列表且不抛', () {
+      final List<QuestionLibraryEntry> result = filterQuestionLibraryEntries(
+        <QuestionLibraryEntry>[_entry(), _entry(questionId: 'q2')],
+        const QuestionLibraryFilter(onlyWrong: true),
+      );
+      expect(result, isEmpty);
+      expect(
+        filterQuestionLibraryEntries(
+          const <QuestionLibraryEntry>[],
+          const QuestionLibraryFilter(onlyWrong: true),
+        ),
+        isEmpty,
+      );
+    });
+  });
 }
 
 QuestionLibraryEntry _entry({
@@ -726,6 +935,7 @@ QuestionLibraryEntry _entry({
   String subjectKey = 'math',
   String sourceLabel = '某校月考',
   List<String> tagPaths = const <String>[],
+  int wrongAttemptCount = 0,
 }) {
   return QuestionLibraryEntry(
     questionId: questionId,
@@ -736,6 +946,7 @@ QuestionLibraryEntry _entry({
     sourceLevel: 'school',
     sourceLabel: sourceLabel,
     tagPaths: tagPaths,
+    wrongAttemptCount: wrongAttemptCount,
   );
 }
 
