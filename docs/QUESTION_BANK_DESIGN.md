@@ -1665,6 +1665,49 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
   筛后结果）；新档报错时有意继续显示旧数据而不是错误页；500 档滚动性能与全库（数千题）读表
   内存上限未实测；真机换档闪烁未手测；未筛选时的 500 上限与截断横幅行为不变。
 
+## 31. 导入前备份的管理界面与多图卡逐条确认（轮次一百四十九，2026-10-23）
+
+上一轮（轮次一百四十八）在导入题库包前会自动把现有题库导出到
+`<documents>/question_pack_backups/题库备份-<时间戳>.tqb`，但备份文件只落盘：用户看不到、也删不掉，
+只能在文件管理器里翻目录。本轮补两片，仍是 teammate 只动自己写作用域、Lead 写 l10n 与文档 + 统一提交。
+
+### 31.1 备份管理（task-157 threadflow-engine）
+
+- **服务层** `app/lib/features/questions/application/question_pack_service.dart`：
+  - `QuestionPackBackup` 值对象（`:138`）：`path` / `name` / `sizeBytes` / `modifiedAt`。
+  - `listBackups()`（`:405`）：只收 `question_pack_backups/` 下扩展名为 `.tqb` 的文件，按修改时间
+    新→旧、同一时刻按文件名升序；目录不存在返回 `const []`；单个文件 `stat` 失败只 `debugPrint`
+    并跳过（一个坏文件不该让整个列表消失）。返回不可变列表。
+  - `deleteBackup(path)`（`:444`）：先 `normalize` 再校验「后缀 `.tqb` + `dirname` == 备份目录」，
+    不满足抛 `ArgumentError`（**目录外路径即使不存在也抛**，避免被当成任意路径探针）；
+    目录内文件不存在视为成功（幂等）。
+- **设置页** `app/lib/features/settings/presentation/data_section.dart`：题库包分区新增第三行
+  「导入前备份」（`:352-355`，`Icons.settings_backup_restore`），副标题显示份数与总大小；
+  `initState` 里异步读清单，导入成功后再重读（新备份立刻出现在份数里）。点开对话框
+  `_QuestionPackBackupsDialog`（`:741-870`）：每行文件名 / 大小 / 日期 + 删除按钮，删除前确认，
+  成功/失败都有 SnackBar 并刷新列表；空态显示「还没有导入前备份」。
+- **口径**：清单读取失败时副标题退回提示文案、**不显示「没有备份」**（没读到 ≠ 没有）；
+  份数/总大小复用 `questionPackSizeText`，未新增格式化 key。
+- **l10n**（Lead 手改 ARB + `flutter gen-l10n`，7 个 key）：`settingsQuestionPackBackupsTitle`、
+  `settingsQuestionPackBackupsEmpty`、`settingsQuestionPackBackupsHint`、
+  `settingsQuestionPackBackupDeleteTooltip`、`settingsQuestionPackBackupDeleteConfirm(name)`、
+  `settingsQuestionPackBackupDeleteDone`、`settingsQuestionPackBackupDeleteFailed(error)`。
+- **测试**：`question_pack_service_test.dart` 16 → **21 例**（空表、只收 `.tqb` 且按 mtime 排序、
+  删除成功、目录外 `furnace.db` 与 `support/manual.tqb` 均拒绝且文件仍在、不存在视为成功）；
+  `question_pack_section_test.dart` 23 → **28 例**（空态+入口常驻、副标题份数/大小 + 对话框行、
+  删除先确认→成功刷新、删除失败提示且仍在列表、清单读取失败不挡入口），
+  `support/question_pack_fakes.dart` 补 `backups/listBackupsError/deleteBackupError/listBackupsCalls/
+  deletedBackupPaths`。
+- **未做 / 风险**：未真机验证 `path_provider` 默认文档目录的真实路径；对话框是一次性 ListView，
+  备份很多（几十份以上）时分页/虚拟化未做；没有自动清理策略（只有手动删除），也没有「一键恢复」
+  （恢复仍走导入题库包）；备份文件本身被 .gitignore/dist 忽略，不随仓库走。
+
+### 31.2 多图卡逐条确认（task-156 question-intake）
+
+多图 run 卡片此前只能整批确认/忘掉；本轮每条提案可单独确认（复用
+`HandwritingQueueNotifier.applyProposal`），详情与边界见 `docs/HANDWRITING_INTAKE_DESIGN.md` §4
+与文末「轮次一百四十九」条目。`handwriting_queue_page_test.dart` 25 → **28 例**。
+
 
 
 

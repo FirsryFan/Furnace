@@ -2,6 +2,60 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-23 轮次一百四十九：多图卡逐条确认、导入前备份管理（Lead + 两个 teammate 并行）
+
+**起点**：轮次一百四十八收尾（HEAD `80ee76e`，7 个提交在本地待推送——轮次148 结束时 github.com
+被迫阻断）。本轮补两片上一轮明确留下的边界：①多图整理卡片只能整批确认，不能逐条确认；
+②导入前自动备份只落盘、用户看不到也删不掉。纪律不变：teammate 只写自己的写作用域、不碰 git，
+l10n、docs 与提交由 Lead 统一做。
+
+**一、多图卡逐条确认（task-156 question-intake）**
+- `app/lib/features/questions/presentation/handwriting_queue_page.dart`：`_MultiRunCard` 里每条提案
+  从只读改成单独确认——`_ProposalCard.onApply` 由可空改必填 `VoidCallback`，多图卡传
+  `() => notifier.applyProposal(sourceRef, proposal.id)`（复用单图已有的逐条确认路径），
+  删掉“多图卡只读”的整个分支；已确认 / 确认中 / 预检 blocked 时按钮仍禁用；底部“全部确认”
+  继续走 `applyAll(sourceRef)`，一次写全部。
+- `handwriting_queue_page_test.dart` 25 → **28 例**：新增 `seededMultiRun` helper 与
+  `_RecordingQueueNotifier.applyProposalCalls`，3 例钉住（逐条确认只调 `applyProposal` 且其余提案
+  仍待确认、blocked 提案单条与整批都禁用且点击不写库、整批仍一次写全部）。
+
+**二、导入前备份管理（task-157 threadflow-engine）**
+- 服务层 `app/lib/features/questions/application/question_pack_service.dart`：`QuestionPackBackup`
+  （path/name/sizeBytes/modifiedAt，:138）、`listBackups()`（:405，只收 .tqb、mtime 新→旧、同刻按
+  文件名升序、目录不存在返回 `const []`、单个文件 stat 失败只跳过）、`deleteBackup(path)`（:444，
+  normalize 后校验“后缀 .tqb + 父目录==备份目录”，目录外抛 `ArgumentError`，目录内不存在视为成功）。
+- 设置页 `app/lib/features/settings/presentation/data_section.dart`：题库包分区第三行“导入前备份”
+  （:352-355，副标题份数+总大小）；点开对话框（:741-870）列出文件名/大小/日期，删除前确认，
+  成功/失败 SnackBar 后刷新；导入成功后自动重读份数（:518）。口径：清单读取失败显示提示而**不显示
+  空态**（没读到 ≠ 没有备份）。
+- 测试：`question_pack_service_test.dart` 16 → **21 例**、`question_pack_section_test.dart` 23 → **28 例**
+  （空态、排序、删除、拒绝目录外路径、读取失败不挡入口等），`support/question_pack_fakes.dart`
+  扩展备份替身。
+
+**三、l10n 与 docs（Lead）**
+- 新增 7 个 key 并 `flutter gen-l10n`：`settingsQuestionPackBackupsTitle/Empty/Hint`、
+  `settingsQuestionPackBackupDeleteTooltip/DeleteConfirm(name)/DeleteDone/DeleteFailed(error)`。
+- `docs/HANDWRITING_INTAKE_DESIGN.md`：§1 与 §4 的“多图只剩整批确认”边界改成“可逐条确认、也可整批
+  确认/忘掉；逐条编辑仍走单图卡片与收题页”，文末追加“轮次一百四十九”条目。
+- `docs/QUESTION_BANK_DESIGN.md` 新增 **§31 导入前备份的管理界面与多图卡逐条确认（轮次一百四十九）**：
+  31.1 备份管理的服务层行号、口径、l10n、测试数与未做风险；31.2 多图卡逐条确认指向 HANDWRITING 文档。
+
+**门禁（真实输出）**
+- `dart format --set-exit-if-changed`（只格式化本轮 12 个改动 dart 文件）→ `0 changed`。
+- `dart analyze lib test` → **91 issues / 0 error / 0 warning**（EXIT 0）。
+- scoped：queue 页 `+28`、pack service `+21`、pack section `+28`、settings 目录 `+87`、bulk `+17` 全绿。
+- 全量 `flutter test --concurrency=1` → **+5638 ~2 All tests passed**，11:34，EXIT 0
+  （上轮基线 +5625，净增 13；日志 `E:/dsh-tmp-aot/test-149-full.txt`）。
+
+**推送**：轮次148 结束时 github.com 的 HTTPS 被中间网络重置（直连与代理都在 TLS 阶段失败），
+本轮改用 GitHub REST git data API 经代理推送：blob 原始字节 base64 → tree（base_tree）→ commit
+（保留原 author/committer 与提交信息）→ 强推 ref，**7 个 commit sha 与本地逐字节一致**，
+远端 main 已到 `80ee76e`；本轮新提交后重跑同一脚本即可（范围=远端 head..HEAD）。
+
+**仍未做 / 风险**：多图卡没有逐条编辑入口（逐条编辑仍走单图卡片与收题页），也不能重拍某页；
+备份没有自动清理策略、没有“一键恢复”、对话框未分页/虚拟化、未真机验证 path_provider 默认文档目录；
+多图逐条确认与备份管理的真机手感未手测；英文文案未母语化。
+
 ## 2026-10-23 轮次一百四十八：多页照片一次整理（schema v31）、题库包导入前自动备份（Lead + 三个 teammate 并行）
 
 **起点**：轮次一百四十七收尾（HEAD `e06c4b7`）。本轮补目标③拍照整理的最后一个明确缺口——
