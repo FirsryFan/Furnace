@@ -17,6 +17,8 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
+import 'package:furnace/features/questions/application/question_library_provider.dart';
+import 'package:furnace/features/questions/application/question_library_sort.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
@@ -396,6 +398,104 @@ void main() {
 
     expect(find.text(zh.questionBankAttemptStats(2, 1, 50)), findsOneWidget);
   });
+
+  group('排序菜单', () {
+    testWidgets('默认「最新」：按读表顺序显示，不读全库档', (tester) async {
+      final overview = _snapshotOf([
+        _entry('q-new-c', serialNo: 3, title: '最新题C'),
+        _entry('q-new-a', serialNo: 1, title: '最新题A'),
+        _entry('q-new-b', serialNo: 2, title: '最新题B'),
+      ]);
+      final full = _snapshotOf([
+        _entry('q-only-full', serialNo: 9, title: '全库独有题'),
+      ]);
+
+      await _pumpWithSnapshot(tester, db, overview: overview, full: full);
+
+      expect(find.byKey(questionBankSortMenuKey), findsOneWidget);
+      // 默认「最新」= 读表顺序原样，且读的是总览档，不出现全库档独有题。
+      expect(find.text('全库独有题'), findsNothing);
+      expect(_rowTop(tester, 'q-new-c'), lessThan(_rowTop(tester, 'q-new-a')));
+      expect(_rowTop(tester, 'q-new-a'), lessThan(_rowTop(tester, 'q-new-b')));
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      expect(find.text(zh.questionLibrarySortNewest), findsOneWidget);
+      expect(find.text(zh.questionLibrarySortSerial), findsOneWidget);
+      expect(find.text(zh.questionLibrarySortWrongFirst), findsOneWidget);
+    });
+
+    testWidgets('选「题号」：按题号升序，并改读全库档', (tester) async {
+      final overview = _snapshotOf([
+        _entry('q-ov-c', serialNo: 3, title: '总览三'),
+        _entry('q-ov-a', serialNo: 1, title: '总览一'),
+      ]);
+      final full = _snapshotOf([
+        _entry('q-full-5', serialNo: 5, title: '全库五'),
+        _entry('q-full-2', serialNo: 2, title: '全库二'),
+        _entry('q-full-1', serialNo: 1, title: '全库一'),
+      ]);
+
+      await _pumpWithSnapshot(tester, db, overview: overview, full: full);
+      expect(find.text('总览三'), findsOneWidget);
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(questionBankSortMenuItemKey(QuestionLibrarySort.serial)),
+      );
+      await tester.pumpAndSettle();
+
+      // 排序不是「最新」时必须改读全库档：总览档数据消失，全库独有题出现。
+      expect(find.text('总览三'), findsNothing);
+      expect(find.text('全库一'), findsOneWidget);
+      expect(
+          _rowTop(tester, 'q-full-1'), lessThan(_rowTop(tester, 'q-full-2')));
+      expect(
+          _rowTop(tester, 'q-full-2'), lessThan(_rowTop(tester, 'q-full-5')));
+    });
+
+    testWidgets('选「错题优先」：按错题次数降序', (tester) async {
+      final full = _snapshotOf([
+        _entry('q-w0', serialNo: 1, title: '错0次', wrongAttemptCount: 0),
+        _entry('q-w3', serialNo: 2, title: '错3次', wrongAttemptCount: 3),
+        _entry('q-w1', serialNo: 3, title: '错1次', wrongAttemptCount: 1),
+      ]);
+
+      await _pumpWithSnapshot(tester, db, overview: full, full: full);
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(questionBankSortMenuItemKey(QuestionLibrarySort.wrongFirst)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_rowTop(tester, 'q-w3'), lessThan(_rowTop(tester, 'q-w1')));
+      expect(_rowTop(tester, 'q-w1'), lessThan(_rowTop(tester, 'q-w0')));
+    });
+
+    testWidgets('菜单里当前排序带勾选标记', (tester) async {
+      final snapshot = _snapshotOf([
+        _entry('q-One', serialNo: 1, title: '唯一题'),
+      ]);
+      await _pumpWithSnapshot(tester, db, overview: snapshot, full: snapshot);
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      expect(_sortCheck(QuestionLibrarySort.newest), findsOneWidget);
+      expect(_sortCheck(QuestionLibrarySort.serial), findsNothing);
+
+      await tester.tap(
+        find.byKey(questionBankSortMenuItemKey(QuestionLibrarySort.wrongFirst)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      expect(_sortCheck(QuestionLibrarySort.wrongFirst), findsOneWidget);
+      expect(_sortCheck(QuestionLibrarySort.newest), findsNothing);
+    });
+  });
 }
 
 Future<void> _pump(
@@ -425,6 +525,77 @@ Future<void> _pump(
   );
   await tester.pumpAndSettle();
 }
+
+/// 用假快照替代真实读表：
+///
+/// [overview] 对应「总览档」（最新排序 + 无筛选时读前 500 题），
+/// [full] 对应「全库档」（有筛选或非最新排序时读全库）。页面把哪一档作为
+/// `questionLibrarySnapshotProvider` 的入参，就直接决定看到哪组数据——
+/// 这样测试能钉住「排序不是最新时必须改读全库」。
+Future<void> _pumpWithSnapshot(
+  WidgetTester tester,
+  AppDatabase db, {
+  required QuestionLibrarySnapshot overview,
+  required QuestionLibrarySnapshot full,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(db),
+        questionMediaStoreProvider.overrideWithValue(
+          FakeQuestionMediaStore(database: db),
+        ),
+        cognitiveLibraryDiagnosisProvider.overrideWith(
+          (ref) async => LibraryDiagnosis.notRun,
+        ),
+        questionLibrarySnapshotProvider.overrideWith(
+          (ref, bool filterActive) async => filterActive ? full : overview,
+        ),
+      ],
+      child: const MaterialApp(
+        locale: Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: QuestionBankPage(),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+QuestionLibraryEntry _entry(
+  String id, {
+  int? serialNo,
+  String? title,
+  String stem = '',
+  String subjectKey = '',
+  int wrongAttemptCount = 0,
+}) {
+  return QuestionLibraryEntry(
+    questionId: id,
+    serialNo: serialNo,
+    title: title,
+    stem: stem,
+    subjectKey: subjectKey,
+    sourceLevel: 'gaokao',
+    sourceLabel: '高考',
+    wrongAttemptCount: wrongAttemptCount,
+  );
+}
+
+QuestionLibrarySnapshot _snapshotOf(List<QuestionLibraryEntry> entries) =>
+    QuestionLibrarySnapshot(entries: entries, totalCount: entries.length);
+
+/// 行在列表里的 y 坐标——用来钉住排序后的真实展示顺序。
+double _rowTop(WidgetTester tester, String questionId) => tester
+    .getTopLeft(find.byKey(ValueKey<String>(questionBankRowKeyFor(questionId))))
+    .dy;
+
+/// 排序菜单里某一项左侧的勾选标记。
+Finder _sortCheck(QuestionLibrarySort sort) => find.descendant(
+      of: find.byKey(questionBankSortMenuItemKey(sort)),
+      matching: find.byIcon(Icons.check),
+    );
 
 Future<void> _seedQuestion(
   AppDatabase db, {

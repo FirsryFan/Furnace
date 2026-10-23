@@ -10,8 +10,9 @@
 /// * 每行 = 封面图（128×96）+ 题名（没题名时用题干摘要兜底）+ 题号徽章、
 ///   学科、标签叶子名；行尾 ⋮ 菜单可改名 / 自动命名 / 复制题号。
 ///
-/// 数据走 `questionLibrarySnapshotProvider`：不筛选读前 500 题，筛选生效读全库
-/// （否则第 500 题之后的题永远筛不到）；一次拿全题目 + 题名 + 标签 + 图片清单，
+/// 数据走 `questionLibrarySnapshotProvider`：筛选或非「最新」排序生效时读全库
+/// （否则只在前 500 题里筛/排，后面的题永远筛不到）；一次拿全题目 + 题名 +
+/// 标签 + 图片清单，
 /// 见 `question_library_reader.dart`。页面只读，写库只发生在命名对话框与批量
 /// 自动命名里，写完让两档数据源一起失效。
 library;
@@ -32,6 +33,7 @@ import '../application/question_attempt_stats_provider.dart';
 import '../application/question_bulk_tagging.dart';
 import '../application/question_library_filter.dart';
 import '../application/question_library_provider.dart';
+import '../application/question_library_sort.dart';
 import '../application/question_media_providers.dart';
 import '../application/question_pack_service.dart';
 import 'handwriting_queue_page.dart';
@@ -68,6 +70,13 @@ const Key questionBankExportSelectedKey = Key('question-bank-export-selected');
 
 /// 多选态底部「删除选中」按钮。
 const Key questionBankDeleteSelectedKey = Key('question-bank-delete-selected');
+
+/// AppBar 上「排序方式」菜单（最新 / 题号 / 错题优先）。
+const Key questionBankSortMenuKey = Key('question-bank-sort-menu');
+
+/// 排序菜单项按排序方式生成 key：`question-bank-sort-<sort.name>`。
+Key questionBankSortMenuItemKey(QuestionLibrarySort sort) =>
+    ValueKey<String>('question-bank-sort-${sort.name}');
 
 /// 列表行按题 id 生成 key：`question-bank-row-<questionId>`（测试定位用）。
 String questionBankRowKeyFor(String questionId) =>
@@ -126,6 +135,28 @@ String questionBankDeletePreview(
   return names.join('、');
 }
 
+/// 排序菜单里的一个菜单项：当前生效项前面带勾，其余留同宽空位（文字左对齐）。
+PopupMenuItem<QuestionLibrarySort> _questionBankSortMenuItem({
+  required QuestionLibrarySort sort,
+  required String label,
+  required bool selected,
+}) {
+  return PopupMenuItem<QuestionLibrarySort>(
+    key: questionBankSortMenuItemKey(sort),
+    value: sort,
+    child: Row(
+      children: <Widget>[
+        if (selected)
+          const Icon(Icons.check, size: 18)
+        else
+          const SizedBox(width: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ],
+    ),
+  );
+}
+
 /// 题库总览页。
 class QuestionBankPage extends ConsumerStatefulWidget {
   const QuestionBankPage({super.key});
@@ -138,6 +169,10 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   /// 搜索 + 标签 + 学科三个条件（AND）。学科键是稳定 snake_case
   /// （`CapabilityAction.subjectKeys`），筛选比较只用键，显示名走 `subjectLabelOf`。
   QuestionLibraryFilter _filter = QuestionLibraryFilter.empty;
+
+  /// 列表排序方式：默认「最新」（读表顺序本来就是最新在前）。非最新排序
+  /// 要读全库再排，见 [_readsFullLibrary]；排序规则在 `question_library_sort.dart`。
+  QuestionLibrarySort _sort = QuestionLibrarySort.newest;
 
   /// 搜索框文字；清除筛选要连输入框一起清空，所以 controller 放页面 State。
   late final TextEditingController _search;
@@ -176,6 +211,11 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   void _applyFilter(QuestionLibraryFilter filter) {
     setState(() => _filter = filter);
   }
+
+  /// 是否要读全库：筛选生效，或排序不是「最新」时都要读全库——否则只在
+  /// 前 500 题里筛/排，第 500 题之后的题永远看不到。
+  bool get _readsFullLibrary =>
+      _filter.isNotEmpty || _sort != QuestionLibrarySort.newest;
 
   /// 只清搜索词（输入框里的 ×）：标签筛选保留。
   void _clearSearchText() {
@@ -231,7 +271,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
 
   Future<void> _refresh() async {
     _invalidateLibrary();
-    await ref.read(questionLibrarySnapshotProvider(_filter.isNotEmpty).future);
+    await ref.read(questionLibrarySnapshotProvider(_readsFullLibrary).future);
   }
 
   /// 改名：对话框自己写库并 invalidate，这里只拿题库里其它行的题名做去重参考。
@@ -338,7 +378,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     }
     final l10n = AppLocalizations.of(context);
     final snapshot = ref
-        .read(questionLibrarySnapshotProvider(_filter.isNotEmpty))
+        .read(questionLibrarySnapshotProvider(_readsFullLibrary))
         .valueOrNull;
     if (snapshot == null) {
       return;
@@ -373,8 +413,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
       final changed =
           await ref.read(questionRepositoryProvider).setQuestionTitles(titles);
       _invalidateLibrary();
-      await ref
-          .read(questionLibrarySnapshotProvider(_filter.isNotEmpty).future);
+      await ref.read(questionLibrarySnapshotProvider(_readsFullLibrary).future);
       if (!mounted) {
         return;
       }
@@ -400,7 +439,10 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   List<QuestionLibraryEntry> _visibleEntries(
     QuestionLibrarySnapshot snapshot,
   ) =>
-      filterQuestionLibraryEntries(snapshot.entries, _filter);
+      sortQuestionLibraryEntries(
+        filterQuestionLibraryEntries(snapshot.entries, _filter),
+        _sort,
+      );
 
   void _enterSelection() {
     setState(() {
@@ -541,7 +583,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
     }
     final l10n = AppLocalizations.of(context);
     final snapshot = ref
-        .read(questionLibrarySnapshotProvider(_filter.isNotEmpty))
+        .read(questionLibrarySnapshotProvider(_readsFullLibrary))
         .valueOrNull;
     final titles = <String>[
       for (final entry in snapshot?.entries ?? const <QuestionLibraryEntry>[])
@@ -608,9 +650,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final filterActive = _filter.isNotEmpty;
-    final overviewAsync =
-        ref.watch(questionLibrarySnapshotProvider(filterActive));
+    final overviewAsync = ref.watch(
+      questionLibrarySnapshotProvider(_readsFullLibrary),
+    );
     final snapshot = overviewAsync.valueOrNull ?? _lastSnapshot;
     if (overviewAsync.valueOrNull != null) {
       _lastSnapshot = overviewAsync.valueOrNull;
@@ -673,6 +715,31 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                           )
                         : const Icon(Icons.auto_fix_high),
                   ),
+                PopupMenuButton<QuestionLibrarySort>(
+                  key: questionBankSortMenuKey,
+                  tooltip: l10n.questionLibrarySortTooltip,
+                  icon: const Icon(Icons.sort),
+                  initialValue: _sort,
+                  onSelected: (value) => setState(() => _sort = value),
+                  itemBuilder: (context) =>
+                      <PopupMenuEntry<QuestionLibrarySort>>[
+                    _questionBankSortMenuItem(
+                      sort: QuestionLibrarySort.newest,
+                      label: l10n.questionLibrarySortNewest,
+                      selected: _sort == QuestionLibrarySort.newest,
+                    ),
+                    _questionBankSortMenuItem(
+                      sort: QuestionLibrarySort.serial,
+                      label: l10n.questionLibrarySortSerial,
+                      selected: _sort == QuestionLibrarySort.serial,
+                    ),
+                    _questionBankSortMenuItem(
+                      sort: QuestionLibrarySort.wrongFirst,
+                      label: l10n.questionLibrarySortWrongFirst,
+                      selected: _sort == QuestionLibrarySort.wrongFirst,
+                    ),
+                  ],
+                ),
                 IconButton(
                   tooltip: l10n.questionBankRefresh,
                   icon: const Icon(Icons.refresh),
