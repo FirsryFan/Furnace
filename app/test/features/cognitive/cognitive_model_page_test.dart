@@ -32,7 +32,10 @@ import 'package:furnace/features/questions/application/capability_action_questio
 import 'package:furnace/features/questions/application/capability_profile_provider.dart';
 import 'package:furnace/features/questions/application/question_corpus_reader.dart';
 import 'package:furnace/features/questions/presentation/capability_action_questions_page.dart';
+import 'package:furnace/domain/services/cognitive/user_persona.dart';
+import 'package:furnace/features/settings/application/user_persona_provider.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
+import 'package:furnace/features/settings/presentation/user_persona_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 /// A model with fixed, assertable answers. Everything the page shows about a
@@ -129,6 +132,15 @@ CognitiveObservationInputs _fixtureInputs() => CognitiveObservationInputs(
 /// The default metrics the page tests see: a library nobody has reviewed.
 const LearningMetrics _noReviews = LearningMetrics.empty;
 
+/// 一页普通渲染最少要的三条 override：观察输入、模型、诊断（后者不 override 会等真库）。
+List<Override> _renderOverrides() => [
+      cognitiveObservationInputsProvider
+          .overrideWith((ref) => _fixtureInputs()),
+      cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+      cognitiveLibraryDiagnosisProvider
+          .overrideWith((ref) async => LibraryDiagnosis.notRun),
+    ];
+
 Future<void> _pumpPage(
   WidgetTester tester, {
   required List<Override> overrides,
@@ -158,6 +170,9 @@ Future<void> _pumpPage(
         // 默认值必须是"空"；想验证聚合的用例自己覆盖它（见"能力动作画像"那条）。
         capabilityProfileProvider
             .overrideWith((ref) async => const <CapabilityReading>[]),
+        // 自我描述卡片也读一个 provider；不 override 的话它会去开真实磁盘数据库。
+        // 想验证"写过"的样子，调用方在后面再覆盖一次（last-wins）。
+        userPersonaProvider.overrideWith((ref) async => null),
         ...overrides,
       ],
       child: MaterialApp(
@@ -848,5 +863,40 @@ void main() {
 
     expect(find.byType(CognitiveGraphPage), findsOneWidget);
     expect(find.text('还没有可画的读数：先建知识点与标签，再复习几张卡。'), findsOneWidget);
+  });
+
+  testWidgets('自我描述卡片：没写过时是空态，点「编辑」进编辑页', (tester) async {
+    await _pumpPage(tester, overrides: _renderOverrides());
+
+    final card = find.byKey(cognitiveModelPersonaCardKey);
+    expect(card, findsOneWidget);
+    expect(find.text('还没有写过自我描述'), findsOneWidget);
+    expect(find.text('编辑'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(of: card, matching: find.byType(TextButton)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UserPersonaPage), findsOneWidget);
+    expect(find.byKey(userPersonaFieldKey), findsOneWidget);
+  });
+
+  testWidgets('自我描述卡片：有内容时只给 160 字以内预览', (tester) async {
+    final longPersona = '我是高三学生，数学想冲 120 分，习惯先看解析再做题。' * 20;
+    await _pumpPage(
+      tester,
+      overrides: [
+        ..._renderOverrides(),
+        userPersonaProvider.overrideWith((ref) async => longPersona),
+      ],
+    );
+
+    expect(
+      find.text(userPersonaPreview(longPersona, maxChars: 160)),
+      findsOneWidget,
+    );
+    expect(find.text(longPersona), findsNothing);
+    expect(find.text('还没有写过自我描述'), findsNothing);
   });
 }

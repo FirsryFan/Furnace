@@ -10,6 +10,7 @@ import '../../../app/settings/settings_controller.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/cognitive/user_persona.dart';
 import '../../tags/presentation/tag_tree_page.dart';
 import '../../thread/application/thread_rank_service.dart';
 import '../../timeboard/presentation/calendar_page.dart';
@@ -20,17 +21,22 @@ import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../questions/presentation/learning_insight_page.dart';
 import '../../questions/presentation/question_bank_page.dart';
 import '../application/demo_data_service.dart';
+import '../application/user_persona_provider.dart';
 import 'appearance_section.dart';
 import 'about_page.dart';
 import 'capability_vocabulary_page.dart';
 import 'data_section.dart';
 import 'review_reminder_section.dart';
 import 'usage_doc_page.dart';
+import 'user_persona_page.dart';
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) {
   ref.watchDatabaseRevision();
   return ref.watch(settingsRepositoryProvider).getProfile();
 });
+
+/// 「自我描述」的设置入口（task-187）。
+const Key settingsUserPersonaTileKey = Key('settings-user-persona-tile');
 
 /// Settings page: profile, data, usage guide, appearance, tags, language.
 class SettingsPage extends ConsumerWidget {
@@ -41,6 +47,8 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final profileAsync = ref.watch(currentProfileProvider);
+    // 设置页只读这一条：有内容时副标题给 40 字预览，没写过时给一句说明。
+    final persona = ref.watch(userPersonaProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navSettings)),
@@ -120,6 +128,23 @@ class SettingsPage extends ConsumerWidget {
               MaterialPageRoute(
                 builder: (context) => const CognitiveModelPage(),
               ),
+            ),
+          ),
+          // 自我描述（task-187）：AI 对话会把它当背景；点进去是同一个编辑页，
+          // 认知模型页顶部也有卡片，两处入口共用一个页面。
+          ListTile(
+            key: settingsUserPersonaTileKey,
+            leading: const Icon(Icons.person_outline),
+            title: Text(l10n.personaTitle),
+            subtitle: Text(
+              userPersonaIsPresent(persona)
+                  ? userPersonaPreview(persona, maxChars: 40)
+                  : l10n.personaSettingsSubtitle,
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const UserPersonaPage()),
             ),
           ),
           // 能力动作词表的编辑入口（task-29）：内置动作只读，自定义动作

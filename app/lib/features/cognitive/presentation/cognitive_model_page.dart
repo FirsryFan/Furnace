@@ -47,6 +47,7 @@ import '../../../domain/services/cognitive/fast_diagnosis.dart'
 import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/cognitive/learning_metrics.dart';
 import '../../../domain/services/cognitive/metacognition.dart';
+import '../../../domain/services/cognitive/user_persona.dart';
 import '../../../domain/services/reasoning/capability_profile.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import '../../../l10n/app_localizations.dart';
@@ -55,6 +56,8 @@ import '../../assessment/presentation/assessment_page.dart';
 import '../../cognitive/application/library_diagnosis_reader.dart';
 import '../../questions/application/capability_profile_provider.dart';
 import '../../questions/presentation/capability_action_questions_page.dart';
+import '../../settings/application/user_persona_provider.dart';
+import '../../settings/presentation/user_persona_page.dart';
 import 'cognitive_graph_page.dart';
 import 'mechanism_page.dart';
 import 'zone_labels.dart';
@@ -72,6 +75,9 @@ export '../../cognitive/application/library_diagnosis_reader.dart'
         CognitiveObservationInputs,
         CognitiveObservedUnit,
         cognitiveStartNodeLimit;
+
+/// 认知模型页顶部的「自我描述」卡片（task-187）。
+const Key cognitiveModelPersonaCardKey = Key('cognitive-model-persona-card');
 
 /// One card's reading, in presentation order.
 class CognitiveCardReading {
@@ -658,6 +664,8 @@ class CognitiveModelPage extends ConsumerWidget {
               priorCount: data.priorCount,
             ),
             const SizedBox(height: 8),
+            const _PersonaCard(),
+            const SizedBox(height: 8),
             const _GraphEntryCard(),
             const SizedBox(height: 8),
             const _OrphanRepairBanner(),
@@ -818,6 +826,65 @@ class _GraphEntryCard extends StatelessWidget {
           MaterialPageRoute<void>(
             builder: (_) => const CognitiveGraphPage(),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 自我描述卡片：用户不用翻到设置页也能看到 AI 对话会带上的那段背景。
+///
+/// 页面本身仍然只读：卡片只展示预览，「编辑」跳到和设置入口同一个
+/// [UserPersonaPage]，写库只发生在那一页。
+class _PersonaCard extends ConsumerWidget {
+  const _PersonaCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final persona = ref.watch(userPersonaProvider).valueOrNull;
+    final hasPersona = userPersonaIsPresent(persona);
+    return Card(
+      key: cognitiveModelPersonaCardKey,
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.badge_outlined, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.personaTitle,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasPersona
+                  ? userPersonaPreview(persona, maxChars: 160)
+                  : l10n.personaEmpty,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const UserPersonaPage(),
+                  ),
+                ),
+                child: Text(l10n.commonEdit),
+              ),
+            ),
+          ],
         ),
       ),
     );
