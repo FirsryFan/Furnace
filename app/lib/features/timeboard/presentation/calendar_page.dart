@@ -26,6 +26,57 @@ final timeTemplatesProvider = FutureProvider<List<TimeTemplate>>((ref) {
 
 enum CalendarView { day, week, month, timeline }
 
+/// 「挡位」：松手时每小时像素高度吸附到最近的一档。
+///
+/// 用户反馈：标尺不要只有三挡，要能拖分界线自由缩放；如果一定要收口，就给些
+/// 挡位。拖动过程中是连续值，松手才落到这里最近的档。
+const List<double> kCalendarHourHeightDetents = [
+  22,
+  33,
+  44,
+  66,
+  88,
+  132,
+  176,
+  264,
+];
+
+/// 自由行高的安全范围：每小时 12..400 像素。
+const double kCalendarMinHourHeight = 12;
+const double kCalendarMaxHourHeight = 400;
+
+/// 把自由行高夹进安全范围并吸附到最近的挡位。
+///
+/// 正好落在两档中间时取较小的一档，保证结果确定、可预测。
+double snapCalendarHourHeight(double hourHeight) {
+  final clamped = hourHeight
+      .clamp(kCalendarMinHourHeight, kCalendarMaxHourHeight)
+      .toDouble();
+  var best = kCalendarHourHeightDetents.first;
+  var bestDistance = (clamped - best).abs();
+  for (final detent in kCalendarHourHeightDetents.skip(1)) {
+    final distance = (clamped - detent).abs();
+    if (distance < bestDistance) {
+      best = detent;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/// 测试定位用：日/周网格主体、恢复默认行高的菜单项、行分界线拖拽带。
+const Key calendarDayGridKey = Key('calendar-day-grid');
+const Key calendarWeekGridKey = Key('calendar-week-grid');
+const Key calendarRowHeightResetKey = Key('calendar-row-height-reset');
+Key calendarRowDividerKey(int row) =>
+    ValueKey<String>('calendar-row-divider-$row');
+
+/// 行分界线拖拽的命中带高度（px）：只占分界线附近，不挡点块/点空白。
+const double _rowDividerHitHeight = 14;
+
+/// 「恢复默认行高」菜单项的值。
+const String _resetRowHeightValue = 'reset';
+
 /// The Time module's calendar (spec 1.2.2 + user feedback item 3).
 ///
 /// Views: day / week / month / multi-year timeline.
@@ -52,9 +103,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   int _minutesPerRow = 30;
   DateTime? _selectedDay;
 
+  /// v36：用户拖出来的每小时像素高度；null = 没拖过，沿用旧公式。
+  ///
+  /// 连续值（12..400），松手时吸附到 [kCalendarHourHeightDetents] 的挡位。
+  double? _hourHeight;
+
   static const double _rowBaseHeight = 44;
 
-  double get _rowHeight => _rowBaseHeight * (60 / _minutesPerRow);
+  double get _rowHeight => _hourHeight != null
+      ? _hourHeight! * _minutesPerRow / 60
+      : _rowBaseHeight * (60 / _minutesPerRow);
 
   DateTime get _dayStart => DateTime(_anchor.year, _anchor.month, _anchor.day);
 
@@ -65,13 +123,21 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     _restorePreferences();
   }
 
-  /// Minutes-per-row is a stored preference, not session-only state.
+  /// Minutes-per-row and the dragged hour height are stored preferences, not
+  /// session-only state.
   Future<void> _restorePreferences() async {
     final settings = await ref.read(timeViewRepositoryProvider).ensure();
     if (!mounted) {
       return;
     }
-    setState(() => _minutesPerRow = settings.minutesPerRow);
+    final storedHourHeight = settings.hourHeight;
+    setState(() {
+      _minutesPerRow = settings.minutesPerRow;
+      // v36：NULL 保持 null（旧公式）；拖过的值夹进安全范围再恢复。
+      _hourHeight = storedHourHeight
+          ?.clamp(kCalendarMinHourHeight, kCalendarMaxHourHeight)
+          .toDouble();
+    });
   }
 
   Future<void> _setMinutesPerRow(int value) async {
@@ -81,6 +147,37 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     await ref
         .read(timeViewRepositoryProvider)
         .update(minutesPerRow: value, chosen: true);
+  }
+
+  /// 拖动分界线：把这一帧的纵向位移换算成「每小时像素高度」的变化。
+  ///
+  /// 行高在拖动过程中连续变化（12..400 夹住），松手才吸附挡位。
+  void _dragRowHeight(double dy) {
+    final current = _hourHeight ?? _rowHeight * 60 / _minutesPerRow;
+    final next = (current + dy * 60 / _minutesPerRow)
+        .clamp(kCalendarMinHourHeight, kCalendarMaxHourHeight)
+        .toDouble();
+    if (next == _hourHeight) {
+      return;
+    }
+    setState(() => _hourHeight = next);
+  }
+
+  /// 松手：吸附到最近的挡位并落库（用户：拖可以，但要给挡位）。
+  Future<void> _snapRowHeight() async {
+    final current = _hourHeight;
+    if (current == null) {
+      return;
+    }
+    final snapped = snapCalendarHourHeight(current);
+    setState(() => _hourHeight = snapped);
+    await ref.read(timeViewRepositoryProvider).update(hourHeight: snapped);
+  }
+
+  /// 恢复默认行高：回到按 [minutesPerRow] 推出来的旧公式，并清掉存档。
+  Future<void> _resetRowHeight() async {
+    setState(() => _hourHeight = null);
+    await ref.read(timeViewRepositoryProvider).clearHourHeight();
   }
 
   @override
@@ -101,25 +198,48 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
             }),
           ),
           if (_view != CalendarView.timeline)
-            PopupMenuButton<int>(
+            PopupMenuButton<Object>(
               tooltip: l10n.calendarZoom,
               icon: const Icon(Icons.height),
-              onSelected: _setMinutesPerRow,
+              onSelected: (value) {
+                if (value == _resetRowHeightValue) {
+                  _resetRowHeight();
+                } else if (value is int) {
+                  _setMinutesPerRow(value);
+                }
+              },
               itemBuilder: (context) => [
-                CheckedPopupMenuItem(
+                PopupMenuItem<Object>(
+                  enabled: false,
+                  child: SizedBox(
+                    width: 260,
+                    child: Text(
+                      l10n.calendarRowHeightHint,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      softWrap: true,
+                    ),
+                  ),
+                ),
+                CheckedPopupMenuItem<Object>(
                   value: 15,
                   checked: _minutesPerRow == 15,
                   child: Text(l10n.calendarZoom15),
                 ),
-                CheckedPopupMenuItem(
+                CheckedPopupMenuItem<Object>(
                   value: 30,
                   checked: _minutesPerRow == 30,
                   child: Text(l10n.calendarZoom30),
                 ),
-                CheckedPopupMenuItem(
+                CheckedPopupMenuItem<Object>(
                   value: 60,
                   checked: _minutesPerRow == 60,
                   child: Text(l10n.calendarZoom60),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<Object>(
+                  key: calendarRowHeightResetKey,
+                  value: _resetRowHeightValue,
+                  child: Text(l10n.calendarRowHeightReset),
                 ),
               ],
             ),
@@ -181,6 +301,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     minutesPerRow: _minutesPerRow,
                     onEmptyTap: _createAt,
                     onBlockTap: _editBlock,
+                    onRowHeightDrag: _dragRowHeight,
+                    onRowHeightDragEnd: _snapRowHeight,
                   ),
                 CalendarView.week => _WeekGrid(
                     anchor: _anchor,
@@ -190,6 +312,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     onBlockTap: _editBlock,
                     onWeekMenu: _showWeekMenu,
                     onDayMenu: _showDayMenu,
+                    onRowHeightDrag: _dragRowHeight,
+                    onRowHeightDragEnd: _snapRowHeight,
                   ),
                 CalendarView.month => _MonthView(
                     anchor: _anchor,
@@ -303,8 +427,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     final choice = await _contextMenu(
       <_MenuItem>[
         _MenuItem('open', Icons.view_week_outlined, l10n.calendarOpenWeek),
-        _MenuItem('template-day', Icons.wb_sunny_outlined,
-            l10n.timeApplyDayTemplate),
+        _MenuItem(
+            'template-day', Icons.wb_sunny_outlined, l10n.timeApplyDayTemplate),
         _MenuItem('template-week', Icons.date_range_outlined,
             l10n.timeApplyWeekTemplate),
         _MenuItem('new', Icons.add, l10n.calendarAddBlock),
@@ -671,6 +795,8 @@ class _DayGrid extends StatelessWidget {
     required this.minutesPerRow,
     required this.onEmptyTap,
     required this.onBlockTap,
+    required this.onRowHeightDrag,
+    required this.onRowHeightDragEnd,
   });
 
   final DateTime day;
@@ -679,6 +805,12 @@ class _DayGrid extends StatelessWidget {
   final int minutesPerRow;
   final ValueChanged<DateTime> onEmptyTap;
   final ValueChanged<TimeBlock> onBlockTap;
+
+  /// 拖动行分界线时回调（参数是这一帧的纵向位移，单位 px）。
+  final ValueChanged<double> onRowHeightDrag;
+
+  /// 松手时回调：页面负责吸附挡位并落库。
+  final VoidCallback onRowHeightDragEnd;
 
   /// The single-day timeline keeps a readable width instead of stretching
   /// across a wide desktop window, and never collapses below a usable width
@@ -698,6 +830,7 @@ class _DayGrid extends StatelessWidget {
         final needsHorizontalScroll = constraints.maxWidth < _minWidth;
 
         final grid = SizedBox(
+          key: calendarDayGridKey,
           width: width,
           height: rows * rowHeight,
           child: Stack(
@@ -726,6 +859,20 @@ class _DayGrid extends StatelessWidget {
                   left: 52,
                   right: 10,
                   onTap: () => onBlockTap(occurrence.block),
+                ),
+              // 每条行分界线一条命中带：上下拖动改行高。带压在块上方也必须
+              // 放行点击（半透明 MouseRegion + IgnorePointer，只认纵向拖动）。
+              for (var row = 1; row < rows; row++)
+                Positioned(
+                  left: 44,
+                  right: 8,
+                  top: row * rowHeight - _rowDividerHitHeight / 2,
+                  height: _rowDividerHitHeight,
+                  child: _RowDividerDragBand(
+                    key: calendarRowDividerKey(row),
+                    onDragUpdate: onRowHeightDrag,
+                    onDragEnd: onRowHeightDragEnd,
+                  ),
                 ),
             ],
           ),
@@ -757,8 +904,68 @@ String? rowLabel(int row, int minutesPerRow) {
 }
 
 /// True when the row starts a whole hour, which draws the stronger divider.
-bool isMajorTick(int row, int minutesPerRow) =>
-    (row * minutesPerRow) % 60 == 0;
+bool isMajorTick(int row, int minutesPerRow) => (row * minutesPerRow) % 60 == 0;
+
+/// 行分界线的拖拽带：抓住上下拖连续改行高，松手由页面吸附挡位。
+///
+/// 命中带只有 14px 高且视觉线不参与命中（IgnorePointer），压在块上方也不会
+/// 挡住点击，整条带只认纵向拖动。
+class _RowDividerDragBand extends StatefulWidget {
+  const _RowDividerDragBand({
+    super.key,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  /// 拖动中回调：参数是这一帧的纵向位移（px）。
+  final ValueChanged<double> onDragUpdate;
+
+  /// 松手/取消时回调。
+  final VoidCallback onDragEnd;
+
+  @override
+  State<_RowDividerDragBand> createState() => _RowDividerDragBandState();
+}
+
+class _RowDividerDragBandState extends State<_RowDividerDragBand> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeUpDown,
+      // 半透明命中：hover 仍然收得到，但不会把点击挡在块前面（MouseRegion 默认
+      // hitTestBehavior = opaque，会吞掉带内的点击；用户点击卡片时必须落到卡片）。
+      hitTestBehavior: HitTestBehavior.translucent,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragUpdate: (details) =>
+            widget.onDragUpdate(details.delta.dy),
+        onVerticalDragEnd: (_) => widget.onDragEnd(),
+        onVerticalDragCancel: widget.onDragEnd,
+        // The hairlines stay out of the hit test (IgnorePointer): a tap
+        // anywhere in the band must fall through to the row underneath, while
+        // the translucent detector still receives pointer events for dragging.
+        child: IgnorePointer(
+          child: Center(
+            child: SizedBox(
+              height: 1,
+              width: double.infinity,
+              child: ColoredBox(
+                color: _hovered
+                    ? theme.colorScheme.primary.withValues(alpha: 0.45)
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _HourRow extends StatelessWidget {
   const _HourRow({
@@ -785,8 +992,8 @@ class _HourRow extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: theme.dividerColor
-                  .withValues(alpha: majorTick ? 0.4 : 0.16),
+              color:
+                  theme.dividerColor.withValues(alpha: majorTick ? 0.4 : 0.16),
             ),
           ),
         ),
@@ -821,6 +1028,8 @@ class _WeekGrid extends StatelessWidget {
     required this.onBlockTap,
     required this.onWeekMenu,
     required this.onDayMenu,
+    required this.onRowHeightDrag,
+    required this.onRowHeightDragEnd,
   });
 
   final DateTime anchor;
@@ -830,6 +1039,12 @@ class _WeekGrid extends StatelessWidget {
   final ValueChanged<TimeBlock> onBlockTap;
   final ValueChanged<DateTime> onWeekMenu;
   final ValueChanged<DateTime> onDayMenu;
+
+  /// 拖动行分界线时回调（参数是这一帧的纵向位移，单位 px）。
+  final ValueChanged<double> onRowHeightDrag;
+
+  /// 松手时回调：页面负责吸附挡位并落库。
+  final VoidCallback onRowHeightDragEnd;
 
   /// Seven day columns stay legible down to this width; below it the grid
   /// scrolls horizontally instead of squashing into unreadable slivers.
@@ -911,68 +1126,86 @@ class _WeekGrid extends StatelessWidget {
             ),
           ),
           SizedBox(
+            key: calendarWeekGridKey,
             height: rows * rowHeight,
-            child: Row(
+            child: Stack(
               children: [
-                SizedBox(
-                  width: 48,
-                  child: Column(
-                    children: [
-                      for (var row = 0; row < rows; row++)
-                        SizedBox(
-                          height: rowHeight,
-                          child: isMajorTick(row, minutesPerRow)
-                              ? Text(
-                                  rowLabel(row, minutesPerRow) ?? '',
-                                  style: theme.textTheme.labelSmall,
-                                )
-                              : null,
-                        ),
-                    ],
-                  ),
-                ),
-                for (final day in days)
-                  Expanded(
-                    child: GestureDetector(
-                      onSecondaryTap: () => onDayMenu(day),
-                      onLongPress: () => onDayMenu(day),
-                      child: Stack(
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      child: Column(
                         children: [
-                          Column(
-                            children: [
-                              for (var row = 0; row < rows; row++)
-                                Container(
-                                  height: rowHeight,
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(
-                                        color: theme.dividerColor.withValues(
-                                          alpha: isMajorTick(
-                                                  row, minutesPerRow)
-                                              ? 0.4
-                                              : 0.16,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          for (final occurrence in _occurrences(blocks, day,
-                              day.add(const Duration(days: 1))))
-                            _BlockOverlay(
-                              block: occurrence.block,
-                              start: occurrence.start,
-                              end: occurrence.end,
-                              day: day,
-                              rowHeight: rowHeight,
-                              minutesPerRow: minutesPerRow,
-                              left: 0,
-                              right: 2,
-                              onTap: () => onBlockTap(occurrence.block),
+                          for (var row = 0; row < rows; row++)
+                            SizedBox(
+                              height: rowHeight,
+                              child: isMajorTick(row, minutesPerRow)
+                                  ? Text(
+                                      rowLabel(row, minutesPerRow) ?? '',
+                                      style: theme.textTheme.labelSmall,
+                                    )
+                                  : null,
                             ),
                         ],
                       ),
+                    ),
+                    for (final day in days)
+                      Expanded(
+                        child: GestureDetector(
+                          onSecondaryTap: () => onDayMenu(day),
+                          onLongPress: () => onDayMenu(day),
+                          child: Stack(
+                            children: [
+                              Column(
+                                children: [
+                                  for (var row = 0; row < rows; row++)
+                                    Container(
+                                      height: rowHeight,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          top: BorderSide(
+                                            color:
+                                                theme.dividerColor.withValues(
+                                              alpha: isMajorTick(
+                                                      row, minutesPerRow)
+                                                  ? 0.4
+                                                  : 0.16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              for (final occurrence in _occurrences(blocks, day,
+                                  day.add(const Duration(days: 1))))
+                                _BlockOverlay(
+                                  block: occurrence.block,
+                                  start: occurrence.start,
+                                  end: occurrence.end,
+                                  day: day,
+                                  rowHeight: rowHeight,
+                                  minutesPerRow: minutesPerRow,
+                                  left: 0,
+                                  right: 2,
+                                  onTap: () => onBlockTap(occurrence.block),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                for (var row = 1; row < rows; row++)
+                  Positioned(
+                    left: 48,
+                    right: 0,
+                    top: row * rowHeight - _rowDividerHitHeight / 2,
+                    height: _rowDividerHitHeight,
+                    child: _RowDividerDragBand(
+                      key: calendarRowDividerKey(row),
+                      onDragUpdate: onRowHeightDrag,
+                      onDragEnd: onRowHeightDragEnd,
                     ),
                   ),
               ],
@@ -1027,8 +1260,8 @@ class _MonthView extends StatelessWidget {
 
     final selected =
         DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
-    final selectedOccurrences = _occurrences(
-        blocks, selected, selected.add(const Duration(days: 1)));
+    final selectedOccurrences =
+        _occurrences(blocks, selected, selected.add(const Duration(days: 1)));
 
     return Column(
       children: [
@@ -1238,8 +1471,8 @@ class _MonthCell extends StatelessWidget {
                     ),
                   if (occurrences.length > 3)
                     Text('+${occurrences.length - 3}',
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(fontSize: 9)),
+                        style:
+                            theme.textTheme.labelSmall?.copyWith(fontSize: 9)),
                 ],
               ),
             ),
@@ -1337,8 +1570,8 @@ class _OccurrenceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final base = BlockPalette.colorFor(
-        BlockPalette.slotForId(occurrence.block.id));
+    final base =
+        BlockPalette.colorFor(BlockPalette.slotForId(occurrence.block.id));
     final busy = !occurrence.block.available;
     final two = (int value) => value.toString().padLeft(2, '0');
 
@@ -1459,8 +1692,8 @@ class _TimelineView extends ConsumerWidget {
                   IconButton(
                     tooltip:
                         collapsed ? l10n.timelineUnfold : l10n.timelineFold,
-                    icon: Icon(
-                        collapsed ? Icons.unfold_more : Icons.unfold_less),
+                    icon:
+                        Icon(collapsed ? Icons.unfold_more : Icons.unfold_less),
                     onPressed: () => ref
                         .read(timeViewRepositoryProvider)
                         .update(timelineCollapsed: !collapsed),
@@ -1471,8 +1704,8 @@ class _TimelineView extends ConsumerWidget {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final available = (constraints.maxWidth - 56)
-                      .clamp(100.0, double.infinity);
+                  final available =
+                      (constraints.maxWidth - 56).clamp(100.0, double.infinity);
                   // Unfolded: one strip scrolling horizontally.
                   // Folded: the same days wrapped into bands scrolling
                   // vertically (user feedback 3).
@@ -1564,8 +1797,7 @@ class _TimelineRow extends StatelessWidget {
                     bottom: 0,
                     width: pxPerDay,
                     child: GestureDetector(
-                      onTap: () =>
-                          onSelectDay(rowStart.add(Duration(days: i))),
+                      onTap: () => onSelectDay(rowStart.add(Duration(days: i))),
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border(
@@ -1587,7 +1819,9 @@ class _TimelineRow extends StatelessWidget {
                         pxPerDay,
                     top: 14,
                     height: rowHeight - 18,
-                    width: ((occurrence.end.difference(occurrence.start).inMinutes /
+                    width: ((occurrence.end
+                                    .difference(occurrence.start)
+                                    .inMinutes /
                                 1440) *
                             pxPerDay)
                         .clamp(2.0, days * pxPerDay),
@@ -1858,9 +2092,9 @@ Future<int> _captureTemplate({
     for (final block in inRange)
       TemplateBlock(
         title: block.title,
-        startMinutes: DateTime.fromMillisecondsSinceEpoch(block.startAt).hour *
-                60 +
-            DateTime.fromMillisecondsSinceEpoch(block.startAt).minute,
+        startMinutes:
+            DateTime.fromMillisecondsSinceEpoch(block.startAt).hour * 60 +
+                DateTime.fromMillisecondsSinceEpoch(block.startAt).minute,
         endMinutes: DateTime.fromMillisecondsSinceEpoch(block.endAt).hour * 60 +
             DateTime.fromMillisecondsSinceEpoch(block.endAt).minute,
         available: block.available,
