@@ -2,6 +2,7 @@
 
 > 来源：用户 2026-10-25 反馈（14 条：1–12 为首批，13/14 为当晚追加的闪存卡两条）。本文档做**问题记录、取证与对策设计**。
 > 2026-10-25 晚更新：用户已批准开工（「好的你可以开始改进了」），§1/§2/§4/§6/§12/§13/§14 本轮已落地，实施状态见各条「实施状态」行与 [PROGRESS.md](PROGRESS.md) 轮次一百七十五；§3/§7/§8/§9/§10/§11 仍待排期。
+> 2026-10-25 再更新（轮次一百七十六）：§7 知识网络图、§9 检索词长度、§10/§11 标签用途边界、§12B 安排过滤已落地（schema v37），见 [PROGRESS.md](PROGRESS.md) 轮次一百七十六；**只剩 §3（UI 设计 token，等你定「自然」方向）与 §8（能力测评新模块）**。
 > 取证基线：`class-productivity` HEAD `3032663`（v0.6.10 发布提交），工作树干净。
 > 取证方式：只读检索与读文件（grep / read）。凡是没实际跑过或没看到的，文中标「未验证」。
 > 每条格式：现象（用户原话）→ 现状取证 → 根因 → 对策与取舍 → 影响面 → 优先级与工作量。
@@ -27,6 +28,8 @@
 | 14 | 闪存卡「间隔时间太短」 | 排期参数 + 设置入口 | 已取证（保持率硬编码 0.9） | P0 | 0.5 片（已做） |
 
 **实施状态（2026-10-25 轮次一百七十五）**：§1、§2、§12 文案已改并 gen-l10n；§4a 的 **SSE 解析 + 折叠展示 + 取消** 已做（思考不落库）；§4b 停止生成已做（核心逻辑 + UI）；§6 Time 行高自由拖拽 + 挡位吸附已做（v36 `hour_height`）；§13 管理页全文 + 详情弹层已做；§14 复习保持率三挡 + v36 `review_retention` 已做。§3、§7、§8、§9、§10、§11 未开工。
+
+**实施状态（2026-10-25 轮次一百七十六）**：§7 知识图**布局 v2 分簇 + InteractiveViewer 缩放平移 + 重置视图**已做；§9 检索词**按学科带重写（理科 15–30 / 文科 20–40 字且小于题干）+ UI 显示字数**已做（标准侧 `keywords.mjs`/`SKILL.md` 仍是 4–28，待同步）；§10/§11 **标签用途边界**已做（schema v37 `tags.usage_codes` + 领域 `TagUsageResolver` + 标签树页用途对话框/徽标 + 时间块标签选择器按 `time` 过滤 + 三种空态提示）；§12B 安排列表「全部 / 今天」过滤已做。§3、§8 未开工。
 
 **一句话结论**：P0 七项（1、2、4b、6、12、13、14）都是小改动、高感知，建议一轮内打包（本轮已全部做完）；3、7、8 是「重定义产品形态」的大改，需要先定标准再动手；10/11 是数据模型改动（标签加「用途域」），会和后续所有选择器相关，最好一次设计对。
 
@@ -218,6 +221,8 @@
 
 **优先级**：P2（3 片以上；但期 1 可先做，1 片见效）。
 
+**实施状态（2026-10-25 轮次一百七十六，已上线）**：期 1 + 期 2 一起做了——布局重写为**按标签分簇**（扇区角度按簇成员数加权、簇内黄金角螺旋 `r=26*sqrt(k)`、最小间距 26、无标签点放中心、确定性可单测、画布边长 `clamp(840*sqrt(n/15), 840, 2400)`）；页面换成 **InteractiveViewer**（minScale 0.4、maxScale 4、边界无限、首帧自适应缩放并居中、AppBar「重置视图」、角落提示、缩放 < 0.8 隐藏文字），命中测试按缩放后的坐标换算。期 3（节点详情 sheet / 搜索定位 / 标签筛选 / 列表兜底）**仍未做**。证据：`cognitive_graph_layout.dart` 438 行、`cognitive_graph_page.dart` 745 行；测试 12 + 5 例全绿。
+
 ---
 
 ## 8. 认知测评：应测能力（humanbenchmark 式），不是选标签测知识点
@@ -274,6 +279,8 @@
 
 **优先级**：P1（1 片 + 人工验证）。
 
+**实施状态（2026-10-25 轮次一百七十六，已上线）**：`zujuan_keywords.dart` 已重写（467 行）——新增 `enum ZujuanSubjectBand { science, humanities }` 与常量 `15/30`、`20/40`，`zujuanSubjectBandFor(subjectKey)` 映射（语文/英语/历史/政治/地理→文科，其余含 null/未知→理科）；候选生成改为「先按标点切句 → 句内滑窗/锚点扩窗到目标区间 → 文科严格短于题干（短题干回退取尽量长且 ≥4）」，去掉 5–16 字偏好，仍保证候选是清洗后原文的连续子串、确定性、互为子串只留一条、`maxCandidates` 可配。UI：`question_zujuan_search.dart` 的 provider 改为 `(stem, band)` 记录键、按钮接 `subjectKey`、每条候选右侧显示「N 字」、表头加长度口径提示；详情页传入 `question.subjectKey`。**未做**：`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs` 与 `SKILL.md` 仍 4–28 未同步（两处已分歧，文件头已注明）；长检索词命中率未做人工 A/B；公式/标点密集段可能回退到 <15 字（不跨段约束的必然结果，测试已按「至少一条落在区间」断言）。证据：`zujuan_keywords_test.dart` 30 例、`zujuan_link_test.dart` 改写 10 例、详情页测试 74 例全绿。
+
 ---
 
 ## 10. 标签系统「到处都是」，没有边界处理
@@ -305,6 +312,8 @@
 
 **优先级**：P1（2–3 片；建议先机制 + 时间域，其他域后续按需）。
 
+**实施状态（2026-10-25 轮次一百七十六，机制已上线）**：**存储选了 B（Tags 加列）而不是 A**——schema v37 给 `tags` 加可空 `usage_codes` TEXT（逗号分隔 `time/question/knowledge/task/flashcard`，NULL = 本级不声明），理由是新列在 `_ensureColumns` 里天然受自愈保护、树移动/重命名/删除不需要维护旁路 JSON，代价是每行多一列（可空，开销可忽略）。继承在**读取时**按 `parentId` 向上找最近的非空声明（不写回子标签），整链无声明 = 不限制 → 默认策略选了 §16-Q8 的「未声明 = 所有域可见」，老数据零迁移、零回填。领域 `tag_usage.dart`：`encodeTagUsageCodes`/`decodeTagUsageCodes`（空集→NULL、未知 code 容忍）、`TagUsageNode`、`TagUsageResolver`（`declaredFor`/`effectiveFor`/`effectiveSourceTagId`/`hasAnyDeclaration`/`isVisibleFor`/`visibleTagIdsFor`/`visibleOf`，成环保护）；仓储 `TagRepository.resolverFor` / `updateTagUsageCodes`；provider `tagUsageResolverProvider` / `setTagUsages`。UI：标签树页每行菜单「用途边界」+ 已声明徽标 + 多选对话框（`tagUsageDialogTitle` 等），时间块标签选择器按 `time` 过滤（§11）。**未做**：其余域选择器（题目/任务/知识/闪卡/AI 建议标签）仍读全树——共 23 处 `getAllTags()`，本轮只收紧时间域；无「子树批量设置」；无「显示全部」逃生阀（当前规则是未声明即全可见，所以不会出现找不到标签）；跨设备同步无（本地单用户）。证据：`tag_usage_test.dart` 23 例、`v37_migration_test.dart` 3 例、`tag_tree_page_test.dart` 28 例、`time_board_page_test.dart` 12 例全绿。
+
 ---
 
 ## 11. 时间接入标签系统：只允许「纳入时间表」的标签树
@@ -327,6 +336,8 @@
 **影响面**：`tag_tree_page.dart`（用途开关）、`time_board_page.dart:415-461`（选择器过滤 + 空状态）、`tag_repository.dart`、l10n。
 
 **优先级**：P1（含在 §10 里，约 +0.5 片）。
+
+**实施状态（2026-10-25 轮次一百七十六，已上线）**：标签树页对任意节点可在「用途边界」里勾「纳入时间表」（写 `usage_codes` 含 `time`，子标签自动继承）；时间块编辑对话框的选择器改为 `TagUsageResolver.visibleOf(..., TagUsage.time)` 过滤（保持原顺序、排除已选）。空态按 §10 的默认策略实现为三种提示：整棵树都没有任何用途声明 → 显示「未声明用途时所有标签可用」的默认提示并列出全部；有声明但没有任何 `time` 树 → 显示「还没有标签树被设置为纳入时间表」空态（key `time-block-tag-scope-empty`）且不给选项；选择器标题下常显一行范围说明。**未做**：没有「去设置」跳转按钮（空态文案里让用户自己去标签页）、没有「显示全部」临时逃生阀（默认全可见已覆盖该场景）、日历按标签着色/筛选（原就列为可选增强）。证据：`time_board_page.dart` 回调 + 4 例测试（只列 time、无声明全可见、只声明 question 时空态、无声明但已挂满时默认提示）。
 
 ---
 
@@ -451,12 +462,15 @@
 | B | §4b 停止生成 + §6 Time 拖拽缩放（+ §12 日期过滤） | v36（time_view_settings.hour_height；AI interrupted 标记可选） | 无 | 2–2.5 片 |
 | C | §4a 思维链（解析/展示/落库）+ §9 检索词长度（含 skill 同步） | v36（ai_messages.reasoning） | 真实题人工 A/B | 2–2.5 片 |
 | A–B 已落地（2026-10-25 轮次一百七十五） | §1 改名、§2 新图标、§4a **只做了解析+展示**（未落库）、§4b 停止生成、§6 行高拖拽、§12 改名、§13 管理页全文、§14 复习保持率 | v36：`local_settings.review_retention` + `time_view_settings.hour_height` | — | 已完成 |
+| C–D–F 部分已落地（2026-10-25 轮次一百七十六） | §7 知识图分簇布局 + 缩放平移 + 重置视图；§9 检索词按学科带长度 + UI 字数；§10/§11 标签用途边界（机制 + 时间域 + 标签树页 UI）；§12B 安排列表「全部/今天」 | v37：`tags.usage_codes` | 无 | 已完成（期 3／其余域／skill 同步未做） |
 | D | §10/§11 标签用途域 + 时间标签树 | v36（local_settings.tag_usage_json） | 无 | 2–3 片 |
 | E | §3 UI token 化 + 6 页面扫一遍 | 无 | 用户给「自然」方向 | 2–3 片 |
 | F | §7 知识网络图（期 1 急救 → v2 → 交互） | 无 | 无 | 3 片以上 |
 | G | §8 能力测评新模块 | v36+（ability_scores 表） | 用户确认能力维度 | 3 片以上 |
 
 **实际 v36（轮次一百七十五）只装了两列**：`local_settings.review_retention` 与 `time_view_settings.hour_height`——原计划把 `ai_messages.reasoning`、`local_settings.tag_usage_json`、`ability_scores` 一起塞进 v36，但本轮 §4a 只做了**解析与内存展示**（思考过程不落库），标签用途域与能力测评还没开工，所以按项目惯例「一次只加自己需要的列」（新列一律 nullable、无回填）发了最小迁移。后续两项各自再发 v37/v38，避免为未实现的功能提前占坑。
+
+**实际 v37（轮次一百七十六）只装了一列**：`tags.usage_codes`（标签用途声明）——§4a 的 `ai_messages.reasoning`（思考落库）与 §8 的 `ability_scores` 都还没开工，继续按「一次只加自己需要的列」的惯例留到各自那轮。迁移 `_upgradeV36ToV37` 只补一列、不回填，并顺带给 `_tableFor` 补了 `case 'tags'`（自愈路径第一次会碰 tags 表）。
 
 ---
 

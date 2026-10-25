@@ -1068,3 +1068,103 @@ encode 一经发出就不再改（改了等于把老安装的选择变成「未�
 - 被盖成「版本 36 但缺两列」的老文件靠 `_ensureColumns` 补列，可读可写；
 - `clearHourHeight()` 写回真 NULL；越界保持率（0.99）仓库原样存读，夹取只发生在
   `normalizeReviewRetention`（读回 0.95）；`updateReviewRetention(null)` 清回没设过。
+
+---
+
+## 26. schema v37（2026-10-25，轮次一百七十六）：标签用途声明 `tags.usage_codes`
+
+对应 `docs/REVIEW_FEEDBACK.md` §10（标签全局没有边界）与 §11（时间表只应看到
+「纳入时间表」那棵树）。目标不是给标签分会话/分区，而是**同一棵树按用途声明可见
+集合**：时间表、题库、知识网络、任务、闪卡分别在标签选择器里只看自己那部分标签。
+
+### 26.1 表结构
+
+| 表 | 列 | 类型 | 语义 |
+| --- | --- | --- | --- |
+| `tags` | `usage_codes` | TEXT，可空 | 这一级声明的用途 code，逗号分隔 |
+
+- 列定义 `app/lib/data/database/tables.dart:213`（注释 :209-212）。
+- 取值只允许五个稳定 code：`time` / `question` / `knowledge` / `task` /
+  `flashcard`（=`TagUsage` 枚举声明序；不存中文、不存枚举序号）。
+- `NULL` = 这一级没有声明（用途从最近的声明祖先继承）；整条链都没声明 =
+  **不限制**（所有地方都能用这个标签）。
+- 空集合由编码器写成 `NULL`；手写/坏数据里的空串或全认不出的 code 解码成
+  `null`，即「没有声明」。**非 null 空集也按没有声明处理**，不让坏数据意外截断
+  继承链（`tag_usage.dart:70-73` 的契约）。
+
+### 26.2 为什么是一列而不是新表
+
+- 声明挂在标签行上，生命周期跟着标签走：删标签/移动标签不需要同步第二张表。
+- 继承在**读取时**按 `parent_id` 向上找第一个非空声明，因此移动子树、改名、
+  调整层级都不需要重写任何子标签的声明。
+- 没有新表 = 没有外键、没有级联删除、没有 `_tableFor` 之外的新映射。
+
+### 26.3 迁移
+
+- `app/lib/data/database/database.dart:139` `schemaVersion => 37`；
+  onUpgrade 链 :253-255 `if (from < 37) await _upgradeV36ToV37();`；
+  迁移函数 :1067-1073（表不存在直接 return，否则 `_addColumnIfMissing(m, 'tags',
+  tags.usageCodes)`——**只补列、不回填**，回填等于凭空给用户写一条从没做过的
+  声明，会把「不限制」变成硬边界，与 v34/v35/v36 同一契约）。
+- 自愈：`_ensureColumns()` 的 expected map 加 `'tags': [tags.usageCodes]`
+  （:280）；自愈补列会调 `_tableFor('tags')`，所以 v37 同时给
+  `_tableFor` 加 `case 'tags': return tags;`（:1309）。**这是 v37 首跑迁移测试
+  踩到的坑**：`Invalid argument(s): unknown table tags`——新增表/列进自愈列表时
+  必须同步登记 `_tableFor`。
+- `database.g.dart` 用 `dart run build_runner build --delete-conflicting-outputs`
+  重新生成（89s，904 outputs）。
+- doc 注释的迁移函数链（:115）末尾追加 `_upgradeV36ToV37`。
+
+### 26.4 领域契约（`app/lib/domain/services/tags/tag_usage.dart`）
+
+- `enum TagUsage {time,question,knowledge,task,flashcard}`（:11），`.code` 是
+  落库值，`fromCode()` 对未知 code 返回 null（:24-29）。
+- `String? encodeTagUsageCodes(Iterable<TagUsage>)`（:35）：空集合 → `null`，
+  输出顺序固定为枚举声明序（同一集合永远同一串，便于测试与 diff）。
+- `Set<TagUsage>? decodeTagUsageCodes(String?)`（:46）：null/空串/全未知 → null，
+  容忍空格，大小写敏感。
+- `class TagUsageNode{id, parentId, Set<TagUsage>? declaredUsages}`（:59）是解析
+  快照；`declaredUsages` 用 `UnmodifiableSetView` 包装。
+- `class TagUsageResolver`（:79）构造即不可变、对未知 id 安全（返回 null/true）：
+  `nodeOf` / `declaredFor`（本级声明）/ `effectiveFor`（最近声明祖先的集合，null=
+  不限制）/ `effectiveSourceTagId`（哪个标签提供了生效声明，UI 可标「继承自」）/
+  `hasAnyDeclaration` / `declaredTagCount` / `isVisibleFor` /
+  `visibleTagIdsFor` / `visibleOf(ids, usage)`（保持原顺序过滤）；成环保护：
+  沿父链第二次遇到同一 id 返回 null，不挂 UI。
+
+### 26.5 读写接口
+
+- `TagRepository`（`app/lib/data/repositories/tag_repository.dart`）：
+  `TagUsageResolver resolverFor(Iterable<Tag> tags)`（:109，纯映射）；
+  `Future<void> updateTagUsageCodes(String tagId, Set<TagUsage> usages)`（:122，
+  写 `usageCodes` + `updatedAt`，空集合写回 `NULL`；**不级联子标签**，继承读侧算）。
+- 应用层 `app/lib/features/tags/application/tag_usage_providers.dart`：
+  `tagUsageResolverProvider`（:12，`FutureProvider.autoDispose`，watch
+  `databaseRevision` + `getAllTags()`，任何写库自动重算）；
+  `setTagUsages(WidgetRef, tagId, usages)`（:23，写库后 invalidate；失败原样上抛，
+  由对话框提示）。
+
+### 26.6 测试锁的事实
+
+- `app/test/domain/services/tags/tag_usage_test.dart` **23 例**：编码/解码 8
+  （空集合→null、顺序稳定、未知 code 忽略、空格/空串容忍、非 null 空集按无声明）；
+  继承解析 12（本级优先、继承最近祖先、断链返回 null、环保护、declaredTagCount、
+  effectiveSourceTagId）；过滤 3（visibleOf 保持顺序、isVisibleFor 对未知 id 为 true）。
+- `app/test/data/database/v37_migration_test.dart` **3 例**：真实 v36 文件（建 tags
+  两行 → `ALTER TABLE tags DROP COLUMN usage_codes` → `PRAGMA user_version=36`）
+  升级后两行还在、`usageCodes` 读 null（不限制）→ 写 `{time}` 后子标签继承 →
+  关库重开还在；写空集合写回 `NULL` 恢复继承；被盖成「版本 37 但缺列」时靠
+  `_ensureColumns` 自愈（`getAllTags()` 不抛、能写）。
+- 实测：`flutter test test/domain/services/tags/tag_usage_test.dart
+  test/data/database/v37_migration_test.dart --concurrency=1` → `+23: All tests
+  passed!`。
+
+### 26.7 边界（截至本版）
+
+- UI 消费才起步：时间表标签选择器与标签树「用途边界」对话框是第一批；题库/知识
+  网络/任务/闪卡的选择器还没接 `isVisibleFor`（默认不限制，行为与改动前一致）。
+- 声明只影响**选择器可见性**，不迁移、不隐藏已经挂上去的标签关系（历史数据照旧）。
+- 没有「批量给一棵子树设用途」的入口：一次一个标签；继承让常见的「根上开一次」
+  够用。
+- 没有权限/多用户概念：这是本地单用户库，用途只是显示口径。
+
