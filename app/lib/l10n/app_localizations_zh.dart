@@ -5217,5 +5217,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailPreviousQuestion => '上一题';
 
   @override
+  String questionDetailSerialPosition(int index, int total) {
+    return '第 $index / 共 $total 题';
+  }
+
+  @override
+  String get questionDetailJumpSerialTooltip => '跳题号';
+
+  @override
+  String get questionDetailJumpSerialTitle => '跳到题号';
+
+  @override
+  String get questionDetailJumpSerialFieldLabel => '题号';
+
+  @override
+  String get questionDetailJumpSerialHint => 'TR-00012 或 12';
+
+  @override
+  String get questionDetailJumpSerialInvalid => '认不出这个题号';
+
+  @override
+  String questionDetailJumpSerialNotFound(String serial) {
+    return '题库里没有 $serial';
+  }
+
+  @override
+  String get questionDetailJumpSerialAction => '跳转';
+
+  @override
   String get questionDetailNextQuestion => '下一题';
 }

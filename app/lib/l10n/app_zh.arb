@@ -2954,6 +2954,51 @@
   "@questionDetailPreviousQuestion": {
     "description": "详情页：按题号跳到上一题。"
   },
+  "questionDetailSerialPosition": "第 {index} / 共 {total} 题",
+  "@questionDetailSerialPosition": {
+    "description": "详情页：这道题在带题号的题库里排第几、一共多少道带题号的题。",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailJumpSerialTooltip": "跳题号",
+  "@questionDetailJumpSerialTooltip": {
+    "description": "详情页：AppBar 上打开「跳到题号」对话框的按钮提示。"
+  },
+  "questionDetailJumpSerialTitle": "跳到题号",
+  "@questionDetailJumpSerialTitle": {
+    "description": "详情页：跳到题号对话框的标题。"
+  },
+  "questionDetailJumpSerialFieldLabel": "题号",
+  "@questionDetailJumpSerialFieldLabel": {
+    "description": "详情页：跳到题号对话框输入框的标签。"
+  },
+  "questionDetailJumpSerialHint": "TR-00012 或 12",
+  "@questionDetailJumpSerialHint": {
+    "description": "详情页：跳到题号对话框输入框的提示，展示两种可接受的写法。"
+  },
+  "questionDetailJumpSerialInvalid": "认不出这个题号",
+  "@questionDetailJumpSerialInvalid": {
+    "description": "详情页：跳到题号输入既不是 TR-00012 也不是数字时的错误提示。"
+  },
+  "questionDetailJumpSerialNotFound": "题库里没有 {serial}",
+  "@questionDetailJumpSerialNotFound": {
+    "description": "详情页：跳题号查无此题时的提示，{serial} 是规范化后的 TR-00012。",
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailJumpSerialAction": "跳转",
+  "@questionDetailJumpSerialAction": {
+    "description": "详情页：跳到题号对话框的确认按钮。"
+  },
   "questionDetailNextQuestion": "下一题",
   "@questionDetailNextQuestion": {
     "description": "详情页：按题号跳到下一题。"

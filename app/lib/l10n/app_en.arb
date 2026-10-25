@@ -3047,6 +3047,51 @@
   "@questionDetailPreviousQuestion": {
     "description": "Question detail: jump to the previous question by serial number."
   },
+  "questionDetailSerialPosition": "Question {index} of {total}",
+  "@questionDetailSerialPosition": {
+    "description": "Question detail: which question this is among numbered questions, and how many numbered questions the library has.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "questionDetailJumpSerialTooltip": "Jump to question number",
+  "@questionDetailJumpSerialTooltip": {
+    "description": "Question detail: tooltip of the app-bar button that opens the jump-to-serial dialog."
+  },
+  "questionDetailJumpSerialTitle": "Jump to question number",
+  "@questionDetailJumpSerialTitle": {
+    "description": "Question detail: title of the jump-to-serial dialog."
+  },
+  "questionDetailJumpSerialFieldLabel": "Question number",
+  "@questionDetailJumpSerialFieldLabel": {
+    "description": "Question detail: label of the serial input in the jump-to-serial dialog."
+  },
+  "questionDetailJumpSerialHint": "TR-00012 or 12",
+  "@questionDetailJumpSerialHint": {
+    "description": "Question detail: hint of the serial input, showing the two accepted spellings."
+  },
+  "questionDetailJumpSerialInvalid": "Unrecognised question number",
+  "@questionDetailJumpSerialInvalid": {
+    "description": "Question detail: error shown when the input is neither TR-00012 nor a plain number."
+  },
+  "questionDetailJumpSerialNotFound": "No question {serial} in the library",
+  "@questionDetailJumpSerialNotFound": {
+    "description": "Question detail: shown when the serial does not exist; {serial} is the normalised TR-00012 label.",
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "questionDetailJumpSerialAction": "Go",
+  "@questionDetailJumpSerialAction": {
+    "description": "Question detail: confirm button of the jump-to-serial dialog."
+  },
   "questionDetailNextQuestion": "Next question",
   "@questionDetailNextQuestion": {
     "description": "Question detail: jump to the next question by serial number."

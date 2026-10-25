@@ -5434,5 +5434,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionDetailPreviousQuestion => 'Previous question';
 
   @override
+  String questionDetailSerialPosition(int index, int total) {
+    return 'Question $index of $total';
+  }
+
+  @override
+  String get questionDetailJumpSerialTooltip => 'Jump to question number';
+
+  @override
+  String get questionDetailJumpSerialTitle => 'Jump to question number';
+
+  @override
+  String get questionDetailJumpSerialFieldLabel => 'Question number';
+
+  @override
+  String get questionDetailJumpSerialHint => 'TR-00012 or 12';
+
+  @override
+  String get questionDetailJumpSerialInvalid => 'Unrecognised question number';
+
+  @override
+  String questionDetailJumpSerialNotFound(String serial) {
+    return 'No question $serial in the library';
+  }
+
+  @override
+  String get questionDetailJumpSerialAction => 'Go';
+
+  @override
   String get questionDetailNextQuestion => 'Next question';
 }

@@ -9050,6 +9050,54 @@ abstract class AppLocalizations {
   /// **'Previous question'**
   String get questionDetailPreviousQuestion;
 
+  /// Question detail: which question this is among numbered questions, and how many numbered questions the library has.
+  ///
+  /// In en, this message translates to:
+  /// **'Question {index} of {total}'**
+  String questionDetailSerialPosition(int index, int total);
+
+  /// Question detail: tooltip of the app-bar button that opens the jump-to-serial dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to question number'**
+  String get questionDetailJumpSerialTooltip;
+
+  /// Question detail: title of the jump-to-serial dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to question number'**
+  String get questionDetailJumpSerialTitle;
+
+  /// Question detail: label of the serial input in the jump-to-serial dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Question number'**
+  String get questionDetailJumpSerialFieldLabel;
+
+  /// Question detail: hint of the serial input, showing the two accepted spellings.
+  ///
+  /// In en, this message translates to:
+  /// **'TR-00012 or 12'**
+  String get questionDetailJumpSerialHint;
+
+  /// Question detail: error shown when the input is neither TR-00012 nor a plain number.
+  ///
+  /// In en, this message translates to:
+  /// **'Unrecognised question number'**
+  String get questionDetailJumpSerialInvalid;
+
+  /// Question detail: shown when the serial does not exist; {serial} is the normalised TR-00012 label.
+  ///
+  /// In en, this message translates to:
+  /// **'No question {serial} in the library'**
+  String questionDetailJumpSerialNotFound(String serial);
+
+  /// Question detail: confirm button of the jump-to-serial dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Go'**
+  String get questionDetailJumpSerialAction;
+
   /// Question detail: jump to the next question by serial number.
   ///
   /// In en, this message translates to:
