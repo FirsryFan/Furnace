@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/theme_profile.dart';
 import '../features/settings/application/appearance_providers.dart';
 import 'background_layer.dart';
+import 'page_zoom.dart';
 import 'settings/settings_controller.dart';
 import 'shell/home_shell.dart';
 
@@ -40,7 +41,8 @@ class FurnaceApp extends ConsumerWidget {
       theme: appearanceAsync.valueOrNull?.themeFor(Brightness.light) ??
           ThemeData(
             useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F6F4F)),
+            colorScheme:
+                ColorScheme.fromSeed(seedColor: const Color(0xFF2F6F4F)),
           ),
       darkTheme: appearanceAsync.valueOrNull?.themeFor(Brightness.dark) ??
           ThemeData(
@@ -64,11 +66,12 @@ class FurnaceApp extends ConsumerWidget {
 
 /// Applies the theme's page scale and animation switch to the widget tree.
 ///
-/// Why only `textScaler`: scaling here AND inside `ThemeData` would scale text
-/// twice. The spec asks for a page zoom of 80%-150%, and text is the dominant
-/// content in this app, so the scale is expressed as a text scaler applied to
-/// the whole tree. A custom font family is delivered through ThemeData, which
-/// is the only mechanism that reaches every widget correctly.
+/// The scale is a real page zoom (80%-150%): [PageZoom] lays the app out in a
+/// window/scale sized logical area and paints it scaled, so text, controls,
+/// spacing and images all follow the slider. An earlier version fed the scale
+/// into MediaQuery.textScaler only, which left every non-text size untouched.
+/// Scaling inside ThemeData instead would scale text twice, so the zoom is
+/// kept as a layout-level transform here.
 class _AppearanceScope extends StatelessWidget {
   const _AppearanceScope({required this.appearance, required this.child});
 
@@ -85,12 +88,7 @@ class _AppearanceScope extends StatelessWidget {
     final profile = active.effectiveFor(media.platformBrightness);
     final scale = ThemeScale.clamp(profile.scale);
 
-    Widget result = MediaQuery(
-      data: media.copyWith(
-        textScaler: TextScaler.linear(scale),
-      ),
-      child: child,
-    );
+    Widget result = PageZoom(scale: scale, child: child);
 
     // A background image is a layer *behind* the whole app, with the theme's
     // background colour over it as a scrim. The scaffold is transparent in that
