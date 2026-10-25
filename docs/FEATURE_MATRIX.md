@@ -30,7 +30,7 @@
 | 题干 → 组卷网检索词与链接 | 表内无此节 | ✅ 2026-10-18 新增（轮次一百二十二）：`domain/services/zujuan/` 移植 zujuan-source-standards 的 URL 与检索词规则（纯逻辑、不联网、不新增依赖）；题目详情页「去组卷网搜这道题」入口，底部表复制检索词 / 搜索页链接。见 [ZUJUAN_LINKS_DESIGN.md](ZUJUAN_LINKS_DESIGN.md) |
 | 主题 JSON（主/辅色、背景、动画） | 🔴 R4 | ✅ 已实现（`Themes` 表、`core/theme/theme_profile.dart`、主题编辑器；**图标槽位**为 2026-10-02 新增） |
 | 日/周/月/时间线日历 | 🔴 R5 | ✅ 已实现（`features/timeboard/presentation/calendar_page.dart`，`CalendarView{day,week,month,timeline}`） |
-| 页面缩放 80%–150% | 🔴 R4 | ❌ 仍未实现（在 `app/lib/` 下检索 `textScaleFactor` / `scaleFactor` / `uiScale` / `pageScale` 均无命中） |
+| 页面缩放 80%–150% | 🔴 R4 | ✅ 2026-10-25 已实现**整体缩放**（`app/lib/app/page_zoom.dart`）：布局按 窗口/scale 放大后再缩放绘制，文字/控件/间距/图片一起变；主题编辑器滑杆 0.8–1.5。旧行写「检索均无命中」是审计遗漏——当时由 `MediaQuery.textScaler` 承担，只缩放文字。见 PROGRESS 轮次一百七十一 |
 | Android 适配 / 正式包联网 | 🔴 v0.3 / — | ✅ 已重构建（2026-10-02）；并修掉"release 清单缺 `INTERNET`、AI 在 Android 正式包上完全连不上网" |
 
 ---
@@ -151,7 +151,7 @@
 | 主题自定义：主/辅色、背景色、透明度、背景图片、动画开关（定稿 §4.1） | 🔴 R4 | 现为 ThemeMode system/light/dark（`core/theme/app_theme.dart`、设置页）；R4 主题 JSON 模型＋`Themes` 表 |
 | 主题文件导入导出＋内置默认深/浅主题（定稿 §4.2） | 🔴 R4 | 规划中 · settings 模块（背景图导入复制进内部目录） |
 | UI 字体与编辑器正文字体分设、本地字体文件导入（定稿 §4.1） | 🔴 R4 | 规划中 · FontLoader 运行时加载（settings 模块） |
-| 页面缩放 80%–150%（整体缩放）（定稿 §4.1） | 🔴 R4 | 常量 0.8–1.5（GAP §4.3）；整体 scale 应用 |
+| 页面缩放 80%–150%（整体缩放）（定稿 §4.1） | ✅ 2026-10-25 | 常量 0.8–1.5（GAP §4.3）；`app/lib/app/page_zoom.dart` 在 `_AppearanceScope` 内做整体缩放（此前只有文字） |
 | 日/周/月日历视图：切换、点击空白/时间块弹浮窗创建或编辑（定稿 1.2.2 / GAP 2.2） | 🔴 R5 | 现为列表＋今日安排汇总（`time_board_page.dart`）；日历网格 R5（table_calendar 或手写，O1） |
 | 本地存储：SQLite＋本地文件，附件/背景图文件管理（定稿 §3） | 🟡 缺口：附件目录规范化、背景图/主题文件入内部目录 → R4 | Drift SQLite ✅（`data/database/`）；附件/背景文件管理未做 |
 

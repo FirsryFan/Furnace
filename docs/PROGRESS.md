@@ -2,6 +2,30 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百七十一：目标核验（五片已交付）+ 页面缩放改成整体缩放（Lead）
+
+**起点**：轮次一百七十收尾（HEAD `93ffe23`，v0.6.9 已发布并推送，工作树干净）。
+用户消息（m16589）：「你先看看这个目标是否已经完成，已经挂了很久很久了；页面缩放一直没有做；」
+
+**片 1：目标核验（五片交付证据）**
+- ① schema 题目实体：`app/lib/data/database/database.dart:125` `int get schemaVersion => 34;`（v12 起的四张题目表及后续 v30–v34 增量迁移都在）。
+- ② 收题页：`app/lib/features/questions/presentation/question_intake_page.dart`（1324 行）。
+- ③ 拍照手写整理：`question_intake_page.dart` 拖拽/选图 + `handwriting_queue_page.dart`（1523 行）+ `handwriting_proposal_service.dart`（1228 行，含多图整理）。
+- ④ AI 解题思维链→步骤→能力动作→卡点评估：`question_reasoning_service.dart`（231 行）、`domain/services/reasoning/reasoning_prompt.dart`、`stuck_point_evaluator.dart`、能力动作词表（`capability_action.dart` + 设置页词表编辑页 + 按动作找题页）。
+- ⑤ threadflow 两段式：`domain/services/scheduling/thread_ranker.dart`、`features/thread/application/thread_rank_service.dart`（437 行）、`thread_balance_inputs.dart`、`thread_balance_provider.dart`、`thread_rank_repository.dart`。
+- 文档自认的剩余项都是**标定/真机验收**（组卷学科配额、SimilarityWeights.quality、kPreferredActionBoost、微信拖拽真机、板块化 instrument、标定协议），不是五片功能缺口。→ 本轮把该 goal 标为 complete。
+
+**片 2：页面缩放（用户说「一直没有做」）**
+- 根因：`app/lib/app/app.dart` 的 `_AppearanceScope` 只把主题 scale 喂给 `MediaQuery.textScaler`，**只缩放文字**；控件、间距、图片不变。主题编辑器滑杆文案却写「影响正文与控件尺寸」，所以用户看到的是「没做」。
+- 新增 `app/lib/app/page_zoom.dart`：`PageZoom(scale:, child:)`——布局按 `窗口/scale` 放大成更大的逻辑区域（`LayoutBuilder` 取 `constraints.biggest`），`MediaQuery` 同步缩放 size/padding/viewPadding/viewInsets/systemGestureInsets，再 `ClipRect` + `OverflowBox(topLeft)` + `Transform.scale` + `SizedBox` 绘制回窗口；scale≈1 直接返回 child；保留系统 `textScaler` 不叠加（否则字号翻倍）。背景图（`Backdrop`）在缩放层之外，不随缩放变形。
+- `app/lib/app/app.dart`：`_AppearanceScope` 改为 `Widget result = PageZoom(scale: scale, child: child);`，删掉 textScaler 写法，注释说明为什么这不是 ThemeData 缩放（会把字号算两次）。
+- 测试 `app/test/app/page_zoom_test.dart` **7 例**：1.0 不动布局、1.5 逻辑尺寸/内边距/键盘 inset 按比例、0.8 逻辑区域变大、Transform 缩放因子与 ClipRect、点按命中跟随缩放、系统 textScaler 只乘一次、0/负数/NaN/∞ 一律忽略。
+- 文档修正：`docs/FEATURE_MATRIX.md:33`（旧行写「检索 textScaleFactor/scaleFactor 均无命中」是审计遗漏，实际由 textScaler 承担）与 :154 改成 ✅；`docs/APPEARANCE_DESIGN.md:27` 页面缩放一行加「2026-10-25 补真」。
+
+**门禁（实跑）**：`dart format` 本轮 3 个 dart 文件（含 app.dart）0 changed；`dart analyze lib test` = **91 issues / 0 error / 0 warning**（EXIT 0，基线不变）；`flutter test test/app/page_zoom_test.dart --concurrency=1` = **+7 All tests passed**；全量 `flutter test --concurrency=1` = **+5905 ~2 All tests passed**，15:20，EXIT 0（日志 `E:/dsh-tmp-aot/test-171-full.txt`；上轮基线 +5898，净增 7）。
+
+**风险 / 未做**：双端真机没手测缩放观感（80% / 100% / 150% 下的文字清晰度与布局）；背景图不随缩放（有意）；缩放跟随主题文档，切主题会切缩放；系统级文字缩放仍独立生效；页面缩放没有独立于主题的快捷入口。
+- 下一步（用户 m16679 新需求）：persona 自我描述功能（用户自己描述自己，存本地、进 AI 系统提示、在认知模型页可见）；随后 v0.6.10 出包。
 ## 2026-10-25 轮次一百七十：v0.6.9 双端发布（Lead）
 
 **起点**：轮次一百六十九收尾（HEAD `ff35552`，工作树干净，origin/main 已同步）。
