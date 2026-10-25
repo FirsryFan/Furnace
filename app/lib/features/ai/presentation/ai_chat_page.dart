@@ -31,6 +31,13 @@ final _conversationActionsProvider =
   return ref.watch(aiRepositoryProvider).listCommittedActions(conversationId);
 });
 
+/// Widget-test anchors for the three controls that only exist because a turn
+/// can be watched and stopped. Public so the test and the widgets cannot drift
+/// apart; the page itself never has to look them up.
+const Key aiReasoningPanelKey = Key('ai-reasoning-panel');
+const Key aiStopButtonKey = Key('ai-stop-button');
+const Key aiCancelledLabelKey = Key('ai-cancelled-label');
+
 /// The AI conversation screen.
 ///
 /// Design decisions this implements (docs/AI_DESIGN.md):
@@ -224,6 +231,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
     _invalidateConversation(id);
   }
+
+  /// Stops the turn in flight.
+  ///
+  /// The loop keeps whatever answer text already arrived (the streaming bubble
+  /// goes on showing it) and flags the state as cancelled, which is how the
+  /// page says "stopped" instead of pretending the answer is complete. Safe to
+  /// call twice: a cancel is idempotent in the loop, and a turn waiting for
+  /// approval is dropped by the same call.
+  void _stop() => _loop?.cancel();
 
   /// Picks one or more images, downscales them, and stages them for the next
   /// message.
@@ -566,6 +582,21 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 for (final action in actionsByToolCall.values)
                   if (persistedCallIds.contains(action.toolCallId)) action.id,
               };
+              // A stopped turn's partial answer is kept in `streamingText` by
+              // the loop *and* written to the database, so the reloaded history
+              // would show the same text twice. The streaming bubble already
+              // renders it; hide that one echo until the next turn resets the
+              // state.
+              String? cancelledEchoId;
+              if (_turn.cancelled && _turn.streamingText.isNotEmpty) {
+                for (final row in rows.reversed) {
+                  if (row.role == AiRepository.roleAssistant &&
+                      row.content == _turn.streamingText) {
+                    cancelledEchoId = row.id;
+                    break;
+                  }
+                }
+              }
               return ListView(
                 controller: _scroll,
                 padding: const EdgeInsets.all(16),
@@ -589,11 +620,21 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         action: actionsByToolCall[row.toolCallId],
                         onUndo: _undoFor(actionsByToolCall[row.toolCallId]),
                       )
-                    else if (row.role != AiRepository.roleSystem)
+                    else if (row.role != AiRepository.roleSystem &&
+                        row.id != cancelledEchoId)
                       _MessageBubble(
                         row: row,
                         images: imagesByMessage[row.id] ?? const [],
                       ),
+                  // The thinking comes before the answer it produced. It is not
+                  // part of the history: the loop resets it when the next turn
+                  // starts, so nothing here is cached by the page.
+                  if (_turn.reasoningText.trim().isNotEmpty)
+                    _ReasoningPanel(
+                      text: _turn.reasoningText,
+                      generating: _turn.generating,
+                      l10n: l10n,
+                    ),
                   if (_turn.streamingText.isNotEmpty)
                     _MessageBubble.streaming(_turn.streamingText),
                   for (final call in _turn.executed)
@@ -605,6 +646,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             ? () => _undo(call.actionId)
                             : null,
                       ),
+                  if (_turn.cancelled) _CancelledLabel(l10n: l10n),
                 ],
               );
             },
@@ -716,15 +758,23 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton.filled(
-                      tooltip: l10n.aiSend,
-                      onPressed: (_turn.generating ||
-                              _turn.hasPending ||
-                              _preparingImages)
-                          ? null
-                          : _send,
-                      icon: const Icon(Icons.send),
-                    ),
+                    // One slot, two meanings: while a turn is in flight (or
+                    // waiting for approval) stopping it is the useful action,
+                    // and a disabled send button would leave the user no way
+                    // out. A pending batch is dropped by the same cancel.
+                    if (_turn.generating || _turn.hasPending)
+                      IconButton.filled(
+                        key: aiStopButtonKey,
+                        tooltip: l10n.aiStopTooltip,
+                        onPressed: _stop,
+                        icon: const Icon(Icons.stop),
+                      )
+                    else
+                      IconButton.filled(
+                        tooltip: l10n.aiSend,
+                        onPressed: _preparingImages ? null : _send,
+                        icon: const Icon(Icons.send),
+                      ),
                   ],
                 ),
               ],
@@ -963,6 +1013,157 @@ class _ModeBanner extends StatelessWidget {
                 l10n.settingsAiPermissionAuto,
                 style:
                     TextStyle(fontSize: 12, color: scheme.onSecondaryContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The model's thinking, rendered live above the answer it produces.
+///
+/// Expanded while the turn runs (that is the interesting part to watch), then
+/// folded away once the answer arrives so the answer keeps the visual weight.
+/// The user can reopen it; the next turn clears the state, so nothing here is
+/// history.
+class _ReasoningPanel extends StatefulWidget {
+  const _ReasoningPanel({
+    required this.text,
+    required this.generating,
+    required this.l10n,
+  });
+
+  final String text;
+  final bool generating;
+  final AppLocalizations l10n;
+
+  @override
+  State<_ReasoningPanel> createState() => _ReasoningPanelState();
+}
+
+class _ReasoningPanelState extends State<_ReasoningPanel> {
+  late bool _expanded = widget.generating;
+
+  @override
+  void didUpdateWidget(covariant _ReasoningPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fold the moment the turn ends, even if the user had collapsed it while
+    // it was still thinking: an answer has arrived and the thinking is no
+    // longer what they are reading.
+    if (oldWidget.generating && !widget.generating) {
+      setState(() => _expanded = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = widget.l10n;
+    final expanded = _expanded;
+    return Padding(
+      key: aiReasoningPanelKey,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _expanded = !expanded),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.psychology_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.aiReasoningTitle,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (widget.generating) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.aiReasoningGenerating,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 11,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    Icon(
+                      expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: SelectableText(
+                  widget.text,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A quiet "stopped" note under a cancelled answer.
+///
+/// Deliberately not an error: the user stopped it on purpose and the partial
+/// answer above is still worth reading, so this is a neutral marker instead of
+/// [_ErrorBanner].
+class _CancelledLabel extends StatelessWidget {
+  const _CancelledLabel({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      key: aiCancelledLabelKey,
+      padding: const EdgeInsets.fromLTRB(4, 2, 0, 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.stop_circle_outlined,
+              size: 14,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l10n.aiCancelledLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
             ),
           ],

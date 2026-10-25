@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -9,6 +10,7 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
+import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/ai/presentation/ai_chat_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -26,7 +28,7 @@ import 'package:furnace/l10n/app_localizations.dart';
 /// skips itself.
 void main() {
   late AppDatabase db;
-  late FakeModelAdapter adapter;
+  late ModelAdapter adapter;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -78,6 +80,48 @@ void main() {
 
   TextEditingController controllerOf(WidgetTester tester) =>
       tester.widget<TextField>(input).controller!;
+
+  /// Pumps a bounded number of frames.
+  ///
+  /// Never [WidgetTester.pumpAndSettle] for these: while a turn is generating
+  /// the page shows an indeterminate progress bar, which animates forever.
+  Future<void> pumpFrames(WidgetTester tester, [int frames = 10]) async {
+    for (var i = 0; i < frames; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+  }
+
+  /// Pumps until [condition] holds, failing after three simulated seconds.
+  Future<void> waitFor(
+    WidgetTester tester,
+    bool Function() condition, {
+    required String reason,
+  }) async {
+    for (var i = 0; i < 150; i++) {
+      if (condition()) {
+        return;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    fail('$reason 在 3 秒模拟时间内未满足');
+  }
+
+  AppLocalizations l10nOf(WidgetTester tester) =>
+      AppLocalizations.of(tester.element(find.byType(AiChatPage)));
+
+  /// Sends [text] and waits until the loop is actually reading the adapter.
+  Future<void> startTurn(
+    WidgetTester tester,
+    _ControlledAdapter controlled,
+    String text,
+  ) async {
+    await tester.enterText(input, text);
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.send));
+    await waitFor(tester, () => controlled.started.isCompleted,
+        reason: '模型调用未开始');
+    await pumpFrames(tester);
+  }
 
   group('the message box', () {
     testWidgets('accepts a newline and keeps it', (tester) async {
@@ -414,4 +458,234 @@ void main() {
           reason: 'the in-memory tile and the stored row are one call');
     });
   });
+
+  group('reasoning and stopping a turn', () {
+    testWidgets('shows the thinking, expanded, while the turn runs',
+        (tester) async {
+      final controlled = _ControlledAdapter();
+      adapter = controlled;
+      await AiRepository(db).createConversation();
+      await pumpPage(tester);
+      final l10n = l10nOf(tester);
+
+      await startTurn(tester, controlled, '仔细想');
+      controlled.emit(const ModelReasoningDelta('先算动量'));
+      await waitFor(
+          tester, () => find.byKey(aiReasoningPanelKey).evaluate().isNotEmpty,
+          reason: '思考块未出现');
+
+      final panel = find.byKey(aiReasoningPanelKey);
+      expect(find.text(l10n.aiReasoningTitle), findsOneWidget);
+      expect(find.text(l10n.aiReasoningGenerating), findsOneWidget);
+      final body = find.descendant(
+        of: panel,
+        matching: find.byType(SelectableText),
+      );
+      expect(body, findsOneWidget, reason: '生成中的思考默认展开');
+      expect(tester.widget<SelectableText>(body).data, '先算动量');
+
+      expect(find.byKey(aiStopButtonKey), findsOneWidget);
+      expect(find.byIcon(Icons.send), findsNothing, reason: '生成中发送键被停止键取代');
+    });
+
+    testWidgets('the stop button cancels the turn and becomes send again',
+        (tester) async {
+      final controlled = _ControlledAdapter();
+      adapter = controlled;
+      await AiRepository(db).createConversation();
+      await pumpPage(tester);
+      final l10n = l10nOf(tester);
+
+      await startTurn(tester, controlled, '讲个故事');
+      controlled.emit(const ModelTextDelta('从前'));
+      await waitFor(tester, () => find.text('从前').evaluate().isNotEmpty,
+          reason: '部分回答未出现');
+
+      await tester.tap(find.byKey(aiStopButtonKey));
+      await tester.pump();
+      // The stop callback runs in the test binding's real zone: the cancellation
+      // it hands the loop through the adapter's stream, and the write of the
+      // partial answer that follows, are delivered on the real event loop.
+      // `tester.pump` only drains the fake clock, so give real async one turn
+      // before asserting; without it the loop stays `generating` forever.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await pumpFrames(tester, 30);
+
+      expect(controlled.cancelCalls, 1);
+      expect(find.byKey(aiStopButtonKey), findsNothing);
+      expect(find.byIcon(Icons.send), findsOneWidget, reason: '停止后发送键回来');
+      expect(find.text(l10n.aiCancelledLabel), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsNothing,
+          reason: '主动停止不是错误，不能出错误横幅');
+    });
+
+    testWidgets('stopping keeps the partial answer, exactly once',
+        (tester) async {
+      final controlled = _ControlledAdapter();
+      adapter = controlled;
+      final repository = AiRepository(db);
+      final conversation = await repository.createConversation();
+      await pumpPage(tester);
+
+      await startTurn(tester, controlled, '讲个故事');
+      controlled.emit(const ModelTextDelta('从前'));
+      await waitFor(tester, () => find.text('从前').evaluate().isNotEmpty,
+          reason: '部分回答未出现');
+      await tester.tap(find.byKey(aiStopButtonKey));
+      // Same real-zone hop as the stop test above: the cancel event reaches the
+      // loop's `await for` on the real event loop, not the fake clock.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await waitFor(
+          tester, () => find.byKey(aiCancelledLabelKey).evaluate().isNotEmpty,
+          reason: '已停止标记未出现');
+      // Let the reload triggered by the finished send land: the partial answer
+      // is both the streaming bubble and a stored row, and must read as one.
+      await pumpFrames(tester, 30);
+      await waitFor(tester, () => find.text('从前').evaluate().length == 1,
+          reason: '部分回答应只显示一次');
+
+      final rows = await repository.listMessages(conversation.id);
+      expect(
+        rows
+            .where((row) => row.role == AiRepository.roleAssistant)
+            .map((row) => row.content),
+        contains('从前'),
+        reason: '停止前到达的文本是真实输出，必须落库',
+      );
+    });
+
+    testWidgets('a finished turn folds the thinking and marks no cancellation',
+        (tester) async {
+      final controlled = _ControlledAdapter();
+      adapter = controlled;
+      await AiRepository(db).createConversation();
+      await pumpPage(tester);
+      final l10n = l10nOf(tester);
+
+      await startTurn(tester, controlled, '在吗');
+      controlled.emit(const ModelReasoningDelta('先想'));
+      await waitFor(
+          tester, () => find.byKey(aiReasoningPanelKey).evaluate().isNotEmpty,
+          reason: '思考块未出现');
+      controlled.emit(const ModelTextDelta('答案'));
+      await waitFor(tester, () => find.text('答案').evaluate().isNotEmpty,
+          reason: '回答未出现');
+      controlled.emit(const ModelTurnDone(finishReason: 'stop'));
+      await controlled.close();
+      await waitFor(
+          tester, () => find.byKey(aiStopButtonKey).evaluate().isEmpty,
+          reason: '停止按钮未消失');
+      await pumpFrames(tester, 30);
+
+      expect(find.byKey(aiCancelledLabelKey), findsNothing);
+      expect(find.byKey(aiStopButtonKey), findsNothing);
+      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.text(l10n.aiReasoningGenerating), findsNothing);
+
+      final panel = find.byKey(aiReasoningPanelKey);
+      expect(panel, findsOneWidget);
+      final body = find.descendant(
+        of: panel,
+        matching: find.byType(SelectableText),
+      );
+      expect(body, findsNothing, reason: '回答到达后思考块默认收起');
+
+      await tester.tap(find.text(l10n.aiReasoningTitle));
+      await pumpFrames(tester);
+      expect(body, findsOneWidget, reason: '收起后仍可手动展开');
+      expect(tester.widget<SelectableText>(body).data, '先想');
+    });
+  });
+
+  group('the stop button while waiting for approval', () {
+    testWidgets('a pending turn can be dropped instead of approved',
+        (tester) async {
+      // The send button is disabled while a batch waits for approval, so the
+      // stop button is the only way out; cancelling must not execute anything.
+      final controlled = _ControlledAdapter();
+      adapter = controlled;
+      final repository = AiRepository(db);
+      await repository.saveConfig(
+        const AiConfig(
+          enabled: true,
+          apiKey: 'sk-test',
+          permissionMode: AiPermissionMode.plan,
+        ),
+        fallbackLanguage: 'zh',
+      );
+      await repository.createConversation();
+      await pumpPage(tester);
+      final l10n = l10nOf(tester);
+
+      await startTurn(tester, controlled, '建一个任务');
+      controlled.emit(ModelToolCall(ToolCallRequest.fromJson({
+        'id': 'call_pending',
+        'function': {
+          'name': 'manage_task',
+          'arguments': jsonEncode({
+            'action': 'create',
+            'title': '待批准任务',
+          }),
+        },
+      })));
+      controlled.emit(const ModelTurnDone(finishReason: 'tool_calls'));
+      await controlled.close();
+      // The approval panel is the signal that the loop has really reached the
+      // pending state, so the stop below lands on a pending turn.
+      await waitFor(
+          tester, () => find.text(l10n.aiPendingTitle).evaluate().isNotEmpty,
+          reason: '审批面板未出现');
+      expect(find.byKey(aiStopButtonKey), findsOneWidget, reason: '等待批准时仍应能停止');
+
+      await tester.tap(find.byKey(aiStopButtonKey));
+      await pumpFrames(tester, 30);
+
+      expect(controlled.cancelCalls, 1);
+      expect(find.byKey(aiStopButtonKey), findsNothing);
+      expect(find.byIcon(Icons.send), findsOneWidget);
+      expect(find.text(l10n.aiPendingTitle), findsNothing,
+          reason: '整批被丢弃：审批面板关闭，没有执行任何调用');
+    });
+  });
+}
+
+/// A cancellable adapter whose events the test emits one by one, so a stop
+/// can land at an exact point in the stream.
+class _ControlledAdapter implements CancellableModelAdapter {
+  final StreamController<ModelEvent> _controller =
+      StreamController<ModelEvent>();
+
+  /// Completes when the loop has actually subscribed to a turn.
+  final Completer<void> started = Completer<void>();
+
+  int runCalls = 0;
+  int cancelCalls = 0;
+
+  @override
+  Stream<ModelEvent> runTurn({
+    required List<ChatMessage> messages,
+    required List<ModelToolSpec> tools,
+  }) {
+    runCalls++;
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    return _controller.stream;
+  }
+
+  @override
+  void cancelActiveTurn() {
+    cancelCalls++;
+    if (_controller.isClosed) {
+      return;
+    }
+    _controller.add(const ModelTurnCancelled());
+    unawaited(_controller.close());
+  }
+
+  void emit(ModelEvent event) {
+    _controller.add(event);
+  }
+
+  Future<void> close() => _controller.close();
 }
