@@ -28,6 +28,13 @@ Future<List<Tag>> _sortedTags(WidgetRef ref) async {
   return tags;
 }
 
+/// The full card text inside the knowledge point detail sheet.
+const Key ankiKnowledgeContentKey = Key('anki-knowledge-content');
+
+/// The root widget of the knowledge point detail sheet for [id].
+Key ankiKnowledgeDetailKeyFor(String id) =>
+    ValueKey<String>('anki-knowledge-detail-$id');
+
 /// Anki management: create knowledge points and card templates.
 class AnkiManagePage extends ConsumerWidget {
   const AnkiManagePage({super.key});
@@ -141,7 +148,13 @@ class AnkiManagePage extends ConsumerWidget {
                     final kp = kps[index];
                     return ListTile(
                       title: Text(kp.title),
-                      subtitle: Text(kp.content),
+                      // The full text lives in the detail sheet; the row
+                      // only previews it so the list stays scannable.
+                      subtitle: Text(
+                        kp.content,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -169,7 +182,10 @@ class AnkiManagePage extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      onTap: () => _showTemplates(context, ref, kp),
+                      onTap: () => _showKnowledgeDetail(context, ref, kp),
+                      // The old tag/template dialog stays reachable from the
+                      // detail sheet too; long press is the direct shortcut.
+                      onLongPress: () => _showTemplates(context, ref, kp),
                     );
                   },
                 );
@@ -642,6 +658,224 @@ class AnkiManagePage extends ConsumerWidget {
         .read(ankiRepositoryProvider)
         .getCardTemplateById(template.id);
   }
+
+  /// The full text of one knowledge point, with the row's actions next to it.
+  ///
+  /// The manage list can only preview two lines, and [_showTemplates] is
+  /// about tags and card templates rather than the card's own text, so this
+  /// sheet is the one place the whole content is readable and selectable.
+  Future<void> _showKnowledgeDetail(
+    BuildContext context,
+    WidgetRef ref,
+    KnowledgePoint kp,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    var current = kp;
+    var templates = await ref
+        .read(ankiRepositoryProvider)
+        .getTemplatesForKnowledgePoint(kp.id);
+    var kpTags = await ref
+        .read(tagRepositoryProvider)
+        .tagsForObject(objectType: 'knowledge_point', objectId: kp.id);
+    if (!context.mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetBuildContext, setSheetState) {
+          final theme = Theme.of(sheetBuildContext);
+          final content = current.content.trim();
+
+          /// Re-reads what an action just wrote so the sheet stays truthful
+          /// after an edit / auto-blank / new template.
+          Future<void> reload() async {
+            final updated = await ref
+                .read(ankiRepositoryProvider)
+                .getKnowledgePointById(current.id);
+            final nextTemplates = await ref
+                .read(ankiRepositoryProvider)
+                .getTemplatesForKnowledgePoint(current.id);
+            if (!sheetContext.mounted) {
+              return;
+            }
+            setSheetState(() {
+              if (updated != null) {
+                current = updated;
+              }
+              templates = nextTemplates;
+            });
+          }
+
+          return DraggableScrollableSheet(
+            key: ankiKnowledgeDetailKeyFor(current.id),
+            expand: false,
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            builder: (scrollContext, scrollController) => ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        current.title,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.commonClose,
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.ankiCardContentTitle,
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                // SelectableText, not Text: copying a passage out of the
+                // card is the actual use this sheet exists for.
+                SelectableText(
+                  content.isEmpty ? '—' : content,
+                  key: ankiKnowledgeContentKey,
+                  style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 20),
+                Text(l10n.tagsTitle, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                if (kpTags.isEmpty)
+                  Text(
+                    '—',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final tag in kpTags)
+                        Chip(label: Text(tag.path ?? tag.name)),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                const Divider(),
+                Row(
+                  children: [
+                    Text(
+                      l10n.handwritingProposalCardCount(templates.length),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    // The older dialog keeps its own job (adding/removing
+                    // tags, graph edges): link to it instead of duplicating.
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        _showTemplates(context, ref, current);
+                      },
+                      icon: const Icon(Icons.more_horiz),
+                      label: Text(l10n.knowledgeMoreActions),
+                    ),
+                  ],
+                ),
+                for (final template in templates)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      template.question,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      template.answer,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Chip(
+                      label: Text(_templateTypeLabel(l10n, template.type)),
+                    ),
+                    onTap: () async {
+                      final updated =
+                          await _editTemplate(context, ref, template);
+                      if (updated == null || !sheetContext.mounted) {
+                        return;
+                      }
+                      setSheetState(() {
+                        templates = [
+                          for (final t in templates)
+                            if (t.id == template.id) updated else t,
+                        ];
+                      });
+                    },
+                  ),
+                const SizedBox(height: 16),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () async {
+                        await _autoBlank(context, ref, current);
+                        await reload();
+                      },
+                      icon: const Icon(Icons.auto_fix_high),
+                      label: Text(l10n.ankiAutoBlank),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await _createTemplate(context, ref, current);
+                        await reload();
+                      },
+                      icon: const Icon(Icons.add_card),
+                      label: Text(l10n.ankiNewTemplate),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await _editKnowledgePoint(context, ref, current);
+                        await reload();
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: Text(l10n.commonEdit),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await _deleteKnowledgePoint(context, ref, current);
+                        if (sheetContext.mounted) {
+                          Navigator.of(sheetContext).pop();
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline),
+                      label: Text(l10n.commonDelete),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// The user-facing name of a stored card template type.
+  static String _templateTypeLabel(AppLocalizations l10n, String type) =>
+      switch (type) {
+        'mcq' => l10n.ankiTypeMcq,
+        'fill_blank' => l10n.ankiTypeFillBlank,
+        'essay' => l10n.ankiTypeEssay,
+        _ => type,
+      };
 
   Future<void> _showTemplates(
     BuildContext context,
