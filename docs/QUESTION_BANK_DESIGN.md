@@ -2339,7 +2339,7 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 - 门禁：format 0 changed；`dart analyze` 两文件 No issues；scoped
   `flutter test ...question_bank_page_test.dart --concurrency=1` → `+24: All tests passed!`；
   全量见 `docs/PROGRESS.md` 轮次一百六十六。
-- 边界：**排序偏好不持久化**，重启回到「最新」（与标签树排序偏好的落盘处理不同，按现状不做）；
+- 边界：~~排序偏好不持久化~~ → **已补**（v34 落盘 + 题库页接线，见 §44.2）；
   每切一次排序都可能触发一次全库读，超大题库（几千题）下的读表耗时未测；真机未验。
 
 ## 43. 题目详情页按题号翻「上一题 / 下一题」（轮次一百六十六，2026-10-24）
@@ -2396,7 +2396,7 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 - 门禁：format 0 changed；`dart analyze` 两文件 No issues；scoped
   `flutter test ...question_detail_page_test.dart --concurrency=1` → `+67: All tests passed!`；
   全量见 `docs/PROGRESS.md` 轮次一百六十六。
-- 边界：只做「题号相邻」翻页，**没有跳题号输入框**、不显示「第 N / 共 M 题」进度；翻页按当前页只读
+- 边界：~~没有跳题号输入框、不显示「第 N / 共 M 题」进度~~ → **已补**（见 §44.3）；翻页按当前页只读
   一次邻居，翻过去后由新页面自己再查；'自测模式' 是各页本地 State，翻页等于换一页（自测中翻走会回到
   未自测状态，与既有「切走再回来重置」口径一致）；小屏极窄时两个 action 会挤压标题，真机排版未验；
   两个 SELECT 分开跑、不在同一事务里（同一份库内一致性足够，未加事务）。
@@ -2407,3 +2407,86 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 
 
 
+
+## 44. 排序偏好落盘（schema v34）+ 详情页做题进度 + 跳题号（轮次一百六十八，2026-10-24）
+
+> 三个都是设计文档自己写明的边界：§42.3「排序偏好不持久化，重启回到最新」、§43.4「没有跳题号输入框、不显示第 N / 共 M 题进度」。
+> 本轮一次补齐：排序偏好落库并读回初值；详情页顶部显示「第 N / 共 M 题」；AppBar 加「跳题号」直达任意题。
+> 无模型调用；只有排序偏好需要 schema 迁移（v33→34），进度行与跳题号只读现成数据。
+
+### 44.1 schema v34 与数据层（Lead）
+
+- 表列：`app/lib/data/database/tables.dart:164-166` 给 `local_settings` 加
+  `TextColumn get questionLibrarySortMode => text().nullable()();`——存稳定 encode（`newest` / `serial` / `wrong_first`），
+  **NULL = 用户没选过**（读作出厂「最新」）。表定义不 import 域层枚举，codec 在应用层（与 `tag_tree_sort_mode` 同一先例）。
+- 迁移：`app/lib/data/database/database.dart:975-983` `_upgradeV33ToV34()`——`local_settings` 不存在直接返回，
+  否则 `_addColumnIfMissing(m, 'local_settings', localSettings.questionLibrarySortMode)`；`schemaVersion => 34`（:125），
+  doc 链加 `[_upgradeV33ToV34]`（:115），`onUpgrade` 加 `if (from < 34)`（:231），`_ensureColumns` 的 `local_settings`
+  列清单加同一列（:299，版本号已是 34 但被老文件盖掉时自愈）。只加列、**不回填**：回填会把出厂档位冻成一次明确的用户选择。
+  `database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重生成（exit 0，824 outputs）。
+- codec：`app/lib/features/questions/application/question_library_sort.dart:39`
+  `String questionLibrarySortCode(QuestionLibrarySort sort)`（newest→newest、serial→serial、wrongFirst→wrong_first）；
+  `:52` `QuestionLibrarySort questionLibrarySortFromStorage(String? code)`（NULL/空串/未知 code 一律回落 `newest`，两端 trim）。
+- 仓储：`app/lib/data/repositories/settings_repository.dart:263` `Future<String?> getQuestionLibrarySortMode()`
+  （`getSettings()?.questionLibrarySortMode`）；`:276` `Future<void> updateQuestionLibrarySortMode(String? mode)`
+  ——先 `ensureSettings()`（设置行懒创建，不先确保行会写 0 行），code trim 空写 NULL，非空原样写，刷新 `updatedAt`。
+- provider：新文件 `app/lib/features/questions/application/question_library_sort_preference.dart:19`
+  `final questionLibrarySortPreferenceProvider = FutureProvider.autoDispose<QuestionLibrarySort>`
+  （`ref.watchDatabaseRevision()` + `getQuestionLibrarySortMode` → `questionLibrarySortFromStorage`），写库后自动重读。
+- 测试：`app/test/data/database/v34_migration_test.dart` **4 例**（真实 v33 文件升级读 NULL→newest 且能写能读重开不丢；
+  版本已 34 但缺列时自愈；空白写 NULL / 未知 code 不拒且读侧降级 / 传 null 恢复出厂；新库无设置行读 NULL）；
+  `question_library_sort_test.dart` 17 → **20 例**（+3 codec）；`question_repository_test.dart` 18 → **20 例**（+2 `serialPosition`，见 §44.3）。
+
+### 44.2 题库页接线（question-intake）
+
+- `app/lib/features/questions/presentation/question_bank_page.dart`：
+  - `:175` `QuestionLibrarySort? _sortOverride`（本次会话手选）、`:178` `QuestionLibrarySort? _persistedSort`（落盘缓存）、
+    `:184-185` 有效档位 getter `QuestionLibrarySort get _sort => _sortOverride ?? _persistedSort ?? QuestionLibrarySort.newest;`
+    ——不能只在 build 里算：`_readsFullLibrary` 会被 build 外的 `_refresh` 调用，所以两个来源各缓存在 State 字段。
+  - `:679-683` build 顶部 watch 偏好 provider，`valueOrNull` 非空就更新 `_persistedSort`（**不 setState**：本帧立刻按新档位选数据源）。
+  - `:289-301` `_persistSort(sort)`：`await ref.read(settingsRepositoryProvider).updateQuestionLibrarySortMode(questionLibrarySortCode(sort))`，
+    失败只 `debugPrint`（排序已在本次会话生效，落盘失败不该弹回去）。
+  - `:753-758` 菜单 `onSelected`：先 `setState(() => _sortOverride = value)` 再 `unawaited(_persistSort(value))`。
+  - 优先级：本次手选 > 落盘偏好 > 出厂最新。`_readsFullLibrary` / `_refresh` / `_bulkDelete` / build / `_visibleEntries`
+    全部自动走有效档位（读全库档随之切换）。
+- 测试 `app/test/features/questions/presentation/question_bank_page_test.dart` 24 → **28 例**（`group('排序偏好落盘')`，+4）：
+  ①预置 `serial` → 首帧按题号 1,2,3 升序且菜单勾在「题号」；②无存档选「题号」→ 库值 `serial` 且菜单跟随；
+  ③预置坏值 `bogus` → 不崩、回落最新；④预置 serial 首帧按题号 → 手选「最新」→ 立即回读表序且库值 `newest`
+  （防写库触发的偏好重读顶掉本次手选）。
+
+### 44.3 详情页「第 N / 共 M 题」与跳题号（threadflow-engine）
+
+- 数据层（Lead）：`app/lib/data/repositories/question_repository.dart:194` `QuestionSerialPosition { index, total }`
+  （index 从 1 起 = 题号 <= 本题号的题数，同号共享 index；total = 有题号的题数）；`:407` `Future<QuestionSerialPosition?> serialPosition(int serialNo)`
+  ——`serialNo < 1` → null；`total == 0` → null；否则两个 count 查询。
+  provider `app/lib/features/questions/presentation/question_detail_providers.dart:85`
+  `questionSerialPositionProvider = FutureProvider.autoDispose.family<QuestionSerialPosition?, String>`（按 id 读题，无题号返回 null）。
+  仓储测试 +2：空库 / 负数 / 无题号题返回 null，三题 index 1..3 total 3，未编号题不计数，同号多题共享 index。
+- UI：`app/lib/features/questions/presentation/question_detail_page.dart`
+  - 顶层 key：`questionDetailSerialPositionKey`（:108）、`questionDetailJumpSerialKey`（:112）。
+  - build watch `questionSerialPositionProvider`（:281）；`position != null` 时 ListView 第一项渲染进度行
+    （:318-326，`Padding(key, bottom 8) + Text(l10n.questionDetailSerialPosition(index, total))`，bodySmall + onSurfaceVariant）；
+    null / 加载中 / 读失败整行不渲染。
+  - AppBar 「下一题」之后加 `IconButton(Icons.tag, key: questionDetailJumpSerialKey, onPressed: _jumpToSerial)`（:307-310）。
+  - `_jumpToSerial()`（:232）：弹 `_JumpToSerialDialog`（:394-455）拿 `QuestionNumberQuery`；`parseQuestionNumberQuery`
+    认不出时**不关框**、`errorText` 写 `questionDetailJumpSerialInvalid`、输入保留；认得出 `Navigator.pop(query)`。
+    页面再 `findBySerialNo(query.serialNo)`：找不到 → SnackBar `questionDetailJumpSerialNotFound(query.normalizedLabel)` 页面不动；
+    命中当前题 → 什么都不做；命中别的题 → `_openNeighborSerial`（:263）`pushReplacement`（与 §43 翻页同层横走，不堆返回栈）。
+- 测试 `app/test/features/questions/presentation/question_detail_page_test.dart` 67 → **73 例**（`group('题号进度行与跳题号')` :2138，+6）：
+  中间题显示「第 2 / 共 3 题」、无题号整行不渲染、TR-00003 跳成功且无 BackButton 证明 pushReplacement、
+  `abc` 认不出不关框且输入保留、TR-00099 SnackBar 报号页面不动、命中当前题 no-op。
+
+### 44.4 l10n、门禁与边界
+
+- l10n 8 key（Lead 手改两个 ARB + `flutter gen-l10n` exit 0；getter 在 `app/lib/l10n/app_localizations.dart:9057-9099`）：
+  `questionDetailSerialPosition(index, total)`（第 {index} / 共 {total} 题 / Question {index} of {total}）、
+  `questionDetailJumpSerialTooltip` / `Title` / `FieldLabel` / `Hint` / `Invalid` / `NotFound(serial)` / `Action`。
+- 门禁（Lead 独立复跑）：只 format 本轮 14 个 dart 文件 → 0 changed；`dart analyze lib test` = **91 issues / 0 error / 0 warning**
+  （与基线一致）；scoped 五个测试文件 → `+145: All tests passed!`；全量 `flutter test --concurrency=1` 见 `docs/PROGRESS.md` 轮次一百六十八。
+  另修：`app/test/data/database/v32_migration_test.dart` / `v33_migration_test.dart` 里写死的 `expect(await userVersionOf(db), 33);`
+  改成 `expect(await userVersionOf(db), db.schemaVersion);`——首跑全量时这两文件 8 例因 schema 升 34 报 `Expected:<33> Actual:<34>`；
+  改后迁移测试不再随版本号过期而误报。
+- 边界：落盘偏好读到前首帧按「最新」排列（异步读库的固有间隙，未做加载期骨架）；真机重启场景未手测（单测用真实
+  `SettingsRepository` 模拟落盘）；写库失败只 debugPrint、未单独加失败用例（页面无注入 seam）。跳题号只认题号，不认题名/id；
+  同号多题时 `findBySerialNo` 取第一道（§11.1 允许同号）；进度行 index 是「题号 <= 当前」的题数，同号题会显示同一个 index；
+  小屏 AppBar 三个 action 与标题的挤压排版未真机验。

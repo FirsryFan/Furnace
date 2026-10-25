@@ -923,3 +923,44 @@ code 是域层 `tag_tree_sort.dart` 的稳定机器编码，UI 显示名仍由�
 - 没有高水位行时退回「现存最大 + 1」，这次分配后把高水位写进去；并发 `Future.wait` 6 道题不撞号。
 
 
+
+## 23. v34：题库列表排序偏好（`local_settings.question_library_sort_mode`，轮次一百六十八）
+
+题库页的排序菜单（最新 / 按题号 / 错题优先）原先只活在页面 State 里：关掉应用再进去又回到「最新」，
+用户每次重启都要重选一遍（`docs/QUESTION_BANK_DESIGN.md` §42.3 明写的边界）。v34 给单行设置表加一列可空文本，
+把用户的选择落下来。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.question_library_sort_mode` | TEXT，可空 | 稳定 encode：`newest` / `serial` / `wrong_first`。**NULL = 用户没选过**，读作出厂档位「最新在前」 |
+
+**为什么存 encode 不存中文**：改文案不会让已存值变成读不懂的字符串，换语言之后读回来的还是同一个档位；
+encode 一经发出就不再改（改了等于把老安装的选择变成「未知值」）。翻译在应用层：
+`String questionLibrarySortCode(QuestionLibrarySort sort)` 与
+`QuestionLibrarySort questionLibrarySortFromStorage(String? code)`
+（`app/lib/features/questions/application/question_library_sort.dart`），NULL / 空串 / 未知 code 一律降级成
+`newest`——「没选过」与「未来版本才认识的档位」读出来是同一个行为，不报错、不换档。
+
+**迁移**：`_upgradeV33ToV34()`（`app/lib/data/database/database.dart:975-983`）对 `local_settings`
+`addColumnIfMissing` 一列（表不存在直接返回）；`_ensureColumns()` 的 `local_settings` 列表加同一列做自愈
+（:299，版本号已是 34 但老文件被盖掉时补列）；`schemaVersion => 34`（:125）。迁移**不回填**：
+回填会把出厂档位冻成一次明确的用户选择，以后改出厂排序就达不到了（与 `tag_tree_sort_mode` /
+`review_reminder_minutes` / `goal_beta` 同一个契约）。本迁移只加列、不改既有行，因此老库升级后
+`getQuestionLibrarySortMode()` 读作 NULL。
+
+**读写接口**（`app/lib/data/repositories/settings_repository.dart`）：
+- `Future<String?> getQuestionLibrarySortMode()`：`getSettings()?.questionLibrarySortMode`（没有设置行 → NULL，
+  读侧兜底，不靠迁移补行）；
+- `Future<void> updateQuestionLibrarySortMode(String? mode)`：先 `ensureSettings()`（设置行是懒创建的，
+  不先确保行存在会写 0 行、丢掉用户选择），code `trim()` 后为空写 **NULL**（空白不是第四种状态），
+  非空原样写（未知 code 不拒绝——由读侧降级），并刷新 `updatedAt`。
+- provider：`questionLibrarySortPreferenceProvider`（`app/lib/features/questions/application/question_library_sort_preference.dart`，
+  `FutureProvider.autoDispose` + `ref.watchDatabaseRevision()`，写库后自动重读，页面不必手动 invalidate）。
+
+**测试锁的事实**（`app/test/data/database/v34_migration_test.dart` 4 例、
+`app/test/features/questions/application/question_library_sort_test.dart` 的 codec 3 例，全绿）：
+- 真实 v33 文件升级后 `user_version` = 34、老设置行读作「没选过」（NULL → `newest`）、升级后立刻能写能读、
+  关库重开值还在；
+- 被盖成「版本 34 但缺 `question_library_sort_mode` 列」的老文件靠 `_ensureColumns` 补列，可读可写；
+- 空白串存成 NULL；未知 code 不被拒，读侧降级成 `newest`；传 `null` = 恢复出厂；
+- codec：三种档位 encode 稳定且可原样读回，两端空白 trim 后仍认得。
