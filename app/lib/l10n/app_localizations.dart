@@ -9271,6 +9271,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stopped'**
   String get aiCancelledLabel;
+
+  /// Tooltip of the button that restores fit-to-screen zoom and centering on the knowledge graph.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset view'**
+  String get cognitiveGraphResetView;
+
+  /// Gesture hint shown in the corner of the knowledge graph.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to pan, pinch to zoom'**
+  String get cognitiveGraphPanHint;
+
+  /// Character-count label next to a zujuan keyword candidate.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} chars'**
+  String questionZujuanKeywordLength(int count);
+
+  /// Length guidance shown at the top of the zujuan candidate sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyword suggestions: 15-30 characters for science, 20-40 for humanities, always shorter than the stem.'**
+  String get questionZujuanLengthHint;
+
+  /// Title of the dialog that declares a tag's usage scope in the tag tree.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag usage'**
+  String get tagUsageDialogTitle;
+
+  /// Title of the tag-tree toolbar entry for usage scopes.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage scope'**
+  String get tagUsageEntryTitle;
+
+  /// Subtitle of the usage-scope entry, showing how many tags declare a usage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags have usage rules'**
+  String tagUsageEntrySubtitle(int count);
+
+  /// Tag usage: tags under this subtree are available to time blocks.
+  ///
+  /// In en, this message translates to:
+  /// **'In schedule'**
+  String get tagUsageTime;
+
+  /// Tag usage: tags under this subtree are available to the question bank.
+  ///
+  /// In en, this message translates to:
+  /// **'Question bank'**
+  String get tagUsageQuestion;
+
+  /// Tag usage: tags under this subtree are available to the knowledge graph.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge graph'**
+  String get tagUsageKnowledge;
+
+  /// Tag usage: tags under this subtree are available to tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tagUsageTask;
+
+  /// Tag usage: tags under this subtree are available to flashcards.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashcards'**
+  String get tagUsageFlashcard;
+
+  /// Footer hint of the tag usage dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Child tags inherit usage from their ancestors; selecting none means no restriction.'**
+  String get tagUsageInheritHint;
+
+  /// Scope hint at the top of the time-block tag picker when some tags declare the schedule usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Only tags under an “In schedule” tree are shown.'**
+  String get timeBlockTagScopeHint;
+
+  /// Empty state of the time-block tag picker when no tag declares the schedule usage.
+  ///
+  /// In en, this message translates to:
+  /// **'No tag is marked “In schedule” yet. Set it on the Tags page first.'**
+  String get timeBlockTagScopeEmpty;
+
+  /// Default hint of the time-block tag picker when no tag declares the schedule usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open “In schedule” on a tag in the Tags page to restrict this picker to that tree.'**
+  String get timeBlockTagScopeDefaultHint;
+
+  /// Filter chip on the schedule list: show every time block.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get timeBoardFilterAll;
+
+  /// Filter chip on the schedule list: show only time blocks that intersect today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get timeBoardFilterToday;
+
+  /// Empty state of the schedule list when filtering to today and no block intersects today.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled today.'**
+  String get timeBoardTodayEmpty;
 }
 
 class _AppLocalizationsDelegate

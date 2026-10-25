@@ -5559,4 +5559,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiCancelledLabel => 'Stopped';
+
+  @override
+  String get cognitiveGraphResetView => 'Reset view';
+
+  @override
+  String get cognitiveGraphPanHint => 'Drag to pan, pinch to zoom';
+
+  @override
+  String questionZujuanKeywordLength(int count) {
+    return '$count chars';
+  }
+
+  @override
+  String get questionZujuanLengthHint =>
+      'Keyword suggestions: 15-30 characters for science, 20-40 for humanities, always shorter than the stem.';
+
+  @override
+  String get tagUsageDialogTitle => 'Tag usage';
+
+  @override
+  String get tagUsageEntryTitle => 'Usage scope';
+
+  @override
+  String tagUsageEntrySubtitle(int count) {
+    return '$count tags have usage rules';
+  }
+
+  @override
+  String get tagUsageTime => 'In schedule';
+
+  @override
+  String get tagUsageQuestion => 'Question bank';
+
+  @override
+  String get tagUsageKnowledge => 'Knowledge graph';
+
+  @override
+  String get tagUsageTask => 'Tasks';
+
+  @override
+  String get tagUsageFlashcard => 'Flashcards';
+
+  @override
+  String get tagUsageInheritHint =>
+      'Child tags inherit usage from their ancestors; selecting none means no restriction.';
+
+  @override
+  String get timeBlockTagScopeHint =>
+      'Only tags under an “In schedule” tree are shown.';
+
+  @override
+  String get timeBlockTagScopeEmpty =>
+      'No tag is marked “In schedule” yet. Set it on the Tags page first.';
+
+  @override
+  String get timeBlockTagScopeDefaultHint =>
+      'Open “In schedule” on a tag in the Tags page to restrict this picker to that tree.';
+
+  @override
+  String get timeBoardFilterAll => 'All';
+
+  @override
+  String get timeBoardFilterToday => 'Today';
+
+  @override
+  String get timeBoardTodayEmpty => 'Nothing scheduled today.';
 }

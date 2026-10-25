@@ -5336,4 +5336,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiCancelledLabel => '已停止';
+
+  @override
+  String get cognitiveGraphResetView => '重置视图';
+
+  @override
+  String get cognitiveGraphPanHint => '拖动平移，双指缩放';
+
+  @override
+  String questionZujuanKeywordLength(int count) {
+    return '$count 字';
+  }
+
+  @override
+  String get questionZujuanLengthHint => '理科检索词建议 15–30 字，文科 20–40 字，且始终短于题干。';
+
+  @override
+  String get tagUsageDialogTitle => '标签用途';
+
+  @override
+  String get tagUsageEntryTitle => '用途边界';
+
+  @override
+  String tagUsageEntrySubtitle(int count) {
+    return '已为 $count 个标签设置用途';
+  }
+
+  @override
+  String get tagUsageTime => '纳入时间表';
+
+  @override
+  String get tagUsageQuestion => '题库';
+
+  @override
+  String get tagUsageKnowledge => '知识网络';
+
+  @override
+  String get tagUsageTask => '任务';
+
+  @override
+  String get tagUsageFlashcard => '闪卡';
+
+  @override
+  String get tagUsageInheritHint => '子标签自动继承上级标签的用途；一个用途都不选表示不限制。';
+
+  @override
+  String get timeBlockTagScopeHint => '只显示「纳入时间表」标签树里的标签。';
+
+  @override
+  String get timeBlockTagScopeEmpty => '标签树里还没有「纳入时间表」的标签，先到标签页设置。';
+
+  @override
+  String get timeBlockTagScopeDefaultHint => '可在标签页给标签打开「纳入时间表」，之后这里只用那棵树里的标签。';
+
+  @override
+  String get timeBoardFilterAll => '全部';
+
+  @override
+  String get timeBoardFilterToday => '今天';
+
+  @override
+  String get timeBoardTodayEmpty => '今天没有安排。';
 }

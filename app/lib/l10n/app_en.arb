@@ -3212,5 +3212,91 @@
   "aiCancelledLabel": "Stopped",
   "@aiCancelledLabel": {
     "description": "Badge shown next to a reply the user stopped midway."
+  },
+  "cognitiveGraphResetView": "Reset view",
+  "@cognitiveGraphResetView": {
+    "description": "Tooltip of the button that restores fit-to-screen zoom and centering on the knowledge graph."
+  },
+  "cognitiveGraphPanHint": "Drag to pan, pinch to zoom",
+  "@cognitiveGraphPanHint": {
+    "description": "Gesture hint shown in the corner of the knowledge graph."
+  },
+  "questionZujuanKeywordLength": "{count} chars",
+  "@questionZujuanKeywordLength": {
+    "description": "Character-count label next to a zujuan keyword candidate.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionZujuanLengthHint": "Keyword suggestions: 15-30 characters for science, 20-40 for humanities, always shorter than the stem.",
+  "@questionZujuanLengthHint": {
+    "description": "Length guidance shown at the top of the zujuan candidate sheet."
+  },
+  "tagUsageDialogTitle": "Tag usage",
+  "@tagUsageDialogTitle": {
+    "description": "Title of the dialog that declares a tag's usage scope in the tag tree."
+  },
+  "tagUsageEntryTitle": "Usage scope",
+  "@tagUsageEntryTitle": {
+    "description": "Title of the tag-tree toolbar entry for usage scopes."
+  },
+  "tagUsageEntrySubtitle": "{count} tags have usage rules",
+  "@tagUsageEntrySubtitle": {
+    "description": "Subtitle of the usage-scope entry, showing how many tags declare a usage.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tagUsageTime": "In schedule",
+  "@tagUsageTime": {
+    "description": "Tag usage: tags under this subtree are available to time blocks."
+  },
+  "tagUsageQuestion": "Question bank",
+  "@tagUsageQuestion": {
+    "description": "Tag usage: tags under this subtree are available to the question bank."
+  },
+  "tagUsageKnowledge": "Knowledge graph",
+  "@tagUsageKnowledge": {
+    "description": "Tag usage: tags under this subtree are available to the knowledge graph."
+  },
+  "tagUsageTask": "Tasks",
+  "@tagUsageTask": {
+    "description": "Tag usage: tags under this subtree are available to tasks."
+  },
+  "tagUsageFlashcard": "Flashcards",
+  "@tagUsageFlashcard": {
+    "description": "Tag usage: tags under this subtree are available to flashcards."
+  },
+  "tagUsageInheritHint": "Child tags inherit usage from their ancestors; selecting none means no restriction.",
+  "@tagUsageInheritHint": {
+    "description": "Footer hint of the tag usage dialog."
+  },
+  "timeBlockTagScopeHint": "Only tags under an “In schedule” tree are shown.",
+  "@timeBlockTagScopeHint": {
+    "description": "Scope hint at the top of the time-block tag picker when some tags declare the schedule usage."
+  },
+  "timeBlockTagScopeEmpty": "No tag is marked “In schedule” yet. Set it on the Tags page first.",
+  "@timeBlockTagScopeEmpty": {
+    "description": "Empty state of the time-block tag picker when no tag declares the schedule usage."
+  },
+  "timeBlockTagScopeDefaultHint": "Open “In schedule” on a tag in the Tags page to restrict this picker to that tree.",
+  "@timeBlockTagScopeDefaultHint": {
+    "description": "Default hint of the time-block tag picker when no tag declares the schedule usage."
+  },
+  "timeBoardFilterAll": "All",
+  "@timeBoardFilterAll": {
+    "description": "Filter chip on the schedule list: show every time block."
+  },
+  "timeBoardFilterToday": "Today",
+  "@timeBoardFilterToday": {
+    "description": "Filter chip on the schedule list: show only time blocks that intersect today."
+  },
+  "timeBoardTodayEmpty": "Nothing scheduled today.",
+  "@timeBoardTodayEmpty": {
+    "description": "Empty state of the schedule list when filtering to today and no block intersects today."
   }
 }

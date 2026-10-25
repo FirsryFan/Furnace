@@ -3119,5 +3119,91 @@
   "aiCancelledLabel": "已停止",
   "@aiCancelledLabel": {
     "description": "用户中途停止生成后，在这条回复旁边显示的标记。"
+  },
+  "cognitiveGraphResetView": "重置视图",
+  "@cognitiveGraphResetView": {
+    "description": "知识网络图 AppBar 上恢复自适应缩放与居中的按钮提示。"
+  },
+  "cognitiveGraphPanHint": "拖动平移，双指缩放",
+  "@cognitiveGraphPanHint": {
+    "description": "知识网络图角落的操作提示。"
+  },
+  "questionZujuanKeywordLength": "{count} 字",
+  "@questionZujuanKeywordLength": {
+    "description": "组卷网检索词候选旁边的字数标签。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "questionZujuanLengthHint": "理科检索词建议 15–30 字，文科 20–40 字，且始终短于题干。",
+  "@questionZujuanLengthHint": {
+    "description": "组卷网检索词候选表开头的长度说明。"
+  },
+  "tagUsageDialogTitle": "标签用途",
+  "@tagUsageDialogTitle": {
+    "description": "标签树页面给标签设置用途边界的对话框标题。"
+  },
+  "tagUsageEntryTitle": "用途边界",
+  "@tagUsageEntryTitle": {
+    "description": "标签树页面工具入口的标题。"
+  },
+  "tagUsageEntrySubtitle": "已为 {count} 个标签设置用途",
+  "@tagUsageEntrySubtitle": {
+    "description": "标签树页面工具入口的副标题，显示声明了用途的标签数。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tagUsageTime": "纳入时间表",
+  "@tagUsageTime": {
+    "description": "标签用途：该标签子树里的标签可用于时间块的标签选择。"
+  },
+  "tagUsageQuestion": "题库",
+  "@tagUsageQuestion": {
+    "description": "标签用途：该标签子树里的标签可用于题库。"
+  },
+  "tagUsageKnowledge": "知识网络",
+  "@tagUsageKnowledge": {
+    "description": "标签用途：该标签子树里的标签可用于知识网络/认知模型。"
+  },
+  "tagUsageTask": "任务",
+  "@tagUsageTask": {
+    "description": "标签用途：该标签子树里的标签可用于任务。"
+  },
+  "tagUsageFlashcard": "闪卡",
+  "@tagUsageFlashcard": {
+    "description": "标签用途：该标签子树里的标签可用于闪存卡。"
+  },
+  "tagUsageInheritHint": "子标签自动继承上级标签的用途；一个用途都不选表示不限制。",
+  "@tagUsageInheritHint": {
+    "description": "标签用途对话框底部的继承说明。"
+  },
+  "timeBlockTagScopeHint": "只显示「纳入时间表」标签树里的标签。",
+  "@timeBlockTagScopeHint": {
+    "description": "时间块标签选择器顶部的作用域说明（已有标签声明纳入时间表时）。"
+  },
+  "timeBlockTagScopeEmpty": "标签树里还没有「纳入时间表」的标签，先到标签页设置。",
+  "@timeBlockTagScopeEmpty": {
+    "description": "时间块标签选择器的空态：没有标签声明纳入时间表。"
+  },
+  "timeBlockTagScopeDefaultHint": "可在标签页给标签打开「纳入时间表」，之后这里只用那棵树里的标签。",
+  "@timeBlockTagScopeDefaultHint": {
+    "description": "时间块标签选择器默认（没有任何标签声明）时的提示。"
+  },
+  "timeBoardFilterAll": "全部",
+  "@timeBoardFilterAll": {
+    "description": "安排列表的过滤片：显示所有时间块。"
+  },
+  "timeBoardFilterToday": "今天",
+  "@timeBoardFilterToday": {
+    "description": "安排列表的过滤片：只显示与今天有交集的时间块。"
+  },
+  "timeBoardTodayEmpty": "今天没有安排。",
+  "@timeBoardTodayEmpty": {
+    "description": "安排列表切到「今天」且当天没有时间块时的空态。"
   }
 }
