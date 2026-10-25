@@ -29,6 +29,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/objective_answer.dart';
+import '../../../domain/services/questions/question_number_query.dart';
 import '../../../domain/services/questions/question_source.dart';
 import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
@@ -99,6 +100,16 @@ const Key questionDetailPreviousQuestionKey =
 
 /// AppBar 上「下一题」按钮的 key（测试定位用）。
 const Key questionDetailNextQuestionKey = Key('question-detail-next-question');
+
+/// 「第 N / 共 M 题」进度行的 key（测试定位用）。
+///
+/// 分页读数只有"本题有题号"时才有（见 `questionSerialPositionProvider`），
+/// 没有就在页面上完全不出现这一行。
+const Key questionDetailSerialPositionKey =
+    Key('question-detail-serial-position');
+
+/// AppBar 上「跳题号」按钮的 key（测试定位用）。
+const Key questionDetailJumpSerialKey = Key('question-detail-jump-serial');
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
@@ -213,6 +224,50 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     );
   }
 
+  /// 「跳题号」：先弹输入框拿到检索，再按题号查库。
+  ///
+  /// 三种结果都**不给假动作**：认不出就不关框（在输入框上写原因）；库里没有就
+  /// 只弹一句提示、页面原地不动；正好是当前这道题就什么都不做（不 pushReplacement
+  /// 到自己——那会白重载一遍页面）。只有真跳到别的题才换路由。
+  Future<void> _jumpToSerial() async {
+    final query = await showDialog<QuestionNumberQuery>(
+      context: context,
+      builder: (_) => const _JumpToSerialDialog(),
+    );
+    if (query == null || !mounted) {
+      return;
+    }
+    final found = await ref
+        .read(questionRepositoryProvider)
+        .findBySerialNo(query.serialNo);
+    if (!mounted) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    if (found == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              l10n.questionDetailJumpSerialNotFound(query.normalizedLabel)),
+        ),
+      );
+      return;
+    }
+    if (found.id == widget.questionId) {
+      return;
+    }
+    _openNeighborSerial(found.id);
+  }
+
+  /// 跳到指定题号命中的那道题；语义与 `_openNeighbor` 一致（同层横走，不堆栈）。
+  void _openNeighborSerial(String questionId) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => QuestionDetailPage(questionId: questionId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -221,6 +276,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     final neighborsAsync =
         ref.watch(questionSerialNeighborsProvider(widget.questionId));
     final neighbors = neighborsAsync.valueOrNull;
+    // 「第 N / 共 M 题」：null（无题号 / 题库里没有带号题 / 读失败）就整行不渲染。
+    final position = ref
+        .watch(questionSerialPositionProvider(widget.questionId))
+        .valueOrNull;
     final detail = detailAsync.valueOrNull;
     final missing = detailAsync.hasValue && detail == null;
 
@@ -244,11 +303,32 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                 ? null
                 : () => _openNeighbor(neighbors!.next!),
           ),
+          IconButton(
+            key: questionDetailJumpSerialKey,
+            icon: const Icon(Icons.tag),
+            tooltip: l10n.questionDetailJumpSerialTooltip,
+            onPressed: _jumpToSerial,
+          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // 进度行放在最上面、题面之前：先知道"这是第几道"，再读题。
+          if (position != null)
+            Padding(
+              key: questionDetailSerialPositionKey,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                l10n.questionDetailSerialPosition(
+                  position.index,
+                  position.total,
+                ),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
           if (detailAsync.isLoading && !detailAsync.hasValue)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -303,6 +383,68 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// 「跳题号」输入框：只负责把输入解析成 [QuestionNumberQuery]，不查库。
+///
+/// 认不出（脏输入 / 空）时**不关对话框**，把原因写在输入框下面——关掉再弹一次
+/// 只会让人把同一个错字重打一遍。查库与跳转由页面做（对话框不碰 state）。
+class _JumpToSerialDialog extends StatefulWidget {
+  const _JumpToSerialDialog();
+
+  @override
+  State<_JumpToSerialDialog> createState() => _JumpToSerialDialogState();
+}
+
+class _JumpToSerialDialogState extends State<_JumpToSerialDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final query = parseQuestionNumberQuery(_controller.text);
+    if (query == null) {
+      setState(() {
+        _error = AppLocalizations.of(context).questionDetailJumpSerialInvalid;
+      });
+      return;
+    }
+    Navigator.of(context).pop(query);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.questionDetailJumpSerialTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: l10n.questionDetailJumpSerialFieldLabel,
+          hintText: l10n.questionDetailJumpSerialHint,
+          errorText: _error,
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.questionDetailJumpSerialAction),
+        ),
+      ],
     );
   }
 }

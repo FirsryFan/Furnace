@@ -2134,6 +2134,145 @@ void main() {
       expect(first.serialNo, 1);
     });
   });
+
+  group('题号进度行与跳题号', () {
+    String showingQuestionId(WidgetTester tester) => tester
+        .widget<QuestionDetailPage>(find.byType(QuestionDetailPage))
+        .questionId;
+
+    Finder jumpField(WidgetTester tester) => find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        );
+
+    Future<void> openJumpDialog(WidgetTester tester) async {
+      await tester.tap(find.byKey(questionDetailJumpSerialKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    Future<void> submitJump(WidgetTester tester) async {
+      await tester.tap(
+        find.widgetWithText(FilledButton, _zh.questionDetailJumpSerialAction),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await _settle(tester);
+    }
+
+    testWidgets('进度行：中间那道题显示「第 2 / 共 3 题」', (tester) async {
+      final database = _newDatabase();
+      await _seedQuestion(database, stem: '第一题题干');
+      final second = await _seedQuestion(database, stem: '第二题题干');
+      await _seedQuestion(database, stem: '第三题题干');
+
+      await _pumpDetail(tester, database, second.id, adapter: null);
+      await _waitForText(tester, '第二题题干');
+
+      expect(find.byKey(questionDetailSerialPositionKey), findsOneWidget);
+      expect(find.text(_zh.questionDetailSerialPosition(2, 3)), findsOneWidget);
+    });
+
+    testWidgets('没有题号的题：进度行整行不渲染', (tester) async {
+      final database = _newDatabase();
+      await _seedQuestion(database, stem: '第一题题干');
+      final second = await _seedQuestion(database, stem: '第二题题干');
+      await (database.update(database.questions)
+            ..where((t) => t.id.equals(second.id)))
+          .write(const QuestionsCompanion(serialNo: Value<int?>(null)));
+
+      await _pumpDetail(tester, database, second.id, adapter: null);
+      await _waitForText(tester, '第二题题干');
+
+      expect(find.byKey(questionDetailSerialPositionKey), findsNothing);
+    });
+
+    testWidgets('跳题号：TR-00003 → 换到第 3 题，返回栈不加深', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干');
+      await _seedQuestion(database, stem: '第二题题干');
+      final third = await _seedQuestion(database, stem: '第三题题干');
+
+      await _pumpDetail(tester, database, first.id, adapter: null);
+      await _waitForText(tester, '第一题题干');
+      expect(showingQuestionId(tester), first.id);
+      expect(
+          find.byTooltip(_zh.questionDetailJumpSerialTooltip), findsOneWidget);
+
+      await openJumpDialog(tester);
+      await tester.enterText(jumpField(tester), 'TR-00003');
+      await submitJump(tester);
+
+      await _waitForText(tester, _zh.questionDetailSerialPosition(3, 3));
+      expect(showingQuestionId(tester), third.id);
+      expect(find.byType(AlertDialog), findsNothing);
+      // 同层横走：没有把详情页压到上一层，AppBar 不出现返回箭头。
+      expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets('跳题号：认不出就不关框，errorText 写原因、页面不动', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干');
+      await _seedQuestion(database, stem: '第二题题干');
+
+      await _pumpDetail(tester, database, first.id, adapter: null);
+      await _waitForText(tester, '第一题题干');
+
+      await openJumpDialog(tester);
+      await tester.enterText(jumpField(tester), 'abc');
+      await submitJump(tester);
+
+      // 框还在、输入还在，只有下面多了一行原因：改一个字就能再交。
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text(_zh.questionDetailJumpSerialInvalid), findsOneWidget);
+      expect(
+        tester.widget<TextField>(jumpField(tester)).controller?.text,
+        'abc',
+      );
+      expect(showingQuestionId(tester), first.id);
+    });
+
+    testWidgets('跳题号：题库里没有 → SnackBar 报号、页面不动', (tester) async {
+      final database = _newDatabase();
+      final first = await _seedQuestion(database, stem: '第一题题干');
+      await _seedQuestion(database, stem: '第二题题干');
+
+      await _pumpDetail(tester, database, first.id, adapter: null);
+      await _waitForText(tester, '第一题题干');
+
+      await openJumpDialog(tester);
+      await tester.enterText(jumpField(tester), 'TR-00099');
+      await submitJump(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(
+        find.text(_zh.questionDetailJumpSerialNotFound('TR-00099')),
+        findsOneWidget,
+      );
+      expect(showingQuestionId(tester), first.id);
+    });
+
+    testWidgets('跳题号：命中当前这道题时什么都不做', (tester) async {
+      final database = _newDatabase();
+      await _seedQuestion(database, stem: '第一题题干');
+      final second = await _seedQuestion(database, stem: '第二题题干');
+      await _seedQuestion(database, stem: '第三题题干');
+
+      await _pumpDetail(tester, database, second.id, adapter: null);
+      await _waitForText(tester, '第二题题干');
+
+      await openJumpDialog(tester);
+      await tester.enterText(jumpField(tester), 'TR-00002');
+      await submitJump(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(showingQuestionId(tester), second.id);
+      // 页面没有白重载：进度行仍是第 2 题。
+      expect(find.text(_zh.questionDetailSerialPosition(2, 3)), findsOneWidget);
+    });
+  });
 }
 
 /// 一个干净的内存库；每个用例自己关。
