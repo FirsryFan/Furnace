@@ -205,6 +205,13 @@ class Tags extends Table {
   IntColumn get color => integer().nullable()();
   TextColumn get description => text().nullable()();
   TextColumn get sourceNodeId => text().nullable()();
+
+  /// 标签用途声明（v37，轮次一百七十六）：逗号分隔的稳定 code
+  /// (time / question / knowledge / task / flashcard)。
+  /// NULL = 这一级没有声明，用途从祖先继承；整棵树都没有声明 = 不限制。
+  /// 存 code 不存中文（与 tagTreeSortMode / questionLibrarySortMode 同一个契约）。
+  TextColumn get usageCodes => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

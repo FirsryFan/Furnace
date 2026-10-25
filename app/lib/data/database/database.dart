@@ -112,7 +112,7 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36] / [_upgradeV36ToV37].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
@@ -130,8 +130,13 @@ class AppDatabase extends _$AppDatabase {
   /// `docs/REVIEW_FEEDBACK.md`: `time_view_settings.hour_height`（Time 日/周网格的自由
   /// 行高，拖动分界线后落库）与 `local_settings.review_retention`（目标记忆保持率，
   /// 越小间隔越长）。两列都可空、NULL 读作出厂值，迁移不回填。
+  ///
+  /// v37（轮次一百七十六）adds tags.usage_codes: the tag's declared usages
+  /// (docs/REVIEW_FEEDBACK.md §10/§11) — a comma-separated set of stable codes
+  /// (time/question/knowledge/task/flashcard). NULL = 这一级没有声明，
+  /// 用途从祖先继承；整棵树都没有声明 = 不限制。列可空、不回填。
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration {
@@ -245,6 +250,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 36) {
           await _upgradeV35ToV36();
         }
+        if (from < 37) {
+          await _upgradeV36ToV37();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -266,6 +274,10 @@ class AppDatabase extends _$AppDatabase {
   /// database does nothing here.
   Future<void> _ensureColumns() async {
     final expected = <String, List<GeneratedColumn<Object>>>{
+      // v37（轮次一百七十六）：标签用途声明。同一个失败模式——老文件被盖成 v37
+      // 却没有这一列时，Drift 跳过 onUpgrade，标签树/时间表第一次读标签就抛
+      // no such column。列可空、NULL 读作「这一级没有声明」，补列即可，没有回填。
+      'tags': [tags.usageCodes],
       'tasks': [tasks.startedAt],
       'completion_logs': [
         completionLogs.actualMinutes,
@@ -1045,6 +1057,21 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// v36 -> v37：标签用途声明 tags.usage_codes（轮次一百七十六，
+  /// docs/REVIEW_FEEDBACK.md 第 10/11 条）。
+  ///
+  /// 纯新增一列、可空：NULL 读作「这一级没有声明」——用途不限制，子标签可以
+  /// 继承祖先的声明。迁移只补列、不回填：回填等于给每个标签凭空写一条用户
+  /// 从没做过的声明，会把「不限制」变成硬边界（与 v34/v35/v36 同一个契约）。
+  /// 表不存在就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV36ToV37() async {
+    if (!await _tableExists('tags')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'tags', tags.usageCodes);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1276,6 +1303,11 @@ class AppDatabase extends _$AppDatabase {
       // unknown table（v31 迁移测试实测过）。
       case 'handwriting_intake_runs':
         return handwritingIntakeRuns;
+      // v37（轮次一百七十六）：自愈那一趟要给标签补 usage_codes（用途声明），
+      // 所以一个声称 v37 的文件必须能按名字解析到这张表 —— 否则自愈会抛
+      // unknown table（v37 迁移测试实测过）。
+      case 'tags':
+        return tags;
       default:
         throw ArgumentError('unknown table $name');
     }

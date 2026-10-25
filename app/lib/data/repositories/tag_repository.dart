@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/services/tags/tag_usage.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
@@ -100,6 +101,31 @@ class TagRepository {
     query.where((t) => t.parentId.equals(parentId));
     query.orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
     return query.get();
+  }
+
+  /// 把一行标签映射成用途解析器的快照（v37，轮次一百七十六）。
+  ///
+  /// 继承在读取时算：解析器只知道 id/parentId/本级声明，不查库、不递归。
+  TagUsageResolver resolverFor(Iterable<Tag> tags) => TagUsageResolver([
+        for (final tag in tags)
+          TagUsageNode(
+            id: tag.id,
+            parentId: tag.parentId,
+            declaredUsages: decodeTagUsageCodes(tag.usageCodes),
+          ),
+      ]);
+
+  /// 写一个标签的用途声明；空集合写回 NULL（= 这一级没有声明，恢复继承）。
+  ///
+  /// 只写这一行，不动子标签：继承是读侧算的，所以改父标签的声明对整棵子树
+  /// 立刻生效，也不需要级联回填（docs/REVIEW_FEEDBACK.md §10）。
+  Future<void> updateTagUsageCodes(String tagId, Set<TagUsage> usages) async {
+    await (_db.update(_db.tags)..where((t) => t.id.equals(tagId))).write(
+      TagsCompanion(
+        usageCodes: Value(encodeTagUsageCodes(usages)),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
   }
 
   /// Renames a tag and cascades the path change through its subtree.

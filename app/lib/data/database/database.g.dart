@@ -1674,6 +1674,12 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   late final GeneratedColumn<String> sourceNodeId = GeneratedColumn<String>(
       'source_node_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _usageCodesMeta =
+      const VerificationMeta('usageCodes');
+  @override
+  late final GeneratedColumn<String> usageCodes = GeneratedColumn<String>(
+      'usage_codes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1695,6 +1701,7 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         color,
         description,
         sourceNodeId,
+        usageCodes,
         createdAt,
         updatedAt
       ];
@@ -1743,6 +1750,12 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
           sourceNodeId.isAcceptableOrUnknown(
               data['source_node_id']!, _sourceNodeIdMeta));
     }
+    if (data.containsKey('usage_codes')) {
+      context.handle(
+          _usageCodesMeta,
+          usageCodes.isAcceptableOrUnknown(
+              data['usage_codes']!, _usageCodesMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -1782,6 +1795,8 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
           .read(DriftSqlType.string, data['${effectivePrefix}description']),
       sourceNodeId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}source_node_id']),
+      usageCodes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}usage_codes']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1803,6 +1818,12 @@ class Tag extends DataClass implements Insertable<Tag> {
   final int? color;
   final String? description;
   final String? sourceNodeId;
+
+  /// 标签用途声明（v37，轮次一百七十六）：逗号分隔的稳定 code
+  /// (time / question / knowledge / task / flashcard)。
+  /// NULL = 这一级没有声明，用途从祖先继承；整棵树都没有声明 = 不限制。
+  /// 存 code 不存中文（与 tagTreeSortMode / questionLibrarySortMode 同一个契约）。
+  final String? usageCodes;
   final int createdAt;
   final int updatedAt;
   const Tag(
@@ -1813,6 +1834,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       this.color,
       this.description,
       this.sourceNodeId,
+      this.usageCodes,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -1835,6 +1857,9 @@ class Tag extends DataClass implements Insertable<Tag> {
     if (!nullToAbsent || sourceNodeId != null) {
       map['source_node_id'] = Variable<String>(sourceNodeId);
     }
+    if (!nullToAbsent || usageCodes != null) {
+      map['usage_codes'] = Variable<String>(usageCodes);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -1856,6 +1881,9 @@ class Tag extends DataClass implements Insertable<Tag> {
       sourceNodeId: sourceNodeId == null && nullToAbsent
           ? const Value.absent()
           : Value(sourceNodeId),
+      usageCodes: usageCodes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(usageCodes),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1872,6 +1900,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       color: serializer.fromJson<int?>(json['color']),
       description: serializer.fromJson<String?>(json['description']),
       sourceNodeId: serializer.fromJson<String?>(json['sourceNodeId']),
+      usageCodes: serializer.fromJson<String?>(json['usageCodes']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -1887,6 +1916,7 @@ class Tag extends DataClass implements Insertable<Tag> {
       'color': serializer.toJson<int?>(color),
       'description': serializer.toJson<String?>(description),
       'sourceNodeId': serializer.toJson<String?>(sourceNodeId),
+      'usageCodes': serializer.toJson<String?>(usageCodes),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -1900,6 +1930,7 @@ class Tag extends DataClass implements Insertable<Tag> {
           Value<int?> color = const Value.absent(),
           Value<String?> description = const Value.absent(),
           Value<String?> sourceNodeId = const Value.absent(),
+          Value<String?> usageCodes = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       Tag(
@@ -1911,6 +1942,7 @@ class Tag extends DataClass implements Insertable<Tag> {
         description: description.present ? description.value : this.description,
         sourceNodeId:
             sourceNodeId.present ? sourceNodeId.value : this.sourceNodeId,
+        usageCodes: usageCodes.present ? usageCodes.value : this.usageCodes,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1926,6 +1958,8 @@ class Tag extends DataClass implements Insertable<Tag> {
       sourceNodeId: data.sourceNodeId.present
           ? data.sourceNodeId.value
           : this.sourceNodeId,
+      usageCodes:
+          data.usageCodes.present ? data.usageCodes.value : this.usageCodes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1941,6 +1975,7 @@ class Tag extends DataClass implements Insertable<Tag> {
           ..write('color: $color, ')
           ..write('description: $description, ')
           ..write('sourceNodeId: $sourceNodeId, ')
+          ..write('usageCodes: $usageCodes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1949,7 +1984,7 @@ class Tag extends DataClass implements Insertable<Tag> {
 
   @override
   int get hashCode => Object.hash(id, parentId, name, path, color, description,
-      sourceNodeId, createdAt, updatedAt);
+      sourceNodeId, usageCodes, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1961,6 +1996,7 @@ class Tag extends DataClass implements Insertable<Tag> {
           other.color == this.color &&
           other.description == this.description &&
           other.sourceNodeId == this.sourceNodeId &&
+          other.usageCodes == this.usageCodes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1973,6 +2009,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
   final Value<int?> color;
   final Value<String?> description;
   final Value<String?> sourceNodeId;
+  final Value<String?> usageCodes;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -1984,6 +2021,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     this.color = const Value.absent(),
     this.description = const Value.absent(),
     this.sourceNodeId = const Value.absent(),
+    this.usageCodes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1996,6 +2034,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     this.color = const Value.absent(),
     this.description = const Value.absent(),
     this.sourceNodeId = const Value.absent(),
+    this.usageCodes = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -2011,6 +2050,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     Expression<int>? color,
     Expression<String>? description,
     Expression<String>? sourceNodeId,
+    Expression<String>? usageCodes,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -2023,6 +2063,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
       if (color != null) 'color': color,
       if (description != null) 'description': description,
       if (sourceNodeId != null) 'source_node_id': sourceNodeId,
+      if (usageCodes != null) 'usage_codes': usageCodes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -2037,6 +2078,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
       Value<int?>? color,
       Value<String?>? description,
       Value<String?>? sourceNodeId,
+      Value<String?>? usageCodes,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -2048,6 +2090,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
       color: color ?? this.color,
       description: description ?? this.description,
       sourceNodeId: sourceNodeId ?? this.sourceNodeId,
+      usageCodes: usageCodes ?? this.usageCodes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -2078,6 +2121,9 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     if (sourceNodeId.present) {
       map['source_node_id'] = Variable<String>(sourceNodeId.value);
     }
+    if (usageCodes.present) {
+      map['usage_codes'] = Variable<String>(usageCodes.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -2100,6 +2146,7 @@ class TagsCompanion extends UpdateCompanion<Tag> {
           ..write('color: $color, ')
           ..write('description: $description, ')
           ..write('sourceNodeId: $sourceNodeId, ')
+          ..write('usageCodes: $usageCodes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -24654,6 +24701,7 @@ typedef $$TagsTableCreateCompanionBuilder = TagsCompanion Function({
   Value<int?> color,
   Value<String?> description,
   Value<String?> sourceNodeId,
+  Value<String?> usageCodes,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -24666,6 +24714,7 @@ typedef $$TagsTableUpdateCompanionBuilder = TagsCompanion Function({
   Value<int?> color,
   Value<String?> description,
   Value<String?> sourceNodeId,
+  Value<String?> usageCodes,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -24699,6 +24748,9 @@ class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
 
   ColumnFilters<String> get sourceNodeId => $composableBuilder(
       column: $table.sourceNodeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get usageCodes => $composableBuilder(
+      column: $table.usageCodes, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -24737,6 +24789,9 @@ class $$TagsTableOrderingComposer extends Composer<_$AppDatabase, $TagsTable> {
       column: $table.sourceNodeId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get usageCodes => $composableBuilder(
+      column: $table.usageCodes, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -24773,6 +24828,9 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<String> get sourceNodeId => $composableBuilder(
       column: $table.sourceNodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get usageCodes => $composableBuilder(
+      column: $table.usageCodes, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -24811,6 +24869,7 @@ class $$TagsTableTableManager extends RootTableManager<
             Value<int?> color = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String?> sourceNodeId = const Value.absent(),
+            Value<String?> usageCodes = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -24823,6 +24882,7 @@ class $$TagsTableTableManager extends RootTableManager<
             color: color,
             description: description,
             sourceNodeId: sourceNodeId,
+            usageCodes: usageCodes,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -24835,6 +24895,7 @@ class $$TagsTableTableManager extends RootTableManager<
             Value<int?> color = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String?> sourceNodeId = const Value.absent(),
+            Value<String?> usageCodes = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -24847,6 +24908,7 @@ class $$TagsTableTableManager extends RootTableManager<
             color: color,
             description: description,
             sourceNodeId: sourceNodeId,
+            usageCodes: usageCodes,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
