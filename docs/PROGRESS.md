@@ -2,6 +2,21 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百七十：v0.6.9 双端发布（Lead）
+
+**起点**：轮次一百六十九收尾（HEAD `ff35552`，工作树干净，origin/main 已同步）。
+
+- 版本：`app/pubspec.yaml` `version: 0.6.9+28`；`app/lib/core/app_info.dart` `kAppVersion='0.6.9'`、`kAppBuildNumber=28`；`test/core/app_info_test.dart` +2 通过。**schema 无新迁移，仍 v34**（v33→v34 是上一轮 settings 加 `question_library_sort_mode`）。
+- 范围：`git log --oneline v0.6.8..HEAD` = **11 个提交** —— 轮次168 排序偏好落盘（v34）/题库排序偏好/详情页第 N 共 M 题+跳题号/§44，轮次169 复习节奏修复（新卡每 5 张插 1 张、同一卡重插上限 2、跳过本张、等待态结束本轮）+ 模板卡行快照修复 + docs。
+- 构建（同一后台 job，日志 `E:/dsh-tmp-aot/build-170.log`，exit 0）：`WINDOWS_EXIT=0`、`ANDROID_EXIT=0`；Gradle assembleRelease **272.8s**。
+  - Windows：`data/app.so` **21,529,480 B @2026-10-25 11:12:07**；`furnace.exe` 版本资源 **0.6.9+28**；打包前删 `data/flutter_assets/kernel_blob.bin` **110,766,568 B**；从 ASCII junction `E:\Document\furnace-build\build\windows\x64\runner\Release` 打包。
+  - Android：APK **99,445,170 B（94.8 MB）**；aapt2：versionCode **28** / versionName **0.6.9** / minSdk 24 / targetSdk 36 / compileSdk 36；证书 `57de8b8f…f32e2db2`（与 v0.5.0–v0.6.8 同一把）。
+- dist 三件（gitignore，不入库）：`Furnace-0.6.9-windows-x64.zip` **20,503,544 B / 28 entries / 解压 47,178,263 B / SHA-256 FB0AFB4BDB90F70005E6DBB32921E21D823C130B14752094C37FC54597241FEC**；`Furnace-0.6.9-android.apk` **SHA-256 F9CB3487C70E1EA127069BE252715A5FAB916F8AC668484C1DABE0109E3DFB7A**；`RELEASE-v0.6.9.md` **6,171 B**（下载表、schema 提示、A–E 变更、验证、已知未做、发布说明）。
+- 验证：全量 `flutter test --concurrency=1` = **+5898 ~2 All tests passed**，12:27，EXIT 0（上一轮已跑，日志 `E:/dsh-tmp-aot/test-169-full2.txt`）；发布提交只改版本号，复跑 `test/core/app_info_test.dart` +2 通过。相对 v0.6.8 的 +5844 净增 54（v34 迁移 4、排序 codec 3、题号进度 2、题库页 24→28、详情页 67→73、新卡节奏 19、`mayReinsert` +7、复习服务 17→22 含模板卡回归 1、复习页 15→19）。
+- 发布：提交 `chore(release): v0.6.9`（app_info.dart / pubspec.yaml / PROGRESS.md）；tag `v0.6.9`（annotated）指向该发布提交；github.com HTTPS 仍被阻断，提交用 `E:/dsh-tmp-aot/rest-push.ps1`（GitHub REST git data API + 代理 127.0.0.1:7890）推送，tag 用 `rest-tag-069.ps1`（POST /git/tags + /git/refs）。
+- 风险 / 未做：双端新行为都没真机手测（排序记忆、进度行、跳题号、跳过/结束本轮、模板卡修复）；跳过不持久化；新卡节奏 5 与重插上限 2 是常量不可配；新卡交错不改每日配额；题库排序切题号/错题优先仍读全库、耗时未测；偏好读到前首帧按「最新」排；跳题号只认题号、同号取第一道；题号无 UNIQUE；微信拖拽收题仍无真机证据；快照判定仍是启发式；英文未完整本地化；同步无网络层。
+- 下一步候选：①真机逐屏验收 v0.6.9（排序记忆/进度/跳题号/跳过）②复习「跳过」持久化（本周不再出现）③题库排序读全库分页化 ④组卷配额/相似题权重标定 ⑤错题本统计扩展（按学科/标签正确率）。
+
 ## 2026-10-25 轮次一百六十九：复习节奏修复（新卡交错 / 重插上限 / 跳过 / 结束等待）+ 模板卡行快照（Lead + reasoning-core + threadflow-engine）
 
 **起点**：轮次一百六十八收尾（HEAD `7c89b60`，v0.6.8 已发布并推送，工作树干净）。
