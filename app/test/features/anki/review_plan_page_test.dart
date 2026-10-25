@@ -67,8 +67,15 @@ void main() {
 
     expect(find.text('有 2 张卡还没有卡组'), findsOneWidget);
     expect(find.text('把它们归到一个卡组'), findsOneWidget);
-    // The plan list is empty, but the way to fill it must be on screen - this
-    // is exactly the entry that looked missing.
+    // The plan list is empty, but the way to fill it must be reachable - this
+    // is exactly the entry that looked missing. The preferences card above
+    // grew (review spacing section), so on the default 800x600 surface the
+    // lazy list has not built the empty-plan button yet.
+    await tester.scrollUntilVisible(
+      find.text('添加卡组任务量'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('添加卡组任务量'), findsOneWidget);
   });
 

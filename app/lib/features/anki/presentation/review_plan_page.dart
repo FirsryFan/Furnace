@@ -5,9 +5,11 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/review_plan_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/srs/review_retention.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/card_type_preference.dart';
 import '../application/judge_mode_preference.dart';
+import '../application/review_retention_provider.dart';
 
 /// Every configured card group, in tag-path order.
 ///
@@ -355,6 +357,50 @@ class ReviewPreferencesCard extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 l10n.ankiTypePreferenceDetail,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(l10n.reviewIntervalTitle, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 4),
+            ref.watch(reviewRetentionProvider).when(
+                  data: (spacing) => SegmentedButton<ReviewSpacing>(
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(
+                        value: ReviewSpacing.longer,
+                        label: Text(l10n.reviewIntervalLonger),
+                      ),
+                      ButtonSegment(
+                        value: ReviewSpacing.standard,
+                        label: Text(l10n.reviewIntervalStandard),
+                      ),
+                      ButtonSegment(
+                        value: ReviewSpacing.shorter,
+                        label: Text(l10n.reviewIntervalShorter),
+                      ),
+                    ],
+                    selected: {spacing},
+                    onSelectionChanged: (selection) {
+                      selectReviewSpacing(ref, selection.first);
+                    },
+                  ),
+                  // The stored value is one short read; the flash lasts a frame on
+                  // a warm DB. A spinner would flash harder than the gap it covers.
+                  loading: () => const SizedBox(height: 40),
+                  error: (error, _) => Text(
+                    '$error',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l10n.reviewIntervalHint,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

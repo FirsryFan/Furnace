@@ -8,6 +8,7 @@ import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/diffusion_log_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/review_plan_repository.dart';
+import '../../../data/repositories/settings_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/repositories/task_repository.dart';
 import '../../../domain/services/cloze/cloze_engine.dart';
@@ -15,6 +16,7 @@ import '../../../domain/services/cloze/tag_diffusion.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/config/furnace_defaults.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
+import '../../../domain/services/srs/review_retention.dart';
 import 'review_advisory.dart';
 import 'review_pacing.dart';
 
@@ -218,6 +220,7 @@ class ReviewService {
     required this.tagRepository,
     required this.taskRepository,
     required this.diffusionLogRepository,
+    this.settingsRepository,
     Random? random,
     CognitiveModel? cognitiveModel,
   })  : random = random ?? Random(),
@@ -227,6 +230,16 @@ class ReviewService {
   final TagRepository tagRepository;
   final TaskRepository taskRepository;
   final DiffusionLogRepository diffusionLogRepository;
+
+  /// Optional settings row reader for the review-spacing preference (schema
+  /// v36, 轮次一百七十五). Null in pure-logic tests and in any caller that
+  /// predates the setting: the factory default then applies and nothing else
+  /// changes.
+  ///
+  /// Read per review rather than cached at construction: the preferences
+  /// dialog can change the target retention while a queue is open, and the
+  /// next answer should follow the new choice without rebuilding the service.
+  final SettingsRepository? settingsRepository;
   final Random random;
 
   /// The advisor (D1). It orders the model band and produces the two
@@ -965,6 +978,20 @@ class ReviewService {
     final moment = now ?? DateTime.now();
     final effectiveRating = correct ? rating : FsrsRating.again;
 
+    // 复习间隔的目标保持率（schema v36，轮次一百七十五）由用户在复习偏好里选。
+    // 没注入仓储（纯逻辑测试/离线调用）时用出厂 0.85；读失败不能让一次复习失败，
+    // 坏值/异常一律回落到出厂值。
+    var retention = kDefaultReviewRetention;
+    final settings = settingsRepository;
+    if (settings != null) {
+      try {
+        retention =
+            normalizeReviewRetention(await settings.getReviewRetention());
+      } catch (_) {
+        retention = kDefaultReviewRetention;
+      }
+    }
+
     final state = item.cardState;
     final lastReview = state.lastReviewedAt == null
         ? null
@@ -981,6 +1008,7 @@ class ReviewService {
       lastReview: lastReview ?? moment,
       now: moment,
       rating: effectiveRating,
+      parameters: FsrsParameters(requestRetention: retention),
     );
 
     // Wrong answer -> bind THIS blank so it must come back today; correct
@@ -1371,6 +1399,7 @@ final reviewServiceProvider = Provider<ReviewService>((ref) {
     tagRepository: ref.watch(tagRepositoryProvider),
     taskRepository: ref.watch(taskRepositoryProvider),
     diffusionLogRepository: ref.watch(diffusionLogRepositoryProvider),
+    settingsRepository: ref.watch(settingsRepositoryProvider),
     // The one place the app decides which model implementation is in use.
     cognitiveModel: ref.watch(cognitiveModelProvider),
   );

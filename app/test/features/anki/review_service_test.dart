@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/diffusion_log_repository.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/domain/services/cloze/tag_diffusion.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
+import 'package:furnace/domain/services/srs/review_retention.dart';
 import 'package:furnace/features/anki/application/review_service.dart';
 
 /// The review engine (blueprint 4; user annotations 17, 18, 19):
@@ -703,6 +705,56 @@ void main() {
       final queue = await service.buildQueue();
       expect(queue, hasLength(7));
       expect(newIndexes(queue), isEmpty);
+    });
+  });
+
+  group('复习间隔的目标保持率（schema v36）', () {
+    // 用户反馈「闪存卡间隔时间太短了」：FSRS 的 requestRetention 以前写死 0.9
+    // （新卡第一次答对 3 天后再来）。现在由复习偏好里的 更长/标准/更短 决定。
+    Future<double> firstGoodInterval(
+        ReviewSpacing spacing, String suffix) async {
+      final point = await anki.createKnowledgePoint(
+        title: '间隔测试$suffix',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final settings = SettingsRepository(db);
+      await settings.updateReviewRetention(spacing.retention);
+      final spaced = ReviewService(
+        ankiRepository: anki,
+        tagRepository: tags,
+        taskRepository: TaskRepository(db),
+        diffusionLogRepository: DiffusionLogRepository(db),
+        settingsRepository: settings,
+        random: Random(7),
+      );
+      final item = (await spaced.buildQueue())
+          .singleWhere((i) => i.knowledgePointId == point.id);
+      await spaced.grade(item: item, correct: true, rating: FsrsRating.good);
+      final state = (await anki.unitStatesForKnowledgePoint(point.id)).single;
+      return state.intervalDays;
+    }
+
+    test('保持率越低，第一次答对后的间隔越长', () async {
+      final longer = await firstGoodInterval(ReviewSpacing.longer, '甲');
+      final standard = await firstGoodInterval(ReviewSpacing.standard, '乙');
+      final shorter = await firstGoodInterval(ReviewSpacing.shorter, '丙');
+      expect(longer, greaterThan(standard));
+      expect(standard, greaterThan(shorter));
+      expect(shorter, lessThanOrEqualTo(3),
+          reason: '0.90 就是这次改之前的出厂 3 天，锁住旧行为可回退');
+    });
+
+    test('没有注入设置仓储时按出厂 0.85 排期，不再退回 0.9', () async {
+      final point = await anki.createKnowledgePoint(
+        title: '间隔测试出厂',
+        content: '光合作用的主要场所是叶绿体。',
+      );
+      final item = (await service.buildQueue())
+          .singleWhere((i) => i.knowledgePointId == point.id);
+      await service.grade(item: item, correct: true, rating: FsrsRating.good);
+      final state = (await anki.unitStatesForKnowledgePoint(point.id)).single;
+      expect(state.intervalDays, greaterThan(3),
+          reason: '出厂从 0.9 改成 0.85，间隔必须比旧的 3 天长');
     });
   });
 }

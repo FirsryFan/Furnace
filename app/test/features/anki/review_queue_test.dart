@@ -10,6 +10,7 @@ import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/domain/services/cognitive/cognitive_model.dart';
 import 'package:furnace/domain/services/srs/dsr_card_state.dart';
 import 'package:furnace/domain/services/srs/fsrs_scheduler.dart';
+import 'package:furnace/domain/services/srs/review_retention.dart';
 import 'package:furnace/features/anki/application/review_service.dart';
 
 /// The review flow as it is now wired to the cognitive model (D1/D2/D4/D5/D6):
@@ -169,6 +170,8 @@ void main() {
       );
 
       // Independent FSRS recomputation: the stored schedule must be FSRS's.
+      // The service has no settings repository here, so it schedules against
+      // the factory retention - the same constant this test passes explicitly.
       final expected = FsrsScheduler.schedule(
         memory: FsrsMemory(
           stability: before.stability!,
@@ -177,6 +180,9 @@ void main() {
         lastReview: DateTime.fromMillisecondsSinceEpoch(before.lastReviewedAt!),
         now: moment,
         rating: FsrsRating.good,
+        parameters: const FsrsParameters(
+          requestRetention: kDefaultReviewRetention,
+        ),
       );
 
       final after = (await rowFor(a.id))!;
