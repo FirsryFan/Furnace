@@ -7,9 +7,11 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/repositories/settings_repository.dart';
 import '../../../data/skill/skill_prompt.dart';
 import '../../../data/skill/skill_runner.dart';
 import '../../../data/skill/skill_store.dart';
+import '../../../domain/services/cognitive/user_persona.dart';
 import '../../../domain/skill/skill_manifest.dart';
 import '../../../domain/skill/skill_tool.dart';
 import '../infrastructure/ai_attachment_store.dart';
@@ -1146,7 +1148,7 @@ class AgentLoop {
   /// no `path_provider`), and "no skills this turn" is an acceptable answer while
   /// "the assistant never answers" is not.
   Future<_TurnTools> _turnTools() async {
-    final rules = _baseRules();
+    final rules = _baseRules(await _userPersonaBlock());
     final store = skills;
     if (store == null) {
       return _TurnTools(systemPrompt: rules, builtInTools: registry.all);
@@ -1170,17 +1172,44 @@ class AgentLoop {
     }
   }
 
+  /// The persona paragraph for this turn: the user's own description of
+  /// themselves (schema v35), or `''` when they never wrote one.
+  ///
+  /// Advisory and bounded exactly like the skill read: a missing database, a
+  /// missing column or a corrupt row must never stop a turn. "No persona" is an
+  /// acceptable answer; "the assistant never answers" is not.
+  ///
+  /// `''` is load-bearing: [_baseRules] weaves this in so that a user without a
+  /// persona gets the **byte-identical** prompt they got before this feature
+  /// existed (docs/PERSONA_DESIGN.md §5).
+  Future<String> _userPersonaBlock() async {
+    try {
+      final raw = await SettingsRepository(db).getUserPersona();
+      return userPersonaPromptBlock(raw);
+    } catch (_) {
+      return '';
+    }
+  }
+
   /// The date, the persona and the rules that predate skills.
   ///
-  /// Byte-identical to what the loop sent before skill tools existed, so that
-  /// "skills disabled" keeps meaning "the old behaviour exactly".
-  String _baseRules() {
+  /// `personaBlock` is empty for "the user never wrote one" (see
+  /// [_userPersonaBlock]); when it is non-empty it lands as its own paragraph
+  /// between the date and the rules, so the rules a model reads stay last and
+  /// the persona reads as background rather than as an instruction.
+  ///
+  /// With an empty `personaBlock` the output is byte-identical to what the loop
+  /// sent before persona existed, so that "no persona" keeps meaning "the old
+  /// behaviour exactly" (as "skills disabled" does).
+  String _baseRules(String personaBlock) {
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     const base = '你是 Furnace 的助手，直接操作用户的任务、日程、标签与复习数据。';
+    final persona = personaBlock.isEmpty ? '' : '$personaBlock\n';
     return '$base\n'
         '今天的日期是 $date。\n'
+        '$persona'
         '规则：\n'
         '1. 需要知道现状时先用查询工具，不要凭猜测回答。\n'
         '2. 涉及修改时，先查清楚再动手；能一次完成的不要拆成多次。\n'

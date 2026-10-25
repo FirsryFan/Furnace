@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
 import 'package:furnace/features/ai/domain/agent_loop.dart';
@@ -85,8 +86,7 @@ void main() {
 
       final state = await settle(
         loop,
-        () => loop.sendUserMessage(
-            conversationId: conversation.id, text: '在吗'),
+        () => loop.sendUserMessage(conversationId: conversation.id, text: '在吗'),
       );
 
       expect(state.generating, isFalse);
@@ -103,8 +103,10 @@ void main() {
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '第一句'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '第一句'));
 
       final sent = adapter.requests.single.messages;
       // A system prompt, then the user message.
@@ -118,8 +120,10 @@ void main() {
       final adapter = FakeModelAdapter([FakeModelAdapter.answer('好')]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'hi'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: 'hi'));
 
       final names = adapter.requests.single.tools.map((t) => t.name).toList();
       expect(names, contains('manage_task'));
@@ -131,8 +135,10 @@ void main() {
       final adapter = FakeModelAdapter([FakeModelAdapter.answer('x')]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '   '));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '   '));
       expect(adapter.requests, isEmpty);
     });
   });
@@ -173,8 +179,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '加任务'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '加任务'));
 
       // Second round-trip must include the tool result, or the model cannot know
       // whether its call worked.
@@ -205,8 +213,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '加两个任务'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '加两个任务'));
 
       final titles = (await tasks.getTasks()).map((t) => t.title).toList();
       expect(titles, containsAll(['A', 'B']));
@@ -220,8 +230,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       final actions = await repository.listActions(conversation.id);
       final action = actions.single;
@@ -264,8 +276,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '删'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: '删'));
 
       final state = await settle(
         loop,
@@ -285,8 +299,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '删'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: '删'));
 
       await settle(loop, () => loop.rejectPending(conversation.id));
 
@@ -306,8 +322,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '删'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: '删'));
       await settle(loop, () => loop.rejectPending(conversation.id));
 
       final action = (await repository.listActions(conversation.id)).single;
@@ -327,7 +345,8 @@ void main() {
 
       final pendingState = await settle(
         loop,
-        () => loop.sendUserMessage(conversationId: conversation.id, text: '加任务'),
+        () =>
+            loop.sendUserMessage(conversationId: conversation.id, text: '加任务'),
       );
       expect(pendingState.hasPending, isTrue);
       expect(pendingState.pending.single.decision.disposition.name,
@@ -348,8 +367,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      final state = await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       expect(state.error, isNull);
       final toolMessage = (await repository.listMessages(conversation.id))
@@ -364,8 +385,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       final toolMessage = (await repository.listMessages(conversation.id))
           .lastWhere((m) => m.role == 'tool');
@@ -380,23 +403,28 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       final toolMessage = (await repository.listMessages(conversation.id))
           .lastWhere((m) => m.role == 'tool');
       expect(toolMessage.content, contains('title'));
     });
 
-    test('a provider failure surfaces as an error and keeps the turn', () async {
+    test('a provider failure surfaces as an error and keeps the turn',
+        () async {
       final adapter = FakeModelAdapter([
         FakeModelAdapter.failure('模型服务返回 401（API key 可能无效或没有权限。）',
             statusCode: 401),
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '你好'));
+      final state = await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '你好'));
 
       expect(state.generating, isFalse);
       expect(state.error, contains('401'));
@@ -414,8 +442,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       final messages = await repository.listMessages(conversation.id);
       expect(messages.last.content, '我查到了一些');
@@ -436,8 +466,10 @@ void main() {
       final loop = buildLoop(adapter, maxRounds: 2);
       final conversation = await repository.createConversation();
 
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '一直查'));
+      final state = await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '一直查'));
 
       expect(state.rounds, 2);
       expect(state.generating, isFalse);
@@ -457,8 +489,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      final state = await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       expect(await tasks.getTasks(), hasLength(1));
       final actionId = state.executed.single.actionId;
@@ -476,11 +510,15 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      final state = await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
-      final after = await settle(loop,
-          () => loop.undoExecuted(conversation.id, state.executed.single.actionId));
+      final after = await settle(
+          loop,
+          () => loop.undoExecuted(
+              conversation.id, state.executed.single.actionId));
       expect(after.executed.single.undone, isTrue);
     });
 
@@ -496,12 +534,16 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      final state = await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '改名'));
+      final state = await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '改名'));
       expect((await tasks.getTasks()).single.title, '被改的名字');
 
-      await settle(loop,
-          () => loop.undoExecuted(conversation.id, state.executed.single.actionId));
+      await settle(
+          loop,
+          () => loop.undoExecuted(
+              conversation.id, state.executed.single.actionId));
       final restored = (await tasks.getTasks()).single;
       expect(restored.title, '原名');
       expect(restored.priority, 1);
@@ -512,7 +554,8 @@ void main() {
     /// Asserts the invariant the provider enforces on every request: each
     /// assistant message that carries tool calls must be followed by one tool
     /// message per call, before anything else.
-    void expectValidHistory(List<ChatMessage> messages, {required String when}) {
+    void expectValidHistory(List<ChatMessage> messages,
+        {required String when}) {
       for (var i = 0; i < messages.length; i++) {
         final message = messages[i];
         if (message.role != 'assistant' || message.toolCalls.isEmpty) {
@@ -569,10 +612,9 @@ void main() {
       // Finally, each committed turn must have a reply per call.
       for (final entry in byMessage.entries) {
         for (final id in entry.value) {
-          final answered = rows.any((r) =>
-              r.role == AiRepository.roleTool && r.toolCallId == id);
-          expect(answered, isTrue,
-              reason: 'tool call $id has no stored reply');
+          final answered = rows.any(
+              (r) => r.role == AiRepository.roleTool && r.toolCallId == id);
+          expect(answered, isTrue, reason: 'tool call $id has no stored reply');
         }
       }
     }
@@ -589,14 +631,17 @@ void main() {
       final adapter = FakeModelAdapter([
         FakeModelAdapter.callTool('query_tasks', {'limit': 5}, id: 'call_read'),
         FakeModelAdapter.callTool(
-            'manage_task', {'action': 'create', 'title': '两轮之后'}, id: 'call_write'),
+            'manage_task', {'action': 'create', 'title': '两轮之后'},
+            id: 'call_write'),
         FakeModelAdapter.answer('都做完了。'),
       ]);
       final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
       final conversation = await repository.createConversation();
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '先看看再建一个'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '先看看再建一个'));
       expect(loop.state.hasPending, isTrue);
       await expectStoredHistoryValid(conversation.id);
 
@@ -639,8 +684,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '加两个'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '加两个'));
 
       await expectStoredHistoryValid(conversation.id);
       final stored = await repository.listMessages(conversation.id);
@@ -659,14 +706,17 @@ void main() {
       // an incomplete turn is not a valid history.
       final adapter = FakeModelAdapter([
         FakeModelAdapter.callTool(
-            'manage_task', {'action': 'create', 'title': '等确认'}, id: 'call_1'),
+            'manage_task', {'action': 'create', 'title': '等确认'},
+            id: 'call_1'),
         FakeModelAdapter.answer('好了。'),
       ]);
       final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
       final conversation = await repository.createConversation();
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '加任务'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '加任务'));
       expect(loop.state.hasPending, isTrue);
 
       final stored = await repository.listMessages(conversation.id);
@@ -684,18 +734,23 @@ void main() {
       // Driving another turn would produce exactly the invalid history above.
       final adapter = FakeModelAdapter([
         FakeModelAdapter.callTool(
-            'manage_task', {'action': 'create', 'title': 'x'}, id: 'call_1'),
+            'manage_task', {'action': 'create', 'title': 'x'},
+            id: 'call_1'),
         FakeModelAdapter.answer('好'),
       ]);
       final loop = buildLoop(adapter, mode: AiPermissionMode.plan);
       final conversation = await repository.createConversation();
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '第一句'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '第一句'));
       final requestsBefore = adapter.requests.length;
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '插队的一句'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '插队的一句'));
 
       expect(adapter.requests.length, requestsBefore,
           reason: 'no request may be made while a turn awaits approval');
@@ -707,14 +762,17 @@ void main() {
     test('a rejection still closes the turn with a tool answer', () async {
       final adapter = FakeModelAdapter([
         FakeModelAdapter.callTool(
-            'manage_task', {'action': 'delete', 'id': 'nope'}, id: 'call_del'),
+            'manage_task', {'action': 'delete', 'id': 'nope'},
+            id: 'call_del'),
         FakeModelAdapter.answer('好'),
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
 
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '删'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: '删'));
       await settle(loop, () => loop.rejectPending(conversation.id));
 
       await expectStoredHistoryValid(conversation.id);
@@ -737,8 +795,10 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: '排个早读'));
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: '排个早读'));
 
       final stored = await blocks.getTimeBlocks();
       expect(stored.single.title, '早读');
@@ -757,13 +817,67 @@ void main() {
       ]);
       final loop = buildLoop(adapter);
       final conversation = await repository.createConversation();
-      await settle(loop, () => loop.sendUserMessage(
-          conversationId: conversation.id, text: 'x'));
+      await settle(
+          loop,
+          () =>
+              loop.sendUserMessage(conversationId: conversation.id, text: 'x'));
 
       expect(await blocks.getTimeBlocks(), isEmpty);
       final toolMessage = (await repository.listMessages(conversation.id))
           .lastWhere((m) => m.role == 'tool');
       expect(toolMessage.content, contains('end_at'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // persona（schema v35，轮次一百七十二）：用户对自己的描述作为背景进系统提示。
+  //
+  // 三条边界比文案重要：没写过时提示字节不变（persona 段落是空串）、写过时它
+  // 落在日期与规则之间（规则仍是最后读到的）、空白等于没写。
+  // ---------------------------------------------------------------------------
+  group('the user persona reaches the system prompt', () {
+    const lead = '用户对自己的描述（作为背景来理解用户；不要复述这段话，也不要因为提到就刻意迎合）：';
+
+    Future<String> promptFor(FakeModelAdapter adapter) async {
+      final loop = buildLoop(adapter);
+      final conversation = await repository.createConversation();
+      await settle(
+          loop,
+          () => loop.sendUserMessage(
+              conversationId: conversation.id, text: 'hi'));
+      return adapter.requests.single.messages.first.content ?? '';
+    }
+
+    test('没有自我描述时，系统提示里没有 persona 段落', () async {
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer('好')]);
+      final prompt = await promptFor(adapter);
+
+      expect(prompt, startsWith('你是 Furnace 的助手'));
+      expect(prompt, contains('今天的日期是 '));
+      expect(prompt, contains('规则：'));
+      expect(prompt, isNot(contains(lead)));
+    });
+
+    test('写过自我描述时，它作为背景落在日期与规则之间', () async {
+      await SettingsRepository(db).updateUserPersona('我是高三学生，数学想冲 120。');
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer('好')]);
+      final prompt = await promptFor(adapter);
+
+      expect(prompt, contains(lead));
+      expect(prompt, contains('我是高三学生，数学想冲 120。'));
+      expect(prompt.indexOf(lead), greaterThan(prompt.indexOf('今天的日期是 ')),
+          reason: '日期先给，persona 是背景');
+      expect(prompt.indexOf(lead), lessThan(prompt.indexOf('规则：')),
+          reason: '规则最后读，persona 不能盖过规则');
+    });
+
+    test('空白 persona 等于没写过：提示不带段落', () async {
+      await SettingsRepository(db).updateUserPersona('   ');
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer('好')]);
+      final prompt = await promptFor(adapter);
+
+      expect(prompt, isNot(contains(lead)));
+      expect(await SettingsRepository(db).getUserPersona(), isNull);
     });
   });
 }
