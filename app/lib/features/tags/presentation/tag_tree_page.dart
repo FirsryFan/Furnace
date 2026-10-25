@@ -6,7 +6,9 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/tags/tag_tree_sort.dart';
 import '../../../domain/services/tags/tag_tree_view.dart';
+import '../../../domain/services/tags/tag_usage.dart';
 import '../../../l10n/app_localizations.dart';
+import '../application/tag_usage_providers.dart';
 
 /// All tags, flat. The tree is assembled in memory so a rename or move only
 /// needs one refresh.
@@ -65,6 +67,15 @@ class TagTreeSortModeController extends AsyncNotifier<TagTreeSortMode> {
 /// The authoritative display/query path of a tag.
 String _labelOf(Tag tag) =>
     tag.path == null || tag.path!.isEmpty ? tag.name : tag.path!;
+
+/// 用途的中文名。只给 UI 用，所以留在 presentation，不塞进 domain 枚举。
+String _tagUsageLabel(AppLocalizations l10n, TagUsage usage) => switch (usage) {
+      TagUsage.time => l10n.tagUsageTime,
+      TagUsage.question => l10n.tagUsageQuestion,
+      TagUsage.knowledge => l10n.tagUsageKnowledge,
+      TagUsage.task => l10n.tagUsageTask,
+      TagUsage.flashcard => l10n.tagUsageFlashcard,
+    };
 
 /// The tag tree (blueprint 2.8; user annotation 9).
 ///
@@ -125,6 +136,10 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     // simply shows 0, and the page rebuilds by itself when they arrive.
     final objectCounts =
         ref.watch(tagObjectCountsProvider).valueOrNull ?? const <String, int>{};
+    // 用途解析器（v37）：行尾徽标和「用途边界」对话框都读它。加载中或读失败
+    // 时退回空快照——任何标签都不声明用途，只是不显示徽标，树照常可用。
+    final usageResolver = ref.watch(tagUsageResolverProvider).valueOrNull ??
+        TagUsageResolver(const <TagUsageNode>[]);
 
     return Scaffold(
       appBar: AppBar(
@@ -213,6 +228,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
                         root,
                         tagsById: tagsById,
                         showObjectCount: mode == TagTreeSortMode.byObjectCount,
+                        usageResolver: usageResolver,
                       ),
                   ],
                 );
@@ -226,6 +242,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     TagTreeViewNode node, {
     required Map<String, Tag> tagsById,
     required bool showObjectCount,
+    required TagUsageResolver usageResolver,
   }) {
     final tag = tagsById[node.tagId]!;
     final hasChildren = node.hasChildren;
@@ -247,6 +264,9 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
             _expanded.add(node.tagId);
           }
         }),
+        declaredUsages:
+            usageResolver.declaredFor(node.tagId) ?? const <TagUsage>{},
+        onUsage: () => _editTagUsages(context, tag),
         onAddChild: () => _addTag(context, parent: tag),
         onRename: () => _renameTag(context, tag),
         onDelete: () => _deleteTag(context, tag),
@@ -259,6 +279,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
           child,
           tagsById: tagsById,
           showObjectCount: showObjectCount,
+          usageResolver: usageResolver,
         ));
       }
     }
@@ -382,6 +403,83 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     }
     await ref.read(tagRepositoryProvider).deleteTag(tag.id);
     ref.invalidate(allTagsProvider);
+  }
+
+  /// 「用途边界」对话框（v37；docs/REVIEW_FEEDBACK.md §10/§11）。
+  ///
+  /// 勾选框初值是**本级声明**（不是继承来的生效值）：全不勾 = 这一级不声明，
+  /// 继续继承祖先；保存空集合会把 usage_codes 写回 NULL。
+  Future<void> _editTagUsages(BuildContext context, Tag tag) async {
+    final l10n = AppLocalizations.of(context);
+    final resolver = ref.read(tagUsageResolverProvider).valueOrNull ??
+        TagUsageResolver(const <TagUsageNode>[]);
+    final selected = <TagUsage>{...?resolver.declaredFor(tag.id)};
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.tagUsageDialogTitle),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.tagUsageInheritHint,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    l10n.tagUsageEntrySubtitle(resolver.declaredTagCount),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final usage in TagUsage.values)
+                    CheckboxListTile(
+                      key: ValueKey<String>('tag-usage-check-${usage.code}'),
+                      value: selected.contains(usage),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(_tagUsageLabel(l10n, usage)),
+                      onChanged: (checked) => setState(() {
+                        if (checked ?? false) {
+                          selected.add(usage);
+                        } else {
+                          selected.remove(usage);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l10n.commonSave),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true) {
+      return;
+    }
+    try {
+      await setTagUsages(ref, tag.id, selected);
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
   }
 
   // --- 多选批量操作（task-119）-------------------------------------------
@@ -688,6 +786,8 @@ class _TagTile extends StatelessWidget {
     required this.selected,
     required this.onSelectToggle,
     required this.onToggle,
+    required this.declaredUsages,
+    required this.onUsage,
     required this.onAddChild,
     required this.onRename,
     required this.onDelete,
@@ -707,6 +807,10 @@ class _TagTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onSelectToggle;
   final VoidCallback onToggle;
+
+  /// 这一级自己声明的用途；空集 = 没有声明（继承祖先，行尾不显示徽标）。
+  final Set<TagUsage> declaredUsages;
+  final VoidCallback onUsage;
   final VoidCallback onAddChild;
   final VoidCallback onRename;
   final VoidCallback onDelete;
@@ -774,6 +878,21 @@ class _TagTile extends StatelessWidget {
                 key: ValueKey<String>('tag-object-count-${node.tagId}'),
                 count: node.objectCount,
               ),
+            if (!selectionMode && declaredUsages.isNotEmpty)
+              Tooltip(
+                key: ValueKey<String>('tag-usage-badge-${node.tagId}'),
+                message: declaredUsages
+                    .map((usage) => _tagUsageLabel(l10n, usage))
+                    .join('、'),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.rule,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
             if (!selectionMode)
               PopupMenuButton<String>(
                 tooltip: l10n.commonEdit,
@@ -833,6 +952,16 @@ class _TagTile extends StatelessWidget {
         ),
       ),
       PopupMenuItem(
+        value: 'usage',
+        child: Row(
+          children: [
+            const Icon(Icons.rule, size: 18),
+            const SizedBox(width: 10),
+            Text(l10n.tagUsageEntryTitle),
+          ],
+        ),
+      ),
+      PopupMenuItem(
         value: 'delete',
         child: Row(
           children: [
@@ -851,6 +980,8 @@ class _TagTile extends StatelessWidget {
         onAddChild();
       case 'rename':
         onRename();
+      case 'usage':
+        onUsage();
       case 'delete':
         onDelete();
     }

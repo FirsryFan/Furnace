@@ -24,6 +24,7 @@ import 'package:furnace/data/repositories/repository_providers.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/domain/services/tags/tag_tree_sort.dart';
+import 'package:furnace/domain/services/tags/tag_usage.dart';
 import 'package:furnace/features/tags/presentation/tag_tree_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -387,6 +388,155 @@ void main() {
 
     expect(tileTitles(tester), ['alpha', 'gamma', 'beta']);
     expect(find.byType(SnackBar), findsNothing);
+  });
+
+  group('标签用途边界（v37）', () {
+    AppLocalizations l10nOf(WidgetTester tester) =>
+        AppLocalizations.of(tester.element(find.byType(TagTreePage)));
+
+    Finder badgeOf(String tagId) =>
+        find.byKey(ValueKey<String>('tag-usage-badge-$tagId'));
+
+    Finder usageCheckbox(TagUsage usage) =>
+        find.byKey(ValueKey<String>('tag-usage-check-${usage.code}'));
+
+    bool usageChecked(WidgetTester tester, TagUsage usage) =>
+        tester.widget<CheckboxListTile>(usageCheckbox(usage)).value!;
+
+    /// 行菜单 → 「用途边界」。
+    Future<void> openUsageDialog(WidgetTester tester, String tagName) async {
+      await tester.tap(find.descendant(
+        of: find.widgetWithText(ListTile, tagName),
+        matching: find.byIcon(Icons.more_vert),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10nOf(tester).tagUsageEntryTitle));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> saveDialog(WidgetTester tester) async {
+      await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, l10nOf(tester).commonSave),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    /// 保存是异步写库：轮询到目标值，超时就把最后的值交给断言报错。
+    Future<String?> waitUsageCodes(
+      WidgetTester tester,
+      String tagId, {
+      required String? expected,
+    }) async {
+      String? codes;
+      for (var attempt = 0; attempt < 60; attempt++) {
+        final row = await (db.select(db.tags)..where((t) => t.id.equals(tagId)))
+            .getSingle();
+        codes = row.usageCodes;
+        if (codes == expected) {
+          return codes;
+        }
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      return codes;
+    }
+
+    Future<void> waitForBadge(
+      WidgetTester tester,
+      Finder badge, {
+      required bool exists,
+    }) async {
+      for (var attempt = 0; attempt < 60; attempt++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        if (badge.evaluate().isNotEmpty == exists) {
+          return;
+        }
+      }
+    }
+
+    testWidgets('已声明用途的行有徽标，未声明的没有（继承来的不算）', (tester) async {
+      await seedFixture();
+      await TagRepository(db).updateTagUsageCodes('t-alpha', {TagUsage.time});
+      await pumpPage(tester);
+
+      expect(badgeOf('t-alpha'), findsOneWidget);
+      expect(badgeOf('t-beta'), findsNothing);
+      expect(badgeOf('t-gamma'), findsNothing);
+      expect(
+        tester.widget<Tooltip>(badgeOf('t-alpha')).message,
+        '纳入时间表',
+      );
+    });
+
+    testWidgets('菜单勾选用途保存：写库为 time，徽标立刻出现', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      final l10n = l10nOf(tester);
+
+      await openUsageDialog(tester, 'alpha');
+      expect(find.text(l10n.tagUsageDialogTitle), findsOneWidget);
+      expect(find.text(l10n.tagUsageInheritHint), findsOneWidget);
+      for (final usage in TagUsage.values) {
+        expect(usageChecked(tester, usage), isFalse);
+      }
+
+      await tester.tap(usageCheckbox(TagUsage.time));
+      await tester.pumpAndSettle();
+      expect(usageChecked(tester, TagUsage.time), isTrue);
+
+      await saveDialog(tester);
+      expect(await waitUsageCodes(tester, 't-alpha', expected: 'time'), 'time');
+      await waitForBadge(tester, badgeOf('t-alpha'), exists: true);
+      expect(badgeOf('t-alpha'), findsOneWidget);
+    });
+
+    testWidgets('已有声明打开即勾选；全部取消 → 库写回 NULL，徽标消失', (tester) async {
+      await seedFixture();
+      await TagRepository(db).updateTagUsageCodes(
+        't-alpha',
+        {TagUsage.time, TagUsage.question},
+      );
+      await pumpPage(tester);
+      expect(badgeOf('t-alpha'), findsOneWidget);
+
+      await openUsageDialog(tester, 'alpha');
+      expect(usageChecked(tester, TagUsage.time), isTrue);
+      expect(usageChecked(tester, TagUsage.question), isTrue);
+      expect(usageChecked(tester, TagUsage.knowledge), isFalse);
+
+      await tester.tap(usageCheckbox(TagUsage.time));
+      await tester.tap(usageCheckbox(TagUsage.question));
+      await tester.pumpAndSettle();
+      expect(usageChecked(tester, TagUsage.time), isFalse);
+      expect(usageChecked(tester, TagUsage.question), isFalse);
+
+      await saveDialog(tester);
+      expect(await waitUsageCodes(tester, 't-alpha', expected: null), isNull);
+      await waitForBadge(tester, badgeOf('t-alpha'), exists: false);
+      expect(badgeOf('t-alpha'), findsNothing);
+    });
+
+    testWidgets('父标签声明用途、子标签没有：子行无徽标，子对话框初值全不勾', (tester) async {
+      await seedTag('t-parent', '父标签', createdAt: 1000);
+      await seedTag('t-child', '子标签', parentId: 't-parent', createdAt: 2000);
+      await TagRepository(db).updateTagUsageCodes('t-parent', {TagUsage.time});
+      await pumpPage(tester);
+
+      expect(badgeOf('t-parent'), findsOneWidget);
+
+      await toggle(tester, '父标签');
+      expect(find.text('子标签'), findsOneWidget);
+      expect(badgeOf('t-child'), findsNothing);
+
+      await openUsageDialog(tester, '子标签');
+      for (final usage in TagUsage.values) {
+        expect(
+          usageChecked(tester, usage),
+          isFalse,
+          reason: '初值是本级声明，不能把继承来的勾上',
+        );
+      }
+    });
   });
 
   group('多选批量操作', () {
