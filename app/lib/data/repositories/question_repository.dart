@@ -186,6 +186,18 @@ class QuestionSerialNeighbors {
   bool get isNotEmpty => !isEmpty;
 }
 
+/// 一道题在「按题号排好序的题库」里的位置：详情页「第 N / 共 M 题」。
+///
+/// [index] 从 1 起，口径是**题号 <= 本题号的题数**（同号多题时它们拿到同一个
+/// index：题号不是主键，跨库合并允许同号，见 §11.1）；[total] 是题库里带题号
+/// 的题数（未编号的题不参与，与 [QuestionRepository.serialNeighbors] 同口径）。
+class QuestionSerialPosition {
+  const QuestionSerialPosition({required this.index, required this.total});
+
+  final int index;
+  final int total;
+}
+
 /// 题库仓储（`docs/QUESTION_BANK_DESIGN.md`）。
 ///
 /// 不变量：
@@ -382,6 +394,35 @@ class QuestionRepository {
               serialNo: next.serialNo!,
             ),
     );
+  }
+
+  /// 一道题在按题号排好的题库里排第几、题库一共几道带题号的题。
+  ///
+  /// 详情页「第 N / 共 M 题」用它。两种口径与 [serialNeighbors] 保持一致：
+  /// - 只数**带题号**的题（未编号的题不参与，NULL 比较天然不命中）；
+  /// - 同号多题共享同一个 index（题号不是主键，§11.1）。
+  ///
+  /// 传 0 / 负数、或题库里一道带题号的题都没有时返回 `null`：那两种情况下
+  /// 「第几题」没有意义，页面直接不显示这一行。
+  Future<QuestionSerialPosition?> serialPosition(int serialNo) async {
+    if (serialNo < 1) {
+      return null;
+    }
+    final totalQuery = _db.selectOnly(_db.questions)
+      ..addColumns([_db.questions.id.count()])
+      ..where(_db.questions.serialNo.isNotNull());
+    final total =
+        (await totalQuery.getSingle()).read(_db.questions.id.count()) ?? 0;
+    if (total == 0) {
+      return null;
+    }
+    final indexQuery = _db.selectOnly(_db.questions)
+      ..addColumns([_db.questions.id.count()])
+      ..where(_db.questions.serialNo.isNotNull() &
+          _db.questions.serialNo.isSmallerOrEqualValue(serialNo));
+    final index =
+        (await indexQuery.getSingle()).read(_db.questions.id.count()) ?? 0;
+    return QuestionSerialPosition(index: index, total: total);
   }
 
   Future<List<Question>> all({int limit = 200}) => (_db.select(_db.questions)

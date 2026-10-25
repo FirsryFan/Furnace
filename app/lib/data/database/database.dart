@@ -112,13 +112,17 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
   /// numbered question is deleted (docs/QUESTION_BANK_DESIGN.md §11).
+  ///
+  /// v34（轮次一百六十八）adds `local_settings.question_library_sort_mode`: the
+  /// question-library sort choice survives a restart instead of resetting to
+  /// 「最新在前」 (docs/QUESTION_BANK_DESIGN.md §42.3 boundary).
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 34;
 
   @override
   MigrationStrategy get migration {
@@ -223,6 +227,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 33) {
           await _upgradeV32ToV33();
         }
+        if (from < 34) {
+          await _upgradeV33ToV34();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -286,6 +293,10 @@ class AppDatabase extends _$AppDatabase {
         // v29 却没有这一列时，Drift 跳过 onUpgrade，标签树第一次读设置就抛
         // no such column。列可空、NULL 读作出厂字典序，补列即可，没有回填。
         localSettings.tagTreeSortMode,
+        // v34（轮次一百六十八）：题库列表排序方式。同一个失败模式：老文件被盖成
+        // v34 却没有这一列时，Drift 跳过 onUpgrade，题库页第一次读设置就抛
+        // no such column。列可空、NULL 读作出厂「最新在前」，补列即可，没有回填。
+        localSettings.questionLibrarySortMode,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -949,6 +960,25 @@ class AppDatabase extends _$AppDatabase {
       await m.createTable(questionSerialCounters);
     }
     await _raiseQuestionSerialHighWaterToCurrentMax();
+  }
+
+  /// v33 -> v34：题库列表排序方式 `local_settings.question_library_sort_mode`
+  /// （轮次一百六十八）。
+  ///
+  /// 纯新增一列、可空：NULL 读作出厂「最新在前」（应用层
+  /// `questionLibrarySortFromStorage` 负责翻译），写侧只存稳定 code，不存中文。
+  /// 迁移只补列、不回填——回填会把「最新」冻成一次用户的明确选择，以后改出厂
+  /// 排序就达不到了（与 `tagTreeSortMode` / `reviewReminderMinutes` 同一个契约）。
+  ///
+  /// 表不存在就跳过：被盖成 v34 却缺表的文件由 [_ensureColumns] 的自愈建表，
+  /// 在这里 createTable 会让 Drift 映射器抛 unknown table（[_upgradeV22ToV23] 同理）。
+  Future<void> _upgradeV33ToV34() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.questionLibrarySortMode);
   }
 
   Future<void> _upgradeV4ToV5() async {

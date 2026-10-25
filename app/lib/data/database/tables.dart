@@ -156,6 +156,15 @@ class LocalSettings extends Table {
   /// 否则改文案会把已存值变成读不懂的字符串。
   TextColumn get tagTreeSortMode => text().nullable()();
 
+  /// v34（轮次一百六十八）：题库列表的排序方式（`QuestionLibrarySort` 的稳定
+  /// code：`newest` / `serial` / `wrong_first`）。
+  ///
+  /// 与 [tagTreeSortMode] 同一个契约：列可空、NULL 读作"用户没选过"，也就是
+  /// 出厂「最新在前」；写侧写 NULL 表示恢复出厂。表定义不 import 域层——读侧用
+  /// `questionLibrarySortFromStorage` 把 NULL / 未知值翻成出厂档位；库里只存
+  /// code，不存中文标签，否则改文案会把已存值变成读不懂的字符串。
+  TextColumn get questionLibrarySortMode => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

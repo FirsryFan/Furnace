@@ -78,6 +78,22 @@ final questionSerialNeighborsProvider = FutureProvider.autoDispose
   return repository.serialNeighbors(serialNo);
 });
 
+/// 详情页「第 N / 共 M 题」：这道题在带题号的题库里排第几、题库共几道带题号的题。
+///
+/// `null` = 这道题没有题号（不编号的题不参与），或题库里还没有任何带题号的题；
+/// 页面据此不显示进度行。
+final questionSerialPositionProvider = FutureProvider.autoDispose
+    .family<QuestionSerialPosition?, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  final repository = ref.watch(questionRepositoryProvider);
+  final question = await repository.byId(questionId);
+  final serialNo = question?.serialNo;
+  if (serialNo == null) {
+    return null;
+  }
+  return repository.serialPosition(serialNo);
+});
+
 /// 库里最新的一条链，已经还原成解析器的产物形状。
 class StoredChain {
   const StoredChain({

@@ -253,5 +253,38 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the question-library sort mode (schema v34, 轮次一百六十八) as the
+  /// raw stored code, or `null` when the user never picked one.
+  ///
+  /// `null` is not a mode: the caller translates it into the shipped default
+  /// （`questionLibrarySortFromStorage` → 最新在前）. Like [getTagTreeSortMode],
+  /// this repository does not import the feature layer: it hands back exactly
+  /// what the row says and lets the read side own the meaning.
+  Future<String?> getQuestionLibrarySortMode() async {
+    final row = await getSettings();
+    return row?.questionLibrarySortMode;
+  }
+
+  /// Persists the question-library sort mode (schema v34) as a stable code
+  /// （`questionLibrarySortCode`），or `null` to fall back to the shipped
+  /// default.
+  ///
+  /// Blank input is stored as NULL rather than `''`: "empty" is not a mode and
+  /// must not become a third state the reader has to guess about. Unknown codes
+  /// are not rejected here — a future version may add a mode this build cannot
+  /// name, and the reader already degrades unknown values to 最新在前.
+  Future<void> updateQuestionLibrarySortMode(String? mode) async {
+    // The settings row is created lazily (ensureSettings); updating before it
+    // exists would silently affect zero rows and lose the user's choice.
+    await ensureSettings();
+    final code = mode?.trim();
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      questionLibrarySortMode:
+          Value(code == null || code.isEmpty ? null : code),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

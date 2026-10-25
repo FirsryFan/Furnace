@@ -89,7 +89,7 @@ void main() {
     var db = AppDatabase.forTesting(NativeDatabase(built.file));
     var repo = QuestionRepository(db);
 
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     final existing = await repo.byId(built.questionId);
     expect(existing, isNotNull);
     expect(existing!.serialNo, built.serialNo);
@@ -108,7 +108,7 @@ void main() {
 
     // 重开：高水位行必须还在，新题接着长。
     db = AppDatabase.forTesting(NativeDatabase(built.file));
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     expect(await QuestionRepository(db).byId(third.question.id), isNotNull);
     expect(await counterOf(db), third.question.serialNo);
     final fourth = await seedQuestion(db, stem: '第四题');
@@ -151,7 +151,7 @@ void main() {
     expect(ingested.question.serialNo, built.serialNo + 1);
     expect(await counterOf(db), ingested.question.serialNo);
     expect(await repo.byId(ingested.question.id), isNotNull);
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     await db.close();
   });
 
@@ -168,7 +168,7 @@ void main() {
     raw.dispose();
 
     final db = AppDatabase.forTesting(NativeDatabase(file));
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
 
     // v31 -> v32 建出来的作答表可用。
     final attemptRows = await db.select(db.questionAttempts).get();
@@ -189,7 +189,7 @@ void main() {
     await db.close();
 
     db = AppDatabase.forTesting(NativeDatabase(file));
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     expect(await counterOf(db), first.question.serialNo);
     await db.close();
   });

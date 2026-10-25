@@ -12,7 +12,7 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 ///
 /// 这一版只**新增一张表**：没有一列需要回填，老的作答（此前并不存在）
 /// 也不会搬家。`AppDatabase` 的当前 schema 已到 v33，所以这些老文件重开后
-/// `user_version` 一律是 33；本文件只锁 v32 新增的表/列行为。要锁的是三种真实
+/// `user_version` 一律是当前 schemaVersion；本文件只锁 v32 新增的表/列行为。要锁的是三种真实
 /// 文件状态：
 ///
 ///
@@ -94,7 +94,7 @@ void main() {
     var db = AppDatabase.forTesting(NativeDatabase(built.file));
     var repo = QuestionAttemptRepository(db);
 
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     final question = await QuestionRepository(db).byId(built.questionId);
     expect(question, isNotNull);
     expect(question!.stem, 'v32 迁移用的题');
@@ -112,7 +112,7 @@ void main() {
     expect(history.single.isCorrect, isTrue);
     await db.close();
 
-    // 已经是最新版本（33），重开不再迁移；作答行必须原样还在。
+    // 已经是最新版本，重开不再迁移；作答行必须原样还在。
     db = AppDatabase.forTesting(NativeDatabase(built.file));
     repo = QuestionAttemptRepository(db);
     history = await repo.historyFor(built.questionId);
@@ -141,7 +141,7 @@ void main() {
     final history = await repo.historyFor(built.questionId);
     expect(history, hasLength(1));
     expect(history.single.isCorrect, isFalse);
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     await db.close();
   });
 
@@ -152,7 +152,7 @@ void main() {
       dropSourcePhotos: true,
     );
     final db = AppDatabase.forTesting(NativeDatabase(built.file));
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
 
     // v30 -> v31：老 run 没有照片列，补列后读作单图。
     final runs = await HandwritingProposalRepository(db).runs();
@@ -189,7 +189,7 @@ void main() {
     final reopened = await QuestionAttemptRepository(db).historyFor(questionId);
     expect(reopened, hasLength(1));
     expect(reopened.single.id, recorded);
-    expect(await userVersionOf(db), 33);
+    expect(await userVersionOf(db), db.schemaVersion);
     await db.close();
   });
 }

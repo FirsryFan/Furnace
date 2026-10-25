@@ -447,4 +447,48 @@ void main() {
     expect((await repo.serialNeighbors(0)).isEmpty, isTrue);
     expect((await repo.serialNeighbors(-3)).isEmpty, isTrue);
   });
+
+  test('做题进度：index 按题号数、未编号题不计数，空库/0/负数返回 null', () async {
+    final empty = AppDatabase.forTesting(NativeDatabase.memory());
+    expect(await QuestionRepository(empty).serialPosition(1), isNull,
+        reason: '一道带号题都没有时「第几题」没有意义');
+    await empty.close();
+
+    final a = await repo.ingest(const QuestionDraft(stem: '进度一'));
+    final b = await repo.ingest(const QuestionDraft(stem: '进度二'));
+    final c = await repo.ingest(const QuestionDraft(stem: '进度三'));
+
+    final first = await repo.serialPosition(a.question.serialNo!);
+    expect(first!.index, 1);
+    expect(first.total, 3);
+    final second = await repo.serialPosition(b.question.serialNo!);
+    expect(second!.index, 2);
+    expect(second.total, 3);
+    final third = await repo.serialPosition(c.question.serialNo!);
+    expect(third!.index, 3);
+    expect(third.total, 3);
+
+    expect(await repo.serialPosition(0), isNull);
+    expect(await repo.serialPosition(-1), isNull);
+
+    // 未编号的题不参与进度：把它改成没号，总数与它之后题号的 index 一起减。
+    await (db.update(db.questions)..where((t) => t.id.equals(c.question.id)))
+        .write(const QuestionsCompanion(serialNo: Value(null)));
+    final withoutC = await repo.serialPosition(b.question.serialNo!);
+    expect(withoutC!.index, 2);
+    expect(withoutC.total, 2);
+    expect((await repo.serialPosition(3))!.total, 2,
+        reason: '号 3 上没题也没关系，进度是按题号数的');
+  });
+
+  test('做题进度：同号多题共享同一个 index（题号不是主键，§11.1）', () async {
+    final a = await repo.ingest(const QuestionDraft(stem: '同号一'));
+    final b = await repo.ingest(const QuestionDraft(stem: '同号二'));
+    await (db.update(db.questions)..where((t) => t.id.equals(b.question.id)))
+        .write(QuestionsCompanion(serialNo: Value(a.question.serialNo!)));
+
+    final position = await repo.serialPosition(a.question.serialNo!);
+    expect(position!.index, 2, reason: '题号 <= 1 的题数是 2，两题都读作第 2 / 共 2');
+    expect(position.total, 2);
+  });
 }
