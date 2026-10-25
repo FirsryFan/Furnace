@@ -1,5 +1,37 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:furnace/domain/services/zujuan/zujuan_keywords.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
+
+// 真实风格题干（物理/化学/语文各 2 例 + 生物 1 例含拉丁缩写 + 2 个负例）。
+// Dart raw string：$ 与反斜杠原样保留，与候选子串断言逐字对应。
+const String chemStem1 =
+    r'某同学探究$Fe^{3+}$与$I^-$的反应，向$0.1\ \mathrm{mol/L}$的$FeCl_3$溶液中加入过量铁粉，充分反应后过滤。取滤液滴加KSCN溶液，观察颜色变化。〔加点〕结论〔/加点〕如下图所示：![装置图](https://img.xkw.com/dksih/QBM/editorImg/2024/abc.jpg)下列说法正确的是';
+const String chemStem2 =
+    r'工业上用$H_2$和$N_2$合成氨，反应在$500\ ^\circ\mathrm{C}$、$20\ \mathrm{MPa}$条件下进行。下列关于化学平衡移动的说法正确的是';
+const String physStem1 =
+    r'2024年某同学用如图甲所示的装置探究加速度与力的关系，小车质量$M$保持不变，砂桶和砂的总质量$m$远小于$M$。打点计时器所用交流电频率为$50\ \mathrm{Hz}$，得到一条点迹清晰的纸带。下列说法正确的是';
+const String physStem2 =
+    r'如图所示，质量为$m$的物体在水平面上向右运动，物体与水平面间的动摩擦因数为$\mu$。若物体受到一个水平向左的拉力$F$，则物体所受摩擦力的大小为';
+const String chineseStem1 =
+    r'阅读下面的文字，完成下列小题。戏剧的魅力在于它把一个时代的矛盾浓缩在方寸舞台之上，借人物的行动与台词把看不见的社会关系变成可以感知的冲突。〔波浪线〕舞台上的每一个动作都可能是伏笔〔/波浪线〕，而观众在剧场里经历的，正是这种被压缩了的时间。文中画波浪线的句子有何含意？';
+const String chineseStem2 =
+    r'材料一：近年来，数字技术深刻改变了人们的阅读方式。有学者认为，碎片化阅读削弱了深度思考的能力；也有学者指出，新的媒介形式正在催生新的表达。请结合材料，谈谈你的看法。';
+const String bioStem1 =
+    r'用$^{32}P$标记的DNA探针与待测样品进行杂交，通过检测放射性强度来判断基因表达水平。某同学测得菌液的OD值为0.8，下列叙述正确的是';
+const String pureFormulaStem = r'$\frac{a}{b}+\sqrt{c}=0$';
+const String shortStem = '下列正确的是';
+
+const List<String> linkStems = <String>[
+  chemStem1,
+  chemStem2,
+  physStem1,
+  physStem2,
+  chineseStem1,
+  chineseStem2,
+  bioStem1,
+];
 
 /// 组卷网链接/检索词候选（纯逻辑）的验收点：
 ///
@@ -9,31 +41,12 @@ import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 ///    每个用例注释里给出中间 base64 便于复核；
 ///  * 题目/试卷详情页：/<bankid>q<id>.html、/<bankid>p<id>.html；缺 id /
 ///    非纯数字 → null（不猜；skill 侧同样要求 id 存在才拼，extract.mjs:156）；
-///  * 检索词候选：移植 scripts/keywords.mjs，剔除 $...$ 公式 / 图片 / 〔…〕标记，
-///    保留 DNA/KSCN 等拉丁字母与数字，不跨句读，按内容词密度降序，互为子串的
-///    候选只留一个；期望列表由 skill 自己的 CLI 实跑给出
-///    （node scripts/keywords.mjs --text "<题干>" --top 8）；
+///  * 检索词候选：入口在 zujuan_keywords.dart。用户 2026-10-25 反馈旧算法只给
+///    5–14 字，新口径理科 15–30 字 / 文科 20–40 字且严格短于题干；本文件只钉
+///    链接层的责任——band 透传、候选与 URL 配对、负例为空、确定性。
+///    抽词算法与长度带细节见 zujuan_keywords_test.dart；
 ///  * 确定性：同输入同输出。
 void main() {
-  // 真实风格题干（物理/化学/语文各 2 例 + 生物 1 例含拉丁缩写 + 2 个负例）。
-  // Dart raw string：$ 与反斜杠原样保留，与喂给 skill CLI 的题干逐字一致。
-  const chemStem1 =
-      r'某同学探究$Fe^{3+}$与$I^-$的反应，向$0.1\ \mathrm{mol/L}$的$FeCl_3$溶液中加入过量铁粉，充分反应后过滤。取滤液滴加KSCN溶液，观察颜色变化。〔加点〕结论〔/加点〕如下图所示：![装置图](https://img.xkw.com/dksih/QBM/editorImg/2024/abc.jpg)下列说法正确的是';
-  const chemStem2 =
-      r'工业上用$H_2$和$N_2$合成氨，反应在$500\ ^\circ\mathrm{C}$、$20\ \mathrm{MPa}$条件下进行。下列关于化学平衡移动的说法正确的是';
-  const physStem1 =
-      r'2024年某同学用如图甲所示的装置探究加速度与力的关系，小车质量$M$保持不变，砂桶和砂的总质量$m$远小于$M$。打点计时器所用交流电频率为$50\ \mathrm{Hz}$，得到一条点迹清晰的纸带。下列说法正确的是';
-  const physStem2 =
-      r'如图所示，质量为$m$的物体在水平面上向右运动，物体与水平面间的动摩擦因数为$\mu$。若物体受到一个水平向左的拉力$F$，则物体所受摩擦力的大小为';
-  const chineseStem1 =
-      r'阅读下面的文字，完成下列小题。戏剧的魅力在于它把一个时代的矛盾浓缩在方寸舞台之上，借人物的行动与台词把看不见的社会关系变成可以感知的冲突。〔波浪线〕舞台上的每一个动作都可能是伏笔〔/波浪线〕，而观众在剧场里经历的，正是这种被压缩了的时间。文中画波浪线的句子有何含意？';
-  const chineseStem2 =
-      r'材料一：近年来，数字技术深刻改变了人们的阅读方式。有学者认为，碎片化阅读削弱了深度思考的能力；也有学者指出，新的媒介形式正在催生新的表达。请结合材料，谈谈你的看法。';
-  const bioStem1 =
-      r'用$^{32}P$标记的DNA探针与待测样品进行杂交，通过检测放射性强度来判断基因表达水平。某同学测得菌液的OD值为0.8，下列叙述正确的是';
-  const pureFormulaStem = r'$\frac{a}{b}+\sqrt{c}=0$';
-  const shortStem = '下列正确的是';
-
   group('zujuanSearchUrl：文本搜题链接（编码证据 bridge.mjs:148-151）', () {
     test('纯中文：UTF-8 标准 base64（node: 光合作用 → 5YWJ5ZCI5L2c55So）', () {
       expect(
@@ -151,109 +164,34 @@ void main() {
     });
   });
 
-  group('zujuanKeywordCandidates：检索词候选（移植 keywords.mjs）', () {
-    test('化学题干 2 例：候选与 skill CLI 输出逐条一致', () {
-      expect(zujuanKeywordCandidates(chemStem1), const <String>[
-        '充分反应后过滤',
-        '取滤液滴加KSCN溶液',
-        '溶液中加入过量铁粉',
-        '某同学探究',
-        '观察颜色变化',
-      ]);
-      expect(zujuanKeywordCandidates(chemStem2), const <String>[
-        '关于化学平衡移动的说法正',
-        '条件下进行',
-      ]);
+  group('zujuanKeywordCandidates：band 透传与链接层不变量', () {
+    test('默认 band = science：与显式 science、与 extractZujuanKeywords 一致', () {
+      for (final stem in linkStems) {
+        expect(
+          zujuanKeywordCandidates(stem),
+          zujuanKeywordCandidates(stem, band: ZujuanSubjectBand.science),
+          reason: stem,
+        );
+        expect(zujuanKeywordCandidates(stem), extractZujuanKeywords(stem),
+            reason: stem);
+      }
     });
 
-    test('物理题干 2 例：候选与 skill CLI 输出逐条一致', () {
-      expect(zujuanKeywordCandidates(physStem1), const <String>[
-        '打点计时器所用交流电频率',
-        '装置探究加速度与力的关系',
-        '024年某同学用如图甲',
-        '得到一条点迹清晰的纸带',
-        '桶和砂的总质量',
-      ]);
-      expect(zujuanKeywordCandidates(physStem2), const <String>[
-        '物体在水平面上向右运动',
-        '物体与水平面间的动摩擦',
-        '物体所受摩擦力的大小',
-        '物体受到一个水平向左的拉',
-      ]);
-    });
-
-    test('语文题干 2 例：候选与 skill CLI 输出逐条一致', () {
-      expect(zujuanKeywordCandidates(chineseStem1), const <String>[
-        '观众在剧场里经历',
-        '代的矛盾浓缩在方寸舞台之',
-        '舞台上的每一个动作',
-        '见的社会关系变成可以感知',
-        '借人物的行动与台词把看',
-        '阅读下面的文字',
-        '完成下列小题',
-        '文中画波浪线的句子有何含',
-      ]);
-      expect(zujuanKeywordCandidates(chineseStem2), const <String>[
-        '催生新的表达',
-        '碎片化阅读削弱了深度思考',
-        '数字技术深刻改变了人们',
-        '谈你的看法',
-      ]);
-    });
-
-    test('生物题干（含 DNA/OD）：候选与 skill CLI 输出逐条一致', () {
-      expect(zujuanKeywordCandidates(bioStem1), const <String>[
-        '品进行杂交',
-        '某同学测得菌液',
-        '标记的DNA探针',
-        '检测放射性强度来判断基',
-      ]);
-    });
-
-    test('剔除公式/图片/标记；保留拉丁字母与数字（KSCN/DNA/年份）', () {
-      final chem = zujuanKeywordCandidates(chemStem1);
-      final chemJoined = chem.join('｜');
-      expect(chemJoined, isNot(contains('Fe')));
-      expect(chemJoined, isNot(contains('mathrm')));
-      expect(chemJoined, isNot(contains('装置图')));
-      expect(chemJoined, isNot(contains('http')));
-      expect(chemJoined, isNot(contains('〔')));
-      expect(chemJoined, isNot(contains('〕')));
-      expect(chem.any((keyword) => keyword.contains('KSCN')), isTrue);
-
-      final bio = zujuanKeywordCandidates(bioStem1);
-      expect(bio.any((keyword) => keyword.contains('DNA')), isTrue);
-      expect(bio.join('｜'), isNot(contains('32')));
-
-      final chinese = zujuanKeywordCandidates(chineseStem1);
-      expect(chinese.join('｜'), isNot(contains('〔')));
-      expect(chinese.join('｜'), isNot(contains('〕')));
-
-      final physics = zujuanKeywordCandidates(physStem1);
-      expect(physics.join('｜'), isNot(contains('mathrm')));
-      expect(physics.any((keyword) => keyword.contains('024')), isTrue);
-    });
-
-    test('候选不跨句读、长度 4–28、去重、互为子串只留一个、条数 ≤ maxCandidates', () {
+    test('旧题干：候选仍是清洗后文本层真实子串、去重、互不为子串、条数 ≤ maxCandidates', () {
       final banned = RegExp(
         r'[\s$〔〕]|!\[|\]\(|http|，|。|、|；|：|？|！|（|）|\(|\)|《|》|【|】|,',
       );
-      const stems = <String>[
-        chemStem1,
-        chemStem2,
-        physStem1,
-        physStem2,
-        chineseStem1,
-        chineseStem2,
-        bioStem1,
-      ];
-      for (final stem in stems) {
+      for (final stem in linkStems) {
         final candidates = zujuanKeywordCandidates(stem);
-        expect(candidates.length, inInclusiveRange(2, 8), reason: '条数: $stem');
-        expect(candidates.toSet().length, candidates.length,
-            reason: '去重: $stem');
+        expect(candidates.length, inInclusiveRange(1, 8), reason: stem);
+        expect(candidates.toSet().length, candidates.length, reason: stem);
         for (final candidate in candidates) {
-          expect(candidate.length, inInclusiveRange(4, 28));
+          expect(
+            candidate.length,
+            inInclusiveRange(4, kZujuanScienceMaxLength),
+            reason: candidate,
+          );
+          expect(stem.contains(candidate), isTrue, reason: candidate);
           expect(
             banned.hasMatch(candidate),
             isFalse,
@@ -261,8 +199,8 @@ void main() {
           );
         }
         for (var i = 0; i < candidates.length; i++) {
-          final first = candidates[i];
           for (var j = i + 1; j < candidates.length; j++) {
+            final first = candidates[i];
             final second = candidates[j];
             expect(
               first.contains(second) || second.contains(first),
@@ -274,31 +212,73 @@ void main() {
       }
     });
 
-    test('maxCandidates 截断到前 N 条；0/负数返回空', () {
-      expect(
-        zujuanKeywordCandidates(chemStem1, maxCandidates: 2),
-        const <String>['充分反应后过滤', '取滤液滴加KSCN溶液'],
+    test('band: humanities 透传：与 extractZujuanKeywords 同 band 一致，每条严格短于题干', () {
+      final candidates = zujuanKeywordCandidates(
+        chineseStem1,
+        band: ZujuanSubjectBand.humanities,
       );
       expect(
-        zujuanKeywordCandidates(chemStem1, maxCandidates: 1),
-        const <String>['充分反应后过滤'],
+        candidates,
+        extractZujuanKeywords(chineseStem1, band: ZujuanSubjectBand.humanities),
       );
-      expect(zujuanKeywordCandidates(chemStem1, maxCandidates: 0), isEmpty);
-      expect(zujuanKeywordCandidates(chemStem1, maxCandidates: -3), isEmpty);
+      expect(candidates, isNotEmpty);
+      for (final candidate in candidates) {
+        expect(
+          candidate.length,
+          lessThan(chineseStem1.trim().length),
+          reason: candidate,
+        );
+        expect(
+          candidate.length,
+          lessThanOrEqualTo(kZujuanHumanitiesMaxLength),
+          reason: candidate,
+        );
+      }
+      // 该题干首句够长：文科口径下至少有一条进入 20–40 区间。
+      expect(
+        candidates.any(
+          (candidate) => candidate.length >= kZujuanHumanitiesMinLength,
+        ),
+        isTrue,
+      );
     });
 
-    test('无可用文本层：纯公式题干 / 短套话 / 空串 → 空列表', () {
+    test('maxCandidates 0/1/2 生效（截断在排序去重之后）', () {
+      final full = zujuanKeywordCandidates(chemStem1);
+      expect(full.length, greaterThanOrEqualTo(2));
+      expect(zujuanKeywordCandidates(chemStem1, maxCandidates: 0), isEmpty);
+      expect(zujuanKeywordCandidates(chemStem1, maxCandidates: -3), isEmpty);
+      expect(
+        zujuanKeywordCandidates(chemStem1, maxCandidates: 1),
+        <String>[full.first],
+      );
+      expect(
+        zujuanKeywordCandidates(chemStem1, maxCandidates: 2),
+        full.take(2).toList(),
+      );
+    });
+
+    test('负例：纯公式/空串/纯空白 → 空；短套话题干按新口径回退为非空', () {
       expect(zujuanKeywordCandidates(pureFormulaStem), isEmpty);
-      expect(zujuanKeywordCandidates(shortStem), isEmpty);
       expect(zujuanKeywordCandidates(''), isEmpty);
       expect(zujuanKeywordCandidates('   '), isEmpty);
+      final short = zujuanKeywordCandidates(shortStem);
+      expect(short, isNotEmpty);
+      for (final candidate in short) {
+        expect(
+          candidate.length,
+          inInclusiveRange(4, shortStem.length),
+          reason: candidate,
+        );
+      }
     });
 
     test('确定性：同输入连续两次结果一致', () {
-      const stems = <String>[chemStem1, physStem1, chineseStem1, bioStem1];
-      for (final stem in stems) {
-        expect(zujuanKeywordCandidates(stem), zujuanKeywordCandidates(stem));
-        expect(zujuanSearchCandidates(stem), zujuanSearchCandidates(stem));
+      for (final stem in linkStems) {
+        expect(zujuanKeywordCandidates(stem), zujuanKeywordCandidates(stem),
+            reason: stem);
+        expect(zujuanSearchCandidates(stem), zujuanSearchCandidates(stem),
+            reason: stem);
       }
     });
   });
@@ -312,6 +292,26 @@ void main() {
       for (final candidate in candidates) {
         expect(candidate.url, zujuanSearchUrl(candidate.keyword));
         expect(candidate.url, contains('intent=question'));
+      }
+    });
+
+    test('band: humanities 透传，且 url 的 keyword 参数能解码回候选原文', () {
+      final candidates = zujuanSearchCandidates(
+        chineseStem1,
+        band: ZujuanSubjectBand.humanities,
+      );
+      expect(
+        candidates.map((candidate) => candidate.keyword).toList(),
+        zujuanKeywordCandidates(
+          chineseStem1,
+          band: ZujuanSubjectBand.humanities,
+        ),
+      );
+      expect(candidates, isNotEmpty);
+      for (final candidate in candidates) {
+        final encoded = Uri.parse(candidate.url).queryParameters['keyword'];
+        expect(encoded, isNotNull, reason: candidate.keyword);
+        expect(utf8.decode(base64Decode(encoded!)), candidate.keyword);
       }
     });
 

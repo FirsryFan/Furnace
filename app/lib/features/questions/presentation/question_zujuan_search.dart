@@ -4,6 +4,8 @@
 ///
 ///  * 检索词是**纯逻辑**算出来的（[zujuanSearchCandidates]），这里只做展示与
 ///    剪贴板动作，不联网、不解析搜索结果、不依赖站点 cookie；
+///  * 检索词长度按学科带取（理科 15–30 字、文科 20–40 字且严格短于题干）——
+///    规则在 zujuan_keywords.dart，这里只把题目学科键换算成 [ZujuanSubjectBand]；
 ///  * 组卷网按站点当前学科（bankId cookie）过滤，UI 替用户切不了学科，所以每次
 ///    都显式提示「先在组卷网切到对应学科」——这是标准侧实测过的事故（学科不对
 ///    会静默 0 条）；
@@ -15,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/services/zujuan/zujuan_keywords.dart';
 import '../../../domain/services/zujuan/zujuan_link.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -24,31 +27,51 @@ const Key questionZujuanSearchButtonKey = Key('question-zujuan-search');
 /// 底部表最多摆几条候选：纯逻辑最多给 8 条，界面只显示 5 条，避免长列表。
 const int questionZujuanVisibleCandidateLimit = 5;
 
+/// 候选计算的入参：题干 + 学科带。
+///
+/// 用 record 当 family key（值相等即命中缓存）：同一个题干在不同学科带下长度
+/// 规则不同，缓存必须分开。
+typedef ZujuanCandidateQuery = ({String stem, ZujuanSubjectBand band});
+
 /// 从题干算候选检索词。
 ///
 /// 纯同步计算（本地字符串处理），不做异步 provider：题干在页面 build 时已经从
 /// 库里读出来了，再套一个 loading 态只会让入口闪一下。题干空白时返回空列表，
 /// 入口因此整个不渲染。
 final questionZujuanCandidatesProvider =
-    Provider.family<List<ZujuanSearchCandidate>, String>((ref, stem) {
-  final trimmed = stem.trim();
-  if (trimmed.isEmpty) {
-    return const <ZujuanSearchCandidate>[];
-  }
-  return zujuanSearchCandidates(trimmed);
-});
+    Provider.family<List<ZujuanSearchCandidate>, ZujuanCandidateQuery>(
+  (ref, query) {
+    final trimmed = query.stem.trim();
+    if (trimmed.isEmpty) {
+      return const <ZujuanSearchCandidate>[];
+    }
+    return zujuanSearchCandidates(trimmed, band: query.band);
+  },
+);
 
 /// 题面下方的「去组卷网搜这道题」按钮；候选为空时整个 widget 不占版面。
 class QuestionZujuanSearchButton extends ConsumerWidget {
-  const QuestionZujuanSearchButton({super.key, required this.stem});
+  const QuestionZujuanSearchButton({
+    super.key,
+    required this.stem,
+    this.subjectKey,
+  });
 
   /// 当前题的题干（页面从 QuestionDetail 里取；本 widget 不读库）。
   final String stem;
 
+  /// 题目学科键（math/chinese/…），用来选检索词长度带。
+  ///
+  /// null/未知按理科处理（与纯逻辑默认一致），不传也不会崩。
+  final String? subjectKey;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final candidates = ref.watch(questionZujuanCandidatesProvider(stem));
+    final band = zujuanSubjectBandFor(subjectKey);
+    final candidates = ref.watch(
+      questionZujuanCandidatesProvider((stem: stem, band: band)),
+    );
     if (candidates.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -65,6 +88,7 @@ class QuestionZujuanSearchButton extends ConsumerWidget {
             context,
             l10n: l10n,
             candidates: visible,
+            band: band,
           ),
           icon: const Icon(Icons.travel_explore, size: 18),
           label: Text(l10n.questionZujuanSearch),
@@ -79,6 +103,7 @@ Future<void> showQuestionZujuanSheet(
   BuildContext context, {
   required AppLocalizations l10n,
   required List<ZujuanSearchCandidate> candidates,
+  required ZujuanSubjectBand band,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -87,15 +112,23 @@ Future<void> showQuestionZujuanSheet(
     builder: (sheetContext) => _QuestionZujuanSheet(
       l10n: l10n,
       candidates: candidates,
+      band: band,
     ),
   );
 }
 
 class _QuestionZujuanSheet extends StatelessWidget {
-  const _QuestionZujuanSheet({required this.l10n, required this.candidates});
+  const _QuestionZujuanSheet({
+    required this.l10n,
+    required this.candidates,
+    required this.band,
+  });
 
   final AppLocalizations l10n;
   final List<ZujuanSearchCandidate> candidates;
+
+  /// 这一批候选是按哪个学科带的长度规则算出来的（表头提示用）。
+  final ZujuanSubjectBand band;
 
   /// 复制文本 → 关掉底部表 → SnackBar 说明复制了什么。
   ///
@@ -125,6 +158,14 @@ class _QuestionZujuanSheet extends StatelessWidget {
           Text(l10n.questionZujuanSearch, style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(l10n.questionZujuanBankHint, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 2),
+          // 长度带提示：文科/理科的候选长度不同，用户能立刻看出这批词合不合期望。
+          Text(
+            l10n.questionZujuanLengthHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
           if (candidates.isEmpty)
             Text(l10n.questionZujuanNoCandidates)
@@ -178,7 +219,26 @@ class _QuestionZujuanCandidateRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(candidate.keyword, style: theme.textTheme.bodyLarge),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    candidate.keyword,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 字数：用户按「理科 15–30 字」检查候选是否够长。
+                Text(
+                  l10n.questionZujuanKeywordLength(candidate.keyword.length),
+                  key: Key('question-zujuan-length-$index'),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
             Row(
               children: [
                 TextButton.icon(

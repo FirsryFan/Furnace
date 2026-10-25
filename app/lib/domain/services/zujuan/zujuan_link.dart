@@ -24,7 +24,9 @@
 /// 用户带到页面，**学科要用户自己确认**（同上事故：连搜 19 条检索式全部 0 结果，
 /// 其实是学科不对）。UI 接线时应提示用户先切到对应学科。
 ///
-/// 检索词候选抽取规则见 zujuan_keywords.dart（移植 scripts/keywords.mjs）。
+/// 检索词候选抽取规则见 zujuan_keywords.dart：按学科带取长度（理科 15–30 /
+/// 文科 20–40 且短于题干，口径来自用户 2026-10-25 反馈），与标准侧
+/// scripts/keywords.mjs 的旧 4–28 口径已分歧、待标准侧同步。
 library;
 
 import 'dart:convert';
@@ -108,18 +110,36 @@ class ZujuanSearchCandidate {
   String toString() => 'ZujuanSearchCandidate(keyword: $keyword, url: $url)';
 }
 
-/// 从题干抽 1..[maxCandidates] 条候选检索词（规则移植 scripts/keywords.mjs，
-/// 见 zujuan_keywords.dart 的 library doc 与已知局限）。
-List<String> zujuanKeywordCandidates(String stem, {int maxCandidates = 8}) {
-  return extractZujuanKeywords(stem, maxCandidates: maxCandidates);
+/// 从题干抽 1..[maxCandidates] 条候选检索词。
+///
+/// [band] 决定目标长度带（理科 15–30 / 文科 20–40 且短于题干）；默认理科，
+/// 与旧行为兼容。规则见 zujuan_keywords.dart 的 library doc 与已知局限。
+List<String> zujuanKeywordCandidates(
+  String stem, {
+  int maxCandidates = 8,
+  ZujuanSubjectBand band = ZujuanSubjectBand.science,
+}) {
+  return extractZujuanKeywords(
+    stem,
+    maxCandidates: maxCandidates,
+    band: band,
+  );
 }
 
 /// 从题干抽候选检索词并逐条带上文本搜题链接（UI 复制/打开用）。
+///
+/// [band] 透传给 [zujuanKeywordCandidates]：调用方应按题目学科传入
+/// [zujuanSubjectBandFor] 的结果。
 List<ZujuanSearchCandidate> zujuanSearchCandidates(
   String stem, {
   int maxCandidates = 8,
+  ZujuanSubjectBand band = ZujuanSubjectBand.science,
 }) {
-  return zujuanKeywordCandidates(stem, maxCandidates: maxCandidates)
+  return zujuanKeywordCandidates(
+    stem,
+    maxCandidates: maxCandidates,
+    band: band,
+  )
       .map(
         (keyword) => ZujuanSearchCandidate(
           keyword: keyword,

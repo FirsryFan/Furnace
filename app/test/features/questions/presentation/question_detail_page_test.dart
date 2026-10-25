@@ -32,6 +32,7 @@ import 'package:furnace/data/repositories/repository_providers.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/domain/services/paper/similar_questions.dart';
 import 'package:furnace/domain/services/questions/question_source.dart';
+import 'package:furnace/domain/services/zujuan/zujuan_keywords.dart';
 import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
@@ -778,15 +779,61 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    expect(container.read(questionZujuanCandidatesProvider('')), isEmpty);
-    expect(container.read(questionZujuanCandidatesProvider('   ')), isEmpty);
+    expect(
+      container.read(
+        questionZujuanCandidatesProvider(
+          (stem: '', band: ZujuanSubjectBand.science),
+        ),
+      ),
+      isEmpty,
+    );
+    expect(
+      container.read(
+        questionZujuanCandidatesProvider(
+          (stem: '   ', band: ZujuanSubjectBand.science),
+        ),
+      ),
+      isEmpty,
+    );
 
     final candidates = container.read(
-      questionZujuanCandidatesProvider('细胞膜上的载体蛋白参与物质运输，实验测得浓度梯度。'),
+      questionZujuanCandidatesProvider(
+        (
+          stem: '细胞膜上的载体蛋白参与物质运输，实验测得浓度梯度。',
+          band: ZujuanSubjectBand.science,
+        ),
+      ),
     );
     expect(candidates, isNotEmpty);
     for (final candidate in candidates) {
       expect(candidate.url, zujuanSearchUrl(candidate.keyword));
+    }
+  });
+
+  test('组卷网候选 provider：学科带决定长度规则（文科更长且短于题干）', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    const stem = '阅读下面的文章，完成下列各题。文章从多个角度讨论了人工智能生成内容技术'
+        '在教育考试中的应用前景，以及它可能带来的公平性与诚信问题，请结合文本概括作者的观点。';
+    final candidates = container.read(
+      questionZujuanCandidatesProvider(
+        (stem: stem, band: ZujuanSubjectBand.humanities),
+      ),
+    );
+    expect(candidates, isNotEmpty);
+    // 长度带是目标而不是铁律：被标点切碎的段会回退到更短的真实子串（≥4），
+    // 但至少要有一条落在文科 20–40 字带里，且谁都不能超过 40 或长过题干。
+    expect(
+      candidates.any(
+        (candidate) =>
+            candidate.keyword.length >= 20 && candidate.keyword.length <= 40,
+      ),
+      isTrue,
+    );
+    for (final candidate in candidates) {
+      expect(candidate.keyword.length, lessThanOrEqualTo(40));
+      expect(candidate.keyword.length, lessThan(stem.length));
     }
   });
 
@@ -2407,7 +2454,7 @@ Future<void> _pumpDetail(
         // 只替换「题干 → 候选」这一步，别的通路照真实 provider 走。
         if (zujuanCandidates != null)
           questionZujuanCandidatesProvider.overrideWith(
-            (ref, stem) => zujuanCandidates,
+            (ref, query) => zujuanCandidates,
           ),
         ...overrides,
       ],

@@ -349,7 +349,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
           // 自测未提交时连它一起收起：找原题等于把答案摆到眼前。
           if (detail != null && !_spoilersHidden)
-            QuestionZujuanSearchButton(stem: detail.question.stem),
+            QuestionZujuanSearchButton(
+              stem: detail.question.stem,
+              subjectKey: detail.question.subjectKey,
+            ),
           // 入库体检：只报不改；体检没跑出来/失败时整块零高度，不挡下面的解题入口。
           // 它不剧透解法，自测中也保留。
           if (detail != null)
