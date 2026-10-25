@@ -8,7 +8,8 @@ import 'package:furnace/features/ai/infrastructure/sse_assembler.dart';
 /// failure is silent - the arguments come out as truncated JSON - so every rule
 /// here is pinned by a test rather than verified by hand once.
 void main() {
-  Map<String, Object?> chunk(Object? delta, {String? finish, Object? usage}) => {
+  Map<String, Object?> chunk(Object? delta, {String? finish, Object? usage}) =>
+      {
         'choices': [
           {'index': 0, 'delta': delta, 'finish_reason': finish},
         ],
@@ -80,6 +81,112 @@ void main() {
     });
   });
 
+  group('reasoning', () {
+    test('reasoning_content deltas are emitted and accumulated apart from text',
+        () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({'reasoning_content': '先想'}));
+      expect((events.single as ModelReasoningDelta).text, '先想');
+      a.consume(chunk({'reasoning_content': '一下'}));
+      expect(a.reasoning, '先想一下');
+      expect(a.text, isEmpty);
+    });
+
+    test('a plain reasoning string is accepted', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({'reasoning': '思路'}));
+      expect((events.single as ModelReasoningDelta).text, '思路');
+      expect(a.reasoning, '思路');
+    });
+
+    test('a reasoning object is read through its text field', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({
+        'reasoning': {'text': '对象思路'},
+      }));
+      expect((events.single as ModelReasoningDelta).text, '对象思路');
+    });
+
+    test('content parts keep reasoning and answer on separate channels', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({
+        'content': [
+          {'type': 'reasoning', 'text': '想'},
+          {'type': 'text', 'text': '答'},
+        ],
+      }));
+      expect(events.map((e) => e.runtimeType),
+          [ModelReasoningDelta, ModelTextDelta]);
+      expect(a.reasoning, '想');
+      expect(a.text, '答');
+    });
+
+    test('a thinking part is reasoning even without a type', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({
+        'content': [
+          {'type': 'thinking', 'content': '深想'},
+          {'thinking': '补想'},
+        ],
+      }));
+      expect(events.whereType<ModelReasoningDelta>().map((e) => e.text),
+          ['深想', '补想']);
+      expect(a.text, isEmpty);
+    });
+
+    test('empty reasoning fragments emit nothing', () {
+      final a = StreamAssembler();
+      expect(a.consume(chunk({'reasoning_content': ''})), isEmpty);
+      expect(a.consume(chunk({'reasoning_content': null})), isEmpty);
+      expect(a.reasoning, isEmpty);
+    });
+
+    test('the text channel is unchanged when no reasoning is sent', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({'content': '答案'}));
+      expect((events.single as ModelTextDelta).text, '答案');
+      expect(a.reasoning, isEmpty);
+    });
+
+    test('a content list of plain text parts is concatenated in order', () {
+      final a = StreamAssembler();
+      final events = a.consume(chunk({
+        'content': [
+          {'type': 'text', 'text': '甲'},
+          {'text': '乙'},
+        ],
+      }));
+      expect(events.whereType<ModelTextDelta>().map((e) => e.text), ['甲', '乙']);
+      expect(a.text, '甲乙');
+    });
+
+    test('a content part with no text is ignored instead of crashing', () {
+      final a = StreamAssembler();
+      expect(
+        a.consume(chunk({
+          'content': [
+            {
+              'type': 'image_url',
+              'image_url': {'url': 'http://localhost/a.png'}
+            },
+            <String, Object?>{},
+          ],
+        })),
+        isEmpty,
+      );
+      expect(a.text, isEmpty);
+      expect(a.reasoning, isEmpty);
+    });
+
+    test('reasoning and answer accumulate independently across chunks', () {
+      final a = StreamAssembler();
+      a.consume(chunk({'content': '答案'}));
+      a.consume(chunk({'reasoning_content': '事后思路'}));
+      expect(a.text, '答案');
+      expect(a.reasoning, '事后思路');
+    });
+  });
+
   group('tool calls', () {
     test('sharded arguments are concatenated into valid JSON', () {
       final a = StreamAssembler();
@@ -115,12 +222,18 @@ void main() {
           {
             'index': 0,
             'id': 'c0',
-            'function': {'name': 'manage_task', 'arguments': '{"action":"create"}'}
+            'function': {
+              'name': 'manage_task',
+              'arguments': '{"action":"create"}'
+            }
           },
           {
             'index': 1,
             'id': 'c1',
-            'function': {'name': 'query_tasks', 'arguments': '{"status":"todo"}'}
+            'function': {
+              'name': 'query_tasks',
+              'arguments': '{"status":"todo"}'
+            }
           },
         ],
       }));
@@ -137,26 +250,43 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 1, 'id': 'c1', 'function': {'name': 'second', 'arguments': '{'}}
+          {
+            'index': 1,
+            'id': 'c1',
+            'function': {'name': 'second', 'arguments': '{'}
+          }
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c0', 'function': {'name': 'first', 'arguments': '{'}}
+          {
+            'index': 0,
+            'id': 'c0',
+            'function': {'name': 'first', 'arguments': '{'}
+          }
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'index': 1, 'function': {'arguments': '}'}},
+          {
+            'index': 1,
+            'function': {'arguments': '}'}
+          },
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'function': {'arguments': '}'}},
+          {
+            'index': 0,
+            'function': {'arguments': '}'}
+          },
         ],
       }));
-      final names =
-          a.finish().whereType<ModelToolCall>().map((e) => e.call.name).toList();
+      final names = a
+          .finish()
+          .whereType<ModelToolCall>()
+          .map((e) => e.call.name)
+          .toList();
       expect(names, ['first', 'second']);
     });
 
@@ -166,12 +296,20 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'call_x', 'function': {'name': 'manage_task', 'arguments': ''}}
+          {
+            'index': 0,
+            'id': 'call_x',
+            'function': {'name': 'manage_task', 'arguments': ''}
+          }
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'call_x', 'function': {'arguments': '{}'}}
+          {
+            'index': 0,
+            'id': 'call_x',
+            'function': {'arguments': '{}'}
+          }
         ],
       }));
       final call = a.finish().whereType<ModelToolCall>().single.call;
@@ -183,22 +321,34 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c', 'function': {'name': 'manage_task', 'arguments': ''}}
+          {
+            'index': 0,
+            'id': 'c',
+            'function': {'name': 'manage_task', 'arguments': ''}
+          }
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'function': {'name': 'manage_task', 'arguments': '{}'}}
+          {
+            'index': 0,
+            'function': {'name': 'manage_task', 'arguments': '{}'}
+          }
         ],
       }));
-      expect(a.finish().whereType<ModelToolCall>().single.call.name, 'manage_task');
+      expect(a.finish().whereType<ModelToolCall>().single.call.name,
+          'manage_task');
     });
 
     test('empty arguments mean a no-argument tool, not an error', () {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c', 'function': {'name': 'list_skills', 'arguments': ''}}
+          {
+            'index': 0,
+            'id': 'c',
+            'function': {'name': 'list_skills', 'arguments': ''}
+          }
         ],
       }));
       final call = a.finish().whereType<ModelToolCall>().single.call;
@@ -212,7 +362,11 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c', 'function': {'name': 'manage_task', 'arguments': '{"action": '}}
+          {
+            'index': 0,
+            'id': 'c',
+            'function': {'name': 'manage_task', 'arguments': '{"action": '}
+          }
         ],
       }));
       final call = a.finish().whereType<ModelToolCall>().single.call;
@@ -227,17 +381,26 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c', 'function': {'name': 'x', 'arguments': '[1,2]'}}
+          {
+            'index': 0,
+            'id': 'c',
+            'function': {'name': 'x', 'arguments': '[1,2]'}
+          }
         ],
       }));
-      expect(a.finish().whereType<ModelToolCall>().single.call.parseError, isNotNull);
+      expect(a.finish().whereType<ModelToolCall>().single.call.parseError,
+          isNotNull);
     });
 
     test('a nameless call is dropped rather than reported', () {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'index': 0, 'id': 'c', 'function': {'arguments': '{}'}}
+          {
+            'index': 0,
+            'id': 'c',
+            'function': {'arguments': '{}'}
+          }
         ],
       }));
       expect(a.finish().whereType<ModelToolCall>(), isEmpty);
@@ -249,16 +412,25 @@ void main() {
       final a = StreamAssembler();
       a.consume(chunk({
         'tool_calls': [
-          {'id': 'a', 'function': {'name': 'first', 'arguments': '{}'}}
+          {
+            'id': 'a',
+            'function': {'name': 'first', 'arguments': '{}'}
+          }
         ],
       }));
       a.consume(chunk({
         'tool_calls': [
-          {'id': 'b', 'function': {'name': 'second', 'arguments': '{}'}}
+          {
+            'id': 'b',
+            'function': {'name': 'second', 'arguments': '{}'}
+          }
         ],
       }));
-      final names =
-          a.finish().whereType<ModelToolCall>().map((e) => e.call.name).toList();
+      final names = a
+          .finish()
+          .whereType<ModelToolCall>()
+          .map((e) => e.call.name)
+          .toList();
       expect(names, ['first', 'second']);
     });
   });
@@ -270,7 +442,8 @@ void main() {
       expect(a.consume(const {'choices': []}), isEmpty);
     });
 
-    test('a chunk with no delta is ignored but still records finish_reason', () {
+    test('a chunk with no delta is ignored but still records finish_reason',
+        () {
       final a = StreamAssembler();
       expect(a.consume(chunk(null, finish: 'stop')), isEmpty);
       expect((a.finish().last as ModelTurnDone).finishReason, 'stop');
@@ -278,7 +451,8 @@ void main() {
 
     test('usage is picked up whenever it arrives', () {
       final a = StreamAssembler();
-      a.consume(chunk(const {}, usage: const {'prompt_tokens': 12, 'completion_tokens': 7}));
+      a.consume(chunk(const {},
+          usage: const {'prompt_tokens': 12, 'completion_tokens': 7}));
       final done = a.finish().last as ModelTurnDone;
       expect(done.promptTokens, 12);
       expect(done.completionTokens, 7);
@@ -300,12 +474,16 @@ void main() {
         parameters: {
           'type': 'object',
           'properties': {
-            'action': {'type': 'string', 'enum': ['create', 'update']},
+            'action': {
+              'type': 'string',
+              'enum': ['create', 'update']
+            },
           },
           'required': ['action'],
         },
       );
-      final json = jsonDecode(jsonEncode(spec.toJson())) as Map<String, Object?>;
+      final json =
+          jsonDecode(jsonEncode(spec.toJson())) as Map<String, Object?>;
       expect(json['type'], 'function');
       final function = json['function'] as Map<String, Object?>;
       expect(function['name'], 'manage_task');
@@ -321,7 +499,8 @@ void main() {
       expect(json['content'], '{"ok":true}');
     });
 
-    test('an assistant message with tool calls omits an empty content field', () {
+    test('an assistant message with tool calls omits an empty content field',
+        () {
       const message = ChatMessage.assistant(
         toolCalls: [
           ToolCallRequest(

@@ -343,10 +343,12 @@ class AgentTurnState {
   const AgentTurnState({
     this.generating = false,
     this.streamingText = '',
+    this.reasoningText = '',
     this.pending = const [],
     this.pendingTurn,
     this.executed = const [],
     this.error,
+    this.cancelled = false,
     this.rounds = 0,
     this.usage = const TurnUsage(),
   });
@@ -356,6 +358,14 @@ class AgentTurnState {
 
   /// Assistant text received so far in this turn.
   final String streamingText;
+
+  /// Thinking / reasoning text received so far in this turn.
+  ///
+  /// A separate channel from [streamingText] because it is not the answer: it
+  /// is never persisted and never sent back to the provider, and a provider
+  /// that does not think simply leaves this empty. A UI that does not show
+  /// thinking can ignore it and still be correct.
+  final String reasoningText;
 
   /// Calls that need a decision before anything happens.
   final List<PendingCall> pending;
@@ -369,6 +379,14 @@ class AgentTurnState {
 
   /// User-facing failure text, e.g. a provider error.
   final String? error;
+
+  /// True when the user stopped this turn before it finished.
+  ///
+  /// Not a failure: [error] stays null and any answer text received up to the
+  /// stop is kept (and persisted if it is not empty). The flag exists so the
+  /// UI can say the answer is partial and offer to continue, instead of
+  /// showing a message that looks complete.
+  final bool cancelled;
 
   /// How many model round-trips this turn used.
   ///
@@ -387,10 +405,12 @@ class AgentTurnState {
   AgentTurnState copyWith({
     bool? generating,
     String? streamingText,
+    String? reasoningText,
     List<PendingCall>? pending,
     TurnGroup? pendingTurn,
     List<ExecutedCall>? executed,
     String? error,
+    bool? cancelled,
     int? rounds,
     TurnUsage? usage,
     bool clearError = false,
@@ -404,10 +424,12 @@ class AgentTurnState {
     return AgentTurnState(
       generating: generating ?? this.generating,
       streamingText: streamingText ?? this.streamingText,
+      reasoningText: reasoningText ?? this.reasoningText,
       pending: pending ?? this.pending,
       pendingTurn: clearPendingTurn ? null : (pendingTurn ?? this.pendingTurn),
       executed: executed ?? this.executed,
       error: clearError ? null : (error ?? this.error),
+      cancelled: cancelled ?? this.cancelled,
       rounds: nextRounds,
       usage: nextUsage,
     );
@@ -529,10 +551,50 @@ class AgentLoop {
   final _states = StreamController<AgentTurnState>.broadcast();
   AgentTurnState _state = const AgentTurnState();
 
+  /// Set by [cancel], checked at every point this loop could start another
+  /// round or act on a call. Cleared when a new user message starts a turn, so
+  /// a cancel only ever affects the turn it was issued for.
+  bool _cancelRequested = false;
+
   Stream<AgentTurnState> get states => _states.stream;
   AgentTurnState get state => _state;
 
-  void dispose() => _states.close();
+  /// Stops the turn in flight and keeps whatever text has arrived.
+  ///
+  /// Safe to call at any time and more than once: a second call does nothing.
+  /// The adapter is asked to stop only when it can (see
+  /// [ModelAdapterCancellation]); the loop also stops itself at the next event
+  /// or round boundary, which is what lets a scripted fake adapter - one that
+  /// cannot be interrupted mid-stream - still end cleanly.
+  ///
+  /// A turn waiting for approval is dropped, not committed: it still has calls
+  /// the model never saw an answer to, so writing it would make the next
+  /// request invalid. Tool proposals that were already recorded stay on the
+  /// ledger for audit; nothing is executed by this call.
+  void cancel() {
+    if (_cancelRequested) {
+      return;
+    }
+    _cancelRequested = true;
+    adapter.cancelActiveTurn();
+    if (_state.hasPending) {
+      _metrics.toolCallsPending = 0;
+      _emit(_state.copyWith(
+        generating: false,
+        pending: const [],
+        clearPendingTurn: true,
+        cancelled: true,
+        usage: _metrics.snapshot(),
+      ));
+    }
+  }
+
+  /// Releases the state stream. An in-flight turn is cancelled first so the
+  /// stream is not left waiting on a provider that will never finish.
+  void dispose() {
+    cancel();
+    _states.close();
+  }
 
   void _emit(AgentTurnState next) {
     _state = next;
@@ -576,6 +638,9 @@ class AgentLoop {
       ));
       return;
     }
+    // A new turn: any cancel from the previous one stops applying here, which
+    // is what keeps a stopped turn from silently swallowing the next message.
+    _cancelRequested = false;
     // A new user message starts a new turn, so the counters start over here and
     // only here: an approval continues the turn it belongs to.
     _metrics = _TurnMetrics(
@@ -700,6 +765,10 @@ class AgentLoop {
     // counter would restart at 1 and both the cap and the panel would report a
     // turn that used fewer round-trips than it really did.
     while (_metrics.rounds < maxRounds) {
+      if (_cancelRequested) {
+        await _finishCancelled(conversationId, null);
+        return;
+      }
       _metrics.rounds++;
       _metrics.inFlightChars = 0;
       _metrics.inFlightElapsed = Duration.zero;
@@ -717,8 +786,15 @@ class AgentLoop {
           await _buildHistory(conversationId, turnTools.systemPrompt);
       final calls = <ToolCallRequest>[];
       final textBuffer = StringBuffer();
+      final reasoningBuffer = StringBuffer();
       String? failure;
       ModelTurnDone? done;
+      if (_cancelRequested) {
+        // Stopped while the skill directory or the history was being read:
+        // nothing has been sent yet, so there is nothing to abort or persist.
+        await _finishCancelled(conversationId, null);
+        return;
+      }
 
       // Times this round only. The adapter's own stopwatch is preferred when it
       // reports one, but a loop-side measurement keeps the figure available for
@@ -726,10 +802,14 @@ class AgentLoop {
       // the round is still running).
       final roundWatch = Stopwatch()..start();
 
+      turnEvents:
       await for (final event in adapter.runTurn(
         messages: history,
         tools: turnTools.specs,
       )) {
+        if (_cancelRequested) {
+          break turnEvents;
+        }
         switch (event) {
           case ModelTextDelta(:final text):
             textBuffer.write(text);
@@ -740,10 +820,25 @@ class AgentLoop {
               streamingText: textBuffer.toString(),
               usage: _metrics.snapshot(),
             ));
+          case ModelReasoningDelta(:final text):
+            reasoningBuffer.write(text);
+            // Reasoning is shown while it streams but deliberately not fed
+            // into streamingText: it is thinking, not the answer.
+            _emit(_state.copyWith(
+              generating: true,
+              reasoningText: reasoningBuffer.toString(),
+              usage: _metrics.snapshot(),
+            ));
           case ModelToolCall(:final call):
             calls.add(call);
           case ModelTurnDone():
             done = event;
+          case ModelTurnCancelled():
+            // The adapter stopped because this loop asked it to; setting the
+            // flag keeps one code path for a real adapter and for a fake that
+            // reports the event directly.
+            _cancelRequested = true;
+            break turnEvents;
           case ModelFailure(:final message):
             failure = message;
         }
@@ -761,6 +856,11 @@ class AgentLoop {
       }
       _metrics.inFlightChars = 0;
       _metrics.inFlightElapsed = Duration.zero;
+
+      if (_cancelRequested) {
+        await _finishCancelled(conversationId, textBuffer);
+        return;
+      }
 
       if (failure != null) {
         // Keep whatever text arrived before the failure: a partial answer is
@@ -880,6 +980,34 @@ class AgentLoop {
       generating: false,
       streamingText: '',
       error: notice,
+      rounds: _metrics.rounds,
+      usage: _metrics.snapshot(),
+    ));
+  }
+
+  /// Ends the turn as cancelled.
+  ///
+  /// Whatever answer text arrived before the stop is persisted, because it is
+  /// real output the user may want to keep; nothing else is written. No error
+  /// is reported: the user is the one who stopped it, so there is nothing to
+  /// explain. Tool calls proposed but never executed are dropped with the turn.
+  Future<void> _finishCancelled(
+    String conversationId,
+    StringBuffer? textBuffer,
+  ) async {
+    final partial = textBuffer?.toString() ?? '';
+    if (partial.isNotEmpty) {
+      await repository.addMessage(
+        conversationId: conversationId,
+        role: AiRepository.roleAssistant,
+        content: partial,
+      );
+    }
+    _metrics.inFlightChars = 0;
+    _metrics.inFlightElapsed = Duration.zero;
+    _emit(_state.copyWith(
+      generating: false,
+      cancelled: true,
       rounds: _metrics.rounds,
       usage: _metrics.snapshot(),
     ));

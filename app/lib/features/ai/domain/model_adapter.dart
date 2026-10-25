@@ -212,13 +212,36 @@ class ModelUsage {
 }
 
 /// What a single turn can emit.
-sealed class ModelEvent {
+///
+/// Deliberately `abstract` rather than `sealed`: this union grows additively
+/// ([ModelReasoningDelta], [ModelTurnCancelled]) and several services outside
+/// this feature also switch over it. A new event has to be ignorable by a
+/// consumer that predates it, so the hierarchy stays open; every consumer in
+/// this feature still handles each event explicitly.
+abstract class ModelEvent {
   const ModelEvent();
 }
 
-/// Incremental assistant text.
+/// Incremental assistant text - the answer, and the only text that may be
+/// persisted as the assistant message's content.
 class ModelTextDelta extends ModelEvent {
   const ModelTextDelta(this.text);
+  final String text;
+}
+
+/// Incremental chain-of-thought / thinking text from a reasoning-capable
+/// model (`delta.reasoning_content`, `delta.reasoning`, or a `reasoning` /
+/// `thinking` content part).
+///
+/// A separate channel from [ModelTextDelta] on purpose: thinking is not the
+/// answer. It is never written to `AiMessages.content` and never sent back to
+/// the provider; the UI may show it, and a consumer that does not care simply
+/// ignores this event.
+class ModelReasoningDelta extends ModelEvent {
+  const ModelReasoningDelta(this.text);
+
+  /// This fragment of reasoning text (not accumulated - the consumer adds it
+  /// up if it wants the whole chain).
   final String text;
 }
 
@@ -279,6 +302,21 @@ class ModelTurnDone extends ModelEvent {
   }
 }
 
+/// The user interrupted the turn and the adapter has already stopped.
+///
+/// Emitted at most once per turn, last, and the stream ends immediately after
+/// it. [ModelTurnDone] is *not* emitted for a cancelled turn: 「stopped early」
+/// and 「finished」 are different facts, and the caller keeps whatever
+/// [ModelTextDelta]s it already received - a partial answer is still an
+/// answer.
+class ModelTurnCancelled extends ModelEvent {
+  const ModelTurnCancelled({this.reason});
+
+  /// Why the turn stopped, for display. null when the caller only needs to
+  /// know that it stopped.
+  final String? reason;
+}
+
 /// A recoverable failure. Delivered as an event rather than thrown so the UI
 /// can show it inside the conversation instead of losing the turn.
 class ModelFailure extends ModelEvent {
@@ -294,8 +332,43 @@ class ModelFailure extends ModelEvent {
 /// socket (docs/AI_DESIGN.md §3 D1).
 abstract class ModelAdapter {
   /// Runs one turn. The stream must always terminate, including on failure.
+  ///
+  /// An adapter that supports interruption additionally implements
+  /// [CancellableModelAdapter]; callers stop it through
+  /// [ModelAdapterCancellation.cancelActiveTurn] and never by type-checking.
   Stream<ModelEvent> runTurn({
     required List<ChatMessage> messages,
     required List<ModelToolSpec> tools,
   });
+}
+
+/// Optional capability: an adapter that can abort the turn in flight.
+///
+/// Kept as its own interface instead of a member with a default body on
+/// [ModelAdapter], because 'implements ModelAdapter' requires every member
+/// even when it has a body: adding one there would break every existing
+/// implementation and test double for a capability most of them do not have.
+/// Empty streams and scripted fakes stay compatible untouched; the agent loop
+/// reaches this through [ModelAdapterCancellation.cancelActiveTurn].
+abstract interface class CancellableModelAdapter implements ModelAdapter {
+  /// Stops the turn currently in flight. Idempotent; a no-op when idle.
+  ///
+  /// Contract: after this returns, the stream [ModelAdapter.runTurn] handed
+  /// out must terminate promptly - normally after a [ModelTurnCancelled]
+  /// event - and must never hang waiting for more bytes.
+  void cancelActiveTurn();
+}
+
+/// The cancellation entry point for any [ModelAdapter].
+///
+/// A no-op for adapters that do not implement [CancellableModelAdapter], so a
+/// caller can always ask an adapter to stop without first checking its
+/// concrete type.
+extension ModelAdapterCancellation on ModelAdapter {
+  void cancelActiveTurn() {
+    final self = this;
+    if (self is CancellableModelAdapter) {
+      self.cancelActiveTurn();
+    }
+  }
 }
