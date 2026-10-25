@@ -605,6 +605,8 @@ MindNet 的 `S` / `t` 是**小时**，FSRS 的是**天** —— 在别处再乘�
   目标集命中 → 增益 ↓ → `dueAt` ↑（**`null` 排最后**：没排程的行不该被当成 1970 悄悄提前）→ 知识点 id ↑ → 卡 id ↑；
 - 段与组内顺序的键用 **`cardStateId`**（不是 `unitKey`：无空可挖时 `unitKey` 一律回落成 `'essay'`，多个知识点会撞键并静默覆盖）。
 
+段序是**排序**口径；**展示层**（轮次一百六十九）在不改段内顺序、不改日配额的前提下把它交错：`ReviewService.buildQueue` 算完配额后每 5 张复习卡后插 1 张 `unseen` 卡，剩余新卡接队尾（`features/anki/application/review_pacing.dart` 的 `kNewCardEveryReviews`）；同一单元一轮最多重插 2 次（`ForcedLoop.mayReinsert` / `kMaxForcedReinsertsPerSession`），超限不插回本轮但库里 `forced = 1` 不动。复习页另有「跳过本张」（不写日志、不动排期）与等待态「结束本轮」。细节见 `MINDNET_INTEGRATION.md` §5.3。
+
 ### 9.6 用途 1（题目质量/难度评估）输入输出协议
 
 链路（全部在 Furnace 侧，MindNet 无需改动）：

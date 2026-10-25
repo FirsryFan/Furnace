@@ -271,6 +271,31 @@ forced → boosted → model → unseen
 `diagnosisByKnowledgePoint` 传 `null`（没跑）或非空 map（跑了）。仍未跑 tierB 的调用方：复习队列
 （`ReviewAdvisory.order` 的实时调用点）与 `tool/mindnet_probe.dart`，它们的 zone 才恒为 `unavailable`。
 
+### 5.3 展示层节奏：新卡交错、重插上限、跳过与结束等待（轮次一百六十九）
+
+用户反馈（2026-10-25）：「闪存卡重复出现频率有点高；为了复习我可能难以推进新的卡片，我最近几次反反复复都是那几张卡」。根因不在 band 排序，而在**展示层只做了串接、没做节奏**：`unseen` 段整段跟在所有复习卡后面，用户复习没做完就永远见不到新卡；答错的卡每 `relearnGapCards`(=3) 张重插一次且没有次数上限，同一轮可以反复同一张。
+
+| 行为 | 落点 | 口径 |
+| --- | --- | --- |
+| 新卡交错 | `features/anki/application/review_pacing.dart` 的 `paceNewCards`（纯函数，`kNewCardEveryReviews = 5`）；`ReviewService.buildQueue` 在算完日配额后按 band 把 `keptDue` 拆成 reviews / newCards 再交错 | **不改变 band 内部顺序、不改变日配额**：先把当天该出现的卡定下来，只改它们插进队列的节奏——每 5 张复习卡后插 1 张新卡，复习卡放完后剩余新卡按原顺序接队尾，一张不丢 |
+| 强制重插上限 | `domain/services/cloze/forced_loop.dart` 的 `ForcedLoop.mayReinsert` + `kMaxForcedReinsertsPerSession = 2`；`review_page.dart` 的 `_reinsertCounts` 按「知识点 id:单元键」计数，绑定解除时归零 | 同一单元一轮最多插回 2 次；超限只是**本轮不再插**，库里的 `forced = 1` 不动，下一轮复习仍会把它带回来 |
+| 跳过本张 | `review_page.dart` 的 `_skipCurrent` + `_BottomBar.onSkip`（`reviewSkipCardKey`） | 会话内从队列移除，**不写 review_logs、不动 FSRS 排期**：跳过不是作答，到期该回来还会回来；`awaitingSolution`（答案还没写库）与提交中禁用 |
+| 结束等待 | `_ForcedWaitState.onEndSession` + `_endSession`（`reviewEndSessionKey`） | 等待态不再只有「检查」一个出口：直接把游标推过队尾进完成态；被绑定的卡仍在库里，下一轮开新队列照样回来 |
+
+测试：`test/features/anki/review_pacing_test.dart` 19 例（节奏/空表/every 边界/不改入参）、`test/domain/services/cloze/forced_loop_test.dart` 22→29（`mayReinsert` 7 例）、`test/features/anki/review_service_test.dart` 17→22（12 复习卡 + 3 新卡 → 新卡落在第 6、第 12、队尾；不足 5 张接尾；全复习无新卡数量不变；模板卡行快照，见 §5.4）、`test/features/anki/review_page_test.dart` 15→19（跳过、单卡跳过进完成态、等待态结束本轮、重插上限）。
+
+**边界（本轮未做）**：跳过的卡不持久化（不与明天同步、没有「本周不再出现」）；节奏是常量不可在设置里改；4 个新行为都没有真机手测；`feature_matrix`/`GAP_ANALYSIS` 只同步口径，不改需求。
+
+### 5.4 模板卡的行快照：`refreshItem` 必须按行 id 读（轮次一百六十九）
+
+会话内重插的卡必须先 `ReviewService.refreshItem` 把「答过之前的行」换成当前行，否则 D11 的 streak 数不到第二次、FSRS 也会从同一基线排两次（`review_service.dart` 的注释写了这个契约）。原来的实现用 `AnkiRepository.unitCardState(item.knowledgePointId, item.unitKey)` 重读，**对模板卡永远返回 null**：模板卡的 state 行由 `getOrCreateCardState`（`anki_repository.dart:190-211`）只按 `card_template_id` 键行，`knowledge_point_id` 留 NULL，`unitCardState` 的 `(knowledge_point_id = ? AND unit_key = ?)` 查不到它。
+
+后果：模板卡（`unitKey = 'preset:<templateId>'`）在强制期里一直拿答题前的快照——`forcedBefore` 永远是 0，一次答对就被当成「从未绑定」直接放掉，第二次连续答对根本数不到；同时 `repetitions` / `stability` 也按旧基线算，到期日偏近，卡片回得比该回的更频。这与用户「反反复复都是那几张卡」正好同向。
+
+修法：`anki_repository.dart` 新增 `cardStateById(String id)`（按主键读一行），`refreshItem` 改用它——所有 item 的 `cardState` 都是库里真实的行，按 id 读对内容单元与模板单元都成立（`unitCardState` 留给按单元键查旧行的地方）。
+
+测试：`test/features/anki/review_service_test.dart` 新增 1 例（`+22`）：建知识点 + 模板卡 → `buildQueue` 取到 `preset:` 单元 → 答错 → `refreshItem` 必须读到 `forced = 1 / forcedStreak = 0`（旧实现读到 0 会红）→ 答对一次仍绑定 → 再 `refreshItem` 后第二次答对才 `released`。
+
 ---
 
 ## 6. 参数标定状态

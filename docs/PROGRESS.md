@@ -2,6 +2,55 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百六十九：复习节奏修复（新卡交错 / 重插上限 / 跳过 / 结束等待）+ 模板卡行快照（Lead + reasoning-core + threadflow-engine）
+
+**起点**：轮次一百六十八收尾（HEAD `7c89b60`，v0.6.8 已发布并推送，工作树干净）。
+用户反馈（m16094）：「闪存卡重复出现频率有点高；为了复习我可能难以推进新的卡片，我最近几次反反复复都是那几张卡」。
+根因不在 band 排序而在展示层：`unseen` 段整段跟在所有复习卡后面（复习没做完就永远见不到新卡）；答错的卡每
+`relearnGapCards`(=3) 张重插且无次数上限。另有一条服务层缺陷：模板卡在会话内重做时读不到刚写过的行（见片 4）。
+
+**片 1：reasoning-core（task-183）—— 节奏纯逻辑**
+- 新建 `app/lib/features/anki/application/review_pacing.dart`：`const int kNewCardEveryReviews = 5;`（:6）、
+  `List<T> paceNewCards<T>({required List<T> reviews, required List<T> newCards, int every = kNewCardEveryReviews})`
+  （:23-43；`every < 1` 抬到 1，每满 every 张复习卡插一张新卡，余下新卡接队尾，不改入参）。
+- `app/lib/domain/services/cloze/forced_loop.dart`（150→168 行，已有行为零改动）：`static bool mayReinsert({required int reinsertsSoFar, int max = kMaxForcedReinsertsPerSession})`（:158-164，负数按 0）、
+  `const int kMaxForcedReinsertsPerSession = 2;`（:168）。
+- 测试：新 `app/test/features/anki/review_pacing_test.dart` **19 例**；`app/test/domain/services/cloze/forced_loop_test.dart` 22→**29**（`mayReinsert` +7）。
+
+**片 2：Lead —— buildQueue 接线**
+- `app/lib/features/anki/application/review_service.dart`：算完日配额后把 `keptDue` 按 band 拆成 reviewKept / newKept
+  （`ordering.bandByCardStateId[...] == ReviewBand.unseen`），再 `_interleave(orderedForced, paceNewCards(reviews: reviewKept, newCards: newKept))`（:413-428）。
+  **不改 band 内部顺序、不改日配额**，只改插入节奏。
+- `app/test/features/anki/review_service_test.dart` 17→**22**：新 group「新卡交错」（12 复习卡 + 3 新卡 → 新卡位置 [5,11,14]；3+2 → [3,4]；0+3 → 全表；7+0 数量不变）+ 片 4 的模板卡行快照 1 例。
+
+**片 3：threadflow-engine（task-184）—— 复习页 UI**
+- `app/lib/features/anki/presentation/review_page.dart`（+129/-3）：`reviewSkipCardKey`（:23）、`reviewEndSessionKey`（:26）、
+  `_finished`（:142，区分「库里没卡」与「主动收尾」）、`_reinsertCounts`（:154）、`_reinsertForced` 先 `ForcedLoop.mayReinsert` 判上限（:456-501）、
+  `_skipCurrent`（:603：不写 review_logs、不动排期，`awaitingSolution`/提交中禁用）、`_endSession`（:647：游标推过队尾）、
+  跳过按钮（feedback 两态 :1469/:1523）、等待态「结束本轮」（:1082）、完成态 `_FinishedState`。
+- 测试 `app/test/features/anki/review_page_test.dart` 15→**19**：跳过→下一张且无 review_logs；单张跳过→完成态；等待态结束本轮→完成态；同一强制卡一轮最多插回 2 次。
+
+**片 4：Lead —— 模板卡行快照（`refreshItem` 按行 id 读）**
+- 缺陷：模板卡的 state 行 `knowledge_point_id` 是 NULL（`anki_repository.dart:190-211` 的 `getOrCreateCardState` 只按 `card_template_id` 键行），
+  而 `refreshItem` 原用 `unitCardState(knowledgePointId, unitKey)` 重读 → 模板卡永远返回 null → 一直拿答题前的快照：
+  `forcedBefore` 永远 0（一次答对就被当成从未绑定放掉，D11 的第二次连续答对永远数不到），FSRS 也按旧基线重复排期而让卡回得更频。
+- 修法：`anki_repository.dart` 新增 `Future<CardState?> cardStateById(String id)`（:637）；`refreshItem`（`review_service.dart:1129-1137`）改用它。
+- 测试：review_service_test 新增 1 例（答错→`refreshItem` 读到 `forced=1/forcedStreak=0`→答对仍绑定→再刷新后第二次答对才 `released`）。
+
+**l10n**：Lead 手改两个 ARB（tools.edit 追加）+ `flutter gen-l10n` exit 0，3 key：`ankiSkipCard`、`ankiSkipCardDone`、`ankiForcedWaitEnd`。
+
+**docs**：`docs/MINDNET_INTEGRATION.md` 新增 §5.3（展示层节奏）与 §5.4（模板卡行快照）；`docs/MINDNET_CONTRACT.md` §9.5 补展示层口径；
+`docs/FEATURE_MATRIX.md` :118/:121 两行同步（会话重插上限、新卡交错与跳过）。
+
+**门禁（Lead 实跑）**：只 format 本轮 9 个 dart 文件 → `Formatted 9 files (0 changed)`；`dart analyze lib test` =
+**91 issues / 0 error / 0 warning**（与基线一致）；scoped：review_pacing +19、forced_loop +29、review_service +22、review_page +19；
+全量 `flutter test --concurrency=1` = **`+5898 ~2: All tests passed`**（12:27，EXIT 0，日志 `E:/dsh-tmp-aot/test-169-full2.txt`；
+基线 +5863，净增 35 = pacing 19 + forced_loop 7 + service 5 + page 4）。
+
+**未做 / 风险**：跳过不持久化（不与明天同步、没有「本周不再出现」）；5 与 2 都是常量、不能在设置里改；
+4 个 UI 行为与模板卡修复都没有真机手测；首跑全量曾在编辑途中读到混合源码出现 1 例假失败（`refreshItem` 旧实现 + 新测试），
+停掉重跑后 +5898 全绿——教训：全量跑的时候不要再改 lib 里的被测源码。
+
 ## 2026-10-24 轮次一百六十八：排序偏好落盘（schema v34）+ 详情页做题进度与跳题号（Lead + question-intake + threadflow-engine）
 
 **起点**：轮次一百六十七收尾（HEAD `4a2f44c`，v0.6.8 已发布并推送，工作树干净）。
