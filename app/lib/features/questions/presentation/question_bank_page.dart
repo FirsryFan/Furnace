@@ -34,6 +34,7 @@ import '../application/question_bulk_tagging.dart';
 import '../application/question_library_filter.dart';
 import '../application/question_library_provider.dart';
 import '../application/question_library_sort.dart';
+import '../application/question_library_sort_preference.dart';
 import '../application/question_media_providers.dart';
 import '../application/question_pack_service.dart';
 import 'handwriting_queue_page.dart';
@@ -170,9 +171,18 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   /// （`CapabilityAction.subjectKeys`），筛选比较只用键，显示名走 `subjectLabelOf`。
   QuestionLibraryFilter _filter = QuestionLibraryFilter.empty;
 
-  /// 列表排序方式：默认「最新」（读表顺序本来就是最新在前）。非最新排序
-  /// 要读全库再排，见 [_readsFullLibrary]；排序规则在 `question_library_sort.dart`。
-  QuestionLibrarySort _sort = QuestionLibrarySort.newest;
+  /// 用户本次会话手动选过的排序；null = 还没手选过，跟随落盘偏好。
+  QuestionLibrarySort? _sortOverride;
+
+  /// 从库里读到的落盘排序（schema v34）；异步，读到前为 null。
+  QuestionLibrarySort? _persistedSort;
+
+  /// 有效排序：本次会话手选 > 落盘偏好 > 出厂「最新」。
+  ///
+  /// 不能只在 build 里算：[_readsFullLibrary] 会被 [_refresh] 等 build 外的
+  /// 方法调用，所以两个来源各缓存在 State 字段里。
+  QuestionLibrarySort get _sort =>
+      _sortOverride ?? _persistedSort ?? QuestionLibrarySort.newest;
 
   /// 搜索框文字；清除筛选要连输入框一起清空，所以 controller 放页面 State。
   late final TextEditingController _search;
@@ -272,6 +282,21 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   Future<void> _refresh() async {
     _invalidateLibrary();
     await ref.read(questionLibrarySnapshotProvider(_readsFullLibrary).future);
+  }
+
+  /// 把用户这次手选的排序写库（schema v34）。写失败只记日志：排序已经在本次
+  /// 会话生效，不能因为落盘失败把 UI 弹回去或打断操作。
+  Future<void> _persistSort(QuestionLibrarySort sort) async {
+    try {
+      await ref
+          .read(settingsRepositoryProvider)
+          .updateQuestionLibrarySortMode(questionLibrarySortCode(sort));
+    } catch (error) {
+      debugPrint(
+        'updateQuestionLibrarySortMode(${questionLibrarySortCode(sort)}) '
+        'failed: $error',
+      );
+    }
   }
 
   /// 改名：对话框自己写库并 invalidate，这里只拿题库里其它行的题名做去重参考。
@@ -650,6 +675,13 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // 落盘偏好是异步的：读到后只更新缓存、不 setState——本次 build 立刻改用
+    // 新档位选数据源；用户本次手选过的档位（_sortOverride）优先于它。
+    final QuestionLibrarySort? persistedSort =
+        ref.watch(questionLibrarySortPreferenceProvider).valueOrNull;
+    if (persistedSort != null) {
+      _persistedSort = persistedSort;
+    }
     final overviewAsync = ref.watch(
       questionLibrarySnapshotProvider(_readsFullLibrary),
     );
@@ -720,7 +752,10 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                   tooltip: l10n.questionLibrarySortTooltip,
                   icon: const Icon(Icons.sort),
                   initialValue: _sort,
-                  onSelected: (value) => setState(() => _sort = value),
+                  onSelected: (value) {
+                    setState(() => _sortOverride = value);
+                    unawaited(_persistSort(value));
+                  },
                   itemBuilder: (context) =>
                       <PopupMenuEntry<QuestionLibrarySort>>[
                     _questionBankSortMenuItem(

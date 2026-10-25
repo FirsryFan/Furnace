@@ -265,6 +265,35 @@ void main() {
       }
     });
   });
+
+  group('落盘 codec：稳定 encode 与未知值降级', () {
+    test('三种档位 encode 稳定，且能原样读回', () {
+      expect(questionLibrarySortCode(QuestionLibrarySort.newest), 'newest');
+      expect(questionLibrarySortCode(QuestionLibrarySort.serial), 'serial');
+      expect(questionLibrarySortCode(QuestionLibrarySort.wrongFirst),
+          'wrong_first');
+      for (final QuestionLibrarySort sort in QuestionLibrarySort.values) {
+        expect(questionLibrarySortFromStorage(questionLibrarySortCode(sort)),
+            sort);
+      }
+    });
+
+    test('NULL / 空串 / 未知 code 都回落「最新」，不抛', () {
+      expect(questionLibrarySortFromStorage(null), QuestionLibrarySort.newest);
+      expect(questionLibrarySortFromStorage(''), QuestionLibrarySort.newest);
+      expect(questionLibrarySortFromStorage('   '), QuestionLibrarySort.newest);
+      expect(questionLibrarySortFromStorage('by_difficulty'),
+          QuestionLibrarySort.newest,
+          reason: '未来版本写的档位读不懂就退回出厂，不炸');
+    });
+
+    test('两端空白 trim 后仍认得', () {
+      expect(questionLibrarySortFromStorage(' serial '),
+          QuestionLibrarySort.serial);
+      expect(questionLibrarySortFromStorage('wrong_first\n'),
+          QuestionLibrarySort.wrongFirst);
+    });
+  });
 }
 
 QuestionLibraryEntry _entry({

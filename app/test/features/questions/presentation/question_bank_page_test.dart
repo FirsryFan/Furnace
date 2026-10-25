@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/app/shell/home_shell.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/question_library_provider.dart';
@@ -494,6 +495,95 @@ void main() {
       await tester.pumpAndSettle();
       expect(_sortCheck(QuestionLibrarySort.wrongFirst), findsOneWidget);
       expect(_sortCheck(QuestionLibrarySort.newest), findsNothing);
+    });
+  });
+
+  group('排序偏好落盘', () {
+    testWidgets('有存档「按题号」：首帧后按题号升序，菜单当前档也是它', (tester) async {
+      await SettingsRepository(db).updateQuestionLibrarySortMode('serial');
+      // 编号 2/1/3，id 顺序 a/b/c：最新档是 a→b→c，按题号是 b→a→c。
+      await _seedQuestion(db, id: 'seed-a', stem: '编号二的题', serialNo: 2);
+      await _seedQuestion(db, id: 'seed-b', stem: '编号一的题', serialNo: 1);
+      await _seedQuestion(db, id: 'seed-c', stem: '编号三的题', serialNo: 3);
+
+      await _pump(tester, db);
+
+      expect(_rowTop(tester, 'seed-b'), lessThan(_rowTop(tester, 'seed-a')));
+      expect(_rowTop(tester, 'seed-a'), lessThan(_rowTop(tester, 'seed-c')));
+
+      final menu = tester.widget<PopupMenuButton<QuestionLibrarySort>>(
+        find.byKey(questionBankSortMenuKey),
+      );
+      expect(menu.initialValue, QuestionLibrarySort.serial);
+      // 打开菜单勾选态也落在「题号」。
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      expect(_sortCheck(QuestionLibrarySort.serial), findsOneWidget);
+      expect(_sortCheck(QuestionLibrarySort.newest), findsNothing);
+    });
+
+    testWidgets('切换排序写库：选「题号」后库里存 serial', (tester) async {
+      await _seedQuestion(db, id: 'switch-1', stem: '切换排序的题');
+
+      await _pump(tester, db);
+      final repository = SettingsRepository(db);
+      expect(await repository.getQuestionLibrarySortMode(), isNull);
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(questionBankSortMenuItemKey(QuestionLibrarySort.serial)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(await repository.getQuestionLibrarySortMode(), 'serial');
+      final menu = tester.widget<PopupMenuButton<QuestionLibrarySort>>(
+        find.byKey(questionBankSortMenuKey),
+      );
+      expect(menu.initialValue, QuestionLibrarySort.serial);
+    });
+
+    testWidgets('库里是未知 code：不崩，回落「最新」', (tester) async {
+      await SettingsRepository(db).updateQuestionLibrarySortMode('bogus');
+      await _seedQuestion(db, id: 'bad-a', stem: '甲题', serialNo: 2);
+      await _seedQuestion(db, id: 'bad-b', stem: '乙题', serialNo: 1);
+      await _seedQuestion(db, id: 'bad-c', stem: '丙题', serialNo: 3);
+
+      await _pump(tester, db);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('甲题'), findsOneWidget);
+      // 未知值回落出厂「最新」= 读表顺序（id 升序 a→b→c），不是题号序。
+      expect(_rowTop(tester, 'bad-a'), lessThan(_rowTop(tester, 'bad-b')));
+      expect(_rowTop(tester, 'bad-b'), lessThan(_rowTop(tester, 'bad-c')));
+
+      final menu = tester.widget<PopupMenuButton<QuestionLibrarySort>>(
+        find.byKey(questionBankSortMenuKey),
+      );
+      expect(menu.initialValue, QuestionLibrarySort.newest);
+    });
+
+    testWidgets('本次手选优先于落盘值：存档「按题号」后手选「最新」不被覆盖', (tester) async {
+      await SettingsRepository(db).updateQuestionLibrarySortMode('serial');
+      await _seedQuestion(db, id: 'over-a', stem: '题号二', serialNo: 2);
+      await _seedQuestion(db, id: 'over-b', stem: '题号一', serialNo: 1);
+
+      await _pump(tester, db);
+      // 首帧后按题号：b(1) 在 a(2) 前。
+      expect(_rowTop(tester, 'over-b'), lessThan(_rowTop(tester, 'over-a')));
+
+      await tester.tap(find.byKey(questionBankSortMenuKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(questionBankSortMenuItemKey(QuestionLibrarySort.newest)),
+      );
+      await tester.pumpAndSettle();
+
+      // 手选「最新」后回到读表顺序 a→b；写库触发的偏好重读（仍是 serial）
+      // 不能把本次手选顶掉。
+      expect(_rowTop(tester, 'over-a'), lessThan(_rowTop(tester, 'over-b')));
+      expect(
+          await SettingsRepository(db).getQuestionLibrarySortMode(), 'newest');
     });
   });
 }
