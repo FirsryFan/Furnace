@@ -503,4 +503,39 @@ void main() {
       );
     });
   });
+
+  group('ForcedLoop.mayReinsert：会话内重插上限', () {
+    test('默认上限是 2 次', () {
+      expect(kMaxForcedReinsertsPerSession, 2);
+    });
+
+    test('本轮 0 次 / 1 次：仍允许重插', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 0), isTrue);
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 1), isTrue);
+    });
+
+    test('本轮 2 次 / 3 次：已经不允许重插', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 2), isFalse);
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 3), isFalse);
+    });
+
+    test('负数按 0 处理：仍允许', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: -1), isTrue);
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: -100), isTrue);
+    });
+
+    test('自定义 max=5：4 允许、5 不允许', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 4, max: 5), isTrue);
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 5, max: 5), isFalse);
+    });
+
+    test('max=0 一律不允许', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 0, max: 0), isFalse);
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: -3, max: 0), isFalse);
+    });
+
+    test('max 为负数时也不允许（防御性）', () {
+      expect(ForcedLoop.mayReinsert(reinsertsSoFar: 0, max: -1), isFalse);
+    });
+  });
 }

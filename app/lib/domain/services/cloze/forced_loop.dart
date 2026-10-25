@@ -147,4 +147,22 @@ abstract final class ForcedLoop {
     if (value > high) return high;
     return value;
   }
+
+  /// 本轮是否还允许把这张卡插回去。
+  ///
+  /// [reinsertsSoFar] 是本轮（同一个「单元」的一次复习会话）已经重插过几次；
+  /// 小于 [max] 才允许，负数按 0 处理。
+  ///
+  /// 超限后**只是不再插回本轮队列**：绑定仍留在库里（`forced = 1`），
+  /// 下一次复习会话会重新计入本轮重插次数，不会因为超限就丢掉这张卡。
+  static bool mayReinsert({
+    required int reinsertsSoFar,
+    int max = kMaxForcedReinsertsPerSession,
+  }) {
+    final used = reinsertsSoFar < 0 ? 0 : reinsertsSoFar;
+    return used < max;
+  }
 }
+
+/// 同一单元一轮复习里最多重插几次；超过就本轮不再插，绑定仍留在库里等下一次复习。
+const int kMaxForcedReinsertsPerSession = 2;
