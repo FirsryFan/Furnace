@@ -964,3 +964,48 @@ encode 一经发出就不再改（改了等于把老安装的选择变成「未�
 - 被盖成「版本 34 但缺 `question_library_sort_mode` 列」的老文件靠 `_ensureColumns` 补列，可读可写；
 - 空白串存成 NULL；未知 code 不被拒，读侧降级成 `newest`；传 `null` = 恢复出厂；
 - codec：三种档位 encode 稳定且可原样读回，两端空白 trim 后仍认得。
+
+## 24. v35：用户自我描述 persona（`local_settings.user_persona`，轮次一百七十二）
+
+用户要一个"自己描述自己"的 persona（见 `docs/PERSONA_DESIGN.md`）。v35 给单行设置表加
+一列可空长文本，存**用户的原话**，不存模型抽取的结构化档案。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.user_persona` | TEXT，可空 | 归一化后的用户原文（最多 8000 字，**存储层不截断**）。**NULL = 没写过**；空白文本在仓库层就写成 NULL，所以"没写"只有一种表示 |
+
+**为什么存原话、不在迁移里回填**：回填会把一个迁移瞬间并不存在的"自我描述"变成一行
+用户从没写过的文本（与 `tag_tree_sort_mode` / `review_reminder_minutes` / `goal_beta`
+同一契约：只加列、不改既有行）。老库升级后 `getUserPersona()` 读作 NULL。
+
+**迁移**：`_upgradeV34ToV35()`（`app/lib/data/database/database.dart:1003-1010`）对
+`local_settings` `addColumnIfMissing` 一列（表不存在直接返回）；`_ensureColumns()` 的
+`local_settings` 列表加同一列做自愈（:310，版本号已是 35 但老文件被盖掉时补列）；
+`schemaVersion => 35`（:129）；onUpgrade 链 :238 `if (from < 35) await _upgradeV34ToV35();`。
+`database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重新生成
+（145s、803 outputs）。
+
+**读写接口**（`app/lib/data/repositories/settings_repository.dart`）：
+- `Future<String?> getUserPersona()`（:296）：`getSettings()?.userPersona`（没有设置行 →
+  NULL，读侧兜底，不靠迁移补行）；原样返回，不做归一化——仓库不 import 域层；
+- `Future<void> updateUserPersona(String? text)`（:308）：先 `ensureSettings()`（设置行懒
+  创建，不先确保会写 0 行、丢掉用户输入），`trim()` 后空或 `null` 写 **NULL**，非空原样写
+  （未知内容不拒绝），刷新 `updatedAt`。**不在仓库层截断长度**：静默截断会丢用户的话，
+  超长由编辑页用域层 `userPersonaTooLong` 拦。
+- provider：`userPersonaProvider`（`app/lib/features/settings/application/user_persona_provider.dart`，
+  `FutureProvider.autoDispose<String?>` + `ref.watchDatabaseRevision()`，返回归一化文本，
+  空 → NULL；写库后自动重读，页面不必手动 invalidate）。
+
+**领域契约**：`app/lib/domain/services/cognitive/user_persona.dart`（`normalizeUserPersona` /
+`userPersonaForStorage` / `userPersonaIsPresent` / `userPersonaTooLong` /
+`userPersonaPromptBlock` / `userPersonaPreview`；引导行与 8000 上限见
+`docs/PERSONA_DESIGN.md` §3）。注入位置（AI 对话系统提示、日期之后规则之前、空 persona
+逐字节不变）见同文档 §5。
+
+**测试锁的事实**（`app/test/data/database/v35_migration_test.dart` 4 例，全绿）：
+- 真实 v34 文件（`PRAGMA user_version=34` 且 `local_settings` 无 `user_persona` 列）
+  升级后 `user_version` = 35、`getUserPersona()` 读作 NULL、升级后立刻能写能读且关库
+  重开值还在；
+- 被盖成「版本 35 但缺 `user_persona` 列」的老文件靠 `_ensureColumns` 补列，可读可写；
+- 空白串存成 NULL；超长（8001 字）**原样保留不截断**；传 `null` = 清除；
+- 新库没有设置行时读作 NULL（不自动建行）。

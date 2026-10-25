@@ -18,6 +18,7 @@
 | --- | --- | --- |
 | AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 10 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
 | AI 对话正文渲染 markdown / LaTeX | 表内无此节 | ✅ 2026-10-02 新增（`gpt_markdown`；见 PROGRESS 轮次十三） |
+| 用户自我描述 persona（进 AI 系统提示） | 表内无此节 | ✅ 2026-10-25 新增（轮次一百七十二）：schema v35 `local_settings.user_persona`（NULL=没写过，不回填）、设置页入口 + 认知模型页顶部卡片、AI 对话系统提示注入（日期之后规则之前；空 persona 提示逐字节不变）。解题/整理/组卷不读。见 [PERSONA_DESIGN.md](PERSONA_DESIGN.md) |
 | AI 处理标签树（create_tags 添加 / delete_content 删除） | 表内无此节 | ✅ 2026-10-02 新增：按父标签 id 或路径建标签（找不到就拒绝，不默默建到顶层），删除含整棵子树且逐条确认 |
 | AI 删除标签 / 卡片 / 闪存卡 | 表内无此节 | ✅ 2026-10-02 新增（`features/ai/tools/deletion_tools.dart`）：破坏性工具，逐条确认 + 快照可撤销 |
 | 术语：知识点 / 词条 | — | ✅ 2026-10-02 统一为用户可见词 **闪存卡**（`navAnki` 等；代码与数据库仍是 `knowledgePoint`，见 `app_en.arb` 的 `@navAnki` 说明） |

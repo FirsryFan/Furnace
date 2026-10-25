@@ -2,6 +2,52 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百七十二：persona 用户自我描述（schema v35，Lead + reasoning-core + threadflow-engine）
+
+**起点**：HEAD `103dfd1`（轮次一百七十一，已推送），工作树干净。用户消息（m16679）：「提供一个 persona 功能，可以放在认知模型内部或者外部，或者说是外部但是有相互作用。让用户自己描述自己。」
+
+**片 1：schema v35 + 仓储 + provider（Lead）**
+- `local_settings.user_persona` TEXT 可空（`app/lib/data/database/tables.dart:177`）：存**用户原话**，NULL = 没写过，空白写库前归一成 NULL；迁移只补列、**不回填**（回填会造出一行用户没写过的自述）。
+- 迁移：`_upgradeV34ToV35()`（`app/lib/data/database/database.dart:1003-1010`，表不存在直接返回）、`_ensureColumns` 自愈 :310、`schemaVersion => 35` :129、onUpgrade :238；`build_runner` 重生成 database.g.dart（145s / 803 outputs）。
+- 仓储：`getUserPersona()`（settings_repository.dart:296）、`updateUserPersona()`（:308，先 ensureSettings，trim 后空→NULL，**不截断长度**）；provider `userPersonaProvider`（settings/application/user_persona_provider.dart，FutureProvider.autoDispose + watchDatabaseRevision，归一化后空→NULL）。
+
+**片 2：领域纯逻辑（reasoning-core，task-186）**
+- `app/lib/domain/services/cognitive/user_persona.dart`（145 行）：`kUserPersonaMaxChars=8000`、`normalizeUserPersona`（CRLF/CR 归一、逐行去行尾空白含全角与不换行空格、中间空行与首行缩进保留）、`userPersonaForStorage`（空→null，不截断）、`userPersonaIsPresent`、`userPersonaTooLong`、`userPersonaPromptBlock`（空→''；非空=固定引导行+原文）、`userPersonaPreview`（折叠空白，省略号算在 maxChars 内）。
+- 测试 29 例（app/test/domain/services/cognitive/user_persona_test.dart）。
+
+**片 3：AI 注入（Lead）**
+- `agent_loop.dart`：`_turnTools()` :1151 先取 persona 再拼提示；新 `_userPersonaBlock()`（:1185，读库异常一律回落 ''，绝不阻断一轮对话）；`_baseRules(String personaBlock)`（:1204）把 persona 插在「今天的日期」之后、「规则：」之前。
+- 三条硬口径：**空 persona 提示逐字节不变**（无 persona 的用户行为与加功能前完全一致）、位置在日期后规则前（规则最后读，persona 是背景不是指令）、读失败不阻断。测试 3 例（agent_loop_test.dart 的 persona group）。
+
+**片 4：UI（threadflow-engine，task-187）**
+- 新 `app/lib/features/settings/presentation/user_persona_page.dart`：4 个 Key、8000 字计数、超长禁用保存并显示 `personaTooLong(8000)`、保存/失败 SnackBar、有存量才显示清除按钮且走确认框；**provider 读失败显示原始错误而不是空编辑框**（空框会让用户顺手覆盖已存内容）；保存/清除后的重读不盖掉正在编辑的文字。
+- `settings_page.dart`：认知模型入口之后加「自我描述」入口（key `settingsUserPersonaTileKey` :39，:135-149），有值显示 40 字预览、无值显示说明。
+- `cognitive_model_page.dart`：顶部 `_PersonaCard`（key `cognitiveModelPersonaCardKey` :80，插入 :667，类 :839-880）——空态「还没有写过」、有值前 160 字预览 + 编辑入口。persona 不是认知模型读数，但看认知模型时能一眼看到并就地改（对应用户「外部但相互作用」的要求）。
+- 测试：user_persona_page_test 8 例；cognitive_model_page_test 18→20 例（新增默认 provider override 防测试误开真实磁盘库）。
+
+**片 5：文档**
+- 新 `docs/PERSONA_DESIGN.md`（一句话/为什么不是结构化档案/领域契约/schema v35/注入三口径/界面/隐私与作用范围/测试锁的事实/仍未做）；`docs/DATA_MODEL.md` 新增 §24（v35）；`docs/FEATURE_MATRIX.md` 在 AI 对话渲染行之后加 persona 行。
+
+**顺手修掉一个既有 flake（Lead）**
+- 第一轮全量在 `app/test/domain/services/export/paper_docx_quality_test.dart:59` 失败（`at location [10] is <0> instead of <253>`）：`archive` 包默认把 zip 每个条目的 `lastModTime` 设成 `DateTime.now()`（秒级），「同一输入两次导出字节相等」只在两次 build 恰在同一秒内才成立，机器慢/跨秒就飘。
+- `app/lib/domain/services/export/docx_writer.dart` 的 `_archiveFile` 改为固定 `lastModTime = DateTime.utc(2000,1,1,12)/1000`（UTC 正午，任意时区换算后日期同一天），docx 导出**逐字节可复现**；scoped `flutter test test/domain/services/export --concurrency=1` = +174 全绿。
+- 第一次全量跑（日志 test-172-full.txt）因此作废；修完重跑才算门禁。
+
+**门禁（实跑，第二轮）**
+- `dart format --set-exit-if-changed` 本轮改动 19 个 dart 文件 = **0 changed**（docx_writer 首跑 1 changed 已就地格式化）。
+- `dart analyze lib test` = **91 issues / 0 error / 0 warning**（EXIT 0，基线不变）。
+- scoped：persona 五文件（v35 迁移 + agent_loop + 领域 + 编辑页 + 认知模型页）= **+93 All tests passed**；export 目录 = +174。
+- 全量 `flutter test --concurrency=1` = **+5951 ~2 All tests passed**，17:04，EXIT 0（日志 `E:/dsh-tmp-aot/test-172-full2.txt`；上轮基线 +5905，净增 46 = 迁移 4 + 注入 3 + 领域 29 + 编辑页 8 + 认知模型页 2）。
+- 推送待做：`rest-push.ps1`（GitHub REST API，github.com HTTPS 仍被阻断）。
+
+**风险 / 未做**
+- 双端真机没手测：编辑页长文本滚动、超长提示、设置页/认知模型页卡片观感；
+- persona 只进 **AI 助手对话**提示，解题思维链/拍照整理/组卷等流程不读（刻意的，理由见 PERSONA_DESIGN §7）；
+- 没有导入导出/同步/逐对话开关，没有结构化字段（刻意的），编辑页没有「AI 润色」；
+- 8000 字上限是拍的，不是标定值；
+- l10n 13 个新 key 中文手写、英文直译，未母语化；`flutter gen-l10n` 期间网络 fetch tags 报 128 但生成成功（既有现象）。
+- 下一步：v0.6.10 双端出包（persona + docx 可复现修复 + 页面缩放整体化已在 v0.6.9 之后积累）。
+
 ## 2026-10-25 轮次一百七十一：目标核验（五片已交付）+ 页面缩放改成整体缩放（Lead）
 
 **起点**：轮次一百七十收尾（HEAD `93ffe23`，v0.6.9 已发布并推送，工作树干净）。
