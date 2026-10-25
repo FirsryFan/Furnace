@@ -433,6 +433,12 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> questionLibrarySortMode =
       GeneratedColumn<String>('question_library_sort_mode', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userPersonaMeta =
+      const VerificationMeta('userPersona');
+  @override
+  late final GeneratedColumn<String> userPersona = GeneratedColumn<String>(
+      'user_persona', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -468,6 +474,7 @@ class $LocalSettingsTable extends LocalSettings
         reviewReminderMinutes,
         tagTreeSortMode,
         questionLibrarySortMode,
+        userPersona,
         createdAt,
         updatedAt
       ];
@@ -592,6 +599,12 @@ class $LocalSettingsTable extends LocalSettings
               data['question_library_sort_mode']!,
               _questionLibrarySortModeMeta));
     }
+    if (data.containsKey('user_persona')) {
+      context.handle(
+          _userPersonaMeta,
+          userPersona.isAcceptableOrUnknown(
+              data['user_persona']!, _userPersonaMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -658,6 +671,8 @@ class $LocalSettingsTable extends LocalSettings
       questionLibrarySortMode: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}question_library_sort_mode']),
+      userPersona: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_persona']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -789,6 +804,17 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// `questionLibrarySortFromStorage` 把 NULL / 未知值翻成出厂档位；库里只存
   /// code，不存中文标签，否则改文案会把已存值变成读不懂的字符串。
   final String? questionLibrarySortMode;
+
+  /// v35（轮次一百七十二）：用户对自己的自由描述（persona）。
+  ///
+  /// 语义是"用户写的原话"，不是结构化档案：列可空、空白归一化成 NULL（没写 = 没写），
+  /// 迁移绝不回填。AI 的系统提示在读侧把它拼进去（见
+  /// `docs/PERSONA_DESIGN.md`）；表定义不 import 域层，读写口径由
+  /// `user_persona.dart`（归一化/长度上限/prompt 段落）统一。
+  ///
+  /// 存原话而不是摘要：摘要一旦写进库就成了不可逆的有损变换，用户改一个字就得
+  /// 重写整段。长度上限由域层常量挡（超限不落库、由编辑页提示），不靠列宽。
+  final String? userPersona;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -813,6 +839,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.reviewReminderMinutes,
       this.tagTreeSortMode,
       this.questionLibrarySortMode,
+      this.userPersona,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -875,6 +902,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     if (!nullToAbsent || questionLibrarySortMode != null) {
       map['question_library_sort_mode'] =
           Variable<String>(questionLibrarySortMode);
+    }
+    if (!nullToAbsent || userPersona != null) {
+      map['user_persona'] = Variable<String>(userPersona);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -939,6 +969,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       questionLibrarySortMode: questionLibrarySortMode == null && nullToAbsent
           ? const Value.absent()
           : Value(questionLibrarySortMode),
+      userPersona: userPersona == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userPersona),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -976,6 +1009,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       tagTreeSortMode: serializer.fromJson<String?>(json['tagTreeSortMode']),
       questionLibrarySortMode:
           serializer.fromJson<String?>(json['questionLibrarySortMode']),
+      userPersona: serializer.fromJson<String?>(json['userPersona']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -1008,6 +1042,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'tagTreeSortMode': serializer.toJson<String?>(tagTreeSortMode),
       'questionLibrarySortMode':
           serializer.toJson<String?>(questionLibrarySortMode),
+      'userPersona': serializer.toJson<String?>(userPersona),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -1035,6 +1070,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<int?> reviewReminderMinutes = const Value.absent(),
           Value<String?> tagTreeSortMode = const Value.absent(),
           Value<String?> questionLibrarySortMode = const Value.absent(),
+          Value<String?> userPersona = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -1079,6 +1115,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         questionLibrarySortMode: questionLibrarySortMode.present
             ? questionLibrarySortMode.value
             : this.questionLibrarySortMode,
+        userPersona: userPersona.present ? userPersona.value : this.userPersona,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1128,6 +1165,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       questionLibrarySortMode: data.questionLibrarySortMode.present
           ? data.questionLibrarySortMode.value
           : this.questionLibrarySortMode,
+      userPersona:
+          data.userPersona.present ? data.userPersona.value : this.userPersona,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1157,6 +1196,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
+          ..write('userPersona: $userPersona, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1186,6 +1226,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         reviewReminderMinutes,
         tagTreeSortMode,
         questionLibrarySortMode,
+        userPersona,
         createdAt,
         updatedAt
       ]);
@@ -1215,6 +1256,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.reviewReminderMinutes == this.reviewReminderMinutes &&
           other.tagTreeSortMode == this.tagTreeSortMode &&
           other.questionLibrarySortMode == this.questionLibrarySortMode &&
+          other.userPersona == this.userPersona &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1241,6 +1283,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<int?> reviewReminderMinutes;
   final Value<String?> tagTreeSortMode;
   final Value<String?> questionLibrarySortMode;
+  final Value<String?> userPersona;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -1265,6 +1308,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.reviewReminderMinutes = const Value.absent(),
     this.tagTreeSortMode = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
+    this.userPersona = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1290,6 +1334,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.reviewReminderMinutes = const Value.absent(),
     this.tagTreeSortMode = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
+    this.userPersona = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1316,6 +1361,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<int>? reviewReminderMinutes,
     Expression<String>? tagTreeSortMode,
     Expression<String>? questionLibrarySortMode,
+    Expression<String>? userPersona,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1348,6 +1394,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (tagTreeSortMode != null) 'tag_tree_sort_mode': tagTreeSortMode,
       if (questionLibrarySortMode != null)
         'question_library_sort_mode': questionLibrarySortMode,
+      if (userPersona != null) 'user_persona': userPersona,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1375,6 +1422,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<int?>? reviewReminderMinutes,
       Value<String?>? tagTreeSortMode,
       Value<String?>? questionLibrarySortMode,
+      Value<String?>? userPersona,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1404,6 +1452,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       tagTreeSortMode: tagTreeSortMode ?? this.tagTreeSortMode,
       questionLibrarySortMode:
           questionLibrarySortMode ?? this.questionLibrarySortMode,
+      userPersona: userPersona ?? this.userPersona,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1481,6 +1530,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       map['question_library_sort_mode'] =
           Variable<String>(questionLibrarySortMode.value);
     }
+    if (userPersona.present) {
+      map['user_persona'] = Variable<String>(userPersona.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1514,6 +1566,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
+          ..write('userPersona: $userPersona, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -24024,6 +24077,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<int?> reviewReminderMinutes,
   Value<String?> tagTreeSortMode,
   Value<String?> questionLibrarySortMode,
+  Value<String?> userPersona,
   required int createdAt,
   required int updatedAt,
 });
@@ -24050,6 +24104,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<int?> reviewReminderMinutes,
   Value<String?> tagTreeSortMode,
   Value<String?> questionLibrarySortMode,
+  Value<String?> userPersona,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -24134,6 +24189,9 @@ class $$LocalSettingsTableFilterComposer
   ColumnFilters<String> get questionLibrarySortMode => $composableBuilder(
       column: $table.questionLibrarySortMode,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userPersona => $composableBuilder(
+      column: $table.userPersona, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -24225,6 +24283,9 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.questionLibrarySortMode,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get userPersona => $composableBuilder(
+      column: $table.userPersona, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -24304,6 +24365,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get questionLibrarySortMode => $composableBuilder(
       column: $table.questionLibrarySortMode, builder: (column) => column);
 
+  GeneratedColumn<String> get userPersona => $composableBuilder(
+      column: $table.userPersona, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -24358,6 +24422,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<int?> reviewReminderMinutes = const Value.absent(),
             Value<String?> tagTreeSortMode = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
+            Value<String?> userPersona = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -24383,6 +24448,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             reviewReminderMinutes: reviewReminderMinutes,
             tagTreeSortMode: tagTreeSortMode,
             questionLibrarySortMode: questionLibrarySortMode,
+            userPersona: userPersona,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -24408,6 +24474,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<int?> reviewReminderMinutes = const Value.absent(),
             Value<String?> tagTreeSortMode = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
+            Value<String?> userPersona = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -24433,6 +24500,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             reviewReminderMinutes: reviewReminderMinutes,
             tagTreeSortMode: tagTreeSortMode,
             questionLibrarySortMode: questionLibrarySortMode,
+            userPersona: userPersona,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),

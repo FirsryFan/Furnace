@@ -286,5 +286,36 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the user's self-description (schema v35, 轮次一百七十二) exactly as
+  /// stored, or `null` when they never wrote one.
+  ///
+  /// `null` is not an empty description: the domain layer's
+  /// `normalizeUserPersona` owns that translation (blank → null), and this
+  /// repository keeps its promise not to import the domain layer — it hands back
+  /// what the row says.
+  Future<String?> getUserPersona() async {
+    final row = await getSettings();
+    return row?.userPersona;
+  }
+
+  /// Persists the user's self-description (schema v35), or `null` to clear it.
+  ///
+  /// Blank input is stored as NULL rather than `''`: "nothing written" is one
+  /// state, not two, and a later "clear" must leave no string behind. The length
+  /// cap is the domain layer's (`kUserPersonaMaxChars`) and is enforced by the
+  /// editor before calling here — a repository that silently truncated would
+  /// lose the user's words without saying so.
+  Future<void> updateUserPersona(String? text) async {
+    // The settings row is created lazily (ensureSettings); updating before it
+    // exists would silently affect zero rows and lose what the user wrote.
+    await ensureSettings();
+    final trimmed = text?.trim();
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      userPersona: Value(trimmed == null || trimmed.isEmpty ? null : trimmed),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

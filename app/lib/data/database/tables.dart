@@ -165,6 +165,17 @@ class LocalSettings extends Table {
   /// code，不存中文标签，否则改文案会把已存值变成读不懂的字符串。
   TextColumn get questionLibrarySortMode => text().nullable()();
 
+  /// v35（轮次一百七十二）：用户对自己的自由描述（persona）。
+  ///
+  /// 语义是"用户写的原话"，不是结构化档案：列可空、空白归一化成 NULL（没写 = 没写），
+  /// 迁移绝不回填。AI 的系统提示在读侧把它拼进去（见
+  /// `docs/PERSONA_DESIGN.md`）；表定义不 import 域层，读写口径由
+  /// `user_persona.dart`（归一化/长度上限/prompt 段落）统一。
+  ///
+  /// 存原话而不是摘要：摘要一旦写进库就成了不可逆的有损变换，用户改一个字就得
+  /// 重写整段。长度上限由域层常量挡（超限不落库、由编辑页提示），不靠列宽。
+  TextColumn get userPersona => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

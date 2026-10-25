@@ -112,7 +112,7 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
@@ -121,8 +121,12 @@ class AppDatabase extends _$AppDatabase {
   /// v34（轮次一百六十八）adds `local_settings.question_library_sort_mode`: the
   /// question-library sort choice survives a restart instead of resetting to
   /// 「最新在前」 (docs/QUESTION_BANK_DESIGN.md §42.3 boundary).
+  ///
+  /// v35（轮次一百七十二）adds `local_settings.user_persona`: the user's own free-text
+  /// description of themselves (persona), edited in 设置 → 自我描述 and injected into
+  /// the assistant's system prompt. NULL = 没写过（不是空字符串）。
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => 35;
 
   @override
   MigrationStrategy get migration {
@@ -230,6 +234,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 34) {
           await _upgradeV33ToV34();
         }
+        if (from < 35) {
+          await _upgradeV34ToV35();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -297,6 +304,10 @@ class AppDatabase extends _$AppDatabase {
         // v34 却没有这一列时，Drift 跳过 onUpgrade，题库页第一次读设置就抛
         // no such column。列可空、NULL 读作出厂「最新在前」，补列即可，没有回填。
         localSettings.questionLibrarySortMode,
+        // v35（轮次一百七十二）：用户自我描述。同一个失败模式：老文件被盖成 v35
+        // 却没有这一列时，Drift 跳过 onUpgrade，设置页/AI 第一次读 persona 就抛
+        // no such column。列可空、NULL 读作"没写过"，补列即可，没有回填。
+        localSettings.userPersona,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -979,6 +990,22 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'local_settings', localSettings.questionLibrarySortMode);
+  }
+
+  /// v34 -> v35：用户自我描述 `local_settings.user_persona`（轮次一百七十二）。
+  ///
+  /// 纯新增一列、可空：NULL 读作"用户没写过"，应用层 `normalizeUserPersona` 负责把
+  /// 空白归一成 NULL、把超长挡在写库之前。迁移只补列、不回填——回填会把当时还没有的
+  /// 内容写成一条假的自我描述（与 `questionLibrarySortMode` / `tagTreeSortMode`
+  /// 同一个契约）。
+  ///
+  /// 表不存在就跳过：被盖成 v35 却缺表的文件由 [_ensureColumns] 的自愈建表补列。
+  Future<void> _upgradeV34ToV35() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'local_settings', localSettings.userPersona);
   }
 
   Future<void> _upgradeV4ToV5() async {
