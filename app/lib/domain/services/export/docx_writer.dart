@@ -798,8 +798,18 @@ class DocxDocumentBuilder {
         _ => 'application/octet-stream',
       };
 
+  /// 固定 zip 条目时间戳（2000-01-01 12:00 UTC），让同一输入的 .docx **逐字节**可复现。
+  ///
+  /// `archive` 包默认把每条目的 `lastModTime` 设成 `DateTime.now()`（秒级），
+  /// 于是「同一输入两次导出字节相等」只在那两次恰好落在同一秒内才成立；
+  /// 机器慢或刚好跨秒时导出字节会飘（2026-10-25 全量测试真出现过一次
+  /// `paper_docx_quality_test` 在 zip 的 lastModFileTime 上失败）。
+  /// 取 UTC 正午是为了让任意时区换算后的日期仍是同一天，DOS 日期字段不随时区变。
+  static final int _fixedZipTimestamp =
+      DateTime.utc(2000, 1, 1, 12).millisecondsSinceEpoch ~/ 1000;
+
   ArchiveFile _archiveFile(String name, List<int> bytes) =>
-      ArchiveFile(name, bytes.length, bytes);
+      ArchiveFile(name, bytes.length, bytes)..lastModTime = _fixedZipTimestamp;
 
   List<int> _encode(String xml) => utf8.encode(xml);
 }
