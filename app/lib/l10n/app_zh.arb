@@ -3002,5 +3002,17 @@
   "questionDetailNextQuestion": "下一题",
   "@questionDetailNextQuestion": {
     "description": "详情页：按题号跳到下一题。"
+  },
+  "ankiSkipCard": "跳过这张",
+  "@ankiSkipCard": {
+    "description": "复习页：跳过当前这张卡，本轮队列里不再出现。"
+  },
+  "ankiSkipCardDone": "已跳过：这张卡本轮不再出现",
+  "@ankiSkipCardDone": {
+    "description": "复习页：跳过卡片后的 snackbar 提示。"
+  },
+  "ankiForcedWaitEnd": "结束本轮",
+  "@ankiForcedWaitEnd": {
+    "description": "复习页：强制卡等待态里的出口按钮，直接结束本轮复习。"
   }
 }

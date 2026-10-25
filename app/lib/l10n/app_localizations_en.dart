@@ -5463,4 +5463,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionDetailNextQuestion => 'Next question';
+
+  @override
+  String get ankiSkipCard => 'Skip card';
+
+  @override
+  String get ankiSkipCardDone =>
+      'Skipped: this card will not appear again this session';
+
+  @override
+  String get ankiForcedWaitEnd => 'End session';
 }

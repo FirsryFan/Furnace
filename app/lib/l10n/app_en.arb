@@ -3095,5 +3095,17 @@
   "questionDetailNextQuestion": "Next question",
   "@questionDetailNextQuestion": {
     "description": "Question detail: jump to the next question by serial number."
+  },
+  "ankiSkipCard": "Skip card",
+  "@ankiSkipCard": {
+    "description": "Review page: skip the card on screen for the rest of this session."
+  },
+  "ankiSkipCardDone": "Skipped: this card will not appear again this session",
+  "@ankiSkipCardDone": {
+    "description": "Review page: snackbar after skipping a card."
+  },
+  "ankiForcedWaitEnd": "End session",
+  "@ankiForcedWaitEnd": {
+    "description": "Review page: leave the forced-card wait state and end this session."
   }
 }

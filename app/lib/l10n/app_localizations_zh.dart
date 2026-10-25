@@ -5246,4 +5246,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionDetailNextQuestion => '下一题';
+
+  @override
+  String get ankiSkipCard => '跳过这张';
+
+  @override
+  String get ankiSkipCardDone => '已跳过：这张卡本轮不再出现';
+
+  @override
+  String get ankiForcedWaitEnd => '结束本轮';
 }

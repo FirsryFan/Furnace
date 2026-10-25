@@ -9103,6 +9103,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next question'**
   String get questionDetailNextQuestion;
+
+  /// Review page: skip the card on screen for the rest of this session.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip card'**
+  String get ankiSkipCard;
+
+  /// Review page: snackbar after skipping a card.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped: this card will not appear again this session'**
+  String get ankiSkipCardDone;
+
+  /// Review page: leave the forced-card wait state and end this session.
+  ///
+  /// In en, this message translates to:
+  /// **'End session'**
+  String get ankiForcedWaitEnd;
 }
 
 class _AppLocalizationsDelegate
