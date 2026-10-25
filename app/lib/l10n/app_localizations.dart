@@ -467,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @timeTodaySchedule.
   ///
   /// In en, this message translates to:
-  /// **'Today\'s schedule'**
+  /// **'Schedule'**
   String get timeTodaySchedule;
 
   /// No description provided for @timeAvailable.
@@ -3696,13 +3696,13 @@ abstract class AppLocalizations {
   /// No description provided for @navAi.
   ///
   /// In en, this message translates to:
-  /// **'Chat'**
+  /// **'AI'**
   String get navAi;
 
   /// No description provided for @aiTitle.
   ///
   /// In en, this message translates to:
-  /// **'AI chat'**
+  /// **'Intelligence'**
   String get aiTitle;
 
   /// No description provided for @aiNewConversation.
@@ -9199,6 +9199,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Too long: {max} characters max'**
   String personaTooLong(Object max);
+
+  /// Hint for dragging calendar row dividers.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag any row divider up or down to resize rows; it snaps on release'**
+  String get calendarRowHeightHint;
+
+  /// Menu item that resets the calendar row height.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset row height'**
+  String get calendarRowHeightReset;
+
+  /// Title of the review spacing (target retention) setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Review spacing'**
+  String get reviewIntervalTitle;
+
+  /// Review spacing option: longer.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer'**
+  String get reviewIntervalLonger;
+
+  /// Review spacing option: standard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get reviewIntervalStandard;
+
+  /// Review spacing option: shorter.
+  ///
+  /// In en, this message translates to:
+  /// **'Shorter'**
+  String get reviewIntervalShorter;
+
+  /// Explains the review spacing setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Longer spacing means fewer reviews of the same card. It only affects future scheduling; existing due dates stay.'**
+  String get reviewIntervalHint;
+
+  /// Title of the content section in the flashcard detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Card content'**
+  String get ankiCardContentTitle;
+
+  /// Title of the collapsible reasoning block above an AI reply (not persisted).
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning'**
+  String get aiReasoningTitle;
+
+  /// Shown while the reasoning block is still streaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get aiReasoningGenerating;
+
+  /// Tooltip of the stop button that replaces send while generating.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop generating'**
+  String get aiStopTooltip;
+
+  /// Badge shown next to a reply the user stopped midway.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get aiCancelledLabel;
 }
 
 class _AppLocalizationsDelegate

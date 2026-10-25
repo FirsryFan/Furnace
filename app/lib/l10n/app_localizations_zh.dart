@@ -193,7 +193,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get timeNewBlock => '新建日程块';
 
   @override
-  String get timeTodaySchedule => '今日安排';
+  String get timeTodaySchedule => '安排';
 
   @override
   String get timeAvailable => '可用';
@@ -2032,10 +2032,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
 
   @override
-  String get navAi => '对话';
+  String get navAi => '智能';
 
   @override
-  String get aiTitle => 'AI 对话';
+  String get aiTitle => '智能化';
 
   @override
   String get aiNewConversation => '新对话';
@@ -5264,7 +5264,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get personaEditorHint =>
-      '你写的这段话存在本机，会作为背景加进 AI 对话的系统提示。它不改变 AI 的规则，也不是题库数据。';
+      '你写的这段话存在本机，会作为背景加进「智能化」的系统提示。它不改变 AI 的规则，也不是题库数据。';
 
   @override
   String get personaEditorPlaceholder =>
@@ -5291,7 +5291,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get personaClearConfirmTitle => '清除自我描述？';
 
   @override
-  String get personaClearConfirmBody => '清除后 AI 对话不再带这段背景。此操作不能撤销。';
+  String get personaClearConfirmBody => '清除后「智能化」不再带这段背景。此操作不能撤销。';
 
   @override
   String get personaClearDone => '已清除自我描述';
@@ -5300,4 +5300,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String personaTooLong(Object max) {
     return '太长了：最多 $max 字';
   }
+
+  @override
+  String get calendarRowHeightHint => '上下拖动任意一行的分隔线调整行高，松手会吸附到挡位';
+
+  @override
+  String get calendarRowHeightReset => '恢复默认行高';
+
+  @override
+  String get reviewIntervalTitle => '复习间隔';
+
+  @override
+  String get reviewIntervalLonger => '更长';
+
+  @override
+  String get reviewIntervalStandard => '标准';
+
+  @override
+  String get reviewIntervalShorter => '更短';
+
+  @override
+  String get reviewIntervalHint => '间隔越长，同一张卡复习得越少。只影响之后的排期，已有到期时间不变。';
+
+  @override
+  String get ankiCardContentTitle => '卡片内容';
+
+  @override
+  String get aiReasoningTitle => '思考过程';
+
+  @override
+  String get aiReasoningGenerating => '思考中…';
+
+  @override
+  String get aiStopTooltip => '停止生成';
+
+  @override
+  String get aiCancelledLabel => '已停止';
 }

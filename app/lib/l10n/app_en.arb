@@ -67,7 +67,7 @@
   "tasksReminderPermissionDenied": "Notifications are not allowed, so this reminder will not appear. Allow notifications for Furnace in system settings, then set the reminder again.",
   "tasksDueAt": "Deadline",
   "timeNewBlock": "New schedule block",
-  "timeTodaySchedule": "Today's schedule",
+  "timeTodaySchedule": "Schedule",
   "timeAvailable": "Open",
   "timeUnavailable": "Busy",
   "timeEnergy": "Energy",
@@ -948,8 +948,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
-  "navAi": "Chat",
-  "aiTitle": "AI chat",
+  "navAi": "AI",
+  "aiTitle": "Intelligence",
   "aiNewConversation": "New chat",
   "aiEmptyHint": "Just say what you need, for example: put next week revision into my schedule.",
   "aiInputHint": "Type a message...",
@@ -3164,5 +3164,53 @@
   "personaTooLong": "Too long: {max} characters max",
   "@personaTooLong": {
     "description": "Shown when above the length cap."
+  },
+  "calendarRowHeightHint": "Drag any row divider up or down to resize rows; it snaps on release",
+  "@calendarRowHeightHint": {
+    "description": "Hint for dragging calendar row dividers."
+  },
+  "calendarRowHeightReset": "Reset row height",
+  "@calendarRowHeightReset": {
+    "description": "Menu item that resets the calendar row height."
+  },
+  "reviewIntervalTitle": "Review spacing",
+  "@reviewIntervalTitle": {
+    "description": "Title of the review spacing (target retention) setting."
+  },
+  "reviewIntervalLonger": "Longer",
+  "@reviewIntervalLonger": {
+    "description": "Review spacing option: longer."
+  },
+  "reviewIntervalStandard": "Standard",
+  "@reviewIntervalStandard": {
+    "description": "Review spacing option: standard."
+  },
+  "reviewIntervalShorter": "Shorter",
+  "@reviewIntervalShorter": {
+    "description": "Review spacing option: shorter."
+  },
+  "reviewIntervalHint": "Longer spacing means fewer reviews of the same card. It only affects future scheduling; existing due dates stay.",
+  "@reviewIntervalHint": {
+    "description": "Explains the review spacing setting."
+  },
+  "ankiCardContentTitle": "Card content",
+  "@ankiCardContentTitle": {
+    "description": "Title of the content section in the flashcard detail."
+  },
+  "aiReasoningTitle": "Reasoning",
+  "@aiReasoningTitle": {
+    "description": "Title of the collapsible reasoning block above an AI reply (not persisted)."
+  },
+  "aiReasoningGenerating": "Thinking…",
+  "@aiReasoningGenerating": {
+    "description": "Shown while the reasoning block is still streaming."
+  },
+  "aiStopTooltip": "Stop generating",
+  "@aiStopTooltip": {
+    "description": "Tooltip of the stop button that replaces send while generating."
+  },
+  "aiCancelledLabel": "Stopped",
+  "@aiCancelledLabel": {
+    "description": "Badge shown next to a reply the user stopped midway."
   }
 }

@@ -193,7 +193,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeNewBlock => 'New schedule block';
 
   @override
-  String get timeTodaySchedule => 'Today\'s schedule';
+  String get timeTodaySchedule => 'Schedule';
 
   @override
   String get timeAvailable => 'Open';
@@ -2120,10 +2120,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
 
   @override
-  String get navAi => 'Chat';
+  String get navAi => 'AI';
 
   @override
-  String get aiTitle => 'AI chat';
+  String get aiTitle => 'Intelligence';
 
   @override
   String get aiNewConversation => 'New chat';
@@ -5521,4 +5521,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String personaTooLong(Object max) {
     return 'Too long: $max characters max';
   }
+
+  @override
+  String get calendarRowHeightHint =>
+      'Drag any row divider up or down to resize rows; it snaps on release';
+
+  @override
+  String get calendarRowHeightReset => 'Reset row height';
+
+  @override
+  String get reviewIntervalTitle => 'Review spacing';
+
+  @override
+  String get reviewIntervalLonger => 'Longer';
+
+  @override
+  String get reviewIntervalStandard => 'Standard';
+
+  @override
+  String get reviewIntervalShorter => 'Shorter';
+
+  @override
+  String get reviewIntervalHint =>
+      'Longer spacing means fewer reviews of the same card. It only affects future scheduling; existing due dates stay.';
+
+  @override
+  String get ankiCardContentTitle => 'Card content';
+
+  @override
+  String get aiReasoningTitle => 'Reasoning';
+
+  @override
+  String get aiReasoningGenerating => 'Thinking…';
+
+  @override
+  String get aiStopTooltip => 'Stop generating';
+
+  @override
+  String get aiCancelledLabel => 'Stopped';
 }

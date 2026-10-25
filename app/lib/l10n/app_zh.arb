@@ -61,7 +61,7 @@
   "tasksReminderPermissionDenied": "系统没有允许通知权限，这条提醒不会弹出。请在系统设置里允许 Furnace 发送通知后重新设置提醒。",
   "tasksDueAt": "截止时刻",
   "timeNewBlock": "新建日程块",
-  "timeTodaySchedule": "今日安排",
+  "timeTodaySchedule": "安排",
   "timeAvailable": "可用",
   "timeUnavailable": "忙碌",
   "timeEnergy": "精力",
@@ -951,8 +951,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
-  "navAi": "对话",
-  "aiTitle": "AI 对话",
+  "navAi": "智能",
+  "aiTitle": "智能化",
   "aiNewConversation": "新对话",
   "aiEmptyHint": "直接说要做什么，例如「帮我把下周的复习计划排进日程」。",
   "aiInputHint": "输入消息…",
@@ -3023,7 +3023,7 @@
   "@personaSettingsSubtitle": {
     "description": "设置页入口副标题。"
   },
-  "personaEditorHint": "你写的这段话存在本机，会作为背景加进 AI 对话的系统提示。它不改变 AI 的规则，也不是题库数据。",
+  "personaEditorHint": "你写的这段话存在本机，会作为背景加进「智能化」的系统提示。它不改变 AI 的规则，也不是题库数据。",
   "@personaEditorHint": {
     "description": "自我描述编辑页：说明这段文字会被怎么用。"
   },
@@ -3060,7 +3060,7 @@
   "@personaClearConfirmTitle": {
     "description": "清除确认框标题。"
   },
-  "personaClearConfirmBody": "清除后 AI 对话不再带这段背景。此操作不能撤销。",
+  "personaClearConfirmBody": "清除后「智能化」不再带这段背景。此操作不能撤销。",
   "@personaClearConfirmBody": {
     "description": "清除确认框正文。"
   },
@@ -3071,5 +3071,53 @@
   "personaTooLong": "太长了：最多 {max} 字",
   "@personaTooLong": {
     "description": "超过长度上限时的提示。"
+  },
+  "calendarRowHeightHint": "上下拖动任意一行的分隔线调整行高，松手会吸附到挡位",
+  "@calendarRowHeightHint": {
+    "description": "日历行高拖拽的说明。"
+  },
+  "calendarRowHeightReset": "恢复默认行高",
+  "@calendarRowHeightReset": {
+    "description": "日历行高菜单里的重置项。"
+  },
+  "reviewIntervalTitle": "复习间隔",
+  "@reviewIntervalTitle": {
+    "description": "复习间隔（目标记忆保持率）设置标题。"
+  },
+  "reviewIntervalLonger": "更长",
+  "@reviewIntervalLonger": {
+    "description": "复习间隔选项：更长。"
+  },
+  "reviewIntervalStandard": "标准",
+  "@reviewIntervalStandard": {
+    "description": "复习间隔选项：标准。"
+  },
+  "reviewIntervalShorter": "更短",
+  "@reviewIntervalShorter": {
+    "description": "复习间隔选项：更短。"
+  },
+  "reviewIntervalHint": "间隔越长，同一张卡复习得越少。只影响之后的排期，已有到期时间不变。",
+  "@reviewIntervalHint": {
+    "description": "复习间隔设置的说明。"
+  },
+  "ankiCardContentTitle": "卡片内容",
+  "@ankiCardContentTitle": {
+    "description": "闪存卡详情里正文区的标题。"
+  },
+  "aiReasoningTitle": "思考过程",
+  "@aiReasoningTitle": {
+    "description": "AI 回复上方折叠区的标题：模型的思考过程（不落库）。"
+  },
+  "aiReasoningGenerating": "思考中…",
+  "@aiReasoningGenerating": {
+    "description": "思考过程仍在生成时显示的状态文字。"
+  },
+  "aiStopTooltip": "停止生成",
+  "@aiStopTooltip": {
+    "description": "生成中时发送按钮变成停止按钮的提示。"
+  },
+  "aiCancelledLabel": "已停止",
+  "@aiCancelledLabel": {
+    "description": "用户中途停止生成后，在这条回复旁边显示的标记。"
   }
 }
