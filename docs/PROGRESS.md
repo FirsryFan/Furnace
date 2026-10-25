@@ -2,6 +2,17 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百七十三：v0.6.10 双端发布（页面缩放整体化 + persona schema v35 + docx 可复现）
+
+- 版本：`app/pubspec.yaml` `version: 0.6.10+29`；`app/lib/core/app_info.dart` `kAppVersion='0.6.10'`、`kAppBuildNumber=29`；`test/core/app_info_test.dart` +2 通过；这一版含 **schema v34 → v35**（`local_settings.user_persona` 只加一列可空、不回填）。
+- 提交范围：v0.6.9（93ffe23）之后 9 个提交 —— `5c5a995` 页面缩放改成整体缩放（PageZoom）+ `103dfd1` docs 轮次一百七十一 + persona 7 个（430737c l10n 13 key、6fb2008 领域、2afd9ad schema v35+仓储/provider、d9bf75f AI 注入、4416d5b 编辑页+入口+卡片、76a6d43 docx 固定时间戳、104240b docs）。
+- Windows：`scripts/build_windows.ps1` exit=0；`data/app.so` 21,545,864 B（构建时间 13:22:16）；`furnace.exe` 版本资源 `0.6.10+29`；打包前删 `kernel_blob.bin` 110,766,568 B；zip **28 entries / 20,505,322 B / 解压 47,194,647 B**，顶层 exe + 6 个 dll，`data/app.so` 在包、`kernel_blob` 0 条；SHA-256 `0994D1B2C71CF6AB6546E1BFA1142F1E4246DF61DE650DE13329E0A51D34EF5B`。
+- Android：`scripts/build_android.ps1` exit=0，Gradle assembleRelease **382.4s**；APK **99,461,550 B（94.9 MB）** SHA-256 `D7C5F5AB5CD994277626B73B1911889E993D9B667B5895FB735FEF6980A142AD`；aapt2 versionCode **29** / versionName **0.6.10** / minSdk 24 / targetSdk 36 / compileSdk 36；证书 `57de8b8f…f32e2db2`（与 v0.5.0–v0.6.9 同一把）。
+- dist/：`Furnace-0.6.10-android.apk`、`Furnace-0.6.10-windows-x64.zip`、`RELEASE-v0.6.10.md`（5,290 B；下载表/A 页面缩放整体化/B persona/C docx 可复现/验证/已知未做/发布说明）；旧版 v0.5.8–v0.6.9 件仍在 dist/。
+- 验证：全量 `flutter test --concurrency=1` = **+5951 ~2 All tests passed** 17:04 EXIT=0（日志 `E:/dsh-tmp-aot/test-172-full2.txt`，基线 +5898 → 净增 53）；`dart analyze lib test` = 91 issues / 0 error / 0 warning。
+- 风险（未做）：页面缩放与 persona 的新界面**双端都未真机手测**；页面缩放不影响系统字体缩放、图片超采样未优化；persona 只整段替换、无导入导出/同步/逐对话开关，且只作用于 AI 对话；docx 固定时间戳后 zip 内部时间不再反映导出时间；微信拖拽仍未真机手测；英文未母语化；网络同步未做。
+- 发布提交与 tag `v0.6.10` 用 GitHub REST git/data API 推送（github.com HTTPS 被阻断），提交 sha 与本地一致。
+
 ## 2026-10-25 轮次一百七十二：persona 用户自我描述（schema v35，Lead + reasoning-core + threadflow-engine）
 
 **起点**：HEAD `103dfd1`（轮次一百七十一，已推送），工作树干净。用户消息（m16679）：「提供一个 persona 功能，可以放在认知模型内部或者外部，或者说是外部但是有相互作用。让用户自己描述自己。」
