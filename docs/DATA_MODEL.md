@@ -1009,3 +1009,62 @@ encode 一经发出就不再改（改了等于把老安装的选择变成「未�
 - 被盖成「版本 35 但缺 `user_persona` 列」的老文件靠 `_ensureColumns` 补列，可读可写；
 - 空白串存成 NULL；超长（8001 字）**原样保留不截断**；传 `null` = 清除；
 - 新库没有设置行时读作 NULL（不自动建行）。
+
+---
+
+## 25. v36：两个用户可调的显示/排期偏好（`local_settings.review_retention` + `time_view_settings.hour_height`，轮次一百七十五）
+
+来源：`docs/REVIEW_FEEDBACK.md` 第 6 条（Time 行高应可自由拖拽缩放）与第 14 条
+（闪存卡间隔太短：目标记忆保持率不可调）。两列一起进 v36：都是「用户调一次、之后
+每次读」的偏好，都放在已有的单行设置表里，都不需要回填。
+
+| 改动 | 类型 | 语义 |
+| --- | --- | --- |
+| `local_settings.review_retention` | REAL，可空 | 目标记忆保持率（0.75–0.95 的合法区间由域层夹）。**NULL = 没设过**，读作 `kDefaultReviewRetention`（0.85）。值越小 → FSRS 的 `intervalModifier` 越大 → 间隔越长 |
+| `time_view_settings.hour_height` | REAL，可空 | Time 日/周网格**每小时的像素高度**（连续值，不是旧的三挡 `minutesPerRow`）。**NULL = 没拖过**，行高按旧公式 `44 * (60 / minutesPerRow)` 推——行为与这一列存在之前逐字节相同 |
+
+**为什么 NULL 不落默认值**：回填会把「今天的出厂值」冻进每一台已有安装，以后改默认
+（例如把 0.85 调成 0.88）老用户就永远收不到；语义上「没设过」与「显式选了 0.85」也
+不是同一件事（`ReviewSpacing.standard.retention == 0.85` 但两者走的分支不同：前者
+每次读都可能变，后者固定）。
+
+**迁移**：`_upgradeV35ToV36()`（`app/lib/data/database/database.dart:1036-1046`）
+对两张表各 `_addColumnIfMissing` 一列（表不存在直接跳过）；`_ensureColumns()` 的
+`time_view_settings` 列表加 `hourHeight`（:280）、`local_settings` 列表加
+`reviewRetention`（:328）做自愈（版本号已是 36 但老文件被盖掉时补列）；
+`schemaVersion => 36`（:134）；onUpgrade 链 :246 `if (from < 36) await _upgradeV35ToV36();`。
+`database.g.dart` 由 `dart run build_runner build --delete-conflicting-outputs` 重新生成。
+
+**读写接口**：
+
+- 保持率 —— `app/lib/data/repositories/settings_repository.dart`：
+  `Future<double?> getReviewRetention()`（:327）= `getSettings()?.reviewRetention`，
+  **原样返回**；`Future<void> updateReviewRetention(double? retention)`（:338）先
+  `ensureSettings()`（设置行懒创建，不先确保会写 0 行）再写值，传 `null` = 回到出厂。
+  仓库**不校验范围**（合法集合是域层契约），不偷偷改写用户的选择。
+- 行高 —— `app/lib/data/repositories/time_template_repository.dart` 的
+  `TimeViewRepository`：`get()`（:208）返回整行或 null；`update({..., double? hourHeight})`
+  （:226，:250 写列）；`clearHourHeight()`（:260）写**真正的 NULL**——`update(hourHeight: null)`
+  在 `Value.absent()` 的写法里表示「本次不改」，清空必须走单独方法。
+- provider：`reviewRetentionProvider`（`app/lib/features/anki/application/review_retention_provider.dart`，
+  `FutureProvider.autoDispose<ReviewSpacing>` + `selectReviewSpacing()` 写库后 invalidate）。
+
+**领域契约**：
+
+- `app/lib/domain/services/srs/review_retention.dart`：`kDefaultReviewRetention=0.85`、
+  `kReviewRetentionMin=0.75`、`kReviewRetentionMax=0.95`；
+  `enum ReviewSpacing { longer(0.80), standard(0.85), shorter(0.90) }` 三挡 UI
+  （`longer` = 间隔更长）；`fromRetention()` 用中点（0.825/0.875）把任意存量值映射回挡位；
+  `normalizeReviewRetention()` 把 null/NaN/∞ 读作 0.85、越界夹到 0.75–0.95。
+  消费方 `ReviewService.grade()` 每次判分读一次 `FsrsParameters(requestRetention: ...)`，
+  读库失败回落到默认参数（不阻断判分）。
+- 行高吸附：`app/lib/features/timeboard/presentation/calendar_page.dart` 的
+  `snapCalendarHourHeight()`（:51）把拖动结果夹到区间并吸附挡位，页面用
+  `_hourHeight`（:109）优先、NULL 时回落旧公式（:113-114）。
+
+**测试锁的事实**（`app/test/data/database/v36_migration_test.dart` 3 例，全绿）：
+- 真实 v35 文件（`PRAGMA user_version=35` 且两列被 DROP）升级后两处读作 NULL /
+  没拖过，升级后立刻能写能读、关库重开值还在（0.9 / 120）；
+- 被盖成「版本 36 但缺两列」的老文件靠 `_ensureColumns` 补列，可读可写；
+- `clearHourHeight()` 写回真 NULL；越界保持率（0.99）仓库原样存读，夹取只发生在
+  `normalizeReviewRetention`（读回 0.95）；`updateReviewRetention(null)` 清回没设过。

@@ -19,6 +19,9 @@
 | AI 助手（对话 / 工具调用 / 审批 / 台账） | 表内无此节 | ✅ 已实现（`features/ai/`，内置工具 10 个，见 [AI_DESIGN.md](AI_DESIGN.md)） |
 | AI 对话正文渲染 markdown / LaTeX | 表内无此节 | ✅ 2026-10-02 新增（`gpt_markdown`；见 PROGRESS 轮次十三） |
 | 用户自我描述 persona（进 AI 系统提示） | 表内无此节 | ✅ 2026-10-25 新增（轮次一百七十二）：schema v35 `local_settings.user_persona`（NULL=没写过，不回填）、设置页入口 + 认知模型页顶部卡片、AI 对话系统提示注入（日期之后规则之前；空 persona 提示逐字节不变）。解题/整理/组卷不读。见 [PERSONA_DESIGN.md](PERSONA_DESIGN.md) |
+| 「AI 对话」更名为「智能化」 | 表内无此节 | ✅ 2026-10-25（轮次一百七十五，用户反馈第 1 条）：`aiTitle`「智能化」/ `navAi`「智能」（en: Intelligence / AI），persona 的编辑提示与清除确认文案同步改口径；代码内部仍叫 AI（`features/ai/`、`AiSettingsPage`），只有用户可见文案换了 |
+| 应用图标（桌面/启动器） | 表内无此节 | ✅ 2026-10-25（轮次一百七十五，用户反馈第 2 条）：换成「炉膛 + 火焰」新图标（深绿底 + 琥珀拱门），Android 五档 mipmap + `mipmap-anydpi-v26` 自适应（含 monochrome）+ Windows `.ico`；不再用 Flutter 默认 logo。见 [APPEARANCE_DESIGN.md](APPEARANCE_DESIGN.md) §5 |
+| 复习间隔可调（目标记忆保持率） | 表内无此节 | ✅ 2026-10-25（轮次一百七十五，用户反馈第 14 条）：schema v36 `local_settings.review_retention`（NULL=出厂 0.85，不回填）；复习计划页三挡「更长/标准/更短」对应 0.80/0.85/0.90，每次判分读一次注入 `FsrsParameters`；只影响之后排期，已有到期时间不变。见 [DATA_MODEL.md](DATA_MODEL.md) §25 |
 | AI 处理标签树（create_tags 添加 / delete_content 删除） | 表内无此节 | ✅ 2026-10-02 新增：按父标签 id 或路径建标签（找不到就拒绝，不默默建到顶层），删除含整棵子树且逐条确认 |
 | AI 删除标签 / 卡片 / 闪存卡 | 表内无此节 | ✅ 2026-10-02 新增（`features/ai/tools/deletion_tools.dart`）：破坏性工具，逐条确认 + 快照可撤销 |
 | 术语：知识点 / 词条 | — | ✅ 2026-10-02 统一为用户可见词 **闪存卡**（`navAnki` 等；代码与数据库仍是 `knowledgePoint`，见 `app_en.arb` 的 `@navAnki` 说明） |
@@ -31,6 +34,7 @@
 | 题干 → 组卷网检索词与链接 | 表内无此节 | ✅ 2026-10-18 新增（轮次一百二十二）：`domain/services/zujuan/` 移植 zujuan-source-standards 的 URL 与检索词规则（纯逻辑、不联网、不新增依赖）；题目详情页「去组卷网搜这道题」入口，底部表复制检索词 / 搜索页链接。见 [ZUJUAN_LINKS_DESIGN.md](ZUJUAN_LINKS_DESIGN.md) |
 | 主题 JSON（主/辅色、背景、动画） | 🔴 R4 | ✅ 已实现（`Themes` 表、`core/theme/theme_profile.dart`、主题编辑器；**图标槽位**为 2026-10-02 新增） |
 | 日/周/月/时间线日历 | 🔴 R5 | ✅ 已实现（`features/timeboard/presentation/calendar_page.dart`，`CalendarView{day,week,month,timeline}`） |
+| Time 日/周网格行高自由拖拽 + 挡位吸附 | 表内无此节 | ✅ 2026-10-25（轮次一百七十五，用户反馈第 6 条）：拖行分界线连续缩放每小时像素（12–400），松手吸附 8 挡并落库（v36 `time_view_settings.hour_height`，NULL=旧公式）；`minutesPerRow` 15/30/60 仍决定标签粒度，与像素行高解耦；菜单补「恢复默认」。见 [DESIGN_BLUEPRINT.md](DESIGN_BLUEPRINT.md) §3.1 |
 | 页面缩放 80%–150% | 🔴 R4 | ✅ 2026-10-25 已实现**整体缩放**（`app/lib/app/page_zoom.dart`）：布局按 窗口/scale 放大后再缩放绘制，文字/控件/间距/图片一起变；主题编辑器滑杆 0.8–1.5。旧行写「检索均无命中」是审计遗漏——当时由 `MediaQuery.textScaler` 承担，只缩放文字。见 PROGRESS 轮次一百七十一 |
 | Android 适配 / 正式包联网 | 🔴 v0.3 / — | ✅ 已重构建（2026-10-02）；并修掉"release 清单缺 `INTERNET`、AI 在 Android 正式包上完全连不上网" |
 

@@ -2,6 +2,21 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-25 轮次一百七十五：REVIEW_FEEDBACK 第一批（改名/图标/思维链+中断/Time 行高/闪存卡全文/复习间隔）
+
+- 目标：按 `docs/REVIEW_FEEDBACK.md` 的 14 条建议开工（用户 m17298「好的你可以开始改进了」）；本轮落地 §1 §2 §4a §4b §12 §13 §14，§3 §7 §8 §9 §10 §11 留下一轮。
+- 改名（§1/§12，Lead）：`aiTitle`「AI 对话」→「智能化」、`navAi`「对话」→「智能」、`timeTodaySchedule`「今日安排」→「安排」（en Intelligence / AI / Schedule），persona 两条说明文案同步；新增 4 个 AI key `aiReasoningTitle/aiReasoningGenerating/aiStopTooltip/aiCancelledLabel`；`flutter gen-l10n` exit 0（5 个生成/ARB 文件）。
+- §2 应用图标：新设计「炉膛+火焰」（深绿 #1A3A2D→#2F6F4F 底、琥珀 #F7C36A→#C47426 拱门），13 个文件 —— android 5 档 `ic_launcher.png` + 5 档 `ic_launcher_foreground.png` + `mipmap-anydpi-v26/ic_launcher.xml`（background/foreground/monochrome）+ `values/colors.xml` + `windows/runner/resources/app_icon.ico`（40,291 B）；**Android/Windows 构建链接验证留到出包轮**。
+- §4a 思维链：`sse_assembler.dart` 解析 `reasoning_content`/`reasoning`（字符串或对象 text/content parts 中的 reasoning|thinking|thought）→ `ModelReasoningDelta`；`model_adapter.dart` `ModelEvent` 由 sealed 改 abstract（作用域外穷尽 switch 需要）并加 `ModelTurnCancelled`、`CancellableModelAdapter` + `ModelAdapterCancellation`（默认 no-op）；`agent_loop.dart` `AgentTurnState.reasoningText`。
+- §4b 可中断：`openai_compat_adapter.dart` 持 `_activeRequest/_activeLines/_cancelRequested`，`cancelActiveTurn()` + 十余处取消检查点 + `HttpClientRequest.abort()`；`AgentTurnState.cancelled`、`AgentLoop.cancel()`（幂等；待审批期间取消丢弃整批）、`_finishCancelled()` 保留已生成 partial 为 assistant 消息、`dispose()` 先取消。测试：sse_assembler +10、新 `agent_loop_cancel_test.dart` 7、新 `openai_adapter_cancel_test.dart` 3（真实 loopback HttpServer）。
+- §4 UI：`ai_chat_page.dart` 生成中/待审批时发送键换停止键（`aiStopButtonKey`）、`_ReasoningPanel`（生成中展开、结束自动折叠、可手开）、`_CancelledLabel` 中性标记；停止后 partial 已在流式文本，历史同文行用 cancelledEchoId 去重；测试 12→17。
+- §6 Time 行高：`calendar_page.dart` 新增 `kCalendarHourHeightDetents=[22,33,44,66,88,132,176,264]`、`kCalendarMinHourHeight=12`/`kCalendarMaxHourHeight=400`、`snapCalendarHourHeight()`；分界线 14px 命中带可拖（日/周网格），松手吸附挡位；新增「恢复默认」；`hour_height` 存 `time_view_settings`（NULL = 旧公式 `44*(60/minutesPerRow)`，逐字节不变）；修掉真实 bug：命中带 `MouseRegion` 默认 opaque 吞卡片点击 → `HitTestBehavior.translucent` + `IgnorePointer` 视觉线。测试新 `calendar_row_height_test.dart` 10。
+- §13 闪存卡全文：`anki_manage_page.dart` 列表行 subtitle maxLines 2 + 点行打开 `DraggableScrollableSheet`（0.4/0.75/0.95）完整 SelectableText + 标签 chips + 模板列表（`ankiKnowledgeContentKey`/`ankiKnowledgeDetailKeyFor`）；测试新 `anki_manage_page_test.dart` 6。
+- §14 复习间隔：新 `review_retention.dart`（`kDefaultReviewRetention=0.85`、三挡 0.80/0.85/0.90、normalize clamp 0.75–0.95）+ `review_retention_provider.dart`；`review_service.grade()` 读设置注入 `FsrsParameters(requestRetention:)`（无仓储回落 0.85）；`review_plan_page` 复习偏好加第三段「复习间隔」SegmentedButton + hint。schema **v36**：`local_settings.review_retention` REAL 可空、`time_view_settings.hour_height` REAL 可空，`_upgradeV35ToV36` + `_ensureColumns` 自愈、不回填；`v36_migration_test.dart` 3 例。
+- 门禁：只 format 本轮改动 dart 文件（0 changed）；`dart analyze lib test` = **91 issues / 0 error / 0 warning**（EXIT 0）；全量 `flutter test --concurrency=1` = **+6006 ~2 All tests passed** 11:57 EXIT=0（日志 `E:/dsh-tmp-aot/test-175-full2.txt`；v0.6.10 基线 +5951）。首跑曾 2 例回归：复习间隔段把「添加卡组任务量」挤出首屏（测试改 scrollUntilVisible）、`review_queue_test` 独立重算 FSRS 没传 retention（显式传 `kDefaultReviewRetention`），均按新语义改期望。
+- docs：`docs/DATA_MODEL.md` §25（v36 两列 + 读写接口 + 迁移/自愈）；`docs/APPEARANCE_DESIGN.md` §5（应用图标设计/13 文件/待构建验证）；`docs/DESIGN_BLUEPRINT.md:143`（行高规格改为自由拖拽+吸附）；`docs/FEATURE_MATRIX.md` 4 行；`docs/REVIEW_FEEDBACK.md` 改为 14 条 + §13/§14 + 实施状态。
+- 未做：§3 UI 设计 token、§7 知识网络图、§8 能力测评、§9 组卷网检索词长度、§10/§11 标签边界与「纳入时间表」；新图标未跑构建；真机未手测；v0.6.11 未出包。
+
 ## 2026-10-25 轮次一百七十三：v0.6.10 双端发布（页面缩放整体化 + persona schema v35 + docx 可复现）
 
 - 版本：`app/pubspec.yaml` `version: 0.6.10+29`；`app/lib/core/app_info.dart` `kAppVersion='0.6.10'`、`kAppBuildNumber=29`；`test/core/app_info_test.dart` +2 通过；这一版含 **schema v34 → v35**（`local_settings.user_persona` 只加一列可空、不回填）。

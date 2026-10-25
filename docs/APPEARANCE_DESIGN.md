@@ -133,3 +133,39 @@
 4. **主题是否要能"只改一处颜色就全局变"**：现在是 seed 派生，改 primary 会连带
    改变很多派生色。如果你希望"只改背景、其它一律不动"，那 D2 的语义色要改成
    **直接覆盖**而不是 seed 派生——这是两种不同的设计，得先定。
+
+---
+
+## 5. 应用图标（桌面 / 启动器，2026-10-25 补）
+
+用户反馈第 2 条：应用装到桌面/开始菜单上还是 Flutter 的默认蓝色 logo。**本节的"图标"
+与 §2 的"图标槽位"是两件事**：§2 说的是应用内导航项的语义图标，这里说的是操作系统
+层面的应用图标。
+
+**设计**：炉膛（Furnace 的字面意象）+ 火焰。底色深绿渐变 `#1A3A2D → #2F6F4F`
+（与主题 seed 同色系，小尺寸下不至于糊成一块黑）；拱门门框琥珀渐变
+`#F7C36A → #C47426`，门洞深绿 `#142820`，火焰暖白，底部一道琥珀台条。
+图形在 2048 超采样后缩到各档尺寸，圆角方形而不是正圆（Android 会再裁切）。
+
+**落盘清单**（没有任何构建脚本外的生成步骤，图标是纯静态资源）：
+
+| 文件 | 尺寸 | 用途 |
+| --- | --- | --- |
+| `android/app/src/main/res/mipmap-mdpi/ic_launcher.png` | 48 | 旧式图标（API < 26 落这一档） |
+| `mipmap-hdpi/ic_launcher.png` | 72 | 同上 |
+| `mipmap-xhdpi/ic_launcher.png` | 96 | 同上 |
+| `mipmap-xxhdpi/ic_launcher.png` | 144 | 同上 |
+| `mipmap-xxxhdpi/ic_launcher.png` | 192 | 同上 |
+| `mipmap-*/ic_launcher_foreground.png` | 108/162/216/324/432 | 自适应图标前景，图形只占中间 60% 安全区 |
+| `mipmap-anydpi-v26/ic_launcher.xml` | — | 自适应图标：background=`@color/ic_launcher_background`、foreground/monochrome=前景图 |
+| `values/colors.xml` | — | `ic_launcher_background` = `#1A3A2D` |
+| `windows/runner/resources/app_icon.ico` | 40,291 B（256/128/64/48/32/16） | Windows 可执行文件/窗口图标 |
+
+`AndroidManifest.xml` 原本就是 `android:icon="@mipmap/ic_launcher"`，所以只换文件、
+没改清单。`monochrome` 行给 Android 13+ 的"主题图标"用，API 26–32 会忽略它。
+
+**未验证**：资源链接的编译验证要等下一次出包（`flutter build apk` / Windows build）
+才算真；本轮只做了图片目视检查（`E:/dsh-tmp-aot/icon-preview/v2-square-256.png` 与
+`v2-adaptive-256.png`）与文件尺寸核对。**没有**接 `flutter_launcher_icons`——
+图标是手工烘好的静态文件，不引入新依赖，也不需要每次构建重新生成。
+
