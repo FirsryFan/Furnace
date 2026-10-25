@@ -9121,6 +9121,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End session'**
   String get ankiForcedWaitEnd;
+
+  /// Settings entry and editor page title.
+  ///
+  /// In en, this message translates to:
+  /// **'About me'**
+  String get personaTitle;
+
+  /// Settings entry subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Let the assistant know who I am, my goals and habits'**
+  String get personaSettingsSubtitle;
+
+  /// Persona editor: what the text is used for.
+  ///
+  /// In en, this message translates to:
+  /// **'This text is stored on this device and added to the assistant\'s system prompt as background. It does not change the assistant\'s rules and is not question-bank data.'**
+  String get personaEditorHint;
+
+  /// Persona editor: placeholder example.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. I\'m a senior-3 student targeting 120 in maths; I read solutions first and am often careless with arithmetic.'**
+  String get personaEditorPlaceholder;
+
+  /// Persona editor: privacy note.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored only in this device\'s database, never uploaded. Clearing it takes effect immediately.'**
+  String get personaPrivacyNote;
+
+  /// Settings entry and cognitive-model card empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'No description written yet'**
+  String get personaEmpty;
+
+  /// Save succeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved your description'**
+  String get personaSaveDone;
+
+  /// Save failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save: {error}'**
+  String personaSaveFailed(String error);
+
+  /// Clear button label.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear description'**
+  String get personaClearAction;
+
+  /// Clear confirmation title.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear your description?'**
+  String get personaClearConfirmTitle;
+
+  /// Clear confirmation body.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant will no longer use this background. This cannot be undone.'**
+  String get personaClearConfirmBody;
+
+  /// Clear succeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Description cleared'**
+  String get personaClearDone;
+
+  /// Shown when above the length cap.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long: {max} characters max'**
+  String personaTooLong(Object max);
 }
 
 class _AppLocalizationsDelegate

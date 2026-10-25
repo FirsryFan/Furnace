@@ -5473,4 +5473,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ankiForcedWaitEnd => 'End session';
+
+  @override
+  String get personaTitle => 'About me';
+
+  @override
+  String get personaSettingsSubtitle =>
+      'Let the assistant know who I am, my goals and habits';
+
+  @override
+  String get personaEditorHint =>
+      'This text is stored on this device and added to the assistant\'s system prompt as background. It does not change the assistant\'s rules and is not question-bank data.';
+
+  @override
+  String get personaEditorPlaceholder =>
+      'e.g. I\'m a senior-3 student targeting 120 in maths; I read solutions first and am often careless with arithmetic.';
+
+  @override
+  String get personaPrivacyNote =>
+      'Stored only in this device\'s database, never uploaded. Clearing it takes effect immediately.';
+
+  @override
+  String get personaEmpty => 'No description written yet';
+
+  @override
+  String get personaSaveDone => 'Saved your description';
+
+  @override
+  String personaSaveFailed(String error) {
+    return 'Could not save: $error';
+  }
+
+  @override
+  String get personaClearAction => 'Clear description';
+
+  @override
+  String get personaClearConfirmTitle => 'Clear your description?';
+
+  @override
+  String get personaClearConfirmBody =>
+      'The assistant will no longer use this background. This cannot be undone.';
+
+  @override
+  String get personaClearDone => 'Description cleared';
+
+  @override
+  String personaTooLong(Object max) {
+    return 'Too long: $max characters max';
+  }
 }

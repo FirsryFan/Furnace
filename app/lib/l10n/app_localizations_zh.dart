@@ -5255,4 +5255,49 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ankiForcedWaitEnd => '结束本轮';
+
+  @override
+  String get personaTitle => '自我描述';
+
+  @override
+  String get personaSettingsSubtitle => '让 AI 知道我是谁、我的目标与习惯';
+
+  @override
+  String get personaEditorHint =>
+      '你写的这段话存在本机，会作为背景加进 AI 对话的系统提示。它不改变 AI 的规则，也不是题库数据。';
+
+  @override
+  String get personaEditorPlaceholder =>
+      '例如：我是高三学生，数学想冲 120；我习惯先看解析再做题，容易在计算上粗心。';
+
+  @override
+  String get personaPrivacyNote => '只存在本机数据库，不会上传。清除后立即失效。';
+
+  @override
+  String get personaEmpty => '还没有写过自我描述';
+
+  @override
+  String get personaSaveDone => '已保存自我描述';
+
+  @override
+  String personaSaveFailed(String error) {
+    return '保存失败：$error';
+  }
+
+  @override
+  String get personaClearAction => '清除自我描述';
+
+  @override
+  String get personaClearConfirmTitle => '清除自我描述？';
+
+  @override
+  String get personaClearConfirmBody => '清除后 AI 对话不再带这段背景。此操作不能撤销。';
+
+  @override
+  String get personaClearDone => '已清除自我描述';
+
+  @override
+  String personaTooLong(Object max) {
+    return '太长了：最多 $max 字';
+  }
 }

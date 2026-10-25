@@ -3107,5 +3107,62 @@
   "ankiForcedWaitEnd": "End session",
   "@ankiForcedWaitEnd": {
     "description": "Review page: leave the forced-card wait state and end this session."
+  },
+  "personaTitle": "About me",
+  "@personaTitle": {
+    "description": "Settings entry and editor page title."
+  },
+  "personaSettingsSubtitle": "Let the assistant know who I am, my goals and habits",
+  "@personaSettingsSubtitle": {
+    "description": "Settings entry subtitle."
+  },
+  "personaEditorHint": "This text is stored on this device and added to the assistant's system prompt as background. It does not change the assistant's rules and is not question-bank data.",
+  "@personaEditorHint": {
+    "description": "Persona editor: what the text is used for."
+  },
+  "personaEditorPlaceholder": "e.g. I'm a senior-3 student targeting 120 in maths; I read solutions first and am often careless with arithmetic.",
+  "@personaEditorPlaceholder": {
+    "description": "Persona editor: placeholder example."
+  },
+  "personaPrivacyNote": "Stored only in this device's database, never uploaded. Clearing it takes effect immediately.",
+  "@personaPrivacyNote": {
+    "description": "Persona editor: privacy note."
+  },
+  "personaEmpty": "No description written yet",
+  "@personaEmpty": {
+    "description": "Settings entry and cognitive-model card empty state."
+  },
+  "personaSaveDone": "Saved your description",
+  "@personaSaveDone": {
+    "description": "Save succeeded."
+  },
+  "personaSaveFailed": "Could not save: {error}",
+  "@personaSaveFailed": {
+    "description": "Save failed.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "personaClearAction": "Clear description",
+  "@personaClearAction": {
+    "description": "Clear button label."
+  },
+  "personaClearConfirmTitle": "Clear your description?",
+  "@personaClearConfirmTitle": {
+    "description": "Clear confirmation title."
+  },
+  "personaClearConfirmBody": "The assistant will no longer use this background. This cannot be undone.",
+  "@personaClearConfirmBody": {
+    "description": "Clear confirmation body."
+  },
+  "personaClearDone": "Description cleared",
+  "@personaClearDone": {
+    "description": "Clear succeeded."
+  },
+  "personaTooLong": "Too long: {max} characters max",
+  "@personaTooLong": {
+    "description": "Shown when above the length cap."
   }
 }

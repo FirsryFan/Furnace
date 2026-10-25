@@ -3014,5 +3014,62 @@
   "ankiForcedWaitEnd": "结束本轮",
   "@ankiForcedWaitEnd": {
     "description": "复习页：强制卡等待态里的出口按钮，直接结束本轮复习。"
+  },
+  "personaTitle": "自我描述",
+  "@personaTitle": {
+    "description": "设置页与自我描述编辑页的标题。"
+  },
+  "personaSettingsSubtitle": "让 AI 知道我是谁、我的目标与习惯",
+  "@personaSettingsSubtitle": {
+    "description": "设置页入口副标题。"
+  },
+  "personaEditorHint": "你写的这段话存在本机，会作为背景加进 AI 对话的系统提示。它不改变 AI 的规则，也不是题库数据。",
+  "@personaEditorHint": {
+    "description": "自我描述编辑页：说明这段文字会被怎么用。"
+  },
+  "personaEditorPlaceholder": "例如：我是高三学生，数学想冲 120；我习惯先看解析再做题，容易在计算上粗心。",
+  "@personaEditorPlaceholder": {
+    "description": "自我描述编辑页：输入框里的示例。"
+  },
+  "personaPrivacyNote": "只存在本机数据库，不会上传。清除后立即失效。",
+  "@personaPrivacyNote": {
+    "description": "自我描述编辑页：隐私说明。"
+  },
+  "personaEmpty": "还没有写过自我描述",
+  "@personaEmpty": {
+    "description": "设置页入口与认知模型卡片：没写过时的空态。"
+  },
+  "personaSaveDone": "已保存自我描述",
+  "@personaSaveDone": {
+    "description": "保存成功的提示。"
+  },
+  "personaSaveFailed": "保存失败：{error}",
+  "@personaSaveFailed": {
+    "description": "保存失败的提示。",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "personaClearAction": "清除自我描述",
+  "@personaClearAction": {
+    "description": "清除按钮的文案。"
+  },
+  "personaClearConfirmTitle": "清除自我描述？",
+  "@personaClearConfirmTitle": {
+    "description": "清除确认框标题。"
+  },
+  "personaClearConfirmBody": "清除后 AI 对话不再带这段背景。此操作不能撤销。",
+  "@personaClearConfirmBody": {
+    "description": "清除确认框正文。"
+  },
+  "personaClearDone": "已清除自我描述",
+  "@personaClearDone": {
+    "description": "清除成功的提示。"
+  },
+  "personaTooLong": "太长了：最多 {max} 字",
+  "@personaTooLong": {
+    "description": "超过长度上限时的提示。"
   }
 }
