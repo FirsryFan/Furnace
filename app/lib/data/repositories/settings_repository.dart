@@ -317,5 +317,34 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the review-spacing target retention (schema v36, 轮次一百七十五) as
+  /// the raw stored number, or `null` when the user never picked one.
+  ///
+  /// `null` is not a retention: the review layer translates it into the shipped
+  /// default (`kDefaultReviewRetention`) and clamps anything outside
+  /// `kReviewRetentionMin..kReviewRetentionMax`, so this repository stays
+  /// domain-free and hands back exactly what the row says.
+  Future<double?> getReviewRetention() async {
+    final row = await getSettings();
+    return row?.reviewRetention;
+  }
+
+  /// Persists the review-spacing target retention (schema v36), or `null` to
+  /// fall back to the shipped default.
+  ///
+  /// Range checking belongs to the review layer (the legal set is a domain
+  /// contract); this repository writes what it is given and never silently
+  /// rewrites the user's choice.
+  Future<void> updateReviewRetention(double? retention) async {
+    // The settings row is created lazily (ensureSettings); updating before it
+    // exists would silently affect zero rows and lose the choice.
+    await ensureSettings();
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      reviewRetention: Value(retention),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   String _newId() => Ids.next('p');
 }

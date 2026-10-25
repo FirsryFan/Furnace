@@ -176,6 +176,15 @@ class LocalSettings extends Table {
   /// 重写整段。长度上限由域层常量挡（超限不落库、由编辑页提示），不靠列宽。
   TextColumn get userPersona => text().nullable()();
 
+  /// v36（轮次一百七十五）：复习间隔的目标记忆保持率（FSRS `requestRetention`）。
+  ///
+  /// NULL 读作域层出厂值（`kDefaultReviewRetention`，0.85 —— 比 FSRS 默认 0.9
+  /// 更稀疏，因为用户反馈「间隔太短」）。取值范围由 `FsrsParameters` 的契约约束
+  /// （(0,1)），读侧还要夹到 `kReviewRetentionMin..kReviewRetentionMax`；越界/坏值
+  /// 一律回落出厂，不抛错、不阻塞复习。迁移绝不回填——回填会把今天的出厂值冻进
+  /// 每一台已有安装。
+  RealColumn get reviewRetention => real().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
@@ -855,6 +864,13 @@ class TimeViewSettings extends Table {
   /// 60-minute default without touching a deliberate choice.
   BoolColumn get minutesPerRowChosen =>
       boolean().withDefault(const Constant(false))();
+
+  /// v36（轮次一百七十五）：日/周网格每小时的像素高度（连续缩放后的自由行高）。
+  ///
+  /// NULL 读作「用户没拖过」——行高由 [minutesPerRow] 按旧公式推出来，行为与这一列
+  /// 存在之前逐字节相同。一旦用户拖动过分界线就写入具体值，所有档位共用同一个
+  /// 每小时高度。迁移绝不回填。
+  RealColumn get hourHeight => real().nullable()();
 
   IntColumn get updatedAt => integer().nullable()();
   IntColumn get createdAt => integer()();

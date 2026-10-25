@@ -112,7 +112,7 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
@@ -125,8 +125,13 @@ class AppDatabase extends _$AppDatabase {
   /// v35（轮次一百七十二）adds `local_settings.user_persona`: the user's own free-text
   /// description of themselves (persona), edited in 设置 → 自我描述 and injected into
   /// the assistant's system prompt. NULL = 没写过（不是空字符串）。
+  ///
+  /// v36（轮次一百七十五）adds two user-tunable display/scheduling preferences from
+  /// `docs/REVIEW_FEEDBACK.md`: `time_view_settings.hour_height`（Time 日/周网格的自由
+  /// 行高，拖动分界线后落库）与 `local_settings.review_retention`（目标记忆保持率，
+  /// 越小间隔越长）。两列都可空、NULL 读作出厂值，迁移不回填。
   @override
-  int get schemaVersion => 35;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration {
@@ -237,6 +242,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 35) {
           await _upgradeV34ToV35();
         }
+        if (from < 36) {
+          await _upgradeV35ToV36();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -264,7 +272,13 @@ class AppDatabase extends _$AppDatabase {
         completionLogs.includeInModel,
         completionLogs.durationSuspicious,
       ],
-      'time_view_settings': [timeViewSettings.minutesPerRowChosen],
+      'time_view_settings': [
+        timeViewSettings.minutesPerRowChosen,
+        // v36（轮次一百七十五）：自由行高。同一个失败模式——老文件被盖成 v36
+        // 却没有这一列时，Drift 跳过 onUpgrade，日历第一次读视图设置就抛
+        // no such column。列可空，补上即可，没有回填。
+        timeViewSettings.hourHeight,
+      ],
       // v6: without these the generated mappers throw on existing rows when a
       // file is stamped v6 but was written by an older build.
       // v7: same reasoning for the agent loop's round cap and the two review
@@ -308,6 +322,10 @@ class AppDatabase extends _$AppDatabase {
         // 却没有这一列时，Drift 跳过 onUpgrade，设置页/AI 第一次读 persona 就抛
         // no such column。列可空、NULL 读作"没写过"，补列即可，没有回填。
         localSettings.userPersona,
+        // v36（轮次一百七十五）：复习间隔（目标记忆保持率）。同一个失败模式：
+        // 老文件被盖成 v36 却没有这一列时，读设置就抛 no such column。列可空，
+        // NULL 读作出厂 0.85，补列即可。
+        localSettings.reviewRetention,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -1006,6 +1024,25 @@ class AppDatabase extends _$AppDatabase {
     }
     final m = Migrator(this);
     await _addColumnIfMissing(m, 'local_settings', localSettings.userPersona);
+  }
+
+  /// v35 -> v36：Time 自由行高 `time_view_settings.hour_height` + 复习间隔
+  /// `local_settings.review_retention`（轮次一百七十五，`docs/REVIEW_FEEDBACK.md`
+  /// 第 6/14 条）。
+  ///
+  /// 两列都是纯新增、可空：NULL 读作出厂值（行高按 `minutesPerRow` 旧公式推、
+  /// 记忆保持率 0.85），迁移只补列、不回填——回填会把今天的出厂值冻进每一台
+  /// 已有安装。表不存在就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV35ToV36() async {
+    final m = Migrator(this);
+    if (await _tableExists('time_view_settings')) {
+      await _addColumnIfMissing(
+          m, 'time_view_settings', timeViewSettings.hourHeight);
+    }
+    if (await _tableExists('local_settings')) {
+      await _addColumnIfMissing(
+          m, 'local_settings', localSettings.reviewRetention);
+    }
   }
 
   Future<void> _upgradeV4ToV5() async {

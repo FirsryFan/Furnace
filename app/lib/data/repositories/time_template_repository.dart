@@ -124,7 +124,8 @@ class TimeTemplateRepository {
     });
     final existing = id == null ? null : await getById(id);
     if (existing != null) {
-      await (_db.update(_db.timeTemplates)..where((t) => t.id.equals(existing.id)))
+      await (_db.update(_db.timeTemplates)
+            ..where((t) => t.id.equals(existing.id)))
           .write(
         TimeTemplatesCompanion(
           name: Value(name),
@@ -229,9 +230,11 @@ class TimeViewRepository {
     bool? timelineCollapsed,
     int? minutesPerRow,
     bool? chosen,
+    double? hourHeight,
   }) async {
     await ensure();
-    await (_db.update(_db.timeViewSettings)..where((t) => t.id.equals(1))).write(
+    await (_db.update(_db.timeViewSettings)..where((t) => t.id.equals(1)))
+        .write(
       TimeViewSettingsCompanion(
         timelineSpanDays: timelineSpanDays == null
             ? const Value.absent()
@@ -246,6 +249,22 @@ class TimeViewRepository {
             minutesPerRow == null ? const Value.absent() : Value(minutesPerRow),
         minutesPerRowChosen:
             chosen == null ? const Value.absent() : Value(chosen),
+        hourHeight:
+            hourHeight == null ? const Value.absent() : Value(hourHeight),
+        updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+  }
+
+  /// v36（轮次一百七十五）：清掉用户拖出来的自由行高，回到「按 [minutesPerRow]
+  /// 旧公式推」的状态。与 [update] 分开是因为 `update(hourHeight: null)` 在
+  /// `Value.absent()` 的写法里表示「本次不改」，而这里要写的是真正的 NULL。
+  Future<void> clearHourHeight() async {
+    await ensure();
+    await (_db.update(_db.timeViewSettings)..where((t) => t.id.equals(1)))
+        .write(
+      TimeViewSettingsCompanion(
+        hourHeight: const Value(null),
         updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
       ),
     );

@@ -439,6 +439,12 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> userPersona = GeneratedColumn<String>(
       'user_persona', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _reviewRetentionMeta =
+      const VerificationMeta('reviewRetention');
+  @override
+  late final GeneratedColumn<double> reviewRetention = GeneratedColumn<double>(
+      'review_retention', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -475,6 +481,7 @@ class $LocalSettingsTable extends LocalSettings
         tagTreeSortMode,
         questionLibrarySortMode,
         userPersona,
+        reviewRetention,
         createdAt,
         updatedAt
       ];
@@ -605,6 +612,12 @@ class $LocalSettingsTable extends LocalSettings
           userPersona.isAcceptableOrUnknown(
               data['user_persona']!, _userPersonaMeta));
     }
+    if (data.containsKey('review_retention')) {
+      context.handle(
+          _reviewRetentionMeta,
+          reviewRetention.isAcceptableOrUnknown(
+              data['review_retention']!, _reviewRetentionMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -673,6 +686,8 @@ class $LocalSettingsTable extends LocalSettings
           data['${effectivePrefix}question_library_sort_mode']),
       userPersona: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}user_persona']),
+      reviewRetention: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}review_retention']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -815,6 +830,15 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// 存原话而不是摘要：摘要一旦写进库就成了不可逆的有损变换，用户改一个字就得
   /// 重写整段。长度上限由域层常量挡（超限不落库、由编辑页提示），不靠列宽。
   final String? userPersona;
+
+  /// v36（轮次一百七十五）：复习间隔的目标记忆保持率（FSRS `requestRetention`）。
+  ///
+  /// NULL 读作域层出厂值（`kDefaultReviewRetention`，0.85 —— 比 FSRS 默认 0.9
+  /// 更稀疏，因为用户反馈「间隔太短」）。取值范围由 `FsrsParameters` 的契约约束
+  /// （(0,1)），读侧还要夹到 `kReviewRetentionMin..kReviewRetentionMax`；越界/坏值
+  /// 一律回落出厂，不抛错、不阻塞复习。迁移绝不回填——回填会把今天的出厂值冻进
+  /// 每一台已有安装。
+  final double? reviewRetention;
   final int createdAt;
   final int updatedAt;
   const LocalSetting(
@@ -840,6 +864,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.tagTreeSortMode,
       this.questionLibrarySortMode,
       this.userPersona,
+      this.reviewRetention,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -905,6 +930,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || userPersona != null) {
       map['user_persona'] = Variable<String>(userPersona);
+    }
+    if (!nullToAbsent || reviewRetention != null) {
+      map['review_retention'] = Variable<double>(reviewRetention);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -972,6 +1000,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       userPersona: userPersona == null && nullToAbsent
           ? const Value.absent()
           : Value(userPersona),
+      reviewRetention: reviewRetention == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewRetention),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1010,6 +1041,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       questionLibrarySortMode:
           serializer.fromJson<String?>(json['questionLibrarySortMode']),
       userPersona: serializer.fromJson<String?>(json['userPersona']),
+      reviewRetention: serializer.fromJson<double?>(json['reviewRetention']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -1043,6 +1075,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'questionLibrarySortMode':
           serializer.toJson<String?>(questionLibrarySortMode),
       'userPersona': serializer.toJson<String?>(userPersona),
+      'reviewRetention': serializer.toJson<double?>(reviewRetention),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -1071,6 +1104,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> tagTreeSortMode = const Value.absent(),
           Value<String?> questionLibrarySortMode = const Value.absent(),
           Value<String?> userPersona = const Value.absent(),
+          Value<double?> reviewRetention = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       LocalSetting(
@@ -1116,6 +1150,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
             ? questionLibrarySortMode.value
             : this.questionLibrarySortMode,
         userPersona: userPersona.present ? userPersona.value : this.userPersona,
+        reviewRetention: reviewRetention.present
+            ? reviewRetention.value
+            : this.reviewRetention,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1167,6 +1204,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           : this.questionLibrarySortMode,
       userPersona:
           data.userPersona.present ? data.userPersona.value : this.userPersona,
+      reviewRetention: data.reviewRetention.present
+          ? data.reviewRetention.value
+          : this.reviewRetention,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1197,6 +1237,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
           ..write('userPersona: $userPersona, ')
+          ..write('reviewRetention: $reviewRetention, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1227,6 +1268,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         tagTreeSortMode,
         questionLibrarySortMode,
         userPersona,
+        reviewRetention,
         createdAt,
         updatedAt
       ]);
@@ -1257,6 +1299,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.tagTreeSortMode == this.tagTreeSortMode &&
           other.questionLibrarySortMode == this.questionLibrarySortMode &&
           other.userPersona == this.userPersona &&
+          other.reviewRetention == this.reviewRetention &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1284,6 +1327,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> tagTreeSortMode;
   final Value<String?> questionLibrarySortMode;
   final Value<String?> userPersona;
+  final Value<double?> reviewRetention;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const LocalSettingsCompanion({
@@ -1309,6 +1353,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.tagTreeSortMode = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
     this.userPersona = const Value.absent(),
+    this.reviewRetention = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1335,6 +1380,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.tagTreeSortMode = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
     this.userPersona = const Value.absent(),
+    this.reviewRetention = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : createdAt = Value(createdAt),
@@ -1362,6 +1408,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? tagTreeSortMode,
     Expression<String>? questionLibrarySortMode,
     Expression<String>? userPersona,
+    Expression<double>? reviewRetention,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -1395,6 +1442,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (questionLibrarySortMode != null)
         'question_library_sort_mode': questionLibrarySortMode,
       if (userPersona != null) 'user_persona': userPersona,
+      if (reviewRetention != null) 'review_retention': reviewRetention,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1423,6 +1471,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? tagTreeSortMode,
       Value<String?>? questionLibrarySortMode,
       Value<String?>? userPersona,
+      Value<double?>? reviewRetention,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return LocalSettingsCompanion(
@@ -1453,6 +1502,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       questionLibrarySortMode:
           questionLibrarySortMode ?? this.questionLibrarySortMode,
       userPersona: userPersona ?? this.userPersona,
+      reviewRetention: reviewRetention ?? this.reviewRetention,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1533,6 +1583,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (userPersona.present) {
       map['user_persona'] = Variable<String>(userPersona.value);
     }
+    if (reviewRetention.present) {
+      map['review_retention'] = Variable<double>(reviewRetention.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -1567,6 +1620,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
           ..write('userPersona: $userPersona, ')
+          ..write('reviewRetention: $reviewRetention, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -13684,6 +13738,12 @@ class $TimeViewSettingsTable extends TimeViewSettings
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("minutes_per_row_chosen" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _hourHeightMeta =
+      const VerificationMeta('hourHeight');
+  @override
+  late final GeneratedColumn<double> hourHeight = GeneratedColumn<double>(
+      'hour_height', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -13704,6 +13764,7 @@ class $TimeViewSettingsTable extends TimeViewSettings
         timelineCollapsed,
         minutesPerRow,
         minutesPerRowChosen,
+        hourHeight,
         updatedAt,
         createdAt
       ];
@@ -13750,6 +13811,12 @@ class $TimeViewSettingsTable extends TimeViewSettings
           minutesPerRowChosen.isAcceptableOrUnknown(
               data['minutes_per_row_chosen']!, _minutesPerRowChosenMeta));
     }
+    if (data.containsKey('hour_height')) {
+      context.handle(
+          _hourHeightMeta,
+          hourHeight.isAcceptableOrUnknown(
+              data['hour_height']!, _hourHeightMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -13781,6 +13848,8 @@ class $TimeViewSettingsTable extends TimeViewSettings
           .read(DriftSqlType.int, data['${effectivePrefix}minutes_per_row'])!,
       minutesPerRowChosen: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}minutes_per_row_chosen'])!,
+      hourHeight: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}hour_height']),
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}updated_at']),
       createdAt: attachedDatabase.typeMapping
@@ -13817,6 +13886,13 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
   /// v4 -> v5 migration can move everyone who never chose off the old
   /// 60-minute default without touching a deliberate choice.
   final bool minutesPerRowChosen;
+
+  /// v36（轮次一百七十五）：日/周网格每小时的像素高度（连续缩放后的自由行高）。
+  ///
+  /// NULL 读作「用户没拖过」——行高由 [minutesPerRow] 按旧公式推出来，行为与这一列
+  /// 存在之前逐字节相同。一旦用户拖动过分界线就写入具体值，所有档位共用同一个
+  /// 每小时高度。迁移绝不回填。
+  final double? hourHeight;
   final int? updatedAt;
   final int createdAt;
   const TimeViewSetting(
@@ -13826,6 +13902,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       required this.timelineCollapsed,
       required this.minutesPerRow,
       required this.minutesPerRowChosen,
+      this.hourHeight,
       this.updatedAt,
       required this.createdAt});
   @override
@@ -13837,6 +13914,9 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
     map['timeline_collapsed'] = Variable<bool>(timelineCollapsed);
     map['minutes_per_row'] = Variable<int>(minutesPerRow);
     map['minutes_per_row_chosen'] = Variable<bool>(minutesPerRowChosen);
+    if (!nullToAbsent || hourHeight != null) {
+      map['hour_height'] = Variable<double>(hourHeight);
+    }
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<int>(updatedAt);
     }
@@ -13852,6 +13932,9 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       timelineCollapsed: Value(timelineCollapsed),
       minutesPerRow: Value(minutesPerRow),
       minutesPerRowChosen: Value(minutesPerRowChosen),
+      hourHeight: hourHeight == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hourHeight),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
@@ -13870,6 +13953,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       minutesPerRow: serializer.fromJson<int>(json['minutesPerRow']),
       minutesPerRowChosen:
           serializer.fromJson<bool>(json['minutesPerRowChosen']),
+      hourHeight: serializer.fromJson<double?>(json['hourHeight']),
       updatedAt: serializer.fromJson<int?>(json['updatedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
@@ -13884,6 +13968,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       'timelineCollapsed': serializer.toJson<bool>(timelineCollapsed),
       'minutesPerRow': serializer.toJson<int>(minutesPerRow),
       'minutesPerRowChosen': serializer.toJson<bool>(minutesPerRowChosen),
+      'hourHeight': serializer.toJson<double?>(hourHeight),
       'updatedAt': serializer.toJson<int?>(updatedAt),
       'createdAt': serializer.toJson<int>(createdAt),
     };
@@ -13896,6 +13981,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
           bool? timelineCollapsed,
           int? minutesPerRow,
           bool? minutesPerRowChosen,
+          Value<double?> hourHeight = const Value.absent(),
           Value<int?> updatedAt = const Value.absent(),
           int? createdAt}) =>
       TimeViewSetting(
@@ -13905,6 +13991,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
         timelineCollapsed: timelineCollapsed ?? this.timelineCollapsed,
         minutesPerRow: minutesPerRow ?? this.minutesPerRow,
         minutesPerRowChosen: minutesPerRowChosen ?? this.minutesPerRowChosen,
+        hourHeight: hourHeight.present ? hourHeight.value : this.hourHeight,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -13926,6 +14013,8 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       minutesPerRowChosen: data.minutesPerRowChosen.present
           ? data.minutesPerRowChosen.value
           : this.minutesPerRowChosen,
+      hourHeight:
+          data.hourHeight.present ? data.hourHeight.value : this.hourHeight,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -13940,6 +14029,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
           ..write('timelineCollapsed: $timelineCollapsed, ')
           ..write('minutesPerRow: $minutesPerRow, ')
           ..write('minutesPerRowChosen: $minutesPerRowChosen, ')
+          ..write('hourHeight: $hourHeight, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -13954,6 +14044,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
       timelineCollapsed,
       minutesPerRow,
       minutesPerRowChosen,
+      hourHeight,
       updatedAt,
       createdAt);
   @override
@@ -13966,6 +14057,7 @@ class TimeViewSetting extends DataClass implements Insertable<TimeViewSetting> {
           other.timelineCollapsed == this.timelineCollapsed &&
           other.minutesPerRow == this.minutesPerRow &&
           other.minutesPerRowChosen == this.minutesPerRowChosen &&
+          other.hourHeight == this.hourHeight &&
           other.updatedAt == this.updatedAt &&
           other.createdAt == this.createdAt);
 }
@@ -13977,6 +14069,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
   final Value<bool> timelineCollapsed;
   final Value<int> minutesPerRow;
   final Value<bool> minutesPerRowChosen;
+  final Value<double?> hourHeight;
   final Value<int?> updatedAt;
   final Value<int> createdAt;
   const TimeViewSettingsCompanion({
@@ -13986,6 +14079,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
     this.timelineCollapsed = const Value.absent(),
     this.minutesPerRow = const Value.absent(),
     this.minutesPerRowChosen = const Value.absent(),
+    this.hourHeight = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -13996,6 +14090,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
     this.timelineCollapsed = const Value.absent(),
     this.minutesPerRow = const Value.absent(),
     this.minutesPerRowChosen = const Value.absent(),
+    this.hourHeight = const Value.absent(),
     this.updatedAt = const Value.absent(),
     required int createdAt,
   }) : createdAt = Value(createdAt);
@@ -14006,6 +14101,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
     Expression<bool>? timelineCollapsed,
     Expression<int>? minutesPerRow,
     Expression<bool>? minutesPerRowChosen,
+    Expression<double>? hourHeight,
     Expression<int>? updatedAt,
     Expression<int>? createdAt,
   }) {
@@ -14017,6 +14113,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
       if (minutesPerRow != null) 'minutes_per_row': minutesPerRow,
       if (minutesPerRowChosen != null)
         'minutes_per_row_chosen': minutesPerRowChosen,
+      if (hourHeight != null) 'hour_height': hourHeight,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -14029,6 +14126,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
       Value<bool>? timelineCollapsed,
       Value<int>? minutesPerRow,
       Value<bool>? minutesPerRowChosen,
+      Value<double?>? hourHeight,
       Value<int?>? updatedAt,
       Value<int>? createdAt}) {
     return TimeViewSettingsCompanion(
@@ -14038,6 +14136,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
       timelineCollapsed: timelineCollapsed ?? this.timelineCollapsed,
       minutesPerRow: minutesPerRow ?? this.minutesPerRow,
       minutesPerRowChosen: minutesPerRowChosen ?? this.minutesPerRowChosen,
+      hourHeight: hourHeight ?? this.hourHeight,
       updatedAt: updatedAt ?? this.updatedAt,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -14064,6 +14163,9 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
     if (minutesPerRowChosen.present) {
       map['minutes_per_row_chosen'] = Variable<bool>(minutesPerRowChosen.value);
     }
+    if (hourHeight.present) {
+      map['hour_height'] = Variable<double>(hourHeight.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
@@ -14082,6 +14184,7 @@ class TimeViewSettingsCompanion extends UpdateCompanion<TimeViewSetting> {
           ..write('timelineCollapsed: $timelineCollapsed, ')
           ..write('minutesPerRow: $minutesPerRow, ')
           ..write('minutesPerRowChosen: $minutesPerRowChosen, ')
+          ..write('hourHeight: $hourHeight, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -24078,6 +24181,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> tagTreeSortMode,
   Value<String?> questionLibrarySortMode,
   Value<String?> userPersona,
+  Value<double?> reviewRetention,
   required int createdAt,
   required int updatedAt,
 });
@@ -24105,6 +24209,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> tagTreeSortMode,
   Value<String?> questionLibrarySortMode,
   Value<String?> userPersona,
+  Value<double?> reviewRetention,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -24192,6 +24297,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get userPersona => $composableBuilder(
       column: $table.userPersona, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get reviewRetention => $composableBuilder(
+      column: $table.reviewRetention,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -24286,6 +24395,10 @@ class $$LocalSettingsTableOrderingComposer
   ColumnOrderings<String> get userPersona => $composableBuilder(
       column: $table.userPersona, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get reviewRetention => $composableBuilder(
+      column: $table.reviewRetention,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -24368,6 +24481,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get userPersona => $composableBuilder(
       column: $table.userPersona, builder: (column) => column);
 
+  GeneratedColumn<double> get reviewRetention => $composableBuilder(
+      column: $table.reviewRetention, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -24423,6 +24539,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> tagTreeSortMode = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
             Value<String?> userPersona = const Value.absent(),
+            Value<double?> reviewRetention = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -24449,6 +24566,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             tagTreeSortMode: tagTreeSortMode,
             questionLibrarySortMode: questionLibrarySortMode,
             userPersona: userPersona,
+            reviewRetention: reviewRetention,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -24475,6 +24593,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> tagTreeSortMode = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
             Value<String?> userPersona = const Value.absent(),
+            Value<double?> reviewRetention = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -24501,6 +24620,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             tagTreeSortMode: tagTreeSortMode,
             questionLibrarySortMode: questionLibrarySortMode,
             userPersona: userPersona,
+            reviewRetention: reviewRetention,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -30301,6 +30421,7 @@ typedef $$TimeViewSettingsTableCreateCompanionBuilder
   Value<bool> timelineCollapsed,
   Value<int> minutesPerRow,
   Value<bool> minutesPerRowChosen,
+  Value<double?> hourHeight,
   Value<int?> updatedAt,
   required int createdAt,
 });
@@ -30312,6 +30433,7 @@ typedef $$TimeViewSettingsTableUpdateCompanionBuilder
   Value<bool> timelineCollapsed,
   Value<int> minutesPerRow,
   Value<bool> minutesPerRowChosen,
+  Value<double?> hourHeight,
   Value<int?> updatedAt,
   Value<int> createdAt,
 });
@@ -30346,6 +30468,9 @@ class $$TimeViewSettingsTableFilterComposer
   ColumnFilters<bool> get minutesPerRowChosen => $composableBuilder(
       column: $table.minutesPerRowChosen,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get hourHeight => $composableBuilder(
+      column: $table.hourHeight, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -30386,6 +30511,9 @@ class $$TimeViewSettingsTableOrderingComposer
       column: $table.minutesPerRowChosen,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get hourHeight => $composableBuilder(
+      column: $table.hourHeight, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
@@ -30419,6 +30547,9 @@ class $$TimeViewSettingsTableAnnotationComposer
 
   GeneratedColumn<bool> get minutesPerRowChosen => $composableBuilder(
       column: $table.minutesPerRowChosen, builder: (column) => column);
+
+  GeneratedColumn<double> get hourHeight => $composableBuilder(
+      column: $table.hourHeight, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -30460,6 +30591,7 @@ class $$TimeViewSettingsTableTableManager extends RootTableManager<
             Value<bool> timelineCollapsed = const Value.absent(),
             Value<int> minutesPerRow = const Value.absent(),
             Value<bool> minutesPerRowChosen = const Value.absent(),
+            Value<double?> hourHeight = const Value.absent(),
             Value<int?> updatedAt = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
           }) =>
@@ -30470,6 +30602,7 @@ class $$TimeViewSettingsTableTableManager extends RootTableManager<
             timelineCollapsed: timelineCollapsed,
             minutesPerRow: minutesPerRow,
             minutesPerRowChosen: minutesPerRowChosen,
+            hourHeight: hourHeight,
             updatedAt: updatedAt,
             createdAt: createdAt,
           ),
@@ -30480,6 +30613,7 @@ class $$TimeViewSettingsTableTableManager extends RootTableManager<
             Value<bool> timelineCollapsed = const Value.absent(),
             Value<int> minutesPerRow = const Value.absent(),
             Value<bool> minutesPerRowChosen = const Value.absent(),
+            Value<double?> hourHeight = const Value.absent(),
             Value<int?> updatedAt = const Value.absent(),
             required int createdAt,
           }) =>
@@ -30490,6 +30624,7 @@ class $$TimeViewSettingsTableTableManager extends RootTableManager<
             timelineCollapsed: timelineCollapsed,
             minutesPerRow: minutesPerRow,
             minutesPerRowChosen: minutesPerRowChosen,
+            hourHeight: hourHeight,
             updatedAt: updatedAt,
             createdAt: createdAt,
           ),
