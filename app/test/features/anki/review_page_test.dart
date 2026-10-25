@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -514,5 +515,152 @@ void main() {
 
     expect(find.byType(TextField), findsNothing,
         reason: 'a choice card is answered by tapping, not typing');
+  });
+
+  // 用户反馈：重复出现频率高、难推进新卡。跳过是「这一轮先不做」，不是作答——
+  // 什么也不写，卡下一轮照样到期。
+  testWidgets('跳过这张：第一张消失、第二张出现，且不写复习记录', (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '第一题的题干',
+      answer: '甲',
+    );
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '第二题的题干',
+      answer: '乙',
+    );
+
+    await pumpReview(tester, db);
+
+    // 两张新卡谁先出现由排序决定，不写死顺序：本轮先做哪张就跳哪张。
+    final shown = tester
+        .widgetList<SelectableText>(find.byType(SelectableText))
+        .map((w) => w.data)
+        .whereType<String>()
+        .toList();
+    expect(shown, hasLength(1), reason: '一次只显示一张卡');
+    final first = shown.single;
+    final second = first == '第一题的题干' ? '第二题的题干' : '第一题的题干';
+    expect(first, anyOf('第一题的题干', '第二题的题干'));
+
+    await tester.tap(find.byKey(reviewSkipCardKey));
+    await settle(tester);
+
+    expect(find.text(first), findsNothing, reason: '被跳过的那张本轮不再出现');
+    expect(find.text(second), findsOneWidget);
+    expect(find.text('已跳过：这张卡本轮不再出现'), findsOneWidget);
+    expect(await db.select(db.reviewLogs).get(), isEmpty,
+        reason: '跳过不是作答：不写日志、不动排期');
+  });
+
+  testWidgets('只有一张卡时跳过：直接进完成态，而不是卡死', (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '唯一的题干',
+      answer: '甲',
+    );
+
+    await pumpReview(tester, db);
+    expect(find.text('唯一的题干'), findsOneWidget);
+
+    await tester.tap(find.byKey(reviewSkipCardKey));
+    await settle(tester);
+
+    expect(find.text('今天这一轮做完了'), findsOneWidget);
+    expect(await db.select(db.reviewLogs).get(), isEmpty);
+    expect(await db.select(db.cardStates).get(), hasLength(1),
+        reason: '卡片还在库里，下一轮照样到期');
+  });
+
+  // 「答对一次」只对**已经**被强制绑定的卡才有等待语义：连续答对还差一次，
+  // 卡仍在绑定里，于是这一轮只能停在「约 10 分钟」的等待上，由「结束本轮」收尾。
+  testWidgets('强制卡答对一次进等待态：「结束本轮」直接收尾', (tester) async {
+    final (db, anki) = await openDatabase();
+    final point = await anki.createKnowledgePoint(
+      title: '光合作用场所',
+      content: '光合作用的主要场所是叶绿体。',
+    );
+    final template = await anki.createTemplate(
+      knowledgePointId: point.id,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+    );
+    // 一个「内容单元」状态把这张知识点从自由挖空抽卡里挡掉（队列构建只在
+    // 内容单元为空时才补一张内容卡），把它排到未来让它自己不进队。
+    final blocker = await anki.getOrCreateUnitCardState(point.id, 'essay');
+    await anki.updateUnitCardState(
+      blocker.id,
+      dueAt: DateTime.now().add(const Duration(days: 1)).millisecondsSinceEpoch,
+    );
+    // 模板卡的状态置为强制绑定（模拟上一轮答错、还没连续答对两次）。
+    final state = await anki.getOrCreateCardState(template.id);
+    await (db.update(db.cardStates)..where((t) => t.id.equals(state.id)))
+        .write(const CardStatesCompanion(forced: Value(1)));
+
+    await pumpReview(tester, db);
+    expect(find.text('光合作用的场所是？'), findsOneWidget, reason: '队列里应当只有这张强制卡');
+
+    // 答对一次：连续答对还差一次，卡仍在强制绑定里，本轮只能进等待态。
+    await tester.enterText(find.byType(TextField), '叶绿体');
+    await tester.tap(find.byTooltip('提交'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('下一张'));
+    await settle(tester);
+
+    expect(find.byKey(reviewEndSessionKey), findsOneWidget);
+    expect(find.textContaining('要过一会儿才再出现'), findsOneWidget);
+
+    await tester.tap(find.byKey(reviewEndSessionKey));
+    await settle(tester);
+
+    expect(find.text('今天这一轮做完了'), findsOneWidget);
+  });
+
+  testWidgets('同一张强制卡本轮最多插回两次：第三次答错后不再重现，库里仍 forced', (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'fill_blank',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+    );
+
+    Future<void> answerWrong() async {
+      await tester.enterText(find.byType(TextField), '线粒体');
+      await tester.tap(find.byTooltip('提交'));
+      await settle(tester);
+      await tester.ensureVisible(find.text('还是不会'));
+      await tester.pump();
+      await tester.tap(find.text('还是不会'));
+      await settle(tester);
+    }
+
+    await pumpReview(tester, db);
+
+    // 前两次答错：卡被插回本轮队列，切回下一张还能看到它。
+    for (var i = 0; i < 2; i++) {
+      await answerWrong();
+      await tester.tap(find.byTooltip('下一张'));
+      await settle(tester);
+      expect(find.text('光合作用的场所是？'), findsOneWidget,
+          reason: '第 ${i + 1} 次答错后，本轮还会再给一次机会');
+    }
+
+    // 第三次答错：重插次数用尽，本轮不再出现。
+    await answerWrong();
+    await tester.tap(find.byTooltip('下一张'));
+    await settle(tester);
+
+    expect(find.text('今天这一轮做完了'), findsOneWidget);
+    final states = await db.select(db.cardStates).get();
+    expect(states.single.forced, 1, reason: '绑定仍在库里，下一轮复习还会回来');
+    expect(await db.select(db.reviewLogs).get(), hasLength(3));
   });
 }

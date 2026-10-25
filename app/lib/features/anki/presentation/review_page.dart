@@ -19,6 +19,12 @@ import '../application/review_reminder_service.dart';
 import '../application/review_service.dart';
 import 'review_reminder_texts.dart';
 
+/// 「跳过这张」按钮（会话内跳过，不写库、不动排期）。
+const Key reviewSkipCardKey = Key('review-skip-card');
+
+/// 等待态里的「结束本轮」。
+const Key reviewEndSessionKey = Key('review-end-session');
+
 /// Practice screen (blueprint 4.3; user annotations 17, 18, 19).
 ///
 /// Kept deliberately plain so the user can reach flow: one blank per question,
@@ -128,11 +134,24 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   /// 本轮结束时是否已经重排过复习提醒（见 [_refreshReviewReminder]）。
   bool _reminderRefreshed = false;
 
+  /// 这一轮是不是已经做完/主动收尾了。
+  ///
+  /// 只靠 `_queue.isEmpty` 分不开两件事：进页面时库本来就没有卡（该提示去加卡，
+  /// [_EmptyState]），和把最后一张跳过或点「结束本轮」之后队列空了（这一轮结束，
+  /// [_FinishedState]）。前者要留重新加载的入口，后者不该装作库里没卡。
+  bool _finished = false;
+
   /// 本轮被强制绑定的单元（`知识点 id:单元键`）。
   ///
   /// 头部「待清」不能只看队列快照里的 `cardState.forced`：本轮答错产生的绑定写在
   /// 数据库行上，而队列里的 [ReviewItem] 还是构建时的老快照。
   final Set<String> _sessionForced = <String>{};
+
+  /// 本轮每张卡已经被插回队列的次数（`知识点 id:单元键`）。
+  ///
+  /// 一张卡在本轮里「答错 → 插回 → 再答错」不能无限循环：次数用尽后不再插回，
+  /// 但库里的 forced 绑定保持原样——下一轮新队列里它仍是强制卡。
+  final Map<String, int> _reinsertCounts = <String, int>{};
 
   @override
   void initState() {
@@ -200,6 +219,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       // 的绑定会由 `cardState.forced` 重新带进来）。
       _floors = List<DateTime?>.filled(queue.length, null, growable: true);
       _sessionForced.clear();
+      _reinsertCounts.clear();
+      _finished = false;
       // 新的一轮：下一轮做完时还要再重排一次提醒。
       _reminderRefreshed = false;
     });
@@ -444,10 +465,17 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   }) async {
     final key = _unitKeyOf(item);
     if (!outcome.stillForced) {
-      // 绑定解除（或本来就没绑定）：本轮不再算它待清。
+      // 绑定解除（或本来就没绑定）：本轮不再算它待清，重插次数也归零。
+      _reinsertCounts.remove(key);
       if (_sessionForced.remove(key)) {
         setState(() {});
       }
+      return;
+    }
+    // 一张卡本轮最多插回 `kMaxForcedReinsertsPerSession` 次：反复答错的卡不再无限
+    // 循环，但库里的 forced 绑定不动，下一轮复习仍会把它带回来。
+    final reinserts = _reinsertCounts[key] ?? 0;
+    if (!ForcedLoop.mayReinsert(reinsertsSoFar: reinserts)) {
       return;
     }
     final fresh = await ref.read(reviewServiceProvider).refreshItem(item);
@@ -471,6 +499,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         _floors = List<DateTime?>.filled(_queue.length, null, growable: true);
       }
       _sessionForced.add(key);
+      _reinsertCounts[key] = reinserts + 1;
       _queue.insert(plan.insertIndex, plan.item);
       _floors.insert(plan.insertIndex, plan.notBefore);
     });
@@ -566,6 +595,63 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     _focusAnswer();
   }
 
+  /// 跳过当前这张：本轮不再出现，**不写复习日志、不动排期**。
+  ///
+  /// 用户反馈「重复出现频率高、难以推进新卡片」的出口：不想做的卡可以放着，
+  /// 跳过不是作答，所以什么也不记——下一次到期该回来还会回来。守卫与 [_advance]
+  /// 同一个理由：答案还没写库时不能跳，否则那一笔记录就永久丢了。
+  void _skipCurrent() {
+    if (_current == null ||
+        _submitting ||
+        _feedback?.awaitingSolution == true) {
+      return;
+    }
+    setState(() {
+      if (_index < _queue.length) {
+        _queue.removeAt(_index);
+        if (_index < _floors.length) {
+          _floors.removeAt(_index);
+        }
+      }
+      _feedback = null;
+      _outcome = null;
+      _pendingWrong = null;
+      _answer.clear();
+      _selectedOption = null;
+      _shownAt = DateTime.now();
+      // 跳过最后一张 = 这一轮做完了，不是「库里没有卡」。
+      if (_queue.isEmpty) {
+        _finished = true;
+      }
+    });
+    _skipGatedCards();
+    if (_queue.isEmpty || _index >= _queue.length) {
+      // 跳到最后一张也等于这一轮结束：提醒该改到明天。
+      _refreshReviewReminder();
+    }
+    if (_scroll.hasClients) {
+      _scroll.jumpTo(0);
+    }
+    _focusAnswer();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context).ankiSkipCardDone),
+      ),
+    );
+  }
+
+  /// 等待态里结束本轮：把游标推过队尾，build 自然落到 [_FinishedState]。
+  ///
+  /// 被强制绑定的卡仍在库里（下一轮开新队列时它还会回来），这里只是不再让这一轮
+  /// 停在「约 10 分钟」的等待上。
+  void _endSession() {
+    setState(() {
+      _index = _queue.length;
+      _finished = true;
+    });
+    _refreshReviewReminder();
+  }
+
   /// 队列清空后重排一次复习提醒。
   ///
   /// 每轮只排一次（[_reminderRefreshed] 在 `_load` 里重置）：一轮复习结束时
@@ -631,7 +717,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_queue.isEmpty) {
-      return _EmptyState(onReload: _load);
+      return _finished
+          ? _FinishedState(onReload: _load)
+          : _EmptyState(onReload: _load);
     }
     final item = _current;
     if (item == null) {
@@ -664,6 +752,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             child: _ForcedWaitState(
               minutes: wait.inMinutes,
               onCheck: () => setState(() {}),
+              onEndSession: _endSession,
             ),
           ),
         ],
@@ -855,6 +944,10 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
           // the write of an answer that has not been recorded yet, so the
           // button is disabled until then.
           onNext: _feedback?.awaitingSolution == true ? null : _advance,
+          // 答案还没写库时不许跳过（会丢记录），由 [_skipCurrent] 自己再守一次。
+          onSkip: _submitting || _feedback?.awaitingSolution == true
+              ? null
+              : _skipCurrent,
           onGenerateTask: _generateTask,
         ),
       ],
@@ -946,10 +1039,17 @@ class _ClozeSentence extends StatelessWidget {
 /// 这个屏幕宁可说实话也不把没到点的卡提前放出来（D11 的「约 10 分钟」），按钮
 /// 只重新读一次时钟：到点后同一张卡原地出现，队列顺序一点都不变。
 class _ForcedWaitState extends StatelessWidget {
-  const _ForcedWaitState({required this.minutes, required this.onCheck});
+  const _ForcedWaitState({
+    required this.minutes,
+    required this.onCheck,
+    required this.onEndSession,
+  });
 
   final int minutes;
   final VoidCallback onCheck;
+
+  /// 不想等这 10 分钟：结束本轮（卡片仍被强制绑定，下一轮还会回来）。
+  final VoidCallback onEndSession;
 
   @override
   Widget build(BuildContext context) {
@@ -976,6 +1076,12 @@ class _ForcedWaitState extends StatelessWidget {
             FilledButton(
               onPressed: onCheck,
               child: Text(l10n.knowledgeForcedWaitCheck),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              key: reviewEndSessionKey,
+              onPressed: onEndSession,
+              child: Text(l10n.ankiForcedWaitEnd),
             ),
           ],
         ),
@@ -1322,6 +1428,7 @@ class _BottomBar extends StatelessWidget {
     required this.onRate,
     required this.onExpose,
     this.onNext,
+    this.onSkip,
     required this.onGenerateTask,
   });
 
@@ -1340,6 +1447,10 @@ class _BottomBar extends StatelessWidget {
   /// the solution question): there would be nothing to advance from.
   final VoidCallback? onNext;
 
+  /// 「跳过这张」：只在答案已写库（或还没作答）时可用。跳过不写日志、不动排期，
+  /// 只是这一轮不再出现。
+  final VoidCallback? onSkip;
+
   final VoidCallback onGenerateTask;
 
   @override
@@ -1354,6 +1465,12 @@ class _BottomBar extends StatelessWidget {
             ? Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  IconButton(
+                    key: reviewSkipCardKey,
+                    tooltip: l10n.ankiSkipCard,
+                    icon: const Icon(Icons.skip_next),
+                    onPressed: onSkip,
+                  ),
                   IconButton(
                     tooltip: l10n.ankiShowAnswer,
                     icon: const Icon(Icons.visibility),
@@ -1402,6 +1519,12 @@ class _BottomBar extends StatelessWidget {
                       icon: const Icon(Icons.arrow_forward),
                       onPressed: submitting ? null : onNext,
                     ),
+                  IconButton(
+                    key: reviewSkipCardKey,
+                    tooltip: l10n.ankiSkipCard,
+                    icon: const Icon(Icons.skip_next),
+                    onPressed: onSkip,
+                  ),
                   IconButton(
                     tooltip: l10n.knowledgeCreateTask,
                     icon: const Icon(Icons.add_task),
