@@ -9,6 +9,13 @@
 /// * 颜色 = 这张知识点的认知区域（`ReviewZone`，与读数页同一个词表 `zoneLabel`）；
 ///   圆点大小 = 卡片数；方块 = 标签。图上的每个数字都来自 `cognitiveReadingsProvider`，
 ///   页面不自己算 R、不改到期时间、不改排序 —— 它只是同一批数字的另一种画法。
+/// * 标签分簇（`cognitive_graph_layout.dart`）：成员围绕簇中心散开，标签名画在簇的外侧。
+///   读图顺序因此是"先看哪个簇挤、再点开看具体知识点"，而不是在一张大饼上找点。
+///
+/// 可读性（v2）：画布边长随知识点数增长，视口用 `InteractiveViewer` 装下它 ——
+/// 首次进入自动缩放居中（所以总能一眼看全），之后可以拖动平移、双指/滚轮缩放；
+/// 缩放小于 [kCognitiveGraphLabelMinScale] 时隐藏文字只留圆点，避免小图上文字糊成一团。
+/// 右上角"重置视图"回到自动缩放的位置。
 ///
 /// 只读是构造性保证：本页只 `watch` provider（那些 provider 全是 `select`），
 /// 没有任何写库调用；测试用"整库指纹不变"钉住。
@@ -30,11 +37,17 @@ import 'cognitive_model_page.dart'
         knowledgePointTagIdsProvider,
         zoneLabel;
 
-/// 画布（逻辑像素）最大边长：再大就只是放大字号，不会多出信息。
-const double kCognitiveGraphMaxSide = 840;
-
 /// 画布 widget 的 key（测试按它取画布矩形，再算节点屏幕坐标）。
 const Key cognitiveGraphCanvasKey = Key('cognitive-graph-canvas');
+
+/// 缩放容器的 key（测试按它取视口矩形、读 TransformationController）。
+const Key cognitiveGraphViewportKey = Key('cognitive-graph-viewport');
+
+/// "重置视图"按钮的 key。
+const Key cognitiveGraphResetViewKey = Key('cognitive-graph-reset-view');
+
+/// 小于这个缩放比（相对"自动适配"后的 zoom 语义是绝对比例）时隐藏文字。
+const double kCognitiveGraphLabelMinScale = 0.8;
 
 /// 一个知识点在图上的读数（详情面板用）。
 class CognitiveGraphPointReading {
@@ -190,16 +203,36 @@ Color cognitiveGraphZoneColor(ThemeData theme, ReviewZone zone) =>
     };
 
 /// 只读的知识网络图。
-class CognitiveGraphPage extends ConsumerWidget {
+class CognitiveGraphPage extends ConsumerStatefulWidget {
   const CognitiveGraphPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CognitiveGraphPage> createState() => _CognitiveGraphPageState();
+}
+
+class _CognitiveGraphPageState extends ConsumerState<CognitiveGraphPage> {
+  final GlobalKey<_GraphBodyState> _bodyKey = GlobalKey<_GraphBodyState>();
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final graph = ref.watch(cognitiveGraphProvider);
+    final data = graph.valueOrNull;
+    final hasGraph = data != null && !data.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.cognitiveGraphTitle)),
+      appBar: AppBar(
+        title: Text(l10n.cognitiveGraphTitle),
+        actions: [
+          if (hasGraph)
+            IconButton(
+              key: cognitiveGraphResetViewKey,
+              tooltip: l10n.cognitiveGraphResetView,
+              icon: const Icon(Icons.center_focus_strong),
+              onPressed: () => _bodyKey.currentState?.resetView(),
+            ),
+        ],
+      ),
       body: graph.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
@@ -214,14 +247,14 @@ class CognitiveGraphPage extends ConsumerWidget {
                   ),
                 ),
               )
-            : _GraphBody(data: data),
+            : _GraphBody(key: _bodyKey, data: data),
       ),
     );
   }
 }
 
 class _GraphBody extends StatefulWidget {
-  const _GraphBody({required this.data});
+  const _GraphBody({super.key, required this.data});
 
   final CognitiveGraphData data;
 
@@ -230,7 +263,68 @@ class _GraphBody extends StatefulWidget {
 }
 
 class _GraphBodyState extends State<_GraphBody> {
+  /// 视口矩阵：自动适配时是"居中 + 等比缩放"，之后由拖动/缩放改写。
+  final TransformationController _controller = TransformationController();
+
   GraphSelection? _selection;
+
+  /// 用户动过视图（拖动/缩放/点了重置之外的手势）后，视口变化不再自动适配。
+  bool _userAdjusted = false;
+
+  Size? _viewport;
+  double? _side;
+  Size? _fittedViewport;
+  double? _fittedSide;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 回到"自动缩放 + 居中"（AppBar 的"重置视图"）。
+  void resetView() {
+    _userAdjusted = false;
+    final viewport = _viewport;
+    final side = _side;
+    if (viewport != null && side != null) {
+      _fitView(viewport, side);
+      setState(() {});
+    }
+  }
+
+  void _fitView(Size viewport, double side) {
+    if (viewport.isEmpty || side <= 0) {
+      return;
+    }
+    final scale = math.min(viewport.width / side, viewport.height / side);
+    _fittedViewport = viewport;
+    _fittedSide = side;
+    _controller.value = Matrix4.identity()
+      ..translateByDouble(
+        (viewport.width - side * scale) / 2,
+        (viewport.height - side * scale) / 2,
+        0.0,
+        1.0,
+      )
+      ..scaleByDouble(scale, scale, scale, 1.0);
+  }
+
+  void _ensureFitted(Size viewport, double side) {
+    if (_userAdjusted || (_fittedViewport == viewport && _fittedSide == side)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _userAdjusted) {
+        return;
+      }
+      if (_viewport != viewport || _side != side) {
+        return;
+      }
+      _fitView(viewport, side);
+      setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -267,38 +361,74 @@ class _GraphBodyState extends State<_GraphBody> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final side = math.min(
-                math.min(constraints.maxWidth - 16, constraints.maxHeight - 16),
-                kCognitiveGraphMaxSide,
-              );
+              final viewport = constraints.biggest;
+              final side = cognitiveGraphCanvasSide(data.points.length);
+              _viewport = viewport;
+              _side = side;
+              _ensureFitted(viewport, side);
+
               final layout = layoutCognitiveGraph(
                 size: Size.square(side),
                 points: data.points,
                 tags: data.tags,
               );
-              return Center(
-                child: SizedBox(
-                  width: side,
-                  height: side,
-                  child: GestureDetector(
-                    key: cognitiveGraphCanvasKey,
-                    behavior: HitTestBehavior.opaque,
-                    onTapUp: (details) => setState(() {
-                      _selection = hitTestCognitiveGraph(
-                        layout,
-                        details.localPosition,
-                      );
-                    }),
-                    child: CustomPaint(
-                      painter: _CognitiveGraphPainter(
-                        layout: layout,
-                        data: data,
-                        selection: _selection,
-                        theme: theme,
+              final fitScale = math.min(
+                viewport.width / side,
+                viewport.height / side,
+              );
+
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: InteractiveViewer(
+                      key: cognitiveGraphViewportKey,
+                      transformationController: _controller,
+                      constrained: false,
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      minScale: math.min(0.4, fitScale),
+                      maxScale: 4,
+                      onInteractionStart: (_) => _userAdjusted = true,
+                      child: SizedBox(
+                        width: side,
+                        height: side,
+                        child: GestureDetector(
+                          key: cognitiveGraphCanvasKey,
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) => setState(() {
+                            _selection = hitTestCognitiveGraph(
+                              layout,
+                              details.localPosition,
+                            );
+                          }),
+                          child: AnimatedBuilder(
+                            animation: _controller,
+                            builder: (context, _) => CustomPaint(
+                              painter: CognitiveGraphPainter(
+                                layout: layout,
+                                data: data,
+                                selection: _selection,
+                                theme: theme,
+                                scale: _controller.value.getMaxScaleOnAxis(),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Positioned(
+                    right: 12,
+                    bottom: 6,
+                    child: IgnorePointer(
+                      child: Text(
+                        l10n.cognitiveGraphPanHint,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -416,41 +546,63 @@ class _Legend extends StatelessWidget {
   }
 }
 
-class _CognitiveGraphPainter extends CustomPainter {
-  _CognitiveGraphPainter({
+/// 画图：簇轮廓 + 连线 + 标签方块 + 知识点圆点。
+///
+/// `scale` 是当前视口缩放比；小于 [kCognitiveGraphLabelMinScale] 时只画圆点与簇轮廓，
+/// 文字全部省略 —— 小图上文字只会互相压住，读不出来。
+class CognitiveGraphPainter extends CustomPainter {
+  CognitiveGraphPainter({
     required this.layout,
     required this.data,
     required this.selection,
     required this.theme,
+    required this.scale,
   });
 
   final CognitiveGraphLayout layout;
   final CognitiveGraphData data;
   final GraphSelection? selection;
   final ThemeData theme;
+  final double scale;
+
+  bool get showLabels => scale >= kCognitiveGraphLabelMinScale;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (layout.isEmpty) {
       return;
     }
-    final center = layout.center;
 
-    // 参考环：外环是知识点，内环是标签。
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
-    canvas.drawCircle(center, layout.outerRadius, ring);
-    canvas.drawCircle(center, layout.innerRadius, ring);
+    final pointById = <String, GraphPointNode>{
+      for (final point in layout.points) point.id: point,
+    };
+    final tagById = <String, GraphTagNode>{
+      for (final tag in layout.tags) tag.id: tag,
+    };
 
     final selectedPointId = selection?.point?.id;
     final selectedTagId = selection?.tag?.id;
 
+    // 簇的范围：只画有成员的簇（半径 0 的簇没有轮廓可画）。
+    final clusterPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = theme.colorScheme.outlineVariant.withValues(alpha: 0.45);
+    for (final tag in layout.tags) {
+      if (tag.clusterRadius <= 0) {
+        continue;
+      }
+      canvas.drawCircle(
+        tag.clusterCenter,
+        tag.clusterRadius + kCognitiveGraphPointSpacing / 2,
+        clusterPaint,
+      );
+    }
+
     // 连线：选中时把与它相连的线提亮，其余压暗。
     for (final link in layout.links) {
-      final point = _pointById[link.pointId];
-      final tag = _tagById[link.tagId];
+      final point = pointById[link.pointId];
+      final tag = tagById[link.tagId];
       if (point == null || tag == null) {
         continue;
       }
@@ -463,41 +615,46 @@ class _CognitiveGraphPainter extends CustomPainter {
       canvas.drawLine(point.center, tag.center, paint);
     }
 
-    // 标签（方块）。
-    for (final tag in layout.tags) {
-      final selected = selectedTagId == tag.id;
-      final paint = Paint()
-        ..style = PaintingStyle.fill
-        ..color = theme.colorScheme.surfaceContainerHighest;
-      final stroke = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = selected ? 2.2 : 1
-        ..color =
-            selected ? theme.colorScheme.primary : theme.colorScheme.outline;
-      final rect = Rect.fromCenter(
-        center: tag.center,
-        width: 26 + math.min(tag.memberCount, 8) * 6,
-        height: 20,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(5)),
-        paint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(5)),
-        stroke,
-      );
-      _drawText(
-        canvas,
-        _truncate(tag.title, 6),
-        tag.center,
-        theme.textTheme.labelSmall ?? const TextStyle(fontSize: 10),
-        20,
-        center: true,
-      );
+    if (showLabels) {
+      // 标签（方块）：画在簇的外侧，方块宽度随挂载数增加。
+      for (final tag in layout.tags) {
+        final selected = selectedTagId == tag.id;
+        final paint = Paint()
+          ..style = PaintingStyle.fill
+          ..color = theme.colorScheme.surfaceContainerHighest;
+        final stroke = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = selected ? 2.2 : 1
+          ..color =
+              selected ? theme.colorScheme.primary : theme.colorScheme.outline;
+        final rect = Rect.fromCenter(
+          center: tag.center,
+          width: cognitiveGraphTagBoxWidth(tag),
+          height: kCognitiveGraphTagBoxHeight,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+          paint,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+          stroke,
+        );
+        _drawText(
+          canvas,
+          _truncate(tag.title, 6),
+          tag.center,
+          theme.textTheme.labelSmall ?? const TextStyle(fontSize: 10),
+          kCognitiveGraphTagBoxHeight,
+          center: true,
+        );
+      }
     }
 
     // 知识点（圆点），颜色 = 认知区域。
+    final clusterCenterByTagId = <String, Offset>{
+      for (final tag in layout.tags) tag.id: tag.clusterCenter,
+    };
     for (final point in layout.points) {
       final reading = data.readingsByPoint[point.id];
       final color = reading == null
@@ -511,10 +668,17 @@ class _CognitiveGraphPainter extends CustomPainter {
         ..color =
             selected ? theme.colorScheme.onSurface : theme.colorScheme.surface;
       canvas.drawCircle(
-          point.center, point.radius + (selected ? 1.5 : 0), stroke);
+        point.center,
+        point.radius + (selected ? 1.5 : 0),
+        stroke,
+      );
 
-      // 标签放在径向外侧；左半边右对齐，避免压到圆点。
-      final direction = point.center - center;
+      if (!showLabels) {
+        continue;
+      }
+      // 文字放在径向外侧（相对所属簇中心）；左半边右对齐，避免压到圆点。
+      final origin = clusterCenterByTagId[point.groupTagId] ?? layout.center;
+      final direction = point.center - origin;
       final unit = direction.distance <= 0
           ? const Offset(0, -1)
           : direction / direction.distance;
@@ -533,14 +697,6 @@ class _CognitiveGraphPainter extends CustomPainter {
       );
     }
   }
-
-  Map<String, GraphPointNode> get _pointById => {
-        for (final point in layout.points) point.id: point,
-      };
-
-  Map<String, GraphTagNode> get _tagById => {
-        for (final tag in layout.tags) tag.id: tag,
-      };
 
   double _textWidth(ThemeData theme, String text) {
     final painter = TextPainter(
@@ -580,9 +736,10 @@ class _CognitiveGraphPainter extends CustomPainter {
       text.length <= max ? text : '${text.substring(0, max)}…';
 
   @override
-  bool shouldRepaint(covariant _CognitiveGraphPainter oldDelegate) =>
+  bool shouldRepaint(covariant CognitiveGraphPainter oldDelegate) =>
       oldDelegate.layout != layout ||
       oldDelegate.selection != selection ||
       oldDelegate.data != data ||
-      oldDelegate.theme != theme;
+      oldDelegate.theme != theme ||
+      oldDelegate.scale != scale;
 }
