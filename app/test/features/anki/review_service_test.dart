@@ -256,6 +256,52 @@ void main() {
           reason: '老快照把绑定洗掉了：闭环必须先 ReviewService.refreshItem');
     });
 
+    test(
+        'a template card refreshes its row too - the state row has no knowledge '
+        'point id, so it can only be read by row id', () async {
+      final point = await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');
+      final template = await anki.createTemplate(
+        knowledgePointId: point.id,
+        type: 'essay',
+        question: '光合作用的主要场所是？',
+        answer: '叶绿体',
+      );
+
+      final item = (await service.buildQueue())
+          .singleWhere((i) => i.templateId == template.id);
+      expect(item.unitKey, 'preset:${template.id}');
+
+      final wrong = await service.grade(
+        item: item,
+        correct: false,
+        rating: FsrsRating.good,
+      );
+      expect(wrong.stillForced, isTrue);
+
+      final fresh = await service.refreshItem(item);
+      expect(fresh.cardState.id, item.cardState.id);
+      expect(fresh.cardState.forced, 1,
+          reason: '模板卡的 state 行 knowledge_point_id 是 NULL，'
+              '按 (知识点, unitKey) 查会一直拿回答题前的旧快照');
+      expect(fresh.cardState.forcedStreak, 0);
+
+      final firstCorrect = await service.grade(
+        item: fresh,
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      expect(firstCorrect.stillForced, isTrue);
+      expect(firstCorrect.released, isFalse, reason: '模板卡也要按 D11 数到第二次连续答对才解除');
+
+      final secondCorrect = await service.grade(
+        item: await service.refreshItem(fresh),
+        correct: true,
+        rating: FsrsRating.good,
+      );
+      expect(secondCorrect.released, isTrue);
+      expect(secondCorrect.stillForced, isFalse);
+    });
+
     test('a correct answer schedules through FSRS, not a fixed interval',
         () async {
       await makePoint('光合作用场所', '光合作用的主要场所是叶绿体。');
@@ -579,6 +625,84 @@ void main() {
       final reading = const MindNetCognitiveModel()
           .modelReadingOf(before, nowHours: modelHoursOf(moment));
       expect(after.encodingStrength, closeTo(reading.r0, 1e-12));
+    });
+  });
+
+  // 用户反馈（2026-10-25）：同一批闪存卡反反复复，新卡却总排不到——因为
+  // unseen band 老老实实跟在所有复习卡后面，复习没做完停下就永远见不到新卡。
+  // 现在新卡按固定节奏插进复习序列（review_pacing.dart），本组钉住队列顺序。
+  group('新卡交错：新卡不再全堆在队尾（review pacing）', () {
+    /// 造 [review] 张「今天到期、复习过」的卡和 [fresh] 张从未见过的新卡。
+    ///
+    /// 先抽一次队列让每个知识点都有 unit 行，再把复习卡改成「复习过且已到期」：
+    /// band 依据 `isNew = repetitions == 0`，所以 repetitions=1 落进 model band，
+    /// repetitions 仍为 0 的留在 unseen band。
+    Future<void> seed({required int review, required int fresh}) async {
+      final reviewIds = <String>[];
+      for (var i = 0; i < review; i++) {
+        final point = await anki.createKnowledgePoint(
+          title: '复习卡$i',
+          content: '复习卡$i 的正文内容。',
+        );
+        reviewIds.add(point.id);
+      }
+      for (var i = 0; i < fresh; i++) {
+        await anki.createKnowledgePoint(
+          title: '新卡$i',
+          content: '新卡$i 的正文内容。',
+        );
+      }
+      await service.buildQueue();
+      final now = DateTime.now();
+      final due = now.subtract(const Duration(hours: 1)).millisecondsSinceEpoch;
+      final reviewed =
+          now.subtract(const Duration(hours: 10)).millisecondsSinceEpoch;
+      for (final id in reviewIds) {
+        final row = (await anki.unitStatesForKnowledgePoint(id)).single;
+        await anki.updateUnitCardState(
+          row.id,
+          dueAt: due,
+          repetitions: 1,
+          lastReviewedAt: reviewed,
+          stability: 19.2,
+          difficulty: 5.1618,
+        );
+      }
+    }
+
+    List<int> newIndexes(List<ReviewItem> queue) => [
+          for (var i = 0; i < queue.length; i++)
+            if (queue[i].isNew) i,
+        ];
+
+    test('12 张复习卡 + 3 张新卡：新卡落在第 6、第 12 位和队尾', () async {
+      await seed(review: 12, fresh: 3);
+      final queue = await service.buildQueue();
+      expect(queue, hasLength(15), reason: '新卡一张都不能丢');
+      expect(newIndexes(queue), [5, 11, 14]);
+      expect(queue[4].isNew, isFalse);
+      expect(queue[5].isNew, isTrue);
+    });
+
+    test('复习卡不足 5 张时，新卡仍然接在它们后面', () async {
+      await seed(review: 3, fresh: 2);
+      final queue = await service.buildQueue();
+      expect(queue, hasLength(5));
+      expect(newIndexes(queue), [3, 4]);
+    });
+
+    test('全是新卡时顺序不变：没有复习卡可插', () async {
+      await seed(review: 0, fresh: 3);
+      final queue = await service.buildQueue();
+      expect(queue, hasLength(3));
+      expect(newIndexes(queue), [0, 1, 2]);
+    });
+
+    test('没有新卡时复习卡的数量与顺序不受影响', () async {
+      await seed(review: 7, fresh: 0);
+      final queue = await service.buildQueue();
+      expect(queue, hasLength(7));
+      expect(newIndexes(queue), isEmpty);
     });
   });
 }

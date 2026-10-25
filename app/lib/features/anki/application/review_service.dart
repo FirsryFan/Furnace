@@ -16,6 +16,7 @@ import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/config/furnace_defaults.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
 import 'review_advisory.dart';
+import 'review_pacing.dart';
 
 /// How one queued unit is presented and judged.
 enum ReviewItemKind {
@@ -409,7 +410,23 @@ class ReviewService {
       }
     }
 
-    return _interleave(orderedForced, keptDue);
+    // 新卡交错（用户反馈 2026-10-25）：新卡原先全堆在队尾（unseen band 在
+    // 最后），复习没做完停下就永远见不到新卡。这里只改"插进队列的节奏"，
+    // 不改变每个 band 内部的顺序，也不改变配额——额配在上面已经按 band 扣过。
+    final reviewKept = <ReviewItem>[];
+    final newKept = <ReviewItem>[];
+    for (final item in keptDue) {
+      if (ordering.bandByCardStateId[item.cardState.id] == ReviewBand.unseen) {
+        newKept.add(item);
+      } else {
+        reviewKept.add(item);
+      }
+    }
+
+    return _interleave(
+      orderedForced,
+      paceNewCards(reviews: reviewKept, newCards: newKept),
+    );
   }
 
   /// Consumes one unit of the covering groups' allowance for [item], or reports
@@ -1110,8 +1127,11 @@ class ReviewService {
   /// returns the item unchanged instead of throwing - the practice screen must
   /// not break on a data race.
   Future<ReviewItem> refreshItem(ReviewItem item) async {
-    final fresh =
-        await ankiRepository.unitCardState(item.knowledgePointId, item.unitKey);
+    // 按行 id 重读，不按 (knowledgePointId, unitKey) 再查：模板卡的 state 行
+    // `knowledge_point_id` 是 NULL（`getOrCreateCardState` 只按 card_template_id
+    // 键行），用知识点 + unitKey 查永远查不到——那会让会话内重做一直拿着
+    // 答题前的快照，绑定解除与 FSRS 排期都按旧基线算，卡片于是过早/过频地回来。
+    final fresh = await ankiRepository.cardStateById(item.cardState.id);
     if (fresh == null) {
       return item;
     }

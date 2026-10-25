@@ -628,6 +628,17 @@ class AnkiRepository {
         .getSingleOrNull();
   }
 
+  /// Reads a state row by its own id.
+  ///
+  /// [unitCardState] cannot find a template-backed state: those rows are keyed
+  /// by `card_template_id` and keep `knowledge_point_id` NULL
+  /// (`getOrCreateCardState`), so anything that has the row's id - the review
+  /// session re-reading a just-graded card - must look it up this way.
+  Future<CardState?> cardStateById(String id) {
+    return (_db.select(_db.cardStates)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+  }
+
   Future<List<CardState>> unitStatesForKnowledgePoint(String knowledgePointId) {
     return (_db.select(_db.cardStates)
           ..where((t) => t.knowledgePointId.equals(knowledgePointId)))
