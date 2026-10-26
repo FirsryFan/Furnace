@@ -149,7 +149,7 @@ class AppDatabase extends _$AppDatabase {
   /// thought, kept so a finished turn can still show 「思考过程」 after a restart
   /// (docs/REVIEW_FEEDBACK.md §4a). NULL = 没有思考文本；列可空、不回填。
   @override
-  int get schemaVersion => 39;
+  int get schemaVersion => 40;
 
   @override
   MigrationStrategy get migration {
@@ -271,6 +271,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 39) {
           await _upgradeV38ToV39();
+        }
+        if (from < 40) {
+          await _upgradeV39ToV40();
         }
       },
       beforeOpen: (details) async {
@@ -423,6 +426,13 @@ class AppDatabase extends _$AppDatabase {
       // v30 却没有这一列时，Drift 跳过 onUpgrade，读题目的映射器第一次就抛
       // no such column。列可空，补上即可，没有回填这一步。
       await _addColumnIfMissing(m, 'questions', questions.title);
+      // v40（轮次一百八十二，handoff 管线 v1 §7 M1/M2）：题目文本格式、扩展题
+      // 母题题号、能力点。同一个失败模式——老文件被盖成 v40 却没有这三列时，
+      // Drift 跳过 onUpgrade，读题目的映射器第一次就抛 no such column。三列全
+      // 可空（NULL 分别读作 plain / 非扩展题 / 未标注），补上即可，没有回填。
+      await _addColumnIfMissing(m, 'questions', questions.textFormat);
+      await _addColumnIfMissing(m, 'questions', questions.extensionOf);
+      await _addColumnIfMissing(m, 'questions', questions.capability);
     }
     // v31（轮次一百四十八）：多图/多页整理的来源照片清单。同一个失败模式——
     // 老文件被盖成 v31 却没有这一列时，Drift 跳过 onUpgrade，读整理记录的映射器
@@ -1127,6 +1137,21 @@ class AppDatabase extends _$AppDatabase {
     }
     final m = Migrator(this);
     await _addColumnIfMissing(m, 'ai_messages', aiMessages.reasoning);
+  }
+
+  /// v39 -> v40：题目加 `text_format` / `extension_of` / `capability` 三列
+  /// （轮次一百八十二，handoff 管线 v1 §7 M1/M2）。
+  ///
+  /// 三列全可空、NULL 分别代表「纯文本」「不是扩展题」「能力点未标注」，老库
+  /// 没有任何一行需要回填。表不存在就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV39ToV40() async {
+    if (!await _tableExists('questions')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'questions', questions.textFormat);
+    await _addColumnIfMissing(m, 'questions', questions.extensionOf);
+    await _addColumnIfMissing(m, 'questions', questions.capability);
   }
 
   Future<void> _upgradeV4ToV5() async {

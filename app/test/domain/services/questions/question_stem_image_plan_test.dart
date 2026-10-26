@@ -591,4 +591,65 @@ void main() {
       expect(defaultStemSnapshotMinHeight, 400);
     });
   });
+
+  group('B0：fullcard_ 前缀优先判整卡快照（handoff 管线 v1 §4.6）', () {
+    test('尺寸不够但文件名带 fullcard_：仍按快照处理', () {
+      const String stem = '一、选择题［图1］\n如图所示的电路中，电源电动势为 E。';
+      final QuestionStemRenderPlan plan = planQuestionStemRender(
+        stem,
+        imageCount: 1,
+        imageSizes: const <QuestionStemImageSize?>[
+          QuestionStemImageSize(800, 300),
+        ],
+        hasFullcardImage: true,
+      );
+      expect(plan.mode, QuestionStemImageMode.snapshot);
+      expect(plan.snapshotImageOrders, <int>[0]);
+      expect(plan.trailingImageOrders, <int>[0]);
+      expect(plan.neutralizedPlaceholderCount, 1);
+      expect(textOf(plan), isNot(contains('［图1］')));
+      expect(
+        plan.segments.every((QuestionStemSegment s) => s.isText),
+        isTrue,
+        reason: '快照模式正文里不内联插图',
+      );
+    });
+
+    test('同一尺寸、没有 fullcard_ 时仍是 inline（对照）', () {
+      final QuestionStemRenderPlan plan = planQuestionStemRender(
+        '题干［图1］后续文字',
+        imageCount: 1,
+        imageSizes: const <QuestionStemImageSize?>[
+          QuestionStemImageSize(800, 300),
+        ],
+      );
+      expect(plan.mode, QuestionStemImageMode.inline);
+      expect(plan.snapshotImageOrders, isEmpty);
+    });
+
+    test('fullcard_ 与已知大尺寸同时存在：快照图下标优先给命中尺寸的那张', () {
+      final QuestionStemRenderPlan plan = planQuestionStemRender(
+        '题干［图1］［图2］',
+        imageCount: 2,
+        imageSizes: const <QuestionStemImageSize?>[
+          QuestionStemImageSize(300, 200),
+          QuestionStemImageSize(1640, 900),
+        ],
+        hasFullcardImage: true,
+      );
+      expect(plan.mode, QuestionStemImageMode.snapshot);
+      expect(plan.snapshotImageOrders, <int>[1]);
+      expect(plan.trailingImageOrders, <int>[0, 1]);
+    });
+
+    test('没有题干图时 fullcard_ 不改变 none 判定', () {
+      final QuestionStemRenderPlan plan = planQuestionStemRender(
+        '纯文本题干',
+        imageCount: 0,
+        hasFullcardImage: true,
+      );
+      expect(plan.mode, QuestionStemImageMode.none);
+      expect(plan.segments, <QuestionStemSegment>[textSegment('纯文本题干')]);
+    });
+  });
 }

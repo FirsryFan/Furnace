@@ -19,6 +19,20 @@ const int kQuestionPackMaxRecords = 5000;
 const Set<String> _kAllowedMediaRoles = <String>{'stem', 'answer', 'solution'};
 final RegExp _kOptionLabelPattern = RegExp(r'^[A-Z]$');
 
+/// 文本格式 `plain`：历史题库包的缺省语义，走原来的纯文本/行内公式渲染。
+const String kQuestionPackTextFormatPlain = 'plain';
+
+/// 文本格式 `markdown`：题干/答案/解析是整段 Markdown + LaTeX（handoff 管线 v1）。
+const String kQuestionPackTextFormatMarkdown = 'markdown';
+
+const Set<String> _kAllowedTextFormats = <String>{
+  kQuestionPackTextFormatPlain,
+  kQuestionPackTextFormatMarkdown,
+};
+
+/// 能力点代码：A1…A10（与 reasoning 词表一致）。
+final RegExp _kCapabilityCodePattern = RegExp(r'^A(10|[1-9])$');
+
 /// 题库包里的一个媒体文件（题干配图 / 答案截图 / 解析截图）。
 class QuestionPackMedia {
   const QuestionPackMedia({
@@ -205,6 +219,9 @@ class QuestionPackRecord {
     this.sourceUrl,
     this.zujuanQuestionId,
     this.zujuanBankId,
+    this.textFormat = kQuestionPackTextFormatPlain,
+    this.extensionOf,
+    this.capability = const <String>[],
     this.options = const <QuestionPackOption>[],
     this.tagPaths = const <String>[],
     this.media = const <QuestionPackMedia>[],
@@ -264,6 +281,21 @@ class QuestionPackRecord {
   /// 组卷网学科 bankid（可空）。
   final String? zujuanBankId;
 
+  /// 题干/答案/解析的文本格式：`plain`（缺省）或 `markdown`。
+  ///
+  /// 解码时只接受这两个值；历史包没有该字段时按 [kQuestionPackTextFormatPlain]
+  /// 处理，因此旧包行为不变。
+  final String textFormat;
+
+  /// 扩展题挂靠的母题组卷网题目 id（可空）。
+  ///
+  /// 语义只是「指向同题库里某道母题的 zujuan_question_id」，不建外键、不要求
+  /// 母题在同包里；悬空引用由上层忽略，不阻断导入。
+  final String? extensionOf;
+
+  /// 能力点代码数组（A1…A10），升序、不重复；空列表表示未标注。
+  final List<String> capability;
+
   /// 选项，按给定顺序保留；同一记录内 label 不重复。
   final List<QuestionPackOption> options;
 
@@ -292,6 +324,11 @@ class QuestionPackRecord {
         if (sourceUrl != null) 'source_url': sourceUrl,
         if (zujuanQuestionId != null) 'zujuan_question_id': zujuanQuestionId,
         if (zujuanBankId != null) 'zujuan_bank_id': zujuanBankId,
+        // plain 是缺省语义，不落键，历史包导出结果保持逐字节稳定。
+        if (textFormat != kQuestionPackTextFormatPlain)
+          'text_format': textFormat,
+        if (extensionOf != null) 'extension_of': extensionOf,
+        if (capability.isNotEmpty) 'capability': <String>[...capability],
         'options': <Object?>[
           for (final QuestionPackOption option in options) option.toJson(),
         ],
@@ -355,6 +392,19 @@ class QuestionPackRecord {
       json['zujuan_bank_id'],
       '$path.zujuan_bank_id',
     );
+    final String textFormat = _decodeTextFormat(
+      json['text_format'],
+      '$path.text_format',
+    );
+    final String? extensionOf = _decodeOptionalTrimmedString(
+      json['extension_of'],
+      '$path.extension_of',
+      'extension_of',
+    );
+    final List<String> capability = _decodeCapability(
+      json['capability'],
+      '$path.capability',
+    );
     final List<QuestionPackOption> options = _decodeOptions(
       json['options'],
       '$path.options',
@@ -386,6 +436,9 @@ class QuestionPackRecord {
       sourceUrl: sourceUrl,
       zujuanQuestionId: zujuanQuestionId,
       zujuanBankId: zujuanBankId,
+      textFormat: textFormat,
+      extensionOf: extensionOf,
+      capability: capability,
       options: options,
       tagPaths: tagPaths,
       media: media,
@@ -416,6 +469,9 @@ class QuestionPackRecord {
         other.sourceUrl == sourceUrl &&
         other.zujuanQuestionId == zujuanQuestionId &&
         other.zujuanBankId == zujuanBankId &&
+        other.textFormat == textFormat &&
+        other.extensionOf == extensionOf &&
+        _listEquals(other.capability, capability) &&
         _listEquals(other.options, options) &&
         _listEquals(other.tagPaths, tagPaths) &&
         _listEquals(other.media, media);
@@ -442,7 +498,10 @@ class QuestionPackRecord {
           sourceUrl,
           zujuanQuestionId,
           zujuanBankId,
+          textFormat,
+          extensionOf,
         ]),
+        Object.hashAll(capability),
         Object.hashAll(options),
         Object.hashAll(tagPaths),
         Object.hashAll(media),
@@ -451,6 +510,7 @@ class QuestionPackRecord {
   @override
   String toString() => 'QuestionPackRecord(stem: $stem, '
       'questionType: $questionType, serialNo: $serialNo, '
+      'textFormat: $textFormat, capability: ${capability.length}, '
       'options: ${options.length}, tagPaths: ${tagPaths.length}, '
       'media: ${media.length})';
 }
@@ -681,6 +741,39 @@ String _decodeStringOrDefault(Object? value, String fallback, String path) {
   }
   return value;
 }
+
+String _decodeTextFormat(Object? value, String path) {
+  if (value == null) {
+    return kQuestionPackTextFormatPlain;
+  }
+  if (value is! String || !_kAllowedTextFormats.contains(value)) {
+    _fail('text_format 只能是 plain 或 markdown：$value', path);
+  }
+  return value;
+}
+
+/// 能力点数组：每项形如 `A1`…`A10`，去重后按数字升序（导入结果与书写顺序无关）。
+List<String> _decodeCapability(Object? value, String path) {
+  if (value == null) {
+    return const <String>[];
+  }
+  if (value is! List) {
+    _fail('capability 必须是数组', path);
+  }
+  final Set<String> codes = <String>{};
+  for (int index = 0; index < value.length; index++) {
+    final Object? item = value[index];
+    if (item is! String || !_kCapabilityCodePattern.hasMatch(item.trim())) {
+      _fail('capability 每项必须是 A1…A10：$item', '$path[$index]');
+    }
+    codes.add(item.trim());
+  }
+  final List<String> sorted = codes.toList()
+    ..sort((String a, String b) => _capabilityRank(a) - _capabilityRank(b));
+  return List<String>.unmodifiable(sorted);
+}
+
+int _capabilityRank(String code) => int.parse(code.substring(1));
 
 int? _decodeYear(Object? value, String path) {
   if (value == null) {

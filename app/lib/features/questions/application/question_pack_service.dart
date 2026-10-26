@@ -318,6 +318,12 @@ class QuestionPackService {
             sourceUrl: _nullIfBlank(record.sourceUrl),
             zujuanQuestionId: _nullIfBlank(record.zujuanQuestionId),
             zujuanBankId: _nullIfBlank(record.zujuanBankId),
+            // markdown 才切换：plain 是缺省值，分不清「包里没写」与「真的要降级」，
+            // 所以旧包不会把已经是 markdown 的题降回纯文本。
+            textFormat: record.textFormat == 'markdown' ? 'markdown' : null,
+            extensionOf: _nullIfBlank(record.extensionOf),
+            // 空数组 = 旧包没带能力点 → 不动已有标注（updateFromPack 里 null=不动）。
+            capability: record.capability.isEmpty ? null : record.capability,
             difficulty: record.difficulty,
             difficultySource: _nullIfBlank(record.difficultySource),
             trapNote: _nullIfBlank(record.trapNote),
@@ -624,6 +630,9 @@ class QuestionPackService {
       sourceUrl: _nullIfBlank(record.sourceUrl),
       zujuanQuestionId: _nullIfBlank(record.zujuanQuestionId),
       zujuanBankId: _nullIfBlank(record.zujuanBankId),
+      textFormat: record.textFormat,
+      extensionOf: _nullIfBlank(record.extensionOf),
+      capability: record.capability,
       difficulty: record.difficulty,
       difficultySource: _nullIfBlank(record.difficultySource),
       trapNote: _nullIfBlank(record.trapNote),

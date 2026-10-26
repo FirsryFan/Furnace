@@ -1250,6 +1250,32 @@ class Questions extends Table {
   /// questionid 猜。可空同上。
   TextColumn get zujuanBankId => text().nullable()();
 
+  /// 题干/答案/解析的文本格式（v40，轮次一百八十二，handoff 管线 v1 §7 M1）。
+  ///
+  /// 值只有两个：`plain` 与 `markdown`；NULL 读作 `plain`（历史题目全走这条）。
+  /// 为什么存一列而不是「检测到 `$` 就自动切」：渲染方式决定**整个题目区**的
+  /// 排版（表格、列表、代码块、双美元块公式），靠启发式猜会把普通文本里的
+  /// 美元符号误判成公式，也会让同一道题在两次打开时排版不一致。入库时定死，
+  /// 渲染器只读这一列。`.tqb` 里的 `text_format` 字段与它同名同语义。
+  TextColumn get textFormat => text().nullable()();
+
+  /// 扩展题挂靠的母题组卷网题目 id（v40，handoff §7 M2）。
+  ///
+  /// 语义只是「指向某道母题的 `zujuan_question_id`」：不建外键、不要求母题在
+  /// 同一个包里，悬空引用由域层 `question_extension.dart` 忽略并计数，不阻断
+  /// 导入。为什么不用内部 `questions.id`：题库包在别的机器上解出来时本地 id
+  /// 全变了，只有组卷网题号能跨设备对应。可空 = 不是扩展题。
+  TextColumn get extensionOf => text().nullable()();
+
+  /// 能力点代码数组（v40，handoff §7 M2）：`A1`…`A10`，存 JSON 数组字符串
+  /// 例如 `["A3","A7"]`。
+  ///
+  /// 为什么不像标签那样单独建关联表：能力点是**题目的固有属性**（由题干+解析
+  /// 就能判定），数量少（≤10）、需要整组读写（T×A 统计一次要全量），单独建表
+  /// 只会多一层 join；JSON 列在这里是合适的（与 `settings` 的用法一致）。NULL
+  /// 读作空数组 = 未标注，不回填：宁可显示「未标注」也不猜。
+  TextColumn get capability => text().nullable()();
+
   /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
   RealColumn get difficulty => real().nullable()();
 

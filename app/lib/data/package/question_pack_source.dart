@@ -18,6 +18,7 @@ import '../../domain/services/package/question_pack_plan.dart';
 import '../../domain/services/package/question_pack_record.dart';
 import '../../domain/services/package/question_pack_selection.dart';
 import '../database/database.dart';
+import '../repositories/question_repository.dart';
 
 /// 读取一个相对路径的媒体字节；文件不在了返回 null。
 typedef QuestionPackMediaBytesReader = Future<Uint8List?> Function(
@@ -219,6 +220,11 @@ Future<QuestionPackSourceSnapshot> readQuestionPackSource({
       sourceUrl: question.sourceUrl,
       zujuanQuestionId: question.zujuanQuestionId,
       zujuanBankId: question.zujuanBankId,
+      // 库里 NULL 的 textFormat 语义就是 plain，导出时写成显式 'plain' 便于
+      // 包自己说清楚排版方式（toJson 里 plain 不落键，历史包逐字节仍不变）。
+      textFormat: question.textFormat ?? 'plain',
+      extensionOf: question.extensionOf,
+      capability: decodeQuestionCapability(question.capability),
       options: optionsByQuestion[question.id] ?? const <QuestionPackOption>[],
       tagPaths: tagPaths,
       media: media,

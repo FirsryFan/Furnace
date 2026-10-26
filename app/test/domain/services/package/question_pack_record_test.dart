@@ -701,4 +701,149 @@ void main() {
       expect(text, contains('media: 2'));
     });
   });
+
+  group('text_format（handoff 管线 v1 §7 M1）', () {
+    test('缺省是 plain，显式 plain / markdown 都能解', () {
+      expect(const QuestionPackRecord(stem: '题干').textFormat, 'plain');
+      expect(
+        QuestionPackRecord.fromJson(<String, Object?>{'stem': '题干'}).textFormat,
+        'plain',
+      );
+      final QuestionPackRecord markdown = QuestionPackRecord.fromJson(
+        <String, Object?>{'stem': '题干', 'text_format': 'markdown'},
+      );
+      expect(markdown.textFormat, 'markdown');
+      expect(
+        QuestionPackRecord.fromJson(
+          <String, Object?>{'stem': '题干', 'text_format': 'plain'},
+        ).textFormat,
+        'plain',
+      );
+    });
+
+    test('非法 text_format 整包失败，路径指到字段', () {
+      final QuestionPackException error = captureException(
+        () => QuestionPackRecord.fromJson(
+          <String, Object?>{'stem': '题干', 'text_format': 'latex'},
+          path: 'questions[2]',
+        ),
+      );
+      expect(error.path, 'questions[2].text_format');
+      expect(error.message, contains('plain'));
+    });
+
+    test('toJson：plain 不落键（历史包逐字节不变），markdown 落键', () {
+      expect(
+        const QuestionPackRecord(stem: '题干')
+            .toJson()
+            .containsKey('text_format'),
+        isFalse,
+      );
+      expect(
+        const QuestionPackRecord(stem: '题干', textFormat: 'markdown')
+            .toJson()['text_format'],
+        'markdown',
+      );
+    });
+  });
+
+  group('extension_of / capability（handoff 管线 v1 §7 M2）', () {
+    test('extension_of 去空白后保留；空串 / 非字符串失败', () {
+      final QuestionPackRecord record = QuestionPackRecord.fromJson(
+        <String, Object?>{'stem': '题干', 'extension_of': ' 123456 '},
+      );
+      expect(record.extensionOf, '123456');
+      expect(record.toJson()['extension_of'], '123456');
+      expect(
+        const QuestionPackRecord(stem: '题干')
+            .toJson()
+            .containsKey('extension_of'),
+        isFalse,
+      );
+      final QuestionPackException blank = captureException(
+        () => QuestionPackRecord.fromJson(
+          <String, Object?>{'stem': '题干', 'extension_of': '   '},
+          path: 'questions[0]',
+        ),
+      );
+      expect(blank.path, 'questions[0].extension_of');
+      final QuestionPackException badType = captureException(
+        () => QuestionPackRecord.fromJson(
+          <String, Object?>{'stem': '题干', 'extension_of': 123456},
+          path: 'questions[0]',
+        ),
+      );
+      expect(badType.path, 'questions[0].extension_of');
+    });
+
+    test('capability 只收 A1…A10，去重并按数字升序', () {
+      final QuestionPackRecord record = QuestionPackRecord.fromJson(
+        <String, Object?>{
+          'stem': '题干',
+          'capability': <Object?>['A10', 'A2', 'A2', 'A3'],
+        },
+      );
+      expect(record.capability, <String>['A2', 'A3', 'A10'],
+          reason: 'A10 不能排到 A2 前面（按数字排，不按字典序）');
+      expect(record.toJson()['capability'], <String>['A2', 'A3', 'A10']);
+      expect(
+        const QuestionPackRecord(stem: '题干').toJson().containsKey('capability'),
+        isFalse,
+        reason: '空数组不落键',
+      );
+    });
+
+    test('非法 capability 项 / 非数组整包失败', () {
+      for (final Object? bad in <Object?>['A0', 'A11', 'a1', 'B2', '', 3]) {
+        final QuestionPackException error = captureException(
+          () => QuestionPackRecord.fromJson(
+            <String, Object?>{
+              'stem': '题干',
+              'capability': <Object?>[bad],
+            },
+            path: 'questions[1]',
+          ),
+        );
+        expect(error.path, 'questions[1].capability[0]', reason: '坏项是 $bad');
+      }
+      final QuestionPackException notList = captureException(
+        () => QuestionPackRecord.fromJson(
+          <String, Object?>{'stem': '题干', 'capability': 'A3'},
+          path: 'questions[1]',
+        ),
+      );
+      expect(notList.path, 'questions[1].capability');
+    });
+
+    test('三个新字段参与相等与 hashCode', () {
+      const QuestionPackRecord base = QuestionPackRecord(stem: '题干');
+      expect(
+        base == const QuestionPackRecord(stem: '题干', textFormat: 'markdown'),
+        isFalse,
+      );
+      expect(
+        base == const QuestionPackRecord(stem: '题干', extensionOf: '123456'),
+        isFalse,
+      );
+      expect(
+        base ==
+            const QuestionPackRecord(stem: '题干', capability: <String>['A1']),
+        isFalse,
+      );
+      expect(
+        const QuestionPackRecord(
+          stem: '题干',
+          textFormat: 'markdown',
+          extensionOf: '123456',
+          capability: <String>['A1', 'A10'],
+        ).hashCode,
+        const QuestionPackRecord(
+          stem: '题干',
+          textFormat: 'markdown',
+          extensionOf: '123456',
+          capability: <String>['A1', 'A10'],
+        ).hashCode,
+      );
+    });
+  });
 }

@@ -83,6 +83,9 @@ class QuestionDraft {
     this.sourceUrl,
     this.zujuanQuestionId,
     this.zujuanBankId,
+    this.textFormat = 'plain',
+    this.extensionOf,
+    this.capability = const [],
     this.difficulty,
     this.difficultySource,
     this.trapNote,
@@ -110,6 +113,15 @@ class QuestionDraft {
   /// 组卷网 questionid / bankid：留着能重建链接、能按 qid 认题。
   final String? zujuanQuestionId;
   final String? zujuanBankId;
+
+  /// 题干/答案/解析的文本格式：`plain`（缺省）或 `markdown`（v40，handoff M1）。
+  final String textFormat;
+
+  /// 扩展题挂靠的母题组卷网题目 id（v40，可空；handoff M2）。
+  final String? extensionOf;
+
+  /// 能力点代码（A1…A10），空表示未标注（v40；handoff M2）。
+  final List<String> capability;
 
   final double? difficulty;
   final String? difficultySource;
@@ -270,6 +282,11 @@ class QuestionRepository {
               sourceUrl: Value(draft.sourceUrl),
               zujuanQuestionId: Value(draft.zujuanQuestionId),
               zujuanBankId: Value(draft.zujuanBankId),
+              textFormat: Value(
+                draft.textFormat == 'markdown' ? 'markdown' : null,
+              ),
+              extensionOf: Value(_nullIfBlank(draft.extensionOf)),
+              capability: Value(encodeQuestionCapability(draft.capability)),
               difficulty: Value(draft.difficulty),
               difficultySource: Value(draft.difficultySource),
               stemFingerprint: Value(fingerprint),
@@ -721,6 +738,9 @@ class QuestionRepository {
     String? sourceUrl,
     String? zujuanQuestionId,
     String? zujuanBankId,
+    String? textFormat,
+    String? extensionOf,
+    List<String>? capability,
     double? difficulty,
     String? difficultySource,
     String? trapNote,
@@ -767,6 +787,13 @@ class QuestionRepository {
         sourceUrl: nullableTextPatch(sourceUrl),
         zujuanQuestionId: nullableTextPatch(zujuanQuestionId),
         zujuanBankId: nullableTextPatch(zujuanBankId),
+        // 文本格式只在包明确说 markdown 时才改：`plain` 是缺省值，无法区分
+        // 「包里没写」和「用户真的要降级」，所以不让它把已 markdown 的题降级。
+        textFormat: textFormat == 'markdown'
+            ? const Value<String?>('markdown')
+            : const Value<String?>.absent(),
+        extensionOf: nullableTextPatch(extensionOf),
+        capability: _capabilityPatch(capability),
         difficulty:
             difficulty == null ? const Value.absent() : Value(difficulty),
         difficultySource: nullableTextPatch(difficultySource),
@@ -862,6 +889,63 @@ class QuestionRepository {
       index.putIfAbsent(key, () => row.id);
     }
     return index;
+  }
+
+  /// 按组卷网题号取**一行**：库里可能有多行（历史重复入库，没有唯一约束），
+  /// 取「最新改过的那一行」（updatedAt 降序、id 升序）——与
+  /// [byZujuanQuestionIds] / [questionIdsByZujuanQuestionId] 的行序一致。
+  ///
+  /// 用于 handoff §7 M2 的「扩展题挂母题」：扩展题的 `extension_of` 存的是母题
+  /// 的组卷网题号，不是本地 id，所以读母题要按题号反查。题号 trim 后为空 →
+  /// null（不查库）。
+  Future<Question?> byZujuanQuestionId(String zujuanQuestionId) async {
+    final trimmed = zujuanQuestionId.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final rows = await (_db.select(_db.questions)
+          ..where((t) => t.zujuanQuestionId.equals(trimmed))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.updatedAt),
+            (t) => OrderingTerm.asc(t.id),
+          ])
+          ..limit(1))
+        .get();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  /// 某道母题挂着的扩展题（`questions.extension_of` 精确等于该组卷网题号）。
+  ///
+  /// 排序：**题号升序，没编号的排最后**（SQLite 里 NULL 最小，直接 orderBy 会把
+  /// 未编号的顶到前面，所以在 Dart 侧排）。同一题号下 id 升序保证稳定。
+  /// 母题题号 trim 后为空 → 空列表（不查库）。
+  Future<List<Question>> questionsByExtensionOf(
+    String zujuanQuestionId,
+  ) async {
+    final trimmed = zujuanQuestionId.trim();
+    if (trimmed.isEmpty) {
+      return const <Question>[];
+    }
+    final rows = await (_db.select(_db.questions)
+          ..where((t) => t.extensionOf.equals(trimmed)))
+        .get();
+    final sorted = <Question>[...rows];
+    sorted.sort((a, b) {
+      final left = a.serialNo;
+      final right = b.serialNo;
+      if (left == null && right == null) {
+        return a.id.compareTo(b.id);
+      }
+      if (left == null) {
+        return 1;
+      }
+      if (right == null) {
+        return -1;
+      }
+      final bySerial = left.compareTo(right);
+      return bySerial != 0 ? bySerial : a.id.compareTo(b.id);
+    });
+    return List<Question>.unmodifiable(sorted);
   }
 
   /// 删除题目并显式清理它的一切（本项目没有外键，级联不会自己发生）。
@@ -969,4 +1053,68 @@ class QuestionRepository {
   /// 顺序不保证 —— 聚合层自己分桶统计，不依赖顺序。
   Future<List<ReasoningStep>> allReasoningSteps() =>
       _db.select(_db.reasoningSteps).get();
+}
+
+/// 能力点代码 → questions.capability 列值（JSON 数组字符串；空列表写 NULL）。
+///
+/// 去重 + 按数字排序在这里做，仓储层不信任调用方给的顺序：T×A 统计按代码遍历，
+/// 顺序不同会让同一份数据导出成两种字符串。无法识别的代码直接丢弃（写列不做
+/// 校验，校验在 .tqb 解码层与域层词表里）。
+String? encodeQuestionCapability(List<String> codes) {
+  final cleaned = <String>{};
+  for (final raw in codes) {
+    final code = raw.trim();
+    if (_capabilityRank(code) != null) {
+      cleaned.add(code);
+    }
+  }
+  if (cleaned.isEmpty) {
+    return null;
+  }
+  final sorted = cleaned.toList()
+    ..sort((a, b) => _capabilityRank(a)!.compareTo(_capabilityRank(b)!));
+  return jsonEncode(sorted);
+}
+
+/// questions.capability 列值 → 能力点代码列表（NULL / 坏 JSON 读作空列表）。
+List<String> decodeQuestionCapability(String? raw) {
+  if (raw == null || raw.trim().isEmpty) {
+    return const <String>[];
+  }
+  Object? decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } on FormatException {
+    return const <String>[];
+  }
+  if (decoded is! List) {
+    return const <String>[];
+  }
+  return List<String>.unmodifiable(
+    decoded.whereType<String>().map((s) => s.trim()).where(
+          (s) => _capabilityRank(s) != null,
+        ),
+  );
+}
+
+/// A3 → 3；不是 A1…A10 时返回 null。
+int? _capabilityRank(String code) {
+  if (code.length < 2 || code[0] != 'A') {
+    return null;
+  }
+  final n = int.tryParse(code.substring(1));
+  return n != null && n >= 1 && n <= 10 ? n : null;
+}
+
+/// 能力点更新语义：null = 包没带这一项（不动）；空列表 = 明确清空。
+Value<String?> _capabilityPatch(List<String>? codes) {
+  if (codes == null) {
+    return const Value<String?>.absent();
+  }
+  return Value<String?>(encodeQuestionCapability(codes));
+}
+
+String? _nullIfBlank(String? raw) {
+  final trimmed = raw?.trim() ?? '';
+  return trimmed.isEmpty ? null : trimmed;
 }

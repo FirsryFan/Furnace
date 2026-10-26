@@ -17610,6 +17610,24 @@ class $QuestionsTable extends Questions
   late final GeneratedColumn<String> zujuanBankId = GeneratedColumn<String>(
       'zujuan_bank_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _textFormatMeta =
+      const VerificationMeta('textFormat');
+  @override
+  late final GeneratedColumn<String> textFormat = GeneratedColumn<String>(
+      'text_format', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _extensionOfMeta =
+      const VerificationMeta('extensionOf');
+  @override
+  late final GeneratedColumn<String> extensionOf = GeneratedColumn<String>(
+      'extension_of', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _capabilityMeta =
+      const VerificationMeta('capability');
+  @override
+  late final GeneratedColumn<String> capability = GeneratedColumn<String>(
+      'capability', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _difficultyMeta =
       const VerificationMeta('difficulty');
   @override
@@ -17691,6 +17709,9 @@ class $QuestionsTable extends Questions
         sourceUrl,
         zujuanQuestionId,
         zujuanBankId,
+        textFormat,
+        extensionOf,
+        capability,
         difficulty,
         difficultySource,
         stemFingerprint,
@@ -17787,6 +17808,24 @@ class $QuestionsTable extends Questions
           zujuanBankId.isAcceptableOrUnknown(
               data['zujuan_bank_id']!, _zujuanBankIdMeta));
     }
+    if (data.containsKey('text_format')) {
+      context.handle(
+          _textFormatMeta,
+          textFormat.isAcceptableOrUnknown(
+              data['text_format']!, _textFormatMeta));
+    }
+    if (data.containsKey('extension_of')) {
+      context.handle(
+          _extensionOfMeta,
+          extensionOf.isAcceptableOrUnknown(
+              data['extension_of']!, _extensionOfMeta));
+    }
+    if (data.containsKey('capability')) {
+      context.handle(
+          _capabilityMeta,
+          capability.isAcceptableOrUnknown(
+              data['capability']!, _capabilityMeta));
+    }
     if (data.containsKey('difficulty')) {
       context.handle(
           _difficultyMeta,
@@ -17878,6 +17917,12 @@ class $QuestionsTable extends Questions
           DriftSqlType.string, data['${effectivePrefix}zujuan_question_id']),
       zujuanBankId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}zujuan_bank_id']),
+      textFormat: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}text_format']),
+      extensionOf: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}extension_of']),
+      capability: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}capability']),
       difficulty: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}difficulty']),
       difficultySource: attachedDatabase.typeMapping.read(
@@ -17976,6 +18021,32 @@ class Question extends DataClass implements Insertable<Question> {
   /// questionid 猜。可空同上。
   final String? zujuanBankId;
 
+  /// 题干/答案/解析的文本格式（v40，轮次一百八十二，handoff 管线 v1 §7 M1）。
+  ///
+  /// 值只有两个：`plain` 与 `markdown`；NULL 读作 `plain`（历史题目全走这条）。
+  /// 为什么存一列而不是「检测到 `$` 就自动切」：渲染方式决定**整个题目区**的
+  /// 排版（表格、列表、代码块、双美元块公式），靠启发式猜会把普通文本里的
+  /// 美元符号误判成公式，也会让同一道题在两次打开时排版不一致。入库时定死，
+  /// 渲染器只读这一列。`.tqb` 里的 `text_format` 字段与它同名同语义。
+  final String? textFormat;
+
+  /// 扩展题挂靠的母题组卷网题目 id（v40，handoff §7 M2）。
+  ///
+  /// 语义只是「指向某道母题的 `zujuan_question_id`」：不建外键、不要求母题在
+  /// 同一个包里，悬空引用由域层 `question_extension.dart` 忽略并计数，不阻断
+  /// 导入。为什么不用内部 `questions.id`：题库包在别的机器上解出来时本地 id
+  /// 全变了，只有组卷网题号能跨设备对应。可空 = 不是扩展题。
+  final String? extensionOf;
+
+  /// 能力点代码数组（v40，handoff §7 M2）：`A1`…`A10`，存 JSON 数组字符串
+  /// 例如 `["A3","A7"]`。
+  ///
+  /// 为什么不像标签那样单独建关联表：能力点是**题目的固有属性**（由题干+解析
+  /// 就能判定），数量少（≤10）、需要整组读写（T×A 统计一次要全量），单独建表
+  /// 只会多一层 join；JSON 列在这里是合适的（与 `settings` 的用法一致）。NULL
+  /// 读作空数组 = 未标注，不回填：宁可显示「未标注」也不猜。
+  final String? capability;
+
   /// 难度 1–10，可空。优先写认知模型的难度先验，否则写 AI 估计。
   final double? difficulty;
 
@@ -18018,6 +18089,9 @@ class Question extends DataClass implements Insertable<Question> {
       this.sourceUrl,
       this.zujuanQuestionId,
       this.zujuanBankId,
+      this.textFormat,
+      this.extensionOf,
+      this.capability,
       this.difficulty,
       this.difficultySource,
       required this.stemFingerprint,
@@ -18063,6 +18137,15 @@ class Question extends DataClass implements Insertable<Question> {
     }
     if (!nullToAbsent || zujuanBankId != null) {
       map['zujuan_bank_id'] = Variable<String>(zujuanBankId);
+    }
+    if (!nullToAbsent || textFormat != null) {
+      map['text_format'] = Variable<String>(textFormat);
+    }
+    if (!nullToAbsent || extensionOf != null) {
+      map['extension_of'] = Variable<String>(extensionOf);
+    }
+    if (!nullToAbsent || capability != null) {
+      map['capability'] = Variable<String>(capability);
     }
     if (!nullToAbsent || difficulty != null) {
       map['difficulty'] = Variable<double>(difficulty);
@@ -18117,6 +18200,15 @@ class Question extends DataClass implements Insertable<Question> {
       zujuanBankId: zujuanBankId == null && nullToAbsent
           ? const Value.absent()
           : Value(zujuanBankId),
+      textFormat: textFormat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(textFormat),
+      extensionOf: extensionOf == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extensionOf),
+      capability: capability == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capability),
       difficulty: difficulty == null && nullToAbsent
           ? const Value.absent()
           : Value(difficulty),
@@ -18159,6 +18251,9 @@ class Question extends DataClass implements Insertable<Question> {
       sourceUrl: serializer.fromJson<String?>(json['sourceUrl']),
       zujuanQuestionId: serializer.fromJson<String?>(json['zujuanQuestionId']),
       zujuanBankId: serializer.fromJson<String?>(json['zujuanBankId']),
+      textFormat: serializer.fromJson<String?>(json['textFormat']),
+      extensionOf: serializer.fromJson<String?>(json['extensionOf']),
+      capability: serializer.fromJson<String?>(json['capability']),
       difficulty: serializer.fromJson<double?>(json['difficulty']),
       difficultySource: serializer.fromJson<String?>(json['difficultySource']),
       stemFingerprint: serializer.fromJson<String>(json['stemFingerprint']),
@@ -18190,6 +18285,9 @@ class Question extends DataClass implements Insertable<Question> {
       'sourceUrl': serializer.toJson<String?>(sourceUrl),
       'zujuanQuestionId': serializer.toJson<String?>(zujuanQuestionId),
       'zujuanBankId': serializer.toJson<String?>(zujuanBankId),
+      'textFormat': serializer.toJson<String?>(textFormat),
+      'extensionOf': serializer.toJson<String?>(extensionOf),
+      'capability': serializer.toJson<String?>(capability),
       'difficulty': serializer.toJson<double?>(difficulty),
       'difficultySource': serializer.toJson<String?>(difficultySource),
       'stemFingerprint': serializer.toJson<String>(stemFingerprint),
@@ -18219,6 +18317,9 @@ class Question extends DataClass implements Insertable<Question> {
           Value<String?> sourceUrl = const Value.absent(),
           Value<String?> zujuanQuestionId = const Value.absent(),
           Value<String?> zujuanBankId = const Value.absent(),
+          Value<String?> textFormat = const Value.absent(),
+          Value<String?> extensionOf = const Value.absent(),
+          Value<String?> capability = const Value.absent(),
           Value<double?> difficulty = const Value.absent(),
           Value<String?> difficultySource = const Value.absent(),
           String? stemFingerprint,
@@ -18248,6 +18349,9 @@ class Question extends DataClass implements Insertable<Question> {
             : this.zujuanQuestionId,
         zujuanBankId:
             zujuanBankId.present ? zujuanBankId.value : this.zujuanBankId,
+        textFormat: textFormat.present ? textFormat.value : this.textFormat,
+        extensionOf: extensionOf.present ? extensionOf.value : this.extensionOf,
+        capability: capability.present ? capability.value : this.capability,
         difficulty: difficulty.present ? difficulty.value : this.difficulty,
         difficultySource: difficultySource.present
             ? difficultySource.value
@@ -18288,6 +18392,12 @@ class Question extends DataClass implements Insertable<Question> {
       zujuanBankId: data.zujuanBankId.present
           ? data.zujuanBankId.value
           : this.zujuanBankId,
+      textFormat:
+          data.textFormat.present ? data.textFormat.value : this.textFormat,
+      extensionOf:
+          data.extensionOf.present ? data.extensionOf.value : this.extensionOf,
+      capability:
+          data.capability.present ? data.capability.value : this.capability,
       difficulty:
           data.difficulty.present ? data.difficulty.value : this.difficulty,
       difficultySource: data.difficultySource.present
@@ -18326,6 +18436,9 @@ class Question extends DataClass implements Insertable<Question> {
           ..write('sourceUrl: $sourceUrl, ')
           ..write('zujuanQuestionId: $zujuanQuestionId, ')
           ..write('zujuanBankId: $zujuanBankId, ')
+          ..write('textFormat: $textFormat, ')
+          ..write('extensionOf: $extensionOf, ')
+          ..write('capability: $capability, ')
           ..write('difficulty: $difficulty, ')
           ..write('difficultySource: $difficultySource, ')
           ..write('stemFingerprint: $stemFingerprint, ')
@@ -18357,6 +18470,9 @@ class Question extends DataClass implements Insertable<Question> {
         sourceUrl,
         zujuanQuestionId,
         zujuanBankId,
+        textFormat,
+        extensionOf,
+        capability,
         difficulty,
         difficultySource,
         stemFingerprint,
@@ -18387,6 +18503,9 @@ class Question extends DataClass implements Insertable<Question> {
           other.sourceUrl == this.sourceUrl &&
           other.zujuanQuestionId == this.zujuanQuestionId &&
           other.zujuanBankId == this.zujuanBankId &&
+          other.textFormat == this.textFormat &&
+          other.extensionOf == this.extensionOf &&
+          other.capability == this.capability &&
           other.difficulty == this.difficulty &&
           other.difficultySource == this.difficultySource &&
           other.stemFingerprint == this.stemFingerprint &&
@@ -18415,6 +18534,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
   final Value<String?> sourceUrl;
   final Value<String?> zujuanQuestionId;
   final Value<String?> zujuanBankId;
+  final Value<String?> textFormat;
+  final Value<String?> extensionOf;
+  final Value<String?> capability;
   final Value<double?> difficulty;
   final Value<String?> difficultySource;
   final Value<String> stemFingerprint;
@@ -18442,6 +18564,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     this.sourceUrl = const Value.absent(),
     this.zujuanQuestionId = const Value.absent(),
     this.zujuanBankId = const Value.absent(),
+    this.textFormat = const Value.absent(),
+    this.extensionOf = const Value.absent(),
+    this.capability = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.difficultySource = const Value.absent(),
     this.stemFingerprint = const Value.absent(),
@@ -18470,6 +18595,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     this.sourceUrl = const Value.absent(),
     this.zujuanQuestionId = const Value.absent(),
     this.zujuanBankId = const Value.absent(),
+    this.textFormat = const Value.absent(),
+    this.extensionOf = const Value.absent(),
+    this.capability = const Value.absent(),
     this.difficulty = const Value.absent(),
     this.difficultySource = const Value.absent(),
     this.stemFingerprint = const Value.absent(),
@@ -18501,6 +18629,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     Expression<String>? sourceUrl,
     Expression<String>? zujuanQuestionId,
     Expression<String>? zujuanBankId,
+    Expression<String>? textFormat,
+    Expression<String>? extensionOf,
+    Expression<String>? capability,
     Expression<double>? difficulty,
     Expression<String>? difficultySource,
     Expression<String>? stemFingerprint,
@@ -18529,6 +18660,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       if (sourceUrl != null) 'source_url': sourceUrl,
       if (zujuanQuestionId != null) 'zujuan_question_id': zujuanQuestionId,
       if (zujuanBankId != null) 'zujuan_bank_id': zujuanBankId,
+      if (textFormat != null) 'text_format': textFormat,
+      if (extensionOf != null) 'extension_of': extensionOf,
+      if (capability != null) 'capability': capability,
       if (difficulty != null) 'difficulty': difficulty,
       if (difficultySource != null) 'difficulty_source': difficultySource,
       if (stemFingerprint != null) 'stem_fingerprint': stemFingerprint,
@@ -18559,6 +18693,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       Value<String?>? sourceUrl,
       Value<String?>? zujuanQuestionId,
       Value<String?>? zujuanBankId,
+      Value<String?>? textFormat,
+      Value<String?>? extensionOf,
+      Value<String?>? capability,
       Value<double?>? difficulty,
       Value<String?>? difficultySource,
       Value<String>? stemFingerprint,
@@ -18586,6 +18723,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
       sourceUrl: sourceUrl ?? this.sourceUrl,
       zujuanQuestionId: zujuanQuestionId ?? this.zujuanQuestionId,
       zujuanBankId: zujuanBankId ?? this.zujuanBankId,
+      textFormat: textFormat ?? this.textFormat,
+      extensionOf: extensionOf ?? this.extensionOf,
+      capability: capability ?? this.capability,
       difficulty: difficulty ?? this.difficulty,
       difficultySource: difficultySource ?? this.difficultySource,
       stemFingerprint: stemFingerprint ?? this.stemFingerprint,
@@ -18648,6 +18788,15 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
     if (zujuanBankId.present) {
       map['zujuan_bank_id'] = Variable<String>(zujuanBankId.value);
     }
+    if (textFormat.present) {
+      map['text_format'] = Variable<String>(textFormat.value);
+    }
+    if (extensionOf.present) {
+      map['extension_of'] = Variable<String>(extensionOf.value);
+    }
+    if (capability.present) {
+      map['capability'] = Variable<String>(capability.value);
+    }
     if (difficulty.present) {
       map['difficulty'] = Variable<double>(difficulty.value);
     }
@@ -18702,6 +18851,9 @@ class QuestionsCompanion extends UpdateCompanion<Question> {
           ..write('sourceUrl: $sourceUrl, ')
           ..write('zujuanQuestionId: $zujuanQuestionId, ')
           ..write('zujuanBankId: $zujuanBankId, ')
+          ..write('textFormat: $textFormat, ')
+          ..write('extensionOf: $extensionOf, ')
+          ..write('capability: $capability, ')
           ..write('difficulty: $difficulty, ')
           ..write('difficultySource: $difficultySource, ')
           ..write('stemFingerprint: $stemFingerprint, ')
@@ -32680,6 +32832,9 @@ typedef $$QuestionsTableCreateCompanionBuilder = QuestionsCompanion Function({
   Value<String?> sourceUrl,
   Value<String?> zujuanQuestionId,
   Value<String?> zujuanBankId,
+  Value<String?> textFormat,
+  Value<String?> extensionOf,
+  Value<String?> capability,
   Value<double?> difficulty,
   Value<String?> difficultySource,
   Value<String> stemFingerprint,
@@ -32708,6 +32863,9 @@ typedef $$QuestionsTableUpdateCompanionBuilder = QuestionsCompanion Function({
   Value<String?> sourceUrl,
   Value<String?> zujuanQuestionId,
   Value<String?> zujuanBankId,
+  Value<String?> textFormat,
+  Value<String?> extensionOf,
+  Value<String?> capability,
   Value<double?> difficulty,
   Value<String?> difficultySource,
   Value<String> stemFingerprint,
@@ -32775,6 +32933,15 @@ class $$QuestionsTableFilterComposer
 
   ColumnFilters<String> get zujuanBankId => $composableBuilder(
       column: $table.zujuanBankId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get textFormat => $composableBuilder(
+      column: $table.textFormat, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get extensionOf => $composableBuilder(
+      column: $table.extensionOf, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnFilters(column));
@@ -32866,6 +33033,15 @@ class $$QuestionsTableOrderingComposer
       column: $table.zujuanBankId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get textFormat => $composableBuilder(
+      column: $table.textFormat, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get extensionOf => $composableBuilder(
+      column: $table.extensionOf, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => ColumnOrderings(column));
 
@@ -32954,6 +33130,15 @@ class $$QuestionsTableAnnotationComposer
   GeneratedColumn<String> get zujuanBankId => $composableBuilder(
       column: $table.zujuanBankId, builder: (column) => column);
 
+  GeneratedColumn<String> get textFormat => $composableBuilder(
+      column: $table.textFormat, builder: (column) => column);
+
+  GeneratedColumn<String> get extensionOf => $composableBuilder(
+      column: $table.extensionOf, builder: (column) => column);
+
+  GeneratedColumn<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => column);
+
   GeneratedColumn<double> get difficulty => $composableBuilder(
       column: $table.difficulty, builder: (column) => column);
 
@@ -33023,6 +33208,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             Value<String?> sourceUrl = const Value.absent(),
             Value<String?> zujuanQuestionId = const Value.absent(),
             Value<String?> zujuanBankId = const Value.absent(),
+            Value<String?> textFormat = const Value.absent(),
+            Value<String?> extensionOf = const Value.absent(),
+            Value<String?> capability = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
             Value<String?> difficultySource = const Value.absent(),
             Value<String> stemFingerprint = const Value.absent(),
@@ -33051,6 +33239,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             sourceUrl: sourceUrl,
             zujuanQuestionId: zujuanQuestionId,
             zujuanBankId: zujuanBankId,
+            textFormat: textFormat,
+            extensionOf: extensionOf,
+            capability: capability,
             difficulty: difficulty,
             difficultySource: difficultySource,
             stemFingerprint: stemFingerprint,
@@ -33079,6 +33270,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             Value<String?> sourceUrl = const Value.absent(),
             Value<String?> zujuanQuestionId = const Value.absent(),
             Value<String?> zujuanBankId = const Value.absent(),
+            Value<String?> textFormat = const Value.absent(),
+            Value<String?> extensionOf = const Value.absent(),
+            Value<String?> capability = const Value.absent(),
             Value<double?> difficulty = const Value.absent(),
             Value<String?> difficultySource = const Value.absent(),
             Value<String> stemFingerprint = const Value.absent(),
@@ -33107,6 +33301,9 @@ class $$QuestionsTableTableManager extends RootTableManager<
             sourceUrl: sourceUrl,
             zujuanQuestionId: zujuanQuestionId,
             zujuanBankId: zujuanBankId,
+            textFormat: textFormat,
+            extensionOf: extensionOf,
+            capability: capability,
             difficulty: difficulty,
             difficultySource: difficultySource,
             stemFingerprint: stemFingerprint,

@@ -168,11 +168,14 @@ final RegExp _placeholderPattern = RegExp(
 /// * A. `imageCount <= 0` → [QuestionStemImageMode.none]：题干原样一个文字段，
 ///   占位不改写，`neutralizedPlaceholderCount == 0`；
 /// * B. 整卡快照 → [QuestionStemImageMode.snapshot]：
+///   * B0. [hasFullcardImage] 为真（媒体文件名带 `fullcard_` 前缀，handoff
+///     管线 v1 §4.6：采集器自己标了「这张图就是整道题」）——不看尺寸，
+///     直接快照；
 ///   * B1. 存在 order < imageCount 的已知尺寸，宽 >= 阈值且高 >= 阈值；
 ///   * B2. 所有尺寸都未知（没传、或每个都是 `null`）且 `imageCount == 1` 且
 ///     占位 >= 2（没有像素尺寸时的数量兜底）。
 ///   snapshot 行为：`trailingImageOrders` = `0..imageCount-1` 全部；
-///   `snapshotImageOrders` = B1 命中的 order（B2 时 `[0]`）；`segments` 只有
+///   `snapshotImageOrders` = B1 命中的 order（B0/B2 时 `[0]`）；`segments` 只有
 ///   文字——题干里每个占位替换成一个「…」、相邻文字合并、不 trim；
 ///   `neutralizedPlaceholderCount == placeholderCount`；
 /// * C. 其余 → [QuestionStemImageMode.inline]：交给 [splitQuestionStemImages]
@@ -188,6 +191,7 @@ QuestionStemRenderPlan planQuestionStemRender(
   List<QuestionStemImageSize?> imageSizes = const <QuestionStemImageSize?>[],
   int snapshotMinWidth = defaultStemSnapshotMinWidth,
   int snapshotMinHeight = defaultStemSnapshotMinHeight,
+  bool hasFullcardImage = false,
 }) {
   final int count = imageCount < 0 ? 0 : imageCount;
   final int placeholderCount = _placeholderPattern.allMatches(stem).length;
@@ -220,7 +224,8 @@ QuestionStemRenderPlan planQuestionStemRender(
     }
   }
 
-  final bool isSnapshot = oversizedOrders.isNotEmpty ||
+  final bool isSnapshot = hasFullcardImage ||
+      oversizedOrders.isNotEmpty ||
       (allSizesMissing && count == 1 && placeholderCount >= 2);
 
   if (isSnapshot) {
