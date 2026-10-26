@@ -50,6 +50,8 @@
 | 能力趋势（纯逻辑） | 表内无此节 | ✅ 2026-10-26（轮次一百七十九，用户反馈第 8 条后续）：`app/lib/domain/services/cognitive/ability_trend.dart` 把「最近 N 次能力测量」整理成旧→新序列（按 `capturedAt` 稳定排序、最多 30 点）、`delta`/平均/最好/最差、方向（阈值 2.0 分判变好/持平/变差）、0–1 归一化坐标；29 例测试。画像页趋势图 UI 未接。见 [ASSESSMENT_DESIGN.md](ASSESSMENT_DESIGN.md) §9 |
 | 能力画像趋势折线（UI） | 表内无此节 | ✅ 2026-10-26（轮次一百八十，用户反馈第 8 条后续）：`abilityTrendProvider` 读最近 30 次，画像页每张能力卡在分数/次数下画 `CustomPaint` 迷你折线（高 36、宽撑满、线宽 2 primary、每点 2px 圆点，y = 1 − 归一化分数）；不足 2 点显示「至少测两次」，≥2 点显示「最近 N 次」+ 方向词（变好/持平/变差，阈值 2 分，色 primary/onSurfaceVariant/error），读库失败只坏那张卡。`ability_profile_page_test.dart` 6→12 例。未做：坐标轴/时间标签、真机视觉验证。见 [ASSESSMENT_DESIGN.md](ASSESSMENT_DESIGN.md) §9 |
 | 标签用途域：题库包标签路径 + 手写整理提示词 | 表内无此节 | ✅ 2026-10-26（轮次一百八十，用户反馈第 10/11 条补完）：设置页「题库包导出 → 标签路径」用 `questionPackTagPathScopeProvider` 按 `TagUsage.question` 过滤（纯函数签名不动；对话框给范围提示、用途边界空态、整树无声明时全列）；手写整理的 `existingTagPaths` 与 `previewFor` 已有标签集合也只认「纳入题库」标签。picker 10→13 例、手写服务 +2 例。已知取舍：`applyAll` 写库仍走全量 `getTagByPath`。 |
+| AI 工具 focus_review（考前把卡片提前进复习） | 表内无此节 | ✅ 2026-10-26（轮次一百八十一，用户 m19724）：`app/lib/features/ai/tools/review_focus_tool.dart` + `app/lib/domain/services/srs/review_focus.dart`；参数 `days`(0–90 默认 7)/`limit`(1–2000 默认 500)/`tag`/`dry_run`(默认 true)；只拉「未来 N 天内到期、非新卡、未到期」的卡，按原 due 近→远、超 limit 截断，改 `due_at` 不动 repetitions；`beforeJson` 空计划为 null（空快照不让撤销变成假操作），undo 逐张还原；riskFor=write、reversibleFor=true；系统提示规则 4 已加一句触发口径；16 例纯逻辑 + 12 例工具测试 |
+| 使用指南文档 | 表内无此节 | ✅ 2026-10-26（轮次一百八十一）：新建 `docs/USER_GUIDE.md`（三个常用入口 / AI 能做不能做 / 高频指令模板 / 学习闭环六步 / 考前 focus_review / 任务与题目推送同机制现状 / persona / 数据安全 / FAQ） |
 
 ---
 

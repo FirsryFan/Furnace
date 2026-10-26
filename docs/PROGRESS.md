@@ -2,6 +2,16 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-26 轮次一百八十一：AI 考前提前复习（focus_review）+ 使用指南
+
+- 目标：用户 m19724——「给 AI 发消息手动调节闪存卡推送（下周要考试，某些板块提前进复习）」，并要一份「怎样用 Furnace 才能优化学习效率」的使用指导。
+- 片 1（纯逻辑）：新 `app/lib/domain/services/srs/review_focus.dart`——`planReviewFocus(cards, now, horizon=7d, limit=500)` 输出 `ReviewFocusPlan{pulled, alreadyDue, newCards, tooFar, beyondLimit}`；只拉「未来 horizon 内到期、非新卡、未到期」的卡，按原 due 近→远排序、超 limit 截断并计 beyondLimit；limit 负数抛 ArgumentError。16 例测试。
+- 片 2（工具）：新 `app/lib/features/ai/tools/review_focus_tool.dart`（toolName `focus_review`）：参数 `tag`（标签路径，子树）/ `days`(0–90，默认 7) / `limit`(1–2000，默认 500) / `dry_run`(默认 true)；只写 `due_at`（`AnkiRepository.setCardStateDueAts` + `cardStatesForKnowledgePoints`，顺手补 `anki_repository.dart` 两个方法），不动 repetitions/state；`beforeJson` 空计划返回 null（否则撤销会「成功」但什么也没做），撤销逐张还原；riskFor=write、reversibleFor=true；卡组设了每日上限会在 summary 提醒。tool_registry 注册、agent_loop 规则 4 加触发句。12 例工具测试。
+- 片 3（文档）：新建 `docs/USER_GUIDE.md`（10 节：三个常用入口 / AI 能做与不能做 / 高频指令模板 / 学习闭环六步 / 考前 focus_review 用法与边界 / 任务与题目推送同机制现状与未做项 / persona / 数据安全 / FAQ / 版本）；README 文档表加一行；FEATURE_MATRIX 顶部增补表加 2 行。
+- 验证：`dart format` 本轮 8 个 dart 文件 0 changed；`dart analyze lib test` **88 issues / 0 error / 0 warning**（日志 `E:/dsh-tmp-aot/analyze-181.txt`，基线 90→88）；全量 `flutter test --concurrency=1` **+6285 ~2 All tests passed，19:52，EXIT 0**（日志 `E:/dsh-tmp-aot/test-181b-full.txt`；v0.6.11 基线 +6257，本轮净增 28 = 16+12）。首次全量跑出 1 例失败：`test/features/ai/zujuan_paper_tool_test.dart` 断言「第 27 个工具」→ 工具总数变 28，已把断言与标题改成 28，单点修复后全量重跑全绿。
+- 未做/风险：focus_review 只有单元/组件测试，未在真机上手动跑一遍「预览→确认→撤销」；只改到期时间不改熟练度是**有意取舍**（提前复习不应伪造复习记录），文档已写明；任务/题目侧的「批量提前」未做（USER_GUIDE §6 已如实说明并给了下一步建议：任务侧 plan_shift 优先级更高）；v0.6.12 未出包。
+- 下一步：用户 m20048/m20049 指出外部 agent 已产出 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`（FURNACE-PIPELINE-SPEC-v1.md 等），要求「没有更新后当作完工，拿来实现并装载进软件」→ 轮次一百八十二按该规范做 App 侧 M1–M4 接入（题目区整段 Markdown+LaTeX、短题卡 `fullcard_` 标识、`extension_of` 关联与复习联动等，落地前先核对规范与现有实现的差异）。
+
 ## 2026-10-26 轮次一百八十：v0.6.11 双端发布（思维链/中断 + 新图标 + Time 行高 + 标签边界 + 能力测评）
 
 - 目标：把 v0.6.10 之后轮次 175–180 的改动打成双端安装包：改名「智能化」、新应用图标、思维链可见/落库/可中断、Time 行高拖拽、「安排」全部/今天、闪卡全文+复习间隔、设计 token 基础层、知识图重做、检索词分学科+标准侧同步、标签用途边界（8 处）、能力测评+画像+趋势、题库包/手写标签边界、任务详情 `context.mounted` 修复。

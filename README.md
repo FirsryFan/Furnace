@@ -104,6 +104,7 @@ dart analyze                 # 应为 0 error
 | [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md) | `.fskill` 包格式与安全边界 |
 | [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md) | 与 MindNet 的接口约定（双方回应都在里面） |
 | [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) · [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) | 差距分析与功能矩阵 |
+| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | **用户使用指南**：AI 能做什么、高频指令、学习闭环、考前提前复习 |
 
 ## 许可
 
