@@ -5754,4 +5754,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String abilityProfileLoadFailed(String error) {
     return 'Could not load ability scores: $error';
   }
+
+  @override
+  String get tagUsageScopeHintFlashcard =>
+      'Only tags marked for flashcards are listed; set usages in the tag tree.';
+
+  @override
+  String get tagUsageScopeEmptyFlashcard =>
+      'No tag is marked for flashcards. Mark one in the tag tree, or clear the usages to lift the limit.';
+
+  @override
+  String get tagUsageScopeDefaultHint =>
+      'No tag declares a usage yet, so every tag is listed; set usages in the tag tree.';
 }

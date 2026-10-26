@@ -9613,6 +9613,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not load ability scores: {error}'**
   String abilityProfileLoadFailed(String error);
+
+  /// Always-visible hint under a flashcard tag picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Only tags marked for flashcards are listed; set usages in the tag tree.'**
+  String get tagUsageScopeHintFlashcard;
+
+  /// Empty state when usages exist but none includes flashcards.
+  ///
+  /// In en, this message translates to:
+  /// **'No tag is marked for flashcards. Mark one in the tag tree, or clear the usages to lift the limit.'**
+  String get tagUsageScopeEmptyFlashcard;
+
+  /// Hint when the whole tag tree has no usage declaration.
+  ///
+  /// In en, this message translates to:
+  /// **'No tag declares a usage yet, so every tag is listed; set usages in the tag tree.'**
+  String get tagUsageScopeDefaultHint;
 }
 
 class _AppLocalizationsDelegate

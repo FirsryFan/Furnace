@@ -3369,5 +3369,17 @@
     "placeholders": {
       "error": { "type": "String" }
     }
+  },
+  "tagUsageScopeHintFlashcard": "这里只显示「纳入闪卡」的标签；可在标签树里设置用途。",
+  "@tagUsageScopeHintFlashcard": {
+    "description": "闪卡标签选择器下方的常显提示：只列声明了闪卡用途的标签。"
+  },
+  "tagUsageScopeEmptyFlashcard": "没有「纳入闪卡」的标签；去标签树给某棵树设置「闪卡」用途，或清空用途表示不限制。",
+  "@tagUsageScopeEmptyFlashcard": {
+    "description": "闪卡标签选择器：有用途声明但没有闪卡标签时的空态。"
+  },
+  "tagUsageScopeDefaultHint": "所有标签都还没有声明用途，默认全部可选；可在标签树里设置用途。",
+  "@tagUsageScopeDefaultHint": {
+    "description": "标签选择器：整棵树都没声明用途（等于不限制）时的提示。"
   }
 }

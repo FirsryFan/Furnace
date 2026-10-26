@@ -5519,4 +5519,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String abilityProfileLoadFailed(String error) {
     return '读取能力分数失败：$error';
   }
+
+  @override
+  String get tagUsageScopeHintFlashcard => '这里只显示「纳入闪卡」的标签；可在标签树里设置用途。';
+
+  @override
+  String get tagUsageScopeEmptyFlashcard =>
+      '没有「纳入闪卡」的标签；去标签树给某棵树设置「闪卡」用途，或清空用途表示不限制。';
+
+  @override
+  String get tagUsageScopeDefaultHint => '所有标签都还没有声明用途，默认全部可选；可在标签树里设置用途。';
 }

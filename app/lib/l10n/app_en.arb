@@ -3462,5 +3462,17 @@
     "placeholders": {
       "error": { "type": "String" }
     }
+  },
+  "tagUsageScopeHintFlashcard": "Only tags marked for flashcards are listed; set usages in the tag tree.",
+  "@tagUsageScopeHintFlashcard": {
+    "description": "Always-visible hint under a flashcard tag picker."
+  },
+  "tagUsageScopeEmptyFlashcard": "No tag is marked for flashcards. Mark one in the tag tree, or clear the usages to lift the limit.",
+  "@tagUsageScopeEmptyFlashcard": {
+    "description": "Empty state when usages exist but none includes flashcards."
+  },
+  "tagUsageScopeDefaultHint": "No tag declares a usage yet, so every tag is listed; set usages in the tag tree.",
+  "@tagUsageScopeDefaultHint": {
+    "description": "Hint when the whole tag tree has no usage declaration."
   }
 }
