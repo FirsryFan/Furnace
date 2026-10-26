@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database_provider.dart';
+import '../../../data/database/database.dart';
 import '../../../data/repositories/anki_repository.dart';
 import '../../../data/repositories/handwriting_proposal_repository.dart';
 import '../../../data/repositories/question_repository.dart';
@@ -38,6 +39,7 @@ import '../../../domain/services/questions/question_number.dart'
     show formatQuestionSerial;
 import '../../../domain/services/scheduling/thread_balance_inputs.dart'
     show kKnowledgePointObjectType;
+import '../../../domain/services/tags/tag_usage.dart';
 import '../../ai/application/ai_providers.dart';
 import '../../ai/domain/model_adapter.dart';
 import '../data/handwriting_intake_store.dart';
@@ -293,6 +295,27 @@ class HandwritingProposalService {
   /// 唯一出网点；`null` 表示这台设备上没有可用模型（离线默认）。
   final ModelAdapter? _adapter;
 
+  /// 「纳入题库」的标签 id：手写整理是给题库出产物，时间表/闪卡等专用分支
+  /// 不该出现在提示词里，否则模型会把题挂到别的域（§10 标签边界）。
+  ///
+  /// 解析口径在 [TagUsageResolver]（沿父链继承；整棵树都没声明=不限制）。
+  Set<String> _visibleQuestionTagIds(List<Tag> tags) {
+    final TagUsageResolver resolver = _tags.resolverFor(tags);
+    return resolver
+        .visibleOf(tags.map((Tag tag) => tag.id), TagUsage.question)
+        .toSet();
+  }
+
+  /// 只保留「纳入题库」的标签路径（`path` 优先，保持原有顺序与 trim 规则）。
+  List<String> _visibleQuestionTagPaths(List<Tag> tags) {
+    final Set<String> visibleIds = _visibleQuestionTagIds(tags);
+    return <String>[
+      for (final Tag tag in tags)
+        if (visibleIds.contains(tag.id))
+          if ((tag.path ?? '').trim().isNotEmpty) tag.path!.trim(),
+    ];
+  }
+
   /// 看一张照片，拿回四类待确认产物。
   Future<HandwritingProposalRun> proposeFor(String relPath) async {
     final bytes = await _store.readBytes(relPath);
@@ -315,6 +338,7 @@ class HandwritingProposalService {
     }
 
     // 把"现在有什么"写进提示词：模型才知道标签该挂哪儿、哪个知识点已经有了。
+    // 标签只给「纳入题库」的那部分（见 [_visibleQuestionTagPaths]）。
     final tags = await _tags.getAllTags();
     final points = await _anki.getKnowledgePoints();
 
@@ -322,10 +346,7 @@ class HandwritingProposalService {
       fileName: fileName,
       mime: mime,
       base64: base64Encode(bytes),
-      existingTagPaths: <String>[
-        for (final tag in tags)
-          if ((tag.path ?? '').trim().isNotEmpty) tag.path!.trim(),
-      ],
+      existingTagPaths: _visibleQuestionTagPaths(tags),
       existingKnowledgePointTitles: <String>[
         for (final point in points) point.title,
       ],
@@ -419,10 +440,8 @@ class HandwritingProposalService {
 
     final messages = handwritingProposalMessagesForPhotos(
       photos: photos,
-      existingTagPaths: <String>[
-        for (final tag in tags)
-          if ((tag.path ?? '').trim().isNotEmpty) tag.path!.trim(),
-      ],
+      // 与单张整理同口径：只告诉模型「纳入题库」的标签路径。
+      existingTagPaths: _visibleQuestionTagPaths(tags),
       existingKnowledgePointTitles: <String>[
         for (final point in points) point.title,
       ],
@@ -695,8 +714,12 @@ class HandwritingProposalService {
       HandwritingProposalSet set) async {
     final tags = await _tags.getAllTags();
     final points = await _anki.getKnowledgePoints();
+    // 预检与提示词同口径：只把「纳入题库」的标签当已有节点，否则预检会说
+    // "父层已存在"，而模型根本看不到那层父级。
+    final Set<String> visibleIds = _visibleQuestionTagIds(tags);
     final tagPaths = <String>{};
     for (final tag in tags) {
+      if (!visibleIds.contains(tag.id)) continue;
       final path = tag.path?.trim();
       final fallback = tag.name.trim();
       final value = (path == null || path.isEmpty) ? fallback : path;

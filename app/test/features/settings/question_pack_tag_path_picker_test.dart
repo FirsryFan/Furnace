@@ -122,11 +122,15 @@ void main() {
       String id,
       String path, {
       int questions = 0,
+      String? parentId,
+      String? usageCodes,
     }) async {
       await db.into(db.tags).insert(TagsCompanion.insert(
             id: id,
             name: path,
             path: Value(path),
+            parentId: Value(parentId),
+            usageCodes: Value(usageCodes),
             createdAt: 0,
             updatedAt: 0,
           ));
@@ -279,6 +283,57 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(await read(), isEmpty);
+    });
+
+    testWidgets('有用途声明时只列「纳入题库」的标签，并说明范围', (tester) async {
+      // 时间表那棵树显式声明 time：题库包导出不该再列它（§10 标签边界）。
+      await seedTag('t-time', '时间表', usageCodes: 'time');
+      await seedTag('t-time-child', '时间表/专注', parentId: 't-time');
+      await seedTag('t-question', '题库/物理', usageCodes: 'question');
+      final read = pumpPicker(tester);
+      await read();
+
+      expect(find.text('题库/物理 · 0 道'), findsOneWidget);
+      expect(find.text('时间表 · 0 道'), findsNothing);
+      expect(find.text('时间表/专注 · 0 道'), findsNothing);
+      expect(
+        find.text(zh.tagUsageScopeHintNamed(zh.tagUsageQuestion)),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('题库/物理 · 0 道'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, zh.commonConfirm));
+      await tester.pumpAndSettle();
+      expect(await read(), unorderedEquals(<String>{'题库/物理'}));
+    });
+
+    testWidgets('整棵树没有声明用途时全部列出并给默认提示', (tester) async {
+      await seedTag('t-math', '数学');
+      await seedTag('t-time', '时间表');
+      final read = pumpPicker(tester);
+      await read();
+
+      expect(find.text('数学 · 0 道'), findsOneWidget);
+      expect(find.text('时间表 · 0 道'), findsOneWidget);
+      expect(find.text(zh.tagUsageScopeDefaultHint), findsOneWidget);
+      expect(
+        find.text(zh.tagUsageScopeHintNamed(zh.tagUsageQuestion)),
+        findsNothing,
+      );
+    });
+
+    testWidgets('整棵树有标签但都只用于别的域时说明用途边界', (tester) async {
+      await seedTag('t-time', '时间表', usageCodes: 'time');
+      final read = pumpPicker(tester);
+      await read();
+
+      expect(
+        find.text(zh.tagUsageScopeEmptyNamed(zh.tagUsageQuestion)),
+        findsOneWidget,
+      );
+      expect(find.text('时间表 · 0 道'), findsNothing);
+      expect(find.byType(CheckboxListTile), findsNothing);
     });
   });
 }

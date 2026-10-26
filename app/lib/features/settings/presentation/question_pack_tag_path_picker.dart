@@ -12,7 +12,9 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/package/question_pack_tag_options.dart';
+import '../../../domain/services/tags/tag_usage.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../tags/application/tag_usage_scope.dart';
 
 /// 标签路径选择对话框的「取消」按钮（测试用稳定定位）。
 const Key questionPackTagPickerCancelKey =
@@ -22,20 +24,39 @@ const Key questionPackTagPickerCancelKey =
 const Key questionPackTagPickerConfirmKey =
     ValueKey<String>('question-pack-tag-picker-confirm');
 
+/// 「标签路径」选项的用途边界快照：只保留「纳入题库」的标签。
+///
+/// 解析口径在 [TagUsageResolver] 里（继承 / 整树没声明=不限制），这里只读一次
+/// 库；选项 provider 与对话框的范围提示共用这份快照。
+final questionPackTagPathScopeProvider =
+    FutureProvider<TagUsageScope>((ref) async {
+  ref.watchDatabaseRevision();
+  final tags = await ref.watch(tagRepositoryProvider).getAllTags();
+  return buildTagUsageScope(
+    usage: TagUsage.question,
+    tags: tags,
+    resolver: ref.watch(tagRepositoryProvider).resolverFor(tags),
+  );
+});
+
 /// 题库包导出可用的标签路径选项（题数降序 -> 路径升序）。
 ///
 /// 题目记录里的 `tagPaths` 存的是标签的权威路径（`tag.path`，为空时退化为
 /// `tag.name`，与标签树一致），所以这里按同一规则把标签行映射成路径，再把
 /// `object_tags` 里 `object_type = 'question'` 的计数累加到路径上。
+///
+/// 用途过滤在 provider 里做（`tags: scope.visibleTags`）：纯函数
+/// [questionPackTagPathOptionsFromTags] 只负责路径/题数映射，签名保持不认
+/// 标签用途，既有纯逻辑测试不用改。
 final questionPackTagPathOptionsProvider =
     FutureProvider<List<QuestionPackTagPathOption>>((ref) async {
-  ref.watchDatabaseRevision();
-  final tags = await ref.watch(tagRepositoryProvider).getAllTags();
+  final TagUsageScope scope =
+      await ref.watch(questionPackTagPathScopeProvider.future);
   final counts = await ref
       .watch(tagRepositoryProvider)
       .objectCountByTagId(objectTypes: const <String>{'question'});
   return questionPackTagPathOptionsFromTags(
-    tags: tags,
+    tags: scope.visibleTags,
     questionCountByTagId: counts,
   );
 });
@@ -141,6 +162,10 @@ class _QuestionPackTagPathPickerDialogState
     final AppLocalizations l10n = AppLocalizations.of(context);
     final AsyncValue<List<QuestionPackTagPathOption>> optionsAsync =
         ref.watch(questionPackTagPathOptionsProvider);
+    // 用途边界快照：只列「纳入题库」的标签。选项 provider 依赖同一个快照，
+    // 所以这里拿到值时列表也已按用途过滤；未就绪时先不显示提示。
+    final TagUsageScope? scope =
+        ref.watch(questionPackTagPathScopeProvider).valueOrNull;
     final double listHeight =
         (MediaQuery.sizeOf(context).height * 0.6).clamp(240.0, 460.0);
     return AlertDialog(
@@ -151,6 +176,14 @@ class _QuestionPackTagPathPickerDialogState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            // 空树不显示范围提示：否则会和「先建标签」的提示互相打架。
+            if (scope != null && scope.tags.isNotEmpty) ...<Widget>[
+              Text(
+                tagUsageScopeHint(l10n, scope),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+            ],
             TextField(
               controller: _search,
               autofocus: true,
@@ -171,6 +204,18 @@ class _QuestionPackTagPathPickerDialogState
                   final List<QuestionPackTagPathOption> visible =
                       _visibleOptions(base);
                   if (visible.isEmpty) {
+                    // 整棵树有标签、但都不是「纳入题库」：这是用途边界，不是
+                    // 「没有匹配」，要给出去哪儿改的说明。
+                    if (base.isEmpty &&
+                        scope != null &&
+                        scope.tags.isNotEmpty) {
+                      return Center(
+                        child: Text(
+                          tagUsageScopeEmptyText(l10n, scope),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
                     return Center(
                       child: Text(
                         base.isEmpty

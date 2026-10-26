@@ -28,6 +28,7 @@ import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
 import 'package:furnace/domain/services/intake/handwriting_proposal_preview.dart';
 import 'package:furnace/domain/services/intake/handwriting_proposals.dart';
+import 'package:furnace/domain/services/tags/tag_usage.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/handwriting_proposal_service.dart';
@@ -147,6 +148,70 @@ void main() {
       expect(user.images, hasLength(1));
       expect(user.images.single.mime, 'image/png');
       expect(user.images.single.base64, base64Encode(<int>[1, 2, 3, 4]));
+    });
+
+    test('提示词只带「纳入题库」的标签路径，时间表专属分支不外泄', () async {
+      final relPath = await seedPhoto('hw-question.png');
+      final questionTag = await seedTagPath('题库/物理/力学');
+      await tags.updateTagUsageCodes(
+        questionTag.id,
+        <TagUsage>{TagUsage.question},
+      );
+      // 时间表那棵树：根声明 time，子标签继承——提示词整棵都不该出现。
+      final timeLeaf = await seedTagPath('时间表/专注');
+      await tags.updateTagUsageCodes(
+        timeLeaf.parentId!,
+        <TagUsage>{TagUsage.time},
+      );
+
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[tagProposal])),
+      ]);
+      final run = await serviceWith(adapter).proposeFor(relPath);
+
+      expect(run.ok, isTrue, reason: run.failureReason);
+      final system = adapter.requests.single.messages.first.content ?? '';
+      expect(system, contains('题库/物理/力学'));
+      // 时间表整棵子树都没有「纳入题库」，模型不该知道这些路径。
+      expect(system, isNot(contains('时间表')));
+    });
+
+    test('预检同口径：时间表分支不算已有父层，题库分支才算', () async {
+      final timeRoot = await seedTagPath('时间表');
+      await tags.updateTagUsageCodes(
+        timeRoot.id,
+        <TagUsage>{TagUsage.time},
+      );
+      final questionRoot = await seedTagPath('题库');
+      await tags.updateTagUsageCodes(
+        questionRoot.id,
+        <TagUsage>{TagUsage.question},
+      );
+      final relPath = await seedPhoto('hw-preview.png');
+      final adapter = FakeModelAdapter(<List<ModelEvent>>[
+        FakeModelAdapter.answer(reply(<String>[
+          '{"kind": "tag", "title": "专注", '
+              '"fields": {"parent_path": "时间表"}}',
+          '{"kind": "tag", "title": "力学", '
+              '"fields": {"parent_path": "题库"}}',
+        ])),
+      ]);
+      final service = serviceWith(adapter);
+      final run = await service.proposeFor(relPath);
+      expect(run.ok, isTrue, reason: run.failureReason);
+      final preview = await service.previewFor(run.set!);
+
+      final hidden = preview.previews[0];
+      expect(hidden.willCreate, isFalse);
+      expect(hidden.willReuse, isFalse);
+      expect(
+        hidden.blockers.join('\n'),
+        contains('标签树里没有「时间表」这一层'),
+      );
+
+      final allowed = preview.previews[1];
+      expect(allowed.willCreate, isTrue);
+      expect(allowed.blockers, isEmpty);
     });
 
     test('模型报错：返回失败并带上已经收到的原文', () async {
