@@ -3,6 +3,8 @@
 // 钉六件事：四项全无记录时是空态（不是四张 0 分卡）、只测一项时其它三项显示没测过、
 // 同一项多条记录取最新且次数是总条数、分数四舍五入、读库失败有错误文案（不装空态）、
 // 以及写完一条新分数后页面自动刷新（watchDatabaseRevision + instrumentWrites）。
+// 趋势小图另钉：只测一次给「至少测两次」提示、够两次画折线并给方向词
+// （升/降/差 1 分持平）、窄窗口 400x900 不溢出、趋势读失败只坏那张卡。
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,20 @@ class _FailingAbilityScoreRepository extends AbilityScoreRepository {
   @override
   Future<Map<AbilityKey, AbilityScoreEntry>> latestByAbility() async {
     throw StateError('读库失败');
+  }
+}
+
+/// 只有趋势读数失败的替身：最近一次/次数照常，「历史」这条查询打断。
+/// 用来钉「趋势坏了只坏那张卡，整页不打成错误态」。
+class _FailingTrendRepository extends AbilityScoreRepository {
+  _FailingTrendRepository(super.db);
+
+  @override
+  Future<List<AbilityScoreEntry>> historyFor(
+    AbilityKey key, {
+    int limit = 50,
+  }) async {
+    throw StateError('趋势读库失败');
   }
 }
 
@@ -53,8 +69,9 @@ void main() {
     WidgetTester tester,
     AppDatabase db, {
     List<Override> overrides = const <Override>[],
+    Size size = const Size(1000, 1600),
   }) async {
-    tester.view.physicalSize = const Size(1000, 1600);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -223,5 +240,156 @@ void main() {
       zh.abilityScoreLabel(72),
     );
     expect(find.text(zh.abilityProfileCount(1)), findsOneWidget);
+  });
+
+  // ---- 趋势小图（task-204） ----
+  Finder trendChartOf(AbilityKey key) =>
+      find.byKey(Key('ability-trend-chart-${key.code}'));
+  Finder trendHintOf(AbilityKey key) =>
+      find.byKey(Key('ability-trend-hint-${key.code}'));
+  Finder trendDirectionOf(AbilityKey key) =>
+      find.byKey(Key('ability-trend-direction-${key.code}'));
+
+  testWidgets('只测过一次：给「至少测两次」提示，不画折线', (tester) async {
+    final db = await openDatabase();
+    await seed(
+      db,
+      AbilityKey.reactionSpeed,
+      87.4,
+      DateTime(2026, 10, 24, 9, 5),
+    );
+    await pumpPage(tester, db);
+
+    expect(trendHintOf(AbilityKey.reactionSpeed), findsOneWidget);
+    expect(
+      tester.widget<Text>(trendHintOf(AbilityKey.reactionSpeed)).data,
+      zh.abilityTrendHint,
+    );
+    expect(trendChartOf(AbilityKey.reactionSpeed), findsNothing);
+    // 没测过的卡不显示趋势提示（只显示还没测过）。
+    expect(trendHintOf(AbilityKey.workingMemory), findsNothing);
+    expect(find.text(zh.abilityTrendHint), findsOneWidget);
+  });
+
+  testWidgets('测过三次且分数走高：画折线、显示最近 3 次与方向「变好」', (tester) async {
+    final db = await openDatabase();
+    await seed(db, AbilityKey.reactionSpeed, 40, DateTime(2026, 10, 20, 8));
+    await seed(db, AbilityKey.reactionSpeed, 55, DateTime(2026, 10, 21, 8));
+    await seed(db, AbilityKey.reactionSpeed, 90, DateTime(2026, 10, 22, 8));
+    await pumpPage(tester, db);
+
+    expect(trendChartOf(AbilityKey.reactionSpeed), findsOneWidget);
+    expect(trendHintOf(AbilityKey.reactionSpeed), findsNothing);
+    expect(
+      find.text(zh.abilityTrendRecent(3)),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<Text>(trendDirectionOf(AbilityKey.reactionSpeed)).data,
+      zh.abilityTrendImproving,
+    );
+    // 方向词用 primary 色（变好）。
+    final chart = trendChartOf(AbilityKey.reactionSpeed);
+    final primary = Theme.of(tester.element(chart)).colorScheme.primary;
+    expect(
+      tester
+          .widget<Text>(trendDirectionOf(AbilityKey.reactionSpeed))
+          .style
+          ?.color,
+      primary,
+    );
+  });
+
+  testWidgets('分数走低：方向「变差」，颜色用 error', (tester) async {
+    final db = await openDatabase();
+    await seed(db, AbilityKey.workingMemory, 90, DateTime(2026, 10, 20, 8));
+    await seed(db, AbilityKey.workingMemory, 60, DateTime(2026, 10, 21, 8));
+    await seed(db, AbilityKey.workingMemory, 41, DateTime(2026, 10, 22, 8));
+    await pumpPage(tester, db);
+
+    expect(trendChartOf(AbilityKey.workingMemory), findsOneWidget);
+    expect(
+      tester.widget<Text>(trendDirectionOf(AbilityKey.workingMemory)).data,
+      zh.abilityTrendDeclining,
+    );
+    final error = Theme.of(
+      tester.element(trendChartOf(AbilityKey.workingMemory)),
+    ).colorScheme.error;
+    expect(
+      tester
+          .widget<Text>(trendDirectionOf(AbilityKey.workingMemory))
+          .style
+          ?.color,
+      error,
+    );
+  });
+
+  testWidgets('首尾只差 1 分：方向「持平」', (tester) async {
+    final db = await openDatabase();
+    await seed(
+        db, AbilityKey.patternRecognition, 50, DateTime(2026, 10, 20, 8));
+    await seed(
+        db, AbilityKey.patternRecognition, 60, DateTime(2026, 10, 21, 8));
+    await seed(
+        db, AbilityKey.patternRecognition, 51, DateTime(2026, 10, 22, 8));
+    await pumpPage(tester, db);
+
+    expect(trendChartOf(AbilityKey.patternRecognition), findsOneWidget);
+    expect(
+      tester.widget<Text>(trendDirectionOf(AbilityKey.patternRecognition)).data,
+      zh.abilityTrendFlat,
+    );
+    expect(
+      find.text(zh.abilityTrendRecent(3)),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('窄窗口 400x900 不溢出，折线撑满卡片内容宽', (tester) async {
+    final db = await openDatabase();
+    await seed(db, AbilityKey.reactionSpeed, 40, DateTime(2026, 10, 20, 8));
+    await seed(db, AbilityKey.reactionSpeed, 50, DateTime(2026, 10, 21, 8));
+    await seed(db, AbilityKey.reactionSpeed, 60, DateTime(2026, 10, 22, 8));
+    await pumpPage(tester, db, size: const Size(400, 900));
+
+    expect(tester.takeException(), isNull);
+    final card = cardOf(AbilityKey.reactionSpeed);
+    final chart = trendChartOf(AbilityKey.reactionSpeed);
+    expect(chart, findsOneWidget);
+    // 卡片 padding 16 左右各一：折线宽度 = 卡片宽 - 32。
+    expect(
+      tester.getSize(chart).width,
+      closeTo(tester.getSize(card).width - 32, 0.5),
+    );
+    // 迷你折线高度在 32–40 之间。
+    expect(tester.getSize(chart).height, inInclusiveRange(32, 40));
+  });
+
+  testWidgets('趋势读失败：只有那张卡给短错误，整页不变成错误态', (tester) async {
+    final db = await openDatabase();
+    await seed(
+        db, AbilityKey.reactionSpeed, 87.4, DateTime(2026, 10, 24, 9, 5));
+    await pumpPage(
+      tester,
+      db,
+      overrides: [
+        abilityScoreRepositoryProvider.overrideWithValue(
+          _FailingTrendRepository(db),
+        ),
+      ],
+    );
+
+    expect(
+      find.byKey(const Key('ability-trend-error-reaction_speed')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('趋势读库失败'), findsOneWidget);
+    // 分数与次数照常显示，页面没有整页错误态。
+    expect(
+      tester.widget<Text>(scoreOf(AbilityKey.reactionSpeed)).data,
+      zh.abilityScoreLabel(87),
+    );
+    expect(find.byKey(const Key('ability-profile-error')), findsNothing);
+    expect(find.text(zh.abilityProfileEmpty), findsNothing);
   });
 }
