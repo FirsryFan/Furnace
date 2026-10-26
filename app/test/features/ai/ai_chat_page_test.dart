@@ -558,7 +558,8 @@ void main() {
         (tester) async {
       final controlled = _ControlledAdapter();
       adapter = controlled;
-      await AiRepository(db).createConversation();
+      final repository = AiRepository(db);
+      final conversation = await repository.createConversation();
       await pumpPage(tester);
       final l10n = l10nOf(tester);
 
@@ -582,16 +583,20 @@ void main() {
       expect(find.byIcon(Icons.send), findsOneWidget);
       expect(find.text(l10n.aiReasoningGenerating), findsNothing);
 
-      final panel = find.byKey(aiReasoningPanelKey);
-      expect(panel, findsOneWidget);
-      final body = find.descendant(
-        of: panel,
-        matching: find.byType(SelectableText),
-      );
-      expect(body, findsNothing, reason: '回答到达后思考块默认收起');
+      // 思考已随助手消息落库：流式面板让位给历史行里的折叠块，避免同一段
+      // 思考在屏幕上出现两次。
+      expect(find.byKey(aiReasoningPanelKey), findsNothing,
+          reason: '落库后流式面板不应重复显示思考');
+      final rows = await repository.listMessages(conversation.id);
+      final assistant =
+          rows.lastWhere((row) => row.role == AiRepository.roleAssistant);
+      final fold = find.byKey(aiHistoryReasoningKey(assistant.id));
+      expect(fold, findsOneWidget);
+      expect(find.text('先想'), findsNothing, reason: '历史折叠块默认收起');
 
-      await tester.tap(find.text(l10n.aiReasoningTitle));
+      await tester.tap(fold);
       await pumpFrames(tester);
+      final body = find.widgetWithText(SelectableText, '先想');
       expect(body, findsOneWidget, reason: '收起后仍可手动展开');
       expect(tester.widget<SelectableText>(body).data, '先想');
     });

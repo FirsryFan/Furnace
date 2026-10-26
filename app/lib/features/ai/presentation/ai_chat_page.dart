@@ -38,6 +38,15 @@ const Key aiReasoningPanelKey = Key('ai-reasoning-panel');
 const Key aiStopButtonKey = Key('ai-stop-button');
 const Key aiCancelledLabelKey = Key('ai-cancelled-label');
 
+/// One folded reasoning header per history message, keyed by the
+/// `ai_messages.id` the text was stored on.
+///
+/// [aiReasoningPanelKey] is the live turn's panel and disappears with the next
+/// turn; this one is built from `AiMessage.reasoning`, so a test can reopen the
+/// conversation and still find it.
+Key aiHistoryReasoningKey(String messageId) =>
+    ValueKey<String>('ai-history-reasoning-$messageId');
+
 /// The AI conversation screen.
 ///
 /// Design decisions this implements (docs/AI_DESIGN.md):
@@ -597,6 +606,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   }
                 }
               }
+              // v39 起思考过程随助手消息一起落库：一轮结束后 reload 回来的
+              // 历史行已经自带折叠块，流式面板再画一次就会出现两个「思考过程」。
+              // 同一段思考已经在历史里时，只保留历史行里的那个。
+              final streamingReasoning = _turn.reasoningText.trim();
+              final streamingReasoningPersisted =
+                  streamingReasoning.isNotEmpty &&
+                      rows.any((row) =>
+                          row.role == AiRepository.roleAssistant &&
+                          (row.reasoning?.trim() ?? '') == streamingReasoning);
               return ListView(
                 controller: _scroll,
                 padding: const EdgeInsets.all(16),
@@ -629,7 +647,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   // The thinking comes before the answer it produced. It is not
                   // part of the history: the loop resets it when the next turn
                   // starts, so nothing here is cached by the page.
-                  if (_turn.reasoningText.trim().isNotEmpty)
+                  if (streamingReasoning.isNotEmpty &&
+                      !streamingReasoningPersisted)
                     _ReasoningPanel(
                       text: _turn.reasoningText,
                       generating: _turn.generating,
@@ -1133,6 +1152,99 @@ class _ReasoningPanelState extends State<_ReasoningPanel> {
   }
 }
 
+/// The model's thinking that was persisted **with an assistant message**.
+///
+/// Unlike [_ReasoningPanel], which only exists for the turn that is generating,
+/// this block is rebuilt from `AiMessage.reasoning` every time the conversation
+/// is opened. It is folded by default — after a reload the answer is what the
+/// user came back for — and each message remembers its own fold state.
+class _HistoryReasoningBlock extends StatefulWidget {
+  const _HistoryReasoningBlock({
+    required this.messageId,
+    required this.text,
+    required this.l10n,
+  });
+
+  /// `ai_messages.id` this thinking belongs to; the header key is built from it
+  /// so the test can address one copy in a list of many.
+  final String messageId;
+
+  /// Non-empty, trimmed text. Callers filter NULL / blank reasoning out before
+  /// building this widget.
+  final String text;
+
+  final AppLocalizations l10n;
+
+  @override
+  State<_HistoryReasoningBlock> createState() => _HistoryReasoningBlockState();
+}
+
+class _HistoryReasoningBlockState extends State<_HistoryReasoningBlock> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              key: aiHistoryReasoningKey(widget.messageId),
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.psychology_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.l10n.aiReasoningTitle,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const Spacer(),
+                    // 历史消息没有「生成中」状态，箭头就是唯一的展开提示。
+                    Icon(
+                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: SelectableText(
+                  widget.text,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A quiet "stopped" note under a cancelled answer.
 ///
 /// Deliberately not an error: the user stopped it on purpose and the partial
@@ -1195,9 +1307,25 @@ class _MessageBubble extends StatelessWidget {
   String get _text => streaming ? _streamText : (row?.content ?? '');
   bool get _isUser => !streaming && row?.role == AiRepository.roleUser;
 
+  /// The chain of thought persisted with this row, or null when there is
+  /// nothing worth folding. A streaming bubble never shows this: its thinking
+  /// lives in the live panel, and the loop writes it to the database when the
+  /// turn ends.
+  String? get _historyReasoning {
+    if (streaming) {
+      return null;
+    }
+    final reasoning = row?.reasoning;
+    if (reasoning == null || reasoning.trim().isEmpty) {
+      return null;
+    }
+    return reasoning.trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final historyReasoning = _historyReasoning;
     return Align(
       alignment: _isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -1214,6 +1342,14 @@ class _MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // History keeps the model's thinking, folded: it sits above the
+            // answer that it produced, exactly where the live panel was.
+            if (historyReasoning != null)
+              _HistoryReasoningBlock(
+                messageId: row!.id,
+                text: historyReasoning,
+                l10n: AppLocalizations.of(context),
+              ),
             // The picture itself, never a text rendering of its bytes: the
             // stored message holds the prompt text only.
             if (images.isNotEmpty)
