@@ -7,8 +7,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/tags/tag_usage.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../tags/application/tag_usage_scope.dart';
 
 /// 对话框本体（测试定位用）。
 const Key questionBulkTagDialogKey = Key('question-bulk-tag-dialog');
@@ -37,14 +38,14 @@ class QuestionBulkTagDialog extends ConsumerStatefulWidget {
 
 class _QuestionBulkTagDialogState extends ConsumerState<QuestionBulkTagDialog> {
   late final TextEditingController _search;
-  late final Future<List<String>> _pathsFuture;
+  late final Future<TagUsageScope> _scopeFuture;
   final Set<String> _selected = <String>{};
 
   @override
   void initState() {
     super.initState();
     _search = TextEditingController();
-    _pathsFuture = _loadPaths();
+    _scopeFuture = _loadScope();
   }
 
   @override
@@ -53,19 +54,21 @@ class _QuestionBulkTagDialogState extends ConsumerState<QuestionBulkTagDialog> {
     super.dispose();
   }
 
+  /// 只取「题库」用途可见的标签；整棵树还没声明过用途时全部可见。
+  Future<TagUsageScope> _loadScope() =>
+      loadTagUsageScope(ref, TagUsage.question);
+
   /// 标签路径：`tag.path` 优先，空时回落 `tag.name`（与标签树/打标签服务一致）；
   /// 去重、去空、按路径排序。
-  Future<List<String>> _loadPaths() async {
-    final tags = await ref.read(tagRepositoryProvider).getAllTags();
+  List<String> _paths(TagUsageScope scope) {
     final paths = <String>{
-      for (final tag in tags)
+      for (final tag in scope.visibleTags)
         if ((tag.path ?? '').trim().isNotEmpty)
           tag.path!.trim()
         else if (tag.name.trim().isNotEmpty)
           tag.name.trim(),
     };
-    final sorted = paths.toList()..sort();
-    return sorted;
+    return paths.toList()..sort();
   }
 
   List<String> _visible(List<String> paths) {
@@ -99,8 +102,8 @@ class _QuestionBulkTagDialogState extends ConsumerState<QuestionBulkTagDialog> {
       content: SizedBox(
         width: 520,
         height: 420,
-        child: FutureBuilder<List<String>>(
-          future: _pathsFuture,
+        child: FutureBuilder<TagUsageScope>(
+          future: _scopeFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(
@@ -110,17 +113,32 @@ class _QuestionBulkTagDialogState extends ConsumerState<QuestionBulkTagDialog> {
                 ),
               );
             }
-            final paths = snapshot.data;
-            if (paths == null) {
+            final scope = snapshot.data;
+            if (scope == null) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (paths.isEmpty) {
+            if (scope.tags.isEmpty) {
+              // 整棵标签树是空的：沿用老口径的「没有匹配的标签」。
               return Center(child: Text(l10n.questionBulkTagNoMatch));
             }
-            final visible = _visible(paths);
+            if (scope.isEmpty) {
+              // 树里设过用途，但没有一个属于题库：说清楚比给空列表有用。
+              return Center(
+                child: Text(
+                  tagUsageScopeEmptyText(l10n, scope),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+            final visible = _visible(_paths(scope));
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                Text(
+                  tagUsageScopeHint(l10n, scope),
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   key: questionBulkTagSearchKey,
                   controller: _search,

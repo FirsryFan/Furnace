@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/task_repository.dart';
 import 'package:furnace/data/repositories/time_block_repository.dart';
+import 'package:furnace/features/tags/application/tag_usage_scope.dart';
 import 'package:furnace/features/tasks/presentation/task_detail_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -123,6 +125,31 @@ void main() {
     await settle(tester);
   }
 
+  /// 直接种一个标签行（用途声明是可空列，测试里按需给）。
+  Future<void> seedTag(
+    AppDatabase db, {
+    required String id,
+    required String name,
+    String? path,
+    String? usageCodes,
+  }) async {
+    await db.into(db.tags).insert(TagsCompanion.insert(
+          id: id,
+          name: name,
+          path: path == null ? const Value.absent() : Value(path),
+          usageCodes:
+              usageCodes == null ? const Value.absent() : Value(usageCodes),
+          createdAt: 1,
+          updatedAt: 1,
+        ));
+  }
+
+  /// 点标签行右侧的「添加」按钮（页面里还有子任务/依赖的加号，只能按提示定位）。
+  Future<void> openTagPicker(WidgetTester tester) async {
+    await tester.tap(find.byTooltip(l10nOf(tester).commonAdd));
+    await settle(tester);
+  }
+
   testWidgets('撞上忙碌块：弹警告，选「移到这块之后」→ 落在块结束后一分钟', (tester) async {
     final db = await openDatabase();
     await seedBlock(db, startHour: 9, endHour: 10);
@@ -226,5 +253,105 @@ void main() {
       );
       expect(button.onPressed, isNull, reason: '找不到空闲时刻时「$prefix」不该可选');
     }
+  });
+
+  testWidgets('加标签：有声明时只列任务用途的标签，选中后写回关联', (tester) async {
+    final db = await openDatabase();
+    final taskId = await seedTask(db);
+    await seedTag(
+      db,
+      id: 't-task',
+      name: '数学作业',
+      path: '学习/数学作业',
+      usageCodes: 'task',
+    );
+    await seedTag(
+      db,
+      id: 't-question',
+      name: '生物',
+      path: '学习/生物',
+      usageCodes: 'question',
+    );
+    await seedTag(db, id: 't-undeclared', name: '杂项', path: '杂项');
+    await pumpPage(tester, db, taskId);
+
+    final l10n = l10nOf(tester);
+    await openTagPicker(tester);
+
+    expect(find.text('数学作业'), findsOneWidget);
+    expect(
+      find.text('杂项'),
+      findsOneWidget,
+      reason: '整条链没声明用途 = 不限制',
+    );
+    expect(
+      find.text('生物'),
+      findsNothing,
+      reason: '声明了题库用途的标签不该出现在任务选择器里',
+    );
+    expect(
+      find.text(l10n.tagUsageScopeHintNamed(l10n.tagUsageTask)),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('数学作业'));
+    await settle(tester);
+
+    final links = await db.select(db.objectTags).get();
+    expect(links, hasLength(1));
+    expect(links.single.tagId, 't-task');
+    expect(links.single.objectType, 'task');
+    expect(links.single.objectId, taskId);
+    expect(find.widgetWithText(Chip, '数学作业'), findsOneWidget);
+  });
+
+  testWidgets('加标签：只有别的用途的标签时弹说明框且不写库', (tester) async {
+    final db = await openDatabase();
+    final taskId = await seedTask(db);
+    await seedTag(
+      db,
+      id: 't-question',
+      name: '生物',
+      path: '学习/生物',
+      usageCodes: 'question',
+    );
+    await pumpPage(tester, db, taskId);
+
+    final l10n = l10nOf(tester);
+    await openTagPicker(tester);
+
+    expect(find.byKey(TagUsageScope.emptyDialogKey), findsOneWidget);
+    expect(find.text(l10n.tagUsageDialogTitle), findsOneWidget);
+    expect(
+      find.text(l10n.tagUsageScopeEmptyNamed(l10n.tagUsageTask)),
+      findsOneWidget,
+    );
+    expect(await db.select(db.objectTags).get(), isEmpty);
+
+    await tester.tap(find.text(l10n.commonClose));
+    await settle(tester);
+    expect(find.byKey(TagUsageScope.emptyDialogKey), findsNothing);
+  });
+
+  testWidgets('加标签：整棵树没有声明用途时全部可选并给默认提示', (tester) async {
+    final db = await openDatabase();
+    final taskId = await seedTask(db);
+    await seedTag(db, id: 't-a', name: '数学作业', path: '学习/数学作业');
+    await seedTag(db, id: 't-b', name: '物理作业', path: '学习/物理作业');
+    await pumpPage(tester, db, taskId);
+
+    final l10n = l10nOf(tester);
+    await openTagPicker(tester);
+
+    expect(find.text(l10n.tagUsageScopeDefaultHint), findsOneWidget);
+    expect(find.text('数学作业'), findsOneWidget);
+    expect(find.text('物理作业'), findsOneWidget);
+
+    await tester.tap(find.text('物理作业'));
+    await settle(tester);
+
+    final links = await db.select(db.objectTags).get();
+    expect(links, hasLength(1));
+    expect(links.single.tagId, 't-b');
   });
 }

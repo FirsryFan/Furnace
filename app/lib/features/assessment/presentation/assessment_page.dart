@@ -35,7 +35,10 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/assessment_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/assessment_prior.dart';
+import '../../../domain/services/tags/tag_usage.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../tags/application/tag_usage_providers.dart';
+import '../../tags/application/tag_usage_scope.dart';
 
 /// Every tag, in tree order (the scope picker).
 ///
@@ -47,6 +50,32 @@ final assessmentTagsProvider = FutureProvider<List<Tag>>((ref) async {
       final byPath = (a.path ?? a.name).compareTo(b.path ?? b.name);
       return byPath != 0 ? byPath : a.id.compareTo(b.id);
     });
+});
+
+/// 「选范围」第 1 步用的标签列表：只保留声明了「知识网络」用途的标签。
+///
+/// 只给选择器用。[assessmentTagsProvider] 保持全量，因为
+/// [assessmentScopeProvider] 要沿 `parentId` 展开子树，换成过滤后的列表会漏
+/// 掉没有声明用途的子标签，从而测到用户没选的群体。
+final assessmentScopeTagsProvider =
+    FutureProvider.autoDispose<TagUsageScope>((ref) async {
+  final tags = await ref.watch(tagRepositoryProvider).getAllTags();
+  final resolver = await ref.watch(tagUsageResolverProvider.future);
+  final scope = buildTagUsageScope(
+    usage: TagUsage.knowledge,
+    tags: tags,
+    resolver: resolver,
+  );
+  final visible = [...scope.visibleTags]..sort((a, b) {
+      final byPath = (a.path ?? a.name).compareTo(b.path ?? b.name);
+      return byPath != 0 ? byPath : a.id.compareTo(b.id);
+    });
+  return TagUsageScope(
+    usage: scope.usage,
+    tags: scope.tags,
+    visibleTags: visible,
+    hasAnyDeclaration: scope.hasAnyDeclaration,
+  );
 });
 
 /// The knowledge points a scope covers.
@@ -273,7 +302,7 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final tags = ref.watch(assessmentTagsProvider);
+    final tags = ref.watch(assessmentScopeTagsProvider);
     final scope = ref.watch(assessmentScopeProvider(_scopeKey));
 
     return Scaffold(
@@ -286,10 +315,10 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
             child: tags.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => _ErrorBox(text: '$error'),
-              data: (allTags) => scope.when(
+              data: (tagScope) => scope.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => _ErrorBox(text: '$error'),
-                data: (data) => _stepBody(l10n, allTags, data),
+                data: (data) => _stepBody(l10n, tagScope, data),
               ),
             ),
           ),
@@ -355,12 +384,12 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
 
   Widget _stepBody(
     AppLocalizations l10n,
-    List<Tag> allTags,
+    TagUsageScope tagScope,
     AssessmentScope scope,
   ) {
     switch (_step) {
       case 0:
-        return _scopeStep(l10n, allTags, scope);
+        return _scopeStep(l10n, tagScope, scope);
       case 1:
         return _selfStep(l10n, scope);
       case 2:
@@ -372,10 +401,10 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
 
   Widget _scopeStep(
     AppLocalizations l10n,
-    List<Tag> allTags,
+    TagUsageScope tagScope,
     AssessmentScope scope,
   ) {
-    if (allTags.isEmpty) {
+    if (tagScope.tags.isEmpty) {
       return _Hint(text: l10n.assessmentScopeEmpty);
     }
     return ListView(
@@ -383,32 +412,39 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
       children: [
         _Hint(text: l10n.assessmentIntro),
         const SizedBox(height: 12),
-        _Hint(text: l10n.assessmentScopeHint),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final tag in allTags)
-              FilterChip(
-                label: Text(tag.name),
-                selected: _tagIds.contains(tag.id),
-                onSelected: (selected) => setState(() {
-                  if (selected) {
-                    _tagIds.add(tag.id);
-                  } else {
-                    _tagIds.remove(tag.id);
-                  }
-                  // The rating maps are keyed by knowledge point, so a scope
-                  // change cannot silently carry a rating into a point that is
-                  // no longer part of the measurement.
-                  _selfRatings.removeWhere(
-                    (id, _) => !scope.knowledgePoints.any((kp) => kp.id == id),
-                  );
-                }),
-              ),
-          ],
-        ),
+        if (tagScope.isEmpty) ...[
+          // 标签树设过用途，但没有属于「知识网络」的标签：直接说明白，
+          // 而不是让用户面对一片空白还以为是自己没选。
+          _Hint(text: tagUsageScopeEmptyText(l10n, tagScope)),
+        ] else ...[
+          _Hint(text: tagUsageScopeHint(l10n, tagScope)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final tag in tagScope.visibleTags)
+                FilterChip(
+                  label: Text(tag.name),
+                  selected: _tagIds.contains(tag.id),
+                  onSelected: (selected) => setState(() {
+                    if (selected) {
+                      _tagIds.add(tag.id);
+                    } else {
+                      _tagIds.remove(tag.id);
+                    }
+                    // The rating maps are keyed by knowledge point, so a scope
+                    // change cannot silently carry a rating into a point that is
+                    // no longer part of the measurement.
+                    _selfRatings.removeWhere(
+                      (id, _) =>
+                          !scope.knowledgePoints.any((kp) => kp.id == id),
+                    );
+                  }),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         Text(
           scope.isEmpty

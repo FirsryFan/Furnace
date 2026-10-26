@@ -7,6 +7,8 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/scheduling/schedule_conflict.dart';
 import '../../../domain/services/scheduling/time_window_engine.dart';
+import '../../../domain/services/tags/tag_usage.dart';
+import '../../tags/application/tag_usage_scope.dart';
 import '../application/task_scheduler_providers.dart';
 import 'widgets/schedule_conflict_dialog.dart';
 
@@ -408,20 +410,40 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
     await _load();
   }
 
+  /// 加标签：候选只取「任务」用途可见的标签；整棵树还没声明用途时全部可选。
+  ///
+  /// 设过用途但任务域为空时弹一个说明框，而不是静默什么都不发生或给空列表。
   Future<void> _addTag(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
-    final allTags = await ref.read(tagRepositoryProvider).getAllTags();
+    final scope = await loadTagUsageScope(ref, TagUsage.task);
+    if (!mounted) {
+      return;
+    }
+    if (scope.tags.isEmpty) {
+      return;
+    }
+    if (scope.isEmpty) {
+      await showTagUsageScopeEmptyDialog(context, TagUsage.task, l10n: l10n);
+      return;
+    }
     final existingIds = _tags.map((t) => t.id).toSet();
-    final candidates =
-        allTags.where((t) => !existingIds.contains(t.id)).toList();
+    final candidates = <Tag>[
+      for (final tag in scope.visibleTags)
+        if (!existingIds.contains(tag.id)) tag,
+    ];
     if (candidates.isEmpty) {
       return;
     }
+    final hint = tagUsageScopeHint(l10n, scope);
     final selected = await showDialog<Tag>(
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(l10n.tagsTitle),
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+            child: Text(hint, style: Theme.of(context).textTheme.bodySmall),
+          ),
           for (final tag in candidates)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, tag),

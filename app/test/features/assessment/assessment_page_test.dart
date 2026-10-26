@@ -102,6 +102,48 @@ Future<void> _seed(AppDatabase db) async {
   }
 }
 
+/// 一个「知识网络」可见的父标签，其子标签声明了**别的**用途。
+///
+/// 子标签不该出现在范围选择器里；但选中父标签时，它的知识点仍要一起进来：
+/// 范围展开走的是整棵标签树的 parentId，而不是选择器过滤后的列表。
+Future<void> _seedScoped(AppDatabase db) async {
+  await db.into(db.tags).insert(TagsCompanion.insert(
+        id: 't-root',
+        name: '生物',
+        path: const Value('生物'),
+        usageCodes: const Value('knowledge'),
+        createdAt: 1,
+        updatedAt: 1,
+      ));
+  await db.into(db.tags).insert(TagsCompanion.insert(
+        id: 't-cell',
+        parentId: const Value('t-root'),
+        name: '细胞',
+        path: const Value('生物/细胞'),
+        usageCodes: const Value('flashcard'),
+        createdAt: 1,
+        updatedAt: 1,
+      ));
+  const titles = ['A', 'B', 'C', 'D', 'E'];
+  for (final title in titles) {
+    final id = 'kp-${title.toLowerCase()}';
+    await db.into(db.knowledgePoints).insert(KnowledgePointsCompanion.insert(
+          id: id,
+          title: title,
+          content: '内容 $title',
+          createdAt: 1,
+          updatedAt: 1,
+        ));
+    await db.into(db.objectTags).insert(ObjectTagsCompanion.insert(
+          id: 'ot-$id',
+          tagId: 't-cell',
+          objectType: 'knowledge_point',
+          objectId: id,
+          createdAt: 1,
+        ));
+  }
+}
+
 void main() {
   testWidgets('the flow writes one session, four steps, and the scope priors',
       (tester) async {
@@ -264,5 +306,77 @@ void main() {
     expect(recallPicks(points(5)).map((kp) => kp.id), ['k0', 'k2', 'k4']);
     expect(recallPicks(points(2)).map((kp) => kp.id), ['k0', 'k1']);
     expect(recallPicks(points(0)), isEmpty);
+  });
+
+  testWidgets(
+      'the scope picker only lists knowledge tags, but expands the whole tree',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seedScoped(db);
+    await _pump(tester, db);
+
+    final l10n =
+        AppLocalizations.of(tester.element(find.byType(AssessmentPage)));
+    expect(find.widgetWithText(FilterChip, '生物'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilterChip, '细胞'),
+      findsNothing,
+      reason: '细胞 declares 闪卡, so it is not a knowledge-network label',
+    );
+    expect(
+      find.text(l10n.tagUsageScopeHintNamed(l10n.tagUsageKnowledge)),
+      findsOneWidget,
+    );
+
+    await _tap(tester, find.widgetWithText(FilterChip, '生物'));
+    expect(
+      find.text('这块里有 5 个知识点'),
+      findsOneWidget,
+      reason:
+          'scope expansion walks parentId over the full tree, not the filtered picker list',
+    );
+  });
+
+  testWidgets('a tree with only other usages says so and cannot advance',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.into(db.tags).insert(TagsCompanion.insert(
+          id: 't-word',
+          name: '单词',
+          path: const Value('英语/单词'),
+          usageCodes: const Value('flashcard'),
+          createdAt: 1,
+          updatedAt: 1,
+        ));
+    await _pump(tester, db);
+
+    final l10n =
+        AppLocalizations.of(tester.element(find.byType(AssessmentPage)));
+    expect(
+      find.text(l10n.tagUsageScopeEmptyNamed(l10n.tagUsageKnowledge)),
+      findsOneWidget,
+    );
+    expect(find.byType(FilterChip), findsNothing);
+    final next = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, l10n.assessmentNext),
+    );
+    expect(next.onPressed, isNull);
+  });
+
+  testWidgets(
+      'without any declaration every tag is listed with the default hint',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await _seed(db);
+    await _pump(tester, db);
+
+    final l10n =
+        AppLocalizations.of(tester.element(find.byType(AssessmentPage)));
+    expect(find.text(l10n.tagUsageScopeDefaultHint), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '生物'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '细胞'), findsOneWidget);
   });
 }
