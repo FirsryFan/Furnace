@@ -48,6 +48,8 @@
 | 组卷网检索词长度（标准侧同步） | 表内无此节 | ✅ 2026-10-26（轮次一百七十九，用户反馈第 9 条补完）：`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs` 与 `SKILL.md` §6.2 改同理科 15–30 / 文科 20–40 且严格短于题干，CLI 加 `--band humanities`；文科分段保留全角逗号（候选可能含逗号，站点容错未实测）。App 侧 `zujuan_keywords.dart` 文件头改为「已同步」。真实站点命中率人工 A/B 未做 |
 | 标签用途域：三个选择器接入 | 表内无此节 | ✅ 2026-10-26（轮次一百七十九，用户反馈第 10/11 条补完）：`app/lib/features/tags/application/tag_usage_scope.dart` 统一「按用途过滤 + 提示 + 两种空态」；题库批量打标签对话框、任务详情「加标签」、认知测评选择范围（`TagUsage.knowledge`）三处改用 `TagUsageScope`；l10n 加 `tagUsageScopeHintNamed` / `tagUsageScopeEmptyNamed`。AI 建议标签 / 组卷选标签 / 知识网络入口 / 题库包路径选择器仍读全树 |
 | 能力趋势（纯逻辑） | 表内无此节 | ✅ 2026-10-26（轮次一百七十九，用户反馈第 8 条后续）：`app/lib/domain/services/cognitive/ability_trend.dart` 把「最近 N 次能力测量」整理成旧→新序列（按 `capturedAt` 稳定排序、最多 30 点）、`delta`/平均/最好/最差、方向（阈值 2.0 分判变好/持平/变差）、0–1 归一化坐标；29 例测试。画像页趋势图 UI 未接。见 [ASSESSMENT_DESIGN.md](ASSESSMENT_DESIGN.md) §9 |
+| 能力画像趋势折线（UI） | 表内无此节 | ✅ 2026-10-26（轮次一百八十，用户反馈第 8 条后续）：`abilityTrendProvider` 读最近 30 次，画像页每张能力卡在分数/次数下画 `CustomPaint` 迷你折线（高 36、宽撑满、线宽 2 primary、每点 2px 圆点，y = 1 − 归一化分数）；不足 2 点显示「至少测两次」，≥2 点显示「最近 N 次」+ 方向词（变好/持平/变差，阈值 2 分，色 primary/onSurfaceVariant/error），读库失败只坏那张卡。`ability_profile_page_test.dart` 6→12 例。未做：坐标轴/时间标签、真机视觉验证。见 [ASSESSMENT_DESIGN.md](ASSESSMENT_DESIGN.md) §9 |
+| 标签用途域：题库包标签路径 + 手写整理提示词 | 表内无此节 | ✅ 2026-10-26（轮次一百八十，用户反馈第 10/11 条补完）：设置页「题库包导出 → 标签路径」用 `questionPackTagPathScopeProvider` 按 `TagUsage.question` 过滤（纯函数签名不动；对话框给范围提示、用途边界空态、整树无声明时全列）；手写整理的 `existingTagPaths` 与 `previewFor` 已有标签集合也只认「纳入题库」标签。picker 10→13 例、手写服务 +2 例。已知取舍：`applyAll` 写库仍走全量 `getTagByPath`。 |
 
 ---
 
