@@ -9739,6 +9739,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last {count} tests'**
   String abilityTrendRecent(int count);
+
+  /// Section title for capability codes on the question detail page (handoff §7 M2 capability field).
+  ///
+  /// In en, this message translates to:
+  /// **'Capabilities'**
+  String get questionCapabilitySection;
+
+  /// Shown when the parent question of an extension is in the local library; serialNo is the parent's local serial number.
+  ///
+  /// In en, this message translates to:
+  /// **'Extension of #{serialNo}'**
+  String questionExtensionParentSerial(int serialNo);
+
+  /// Shown when the parent question has not been imported yet; identifies it by the recorded zujuan question id.
+  ///
+  /// In en, this message translates to:
+  /// **'Extension of zujuan question {id}'**
+  String questionExtensionParentZujuan(String id);
+
+  /// Hint shown when the parent question id is known but the row is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'The parent question is not in the library yet'**
+  String get questionExtensionParentMissing;
+
+  /// Section title listing the extension questions attached to this question.
+  ///
+  /// In en, this message translates to:
+  /// **'Extensions ({count})'**
+  String questionExtensionChildrenTitle(int count);
 }
 
 class _AppLocalizationsDelegate

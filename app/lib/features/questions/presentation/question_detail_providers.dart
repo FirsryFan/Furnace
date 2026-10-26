@@ -94,6 +94,63 @@ final questionSerialPositionProvider = FutureProvider.autoDispose
   return repository.serialPosition(serialNo);
 });
 
+/// 详情页「扩展题 / 母题」区要的关联（handoff §7 M2：`extension_of`）。
+///
+/// 语义（都在纯逻辑 `question_extension.dart` 里定义，这里只负责**取数**）：
+///  * `parentZujuanQuestionId` 非空 = 这道题是扩展题，母题用组卷网题号指认；
+///  * `parent` = 母题在本地题库里的那一行，**null 表示母题还没导入**（不是错误，
+///    包可以只带扩展题）；
+///  * `children` = 题号指向这道题（`extension_of == question.zujuanQuestionId`）
+///    的其他题。没有组卷网题号的题不可能被指向，children 恒为空。
+///
+/// 不吞异常：读库失败让 FutureProvider 报错，页面自己决定显示什么。
+class QuestionExtensionLinks {
+  const QuestionExtensionLinks({
+    required this.parentZujuanQuestionId,
+    required this.parent,
+    required this.children,
+  });
+
+  /// 空串 = 这道题不是扩展题。
+  final String parentZujuanQuestionId;
+
+  /// 母题本地行；null = 题号已知但题库里没有这行。
+  final Question? parent;
+
+  /// 挂在这道题下的扩展题，已按「题号升序、未编号最后」排好。
+  final List<Question> children;
+
+  bool get isExtension => parentZujuanQuestionId.isNotEmpty;
+
+  bool get isEmpty => !isExtension && children.isEmpty;
+}
+
+/// 一道题的扩展关联；题目被删时返回空关联（页面不必判 null）。
+final questionExtensionLinksProvider = FutureProvider.autoDispose
+    .family<QuestionExtensionLinks, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  final repository = ref.watch(questionRepositoryProvider);
+  final question = await repository.byId(questionId);
+  if (question == null) {
+    return const QuestionExtensionLinks(
+      parentZujuanQuestionId: '',
+      parent: null,
+      children: <Question>[],
+    );
+  }
+  final parentQid = question.extensionOf?.trim() ?? '';
+  final parent =
+      parentQid.isEmpty ? null : await repository.byZujuanQuestionId(parentQid);
+  final children = await repository.questionsByExtensionOf(
+    question.zujuanQuestionId?.trim() ?? '',
+  );
+  return QuestionExtensionLinks(
+    parentZujuanQuestionId: parentQid,
+    parent: parent,
+    children: children,
+  );
+});
+
 /// 库里最新的一条链，已经还原成解析器的产物形状。
 class StoredChain {
   const StoredChain({

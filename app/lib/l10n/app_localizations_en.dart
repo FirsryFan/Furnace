@@ -5828,4 +5828,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String abilityTrendRecent(int count) {
     return 'Last $count tests';
   }
+
+  @override
+  String get questionCapabilitySection => 'Capabilities';
+
+  @override
+  String questionExtensionParentSerial(int serialNo) {
+    return 'Extension of #$serialNo';
+  }
+
+  @override
+  String questionExtensionParentZujuan(String id) {
+    return 'Extension of zujuan question $id';
+  }
+
+  @override
+  String get questionExtensionParentMissing =>
+      'The parent question is not in the library yet';
+
+  @override
+  String questionExtensionChildrenTitle(int count) {
+    return 'Extensions ($count)';
+  }
 }

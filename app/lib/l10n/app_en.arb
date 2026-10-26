@@ -3566,5 +3566,40 @@
         "type": "int"
       }
     }
+  },
+  "questionCapabilitySection": "Capabilities",
+  "@questionCapabilitySection": {
+    "description": "Section title for capability codes on the question detail page (handoff §7 M2 capability field)."
+  },
+  "questionExtensionParentSerial": "Extension of #{serialNo}",
+  "@questionExtensionParentSerial": {
+    "description": "Shown when the parent question of an extension is in the local library; serialNo is the parent's local serial number.",
+    "placeholders": {
+      "serialNo": {
+        "type": "int"
+      }
+    }
+  },
+  "questionExtensionParentZujuan": "Extension of zujuan question {id}",
+  "@questionExtensionParentZujuan": {
+    "description": "Shown when the parent question has not been imported yet; identifies it by the recorded zujuan question id.",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "questionExtensionParentMissing": "The parent question is not in the library yet",
+  "@questionExtensionParentMissing": {
+    "description": "Hint shown when the parent question id is known but the row is missing."
+  },
+  "questionExtensionChildrenTitle": "Extensions ({count})",
+  "@questionExtensionChildrenTitle": {
+    "description": "Section title listing the extension questions attached to this question.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

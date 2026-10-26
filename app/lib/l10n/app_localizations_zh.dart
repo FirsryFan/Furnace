@@ -5591,4 +5591,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String abilityTrendRecent(int count) {
     return '最近 $count 次';
   }
+
+  @override
+  String get questionCapabilitySection => '能力点';
+
+  @override
+  String questionExtensionParentSerial(int serialNo) {
+    return '扩展自 #$serialNo';
+  }
+
+  @override
+  String questionExtensionParentZujuan(String id) {
+    return '扩展自组卷网题号 $id';
+  }
+
+  @override
+  String get questionExtensionParentMissing => '母题还没导入题库';
+
+  @override
+  String questionExtensionChildrenTitle(int count) {
+    return '扩展题（$count）';
+  }
 }

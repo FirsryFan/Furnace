@@ -3473,5 +3473,40 @@
         "type": "int"
       }
     }
+  },
+  "questionCapabilitySection": "能力点",
+  "@questionCapabilitySection": {
+    "description": "题目详情页能力点小节的标题（handoff §7 M2 的 capability 字段）。"
+  },
+  "questionExtensionParentSerial": "扩展自 #{serialNo}",
+  "@questionExtensionParentSerial": {
+    "description": "扩展题的母题在本地题库里时的入口文案，serialNo 是母题的本地题号。",
+    "placeholders": {
+      "serialNo": {
+        "type": "int"
+      }
+    }
+  },
+  "questionExtensionParentZujuan": "扩展自组卷网题号 {id}",
+  "@questionExtensionParentZujuan": {
+    "description": "母题还没导入题库时，用它记录的组卷网题号指认母题。",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "questionExtensionParentMissing": "母题还没导入题库",
+  "@questionExtensionParentMissing": {
+    "description": "母题题号已知但题库里没有这一行时的提示。"
+  },
+  "questionExtensionChildrenTitle": "扩展题（{count}）",
+  "@questionExtensionChildrenTitle": {
+    "description": "这道题挂着多少道扩展题的小节标题。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

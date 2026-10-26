@@ -29,6 +29,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/objective_answer.dart';
+import '../../../domain/services/questions/question_capability.dart';
 import '../../../domain/services/questions/question_number_query.dart';
 import '../../../domain/services/questions/question_source.dart';
 import '../../../domain/services/questions/question_stem_image_plan.dart';
@@ -43,6 +44,7 @@ import '../application/similar_question_provider.dart';
 import 'question_audit_view.dart';
 import 'question_detail_providers.dart';
 import 'question_intake_page.dart';
+import 'question_markdown_view.dart';
 import 'question_media_view.dart';
 import 'question_source_edit_dialog.dart';
 import 'question_title_dialog.dart';
@@ -110,6 +112,24 @@ const Key questionDetailSerialPositionKey =
 
 /// AppBar 上「跳题号」按钮的 key（测试定位用）。
 const Key questionDetailJumpSerialKey = Key('question-detail-jump-serial');
+
+/// 「能力点」chips 区块的 key（测试定位用）。
+///
+/// 题目没标能力点时整块不渲染，所以测试既可以断言"有"，也可以断言"没有"。
+const Key questionCapabilityChipsKey = Key('question-capability-chips');
+
+/// 「扩展题 / 母题」关联区块的 key（测试定位用）。
+const Key questionExtensionLinksKey = Key('question-extension-links');
+
+/// 母题入口行的 key（测试定位用）。
+///
+/// 母题在库里时才可点；只有组卷网题号时这一行是禁用态、**没有这个 key**，
+/// 测试据此区分"能进去"与"只能看题号"。
+const Key questionExtensionParentKey = Key('question-extension-parent');
+
+/// 扩展题子题入口行的 key：`question-extension-child-<questionId>`。
+Key questionExtensionChildKey(String questionId) =>
+    ValueKey<String>('question-extension-child-$questionId');
 
 /// 详情页只吃一个 id：其余全部现读，页面上任何东西都不是调用方传进来的快照。
 class QuestionDetailPage extends ConsumerStatefulWidget {
@@ -584,7 +604,13 @@ class _QuestionBodyState extends State<_QuestionBody> {
             fontWeight: FontWeight.w600,
           ),
         );
-    Widget contentText() => QuestionRichText(text: option.content);
+    // 题目声明为 Markdown 时选项也跟着整段渲染；缺省仍是原文 + 行内公式。
+    Widget contentText() => MarkdownQuestionText(
+          text: option.content,
+          markdown: questionTextFormatIsMarkdown(
+            widget.detail.question.textFormat,
+          ),
+        );
     final correctMark = option.isCorrect && !_answersHidden
         ? Padding(
             padding: const EdgeInsets.only(left: 8),
@@ -695,6 +721,9 @@ class _QuestionBodyState extends State<_QuestionBody> {
     final answer = question.answer?.trim() ?? '';
     final solution = question.solution?.trim() ?? '';
     final trapNote = question.trapNote?.trim() ?? '';
+    // 只有 `.tqb` 明确标了 `text_format: markdown` 的题才整段渲染；历史题
+    // （NULL / plain）保持「原文 + 行内公式」的老口径。
+    final markdownText = questionTextFormatIsMarkdown(question.textFormat);
     // 题名是用户自己起的扫描标签：没起名就明确显示「未命名」，不拿题干冒充。
     final title = (question.title ?? '').trim();
     final hasTitle = title.isNotEmpty;
@@ -781,6 +810,7 @@ class _QuestionBodyState extends State<_QuestionBody> {
         _QuestionStemView(
           questionId: question.id,
           stem: question.stem,
+          markdown: markdownText,
         ),
         if (question.difficulty != null) ...[
           const SizedBox(height: 4),
@@ -789,6 +819,9 @@ class _QuestionBodyState extends State<_QuestionBody> {
             style: theme.textTheme.bodySmall,
           ),
         ],
+        // 能力点与扩展关联（handoff §7 M2）：有数据才出现，两边都空时零高度，
+        // 老题看起来与加这个功能之前完全一样。
+        _QuestionRelationsSection(question: question),
         if (detail.options.isNotEmpty) ...[
           const SizedBox(height: 16),
           Row(
@@ -851,6 +884,7 @@ class _QuestionBodyState extends State<_QuestionBody> {
           _LabelledText(
             label: l10n.questionIntakeAnswerLabel,
             value: answer,
+            markdown: markdownText,
           ),
           // 答案截图紧跟答案段：组卷网登录后才看得到的整张答案图，
           // 和题干配图分开存、也分开显示。
@@ -865,11 +899,13 @@ class _QuestionBodyState extends State<_QuestionBody> {
           _LabelledText(
             label: l10n.questionIntakeSolutionLabel,
             value: solution,
+            markdown: markdownText,
           ),
         if (trapNote.isNotEmpty)
           _LabelledText(
             label: l10n.questionDetailTrapNote,
             value: trapNote,
+            markdown: markdownText,
           ),
         if (answer.isEmpty && !_answersHidden) ...[
           // 没有文字答案时也不藏编辑入口：不是每道题都有现成答案，
@@ -892,6 +928,241 @@ class _QuestionBodyState extends State<_QuestionBody> {
       ],
     );
   }
+}
+
+/// 题目的「能力点」与「扩展题 / 母题」关联（handoff §7 M2）。
+///
+/// 两块都是**有数据才出现**：没标能力点、扩展关联两边都空时整块零高度。
+/// 能力点来自 `questions.capability`（JSON 数组文本），扩展关联走
+/// `questionExtensionLinksProvider`（`extension_of` 反查）。
+class _QuestionRelationsSection extends ConsumerWidget {
+  const _QuestionRelationsSection({required this.question});
+
+  final Question question;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final codes = decodeQuestionCapability(question.capability);
+    final links =
+        ref.watch(questionExtensionLinksProvider(question.id)).valueOrNull;
+    final hasCapability = codes.isNotEmpty;
+    final hasLinks = links != null && !links.isEmpty;
+    if (!hasCapability && !hasLinks) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (hasCapability) _QuestionCapabilityChips(codes: codes),
+          if (hasCapability && hasLinks) const SizedBox(height: 12),
+          if (hasLinks) _QuestionExtensionLinksView(links: links),
+        ],
+      ),
+    );
+  }
+}
+
+/// 能力点 chips：只读（标注能力点目前不在本题详情页做）。
+class _QuestionCapabilityChips extends StatelessWidget {
+  const _QuestionCapabilityChips({required this.codes});
+
+  final List<String> codes;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Column(
+      key: questionCapabilityChipsKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(l10n.questionCapabilitySection, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: <Widget>[
+            for (final code in codes)
+              Chip(
+                label: Text(_capabilityChipLabel(code)),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 能力点 chip 文案：`A2 信息定位与提取`。
+///
+/// 词表按既有约定只带中文标签（英文界面也显示中文，不另造译名）；
+/// 认不出的代码原样显示——脏数据不该在界面上被静默吞掉。
+String _capabilityChipLabel(String code) {
+  final capability = QuestionCapability.fromCode(code);
+  if (capability == null) {
+    return code;
+  }
+  return '${capability.code} ${capability.labelZh}';
+}
+
+/// 扩展关联：母题入口 + 扩展题列表。
+class _QuestionExtensionLinksView extends StatelessWidget {
+  const _QuestionExtensionLinksView({required this.links});
+
+  final QuestionExtensionLinks links;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Column(
+      key: questionExtensionLinksKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (links.isExtension) _QuestionExtensionParentRow(links: links),
+        if (links.isExtension && links.children.isNotEmpty)
+          const SizedBox(height: 8),
+        if (links.children.isNotEmpty) ...[
+          Text(
+            l10n.questionExtensionChildrenTitle(links.children.length),
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          for (final child in links.children)
+            _QuestionExtensionChildRow(child: child),
+        ],
+      ],
+    );
+  }
+}
+
+/// 母题入口行：母题在库里就点得进去；只有组卷网题号时是禁用态 + 缺失说明。
+class _QuestionExtensionParentRow extends StatelessWidget {
+  const _QuestionExtensionParentRow({required this.links});
+
+  final QuestionExtensionLinks links;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final parent = links.parent;
+    if (parent == null) {
+      // 母题还没导入：题号照样摆出来（能拿去组卷网核），但不给假动作。
+      return Tooltip(
+        message: l10n.questionExtensionParentMissing,
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.subdirectory_arrow_left,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.questionExtensionParentZujuan(
+                  links.parentZujuanQuestionId,
+                ),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Text(
+              l10n.questionExtensionParentMissing,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final serialNo = parent.serialNo;
+    final label = serialNo != null
+        ? l10n.questionExtensionParentSerial(serialNo)
+        : l10n.questionExtensionParentZujuan(links.parentZujuanQuestionId);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: questionExtensionParentKey,
+        onPressed: () => _openQuestionDetail(context, parent.id),
+        icon: const Icon(Icons.subdirectory_arrow_left, size: 18),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+/// 扩展题子题行：题号 + 一行预览，点进子题详情。
+class _QuestionExtensionChildRow extends StatelessWidget {
+  const _QuestionExtensionChildRow({required this.child});
+
+  final Question child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      key: questionExtensionChildKey(child.id),
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => _openQuestionDetail(context, child.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: <Widget>[
+            QuestionSerialBadge(
+              serialNo: child.serialNo,
+              dense: true,
+              copyable: false,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _questionRelationPreview(child),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 关联行的预览文字：优先题名，没有就压成一行的题干。
+String _questionRelationPreview(Question question) {
+  final title = (question.title ?? '').trim();
+  if (title.isNotEmpty) {
+    return title;
+  }
+  final stem = question.stem.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return stem.isEmpty ? '—' : stem;
+}
+
+/// 打开关联题目：母题 / 扩展题都是"往下钻一层"，用 push。
+///
+/// 与同层翻页的 `pushReplacement`（见 `_openNeighbor`）不同：从母题返回时
+/// 应该回到当前这道题，而不是被换掉。
+void _openQuestionDetail(BuildContext context, String questionId) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => QuestionDetailPage(questionId: questionId),
+    ),
+  );
 }
 
 /// 自测判分后的结果横幅：对/错 +（答错时）正确选项 label。
@@ -1207,16 +1478,31 @@ String _formatAttemptTime(DateTime at) {
 /// 图片数据没加载出来时先按「没有图」渲染文字，加载完成后同一位置重建；
 /// 个别图读不出来只会少一张图，不会抛。
 class _QuestionStemView extends ConsumerWidget {
-  const _QuestionStemView({required this.questionId, required this.stem});
+  const _QuestionStemView({
+    required this.questionId,
+    required this.stem,
+    this.markdown = false,
+  });
 
   final String questionId;
   final String stem;
+
+  /// 题目是否为 Markdown 文本；true 时文字段整段渲染（图片段不变）。
+  final bool markdown;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final images = ref.watch(questionImagesProvider(questionId)).valueOrNull;
+
+    // B0：文件名带 `fullcard_` 前缀的是「整卡截图」，不看像素尺寸直接按
+    // snapshot 排版（正文占位中性化成「…」，整图跟到末尾）。
+    final hasFullcardImage = images != null &&
+        images.any(
+          (image) =>
+              image.fileName.trim().toLowerCase().startsWith('fullcard_'),
+        );
 
     // 逐图读像素尺寸：字节还没回来 / 头部解析失败都填 null，交给 plan 兜底。
     final imageSizes = <QuestionStemImageSize?>[];
@@ -1237,6 +1523,7 @@ class _QuestionStemView extends ConsumerWidget {
       stem,
       imageCount: images?.length ?? 0,
       imageSizes: imageSizes,
+      hasFullcardImage: hasFullcardImage,
     );
 
     Widget imageAt(int order) {
@@ -1262,9 +1549,10 @@ class _QuestionStemView extends ConsumerWidget {
           if (segment.isText)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: QuestionRichText(
+              child: MarkdownQuestionText(
                 text: segment.text,
                 style: theme.textTheme.titleMedium,
+                markdown: markdown,
               ),
             )
           else
@@ -1728,10 +2016,18 @@ class _KnowledgePointChips extends StatelessWidget {
 
 /// 一个"标签 + 值"的竖排小段。详情页上大量重复的排版只有这一种。
 class _LabelledText extends StatelessWidget {
-  const _LabelledText({required this.label, required this.value});
+  const _LabelledText({
+    required this.label,
+    required this.value,
+    this.markdown = false,
+  });
 
   final String label;
   final String value;
+
+  /// 题目声明为 Markdown 时整段渲染（答案/解析/理由跟随）；推理链等页面
+  /// 自有文本用缺省 false，保持原口径。
+  final bool markdown;
 
   @override
   Widget build(BuildContext context) {
@@ -1745,7 +2041,7 @@ class _LabelledText extends StatelessWidget {
           const SizedBox(height: 2),
           // 答案/解析/理由里也可能有 $…$ 公式：和题干走同一个渲染口径，
           // 但字号跟随正文（题干是 titleMedium，这些是默认 body 风格）。
-          QuestionRichText(text: value),
+          MarkdownQuestionText(text: value, markdown: markdown),
         ],
       ),
     );
