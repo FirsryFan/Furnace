@@ -218,7 +218,8 @@ class AiRepository {
   ///
   /// [fallbackLanguage] is used only when the row has to be created from
   /// scratch (a database that predates the settings row entirely).
-  Future<void> saveConfig(AiConfig config, {required String fallbackLanguage}) async {
+  Future<void> saveConfig(AiConfig config,
+      {required String fallbackLanguage}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final existing = await _db.select(_db.localSettings).get();
     if (existing.isEmpty) {
@@ -341,6 +342,7 @@ class AiRepository {
     required String role,
     String? content,
     String? toolCallId,
+    String? reasoning,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = Ids.next('msg');
@@ -351,6 +353,7 @@ class AiRepository {
             role: role,
             content: Value(content),
             toolCallId: Value(toolCallId),
+            reasoning: Value(reasoning),
             createdAt: now,
           ),
         );
@@ -401,7 +404,9 @@ class AiRepository {
   Future<List<Attachment>> listConversationAttachments(
     String conversationId,
   ) async {
-    final messageIds = [for (final row in await listMessages(conversationId)) row.id];
+    final messageIds = [
+      for (final row in await listMessages(conversationId)) row.id
+    ];
     if (messageIds.isEmpty) {
       return const [];
     }
@@ -481,7 +486,8 @@ class AiRepository {
   ///
   /// Used to rebuild history: an action with no [AiActionRecord.messageId] has
   /// not been committed as part of a turn yet.
-  Future<List<AiActionRecord>> listCommittedActions(String conversationId) async {
+  Future<List<AiActionRecord>> listCommittedActions(
+      String conversationId) async {
     final rows = await (_db.select(_db.aiActions)
           ..where((t) =>
               t.conversationId.equals(conversationId) & t.messageId.isNotNull())

@@ -936,6 +936,13 @@ class AiMessages extends Table {
   /// that produced it.
   TextColumn get toolCallId => text().nullable()();
 
+  /// The model's chain of thought for this message, when the provider streams
+  /// one (`reasoning_content` / `reasoning` / thinking parts). Only `assistant`
+  /// rows carry it; NULL = 这次生成没有思考文本（老库的行也是 NULL）。
+  /// docs/REVIEW_FEEDBACK.md §4a：思考过程要留在历史里折起来看，而不是只活在
+  /// 生成中的那几秒。
+  TextColumn get reasoning => text().nullable()();
+
   IntColumn get createdAt => integer()();
 
   @override

@@ -14546,6 +14546,12 @@ class $AiMessagesTable extends AiMessages
   late final GeneratedColumn<String> toolCallId = GeneratedColumn<String>(
       'tool_call_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _reasoningMeta =
+      const VerificationMeta('reasoning');
+  @override
+  late final GeneratedColumn<String> reasoning = GeneratedColumn<String>(
+      'reasoning', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -14554,7 +14560,7 @@ class $AiMessagesTable extends AiMessages
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, conversationId, role, content, toolCallId, createdAt];
+      [id, conversationId, role, content, toolCallId, reasoning, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -14594,6 +14600,10 @@ class $AiMessagesTable extends AiMessages
           toolCallId.isAcceptableOrUnknown(
               data['tool_call_id']!, _toolCallIdMeta));
     }
+    if (data.containsKey('reasoning')) {
+      context.handle(_reasoningMeta,
+          reasoning.isAcceptableOrUnknown(data['reasoning']!, _reasoningMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -14619,6 +14629,8 @@ class $AiMessagesTable extends AiMessages
           .read(DriftSqlType.string, data['${effectivePrefix}content']),
       toolCallId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tool_call_id']),
+      reasoning: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}reasoning']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
     );
@@ -14646,6 +14658,13 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
   /// Completion API rejects a tool result whose id does not match the request
   /// that produced it.
   final String? toolCallId;
+
+  /// The model's chain of thought for this message, when the provider streams
+  /// one (`reasoning_content` / `reasoning` / thinking parts). Only `assistant`
+  /// rows carry it; NULL = 这次生成没有思考文本（老库的行也是 NULL）。
+  /// docs/REVIEW_FEEDBACK.md §4a：思考过程要留在历史里折起来看，而不是只活在
+  /// 生成中的那几秒。
+  final String? reasoning;
   final int createdAt;
   const AiMessage(
       {required this.id,
@@ -14653,6 +14672,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
       required this.role,
       this.content,
       this.toolCallId,
+      this.reasoning,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14665,6 +14685,9 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
     }
     if (!nullToAbsent || toolCallId != null) {
       map['tool_call_id'] = Variable<String>(toolCallId);
+    }
+    if (!nullToAbsent || reasoning != null) {
+      map['reasoning'] = Variable<String>(reasoning);
     }
     map['created_at'] = Variable<int>(createdAt);
     return map;
@@ -14681,6 +14704,9 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
       toolCallId: toolCallId == null && nullToAbsent
           ? const Value.absent()
           : Value(toolCallId),
+      reasoning: reasoning == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoning),
       createdAt: Value(createdAt),
     );
   }
@@ -14694,6 +14720,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
       role: serializer.fromJson<String>(json['role']),
       content: serializer.fromJson<String?>(json['content']),
       toolCallId: serializer.fromJson<String?>(json['toolCallId']),
+      reasoning: serializer.fromJson<String?>(json['reasoning']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
@@ -14706,6 +14733,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
       'role': serializer.toJson<String>(role),
       'content': serializer.toJson<String?>(content),
       'toolCallId': serializer.toJson<String?>(toolCallId),
+      'reasoning': serializer.toJson<String?>(reasoning),
       'createdAt': serializer.toJson<int>(createdAt),
     };
   }
@@ -14716,6 +14744,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
           String? role,
           Value<String?> content = const Value.absent(),
           Value<String?> toolCallId = const Value.absent(),
+          Value<String?> reasoning = const Value.absent(),
           int? createdAt}) =>
       AiMessage(
         id: id ?? this.id,
@@ -14723,6 +14752,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
         role: role ?? this.role,
         content: content.present ? content.value : this.content,
         toolCallId: toolCallId.present ? toolCallId.value : this.toolCallId,
+        reasoning: reasoning.present ? reasoning.value : this.reasoning,
         createdAt: createdAt ?? this.createdAt,
       );
   AiMessage copyWithCompanion(AiMessagesCompanion data) {
@@ -14735,6 +14765,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
       content: data.content.present ? data.content.value : this.content,
       toolCallId:
           data.toolCallId.present ? data.toolCallId.value : this.toolCallId,
+      reasoning: data.reasoning.present ? data.reasoning.value : this.reasoning,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -14747,14 +14778,15 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
           ..write('role: $role, ')
           ..write('content: $content, ')
           ..write('toolCallId: $toolCallId, ')
+          ..write('reasoning: $reasoning, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, conversationId, role, content, toolCallId, createdAt);
+  int get hashCode => Object.hash(
+      id, conversationId, role, content, toolCallId, reasoning, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -14764,6 +14796,7 @@ class AiMessage extends DataClass implements Insertable<AiMessage> {
           other.role == this.role &&
           other.content == this.content &&
           other.toolCallId == this.toolCallId &&
+          other.reasoning == this.reasoning &&
           other.createdAt == this.createdAt);
 }
 
@@ -14773,6 +14806,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
   final Value<String> role;
   final Value<String?> content;
   final Value<String?> toolCallId;
+  final Value<String?> reasoning;
   final Value<int> createdAt;
   final Value<int> rowid;
   const AiMessagesCompanion({
@@ -14781,6 +14815,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
     this.role = const Value.absent(),
     this.content = const Value.absent(),
     this.toolCallId = const Value.absent(),
+    this.reasoning = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -14790,6 +14825,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
     required String role,
     this.content = const Value.absent(),
     this.toolCallId = const Value.absent(),
+    this.reasoning = const Value.absent(),
     required int createdAt,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -14802,6 +14838,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
     Expression<String>? role,
     Expression<String>? content,
     Expression<String>? toolCallId,
+    Expression<String>? reasoning,
     Expression<int>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -14811,6 +14848,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
       if (role != null) 'role': role,
       if (content != null) 'content': content,
       if (toolCallId != null) 'tool_call_id': toolCallId,
+      if (reasoning != null) 'reasoning': reasoning,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -14822,6 +14860,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
       Value<String>? role,
       Value<String?>? content,
       Value<String?>? toolCallId,
+      Value<String?>? reasoning,
       Value<int>? createdAt,
       Value<int>? rowid}) {
     return AiMessagesCompanion(
@@ -14830,6 +14869,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
       role: role ?? this.role,
       content: content ?? this.content,
       toolCallId: toolCallId ?? this.toolCallId,
+      reasoning: reasoning ?? this.reasoning,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -14853,6 +14893,9 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
     if (toolCallId.present) {
       map['tool_call_id'] = Variable<String>(toolCallId.value);
     }
+    if (reasoning.present) {
+      map['reasoning'] = Variable<String>(reasoning.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -14870,6 +14913,7 @@ class AiMessagesCompanion extends UpdateCompanion<AiMessage> {
           ..write('role: $role, ')
           ..write('content: $content, ')
           ..write('toolCallId: $toolCallId, ')
+          ..write('reasoning: $reasoning, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -31208,6 +31252,7 @@ typedef $$AiMessagesTableCreateCompanionBuilder = AiMessagesCompanion Function({
   required String role,
   Value<String?> content,
   Value<String?> toolCallId,
+  Value<String?> reasoning,
   required int createdAt,
   Value<int> rowid,
 });
@@ -31217,6 +31262,7 @@ typedef $$AiMessagesTableUpdateCompanionBuilder = AiMessagesCompanion Function({
   Value<String> role,
   Value<String?> content,
   Value<String?> toolCallId,
+  Value<String?> reasoning,
   Value<int> createdAt,
   Value<int> rowid,
 });
@@ -31245,6 +31291,9 @@ class $$AiMessagesTableFilterComposer
 
   ColumnFilters<String> get toolCallId => $composableBuilder(
       column: $table.toolCallId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get reasoning => $composableBuilder(
+      column: $table.reasoning, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -31275,6 +31324,9 @@ class $$AiMessagesTableOrderingComposer
   ColumnOrderings<String> get toolCallId => $composableBuilder(
       column: $table.toolCallId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get reasoning => $composableBuilder(
+      column: $table.reasoning, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -31302,6 +31354,9 @@ class $$AiMessagesTableAnnotationComposer
 
   GeneratedColumn<String> get toolCallId => $composableBuilder(
       column: $table.toolCallId, builder: (column) => column);
+
+  GeneratedColumn<String> get reasoning =>
+      $composableBuilder(column: $table.reasoning, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -31335,6 +31390,7 @@ class $$AiMessagesTableTableManager extends RootTableManager<
             Value<String> role = const Value.absent(),
             Value<String?> content = const Value.absent(),
             Value<String?> toolCallId = const Value.absent(),
+            Value<String?> reasoning = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -31344,6 +31400,7 @@ class $$AiMessagesTableTableManager extends RootTableManager<
             role: role,
             content: content,
             toolCallId: toolCallId,
+            reasoning: reasoning,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -31353,6 +31410,7 @@ class $$AiMessagesTableTableManager extends RootTableManager<
             required String role,
             Value<String?> content = const Value.absent(),
             Value<String?> toolCallId = const Value.absent(),
+            Value<String?> reasoning = const Value.absent(),
             required int createdAt,
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -31362,6 +31420,7 @@ class $$AiMessagesTableTableManager extends RootTableManager<
             role: role,
             content: content,
             toolCallId: toolCallId,
+            reasoning: reasoning,
             createdAt: createdAt,
             rowid: rowid,
           ),

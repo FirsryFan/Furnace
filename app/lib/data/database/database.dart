@@ -115,7 +115,7 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
   /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36] / [_upgradeV36ToV37] /
-  /// [_upgradeV37ToV38].
+  /// [_upgradeV37ToV38] / [_upgradeV38ToV39].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
@@ -144,8 +144,12 @@ class AppDatabase extends _$AppDatabase {
   /// stability), the 能力 dimension of docs/REVIEW_FEEDBACK.md §8 — deliberately
   /// separate from the knowledge-point priors in `assessment_sessions` /
   /// `cognitive_priors`. 纯新增一张只追加的表，老库没有一行要回填。
+  ///
+  /// v39（轮次一百七十八）adds `ai_messages.reasoning`: the assistant's chain of
+  /// thought, kept so a finished turn can still show 「思考过程」 after a restart
+  /// (docs/REVIEW_FEEDBACK.md §4a). NULL = 没有思考文本；列可空、不回填。
   @override
-  int get schemaVersion => 38;
+  int get schemaVersion => 39;
 
   @override
   MigrationStrategy get migration {
@@ -265,6 +269,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 38) {
           await _upgradeV37ToV38();
         }
+        if (from < 39) {
+          await _upgradeV38ToV39();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -286,6 +293,10 @@ class AppDatabase extends _$AppDatabase {
   /// database does nothing here.
   Future<void> _ensureColumns() async {
     final expected = <String, List<GeneratedColumn<Object>>>{
+      // v39（轮次一百七十八）：AI 助手消息的思考过程。同一个失败模式——老文件
+      // 被盖成 v39 却没有这一列时 Drift 跳过 onUpgrade，读历史消息就抛
+      // no such column。列可空、NULL 读作「这条消息没有思考文本」，不回填。
+      'ai_messages': [aiMessages.reasoning],
       // v37（轮次一百七十六）：标签用途声明。同一个失败模式——老文件被盖成 v37
       // 却没有这一列时，Drift 跳过 onUpgrade，标签树/时间表第一次读标签就抛
       // no such column。列可空、NULL 读作「这一级没有声明」，补列即可，没有回填。
@@ -1105,6 +1116,19 @@ class AppDatabase extends _$AppDatabase {
     await m.createTable(abilityScores);
   }
 
+  /// v38 -> v39：AI 助手消息加 `reasoning`（思考过程）列（轮次一百七十八，
+  /// docs/REVIEW_FEEDBACK.md §4a）。
+  ///
+  /// 列可空、NULL 代表「这条消息没有思考文本」，老库没有任何一行需要回填。
+  /// 表不存在就跳过（由 [_ensureColumns] 自愈建表后再补列）。
+  Future<void> _upgradeV38ToV39() async {
+    if (!await _tableExists('ai_messages')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'ai_messages', aiMessages.reasoning);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1532,7 +1556,7 @@ FROM review_logs''');
 
     // 6. Tags: backfill authoritative path, de-duplicate same-name top tags
     // (keep the oldest id plain, suffix the rest).
-    await customStatement("UPDATE tags SET path = name WHERE path IS NULL");
+    await customStatement('UPDATE tags SET path = name WHERE path IS NULL');
     await customStatement('''
 UPDATE tags
 SET path = name || '-' || rn
