@@ -19,6 +19,7 @@ import '../tools/card_group_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
+import '../tools/review_focus_tool.dart';
 import '../tools/tag_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -1367,6 +1368,8 @@ class AgentLoop {
         '要把闪存卡挂进卡组（卡组就是标签）就调 link_card_tags，'
         '卡如果已经带完整来源路径，可以用 from_source_paths 批量匹配（先 dry_run 预览）；'
         '要给卡组设每天的新卡/复习量就调 manage_review_plan（先用 query_content(kind: review_plan) 看现状）；'
+        '用户说"下周要考试、把某一部分提前进复习"时调 focus_review（标签子树下未来几天到期的卡提前到今天，'
+        '默认 dry_run 只预览，确认后再写）；'
         '不要凭记忆猜名字，猜错只会得到"找不到"，而查是免费的。\n'
         '5. 用中文回答，简洁直接，不要复述你已经做过的事的细节。\n'
         '6. 要"生成文档 / 导出文件"时用 create_document，文档是写在'
@@ -1412,6 +1415,10 @@ class AgentLoop {
         // A plan set/clear is undone by putting the previous row back; a
         // first-time set has no old row and undo clears the plan (null snapshot).
         return restoreReviewPlan(db, map);
+      case ReviewFocusTool.toolName:
+        // Pulled cards are undone by writing each `due_at` back to the value
+        // the before-snapshot recorded.
+        return restoreReviewFocus(db, map);
       default:
         return false;
     }

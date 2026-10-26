@@ -645,6 +645,56 @@ class AnkiRepository {
         .get();
   }
 
+  /// 一批知识点的全部单元卡状态（「考前提前复习」用：一次取一个标签子树下的卡，
+  /// 而不是每个知识点查一次）。
+  ///
+  /// 分块避免 SQLite 的绑定变量上限（与 [tagPathsForObjects] 同一理由）。
+  Future<List<CardState>> cardStatesForKnowledgePoints(
+    Iterable<String> knowledgePointIds,
+  ) async {
+    final ids = knowledgePointIds.toSet().toList();
+    if (ids.isEmpty) {
+      return const [];
+    }
+    final result = <CardState>[];
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      result.addAll(
+        await (_db.select(_db.cardStates)
+              ..where((t) => t.knowledgePointId.isIn(ids.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
+  /// 批量把卡片的 `due_at` 改成给定值——**提前复习的唯一写口**。
+  ///
+  /// 只写 `due_at` 与 `updated_at`：`stability` / `difficulty` /
+  /// `repetitions` 属于复习本身，提前复习不修改记忆状态；真正作答时
+  /// `ReviewService.grade` 才会按当时的 `lastReview` 重新排期。undo 把
+  /// 拉之前的 `due_at` 写回来即可（`ReviewFocusTool` 的 before 快照）。
+  Future<void> setCardStateDueAts(Map<String, int> dueAtByStateId) async {
+    if (dueAtByStateId.isEmpty) {
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.batch((batch) {
+      for (final entry in dueAtByStateId.entries) {
+        batch.update(
+          _db.cardStates,
+          CardStatesCompanion(
+            dueAt: Value(entry.value),
+            updatedAt: Value(now),
+          ),
+          where: (t) => t.id.equals(entry.key),
+        );
+      }
+    });
+  }
+
   /// Generic v2 state update covering FSRS fields and the forced-binding
   /// machine (spec 1.3.2).
   Future<void> updateUnitCardState(

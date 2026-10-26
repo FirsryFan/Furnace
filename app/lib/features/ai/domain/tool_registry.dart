@@ -21,6 +21,7 @@ import '../tools/metrics_tools.dart';
 import '../tools/paper_tools.dart';
 import '../tools/learning_advice_tools.dart';
 import '../tools/practice_recommendation_tools.dart';
+import '../tools/review_focus_tool.dart';
 import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/zujuan_paper_tool.dart';
@@ -162,6 +163,11 @@ class ToolRegistry {
       // object_tags 空，没有任何工具能把两边接上（tools/card_group_tools.dart）。
       LinkCardTagsTool(db: db, anki: anki, tags: tags),
       ManageReviewPlanTool(tags: tags, plans: reviewPlans),
+      // 考前手动调推送 (用户 2026-10-26): 「下周考生物必修一，把这一章提前」——
+      // 把标签子树下未来 N 天内到期的卡 due_at 挪到今天。判定/排序在
+      // domain/services/srs/review_focus.dart，工具只查-写-造 undo 快照
+      // (tools/review_focus_tool.dart)。
+      ReviewFocusTool(db: db, anki: anki, tags: tags, clock: clock),
       // The only destructive tool. Deleting a tag takes its whole subtree with
       // it, and deleting a flashcard takes its review history, so every call is
       // per-item confirmed and snapshotted for undo (tools/deletion_tools.dart).
