@@ -1245,4 +1245,88 @@ provider：`abilityScoreRepositoryProvider`（`app/lib/data/repositories/reposit
 - 四项小测的评分公式常量（250/800ms、3/9 跨度、1500/6000ms、灵敏度/特异度各半）
   是 MVP 口径，未做人群标定；改动会改历史分数的可比性（已落库的分数不重算）。
 
+## §28 schema v39：AI 思考过程落库（`ai_messages.reasoning`，轮次一百七十八）
+
+用户反馈第 4 条上半（`docs/REVIEW_FEEDBACK.md` §4a）有两件事：**推理模型的思考链没有
+提取过来**，以及**不能中断生成**（§4b）。§4b 已在轮次一百七十五做完（adapter 可取消 +
+`AgentLoop.cancel()` + 流式面板）。§4a 的显示侧那时也做了——`ModelReasoningDelta` 事件 +
+流式 `_ReasoningPanel`——但思考文本只活在**本次生成**里：没有列、没有落库，翻回历史就没了。
+本版补的正是这一段：**只加一列，把已经有的事件写进库**。
+
+### 28.1 表结构
+
+| 列 | 类型 | 语义 |
+| --- | --- | --- |
+| `reasoning` | TEXT NULL | 该条 assistant 消息的思考过程原文（provider 的 `reasoning_content` / `reasoning` / thinking parts，由 `SseAssembler.reasoning` 累积）。只有 `assistant` 行会带；**NULL = 这次生成没有思考文本**（老库的行、非推理模型、失败但没产出思考、用户没开推理模型都落到这里）。不写空串——空串与「没有」在展示层是两件事 |
+
+表定义：`app/lib/data/database/tables.dart:944`（`class AiMessages`，列加在 `toolCallId`
+之后、`createdAt` 之前，注释里写明「只有 assistant 行带、NULL=没思考文本、老库行也是
+NULL」）。生成代码 `database.g.dart` 的 `AiMessage` 数据类自动多出 `reasoning` 字段
+（`build_runner` 重生成，未手改）。
+
+为什么加列而不是新表：「这段思考属于这条消息」是一对一关系；另开表要 join、要额外
+同步删除、还得多一次写事务。历史消息的删除/清理路径已经按 `ai_messages` 走，加列不
+增加任何一致性问题。也不放 `ai_conversations` 一列 JSON：一条长对话有几十条 assistant
+消息，塞进会话行等于每次追加都要读改写整串。
+
+### 28.2 迁移与自愈
+
+- `database.dart:152`：`schemaVersion => 39`；`:273`：`if (from < 39) { await _upgradeV38ToV39(); }`。
+- `_upgradeV38ToV39`（`database.dart:1124`）：`if (!await _tableExists('ai_messages')) return;`
+  然后 `_addColumnIfMissing(m, 'ai_messages', aiMessages.reasoning)`。**不回填**——老消息
+  确实没有思考文本，回填空串是伪造数据，展示层也用 NULL 判断「有没有」。
+- beforeOpen 自愈：`_ensureColumns` 的 expected map 加 `'ai_messages': [aiMessages.reasoning]`
+  （`database.dart:299`）。v31 的 `usage_codes` 教训在这里同样适用：自愈补列会查
+  `_tableFor`，**必须**有 `case 'ai_messages'` 才能拿到表对象；本版该 case 早已存在
+  （`database.dart:1328`，v22 加列时引入），不需要新增。
+- build_runner：`cd app && dart run build_runner build --delete-conflicting-outputs` →
+  exit 0，「Built with build_runner/aot in 73s; wrote 876 outputs」，耗时 73s（本机 aot 模式）。
+
+### 28.3 仓储与写入点
+
+`app/lib/data/repositories/ai_repository.dart`：`addMessage`（:340）新增可空参数
+`String? reasoning`（:345），insert 时 `reasoning: Value(reasoning)`（:356）。读侧不需要
+改：`listMessages` 返回的是整行 `AiMessage`，新列自动带出（`ai_chat_page` 历史渲染
+直接读 `row.reasoning`）。
+
+`AgentLoop` 的**六条写库路径**全部接上（`app/lib/features/ai/domain/agent_loop.dart`）：
+
+| 路径 | 行 | 传什么 |
+| --- | --- | --- |
+| 失败但保留部分输出 | :877 | `_reasoningOrNull(reasoningBuffer)`；条件从「有文本」放宽到「有文本**或**有思考」，content 可为 NULL |
+| 无工具调用的一轮回答 | :893 | 同上 |
+| 工具轮 `TurnGroup` 构造 | :907 | `assistantReasoning`（:69 字段，:62 构造参数） |
+| `_commitTurn` 的 assistant 行 | :1045 | `group.assistantReasoning` |
+| 用户中途取消 `_finishCancelled` | :1008 | 签名扩成 `(conversationId, textBuffer?, reasoningBuffer?)`，两者任一非空就写行；content 空则 NULL |
+| 轮数上限 notice | — | **不传**：那条是系统提示，没有思考 |
+
+`_reasoningOrNull(StringBuffer)`（:1029）：`buffer.isEmpty ? null : buffer.toString()`——
+统一把「没思考」写成 NULL 而不是空串，避免库里出现两种「空」。
+
+### 28.4 测试
+
+- `app/test/data/database/v39_migration_test.dart` **3 例**：真实 v38 文件（造对话 + 2 条
+  消息后 `ALTER TABLE ai_messages DROP COLUMN reasoning`、`PRAGMA user_version = 38`）
+  升级后老消息 `reasoning` 全 NULL、新 `addMessage(reasoning: '先化简，再代入。')` 写读通、
+  重开还在；不传 reasoning 写的是 NULL 而不是空串；被盖成 v39 却缺列的文件靠
+  `_ensureColumns` 自愈（`listMessages` 不抛、能写带 reasoning 的行）。
+- `app/test/features/ai/agent_loop_reasoning_persistence_test.dart` **5 例**（`FakeModelAdapter`
+  + 真 `ToolRegistry` + 内存库）：普通回答 content 与 reasoning 都落库；只有思考没有答案
+  （content NULL、reasoning 保留）；失败保留部分输出两者都留；工具轮 `TurnGroup` 两行
+  各自 reasoning 正确；用户中途 cancel 时半截答案 + 思考都落库。
+- 实测：两文件分别 `+3` / `+5` 全绿（`flutter test ... --concurrency=1`）。
+
+### 28.5 边界（截至本版）
+
+- 只有 `assistant` 行可能有 reasoning；流式面板（`_ReasoningPanel`）与历史折叠块是两套
+  UI：前者跟随生成状态，后者默认折叠、由 question-intake 在 `ai_chat_page.dart` 补。
+- 不落库的还有：取消事件本身（`cancelled` 状态）、工具审批轨迹——状态 ≠ 消息，仍只在
+  内存/日志里。
+- 默认模型仍是 `deepseek-chat`（`docs/AI_DESIGN.md` D5）：有思考就存，没思考 NULL；
+  要「默认开推理」得在 AI 设置页换模型（模型名可手填），本版不改默认值。
+- 上下文回传给模型时**不带** reasoning：历史思考只给用户看，不回灌进下一轮，
+  否则 token 成本翻倍且容易把旧思考当成当前推理。
+- 没有思考的压缩/折叠阈值：长思考会整段存库（TEXT 无长度上限），列表渲染时才折叠。
+
+
 

@@ -112,6 +112,19 @@ abstract class ModelAdapter {
 理由：工具调用场景下，思维链模型的输出更容易偏离工具格式，且更贵更慢。默认 `deepseek-chat`，模型名做成设置项。
 —— 这条标注为**待实测**：等实现完我会实际跑一次对比，如果 reasoner 效果明显更好再改默认值。
 
+**决策 D5b（2026-10-26 补，用户反馈 §4a）**：**思考文本有则展示、有则落库，默认模型不变**。
+- 协议层兼容三种形状：`delta.reasoning_content`（DeepSeek）、`delta.reasoning`（OpenRouter 系）、
+  `delta.content` 数组里 `type` 为 `reasoning|thinking|thought` 的 part；统一变成
+  `ModelReasoningDelta` 事件，由 `SseAssembler.reasoning` 累积。
+- 展示分两处：生成中是流式面板（`_ReasoningPanel`，默认展开、结束自动折叠）；历史消息读
+  `ai_messages.reasoning`，默认折叠、每条消息各自记展开状态（v39，见 `DATA_MODEL.md` §28）。
+  同一段思考落库后，流式面板不再重复画：页面按文本相等判断，历史行接管。
+- **上下文回传给模型时不带 reasoning**：历史思考只给用户看，不回灌进下一轮，否则 token
+  成本翻倍，且模型容易把旧思考当成当前推理。
+- 只有 `assistant` 行有 reasoning；没思考写 NULL 而不是空串。没有答案的纯思考**只在正常完成**
+  时落库（content NULL）；中途停止/失败时只有已经产出了文字才写行——否则详情页会出现一个
+  没有正文的气泡。
+
 ---
 
 ## 4. 工具层

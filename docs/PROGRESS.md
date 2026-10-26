@@ -2,6 +2,19 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-26 轮次一百七十八：设计 token 基础层 + AI 思考落库（schema v39）+ 闪卡标签边界
+
+- 目标：继续按 `docs/REVIEW_FEEDBACK.md` 逐条改进，本轮做 §3（UI 设计 token 的**基础层**，页面级迁移等用户定方向）、§4a（思考过程落库 + 历史消息里折叠展示）、§10（闪卡域标签选择器按用途过滤）。
+- 团队（沿用现有三名成员，`spawn_teammate` 仍报 `teammate name ... was already used in this Team`，故一律 `send_message` 复用）：task-199 threadflow-engine（§10 闪卡标签边界）、task-200 question-intake（§4a 历史思考折叠 UI）。task-200 的界面改动被 Lead 中途中断（排障，见教训），已落盘部分由 Lead 接管验收并 complete。
+- l10n（Lead，3 个 key，`flutter gen-l10n` exit 0）：`tagUsageScopeHintFlashcard`、`tagUsageScopeEmptyFlashcard`、`tagUsageScopeDefaultHint`（§10 两种空态 + 常显提示）。
+- 片 1（Lead，§3 基础层）：新 `app/lib/core/theme/design_tokens.dart` —— `AppSpacing`（4pt 栅格 xxs2/xs4/sm8/md12/lg16/xl24/xxl32/xxxl48 + `snap`）、`AppRadius`（control6/card10/sheet14/pill999 + `BorderRadius` 常量）、`AppTokens extends ThemeExtension<AppTokens>`（间距 8 字段 + 三半径 + 语义文字 pageTitle20/sectionTitle16/body14/caption12，`standard` 兜底、`fromTheme`、`of(context)`、`copyWith`、`lerp`）；`theme_profile.dart` 的 `toThemeData()` 在算完配色与字体后装入扩展，并让 `cardTheme`/`dialogTheme` 采用 `AppRadius.cardBorder`/`sheetBorder`（修掉「M3 默认 12/28 与各页手写 2–18 打架」）；测试 `design_tokens_test.dart` 8 例。**Flutter 3.47 坑**：`themed.extensions.values` 直接展开编译失败（CFE 当成 `ThemeExtension<ThemeExtension<dynamic>>`），必须 `Map<Object, ThemeExtension<dynamic>>.from(...)` 再 `.values.toList()` 传 `copyWith(extensions:)`。
+- 片 2（Lead，§4a 落库，schema **v39**）：`ai_messages` 新增可空 `reasoning` TEXT（只有 assistant 行带、NULL=没思考文本、不写空串）；`_upgradeV38ToV39` 只补列不回填 + `_ensureColumns` 自愈；`build_runner` exit 0（73s / 876 outputs）；`ai_repository.addMessage` 加 `String? reasoning`；`agent_loop.dart` 六条写库路径全部带上思考（失败保留、无工具回答、TurnGroup 提交、`_commitTurn`、`_finishCancelled`、轮数上限 notice 不带），并新增 `_reasoningOrNull`。测试：`v39_migration_test` 3 例、`agent_loop_reasoning_persistence_test` 6 例。
+- 片 3（question-intake + Lead）：`ai_chat_page.dart` +138 —— 历史 assistant 消息的思考在正文上方折叠显示（默认收起、每条消息各自记展开状态、`aiHistoryReasoningKey(messageId)`），并按文本相等判断「这段思考已落库」后不再重复画流式面板；`ai_chat_page_test.dart` 相应改 1 例，新 `ai_chat_history_reasoning_test.dart` 4 例。
+- 片 4（threadflow-engine，task-199）：新 `app/lib/features/anki/application/flashcard_tag_scope.dart`（加载 → `tagUsageResolverProvider` → `visibleOf(..., TagUsage.flashcard)` → 保持顺序的过滤 + 两种空态对话框）；`anki_manage_page.dart` 卡组下拉/加标签对话框与 `review_plan_page.dart` 两个选择器全部改走它，并在标题下常显范围说明。测试：anki_manage 6→10、review_plan 3→6（共 16 例）。
+- 门禁：`dart format` 17 个手写改动 dart 文件 0 changed；`dart analyze lib test` = **89 issues / 0 error / 0 warning**（基线 91，顺手删掉 4 条本轮新增 info lint，反而少 2）；scoped（v39 迁移 + persistence + ai_chat_page + history reasoning）`+27 All tests passed`；全量 `flutter test --concurrency=1` = **+6189 ~2 All tests passed，13:01，EXIT 0**（日志 `E:/dsh-tmp-aot/test-178-full.txt`；上轮基线 +6161，净增 28）。
+- 教训（重要）：我先把 `_finishCancelled` 的条件从「partial 非空」放宽到「partial 或 reasoning 非空」，于是**用户在中途停止、只出过思考没出文字**时也写一条 content 为 NULL 的 assistant 行；`ai_chat_page_test` 第 13 例在页面 dispose → cancel → 写库，与 `tearDown` 的 `await db.close()` 撞成死锁（`flutter test` 卡死 17 分钟，`--timeout` 不触发）。定位靠 debugPrint 插桩 + `git stash` 二分（先排掉 QI 的页面，再定位到 `agent_loop.dart`）；修法是失败路径与取消路径都要求「有文字才写行」，正常完成路径仍允许 content 为 NULL 的纯思考行，并补 1 例测试钉住「停在第一个字之前不写空行」。**全量跑的时候不要改 lib 被测源码**（轮次 169 同款教训）。
+- 仍未做：§3 页面级 token 迁移（125 种 `EdgeInsets`、11 种半径、9–13px 手写字号，等用户给「更紧凑还是更松弛」方向）；§9 标准侧 `keywords.mjs`/`SKILL.md` 与新长度口径同步；§10 其余域选择器（题库/知识网络/任务）；§7 知识图期 3（节点详情/搜索/列表兜底）；能力趋势图；v0.6.11 未出包。
+- 下一步候选：A) 出 **v0.6.11** 双端发布件（v0.6.10 之后已攒轮次 176/177/178 共 27 个提交）；B) §10 其余域标签边界；C) §7 期 3。
 ## 2026-10-26 轮次一百七十七：能力测评 MVP（schema v38 + 四项本地小测 + 能力画像）
 
 - 目标：按 `docs/REVIEW_FEEDBACK.md` 第 8 条落地 §8「认知测评要测能力、不是知识点」的 MVP——与知识先验完全分开的一组本地小测——并补能力画像页；§3（UI 设计 token）仍等用户定义「自然」方向，本轮不动。

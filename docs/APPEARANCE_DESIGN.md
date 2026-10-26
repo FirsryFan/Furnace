@@ -169,3 +169,37 @@
 `v2-adaptive-256.png`）与文件尺寸核对。**没有**接 `flutter_launcher_icons`——
 图标是手工烘好的静态文件，不引入新依赖，也不需要每次构建重新生成。
 
+## 6. 设计 token（间距 / 圆角 / 语义文字，2026-10-26 补）
+
+用户反馈第 3 条「UI 风格不是很自然」目前只做了**基础层**（页面级迁移等用户给方向，见 §4）。
+
+**为什么需要 token**：`app/lib` 下 346 个 dart 统计出来 `EdgeInsets.*` 有 **125 种写法**、
+`BorderRadius.circular` 有 **11 种半径**（2/3/4/6/8/10/12/18/999/height÷2/width÷2）、手写
+`fontSize` 只有 9/10/11/12/13 五档但散落各处。单页看着没问题，页与页之间密度/留白/
+层级不一致，整体就读作「不自然」。
+
+**落地位置**：`app/lib/core/theme/design_tokens.dart`
+
+| 类型 | 内容 |
+| --- | --- |
+| `AppSpacing` | 4pt 栅格：xxs=2 / xs=4 / sm=8 / md=12 / lg=16 / xl=24 / xxl=32 / xxxl=48；`scale` 列表；`snap(double)` 把离格值吸到最近档（迁移旧代码用：14→12、18→16） |
+| `AppRadius` | control=6（按钮/输入框）、card=10、sheet=14（对话框/底部面板）、pill=999；各带 `BorderRadius` 常量 |
+| `AppTokens`（`ThemeExtension<AppTokens>`） | 间距 8 字段 + 三半径 + 三个 `BorderRadius` + 语义文字 pageTitle(20,w600,1.3) / sectionTitle(16,w600,1.35) / body(14,1.4) / caption(12,1.35)；`standard` 为无主题宿主兜底，`of(context)` 读不到时回它 |
+
+**怎么装的**：`theme_profile.dart` 的 `toThemeData()` 在算完 colorScheme / 字体之后把
+`AppTokens.fromTheme(themed)` 放进 `ThemeData.extensions`，所以任何页面只要
+`AppTokens.of(context)` 就能读，不用额外 import。**Flutter 3.47 的坑**：`ThemeData.extensions`
+是 `Map<Object, ThemeExtension<dynamic>>`，`...themed.extensions.values` 展开会编译失败
+（CFE 把它当成 `ThemeExtension<ThemeExtension<dynamic>>`），必须经
+`Map<Object, ThemeExtension<dynamic>>.from(...)` 再 `.values.toList()` 传给
+`copyWith(extensions:)`。
+
+**已采用的 token**：`cardTheme` 的圆角 = `AppRadius.cardBorder`、`dialogTheme` 的圆角 =
+`AppRadius.sheetBorder`。这是「Material 默认 12/28 与各页手写 2–18 打架」的定点修复，
+也是基础层里唯一改动可见观感的部分（其余 token 只被测试和后续页面使用）。
+
+**未做**：6 个高频页面的逐页迁移（125 种 EdgeInsets、11 种圆角、手写 9–13px 字号）。
+需要先定方向——更紧凑还是更松弛、圆角更小还是更大——否则改完仍可能不对味（见
+`docs/REVIEW_FEEDBACK.md` §16-Q2）。
+
+

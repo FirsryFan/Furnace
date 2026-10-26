@@ -42,6 +42,8 @@
 | 标签用途边界（tag usage） | 表内无此节 | ✅ 2026-10-25（轮次一百七十六，用户反馈第 10/11 条）：schema v37 `tags.usage_codes`（逗号分隔 time/question/knowledge/task/flashcard，NULL=不声明、按 parentId 向上继承、整链无声明=不限制）；标签树页每行「用途边界」多选对话框 + 已声明徽标；时间块标签选择器只列 usage 含 `time` 的标签并给三种空态提示。其余域选择器仍读全树 |
 | Time 安排列表「全部 / 今天」过滤 | 表内无此节 | ✅ 2026-10-25（轮次一百七十六，用户反馈第 12B 条）：`TimeBoardPage` 顶部 ChoiceChip（blocks 非空才显示），「今天」= 本地时区当天半开区间与块区间有交集（跨午夜算今天、恰 00:00 结束不算），日程卡同步过滤，今天无块给专门空态 |
 | 能力测评（四项本地小测 + 能力画像） | 表内无此节 | ✅ 2026-10-26（轮次一百七十七，用户反馈第 8 条）：与知识点测评**分开**的能力画像——schema v38 `ability_scores`（只追加，不参与先验/FSRS 排期），领域纯函数把四项（反应速度/工作记忆/模式识别/注意稳定性）换算成 0–100，测评页可重测单项、返回即放弃，画像页显示最近一次分数/次数/时间（没测过显示「还没测过」），设置页两个入口。趋势图、`metrics` 展示、保存事务化、与 MindNet 映射未做。见 [ASSESSMENT_DESIGN.md](ASSESSMENT_DESIGN.md) §9 |
+| 设计 token（间距/圆角/语义文字） | 表内无此节 | ✅ 2026-10-26（轮次一百七十八，用户反馈第 3 条，**基础层**）：`app/lib/core/theme/design_tokens.dart` 新增 `AppSpacing`（4pt 栅格 2/4/8/12/16/24/32/48 + `snap`）、`AppRadius`（control=6/card=10/sheet=14/pill=999）、`AppTokens extends ThemeExtension`（间距 8 字段 + 三半径 + pageTitle 20/sectionTitle 16/body 14/caption 12）；`theme_profile.dart` 的 `toThemeData()` 把 token 装进 `ThemeData.extensions`，`cardTheme`/`dialogTheme` 圆角改用 token（原来 Material 默认 12/28 与各页手写 2–18 混用）。**页面级迁移未做**（125 种 EdgeInsets / 11 种圆角），等你定「自然」方向。见 REVIEW_FEEDBACK §3 |
+| AI 思考过程落库（历史可折叠查看） | 表内无此节 | ✅ 2026-10-26（轮次一百七十八，用户反馈第 4a 条补完）：schema v39 `ai_messages.reasoning`（可空、不回填）；`SseAssembler` 解析 `reasoning_content`/`reasoning`/thinking parts 已在 v0.6.11 起显示，本版把文本落库——`AgentLoop` 六条写库路径（部分输出/回答/TurnGroup/_commitTurn/取消/无）都带 reasoning，`_reasoningOrNull` 统一「没思考=NULL」；历史消息折叠块读 `row.reasoning`。上下文回传不带 reasoning，默认模型仍 `deepseek-chat` |
 
 ---
 

@@ -3,7 +3,9 @@
 > 来源：用户 2026-10-25 反馈（14 条：1–12 为首批，13/14 为当晚追加的闪存卡两条）。本文档做**问题记录、取证与对策设计**。
 > 2026-10-25 晚更新：用户已批准开工（「好的你可以开始改进了」），§1/§2/§4/§6/§12/§13/§14 本轮已落地，实施状态见各条「实施状态」行与 [PROGRESS.md](PROGRESS.md) 轮次一百七十五；§3/§7/§8/§9/§10/§11 仍待排期。
 > 2026-10-25 再更新（轮次一百七十六）：§7 知识网络图、§9 检索词长度、§10/§11 标签用途边界、§12B 安排过滤已落地（schema v37），见 [PROGRESS.md](PROGRESS.md) 轮次一百七十六；**只剩 §3（UI 设计 token，等你定「自然」方向）与 §8（能力测评新模块）**。
-> 2026-10-26 再更新（轮次一百七十七）：§8 能力测评 MVP 已落地（schema v38 `ability_scores` + 四项本地小测页 + 能力画像页 + 设置页两个入口），见 [PROGRESS.md](PROGRESS.md) 轮次一百七十七；**只剩 §3（UI 设计 token，等你定「自然」方向）与 §4a 的思考落库**。
+> 2026-10-26 再更新（轮次一百七十七）：§8 能力测评 MVP 已落地（schema v38 `ability_scores` + 四项本地小测页 + 能力画像页 + 设置页两个入口），见 [PROGRESS.md](PROGRESS.md) 轮次一百七十七。
+>
+> 2026-10-26 三更新（轮次一百七十八）：§3 **设计 token 基础层**已落地（`AppSpacing` / `AppRadius` / `AppTokens` ThemeExtension，卡与对话框半径已改用 token）+ §4a **思考过程落库**（schema v39 `ai_messages.reasoning`，六条写库路径全覆盖）。仍剩：§3 的页面级迁移（等你定「自然」方向 §16-Q2）、§9 标准侧同步、§10 其余域选择器、§7 期 3、能力趋势图。
 > 取证基线：`class-productivity` HEAD `3032663`（v0.6.10 发布提交），工作树干净。
 > 取证方式：只读检索与读文件（grep / read）。凡是没实际跑过或没看到的，文中标「未验证」。
 > 每条格式：现象（用户原话）→ 现状取证 → 根因 → 对策与取舍 → 影响面 → 优先级与工作量。
@@ -31,6 +33,8 @@
 **实施状态（2026-10-25 轮次一百七十五）**：§1、§2、§12 文案已改并 gen-l10n；§4a 的 **SSE 解析 + 折叠展示 + 取消** 已做（思考不落库）；§4b 停止生成已做（核心逻辑 + UI）；§6 Time 行高自由拖拽 + 挡位吸附已做（v36 `hour_height`）；§13 管理页全文 + 详情弹层已做；§14 复习保持率三挡 + v36 `review_retention` 已做。§3、§7、§8、§9、§10、§11 未开工。
 
 **实施状态（2026-10-25 轮次一百七十六）**：§7 知识图**布局 v2 分簇 + InteractiveViewer 缩放平移 + 重置视图**已做；§9 检索词**按学科带重写（理科 15–30 / 文科 20–40 字且小于题干）+ UI 显示字数**已做（标准侧 `keywords.mjs`/`SKILL.md` 仍是 4–28，待同步）；§10/§11 **标签用途边界**已做（schema v37 `tags.usage_codes` + 领域 `TagUsageResolver` + 标签树页用途对话框/徽标 + 时间块标签选择器按 `time` 过滤 + 三种空态提示）；§12B 安排列表「全部 / 今天」过滤已做。§3、§8 未开工。
+
+**实施状态（2026-10-26 轮次一百七十八）**：§3 落地了**基础层**——`app/lib/core/theme/design_tokens.dart` 新增 `AppSpacing`（4pt 栅格 + `snap`）、`AppRadius`（control=6 / card=10 / sheet=14 / pill=999）、`AppTokens extends ThemeExtension<AppTokens>`（间距/半径/语义文字页标题-节标题-正文-注释）；`theme_profile.dart` 的 `toThemeData()` 把 token 装进 `ThemeData.extensions`，并把 `cardTheme` / `dialogTheme` 的圆角改成 token（Material 默认 12/28 与各页手写的 2–18 打架，是可解释的「不自然」来源）。**页面级迁移未做**（125 种 EdgeInsets / 11 种圆角）——等你给方向。§4a 思考落库完成：schema v39 加 `ai_messages.reasoning`（可空、不回填），`AgentLoop` 六条写库路径都带思考文本，流式面板之外的历史消息折叠块由 question-intake 接。
 
 **实施状态（2026-10-26 轮次一百七十七）**：§8 能力测评 **MVP 已做**——schema v38 `ability_scores`（只追加、与知识先验完全分开）、领域评分纯逻辑（四项：反应速度/工作记忆/模式识别/注意稳定性）、四项本地小测页（可重测单项、失败不丢已测项前的界面）、能力画像只读页、设置页「能力测评」「能力画像」两个入口；无 AI 调用、不联网。**剩余**：§3（UI 设计 token，等用户定「自然」方向）、§4a 的思考落库（`ai_messages.reasoning` 留 v39）、§9 标准侧同步、§10 其余域选择器、§7 期 3、能力趋势图。
 
@@ -111,6 +115,12 @@
 
 **优先级**：P1（2–3 片；先定方向再动手）。
 
+**实施状态（2026-10-26 轮次一百七十八，基础层）**：
+- 已落地：`app/lib/core/theme/design_tokens.dart`——`AppSpacing.xxs..xxxl`（2/4/8/12/16/24/32/48）+ `scale` + `snap(double)`；`AppRadius.control=6 / card=10 / sheet=14 / pill=999` 与四个 `BorderRadius` 常量；`AppTokens`（间距 8 字段 + 三半径 + `controlBorder/cardBorder/sheetBorder` + 语义文字 `pageTitle`(20,w600,1.3) / `sectionTitle`(16,w600,1.35) / `body`(14,1.4) / `caption`(12,1.35)）；`AppTokens.of(context)` 在没装扩展时回 `AppTokens.standard`（测试/无主题宿主不崩）。
+- 已接的两处：`theme_profile.dart:toThemeData()` 末尾把 `AppTokens.fromTheme(themed)` 装进 `ThemeData.extensions`（**Flutter 3.47 坑**：`...themed.extensions.values` 会编译失败，必须经 `Map<Object, ThemeExtension<dynamic>>.from` 再 `.values.toList()`）；`cardTheme` / `dialogTheme` 的 shape 改用 `AppRadius.cardBorder` / `sheetBorder`。
+- 测试：`app/test/core/theme/design_tokens_test.dart` 8 例（栅格/snap/四档圆角/无扩展回落/装进 theme 后字号 20-16-14-12/编辑器字体只进正文 token/copyWith/lerp）。
+- **未做**：页面级迁移（6 个高频页的 125 种 EdgeInsets、11 种圆角、手写 9–13px 字号）。这一步必须先把「更紧凑还是更松弛 / 圆角更小还是更大」定下来，否则改完仍可能不对味——见 §16-Q2。
+
 ---
 
 ## 4. AI：思维链没提取 + 生成不能中断
@@ -138,6 +148,13 @@
 **影响面**：`sse_assembler.dart`、`model_adapter.dart`、`openai_compat_adapter.dart`、`agent_loop.dart`（事件透传）、`ai_chat_page.dart`（渲染 + 折叠）、`ai_repository.dart`/`tables.dart`/`database.dart`（v36）、l10n、`docs/AI_DESIGN.md`（D5 需补一条「reasoning 字段处理」决策）。
 
 **优先级**：P1（1–1.5 片）。
+
+**实施状态（2026-10-26 轮次一百七十八，已完成）**：
+- 协议层：`ModelReasoningDelta` 事件 + `SseAssembler.reasoning` 累积（`reasoning_content` / `reasoning` / thinking parts），流式面板 `_ReasoningPanel` 已在轮次一百七十五显示。
+- 落库：schema **v39** 给 `ai_messages` 加可空 `reasoning`（`tables.dart:944`；迁移 `_upgradeV38ToV39` `database.dart:1124`；自愈 `_ensureColumns` `:299`；`_tableFor` 已有 case `:1328`）；`AiRepository.addMessage` 加 `String? reasoning`（`ai_repository.dart:345`，insert `:356`）。
+- `AgentLoop` 六条写库路径全传：失败保留部分输出（:877）、无工具调用回答（:893）、`TurnGroup.assistantReasoning`（:62/:69/:907）、`_commitTurn`（:1045）、用户取消 `_finishCancelled`（:1008）；轮数上限 notice 不传。`_reasoningOrNull`（:1029）把「没思考」统一写成 NULL。
+- 测试：`v39_migration_test.dart` 3 例 + `agent_loop_reasoning_persistence_test.dart` 5 例全绿。
+- 历史消息里的折叠展示（`ai_chat_page` 读 `row.reasoning`）由 question-intake 在同轮补；默认模型仍 `deepseek-chat`（D5 不变），上下文回传不带 reasoning。
 
 ### 4b 生成不能中断
 
@@ -475,6 +492,7 @@
 | A–B 已落地（2026-10-25 轮次一百七十五） | §1 改名、§2 新图标、§4a **只做了解析+展示**（未落库）、§4b 停止生成、§6 行高拖拽、§12 改名、§13 管理页全文、§14 复习保持率 | v36：`local_settings.review_retention` + `time_view_settings.hour_height` | — | 已完成 |
 | C–D–F 部分已落地（2026-10-25 轮次一百七十六） | §7 知识图分簇布局 + 缩放平移 + 重置视图；§9 检索词按学科带长度 + UI 字数；§10/§11 标签用途边界（机制 + 时间域 + 标签树页 UI）；§12B 安排列表「全部/今天」 | v37：`tags.usage_codes` | 无 | 已完成（期 3／其余域／skill 同步未做） |
 | G 部分已落地（2026-10-26 轮次一百七十七） | §8 能力测评 MVP：四项本地小测 + 能力画像页 + 设置页两个入口（与知识先验解耦） | v38：`ability_scores` 新表 | 无 | 已完成（趋势图/metrics 展示/与 MindNet 映射未做） |
+| E 基础层 + C 落库已落地（2026-10-26 轮次一百七十八） | §3 设计 token 基础层（`AppSpacing`/`AppRadius`/`AppTokens` + 卡与对话框半径改 token）；§4a 思考过程落库（`ai_messages.reasoning` + `AgentLoop` 六条路径 + 历史折叠 UI） | v39：`ai_messages.reasoning` 一列 | 无 | 已完成（§3 页面级迁移仍等方向） |
 | D | §10/§11 标签用途域 + 时间标签树 | v36（local_settings.tag_usage_json） | 无 | 2–3 片 |
 | E | §3 UI token 化 + 6 页面扫一遍 | 无 | 用户给「自然」方向 | 2–3 片 |
 | F | §7 知识网络图（期 1 急救 → v2 → 交互） | 无 | 无 | 3 片以上 |
@@ -484,7 +502,9 @@
 
 **实际 v37（轮次一百七十六）只装了一列**：`tags.usage_codes`（标签用途声明）——§4a 的 `ai_messages.reasoning`（思考落库）与 §8 的 `ability_scores` 都还没开工，继续按「一次只加自己需要的列」的惯例留到各自那轮。迁移 `_upgradeV36ToV37` 只补一列、不回填，并顺带给 `_tableFor` 补了 `case 'tags'`（自愈路径第一次会碰 tags 表）。
 
-**实际 v38（轮次一百七十七）是一张新表**：`ability_scores`（§8 能力测评）。迁移 `_upgradeV37ToV38` 只建表、不回填；`_ensureColumns` 里也建表自愈（被盖成 v38 却缺表时，画像页不会把「表不存在」错当成「从没测过」）；纯新表不需要 `_tableFor` 的 case。§4a 的 `ai_messages.reasoning` 仍留到以后。
+**实际 v38（轮次一百七十七）是一张新表**：`ability_scores`（§8 能力测评）。迁移 `_upgradeV37ToV38` 只建表、不回填；`_ensureColumns` 里也建表自愈（被盖成 v38 却缺表时，画像页不会把「表不存在」错当成「从没测过」）；纯新表不需要 `_tableFor` 的 case。
+
+**实际 v39（轮次一百七十八）只装了一列**：`ai_messages.reasoning`（§4a 思考落库）。迁移 `_upgradeV38ToV39` 只补列、不回填（老消息确实没有思考文本，回填空串等于伪造）；`_ensureColumns` 的 expected map 加 `'ai_messages'`；`_tableFor` 的 `case 'ai_messages'` 早已存在，不需要新增。至此 §4a 从「解析 + 内存展示」补全为「解析 + 展示 + 落库 + 历史折叠」。
 
 ---
 
