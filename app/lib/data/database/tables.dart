@@ -1683,3 +1683,37 @@ class QuestionSerialCounters extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// 一次能力测评的单项得分（schema v38，轮次一百七十七）。
+///
+/// 一行 = 某一项能力（[abilityKey]）的一次测量结果，0–100 分。与
+/// `assessment_sessions` / `cognitive_priors` 分开：那是**知识点**维度的
+/// 自评/复述先验（`docs/ASSESSMENT_DESIGN.md`），这里是**能力**维度的小测
+/// 指标（`docs/REVIEW_FEEDBACK.md` §8：用户要的是 humanbenchmark 式的
+/// 能力测试，不是选标签自评）。两者互不写入，也不互相推导。
+///
+/// 只追加：同一天测两次就是两行，画像页按能力取最新一行。
+@DataClassName('AbilityScoreRow')
+class AbilityScores extends Table {
+  @override
+  String get tableName => 'ability_scores';
+
+  TextColumn get id => text()();
+
+  /// 能力项稳定 code：`reaction_speed` / `working_memory` /
+  /// `pattern_recognition` / `attention_stability`（域层 `AbilityKey.code`）。
+  TextColumn get abilityKey => text()();
+
+  /// 0–100 的分数（域层 clamp 后写入；REAL 保留小数）。
+  RealColumn get score => real()();
+
+  /// 小测原始指标（JSON 对象文本：反应毫秒样本、最长记忆长度、答对数等）。
+  /// 可空：没有可存指标时写 NULL，不要编一个空对象。
+  TextColumn get metricsJson => text().nullable()();
+
+  /// 测量时刻（epoch ms）。
+  IntColumn get capturedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

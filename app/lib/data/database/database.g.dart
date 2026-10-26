@@ -23928,6 +23928,335 @@ class QuestionSerialCountersCompanion
   }
 }
 
+class $AbilityScoresTable extends AbilityScores
+    with TableInfo<$AbilityScoresTable, AbilityScoreRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AbilityScoresTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _abilityKeyMeta =
+      const VerificationMeta('abilityKey');
+  @override
+  late final GeneratedColumn<String> abilityKey = GeneratedColumn<String>(
+      'ability_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scoreMeta = const VerificationMeta('score');
+  @override
+  late final GeneratedColumn<double> score = GeneratedColumn<double>(
+      'score', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _metricsJsonMeta =
+      const VerificationMeta('metricsJson');
+  @override
+  late final GeneratedColumn<String> metricsJson = GeneratedColumn<String>(
+      'metrics_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, abilityKey, score, metricsJson, capturedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ability_scores';
+  @override
+  VerificationContext validateIntegrity(Insertable<AbilityScoreRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('ability_key')) {
+      context.handle(
+          _abilityKeyMeta,
+          abilityKey.isAcceptableOrUnknown(
+              data['ability_key']!, _abilityKeyMeta));
+    } else if (isInserting) {
+      context.missing(_abilityKeyMeta);
+    }
+    if (data.containsKey('score')) {
+      context.handle(
+          _scoreMeta, score.isAcceptableOrUnknown(data['score']!, _scoreMeta));
+    } else if (isInserting) {
+      context.missing(_scoreMeta);
+    }
+    if (data.containsKey('metrics_json')) {
+      context.handle(
+          _metricsJsonMeta,
+          metricsJson.isAcceptableOrUnknown(
+              data['metrics_json']!, _metricsJsonMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AbilityScoreRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AbilityScoreRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      abilityKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ability_key'])!,
+      score: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}score'])!,
+      metricsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}metrics_json']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}captured_at'])!,
+    );
+  }
+
+  @override
+  $AbilityScoresTable createAlias(String alias) {
+    return $AbilityScoresTable(attachedDatabase, alias);
+  }
+}
+
+class AbilityScoreRow extends DataClass implements Insertable<AbilityScoreRow> {
+  final String id;
+
+  /// 能力项稳定 code：`reaction_speed` / `working_memory` /
+  /// `pattern_recognition` / `attention_stability`（域层 `AbilityKey.code`）。
+  final String abilityKey;
+
+  /// 0–100 的分数（域层 clamp 后写入；REAL 保留小数）。
+  final double score;
+
+  /// 小测原始指标（JSON 对象文本：反应毫秒样本、最长记忆长度、答对数等）。
+  /// 可空：没有可存指标时写 NULL，不要编一个空对象。
+  final String? metricsJson;
+
+  /// 测量时刻（epoch ms）。
+  final int capturedAt;
+  const AbilityScoreRow(
+      {required this.id,
+      required this.abilityKey,
+      required this.score,
+      this.metricsJson,
+      required this.capturedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['ability_key'] = Variable<String>(abilityKey);
+    map['score'] = Variable<double>(score);
+    if (!nullToAbsent || metricsJson != null) {
+      map['metrics_json'] = Variable<String>(metricsJson);
+    }
+    map['captured_at'] = Variable<int>(capturedAt);
+    return map;
+  }
+
+  AbilityScoresCompanion toCompanion(bool nullToAbsent) {
+    return AbilityScoresCompanion(
+      id: Value(id),
+      abilityKey: Value(abilityKey),
+      score: Value(score),
+      metricsJson: metricsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metricsJson),
+      capturedAt: Value(capturedAt),
+    );
+  }
+
+  factory AbilityScoreRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AbilityScoreRow(
+      id: serializer.fromJson<String>(json['id']),
+      abilityKey: serializer.fromJson<String>(json['abilityKey']),
+      score: serializer.fromJson<double>(json['score']),
+      metricsJson: serializer.fromJson<String?>(json['metricsJson']),
+      capturedAt: serializer.fromJson<int>(json['capturedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'abilityKey': serializer.toJson<String>(abilityKey),
+      'score': serializer.toJson<double>(score),
+      'metricsJson': serializer.toJson<String?>(metricsJson),
+      'capturedAt': serializer.toJson<int>(capturedAt),
+    };
+  }
+
+  AbilityScoreRow copyWith(
+          {String? id,
+          String? abilityKey,
+          double? score,
+          Value<String?> metricsJson = const Value.absent(),
+          int? capturedAt}) =>
+      AbilityScoreRow(
+        id: id ?? this.id,
+        abilityKey: abilityKey ?? this.abilityKey,
+        score: score ?? this.score,
+        metricsJson: metricsJson.present ? metricsJson.value : this.metricsJson,
+        capturedAt: capturedAt ?? this.capturedAt,
+      );
+  AbilityScoreRow copyWithCompanion(AbilityScoresCompanion data) {
+    return AbilityScoreRow(
+      id: data.id.present ? data.id.value : this.id,
+      abilityKey:
+          data.abilityKey.present ? data.abilityKey.value : this.abilityKey,
+      score: data.score.present ? data.score.value : this.score,
+      metricsJson:
+          data.metricsJson.present ? data.metricsJson.value : this.metricsJson,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AbilityScoreRow(')
+          ..write('id: $id, ')
+          ..write('abilityKey: $abilityKey, ')
+          ..write('score: $score, ')
+          ..write('metricsJson: $metricsJson, ')
+          ..write('capturedAt: $capturedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, abilityKey, score, metricsJson, capturedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AbilityScoreRow &&
+          other.id == this.id &&
+          other.abilityKey == this.abilityKey &&
+          other.score == this.score &&
+          other.metricsJson == this.metricsJson &&
+          other.capturedAt == this.capturedAt);
+}
+
+class AbilityScoresCompanion extends UpdateCompanion<AbilityScoreRow> {
+  final Value<String> id;
+  final Value<String> abilityKey;
+  final Value<double> score;
+  final Value<String?> metricsJson;
+  final Value<int> capturedAt;
+  final Value<int> rowid;
+  const AbilityScoresCompanion({
+    this.id = const Value.absent(),
+    this.abilityKey = const Value.absent(),
+    this.score = const Value.absent(),
+    this.metricsJson = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AbilityScoresCompanion.insert({
+    required String id,
+    required String abilityKey,
+    required double score,
+    this.metricsJson = const Value.absent(),
+    required int capturedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        abilityKey = Value(abilityKey),
+        score = Value(score),
+        capturedAt = Value(capturedAt);
+  static Insertable<AbilityScoreRow> custom({
+    Expression<String>? id,
+    Expression<String>? abilityKey,
+    Expression<double>? score,
+    Expression<String>? metricsJson,
+    Expression<int>? capturedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (abilityKey != null) 'ability_key': abilityKey,
+      if (score != null) 'score': score,
+      if (metricsJson != null) 'metrics_json': metricsJson,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AbilityScoresCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? abilityKey,
+      Value<double>? score,
+      Value<String?>? metricsJson,
+      Value<int>? capturedAt,
+      Value<int>? rowid}) {
+    return AbilityScoresCompanion(
+      id: id ?? this.id,
+      abilityKey: abilityKey ?? this.abilityKey,
+      score: score ?? this.score,
+      metricsJson: metricsJson ?? this.metricsJson,
+      capturedAt: capturedAt ?? this.capturedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (abilityKey.present) {
+      map['ability_key'] = Variable<String>(abilityKey.value);
+    }
+    if (score.present) {
+      map['score'] = Variable<double>(score.value);
+    }
+    if (metricsJson.present) {
+      map['metrics_json'] = Variable<String>(metricsJson.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AbilityScoresCompanion(')
+          ..write('id: $id, ')
+          ..write('abilityKey: $abilityKey, ')
+          ..write('score: $score, ')
+          ..write('metricsJson: $metricsJson, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -23998,6 +24327,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $QuestionAttemptsTable(this);
   late final $QuestionSerialCountersTable questionSerialCounters =
       $QuestionSerialCountersTable(this);
+  late final $AbilityScoresTable abilityScores = $AbilityScoresTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -24050,7 +24380,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         knowledgeEdges,
         materialIntakeUndoLogs,
         questionAttempts,
-        questionSerialCounters
+        questionSerialCounters,
+        abilityScores
       ];
 }
 
@@ -35355,6 +35686,179 @@ typedef $$QuestionSerialCountersTableProcessedTableManager
         ),
         QuestionSerialCounterRow,
         PrefetchHooks Function()>;
+typedef $$AbilityScoresTableCreateCompanionBuilder = AbilityScoresCompanion
+    Function({
+  required String id,
+  required String abilityKey,
+  required double score,
+  Value<String?> metricsJson,
+  required int capturedAt,
+  Value<int> rowid,
+});
+typedef $$AbilityScoresTableUpdateCompanionBuilder = AbilityScoresCompanion
+    Function({
+  Value<String> id,
+  Value<String> abilityKey,
+  Value<double> score,
+  Value<String?> metricsJson,
+  Value<int> capturedAt,
+  Value<int> rowid,
+});
+
+class $$AbilityScoresTableFilterComposer
+    extends Composer<_$AppDatabase, $AbilityScoresTable> {
+  $$AbilityScoresTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get abilityKey => $composableBuilder(
+      column: $table.abilityKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get score => $composableBuilder(
+      column: $table.score, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metricsJson => $composableBuilder(
+      column: $table.metricsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AbilityScoresTableOrderingComposer
+    extends Composer<_$AppDatabase, $AbilityScoresTable> {
+  $$AbilityScoresTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get abilityKey => $composableBuilder(
+      column: $table.abilityKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get score => $composableBuilder(
+      column: $table.score, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metricsJson => $composableBuilder(
+      column: $table.metricsJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AbilityScoresTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AbilityScoresTable> {
+  $$AbilityScoresTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get abilityKey => $composableBuilder(
+      column: $table.abilityKey, builder: (column) => column);
+
+  GeneratedColumn<double> get score =>
+      $composableBuilder(column: $table.score, builder: (column) => column);
+
+  GeneratedColumn<String> get metricsJson => $composableBuilder(
+      column: $table.metricsJson, builder: (column) => column);
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+}
+
+class $$AbilityScoresTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AbilityScoresTable,
+    AbilityScoreRow,
+    $$AbilityScoresTableFilterComposer,
+    $$AbilityScoresTableOrderingComposer,
+    $$AbilityScoresTableAnnotationComposer,
+    $$AbilityScoresTableCreateCompanionBuilder,
+    $$AbilityScoresTableUpdateCompanionBuilder,
+    (
+      AbilityScoreRow,
+      BaseReferences<_$AppDatabase, $AbilityScoresTable, AbilityScoreRow>
+    ),
+    AbilityScoreRow,
+    PrefetchHooks Function()> {
+  $$AbilityScoresTableTableManager(_$AppDatabase db, $AbilityScoresTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AbilityScoresTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AbilityScoresTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AbilityScoresTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> abilityKey = const Value.absent(),
+            Value<double> score = const Value.absent(),
+            Value<String?> metricsJson = const Value.absent(),
+            Value<int> capturedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AbilityScoresCompanion(
+            id: id,
+            abilityKey: abilityKey,
+            score: score,
+            metricsJson: metricsJson,
+            capturedAt: capturedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String abilityKey,
+            required double score,
+            Value<String?> metricsJson = const Value.absent(),
+            required int capturedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AbilityScoresCompanion.insert(
+            id: id,
+            abilityKey: abilityKey,
+            score: score,
+            metricsJson: metricsJson,
+            capturedAt: capturedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AbilityScoresTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AbilityScoresTable,
+    AbilityScoreRow,
+    $$AbilityScoresTableFilterComposer,
+    $$AbilityScoresTableOrderingComposer,
+    $$AbilityScoresTableAnnotationComposer,
+    $$AbilityScoresTableCreateCompanionBuilder,
+    $$AbilityScoresTableUpdateCompanionBuilder,
+    (
+      AbilityScoreRow,
+      BaseReferences<_$AppDatabase, $AbilityScoresTable, AbilityScoreRow>
+    ),
+    AbilityScoreRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -35457,4 +35961,6 @@ class $AppDatabaseManager {
   $$QuestionSerialCountersTableTableManager get questionSerialCounters =>
       $$QuestionSerialCountersTableTableManager(
           _db, _db.questionSerialCounters);
+  $$AbilityScoresTableTableManager get abilityScores =>
+      $$AbilityScoresTableTableManager(_db, _db.abilityScores);
 }

@@ -76,6 +76,8 @@ part 'database.g.dart';
     QuestionAttempts,
     // v33（题目编号高水位，轮次一百六十三；docs/QUESTION_BANK_DESIGN.md §11/§40）
     QuestionSerialCounters,
+    // v38（能力测评分数，轮次一百七十七；docs/REVIEW_FEEDBACK.md §8）
+    AbilityScores,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -112,7 +114,8 @@ class AppDatabase extends _$AppDatabase {
   /// [_upgradeV16ToV17] / [_upgradeV17ToV18] / [_upgradeV18ToV19] /
   /// [_upgradeV19ToV20] / [_upgradeV20ToV21] / [_upgradeV21ToV22] / [_upgradeV22ToV23] /
   /// [_upgradeV23ToV24] / [_upgradeV24ToV25] / [_upgradeV25ToV26] /
-  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36] / [_upgradeV36ToV37].
+  /// [_upgradeV26ToV27] / [_upgradeV27ToV28] / [_upgradeV28ToV29] / [_upgradeV29ToV30] / [_upgradeV30ToV31] / [_upgradeV31ToV32] / [_upgradeV32ToV33] / [_upgradeV33ToV34] / [_upgradeV34ToV35] / [_upgradeV35ToV36] / [_upgradeV36ToV37] /
+  /// [_upgradeV37ToV38].
   ///
   /// v33（轮次一百六十三）adds `question_serial_counters`: the high-water mark of
   /// question numbers ever issued, so "发出即永久保留" holds after the highest
@@ -135,8 +138,14 @@ class AppDatabase extends _$AppDatabase {
   /// (docs/REVIEW_FEEDBACK.md §10/§11) — a comma-separated set of stable codes
   /// (time/question/knowledge/task/flashcard). NULL = 这一级没有声明，
   /// 用途从祖先继承；整棵树都没有声明 = 不限制。列可空、不回填。
+  ///
+  /// v38（轮次一百七十七）adds `ability_scores`: one row per measured ability
+  /// score (reaction speed / working memory / pattern recognition / attention
+  /// stability), the 能力 dimension of docs/REVIEW_FEEDBACK.md §8 — deliberately
+  /// separate from the knowledge-point priors in `assessment_sessions` /
+  /// `cognitive_priors`. 纯新增一张只追加的表，老库没有一行要回填。
   @override
-  int get schemaVersion => 37;
+  int get schemaVersion => 38;
 
   @override
   MigrationStrategy get migration {
@@ -252,6 +261,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 37) {
           await _upgradeV36ToV37();
+        }
+        if (from < 38) {
+          await _upgradeV37ToV38();
         }
       },
       beforeOpen: (details) async {
@@ -484,6 +496,12 @@ class AppDatabase extends _$AppDatabase {
     // no such table，那意味着**一道题也存不进去**。表是纯新增，建表即可。
     if (!await _tableExists('question_serial_counters')) {
       await m.createTable(questionSerialCounters);
+    }
+    // v38（轮次一百七十七）：能力测评分数表。同一个失败模式——老文件被盖成 v38
+    // 却没有这张表时，能力画像页一读就抛 no such table（看起来像"我从没测过"）。
+    // 表是纯新增、没有列要补，建表即可。
+    if (!await _tableExists('ability_scores')) {
+      await m.createTable(abilityScores);
     }
   }
 
@@ -1070,6 +1088,21 @@ class AppDatabase extends _$AppDatabase {
     }
     final m = Migrator(this);
     await _addColumnIfMissing(m, 'tags', tags.usageCodes);
+  }
+
+  /// v37 -> v38：能力测评分数表 `ability_scores`（轮次一百七十七，
+  /// `docs/REVIEW_FEEDBACK.md` 第 8 条）。
+  ///
+  /// 纯新增一张只追加的表：表里全是新的测量结果，老库没有任何一行需要回填或
+  /// 搬家。已存在（版本号被盖高、或 [_ensureColumns] 自愈先一步建过）就跳过——
+  /// 与「给不存在的表补列」不同，createTable 本身是安全的（v31 -> v32 起就是
+  /// 这个写法）。
+  Future<void> _upgradeV37ToV38() async {
+    if (await _tableExists('ability_scores')) {
+      return;
+    }
+    final m = Migrator(this);
+    await m.createTable(abilityScores);
   }
 
   Future<void> _upgradeV4ToV5() async {

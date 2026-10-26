@@ -5,6 +5,7 @@ import '../../features/packages/application/package_export_service.dart';
 import '../../features/packages/application/package_import_service.dart';
 import '../../features/tasks/application/task_scheduler_service.dart';
 import '../database/app_database_provider.dart';
+import 'ability_score_repository.dart';
 import 'anki_repository.dart';
 import 'assessment_repository.dart';
 import 'diffusion_log_repository.dart';
@@ -102,6 +103,12 @@ final questionRepositoryProvider = Provider<QuestionRepository>((ref) {
 final questionAttemptRepositoryProvider =
     Provider<QuestionAttemptRepository>((ref) {
   return QuestionAttemptRepository(ref.watch(appDatabaseProvider));
+});
+
+/// 能力测评分数（docs/REVIEW_FEEDBACK.md §8，schema v38）：只追加，画像页读
+/// 「每项能力最近一次」与测量次数，测评页写 record()。
+final abilityScoreRepositoryProvider = Provider<AbilityScoreRepository>((ref) {
+  return AbilityScoreRepository(ref.watch(appDatabaseProvider));
 });
 
 final ankiStatsServiceProvider = Provider<AnkiStatsService>((ref) {
