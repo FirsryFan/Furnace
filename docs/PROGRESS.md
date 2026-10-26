@@ -2,6 +2,21 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-27 轮次一百八十二：采集管线 handoff M1–M4 接入（Markdown 渲染 + schema v40 + 扩展题/能力点）
+
+- 目标：用户 m20049——外部 agent 的交接目录 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`「没有更新就当作完工，拿来写入代码装载到软件里」。本轮按 FURNACE-PIPELINE-SPEC-v1.md 做 App 侧 M1（题目区整段 Markdown + LaTeX、`text_format`、`fullcard_` 前缀判整卡）、M2（`extension_of` / `capability`、词表与 T×A 统计口径、详情页 UI）、M4（契约工具随仓库落地）；M3 的 `focus_review` 已在轮次一百八十一提交（`8058c76`），本轮只回写规范。目录最后一次外部改动为 2026-10-27 00:10，判定为完工。
+- 团队：用户 m00002 要求重建三名成员，实际 `spawn_teammate` 报「已存在」→ 沿用 `send_message` 复用：task-207 reasoning-core（能力词表 + T×A 统计纯逻辑）、task-208 threadflow-engine（扩展题母子索引 + 复习卡组键纯逻辑）、task-209 question-intake（详情页能力点 chips + 扩展题/母题入口）；Lead 负责数据层、渲染接线验收、l10n、文档与 git 提交。task-206 已完成（MarkdownQuestionText 组件 + 详情页接线，见下）。
+- 数据层（Lead）：`app/lib/domain/services/package/question_pack_record.dart` 新增可选 `textFormat` / `extensionOf` / `capability`（`text_format` 仅 markdown 时写入、能力码 `^A(10|[1-9])$` 校验 + 去重 + 数字升序、非法值报 `questions[i].*` 路径）；`Questions` 表加三列（NULL 语义：textFormat NULL=plain、extensionOf NULL=独立题、capability NULL=未标注，**不回填**），`database.dart` schema v39→**v40**（`_upgradeV39ToV40` + `_ensureColumns` 自愈），`database.g.dart` 重新生成；`QuestionDraft`/`ingest`/`updateFromPack`/`question_pack_service.dart`/`question_pack_source.dart` 双向映射（`updateFromPack` 区分 null=不动 与 `capability: []`=清空，旧包不会把 markdown 题降级）；新增 `byZujuanQuestionId`（同题号取最新）与 `questionsByExtensionOf`（题号升序、未编号最后）。`question_stem_image_plan.dart` 的 `planQuestionStemRender` 加 `hasFullcardImage` 入参（B0：`fullcard_` 前缀直接 snapshot，不看尺寸），详情页按媒体文件名传入。
+- 渲染（question-intake，task-206）：新 `app/lib/features/questions/presentation/question_markdown_view.dart` 的 `MarkdownQuestionText`（`questionTextFormatIsMarkdown` 判格式；代码栅栏/美元符不配对时退回 `SelectableText`）；题干、选项、答案、解析、理由在 `question_detail_page.dart` 统一接线，`text_format` 缺省/plain 的旧题行为不变。
+- 纯逻辑（队友）：`question_capability.dart`（`QuestionCapability` A1–A10，code/labelZh/definitionZh/fromCode、JSON 编解码、题型中文名）、`capability_stats.dart`（`CapabilityStatsReport.of`：单能力/题型×能力交叉表/最弱能力/样本不足阈值 3）、`question_extension.dart`（母子索引，防自指/互指/悬空，父链迭代不递归）、`review_deck_key.dart`（`review_deck|<subjectKey>|<capabilityCode>|<tagPath>` 卡组键，A2<A10 数字序、脏数据 null 不抛）。共 121 例：22+37+29+33。
+- UI 第二片（question-intake，task-209）：详情页 `_QuestionRelationsSection`——能力点 chips（`A3 中文名`，未知码原样，只读）+ 扩展关联（母题在库→`questionExtensionParentSerial` 可点钻层；不在库→组卷网题号 + 缺失提示不可点；扩展题列表带数量标题、题号徽标 + 单行预览、点进子题详情），两边都空时零高度，老题外观不变；`question_detail_providers.dart` 新增 `QuestionExtensionLinks` + `questionExtensionLinksProvider`。新增 6 例组件测试。
+- l10n（Lead，5 个 key，`flutter gen-l10n` exit 0）：`questionCapabilitySection`、`questionExtensionParentSerial`、`questionExtensionParentZujuan`、`questionExtensionParentMissing`、`questionExtensionChildrenTitle`。
+- M4：`app/tool/tqb_verify.dart` 落地（用 App 自己的解码器验包），真实包实测 `decoded records=30 mediaBytes=60` / `OK`；交接侧 `tools/zip_check.py` 同包 `OK 30 records, 60 media, 60 referenced`。无 CI，作为发布前手动门禁写进新文档 `docs/HANDOFF_PIPELINE.md`。
+- 文档：新建 `docs/HANDOFF_PIPELINE.md`（M1–M4 状态表、字段/文件/函数位置、未做项、验证命令）；`docs/DATA_MODEL.md` §29（v40 三列 + 迁移/自愈 + 仓储语义 + 包映射 + 测试 + 边界）；`docs/FEATURE_MATRIX.md` 顶部增补表 +5 行；README 文档表加 HANDOFF_PIPELINE；交接侧 `FURNACE-PIPELINE-SPEC-v1.md` 回写 v1.2（§6 七行状态、§7 M1/M2/M4 实现状态、§10 可选字段消费版本），README 不动。
+- 验证：`dart format` 本轮 29 个 dart 文件（4 changed 收敛）；`dart analyze lib test` **88 issues / 0 error / 0 warning**（与轮次一百八十一基线相同，无新增）；全量 `flutter test --concurrency=1` **+6453 ~2 All tests passed，15:29，TEST_EXIT=0**（日志 `E:/dsh-tmp-aot/test-182-full.txt`；v0.6.11 基线 +6285，净增 168 = 新文件 157 + 既有测试文件补 11）。
+- 未做/风险：材料容器（`materials/<subject>/*.md` + `assets/`）与材料练习记录（用时/错因/岔路/重做历史，§5.9）**未做**——需要新的材料载体与练习记录表；capability 只读、无录入入口与 T×A 报表页；题库列表/组卷/Word 导出不展示能力点与扩展关系；6:2:2 复习配额与错题 1/3/7/21 天自动重做未做；`text_format: markdown` 的渲染只用组件测试验证，未在真机窄屏上手看；v0.6.12 未出包。
+- 下一步候选：A) 材料容器与练习记录（M2 剩余两项，需要 schema v41 + 材料页）；B) T×A 统计页与 capability 录入；C) v0.6.12 双端发布。
+
 ## 2026-10-26 轮次一百八十一：AI 考前提前复习（focus_review）+ 使用指南
 
 - 目标：用户 m19724——「给 AI 发消息手动调节闪存卡推送（下周要考试，某些板块提前进复习）」，并要一份「怎样用 Furnace 才能优化学习效率」的使用指导。

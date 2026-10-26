@@ -105,6 +105,7 @@ dart analyze                 # 应为 0 error
 | [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md) | 与 MindNet 的接口约定（双方回应都在里面） |
 | [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) · [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) | 差距分析与功能矩阵 |
 | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | **用户使用指南**：AI 能做什么、高频指令、学习闭环、考前提前复习 |
+| [docs/HANDOFF_PIPELINE.md](docs/HANDOFF_PIPELINE.md) | **采集管线交接（handoff M1–M4）**：`.tqb` 新字段、Markdown 渲染、扩展题/能力标签、契约验证命令与未做项 |
 
 ## 许可
 

@@ -1327,6 +1327,64 @@ NULL」）。生成代码 `database.g.dart` 的 `AiMessage` 数据类自动多�
 - 上下文回传给模型时**不带** reasoning：历史思考只给用户看，不回灌进下一轮，
   否则 token 成本翻倍且容易把旧思考当成当前推理。
 - 没有思考的压缩/折叠阈值：长思考会整段存库（TEXT 无长度上限），列表渲染时才折叠。
+## §29 schema v40：题目三列 `text_format` / `extension_of` / `capability`（轮次一百八十二）
+
+来源是外部 handoff 规范 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`（§4.3 包记录字段、§7 M1/M2 的 App 侧改动清单）。采集端约定：正文整段是 Markdown+LaTeX 的题目包，可在记录里带 `text_format: "markdown"`；扩展题用 `extension_of` 挂母题的组卷网题号；能力点用 `capability: ["A3","A7"]`。这三个都是**可选**字段——历史包没有它们也必须照旧导入，因此数据库侧只加可空列，NULL 表示「旧包 / 没声明」，不设默认值、不回填。
+
+### 29.1 表结构（`questions`）
+
+| 列 | 类型 | 语义 |
+| --- | --- | --- |
+| `textFormat` | TEXT NULL | 题目正文的文本格式。NULL = `plain`（历史做法：`QuestionRichText` 只认成对行内 `$…$`）；`'markdown'` = 正文按整段 Markdown+LaTeX 渲染（`$$` 块、标题、列表、代码块、`［图N］` 占位）。**只存非默认值**，因此列里只有 NULL 与 `'markdown'` 两种取值，写 `'plain'` 会落回 NULL，避免两种「默认」并存 |
+| `extensionOf` | TEXT NULL | 若这题是扩展题，存**母题的 `zujuanQuestionId`**（不是本地 `id`）。NULL = 独立题。不做外键：母题可能还没导入、也可能来自不同题库包，FK 会把「先导子题再导母题」这种正常顺序卡死；索引/防环由纯逻辑层 `buildQuestionExtensionIndex` 负责 |
+| `capability` | TEXT NULL | 能力点代码 JSON 数组字符串（`["A2","A10"]`），闭集 A1–A10（词表在 `app/lib/domain/services/questions/question_capability.dart`）。NULL = 未标注；**不写 `[]`**（空数组与未标注同义，统一落 NULL） |
+
+表定义 `app/lib/data/database/tables.dart:1260/:1268/:1277`（`class Questions`，三列都在 `zujuanBankId` 之后，注释里写明 NULL 语义与「不回填」理由）。生成代码 `database.g.dart` 由 `build_runner` 重新生成（`dart run build_runner build --delete-conflicting-outputs` → exit 0，897 outputs，152s），未手改。
+
+为什么不用新表：三列都是「关于这道题的一条标量声明」，一对一；扩展关系用「子题→母题题号」单列就够表达一棵树（多母题不在规范里），另开表要 join、要多一次写事务，还会让「导入一题」从单表单事务变成两表事务。能力点用 JSON 数组串而不是逗号分隔：代码本身就是 `A1`…`A10`，不用转义，也不会和标签路径里的分隔符混淆。
+
+### 29.2 迁移与自愈
+
+- `app/lib/data/database/database.dart:152`：`int get schemaVersion => 40;`；`:276`：`if (from < 40) { await _upgradeV39ToV40(); }`（链尾）。
+- `_upgradeV39ToV40()`（`database.dart:1147`）：`if (!await _tableExists('questions')) return;` 后 `_addColumnIfMissing` 三次（`:1152` textFormat、`:1153` extensionOf、`:1154` capability）。**不回填**——旧题确实没声明格式/母题/能力点，回填 `'plain'` 会让「用户显式选的 plain」与「旧数据」分不开。
+- beforeOpen 自愈：`_ensureColumns` 的 questions 块加三列探测（`database.dart:433-435`）。v31 `usage_codes` 的教训同样适用：版本号被盖成 40 却缺列时 Drift 不会再走 `onUpgrade`，只能靠这里补。
+- 提醒：改 `tables.dart` 后**必须**重跑 `build_runner`，否则 `database.g.dart` 里没有新 getter，`dart analyze` 会报一串 undefined。
+
+### 29.3 仓储与写入点
+
+- `QuestionDraft`（`app/lib/data/repositories/question_repository.dart:86-88`）加 `textFormat = 'plain'` / `extensionOf` / `capability = const []`；`ingest` 落库时（`:285-289`）textFormat 仅 `'markdown'` 才写、extensionOf 走 `_nullIfBlank`、capability 走 `encodeQuestionCapability`。
+- `updateFromPack`（`:741-743` 参数、`:792-796` patch）：语义与前几列不同，**必须分清 null 与空**——
+  - `textFormat: null` 或 `'plain'` → 不动原值（旧包不会把已标 markdown 的题降级）；只有 `'markdown'` 才写。
+  - `extensionOf: null` → 不动；空串 → 清空。
+  - `capability: null` → 不动；`[]` → 写 NULL 清空（服务层把「旧包没带」映射成 null）。
+- 编解码集中在 `question_repository.dart:1001-1057`：`encodeQuestionCapability`（去重、非法代码丢弃、按数字升序 A2<A3<A10、空→null）、`decodeQuestionCapability`（NULL/坏 JSON → 空列表，不抛）、`_capabilityRank`、`_capabilityPatch`。仓储层是唯一入口，UI/导出都走这两个函数，避免同一语义在四处各写一遍。
+- `Question` 数据类读侧不用改：整行带出三个新字段（`question.textFormat` / `extensionOf` / `capability` 为 NULL 或 JSON 串）。
+
+### 29.4 包格式映射（`.tqb`）
+
+`app/lib/domain/services/package/question_pack_record.dart`：
+
+- 常量 `:23` `kQuestionPackTextFormatPlain = 'plain'`、`:26` `kQuestionPackTextFormatMarkdown = 'markdown'`、`:29-30` 允许集。
+- 构造默认 `:222` / `:224`；字段文档 `:286-297`；`toJson`（`:328-331`）**只在非默认时写键**：`text_format` 仅 markdown、`extension_of` 非空、`capability` 非空；`fromJson`（`:396-441`）缺省即 plain/空，非法值走 `_fail` 报路径（`_decodeTextFormat` `:747-750`）。
+- `==`/`hashCode`/`toString` 已含新字段（`:474` / `:504` / `:513`）。
+- 导入路径 `app/lib/features/questions/application/question_pack_service.dart`：`_draftOf`（`:637`）与 `updateFromPack` 调用（`:327-328`）双向映射；导出路径 `app/lib/data/package/question_pack_source.dart:227` 用 `decodeQuestionCapability` 还原数组。
+- 兼容性：解码器**忽略未知键**（原有行为），所以新包导入老版本 App 不会报错，只是丢三个字段；老包进新版本则全按默认值处理。
+
+### 29.5 测试
+
+- `app/test/data/database/v40_migration_test.dart` **3 例**（模板 `v30_migration_test.dart`）：真实 v39 文件升级（`ALTER TABLE questions DROP COLUMN` 三列 + `PRAGMA user_version = 39`）后新列可写可读、重开还在；被盖成 v40 却缺列时 `_ensureColumns` 自愈；ingest/update 语义（只传 textFormat 不动 capability、`capability: []` 清空）。
+- `app/test/domain/services/package/question_pack_record_test.dart` 追加 5 例：`text_format` 缺省/显式/非法值报路径/落键行为、capability 去重升序（A2<A3<A10）与非法项路径、`extension_of` trim/空串/非串、三字段 `==`/`hashCode`。
+- `app/test/data/repositories/question_repository_extension_test.dart` **8 例**：`byZujuanQuestionId` 空/trim/多行取最新、`questionsByExtensionOf` 空/精确/题号排序（未编号最后）、ingest 的 `textFormat`/`extensionOf`/`capability` 落库、plain 落 NULL。
+- `app/test/features/questions/presentation/question_markdown_view_test.dart` **19 例**（含 `fullcard_` 与 plain 对照）与 `question_extension_links_view_test.dart` **6 例**（能力点 chips、母题在库/缺失、子题列表、两边空不占位）。
+- 实测：v40 文件 `+3` 全绿；包回归（codec + application + services/package + pack_update）`+849` 全绿；详情页回归 `+99` 全绿（`flutter test … --concurrency=1`）。
+
+### 29.6 边界（截至本版）
+
+- 只有**数据层与导入导出**通了：`text_format` 的渲染由 `MarkdownQuestionText`（`app/lib/features/questions/presentation/question_markdown_view.dart`）承接，详情页题干/选项/答案/解析已接线；题库列表、Word 导出、材料页仍走旧摘要（列表本来就是截断预览，不影响）。
+- `extensionOf` 只存题号，**没有外键、没有自动级联**；母题↔扩展题的索引/防环/悬空判定由 `question_extension.dart` 的纯逻辑负责（`buildQuestionExtensionIndex`）；详情页已接 `questionExtensionLinksProvider`（母题入口 + 扩展题列表，两边都空时零高度）。题库列表/组卷/Word 侧未展示扩展关系。
+- `capability` 详情页已有只读 chips；仍**无录入/编辑入口**，也没有 T×A 统计页；统计口径已由 `capability_stats.dart`（`CapabilityStatsReport.of`）实现，等「练习记录」表落地后再接。
+- 材料容器（handoff §7 M2 的「目录 zip / front matter」）本版未做；练习记录字段（§5.9）同样未建表。
+
 
 
 
