@@ -186,3 +186,19 @@ abstract class AssessmentInstrument {
 - **边界**：这类短测信度有限，定位是「看自己的相对变化趋势」，不是绝对智商；不联网、不调 AI、题目本地静态 +
   可播种随机数；保存是逐项写、非事务（中途失败可能留下前几项）；没有趋势图/历史列表/删除单条（下一步再做）。
 
+### 9.1 能力趋势的纯逻辑（2026-10-26 轮次一百七十九）
+
+画像页当前只显示最近一次分数，趋势小图需要「旧 → 新」的序列、方向与归一化坐标。这些整理放在
+`app/lib/domain/services/cognitive/ability_trend.dart`（180 行，纯 Dart、不读库、不 import Flutter），数据来源是
+`AbilityScoreRepository.historyFor`（已是新 → 旧）：
+
+- `AbilityTrendPoint{capturedAt, score}`；`AbilityTrendSeries` 构造时按 `capturedAt` **稳定升序**排序（同一时刻保持传入顺序），
+  `fromNewestFirst(..., {max = kAbilityTrendMaxPoints})` 先反转再 `capped(max)`，`kAbilityTrendMaxPoints = 30`（超出只留最新）；
+- 读数：`delta`（最新 − 最早；空序列 null、单点 0.0）、`averageScore`、`bestScore`、`worstScore`、`earliest`/`latest`；
+- 方向：`kAbilityTrendFlatEpsilon = 2.0`，`|delta| < 2` 记 flat（恰为 2.0 算有方向），单点/空序列 flat，NaN 差按 flat；
+- 画图：`progress01`（最近一次 /100 夹到 0–1）、`normalizedScores`（每个点 /100 夹 0–1、NaN 记 0）、
+  `normalizedPositions`（n=1 → [0]；n≥2 → `i/(n-1)`，首 0 末 1）。
+
+全部确定性、不读时钟、不随机；29 例单测（`app/test/domain/services/cognitive/ability_trend_test.dart`）钉住排序/截断/方向阈值/夹取/空序列。
+**画像页趋势图 UI 仍未接**，本轮只交付可单测的数据层。
+

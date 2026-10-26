@@ -2,6 +2,21 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-26 轮次一百七十九：知识图期 3 + 检索词标准侧同步 + 三域标签边界 + 能力趋势纯逻辑
+
+- 目标：继续按 `docs/REVIEW_FEEDBACK.md` 收尾——§7 知识网络图**期 3**（搜索/标签筛选/详情/列表兜底）、§9 检索词的**标准侧**（`keywords.mjs` + `SKILL.md`）同步、§10 再把**题库批量打标签 / 任务详情 / 认知测评**三个域的选择器接上用途边界、§8 能力趋势的**纯逻辑**（画像页 UI 留后）。§3 页面级 token 迁移仍等用户给「自然」方向。本轮**无 schema 变更**（仍 v39）。
+- 团队（沿用现有三名成员，`spawn_teammate` 仍报已存在，故一律 `send_message` 复用）：task-201 threadflow-engine（§7 期 3）、task-202 question-intake（§10 三域选择器）、task-203 reasoning-core（§8 趋势纯逻辑）；§9 标准侧由 Lead 做。
+- l10n（Lead，12 个 key，`flutter gen-l10n` exit 0）：10 个 `cognitiveGraph*`（SearchHint/SearchCount/SearchEmpty/SearchClear/ViewList/ViewGraph/DetailTags/FilterTag/FilterClear/ListUntagged）+ `tagUsageScopeHintNamed` / `tagUsageScopeEmptyNamed`（带用途名的通用提示与空态）。
+- 片 1（Lead，§9 标准侧同步）：`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs`（约 324 行，`node --check` 通过）新增 `SCIENCE_MIN/MAX=15/30`、`HUMANITIES_MIN/MAX=20/40`、`ABS_MIN=4`、`HUMANITIES_KEYS`、`subjectBandFor`；`textLayerOnly`/`segments` 加 soft 模式（文科保留全角逗号/顿号，否则难凑 20–40 连续串）；新增滑窗 `bandWindows` 与带区间的 `score`；`keywordsFor(text,{top,band})` 长串优先、短串兜底；CLI 加 `--band humanities`，`--queries` 逐条按 `subjectKey` 选带。实测 `--file`：理科 106 字题 6 条（19/15 字 in-band + 短兜底）、文科 144 字题（21/20 字，含全角逗号）、短理科 31 字 2 条 4 字（诚实降级）。`SKILL.md` §6.2 重写为长度口径表 + 四条带 `--band` 的命令 + 风险段（候选可能含逗号、站点容错未实测、0 结果时手动去逗号）；App 侧 `zujuan_keywords.dart` 文件头注释改为「✅ 与标准侧已同步（2026-10-26）」。
+- 片 2（threadflow-engine，task-201，§7 期 3）：`cognitive_graph_layout.dart` 新增纯函数 `cognitiveGraphPrimaryTagId` / `filterCognitiveGraphPoints` / `groupCognitiveGraphPointsByPrimaryTag` 与 `CognitiveGraphPointGroup`；`cognitive_graph_page.dart` 加搜索框（知识点标题或任一标签标题、大小写不敏感、匹配数/清除/空态）、按标签筛选（详情 sheet 里点标签 chip 转筛选，图上方可清除）、详情 sheet（认知区域/关联卡数/平均 R/标签）、列表视图（按主标签分组、未挂标签最后、点行回图谱并居中）。测试：布局 12→16 例、页面 5→12 例。修掉真实 bug：列表点行回图谱没真居中（底部详情卡让视口矮约 60px，改 postFrame 二次居中）。
+- 片 3（question-intake，task-202，§10 三域）：新 `app/lib/features/tags/application/tag_usage_scope.dart`——`TagUsageScope`（`visibleTags`/`hasAnyDeclaration`/`isEmpty`、共享 `emptyDialogKey`）、`loadTagUsageScope(ref, usage)`、`tagUsageLabel`、`tagUsageScopeHint`/`tagUsageScopeEmptyText`、`showTagUsageScopeEmptyDialog`；接入题库批量打标签对话框、任务详情「加标签」、认知测评选择范围（`TagUsage.knowledge`）。测试：`tag_usage_scope_test.dart` 0→8 例、`question_bulk_tag_dialog_test.dart` 0→3 例、`task_detail_page_test.dart` 6→9 例、`assessment_page_test.dart` 4→7 例。
+- 片 4（reasoning-core，task-203，§8 趋势纯逻辑）：新 `app/lib/domain/services/cognitive/ability_trend.dart`（180 行，纯 Dart）——`AbilityTrendPoint`/`AbilityTrendSeries` 按 `capturedAt` 稳定升序（同刻保序）、`fromNewestFirst` 反转后只留最新 `kAbilityTrendMaxPoints=30` 点、`delta`/`averageScore`/`bestScore`/`worstScore`、`direction`（阈值 `kAbilityTrendFlatEpsilon=2.0` 判变好/持平/变差）、`progress01`/`normalizedScores`/`normalizedPositions`（夹 0–1、NaN 记 0）；29 例测试。画像页趋势图 UI 未接。
+- 门禁：15 个手写改动 dart 文件 + 全部新测试 `dart format --set-exit-if-changed` 0 changed；`dart analyze lib test` = **90 issues / 0 error / 0 warning**（基线 89，多出 1 条 info，均在改动前就存在的文件里）；scoped 合并测试（cognitive 两文件 + assessment + task_detail + bulk_tag_dialog + tag_usage_scope + ability_trend + `test/domain/services/zujuan` 全目录）`+364 All tests passed`；全量 `flutter test --concurrency=1` = **+6246 ~2 All tests passed，14:39，EXIT 0**（日志 `E:/dsh-tmp-aot/test-179-full.txt`；基线 +6189，净增 57）。
+- 教训：①`tools.read` 取 `old_string` 再 `tools.edit` 后，**后续按行号的 read 会错位**，`keywords.mjs` 一度被替换坏（函数尾被吃、重复块）；批量改文件要用「先读全文→一次 write」或每次按**内容锚点**读；②pwsh 把中文弯引号当参数引号吃掉，长中文文本必须写临时文件再 `--file`；③`tools.glob` 对工作目录之外返回空，查仓库外文件用 pwsh `Get-ChildItem`。
+- docs：`docs/REVIEW_FEEDBACK.md` 补「轮次一百七十九」总状态段 + §7 期 3 / §9 标准侧 / §10 三域 / §8 趋势各条实施状态 + §15 批次表一行 + header 四更新；`docs/FEATURE_MATRIX.md` 新增 4 行（图谱期 3、检索词标准侧、三域选择器、能力趋势）并改 4 处旧尾注；`docs/ASSESSMENT_DESIGN.md` 新增 §9.1（趋势纯逻辑口径）；本轮无 DATA_MODEL 变更（无 schema 改动）。
+- 仍未做：§3 页面级 token 迁移（等用户定「自然」方向）；§8 画像页趋势图 UI；§10 其余选择器（AI 建议标签 / 组卷选标签 / 知识网络入口 / 题库包标签路径选择器）仍读全树；§9 真实站点上用手上题做新长度候选的命中率人工 A/B；真机未手测；**v0.6.11 未出包**（v0.6.10 之后已攒轮次 175–179 若干提交）。
+- 下一步候选：A) 出 **v0.6.11** 双端发布件；B) §8 能力趋势图 UI（数据层已就绪）；C) §10 其余选择器。
+
 ## 2026-10-26 轮次一百七十八：设计 token 基础层 + AI 思考落库（schema v39）+ 闪卡标签边界
 
 - 目标：继续按 `docs/REVIEW_FEEDBACK.md` 逐条改进，本轮做 §3（UI 设计 token 的**基础层**，页面级迁移等用户定方向）、§4a（思考过程落库 + 历史消息里折叠展示）、§10（闪卡域标签选择器按用途过滤）。

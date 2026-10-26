@@ -6,6 +6,7 @@
 > 2026-10-26 再更新（轮次一百七十七）：§8 能力测评 MVP 已落地（schema v38 `ability_scores` + 四项本地小测页 + 能力画像页 + 设置页两个入口），见 [PROGRESS.md](PROGRESS.md) 轮次一百七十七。
 >
 > 2026-10-26 三更新（轮次一百七十八）：§3 **设计 token 基础层**已落地（`AppSpacing` / `AppRadius` / `AppTokens` ThemeExtension，卡与对话框半径已改用 token）+ §4a **思考过程落库**（schema v39 `ai_messages.reasoning`，六条写库路径全覆盖）。仍剩：§3 的页面级迁移（等你定「自然」方向 §16-Q2）、§9 标准侧同步、§10 其余域选择器、§7 期 3、能力趋势图。
+> 2026-10-26 四更新（轮次一百七十九）：§7 期 3（搜索/标签筛选/详情 sheet/列表兜底）、§9 标准侧同步（`keywords.mjs` + `SKILL.md`）、§10 三个域选择器（题库批量打标签 / 任务详情 / 认知测评）、§8 趋势纯逻辑（`ability_trend.dart`）已落地；本轮无 schema 变更，见 [PROGRESS.md](PROGRESS.md) 轮次一百七十九。
 > 取证基线：`class-productivity` HEAD `3032663`（v0.6.10 发布提交），工作树干净。
 > 取证方式：只读检索与读文件（grep / read）。凡是没实际跑过或没看到的，文中标「未验证」。
 > 每条格式：现象（用户原话）→ 现状取证 → 根因 → 对策与取舍 → 影响面 → 优先级与工作量。
@@ -37,6 +38,8 @@
 **实施状态（2026-10-26 轮次一百七十八）**：§3 落地了**基础层**——`app/lib/core/theme/design_tokens.dart` 新增 `AppSpacing`（4pt 栅格 + `snap`）、`AppRadius`（control=6 / card=10 / sheet=14 / pill=999）、`AppTokens extends ThemeExtension<AppTokens>`（间距/半径/语义文字页标题-节标题-正文-注释）；`theme_profile.dart` 的 `toThemeData()` 把 token 装进 `ThemeData.extensions`，并把 `cardTheme` / `dialogTheme` 的圆角改成 token（Material 默认 12/28 与各页手写的 2–18 打架，是可解释的「不自然」来源）。**页面级迁移未做**（125 种 EdgeInsets / 11 种圆角）——等你给方向。§4a 思考落库完成：schema v39 加 `ai_messages.reasoning`（可空、不回填），`AgentLoop` 六条写库路径都带思考文本，流式面板之外的历史消息折叠块由 question-intake 接。
 
 **实施状态（2026-10-26 轮次一百七十七）**：§8 能力测评 **MVP 已做**——schema v38 `ability_scores`（只追加、与知识先验完全分开）、领域评分纯逻辑（四项：反应速度/工作记忆/模式识别/注意稳定性）、四项本地小测页（可重测单项、失败不丢已测项前的界面）、能力画像只读页、设置页「能力测评」「能力画像」两个入口；无 AI 调用、不联网。**剩余**：§3（UI 设计 token，等用户定「自然」方向）、§4a 的思考落库（`ai_messages.reasoning` 留 v39）、§9 标准侧同步、§10 其余域选择器、§7 期 3、能力趋势图。
+
+**实施状态（2026-10-26 轮次一百七十九）**：§7 **期 3 已上线**——知识图加了搜索（知识点标题或任一标签标题，大小写不敏感）、按标签筛选、知识点详情 sheet（认知区域 / 关联卡数 / 平均 R / 标签 chip 一键转筛选）、列表视图（按主标签分组、未挂标签最后）；§9 **标准侧已同步**——`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs` 与 `SKILL.md` §6.2 改成与 App 同一口径（理科 15–30 / 文科 20–40 且严格短于题干，新增 `--band` 参数），Dart 文件头注释改为「已同步」；§10 **再收紧三个域的选择器**——新 `tag_usage_scope.dart` 统一「按用途过滤 + 提示 + 两种空态」，题库批量打标签、任务详情加标签、认知测评范围都改用它；§8 **趋势纯逻辑已做**（`ability_trend.dart` + 29 例测试，画像页 UI 未接）。本轮无 schema 变更。仍剩：§3 页面级迁移（等 §16-Q2 方向）、§8 趋势图 UI、§10 更细的选择器（闪卡域已按 `flashcard` 收紧；知识网络/AI 建议标签/组卷选标签未接）。
 
 **一句话结论**：P0 七项（1、2、4b、6、12、13、14）都是小改动、高感知，建议一轮内打包（本轮已全部做完）；3、7、8 是「重定义产品形态」的大改，需要先定标准再动手；10/11 是数据模型改动（标签加「用途域」），会和后续所有选择器相关，最好一次设计对。
 
@@ -243,6 +246,8 @@
 
 **实施状态（2026-10-25 轮次一百七十六，已上线）**：期 1 + 期 2 一起做了——布局重写为**按标签分簇**（扇区角度按簇成员数加权、簇内黄金角螺旋 `r=26*sqrt(k)`、最小间距 26、无标签点放中心、确定性可单测、画布边长 `clamp(840*sqrt(n/15), 840, 2400)`）；页面换成 **InteractiveViewer**（minScale 0.4、maxScale 4、边界无限、首帧自适应缩放并居中、AppBar「重置视图」、角落提示、缩放 < 0.8 隐藏文字），命中测试按缩放后的坐标换算。期 3（节点详情 sheet / 搜索定位 / 标签筛选 / 列表兜底）**仍未做**。证据：`cognitive_graph_layout.dart` 438 行、`cognitive_graph_page.dart` 745 行；测试 12 + 5 例全绿。
 
+**实施状态（2026-10-26 轮次一百七十九，期 3 已上线）**：搜索（知识点标题或任一标签标题，大小写不敏感；显示匹配数、可清除、无命中空态）、按标签筛选（详情 sheet 里点标签 chip 即转为该标签筛选，图上方显示可清除的 chip）、知识点详情 sheet（认知区域 / 关联卡数 / 平均 R / 标签列表）、列表视图兜底（按主标签分组，未挂标签排最后；点行回到图谱并居中选中）。布局纯函数新增 `cognitiveGraphPrimaryTagId` / `filterCognitiveGraphPoints` / `groupCognitiveGraphPointsByPrimaryTag`（均可单测）。测试：布局 12→16 例、页面 5→12 例（`test/features/cognitive` 共 226 例全绿）；修掉「列表点行回图谱没真居中」的真实 bug（详情卡让视口矮约 60px，改成 postFrame 二次居中）。**未做**：搜索词与标签筛选是内存态（关页即清）、详情里的卡数/平均 R 没有单位标签（未加 l10n）、未真机验证手势与性能。
+
 ---
 
 ## 8. 认知测评：应测能力（humanbenchmark 式），不是选标签测知识点
@@ -279,6 +284,8 @@
 - 测试：领域 50 例、测评页 11 例、画像页 6 例、v38 迁移 3 例、仓储 6 例、设置页 +2 例。
 - **未做**：趋势图/历史列表（`historyFor` 已具备，UI 未用）、`metrics` 展示、保存事务化（逐项写、非事务）、与 MindNet 参数映射、真机计时精度验证。
 
+**实施状态（2026-10-26 轮次一百七十九，趋势纯逻辑已做）**：`app/lib/domain/services/cognitive/ability_trend.dart`（180 行，纯 Dart、不读库、不 import Flutter）——`AbilityTrendSeries` 按 `capturedAt` 稳定升序排序（同一时刻保持传入顺序）、`fromNewestFirst` 从仓储「新 → 旧」读数构造并只留最新 `kAbilityTrendMaxPoints=30` 点、`delta`（最新−最早，单点为 0.0）/`averageScore`/`bestScore`/`worstScore`、`direction` 用 `kAbilityTrendFlatEpsilon=2.0` 判「变好/持平/变差」、`progress01`/`normalizedScores`/`normalizedPositions`（夹到 0–1、NaN 记 0）可直接画小图；29 例测试。**画像页趋势图 UI 未接**（画像页仍只显示最近一次分数/次数/时间）。
+
 ---
 
 ## 9. 组卷网检索词过短
@@ -308,6 +315,8 @@
 **优先级**：P1（1 片 + 人工验证）。
 
 **实施状态（2026-10-25 轮次一百七十六，已上线）**：`zujuan_keywords.dart` 已重写（467 行）——新增 `enum ZujuanSubjectBand { science, humanities }` 与常量 `15/30`、`20/40`，`zujuanSubjectBandFor(subjectKey)` 映射（语文/英语/历史/政治/地理→文科，其余含 null/未知→理科）；候选生成改为「先按标点切句 → 句内滑窗/锚点扩窗到目标区间 → 文科严格短于题干（短题干回退取尽量长且 ≥4）」，去掉 5–16 字偏好，仍保证候选是清洗后原文的连续子串、确定性、互为子串只留一条、`maxCandidates` 可配。UI：`question_zujuan_search.dart` 的 provider 改为 `(stem, band)` 记录键、按钮接 `subjectKey`、每条候选右侧显示「N 字」、表头加长度口径提示；详情页传入 `question.subjectKey`。**未做**：`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs` 与 `SKILL.md` 仍 4–28 未同步（两处已分歧，文件头已注明）；长检索词命中率未做人工 A/B；公式/标点密集段可能回退到 <15 字（不跨段约束的必然结果，测试已按「至少一条落在区间」断言）。证据：`zujuan_keywords_test.dart` 30 例、`zujuan_link_test.dart` 改写 10 例、详情页测试 74 例全绿。
+
+**实施状态（2026-10-26 轮次一百七十九，标准侧已同步）**：`D:/dsh-data/skills/zujuan-source-standards/scripts/keywords.mjs`（约 324 行，`node --check` 通过）加 `SCIENCE_MIN/MAX=15/30`、`HUMANITIES_MIN/MAX=20/40`、`ABS_MIN=4`、`HUMANITIES_KEYS`、`subjectBandFor`；`textLayerOnly`/`segments` 加 soft 模式（文科保留全角逗号/顿号，否则很难凑出 20–40 的连续串）；新增滑窗 `bandWindows` 与带区间的 `score`；`keywordsFor(text,{top,band})` 长串优先、短串兜底；CLI 加 `--band humanities`，`--queries` 逐条按 `subjectKey` 选带。`SKILL.md` §6.2 重写为同一口径表 + 四条带 `--band` 的命令 + 风险说明（候选可能含逗号，站点是否容错未实测，0 结果时手动去逗号再试）。App 侧文件头注释改成「✅ 与标准侧已同步（2026-10-26）」，删掉过期行号。**未做**：真实站点上用手上题做新长度候选的命中率人工 A/B（要登录浏览器实测）。
 
 ---
 
@@ -341,6 +350,8 @@
 **优先级**：P1（2–3 片；建议先机制 + 时间域，其他域后续按需）。
 
 **实施状态（2026-10-25 轮次一百七十六，机制已上线）**：**存储选了 B（Tags 加列）而不是 A**——schema v37 给 `tags` 加可空 `usage_codes` TEXT（逗号分隔 `time/question/knowledge/task/flashcard`，NULL = 本级不声明），理由是新列在 `_ensureColumns` 里天然受自愈保护、树移动/重命名/删除不需要维护旁路 JSON，代价是每行多一列（可空，开销可忽略）。继承在**读取时**按 `parentId` 向上找最近的非空声明（不写回子标签），整链无声明 = 不限制 → 默认策略选了 §16-Q8 的「未声明 = 所有域可见」，老数据零迁移、零回填。领域 `tag_usage.dart`：`encodeTagUsageCodes`/`decodeTagUsageCodes`（空集→NULL、未知 code 容忍）、`TagUsageNode`、`TagUsageResolver`（`declaredFor`/`effectiveFor`/`effectiveSourceTagId`/`hasAnyDeclaration`/`isVisibleFor`/`visibleTagIdsFor`/`visibleOf`，成环保护）；仓储 `TagRepository.resolverFor` / `updateTagUsageCodes`；provider `tagUsageResolverProvider` / `setTagUsages`。UI：标签树页每行菜单「用途边界」+ 已声明徽标 + 多选对话框（`tagUsageDialogTitle` 等），时间块标签选择器按 `time` 过滤（§11）。**未做**：其余域选择器（题目/任务/知识/闪卡/AI 建议标签）仍读全树——共 23 处 `getAllTags()`，本轮只收紧时间域；无「子树批量设置」；无「显示全部」逃生阀（当前规则是未声明即全可见，所以不会出现找不到标签）；跨设备同步无（本地单用户）。证据：`tag_usage_test.dart` 23 例、`v37_migration_test.dart` 3 例、`tag_tree_page_test.dart` 28 例、`time_board_page_test.dart` 12 例全绿。
+
+**实施状态（2026-10-26 轮次一百七十九，三个域已接）**：新 `app/lib/features/tags/application/tag_usage_scope.dart` 把「按用途过滤 + 提示 + 两种空态」收成一处——`TagUsageScope`（`visibleTags` / `hasAnyDeclaration` / `isEmpty`、共享 `emptyDialogKey`）、`loadTagUsageScope(ref, usage)`、`tagUsageLabel`、`tagUsageScopeHint` / `tagUsageScopeEmptyText`、`showTagUsageScopeEmptyDialog`。接入三处：题库批量打标签对话框、任务详情「加标签」、认知测评的选择范围（`TagUsage.knowledge`）；l10n 加 `tagUsageScopeHintNamed` / `tagUsageScopeEmptyNamed`（带用途名）。测试：`tag_usage_scope_test.dart` 8 例、`question_bulk_tag_dialog_test.dart` 3 例、`task_detail_page_test.dart` 6→9 例、`assessment_page_test.dart` 4→7 例。**未做**：AI 建议标签、组卷选标签、知识网络入口、题目包标签路径选择器等仍读全树（23 处 `getAllTags()` 只收了 5 处）；没有「显示全部」逃生阀（未声明即全可见）。
 
 ---
 
@@ -492,6 +503,7 @@
 | A–B 已落地（2026-10-25 轮次一百七十五） | §1 改名、§2 新图标、§4a **只做了解析+展示**（未落库）、§4b 停止生成、§6 行高拖拽、§12 改名、§13 管理页全文、§14 复习保持率 | v36：`local_settings.review_retention` + `time_view_settings.hour_height` | — | 已完成 |
 | C–D–F 部分已落地（2026-10-25 轮次一百七十六） | §7 知识图分簇布局 + 缩放平移 + 重置视图；§9 检索词按学科带长度 + UI 字数；§10/§11 标签用途边界（机制 + 时间域 + 标签树页 UI）；§12B 安排列表「全部/今天」 | v37：`tags.usage_codes` | 无 | 已完成（期 3／其余域／skill 同步未做） |
 | G 部分已落地（2026-10-26 轮次一百七十七） | §8 能力测评 MVP：四项本地小测 + 能力画像页 + 设置页两个入口（与知识先验解耦） | v38：`ability_scores` 新表 | 无 | 已完成（趋势图/metrics 展示/与 MindNet 映射未做） |
+| F 期3 + C 标准侧 + D 三域 + G 趋势部分已落地（2026-10-26 轮次一百七十九） | §7 知识图期 3（搜索/标签筛选/详情 sheet/列表兜底）；§9 标准侧 `keywords.mjs` + `SKILL.md` 同步；§10 题库批量打标签/任务详情/认知测评三域接 `tag_usage_scope`；§8 趋势纯逻辑 `ability_trend.dart` | 无 | 无 | 已完成（§3 页面迁移、§8 趋势 UI、§10 其余选择器未做） |
 | E 基础层 + C 落库已落地（2026-10-26 轮次一百七十八） | §3 设计 token 基础层（`AppSpacing`/`AppRadius`/`AppTokens` + 卡与对话框半径改 token）；§4a 思考过程落库（`ai_messages.reasoning` + `AgentLoop` 六条路径 + 历史折叠 UI） | v39：`ai_messages.reasoning` 一列 | 无 | 已完成（§3 页面级迁移仍等方向） |
 | D | §10/§11 标签用途域 + 时间标签树 | v36（local_settings.tag_usage_json） | 无 | 2–3 片 |
 | E | §3 UI token 化 + 6 页面扫一遍 | 无 | 用户给「自然」方向 | 2–3 片 |
