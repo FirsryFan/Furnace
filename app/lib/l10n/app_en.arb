@@ -3537,5 +3537,34 @@
         "type": "String"
       }
     }
+  },
+  "abilityTrendTitle": "Trend",
+  "@abilityTrendTitle": {
+    "description": "Title of the mini trend chart inside an ability card."
+  },
+  "abilityTrendImproving": "Improving",
+  "@abilityTrendImproving": {
+    "description": "Ability trend direction: latest clearly above earliest."
+  },
+  "abilityTrendFlat": "Steady",
+  "@abilityTrendFlat": {
+    "description": "Ability trend direction: change smaller than the threshold."
+  },
+  "abilityTrendDeclining": "Declining",
+  "@abilityTrendDeclining": {
+    "description": "Ability trend direction: latest clearly below earliest."
+  },
+  "abilityTrendHint": "Test at least twice to see a trend",
+  "@abilityTrendHint": {
+    "description": "Hint shown when only one ability measurement exists."
+  },
+  "abilityTrendRecent": "Last {count} tests",
+  "@abilityTrendRecent": {
+    "description": "Measurement count shown under the mini trend chart.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

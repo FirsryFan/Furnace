@@ -5571,4 +5571,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String tagUsageScopeEmptyNamed(String usage) {
     return '没有「纳入$usage」的标签；去标签树给某棵树设置「$usage」用途，或清空用途表示不限制。';
   }
+
+  @override
+  String get abilityTrendTitle => '趋势';
+
+  @override
+  String get abilityTrendImproving => '变好';
+
+  @override
+  String get abilityTrendFlat => '持平';
+
+  @override
+  String get abilityTrendDeclining => '变差';
+
+  @override
+  String get abilityTrendHint => '至少测两次才能看趋势';
+
+  @override
+  String abilityTrendRecent(int count) {
+    return '最近 $count 次';
+  }
 }

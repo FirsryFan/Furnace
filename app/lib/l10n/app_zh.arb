@@ -3444,5 +3444,34 @@
         "type": "String"
       }
     }
+  },
+  "abilityTrendTitle": "趋势",
+  "@abilityTrendTitle": {
+    "description": "能力画像卡片里趋势小图的标题。"
+  },
+  "abilityTrendImproving": "变好",
+  "@abilityTrendImproving": {
+    "description": "能力趋势方向：最新分明显高于最早分。"
+  },
+  "abilityTrendFlat": "持平",
+  "@abilityTrendFlat": {
+    "description": "能力趋势方向：变化幅度小于阈值。"
+  },
+  "abilityTrendDeclining": "变差",
+  "@abilityTrendDeclining": {
+    "description": "能力趋势方向：最新分明显低于最早分。"
+  },
+  "abilityTrendHint": "至少测两次才能看趋势",
+  "@abilityTrendHint": {
+    "description": "能力趋势只有一次测量时显示的提示。"
+  },
+  "abilityTrendRecent": "最近 {count} 次",
+  "@abilityTrendRecent": {
+    "description": "能力趋势小图下方的测量次数。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

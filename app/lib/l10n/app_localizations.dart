@@ -9703,6 +9703,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No tag is marked for {usage}. Mark one in the tag tree, or clear the usages to lift the limit.'**
   String tagUsageScopeEmptyNamed(String usage);
+
+  /// Title of the mini trend chart inside an ability card.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get abilityTrendTitle;
+
+  /// Ability trend direction: latest clearly above earliest.
+  ///
+  /// In en, this message translates to:
+  /// **'Improving'**
+  String get abilityTrendImproving;
+
+  /// Ability trend direction: change smaller than the threshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Steady'**
+  String get abilityTrendFlat;
+
+  /// Ability trend direction: latest clearly below earliest.
+  ///
+  /// In en, this message translates to:
+  /// **'Declining'**
+  String get abilityTrendDeclining;
+
+  /// Hint shown when only one ability measurement exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Test at least twice to see a trend'**
+  String get abilityTrendHint;
+
+  /// Measurement count shown under the mini trend chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Last {count} tests'**
+  String abilityTrendRecent(int count);
 }
 
 class _AppLocalizationsDelegate

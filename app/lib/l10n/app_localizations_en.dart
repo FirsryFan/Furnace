@@ -5808,4 +5808,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String tagUsageScopeEmptyNamed(String usage) {
     return 'No tag is marked for $usage. Mark one in the tag tree, or clear the usages to lift the limit.';
   }
+
+  @override
+  String get abilityTrendTitle => 'Trend';
+
+  @override
+  String get abilityTrendImproving => 'Improving';
+
+  @override
+  String get abilityTrendFlat => 'Steady';
+
+  @override
+  String get abilityTrendDeclining => 'Declining';
+
+  @override
+  String get abilityTrendHint => 'Test at least twice to see a trend';
+
+  @override
+  String abilityTrendRecent(int count) {
+    return 'Last $count tests';
+  }
 }
