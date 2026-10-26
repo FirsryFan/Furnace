@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'design_tokens.dart';
+
 /// Appearance theme as a portable JSON document (spec §4 / GAP D13).
 ///
 /// The spec asks for: separate UI and editor fonts, page scale 80%-150%
@@ -61,6 +63,7 @@ class ThemeProfileData {
 
   /// Page scale, clamped to [ThemeScale.min]..[ThemeScale.max].
   final double scale;
+
   /// When false, implicit animations are removed.
   final bool animations;
 
@@ -148,7 +151,8 @@ class ThemeProfileData {
   /// extra fields).
   factory ThemeProfileData.fromJson(Map<String, dynamic> json) {
     final colors = (json['colors'] as Map<String, dynamic>?) ?? const {};
-    final background = (json['background'] as Map<String, dynamic>?) ?? const {};
+    final background =
+        (json['background'] as Map<String, dynamic>?) ?? const {};
     final fonts = (json['fonts'] as Map<String, dynamic>?) ?? const {};
     // A theme file written before D1 has no `icons` section at all: it must load
     // (empty map, every slot keeps its factory icon) rather than throw.
@@ -179,7 +183,8 @@ class ThemeProfileData {
       // trip never silently drops a choice the user made elsewhere.
       icons: <String, String>{
         for (final entry in icons.entries)
-          if (entry.value is String && (entry.value as String).trim().isNotEmpty)
+          if (entry.value is String &&
+              (entry.value as String).trim().isNotEmpty)
             entry.key: (entry.value as String).trim(),
       },
     );
@@ -264,9 +269,8 @@ class ThemeProfileData {
         : colorOf(background!, fallback: scheme.surface)
             .withValues(alpha: backgroundOpacity.clamp(0.0, 1.0));
 
-    final surfaceOverride = surface == null
-        ? null
-        : colorOf(surface!, fallback: scheme.surface);
+    final surfaceOverride =
+        surface == null ? null : colorOf(surface!, fallback: scheme.surface);
 
     // Content surfaces follow the same transparency as the backdrop.
     //
@@ -277,8 +281,8 @@ class ThemeProfileData {
     // the same alpha. At the default opacity of 1 nothing changes at all, which
     // is what keeps an untouched theme pixel-identical.
     final contentAlpha = backgroundOpacity.clamp(0.0, 1.0);
-    final contentColour = (surfaceOverride ?? scheme.surface)
-        .withValues(alpha: contentAlpha);
+    final contentColour =
+        (surfaceOverride ?? scheme.surface).withValues(alpha: contentAlpha);
 
     final base = ThemeData(
       colorScheme: surfaceOverride == null
@@ -289,13 +293,21 @@ class ThemeProfileData {
       visualDensity: VisualDensity.standard,
       scaffoldBackgroundColor:
           hasBackgroundImage ? Colors.transparent : backgroundColour,
-      cardTheme: CardThemeData(color: contentColour),
-      dialogTheme: DialogThemeData(backgroundColor: contentColour),
+      // Radii come from the same token scale the pages will read
+      // (`AppTokens.cardRadius` / `sheetRadius`), so the built-in Material
+      // defaults (12 / 28) stop disagreeing with the hand-written radii found
+      // on individual pages (2, 3, 4, 6, 8, 10, 12, 18).
+      cardTheme: CardThemeData(
+        color: contentColour,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.cardBorder),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: contentColour,
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppRadius.sheetBorder,
+        ),
+      ),
     );
-
-    if (editorFont == null) {
-      return base;
-    }
 
     // A body/editor font is a different thing from the UI font: it applies to
     // what the user *reads and writes* (descriptions, notes, card answers,
@@ -303,17 +315,33 @@ class ThemeProfileData {
     // it to the whole text theme would silently defeat the second setting, so
     // only the body styles are overridden.
     final body = base.textTheme;
-    return base.copyWith(
-      textTheme: body.copyWith(
-        bodyLarge: body.bodyLarge?.copyWith(fontFamily: editorFont),
-        bodyMedium: body.bodyMedium?.copyWith(fontFamily: editorFont),
-        bodySmall: body.bodySmall?.copyWith(fontFamily: editorFont),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        hintStyle: TextStyle(fontFamily: editorFont),
-        labelStyle: TextStyle(fontFamily: editorFont),
-      ),
-    );
+    final themed = editorFont == null
+        ? base
+        : base.copyWith(
+            textTheme: body.copyWith(
+              bodyLarge: body.bodyLarge?.copyWith(fontFamily: editorFont),
+              bodyMedium: body.bodyMedium?.copyWith(fontFamily: editorFont),
+              bodySmall: body.bodySmall?.copyWith(fontFamily: editorFont),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              hintStyle: TextStyle(fontFamily: editorFont),
+              labelStyle: TextStyle(fontFamily: editorFont),
+            ),
+          );
+
+    // Design tokens (review feedback item 3) are derived from the *final* theme,
+    // so `AppTokens.of(context).body` carries the editor font and the global
+    // text scale. Installing them here means no page needs an extra import to
+    // read them, and an unthemed test harness still gets [AppTokens.standard]
+    // from `of` instead of null.
+    // NOTE: `themed.extensions.values` cannot be spread into an
+    // `Iterable<ThemeExtension<dynamic>>` on Flutter 3.47 (the analyzer/CFE
+    // rejects it as `ThemeExtension<ThemeExtension<dynamic>>`), so go through
+    // the map and hand the values over as a list instead.
+    final Map<Object, ThemeExtension<dynamic>> appExtensions =
+        Map<Object, ThemeExtension<dynamic>>.from(themed.extensions);
+    appExtensions[AppTokens] = AppTokens.fromTheme(themed);
+    return themed.copyWith(extensions: appExtensions.values.toList());
   }
 }
 
