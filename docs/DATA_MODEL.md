@@ -1168,3 +1168,81 @@ encode 一经发出就不再改（改了等于把老安装的选择变成「未�
   够用。
 - 没有权限/多用户概念：这是本地单用户库，用途只是显示口径。
 
+## §27 schema v38：能力测评分数表 `ability_scores`（轮次一百七十七）
+
+用户反馈第 8 条（`docs/REVIEW_FEEDBACK.md` §8）要求「认知测评应测**能力**，
+而不是选知识点标签自评」。已有 `assessment_sessions` / `assessment_responses` /
+`cognitive_priors` 那套是**知识点**维度的自评 + 复述先验，与能力维度没有可换算的
+关系，所以另开一张只追加的小表，不碰老表。
+
+### 27.1 表结构
+
+| 列 | 类型 | 语义 |
+| --- | --- | --- |
+| `id` | TEXT PK | `Ids.next('ab')`，如 `ab-lk3j9s-1` |
+| `ability_key` | TEXT NOT NULL | 能力项稳定 code：`reaction_speed` / `working_memory` / `pattern_recognition` / `attention_stability`（域层 `AbilityKey.code`，`app/lib/domain/services/cognitive/ability_assessment.dart:30`），不存中文 |
+| `score` | REAL NOT NULL | 0–100 分。域层 clamp 一次、仓储 `record()` 再 clamp 一次（`ability_score_repository.dart:50`），库里的分数一定是合法值 |
+| `metrics_json` | TEXT NULL | 小测原始指标 JSON（毫秒样本、最长记忆长度、答对数…）。空指标写 **NULL** 而不是 `{}`：「没有指标」与「指标是空对象」不是一回事 |
+| `captured_at` | INTEGER NOT NULL | 测量时刻 epoch ms |
+
+表定义：`app/lib/data/database/tables.dart:1697`（`class AbilityScores`，
+`@DataClassName('AbilityScoreRow')`，PK `{id}`，无外键、无 unique 约束——同一项能力
+测几次就是几行）。生成代码在 `database.g.dart:24039`（`AbilityScoreRow`）/`:24161`
+（`AbilityScoresCompanion`）/`:35964`（表管理器）。
+
+为什么是一张新表而不是 `local_settings` 一列 JSON：这是一串**历史测量**（画像页要
+「最近一次」与「共几次」），不是当前偏好；塞进设置等于每次测量都覆盖上一次，
+趋势永远画不出来。也不复用 `assessment_*`：那张表的 `step_kind` 是
+`self_report|recall|objective`、外键指向知识点，语义与本表不同。
+
+### 27.2 迁移与自愈
+
+- `database.dart:148`：`schemaVersion => 38`；`:264-267`：`if (from < 38) await _upgradeV37ToV38();`。
+- `_upgradeV37ToV38`（`database.dart:1100`）：**表已存在就直接 return**，否则
+  `Migrator.createTable(abilityScores)`。纯新增表，没有一行要回填——回填等于凭空
+  造分数（与 v31→v32 `question_attempts`、v32→v33 `question_serial_counters` 同一个
+  示例写法）。
+- beforeOpen 自愈：`_ensureColumns`（`database.dart:503-505`）发现表不在就建表。
+  老文件被盖成 v38 却缺这张表时，Drift 会跳过 `onUpgrade`，画像页一读就抛
+  `no such table`——那看起来像「我从来没测过」，所以自愈与迁移都要有。
+- `_tableFor` **不需要**加 case：那张映射只服务于 `_addColumnIfMissing`，本版没有补列。
+
+### 27.3 仓储与 provider
+
+`app/lib/data/repositories/ability_score_repository.dart`（新建）：
+
+| 成员 | 行 | 口径 |
+| --- | --- | --- |
+| `AbilityScoreEntry` | :13 | 读侧快照：`id` / `key`(枚举) / `score` / `metrics`(Map) / `capturedAt`(DateTime) |
+| `record({key, score, metrics, now})` | :50 | 追加一行，返回 id；score clamp 到 0–100；metrics 空 → NULL |
+| `historyFor(key, {limit = 50})` | :74 | 新→旧（`captured_at` DESC、同毫秒 `id` DESC）；`limit <= 0` 直接空表 |
+| `latestByAbility()` | :96 | 一次查询取全集，按前述顺序挑每项能力第一行；未知 `ability_key` 的行**跳过**（旧数据/改库不让画像页整页报错） |
+| `countFor(key)` / `countAll()` | :116 / :125 | 单项次数 / 全部行数 |
+| `deleteAll()` | :132 | 清空（不可撤销；本版 UI 未接，留给测试与后续设置页） |
+| `_decodeMetrics` | :146 | 坏 JSON / 非对象一律读成空表 |
+
+provider：`abilityScoreRepositoryProvider`（`app/lib/data/repositories/repository_providers.dart:110`）。
+
+### 27.4 测试
+
+- `app/test/data/database/v38_migration_test.dart` 3 例：真实 v37 文件升级后表建出来、
+  可读可写、重开还在；同一项能力多行 latest 取最新 / countFor 数全部；被盖成 v38
+  却缺表的文件靠自愈建表。
+- `app/test/data/repositories/ability_score_repository_test.dart` 6 例：空表读侧、
+  新→旧与 limit<=0、score clamp（150→100、-5→0）、metrics 往返（list/int/字符串、
+  空指标读回空表）、未知 code 跳过但 countAll 仍数、countFor/countAll/deleteAll。
+- 实测：`flutter test test/data/database/v38_migration_test.dart
+  test/data/repositories/ability_score_repository_test.dart --concurrency=1` →
+  `+9: All tests passed!`。领域层 `ability_assessment_test.dart` 另有 50 例（reasoning-core）。
+
+### 27.5 边界（截至本版）
+
+- 只有 UI 两页会消费：测评页写入（question-intake），画像页只读（threadflow-engine）；
+  设置页与 `deleteAll()` 的界面入口由 Lead 统一接。
+- 不做趋势图/相对进步：`historyFor` 已给出新→旧序列，画不画是后续 UI 的事。
+- 不能删单条测量：现在只有 `deleteAll()`。删单条要加 `deleteById`，等有真实诉求再做。
+- 与知识点先验**互不推导**：能力分数不会改 `cognitive_priors` 的 R0，反之亦然。
+- 四项小测的评分公式常量（250/800ms、3/9 跨度、1500/6000ms、灵敏度/特异度各半）
+  是 MVP 口径，未做人群标定；改动会改历史分数的可比性（已落库的分数不重算）。
+
+

@@ -154,3 +154,35 @@ abstract class AssessmentInstrument {
 - 不给 `Σ`/`S` 造先验（模型会自己长出来）；
 - 不把先验写进 `card_states`（先验≠观测，混写会让"复习校正"失去意义）；
 - 不在首版做实时同步/账号系统。
+
+---
+
+## 9. 能力测评（与知识先验解耦，2026-10-25 轮次一百七十七）
+
+用户反馈第 8 条：认知测评要测**能力**，不是选标签测知识点。现有 M1c 页面（`assessment_page.dart`）测的是
+知识点自评 + 复述抽检，产出 `cognitive_priors.r0`——那是**知识域的观测**；能力测评是另一个测量对象，
+不能靠改文案混在一起。本节记新增的独立模块口径（实现见 `docs/DATA_MODEL.md` §27 与
+`docs/REVIEW_FEEDBACK.md` §8）。
+
+- **四项能力（MVP，纯本地确定性小测，合计约 3–4 分钟）**：
+  1. 反应速度 `reaction_speed`：5 试次，随机等待 800–2000ms 后点目标，取中位反应时（ms）；
+  2. 工作记忆 `working_memory`：5 试次，数字串跨度 4,5,6,7,8 依次出现，记最长答对跨度；
+  3. 模式识别 `pattern_recognition`：10 试次，图案 A 先出 900ms、再出 B（50% 相同/换 1 个符号），答相同/不同，
+     记正确数与中位反应时；
+  4. 注意稳定性 `attention_stability`：30 试次（20 字母目标 + 10 数字非目标，洗牌），800ms 窗口内对字母点「是」=hit，
+     超时或点「否」=miss，对数字点任何键=false alarm，取灵敏度与特异度。
+- **评分口径**（`app/lib/domain/services/cognitive/ability_assessment.dart`，全部纯 Dart、可单测）：
+  - 反应速度：中位 ≤250ms→100、≥800ms→0、中间线性（没有非负有效样本→0，避免 `median=0` 误给满分）；
+  - 工作记忆：跳度 ≤3→0、≥9→100、中间线性（所以最长跨度 8 = 83 分，不是 100）；
+  - 模式识别：正确率 ×70 + 速度 ×30（中位 ≤1500ms→满分速度、≥6000ms→0）；
+  - 注意稳定性：(灵敏度 + 特异度)/2 ×100；`misses` 只进读数不进公式（灵敏度已由 hits/targets 表达）。
+  - 分数一律 clamp 到 0–100，并带 `metrics`（原始读数，便于以后换公式时回溯）。
+- **落库**：新表 `ability_scores`（schema v38：id / ability_key / score / metrics_json / captured_at），
+  **只追加**，与 `assessment_sessions`/`assessment_responses`/`cognitive_priors` 完全分开；不参与
+  `rebuildPriors()`，也不影响 FSRS 排期或 ReviewAdvisory 排序——第一版**不接** MindNet。
+- **页面**：`app/lib/features/cognitive/presentation/ability_assessment_page.dart`（介绍 → 四项 → 汇总 → 保存，
+  可重测单项、返回即放弃）；`ability_profile_page.dart`（只读画像：四项最近一次分数 + 测过几次 + 最近时间，
+  没测过显示「还没测过」而不是 0 分）；设置页两个入口「能力测评」「能力画像」并列。
+- **边界**：这类短测信度有限，定位是「看自己的相对变化趋势」，不是绝对智商；不联网、不调 AI、题目本地静态 +
+  可播种随机数；保存是逐项写、非事务（中途失败可能留下前几项）；没有趋势图/历史列表/删除单条（下一步再做）。
+

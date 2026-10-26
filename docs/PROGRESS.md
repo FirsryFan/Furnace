@@ -2,6 +2,20 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-26 轮次一百七十七：能力测评 MVP（schema v38 + 四项本地小测 + 能力画像）
+
+- 目标：按 `docs/REVIEW_FEEDBACK.md` 第 8 条落地 §8「认知测评要测能力、不是知识点」的 MVP——与知识先验完全分开的一组本地小测——并补能力画像页；§3（UI 设计 token）仍等用户定义「自然」方向，本轮不动。
+- 团队（沿用现有三名成员，未新建同名成员）：task-196 reasoning-core（评分纯逻辑 `ability_assessment.dart`）、task-197 question-intake（四项小测页 `ability_assessment_page.dart`）、task-198 threadflow-engine（`ability_score_providers.dart` + 只读画像页 `ability_profile_page.dart`）；三人全部 completed，Lead 独立复跑各自 format/analyze/scoped 测试。
+- 片 1（Lead，数据层）：schema **v38** 新表 `ability_scores`（id / ability_key / score / metrics_json / captured_at）；迁移 `_upgradeV37ToV38` 只建表不回填，`_ensureColumns` 也建表自愈（被盖成 v38 却缺表时画像页不能把「表不存在」当成「从没测过」）；`build_runner` 重生成 `database.g.dart`；新仓储 `ability_score_repository.dart`（`record` 写库前把 score clamp 到 0–100、`historyFor` 新→旧、`latestByAbility`、`countFor`）+ `repository_providers` 注册；`v38_migration_test` 3 例、`ability_score_repository_test` 6 例。
+- 片 2（reasoning-core）：领域纯逻辑 `app/lib/domain/services/cognitive/ability_assessment.dart`——`AbilityKey`（reaction_speed / working_memory / pattern_recognition / attention_stability 稳定 code）、`AbilityScore`、`medianReactionMillis`、四个 `score*` 函数（反应中位 250ms→100 / 800ms→0；记忆跨度 3→0 / 9→100；模式 = 正确率×70 + 速度×30（1500ms→满、6000ms→0）；注意 = (灵敏度+特异度)/2），全部 clamp 0–100；测试 50 例。
+- 片 3（question-intake）：`app/lib/features/cognitive/presentation/ability_assessment_page.dart`（866 行，介绍→四项小测→单项得分→汇总→保存；反应速度 5 试次 800–2000ms 随机等待、工作记忆 5 试次跨度 4..8 显示 1.2s 后输入、模式识别 10 试次 900ms 图案比对、注意稳定性 30 试次 800ms 窗口；可重测单项、返回即放弃、所有 Timer 随 dispose 取消；保存逐项写 4 条，成功 SnackBar + pop，失败不 pop）；测试 11 例。
+- 片 4（threadflow-engine + Lead）：`ability_score_providers.dart`（`abilityLatestScoresProvider` / `abilityScoreCountsProvider`，均 watch `databaseRevision`）；`ability_profile_page.dart`（只读：四项各一卡显示最近一次分数/次数/时间，空态、读失败态）；测试 6 例。Lead 在设置页「学习洞察」之后加「能力测评」「能力画像」两个入口（`settingsAbilityAssessmentTileKey` / `settingsAbilityProfileTileKey`）+ 测试 2 例。
+- l10n：Lead 写 36 个 key（`ability*` + `settingsAbility*`，zh/en 各一份），`flutter gen-l10n` exit 0。
+- 门禁：format 本轮 16 个 dart 文件 0 changed；`dart analyze lib test` = **91 issues / 0 error / 0 warning**（与基线一致）；scoped 组合 +80 全绿；全量 `flutter test --concurrency=1` = **+6161 ~2 All tests passed，31:57，EXIT 0**（日志 `E:/dsh-tmp-aot/test-177-full.txt`；上轮基线 +6083，净增 78）。
+- 教训：`ability_score_repository_test` 第一版有 1 例在组合跑时失败、单文件跑通过——原因是该用例 4 条 `record` 不传 `now`、同一毫秒写多行，而 `historyFor` 按 `captured_at DESC, id DESC` 排序，id 是 `Ids.next('ab')` 生成的 `ab-<uuid v4>` **非单调**，同毫秒 tie 次序随机 → flaky；改为显式递增 `now` 并在注释里写明不可依赖同毫秒 tie。
+- 仍未做：§3 UI 设计 token（需用户定「自然」方向）；§4a 思考落库（`ai_messages.reasoning`，留 v39）；能力趋势图 / 历史列表（`historyFor` 已具备、UI 未用）、`metrics` 详情展示、保存事务化（逐项写、非事务）、与 MindNet/认知模型的参数映射、真机计时精度验证、英文母语化。
+- 下一步候选：A) 出 **v0.6.11** 双端发布件（v0.6.10 之后已攒轮次 176/177 若干提交）；B) §3 UI 设计 token 基础层；C) §4a 思考落库（v39）。
+
 ## 2026-10-25 轮次一百七十六：REVIEW_FEEDBACK 第二批（知识图分簇+缩放、检索词按学科长度、标签用途边界 v37、安排过滤）
 
 - 目标：继续按 `docs/REVIEW_FEEDBACK.md` 开工，本轮落地 §7（知识网络图）、§9（组卷网检索词长度）、§10/§11（标签用途边界）、§12B（安排列表过滤）；§3（UI 设计 token）与 §8（能力测评）留后续。
