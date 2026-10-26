@@ -5766,4 +5766,46 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tagUsageScopeDefaultHint =>
       'No tag declares a usage yet, so every tag is listed; set usages in the tag tree.';
+
+  @override
+  String get cognitiveGraphSearchHint => 'Search knowledge points or tags';
+
+  @override
+  String cognitiveGraphSearchCount(int count) {
+    return '$count matching knowledge points';
+  }
+
+  @override
+  String get cognitiveGraphSearchEmpty => 'No matching knowledge points';
+
+  @override
+  String get cognitiveGraphSearchClear => 'Clear search';
+
+  @override
+  String get cognitiveGraphViewList => 'List view';
+
+  @override
+  String get cognitiveGraphViewGraph => 'Graph view';
+
+  @override
+  String get cognitiveGraphDetailTags => 'Tags';
+
+  @override
+  String get cognitiveGraphFilterTag => 'Show only this tag';
+
+  @override
+  String get cognitiveGraphFilterClear => 'Clear filter';
+
+  @override
+  String get cognitiveGraphListUntagged => 'Untagged';
+
+  @override
+  String tagUsageScopeHintNamed(String usage) {
+    return 'Only tags marked for $usage are listed; set usages in the tag tree.';
+  }
+
+  @override
+  String tagUsageScopeEmptyNamed(String usage) {
+    return 'No tag is marked for $usage. Mark one in the tag tree, or clear the usages to lift the limit.';
+  }
 }

@@ -3474,5 +3474,68 @@
   "tagUsageScopeDefaultHint": "No tag declares a usage yet, so every tag is listed; set usages in the tag tree.",
   "@tagUsageScopeDefaultHint": {
     "description": "Hint when the whole tag tree has no usage declaration."
+  },
+  "cognitiveGraphSearchHint": "Search knowledge points or tags",
+  "@cognitiveGraphSearchHint": {
+    "description": "Placeholder of the knowledge graph search field."
+  },
+  "cognitiveGraphSearchCount": "{count} matching knowledge points",
+  "@cognitiveGraphSearchCount": {
+    "description": "How many knowledge points match the current search.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cognitiveGraphSearchEmpty": "No matching knowledge points",
+  "@cognitiveGraphSearchEmpty": {
+    "description": "Empty state when the search matches nothing."
+  },
+  "cognitiveGraphSearchClear": "Clear search",
+  "@cognitiveGraphSearchClear": {
+    "description": "Tooltip of the clear button in the search field."
+  },
+  "cognitiveGraphViewList": "List view",
+  "@cognitiveGraphViewList": {
+    "description": "Tooltip of the button that switches the knowledge graph to a list."
+  },
+  "cognitiveGraphViewGraph": "Graph view",
+  "@cognitiveGraphViewGraph": {
+    "description": "Tooltip of the button that switches back to the graph."
+  },
+  "cognitiveGraphDetailTags": "Tags",
+  "@cognitiveGraphDetailTags": {
+    "description": "Section title for the tags of a knowledge point."
+  },
+  "cognitiveGraphFilterTag": "Show only this tag",
+  "@cognitiveGraphFilterTag": {
+    "description": "Button that filters the graph down to one tag."
+  },
+  "cognitiveGraphFilterClear": "Clear filter",
+  "@cognitiveGraphFilterClear": {
+    "description": "Tooltip of the clear button when a tag filter is active."
+  },
+  "cognitiveGraphListUntagged": "Untagged",
+  "@cognitiveGraphListUntagged": {
+    "description": "Group name for knowledge points without tags in the list view."
+  },
+  "tagUsageScopeHintNamed": "Only tags marked for {usage} are listed; set usages in the tag tree.",
+  "@tagUsageScopeHintNamed": {
+    "description": "Generic tag picker hint; usage is the usage name (questions/tasks/knowledge).",
+    "placeholders": {
+      "usage": {
+        "type": "String"
+      }
+    }
+  },
+  "tagUsageScopeEmptyNamed": "No tag is marked for {usage}. Mark one in the tag tree, or clear the usages to lift the limit.",
+  "@tagUsageScopeEmptyNamed": {
+    "description": "Generic tag picker empty state; usages exist but none includes this one.",
+    "placeholders": {
+      "usage": {
+        "type": "String"
+      }
+    }
   }
 }

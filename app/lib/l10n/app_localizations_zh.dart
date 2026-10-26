@@ -5529,4 +5529,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagUsageScopeDefaultHint => '所有标签都还没有声明用途，默认全部可选；可在标签树里设置用途。';
+
+  @override
+  String get cognitiveGraphSearchHint => '搜索知识点或标签';
+
+  @override
+  String cognitiveGraphSearchCount(int count) {
+    return '匹配 $count 个知识点';
+  }
+
+  @override
+  String get cognitiveGraphSearchEmpty => '没有匹配的知识点';
+
+  @override
+  String get cognitiveGraphSearchClear => '清除搜索';
+
+  @override
+  String get cognitiveGraphViewList => '列表视图';
+
+  @override
+  String get cognitiveGraphViewGraph => '图谱视图';
+
+  @override
+  String get cognitiveGraphDetailTags => '标签';
+
+  @override
+  String get cognitiveGraphFilterTag => '只看这个标签';
+
+  @override
+  String get cognitiveGraphFilterClear => '清除筛选';
+
+  @override
+  String get cognitiveGraphListUntagged => '未挂标签';
+
+  @override
+  String tagUsageScopeHintNamed(String usage) {
+    return '这里只显示「纳入$usage」的标签；可在标签树里设置用途。';
+  }
+
+  @override
+  String tagUsageScopeEmptyNamed(String usage) {
+    return '没有「纳入$usage」的标签；去标签树给某棵树设置「$usage」用途，或清空用途表示不限制。';
+  }
 }

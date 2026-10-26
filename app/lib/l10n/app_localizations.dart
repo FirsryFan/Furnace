@@ -9631,6 +9631,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No tag declares a usage yet, so every tag is listed; set usages in the tag tree.'**
   String get tagUsageScopeDefaultHint;
+
+  /// Placeholder of the knowledge graph search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Search knowledge points or tags'**
+  String get cognitiveGraphSearchHint;
+
+  /// How many knowledge points match the current search.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matching knowledge points'**
+  String cognitiveGraphSearchCount(int count);
+
+  /// Empty state when the search matches nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching knowledge points'**
+  String get cognitiveGraphSearchEmpty;
+
+  /// Tooltip of the clear button in the search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get cognitiveGraphSearchClear;
+
+  /// Tooltip of the button that switches the knowledge graph to a list.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get cognitiveGraphViewList;
+
+  /// Tooltip of the button that switches back to the graph.
+  ///
+  /// In en, this message translates to:
+  /// **'Graph view'**
+  String get cognitiveGraphViewGraph;
+
+  /// Section title for the tags of a knowledge point.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get cognitiveGraphDetailTags;
+
+  /// Button that filters the graph down to one tag.
+  ///
+  /// In en, this message translates to:
+  /// **'Show only this tag'**
+  String get cognitiveGraphFilterTag;
+
+  /// Tooltip of the clear button when a tag filter is active.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filter'**
+  String get cognitiveGraphFilterClear;
+
+  /// Group name for knowledge points without tags in the list view.
+  ///
+  /// In en, this message translates to:
+  /// **'Untagged'**
+  String get cognitiveGraphListUntagged;
+
+  /// Generic tag picker hint; usage is the usage name (questions/tasks/knowledge).
+  ///
+  /// In en, this message translates to:
+  /// **'Only tags marked for {usage} are listed; set usages in the tag tree.'**
+  String tagUsageScopeHintNamed(String usage);
+
+  /// Generic tag picker empty state; usages exist but none includes this one.
+  ///
+  /// In en, this message translates to:
+  /// **'No tag is marked for {usage}. Mark one in the tag tree, or clear the usages to lift the limit.'**
+  String tagUsageScopeEmptyNamed(String usage);
 }
 
 class _AppLocalizationsDelegate

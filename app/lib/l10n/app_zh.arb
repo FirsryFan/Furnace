@@ -3381,5 +3381,68 @@
   "tagUsageScopeDefaultHint": "所有标签都还没有声明用途，默认全部可选；可在标签树里设置用途。",
   "@tagUsageScopeDefaultHint": {
     "description": "标签选择器：整棵树都没声明用途（等于不限制）时的提示。"
+  },
+  "cognitiveGraphSearchHint": "搜索知识点或标签",
+  "@cognitiveGraphSearchHint": {
+    "description": "知识网络图搜索框的占位提示。"
+  },
+  "cognitiveGraphSearchCount": "匹配 {count} 个知识点",
+  "@cognitiveGraphSearchCount": {
+    "description": "搜索生效后图上显示的匹配数量。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cognitiveGraphSearchEmpty": "没有匹配的知识点",
+  "@cognitiveGraphSearchEmpty": {
+    "description": "搜索没有命中时的空态。"
+  },
+  "cognitiveGraphSearchClear": "清除搜索",
+  "@cognitiveGraphSearchClear": {
+    "description": "搜索框右侧清除按钮的提示。"
+  },
+  "cognitiveGraphViewList": "列表视图",
+  "@cognitiveGraphViewList": {
+    "description": "知识网络图切换成列表视图的按钮提示。"
+  },
+  "cognitiveGraphViewGraph": "图谱视图",
+  "@cognitiveGraphViewGraph": {
+    "description": "知识网络图切换回图谱视图的按钮提示。"
+  },
+  "cognitiveGraphDetailTags": "标签",
+  "@cognitiveGraphDetailTags": {
+    "description": "知识点详情面板里标签分组的标题。"
+  },
+  "cognitiveGraphFilterTag": "只看这个标签",
+  "@cognitiveGraphFilterTag": {
+    "description": "知识点详情面板里按某个标签筛选图谱的按钮。"
+  },
+  "cognitiveGraphFilterClear": "清除筛选",
+  "@cognitiveGraphFilterClear": {
+    "description": "图上方已启用标签筛选时的清除按钮提示。"
+  },
+  "cognitiveGraphListUntagged": "未挂标签",
+  "@cognitiveGraphListUntagged": {
+    "description": "列表视图里没有标签的知识点分组名。"
+  },
+  "tagUsageScopeHintNamed": "这里只显示「纳入{usage}」的标签；可在标签树里设置用途。",
+  "@tagUsageScopeHintNamed": {
+    "description": "通用标签选择器提示：usage 是用途名（题库/任务/知识网络）。",
+    "placeholders": {
+      "usage": {
+        "type": "String"
+      }
+    }
+  },
+  "tagUsageScopeEmptyNamed": "没有「纳入{usage}」的标签；去标签树给某棵树设置「{usage}」用途，或清空用途表示不限制。",
+  "@tagUsageScopeEmptyNamed": {
+    "description": "通用标签选择器空态：有用途声明但没有任何该用途的标签。",
+    "placeholders": {
+      "usage": {
+        "type": "String"
+      }
+    }
   }
 }
