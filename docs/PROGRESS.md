@@ -2,6 +2,17 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-26 轮次一百八十：v0.6.11 双端发布（思维链/中断 + 新图标 + Time 行高 + 标签边界 + 能力测评）
+
+- 目标：把 v0.6.10 之后轮次 175–180 的改动打成双端安装包：改名「智能化」、新应用图标、思维链可见/落库/可中断、Time 行高拖拽、「安排」全部/今天、闪卡全文+复习间隔、设计 token 基础层、知识图重做、检索词分学科+标准侧同步、标签用途边界（8 处）、能力测评+画像+趋势、题库包/手写标签边界、任务详情 `context.mounted` 修复。
+- 版本：`app/pubspec.yaml` `version: 0.6.11+30`；`app/lib/core/app_info.dart` `kAppVersion='0.6.11'`、`kAppBuildNumber=30`；`test/core/app_info_test.dart` +2 通过；**schema v35→v39**（v36 两列、v37 `tags.usage_codes`、v38 `ability_scores` 新表、v39 `ai_messages.reasoning`，全部只加列/加表、不回填）。
+- 构建（同一后台 job，日志 `E:/dsh-tmp-aot/build-180b.log`）：`scripts/build_windows.ps1` WINDOWS_EXIT=0、`scripts/build_android.ps1` ANDROID_EXIT=0；Windows `data/app.so` 21,824,392 B @23:11:15、`furnace.exe` 版本资源 0.6.11+30；打包前删 `data/flutter_assets/kernel_blob.bin` 110,766,568 B；zip 从 ASCII junction `E:\Document\furnace-build\...\Release` 生成 28 entries / 20,657,089 B / 解压 47,480,279 B / kernel_blob 0 条 / SHA-256 `2937E1D8…C923954D`；Android APK 100,285,614 B / SHA-256 `C95B91A6…B43959EE30`，aapt2 versionCode 30、versionName 0.6.11、minSdk 24 / targetSdk 36 / compileSdk 36，Gradle assembleRelease 247.6s。
+- 验证：`flutter test --concurrency=1` **+6257 ~2 All tests passed，14:54，EXIT 0**（日志 `E:/dsh-tmp-aot/test-180-full.txt`；v0.6.10 基线 +6246，净增 11：能力画像趋势 UI 6 例、题库包/手写标签边界 5 例）；`dart analyze lib test` 90 issues / **0 error / 0 warning**。
+- dist/：`Furnace-0.6.11-windows-x64.zip`、`Furnace-0.6.11-android.apk`、`RELEASE-v0.6.11.md`（下载表/11 条功能/schema 提示/验证/已知未做/发布说明），dist 被 gitignore、不入库。
+- 发布提交范围 v0.6.10..HEAD 共 35 个提交（含本轮 4 个功能提交 `cca7af1`/`5643be7`/`53c7916`/`d76ff89` 与本发布提交）；推送走 GitHub REST git data API（本机 github.com HTTPS 仍被阻断），并打 annotated tag v0.6.11，GitHub API 复核 TAG_TARGET=发布提交。
+- 未做/风险：双端真机未逐屏手测（新图标、思考面板、趋势折线、标签用途对话框、Time 分隔线拖拽都只有 widget / 构建层验证，新图标资源第一次经构建验证）；§3 页面级 token 迁移仍在等「自然」方向；思考文本只落库展示、不回传上下文，`cancelled` 状态不落库；组卷网检索词真实站点命中率未做人工 A/B；能力测评信度有限；无云同步。
+- 下一步：用户 m19724 提出「给 AI 发消息手动调节闪存卡推送（提前复习）」并要一份使用指导 → 轮次一百八十一做 AI `focus_review` 工具（按标签把未来 N 天内到期的闪存卡提前到今天）+ `docs/USER_GUIDE.md`。
+
 ## 2026-10-26 轮次一百七十九：知识图期 3 + 检索词标准侧同步 + 三域标签边界 + 能力趋势纯逻辑
 
 - 目标：继续按 `docs/REVIEW_FEEDBACK.md` 收尾——§7 知识网络图**期 3**（搜索/标签筛选/详情/列表兜底）、§9 检索词的**标准侧**（`keywords.mjs` + `SKILL.md`）同步、§10 再把**题库批量打标签 / 任务详情 / 认知测评**三个域的选择器接上用途边界、§8 能力趋势的**纯逻辑**（画像页 UI 留后）。§3 页面级 token 迁移仍等用户给「自然」方向。本轮**无 schema 变更**（仍 v39）。
