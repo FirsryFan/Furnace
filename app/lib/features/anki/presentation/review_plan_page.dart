@@ -8,6 +8,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/srs/review_retention.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/card_type_preference.dart';
+import '../application/flashcard_tag_scope.dart';
 import '../application/judge_mode_preference.dart';
 import '../application/review_retention_provider.dart';
 
@@ -515,14 +516,40 @@ class _UngroupedCardsCard extends ConsumerWidget {
   }
 }
 
-/// Every tag, ordered the way the pickers show them.
-Future<List<Tag>> _sortedTags(WidgetRef ref) async {
-  final tags = await ref.read(tagRepositoryProvider).getAllTags();
-  tags.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
-  return tags;
-}
-
 String _tagLabel(Tag tag) => tag.path ?? tag.name;
+
+/// The tags a flashcard picker may offer, or null when a message was shown
+/// instead.
+///
+/// Only tags whose usage declarations include `flashcard` are offered (v37
+/// scheme); a tag tree with no declarations at all keeps every tag, which is
+/// exactly the old behaviour. Two different empties are explained rather than
+/// silently ignored: no tags at all keeps the old "no tags yet" SnackBar, while
+/// a tree that declares usages but none for flashcards gets a dialog saying so.
+Future<List<Tag>?> _flashcardTagsForPicker(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final l10n = AppLocalizations.of(context);
+  final scope = await loadFlashcardTagScope(ref);
+  if (!context.mounted) {
+    return null;
+  }
+  if (scope.tags.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.reviewPlanNoTags)),
+    );
+    return null;
+  }
+  if (scope.visibleTags.isEmpty) {
+    await showFlashcardTagScopeEmptyDialog(
+      context,
+      hasAnyDeclaration: scope.hasAnyDeclaration,
+    );
+    return null;
+  }
+  return scope.visibleTags;
+}
 
 /// Lets the user pick one of [tags]; null when they back out.
 Future<Tag?> _pickTag(
@@ -535,6 +562,13 @@ Future<Tag?> _pickTag(
     builder: (context) => SimpleDialog(
       title: Text(title),
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          child: Text(
+            AppLocalizations.of(context).tagUsageScopeHintFlashcard,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
         for (final tag in tags)
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, tag),
@@ -553,14 +587,8 @@ Future<Tag?> _pickTag(
 /// away, and backing out of it is fine - the grouping has already happened.
 Future<void> _tagUngroupedCards(BuildContext context, WidgetRef ref) async {
   final l10n = AppLocalizations.of(context);
-  final tags = await _sortedTags(ref);
-  if (!context.mounted) {
-    return;
-  }
-  if (tags.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.reviewPlanNoTags)),
-    );
+  final tags = await _flashcardTagsForPicker(context, ref);
+  if (tags == null || !context.mounted) {
     return;
   }
   final chosen = await _pickTag(context, tags, title: l10n.reviewPlanPickGroup);
@@ -704,14 +732,8 @@ class ReviewPlanPage extends ConsumerWidget {
   /// target, because `setGroupPlan` upserts on the tag.
   Future<void> _pickGroup(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
-    final tags = await _sortedTags(ref);
-    if (!context.mounted) {
-      return;
-    }
-    if (tags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.reviewPlanNoTags)),
-      );
+    final tags = await _flashcardTagsForPicker(context, ref);
+    if (tags == null || !context.mounted) {
       return;
     }
     final chosen =

@@ -6,6 +6,8 @@ import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/services/tags/tag_usage.dart';
+import 'package:furnace/features/anki/application/flashcard_tag_scope.dart';
 import 'package:furnace/features/anki/presentation/anki_manage_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -71,6 +73,23 @@ void main() {
       tester.widget<SelectableText>(find.byKey(ankiKnowledgeContentKey));
 
   bool dialogVisible() => find.byType(AlertDialog).evaluate().isNotEmpty;
+
+  Finder addTagButton() => find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byIcon(Icons.add),
+      );
+
+  /// 长按知识点行打开标签/模板对话框，再点「加标签」打开闪卡标签选择器。
+  Future<void> openTagPicker(WidgetTester tester, String title) async {
+    await tester.longPress(find.text(title));
+    await waitUntil(tester, dialogVisible, reason: '标签/模板对话框未打开');
+    await tester.tap(addTagButton());
+    await waitUntil(
+      tester,
+      () => find.byType(SimpleDialog).evaluate().isNotEmpty,
+      reason: '标签选择器未打开',
+    );
+  }
 
   Finder sheetOf(String id) => find.byKey(ankiKnowledgeDetailKeyFor(id));
 
@@ -293,5 +312,127 @@ void main() {
       reason: '详情弹层未关闭',
     );
     expect(find.byType(AlertDialog), findsOneWidget);
+  });
+
+  // v37 起标签行带用途声明：闪卡域的每个选择器都只该给出「纳入闪卡」的标签，
+  // 空态不许静默返回（与时间表的标签选择器同一口径）。
+  testWidgets('加标签对话框只列「纳入闪卡」的标签', (tester) async {
+    useTallView(tester);
+    final (db, anki) = await openDatabase();
+    final tags = TagRepository(db);
+    final flashTag = await tags.createTag(name: '闪卡标签');
+    final questionTag = await tags.createTag(name: '题库标签');
+    await tags.updateTagUsageCodes(flashTag.id, {TagUsage.flashcard});
+    await tags.updateTagUsageCodes(questionTag.id, {TagUsage.question});
+    await anki.createKnowledgePoint(title: '选标签卡', content: '内容');
+    await pumpManage(tester, db);
+    final l10n = l10nOf(tester);
+
+    await openTagPicker(tester, '选标签卡');
+    expect(
+      find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('闪卡标签'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('题库标签'),
+      findsNothing,
+      reason: '只声明了题库用途的标签不能出现在闪卡的标签选择器里',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(l10n.tagUsageScopeHintFlashcard),
+      ),
+      findsOneWidget,
+      reason: '过滤提示常显，用户不用点开才知道规则',
+    );
+  });
+
+  testWidgets('有用途声明但没有闪卡标签：给说明空态而不是静默返回', (tester) async {
+    useTallView(tester);
+    final (db, anki) = await openDatabase();
+    final tags = TagRepository(db);
+    final questionTag = await tags.createTag(name: '题库标签');
+    await tags.updateTagUsageCodes(questionTag.id, {TagUsage.question});
+    await anki.createKnowledgePoint(title: '空态卡', content: '内容');
+    await pumpManage(tester, db);
+    final l10n = l10nOf(tester);
+
+    await openTagPicker(tester, '空态卡');
+    await waitUntil(
+      tester,
+      () => find.byKey(flashcardTagScopeEmptyKey).evaluate().isNotEmpty,
+      reason: '空态说明框未出现',
+    );
+    expect(find.text(l10n.tagUsageScopeEmptyFlashcard), findsOneWidget);
+    expect(find.byType(SimpleDialogOption), findsNothing);
+    expect(find.text('题库标签'), findsNothing);
+  });
+
+  testWidgets('整树没有用途声明时不过滤：加标签对话框列出全部标签', (tester) async {
+    useTallView(tester);
+    final (db, anki) = await openDatabase();
+    final tags = TagRepository(db);
+    await tags.createTag(name: '标签甲');
+    await tags.createTag(name: '标签乙');
+    await anki.createKnowledgePoint(title: '无声明卡', content: '内容');
+    await pumpManage(tester, db);
+
+    await openTagPicker(tester, '无声明卡');
+    expect(
+      find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('标签甲'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('标签乙'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('新建卡的卡组下拉只列闪卡标签，且常显过滤提示', (tester) async {
+    useTallView(tester);
+    final (db, _) = await openDatabase();
+    final tags = TagRepository(db);
+    final flashTag = await tags.createTag(name: '闪卡标签');
+    final questionTag = await tags.createTag(name: '题库标签');
+    await tags.updateTagUsageCodes(flashTag.id, {TagUsage.flashcard});
+    await tags.updateTagUsageCodes(questionTag.id, {TagUsage.question});
+    await pumpManage(tester, db);
+    final l10n = l10nOf(tester);
+
+    await tester.tap(find.byTooltip(l10n.ankiNewKnowledgePoint));
+    await waitUntil(tester, dialogVisible, reason: '新建卡对话框未打开');
+    final dialog = find.byType(AlertDialog);
+    expect(
+      find.descendant(
+        of: dialog,
+        matching: find.text(l10n.tagUsageScopeHintFlashcard),
+      ),
+      findsOneWidget,
+      reason: '卡组下拉旁常显过滤提示',
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: dialog,
+        matching: find.byType(DropdownButtonFormField<String>),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('闪卡标签'), findsOneWidget);
+    expect(
+      find.text('题库标签'),
+      findsNothing,
+      reason: '只声明题库用途的标签不能出现在卡组下拉里',
+    );
   });
 }

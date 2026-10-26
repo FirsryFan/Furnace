@@ -8,6 +8,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/entities/knowledge_point.dart' as domain;
 import '../application/anki_stats_service.dart';
 import '../application/card_type_preference.dart';
+import '../application/flashcard_tag_scope.dart';
 import 'knowledge_edge_page.dart';
 import 'knowledge_point_edges.dart';
 
@@ -20,13 +21,6 @@ final ankiStatsProvider = FutureProvider<AnkiStats>((ref) {
   ref.watchDatabaseRevision();
   return ref.watch(ankiStatsServiceProvider).load();
 });
-
-/// Every tag, ordered the way the pickers show them.
-Future<List<Tag>> _sortedTags(WidgetRef ref) async {
-  final tags = await ref.read(tagRepositoryProvider).getAllTags();
-  tags.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
-  return tags;
-}
 
 /// The full card text inside the knowledge point detail sheet.
 const Key ankiKnowledgeContentKey = Key('anki-knowledge-content');
@@ -222,7 +216,9 @@ class AnkiManagePage extends ConsumerWidget {
     // A card group is a tag, and every daily target is set per group, so a card
     // created without one can never be reached by the review plan. Asking here
     // is cheaper than making the user find the card again and tag it later.
-    final tags = await _sortedTags(ref);
+    // Only tags declared visible for the flashcard scope are offered (v37).
+    final scope = await loadFlashcardTagScope(ref);
+    final tags = scope.visibleTags;
     if (!context.mounted) {
       return;
     }
@@ -273,6 +269,19 @@ class AnkiManagePage extends ConsumerWidget {
                     onChanged: (value) => setDialogState(
                       () => selectedTagId = value ?? '',
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.tagUsageScopeHintFlashcard,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ] else if (scope.tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    scope.hasAnyDeclaration
+                        ? l10n.tagUsageScopeEmptyFlashcard
+                        : l10n.tagUsageScopeDefaultHint,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ],
@@ -889,6 +898,8 @@ class AnkiManagePage extends ConsumerWidget {
     var kpTags = await ref
         .read(tagRepositoryProvider)
         .tagsForObject(objectType: 'knowledge_point', objectId: kp.id);
+    // The tags this dialog can attach are the flashcard-scoped ones (v37).
+    final tagScope = await loadFlashcardTagScope(ref);
     if (!context.mounted) {
       return;
     }
@@ -913,13 +924,18 @@ class AnkiManagePage extends ConsumerWidget {
                       tooltip: l10n.commonAdd,
                       icon: const Icon(Icons.add),
                       onPressed: () async {
-                        final allTags =
-                            await ref.read(tagRepositoryProvider).getAllTags();
                         final existingIds = kpTags.map((t) => t.id).toSet();
-                        final candidates = allTags
-                            .where((t) => !existingIds.contains(t.id))
-                            .toList();
+                        final candidates = <Tag>[
+                          for (final tag in tagScope.visibleTags)
+                            if (!existingIds.contains(tag.id)) tag,
+                        ];
                         if (candidates.isEmpty) {
+                          // Never just do nothing: say which rule emptied the
+                          // list, and how to change it (same as the timeboard).
+                          await showFlashcardTagScopeEmptyDialog(
+                            context,
+                            hasAnyDeclaration: tagScope.hasAnyDeclaration,
+                          );
                           return;
                         }
                         final selected = await showDialog<Tag>(
@@ -949,6 +965,14 @@ class AnkiManagePage extends ConsumerWidget {
                     ),
                   ],
                 ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.tagUsageScopeHintFlashcard,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Wrap(
                   spacing: 8,
                   children: [
