@@ -5,6 +5,8 @@ import 'package:furnace/features/cognitive/presentation/cognitive_graph_layout.d
 /// 「知识网络图」的布局是纯函数：同一份数据必须永远画出同一张图，否则截图会漂、
 /// 测试也没法断言。v2 的口径是**按标签分簇**：钉住确定性、簇的归属与间距、
 /// 无标签知识点在中心、坐标不越界、以及命中测试。
+/// v3 又加了三个同样纯的查询函数（搜索 / 标签筛选 / 列表分组），页面与测试共用，
+/// 所以这里也一起钉住：命中口径、交集、分组顺序与主标签规则。
 void main() {
   const size = Size(800, 800);
   const points = <CognitiveGraphPointInput>[
@@ -42,6 +44,10 @@ void main() {
         points: graphPoints,
         tags: graphTags,
       );
+
+  List<String> idsOf(List<CognitiveGraphPointInput> list) => <String>[
+        for (final point in list) point.id,
+      ];
 
   test('同一份输入画两次是同一张图（确定性）', () {
     final first = layoutOf();
@@ -267,5 +273,168 @@ void main() {
     final tagHit = hitTestCognitiveGraph(layout, tag.center);
     expect(tagHit?.tag?.id, tag.id);
     expect(tagHit?.tag?.memberCount, 2);
+  });
+
+  // ---- v3：搜索 / 标签筛选 / 列表分组（纯查询，页面直接用这三个函数） ----
+
+  const searchPoints = <CognitiveGraphPointInput>[
+    CognitiveGraphPointInput(
+      id: 'p1',
+      title: 'Algebra basics',
+      cardCount: 1,
+      tagIds: <String>{'t-1'},
+    ),
+    CognitiveGraphPointInput(
+      id: 'p2',
+      title: 'Geometry',
+      cardCount: 2,
+      tagIds: <String>{'t-1', 't-2'},
+    ),
+    CognitiveGraphPointInput(
+      id: 'p3',
+      title: 'Untitled',
+      cardCount: 0,
+      tagIds: <String>{'t-2'},
+    ),
+    CognitiveGraphPointInput(id: 'p4', title: 'Loose', cardCount: 1),
+  ];
+  const searchPointTitles = <String, String>{
+    'p1': 'Algebra basics',
+    'p2': 'Geometry',
+    'p3': 'Untitled',
+    'p4': 'Loose',
+  };
+  const searchTagTitles = <String, String>{
+    't-1': '函数',
+    't-2': 'Probability',
+  };
+
+  test('搜索：按知识点标题或标签标题命中，大小写不敏感，空串等于不过滤', () {
+    List<String> search({
+      String? query,
+      String? tagFilterId,
+    }) =>
+        idsOf(
+          filterCognitiveGraphPoints(
+            points: searchPoints,
+            pointTitles: searchPointTitles,
+            tagTitles: searchTagTitles,
+            query: query ?? '',
+            tagFilterId: tagFilterId,
+          ),
+        );
+
+    expect(search(), <String>['p1', 'p2', 'p3', 'p4']);
+    // 大小写不敏感，前后空白不影响。
+    expect(search(query: '  algebra  '), <String>['p1']);
+    // 标签标题也算命中：p2 直接挂着 Probability，p3 也挂着它。
+    expect(search(query: 'PROBAB'), <String>['p2', 'p3']);
+    // 中文标签标题。
+    expect(search(query: '函数'), <String>['p1', 'p2']);
+    // 没有命中就是空表，而不是退化成全量。
+    expect(search(query: '不存在的东西'), isEmpty);
+  });
+
+  test('标签筛选：只留挂了该标签的点；和搜索同时给出取交集', () {
+    List<String> filter({String? tagFilterId, String? query}) => idsOf(
+          filterCognitiveGraphPoints(
+            points: searchPoints,
+            pointTitles: searchPointTitles,
+            tagTitles: searchTagTitles,
+            query: query ?? '',
+            tagFilterId: tagFilterId,
+          ),
+        );
+
+    expect(filter(tagFilterId: 't-2'), <String>['p2', 'p3']);
+    // 标签 id 两边的空白会被 trim 掉。
+    expect(filter(tagFilterId: '  t-2  '), <String>['p2', 'p3']);
+    // 交集：t-2 里再按标题搜 Geometry，只剩 p2。
+    expect(filter(tagFilterId: 't-2', query: 'geom'), <String>['p2']);
+    // 空白筛选 id 等于没筛选。
+    expect(filter(tagFilterId: '   '), <String>['p1', 'p2', 'p3', 'p4']);
+    expect(filter(tagFilterId: 't-9'), isEmpty);
+  });
+
+  // 主标签：tagIds 里按标签标题排序取第一个 —— 所以 c 的主标签是 t-1（函数 < 概率）。
+  const groupPoints = <CognitiveGraphPointInput>[
+    CognitiveGraphPointInput(
+      id: 'b',
+      title: 'Beta',
+      cardCount: 1,
+      tagIds: <String>{'t-1'},
+    ),
+    CognitiveGraphPointInput(
+      id: 'a',
+      title: 'Alpha',
+      cardCount: 1,
+      tagIds: <String>{'t-1'},
+    ),
+    CognitiveGraphPointInput(
+      id: 'c',
+      title: 'Gamma',
+      cardCount: 1,
+      tagIds: <String>{'t-1', 't-2'},
+    ),
+    CognitiveGraphPointInput(
+      id: 'd',
+      title: 'Delta',
+      cardCount: 1,
+      tagIds: <String>{'t-2'},
+    ),
+    CognitiveGraphPointInput(id: 'e', title: 'Epsilon', cardCount: 1),
+  ];
+  const groupTagTitles = <String, String>{'t-1': '函数', 't-2': '概率'};
+
+  test('列表分组：按主标签归组、组按标签标题排序、未挂标签排最后，组内按标题排序', () {
+    final groups = groupCognitiveGraphPointsByPrimaryTag(
+      points: groupPoints,
+      tagTitles: groupTagTitles,
+    );
+
+    expect(
+      groups.map((group) => group.tagId).toList(),
+      <String?>['t-1', 't-2', null],
+    );
+    expect(groups[0].title, '函数');
+    expect(groups[1].title, '概率');
+    expect(groups[2].title, isNull);
+    // 组内按知识点标题排序（Alpha < Beta < Gamma）。
+    expect(idsOf(groups[0].points), <String>['a', 'b', 'c']);
+    expect(idsOf(groups[1].points), <String>['d']);
+    expect(idsOf(groups[2].points), <String>['e']);
+  });
+
+  test('主标签：按标签标题排序取第一个，空白 id 被忽略，未知标题退回 id', () {
+    const titles = <String, String>{'z': 'Beta', 'a': 'Alpha'};
+    const both = CognitiveGraphPointInput(
+      id: 'p',
+      title: 'P',
+      cardCount: 0,
+      tagIds: <String>{'z', 'a'},
+    );
+    expect(cognitiveGraphPrimaryTagId(both, titles), 'a');
+
+    const blank = CognitiveGraphPointInput(
+      id: 'p',
+      title: 'P',
+      cardCount: 0,
+      tagIds: <String>{'   ', 'z'},
+    );
+    expect(cognitiveGraphPrimaryTagId(blank, titles), 'z');
+
+    const unknown = CognitiveGraphPointInput(
+      id: 'p',
+      title: 'P',
+      cardCount: 0,
+      tagIds: <String>{'q'},
+    );
+    expect(
+      cognitiveGraphPrimaryTagId(unknown, const <String, String>{}),
+      'q',
+    );
+
+    const none = CognitiveGraphPointInput(id: 'p', title: 'P', cardCount: 0);
+    expect(cognitiveGraphPrimaryTagId(none, titles), isNull);
   });
 }

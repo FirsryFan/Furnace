@@ -1,9 +1,10 @@
-// 用户要求："认知模型我希望有一个只读的可视化界面"；第二轮反馈"知识网络图依旧完全没有可用性"。
+// 用户要求："认知模型我希望有一个只读的可视化界面"；随后两轮反馈"知识网络图依旧完全没有可用性"。
 //
 // 这一页是同一批读数（`cognitiveReadingsProvider`）的另一种画法：知识点 ↔ 标签网络。
-// 测试钉四件事：页面画出来什么、初始视图是否自动装下整张图、缩放后文字是否让位给圆点、
-// 以及缩放/平移之后点节点还能不能看到只读详情。"只读"由结构保证（本页只 watch provider），
-// 页面测试用同一个 fixture 驱动，不碰数据库。
+// v3 的可用性补丁：顶部搜索框、点知识点弹底部详情（可点标签直接筛图）、右上角切列表视图。
+// 测试钉住：页面画出来什么、初始自动缩放居中、缩小时文字让位给圆点、缩放/平移后点节点
+// 仍能看到详情、搜索与标签筛选只布局命中的点、列表分组正确且点一行能回到图谱并居中。
+// "只读"由结构保证（本页只 watch provider），页面测试用同一个 fixture 驱动，不碰数据库。
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -39,6 +40,17 @@ void main() {
       cardCount: 1,
       tagIds: <String>{'tag-a', 'tag-b'},
     ),
+    CognitiveGraphPointInput(
+      id: 'kp-3',
+      title: '自由落体',
+      cardCount: 1,
+    ),
+    CognitiveGraphPointInput(
+      id: 'kp-4',
+      title: '随机变量',
+      cardCount: 3,
+      tagIds: <String>{'tag-b'},
+    ),
   ];
   const graph = CognitiveGraphData(
     points: points,
@@ -54,8 +66,23 @@ void main() {
         cardCount: 1,
         meanR: 0.66,
       ),
+      'kp-3': CognitiveGraphPointReading(
+        zone: ReviewZone.healthy,
+        cardCount: 1,
+        meanR: 0.80,
+      ),
+      'kp-4': CognitiveGraphPointReading(
+        zone: ReviewZone.overload,
+        cardCount: 3,
+        meanR: 0.45,
+      ),
     },
-    pointTitles: <String, String>{'kp-1': '二次函数', 'kp-2': '条件概率'},
+    pointTitles: <String, String>{
+      'kp-1': '二次函数',
+      'kp-2': '条件概率',
+      'kp-3': '自由落体',
+      'kp-4': '随机变量',
+    },
     tagTitles: <String, String>{'tag-a': '函数', 'tag-b': '概率'},
   );
 
@@ -95,6 +122,9 @@ void main() {
     return paint.painter! as CognitiveGraphPainter;
   }
 
+  Set<String> painterPointIds(WidgetTester tester) =>
+      painterOf(tester).layout.points.map((node) => node.id).toSet();
+
   /// 画布坐标 → 屏幕坐标：视口左上角 + 当前矩阵变换（child 用 constrained:false，
   /// 左上角与视口左上角重合；见 `_InteractiveViewerBuilt` 的 OverflowBox(topLeft)）。
   Offset screenOf(WidgetTester tester, Matrix4 matrix, Offset scene) {
@@ -102,13 +132,29 @@ void main() {
     return rect.topLeft + MatrixUtils.transformPoint(matrix, scene);
   }
 
-  testWidgets('画出标题/说明/摘要/图例/缩放容器；首次进入自动缩放居中', (tester) async {
+  /// 按当前 graph 数据算一次布局，取某个知识点/标签的画布坐标。
+  CognitiveGraphLayout layoutOf(WidgetTester tester) => layoutCognitiveGraph(
+        size: Size.square(
+          cognitiveGraphCanvasSide(painterOf(tester).layout.points.length),
+        ),
+        points: graph.points,
+        tags: graph.tags,
+      );
+
+  Future<void> tapScene(WidgetTester tester, Offset scene) async {
+    await tester.tapAt(screenOf(tester, controllerOf(tester).value, scene));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('画出标题/说明/摘要/图例/搜索框/缩放容器；首次进入自动缩放居中', (tester) async {
     await pumpPage(tester, graph);
 
     expect(find.text(zh.cognitiveGraphTitle), findsOneWidget);
     expect(find.text(zh.cognitiveGraphHint), findsOneWidget);
-    // 2 个知识点 · 2 个标签 · 3 条连线（kp-1 一条 + kp-2 两条）。
-    expect(find.text(zh.cognitiveGraphSummary(2, 2, 3)), findsOneWidget);
+    // 4 个知识点 · 2 个标签 · 4 条连线（kp-1 一条 + kp-2 两条 + kp-4 一条）。
+    expect(find.text(zh.cognitiveGraphSummary(4, 2, 4)), findsOneWidget);
+    expect(find.byKey(cognitiveGraphSearchKey), findsOneWidget);
+    expect(find.byKey(cognitiveGraphViewToggleKey), findsOneWidget);
     expect(find.byType(InteractiveViewer), findsOneWidget);
     expect(find.byKey(cognitiveGraphCanvasKey), findsOneWidget);
     expect(find.byKey(cognitiveGraphResetViewKey), findsOneWidget);
@@ -122,7 +168,7 @@ void main() {
     final rect = tester.getRect(find.byKey(cognitiveGraphViewportKey));
     final controller = controllerOf(tester);
     final value = controller.value;
-    const side = kCognitiveGraphBaseSide;
+    final side = cognitiveGraphCanvasSide(graph.points.length);
     final expectedScale = math.min(rect.width / side, rect.height / side);
     expect(value.getMaxScaleOnAxis(), closeTo(expectedScale, 1e-6));
     final translation = value.getTranslation();
@@ -170,7 +216,7 @@ void main() {
     }
   });
 
-  testWidgets('缩放平移之后点节点与标签仍能选中', (tester) async {
+  testWidgets('缩放平移之后点知识点弹详情、点标签仍有选中详情', (tester) async {
     await pumpPage(tester, graph);
 
     final controller = controllerOf(tester);
@@ -180,33 +226,180 @@ void main() {
       ..scaleByDouble(1.4, 1.4, 1.4, 1.0);
     await tester.pump();
 
-    final layout = layoutCognitiveGraph(
-      size: const Size.square(kCognitiveGraphBaseSide),
-      points: graph.points,
-      tags: graph.tags,
-    );
+    final layout = layoutOf(tester);
     final point = layout.points.firstWhere((node) => node.id == 'kp-2');
-    await tester.tapAt(screenOf(tester, controller.value, point.center));
-    await tester.pumpAndSettle();
+    await tapScene(tester, point.center);
 
-    // 详情是只读的一行字：区域 + 卡片数 + 平均 R。
+    final sheet = find.byKey(cognitiveGraphDetailSheetKey);
+    expect(sheet, findsOneWidget);
     expect(
-      find.text(
-        zh.cognitiveGraphPointDetail(
-          zh.cognitiveZoneProximal,
-          1,
-          '0.66',
-        ),
+      find.descendant(of: sheet, matching: find.text('条件概率')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text(zh.cognitiveZoneProximal)),
+      findsOneWidget,
+    );
+    expect(
+        find.descendant(of: sheet, matching: find.text('1')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.text(zh.cognitiveRetrievability('0.66')),
       ),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+          of: sheet, matching: find.text(zh.cognitiveGraphDetailTags)),
+      findsOneWidget,
+    );
 
-    // 点标签（方块）也能看挂载数；选中详情卡出现后视口高度可能变化，重新取矩阵与矩形。
-    final tag = layout.tags.firstWhere((node) => node.id == 'tag-b');
-    await tester.tapAt(screenOf(tester, controller.value, tag.center));
+    // 点空白（barrier）关掉 sheet，再点标签方块：图下方出现标签的只读详情。
+    await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
-    // 这份 fixture 里 tag-b（概率）只挂在 kp-2 上，挂载数是 1。
-    expect(find.text(zh.cognitiveGraphTagDetail(1)), findsOneWidget);
+    expect(find.byKey(cognitiveGraphDetailSheetKey), findsNothing);
+
+    final tag = layout.tags.firstWhere((node) => node.id == 'tag-b');
+    await tapScene(tester, tag.center);
+    // 这份 fixture 里 tag-b（概率）挂在 kp-2 与 kp-4 上，挂载数是 2。
+    expect(find.text(zh.cognitiveGraphTagDetail(2)), findsOneWidget);
+  });
+
+  testWidgets('搜索：只布局命中的知识点，摘要换成命中数', (tester) async {
+    await pumpPage(tester, graph);
+
+    await tester.enterText(find.byKey(cognitiveGraphSearchKey), '概率');
+    await tester.pumpAndSettle();
+
+    // kp-2（标题/标签都含"概率"）与 kp-4（标签是概率）命中。
+    expect(find.text(zh.cognitiveGraphSearchCount(2)), findsOneWidget);
+    expect(painterPointIds(tester), <String>{'kp-2', 'kp-4'});
+    expect(find.byKey(cognitiveGraphCanvasKey), findsOneWidget);
+    expect(find.byKey(cognitiveGraphSearchClearKey), findsOneWidget);
+  });
+
+  testWidgets('搜索没有命中时给空态与清除按钮，画布收起', (tester) async {
+    await pumpPage(tester, graph);
+
+    await tester.enterText(find.byKey(cognitiveGraphSearchKey), '不存在的东西');
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.cognitiveGraphSearchCount(0)), findsOneWidget);
+    expect(find.text(zh.cognitiveGraphSearchEmpty), findsOneWidget);
+    expect(find.byKey(cognitiveGraphCanvasKey), findsNothing);
+    expect(find.byKey(cognitiveGraphSearchClearKey), findsOneWidget);
+  });
+
+  testWidgets('清除搜索恢复整张图', (tester) async {
+    await pumpPage(tester, graph);
+
+    await tester.enterText(find.byKey(cognitiveGraphSearchKey), '概率');
+    await tester.pumpAndSettle();
+    expect(find.text(zh.cognitiveGraphSearchCount(2)), findsOneWidget);
+
+    await tester.tap(find.byKey(cognitiveGraphSearchClearKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text(zh.cognitiveGraphSummary(4, 2, 4)), findsOneWidget);
+    expect(find.byKey(cognitiveGraphSearchClearKey), findsNothing);
+    expect(painterPointIds(tester), <String>{'kp-1', 'kp-2', 'kp-3', 'kp-4'});
+  });
+
+  testWidgets('详情 sheet 里点标签 chip：关掉 sheet 并按该标签筛图', (tester) async {
+    await pumpPage(tester, graph);
+
+    final layout = layoutOf(tester);
+    final point = layout.points.firstWhere((node) => node.id == 'kp-2');
+    await tapScene(tester, point.center);
+
+    final sheet = find.byKey(cognitiveGraphDetailSheetKey);
+    final chip = find.descendant(
+      of: sheet,
+      matching: find.widgetWithText(ActionChip, '概率'),
+    );
+    expect(chip, findsOneWidget);
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(cognitiveGraphDetailSheetKey), findsNothing);
+    expect(painterPointIds(tester), <String>{'kp-2', 'kp-4'});
+    expect(find.byKey(cognitiveGraphFilterClearKey), findsOneWidget);
+    // 筛选 chip 上写着标签标题。
+    expect(find.text('概率'), findsOneWidget);
+  });
+
+  testWidgets('标签筛选 chip 可清除，清除后恢复整张图', (tester) async {
+    await pumpPage(tester, graph);
+
+    final layout = layoutOf(tester);
+    final point = layout.points.firstWhere((node) => node.id == 'kp-2');
+    await tapScene(tester, point.center);
+    final chip = find.descendant(
+      of: find.byKey(cognitiveGraphDetailSheetKey),
+      matching: find.widgetWithText(ActionChip, '概率'),
+    );
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    expect(painterPointIds(tester), <String>{'kp-2', 'kp-4'});
+
+    await tester.tap(find.byKey(cognitiveGraphFilterClearKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(cognitiveGraphFilterClearKey), findsNothing);
+    expect(find.text(zh.cognitiveGraphSummary(4, 2, 4)), findsOneWidget);
+    expect(painterPointIds(tester), <String>{'kp-1', 'kp-2', 'kp-3', 'kp-4'});
+  });
+
+  testWidgets('列表视图：按主标签分组、未挂标签排最后，行上有区域名与卡数', (tester) async {
+    await pumpPage(tester, graph);
+
+    await tester.tap(find.byKey(cognitiveGraphViewToggleKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(cognitiveGraphCanvasKey), findsNothing);
+    expect(find.byKey(cognitiveGraphResetViewKey), findsNothing);
+    // 组标题：函数、概率、未挂标签（无标签组排最后）。
+    expect(find.text('函数'), findsOneWidget);
+    expect(find.text(zh.cognitiveGraphListUntagged), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('函数')).dy,
+      lessThan(tester.getTopLeft(find.text('概率')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('概率')).dy,
+      lessThan(tester.getTopLeft(find.text(zh.cognitiveGraphListUntagged)).dy),
+    );
+    for (final title in <String>['二次函数', '条件概率', '自由落体', '随机变量']) {
+      expect(find.text(title), findsOneWidget);
+    }
+    // 区域名（副标题）与卡数（trailing 的数字）。
+    expect(find.text(zh.cognitiveZoneProximal), findsWidgets);
+    expect(find.text('3'), findsOneWidget);
+  });
+
+  testWidgets('列表里点一行回图谱，并把该知识点居中选中', (tester) async {
+    await pumpPage(tester, graph);
+
+    await tester.tap(find.byKey(cognitiveGraphViewToggleKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('随机变量'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(cognitiveGraphCanvasKey), findsOneWidget);
+    expect(painterPointIds(tester), <String>{'kp-1', 'kp-2', 'kp-3', 'kp-4'});
+
+    final layout = layoutOf(tester);
+    final node = layout.points.firstWhere((node) => node.id == 'kp-4');
+    final rect = tester.getRect(find.byKey(cognitiveGraphViewportKey));
+    final screen = screenOf(tester, controllerOf(tester).value, node.center);
+    expect((screen - rect.center).distance, lessThan(0.5));
+    // 选中它之后底部有只读详情（区域 / 卡数 / 平均 R）。
+    expect(
+      find.text(
+          zh.cognitiveGraphPointDetail(zh.cognitiveZoneOverload, 3, '0.45')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('没有读数时给出空态，而不是画一张空白画布', (tester) async {
@@ -216,5 +409,7 @@ void main() {
     expect(find.byKey(cognitiveGraphCanvasKey), findsNothing);
     expect(find.byKey(cognitiveGraphViewportKey), findsNothing);
     expect(find.byKey(cognitiveGraphResetViewKey), findsNothing);
+    expect(find.byKey(cognitiveGraphSearchKey), findsNothing);
+    expect(find.byKey(cognitiveGraphViewToggleKey), findsNothing);
   });
 }

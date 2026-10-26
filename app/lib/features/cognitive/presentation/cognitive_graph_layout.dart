@@ -209,17 +209,9 @@ CognitiveGraphLayout layoutCognitiveGraph({
 
   String titleOf(String tagId) => titleById[tagId] ?? tagId;
 
-  // 主标签：挂的标签里按"标题 → id"排序取第一个（确定性；不受 Set 顺序影响）。
-  String? primaryTagOf(CognitiveGraphPointInput point) {
-    final ids = <String>[
-      for (final id in point.tagIds)
-        if (id.trim().isNotEmpty) id,
-    ]..sort((a, b) {
-        final byTitle = titleOf(a).compareTo(titleOf(b));
-        return byTitle != 0 ? byTitle : a.compareTo(b);
-      });
-    return ids.isEmpty ? null : ids.first;
-  }
+  // 主标签：与 cognitiveGraphPrimaryTagId 同一口径（确定性；不受 Set 顺序影响）。
+  String? primaryTagOf(CognitiveGraphPointInput point) =>
+      cognitiveGraphPrimaryTagId(point, titleById);
 
   final sortedPoints = <CognitiveGraphPointInput>[...points]..sort((a, b) {
       final primaryA = primaryTagOf(a);
@@ -435,4 +427,130 @@ GraphSelection? hitTestCognitiveGraph(
     }
   }
   return bestTag == null ? null : GraphSelection.tag(bestTag);
+}
+
+/// 一个知识点在图上进哪个簇：它挂的标签里按「标题 → id」排序取第一个。
+///
+/// 与 layoutCognitiveGraph 内部是同一口径（列表视图与测试都靠它解释"主标签"）。
+/// 标题未知时退回 id，所以结果不依赖 Set 的遍历顺序。
+String? cognitiveGraphPrimaryTagId(
+  CognitiveGraphPointInput point,
+  Map<String, String> tagTitles,
+) {
+  String titleOf(String tagId) => tagTitles[tagId] ?? tagId;
+  final ids = <String>[
+    for (final id in point.tagIds)
+      if (id.trim().isNotEmpty) id,
+  ]..sort((a, b) {
+      final byTitle = titleOf(a).compareTo(titleOf(b));
+      return byTitle != 0 ? byTitle : a.compareTo(b);
+    });
+  return ids.isEmpty ? null : ids.first;
+}
+
+/// 搜索 / 标签筛选：返回需要画（或列）的知识点，保持输入顺序。
+///
+/// 口径（页面与测试共用，所以放在这里）：
+/// * query 先 trim，空串等于不搜索；匹配大小写不敏感。
+/// * 命中 = 知识点标题 或 它挂的任一标签标题 包含 query（用户常常只记得标签名）。
+/// * tagFilterId 非空时只保留挂了该标签的知识点。
+/// * 两个条件同时给出取交集。
+List<CognitiveGraphPointInput> filterCognitiveGraphPoints({
+  required List<CognitiveGraphPointInput> points,
+  Map<String, String> pointTitles = const <String, String>{},
+  Map<String, String> tagTitles = const <String, String>{},
+  String query = '',
+  String? tagFilterId,
+}) {
+  final needle = query.trim().toLowerCase();
+  final rawFilter = tagFilterId?.trim();
+  final filter = rawFilter == null || rawFilter.isEmpty ? null : rawFilter;
+  if (needle.isEmpty && filter == null) {
+    return List<CognitiveGraphPointInput>.unmodifiable(points);
+  }
+  bool matchesQuery(CognitiveGraphPointInput point) {
+    if (needle.isEmpty) {
+      return true;
+    }
+    final title = (pointTitles[point.id] ?? point.title).toLowerCase();
+    if (title.contains(needle)) {
+      return true;
+    }
+    for (final id in point.tagIds) {
+      final tagTitle = (tagTitles[id] ?? id).toLowerCase();
+      if (tagTitle.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return List<CognitiveGraphPointInput>.unmodifiable(<CognitiveGraphPointInput>[
+    for (final point in points)
+      if ((filter == null || point.tagIds.contains(filter)) &&
+          matchesQuery(point))
+        point,
+  ]);
+}
+
+/// 列表视图的一组：同一个主标签下的知识点。
+class CognitiveGraphPointGroup {
+  const CognitiveGraphPointGroup({
+    required this.tagId,
+    required this.title,
+    required this.points,
+  });
+
+  /// 主标签 id；没挂标签的组为 null。
+  final String? tagId;
+
+  /// 标签标题；没挂标签的组为 null（页面用 l10n 的"未挂标签"）。
+  final String? title;
+
+  final List<CognitiveGraphPointInput> points;
+}
+
+/// 列表视图的分组：按主标签分组，组按标签标题排序，没挂标签的组排最后。
+List<CognitiveGraphPointGroup> groupCognitiveGraphPointsByPrimaryTag({
+  required List<CognitiveGraphPointInput> points,
+  Map<String, String> pointTitles = const <String, String>{},
+  Map<String, String> tagTitles = const <String, String>{},
+}) {
+  final grouped = <String?, List<CognitiveGraphPointInput>>{};
+  final titles = <String, String>{};
+  for (final point in points) {
+    final tagId = cognitiveGraphPrimaryTagId(point, tagTitles);
+    (grouped[tagId] ??= <CognitiveGraphPointInput>[]).add(point);
+    if (tagId != null) {
+      titles[tagId] = tagTitles[tagId] ?? tagId;
+    }
+  }
+  final keys = <String?>[...grouped.keys]..sort((a, b) {
+      if (a == null && b == null) {
+        return 0;
+      }
+      if (a == null) {
+        return 1;
+      }
+      if (b == null) {
+        return -1;
+      }
+      final byTitle = (titles[a] ?? a).compareTo(titles[b] ?? b);
+      return byTitle != 0 ? byTitle : a.compareTo(b);
+    });
+  String pointTitleOf(CognitiveGraphPointInput point) =>
+      pointTitles[point.id] ?? point.title;
+  return List<CognitiveGraphPointGroup>.unmodifiable(<CognitiveGraphPointGroup>[
+    for (final key in keys)
+      CognitiveGraphPointGroup(
+        tagId: key,
+        title: key == null ? null : (titles[key] ?? key),
+        points: List<CognitiveGraphPointInput>.unmodifiable(
+          <CognitiveGraphPointInput>[...grouped[key]!]..sort((a, b) {
+              final byTitle = pointTitleOf(a).compareTo(pointTitleOf(b));
+              return byTitle != 0 ? byTitle : a.id.compareTo(b.id);
+            }),
+        ),
+      ),
+  ]);
 }

@@ -17,6 +17,12 @@
 /// 缩放小于 [kCognitiveGraphLabelMinScale] 时隐藏文字只留圆点，避免小图上文字糊成一团。
 /// 右上角"重置视图"回到自动缩放的位置。
 ///
+/// 可用性（v3）：顶部常驻搜索框（按知识点标题或标签标题过滤，摘要行换成命中数）；
+/// 点知识点弹底部详情（区域 / 卡数 / 平均 R / 标签，点标签 chip 直接筛图）；
+/// 点标签方块在图下方给一行详情。右上角还能切"列表视图"：按主标签分组、没挂
+/// 标签的排最后，点一行回到图谱并把这个点居中。搜索与标签筛选都是内存状态且取交集，
+/// 没有命中时只显示一句空态。
+///
 /// 只读是构造性保证：本页只 `watch` provider（那些 provider 全是 `select`），
 /// 没有任何写库调用；测试用"整库指纹不变"钉住。
 library;
@@ -45,6 +51,21 @@ const Key cognitiveGraphViewportKey = Key('cognitive-graph-viewport');
 
 /// "重置视图"按钮的 key。
 const Key cognitiveGraphResetViewKey = Key('cognitive-graph-reset-view');
+
+/// 搜索框的 key。
+const Key cognitiveGraphSearchKey = Key('cognitive-graph-search');
+
+/// 搜索框"清除"按钮的 key。
+const Key cognitiveGraphSearchClearKey = Key('cognitive-graph-search-clear');
+
+/// 知识点详情底部 sheet 的 key。
+const Key cognitiveGraphDetailSheetKey = Key('cognitive-graph-detail-sheet');
+
+/// 标签筛选 chip 的"清除"按钮 key。
+const Key cognitiveGraphFilterClearKey = Key('cognitive-graph-filter-clear');
+
+/// 图谱 / 列表视图切换按钮的 key。
+const Key cognitiveGraphViewToggleKey = Key('cognitive-graph-view-toggle');
 
 /// 小于这个缩放比（相对"自动适配"后的 zoom 语义是绝对比例）时隐藏文字。
 const double kCognitiveGraphLabelMinScale = 0.8;
@@ -213,9 +234,50 @@ class CognitiveGraphPage extends ConsumerStatefulWidget {
 class _CognitiveGraphPageState extends ConsumerState<CognitiveGraphPage> {
   final GlobalKey<_GraphBodyState> _bodyKey = GlobalKey<_GraphBodyState>();
 
+  /// 搜索框的文字（onChanged 时同步到 _query；清除时两个一起复位）。
+  final TextEditingController _searchController = TextEditingController();
+
+  String _query = '';
+  String? _tagFilterId;
+  bool _listMode = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _query = '');
+  }
+
+  void _applyTagFilter(String tagId) {
+    setState(() {
+      _tagFilterId = tagId;
+      _listMode = false;
+    });
+  }
+
+  void _clearTagFilter() => setState(() => _tagFilterId = null);
+
+  void _toggleView() => setState(() => _listMode = !_listMode);
+
+  /// 列表里点一行：切回图谱，等这一帧建好画布后再把这个点居中。
+  void _focusPointFromList(String pointId) {
+    setState(() => _listMode = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _bodyKey.currentState?.focusPoint(pointId);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final graph = ref.watch(cognitiveGraphProvider);
     final data = graph.valueOrNull;
     final hasGraph = data != null && !data.isEmpty;
@@ -225,6 +287,17 @@ class _CognitiveGraphPageState extends ConsumerState<CognitiveGraphPage> {
         title: Text(l10n.cognitiveGraphTitle),
         actions: [
           if (hasGraph)
+            IconButton(
+              key: cognitiveGraphViewToggleKey,
+              tooltip: _listMode
+                  ? l10n.cognitiveGraphViewGraph
+                  : l10n.cognitiveGraphViewList,
+              icon: Icon(
+                _listMode ? Icons.hub_outlined : Icons.view_list_outlined,
+              ),
+              onPressed: _toggleView,
+            ),
+          if (hasGraph && !_listMode)
             IconButton(
               key: cognitiveGraphResetViewKey,
               tooltip: l10n.cognitiveGraphResetView,
@@ -247,16 +320,153 @@ class _CognitiveGraphPageState extends ConsumerState<CognitiveGraphPage> {
                   ),
                 ),
               )
-            : _GraphBody(key: _bodyKey, data: data),
+            : _buildContent(l10n, theme, data),
       ),
+    );
+  }
+
+  /// 搜索框 + 标签筛选 chip + 摘要行 + 图或列表。
+  ///
+  /// 过滤后的数据再交给 _GraphBody：布局按过滤后的点集合重算，标签也只留还在用的；
+  /// 读数 / 标题这些按 id 查的映射原样带上（详情 sheet 要用全量标题）。
+  Widget _buildContent(
+    AppLocalizations l10n,
+    ThemeData theme,
+    CognitiveGraphData data,
+  ) {
+    final points = filterCognitiveGraphPoints(
+      points: data.points,
+      pointTitles: data.pointTitles,
+      tagTitles: data.tagTitles,
+      query: _query,
+      tagFilterId: _tagFilterId,
+    );
+    final usedTagIds = <String>{
+      for (final point in points) ...point.tagIds,
+    };
+    final filtered = CognitiveGraphData(
+      points: points,
+      tags: List<CognitiveGraphTagInput>.unmodifiable(<CognitiveGraphTagInput>[
+        for (final tag in data.tags)
+          if (usedTagIds.contains(tag.id)) tag,
+      ]),
+      readingsByPoint: data.readingsByPoint,
+      pointTitles: data.pointTitles,
+      tagTitles: data.tagTitles,
+    );
+    final searching = _query.trim().isNotEmpty;
+    final filterTagId = _tagFilterId;
+    final filterTitle = filterTagId == null
+        ? null
+        : (data.tagTitles[filterTagId] ?? filterTagId);
+    final summary = searching
+        ? l10n.cognitiveGraphSearchCount(points.length)
+        : l10n.cognitiveGraphSummary(
+            points.length,
+            filtered.tags.length,
+            filtered.linkCount,
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: TextField(
+            key: cognitiveGraphSearchKey,
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.search),
+              hintText: l10n.cognitiveGraphSearchHint,
+              suffixIcon: searching
+                  ? IconButton(
+                      key: cognitiveGraphSearchClearKey,
+                      tooltip: l10n.cognitiveGraphSearchClear,
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearSearch,
+                    )
+                  : null,
+            ),
+          ),
+        ),
+        if (filterTitle != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Tooltip(
+                    message: l10n.cognitiveGraphFilterTag,
+                    child: Chip(
+                      label: Text(filterTitle),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: cognitiveGraphFilterClearKey,
+                  tooltip: l10n.cognitiveGraphFilterClear,
+                  icon: const Icon(Icons.filter_alt_off_outlined),
+                  onPressed: _clearTagFilter,
+                ),
+              ],
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.cognitiveGraphHint, style: theme.textTheme.bodySmall),
+              const SizedBox(height: 4),
+              Text(
+                summary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _listMode
+              ? _GraphList(data: filtered, onSelect: _focusPointFromList)
+              : points.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          l10n.cognitiveGraphSearchEmpty,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : _GraphBody(
+                      key: _bodyKey,
+                      data: filtered,
+                      onTagFilter: _applyTagFilter,
+                    ),
+        ),
+      ],
     );
   }
 }
 
 class _GraphBody extends StatefulWidget {
-  const _GraphBody({super.key, required this.data});
+  const _GraphBody({
+    super.key,
+    required this.data,
+    required this.onTagFilter,
+  });
 
   final CognitiveGraphData data;
+
+  /// 详情 sheet 里点了标签 chip：把图谱筛成这个标签（页面负责改状态）。
+  final ValueChanged<String>? onTagFilter;
 
   @override
   State<_GraphBody> createState() => _GraphBodyState();
@@ -275,6 +485,19 @@ class _GraphBodyState extends State<_GraphBody> {
   double? _side;
   Size? _fittedViewport;
   double? _fittedSide;
+
+  @override
+  void didUpdateWidget(covariant _GraphBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(widget.data, oldWidget.data)) {
+      return;
+    }
+    // 过滤条件变了：旧选中可能已经不在图上，视角也要重新适配到新布局。
+    _selection = null;
+    _userAdjusted = false;
+    _fittedViewport = null;
+    _fittedSide = null;
+  }
 
   @override
   void dispose() {
@@ -326,6 +549,79 @@ class _GraphBodyState extends State<_GraphBody> {
     });
   }
 
+  /// 把某个知识点滚到视口中央并选中它（列表视图点一行之后用，不做动画）。
+  void focusPoint(String pointId) {
+    final viewport = _viewport;
+    final side = _side;
+    if (viewport == null || side == null) {
+      return;
+    }
+    final layout = layoutCognitiveGraph(
+      size: Size.square(side),
+      points: widget.data.points,
+      tags: widget.data.tags,
+    );
+    GraphPointNode? found;
+    for (final node in layout.points) {
+      if (node.id == pointId) {
+        found = node;
+        break;
+      }
+    }
+    final target = found;
+    if (target == null) {
+      return;
+    }
+    final centeredViewport = viewport;
+    _centerOn(target);
+    setState(() => _selection = GraphSelection.point(target));
+    // 选中之后底部会多出详情卡、视口变矮：等这一帧布局稳定后再居中一次。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _viewport == centeredViewport) {
+        return;
+      }
+      _centerOn(target);
+      setState(() {});
+    });
+  }
+
+  /// 把节点放到视口正中（保持当前缩放比）。
+  void _centerOn(GraphPointNode target) {
+    final viewport = _viewport;
+    final side = _side;
+    if (viewport == null || side == null) {
+      return;
+    }
+    final scale = _controller.value.getMaxScaleOnAxis();
+    // 记成已适配：否则 _ensureFitted 的 post-frame 回调会把视角改回自动缩放。
+    _fittedViewport = viewport;
+    _fittedSide = side;
+    _userAdjusted = true;
+    _controller.value = Matrix4.identity()
+      ..translateByDouble(
+        viewport.width / 2 - target.center.dx * scale,
+        viewport.height / 2 - target.center.dy * scale,
+        0.0,
+        1.0,
+      )
+      ..scaleByDouble(scale, scale, scale, 1.0);
+  }
+
+  /// 点知识点：弹底部详情；在 sheet 里点标签 chip 会带着标签 id 回来。
+  Future<void> _showPointDetail(GraphPointNode point) async {
+    final tagId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) =>
+          _PointDetailSheet(point: point, data: widget.data),
+    );
+    if (tagId == null || !mounted) {
+      return;
+    }
+    widget.onTagFilter?.call(tagId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -335,29 +631,6 @@ class _GraphBodyState extends State<_GraphBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.cognitiveGraphHint,
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.cognitiveGraphSummary(
-                  data.points.length,
-                  data.tags.length,
-                  data.linkCount,
-                ),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -394,12 +667,22 @@ class _GraphBodyState extends State<_GraphBody> {
                         child: GestureDetector(
                           key: cognitiveGraphCanvasKey,
                           behavior: HitTestBehavior.opaque,
-                          onTapUp: (details) => setState(() {
-                            _selection = hitTestCognitiveGraph(
+                          onTapUp: (details) {
+                            final hit = hitTestCognitiveGraph(
                               layout,
                               details.localPosition,
                             );
-                          }),
+                            if (hit == null) {
+                              setState(() => _selection = null);
+                              return;
+                            }
+                            final point = hit.point;
+                            if (point != null) {
+                              _showPointDetail(point);
+                              return;
+                            }
+                            setState(() => _selection = hit);
+                          },
                           child: AnimatedBuilder(
                             animation: _controller,
                             builder: (context, _) => CustomPaint(
@@ -540,6 +823,199 @@ class _Legend extends StatelessWidget {
                 ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 一个区域色的小圆点（列表与详情 sheet 共用，和图上的圆点同一个颜色词表）。
+class _ZoneDot extends StatelessWidget {
+  const _ZoneDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}
+
+/// 知识点详情底部 sheet：区域 / 卡数 / 平均 R + 标签 chips。
+///
+/// 标题与三行读数都从同一份 CognitiveGraphData 读；点标签 chip 关闭 sheet 并回传
+/// 标签 id，由页面把它变成图谱筛选 —— sheet 自己不写任何状态。
+class _PointDetailSheet extends StatelessWidget {
+  const _PointDetailSheet({required this.point, required this.data});
+
+  final GraphPointNode point;
+  final CognitiveGraphData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final reading = data.readingsByPoint[point.id];
+    // 布局节点不带标签 id，标签挂载关系在输入里；按 id 回查一次（点不会很多）。
+    CognitiveGraphPointInput? input;
+    for (final candidate in data.points) {
+      if (candidate.id == point.id) {
+        input = candidate;
+        break;
+      }
+    }
+    final tagIds = <String>[
+      for (final id in input?.tagIds ?? const <String>{})
+        if (id.trim().isNotEmpty) id,
+    ]..sort((a, b) {
+        final byTitle =
+            (data.tagTitles[a] ?? a).compareTo(data.tagTitles[b] ?? b);
+        return byTitle != 0 ? byTitle : a.compareTo(b);
+      });
+    final meanR = reading?.meanR;
+
+    return SafeArea(
+      key: cognitiveGraphDetailSheetKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Text(point.title, style: theme.textTheme.titleLarge),
+          ),
+          if (reading != null) ...[
+            ListTile(
+              leading: _ZoneDot(
+                color: cognitiveGraphZoneColor(theme, reading.zone),
+              ),
+              title: Text(zoneLabel(l10n, reading.zone)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.style_outlined),
+              title: Text(reading.cardCount.toString()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.show_chart),
+              title: Text(
+                l10n.cognitiveRetrievability(
+                  meanR == null ? '—' : meanR.toStringAsFixed(2),
+                ),
+              ),
+            ),
+          ],
+          const Divider(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+            child: Text(
+              l10n.cognitiveGraphDetailTags,
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: tagIds.isEmpty
+                ? Text(
+                    l10n.cognitiveGraphListUntagged,
+                    style: theme.textTheme.bodyMedium,
+                  )
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final tagId in tagIds)
+                        ActionChip(
+                          tooltip: l10n.cognitiveGraphFilterTag,
+                          label: Text(data.tagTitles[tagId] ?? tagId),
+                          onPressed: () => Navigator.of(context).pop(tagId),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 列表视图兜底：按主标签分组的只读清单，点一行回图谱。
+class _GraphList extends StatelessWidget {
+  const _GraphList({required this.data, required this.onSelect});
+
+  final CognitiveGraphData data;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final groups = groupCognitiveGraphPointsByPrimaryTag(
+      points: data.points,
+      pointTitles: data.pointTitles,
+      tagTitles: data.tagTitles,
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+      children: [
+        for (final group in groups) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Text(
+              group.title ?? l10n.cognitiveGraphListUntagged,
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+          for (final point in group.points)
+            _GraphListRow(
+              point: point,
+              reading: data.readingsByPoint[point.id],
+              onTap: () => onSelect(point.id),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 列表里的一行：知识点标题 + 区域名 + 卡数（数值不带文案，图标示意）。
+class _GraphListRow extends StatelessWidget {
+  const _GraphListRow({
+    required this.point,
+    required this.reading,
+    required this.onTap,
+  });
+
+  final CognitiveGraphPointInput point;
+  final CognitiveGraphPointReading? reading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final reader = reading;
+    return ListTile(
+      dense: true,
+      onTap: onTap,
+      leading: _ZoneDot(
+        color: reader == null
+            ? theme.colorScheme.onSurfaceVariant
+            : cognitiveGraphZoneColor(theme, reader.zone),
+      ),
+      title: Text(point.title),
+      subtitle: Text(reader == null ? '—' : zoneLabel(l10n, reader.zone)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.style_outlined,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Text((reader?.cardCount ?? point.cardCount).toString()),
         ],
       ),
     );
