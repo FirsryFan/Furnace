@@ -59,10 +59,14 @@ class PendingCall {
 /// invariant true on *every* path - approval, rejection, auto-execution and
 /// failure - instead of only on whichever path was tried first.
 class TurnGroup {
-  TurnGroup({required this.assistantText});
+  TurnGroup({required this.assistantText, this.assistantReasoning});
 
   /// Text the model emitted alongside the calls, if any.
   final String? assistantText;
+
+  /// The model's chain of thought for this turn, if the provider streamed one.
+  /// Persisted with the assistant row so 思考过程 survives a restart.
+  final String? assistantReasoning;
 
   /// Call ids in order, so the assistant message lists them deterministically.
   final List<String> callIds = [];
@@ -766,7 +770,7 @@ class AgentLoop {
     // turn that used fewer round-trips than it really did.
     while (_metrics.rounds < maxRounds) {
       if (_cancelRequested) {
-        await _finishCancelled(conversationId, null);
+        await _finishCancelled(conversationId, null, null);
         return;
       }
       _metrics.rounds++;
@@ -792,7 +796,7 @@ class AgentLoop {
       if (_cancelRequested) {
         // Stopped while the skill directory or the history was being read:
         // nothing has been sent yet, so there is nothing to abort or persist.
-        await _finishCancelled(conversationId, null);
+        await _finishCancelled(conversationId, null, null);
         return;
       }
 
@@ -858,18 +862,20 @@ class AgentLoop {
       _metrics.inFlightElapsed = Duration.zero;
 
       if (_cancelRequested) {
-        await _finishCancelled(conversationId, textBuffer);
+        await _finishCancelled(conversationId, textBuffer, reasoningBuffer);
         return;
       }
 
       if (failure != null) {
         // Keep whatever text arrived before the failure: a partial answer is
-        // still an answer.
+        // still an answer. A failure that produced only thinking writes no
+        // assistant row: a content-less bubble would read as an empty answer.
         if (textBuffer.isNotEmpty) {
           await repository.addMessage(
             conversationId: conversationId,
             role: AiRepository.roleAssistant,
-            content: textBuffer.toString(),
+            content: textBuffer.isEmpty ? null : textBuffer.toString(),
+            reasoning: _reasoningOrNull(reasoningBuffer),
           );
         }
         _emit(_state.copyWith(
@@ -885,6 +891,7 @@ class AgentLoop {
           conversationId: conversationId,
           role: AiRepository.roleAssistant,
           content: textBuffer.isEmpty ? null : textBuffer.toString(),
+          reasoning: _reasoningOrNull(reasoningBuffer),
         );
         _emit(_state.copyWith(
           generating: false,
@@ -898,6 +905,7 @@ class AgentLoop {
       final pending = <PendingCall>[];
       final group = TurnGroup(
         assistantText: textBuffer.isEmpty ? null : textBuffer.toString(),
+        assistantReasoning: _reasoningOrNull(reasoningBuffer),
       );
 
       for (final call in calls) {
@@ -994,13 +1002,19 @@ class AgentLoop {
   Future<void> _finishCancelled(
     String conversationId,
     StringBuffer? textBuffer,
+    StringBuffer? reasoningBuffer,
   ) async {
     final partial = textBuffer?.toString() ?? '';
+    // A turn stopped before its first token leaves nothing on screen, so it
+    // writes nothing: persisting thinking alone would create an assistant
+    // bubble with no answer (and a write that can outlive the page).
     if (partial.isNotEmpty) {
       await repository.addMessage(
         conversationId: conversationId,
         role: AiRepository.roleAssistant,
         content: partial,
+        reasoning:
+            reasoningBuffer == null ? null : _reasoningOrNull(reasoningBuffer),
       );
     }
     _metrics.inFlightChars = 0;
@@ -1012,6 +1026,11 @@ class AgentLoop {
       usage: _metrics.snapshot(),
     ));
   }
+
+  /// The reasoning text to persist: null when the provider never streamed any
+  /// (an empty string would look like "the model thought nothing").
+  static String? _reasoningOrNull(StringBuffer buffer) =>
+      buffer.isEmpty ? null : buffer.toString();
 
   /// Writes a completed turn: the assistant message, then one tool reply per
   /// call, in call order.
@@ -1026,6 +1045,7 @@ class AgentLoop {
       conversationId: conversationId,
       role: AiRepository.roleAssistant,
       content: group.assistantText,
+      reasoning: group.assistantReasoning,
     );
     group.messageId = message.id;
     for (final callId in group.callIds) {
