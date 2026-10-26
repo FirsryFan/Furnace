@@ -5,13 +5,14 @@
 ///  * 文科（语文/英语/历史/政治/地理）20–40 字，且每条**严格短于题干**；
 ///  * 题干本身短于目标下限时，回退为「尽量长的合法子串」（≥4 字），不硬凑长度。
 ///
-/// ⚠️ 与标准侧已分歧（待标准侧同步）：D:\dsh-data\skills\zujuan-source-standards\scripts\keywords.mjs
-/// 仍是旧的 4–28 字口径。本文件**不再逐条移植**它；清洗规则、锚点词表与评分骨架
-/// 仍沿用该脚本（textLayerOnly / segments / anchoredCandidates / diverseWindows /
-/// score），差的只是目标长度带与短题干回退策略。下次改口径先改这段注释与下面的
-/// 四个长度常量，再补 app/test/domain/services/zujuan/ 下的测试。
+/// ✅ 与标准侧已同步（2026-10-26）：D:\dsh-data\skills\zujuan-source-standards\scripts\keywords.mjs
+/// 已改为同样的学科带口径（SCIENCE_MIN/MAX=15/30、HUMANITIES_MIN/MAX=20/40、
+/// subjectBandFor、bandWindows 滑窗），SKILL.md §6.2 也已写明。本文件仍是 Dart 移植版，
+/// 清洗规则、锚点词表与评分骨架沿用该脚本（textLayerOnly / segments / anchoredCandidates /
+/// bandWindows / score）；改口径时先改本段注释与下面的四个长度常量，再看 keywords.mjs
+/// 是否需同步，最后补 app/test/domain/services/zujuan/ 下的测试。
 ///
-/// 为什么需要这一层（SKILL.md §6.2:213-242、references/url-grammar.md:219-221）：
+/// 为什么需要这一层（SKILL.md §6.2、references/url-grammar.md:219-221）：
 ///  * 组卷网搜索是**字符串匹配**而非语义检索；整段题干去搜必然匹配不上——
 ///    行内公式/结构式在站点是 SVG 图片，文本层里没有这些字符
 ///    （实测：含化学式 → 相似度 0.13~0.68、某题 0 结果；只放中文 → 0.67~0.91、10 条结果）；
