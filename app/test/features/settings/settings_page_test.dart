@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/features/anki/presentation/review_plan_page.dart';
+import 'package:furnace/features/cognitive/presentation/ability_assessment_page.dart';
+import 'package:furnace/features/cognitive/presentation/ability_profile_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -75,5 +77,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ReviewPlanPage), findsOneWidget);
+  });
+
+  // REVIEW_FEEDBACK §8：认知测评要测「能力」而不是知识点，设置页给了两个并列入口。
+  testWidgets('设置里有「能力测评」，点进去是四项本地小测介绍页', (tester) async {
+    await pumpSettings(tester);
+
+    expect(find.text(zh.settingsAbilityAssessmentTitle), findsOneWidget);
+    expect(find.text(zh.settingsAbilityAssessmentHint), findsOneWidget);
+
+    await tester.tap(find.byKey(settingsAbilityAssessmentTileKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AbilityAssessmentPage), findsOneWidget);
+    expect(find.text(zh.abilityAssessmentIntro), findsOneWidget);
+  });
+
+  testWidgets('设置里有「能力画像」，没测过时显示空态而不是四张 0 分卡', (tester) async {
+    await pumpSettings(tester);
+
+    expect(find.text(zh.settingsAbilityProfileTitle), findsOneWidget);
+
+    await tester.tap(find.byKey(settingsAbilityProfileTileKey));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AbilityProfilePage), findsOneWidget);
+    expect(find.text(zh.abilityProfileEmpty), findsOneWidget);
   });
 }
