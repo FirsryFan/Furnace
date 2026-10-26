@@ -416,7 +416,8 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
   Future<void> _addTag(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
     final scope = await loadTagUsageScope(ref, TagUsage.task);
-    if (!mounted) {
+    // 守的是传进来的 context（弹窗/说明框都用它）；State.mounted 不算它的守卫。
+    if (!context.mounted) {
       return;
     }
     if (scope.tags.isEmpty) {
