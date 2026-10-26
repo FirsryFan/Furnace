@@ -5625,4 +5625,133 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeBoardTodayEmpty => 'Nothing scheduled today.';
+
+  @override
+  String get settingsAbilityAssessmentTitle => 'Ability assessment';
+
+  @override
+  String get settingsAbilityAssessmentHint =>
+      'Four short tests estimating reaction speed, working memory, pattern recognition and attention stability';
+
+  @override
+  String get settingsAbilityProfileTitle => 'Ability profile';
+
+  @override
+  String get settingsAbilityProfileHint =>
+      'See the latest scores of the four abilities and how often they were measured';
+
+  @override
+  String get abilityAssessmentTitle => 'Ability assessment';
+
+  @override
+  String get abilityAssessmentIntro =>
+      'Four short tests, about 3–5 minutes. Scores are kept on this device only.';
+
+  @override
+  String get abilityStart => 'Start';
+
+  @override
+  String get abilityStartItem => 'Start this test';
+
+  @override
+  String get abilityNext => 'Continue';
+
+  @override
+  String get abilityFinish => 'Finish and save';
+
+  @override
+  String get abilityRetry => 'Try again';
+
+  @override
+  String abilitySaveFailed(String error) {
+    return 'Could not save: $error';
+  }
+
+  @override
+  String get abilityScoresSaved => 'Ability scores saved';
+
+  @override
+  String get abilityReactionTitle => 'Reaction speed';
+
+  @override
+  String get abilityReactionHint =>
+      'Tap as soon as the dot turns green. Five trials.';
+
+  @override
+  String get abilityReactionWait => 'Wait…';
+
+  @override
+  String get abilityReactionTap => 'Tap!';
+
+  @override
+  String get abilityWorkingMemoryTitle => 'Working memory';
+
+  @override
+  String get abilityWorkingMemoryHint =>
+      'Remember the digits, then type them in order after they disappear.';
+
+  @override
+  String get abilityWorkingMemoryPrompt => 'Remember these digits';
+
+  @override
+  String get abilityWorkingMemoryInput => 'Type the digits in order';
+
+  @override
+  String get abilityWorkingMemoryCheck => 'Submit';
+
+  @override
+  String get abilityPatternTitle => 'Pattern recognition';
+
+  @override
+  String get abilityPatternHint =>
+      'Decide whether the two patterns are the same.';
+
+  @override
+  String get abilityPatternSame => 'Same';
+
+  @override
+  String get abilityPatternDifferent => 'Different';
+
+  @override
+  String get abilityAttentionTitle => 'Attention stability';
+
+  @override
+  String get abilityAttentionHint => 'Tap Yes for letters and No for digits.';
+
+  @override
+  String get abilityAttentionYes => 'Yes';
+
+  @override
+  String get abilityAttentionNo => 'No';
+
+  @override
+  String get abilitySummaryTitle => 'This run';
+
+  @override
+  String abilityScoreLabel(int score) {
+    return '$score pts';
+  }
+
+  @override
+  String get abilityProfileTitle => 'Ability profile';
+
+  @override
+  String get abilityProfileEmpty =>
+      'No assessment yet. Finish one assessment and the four scores will show up here.';
+
+  @override
+  String get abilityProfileLatest => 'Latest';
+
+  @override
+  String abilityProfileCount(int count) {
+    return '$count times';
+  }
+
+  @override
+  String get abilityProfileNeverTested => 'Not measured yet';
+
+  @override
+  String abilityProfileLoadFailed(String error) {
+    return 'Could not load ability scores: $error';
+  }
 }

@@ -3298,5 +3298,169 @@
   "timeBoardTodayEmpty": "Nothing scheduled today.",
   "@timeBoardTodayEmpty": {
     "description": "Empty state of the schedule list when filtering to today and no block intersects today."
+  },
+  "settingsAbilityAssessmentTitle": "Ability assessment",
+  "@settingsAbilityAssessmentTitle": {
+    "description": "Settings entry title for the ability assessment."
+  },
+  "settingsAbilityAssessmentHint": "Four short tests estimating reaction speed, working memory, pattern recognition and attention stability",
+  "@settingsAbilityAssessmentHint": {
+    "description": "Settings entry subtitle for the ability assessment."
+  },
+  "settingsAbilityProfileTitle": "Ability profile",
+  "@settingsAbilityProfileTitle": {
+    "description": "Settings entry title for the ability profile."
+  },
+  "settingsAbilityProfileHint": "See the latest scores of the four abilities and how often they were measured",
+  "@settingsAbilityProfileHint": {
+    "description": "Settings entry subtitle for the ability profile."
+  },
+  "abilityAssessmentTitle": "Ability assessment",
+  "@abilityAssessmentTitle": {
+    "description": "Title of the ability assessment page."
+  },
+  "abilityAssessmentIntro": "Four short tests, about 3–5 minutes. Scores are kept on this device only.",
+  "@abilityAssessmentIntro": {
+    "description": "Intro text of the ability assessment page."
+  },
+  "abilityStart": "Start",
+  "@abilityStart": {
+    "description": "Start the whole assessment."
+  },
+  "abilityStartItem": "Start this test",
+  "@abilityStartItem": {
+    "description": "Start the current single test."
+  },
+  "abilityNext": "Continue",
+  "@abilityNext": {
+    "description": "Move to the next ability test."
+  },
+  "abilityFinish": "Finish and save",
+  "@abilityFinish": {
+    "description": "Save button at the end of the assessment."
+  },
+  "abilityRetry": "Try again",
+  "@abilityRetry": {
+    "description": "Retry the current single test."
+  },
+  "abilitySaveFailed": "Could not save: {error}",
+  "@abilitySaveFailed": {
+    "description": "Shown when saving ability scores fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "abilityScoresSaved": "Ability scores saved",
+  "@abilityScoresSaved": {
+    "description": "Saved confirmation."
+  },
+  "abilityReactionTitle": "Reaction speed",
+  "@abilityReactionTitle": {
+    "description": "Title of the reaction speed ability."
+  },
+  "abilityReactionHint": "Tap as soon as the dot turns green. Five trials.",
+  "@abilityReactionHint": {
+    "description": "Reaction speed test instructions."
+  },
+  "abilityReactionWait": "Wait…",
+  "@abilityReactionWait": {
+    "description": "Waiting state of the reaction speed test."
+  },
+  "abilityReactionTap": "Tap!",
+  "@abilityReactionTap": {
+    "description": "Prompt when the reaction signal appears."
+  },
+  "abilityWorkingMemoryTitle": "Working memory",
+  "@abilityWorkingMemoryTitle": {
+    "description": "Title of the working memory ability."
+  },
+  "abilityWorkingMemoryHint": "Remember the digits, then type them in order after they disappear.",
+  "@abilityWorkingMemoryHint": {
+    "description": "Working memory test instructions."
+  },
+  "abilityWorkingMemoryPrompt": "Remember these digits",
+  "@abilityWorkingMemoryPrompt": {
+    "description": "Prompt while digits are shown."
+  },
+  "abilityWorkingMemoryInput": "Type the digits in order",
+  "@abilityWorkingMemoryInput": {
+    "description": "Hint of the working memory input field."
+  },
+  "abilityWorkingMemoryCheck": "Submit",
+  "@abilityWorkingMemoryCheck": {
+    "description": "Submit button of the working memory test."
+  },
+  "abilityPatternTitle": "Pattern recognition",
+  "@abilityPatternTitle": {
+    "description": "Title of the pattern recognition ability."
+  },
+  "abilityPatternHint": "Decide whether the two patterns are the same.",
+  "@abilityPatternHint": {
+    "description": "Pattern recognition test instructions."
+  },
+  "abilityPatternSame": "Same",
+  "@abilityPatternSame": {
+    "description": "Same button of the pattern recognition test."
+  },
+  "abilityPatternDifferent": "Different",
+  "@abilityPatternDifferent": {
+    "description": "Different button of the pattern recognition test."
+  },
+  "abilityAttentionTitle": "Attention stability",
+  "@abilityAttentionTitle": {
+    "description": "Title of the attention stability ability."
+  },
+  "abilityAttentionHint": "Tap Yes for letters and No for digits.",
+  "@abilityAttentionHint": {
+    "description": "Attention stability test instructions."
+  },
+  "abilityAttentionYes": "Yes",
+  "@abilityAttentionYes": {
+    "description": "Yes button of the attention test."
+  },
+  "abilityAttentionNo": "No",
+  "@abilityAttentionNo": {
+    "description": "No button of the attention test."
+  },
+  "abilitySummaryTitle": "This run",
+  "@abilitySummaryTitle": {
+    "description": "Summary title after the four tests."
+  },
+  "abilityScoreLabel": "{score} pts",
+  "@abilityScoreLabel": {
+    "description": "Ability score display.",
+    "placeholders": {
+      "score": { "type": "int" }
+    }
+  },
+  "abilityProfileTitle": "Ability profile",
+  "@abilityProfileTitle": {
+    "description": "Title of the ability profile page."
+  },
+  "abilityProfileEmpty": "No assessment yet. Finish one assessment and the four scores will show up here.",
+  "@abilityProfileEmpty": {
+    "description": "Empty state of the ability profile page."
+  },
+  "abilityProfileLatest": "Latest",
+  "@abilityProfileLatest": {
+    "description": "Label of the latest measurement."
+  },
+  "abilityProfileCount": "{count} times",
+  "@abilityProfileCount": {
+    "description": "How often an ability was measured.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "abilityProfileNeverTested": "Not measured yet",
+  "@abilityProfileNeverTested": {
+    "description": "An ability has no measurement yet."
+  },
+  "abilityProfileLoadFailed": "Could not load ability scores: {error}",
+  "@abilityProfileLoadFailed": {
+    "description": "Shown when loading the ability profile fails.",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
   }
 }

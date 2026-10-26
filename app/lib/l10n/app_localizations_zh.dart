@@ -5397,4 +5397,126 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timeBoardTodayEmpty => '今天没有安排。';
+
+  @override
+  String get settingsAbilityAssessmentTitle => '能力测评';
+
+  @override
+  String get settingsAbilityAssessmentHint => '四项小测，估算反应速度、工作记忆、模式识别与注意稳定性';
+
+  @override
+  String get settingsAbilityProfileTitle => '能力画像';
+
+  @override
+  String get settingsAbilityProfileHint => '查看最近一次四项能力指标与测量次数';
+
+  @override
+  String get abilityAssessmentTitle => '能力测评';
+
+  @override
+  String get abilityAssessmentIntro => '四项小测，大约 3–5 分钟。分数只保存在本机。';
+
+  @override
+  String get abilityStart => '开始';
+
+  @override
+  String get abilityStartItem => '开始这一项';
+
+  @override
+  String get abilityNext => '继续';
+
+  @override
+  String get abilityFinish => '完成并保存';
+
+  @override
+  String get abilityRetry => '再测一次';
+
+  @override
+  String abilitySaveFailed(String error) {
+    return '保存失败：$error';
+  }
+
+  @override
+  String get abilityScoresSaved => '四项能力分数已保存';
+
+  @override
+  String get abilityReactionTitle => '反应速度';
+
+  @override
+  String get abilityReactionHint => '圆点变绿后尽快点击，共 5 次。';
+
+  @override
+  String get abilityReactionWait => '等待…';
+
+  @override
+  String get abilityReactionTap => '点！';
+
+  @override
+  String get abilityWorkingMemoryTitle => '工作记忆';
+
+  @override
+  String get abilityWorkingMemoryHint => '记住出现的数字串，消失后按顺序输入。';
+
+  @override
+  String get abilityWorkingMemoryPrompt => '记住这串数字';
+
+  @override
+  String get abilityWorkingMemoryInput => '按顺序输入数字';
+
+  @override
+  String get abilityWorkingMemoryCheck => '提交';
+
+  @override
+  String get abilityPatternTitle => '模式识别';
+
+  @override
+  String get abilityPatternHint => '判断前后两个图案是否相同。';
+
+  @override
+  String get abilityPatternSame => '相同';
+
+  @override
+  String get abilityPatternDifferent => '不同';
+
+  @override
+  String get abilityAttentionTitle => '注意稳定性';
+
+  @override
+  String get abilityAttentionHint => '看到字母点「是」，看到数字点「否」。';
+
+  @override
+  String get abilityAttentionYes => '是';
+
+  @override
+  String get abilityAttentionNo => '否';
+
+  @override
+  String get abilitySummaryTitle => '本次结果';
+
+  @override
+  String abilityScoreLabel(int score) {
+    return '$score 分';
+  }
+
+  @override
+  String get abilityProfileTitle => '能力画像';
+
+  @override
+  String get abilityProfileEmpty => '还没有测评记录。做一次能力测评后，四项能力分数会保存在这里。';
+
+  @override
+  String get abilityProfileLatest => '最近一次';
+
+  @override
+  String abilityProfileCount(int count) {
+    return '共 $count 次';
+  }
+
+  @override
+  String get abilityProfileNeverTested => '还没测过';
+
+  @override
+  String abilityProfileLoadFailed(String error) {
+    return '读取能力分数失败：$error';
+  }
 }

@@ -9385,6 +9385,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing scheduled today.'**
   String get timeBoardTodayEmpty;
+
+  /// Settings entry title for the ability assessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability assessment'**
+  String get settingsAbilityAssessmentTitle;
+
+  /// Settings entry subtitle for the ability assessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Four short tests estimating reaction speed, working memory, pattern recognition and attention stability'**
+  String get settingsAbilityAssessmentHint;
+
+  /// Settings entry title for the ability profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability profile'**
+  String get settingsAbilityProfileTitle;
+
+  /// Settings entry subtitle for the ability profile.
+  ///
+  /// In en, this message translates to:
+  /// **'See the latest scores of the four abilities and how often they were measured'**
+  String get settingsAbilityProfileHint;
+
+  /// Title of the ability assessment page.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability assessment'**
+  String get abilityAssessmentTitle;
+
+  /// Intro text of the ability assessment page.
+  ///
+  /// In en, this message translates to:
+  /// **'Four short tests, about 3–5 minutes. Scores are kept on this device only.'**
+  String get abilityAssessmentIntro;
+
+  /// Start the whole assessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get abilityStart;
+
+  /// Start the current single test.
+  ///
+  /// In en, this message translates to:
+  /// **'Start this test'**
+  String get abilityStartItem;
+
+  /// Move to the next ability test.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get abilityNext;
+
+  /// Save button at the end of the assessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish and save'**
+  String get abilityFinish;
+
+  /// Retry the current single test.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get abilityRetry;
+
+  /// Shown when saving ability scores fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save: {error}'**
+  String abilitySaveFailed(String error);
+
+  /// Saved confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability scores saved'**
+  String get abilityScoresSaved;
+
+  /// Title of the reaction speed ability.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaction speed'**
+  String get abilityReactionTitle;
+
+  /// Reaction speed test instructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap as soon as the dot turns green. Five trials.'**
+  String get abilityReactionHint;
+
+  /// Waiting state of the reaction speed test.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait…'**
+  String get abilityReactionWait;
+
+  /// Prompt when the reaction signal appears.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap!'**
+  String get abilityReactionTap;
+
+  /// Title of the working memory ability.
+  ///
+  /// In en, this message translates to:
+  /// **'Working memory'**
+  String get abilityWorkingMemoryTitle;
+
+  /// Working memory test instructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember the digits, then type them in order after they disappear.'**
+  String get abilityWorkingMemoryHint;
+
+  /// Prompt while digits are shown.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember these digits'**
+  String get abilityWorkingMemoryPrompt;
+
+  /// Hint of the working memory input field.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the digits in order'**
+  String get abilityWorkingMemoryInput;
+
+  /// Submit button of the working memory test.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get abilityWorkingMemoryCheck;
+
+  /// Title of the pattern recognition ability.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern recognition'**
+  String get abilityPatternTitle;
+
+  /// Pattern recognition test instructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Decide whether the two patterns are the same.'**
+  String get abilityPatternHint;
+
+  /// Same button of the pattern recognition test.
+  ///
+  /// In en, this message translates to:
+  /// **'Same'**
+  String get abilityPatternSame;
+
+  /// Different button of the pattern recognition test.
+  ///
+  /// In en, this message translates to:
+  /// **'Different'**
+  String get abilityPatternDifferent;
+
+  /// Title of the attention stability ability.
+  ///
+  /// In en, this message translates to:
+  /// **'Attention stability'**
+  String get abilityAttentionTitle;
+
+  /// Attention stability test instructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Yes for letters and No for digits.'**
+  String get abilityAttentionHint;
+
+  /// Yes button of the attention test.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get abilityAttentionYes;
+
+  /// No button of the attention test.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get abilityAttentionNo;
+
+  /// Summary title after the four tests.
+  ///
+  /// In en, this message translates to:
+  /// **'This run'**
+  String get abilitySummaryTitle;
+
+  /// Ability score display.
+  ///
+  /// In en, this message translates to:
+  /// **'{score} pts'**
+  String abilityScoreLabel(int score);
+
+  /// Title of the ability profile page.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability profile'**
+  String get abilityProfileTitle;
+
+  /// Empty state of the ability profile page.
+  ///
+  /// In en, this message translates to:
+  /// **'No assessment yet. Finish one assessment and the four scores will show up here.'**
+  String get abilityProfileEmpty;
+
+  /// Label of the latest measurement.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get abilityProfileLatest;
+
+  /// How often an ability was measured.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} times'**
+  String abilityProfileCount(int count);
+
+  /// An ability has no measurement yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured yet'**
+  String get abilityProfileNeverTested;
+
+  /// Shown when loading the ability profile fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load ability scores: {error}'**
+  String abilityProfileLoadFailed(String error);
 }
 
 class _AppLocalizationsDelegate

@@ -3205,5 +3205,169 @@
   "timeBoardTodayEmpty": "今天没有安排。",
   "@timeBoardTodayEmpty": {
     "description": "安排列表切到「今天」且当天没有时间块时的空态。"
+  },
+  "settingsAbilityAssessmentTitle": "能力测评",
+  "@settingsAbilityAssessmentTitle": {
+    "description": "设置页进入能力测评小测的入口标题。"
+  },
+  "settingsAbilityAssessmentHint": "四项小测，估算反应速度、工作记忆、模式识别与注意稳定性",
+  "@settingsAbilityAssessmentHint": {
+    "description": "设置页能力测评入口的说明。"
+  },
+  "settingsAbilityProfileTitle": "能力画像",
+  "@settingsAbilityProfileTitle": {
+    "description": "设置页进入能力画像的入口标题。"
+  },
+  "settingsAbilityProfileHint": "查看最近一次四项能力指标与测量次数",
+  "@settingsAbilityProfileHint": {
+    "description": "设置页能力画像入口的说明。"
+  },
+  "abilityAssessmentTitle": "能力测评",
+  "@abilityAssessmentTitle": {
+    "description": "能力测评页标题。"
+  },
+  "abilityAssessmentIntro": "四项小测，大约 3–5 分钟。分数只保存在本机。",
+  "@abilityAssessmentIntro": {
+    "description": "能力测评页介绍。"
+  },
+  "abilityStart": "开始",
+  "@abilityStart": {
+    "description": "开始整轮能力测评。"
+  },
+  "abilityStartItem": "开始这一项",
+  "@abilityStartItem": {
+    "description": "开始当前单项小测。"
+  },
+  "abilityNext": "继续",
+  "@abilityNext": {
+    "description": "进入下一项能力小测。"
+  },
+  "abilityFinish": "完成并保存",
+  "@abilityFinish": {
+    "description": "四项小测结束后的保存按钮。"
+  },
+  "abilityRetry": "再测一次",
+  "@abilityRetry": {
+    "description": "重跑当前单项小测。"
+  },
+  "abilitySaveFailed": "保存失败：{error}",
+  "@abilitySaveFailed": {
+    "description": "保存能力分数失败时的提示。",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "abilityScoresSaved": "四项能力分数已保存",
+  "@abilityScoresSaved": {
+    "description": "保存成功提示。"
+  },
+  "abilityReactionTitle": "反应速度",
+  "@abilityReactionTitle": {
+    "description": "反应速度能力项标题。"
+  },
+  "abilityReactionHint": "圆点变绿后尽快点击，共 5 次。",
+  "@abilityReactionHint": {
+    "description": "反应速度小测说明。"
+  },
+  "abilityReactionWait": "等待…",
+  "@abilityReactionWait": {
+    "description": "反应速度小测等待信号。"
+  },
+  "abilityReactionTap": "点！",
+  "@abilityReactionTap": {
+    "description": "反应速度小测信号出现提示。"
+  },
+  "abilityWorkingMemoryTitle": "工作记忆",
+  "@abilityWorkingMemoryTitle": {
+    "description": "工作记忆能力项标题。"
+  },
+  "abilityWorkingMemoryHint": "记住出现的数字串，消失后按顺序输入。",
+  "@abilityWorkingMemoryHint": {
+    "description": "工作记忆小测说明。"
+  },
+  "abilityWorkingMemoryPrompt": "记住这串数字",
+  "@abilityWorkingMemoryPrompt": {
+    "description": "工作记忆小测显示数字串时的提示。"
+  },
+  "abilityWorkingMemoryInput": "按顺序输入数字",
+  "@abilityWorkingMemoryInput": {
+    "description": "工作记忆小测输入框提示。"
+  },
+  "abilityWorkingMemoryCheck": "提交",
+  "@abilityWorkingMemoryCheck": {
+    "description": "工作记忆小测提交按钮。"
+  },
+  "abilityPatternTitle": "模式识别",
+  "@abilityPatternTitle": {
+    "description": "模式识别能力项标题。"
+  },
+  "abilityPatternHint": "判断前后两个图案是否相同。",
+  "@abilityPatternHint": {
+    "description": "模式识别小测说明。"
+  },
+  "abilityPatternSame": "相同",
+  "@abilityPatternSame": {
+    "description": "模式识别小测「相同」按钮。"
+  },
+  "abilityPatternDifferent": "不同",
+  "@abilityPatternDifferent": {
+    "description": "模式识别小测「不同」按钮。"
+  },
+  "abilityAttentionTitle": "注意稳定性",
+  "@abilityAttentionTitle": {
+    "description": "注意稳定性能力项标题。"
+  },
+  "abilityAttentionHint": "看到字母点「是」，看到数字点「否」。",
+  "@abilityAttentionHint": {
+    "description": "注意稳定性小测说明。"
+  },
+  "abilityAttentionYes": "是",
+  "@abilityAttentionYes": {
+    "description": "注意稳定性小测「是」按钮。"
+  },
+  "abilityAttentionNo": "否",
+  "@abilityAttentionNo": {
+    "description": "注意稳定性小测「否」按钮。"
+  },
+  "abilitySummaryTitle": "本次结果",
+  "@abilitySummaryTitle": {
+    "description": "四项小测结束后的汇总标题。"
+  },
+  "abilityScoreLabel": "{score} 分",
+  "@abilityScoreLabel": {
+    "description": "能力分数显示。",
+    "placeholders": {
+      "score": { "type": "int" }
+    }
+  },
+  "abilityProfileTitle": "能力画像",
+  "@abilityProfileTitle": {
+    "description": "能力画像页标题。"
+  },
+  "abilityProfileEmpty": "还没有测评记录。做一次能力测评后，四项能力分数会保存在这里。",
+  "@abilityProfileEmpty": {
+    "description": "能力画像页空态。"
+  },
+  "abilityProfileLatest": "最近一次",
+  "@abilityProfileLatest": {
+    "description": "能力画像页「最近一次」标签。"
+  },
+  "abilityProfileCount": "共 {count} 次",
+  "@abilityProfileCount": {
+    "description": "某项能力的测量次数。",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "abilityProfileNeverTested": "还没测过",
+  "@abilityProfileNeverTested": {
+    "description": "某项能力还没有测量记录。"
+  },
+  "abilityProfileLoadFailed": "读取能力分数失败：{error}",
+  "@abilityProfileLoadFailed": {
+    "description": "能力画像页读取失败。",
+    "placeholders": {
+      "error": { "type": "String" }
+    }
   }
 }
