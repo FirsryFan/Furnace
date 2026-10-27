@@ -57,6 +57,10 @@
 | 采集管线 M2：扩展题 `extension_of` + 能力 `capability` | 表内无此节 | 🟡 2026-10-27（轮次一百八十二，handoff SPEC §7 M2）：**已完成** `.tqb` 可选字段 → `QuestionPackRecord` → schema v40 `questions.extensionOf`/`capability`（JSON 数组串）→ 导入/更新/导出双向映射；纯逻辑 `question_extension.dart`（母子索引、防自指/互指/悬空）、`question_capability.dart`（A1–A10 词表）、`capability_stats.dart`（T×A 统计口径）、`review_deck_key.dart`（卡组键）；详情页能力点 chips + 扩展题/母题入口。**未做**：材料容器（`materials/<subject>/*.md` + `assets/`）、材料练习记录（用时/错因/岔路/重做历史）、capability 手工录入与 T×A 报表页 |
 | 采集管线 M4：`.tqb` 契约工具 | 表内无此节 | ✅ 2026-10-27（轮次一百八十二，handoff SPEC §7 M4）：`app/tool/tqb_verify.dart`（用 App 自己的解码器验证包）+ 交接侧 `tools/zip_check.py`；真实包实测通过（30 题 / 60 媒体，`decoded records=30`、`OK`）。本仓库无 CI，列为发布前手动门禁，命令见 [HANDOFF_PIPELINE.md](HANDOFF_PIPELINE.md) |
 | 采集管线交接实现映射文档 | 表内无此节 | ✅ 2026-10-27（轮次一百八十二）：新建 [HANDOFF_PIPELINE.md](HANDOFF_PIPELINE.md)——M1–M4 状态、字段/文件/函数位置、未做项、契约验证命令；规范原文在 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`（已回写 SPEC v1.2） |
+| 闪存卡卡组主界面与分组复习 | 表内无此节 | ✅ 2026-10-27（轮次一百八十四，用户 m20816）：卡组 = 已配的标签组（沿用 `ReviewGroupPlans` 每日上限），复习 Tab 第一屏改成 `DeckListPage`——「全部」+ 每卡组一行（新卡/复习 done/target、进度条、达成徽标）+「未分组」行（真有这类卡才出现）+ 空态新建；点行进 `ReviewPage(scopeTagId:)` 只复习这一组（`ReviewService.buildQueue(onlyPaths:/onlyUngrouped:)`，空的卡组 = 空队列，不回退全库）；进度数字只来自 `deck_progress.dart`（14 例纯逻辑），卡组页与计划页同源 |
+| AI 收题 `create_questions`（拍照/粘贴进题库，替代手动收题页） | 表内无此节 | ✅ 2026-10-27（轮次一百八十四，用户 m20816）：新 `app/lib/features/ai/tools/question_write_tools.dart`——内置 agent 直接把用户拍的题/粘贴的题誊写进题库（一次 ≤100、题号或题干指纹重复时返回已有题、撤销只删本次新建的 `created_ids`）；工具总数 28→29；题库页删掉「收题」「拍照整理」两个手动入口（保留组卷、材料入库），空态与文档口径改成「拍照或粘贴发给「智能」」；25+2 例工具/撤销测试、2 例页面集成测试 |
+| 单消息工具调用上限 8→30（可设到 60） | 表内无此节 | ✅ 2026-10-27（轮次一百八十四，用户 m20816「增大内置 agent 单消息工具调用次数上限」）：`AiConfig.defaultMaxRounds` 8→30、`maxMaxRounds` 20→60、`minMaxRounds` 1；设置页滑块跟随常量、提示文案中英同步；3 个既有测试改期望。上限仍是硬上限，到顶后本轮结束并提示 |
+| AI 运行时间线（每一步正在运行可见） | 表内无此节 | ✅ 2026-10-27（轮次一百八十四，用户 m20924）：`AgentTurnState.steps`（`AgentStepKind{model,tool}` + `AgentStep`）记录每轮模型调用与每次工具调用的开始/结束（运行中/等待批准/成功/失败/取消、耗时）；新 `run_timeline.dart` 运行中展开、每秒刷新耗时、结束折叠「本轮 N 步」、点开可回看；接在思考面板与流式回答之间。9 例组件 + 9 例循环 + 2 例页面集成测试。步骤不落库（重开对话不留时间线） |
 
 ---
 
