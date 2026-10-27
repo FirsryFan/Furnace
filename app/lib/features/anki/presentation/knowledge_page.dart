@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/today_plan_page.dart';
 import 'anki_manage_page.dart';
+import 'deck_list_page.dart';
 import 'knowledge_edge_page.dart';
 import 'knowledge_insight_page.dart';
-import 'review_page.dart';
 import 'review_plan_page.dart';
 
 /// The Knowledge module (blueprint 4; user annotation 19).
@@ -32,8 +32,22 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_index == 0 ? l10n.navAnki : l10n.ankiManage),
+        // 第一 Tab 现在是「选卡组」，标题跟着这个 Tab 走，不再是模块名。
+        title: Text(_index == 0 ? l10n.deckListTitle : l10n.ankiManage),
         actions: [
+          // 卡组设置入口：只在卡组 Tab 有意义（管理 Tab 没有卡组可配）。它从
+          // DeckListPage 的内层 AppBar 上移到这里，避免双层标题栏。
+          if (_index == 0)
+            IconButton(
+              key: deckListSettingsActionKey,
+              tooltip: l10n.settingsCardGroups,
+              icon: const Icon(Icons.folder_shared_outlined),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const ReviewPlanPage(),
+                ),
+              ),
+            ),
           IconButton(
             // A one-tap path to the two review preferences from the review
             // screen itself, without leaving the queue: the block is the same
@@ -42,15 +56,18 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
             icon: const Icon(Icons.tune),
             onPressed: () => showReviewPreferencesDialog(context),
           ),
-          IconButton(
-            tooltip: l10n.reviewPlanTitle,
-            icon: const Icon(Icons.event_available),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) => const ReviewPlanPage(),
+          // 通用「复习计划」入口只在管理 Tab 显示：卡组 Tab 已经有「卡组设置」
+          // 指向同一个页面，两个同图标按钮并排只会让人分不清主次。
+          if (_index == 1)
+            IconButton(
+              tooltip: l10n.reviewPlanTitle,
+              icon: const Icon(Icons.event_available),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const ReviewPlanPage(),
+                ),
               ),
             ),
-          ),
           // 用户反馈（m29307）：五个图标挤在标题栏里，看不出主次。复习用到的
           // 两个（偏好、计划）留在外面，"看数据"类的三个（线索边 / 洞察 / 今日
           // 清单）收进一个菜单——它们不是复习流程里每轮都要点的东西。
@@ -103,7 +120,7 @@ class _KnowledgePageState extends ConsumerState<KnowledgePage> {
       body: IndexedStack(
         index: _index,
         children: const [
-          ReviewPage(),
+          DeckListPage(),
           AnkiManagePage(),
         ],
       ),

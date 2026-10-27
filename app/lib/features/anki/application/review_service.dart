@@ -280,9 +280,24 @@ class ReviewService {
   ///
   /// Cards that carry no tag of any configured group are unlimited: the plan
   /// must not be able to hide material the user never filed under a group.
+  ///
+  /// **[onlyPaths] / [onlyUngrouped] scope the queue to one card group.** The
+  /// deck list opens a group's own review screen with that group's member paths
+  /// (plan.pathsByGroup[tagId]) as [onlyPaths]; the '未分组' row wants the
+  /// complement and passes [onlyUngrouped]. Both filters apply to the knowledge
+  /// point, so a wrong-answer card of an out-of-scope point stays out of this
+  /// queue too. A point that has no tag path at all counts as ungrouped. With
+  /// both left null/false - what every caller did before the deck list existed -
+  /// the queue is built exactly as it was, allowances included.
+  ///
+  /// [onlyPaths] being an empty set means 'this scope holds no tag': nothing
+  /// matches and the queue is empty, rather than silently falling back to the
+  /// whole library.
   Future<List<ReviewItem>> buildQueue({
     DateTime? now,
     ReviewDayLoad? plan,
+    Set<String>? onlyPaths,
+    bool onlyUngrouped = false,
   }) async {
     final moment = now ?? DateTime.now();
     final points = await ankiRepository.getKnowledgePoints();
@@ -303,7 +318,20 @@ class ReviewService {
           reviewRemaining: group.remainingReviews,
         ),
     ];
-    final pointPathsByPoint = budgets.isEmpty
+    // Review scope (deck list): one group's screen passes that group's paths,
+    // the 'ungrouped' screen asks for everything no configured group covers.
+    // Both stay null/false for the global queue, so nothing below changes for
+    // existing callers.
+    final scopePaths = onlyPaths == null ? null : <String>{...onlyPaths};
+    final scoped = scopePaths != null || onlyUngrouped;
+    final groupMemberPaths = <String>{};
+    if (onlyUngrouped) {
+      for (final paths in plan?.pathsByGroup.values ?? const <List<String>>[]) {
+        groupMemberPaths.addAll(paths);
+      }
+    }
+    // The membership query is needed both for allowances and for any scope.
+    final pointPathsByPoint = budgets.isEmpty && !scoped
         ? const <String, Set<String>>{}
         : {
             for (final entry in (await ankiRepository.tagPathsForObjects(
@@ -322,6 +350,18 @@ class ReviewService {
     }
 
     for (final point in points) {
+      // Scope filter runs before any per-point query: a deck review must not
+      // pay for the whole library. A point with no tag paths counts as
+      // ungrouped, which is exactly what the '未分组' screen exists to show.
+      if (scoped) {
+        final paths = pointPathsByPoint[point.id] ?? const <String>{};
+        if (scopePaths != null && !paths.any(scopePaths.contains)) {
+          continue;
+        }
+        if (onlyUngrouped && paths.any(groupMemberPaths.contains)) {
+          continue;
+        }
+      }
       final templates =
           await ankiRepository.getTemplatesForKnowledgePoint(point.id);
       final contentStates =

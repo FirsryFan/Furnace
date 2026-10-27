@@ -40,7 +40,29 @@ const Key reviewEndSessionKey = Key('review-end-session');
 ///  * **Every card type the app stores** ([ReviewItemKind]): a blank is typed, a
 ///    single-choice card is picked, an essay is judged by the user.
 class ReviewPage extends ConsumerStatefulWidget {
-  const ReviewPage({super.key});
+  const ReviewPage({
+    super.key,
+    this.scopeTagId,
+    this.scopeTitle,
+    this.onlyUngrouped = false,
+  });
+
+  /// The card group this screen reviews, or null for the global queue.
+  ///
+  /// When set, [_load] hands the group's member paths
+  /// (plan.pathsByGroup[scopeTagId]) to buildQueue(onlyPaths: ...), so the
+  /// queue holds only that group's cards. A group tag with no paths scopes to
+  /// an empty queue rather than falling back to the whole library.
+  final String? scopeTagId;
+
+  /// The deck name the outer Scaffold shows in its AppBar.
+  ///
+  /// The page itself draws no title (the parent provides the AppBar), so this
+  /// is only the label that travels with the scope.
+  final String? scopeTitle;
+
+  /// Review exactly the cards no configured group covers ('未分组').
+  final bool onlyUngrouped;
 
   @override
   ConsumerState<ReviewPage> createState() => _ReviewPageState();
@@ -201,7 +223,18 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     if (!mounted) {
       return;
     }
-    final queue = await ref.read(reviewServiceProvider).buildQueue(plan: plan);
+    // A scoped screen passes this group's member paths down as the queue's
+    // onlyPaths; an empty set therefore means 'no cards in this scope' and
+    // never the whole library. The global screen passes null, which is the
+    // behaviour this page had before the deck list existed.
+    final onlyPaths = widget.scopeTagId == null
+        ? null
+        : (plan.pathsByGroup[widget.scopeTagId!] ?? const <String>[]).toSet();
+    final queue = await ref.read(reviewServiceProvider).buildQueue(
+          plan: plan,
+          onlyPaths: onlyPaths,
+          onlyUngrouped: widget.onlyUngrouped,
+        );
     if (!mounted) {
       return;
     }
