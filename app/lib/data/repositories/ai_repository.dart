@@ -71,14 +71,19 @@ class AiConfig {
 
   /// The shipped round budget, used when the user has never chosen one (a NULL
   /// `local_settings.ai_max_rounds`, which is every row on an upgraded file).
-  static const int defaultMaxRounds = 8;
+  ///
+  /// Raised from 8 to 30 (2026-10-27, user m20816): the assistant now takes over
+  /// question intake — transcribe a photo of several questions, look up tags,
+  /// then write each question — which routinely needs more than a dozen
+  /// round-trips for one message. The setting stays user-editable.
+  static const int defaultMaxRounds = 30;
 
   /// The range the setting offers, and the range any stored value is resolved
   /// into. Bounded on purpose: a hand-edited or future-written
   /// `ai_max_rounds` must not be able to make one message spend an unbounded
   /// number of paid calls, and zero rounds would answer nothing at all.
   static const int minMaxRounds = 1;
-  static const int maxMaxRounds = 20;
+  static const int maxMaxRounds = 60;
 
   /// [stored] as a usable budget: the default when nothing was chosen, clamped
   /// into [minMaxRounds]..[maxMaxRounds] otherwise. Applied on the way in *and*

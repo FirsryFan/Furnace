@@ -16,7 +16,7 @@ import 'package:furnace/features/ai/tools/paper_tools.dart';
 /// `compose_paper` 是"现在该练什么"（Q9/Q11）的工具面，验收点：
 ///
 ///  1. **只读**：一次调用不改任何表，`ApprovalEngine` 在任何权限模式下都不逐条询问；
-///  2. **AI 不出题**：卷子上的每道题都是题库里已有的行；凑不齐时如实说缺什么，
+///  2. **AI 不凭空出题**：卷子上的每道题都是题库里已有的行；凑不齐时如实说缺什么，
 ///     绝不生成题干填空；
 ///  3. **诚实**：诊断快层这轮没跑 → 所有知识点按"没有读数"处理，并在摘要里
 ///     **明说"不是健康"**（Q13 之前工具不敢做，正是怕"没跑"被当成"学得好"）；
@@ -163,14 +163,15 @@ void main() {
   });
 
   group('题库不够时说实话', () {
-    test('题库为空 → 成功但 0 道，并明说不会自己出题', () async {
+    test('题库为空 → 成功但 0 道，并明说不凭空出题、让用户把题发过来', () async {
       final result = await tool.run(invoke(const {}));
 
       expect(result.ok, isTrue);
       expect(payloadOf(result)['bank_size'], 0);
       expect(payloadOf(result)['item_count'], 0);
       expect(result.summary, contains('还没有任何可用的题'));
-      expect(result.summary, contains('我不会自己出题'));
+      expect(result.summary, contains('我不凭空出题'));
+      expect(result.summary, contains('拍照或粘贴发给我'));
     });
 
     test('题干为空的脏行不算候选：题库"看起来有题"也照样空', () async {

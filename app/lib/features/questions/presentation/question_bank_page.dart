@@ -3,7 +3,8 @@
 /// 用户反馈（m09439）：题库总览不需要那么多详细信息，呈现必要信息、标签和
 /// 题目命名（自己命名或自动生成），图片要大一点。于是这一页：
 ///
-/// * 上面四个按钮 = 往题库里加东西的全部入口；
+/// * 上面两个按钮 = 往题库里加东西的全部入口（收题/拍照整理改由内置 agent
+///   收题：用户直接把照片或题目粘贴发给 agent，见 AI 工具 create_questions）；
 /// * 搜索框 + 标签筛选 + 学科筛选 + 错题本开关（四者 AND，可一键清除）；
 ///   自测答错过的题在行内带「错 N 次」徽标；
 /// * 一行小字统计；
@@ -37,11 +38,9 @@ import '../application/question_library_sort.dart';
 import '../application/question_library_sort_preference.dart';
 import '../application/question_media_providers.dart';
 import '../application/question_pack_service.dart';
-import 'handwriting_queue_page.dart';
 import 'question_audit_view.dart';
 import 'question_bulk_tag_dialog.dart';
 import 'question_detail_page.dart';
-import 'question_intake_page.dart';
 import 'question_library_filter_bar.dart';
 import 'question_library_tag_filter_dialog.dart';
 import 'question_media_view.dart';
@@ -864,9 +863,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 children: <Widget>[
                   _EntryRow(
                     l10n: l10n,
-                    onIntake: () => _open(const QuestionIntakePage()),
                     onPaper: () => _open(const QuestionPaperPage()),
-                    onHandwriting: () => _open(const HandwritingQueuePage()),
                     onMaterial: () => _open(const MaterialIntakePage()),
                   ),
                   const SizedBox(height: 12),
@@ -1024,20 +1021,20 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   }
 }
 
-/// 四个"往题库里加东西"的入口。放最上面：这一页的主要动作是加题，不是浏览。
+/// 两个"往题库里加东西"的入口。放最上面：这一页的主要动作是加题，不是浏览。
+///
+/// 收题（拍照/手写整理与手动录题）不再从这里进：按用户新政策，照片或文字
+/// 直接发给内置 agent，由 `create_questions` 工具誊写进题库；题库页只留组卷与
+/// 材料入库（题库包/资料导入）。
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
     required this.l10n,
-    required this.onIntake,
     required this.onPaper,
-    required this.onHandwriting,
     required this.onMaterial,
   });
 
   final AppLocalizations l10n;
-  final VoidCallback onIntake;
   final VoidCallback onPaper;
-  final VoidCallback onHandwriting;
   final VoidCallback onMaterial;
 
   @override
@@ -1047,19 +1044,9 @@ class _EntryRow extends StatelessWidget {
       runSpacing: 8,
       children: <Widget>[
         FilledButton.tonalIcon(
-          onPressed: onIntake,
-          icon: const Icon(Icons.edit_note_outlined),
-          label: Text(l10n.questionIntakeTitle),
-        ),
-        OutlinedButton.icon(
           onPressed: onPaper,
           icon: const Icon(Icons.playlist_add_check),
           label: Text(l10n.questionPaperTitle),
-        ),
-        OutlinedButton.icon(
-          onPressed: onHandwriting,
-          icon: const Icon(Icons.auto_fix_high),
-          label: Text(l10n.handwritingQueueTitle),
         ),
         OutlinedButton.icon(
           onPressed: onMaterial,

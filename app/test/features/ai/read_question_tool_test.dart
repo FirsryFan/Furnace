@@ -567,7 +567,10 @@ void main() {
       expect(model['stem_snapshot_label'], '整题截图 · 2 处公式/图');
       expect(result.summary, contains('；题干是整题截图（2 处公式/图）'));
       expect(result.summary, contains('正文可能只是占位，原题看图片'));
-      expect(result.summary, endsWith('这些是题库里已有的题，我不会自己出题。'));
+      expect(
+        result.summary,
+        endsWith('这些是题库里已有的题；我不凭空出题，把题目拍照或粘贴发给我，我誊写进题库。'),
+      );
     });
 
     test('不是快照时两个键也出现：false + 空串，摘要不补快照句', () async {

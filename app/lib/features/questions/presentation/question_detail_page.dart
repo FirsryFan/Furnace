@@ -43,7 +43,6 @@ import '../application/question_stem_display_provider.dart';
 import '../application/similar_question_provider.dart';
 import 'question_audit_view.dart';
 import 'question_detail_providers.dart';
-import 'question_intake_page.dart';
 import 'question_markdown_view.dart';
 import 'question_media_view.dart';
 import 'question_source_edit_dialog.dart';
@@ -2134,8 +2133,8 @@ String _number(double value) {
 /// 找相似题：只从**已有题库**里找。领域层已经排好序、写好理由，这里不改顺序、
 /// 不复算分量、不把 `score` 当百分比——只画 `reasonZh` 与「跨学科迁移」角标。
 ///
-/// 一道都不像时（空列表）只给空态 + 去收题入口：**不许拿"看着像"的题凑数**，
-/// 这是本片用户口径里最硬的一条。
+/// 一道都不像时（空列表）只给空态（并提示把照片或题目发给「智能化」助手）：
+/// **不许拿"看着像"的题凑数**，这是本片用户口径里最硬的一条。
 class _SimilarQuestionsSection extends ConsumerWidget {
   const _SimilarQuestionsSection({super.key, required this.questionId});
 
@@ -2176,15 +2175,6 @@ class _SimilarQuestionsSection extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(l10n.questionSimilarEmpty),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: FilledButton.tonalIcon(
-                            onPressed: () => _openIntake(context),
-                            icon: const Icon(Icons.add),
-                            label: Text(l10n.questionSimilarGoIntake),
-                          ),
-                        ),
                       ],
                     )
                   : Column(
@@ -2306,13 +2296,6 @@ class _TransferBadge extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 空态里的「去收题」：AI 不出题，库里没有就去收。
-void _openIntake(BuildContext context) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (context) => const QuestionIntakePage()),
-  );
 }
 
 /// 「改来源」对话框：来源分级（白名单下拉）+ 来源说明/年份/地区。

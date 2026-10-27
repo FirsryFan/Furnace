@@ -7,6 +7,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
 import '../../../data/skill/skill_prompt.dart';
 import '../../../data/skill/skill_runner.dart';
@@ -19,6 +20,7 @@ import '../tools/card_group_tools.dart';
 import '../tools/deletion_tools.dart';
 import '../tools/document_tools.dart';
 import '../tools/knowledge_tools.dart';
+import '../tools/question_write_tools.dart';
 import '../tools/review_focus_tool.dart';
 import '../tools/tag_tools.dart';
 import '../tools/schedule_tools.dart';
@@ -112,6 +114,100 @@ class ExecutedCall {
         result: result,
         actionId: actionId,
         undone: undone ?? this.undone,
+      );
+}
+
+/// What one visible step of a turn is doing.
+enum AgentStepKind { model, tool }
+
+/// Where one step stands.
+///
+/// [waiting] is the approval pause: a proposed call that has not run yet. A
+/// waiting step is not running - the clock that matters there is the user's,
+/// not the provider's.
+enum AgentStepStatus { running, waiting, done, failed, cancelled }
+
+/// One entry of the chat page's live timeline for the turn in flight.
+///
+/// Steps are appended as the turn runs and only ever updated in place: the
+/// page can therefore draw "round 2 -> calling manage_task -> waiting" while
+/// it is happening, instead of showing tool cards only after the fact. They
+/// are deliberately *not* persisted: a finished turn is represented by its
+/// messages and ai_actions rows, which already survive a restart.
+class AgentStep {
+  const AgentStep({
+    required this.id,
+    required this.kind,
+    required this.round,
+    required this.startedAt,
+    this.toolName,
+    this.title = '',
+    this.detail = '',
+    this.status = AgentStepStatus.running,
+    this.finishedAt,
+    this.summary,
+    this.ok,
+  });
+
+  /// Position in the turn's timeline. Stable while the step is running, so the
+  /// UI can update the same card rather than appending a new one.
+  final int id;
+
+  final AgentStepKind kind;
+
+  /// The model round-trip this step belongs to, 1-based.
+  final int round;
+
+  /// For [AgentStepKind.tool]: the tool that is (or was) being called.
+  final String? toolName;
+
+  /// Short human-facing label, e.g. the call's title argument. Empty when the
+  /// model supplied nothing worth showing.
+  final String title;
+
+  /// Extra context for the running row, e.g. the title/action argument.
+  final String detail;
+
+  final AgentStepStatus status;
+
+  final DateTime startedAt;
+
+  /// Set when the step reached a terminal status; null while it still runs.
+  final DateTime? finishedAt;
+
+  /// The tool result summary, once it finished.
+  final String? summary;
+
+  /// Whether the tool call succeeded. Null for model steps and while running.
+  final bool? ok;
+
+  bool get isRunning => status == AgentStepStatus.running;
+
+  bool get isWaiting => status == AgentStepStatus.waiting;
+
+  bool get isFinished => status != AgentStepStatus.running && !isWaiting;
+
+  Duration? get elapsed => finishedAt?.difference(startedAt);
+
+  AgentStep copyWith({
+    AgentStepStatus? status,
+    DateTime? startedAt,
+    DateTime? finishedAt,
+    String? summary,
+    bool? ok,
+  }) =>
+      AgentStep(
+        id: id,
+        kind: kind,
+        round: round,
+        startedAt: startedAt ?? this.startedAt,
+        toolName: toolName,
+        title: title,
+        detail: detail,
+        status: status ?? this.status,
+        finishedAt: finishedAt ?? this.finishedAt,
+        summary: summary ?? this.summary,
+        ok: ok ?? this.ok,
       );
 }
 
@@ -356,6 +452,7 @@ class AgentTurnState {
     this.cancelled = false,
     this.rounds = 0,
     this.usage = const TurnUsage(),
+    this.steps = const [],
   });
 
   /// A model call is in flight.
@@ -404,6 +501,23 @@ class AgentTurnState {
   /// single object the page reads - it never parses provider JSON itself.
   final TurnUsage usage;
 
+  /// The turn's visible timeline, in the order the steps started.
+  ///
+  /// Live only: it describes the turn in flight (and stays on screen after it
+  /// ends, until the next message starts a new turn). Persisted history is
+  /// rebuilt from messages and ai_actions, so a restart does not lose it.
+  final List<AgentStep> steps;
+
+  /// The step that is running right now, if any.
+  AgentStep? get runningStep {
+    for (final step in steps.reversed) {
+      if (step.isRunning) {
+        return step;
+      }
+    }
+    return null;
+  }
+
   bool get hasPending => pending.isNotEmpty;
   bool get isIdle => !generating && !hasPending;
 
@@ -418,6 +532,7 @@ class AgentTurnState {
     bool? cancelled,
     int? rounds,
     TurnUsage? usage,
+    List<AgentStep>? steps,
     bool clearError = false,
     bool clearPendingTurn = false,
   }) {
@@ -437,6 +552,7 @@ class AgentTurnState {
       cancelled: cancelled ?? this.cancelled,
       rounds: nextRounds,
       usage: nextUsage,
+      steps: steps ?? this.steps,
     );
   }
 }
@@ -556,6 +672,16 @@ class AgentLoop {
   final _states = StreamController<AgentTurnState>.broadcast();
   AgentTurnState _state = const AgentTurnState();
 
+  /// The current turn's timeline, in start order. Reset only when a new user
+  /// message starts a new turn; an approval continues the same one.
+  final _steps = <AgentStep>[];
+
+  /// Call id -> step id, so an executed/rejected call updates the card that
+  /// was appended when the proposal arrived.
+  final _stepByCallId = <String, int>{};
+
+  int _nextStepId = 0;
+
   /// Set by [cancel], checked at every point this loop could start another
   /// round or act on a call. Cleared when a new user message starts a turn, so
   /// a cancel only ever affects the turn it was issued for.
@@ -584,6 +710,14 @@ class AgentLoop {
     adapter.cancelActiveTurn();
     if (_state.hasPending) {
       _metrics.toolCallsPending = 0;
+      for (final item in _state.pending) {
+        _finishStepForCall(
+          item.call.id,
+          status: AgentStepStatus.cancelled,
+          summary: '已取消',
+          ok: false,
+        );
+      }
       _emit(_state.copyWith(
         generating: false,
         pending: const [],
@@ -606,6 +740,147 @@ class AgentLoop {
     if (!_states.isClosed) {
       _states.add(next);
     }
+  }
+
+  /// Drops the previous turn's timeline. Called once per user message, next to
+  /// the metrics reset, for the same reason: both describe one turn.
+  void _resetSteps() {
+    _steps.clear();
+    _stepByCallId.clear();
+    _nextStepId = 0;
+  }
+
+  void _publishSteps() {
+    _emit(_state.copyWith(steps: List<AgentStep>.unmodifiable(_steps)));
+  }
+
+  /// Appends the card for this round's model call, before anything is sent.
+  int _addModelStep() {
+    final id = _nextStepId++;
+    _steps.add(AgentStep(
+      id: id,
+      kind: AgentStepKind.model,
+      round: _metrics.rounds,
+      startedAt: DateTime.now(),
+      title: '',
+    ));
+    _publishSteps();
+    return id;
+  }
+
+  /// Looks up the call's most useful argument for a one-line label.
+  static String _callLabel(ToolCallRequest call) {
+    final args = call.arguments;
+    final label = args['title'] ?? args['id'] ?? args['action'] ?? args['path'];
+    return label == null ? '' : '$label';
+  }
+
+  /// Appends the card for a proposed tool call.
+  ///
+  /// Appended when the proposal is parsed, not when execution starts, so the
+  /// user sees the call while it is still being decided or run.
+  int _addToolStep(ToolCallRequest call) {
+    final id = _nextStepId++;
+    _steps.add(AgentStep(
+      id: id,
+      kind: AgentStepKind.tool,
+      round: _metrics.rounds,
+      toolName: call.name,
+      title: call.name,
+      detail: _callLabel(call),
+      startedAt: DateTime.now(),
+    ));
+    _stepByCallId[call.id] = id;
+    _publishSteps();
+    return id;
+  }
+
+  /// Closes the model card of the round that just ended.
+  void _finishModelStep() {
+    final index = _steps
+        .lastIndexWhere((s) => s.kind == AgentStepKind.model && s.isRunning);
+    if (index < 0) {
+      return;
+    }
+    _steps[index] = _steps[index]
+        .copyWith(status: AgentStepStatus.done, finishedAt: DateTime.now());
+    _publishSteps();
+  }
+
+  void _updateStep(int id, AgentStep Function(AgentStep) update) {
+    final index = _steps.indexWhere((s) => s.id == id);
+    if (index < 0) {
+      return;
+    }
+    _steps[index] = update(_steps[index]);
+    _publishSteps();
+  }
+
+  void _setStepStatus(int id, AgentStepStatus status) {
+    _updateStep(id, (s) => s.copyWith(status: status));
+  }
+
+  void _finishStep(
+    int id, {
+    AgentStepStatus status = AgentStepStatus.done,
+    String? summary,
+    bool? ok,
+  }) {
+    _updateStep(
+      id,
+      (s) => s.copyWith(
+        status: status,
+        summary: summary,
+        ok: ok,
+        finishedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  void _finishStepForCall(
+    String callId, {
+    required AgentStepStatus status,
+    String? summary,
+    bool? ok,
+  }) {
+    final id = _stepByCallId[callId];
+    if (id == null) {
+      return;
+    }
+    _finishStep(id, status: status, summary: summary, ok: ok);
+  }
+
+  /// Terminal path helper: nothing may be left spinning.
+  void _closeOpenSteps(AgentStepStatus status) {
+    var changed = false;
+    for (var i = 0; i < _steps.length; i++) {
+      final step = _steps[i];
+      if (step.isRunning || step.isWaiting) {
+        _steps[i] = step.copyWith(status: status, finishedAt: DateTime.now());
+        changed = true;
+      }
+    }
+    if (changed) {
+      _publishSteps();
+    }
+  }
+
+  /// Marks the round that just failed as failed, so the timeline does not show
+  /// a model call as successful when the provider returned an error.
+  void _failModelStep(String failure) {
+    final index = _steps.lastIndexWhere((s) => s.kind == AgentStepKind.model);
+    if (index < 0) {
+      return;
+    }
+    _updateStep(
+      _steps[index].id,
+      (s) => s.copyWith(
+        status: AgentStepStatus.failed,
+        summary: failure,
+        ok: false,
+        finishedAt: DateTime.now(),
+      ),
+    );
   }
 
   /// Sends one user message and drives the loop until the model is done.
@@ -652,6 +927,7 @@ class AgentLoop {
       maxRounds: maxRounds,
       contextWindowTokens: contextWindowTokens,
     );
+    _resetSteps();
     _emit(const AgentTurnState(generating: true));
     final message = await repository.addMessage(
       conversationId: conversationId,
@@ -719,6 +995,14 @@ class AgentLoop {
     // never happened.
     _metrics.toolCallsPending = 0;
     _metrics.toolCallsRejected += pending.length;
+    for (final item in pending) {
+      _finishStepForCall(
+        item.call.id,
+        status: AgentStepStatus.cancelled,
+        summary: '用户拒绝了这次操作',
+        ok: false,
+      );
+    }
     await _commitTurn(conversationId, group);
     _emit(_state.copyWith(
       pending: const [],
@@ -783,6 +1067,7 @@ class AgentLoop {
         usage: _metrics.snapshot(),
         clearError: true,
       ));
+      _addModelStep();
 
       // One read of the skill directory per round: it produces this round's
       // tool list *and* the prompt that accompanies it.
@@ -849,6 +1134,7 @@ class AgentLoop {
         }
       }
       roundWatch.stop();
+      _finishModelStep();
 
       // Fold the round in before the failure check: tokens the provider already
       // generated and billed for are real whether or not the round ended well.
@@ -868,6 +1154,7 @@ class AgentLoop {
       }
 
       if (failure != null) {
+        _failModelStep(failure);
         // Keep whatever text arrived before the failure: a partial answer is
         // still an answer. A failure that produced only thinking writes no
         // assistant row: a content-less bubble would read as an empty answer.
@@ -888,6 +1175,7 @@ class AgentLoop {
       }
 
       if (calls.isEmpty) {
+        _closeOpenSteps(AgentStepStatus.done);
         await repository.addMessage(
           conversationId: conversationId,
           role: AiRepository.roleAssistant,
@@ -910,6 +1198,7 @@ class AgentLoop {
       );
 
       for (final call in calls) {
+        final stepId = _addToolStep(call);
         final tool = registry.byName(call.name) ?? turnTools.byName(call.name);
         final action = tool?.actionOf(call.arguments) ?? call.name;
         final risk = tool?.riskFor(action) ?? ToolRisk.write;
@@ -939,6 +1228,12 @@ class AgentLoop {
             'ok': false,
             'error': call.parseError ?? '未知工具 ${call.name}',
           });
+          _finishStep(
+            stepId,
+            status: AgentStepStatus.failed,
+            summary: call.parseError ?? '未知工具 ${call.name}',
+            ok: false,
+          );
           continue;
         }
 
@@ -954,6 +1249,7 @@ class AgentLoop {
         } else {
           group.callIds.add(call.id);
           pending.add(item);
+          _setStepStatus(stepId, AgentStepStatus.waiting);
         }
       }
 
@@ -978,6 +1274,7 @@ class AgentLoop {
     }
 
     // C3: the cap was reached. Say so plainly rather than stopping silently.
+    _closeOpenSteps(AgentStepStatus.done);
     final notice = '已达到本轮工具调用上限（$maxRounds 轮），先停在这里。'
         '如果需要继续，请再发一条消息。';
     await repository.addMessage(
@@ -1020,6 +1317,7 @@ class AgentLoop {
     }
     _metrics.inFlightChars = 0;
     _metrics.inFlightElapsed = Duration.zero;
+    _closeOpenSteps(AgentStepStatus.cancelled);
     _emit(_state.copyWith(
       generating: false,
       cancelled: true,
@@ -1091,6 +1389,17 @@ class AgentLoop {
       return;
     }
 
+    final stepId = _stepByCallId[item.call.id];
+    if (stepId != null) {
+      _updateStep(
+        stepId,
+        (s) => s.copyWith(
+          status: AgentStepStatus.running,
+          startedAt: DateTime.now(),
+        ),
+      );
+    }
+
     ToolResult result;
     try {
       result = await item.tool.run(ToolInvocation(
@@ -1125,6 +1434,15 @@ class AgentLoop {
     // message without its assistant message is exactly what the provider
     // rejects.
     group.addReply(item.call.id, result.toModelJson());
+
+    if (stepId != null) {
+      _finishStep(
+        stepId,
+        status: result.ok ? AgentStepStatus.done : AgentStepStatus.failed,
+        summary: result.summary,
+        ok: result.ok,
+      );
+    }
 
     _emit(_state.copyWith(
       executed: [
@@ -1431,6 +1749,7 @@ class AgentLoop {
     // "remove the links it made", not "restore an old row".
     if (record.toolName == CreateTagsTool.toolName ||
         record.toolName == CreateKnowledgeCardsTool.toolName ||
+        record.toolName == CreateQuestionsTool.toolName ||
         record.toolName == LinkCardTagsTool.toolName ||
         record.toolName == CreateDocumentTool.toolName) {
       return true;
@@ -1451,6 +1770,40 @@ class AgentLoop {
         return deleteCreatedTags(db, map);
       case CreateKnowledgeCardsTool.toolName:
         return deleteCreatedKnowledgeCards(db, map);
+      case CreateQuestionsTool.toolName:
+        // AI 收题撤销 (用户 2026-10-27): 只删这次新建的题（`created_ids`），
+        // 重复题本来就在库里、不能删；删不到的 id（已经删过 / 从未写入）不算失败，
+        // 返回值回答「这次新建的题是不是全删干净了」。删题走仓储方法，它负责把
+        // 选项、推理链、标签关联、自测记录一起清掉（本项目没有外键级联）。
+        final createdIds = map['created_ids'];
+        if (createdIds is! List) {
+          return false;
+        }
+        final questions = QuestionRepository(db);
+        var allDeleted = true;
+        for (final value in createdIds) {
+          if (value is! String) {
+            continue;
+          }
+          final id = value.trim();
+          if (id.isEmpty) {
+            continue;
+          }
+          final rows = await (db.select(db.questions)
+                ..where((t) => t.id.equals(id)))
+              .get();
+          if (rows.isEmpty) {
+            continue;
+          }
+          await questions.deleteQuestion(id);
+          final remaining = await (db.select(db.questions)
+                ..where((t) => t.id.equals(id)))
+              .get();
+          if (remaining.isNotEmpty) {
+            allDeleted = false;
+          }
+        }
+        return allDeleted;
       case LinkCardTagsTool.toolName:
         // Undo for the link half: remove exactly the object_tags rows this call
         // added, leaving cards the user grouped themselves untouched.

@@ -198,7 +198,7 @@ void main() {
 
     expect(result.ok, isTrue);
     expect(result.summary, contains('还没有解过含「归纳」的题'));
-    expect(result.summary, contains('不会自己出题'));
+    expect(result.summary, contains('不凭空出题'));
     final payload = result.modelResult! as Map<String, Object?>;
     expect(payload['returned'], 0);
     expect(payload['questions'], isEmpty);

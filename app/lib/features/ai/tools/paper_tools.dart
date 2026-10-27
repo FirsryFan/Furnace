@@ -1,8 +1,9 @@
 /// 组卷能力（Q9/Q11）接进 AI 工具层。
 ///
-/// 用户口径（历史记录）：**AI 不能自己出题**。所以这个工具只做一件事：把"想练什么"
-/// 变成一次 `PaperComposer.compose(...)` 调用，从**已有题库**里按薄弱/危险区知识点
-/// 凑题，并把"为什么是这道、缺哪些知识点"如实报出来。凑不齐就说缺什么、建议去收题，
+/// 用户口径：**AI 不凭空出题**（用户拍照/粘贴的题由 `create_questions` 工具誊写进
+/// 题库）。所以这个工具只做一件事：把"想练什么"变成一次 `PaperComposer.compose(...)`
+/// 调用，从**已有题库**里按薄弱/危险区知识点凑题，并把"为什么是这道、缺哪些知识点"
+/// 如实报出来。凑不齐就说缺什么、请用户把题目拍照/粘贴发给 agent 誊写进库，
 /// 绝不用模型生成一道题来填空。
 ///
 /// 为什么它敢和组卷页给出同一份卷子：诊断读数以前只活在页面的 Riverpod provider 里，
@@ -27,7 +28,7 @@ import '../../questions/application/paper_plan_builder.dart';
 import '../../questions/application/question_corpus_reader.dart';
 import '../domain/ai_tool.dart';
 
-/// 按薄弱/危险区知识点，从已有题库里凑一份卷子（AI 不出题）。
+/// 按薄弱/危险区知识点，从已有题库里凑一份卷子（AI 不凭空出题）。
 class ComposePaperTool extends AiTool {
   ComposePaperTool({required AppDatabase db}) : _db = db;
 
@@ -45,7 +46,8 @@ class ComposePaperTool extends AiTool {
   @override
   String get description => '按**薄弱/危险区知识点**从用户已有的题库里凑一份练习卷：'
       '每题都带"为什么是它"（危险/发展区读数 + 来源质量 + 难度贴合）与下一步提升建议；'
-      '凑不齐时如实列出"缺哪些知识点"（`uncovered_knowledge_point_ids`）让人去收题。'
+      '凑不齐时如实列出"缺哪些知识点"（`uncovered_knowledge_point_ids`），并提示用户把题目'
+      '拍照/粘贴发给 agent 誊写进题库。'
       '用在你需要"现在该练什么"的时候。**只读**：不写数据、不生成题干、不落库——'
       '它只从库里挑已有的题，挑不出来就说挑不出来，绝不自己编一道题填空。'
       '这不是随机抽题：它按诊断读数排序，并受学科/领域/来源/每知识点配额约束。'
@@ -512,7 +514,8 @@ class ComposePaperTool extends AiTool {
     return ids.isEmpty ? null : ids;
   }
 
-  /// 摘要说人话：凑了几道、哪几道是为了哪个知识点、缺什么、以及"我不会自己出题"。
+  /// 摘要说人话：凑了几道、哪几道是为了哪个知识点、缺什么、以及"我不凭空出题"＋
+  /// 补充途径（拍照/粘贴发给 agent 誊写进库）。
   String _summaryOf({
     required PaperPlan plan,
     required PaperCorpus corpus,
@@ -523,7 +526,7 @@ class ComposePaperTool extends AiTool {
     if (corpus.candidates.isEmpty) {
       buffer.write(
         '题库里还没有任何可用的题（题干为空的题不算），所以凑不出卷子。'
-        '我不会自己出题——先去收题页把题目收进来（可以拍照/粘贴），再让我组卷。',
+        '我不凭空出题；把题目拍照或粘贴发给我，我誊写进题库，再让我组卷。',
       );
       return buffer.toString();
     }
@@ -571,7 +574,7 @@ class ComposePaperTool extends AiTool {
         ' 这些知识点诊断上是危险/发展区，但题库里一道候选都没有：'
         '${names.join('、')}'
         '${plan.uncoveredKnowledgePointIds.length > names.length ? ' 等' : ''}'
-        '——建议去收题（我不会自己出题）。',
+        '——建议把题目拍照或粘贴发给我誊写进题库，再让我组卷。',
       );
     }
     if (plan.deferredKnowledgePointIds.isNotEmpty) {

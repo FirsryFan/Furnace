@@ -61,13 +61,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Nothing was ever chosen, so the shipped default is what is shown.
-    expect(AiConfig.defaultMaxRounds, 8);
-    expect(find.text('8 轮'), findsOneWidget);
+    expect(AiConfig.defaultMaxRounds, 30);
+    expect(find.text('30 轮'), findsOneWidget);
 
     // Drag the thumb to the far right: the top of the offered range.
     await tester.drag(find.byType(Slider), const Offset(1000, 0));
     await tester.pumpAndSettle();
-    expect(find.text('20 轮'), findsOneWidget,
+    expect(find.text('60 轮'), findsOneWidget,
         reason: 'the value next to the slider follows the thumb');
 
     await tester.ensureVisible(find.text('保存'));

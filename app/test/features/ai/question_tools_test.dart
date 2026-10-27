@@ -208,8 +208,13 @@ void main() {
       // 四个基础分量 + 第五个可选分量 `quality`（MindNet 有效性）。这个工具没接
       // 认知读数、权重默认 0，所以 quality 恒为中性 0.5——它存在但不参与排序。
       final components = first['components']! as Map<String, Object?>;
-      expect(components.keys.toSet(),
-          {'knowledge_point', 'action_type', 'subject', 'difficulty', 'quality'});
+      expect(components.keys.toSet(), {
+        'knowledge_point',
+        'action_type',
+        'subject',
+        'difficulty',
+        'quality'
+      });
       expect(components['quality'], kNeutralQuestionQuality);
       expect(first['score'] as double, greaterThanOrEqualTo(0.25));
     });
@@ -261,7 +266,7 @@ void main() {
       expect(result.ok, isTrue, reason: '查得到这行就不该失败');
       expect((result.modelResult! as Map<String, Object?>)['returned'], 0);
       expect(result.summary, contains('没有一道够像'));
-      expect(result.summary, contains('我不会自己出题'));
+      expect(result.summary, contains('我不凭空出题'));
     });
   });
 
@@ -300,12 +305,12 @@ void main() {
       expect(result.error, contains('knowledge_point_ids'));
     });
 
-    test('题库为空 → 成功但 0 条，并明说不会自己出题', () async {
+    test('题库为空 → 成功但 0 条，并明说不凭空出题（可拍照/粘贴给我）', () async {
       final result = await tool.run(invoke({'subject_key': '数学'}));
 
       expect(result.ok, isTrue);
       expect(result.summary, contains('还没有题'));
-      expect(result.summary, contains('不会自己出题'));
+      expect(result.summary, contains('不凭空出题'));
       expect((result.modelResult! as Map<String, Object?>)['bank_size'], 0);
     });
 

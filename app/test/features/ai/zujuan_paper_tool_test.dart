@@ -21,7 +21,7 @@ import 'package:furnace/features/ai/tools/zujuan_paper_tool.dart';
 ///  4. **裁剪**：`max_count`（默认 50、上限 200）同时截 matched 与 missing，
 ///     缺题被略去时给 `missing_omitted`；
 ///  5. 透传：`truncated` 与 `warnings` 原样带出，`title`/`paper_id`/`bank_id` 来自抽取层；
-///  6. 注册：进 `ToolRegistry`（含它共 28 个工具），schema 只有 text / max_count。
+///  6. 注册：进 `ToolRegistry`（含它共 29 个工具），schema 只有 text / max_count。
 void main() {
   late AppDatabase db;
   late QuestionRepository questions;
@@ -394,7 +394,7 @@ void main() {
       );
 
       expect(registry.byName('read_zujuan_paper'), isA<ReadZujuanPaperTool>());
-      expect(registry.all, hasLength(28));
+      expect(registry.all, hasLength(29));
       expect(
         registry.forCurrentPlatform.map((item) => item.name),
         contains('read_zujuan_paper'),

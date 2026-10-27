@@ -205,10 +205,11 @@ VALUES ('t1', '升级前就有的任务', 'todo', 1700000000000, 1700000000000)'
     await db.close();
   });
 
-  test('the upgraded column reads as "never chosen", not as the default', () async {
+  test('the upgraded column reads as "never chosen", not as the default',
+      () async {
     final db = AppDatabase.forTesting(NativeDatabase(buildV6Db()));
     final settings = (await db.select(db.localSettings).get()).single;
-    // NULL, not 8: an upgraded install must keep following the shipped default
+    // NULL, not the shipped default: an upgraded install must keep following it
     // rather than having today's default frozen into its settings row.
     expect(settings.aiMaxRounds, isNull);
     // ...and the repository turns that NULL into the default for the loop.

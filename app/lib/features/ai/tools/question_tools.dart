@@ -1,6 +1,7 @@
 /// 题库能力（Q12 找相似题）接进 AI 工具层。
 ///
-/// 用户口径：AI **不出题**，只解题 / 拆题 / **找相似题**。所以这个工具只做一件事：
+/// 用户口径：AI **不凭空出题**（用户拍照/粘贴的题由 create_questions 誊写进
+/// 题库），只解题 / 拆题 / **找相似题**。所以这个工具只做一件事：
 /// 把"一道题（或一组条件）"交给 `SimilarQuestionFinder`，在**已有题库**里排序，
 /// 返回题干摘要与人话理由；找不到就如实说没有，绝不生成题干。它是
 /// `docs/SIMILAR_QUESTIONS_DESIGN.md` 的工具面，也是 `evaluate_problem_fit` 的兄弟：
@@ -174,8 +175,8 @@ class FindSimilarQuestionsTool extends AiTool {
       if (corpus.candidates.isEmpty) {
         return const ToolResult(
           ok: true,
-          summary: '题库里还没有题，所以没有可找的相似题——我不会自己出题；'
-              '先去收题页录入这道题或几道同知识点的真题。',
+          summary: '题库里还没有题，所以没有可找的相似题——我不凭空出题；'
+              '把题目拍照或粘贴发给我，我誊写进题库，再回来找相似题。',
           modelResult: {
             'returned': 0,
             'bank_size': 0,
@@ -315,7 +316,7 @@ class FindSimilarQuestionsTool extends AiTool {
   }
 
   /// 用户读的一行：找到时点名最像的三道（题干摘要 + 分数），找不到时说明"库里有
-  /// 多少道、但我不会自己出题"。
+  /// 多少道、但我不会凭空出题"。
   String _summaryOf(
     List<SimilarQuestion> found,
     Map<String, String> stems,
@@ -323,8 +324,8 @@ class FindSimilarQuestionsTool extends AiTool {
   ) {
     if (found.isEmpty) {
       return '题库里共 $bankSize 道题，没有一道够像（相似度 ≥ '
-          '${kMinSimilarityScore.toStringAsFixed(2)}）——我不会自己出题，'
-          '要么去收题页补同知识点的题，要么放宽条件（给知识点或动作序列）。';
+          '${kMinSimilarityScore.toStringAsFixed(2)}）——我不凭空出题，'
+          '要么把题目拍照或粘贴发给我誊写进题库，要么放宽条件（给知识点或动作序列）。';
     }
     final top = found
         .take(3)
@@ -545,12 +546,12 @@ class FindQuestionsByCapabilityTool extends AiTool {
   String _emptySummary(List<String> actions, List<String> subjectKeys) {
     final subject = _subjectPhrase(subjectKeys);
     if (actions.isEmpty) {
-      return '题库里还没有解过链的$subject题——我不会自己出题；先去某道题的详情页按一次'
-          '「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
+      return '题库里还没有解过链的$subject题——我不凭空出题；先把题目拍照或粘贴发给我'
+          '誊写进题库，再去某道题的详情页按一次「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
     }
     final labels = _labelsOf(actions).map((label) => '「$label」').join('、');
-    return '题库里还没有解过含$labels的$subject题——我不会自己出题；先去某道题的详情页按一次'
-        '「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
+    return '题库里还没有解过含$labels的$subject题——我不凭空出题；先把题目拍照或粘贴发给我'
+        '誊写进题库，再去某道题的详情页按一次「AI 解题」，让它落一条解题链，之后这里才有东西可找。';
   }
 
   String _summaryOfCapability(
@@ -841,7 +842,7 @@ class ReadQuestionTool extends AiTool {
     ];
     final head = meta.isEmpty ? serialLabel : '$serialLabel（$meta）';
     return '$head：$stem。${parts.join('，')}${_snapshotClauseOf(stemSnapshot)}。'
-        '这些是题库里已有的题，我不会自己出题。';
+        '这些是题库里已有的题；我不凭空出题，把题目拍照或粘贴发给我，我誊写进题库。';
   }
 
   String _namesOf(List<String> ids, Map<String, String> names) {
@@ -1094,7 +1095,7 @@ class ReadQuestionsBySerialsTool extends AiTool {
     final snapshotNote =
         snapshotCount > 0 ? '其中 $snapshotCount 道题题干是整题截图。' : '';
     return '${parts.join('，')}。$snapshotNote'
-        '这些是题库里已有的题，我不会自己出题。';
+        '这些是题库里已有的题；我不凭空出题，把题目拍照或粘贴发给我，我誊写进题库。';
   }
 
   String _labelsOf(List<String> labels) {

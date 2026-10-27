@@ -14,6 +14,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../application/ai_providers.dart';
 import '../domain/agent_loop.dart';
+import 'widgets/run_timeline.dart';
 import 'widgets/turn_usage_panel.dart';
 import '../domain/ai_tool.dart';
 import '../domain/approval_engine.dart';
@@ -653,6 +654,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       text: _turn.reasoningText,
                       generating: _turn.generating,
                       l10n: l10n,
+                    ),
+                  // 本轮运行时间线（用户 2026-10-27）：第几轮、正在调用哪个工具、
+                  // 参数摘要、等待审批、耗时都在发生时就出现，而不是等整轮结束后
+                  // 才看到结果卡片。运行中自动展开，本轮结束后折叠成一行摘要。
+                  if (_turn.steps.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: RunTimeline(state: _turn, l10n: l10n),
                     ),
                   if (_turn.streamingText.isNotEmpty)
                     _MessageBubble.streaming(_turn.streamingText),

@@ -24,6 +24,7 @@ import '../tools/practice_recommendation_tools.dart';
 import '../tools/review_focus_tool.dart';
 import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
+import '../tools/question_write_tools.dart';
 import '../tools/zujuan_paper_tool.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
@@ -158,6 +159,11 @@ class ToolRegistry {
       // real knowledge point plus cards, optionally in a card group (see
       // tools/knowledge_tools.dart).
       CreateKnowledgeCardsTool(anki, tags),
+      // AI 收题 (用户 2026-10-27 口径): 题库页的拍照/文字收题入口取消后，agent 把
+      // 用户发来的题目（照片里读到的、或粘贴的文字）誊写进库的唯一写口。它不是
+      // 出题工具：只照抄用户给的题面。撤销按 afterJson.created_ids 只删本次新建的
+      // 题（重题本来就在库里），见 domain/agent_loop.dart (tools/question_write_tools.dart)。
+      CreateQuestionsTool(db: db, tags: tags),
       // 卡组（卡组就是标签，轮次十七）的两个写口：把闪存卡挂进卡组，以及给卡组设
       // 每日新卡/复习量。用户现场留下的缺口就在这里——269 张卡、114 个标签、
       // object_tags 空，没有任何工具能把两边接上（tools/card_group_tools.dart）。

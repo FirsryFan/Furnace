@@ -272,7 +272,7 @@ void main() {
       expect(model['missing'], ['TR-00005', 'TR-00006']);
       expect(result.summary, contains('缺 2 道'));
       expect(result.summary, contains('找到 4 道'));
-      expect(result.summary, contains('我不会自己出题'));
+      expect(result.summary, contains('我不凭空出题'));
     });
 
     test('says so when the library has none of the requested serials',
@@ -449,7 +449,10 @@ void main() {
       expect(rows[2]['stem_is_snapshot'], isFalse);
       expect(rows[2]['stem_snapshot_label'], '');
       expect(result.summary, contains('其中 1 道题题干是整题截图。'));
-      expect(result.summary, endsWith('这些是题库里已有的题，我不会自己出题。'));
+      expect(
+        result.summary,
+        endsWith('这些是题库里已有的题；我不凭空出题，把题目拍照或粘贴发给我，我誊写进题库。'),
+      );
     });
 
     test('全是快照题时汇总 K 道，单条标签按各自占位数', () async {

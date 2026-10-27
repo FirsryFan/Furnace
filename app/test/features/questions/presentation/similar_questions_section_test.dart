@@ -2,7 +2,7 @@
 ///
 ///  * 有相似题：显示**领域层给的**理由行（不重写措辞、不显示裸分数），
 ///    `crossSubjectTransfer` 给「跨学科迁移」角标；
-///  * 空列表：只给空态 + 去收题入口，**不拿别的题凑数**（用户口径）；
+///  * 空列表：只给空态（指向内置 agent 收题），**不拿别的题凑数**（用户口径）；
 ///  * provider 抛错 / 还在算：区块如实说，页面其余部分照常，不崩。
 ///
 /// 数据一律走真仓储写进内存库（`ingest` / `createKnowledgePoint` / `createTag` /
@@ -24,7 +24,6 @@ import 'package:furnace/domain/services/paper/similar_questions.dart';
 import 'package:furnace/features/questions/application/similar_question_provider.dart';
 import 'package:furnace/features/questions/data/handwriting_intake_store.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
-import 'package:furnace/features/questions/presentation/question_intake_page.dart';
 import 'package:furnace/features/questions/presentation/question_intake_providers.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -129,16 +128,6 @@ void main() {
     fail('等了 3 秒也没等到这段文字：$text');
   }
 
-  Future<void> waitForType(WidgetTester tester, Type type) async {
-    for (var i = 0; i < 60; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-      if (find.byType(type).evaluate().isNotEmpty) {
-        return;
-      }
-    }
-    fail('等了 3 秒也没等到 $type');
-  }
-
   Future<void> pumpDetail(
     WidgetTester tester, {
     required String questionId,
@@ -218,20 +207,16 @@ void main() {
     expect(find.textContaining('knowledge_point'), findsNothing);
   });
 
-  testWidgets('库里没有相似题：只给空态与收题入口，不凑数', (tester) async {
+  testWidgets('库里没有相似题：只给空态（指向内置 agent 收题），不凑数', (tester) async {
     final focusId = await seedQuestion(stem: '库里唯一的一道题。');
 
     await pumpDetail(tester, questionId: focusId);
 
     expect(find.text(zh.questionSimilarEmpty), findsOneWidget);
-    expect(find.text(zh.questionSimilarGoIntake), findsOneWidget);
+    // 收题入口已并进内置 agent：相似题空态不再给「去收题」入口。
+    expect(find.textContaining('去收题'), findsNothing);
     // 一条候选都没有：不拿"看着像"的题凑数。
     expect(find.byType(ListTile), findsNothing);
-
-    await tester.tap(find.text(zh.questionSimilarGoIntake));
-    await settle(tester);
-    await waitForType(tester, QuestionIntakePage);
-    expect(find.byType(QuestionIntakePage), findsOneWidget);
   });
 
   testWidgets('找相似题抛错：如实显示失败行，页面其余部分照常', (tester) async {

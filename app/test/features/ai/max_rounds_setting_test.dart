@@ -47,20 +47,21 @@ void main() {
   }
 
   group('the stored budget', () {
-    test('the shipped default is 8, inside the offered range', () async {
-      expect(AiConfig.defaultMaxRounds, 8);
+    test('the shipped default is 30, inside the offered range', () async {
+      expect(AiConfig.defaultMaxRounds, 30);
       expect(AiConfig.minMaxRounds, 1);
-      expect(AiConfig.maxMaxRounds, 20);
-      expect(AiConfig.minMaxRounds,
-          lessThanOrEqualTo(AiConfig.defaultMaxRounds));
-      expect(AiConfig.defaultMaxRounds,
-          lessThanOrEqualTo(AiConfig.maxMaxRounds));
+      expect(AiConfig.maxMaxRounds, 60);
+      expect(
+          AiConfig.minMaxRounds, lessThanOrEqualTo(AiConfig.defaultMaxRounds));
+      expect(
+          AiConfig.defaultMaxRounds, lessThanOrEqualTo(AiConfig.maxMaxRounds));
     });
 
     test('a database with no settings row reports the default', () async {
       // The shape of an upgraded pre-AI install: no row at all. It must read as
       // the shipped budget rather than as zero rounds.
-      expect((await repository.getConfig()).maxRounds, 8);
+      expect(
+          (await repository.getConfig()).maxRounds, AiConfig.defaultMaxRounds);
     });
 
     test('a chosen budget round-trips through the repository', () async {
@@ -112,19 +113,19 @@ void main() {
       }
 
       await writeRaw(999);
-      expect((await repository.getConfig()).maxRounds,
-          AiConfig.maxMaxRounds);
+      expect((await repository.getConfig()).maxRounds, AiConfig.maxMaxRounds);
       await writeRaw(0);
       expect((await repository.getConfig()).maxRounds, AiConfig.minMaxRounds);
       await writeRaw(-3);
       expect((await repository.getConfig()).maxRounds, AiConfig.minMaxRounds);
       await writeRaw(null);
-      expect((await repository.getConfig()).maxRounds,
-          AiConfig.defaultMaxRounds,
+      expect(
+          (await repository.getConfig()).maxRounds, AiConfig.defaultMaxRounds,
           reason: 'NULL means "never chosen"');
     });
 
-    test('an out-of-range value cannot be written in the first place', () async {
+    test('an out-of-range value cannot be written in the first place',
+        () async {
       await repository.saveConfig(
         const AiConfig(enabled: true, apiKey: 'sk-test', maxRounds: 99),
         fallbackLanguage: 'zh',

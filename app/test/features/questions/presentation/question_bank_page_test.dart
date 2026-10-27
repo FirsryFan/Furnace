@@ -47,15 +47,17 @@ void main() {
     await db.close();
   });
 
-  testWidgets('题库为空时给出可读空态，四个加题入口都在', (tester) async {
+  testWidgets('题库为空时给出可读空态，只留组卷与材料入库两个入口', (tester) async {
     await _pump(tester, db);
 
     expect(find.text(zh.questionBankEmpty), findsOneWidget);
     expect(find.text(zh.questionBankEmptyHint), findsOneWidget);
-    expect(find.text(zh.questionIntakeTitle), findsOneWidget);
     expect(find.text(zh.questionPaperTitle), findsOneWidget);
-    expect(find.text(zh.handwritingQueueTitle), findsOneWidget);
     expect(find.text(zh.materialIntakeTitle), findsOneWidget);
+    // 收题/拍照整理改为内置 agent 收题（create_questions 工具），题库页不再有
+    // 手动收题入口。
+    expect(find.text(zh.questionIntakeTitle), findsNothing);
+    expect(find.text(zh.handwritingQueueTitle), findsNothing);
     // 空题库没有可筛的学科，也没有需要自动命名的题。
     expect(find.text(zh.questionBankAllSubjects), findsNothing);
     expect(find.byKey(questionBankAutoNameKey), findsNothing);
