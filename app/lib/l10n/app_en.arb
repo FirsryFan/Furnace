@@ -762,18 +762,18 @@
   "@reviewReminderNotificationDueBody": { "placeholders": { "count": { "type": "int" } } },
   "reviewReminderNotificationSoonBody": "Some cards are due for review.",
   "reviewReminderPermissionDenied": "Notifications are not allowed, so this reminder will not appear.",
-  "settingsQuestionBankHint": "Question overview, intake, paper assembly, photo cleanup and material intake all start here.",
+  "settingsQuestionBankHint": "Question overview, paper assembly and material intake all start here; to add questions, send photos or pasted text to the assistant and it transcribes them into the bank.",
 
   "settingsUsageDoc": "Usage guide",
   "settingsUsageDocHint": "How each part works and what its limits are: AI, review, knowledge base, question bank, photos/materials, cognitive model, ranking",
   "docAiTitle": "What the assistant can do, and what waits for your consent",
   "docAiBody": "The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_tasks, query_schedule, query_content, fetch_page, evaluate_problem_fit, compose_paper, find_similar_questions, find_questions_by_capability, plan_today, review_metrics and friends) run immediately; writes (creating tags, flashcards, tasks, documents, material intake, applying today's plan...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.",
   "docReviewTitle": "Review and flashcards",
-  "docReviewBody": "Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today's queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen's app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.",
+  "docReviewBody": "Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today's queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. The first tab of the flashcard page is Decks: it lists today's new-card and review progress per deck (a check marks a finished one), a tap opens that deck's review session, and the settings button in its app bar edits the daily caps. Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.",
   "docKnowledgeTitle": "Knowledge base and tags",
   "docKnowledgeBody": "Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI's delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.",
   "docBankTitle": "Question bank and paper assembly",
-  "docBankBody": "The intake page turns pasted text or picked images into drafts for proofreading: the AI only structures them, and nothing is written until you press save, while an identical question (same stem fingerprint) points at the existing row instead of duplicating it. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.",
+  "docBankBody": "Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one (duplicates are matched by stem fingerprint, so an existing question is pointed at instead of stored twice); question-pack import and whole-paper capture from zujuan feed the same bank. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.",
   "docMaterialTitle": "Photos, materials and rehearsal",
   "docMaterialBody": "Photo intake turns one photo into four kinds of proposals - extra tags, flashcards, MindNet knowledge-point nodes and questions transcribed verbatim - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.",
   "docTodayTitle": "What to do today, and when",
@@ -1021,7 +1021,7 @@
   "@settingsAiMaxRoundsValue": {
     "placeholders": { "rounds": { "type": "int" } }
   },
-  "settingsAiMaxRoundsHint": "Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 8.",
+  "settingsAiMaxRoundsHint": "Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.",
   "settingsAiSave": "Save",
   "settingsAiSaved": "Saved",
   "settingsAiKeyRequired": "An API key is required to enable this",
@@ -1651,7 +1651,7 @@
     "placeholders": { "message": { "type": "String" } }
   },
   "questionBankEmpty": "The question bank is empty",
-  "questionBankEmptyHint": "Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.",
+  "questionBankEmptyHint": "Questions come from three places: send them to the AI assistant (photo or paste - it transcribes them into the library), pull a whole paper from zujuan, or intake a material file. The AI never invents questions for you.",
   "questionBankIntro": "The four buttons above add material to the bank; the list below filters by subject - tap a row for its detail and solution chain.",
   "questionBankSummary": "{questions} questions · {subjects} subjects",
   "@questionBankSummary": {
@@ -2361,8 +2361,7 @@
       }
     }
   },
-  "questionSimilarEmpty": "No similar questions in the bank yet.",
-  "questionSimilarGoIntake": "Add questions",
+  "questionSimilarEmpty": "No similar questions in the bank yet. Send a photo or the text to the assistant when you need more - it transcribes questions into the bank.",
   "questionSimilarCrossSubject": "Cross-subject transfer",
   "handwritingQueueTitle": "Handwriting intake",
   "handwritingQueueEntryHint": "Turn photos into tags, knowledge points, flashcards or questions - confirmed one by one before anything is written",
@@ -3601,5 +3600,108 @@
         "type": "int"
       }
     }
+  },
+  "deckListTitle": "Decks",
+  "@deckListTitle": {
+    "description": "Title of the flashcard review home screen: the deck list."
+  },
+  "deckListAllTitle": "All",
+  "@deckListAllTitle": {
+    "description": "First row of the deck list: review everything on today's plan, across decks."
+  },
+  "deckListAllHint": "Review today's whole plan, across all decks",
+  "@deckListAllHint": {
+    "description": "Subtitle of the All row."
+  },
+  "deckListUngroupedTitle": "Ungrouped",
+  "@deckListUngroupedTitle": {
+    "description": "Name of the group row for cards that belong to no deck."
+  },
+  "deckListUngroupedHint": "These cards have no tags, so they belong to no deck; tag them in deck settings.",
+  "@deckListUngroupedHint": {
+    "description": "Subtitle of the ungrouped row."
+  },
+  "deckListCreate": "New deck",
+  "@deckListCreate": {
+    "description": "Button/label for creating a deck."
+  },
+  "deckListEmptyTitle": "No decks yet",
+  "@deckListEmptyTitle": {
+    "description": "Empty state title of the deck list."
+  },
+  "deckListEmptyBody": "A deck is a tag and its subtree. Tag your flashcards, then set a daily new/review cap for that tag.",
+  "@deckListEmptyBody": {
+    "description": "Empty state body of the deck list."
+  },
+  "deckNewCards": "New {done}/{target}",
+  "@deckNewCards": {
+    "description": "New-card progress of a deck row (done/target).",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "deckReviews": "Review {done}/{target}",
+  "@deckReviews": {
+    "description": "Review progress of a deck row when the plan has a cap.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "deckReviewsUnlimited": "Review {done}/unlimited",
+  "@deckReviewsUnlimited": {
+    "description": "Review progress of a deck row when the plan has no cap.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "deckProgressDone": "Today's target reached",
+  "@deckProgressDone": {
+    "description": "Badge on a deck row when today's target is complete."
+  },
+  "aiStepRound": "Round {round}",
+  "@aiStepRound": {
+    "description": "AI chat run timeline: title of one model round-trip.",
+    "placeholders": { "round": { "type": "int" } }
+  },
+  "aiStepThinking": "Thinking",
+  "@aiStepThinking": { "description": "AI run step: the model is thinking, no answer text yet." },
+  "aiStepAnswering": "Writing",
+  "@aiStepAnswering": { "description": "AI run step: the model is streaming answer text." },
+  "aiStepCalling": "Calling {tool}",
+  "@aiStepCalling": {
+    "description": "AI run step: a tool call is executing.",
+    "placeholders": { "tool": { "type": "String" } }
+  },
+  "aiStepWaiting": "Waiting for your approval",
+  "@aiStepWaiting": { "description": "AI run step: a tool call is proposed and waiting for approval." },
+  "aiStepDone": "Done",
+  "@aiStepDone": { "description": "AI run step: finished normally." },
+  "aiStepFailed": "Failed",
+  "@aiStepFailed": { "description": "AI run step: execution failed." },
+  "aiStepCancelled": "Cancelled",
+  "@aiStepCancelled": { "description": "AI run step: cancelled or refused." },
+  "aiStepElapsed": "{seconds}s",
+  "@aiStepElapsed": {
+    "description": "AI run step: elapsed time readout.",
+    "placeholders": { "seconds": { "type": "String" } }
+  },
+  "aiStepsTitle": "Steps",
+  "@aiStepsTitle": { "description": "Title of the run timeline section." },
+  "aiStepsSummary": "{count} steps this turn",
+  "@aiStepsSummary": {
+    "description": "Collapsed run timeline summary.",
+    "placeholders": { "count": { "type": "int" } }
   }
 }

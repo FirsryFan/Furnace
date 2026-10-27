@@ -1701,7 +1701,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsQuestionBankHint =>
-      'Question overview, intake, paper assembly, photo cleanup and material intake all start here.';
+      'Question overview, paper assembly and material intake all start here; to add questions, send photos or pasted text to the assistant and it transcribes them into the bank.';
 
   @override
   String get settingsUsageDoc => 'Usage guide';
@@ -1723,7 +1723,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docReviewBody =>
-      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.';
+      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. The first tab of the flashcard page is Decks: it lists today\'s new-card and review progress per deck (a check marks a finished one), a tap opens that deck\'s review session, and the settings button in its app bar edits the daily caps. Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.';
 
   @override
   String get docKnowledgeTitle => 'Knowledge base and tags';
@@ -1737,7 +1737,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docBankBody =>
-      'The intake page turns pasted text or picked images into drafts for proofreading: the AI only structures them, and nothing is written until you press save, while an identical question (same stem fingerprint) points at the existing row instead of duplicating it. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.';
+      'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one (duplicates are matched by stem fingerprint, so an existing question is pointed at instead of stored twice); question-pack import and whole-paper capture from zujuan feed the same bank. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.';
 
   @override
   String get docMaterialTitle => 'Photos, materials and rehearsal';
@@ -2307,7 +2307,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAiMaxRoundsHint =>
-      'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 8.';
+      'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.';
 
   @override
   String get settingsAiSave => 'Save';
@@ -3466,7 +3466,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionBankEmptyHint =>
-      'Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.';
+      'Questions come from three places: send them to the AI assistant (photo or paste - it transcribes them into the library), pull a whole paper from zujuan, or intake a material file. The AI never invents questions for you.';
 
   @override
   String get questionBankIntro =>
@@ -4619,10 +4619,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get questionSimilarEmpty => 'No similar questions in the bank yet.';
-
-  @override
-  String get questionSimilarGoIntake => 'Add questions';
+  String get questionSimilarEmpty =>
+      'No similar questions in the bank yet. Send a photo or the text to the assistant when you need more - it transcribes questions into the bank.';
 
   @override
   String get questionSimilarCrossSubject => 'Cross-subject transfer';
@@ -5849,5 +5847,90 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String questionExtensionChildrenTitle(int count) {
     return 'Extensions ($count)';
+  }
+
+  @override
+  String get deckListTitle => 'Decks';
+
+  @override
+  String get deckListAllTitle => 'All';
+
+  @override
+  String get deckListAllHint => 'Review today\'s whole plan, across all decks';
+
+  @override
+  String get deckListUngroupedTitle => 'Ungrouped';
+
+  @override
+  String get deckListUngroupedHint =>
+      'These cards have no tags, so they belong to no deck; tag them in deck settings.';
+
+  @override
+  String get deckListCreate => 'New deck';
+
+  @override
+  String get deckListEmptyTitle => 'No decks yet';
+
+  @override
+  String get deckListEmptyBody =>
+      'A deck is a tag and its subtree. Tag your flashcards, then set a daily new/review cap for that tag.';
+
+  @override
+  String deckNewCards(int done, int target) {
+    return 'New $done/$target';
+  }
+
+  @override
+  String deckReviews(int done, int target) {
+    return 'Review $done/$target';
+  }
+
+  @override
+  String deckReviewsUnlimited(int done) {
+    return 'Review $done/unlimited';
+  }
+
+  @override
+  String get deckProgressDone => 'Today\'s target reached';
+
+  @override
+  String aiStepRound(int round) {
+    return 'Round $round';
+  }
+
+  @override
+  String get aiStepThinking => 'Thinking';
+
+  @override
+  String get aiStepAnswering => 'Writing';
+
+  @override
+  String aiStepCalling(String tool) {
+    return 'Calling $tool';
+  }
+
+  @override
+  String get aiStepWaiting => 'Waiting for your approval';
+
+  @override
+  String get aiStepDone => 'Done';
+
+  @override
+  String get aiStepFailed => 'Failed';
+
+  @override
+  String get aiStepCancelled => 'Cancelled';
+
+  @override
+  String aiStepElapsed(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String get aiStepsTitle => 'Steps';
+
+  @override
+  String aiStepsSummary(int count) {
+    return '$count steps this turn';
   }
 }

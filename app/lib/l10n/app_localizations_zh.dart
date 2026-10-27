@@ -1634,7 +1634,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewReminderPermissionDenied => '系统没给通知权限，这个提醒不会弹出来。';
 
   @override
-  String get settingsQuestionBankHint => '题库总览、收题、组卷、拍照整理、材料入库，都从这一页进。';
+  String get settingsQuestionBankHint =>
+      '题库总览、组卷、材料入库都从这一页进；收题交给「智能」助手——拍照或粘贴过去，它誊写进题库。';
 
   @override
   String get settingsUsageDoc => '使用文档';
@@ -1655,7 +1656,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docReviewBody =>
-      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。';
+      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。闪存卡页第一个 Tab 是「卡组」：主界面按卡组列出今日新卡与复习进度（完成打勾），点一行进入该卡组的背诵界面，右上角「卡组设置」改每日上限与复习偏好。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。';
 
   @override
   String get docKnowledgeTitle => '知识库与标签';
@@ -1669,7 +1670,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docBankBody =>
-      '收题页把粘贴的文本或选中的图片变成待校对草稿：AI 只做结构化，你不点「入库」就不会写库，同一道题（题干指纹相同）会指向已有题目而不是重复入库。组卷页只从已有题库里凑卷（优先危险/发展区知识点），凑不齐会如实列出缺哪些知识点——AI 不会自己出题；卷面可以复制成可打印的纯文本。认知模型页的「能力动作画像」还能点开，按解题链上的能力动作找题。';
+      '题目从哪来：直接发给「智能」助手（拍照或粘贴），它把题誊写进题库并逐题告诉你入库结果（同一道题按题干指纹判断，已有题会指向它而不是重复入库）；题库包导入与组卷网整卷取题也汇进同一个题库。组卷页只从已有题库里凑卷（优先危险/发展区知识点），凑不齐会如实列出缺哪些知识点——AI 不会自己出题；卷面可以复制成可打印的纯文本。认知模型页的「能力动作画像」还能点开，按解题链上的能力动作找题。';
 
   @override
   String get docMaterialTitle => '拍照、资料与演练';
@@ -2210,7 +2211,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsAiMaxRoundsHint =>
-      '每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 8 轮。';
+      '每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 30 轮。';
 
   @override
   String get settingsAiSave => '保存';
@@ -3320,7 +3321,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionBankEmpty => '题库还是空的';
 
   @override
-  String get questionBankEmptyHint => '题从三个地方来：收题（粘贴或选文件）、拍照整理、材料入库。AI 不会替你出题。';
+  String get questionBankEmptyHint =>
+      '题目从三个地方来：直接发给「智能化」助手（拍照或粘贴，它誊写进题库）、组卷网整卷取题、材料入库。AI 不会凭空替你出题。';
 
   @override
   String get questionBankIntro => '上面四个按钮是往题库里加东西的入口；下面按学科筛，点一行看这道题的详情与解题链。';
@@ -4426,10 +4428,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get questionSimilarEmpty => '库里还没有相似的题。';
-
-  @override
-  String get questionSimilarGoIntake => '去收题';
+  String get questionSimilarEmpty => '库里还没有相似的题。缺题就把照片或题目直接发给「智能化」助手，它誊写进题库。';
 
   @override
   String get questionSimilarCrossSubject => '跨学科迁移';
@@ -5611,5 +5610,88 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String questionExtensionChildrenTitle(int count) {
     return '扩展题（$count）';
+  }
+
+  @override
+  String get deckListTitle => '卡组';
+
+  @override
+  String get deckListAllTitle => '全部';
+
+  @override
+  String get deckListAllHint => '按今天的总计划复习，不分组';
+
+  @override
+  String get deckListUngroupedTitle => '未分组';
+
+  @override
+  String get deckListUngroupedHint => '这些卡没有打标签，不属于任何卡组；去卡组设置里把它们归组。';
+
+  @override
+  String get deckListCreate => '新建卡组';
+
+  @override
+  String get deckListEmptyTitle => '还没有卡组';
+
+  @override
+  String get deckListEmptyBody => '卡组 = 一个标签及其子树。先给闪存卡打标签，再给这个标签设每日新卡/复习上限。';
+
+  @override
+  String deckNewCards(int done, int target) {
+    return '新卡 $done/$target';
+  }
+
+  @override
+  String deckReviews(int done, int target) {
+    return '复习 $done/$target';
+  }
+
+  @override
+  String deckReviewsUnlimited(int done) {
+    return '复习 $done/不限';
+  }
+
+  @override
+  String get deckProgressDone => '今日目标已达成';
+
+  @override
+  String aiStepRound(int round) {
+    return '第 $round 轮';
+  }
+
+  @override
+  String get aiStepThinking => '思考中';
+
+  @override
+  String get aiStepAnswering => '生成回答中';
+
+  @override
+  String aiStepCalling(String tool) {
+    return '调用工具：$tool';
+  }
+
+  @override
+  String get aiStepWaiting => '等待你确认';
+
+  @override
+  String get aiStepDone => '完成';
+
+  @override
+  String get aiStepFailed => '失败';
+
+  @override
+  String get aiStepCancelled => '已取消';
+
+  @override
+  String aiStepElapsed(String seconds) {
+    return '用时 $seconds 秒';
+  }
+
+  @override
+  String get aiStepsTitle => '运行步骤';
+
+  @override
+  String aiStepsSummary(int count) {
+    return '本轮 $count 步';
   }
 }

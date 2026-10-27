@@ -765,18 +765,18 @@
   "@reviewReminderNotificationDueBody": { "placeholders": { "count": { "type": "int" } } },
   "reviewReminderNotificationSoonBody": "有卡片到复习时间了。",
   "reviewReminderPermissionDenied": "系统没给通知权限，这个提醒不会弹出来。",
-  "settingsQuestionBankHint": "题库总览、收题、组卷、拍照整理、材料入库，都从这一页进。",
+  "settingsQuestionBankHint": "题库总览、组卷、材料入库都从这一页进；收题交给「智能」助手——拍照或粘贴过去，它誊写进题库。",
 
   "settingsUsageDoc": "使用文档",
   "settingsUsageDocHint": "AI、复习、知识库、题库、拍照/资料、认知模型与排序算法：怎么用、有什么限制都写在这里",
   "docAiTitle": "AI 助手能做什么、什么要你确认",
   "docAiBody": "AI 只能通过工具改数据，每个工具都带风险等级：读操作（query_tasks / query_schedule / query_content / fetch_page / evaluate_problem_fit / compose_paper / find_similar_questions / find_questions_by_capability / plan_today / review_metrics 等）直接执行；写操作（建标签、建闪存卡、建任务、写文档、材料入库、应用今日计划…）在「逐条确认」和「先计划后确认」两种模式下都要你点同意；删除类操作在任何模式下都逐条确认，并且可以撤销。执行前会告诉你改什么，执行后可以撤销一次；模型看不到你的 API key，skill 脚本也拿不到它。",
   "docReviewTitle": "复习与闪存卡",
-  "docReviewBody": "闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。卡组与这几种约定的入口在「设置 → 卡组设置」（复习页右上角也有）。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。",
+  "docReviewBody": "闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。到期时间只由 FSRS 决定，认知模型只改「今天先复习哪张」的顺序。判分有严格、宽松、自评三种；选宽松时错别字和语序不算错，答错的卡不受每日配额限制，当天会强制重来。闪存卡页第一个 Tab 是「卡组」：主界面按卡组列出今日新卡与复习进度（完成打勾），点一行进入该卡组的背诵界面，右上角「卡组设置」改每日上限与复习偏好。没有挂标签的旧卡不属于任何卡组，任何每日任务量都管不到：卡组设置页会提示有多少张这样的卡，并提供「把它们归到一个卡组」一键补齐；新建卡时也可以直接选卡组。",
   "docKnowledgeTitle": "知识库与标签",
   "docKnowledgeBody": "标签是一棵树，路径用 / 分隔。删除一个标签会连同它整棵子树、子树里的闪存卡与复习记录一起删除（AI 的删除工具会逐条确认并留下可撤销的快照）。卡片有两种存在形态——模板生成的卡、以及按单元直接建的卡——认知读数页都算数；读数页顶部的孤儿横幅只在你按它的按钮时才清理。",
   "docBankTitle": "题库与组卷",
-  "docBankBody": "收题页把粘贴的文本或选中的图片变成待校对草稿：AI 只做结构化，你不点「入库」就不会写库，同一道题（题干指纹相同）会指向已有题目而不是重复入库。组卷页只从已有题库里凑卷（优先危险/发展区知识点），凑不齐会如实列出缺哪些知识点——AI 不会自己出题；卷面可以复制成可打印的纯文本。认知模型页的「能力动作画像」还能点开，按解题链上的能力动作找题。",
+  "docBankBody": "题目从哪来：直接发给「智能」助手（拍照或粘贴），它把题誊写进题库并逐题告诉你入库结果（同一道题按题干指纹判断，已有题会指向它而不是重复入库）；题库包导入与组卷网整卷取题也汇进同一个题库。组卷页只从已有题库里凑卷（优先危险/发展区知识点），凑不齐会如实列出缺哪些知识点——AI 不会自己出题；卷面可以复制成可打印的纯文本。认知模型页的「能力动作画像」还能点开，按解题链上的能力动作找题。",
   "docMaterialTitle": "拍照、资料与演练",
   "docMaterialBody": "拍照整理把一张照片变成四类待确认产物：补充标签、闪存卡、MindNet 知识点节点、题目（原样誊写），确认前不写学习数据；资料入库把一段材料整理成知识点/卡片/连接三类提案，确认后才落库，撤回有记录可查。照片还能整理成一份带机制参数的 run/1 请求，「机制面板」里可以试跑/演练：演练只给读数，不直接改你的数据；你说「不装目标机制」就真的不装。",
   "docTodayTitle": "今天做什么、什么时候做",
@@ -1024,7 +1024,7 @@
   "@settingsAiMaxRoundsValue": {
     "placeholders": { "rounds": { "type": "int" } }
   },
-  "settingsAiMaxRoundsHint": "每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 8 轮。",
+  "settingsAiMaxRoundsHint": "每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 30 轮。",
   "settingsAiSave": "保存",
   "settingsAiSaved": "已保存",
   "settingsAiKeyRequired": "填入 API key 后才能启用",
@@ -1537,7 +1537,7 @@
   "questionBankRefresh": "刷新题库",
   "questionBankFailed": "读题库失败：{message}",
   "questionBankEmpty": "题库还是空的",
-  "questionBankEmptyHint": "题从三个地方来：收题（粘贴或选文件）、拍照整理、材料入库。AI 不会替你出题。",
+  "questionBankEmptyHint": "题目从三个地方来：直接发给「智能化」助手（拍照或粘贴，它誊写进题库）、组卷网整卷取题、材料入库。AI 不会凭空替你出题。",
   "questionBankIntro": "上面四个按钮是往题库里加东西的入口；下面按学科筛，点一行看这道题的详情与解题链。",
   "questionBankSummary": "共 {questions} 道题 · {subjects} 个学科",
   "questionBankAllSubjects": "全部学科",
@@ -2241,8 +2241,7 @@
       }
     }
   },
-  "questionSimilarEmpty": "库里还没有相似的题。",
-  "questionSimilarGoIntake": "去收题",
+  "questionSimilarEmpty": "库里还没有相似的题。缺题就把照片或题目直接发给「智能化」助手，它誊写进题库。",
   "questionSimilarCrossSubject": "跨学科迁移",
   "handwritingQueueTitle": "拍照整理",
   "handwritingQueueEntryHint": "把拍好的照片整理成标签、知识点、闪存卡或题目，逐条确认才写库",
@@ -3508,5 +3507,108 @@
         "type": "int"
       }
     }
+  },
+  "deckListTitle": "卡组",
+  "@deckListTitle": {
+    "description": "闪存卡「复习」页的主界面标题：卡组列表。"
+  },
+  "deckListAllTitle": "全部",
+  "@deckListAllTitle": {
+    "description": "卡组列表第一行：不分组，按今天总计划复习。"
+  },
+  "deckListAllHint": "按今天的总计划复习，不分组",
+  "@deckListAllHint": {
+    "description": "「全部」行的副标题。"
+  },
+  "deckListUngroupedTitle": "未分组",
+  "@deckListUngroupedTitle": {
+    "description": "卡组列表里不属于任何卡组的卡片分组名。"
+  },
+  "deckListUngroupedHint": "这些卡没有打标签，不属于任何卡组；去卡组设置里把它们归组。",
+  "@deckListUngroupedHint": {
+    "description": "未分组行的副标题。"
+  },
+  "deckListCreate": "新建卡组",
+  "@deckListCreate": {
+    "description": "卡组列表空态与操作按钮文案。"
+  },
+  "deckListEmptyTitle": "还没有卡组",
+  "@deckListEmptyTitle": {
+    "description": "卡组列表空态标题。"
+  },
+  "deckListEmptyBody": "卡组 = 一个标签及其子树。先给闪存卡打标签，再给这个标签设每日新卡/复习上限。",
+  "@deckListEmptyBody": {
+    "description": "卡组列表空态说明。"
+  },
+  "deckNewCards": "新卡 {done}/{target}",
+  "@deckNewCards": {
+    "description": "卡组行里今天的新卡完成数/计划数。",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "deckReviews": "复习 {done}/{target}",
+  "@deckReviews": {
+    "description": "卡组行里今天的复习完成数/计划数（计划有上限时）。",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "deckReviewsUnlimited": "复习 {done}/不限",
+  "@deckReviewsUnlimited": {
+    "description": "卡组行里今天的复习完成数（计划不设上限时）。",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "deckProgressDone": "今日目标已达成",
+  "@deckProgressDone": {
+    "description": "卡组行今日目标全部完成时的徽标。"
+  },
+  "aiStepRound": "第 {round} 轮",
+  "@aiStepRound": {
+    "description": "AI 对话运行时间线：一次模型往返的标题。",
+    "placeholders": { "round": { "type": "int" } }
+  },
+  "aiStepThinking": "思考中",
+  "@aiStepThinking": { "description": "AI 运行步骤：模型正在思考，还没有输出正文。" },
+  "aiStepAnswering": "生成回答中",
+  "@aiStepAnswering": { "description": "AI 运行步骤：模型正在流式输出回答正文。" },
+  "aiStepCalling": "调用工具：{tool}",
+  "@aiStepCalling": {
+    "description": "AI 运行步骤：正在执行一次工具调用。",
+    "placeholders": { "tool": { "type": "String" } }
+  },
+  "aiStepWaiting": "等待你确认",
+  "@aiStepWaiting": { "description": "AI 运行步骤：工具调用已提出，等待用户批准。" },
+  "aiStepDone": "完成",
+  "@aiStepDone": { "description": "AI 运行步骤：已正常结束。" },
+  "aiStepFailed": "失败",
+  "@aiStepFailed": { "description": "AI 运行步骤：执行失败。" },
+  "aiStepCancelled": "已取消",
+  "@aiStepCancelled": { "description": "AI 运行步骤：被用户取消或被拒绝。" },
+  "aiStepElapsed": "用时 {seconds} 秒",
+  "@aiStepElapsed": {
+    "description": "AI 运行步骤：耗时读数。",
+    "placeholders": { "seconds": { "type": "String" } }
+  },
+  "aiStepsTitle": "运行步骤",
+  "@aiStepsTitle": { "description": "运行时间线区块的标题。" },
+  "aiStepsSummary": "本轮 {count} 步",
+  "@aiStepsSummary": {
+    "description": "折叠态运行时间线摘要。",
+    "placeholders": { "count": { "type": "int" } }
   }
 }

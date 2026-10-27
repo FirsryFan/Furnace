@@ -3000,7 +3000,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsQuestionBankHint.
   ///
   /// In en, this message translates to:
-  /// **'Question overview, intake, paper assembly, photo cleanup and material intake all start here.'**
+  /// **'Question overview, paper assembly and material intake all start here; to add questions, send photos or pasted text to the assistant and it transcribes them into the bank.'**
   String get settingsQuestionBankHint;
 
   /// No description provided for @settingsUsageDoc.
@@ -3036,7 +3036,7 @@ abstract class AppLocalizations {
   /// No description provided for @docReviewBody.
   ///
   /// In en, this message translates to:
-  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. Deck settings live in Settings -> Deck settings (also reachable from the review screen\'s app bar). Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.'**
+  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. The first tab of the flashcard page is Decks: it lists today\'s new-card and review progress per deck (a check marks a finished one), a tap opens that deck\'s review session, and the settings button in its app bar edits the daily caps. Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.'**
   String get docReviewBody;
 
   /// No description provided for @docKnowledgeTitle.
@@ -3060,7 +3060,7 @@ abstract class AppLocalizations {
   /// No description provided for @docBankBody.
   ///
   /// In en, this message translates to:
-  /// **'The intake page turns pasted text or picked images into drafts for proofreading: the AI only structures them, and nothing is written until you press save, while an identical question (same stem fingerprint) points at the existing row instead of duplicating it. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.'**
+  /// **'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one (duplicates are matched by stem fingerprint, so an existing question is pointed at instead of stored twice); question-pack import and whole-paper capture from zujuan feed the same bank. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.'**
   String get docBankBody;
 
   /// No description provided for @docMaterialTitle.
@@ -4026,7 +4026,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAiMaxRoundsHint.
   ///
   /// In en, this message translates to:
-  /// **'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 8.'**
+  /// **'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.'**
   String get settingsAiMaxRoundsHint;
 
   /// No description provided for @settingsAiSave.
@@ -5894,7 +5894,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionBankEmptyHint.
   ///
   /// In en, this message translates to:
-  /// **'Questions come from three places: intake (paste or pick a file), photo cleanup, and material intake. The AI never writes questions for you.'**
+  /// **'Questions come from three places: send them to the AI assistant (photo or paste - it transcribes them into the library), pull a whole paper from zujuan, or intake a material file. The AI never invents questions for you.'**
   String get questionBankEmptyHint;
 
   /// No description provided for @questionBankIntro.
@@ -7784,14 +7784,8 @@ abstract class AppLocalizations {
   /// No description provided for @questionSimilarEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No similar questions in the bank yet.'**
+  /// **'No similar questions in the bank yet. Send a photo or the text to the assistant when you need more - it transcribes questions into the bank.'**
   String get questionSimilarEmpty;
-
-  /// No description provided for @questionSimilarGoIntake.
-  ///
-  /// In en, this message translates to:
-  /// **'Add questions'**
-  String get questionSimilarGoIntake;
 
   /// No description provided for @questionSimilarCrossSubject.
   ///
@@ -9769,6 +9763,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Extensions ({count})'**
   String questionExtensionChildrenTitle(int count);
+
+  /// Title of the flashcard review home screen: the deck list.
+  ///
+  /// In en, this message translates to:
+  /// **'Decks'**
+  String get deckListTitle;
+
+  /// First row of the deck list: review everything on today's plan, across decks.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get deckListAllTitle;
+
+  /// Subtitle of the All row.
+  ///
+  /// In en, this message translates to:
+  /// **'Review today\'s whole plan, across all decks'**
+  String get deckListAllHint;
+
+  /// Name of the group row for cards that belong to no deck.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get deckListUngroupedTitle;
+
+  /// Subtitle of the ungrouped row.
+  ///
+  /// In en, this message translates to:
+  /// **'These cards have no tags, so they belong to no deck; tag them in deck settings.'**
+  String get deckListUngroupedHint;
+
+  /// Button/label for creating a deck.
+  ///
+  /// In en, this message translates to:
+  /// **'New deck'**
+  String get deckListCreate;
+
+  /// Empty state title of the deck list.
+  ///
+  /// In en, this message translates to:
+  /// **'No decks yet'**
+  String get deckListEmptyTitle;
+
+  /// Empty state body of the deck list.
+  ///
+  /// In en, this message translates to:
+  /// **'A deck is a tag and its subtree. Tag your flashcards, then set a daily new/review cap for that tag.'**
+  String get deckListEmptyBody;
+
+  /// New-card progress of a deck row (done/target).
+  ///
+  /// In en, this message translates to:
+  /// **'New {done}/{target}'**
+  String deckNewCards(int done, int target);
+
+  /// Review progress of a deck row when the plan has a cap.
+  ///
+  /// In en, this message translates to:
+  /// **'Review {done}/{target}'**
+  String deckReviews(int done, int target);
+
+  /// Review progress of a deck row when the plan has no cap.
+  ///
+  /// In en, this message translates to:
+  /// **'Review {done}/unlimited'**
+  String deckReviewsUnlimited(int done);
+
+  /// Badge on a deck row when today's target is complete.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s target reached'**
+  String get deckProgressDone;
+
+  /// AI chat run timeline: title of one model round-trip.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round}'**
+  String aiStepRound(int round);
+
+  /// AI run step: the model is thinking, no answer text yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get aiStepThinking;
+
+  /// AI run step: the model is streaming answer text.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing'**
+  String get aiStepAnswering;
+
+  /// AI run step: a tool call is executing.
+  ///
+  /// In en, this message translates to:
+  /// **'Calling {tool}'**
+  String aiStepCalling(String tool);
+
+  /// AI run step: a tool call is proposed and waiting for approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for your approval'**
+  String get aiStepWaiting;
+
+  /// AI run step: finished normally.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get aiStepDone;
+
+  /// AI run step: execution failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get aiStepFailed;
+
+  /// AI run step: cancelled or refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get aiStepCancelled;
+
+  /// AI run step: elapsed time readout.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String aiStepElapsed(String seconds);
+
+  /// Title of the run timeline section.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps'**
+  String get aiStepsTitle;
+
+  /// Collapsed run timeline summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} steps this turn'**
+  String aiStepsSummary(int count);
 }
 
 class _AppLocalizationsDelegate
