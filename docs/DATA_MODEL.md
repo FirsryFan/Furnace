@@ -1385,6 +1385,59 @@ NULL」）。生成代码 `database.g.dart` 的 `AiMessage` 数据类自动多�
 - `capability` 详情页已有只读 chips；仍**无录入/编辑入口**，也没有 T×A 统计页；统计口径已由 `capability_stats.dart`（`CapabilityStatsReport.of`）实现，等「练习记录」表落地后再接。
 - 材料容器（handoff §7 M2 的「目录 zip / front matter」）本版未做；练习记录字段（§5.9）同样未建表。
 
+---
+
+## §30 schema v41：用户评测板块八张 `cog_*` 表（轮次一百八十五）
+
+来源是用户 2026-10-29 给的《Furnace 用户评测板块设计文档》v1.0（设计定稿、待实现；关联 `docs/ASSESSMENT_DESIGN.md` §10 与 `MINDNET_CONTRACT.md`）。四层框架：**项目 Task → 评测数据（session/trial/metric）→ 能力指标（10 项）→ 认知模型参数（9 项）**，后两层多对多；全部本地、不联网、不做防作弊，只做质量标记。
+
+### 30.1 为什么加 `cog_` 前缀
+
+旧库已有 `assessment_sessions` / `assessment_responses`（v10 的知识点测评）与 `ability_scores`（v38 的四项能力 MVP），语义都不同。新板块不复用它们、也不删用户数据，表名统一前缀 `cog_`，Dart 行类统一 `Cog*Row`；旧表与旧页面原样保留（设置页两个旧入口本轮换成一个「评测与认知档案」入口）。
+
+### 30.2 八张表（`app/lib/data/database/tables.dart:1768-2036`）
+
+| 表 | 行类 | 主键 | 关键列与语义 |
+| --- | --- | --- | --- |
+| `cog_assessment_tasks` | `CogAssessmentTaskRow` | `id` TEXT | `display_name`（兜底，正常按 task id 走 l10n）、`task_type` code、`design_version`、`config_json`（§4.1 配置 + `estimated_duration_sec`/`produced_metrics`/`quality_checks`/`provisional`）、`enabled`（fast_simple_task_iii 与 decision_fatigue 默认 false）、`created_at` |
+| `cog_assessment_sessions` | `CogAssessmentSessionRow` | `id` TEXT | `task_id`（**不建外键**：任务注册表重建不能丢测量）、`design_version`、`device`、`started_at`/`completed_at`（NULL=没做完）、`status`（completed/incomplete/aborted）、`quality_flags_json`（NULL=无标记） |
+| `cog_assessment_trials` | `CogAssessmentTrialRow` | `id` 自增 | `session_id`、`trial_index`（会话内从 0）、`block_index`、`stimulus_json`（构造时冻结：刺激 + 条件合并）、`response_json`（NULL=无响应）、`rt_ms`（NULL=漏答/超时，**不是 0**）、`correct`（NULL=该试次不判对错）、`is_practice`、`timestamp` |
+| `cog_assessment_metrics` | `CogAssessmentMetricRow` | `id` 自增 | `session_id`、`metric_name`（§3.2 的 19 个名字）、`value`、`n_trials`（审计：样本变少要上调 uncertainty）、`quality_flags_json`；重算追加新行，不覆盖历史 |
+| `cog_ability_estimates` | `CogAbilityEstimateRow` | `ability_id` TEXT | `mean`（**z-score 量纲、个体内基线，0=自己的典型水平，不是常模**）、`uncertainty`（0–1，越低越可信，最低 0.15）、`n_measurements`、`source`（default/assessment_v1/user_override）、`design_version`、`mapping_version`、`personal_baseline_json`、`device`、`updated_at`、`stale`、`contributions_json`（「这个数怎么来的」） |
+| `cog_cognitive_params` | `CogCognitiveParamRow` | `param_id` TEXT | `value`、`uncertainty`、`source`（default/derived/user_override）、`derived_from_json`（能力 id + 权重 + 方向）、`updated_at` |
+| `cog_task_ability_mapping` | `CogTaskAbilityMappingRow` | `id` 自增 | `task_id`、`ability_id`、`weight`（同一任务权重和应为 1，软约束）、`metric_source`（喂哪个统计量）、`enabled`、`mapping_version` |
+| `cog_ability_param_mapping` | `CogAbilityParamMappingRow` | `id` 自增 | `ability_id`、`param_id`、`weight`、`direction`（positive/negative：negative = 能力越弱参数越大）、`enabled`、`mapping_version` |
+
+### 30.3 seed 规则（`app/lib/data/repositories/cognitive_profile_repository.dart`）
+
+`ensureSeeded()` 在一个事务里做三件事，**只在首次读取时**跑（迁移只建结构，seed 不放在迁移里——要能随 design_version 升级重写）：
+
+1. 任务表：按 `design_version` 幂等——不存在就插，版本相同就跳过，版本变了整行重写（`_seedTasks`）；
+2. 两张映射表：**只在表为空时**灌出厂常量（§7.1/§7.2），之后不覆盖（用户/后续版本改过的权重不能被开机 seed 冲掉）；
+3. 能力估计与认知参数：缺行补默认值（`source: default`，uncertainty 按 `kAbilitySpecs`/`kCognitiveParamSpecs` 的 .7/.9/.8），所以画像页没测过也有 10+9 行可画，默认值不被冒充成测量值。
+
+`writeEstimates` 只写**非 `user_override`** 的行；`setAbilityUserOverride` / `setParamUserOverride` 手改后 `source=user_override`，此后自动合并跳过它；`clearAbilityUserOverride` / `clearParamUserOverride` 只撤覆盖不丢数值（`n>0` 回 assessment_v1/derived，否则回 default），下次评测继续合并。
+
+### 30.4 迁移与自愈（`app/lib/data/database/database.dart`）
+
+- `schemaVersion => 41`（`:171`）；`_upgradeV40ToV41()`（`:1204-1221`）对八张表逐张 `_tableExists` 探测后 `Migrator.createTable`：纯新增表，**老库没有任何一行需要回填或搬家**；版本号被盖高、或 `_ensureColumns` 自愈先一步建过时不会重复建。
+- `_ensureColumns`（`:319`）的表名→列清单加八张表（`:558` 附近），被盖成 v41 却缺表的文件在 `beforeOpen` 自愈建表。
+- `database.g.dart` 已重新生成（`build_runner`）；Drift 生成的 `$Cog*Table` 直接参与建表。
+
+### 30.5 测试
+
+- `app/test/data/database/v41_migration_test.dart` **2 例**（真实 v40 文件升级后八表建好、seed 与一次会话能落库；版本号被盖成 v40 但表已存在时迁移跳过建表且不丢行）。
+- `app/test/data/repositories/cognitive_profile_repository_test.dart` **5 例**（seed 幂等 + 10 能力/9 参数默认行、会话 trials/metrics/quality_flags 读回与列表倒序、writeEstimates 存来源/贡献/设备/stale、user_override 夹取与保护与 clear 语义、参数覆盖 0..1 与 derived/default 回退）。
+- `app/test/features/assessment/application/assessment_session_service_test.dart` **11 例**：用内存 `_FakeStore` 验证「指标 → 质量标记 → 能力合并 → 参数推导」整条链（go_nogo d′>2、stroop 冲突代价 0、task_switching 全指标、digit_span 稳定跨度 9、<20 trial → low_trial_count、RT 50ms → too_fast、换设备 → device_mismatch、首次 nMeasurements=1 且 uncertainty≈0.707、二次 nMeasurements=2、user_override 不被覆盖、中途退出只落会话）。
+
+### 30.6 边界（截至本版）
+
+- 能力均值是**个体内 z-score**，不是人群常模；没有常模表、也不做跨用户比较。
+- 质量标记只上调 uncertainty（每项 +0.1，既压低新证据权重也抬高合并结果），不删数据、不判作弊。`practice_block` 不单独产出（指标层直接排除练习 trial）；`background_switch` 由运行页在切后台时通过 `completeSession(extraQualityFlags:)` 补报，属环境级标记、不受任务 `quality_checks` 限制。
+- `design_version` 升级后旧测量标 `stale`、不参与合并的逻辑在数据层留了列与读侧约定，**自动升级扫描尚未接**（当前 designVersion 未变，等真的有 v2 再写）。
+- P1 剩余：n_back_2 / stroop / task_switching / fatigue_block 的 UI 全流程真机手测；P2 的 Thread 权重建议接口（`CognitiveParamsProvider.getParamsForThread()`）与 P3 的 `.cogprofile` 导出尚未接界面。
+- 旧 `ability_scores` 表与旧四项小测页面保留但设置页已无入口（旧测试仍覆盖）；是否删除等用户确认。
+
 
 
 

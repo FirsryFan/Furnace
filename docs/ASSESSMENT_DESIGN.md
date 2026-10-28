@@ -202,3 +202,49 @@ abstract class AssessmentInstrument {
 全部确定性、不读时钟、不随机；29 例单测（`app/test/domain/services/cognitive/ability_trend_test.dart`）钉住排序/截断/方向阈值/夹取/空序列。
 **画像页趋势图 UI 仍未接**，本轮只交付可单测的数据层。
 
+---
+
+## 10. 用户评测板块 v1.0（2026-10-29 轮次一百八十五）
+
+用户 2026-10-29 给的《Furnace 用户评测板块设计文档》v1.0 是这一层的**设计定稿**（原文存 `E:/dsh-tmp-aot/b295-full.txt`，180,814 字符；仓库外）。本节只记**实现映射与偏差**，口径冲突以用户文档为准。与 §9 的关系：§9 的四项小测是 v38 的 MVP（`ability_scores`，只给相对变化）；**本节是正式版**（`cog_*` 八表，带 uncertainty、个体内基线、可配置映射，并给 Thread 侧参数），两套并存，旧入口在设置页已让位。
+
+### 10.1 四层与对应代码
+
+| 层 | 设计文档 | 代码 |
+| --- | --- | --- |
+| 项目 Task | §4.1/§4.2 十个任务 | `app/lib/features/assessment/application/task_registry.dart`（`kDefaultAssessmentTasks`、`kDefaultTaskAbilityMappings`、`kDefaultAbilityParamMappings`，纯常量） |
+| 评测数据 | §3 session/trial/metric | `application/assessment_engine.dart`（跑一个会话）、`stimulus_generators.dart`（可播种确定性刺激）、`application/assessment_session_service.dart`（指标→标记→合并→推导） |
+| 能力指标 | §3.2 19 个统计量 + §5 10 项能力 | `domain/assessment_metrics.dart`、`domain/assessment_mapping.dart`、`domain/assessment_estimates.dart` |
+| 认知模型参数 | §6 9 个参数 + §7 映射 | `domain/assessment_estimates.dart` 的 `deriveParams`、`domain/assessment_cog_profile.dart`（`.cogprofile` 组装） |
+| 落库 | §10 schema | `data/repositories/cognitive_profile_repository.dart`（实现 `AssessmentStore`）、`data/database/tables.dart` 八张 `cog_*`（见 [DATA_MODEL.md](DATA_MODEL.md) §30） |
+| UI | §10.3 | `presentation/assessment_center_page.dart`（任务列表/历史）、`assessment_run_page.dart`（全屏任务）、`assessment_result_page.dart`（本次结果）、`assessment_profile_page.dart`（能力与参数档案，可覆盖）、`assessment_display.dart`（读数格式化共用的纯函数） |
+
+### 10.2 十个任务（§4.2）
+
+`fast_simple_task_i` / `ii` / `iii`（快速分类，`rt_median` + `accuracy` → processing_speed）；`go_nogo`（70/30，d′ → inhibitory_control）；`digit_span_backward`（从 3 递增、连续两次失败停，`stable_span` → working_memory_capacity）；`n_back_2`（60 trial、匹配 30–40%，d′ → working_memory_update_speed）；`stroop_crosslang`（40–60 trial、钓鱼 20–30%，`conflict_cost` → distraction_resistance，可选 processing_speed / cross_language_cost）；`task_switching`（60–80 trial 50/50，`switch_cost` → switch_cost_ability）；`fatigue_block`（3 段 × 60s，`rt_slope`/`variance_drift` → fatigue_slope/stability_drift）；`decision_fatigue`（50–100 次，`decision_drift`，**provisional**）。`fast_simple_task_iii` 与 `decision_fatigue` 在 v1 里 `enabled=false`（副本/暂定，不出现在评测中心）。
+
+### 10.3 统计与估计口径（§5/§8.3/§9）
+
+- 默认 uncertainty **0.7**（`decision_fatigue` 0.9、`cross_language_cost` 0.8），source=`default`，**不代表人群常模**，只是「还不知道」。
+- 多次测量按 uncertainty **加权中位数**合并；新 uncertainty = `max(0.15, 1/sqrt(n+1))`（第一次测量 ≈0.707）——n 越多越低，最低 0.15。
+- 质量标记（§9 八种）**只上调 uncertainty（每项 +0.1）**，不删数据、不判作弊：既压低这条新证据的权重（`uncertaintyWithQualityFlags`），也把合并后估计的不确定性抬高同等幅度。`practice_block` 由指标层排除练习自动成立、不单独产出；`background_switch` 由运行页在切后台时补报（`completeSession(extraQualityFlags:)`），属环境级标记、不受任务 `quality_checks` 限制。
+- 中途退出：运行页落一条 `aborted` 会话（历史可见、不进能力估计），确认框文案与行为一致（「只留一条未完成记录」）。
+- 指标只统计有效 trial（`isPractice=false`）；`rt_ms` 为 NULL 的试次算漏答，不是 0ms；`correct` 为 NULL 表示该试次不判对错（如疲劳块的持续按键）。
+- 引擎把刺激与条件合并进 `trial.stimulus`（`_recordedStimulus`：`{...stimulus, ...condition}`，同名字段取 stimulus），指标层才能按 `switched` / `kind`（congruent/conflict/fish）分组——否则 stroop/切换类指标只能返回 null。
+- `user_override` 后**停止自动更新**（引擎合并时跳过），用户可清除覆盖回到自动（数值保留，下次评测继续合并）。
+- `design_version` 升级后旧测量标 `stale`、不参与合并（数据层留列与读侧约定；自动升级扫描尚未接）。
+
+### 10.4 本轮范围与状态（2026-10-29）
+
+- **P0 完成**：八张表 + schema v41 + 迁移/自愈 + 仓储（seed 幂等、默认行、override 语义）+ 十个任务注册 + 默认映射 + 引擎（十个任务共用一套声明式引擎）+ Fast I / Go-No-Go / 倒序 Digit Span 全流程 UI。
+- **P1 完成**：2-back / Stroop / 任务切换 / 疲劳块的注册与引擎路径、指标计算、增量更新（合并/参数推导）与能力估计；离线纯逻辑与组件测试见 `app/test/features/assessment/`。
+- **P2/P3 未做**：Thread 权重建议接口（`CognitiveParamsProvider.getParamsForThread()` → `ThreadWeightSuggestion`）、疲劳块/参数映射的模型侧消费、`.cogprofile` 导出接界面、决策疲劳与副本 III 的开启。
+- 设置页：原「能力测评」「能力画像」两个入口换成一个「评测与认知档案」（`settingsAssessmentTileKey` → `AssessmentCenterPage`）；旧 `ability_scores` 表/页面保留、无入口。
+
+### 10.5 明确不做（与 §8 一致，重申）
+
+- 不联网、不调 AI、不上传任何数据；所有任务本地静态刺激 + 可播种随机数。
+- 不做防作弊/反虚拟机：只做质量标记并上调 uncertainty。
+- 不给「绝对智商」或人群百分位：能力值是**个体内 z-score**（0 = 自己的典型水平）。
+- 不把评测结果写进 `card_states`/FSRS 排期；Thread 侧消费要等 P2 的接口接上后再谈。
+
