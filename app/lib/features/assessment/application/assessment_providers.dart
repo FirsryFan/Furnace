@@ -9,6 +9,7 @@ import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/cognitive_profile_repository.dart';
 import '../domain/assessment_models.dart';
 import 'assessment_session_service.dart';
+import 'cognitive_params_provider.dart';
 
 /// 评测数据层（实现见 `cognitive_profile_repository.dart`）。
 final assessmentStoreProvider = Provider<AssessmentStore>((ref) {
@@ -42,6 +43,24 @@ final assessmentProfileProvider =
     params: params,
     sessions: sessions,
   );
+});
+
+/// Thread 侧参数视图：本机认知参数估计 + 「不确定性过高回退默认」规则。
+///
+/// 档案还在加载或读取失败时退化为全默认先验：Thread 永远能拿到可用的值，
+/// 只是 `usedDefault` 为真，调用方可以据此降权或标注「暂用默认值」。
+final cognitiveParamsProvider = Provider<CognitiveParamsProvider>((ref) {
+  final params = ref.watch(assessmentProfileProvider).valueOrNull?.params ??
+      const <ParamEstimate>[];
+  return CognitiveParamsProvider.fromEstimates(params);
+});
+
+/// Thread 权重建议（九项参数，顺序固定，便于确定性 UI 与测试）。
+///
+/// 只给建议值，不写库、不覆盖用户设置；要不要采纳由 Thread 侧决定。
+final threadWeightSuggestionsProvider =
+    Provider<List<ThreadWeightSuggestion>>((ref) {
+  return threadWeightSuggestions(ref.watch(cognitiveParamsProvider));
 });
 
 /// 认知档案页的数据快照（只读）。

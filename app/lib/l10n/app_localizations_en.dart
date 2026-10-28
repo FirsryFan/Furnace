@@ -6123,6 +6123,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get assessmentProfileExport => 'Export profile';
+
+  @override
+  String assessmentProfileExportSuccess(String fileName) {
+    return 'Exported $fileName';
+  }
+
+  @override
+  String assessmentProfileExportFailed(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
   String get taskFastSimpleTaskI => 'Fast classification I';
 
   @override

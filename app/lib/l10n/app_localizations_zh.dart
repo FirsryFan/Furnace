@@ -5878,6 +5878,19 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get assessmentProfileExport => '导出认知档案';
+
+  @override
+  String assessmentProfileExportSuccess(String fileName) {
+    return '已导出 $fileName';
+  }
+
+  @override
+  String assessmentProfileExportFailed(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
   String get taskFastSimpleTaskI => '快速分类 I';
 
   @override

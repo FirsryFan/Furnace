@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/assessment_providers.dart';
 import '../domain/assessment_models.dart';
+import 'assessment_cog_profile_export.dart';
 import 'assessment_display.dart';
 
 /// 认知档案页：能力估计、认知模型参数、最近测量。
@@ -16,6 +17,9 @@ const Key assessmentProfileParamsKey = Key('assessment-profile-params');
 const Key assessmentProfileHistoryKey = Key('assessment-profile-history');
 const Key assessmentProfileHistoryEmptyKey =
     Key('assessment-profile-history-empty');
+
+/// 导出 `.cogprofile` 的按钮 key（widget test 与无障碍定位用）。
+const Key assessmentProfileExportKey = Key('assessment-profile-export');
 
 Key assessmentProfileAbilityRowKey(String abilityId) =>
     ValueKey<String>('assessment-profile-ability-$abilityId');
@@ -45,8 +49,26 @@ class AssessmentProfilePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final profile = ref.watch(assessmentProfileProvider);
+    final snapshot = profile.valueOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.assessmentProfileTitle)),
+      appBar: AppBar(
+        title: Text(l10n.assessmentProfileTitle),
+        actions: [
+          IconButton(
+            key: assessmentProfileExportKey,
+            tooltip: l10n.assessmentProfileExport,
+            icon: const Icon(Icons.ios_share),
+            onPressed: snapshot == null
+                ? null
+                : () => _exportCogProfile(
+                      context: context,
+                      l10n: l10n,
+                      snapshot: snapshot,
+                      saver: ref.read(cogProfileFileSaverProvider),
+                    ),
+          ),
+        ],
+      ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ProfileFailure(
@@ -54,6 +76,43 @@ class AssessmentProfilePage extends ConsumerWidget {
           onRetry: () => ref.invalidate(assessmentProfileProvider),
         ),
         data: (snapshot) => _ProfileBody(snapshot: snapshot),
+      ),
+    );
+  }
+}
+
+/// 导出当前档案：生成字节 → 弹「另存为」→ 按结果提示。
+///
+/// * 用户取消（saver 返回 null）不提示；
+/// * 成功提示文件名，失败提示原始错误；
+/// * 两次 await 之后都检查 mounted，避免页面退出后还弹 SnackBar。
+Future<void> _exportCogProfile({
+  required BuildContext context,
+  required AppLocalizations l10n,
+  required AssessmentProfileSnapshot snapshot,
+  required CogProfileFileSaver saver,
+}) async {
+  final exportedAt = DateTime.now();
+  final fileName = cogProfileFileName(exportedAt);
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final bytes = await buildCogProfileBytes(
+      abilities: snapshot.abilities,
+      cognitiveParams: snapshot.params,
+      exportedAt: exportedAt,
+    );
+    final uri = await saver(fileName: fileName, bytes: bytes);
+    if (uri == null || !context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.assessmentProfileExportSuccess(fileName)),
+      ),
+    );
+  } catch (error) {
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.assessmentProfileExportFailed('$error')),
       ),
     );
   }

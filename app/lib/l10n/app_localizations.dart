@@ -10220,6 +10220,24 @@ abstract class AppLocalizations {
   /// **'Could not load: {error}'**
   String assessmentProfileLoadFailed(String error);
 
+  /// 认知档案页的导出按钮。
+  ///
+  /// In en, this message translates to:
+  /// **'Export profile'**
+  String get assessmentProfileExport;
+
+  /// 认知档案导出成功提示。
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {fileName}'**
+  String assessmentProfileExportSuccess(String fileName);
+
+  /// 认知档案导出失败提示。
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String assessmentProfileExportFailed(String error);
+
   /// No description provided for @taskFastSimpleTaskI.
   ///
   /// In en, this message translates to:
