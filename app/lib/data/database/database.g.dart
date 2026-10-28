@@ -24453,6 +24453,3545 @@ class AbilityScoresCompanion extends UpdateCompanion<AbilityScoreRow> {
   }
 }
 
+class $CogAssessmentTasksTable extends CogAssessmentTasks
+    with TableInfo<$CogAssessmentTasksTable, CogAssessmentTaskRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAssessmentTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _displayNameMeta =
+      const VerificationMeta('displayName');
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+      'display_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _taskTypeMeta =
+      const VerificationMeta('taskType');
+  @override
+  late final GeneratedColumn<String> taskType = GeneratedColumn<String>(
+      'task_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _designVersionMeta =
+      const VerificationMeta('designVersion');
+  @override
+  late final GeneratedColumn<String> designVersion = GeneratedColumn<String>(
+      'design_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _configJsonMeta =
+      const VerificationMeta('configJson');
+  @override
+  late final GeneratedColumn<String> configJson = GeneratedColumn<String>(
+      'config_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        displayName,
+        taskType,
+        designVersion,
+        configJson,
+        enabled,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_assessment_tasks';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAssessmentTaskRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+          _displayNameMeta,
+          displayName.isAcceptableOrUnknown(
+              data['display_name']!, _displayNameMeta));
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('task_type')) {
+      context.handle(_taskTypeMeta,
+          taskType.isAcceptableOrUnknown(data['task_type']!, _taskTypeMeta));
+    } else if (isInserting) {
+      context.missing(_taskTypeMeta);
+    }
+    if (data.containsKey('design_version')) {
+      context.handle(
+          _designVersionMeta,
+          designVersion.isAcceptableOrUnknown(
+              data['design_version']!, _designVersionMeta));
+    } else if (isInserting) {
+      context.missing(_designVersionMeta);
+    }
+    if (data.containsKey('config_json')) {
+      context.handle(
+          _configJsonMeta,
+          configJson.isAcceptableOrUnknown(
+              data['config_json']!, _configJsonMeta));
+    } else if (isInserting) {
+      context.missing(_configJsonMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogAssessmentTaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAssessmentTaskRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      displayName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}display_name'])!,
+      taskType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}task_type'])!,
+      designVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}design_version'])!,
+      configJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}config_json'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $CogAssessmentTasksTable createAlias(String alias) {
+    return $CogAssessmentTasksTable(attachedDatabase, alias);
+  }
+}
+
+class CogAssessmentTaskRow extends DataClass
+    implements Insertable<CogAssessmentTaskRow> {
+  /// 稳定任务 id（域层 [AssessmentTaskConfig.id]）。
+  final String id;
+
+  /// 展示名兜底（正常由 l10n 按 task id 渲染）。
+  final String displayName;
+
+  /// 任务类型 code：`fast_simple` / `go_nogo` / `digit_span` / …
+  final String taskType;
+
+  /// 设计版本（如 `assessment_v1`）。
+  final String designVersion;
+
+  /// §4.1 的任务配置 JSON 文本。
+  final String configJson;
+
+  /// 是否在评测中心可选。
+  final bool enabled;
+
+  /// 注册时刻（epoch ms）。
+  final int createdAt;
+  const CogAssessmentTaskRow(
+      {required this.id,
+      required this.displayName,
+      required this.taskType,
+      required this.designVersion,
+      required this.configJson,
+      required this.enabled,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['display_name'] = Variable<String>(displayName);
+    map['task_type'] = Variable<String>(taskType);
+    map['design_version'] = Variable<String>(designVersion);
+    map['config_json'] = Variable<String>(configJson);
+    map['enabled'] = Variable<bool>(enabled);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  CogAssessmentTasksCompanion toCompanion(bool nullToAbsent) {
+    return CogAssessmentTasksCompanion(
+      id: Value(id),
+      displayName: Value(displayName),
+      taskType: Value(taskType),
+      designVersion: Value(designVersion),
+      configJson: Value(configJson),
+      enabled: Value(enabled),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CogAssessmentTaskRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAssessmentTaskRow(
+      id: serializer.fromJson<String>(json['id']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      taskType: serializer.fromJson<String>(json['taskType']),
+      designVersion: serializer.fromJson<String>(json['designVersion']),
+      configJson: serializer.fromJson<String>(json['configJson']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'displayName': serializer.toJson<String>(displayName),
+      'taskType': serializer.toJson<String>(taskType),
+      'designVersion': serializer.toJson<String>(designVersion),
+      'configJson': serializer.toJson<String>(configJson),
+      'enabled': serializer.toJson<bool>(enabled),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  CogAssessmentTaskRow copyWith(
+          {String? id,
+          String? displayName,
+          String? taskType,
+          String? designVersion,
+          String? configJson,
+          bool? enabled,
+          int? createdAt}) =>
+      CogAssessmentTaskRow(
+        id: id ?? this.id,
+        displayName: displayName ?? this.displayName,
+        taskType: taskType ?? this.taskType,
+        designVersion: designVersion ?? this.designVersion,
+        configJson: configJson ?? this.configJson,
+        enabled: enabled ?? this.enabled,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  CogAssessmentTaskRow copyWithCompanion(CogAssessmentTasksCompanion data) {
+    return CogAssessmentTaskRow(
+      id: data.id.present ? data.id.value : this.id,
+      displayName:
+          data.displayName.present ? data.displayName.value : this.displayName,
+      taskType: data.taskType.present ? data.taskType.value : this.taskType,
+      designVersion: data.designVersion.present
+          ? data.designVersion.value
+          : this.designVersion,
+      configJson:
+          data.configJson.present ? data.configJson.value : this.configJson,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentTaskRow(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('taskType: $taskType, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('configJson: $configJson, ')
+          ..write('enabled: $enabled, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, displayName, taskType, designVersion, configJson, enabled, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAssessmentTaskRow &&
+          other.id == this.id &&
+          other.displayName == this.displayName &&
+          other.taskType == this.taskType &&
+          other.designVersion == this.designVersion &&
+          other.configJson == this.configJson &&
+          other.enabled == this.enabled &&
+          other.createdAt == this.createdAt);
+}
+
+class CogAssessmentTasksCompanion
+    extends UpdateCompanion<CogAssessmentTaskRow> {
+  final Value<String> id;
+  final Value<String> displayName;
+  final Value<String> taskType;
+  final Value<String> designVersion;
+  final Value<String> configJson;
+  final Value<bool> enabled;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const CogAssessmentTasksCompanion({
+    this.id = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.taskType = const Value.absent(),
+    this.designVersion = const Value.absent(),
+    this.configJson = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CogAssessmentTasksCompanion.insert({
+    required String id,
+    required String displayName,
+    required String taskType,
+    required String designVersion,
+    required String configJson,
+    this.enabled = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        displayName = Value(displayName),
+        taskType = Value(taskType),
+        designVersion = Value(designVersion),
+        configJson = Value(configJson),
+        createdAt = Value(createdAt);
+  static Insertable<CogAssessmentTaskRow> custom({
+    Expression<String>? id,
+    Expression<String>? displayName,
+    Expression<String>? taskType,
+    Expression<String>? designVersion,
+    Expression<String>? configJson,
+    Expression<bool>? enabled,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (displayName != null) 'display_name': displayName,
+      if (taskType != null) 'task_type': taskType,
+      if (designVersion != null) 'design_version': designVersion,
+      if (configJson != null) 'config_json': configJson,
+      if (enabled != null) 'enabled': enabled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CogAssessmentTasksCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? displayName,
+      Value<String>? taskType,
+      Value<String>? designVersion,
+      Value<String>? configJson,
+      Value<bool>? enabled,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return CogAssessmentTasksCompanion(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      taskType: taskType ?? this.taskType,
+      designVersion: designVersion ?? this.designVersion,
+      configJson: configJson ?? this.configJson,
+      enabled: enabled ?? this.enabled,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (taskType.present) {
+      map['task_type'] = Variable<String>(taskType.value);
+    }
+    if (designVersion.present) {
+      map['design_version'] = Variable<String>(designVersion.value);
+    }
+    if (configJson.present) {
+      map['config_json'] = Variable<String>(configJson.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('taskType: $taskType, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('configJson: $configJson, ')
+          ..write('enabled: $enabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogAssessmentSessionsTable extends CogAssessmentSessions
+    with TableInfo<$CogAssessmentSessionsTable, CogAssessmentSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAssessmentSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+      'task_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _designVersionMeta =
+      const VerificationMeta('designVersion');
+  @override
+  late final GeneratedColumn<String> designVersion = GeneratedColumn<String>(
+      'design_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _deviceMeta = const VerificationMeta('device');
+  @override
+  late final GeneratedColumn<String> device = GeneratedColumn<String>(
+      'device', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+      'started_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<int> completedAt = GeneratedColumn<int>(
+      'completed_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _qualityFlagsJsonMeta =
+      const VerificationMeta('qualityFlagsJson');
+  @override
+  late final GeneratedColumn<String> qualityFlagsJson = GeneratedColumn<String>(
+      'quality_flags_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        taskId,
+        designVersion,
+        device,
+        startedAt,
+        completedAt,
+        status,
+        qualityFlagsJson
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_assessment_sessions';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAssessmentSessionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(_taskIdMeta,
+          taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta));
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('design_version')) {
+      context.handle(
+          _designVersionMeta,
+          designVersion.isAcceptableOrUnknown(
+              data['design_version']!, _designVersionMeta));
+    } else if (isInserting) {
+      context.missing(_designVersionMeta);
+    }
+    if (data.containsKey('device')) {
+      context.handle(_deviceMeta,
+          device.isAcceptableOrUnknown(data['device']!, _deviceMeta));
+    } else if (isInserting) {
+      context.missing(_deviceMeta);
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('quality_flags_json')) {
+      context.handle(
+          _qualityFlagsJsonMeta,
+          qualityFlagsJson.isAcceptableOrUnknown(
+              data['quality_flags_json']!, _qualityFlagsJsonMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogAssessmentSessionRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAssessmentSessionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      taskId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}task_id'])!,
+      designVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}design_version'])!,
+      device: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}device'])!,
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}started_at'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}completed_at']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      qualityFlagsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}quality_flags_json']),
+    );
+  }
+
+  @override
+  $CogAssessmentSessionsTable createAlias(String alias) {
+    return $CogAssessmentSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class CogAssessmentSessionRow extends DataClass
+    implements Insertable<CogAssessmentSessionRow> {
+  final String id;
+
+  /// 指向 [CogAssessmentTasks.id]（不建外键：任务注册表重建时不希望级联丢测量）。
+  final String taskId;
+  final String designVersion;
+
+  /// 设备标识（`windows` / `android`，§4.1 `device_baseline` 维度）。
+  final String device;
+
+  /// 开始/完成时刻（epoch ms）。`completed_at` 为空 = 没有正常做完。
+  final int startedAt;
+  final int? completedAt;
+
+  /// completed / incomplete / aborted。
+  final String status;
+
+  /// §9 质量标记 JSON 数组；NULL = 无标记。
+  final String? qualityFlagsJson;
+  const CogAssessmentSessionRow(
+      {required this.id,
+      required this.taskId,
+      required this.designVersion,
+      required this.device,
+      required this.startedAt,
+      this.completedAt,
+      required this.status,
+      this.qualityFlagsJson});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['task_id'] = Variable<String>(taskId);
+    map['design_version'] = Variable<String>(designVersion);
+    map['device'] = Variable<String>(device);
+    map['started_at'] = Variable<int>(startedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<int>(completedAt);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || qualityFlagsJson != null) {
+      map['quality_flags_json'] = Variable<String>(qualityFlagsJson);
+    }
+    return map;
+  }
+
+  CogAssessmentSessionsCompanion toCompanion(bool nullToAbsent) {
+    return CogAssessmentSessionsCompanion(
+      id: Value(id),
+      taskId: Value(taskId),
+      designVersion: Value(designVersion),
+      device: Value(device),
+      startedAt: Value(startedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      status: Value(status),
+      qualityFlagsJson: qualityFlagsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qualityFlagsJson),
+    );
+  }
+
+  factory CogAssessmentSessionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAssessmentSessionRow(
+      id: serializer.fromJson<String>(json['id']),
+      taskId: serializer.fromJson<String>(json['taskId']),
+      designVersion: serializer.fromJson<String>(json['designVersion']),
+      device: serializer.fromJson<String>(json['device']),
+      startedAt: serializer.fromJson<int>(json['startedAt']),
+      completedAt: serializer.fromJson<int?>(json['completedAt']),
+      status: serializer.fromJson<String>(json['status']),
+      qualityFlagsJson: serializer.fromJson<String?>(json['qualityFlagsJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'taskId': serializer.toJson<String>(taskId),
+      'designVersion': serializer.toJson<String>(designVersion),
+      'device': serializer.toJson<String>(device),
+      'startedAt': serializer.toJson<int>(startedAt),
+      'completedAt': serializer.toJson<int?>(completedAt),
+      'status': serializer.toJson<String>(status),
+      'qualityFlagsJson': serializer.toJson<String?>(qualityFlagsJson),
+    };
+  }
+
+  CogAssessmentSessionRow copyWith(
+          {String? id,
+          String? taskId,
+          String? designVersion,
+          String? device,
+          int? startedAt,
+          Value<int?> completedAt = const Value.absent(),
+          String? status,
+          Value<String?> qualityFlagsJson = const Value.absent()}) =>
+      CogAssessmentSessionRow(
+        id: id ?? this.id,
+        taskId: taskId ?? this.taskId,
+        designVersion: designVersion ?? this.designVersion,
+        device: device ?? this.device,
+        startedAt: startedAt ?? this.startedAt,
+        completedAt: completedAt.present ? completedAt.value : this.completedAt,
+        status: status ?? this.status,
+        qualityFlagsJson: qualityFlagsJson.present
+            ? qualityFlagsJson.value
+            : this.qualityFlagsJson,
+      );
+  CogAssessmentSessionRow copyWithCompanion(
+      CogAssessmentSessionsCompanion data) {
+    return CogAssessmentSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      designVersion: data.designVersion.present
+          ? data.designVersion.value
+          : this.designVersion,
+      device: data.device.present ? data.device.value : this.device,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+      status: data.status.present ? data.status.value : this.status,
+      qualityFlagsJson: data.qualityFlagsJson.present
+          ? data.qualityFlagsJson.value
+          : this.qualityFlagsJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentSessionRow(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('device: $device, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('status: $status, ')
+          ..write('qualityFlagsJson: $qualityFlagsJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, taskId, designVersion, device, startedAt,
+      completedAt, status, qualityFlagsJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAssessmentSessionRow &&
+          other.id == this.id &&
+          other.taskId == this.taskId &&
+          other.designVersion == this.designVersion &&
+          other.device == this.device &&
+          other.startedAt == this.startedAt &&
+          other.completedAt == this.completedAt &&
+          other.status == this.status &&
+          other.qualityFlagsJson == this.qualityFlagsJson);
+}
+
+class CogAssessmentSessionsCompanion
+    extends UpdateCompanion<CogAssessmentSessionRow> {
+  final Value<String> id;
+  final Value<String> taskId;
+  final Value<String> designVersion;
+  final Value<String> device;
+  final Value<int> startedAt;
+  final Value<int?> completedAt;
+  final Value<String> status;
+  final Value<String?> qualityFlagsJson;
+  final Value<int> rowid;
+  const CogAssessmentSessionsCompanion({
+    this.id = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.designVersion = const Value.absent(),
+    this.device = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.qualityFlagsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CogAssessmentSessionsCompanion.insert({
+    required String id,
+    required String taskId,
+    required String designVersion,
+    required String device,
+    required int startedAt,
+    this.completedAt = const Value.absent(),
+    required String status,
+    this.qualityFlagsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        taskId = Value(taskId),
+        designVersion = Value(designVersion),
+        device = Value(device),
+        startedAt = Value(startedAt),
+        status = Value(status);
+  static Insertable<CogAssessmentSessionRow> custom({
+    Expression<String>? id,
+    Expression<String>? taskId,
+    Expression<String>? designVersion,
+    Expression<String>? device,
+    Expression<int>? startedAt,
+    Expression<int>? completedAt,
+    Expression<String>? status,
+    Expression<String>? qualityFlagsJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (taskId != null) 'task_id': taskId,
+      if (designVersion != null) 'design_version': designVersion,
+      if (device != null) 'device': device,
+      if (startedAt != null) 'started_at': startedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (status != null) 'status': status,
+      if (qualityFlagsJson != null) 'quality_flags_json': qualityFlagsJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CogAssessmentSessionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? taskId,
+      Value<String>? designVersion,
+      Value<String>? device,
+      Value<int>? startedAt,
+      Value<int?>? completedAt,
+      Value<String>? status,
+      Value<String?>? qualityFlagsJson,
+      Value<int>? rowid}) {
+    return CogAssessmentSessionsCompanion(
+      id: id ?? this.id,
+      taskId: taskId ?? this.taskId,
+      designVersion: designVersion ?? this.designVersion,
+      device: device ?? this.device,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
+      status: status ?? this.status,
+      qualityFlagsJson: qualityFlagsJson ?? this.qualityFlagsJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (designVersion.present) {
+      map['design_version'] = Variable<String>(designVersion.value);
+    }
+    if (device.present) {
+      map['device'] = Variable<String>(device.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<int>(completedAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (qualityFlagsJson.present) {
+      map['quality_flags_json'] = Variable<String>(qualityFlagsJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('device: $device, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('status: $status, ')
+          ..write('qualityFlagsJson: $qualityFlagsJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogAssessmentTrialsTable extends CogAssessmentTrials
+    with TableInfo<$CogAssessmentTrialsTable, CogAssessmentTrialRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAssessmentTrialsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _trialIndexMeta =
+      const VerificationMeta('trialIndex');
+  @override
+  late final GeneratedColumn<int> trialIndex = GeneratedColumn<int>(
+      'trial_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _blockIndexMeta =
+      const VerificationMeta('blockIndex');
+  @override
+  late final GeneratedColumn<int> blockIndex = GeneratedColumn<int>(
+      'block_index', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _stimulusJsonMeta =
+      const VerificationMeta('stimulusJson');
+  @override
+  late final GeneratedColumn<String> stimulusJson = GeneratedColumn<String>(
+      'stimulus_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _responseJsonMeta =
+      const VerificationMeta('responseJson');
+  @override
+  late final GeneratedColumn<String> responseJson = GeneratedColumn<String>(
+      'response_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rtMsMeta = const VerificationMeta('rtMs');
+  @override
+  late final GeneratedColumn<int> rtMs = GeneratedColumn<int>(
+      'rt_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _correctMeta =
+      const VerificationMeta('correct');
+  @override
+  late final GeneratedColumn<bool> correct = GeneratedColumn<bool>(
+      'correct', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("correct" IN (0, 1))'));
+  static const VerificationMeta _isPracticeMeta =
+      const VerificationMeta('isPractice');
+  @override
+  late final GeneratedColumn<bool> isPractice = GeneratedColumn<bool>(
+      'is_practice', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_practice" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _timestampMeta =
+      const VerificationMeta('timestamp');
+  @override
+  late final GeneratedColumn<int> timestamp = GeneratedColumn<int>(
+      'timestamp', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        sessionId,
+        trialIndex,
+        blockIndex,
+        stimulusJson,
+        responseJson,
+        rtMs,
+        correct,
+        isPractice,
+        timestamp
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_assessment_trials';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAssessmentTrialRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('trial_index')) {
+      context.handle(
+          _trialIndexMeta,
+          trialIndex.isAcceptableOrUnknown(
+              data['trial_index']!, _trialIndexMeta));
+    } else if (isInserting) {
+      context.missing(_trialIndexMeta);
+    }
+    if (data.containsKey('block_index')) {
+      context.handle(
+          _blockIndexMeta,
+          blockIndex.isAcceptableOrUnknown(
+              data['block_index']!, _blockIndexMeta));
+    } else if (isInserting) {
+      context.missing(_blockIndexMeta);
+    }
+    if (data.containsKey('stimulus_json')) {
+      context.handle(
+          _stimulusJsonMeta,
+          stimulusJson.isAcceptableOrUnknown(
+              data['stimulus_json']!, _stimulusJsonMeta));
+    } else if (isInserting) {
+      context.missing(_stimulusJsonMeta);
+    }
+    if (data.containsKey('response_json')) {
+      context.handle(
+          _responseJsonMeta,
+          responseJson.isAcceptableOrUnknown(
+              data['response_json']!, _responseJsonMeta));
+    }
+    if (data.containsKey('rt_ms')) {
+      context.handle(
+          _rtMsMeta, rtMs.isAcceptableOrUnknown(data['rt_ms']!, _rtMsMeta));
+    }
+    if (data.containsKey('correct')) {
+      context.handle(_correctMeta,
+          correct.isAcceptableOrUnknown(data['correct']!, _correctMeta));
+    }
+    if (data.containsKey('is_practice')) {
+      context.handle(
+          _isPracticeMeta,
+          isPractice.isAcceptableOrUnknown(
+              data['is_practice']!, _isPracticeMeta));
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(_timestampMeta,
+          timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta));
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogAssessmentTrialRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAssessmentTrialRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      trialIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}trial_index'])!,
+      blockIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}block_index'])!,
+      stimulusJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stimulus_json'])!,
+      responseJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}response_json']),
+      rtMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}rt_ms']),
+      correct: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}correct']),
+      isPractice: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_practice'])!,
+      timestamp: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}timestamp'])!,
+    );
+  }
+
+  @override
+  $CogAssessmentTrialsTable createAlias(String alias) {
+    return $CogAssessmentTrialsTable(attachedDatabase, alias);
+  }
+}
+
+class CogAssessmentTrialRow extends DataClass
+    implements Insertable<CogAssessmentTrialRow> {
+  final int id;
+  final String sessionId;
+
+  /// 会话内从 0 开始的试次序号。
+  final int trialIndex;
+
+  /// 所属 block（疲劳块按段、digit span 按长度层）。
+  final int blockIndex;
+
+  /// 刺激与正确响应/条件的 JSON（`stimulus_json`，构造时冻结）。
+  final String stimulusJson;
+
+  /// 用户的原始响应 JSON；NULL = 没有响应。
+  final String? responseJson;
+
+  /// 反应时（毫秒）；NULL = 漏答/超时。
+  final int? rtMs;
+
+  /// 是否正确；NULL = 该试次不判对错。
+  final bool? correct;
+  final bool isPractice;
+
+  /// 试次记录时刻（epoch ms）。
+  final int timestamp;
+  const CogAssessmentTrialRow(
+      {required this.id,
+      required this.sessionId,
+      required this.trialIndex,
+      required this.blockIndex,
+      required this.stimulusJson,
+      this.responseJson,
+      this.rtMs,
+      this.correct,
+      required this.isPractice,
+      required this.timestamp});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['trial_index'] = Variable<int>(trialIndex);
+    map['block_index'] = Variable<int>(blockIndex);
+    map['stimulus_json'] = Variable<String>(stimulusJson);
+    if (!nullToAbsent || responseJson != null) {
+      map['response_json'] = Variable<String>(responseJson);
+    }
+    if (!nullToAbsent || rtMs != null) {
+      map['rt_ms'] = Variable<int>(rtMs);
+    }
+    if (!nullToAbsent || correct != null) {
+      map['correct'] = Variable<bool>(correct);
+    }
+    map['is_practice'] = Variable<bool>(isPractice);
+    map['timestamp'] = Variable<int>(timestamp);
+    return map;
+  }
+
+  CogAssessmentTrialsCompanion toCompanion(bool nullToAbsent) {
+    return CogAssessmentTrialsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      trialIndex: Value(trialIndex),
+      blockIndex: Value(blockIndex),
+      stimulusJson: Value(stimulusJson),
+      responseJson: responseJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(responseJson),
+      rtMs: rtMs == null && nullToAbsent ? const Value.absent() : Value(rtMs),
+      correct: correct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(correct),
+      isPractice: Value(isPractice),
+      timestamp: Value(timestamp),
+    );
+  }
+
+  factory CogAssessmentTrialRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAssessmentTrialRow(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      trialIndex: serializer.fromJson<int>(json['trialIndex']),
+      blockIndex: serializer.fromJson<int>(json['blockIndex']),
+      stimulusJson: serializer.fromJson<String>(json['stimulusJson']),
+      responseJson: serializer.fromJson<String?>(json['responseJson']),
+      rtMs: serializer.fromJson<int?>(json['rtMs']),
+      correct: serializer.fromJson<bool?>(json['correct']),
+      isPractice: serializer.fromJson<bool>(json['isPractice']),
+      timestamp: serializer.fromJson<int>(json['timestamp']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'trialIndex': serializer.toJson<int>(trialIndex),
+      'blockIndex': serializer.toJson<int>(blockIndex),
+      'stimulusJson': serializer.toJson<String>(stimulusJson),
+      'responseJson': serializer.toJson<String?>(responseJson),
+      'rtMs': serializer.toJson<int?>(rtMs),
+      'correct': serializer.toJson<bool?>(correct),
+      'isPractice': serializer.toJson<bool>(isPractice),
+      'timestamp': serializer.toJson<int>(timestamp),
+    };
+  }
+
+  CogAssessmentTrialRow copyWith(
+          {int? id,
+          String? sessionId,
+          int? trialIndex,
+          int? blockIndex,
+          String? stimulusJson,
+          Value<String?> responseJson = const Value.absent(),
+          Value<int?> rtMs = const Value.absent(),
+          Value<bool?> correct = const Value.absent(),
+          bool? isPractice,
+          int? timestamp}) =>
+      CogAssessmentTrialRow(
+        id: id ?? this.id,
+        sessionId: sessionId ?? this.sessionId,
+        trialIndex: trialIndex ?? this.trialIndex,
+        blockIndex: blockIndex ?? this.blockIndex,
+        stimulusJson: stimulusJson ?? this.stimulusJson,
+        responseJson:
+            responseJson.present ? responseJson.value : this.responseJson,
+        rtMs: rtMs.present ? rtMs.value : this.rtMs,
+        correct: correct.present ? correct.value : this.correct,
+        isPractice: isPractice ?? this.isPractice,
+        timestamp: timestamp ?? this.timestamp,
+      );
+  CogAssessmentTrialRow copyWithCompanion(CogAssessmentTrialsCompanion data) {
+    return CogAssessmentTrialRow(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      trialIndex:
+          data.trialIndex.present ? data.trialIndex.value : this.trialIndex,
+      blockIndex:
+          data.blockIndex.present ? data.blockIndex.value : this.blockIndex,
+      stimulusJson: data.stimulusJson.present
+          ? data.stimulusJson.value
+          : this.stimulusJson,
+      responseJson: data.responseJson.present
+          ? data.responseJson.value
+          : this.responseJson,
+      rtMs: data.rtMs.present ? data.rtMs.value : this.rtMs,
+      correct: data.correct.present ? data.correct.value : this.correct,
+      isPractice:
+          data.isPractice.present ? data.isPractice.value : this.isPractice,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentTrialRow(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('trialIndex: $trialIndex, ')
+          ..write('blockIndex: $blockIndex, ')
+          ..write('stimulusJson: $stimulusJson, ')
+          ..write('responseJson: $responseJson, ')
+          ..write('rtMs: $rtMs, ')
+          ..write('correct: $correct, ')
+          ..write('isPractice: $isPractice, ')
+          ..write('timestamp: $timestamp')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sessionId, trialIndex, blockIndex,
+      stimulusJson, responseJson, rtMs, correct, isPractice, timestamp);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAssessmentTrialRow &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.trialIndex == this.trialIndex &&
+          other.blockIndex == this.blockIndex &&
+          other.stimulusJson == this.stimulusJson &&
+          other.responseJson == this.responseJson &&
+          other.rtMs == this.rtMs &&
+          other.correct == this.correct &&
+          other.isPractice == this.isPractice &&
+          other.timestamp == this.timestamp);
+}
+
+class CogAssessmentTrialsCompanion
+    extends UpdateCompanion<CogAssessmentTrialRow> {
+  final Value<int> id;
+  final Value<String> sessionId;
+  final Value<int> trialIndex;
+  final Value<int> blockIndex;
+  final Value<String> stimulusJson;
+  final Value<String?> responseJson;
+  final Value<int?> rtMs;
+  final Value<bool?> correct;
+  final Value<bool> isPractice;
+  final Value<int> timestamp;
+  const CogAssessmentTrialsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.trialIndex = const Value.absent(),
+    this.blockIndex = const Value.absent(),
+    this.stimulusJson = const Value.absent(),
+    this.responseJson = const Value.absent(),
+    this.rtMs = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.isPractice = const Value.absent(),
+    this.timestamp = const Value.absent(),
+  });
+  CogAssessmentTrialsCompanion.insert({
+    this.id = const Value.absent(),
+    required String sessionId,
+    required int trialIndex,
+    required int blockIndex,
+    required String stimulusJson,
+    this.responseJson = const Value.absent(),
+    this.rtMs = const Value.absent(),
+    this.correct = const Value.absent(),
+    this.isPractice = const Value.absent(),
+    required int timestamp,
+  })  : sessionId = Value(sessionId),
+        trialIndex = Value(trialIndex),
+        blockIndex = Value(blockIndex),
+        stimulusJson = Value(stimulusJson),
+        timestamp = Value(timestamp);
+  static Insertable<CogAssessmentTrialRow> custom({
+    Expression<int>? id,
+    Expression<String>? sessionId,
+    Expression<int>? trialIndex,
+    Expression<int>? blockIndex,
+    Expression<String>? stimulusJson,
+    Expression<String>? responseJson,
+    Expression<int>? rtMs,
+    Expression<bool>? correct,
+    Expression<bool>? isPractice,
+    Expression<int>? timestamp,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (trialIndex != null) 'trial_index': trialIndex,
+      if (blockIndex != null) 'block_index': blockIndex,
+      if (stimulusJson != null) 'stimulus_json': stimulusJson,
+      if (responseJson != null) 'response_json': responseJson,
+      if (rtMs != null) 'rt_ms': rtMs,
+      if (correct != null) 'correct': correct,
+      if (isPractice != null) 'is_practice': isPractice,
+      if (timestamp != null) 'timestamp': timestamp,
+    });
+  }
+
+  CogAssessmentTrialsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? sessionId,
+      Value<int>? trialIndex,
+      Value<int>? blockIndex,
+      Value<String>? stimulusJson,
+      Value<String?>? responseJson,
+      Value<int?>? rtMs,
+      Value<bool?>? correct,
+      Value<bool>? isPractice,
+      Value<int>? timestamp}) {
+    return CogAssessmentTrialsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      trialIndex: trialIndex ?? this.trialIndex,
+      blockIndex: blockIndex ?? this.blockIndex,
+      stimulusJson: stimulusJson ?? this.stimulusJson,
+      responseJson: responseJson ?? this.responseJson,
+      rtMs: rtMs ?? this.rtMs,
+      correct: correct ?? this.correct,
+      isPractice: isPractice ?? this.isPractice,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (trialIndex.present) {
+      map['trial_index'] = Variable<int>(trialIndex.value);
+    }
+    if (blockIndex.present) {
+      map['block_index'] = Variable<int>(blockIndex.value);
+    }
+    if (stimulusJson.present) {
+      map['stimulus_json'] = Variable<String>(stimulusJson.value);
+    }
+    if (responseJson.present) {
+      map['response_json'] = Variable<String>(responseJson.value);
+    }
+    if (rtMs.present) {
+      map['rt_ms'] = Variable<int>(rtMs.value);
+    }
+    if (correct.present) {
+      map['correct'] = Variable<bool>(correct.value);
+    }
+    if (isPractice.present) {
+      map['is_practice'] = Variable<bool>(isPractice.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<int>(timestamp.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentTrialsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('trialIndex: $trialIndex, ')
+          ..write('blockIndex: $blockIndex, ')
+          ..write('stimulusJson: $stimulusJson, ')
+          ..write('responseJson: $responseJson, ')
+          ..write('rtMs: $rtMs, ')
+          ..write('correct: $correct, ')
+          ..write('isPractice: $isPractice, ')
+          ..write('timestamp: $timestamp')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogAssessmentMetricsTable extends CogAssessmentMetrics
+    with TableInfo<$CogAssessmentMetricsTable, CogAssessmentMetricRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAssessmentMetricsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _metricNameMeta =
+      const VerificationMeta('metricName');
+  @override
+  late final GeneratedColumn<String> metricName = GeneratedColumn<String>(
+      'metric_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<double> value = GeneratedColumn<double>(
+      'value', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _nTrialsMeta =
+      const VerificationMeta('nTrials');
+  @override
+  late final GeneratedColumn<int> nTrials = GeneratedColumn<int>(
+      'n_trials', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _qualityFlagsJsonMeta =
+      const VerificationMeta('qualityFlagsJson');
+  @override
+  late final GeneratedColumn<String> qualityFlagsJson = GeneratedColumn<String>(
+      'quality_flags_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, sessionId, metricName, value, nTrials, qualityFlagsJson];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_assessment_metrics';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAssessmentMetricRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('metric_name')) {
+      context.handle(
+          _metricNameMeta,
+          metricName.isAcceptableOrUnknown(
+              data['metric_name']!, _metricNameMeta));
+    } else if (isInserting) {
+      context.missing(_metricNameMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('n_trials')) {
+      context.handle(_nTrialsMeta,
+          nTrials.isAcceptableOrUnknown(data['n_trials']!, _nTrialsMeta));
+    } else if (isInserting) {
+      context.missing(_nTrialsMeta);
+    }
+    if (data.containsKey('quality_flags_json')) {
+      context.handle(
+          _qualityFlagsJsonMeta,
+          qualityFlagsJson.isAcceptableOrUnknown(
+              data['quality_flags_json']!, _qualityFlagsJsonMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogAssessmentMetricRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAssessmentMetricRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      metricName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}metric_name'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}value'])!,
+      nTrials: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}n_trials'])!,
+      qualityFlagsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}quality_flags_json']),
+    );
+  }
+
+  @override
+  $CogAssessmentMetricsTable createAlias(String alias) {
+    return $CogAssessmentMetricsTable(attachedDatabase, alias);
+  }
+}
+
+class CogAssessmentMetricRow extends DataClass
+    implements Insertable<CogAssessmentMetricRow> {
+  final int id;
+  final String sessionId;
+
+  /// 指标名（域层 [MetricNames]，如 `rt_median`）。
+  final String metricName;
+  final double value;
+  final int nTrials;
+
+  /// 该指标层级的质量标记 JSON 数组；NULL = 无。
+  final String? qualityFlagsJson;
+  const CogAssessmentMetricRow(
+      {required this.id,
+      required this.sessionId,
+      required this.metricName,
+      required this.value,
+      required this.nTrials,
+      this.qualityFlagsJson});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['metric_name'] = Variable<String>(metricName);
+    map['value'] = Variable<double>(value);
+    map['n_trials'] = Variable<int>(nTrials);
+    if (!nullToAbsent || qualityFlagsJson != null) {
+      map['quality_flags_json'] = Variable<String>(qualityFlagsJson);
+    }
+    return map;
+  }
+
+  CogAssessmentMetricsCompanion toCompanion(bool nullToAbsent) {
+    return CogAssessmentMetricsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      metricName: Value(metricName),
+      value: Value(value),
+      nTrials: Value(nTrials),
+      qualityFlagsJson: qualityFlagsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(qualityFlagsJson),
+    );
+  }
+
+  factory CogAssessmentMetricRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAssessmentMetricRow(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      metricName: serializer.fromJson<String>(json['metricName']),
+      value: serializer.fromJson<double>(json['value']),
+      nTrials: serializer.fromJson<int>(json['nTrials']),
+      qualityFlagsJson: serializer.fromJson<String?>(json['qualityFlagsJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'metricName': serializer.toJson<String>(metricName),
+      'value': serializer.toJson<double>(value),
+      'nTrials': serializer.toJson<int>(nTrials),
+      'qualityFlagsJson': serializer.toJson<String?>(qualityFlagsJson),
+    };
+  }
+
+  CogAssessmentMetricRow copyWith(
+          {int? id,
+          String? sessionId,
+          String? metricName,
+          double? value,
+          int? nTrials,
+          Value<String?> qualityFlagsJson = const Value.absent()}) =>
+      CogAssessmentMetricRow(
+        id: id ?? this.id,
+        sessionId: sessionId ?? this.sessionId,
+        metricName: metricName ?? this.metricName,
+        value: value ?? this.value,
+        nTrials: nTrials ?? this.nTrials,
+        qualityFlagsJson: qualityFlagsJson.present
+            ? qualityFlagsJson.value
+            : this.qualityFlagsJson,
+      );
+  CogAssessmentMetricRow copyWithCompanion(CogAssessmentMetricsCompanion data) {
+    return CogAssessmentMetricRow(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      metricName:
+          data.metricName.present ? data.metricName.value : this.metricName,
+      value: data.value.present ? data.value.value : this.value,
+      nTrials: data.nTrials.present ? data.nTrials.value : this.nTrials,
+      qualityFlagsJson: data.qualityFlagsJson.present
+          ? data.qualityFlagsJson.value
+          : this.qualityFlagsJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentMetricRow(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('metricName: $metricName, ')
+          ..write('value: $value, ')
+          ..write('nTrials: $nTrials, ')
+          ..write('qualityFlagsJson: $qualityFlagsJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, sessionId, metricName, value, nTrials, qualityFlagsJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAssessmentMetricRow &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.metricName == this.metricName &&
+          other.value == this.value &&
+          other.nTrials == this.nTrials &&
+          other.qualityFlagsJson == this.qualityFlagsJson);
+}
+
+class CogAssessmentMetricsCompanion
+    extends UpdateCompanion<CogAssessmentMetricRow> {
+  final Value<int> id;
+  final Value<String> sessionId;
+  final Value<String> metricName;
+  final Value<double> value;
+  final Value<int> nTrials;
+  final Value<String?> qualityFlagsJson;
+  const CogAssessmentMetricsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.metricName = const Value.absent(),
+    this.value = const Value.absent(),
+    this.nTrials = const Value.absent(),
+    this.qualityFlagsJson = const Value.absent(),
+  });
+  CogAssessmentMetricsCompanion.insert({
+    this.id = const Value.absent(),
+    required String sessionId,
+    required String metricName,
+    required double value,
+    required int nTrials,
+    this.qualityFlagsJson = const Value.absent(),
+  })  : sessionId = Value(sessionId),
+        metricName = Value(metricName),
+        value = Value(value),
+        nTrials = Value(nTrials);
+  static Insertable<CogAssessmentMetricRow> custom({
+    Expression<int>? id,
+    Expression<String>? sessionId,
+    Expression<String>? metricName,
+    Expression<double>? value,
+    Expression<int>? nTrials,
+    Expression<String>? qualityFlagsJson,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (metricName != null) 'metric_name': metricName,
+      if (value != null) 'value': value,
+      if (nTrials != null) 'n_trials': nTrials,
+      if (qualityFlagsJson != null) 'quality_flags_json': qualityFlagsJson,
+    });
+  }
+
+  CogAssessmentMetricsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? sessionId,
+      Value<String>? metricName,
+      Value<double>? value,
+      Value<int>? nTrials,
+      Value<String?>? qualityFlagsJson}) {
+    return CogAssessmentMetricsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      metricName: metricName ?? this.metricName,
+      value: value ?? this.value,
+      nTrials: nTrials ?? this.nTrials,
+      qualityFlagsJson: qualityFlagsJson ?? this.qualityFlagsJson,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (metricName.present) {
+      map['metric_name'] = Variable<String>(metricName.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<double>(value.value);
+    }
+    if (nTrials.present) {
+      map['n_trials'] = Variable<int>(nTrials.value);
+    }
+    if (qualityFlagsJson.present) {
+      map['quality_flags_json'] = Variable<String>(qualityFlagsJson.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAssessmentMetricsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('metricName: $metricName, ')
+          ..write('value: $value, ')
+          ..write('nTrials: $nTrials, ')
+          ..write('qualityFlagsJson: $qualityFlagsJson')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogAbilityEstimatesTable extends CogAbilityEstimates
+    with TableInfo<$CogAbilityEstimatesTable, CogAbilityEstimateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAbilityEstimatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _abilityIdMeta =
+      const VerificationMeta('abilityId');
+  @override
+  late final GeneratedColumn<String> abilityId = GeneratedColumn<String>(
+      'ability_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _meanMeta = const VerificationMeta('mean');
+  @override
+  late final GeneratedColumn<double> mean = GeneratedColumn<double>(
+      'mean', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _uncertaintyMeta =
+      const VerificationMeta('uncertainty');
+  @override
+  late final GeneratedColumn<double> uncertainty = GeneratedColumn<double>(
+      'uncertainty', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _nMeasurementsMeta =
+      const VerificationMeta('nMeasurements');
+  @override
+  late final GeneratedColumn<int> nMeasurements = GeneratedColumn<int>(
+      'n_measurements', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _designVersionMeta =
+      const VerificationMeta('designVersion');
+  @override
+  late final GeneratedColumn<String> designVersion = GeneratedColumn<String>(
+      'design_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mappingVersionMeta =
+      const VerificationMeta('mappingVersion');
+  @override
+  late final GeneratedColumn<String> mappingVersion = GeneratedColumn<String>(
+      'mapping_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _personalBaselineJsonMeta =
+      const VerificationMeta('personalBaselineJson');
+  @override
+  late final GeneratedColumn<String> personalBaselineJson =
+      GeneratedColumn<String>('personal_baseline_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _deviceMeta = const VerificationMeta('device');
+  @override
+  late final GeneratedColumn<String> device = GeneratedColumn<String>(
+      'device', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _staleMeta = const VerificationMeta('stale');
+  @override
+  late final GeneratedColumn<bool> stale = GeneratedColumn<bool>(
+      'stale', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("stale" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _contributionsJsonMeta =
+      const VerificationMeta('contributionsJson');
+  @override
+  late final GeneratedColumn<String> contributionsJson =
+      GeneratedColumn<String>('contributions_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        abilityId,
+        mean,
+        uncertainty,
+        nMeasurements,
+        source,
+        designVersion,
+        mappingVersion,
+        personalBaselineJson,
+        device,
+        updatedAt,
+        stale,
+        contributionsJson
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_ability_estimates';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAbilityEstimateRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('ability_id')) {
+      context.handle(_abilityIdMeta,
+          abilityId.isAcceptableOrUnknown(data['ability_id']!, _abilityIdMeta));
+    } else if (isInserting) {
+      context.missing(_abilityIdMeta);
+    }
+    if (data.containsKey('mean')) {
+      context.handle(
+          _meanMeta, mean.isAcceptableOrUnknown(data['mean']!, _meanMeta));
+    } else if (isInserting) {
+      context.missing(_meanMeta);
+    }
+    if (data.containsKey('uncertainty')) {
+      context.handle(
+          _uncertaintyMeta,
+          uncertainty.isAcceptableOrUnknown(
+              data['uncertainty']!, _uncertaintyMeta));
+    } else if (isInserting) {
+      context.missing(_uncertaintyMeta);
+    }
+    if (data.containsKey('n_measurements')) {
+      context.handle(
+          _nMeasurementsMeta,
+          nMeasurements.isAcceptableOrUnknown(
+              data['n_measurements']!, _nMeasurementsMeta));
+    } else if (isInserting) {
+      context.missing(_nMeasurementsMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('design_version')) {
+      context.handle(
+          _designVersionMeta,
+          designVersion.isAcceptableOrUnknown(
+              data['design_version']!, _designVersionMeta));
+    } else if (isInserting) {
+      context.missing(_designVersionMeta);
+    }
+    if (data.containsKey('mapping_version')) {
+      context.handle(
+          _mappingVersionMeta,
+          mappingVersion.isAcceptableOrUnknown(
+              data['mapping_version']!, _mappingVersionMeta));
+    } else if (isInserting) {
+      context.missing(_mappingVersionMeta);
+    }
+    if (data.containsKey('personal_baseline_json')) {
+      context.handle(
+          _personalBaselineJsonMeta,
+          personalBaselineJson.isAcceptableOrUnknown(
+              data['personal_baseline_json']!, _personalBaselineJsonMeta));
+    }
+    if (data.containsKey('device')) {
+      context.handle(_deviceMeta,
+          device.isAcceptableOrUnknown(data['device']!, _deviceMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('stale')) {
+      context.handle(
+          _staleMeta, stale.isAcceptableOrUnknown(data['stale']!, _staleMeta));
+    }
+    if (data.containsKey('contributions_json')) {
+      context.handle(
+          _contributionsJsonMeta,
+          contributionsJson.isAcceptableOrUnknown(
+              data['contributions_json']!, _contributionsJsonMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {abilityId};
+  @override
+  CogAbilityEstimateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAbilityEstimateRow(
+      abilityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ability_id'])!,
+      mean: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}mean'])!,
+      uncertainty: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}uncertainty'])!,
+      nMeasurements: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}n_measurements'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      designVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}design_version'])!,
+      mappingVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}mapping_version'])!,
+      personalBaselineJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}personal_baseline_json']),
+      device: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}device']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      stale: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}stale'])!,
+      contributionsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}contributions_json']),
+    );
+  }
+
+  @override
+  $CogAbilityEstimatesTable createAlias(String alias) {
+    return $CogAbilityEstimatesTable(attachedDatabase, alias);
+  }
+}
+
+class CogAbilityEstimateRow extends DataClass
+    implements Insertable<CogAbilityEstimateRow> {
+  /// 能力 id（[AbilityIds]）。
+  final String abilityId;
+
+  /// z-score 量纲的估计值（0 = 该用户典型水平，个体内基线，非常模）。
+  final double mean;
+  final double uncertainty;
+
+  /// 参与合并的测量次数。
+  final int nMeasurements;
+
+  /// default / assessment_v1 / user_override。
+  final String source;
+  final String designVersion;
+  final String mappingVersion;
+
+  /// 个人基线（首次测量冻结的设备/试剂条件），JSON；NULL = 未建立。
+  final String? personalBaselineJson;
+  final String? device;
+  final int updatedAt;
+  final bool stale;
+
+  /// 每次测量的贡献明细 JSON 数组（审计「这个数怎么来的」）。
+  final String? contributionsJson;
+  const CogAbilityEstimateRow(
+      {required this.abilityId,
+      required this.mean,
+      required this.uncertainty,
+      required this.nMeasurements,
+      required this.source,
+      required this.designVersion,
+      required this.mappingVersion,
+      this.personalBaselineJson,
+      this.device,
+      required this.updatedAt,
+      required this.stale,
+      this.contributionsJson});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['ability_id'] = Variable<String>(abilityId);
+    map['mean'] = Variable<double>(mean);
+    map['uncertainty'] = Variable<double>(uncertainty);
+    map['n_measurements'] = Variable<int>(nMeasurements);
+    map['source'] = Variable<String>(source);
+    map['design_version'] = Variable<String>(designVersion);
+    map['mapping_version'] = Variable<String>(mappingVersion);
+    if (!nullToAbsent || personalBaselineJson != null) {
+      map['personal_baseline_json'] = Variable<String>(personalBaselineJson);
+    }
+    if (!nullToAbsent || device != null) {
+      map['device'] = Variable<String>(device);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    map['stale'] = Variable<bool>(stale);
+    if (!nullToAbsent || contributionsJson != null) {
+      map['contributions_json'] = Variable<String>(contributionsJson);
+    }
+    return map;
+  }
+
+  CogAbilityEstimatesCompanion toCompanion(bool nullToAbsent) {
+    return CogAbilityEstimatesCompanion(
+      abilityId: Value(abilityId),
+      mean: Value(mean),
+      uncertainty: Value(uncertainty),
+      nMeasurements: Value(nMeasurements),
+      source: Value(source),
+      designVersion: Value(designVersion),
+      mappingVersion: Value(mappingVersion),
+      personalBaselineJson: personalBaselineJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(personalBaselineJson),
+      device:
+          device == null && nullToAbsent ? const Value.absent() : Value(device),
+      updatedAt: Value(updatedAt),
+      stale: Value(stale),
+      contributionsJson: contributionsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contributionsJson),
+    );
+  }
+
+  factory CogAbilityEstimateRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAbilityEstimateRow(
+      abilityId: serializer.fromJson<String>(json['abilityId']),
+      mean: serializer.fromJson<double>(json['mean']),
+      uncertainty: serializer.fromJson<double>(json['uncertainty']),
+      nMeasurements: serializer.fromJson<int>(json['nMeasurements']),
+      source: serializer.fromJson<String>(json['source']),
+      designVersion: serializer.fromJson<String>(json['designVersion']),
+      mappingVersion: serializer.fromJson<String>(json['mappingVersion']),
+      personalBaselineJson:
+          serializer.fromJson<String?>(json['personalBaselineJson']),
+      device: serializer.fromJson<String?>(json['device']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      stale: serializer.fromJson<bool>(json['stale']),
+      contributionsJson:
+          serializer.fromJson<String?>(json['contributionsJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'abilityId': serializer.toJson<String>(abilityId),
+      'mean': serializer.toJson<double>(mean),
+      'uncertainty': serializer.toJson<double>(uncertainty),
+      'nMeasurements': serializer.toJson<int>(nMeasurements),
+      'source': serializer.toJson<String>(source),
+      'designVersion': serializer.toJson<String>(designVersion),
+      'mappingVersion': serializer.toJson<String>(mappingVersion),
+      'personalBaselineJson': serializer.toJson<String?>(personalBaselineJson),
+      'device': serializer.toJson<String?>(device),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'stale': serializer.toJson<bool>(stale),
+      'contributionsJson': serializer.toJson<String?>(contributionsJson),
+    };
+  }
+
+  CogAbilityEstimateRow copyWith(
+          {String? abilityId,
+          double? mean,
+          double? uncertainty,
+          int? nMeasurements,
+          String? source,
+          String? designVersion,
+          String? mappingVersion,
+          Value<String?> personalBaselineJson = const Value.absent(),
+          Value<String?> device = const Value.absent(),
+          int? updatedAt,
+          bool? stale,
+          Value<String?> contributionsJson = const Value.absent()}) =>
+      CogAbilityEstimateRow(
+        abilityId: abilityId ?? this.abilityId,
+        mean: mean ?? this.mean,
+        uncertainty: uncertainty ?? this.uncertainty,
+        nMeasurements: nMeasurements ?? this.nMeasurements,
+        source: source ?? this.source,
+        designVersion: designVersion ?? this.designVersion,
+        mappingVersion: mappingVersion ?? this.mappingVersion,
+        personalBaselineJson: personalBaselineJson.present
+            ? personalBaselineJson.value
+            : this.personalBaselineJson,
+        device: device.present ? device.value : this.device,
+        updatedAt: updatedAt ?? this.updatedAt,
+        stale: stale ?? this.stale,
+        contributionsJson: contributionsJson.present
+            ? contributionsJson.value
+            : this.contributionsJson,
+      );
+  CogAbilityEstimateRow copyWithCompanion(CogAbilityEstimatesCompanion data) {
+    return CogAbilityEstimateRow(
+      abilityId: data.abilityId.present ? data.abilityId.value : this.abilityId,
+      mean: data.mean.present ? data.mean.value : this.mean,
+      uncertainty:
+          data.uncertainty.present ? data.uncertainty.value : this.uncertainty,
+      nMeasurements: data.nMeasurements.present
+          ? data.nMeasurements.value
+          : this.nMeasurements,
+      source: data.source.present ? data.source.value : this.source,
+      designVersion: data.designVersion.present
+          ? data.designVersion.value
+          : this.designVersion,
+      mappingVersion: data.mappingVersion.present
+          ? data.mappingVersion.value
+          : this.mappingVersion,
+      personalBaselineJson: data.personalBaselineJson.present
+          ? data.personalBaselineJson.value
+          : this.personalBaselineJson,
+      device: data.device.present ? data.device.value : this.device,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      stale: data.stale.present ? data.stale.value : this.stale,
+      contributionsJson: data.contributionsJson.present
+          ? data.contributionsJson.value
+          : this.contributionsJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAbilityEstimateRow(')
+          ..write('abilityId: $abilityId, ')
+          ..write('mean: $mean, ')
+          ..write('uncertainty: $uncertainty, ')
+          ..write('nMeasurements: $nMeasurements, ')
+          ..write('source: $source, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('mappingVersion: $mappingVersion, ')
+          ..write('personalBaselineJson: $personalBaselineJson, ')
+          ..write('device: $device, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('stale: $stale, ')
+          ..write('contributionsJson: $contributionsJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      abilityId,
+      mean,
+      uncertainty,
+      nMeasurements,
+      source,
+      designVersion,
+      mappingVersion,
+      personalBaselineJson,
+      device,
+      updatedAt,
+      stale,
+      contributionsJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAbilityEstimateRow &&
+          other.abilityId == this.abilityId &&
+          other.mean == this.mean &&
+          other.uncertainty == this.uncertainty &&
+          other.nMeasurements == this.nMeasurements &&
+          other.source == this.source &&
+          other.designVersion == this.designVersion &&
+          other.mappingVersion == this.mappingVersion &&
+          other.personalBaselineJson == this.personalBaselineJson &&
+          other.device == this.device &&
+          other.updatedAt == this.updatedAt &&
+          other.stale == this.stale &&
+          other.contributionsJson == this.contributionsJson);
+}
+
+class CogAbilityEstimatesCompanion
+    extends UpdateCompanion<CogAbilityEstimateRow> {
+  final Value<String> abilityId;
+  final Value<double> mean;
+  final Value<double> uncertainty;
+  final Value<int> nMeasurements;
+  final Value<String> source;
+  final Value<String> designVersion;
+  final Value<String> mappingVersion;
+  final Value<String?> personalBaselineJson;
+  final Value<String?> device;
+  final Value<int> updatedAt;
+  final Value<bool> stale;
+  final Value<String?> contributionsJson;
+  final Value<int> rowid;
+  const CogAbilityEstimatesCompanion({
+    this.abilityId = const Value.absent(),
+    this.mean = const Value.absent(),
+    this.uncertainty = const Value.absent(),
+    this.nMeasurements = const Value.absent(),
+    this.source = const Value.absent(),
+    this.designVersion = const Value.absent(),
+    this.mappingVersion = const Value.absent(),
+    this.personalBaselineJson = const Value.absent(),
+    this.device = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.stale = const Value.absent(),
+    this.contributionsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CogAbilityEstimatesCompanion.insert({
+    required String abilityId,
+    required double mean,
+    required double uncertainty,
+    required int nMeasurements,
+    required String source,
+    required String designVersion,
+    required String mappingVersion,
+    this.personalBaselineJson = const Value.absent(),
+    this.device = const Value.absent(),
+    required int updatedAt,
+    this.stale = const Value.absent(),
+    this.contributionsJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : abilityId = Value(abilityId),
+        mean = Value(mean),
+        uncertainty = Value(uncertainty),
+        nMeasurements = Value(nMeasurements),
+        source = Value(source),
+        designVersion = Value(designVersion),
+        mappingVersion = Value(mappingVersion),
+        updatedAt = Value(updatedAt);
+  static Insertable<CogAbilityEstimateRow> custom({
+    Expression<String>? abilityId,
+    Expression<double>? mean,
+    Expression<double>? uncertainty,
+    Expression<int>? nMeasurements,
+    Expression<String>? source,
+    Expression<String>? designVersion,
+    Expression<String>? mappingVersion,
+    Expression<String>? personalBaselineJson,
+    Expression<String>? device,
+    Expression<int>? updatedAt,
+    Expression<bool>? stale,
+    Expression<String>? contributionsJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (abilityId != null) 'ability_id': abilityId,
+      if (mean != null) 'mean': mean,
+      if (uncertainty != null) 'uncertainty': uncertainty,
+      if (nMeasurements != null) 'n_measurements': nMeasurements,
+      if (source != null) 'source': source,
+      if (designVersion != null) 'design_version': designVersion,
+      if (mappingVersion != null) 'mapping_version': mappingVersion,
+      if (personalBaselineJson != null)
+        'personal_baseline_json': personalBaselineJson,
+      if (device != null) 'device': device,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (stale != null) 'stale': stale,
+      if (contributionsJson != null) 'contributions_json': contributionsJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CogAbilityEstimatesCompanion copyWith(
+      {Value<String>? abilityId,
+      Value<double>? mean,
+      Value<double>? uncertainty,
+      Value<int>? nMeasurements,
+      Value<String>? source,
+      Value<String>? designVersion,
+      Value<String>? mappingVersion,
+      Value<String?>? personalBaselineJson,
+      Value<String?>? device,
+      Value<int>? updatedAt,
+      Value<bool>? stale,
+      Value<String?>? contributionsJson,
+      Value<int>? rowid}) {
+    return CogAbilityEstimatesCompanion(
+      abilityId: abilityId ?? this.abilityId,
+      mean: mean ?? this.mean,
+      uncertainty: uncertainty ?? this.uncertainty,
+      nMeasurements: nMeasurements ?? this.nMeasurements,
+      source: source ?? this.source,
+      designVersion: designVersion ?? this.designVersion,
+      mappingVersion: mappingVersion ?? this.mappingVersion,
+      personalBaselineJson: personalBaselineJson ?? this.personalBaselineJson,
+      device: device ?? this.device,
+      updatedAt: updatedAt ?? this.updatedAt,
+      stale: stale ?? this.stale,
+      contributionsJson: contributionsJson ?? this.contributionsJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (abilityId.present) {
+      map['ability_id'] = Variable<String>(abilityId.value);
+    }
+    if (mean.present) {
+      map['mean'] = Variable<double>(mean.value);
+    }
+    if (uncertainty.present) {
+      map['uncertainty'] = Variable<double>(uncertainty.value);
+    }
+    if (nMeasurements.present) {
+      map['n_measurements'] = Variable<int>(nMeasurements.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (designVersion.present) {
+      map['design_version'] = Variable<String>(designVersion.value);
+    }
+    if (mappingVersion.present) {
+      map['mapping_version'] = Variable<String>(mappingVersion.value);
+    }
+    if (personalBaselineJson.present) {
+      map['personal_baseline_json'] =
+          Variable<String>(personalBaselineJson.value);
+    }
+    if (device.present) {
+      map['device'] = Variable<String>(device.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (stale.present) {
+      map['stale'] = Variable<bool>(stale.value);
+    }
+    if (contributionsJson.present) {
+      map['contributions_json'] = Variable<String>(contributionsJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAbilityEstimatesCompanion(')
+          ..write('abilityId: $abilityId, ')
+          ..write('mean: $mean, ')
+          ..write('uncertainty: $uncertainty, ')
+          ..write('nMeasurements: $nMeasurements, ')
+          ..write('source: $source, ')
+          ..write('designVersion: $designVersion, ')
+          ..write('mappingVersion: $mappingVersion, ')
+          ..write('personalBaselineJson: $personalBaselineJson, ')
+          ..write('device: $device, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('stale: $stale, ')
+          ..write('contributionsJson: $contributionsJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogCognitiveParamsTable extends CogCognitiveParams
+    with TableInfo<$CogCognitiveParamsTable, CogCognitiveParamRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogCognitiveParamsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _paramIdMeta =
+      const VerificationMeta('paramId');
+  @override
+  late final GeneratedColumn<String> paramId = GeneratedColumn<String>(
+      'param_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<double> value = GeneratedColumn<double>(
+      'value', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _uncertaintyMeta =
+      const VerificationMeta('uncertainty');
+  @override
+  late final GeneratedColumn<double> uncertainty = GeneratedColumn<double>(
+      'uncertainty', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _derivedFromJsonMeta =
+      const VerificationMeta('derivedFromJson');
+  @override
+  late final GeneratedColumn<String> derivedFromJson = GeneratedColumn<String>(
+      'derived_from_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [paramId, value, uncertainty, source, derivedFromJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_cognitive_params';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogCognitiveParamRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('param_id')) {
+      context.handle(_paramIdMeta,
+          paramId.isAcceptableOrUnknown(data['param_id']!, _paramIdMeta));
+    } else if (isInserting) {
+      context.missing(_paramIdMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('uncertainty')) {
+      context.handle(
+          _uncertaintyMeta,
+          uncertainty.isAcceptableOrUnknown(
+              data['uncertainty']!, _uncertaintyMeta));
+    } else if (isInserting) {
+      context.missing(_uncertaintyMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('derived_from_json')) {
+      context.handle(
+          _derivedFromJsonMeta,
+          derivedFromJson.isAcceptableOrUnknown(
+              data['derived_from_json']!, _derivedFromJsonMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {paramId};
+  @override
+  CogCognitiveParamRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogCognitiveParamRow(
+      paramId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}param_id'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}value'])!,
+      uncertainty: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}uncertainty'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      derivedFromJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}derived_from_json']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $CogCognitiveParamsTable createAlias(String alias) {
+    return $CogCognitiveParamsTable(attachedDatabase, alias);
+  }
+}
+
+class CogCognitiveParamRow extends DataClass
+    implements Insertable<CogCognitiveParamRow> {
+  final String paramId;
+  final double value;
+  final double uncertainty;
+
+  /// default / derived / user_override。
+  final String source;
+  final String? derivedFromJson;
+  final int updatedAt;
+  const CogCognitiveParamRow(
+      {required this.paramId,
+      required this.value,
+      required this.uncertainty,
+      required this.source,
+      this.derivedFromJson,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['param_id'] = Variable<String>(paramId);
+    map['value'] = Variable<double>(value);
+    map['uncertainty'] = Variable<double>(uncertainty);
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || derivedFromJson != null) {
+      map['derived_from_json'] = Variable<String>(derivedFromJson);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CogCognitiveParamsCompanion toCompanion(bool nullToAbsent) {
+    return CogCognitiveParamsCompanion(
+      paramId: Value(paramId),
+      value: Value(value),
+      uncertainty: Value(uncertainty),
+      source: Value(source),
+      derivedFromJson: derivedFromJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(derivedFromJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CogCognitiveParamRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogCognitiveParamRow(
+      paramId: serializer.fromJson<String>(json['paramId']),
+      value: serializer.fromJson<double>(json['value']),
+      uncertainty: serializer.fromJson<double>(json['uncertainty']),
+      source: serializer.fromJson<String>(json['source']),
+      derivedFromJson: serializer.fromJson<String?>(json['derivedFromJson']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'paramId': serializer.toJson<String>(paramId),
+      'value': serializer.toJson<double>(value),
+      'uncertainty': serializer.toJson<double>(uncertainty),
+      'source': serializer.toJson<String>(source),
+      'derivedFromJson': serializer.toJson<String?>(derivedFromJson),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CogCognitiveParamRow copyWith(
+          {String? paramId,
+          double? value,
+          double? uncertainty,
+          String? source,
+          Value<String?> derivedFromJson = const Value.absent(),
+          int? updatedAt}) =>
+      CogCognitiveParamRow(
+        paramId: paramId ?? this.paramId,
+        value: value ?? this.value,
+        uncertainty: uncertainty ?? this.uncertainty,
+        source: source ?? this.source,
+        derivedFromJson: derivedFromJson.present
+            ? derivedFromJson.value
+            : this.derivedFromJson,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  CogCognitiveParamRow copyWithCompanion(CogCognitiveParamsCompanion data) {
+    return CogCognitiveParamRow(
+      paramId: data.paramId.present ? data.paramId.value : this.paramId,
+      value: data.value.present ? data.value.value : this.value,
+      uncertainty:
+          data.uncertainty.present ? data.uncertainty.value : this.uncertainty,
+      source: data.source.present ? data.source.value : this.source,
+      derivedFromJson: data.derivedFromJson.present
+          ? data.derivedFromJson.value
+          : this.derivedFromJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogCognitiveParamRow(')
+          ..write('paramId: $paramId, ')
+          ..write('value: $value, ')
+          ..write('uncertainty: $uncertainty, ')
+          ..write('source: $source, ')
+          ..write('derivedFromJson: $derivedFromJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      paramId, value, uncertainty, source, derivedFromJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogCognitiveParamRow &&
+          other.paramId == this.paramId &&
+          other.value == this.value &&
+          other.uncertainty == this.uncertainty &&
+          other.source == this.source &&
+          other.derivedFromJson == this.derivedFromJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CogCognitiveParamsCompanion
+    extends UpdateCompanion<CogCognitiveParamRow> {
+  final Value<String> paramId;
+  final Value<double> value;
+  final Value<double> uncertainty;
+  final Value<String> source;
+  final Value<String?> derivedFromJson;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CogCognitiveParamsCompanion({
+    this.paramId = const Value.absent(),
+    this.value = const Value.absent(),
+    this.uncertainty = const Value.absent(),
+    this.source = const Value.absent(),
+    this.derivedFromJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CogCognitiveParamsCompanion.insert({
+    required String paramId,
+    required double value,
+    required double uncertainty,
+    required String source,
+    this.derivedFromJson = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : paramId = Value(paramId),
+        value = Value(value),
+        uncertainty = Value(uncertainty),
+        source = Value(source),
+        updatedAt = Value(updatedAt);
+  static Insertable<CogCognitiveParamRow> custom({
+    Expression<String>? paramId,
+    Expression<double>? value,
+    Expression<double>? uncertainty,
+    Expression<String>? source,
+    Expression<String>? derivedFromJson,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (paramId != null) 'param_id': paramId,
+      if (value != null) 'value': value,
+      if (uncertainty != null) 'uncertainty': uncertainty,
+      if (source != null) 'source': source,
+      if (derivedFromJson != null) 'derived_from_json': derivedFromJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CogCognitiveParamsCompanion copyWith(
+      {Value<String>? paramId,
+      Value<double>? value,
+      Value<double>? uncertainty,
+      Value<String>? source,
+      Value<String?>? derivedFromJson,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return CogCognitiveParamsCompanion(
+      paramId: paramId ?? this.paramId,
+      value: value ?? this.value,
+      uncertainty: uncertainty ?? this.uncertainty,
+      source: source ?? this.source,
+      derivedFromJson: derivedFromJson ?? this.derivedFromJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (paramId.present) {
+      map['param_id'] = Variable<String>(paramId.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<double>(value.value);
+    }
+    if (uncertainty.present) {
+      map['uncertainty'] = Variable<double>(uncertainty.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (derivedFromJson.present) {
+      map['derived_from_json'] = Variable<String>(derivedFromJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogCognitiveParamsCompanion(')
+          ..write('paramId: $paramId, ')
+          ..write('value: $value, ')
+          ..write('uncertainty: $uncertainty, ')
+          ..write('source: $source, ')
+          ..write('derivedFromJson: $derivedFromJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogTaskAbilityMappingsTable extends CogTaskAbilityMappings
+    with TableInfo<$CogTaskAbilityMappingsTable, CogTaskAbilityMappingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogTaskAbilityMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+      'task_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _abilityIdMeta =
+      const VerificationMeta('abilityId');
+  @override
+  late final GeneratedColumn<String> abilityId = GeneratedColumn<String>(
+      'ability_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _weightMeta = const VerificationMeta('weight');
+  @override
+  late final GeneratedColumn<double> weight = GeneratedColumn<double>(
+      'weight', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _metricSourceMeta =
+      const VerificationMeta('metricSource');
+  @override
+  late final GeneratedColumn<String> metricSource = GeneratedColumn<String>(
+      'metric_source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _mappingVersionMeta =
+      const VerificationMeta('mappingVersion');
+  @override
+  late final GeneratedColumn<String> mappingVersion = GeneratedColumn<String>(
+      'mapping_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, taskId, abilityId, weight, metricSource, enabled, mappingVersion];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_task_ability_mapping';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogTaskAbilityMappingRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(_taskIdMeta,
+          taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta));
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('ability_id')) {
+      context.handle(_abilityIdMeta,
+          abilityId.isAcceptableOrUnknown(data['ability_id']!, _abilityIdMeta));
+    } else if (isInserting) {
+      context.missing(_abilityIdMeta);
+    }
+    if (data.containsKey('weight')) {
+      context.handle(_weightMeta,
+          weight.isAcceptableOrUnknown(data['weight']!, _weightMeta));
+    } else if (isInserting) {
+      context.missing(_weightMeta);
+    }
+    if (data.containsKey('metric_source')) {
+      context.handle(
+          _metricSourceMeta,
+          metricSource.isAcceptableOrUnknown(
+              data['metric_source']!, _metricSourceMeta));
+    } else if (isInserting) {
+      context.missing(_metricSourceMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('mapping_version')) {
+      context.handle(
+          _mappingVersionMeta,
+          mappingVersion.isAcceptableOrUnknown(
+              data['mapping_version']!, _mappingVersionMeta));
+    } else if (isInserting) {
+      context.missing(_mappingVersionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogTaskAbilityMappingRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogTaskAbilityMappingRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      taskId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}task_id'])!,
+      abilityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ability_id'])!,
+      weight: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}weight'])!,
+      metricSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}metric_source'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      mappingVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}mapping_version'])!,
+    );
+  }
+
+  @override
+  $CogTaskAbilityMappingsTable createAlias(String alias) {
+    return $CogTaskAbilityMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class CogTaskAbilityMappingRow extends DataClass
+    implements Insertable<CogTaskAbilityMappingRow> {
+  final int id;
+  final String taskId;
+  final String abilityId;
+
+  /// 0–1；同一任务的多条权重之和应为 1（软约束，不建 DB 检查）。
+  final double weight;
+
+  /// 使用的统计指标名（[MetricNames]）。
+  final String metricSource;
+  final bool enabled;
+  final String mappingVersion;
+  const CogTaskAbilityMappingRow(
+      {required this.id,
+      required this.taskId,
+      required this.abilityId,
+      required this.weight,
+      required this.metricSource,
+      required this.enabled,
+      required this.mappingVersion});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['task_id'] = Variable<String>(taskId);
+    map['ability_id'] = Variable<String>(abilityId);
+    map['weight'] = Variable<double>(weight);
+    map['metric_source'] = Variable<String>(metricSource);
+    map['enabled'] = Variable<bool>(enabled);
+    map['mapping_version'] = Variable<String>(mappingVersion);
+    return map;
+  }
+
+  CogTaskAbilityMappingsCompanion toCompanion(bool nullToAbsent) {
+    return CogTaskAbilityMappingsCompanion(
+      id: Value(id),
+      taskId: Value(taskId),
+      abilityId: Value(abilityId),
+      weight: Value(weight),
+      metricSource: Value(metricSource),
+      enabled: Value(enabled),
+      mappingVersion: Value(mappingVersion),
+    );
+  }
+
+  factory CogTaskAbilityMappingRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogTaskAbilityMappingRow(
+      id: serializer.fromJson<int>(json['id']),
+      taskId: serializer.fromJson<String>(json['taskId']),
+      abilityId: serializer.fromJson<String>(json['abilityId']),
+      weight: serializer.fromJson<double>(json['weight']),
+      metricSource: serializer.fromJson<String>(json['metricSource']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      mappingVersion: serializer.fromJson<String>(json['mappingVersion']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'taskId': serializer.toJson<String>(taskId),
+      'abilityId': serializer.toJson<String>(abilityId),
+      'weight': serializer.toJson<double>(weight),
+      'metricSource': serializer.toJson<String>(metricSource),
+      'enabled': serializer.toJson<bool>(enabled),
+      'mappingVersion': serializer.toJson<String>(mappingVersion),
+    };
+  }
+
+  CogTaskAbilityMappingRow copyWith(
+          {int? id,
+          String? taskId,
+          String? abilityId,
+          double? weight,
+          String? metricSource,
+          bool? enabled,
+          String? mappingVersion}) =>
+      CogTaskAbilityMappingRow(
+        id: id ?? this.id,
+        taskId: taskId ?? this.taskId,
+        abilityId: abilityId ?? this.abilityId,
+        weight: weight ?? this.weight,
+        metricSource: metricSource ?? this.metricSource,
+        enabled: enabled ?? this.enabled,
+        mappingVersion: mappingVersion ?? this.mappingVersion,
+      );
+  CogTaskAbilityMappingRow copyWithCompanion(
+      CogTaskAbilityMappingsCompanion data) {
+    return CogTaskAbilityMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      abilityId: data.abilityId.present ? data.abilityId.value : this.abilityId,
+      weight: data.weight.present ? data.weight.value : this.weight,
+      metricSource: data.metricSource.present
+          ? data.metricSource.value
+          : this.metricSource,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      mappingVersion: data.mappingVersion.present
+          ? data.mappingVersion.value
+          : this.mappingVersion,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogTaskAbilityMappingRow(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('abilityId: $abilityId, ')
+          ..write('weight: $weight, ')
+          ..write('metricSource: $metricSource, ')
+          ..write('enabled: $enabled, ')
+          ..write('mappingVersion: $mappingVersion')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, taskId, abilityId, weight, metricSource, enabled, mappingVersion);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogTaskAbilityMappingRow &&
+          other.id == this.id &&
+          other.taskId == this.taskId &&
+          other.abilityId == this.abilityId &&
+          other.weight == this.weight &&
+          other.metricSource == this.metricSource &&
+          other.enabled == this.enabled &&
+          other.mappingVersion == this.mappingVersion);
+}
+
+class CogTaskAbilityMappingsCompanion
+    extends UpdateCompanion<CogTaskAbilityMappingRow> {
+  final Value<int> id;
+  final Value<String> taskId;
+  final Value<String> abilityId;
+  final Value<double> weight;
+  final Value<String> metricSource;
+  final Value<bool> enabled;
+  final Value<String> mappingVersion;
+  const CogTaskAbilityMappingsCompanion({
+    this.id = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.abilityId = const Value.absent(),
+    this.weight = const Value.absent(),
+    this.metricSource = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.mappingVersion = const Value.absent(),
+  });
+  CogTaskAbilityMappingsCompanion.insert({
+    this.id = const Value.absent(),
+    required String taskId,
+    required String abilityId,
+    required double weight,
+    required String metricSource,
+    this.enabled = const Value.absent(),
+    required String mappingVersion,
+  })  : taskId = Value(taskId),
+        abilityId = Value(abilityId),
+        weight = Value(weight),
+        metricSource = Value(metricSource),
+        mappingVersion = Value(mappingVersion);
+  static Insertable<CogTaskAbilityMappingRow> custom({
+    Expression<int>? id,
+    Expression<String>? taskId,
+    Expression<String>? abilityId,
+    Expression<double>? weight,
+    Expression<String>? metricSource,
+    Expression<bool>? enabled,
+    Expression<String>? mappingVersion,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (taskId != null) 'task_id': taskId,
+      if (abilityId != null) 'ability_id': abilityId,
+      if (weight != null) 'weight': weight,
+      if (metricSource != null) 'metric_source': metricSource,
+      if (enabled != null) 'enabled': enabled,
+      if (mappingVersion != null) 'mapping_version': mappingVersion,
+    });
+  }
+
+  CogTaskAbilityMappingsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? taskId,
+      Value<String>? abilityId,
+      Value<double>? weight,
+      Value<String>? metricSource,
+      Value<bool>? enabled,
+      Value<String>? mappingVersion}) {
+    return CogTaskAbilityMappingsCompanion(
+      id: id ?? this.id,
+      taskId: taskId ?? this.taskId,
+      abilityId: abilityId ?? this.abilityId,
+      weight: weight ?? this.weight,
+      metricSource: metricSource ?? this.metricSource,
+      enabled: enabled ?? this.enabled,
+      mappingVersion: mappingVersion ?? this.mappingVersion,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (abilityId.present) {
+      map['ability_id'] = Variable<String>(abilityId.value);
+    }
+    if (weight.present) {
+      map['weight'] = Variable<double>(weight.value);
+    }
+    if (metricSource.present) {
+      map['metric_source'] = Variable<String>(metricSource.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (mappingVersion.present) {
+      map['mapping_version'] = Variable<String>(mappingVersion.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogTaskAbilityMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('abilityId: $abilityId, ')
+          ..write('weight: $weight, ')
+          ..write('metricSource: $metricSource, ')
+          ..write('enabled: $enabled, ')
+          ..write('mappingVersion: $mappingVersion')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CogAbilityParamMappingsTable extends CogAbilityParamMappings
+    with TableInfo<$CogAbilityParamMappingsTable, CogAbilityParamMappingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CogAbilityParamMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _abilityIdMeta =
+      const VerificationMeta('abilityId');
+  @override
+  late final GeneratedColumn<String> abilityId = GeneratedColumn<String>(
+      'ability_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _paramIdMeta =
+      const VerificationMeta('paramId');
+  @override
+  late final GeneratedColumn<String> paramId = GeneratedColumn<String>(
+      'param_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _weightMeta = const VerificationMeta('weight');
+  @override
+  late final GeneratedColumn<double> weight = GeneratedColumn<double>(
+      'weight', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _directionMeta =
+      const VerificationMeta('direction');
+  @override
+  late final GeneratedColumn<String> direction = GeneratedColumn<String>(
+      'direction', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _mappingVersionMeta =
+      const VerificationMeta('mappingVersion');
+  @override
+  late final GeneratedColumn<String> mappingVersion = GeneratedColumn<String>(
+      'mapping_version', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, abilityId, paramId, weight, direction, enabled, mappingVersion];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cog_ability_param_mapping';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CogAbilityParamMappingRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('ability_id')) {
+      context.handle(_abilityIdMeta,
+          abilityId.isAcceptableOrUnknown(data['ability_id']!, _abilityIdMeta));
+    } else if (isInserting) {
+      context.missing(_abilityIdMeta);
+    }
+    if (data.containsKey('param_id')) {
+      context.handle(_paramIdMeta,
+          paramId.isAcceptableOrUnknown(data['param_id']!, _paramIdMeta));
+    } else if (isInserting) {
+      context.missing(_paramIdMeta);
+    }
+    if (data.containsKey('weight')) {
+      context.handle(_weightMeta,
+          weight.isAcceptableOrUnknown(data['weight']!, _weightMeta));
+    } else if (isInserting) {
+      context.missing(_weightMeta);
+    }
+    if (data.containsKey('direction')) {
+      context.handle(_directionMeta,
+          direction.isAcceptableOrUnknown(data['direction']!, _directionMeta));
+    } else if (isInserting) {
+      context.missing(_directionMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('mapping_version')) {
+      context.handle(
+          _mappingVersionMeta,
+          mappingVersion.isAcceptableOrUnknown(
+              data['mapping_version']!, _mappingVersionMeta));
+    } else if (isInserting) {
+      context.missing(_mappingVersionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CogAbilityParamMappingRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CogAbilityParamMappingRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      abilityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ability_id'])!,
+      paramId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}param_id'])!,
+      weight: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}weight'])!,
+      direction: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      mappingVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}mapping_version'])!,
+    );
+  }
+
+  @override
+  $CogAbilityParamMappingsTable createAlias(String alias) {
+    return $CogAbilityParamMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class CogAbilityParamMappingRow extends DataClass
+    implements Insertable<CogAbilityParamMappingRow> {
+  final int id;
+  final String abilityId;
+  final String paramId;
+
+  /// 0–1 权重。
+  final double weight;
+
+  /// positive / negative。
+  final String direction;
+  final bool enabled;
+  final String mappingVersion;
+  const CogAbilityParamMappingRow(
+      {required this.id,
+      required this.abilityId,
+      required this.paramId,
+      required this.weight,
+      required this.direction,
+      required this.enabled,
+      required this.mappingVersion});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['ability_id'] = Variable<String>(abilityId);
+    map['param_id'] = Variable<String>(paramId);
+    map['weight'] = Variable<double>(weight);
+    map['direction'] = Variable<String>(direction);
+    map['enabled'] = Variable<bool>(enabled);
+    map['mapping_version'] = Variable<String>(mappingVersion);
+    return map;
+  }
+
+  CogAbilityParamMappingsCompanion toCompanion(bool nullToAbsent) {
+    return CogAbilityParamMappingsCompanion(
+      id: Value(id),
+      abilityId: Value(abilityId),
+      paramId: Value(paramId),
+      weight: Value(weight),
+      direction: Value(direction),
+      enabled: Value(enabled),
+      mappingVersion: Value(mappingVersion),
+    );
+  }
+
+  factory CogAbilityParamMappingRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CogAbilityParamMappingRow(
+      id: serializer.fromJson<int>(json['id']),
+      abilityId: serializer.fromJson<String>(json['abilityId']),
+      paramId: serializer.fromJson<String>(json['paramId']),
+      weight: serializer.fromJson<double>(json['weight']),
+      direction: serializer.fromJson<String>(json['direction']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      mappingVersion: serializer.fromJson<String>(json['mappingVersion']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'abilityId': serializer.toJson<String>(abilityId),
+      'paramId': serializer.toJson<String>(paramId),
+      'weight': serializer.toJson<double>(weight),
+      'direction': serializer.toJson<String>(direction),
+      'enabled': serializer.toJson<bool>(enabled),
+      'mappingVersion': serializer.toJson<String>(mappingVersion),
+    };
+  }
+
+  CogAbilityParamMappingRow copyWith(
+          {int? id,
+          String? abilityId,
+          String? paramId,
+          double? weight,
+          String? direction,
+          bool? enabled,
+          String? mappingVersion}) =>
+      CogAbilityParamMappingRow(
+        id: id ?? this.id,
+        abilityId: abilityId ?? this.abilityId,
+        paramId: paramId ?? this.paramId,
+        weight: weight ?? this.weight,
+        direction: direction ?? this.direction,
+        enabled: enabled ?? this.enabled,
+        mappingVersion: mappingVersion ?? this.mappingVersion,
+      );
+  CogAbilityParamMappingRow copyWithCompanion(
+      CogAbilityParamMappingsCompanion data) {
+    return CogAbilityParamMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      abilityId: data.abilityId.present ? data.abilityId.value : this.abilityId,
+      paramId: data.paramId.present ? data.paramId.value : this.paramId,
+      weight: data.weight.present ? data.weight.value : this.weight,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      mappingVersion: data.mappingVersion.present
+          ? data.mappingVersion.value
+          : this.mappingVersion,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAbilityParamMappingRow(')
+          ..write('id: $id, ')
+          ..write('abilityId: $abilityId, ')
+          ..write('paramId: $paramId, ')
+          ..write('weight: $weight, ')
+          ..write('direction: $direction, ')
+          ..write('enabled: $enabled, ')
+          ..write('mappingVersion: $mappingVersion')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, abilityId, paramId, weight, direction, enabled, mappingVersion);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CogAbilityParamMappingRow &&
+          other.id == this.id &&
+          other.abilityId == this.abilityId &&
+          other.paramId == this.paramId &&
+          other.weight == this.weight &&
+          other.direction == this.direction &&
+          other.enabled == this.enabled &&
+          other.mappingVersion == this.mappingVersion);
+}
+
+class CogAbilityParamMappingsCompanion
+    extends UpdateCompanion<CogAbilityParamMappingRow> {
+  final Value<int> id;
+  final Value<String> abilityId;
+  final Value<String> paramId;
+  final Value<double> weight;
+  final Value<String> direction;
+  final Value<bool> enabled;
+  final Value<String> mappingVersion;
+  const CogAbilityParamMappingsCompanion({
+    this.id = const Value.absent(),
+    this.abilityId = const Value.absent(),
+    this.paramId = const Value.absent(),
+    this.weight = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.mappingVersion = const Value.absent(),
+  });
+  CogAbilityParamMappingsCompanion.insert({
+    this.id = const Value.absent(),
+    required String abilityId,
+    required String paramId,
+    required double weight,
+    required String direction,
+    this.enabled = const Value.absent(),
+    required String mappingVersion,
+  })  : abilityId = Value(abilityId),
+        paramId = Value(paramId),
+        weight = Value(weight),
+        direction = Value(direction),
+        mappingVersion = Value(mappingVersion);
+  static Insertable<CogAbilityParamMappingRow> custom({
+    Expression<int>? id,
+    Expression<String>? abilityId,
+    Expression<String>? paramId,
+    Expression<double>? weight,
+    Expression<String>? direction,
+    Expression<bool>? enabled,
+    Expression<String>? mappingVersion,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (abilityId != null) 'ability_id': abilityId,
+      if (paramId != null) 'param_id': paramId,
+      if (weight != null) 'weight': weight,
+      if (direction != null) 'direction': direction,
+      if (enabled != null) 'enabled': enabled,
+      if (mappingVersion != null) 'mapping_version': mappingVersion,
+    });
+  }
+
+  CogAbilityParamMappingsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? abilityId,
+      Value<String>? paramId,
+      Value<double>? weight,
+      Value<String>? direction,
+      Value<bool>? enabled,
+      Value<String>? mappingVersion}) {
+    return CogAbilityParamMappingsCompanion(
+      id: id ?? this.id,
+      abilityId: abilityId ?? this.abilityId,
+      paramId: paramId ?? this.paramId,
+      weight: weight ?? this.weight,
+      direction: direction ?? this.direction,
+      enabled: enabled ?? this.enabled,
+      mappingVersion: mappingVersion ?? this.mappingVersion,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (abilityId.present) {
+      map['ability_id'] = Variable<String>(abilityId.value);
+    }
+    if (paramId.present) {
+      map['param_id'] = Variable<String>(paramId.value);
+    }
+    if (weight.present) {
+      map['weight'] = Variable<double>(weight.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<String>(direction.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (mappingVersion.present) {
+      map['mapping_version'] = Variable<String>(mappingVersion.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CogAbilityParamMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('abilityId: $abilityId, ')
+          ..write('paramId: $paramId, ')
+          ..write('weight: $weight, ')
+          ..write('direction: $direction, ')
+          ..write('enabled: $enabled, ')
+          ..write('mappingVersion: $mappingVersion')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -24524,6 +28063,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $QuestionSerialCountersTable questionSerialCounters =
       $QuestionSerialCountersTable(this);
   late final $AbilityScoresTable abilityScores = $AbilityScoresTable(this);
+  late final $CogAssessmentTasksTable cogAssessmentTasks =
+      $CogAssessmentTasksTable(this);
+  late final $CogAssessmentSessionsTable cogAssessmentSessions =
+      $CogAssessmentSessionsTable(this);
+  late final $CogAssessmentTrialsTable cogAssessmentTrials =
+      $CogAssessmentTrialsTable(this);
+  late final $CogAssessmentMetricsTable cogAssessmentMetrics =
+      $CogAssessmentMetricsTable(this);
+  late final $CogAbilityEstimatesTable cogAbilityEstimates =
+      $CogAbilityEstimatesTable(this);
+  late final $CogCognitiveParamsTable cogCognitiveParams =
+      $CogCognitiveParamsTable(this);
+  late final $CogTaskAbilityMappingsTable cogTaskAbilityMappings =
+      $CogTaskAbilityMappingsTable(this);
+  late final $CogAbilityParamMappingsTable cogAbilityParamMappings =
+      $CogAbilityParamMappingsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -24577,7 +28132,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         materialIntakeUndoLogs,
         questionAttempts,
         questionSerialCounters,
-        abilityScores
+        abilityScores,
+        cogAssessmentTasks,
+        cogAssessmentSessions,
+        cogAssessmentTrials,
+        cogAssessmentMetrics,
+        cogAbilityEstimates,
+        cogCognitiveParams,
+        cogTaskAbilityMappings,
+        cogAbilityParamMappings
       ];
 }
 
@@ -36115,6 +39678,1779 @@ typedef $$AbilityScoresTableProcessedTableManager = ProcessedTableManager<
     ),
     AbilityScoreRow,
     PrefetchHooks Function()>;
+typedef $$CogAssessmentTasksTableCreateCompanionBuilder
+    = CogAssessmentTasksCompanion Function({
+  required String id,
+  required String displayName,
+  required String taskType,
+  required String designVersion,
+  required String configJson,
+  Value<bool> enabled,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$CogAssessmentTasksTableUpdateCompanionBuilder
+    = CogAssessmentTasksCompanion Function({
+  Value<String> id,
+  Value<String> displayName,
+  Value<String> taskType,
+  Value<String> designVersion,
+  Value<String> configJson,
+  Value<bool> enabled,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$CogAssessmentTasksTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTasksTable> {
+  $$CogAssessmentTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get taskType => $composableBuilder(
+      column: $table.taskType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get configJson => $composableBuilder(
+      column: $table.configJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAssessmentTasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTasksTable> {
+  $$CogAssessmentTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get taskType => $composableBuilder(
+      column: $table.taskType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get designVersion => $composableBuilder(
+      column: $table.designVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get configJson => $composableBuilder(
+      column: $table.configJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAssessmentTasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTasksTable> {
+  $$CogAssessmentTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => column);
+
+  GeneratedColumn<String> get taskType =>
+      $composableBuilder(column: $table.taskType, builder: (column) => column);
+
+  GeneratedColumn<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get configJson => $composableBuilder(
+      column: $table.configJson, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CogAssessmentTasksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAssessmentTasksTable,
+    CogAssessmentTaskRow,
+    $$CogAssessmentTasksTableFilterComposer,
+    $$CogAssessmentTasksTableOrderingComposer,
+    $$CogAssessmentTasksTableAnnotationComposer,
+    $$CogAssessmentTasksTableCreateCompanionBuilder,
+    $$CogAssessmentTasksTableUpdateCompanionBuilder,
+    (
+      CogAssessmentTaskRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentTasksTable,
+          CogAssessmentTaskRow>
+    ),
+    CogAssessmentTaskRow,
+    PrefetchHooks Function()> {
+  $$CogAssessmentTasksTableTableManager(
+      _$AppDatabase db, $CogAssessmentTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAssessmentTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAssessmentTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAssessmentTasksTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> displayName = const Value.absent(),
+            Value<String> taskType = const Value.absent(),
+            Value<String> designVersion = const Value.absent(),
+            Value<String> configJson = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAssessmentTasksCompanion(
+            id: id,
+            displayName: displayName,
+            taskType: taskType,
+            designVersion: designVersion,
+            configJson: configJson,
+            enabled: enabled,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String displayName,
+            required String taskType,
+            required String designVersion,
+            required String configJson,
+            Value<bool> enabled = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAssessmentTasksCompanion.insert(
+            id: id,
+            displayName: displayName,
+            taskType: taskType,
+            designVersion: designVersion,
+            configJson: configJson,
+            enabled: enabled,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAssessmentTasksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CogAssessmentTasksTable,
+    CogAssessmentTaskRow,
+    $$CogAssessmentTasksTableFilterComposer,
+    $$CogAssessmentTasksTableOrderingComposer,
+    $$CogAssessmentTasksTableAnnotationComposer,
+    $$CogAssessmentTasksTableCreateCompanionBuilder,
+    $$CogAssessmentTasksTableUpdateCompanionBuilder,
+    (
+      CogAssessmentTaskRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentTasksTable,
+          CogAssessmentTaskRow>
+    ),
+    CogAssessmentTaskRow,
+    PrefetchHooks Function()>;
+typedef $$CogAssessmentSessionsTableCreateCompanionBuilder
+    = CogAssessmentSessionsCompanion Function({
+  required String id,
+  required String taskId,
+  required String designVersion,
+  required String device,
+  required int startedAt,
+  Value<int?> completedAt,
+  required String status,
+  Value<String?> qualityFlagsJson,
+  Value<int> rowid,
+});
+typedef $$CogAssessmentSessionsTableUpdateCompanionBuilder
+    = CogAssessmentSessionsCompanion Function({
+  Value<String> id,
+  Value<String> taskId,
+  Value<String> designVersion,
+  Value<String> device,
+  Value<int> startedAt,
+  Value<int?> completedAt,
+  Value<String> status,
+  Value<String?> qualityFlagsJson,
+  Value<int> rowid,
+});
+
+class $$CogAssessmentSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAssessmentSessionsTable> {
+  $$CogAssessmentSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get device => $composableBuilder(
+      column: $table.device, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAssessmentSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAssessmentSessionsTable> {
+  $$CogAssessmentSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get designVersion => $composableBuilder(
+      column: $table.designVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get device => $composableBuilder(
+      column: $table.device, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAssessmentSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAssessmentSessionsTable> {
+  $$CogAssessmentSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get device =>
+      $composableBuilder(column: $table.device, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson, builder: (column) => column);
+}
+
+class $$CogAssessmentSessionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAssessmentSessionsTable,
+    CogAssessmentSessionRow,
+    $$CogAssessmentSessionsTableFilterComposer,
+    $$CogAssessmentSessionsTableOrderingComposer,
+    $$CogAssessmentSessionsTableAnnotationComposer,
+    $$CogAssessmentSessionsTableCreateCompanionBuilder,
+    $$CogAssessmentSessionsTableUpdateCompanionBuilder,
+    (
+      CogAssessmentSessionRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentSessionsTable,
+          CogAssessmentSessionRow>
+    ),
+    CogAssessmentSessionRow,
+    PrefetchHooks Function()> {
+  $$CogAssessmentSessionsTableTableManager(
+      _$AppDatabase db, $CogAssessmentSessionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAssessmentSessionsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAssessmentSessionsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAssessmentSessionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> taskId = const Value.absent(),
+            Value<String> designVersion = const Value.absent(),
+            Value<String> device = const Value.absent(),
+            Value<int> startedAt = const Value.absent(),
+            Value<int?> completedAt = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> qualityFlagsJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAssessmentSessionsCompanion(
+            id: id,
+            taskId: taskId,
+            designVersion: designVersion,
+            device: device,
+            startedAt: startedAt,
+            completedAt: completedAt,
+            status: status,
+            qualityFlagsJson: qualityFlagsJson,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String taskId,
+            required String designVersion,
+            required String device,
+            required int startedAt,
+            Value<int?> completedAt = const Value.absent(),
+            required String status,
+            Value<String?> qualityFlagsJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAssessmentSessionsCompanion.insert(
+            id: id,
+            taskId: taskId,
+            designVersion: designVersion,
+            device: device,
+            startedAt: startedAt,
+            completedAt: completedAt,
+            status: status,
+            qualityFlagsJson: qualityFlagsJson,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAssessmentSessionsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CogAssessmentSessionsTable,
+        CogAssessmentSessionRow,
+        $$CogAssessmentSessionsTableFilterComposer,
+        $$CogAssessmentSessionsTableOrderingComposer,
+        $$CogAssessmentSessionsTableAnnotationComposer,
+        $$CogAssessmentSessionsTableCreateCompanionBuilder,
+        $$CogAssessmentSessionsTableUpdateCompanionBuilder,
+        (
+          CogAssessmentSessionRow,
+          BaseReferences<_$AppDatabase, $CogAssessmentSessionsTable,
+              CogAssessmentSessionRow>
+        ),
+        CogAssessmentSessionRow,
+        PrefetchHooks Function()>;
+typedef $$CogAssessmentTrialsTableCreateCompanionBuilder
+    = CogAssessmentTrialsCompanion Function({
+  Value<int> id,
+  required String sessionId,
+  required int trialIndex,
+  required int blockIndex,
+  required String stimulusJson,
+  Value<String?> responseJson,
+  Value<int?> rtMs,
+  Value<bool?> correct,
+  Value<bool> isPractice,
+  required int timestamp,
+});
+typedef $$CogAssessmentTrialsTableUpdateCompanionBuilder
+    = CogAssessmentTrialsCompanion Function({
+  Value<int> id,
+  Value<String> sessionId,
+  Value<int> trialIndex,
+  Value<int> blockIndex,
+  Value<String> stimulusJson,
+  Value<String?> responseJson,
+  Value<int?> rtMs,
+  Value<bool?> correct,
+  Value<bool> isPractice,
+  Value<int> timestamp,
+});
+
+class $$CogAssessmentTrialsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTrialsTable> {
+  $$CogAssessmentTrialsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get trialIndex => $composableBuilder(
+      column: $table.trialIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get blockIndex => $composableBuilder(
+      column: $table.blockIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stimulusJson => $composableBuilder(
+      column: $table.stimulusJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get responseJson => $composableBuilder(
+      column: $table.responseJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get rtMs => $composableBuilder(
+      column: $table.rtMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isPractice => $composableBuilder(
+      column: $table.isPractice, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get timestamp => $composableBuilder(
+      column: $table.timestamp, builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAssessmentTrialsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTrialsTable> {
+  $$CogAssessmentTrialsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get trialIndex => $composableBuilder(
+      column: $table.trialIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get blockIndex => $composableBuilder(
+      column: $table.blockIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stimulusJson => $composableBuilder(
+      column: $table.stimulusJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get responseJson => $composableBuilder(
+      column: $table.responseJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get rtMs => $composableBuilder(
+      column: $table.rtMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get correct => $composableBuilder(
+      column: $table.correct, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isPractice => $composableBuilder(
+      column: $table.isPractice, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get timestamp => $composableBuilder(
+      column: $table.timestamp, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAssessmentTrialsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAssessmentTrialsTable> {
+  $$CogAssessmentTrialsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<int> get trialIndex => $composableBuilder(
+      column: $table.trialIndex, builder: (column) => column);
+
+  GeneratedColumn<int> get blockIndex => $composableBuilder(
+      column: $table.blockIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get stimulusJson => $composableBuilder(
+      column: $table.stimulusJson, builder: (column) => column);
+
+  GeneratedColumn<String> get responseJson => $composableBuilder(
+      column: $table.responseJson, builder: (column) => column);
+
+  GeneratedColumn<int> get rtMs =>
+      $composableBuilder(column: $table.rtMs, builder: (column) => column);
+
+  GeneratedColumn<bool> get correct =>
+      $composableBuilder(column: $table.correct, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPractice => $composableBuilder(
+      column: $table.isPractice, builder: (column) => column);
+
+  GeneratedColumn<int> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+}
+
+class $$CogAssessmentTrialsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAssessmentTrialsTable,
+    CogAssessmentTrialRow,
+    $$CogAssessmentTrialsTableFilterComposer,
+    $$CogAssessmentTrialsTableOrderingComposer,
+    $$CogAssessmentTrialsTableAnnotationComposer,
+    $$CogAssessmentTrialsTableCreateCompanionBuilder,
+    $$CogAssessmentTrialsTableUpdateCompanionBuilder,
+    (
+      CogAssessmentTrialRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentTrialsTable,
+          CogAssessmentTrialRow>
+    ),
+    CogAssessmentTrialRow,
+    PrefetchHooks Function()> {
+  $$CogAssessmentTrialsTableTableManager(
+      _$AppDatabase db, $CogAssessmentTrialsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAssessmentTrialsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAssessmentTrialsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAssessmentTrialsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<int> trialIndex = const Value.absent(),
+            Value<int> blockIndex = const Value.absent(),
+            Value<String> stimulusJson = const Value.absent(),
+            Value<String?> responseJson = const Value.absent(),
+            Value<int?> rtMs = const Value.absent(),
+            Value<bool?> correct = const Value.absent(),
+            Value<bool> isPractice = const Value.absent(),
+            Value<int> timestamp = const Value.absent(),
+          }) =>
+              CogAssessmentTrialsCompanion(
+            id: id,
+            sessionId: sessionId,
+            trialIndex: trialIndex,
+            blockIndex: blockIndex,
+            stimulusJson: stimulusJson,
+            responseJson: responseJson,
+            rtMs: rtMs,
+            correct: correct,
+            isPractice: isPractice,
+            timestamp: timestamp,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String sessionId,
+            required int trialIndex,
+            required int blockIndex,
+            required String stimulusJson,
+            Value<String?> responseJson = const Value.absent(),
+            Value<int?> rtMs = const Value.absent(),
+            Value<bool?> correct = const Value.absent(),
+            Value<bool> isPractice = const Value.absent(),
+            required int timestamp,
+          }) =>
+              CogAssessmentTrialsCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            trialIndex: trialIndex,
+            blockIndex: blockIndex,
+            stimulusJson: stimulusJson,
+            responseJson: responseJson,
+            rtMs: rtMs,
+            correct: correct,
+            isPractice: isPractice,
+            timestamp: timestamp,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAssessmentTrialsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CogAssessmentTrialsTable,
+    CogAssessmentTrialRow,
+    $$CogAssessmentTrialsTableFilterComposer,
+    $$CogAssessmentTrialsTableOrderingComposer,
+    $$CogAssessmentTrialsTableAnnotationComposer,
+    $$CogAssessmentTrialsTableCreateCompanionBuilder,
+    $$CogAssessmentTrialsTableUpdateCompanionBuilder,
+    (
+      CogAssessmentTrialRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentTrialsTable,
+          CogAssessmentTrialRow>
+    ),
+    CogAssessmentTrialRow,
+    PrefetchHooks Function()>;
+typedef $$CogAssessmentMetricsTableCreateCompanionBuilder
+    = CogAssessmentMetricsCompanion Function({
+  Value<int> id,
+  required String sessionId,
+  required String metricName,
+  required double value,
+  required int nTrials,
+  Value<String?> qualityFlagsJson,
+});
+typedef $$CogAssessmentMetricsTableUpdateCompanionBuilder
+    = CogAssessmentMetricsCompanion Function({
+  Value<int> id,
+  Value<String> sessionId,
+  Value<String> metricName,
+  Value<double> value,
+  Value<int> nTrials,
+  Value<String?> qualityFlagsJson,
+});
+
+class $$CogAssessmentMetricsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAssessmentMetricsTable> {
+  $$CogAssessmentMetricsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metricName => $composableBuilder(
+      column: $table.metricName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get nTrials => $composableBuilder(
+      column: $table.nTrials, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAssessmentMetricsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAssessmentMetricsTable> {
+  $$CogAssessmentMetricsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metricName => $composableBuilder(
+      column: $table.metricName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get nTrials => $composableBuilder(
+      column: $table.nTrials, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAssessmentMetricsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAssessmentMetricsTable> {
+  $$CogAssessmentMetricsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get metricName => $composableBuilder(
+      column: $table.metricName, builder: (column) => column);
+
+  GeneratedColumn<double> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<int> get nTrials =>
+      $composableBuilder(column: $table.nTrials, builder: (column) => column);
+
+  GeneratedColumn<String> get qualityFlagsJson => $composableBuilder(
+      column: $table.qualityFlagsJson, builder: (column) => column);
+}
+
+class $$CogAssessmentMetricsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAssessmentMetricsTable,
+    CogAssessmentMetricRow,
+    $$CogAssessmentMetricsTableFilterComposer,
+    $$CogAssessmentMetricsTableOrderingComposer,
+    $$CogAssessmentMetricsTableAnnotationComposer,
+    $$CogAssessmentMetricsTableCreateCompanionBuilder,
+    $$CogAssessmentMetricsTableUpdateCompanionBuilder,
+    (
+      CogAssessmentMetricRow,
+      BaseReferences<_$AppDatabase, $CogAssessmentMetricsTable,
+          CogAssessmentMetricRow>
+    ),
+    CogAssessmentMetricRow,
+    PrefetchHooks Function()> {
+  $$CogAssessmentMetricsTableTableManager(
+      _$AppDatabase db, $CogAssessmentMetricsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAssessmentMetricsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAssessmentMetricsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAssessmentMetricsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<String> metricName = const Value.absent(),
+            Value<double> value = const Value.absent(),
+            Value<int> nTrials = const Value.absent(),
+            Value<String?> qualityFlagsJson = const Value.absent(),
+          }) =>
+              CogAssessmentMetricsCompanion(
+            id: id,
+            sessionId: sessionId,
+            metricName: metricName,
+            value: value,
+            nTrials: nTrials,
+            qualityFlagsJson: qualityFlagsJson,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String sessionId,
+            required String metricName,
+            required double value,
+            required int nTrials,
+            Value<String?> qualityFlagsJson = const Value.absent(),
+          }) =>
+              CogAssessmentMetricsCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            metricName: metricName,
+            value: value,
+            nTrials: nTrials,
+            qualityFlagsJson: qualityFlagsJson,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAssessmentMetricsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CogAssessmentMetricsTable,
+        CogAssessmentMetricRow,
+        $$CogAssessmentMetricsTableFilterComposer,
+        $$CogAssessmentMetricsTableOrderingComposer,
+        $$CogAssessmentMetricsTableAnnotationComposer,
+        $$CogAssessmentMetricsTableCreateCompanionBuilder,
+        $$CogAssessmentMetricsTableUpdateCompanionBuilder,
+        (
+          CogAssessmentMetricRow,
+          BaseReferences<_$AppDatabase, $CogAssessmentMetricsTable,
+              CogAssessmentMetricRow>
+        ),
+        CogAssessmentMetricRow,
+        PrefetchHooks Function()>;
+typedef $$CogAbilityEstimatesTableCreateCompanionBuilder
+    = CogAbilityEstimatesCompanion Function({
+  required String abilityId,
+  required double mean,
+  required double uncertainty,
+  required int nMeasurements,
+  required String source,
+  required String designVersion,
+  required String mappingVersion,
+  Value<String?> personalBaselineJson,
+  Value<String?> device,
+  required int updatedAt,
+  Value<bool> stale,
+  Value<String?> contributionsJson,
+  Value<int> rowid,
+});
+typedef $$CogAbilityEstimatesTableUpdateCompanionBuilder
+    = CogAbilityEstimatesCompanion Function({
+  Value<String> abilityId,
+  Value<double> mean,
+  Value<double> uncertainty,
+  Value<int> nMeasurements,
+  Value<String> source,
+  Value<String> designVersion,
+  Value<String> mappingVersion,
+  Value<String?> personalBaselineJson,
+  Value<String?> device,
+  Value<int> updatedAt,
+  Value<bool> stale,
+  Value<String?> contributionsJson,
+  Value<int> rowid,
+});
+
+class $$CogAbilityEstimatesTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAbilityEstimatesTable> {
+  $$CogAbilityEstimatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get mean => $composableBuilder(
+      column: $table.mean, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get nMeasurements => $composableBuilder(
+      column: $table.nMeasurements, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get personalBaselineJson => $composableBuilder(
+      column: $table.personalBaselineJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get device => $composableBuilder(
+      column: $table.device, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get stale => $composableBuilder(
+      column: $table.stale, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contributionsJson => $composableBuilder(
+      column: $table.contributionsJson,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAbilityEstimatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAbilityEstimatesTable> {
+  $$CogAbilityEstimatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get mean => $composableBuilder(
+      column: $table.mean, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get nMeasurements => $composableBuilder(
+      column: $table.nMeasurements,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get designVersion => $composableBuilder(
+      column: $table.designVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get personalBaselineJson => $composableBuilder(
+      column: $table.personalBaselineJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get device => $composableBuilder(
+      column: $table.device, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get stale => $composableBuilder(
+      column: $table.stale, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contributionsJson => $composableBuilder(
+      column: $table.contributionsJson,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAbilityEstimatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAbilityEstimatesTable> {
+  $$CogAbilityEstimatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get abilityId =>
+      $composableBuilder(column: $table.abilityId, builder: (column) => column);
+
+  GeneratedColumn<double> get mean =>
+      $composableBuilder(column: $table.mean, builder: (column) => column);
+
+  GeneratedColumn<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => column);
+
+  GeneratedColumn<int> get nMeasurements => $composableBuilder(
+      column: $table.nMeasurements, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get designVersion => $composableBuilder(
+      column: $table.designVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get personalBaselineJson => $composableBuilder(
+      column: $table.personalBaselineJson, builder: (column) => column);
+
+  GeneratedColumn<String> get device =>
+      $composableBuilder(column: $table.device, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get stale =>
+      $composableBuilder(column: $table.stale, builder: (column) => column);
+
+  GeneratedColumn<String> get contributionsJson => $composableBuilder(
+      column: $table.contributionsJson, builder: (column) => column);
+}
+
+class $$CogAbilityEstimatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAbilityEstimatesTable,
+    CogAbilityEstimateRow,
+    $$CogAbilityEstimatesTableFilterComposer,
+    $$CogAbilityEstimatesTableOrderingComposer,
+    $$CogAbilityEstimatesTableAnnotationComposer,
+    $$CogAbilityEstimatesTableCreateCompanionBuilder,
+    $$CogAbilityEstimatesTableUpdateCompanionBuilder,
+    (
+      CogAbilityEstimateRow,
+      BaseReferences<_$AppDatabase, $CogAbilityEstimatesTable,
+          CogAbilityEstimateRow>
+    ),
+    CogAbilityEstimateRow,
+    PrefetchHooks Function()> {
+  $$CogAbilityEstimatesTableTableManager(
+      _$AppDatabase db, $CogAbilityEstimatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAbilityEstimatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAbilityEstimatesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAbilityEstimatesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> abilityId = const Value.absent(),
+            Value<double> mean = const Value.absent(),
+            Value<double> uncertainty = const Value.absent(),
+            Value<int> nMeasurements = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> designVersion = const Value.absent(),
+            Value<String> mappingVersion = const Value.absent(),
+            Value<String?> personalBaselineJson = const Value.absent(),
+            Value<String?> device = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<bool> stale = const Value.absent(),
+            Value<String?> contributionsJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAbilityEstimatesCompanion(
+            abilityId: abilityId,
+            mean: mean,
+            uncertainty: uncertainty,
+            nMeasurements: nMeasurements,
+            source: source,
+            designVersion: designVersion,
+            mappingVersion: mappingVersion,
+            personalBaselineJson: personalBaselineJson,
+            device: device,
+            updatedAt: updatedAt,
+            stale: stale,
+            contributionsJson: contributionsJson,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String abilityId,
+            required double mean,
+            required double uncertainty,
+            required int nMeasurements,
+            required String source,
+            required String designVersion,
+            required String mappingVersion,
+            Value<String?> personalBaselineJson = const Value.absent(),
+            Value<String?> device = const Value.absent(),
+            required int updatedAt,
+            Value<bool> stale = const Value.absent(),
+            Value<String?> contributionsJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogAbilityEstimatesCompanion.insert(
+            abilityId: abilityId,
+            mean: mean,
+            uncertainty: uncertainty,
+            nMeasurements: nMeasurements,
+            source: source,
+            designVersion: designVersion,
+            mappingVersion: mappingVersion,
+            personalBaselineJson: personalBaselineJson,
+            device: device,
+            updatedAt: updatedAt,
+            stale: stale,
+            contributionsJson: contributionsJson,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAbilityEstimatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CogAbilityEstimatesTable,
+    CogAbilityEstimateRow,
+    $$CogAbilityEstimatesTableFilterComposer,
+    $$CogAbilityEstimatesTableOrderingComposer,
+    $$CogAbilityEstimatesTableAnnotationComposer,
+    $$CogAbilityEstimatesTableCreateCompanionBuilder,
+    $$CogAbilityEstimatesTableUpdateCompanionBuilder,
+    (
+      CogAbilityEstimateRow,
+      BaseReferences<_$AppDatabase, $CogAbilityEstimatesTable,
+          CogAbilityEstimateRow>
+    ),
+    CogAbilityEstimateRow,
+    PrefetchHooks Function()>;
+typedef $$CogCognitiveParamsTableCreateCompanionBuilder
+    = CogCognitiveParamsCompanion Function({
+  required String paramId,
+  required double value,
+  required double uncertainty,
+  required String source,
+  Value<String?> derivedFromJson,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$CogCognitiveParamsTableUpdateCompanionBuilder
+    = CogCognitiveParamsCompanion Function({
+  Value<String> paramId,
+  Value<double> value,
+  Value<double> uncertainty,
+  Value<String> source,
+  Value<String?> derivedFromJson,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$CogCognitiveParamsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogCognitiveParamsTable> {
+  $$CogCognitiveParamsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get paramId => $composableBuilder(
+      column: $table.paramId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get derivedFromJson => $composableBuilder(
+      column: $table.derivedFromJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CogCognitiveParamsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogCognitiveParamsTable> {
+  $$CogCognitiveParamsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get paramId => $composableBuilder(
+      column: $table.paramId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get derivedFromJson => $composableBuilder(
+      column: $table.derivedFromJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogCognitiveParamsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogCognitiveParamsTable> {
+  $$CogCognitiveParamsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get paramId =>
+      $composableBuilder(column: $table.paramId, builder: (column) => column);
+
+  GeneratedColumn<double> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<double> get uncertainty => $composableBuilder(
+      column: $table.uncertainty, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get derivedFromJson => $composableBuilder(
+      column: $table.derivedFromJson, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CogCognitiveParamsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogCognitiveParamsTable,
+    CogCognitiveParamRow,
+    $$CogCognitiveParamsTableFilterComposer,
+    $$CogCognitiveParamsTableOrderingComposer,
+    $$CogCognitiveParamsTableAnnotationComposer,
+    $$CogCognitiveParamsTableCreateCompanionBuilder,
+    $$CogCognitiveParamsTableUpdateCompanionBuilder,
+    (
+      CogCognitiveParamRow,
+      BaseReferences<_$AppDatabase, $CogCognitiveParamsTable,
+          CogCognitiveParamRow>
+    ),
+    CogCognitiveParamRow,
+    PrefetchHooks Function()> {
+  $$CogCognitiveParamsTableTableManager(
+      _$AppDatabase db, $CogCognitiveParamsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogCognitiveParamsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogCognitiveParamsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogCognitiveParamsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> paramId = const Value.absent(),
+            Value<double> value = const Value.absent(),
+            Value<double> uncertainty = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String?> derivedFromJson = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogCognitiveParamsCompanion(
+            paramId: paramId,
+            value: value,
+            uncertainty: uncertainty,
+            source: source,
+            derivedFromJson: derivedFromJson,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String paramId,
+            required double value,
+            required double uncertainty,
+            required String source,
+            Value<String?> derivedFromJson = const Value.absent(),
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CogCognitiveParamsCompanion.insert(
+            paramId: paramId,
+            value: value,
+            uncertainty: uncertainty,
+            source: source,
+            derivedFromJson: derivedFromJson,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogCognitiveParamsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CogCognitiveParamsTable,
+    CogCognitiveParamRow,
+    $$CogCognitiveParamsTableFilterComposer,
+    $$CogCognitiveParamsTableOrderingComposer,
+    $$CogCognitiveParamsTableAnnotationComposer,
+    $$CogCognitiveParamsTableCreateCompanionBuilder,
+    $$CogCognitiveParamsTableUpdateCompanionBuilder,
+    (
+      CogCognitiveParamRow,
+      BaseReferences<_$AppDatabase, $CogCognitiveParamsTable,
+          CogCognitiveParamRow>
+    ),
+    CogCognitiveParamRow,
+    PrefetchHooks Function()>;
+typedef $$CogTaskAbilityMappingsTableCreateCompanionBuilder
+    = CogTaskAbilityMappingsCompanion Function({
+  Value<int> id,
+  required String taskId,
+  required String abilityId,
+  required double weight,
+  required String metricSource,
+  Value<bool> enabled,
+  required String mappingVersion,
+});
+typedef $$CogTaskAbilityMappingsTableUpdateCompanionBuilder
+    = CogTaskAbilityMappingsCompanion Function({
+  Value<int> id,
+  Value<String> taskId,
+  Value<String> abilityId,
+  Value<double> weight,
+  Value<String> metricSource,
+  Value<bool> enabled,
+  Value<String> mappingVersion,
+});
+
+class $$CogTaskAbilityMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogTaskAbilityMappingsTable> {
+  $$CogTaskAbilityMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metricSource => $composableBuilder(
+      column: $table.metricSource, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$CogTaskAbilityMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogTaskAbilityMappingsTable> {
+  $$CogTaskAbilityMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metricSource => $composableBuilder(
+      column: $table.metricSource,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogTaskAbilityMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogTaskAbilityMappingsTable> {
+  $$CogTaskAbilityMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get abilityId =>
+      $composableBuilder(column: $table.abilityId, builder: (column) => column);
+
+  GeneratedColumn<double> get weight =>
+      $composableBuilder(column: $table.weight, builder: (column) => column);
+
+  GeneratedColumn<String> get metricSource => $composableBuilder(
+      column: $table.metricSource, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion, builder: (column) => column);
+}
+
+class $$CogTaskAbilityMappingsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogTaskAbilityMappingsTable,
+    CogTaskAbilityMappingRow,
+    $$CogTaskAbilityMappingsTableFilterComposer,
+    $$CogTaskAbilityMappingsTableOrderingComposer,
+    $$CogTaskAbilityMappingsTableAnnotationComposer,
+    $$CogTaskAbilityMappingsTableCreateCompanionBuilder,
+    $$CogTaskAbilityMappingsTableUpdateCompanionBuilder,
+    (
+      CogTaskAbilityMappingRow,
+      BaseReferences<_$AppDatabase, $CogTaskAbilityMappingsTable,
+          CogTaskAbilityMappingRow>
+    ),
+    CogTaskAbilityMappingRow,
+    PrefetchHooks Function()> {
+  $$CogTaskAbilityMappingsTableTableManager(
+      _$AppDatabase db, $CogTaskAbilityMappingsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogTaskAbilityMappingsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogTaskAbilityMappingsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogTaskAbilityMappingsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> taskId = const Value.absent(),
+            Value<String> abilityId = const Value.absent(),
+            Value<double> weight = const Value.absent(),
+            Value<String> metricSource = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<String> mappingVersion = const Value.absent(),
+          }) =>
+              CogTaskAbilityMappingsCompanion(
+            id: id,
+            taskId: taskId,
+            abilityId: abilityId,
+            weight: weight,
+            metricSource: metricSource,
+            enabled: enabled,
+            mappingVersion: mappingVersion,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String taskId,
+            required String abilityId,
+            required double weight,
+            required String metricSource,
+            Value<bool> enabled = const Value.absent(),
+            required String mappingVersion,
+          }) =>
+              CogTaskAbilityMappingsCompanion.insert(
+            id: id,
+            taskId: taskId,
+            abilityId: abilityId,
+            weight: weight,
+            metricSource: metricSource,
+            enabled: enabled,
+            mappingVersion: mappingVersion,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogTaskAbilityMappingsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CogTaskAbilityMappingsTable,
+        CogTaskAbilityMappingRow,
+        $$CogTaskAbilityMappingsTableFilterComposer,
+        $$CogTaskAbilityMappingsTableOrderingComposer,
+        $$CogTaskAbilityMappingsTableAnnotationComposer,
+        $$CogTaskAbilityMappingsTableCreateCompanionBuilder,
+        $$CogTaskAbilityMappingsTableUpdateCompanionBuilder,
+        (
+          CogTaskAbilityMappingRow,
+          BaseReferences<_$AppDatabase, $CogTaskAbilityMappingsTable,
+              CogTaskAbilityMappingRow>
+        ),
+        CogTaskAbilityMappingRow,
+        PrefetchHooks Function()>;
+typedef $$CogAbilityParamMappingsTableCreateCompanionBuilder
+    = CogAbilityParamMappingsCompanion Function({
+  Value<int> id,
+  required String abilityId,
+  required String paramId,
+  required double weight,
+  required String direction,
+  Value<bool> enabled,
+  required String mappingVersion,
+});
+typedef $$CogAbilityParamMappingsTableUpdateCompanionBuilder
+    = CogAbilityParamMappingsCompanion Function({
+  Value<int> id,
+  Value<String> abilityId,
+  Value<String> paramId,
+  Value<double> weight,
+  Value<String> direction,
+  Value<bool> enabled,
+  Value<String> mappingVersion,
+});
+
+class $$CogAbilityParamMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $CogAbilityParamMappingsTable> {
+  $$CogAbilityParamMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get paramId => $composableBuilder(
+      column: $table.paramId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnFilters(column));
+}
+
+class $$CogAbilityParamMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CogAbilityParamMappingsTable> {
+  $$CogAbilityParamMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get abilityId => $composableBuilder(
+      column: $table.abilityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get paramId => $composableBuilder(
+      column: $table.paramId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get direction => $composableBuilder(
+      column: $table.direction, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CogAbilityParamMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CogAbilityParamMappingsTable> {
+  $$CogAbilityParamMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get abilityId =>
+      $composableBuilder(column: $table.abilityId, builder: (column) => column);
+
+  GeneratedColumn<String> get paramId =>
+      $composableBuilder(column: $table.paramId, builder: (column) => column);
+
+  GeneratedColumn<double> get weight =>
+      $composableBuilder(column: $table.weight, builder: (column) => column);
+
+  GeneratedColumn<String> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<String> get mappingVersion => $composableBuilder(
+      column: $table.mappingVersion, builder: (column) => column);
+}
+
+class $$CogAbilityParamMappingsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CogAbilityParamMappingsTable,
+    CogAbilityParamMappingRow,
+    $$CogAbilityParamMappingsTableFilterComposer,
+    $$CogAbilityParamMappingsTableOrderingComposer,
+    $$CogAbilityParamMappingsTableAnnotationComposer,
+    $$CogAbilityParamMappingsTableCreateCompanionBuilder,
+    $$CogAbilityParamMappingsTableUpdateCompanionBuilder,
+    (
+      CogAbilityParamMappingRow,
+      BaseReferences<_$AppDatabase, $CogAbilityParamMappingsTable,
+          CogAbilityParamMappingRow>
+    ),
+    CogAbilityParamMappingRow,
+    PrefetchHooks Function()> {
+  $$CogAbilityParamMappingsTableTableManager(
+      _$AppDatabase db, $CogAbilityParamMappingsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CogAbilityParamMappingsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CogAbilityParamMappingsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CogAbilityParamMappingsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> abilityId = const Value.absent(),
+            Value<String> paramId = const Value.absent(),
+            Value<double> weight = const Value.absent(),
+            Value<String> direction = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<String> mappingVersion = const Value.absent(),
+          }) =>
+              CogAbilityParamMappingsCompanion(
+            id: id,
+            abilityId: abilityId,
+            paramId: paramId,
+            weight: weight,
+            direction: direction,
+            enabled: enabled,
+            mappingVersion: mappingVersion,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String abilityId,
+            required String paramId,
+            required double weight,
+            required String direction,
+            Value<bool> enabled = const Value.absent(),
+            required String mappingVersion,
+          }) =>
+              CogAbilityParamMappingsCompanion.insert(
+            id: id,
+            abilityId: abilityId,
+            paramId: paramId,
+            weight: weight,
+            direction: direction,
+            enabled: enabled,
+            mappingVersion: mappingVersion,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CogAbilityParamMappingsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CogAbilityParamMappingsTable,
+        CogAbilityParamMappingRow,
+        $$CogAbilityParamMappingsTableFilterComposer,
+        $$CogAbilityParamMappingsTableOrderingComposer,
+        $$CogAbilityParamMappingsTableAnnotationComposer,
+        $$CogAbilityParamMappingsTableCreateCompanionBuilder,
+        $$CogAbilityParamMappingsTableUpdateCompanionBuilder,
+        (
+          CogAbilityParamMappingRow,
+          BaseReferences<_$AppDatabase, $CogAbilityParamMappingsTable,
+              CogAbilityParamMappingRow>
+        ),
+        CogAbilityParamMappingRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -36219,4 +41555,22 @@ class $AppDatabaseManager {
           _db, _db.questionSerialCounters);
   $$AbilityScoresTableTableManager get abilityScores =>
       $$AbilityScoresTableTableManager(_db, _db.abilityScores);
+  $$CogAssessmentTasksTableTableManager get cogAssessmentTasks =>
+      $$CogAssessmentTasksTableTableManager(_db, _db.cogAssessmentTasks);
+  $$CogAssessmentSessionsTableTableManager get cogAssessmentSessions =>
+      $$CogAssessmentSessionsTableTableManager(_db, _db.cogAssessmentSessions);
+  $$CogAssessmentTrialsTableTableManager get cogAssessmentTrials =>
+      $$CogAssessmentTrialsTableTableManager(_db, _db.cogAssessmentTrials);
+  $$CogAssessmentMetricsTableTableManager get cogAssessmentMetrics =>
+      $$CogAssessmentMetricsTableTableManager(_db, _db.cogAssessmentMetrics);
+  $$CogAbilityEstimatesTableTableManager get cogAbilityEstimates =>
+      $$CogAbilityEstimatesTableTableManager(_db, _db.cogAbilityEstimates);
+  $$CogCognitiveParamsTableTableManager get cogCognitiveParams =>
+      $$CogCognitiveParamsTableTableManager(_db, _db.cogCognitiveParams);
+  $$CogTaskAbilityMappingsTableTableManager get cogTaskAbilityMappings =>
+      $$CogTaskAbilityMappingsTableTableManager(
+          _db, _db.cogTaskAbilityMappings);
+  $$CogAbilityParamMappingsTableTableManager get cogAbilityParamMappings =>
+      $$CogAbilityParamMappingsTableTableManager(
+          _db, _db.cogAbilityParamMappings);
 }

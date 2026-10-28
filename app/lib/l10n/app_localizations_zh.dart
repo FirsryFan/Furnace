@@ -5688,6 +5688,356 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get assessmentCenterTitle => '评测';
+
+  @override
+  String get assessmentCenterIntro => '本地小任务，更新你的认知档案：不联网，不判作弊，每一项估计都带不确定性。';
+
+  @override
+  String get assessmentCenterTasksTitle => '任务';
+
+  @override
+  String get assessmentCenterProfileTitle => '认知档案';
+
+  @override
+  String get assessmentCenterProfileHint => '能力指标与认知模型参数';
+
+  @override
+  String get assessmentCenterNoMeasurements => '还没有测量，全部是系统先验——先验不是常模。';
+
+  @override
+  String assessmentCenterDurationMinutes(int minutes) {
+    return '约 $minutes 分钟';
+  }
+
+  @override
+  String assessmentCenterMeasuredCount(int count) {
+    return '已测 $count 次';
+  }
+
+  @override
+  String get assessmentCenterStart => '开始';
+
+  @override
+  String get assessmentCenterRedo => '再测一次';
+
+  @override
+  String get assessmentCenterProvisional => '暂定';
+
+  @override
+  String assessmentCenterStartFailed(String error) {
+    return '打不开任务：$error';
+  }
+
+  @override
+  String get assessmentRunPracticeBadge => '练习（不计入）';
+
+  @override
+  String assessmentRunProgress(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get assessmentRunQuit => '退出';
+
+  @override
+  String get assessmentRunQuitConfirmTitle => '退出这次评测？';
+
+  @override
+  String get assessmentRunQuitConfirmBody =>
+      '退出后这次测量不会计入能力估计，档案历史里只留一条「未完成」记录。';
+
+  @override
+  String get assessmentRunQuitConfirm => '退出';
+
+  @override
+  String get assessmentRunCancel => '继续做';
+
+  @override
+  String get assessmentRunTapPrompt => '看到目标就点';
+
+  @override
+  String get assessmentRunChoicePrompt => '选一个';
+
+  @override
+  String get assessmentRunDigitPrompt => '倒序输入刚才的数字';
+
+  @override
+  String get assessmentRunSubmit => '确认';
+
+  @override
+  String get assessmentRunClear => '清空';
+
+  @override
+  String get assessmentRunTimeout => '已超时';
+
+  @override
+  String assessmentRunSaveFailed(String error) {
+    return '保存失败：$error';
+  }
+
+  @override
+  String get assessmentResultPageTitle => '本次结果';
+
+  @override
+  String get assessmentResultSaved => '已保存到认知档案';
+
+  @override
+  String get assessmentResultMetricsTitle => '统计指标';
+
+  @override
+  String get assessmentResultAbilityTitle => '更新后的能力估计';
+
+  @override
+  String get assessmentResultQualityTitle => '质量标记';
+
+  @override
+  String get assessmentResultQualityNone => '无';
+
+  @override
+  String get assessmentResultDone => '完成';
+
+  @override
+  String assessmentResultMetricRow(String name, String value) {
+    return '$name：$value';
+  }
+
+  @override
+  String assessmentResultDuration(String duration) {
+    return '用时 $duration';
+  }
+
+  @override
+  String get assessmentProfileTitle => '认知档案';
+
+  @override
+  String get assessmentProfileIntro => '数值是个体基线，不是人群常模；不确定性越低越可信。';
+
+  @override
+  String get assessmentProfileAbilitiesTitle => '能力指标';
+
+  @override
+  String get assessmentProfileParamsTitle => '认知模型参数';
+
+  @override
+  String get assessmentProfileSourceDefault => '系统先验';
+
+  @override
+  String get assessmentProfileSourceAssessment => '测量';
+
+  @override
+  String get assessmentProfileSourceDerived => '推导';
+
+  @override
+  String get assessmentProfileSourceOverride => '手动覆盖';
+
+  @override
+  String get assessmentProfileStale => '设计版本已升级，需要重测';
+
+  @override
+  String get assessmentProfileOverrideAction => '手动覆盖';
+
+  @override
+  String assessmentProfileOverrideTitle(String name) {
+    return '覆盖「$name」';
+  }
+
+  @override
+  String get assessmentProfileOverrideHint => '只在你有确凿理由时使用；覆盖后自动更新会停止，直到恢复自动。';
+
+  @override
+  String get assessmentProfileOverrideInvalid => '请输入 0 到 1 之间的数';
+
+  @override
+  String get assessmentProfileClearOverride => '恢复自动更新';
+
+  @override
+  String assessmentProfileUncertaintyRow(String value) {
+    return '不确定性 $value';
+  }
+
+  @override
+  String assessmentProfileMeasurementsCount(int count) {
+    return '测量 $count 次';
+  }
+
+  @override
+  String get assessmentProfileHistoryTitle => '最近测量';
+
+  @override
+  String get assessmentProfileHistoryEmpty => '还没有测量记录';
+
+  @override
+  String assessmentProfileHistoryRow(String task, String time, String status) {
+    return '$task · $time · $status';
+  }
+
+  @override
+  String assessmentProfileLoadFailed(String error) {
+    return '读取失败：$error';
+  }
+
+  @override
+  String get taskFastSimpleTaskI => '快速分类 I';
+
+  @override
+  String get taskFastSimpleTaskIi => '快速分类 II（算式）';
+
+  @override
+  String get taskFastSimpleTaskIii => '快速分类 III';
+
+  @override
+  String get taskGoNogo => '看到就点 / 别乱点';
+
+  @override
+  String get taskDigitSpanBackward => '倒序数字广度';
+
+  @override
+  String get taskNBack2 => '2-back 记忆刷新';
+
+  @override
+  String get taskStroopCrosslang => '颜色词干扰';
+
+  @override
+  String get taskSwitching => '任务切换';
+
+  @override
+  String get taskFatigueBlock => '持续注意（疲劳块）';
+
+  @override
+  String get taskDecisionFatigue => '连续决策（疲劳）';
+
+  @override
+  String get abilityProcessingSpeed => '加工速度';
+
+  @override
+  String get abilityInhibitoryControl => '抑制控制';
+
+  @override
+  String get abilityWorkingMemoryCapacity => '工作记忆容量';
+
+  @override
+  String get abilityWorkingMemoryUpdateSpeed => '工作记忆刷新速度';
+
+  @override
+  String get abilityDistractionResistance => '抗干扰能力';
+
+  @override
+  String get abilitySwitchCostAbility => '切换效率';
+
+  @override
+  String get abilityFatigueSlope => '疲劳坡度';
+
+  @override
+  String get abilityStabilityDrift => '稳定性漂移';
+
+  @override
+  String get abilityDecisionFatigue => '决策疲劳';
+
+  @override
+  String get abilityCrossLanguageCost => '跨语言代价';
+
+  @override
+  String get paramTaskDurationEstimate => '任务时长估计';
+
+  @override
+  String get paramChunkingThreshold => '分块阈值';
+
+  @override
+  String get paramInterruptionCost => '打断代价';
+
+  @override
+  String get paramSwitchPenalty => '切换惩罚';
+
+  @override
+  String get paramHighLoadDiscount => '高负荷折扣';
+
+  @override
+  String get paramSimilarFatiguePenalty => '相似题疲劳惩罚';
+
+  @override
+  String get paramScheduleIntensityCap => '排程强度上限';
+
+  @override
+  String get paramExpectedPressure => '预期压力';
+
+  @override
+  String get paramTimeOfDayBias => '时段偏差';
+
+  @override
+  String get metricRtMedian => '中位反应时';
+
+  @override
+  String get metricRtIqr => '反应时四分位距';
+
+  @override
+  String get metricAccuracy => '正确率';
+
+  @override
+  String get metricHitRate => '命中率';
+
+  @override
+  String get metricFalseAlarmRate => '误报率';
+
+  @override
+  String get metricDPrime => '辨别力 d′';
+
+  @override
+  String get metricRtCost => '反应时代价';
+
+  @override
+  String get metricStableSpan => '稳定广度';
+
+  @override
+  String get metricRtSlope => '反应时斜率';
+
+  @override
+  String get metricVarianceDrift => '方差漂移';
+
+  @override
+  String get metricSwitchCost => '切换代价';
+
+  @override
+  String get metricConflictCost => '冲突代价';
+
+  @override
+  String get metricDecisionDrift => '决策漂移';
+
+  @override
+  String get metricRepeatRt => '重复试次反应时';
+
+  @override
+  String get metricSwitchRt => '切换试次反应时';
+
+  @override
+  String get metricCongruentRt => '一致试次反应时';
+
+  @override
+  String get metricLapseSlope => '漏答斜率';
+
+  @override
+  String get metricFishTrialAccuracy => '钓鱼试次正确率';
+
+  @override
+  String get metricDefaultChoiceRate => '默认选项比例';
+
+  @override
+  String assessmentCenterLoadFailed(String error) {
+    return '读取任务列表失败：$error';
+  }
+
+  @override
+  String get assessmentProfileOverrideInvalidZScore =>
+      '请输入 -5 到 5 之间的数（0 表示你的典型水平）';
+
+  @override
+  String get settingsAssessmentTitle => '评测与认知档案';
+
+  @override
+  String get settingsAssessmentHint =>
+      '用本地小任务测能力（反应速度、抑制控制、工作记忆），结果写进个人认知档案；可以手动覆盖，也能随时恢复自动更新。';
+
+  @override
   String get aiStepsTitle => '运行步骤';
 
   @override

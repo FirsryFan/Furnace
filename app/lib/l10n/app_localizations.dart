@@ -9890,6 +9890,648 @@ abstract class AppLocalizations {
   /// **'{seconds}s'**
   String aiStepElapsed(String seconds);
 
+  /// No description provided for @assessmentCenterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessment'**
+  String get assessmentCenterTitle;
+
+  /// No description provided for @assessmentCenterIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Local mini-tasks that update your cognitive profile: offline, no cheating checks, every estimate carries uncertainty.'**
+  String get assessmentCenterIntro;
+
+  /// No description provided for @assessmentCenterTasksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get assessmentCenterTasksTitle;
+
+  /// No description provided for @assessmentCenterProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive profile'**
+  String get assessmentCenterProfileTitle;
+
+  /// No description provided for @assessmentCenterProfileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability metrics and cognitive model parameters'**
+  String get assessmentCenterProfileHint;
+
+  /// No description provided for @assessmentCenterNoMeasurements.
+  ///
+  /// In en, this message translates to:
+  /// **'No measurements yet — everything is a system prior, not a norm.'**
+  String get assessmentCenterNoMeasurements;
+
+  /// 任务卡上的预计时长。
+  ///
+  /// In en, this message translates to:
+  /// **'About {minutes} min'**
+  String assessmentCenterDurationMinutes(int minutes);
+
+  /// 任务卡上已完成次数。
+  ///
+  /// In en, this message translates to:
+  /// **'Measured {count} times'**
+  String assessmentCenterMeasuredCount(int count);
+
+  /// No description provided for @assessmentCenterStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get assessmentCenterStart;
+
+  /// No description provided for @assessmentCenterRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Test again'**
+  String get assessmentCenterRedo;
+
+  /// No description provided for @assessmentCenterProvisional.
+  ///
+  /// In en, this message translates to:
+  /// **'Provisional'**
+  String get assessmentCenterProvisional;
+
+  /// 启动任务失败提示。
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start the task: {error}'**
+  String assessmentCenterStartFailed(String error);
+
+  /// No description provided for @assessmentRunPracticeBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice (not counted)'**
+  String get assessmentRunPracticeBadge;
+
+  /// 评测运行页的进度。
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{total}'**
+  String assessmentRunProgress(int current, int total);
+
+  /// No description provided for @assessmentRunQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get assessmentRunQuit;
+
+  /// No description provided for @assessmentRunQuitConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit this assessment?'**
+  String get assessmentRunQuitConfirmTitle;
+
+  /// No description provided for @assessmentRunQuitConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This run will not count toward your ability estimates; only an incomplete record stays in your history.'**
+  String get assessmentRunQuitConfirmBody;
+
+  /// No description provided for @assessmentRunQuitConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get assessmentRunQuitConfirm;
+
+  /// No description provided for @assessmentRunCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep going'**
+  String get assessmentRunCancel;
+
+  /// No description provided for @assessmentRunTapPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap when you see the target'**
+  String get assessmentRunTapPrompt;
+
+  /// No description provided for @assessmentRunChoicePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose one'**
+  String get assessmentRunChoicePrompt;
+
+  /// No description provided for @assessmentRunDigitPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the digits in reverse order'**
+  String get assessmentRunDigitPrompt;
+
+  /// No description provided for @assessmentRunSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get assessmentRunSubmit;
+
+  /// No description provided for @assessmentRunClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get assessmentRunClear;
+
+  /// No description provided for @assessmentRunTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed out'**
+  String get assessmentRunTimeout;
+
+  /// 评测落库失败提示。
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save: {error}'**
+  String assessmentRunSaveFailed(String error);
+
+  /// No description provided for @assessmentResultPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This run'**
+  String get assessmentResultPageTitle;
+
+  /// No description provided for @assessmentResultSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your cognitive profile'**
+  String get assessmentResultSaved;
+
+  /// No description provided for @assessmentResultMetricsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Metrics'**
+  String get assessmentResultMetricsTitle;
+
+  /// No description provided for @assessmentResultAbilityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated ability estimates'**
+  String get assessmentResultAbilityTitle;
+
+  /// No description provided for @assessmentResultQualityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality flags'**
+  String get assessmentResultQualityTitle;
+
+  /// No description provided for @assessmentResultQualityNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get assessmentResultQualityNone;
+
+  /// No description provided for @assessmentResultDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get assessmentResultDone;
+
+  /// 统计指标行（值已格式化）。
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: {value}'**
+  String assessmentResultMetricRow(String name, String value);
+
+  /// 结果页用时。
+  ///
+  /// In en, this message translates to:
+  /// **'Took {duration}'**
+  String assessmentResultDuration(String duration);
+
+  /// No description provided for @assessmentProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive profile'**
+  String get assessmentProfileTitle;
+
+  /// No description provided for @assessmentProfileIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Values are your own baseline, not population norms; lower uncertainty is more trustworthy.'**
+  String get assessmentProfileIntro;
+
+  /// No description provided for @assessmentProfileAbilitiesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ability metrics'**
+  String get assessmentProfileAbilitiesTitle;
+
+  /// No description provided for @assessmentProfileParamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cognitive model parameters'**
+  String get assessmentProfileParamsTitle;
+
+  /// No description provided for @assessmentProfileSourceDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'System prior'**
+  String get assessmentProfileSourceDefault;
+
+  /// No description provided for @assessmentProfileSourceAssessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured'**
+  String get assessmentProfileSourceAssessment;
+
+  /// No description provided for @assessmentProfileSourceDerived.
+  ///
+  /// In en, this message translates to:
+  /// **'Derived'**
+  String get assessmentProfileSourceDerived;
+
+  /// No description provided for @assessmentProfileSourceOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual override'**
+  String get assessmentProfileSourceOverride;
+
+  /// No description provided for @assessmentProfileStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Design version changed — re-measure'**
+  String get assessmentProfileStale;
+
+  /// No description provided for @assessmentProfileOverrideAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Override'**
+  String get assessmentProfileOverrideAction;
+
+  /// 手动覆盖对话框标题。
+  ///
+  /// In en, this message translates to:
+  /// **'Override \"{name}\"'**
+  String assessmentProfileOverrideTitle(String name);
+
+  /// No description provided for @assessmentProfileOverrideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only with a good reason; automatic updates stop until you restore them.'**
+  String get assessmentProfileOverrideHint;
+
+  /// No description provided for @assessmentProfileOverrideInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number between 0 and 1'**
+  String get assessmentProfileOverrideInvalid;
+
+  /// No description provided for @assessmentProfileClearOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore automatic updates'**
+  String get assessmentProfileClearOverride;
+
+  /// 估计行里的不确定性。
+  ///
+  /// In en, this message translates to:
+  /// **'Uncertainty {value}'**
+  String assessmentProfileUncertaintyRow(String value);
+
+  /// 估计行里的测量次数。
+  ///
+  /// In en, this message translates to:
+  /// **'{count} measurements'**
+  String assessmentProfileMeasurementsCount(int count);
+
+  /// No description provided for @assessmentProfileHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent runs'**
+  String get assessmentProfileHistoryTitle;
+
+  /// No description provided for @assessmentProfileHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No runs yet'**
+  String get assessmentProfileHistoryEmpty;
+
+  /// 最近测量行。
+  ///
+  /// In en, this message translates to:
+  /// **'{task} · {time} · {status}'**
+  String assessmentProfileHistoryRow(String task, String time, String status);
+
+  /// 认知档案读取失败提示。
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load: {error}'**
+  String assessmentProfileLoadFailed(String error);
+
+  /// No description provided for @taskFastSimpleTaskI.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast classification I'**
+  String get taskFastSimpleTaskI;
+
+  /// No description provided for @taskFastSimpleTaskIi.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast classification II (sums)'**
+  String get taskFastSimpleTaskIi;
+
+  /// No description provided for @taskFastSimpleTaskIii.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast classification III'**
+  String get taskFastSimpleTaskIii;
+
+  /// No description provided for @taskGoNogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Go / No-Go'**
+  String get taskGoNogo;
+
+  /// No description provided for @taskDigitSpanBackward.
+  ///
+  /// In en, this message translates to:
+  /// **'Backward digit span'**
+  String get taskDigitSpanBackward;
+
+  /// No description provided for @taskNBack2.
+  ///
+  /// In en, this message translates to:
+  /// **'2-back'**
+  String get taskNBack2;
+
+  /// No description provided for @taskStroopCrosslang.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour-word interference'**
+  String get taskStroopCrosslang;
+
+  /// No description provided for @taskSwitching.
+  ///
+  /// In en, this message translates to:
+  /// **'Task switching'**
+  String get taskSwitching;
+
+  /// No description provided for @taskFatigueBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Sustained attention (fatigue)'**
+  String get taskFatigueBlock;
+
+  /// No description provided for @taskDecisionFatigue.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeated decisions (fatigue)'**
+  String get taskDecisionFatigue;
+
+  /// No description provided for @abilityProcessingSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing speed'**
+  String get abilityProcessingSpeed;
+
+  /// No description provided for @abilityInhibitoryControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Inhibitory control'**
+  String get abilityInhibitoryControl;
+
+  /// No description provided for @abilityWorkingMemoryCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Working memory capacity'**
+  String get abilityWorkingMemoryCapacity;
+
+  /// No description provided for @abilityWorkingMemoryUpdateSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Working memory update speed'**
+  String get abilityWorkingMemoryUpdateSpeed;
+
+  /// No description provided for @abilityDistractionResistance.
+  ///
+  /// In en, this message translates to:
+  /// **'Distraction resistance'**
+  String get abilityDistractionResistance;
+
+  /// No description provided for @abilitySwitchCostAbility.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching efficiency'**
+  String get abilitySwitchCostAbility;
+
+  /// No description provided for @abilityFatigueSlope.
+  ///
+  /// In en, this message translates to:
+  /// **'Fatigue slope'**
+  String get abilityFatigueSlope;
+
+  /// No description provided for @abilityStabilityDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Stability drift'**
+  String get abilityStabilityDrift;
+
+  /// No description provided for @abilityDecisionFatigue.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision fatigue'**
+  String get abilityDecisionFatigue;
+
+  /// No description provided for @abilityCrossLanguageCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cross-language cost'**
+  String get abilityCrossLanguageCost;
+
+  /// No description provided for @paramTaskDurationEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Task duration estimate'**
+  String get paramTaskDurationEstimate;
+
+  /// No description provided for @paramChunkingThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunking threshold'**
+  String get paramChunkingThreshold;
+
+  /// No description provided for @paramInterruptionCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Interruption cost'**
+  String get paramInterruptionCost;
+
+  /// No description provided for @paramSwitchPenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch penalty'**
+  String get paramSwitchPenalty;
+
+  /// No description provided for @paramHighLoadDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'High-load discount'**
+  String get paramHighLoadDiscount;
+
+  /// No description provided for @paramSimilarFatiguePenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar-item fatigue penalty'**
+  String get paramSimilarFatiguePenalty;
+
+  /// No description provided for @paramScheduleIntensityCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule intensity cap'**
+  String get paramScheduleIntensityCap;
+
+  /// No description provided for @paramExpectedPressure.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected pressure'**
+  String get paramExpectedPressure;
+
+  /// No description provided for @paramTimeOfDayBias.
+  ///
+  /// In en, this message translates to:
+  /// **'Time-of-day bias'**
+  String get paramTimeOfDayBias;
+
+  /// No description provided for @metricRtMedian.
+  ///
+  /// In en, this message translates to:
+  /// **'Median RT'**
+  String get metricRtMedian;
+
+  /// No description provided for @metricRtIqr.
+  ///
+  /// In en, this message translates to:
+  /// **'RT IQR'**
+  String get metricRtIqr;
+
+  /// No description provided for @metricAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get metricAccuracy;
+
+  /// No description provided for @metricHitRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Hit rate'**
+  String get metricHitRate;
+
+  /// No description provided for @metricFalseAlarmRate.
+  ///
+  /// In en, this message translates to:
+  /// **'False-alarm rate'**
+  String get metricFalseAlarmRate;
+
+  /// No description provided for @metricDPrime.
+  ///
+  /// In en, this message translates to:
+  /// **'d-prime'**
+  String get metricDPrime;
+
+  /// No description provided for @metricRtCost.
+  ///
+  /// In en, this message translates to:
+  /// **'RT cost'**
+  String get metricRtCost;
+
+  /// No description provided for @metricStableSpan.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable span'**
+  String get metricStableSpan;
+
+  /// No description provided for @metricRtSlope.
+  ///
+  /// In en, this message translates to:
+  /// **'RT slope'**
+  String get metricRtSlope;
+
+  /// No description provided for @metricVarianceDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Variance drift'**
+  String get metricVarianceDrift;
+
+  /// No description provided for @metricSwitchCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch cost'**
+  String get metricSwitchCost;
+
+  /// No description provided for @metricConflictCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict cost'**
+  String get metricConflictCost;
+
+  /// No description provided for @metricDecisionDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision drift'**
+  String get metricDecisionDrift;
+
+  /// No description provided for @metricRepeatRt.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat RT'**
+  String get metricRepeatRt;
+
+  /// No description provided for @metricSwitchRt.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch RT'**
+  String get metricSwitchRt;
+
+  /// No description provided for @metricCongruentRt.
+  ///
+  /// In en, this message translates to:
+  /// **'Congruent RT'**
+  String get metricCongruentRt;
+
+  /// No description provided for @metricLapseSlope.
+  ///
+  /// In en, this message translates to:
+  /// **'Lapse slope'**
+  String get metricLapseSlope;
+
+  /// No description provided for @metricFishTrialAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Fish-trial accuracy'**
+  String get metricFishTrialAccuracy;
+
+  /// No description provided for @metricDefaultChoiceRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Default-choice rate'**
+  String get metricDefaultChoiceRate;
+
+  /// Shown when the assessment task list cannot be loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the task list: {error}'**
+  String assessmentCenterLoadFailed(String error);
+
+  /// Validation hint for manually overriding an ability estimate (z-score scale).
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number between -5 and 5 (0 is your typical level)'**
+  String get assessmentProfileOverrideInvalidZScore;
+
+  /// Settings entry title for the assessment board.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessment & cognitive profile'**
+  String get settingsAssessmentTitle;
+
+  /// Settings entry description for the assessment board.
+  ///
+  /// In en, this message translates to:
+  /// **'Short local tasks measure abilities (speed, inhibition, working memory) and write them into your cognitive profile; override or restore automatic updates anytime.'**
+  String get settingsAssessmentHint;
+
   /// Title of the run timeline section.
   ///
   /// In en, this message translates to:

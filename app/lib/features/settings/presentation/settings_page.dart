@@ -17,8 +17,7 @@ import '../../timeboard/presentation/calendar_page.dart';
 import '../../timeboard/presentation/time_board_page.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../anki/presentation/review_plan_page.dart';
-import '../../cognitive/presentation/ability_assessment_page.dart';
-import '../../cognitive/presentation/ability_profile_page.dart';
+import '../../assessment/presentation/assessment_center_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../questions/presentation/learning_insight_page.dart';
 import '../../questions/presentation/question_bank_page.dart';
@@ -40,10 +39,8 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) {
 /// 「自我描述」的设置入口（task-187）。
 const Key settingsUserPersonaTileKey = Key('settings-user-persona-tile');
 
-/// 能力测评 / 能力画像的入口（REVIEW_FEEDBACK §8）。
-const Key settingsAbilityAssessmentTileKey =
-    Key('settings-ability-assessment-tile');
-const Key settingsAbilityProfileTileKey = Key('settings-ability-profile-tile');
+/// 评测与认知档案的入口（用户评测板块设计文档 v1.0）。
+const Key settingsAssessmentTileKey = Key('settings-assessment-tile');
 
 /// Settings page: profile, data, usage guide, appearance, tags, language.
 class SettingsPage extends ConsumerWidget {
@@ -182,32 +179,19 @@ class SettingsPage extends ConsumerWidget {
               ),
             ),
           ),
-          // 能力测评（REVIEW_FEEDBACK §8）：四项本地小测，测的是「能力」而不是知识点；
-          // 测完把分数写进 ability_scores（v38），和知识先验完全分开。
+          // 评测与认知档案（用户评测板块设计文档 v1.0）：本地任务测能力，结果
+          // 写进 cog_* 八表；旧的四项小测（ability_scores v38）保留数据但不再
+          // 从设置页进入，统一收进这一页。
           ListTile(
-            key: settingsAbilityAssessmentTileKey,
-            leading: const Icon(Icons.timer_outlined),
-            title: Text(l10n.settingsAbilityAssessmentTitle),
-            subtitle: Text(l10n.settingsAbilityAssessmentHint),
+            key: settingsAssessmentTileKey,
+            leading: const Icon(Icons.psychology_outlined),
+            title: Text(l10n.settingsAssessmentTitle),
+            subtitle: Text(l10n.settingsAssessmentHint),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AbilityAssessmentPage(),
-              ),
-            ),
-          ),
-          // 能力画像（只读）：四项最近一次分数 + 测过几次；趋势图留后续。
-          ListTile(
-            key: settingsAbilityProfileTileKey,
-            leading: const Icon(Icons.radar_outlined),
-            title: Text(l10n.settingsAbilityProfileTitle),
-            subtitle: Text(l10n.settingsAbilityProfileHint),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AbilityProfilePage(),
+                builder: (context) => const AssessmentCenterPage(),
               ),
             ),
           ),

@@ -11,8 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/features/anki/presentation/review_plan_page.dart';
-import 'package:furnace/features/cognitive/presentation/ability_assessment_page.dart';
-import 'package:furnace/features/cognitive/presentation/ability_profile_page.dart';
+import 'package:furnace/features/assessment/presentation/assessment_center_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -79,29 +78,18 @@ void main() {
     expect(find.byType(ReviewPlanPage), findsOneWidget);
   });
 
-  // REVIEW_FEEDBACK §8：认知测评要测「能力」而不是知识点，设置页给了两个并列入口。
-  testWidgets('设置里有「能力测评」，点进去是四项本地小测介绍页', (tester) async {
+  // 用户评测板块设计文档 v1.0：设置页只留一个入口，旧的四项小测/画像两行
+  // 收进评测中心页（能力测评与认知档案统一在 cog_* 八表里）。
+  testWidgets('设置里有「评测与认知档案」，点进去是评测中心页', (tester) async {
     await pumpSettings(tester);
 
-    expect(find.text(zh.settingsAbilityAssessmentTitle), findsOneWidget);
-    expect(find.text(zh.settingsAbilityAssessmentHint), findsOneWidget);
+    expect(find.text(zh.settingsAssessmentTitle), findsOneWidget);
+    expect(find.text(zh.settingsAssessmentHint), findsOneWidget);
 
-    await tester.tap(find.byKey(settingsAbilityAssessmentTileKey));
+    await tester.tap(find.byKey(settingsAssessmentTileKey));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AbilityAssessmentPage), findsOneWidget);
-    expect(find.text(zh.abilityAssessmentIntro), findsOneWidget);
-  });
-
-  testWidgets('设置里有「能力画像」，没测过时显示空态而不是四张 0 分卡', (tester) async {
-    await pumpSettings(tester);
-
-    expect(find.text(zh.settingsAbilityProfileTitle), findsOneWidget);
-
-    await tester.tap(find.byKey(settingsAbilityProfileTileKey));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AbilityProfilePage), findsOneWidget);
-    expect(find.text(zh.abilityProfileEmpty), findsOneWidget);
+    expect(find.byType(AssessmentCenterPage), findsOneWidget);
+    expect(find.text(zh.assessmentCenterTitle), findsOneWidget);
   });
 }

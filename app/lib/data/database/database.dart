@@ -78,6 +78,15 @@ part 'database.g.dart';
     QuestionSerialCounters,
     // v38（能力测评分数，轮次一百七十七；docs/REVIEW_FEEDBACK.md §8）
     AbilityScores,
+    // v41（能力评测板块八表，2026-10-29；《Furnace 用户评测板块设计文档》v1.0 §4-§7）
+    CogAssessmentTasks,
+    CogAssessmentSessions,
+    CogAssessmentTrials,
+    CogAssessmentMetrics,
+    CogAbilityEstimates,
+    CogCognitiveParams,
+    CogTaskAbilityMappings,
+    CogAbilityParamMappings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -148,8 +157,18 @@ class AppDatabase extends _$AppDatabase {
   /// v39（轮次一百七十八）adds `ai_messages.reasoning`: the assistant's chain of
   /// thought, kept so a finished turn can still show 「思考过程」 after a restart
   /// (docs/REVIEW_FEEDBACK.md §4a). NULL = 没有思考文本；列可空、不回填。
+  ///
+  /// v40（轮次一百八十二）adds `questions.text_format` / `extension_of` /
+  /// `capability`: 整段 Markdown+LaTeX 的题目文本格式、扩展题母题题号、能力点
+  /// （handoff 管线 v1 §7 M1/M2）。三列可空、NULL 分别读作 plain / 非扩展题 /
+  /// 未标注，迁移不回填。
+  ///
+  /// v41（2026-10-29）adds eight `cog_*` tables implementing the 评测板块
+  /// (《Furnace 用户评测板块设计文档》v1.0): 任务注册表、会话、试次、会话指标、
+  /// 能力估计、认知参数、任务→能力映射、能力→参数映射。全部纯新增、幂等，
+  /// 老库没有一行要回填；旧 v10 的 `assessment_sessions` 等表原样保留。
   @override
-  int get schemaVersion => 40;
+  int get schemaVersion => 41;
 
   @override
   MigrationStrategy get migration {
@@ -274,6 +293,9 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 40) {
           await _upgradeV39ToV40();
+        }
+        if (from < 41) {
+          await _upgradeV40ToV41();
         }
       },
       beforeOpen: (details) async {
@@ -523,6 +545,23 @@ class AppDatabase extends _$AppDatabase {
     // 表是纯新增、没有列要补，建表即可。
     if (!await _tableExists('ability_scores')) {
       await m.createTable(abilityScores);
+    }
+    // v41（2026-10-29）：评测板块八表。同一个失败模式——老文件被盖成 v41 却
+    // 缺表（迁移被打断、或包导入早于 v41）时，评测中心/认知档案页一读就抛
+    // no such table。八张表都是纯新增、没有列要补，建表即可。
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'cog_assessment_tasks': cogAssessmentTasks,
+      'cog_assessment_sessions': cogAssessmentSessions,
+      'cog_assessment_trials': cogAssessmentTrials,
+      'cog_assessment_metrics': cogAssessmentMetrics,
+      'cog_ability_estimates': cogAbilityEstimates,
+      'cog_cognitive_params': cogCognitiveParams,
+      'cog_task_ability_mapping': cogTaskAbilityMappings,
+      'cog_ability_param_mapping': cogAbilityParamMappings,
+    }.entries) {
+      if (!await _tableExists(entry.key)) {
+        await m.createTable(entry.value);
+      }
     }
   }
 
@@ -1154,6 +1193,33 @@ class AppDatabase extends _$AppDatabase {
     await _addColumnIfMissing(m, 'questions', questions.capability);
   }
 
+  /// v40 -> v41：评测板块的八张 `cog_*` 表（2026-10-29，
+  /// 《Furnace 用户评测板块设计文档》v1.0 §4-§7）。
+  ///
+  /// 纯新增表（任务注册、会话、试次、会话指标、能力估计、认知参数、两张映射），
+  /// 老库没有任何一行需要回填或搬家。每张表先探测再建：版本号被盖高、或
+  /// [_ensureColumns] 自愈先一步建过时，createTable 不会重复执行（v37 -> v38
+  /// 起就是这个写法）。任务注册表的内容由仓储在首次读取时按 §4.2 seed（不放在
+  /// 迁移里：迁移只建结构，seed 要能随 design_version 升级重写）。
+  Future<void> _upgradeV40ToV41() async {
+    final m = Migrator(this);
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'cog_assessment_tasks': cogAssessmentTasks,
+      'cog_assessment_sessions': cogAssessmentSessions,
+      'cog_assessment_trials': cogAssessmentTrials,
+      'cog_assessment_metrics': cogAssessmentMetrics,
+      'cog_ability_estimates': cogAbilityEstimates,
+      'cog_cognitive_params': cogCognitiveParams,
+      'cog_task_ability_mapping': cogTaskAbilityMappings,
+      'cog_ability_param_mapping': cogAbilityParamMappings,
+    }.entries) {
+      if (await _tableExists(entry.key)) {
+        continue;
+      }
+      await m.createTable(entry.value);
+    }
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1390,6 +1456,25 @@ class AppDatabase extends _$AppDatabase {
       // unknown table（v37 迁移测试实测过）。
       case 'tags':
         return tags;
+      // v41（2026-10-29）：评测板块八表。自愈那一趟要按名字建它们，`.tfpkg`
+      // 导出/恢复也要按名字解析用户表，所以必须在这里能查到 —— 否则自愈会抛
+      // unknown table。
+      case 'cog_assessment_tasks':
+        return cogAssessmentTasks;
+      case 'cog_assessment_sessions':
+        return cogAssessmentSessions;
+      case 'cog_assessment_trials':
+        return cogAssessmentTrials;
+      case 'cog_assessment_metrics':
+        return cogAssessmentMetrics;
+      case 'cog_ability_estimates':
+        return cogAbilityEstimates;
+      case 'cog_cognitive_params':
+        return cogCognitiveParams;
+      case 'cog_task_ability_mapping':
+        return cogTaskAbilityMappings;
+      case 'cog_ability_param_mapping':
+        return cogAbilityParamMappings;
       default:
         throw ArgumentError('unknown table $name');
     }

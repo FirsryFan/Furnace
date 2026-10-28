@@ -5927,6 +5927,362 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get assessmentCenterTitle => 'Assessment';
+
+  @override
+  String get assessmentCenterIntro =>
+      'Local mini-tasks that update your cognitive profile: offline, no cheating checks, every estimate carries uncertainty.';
+
+  @override
+  String get assessmentCenterTasksTitle => 'Tasks';
+
+  @override
+  String get assessmentCenterProfileTitle => 'Cognitive profile';
+
+  @override
+  String get assessmentCenterProfileHint =>
+      'Ability metrics and cognitive model parameters';
+
+  @override
+  String get assessmentCenterNoMeasurements =>
+      'No measurements yet — everything is a system prior, not a norm.';
+
+  @override
+  String assessmentCenterDurationMinutes(int minutes) {
+    return 'About $minutes min';
+  }
+
+  @override
+  String assessmentCenterMeasuredCount(int count) {
+    return 'Measured $count times';
+  }
+
+  @override
+  String get assessmentCenterStart => 'Start';
+
+  @override
+  String get assessmentCenterRedo => 'Test again';
+
+  @override
+  String get assessmentCenterProvisional => 'Provisional';
+
+  @override
+  String assessmentCenterStartFailed(String error) {
+    return 'Could not start the task: $error';
+  }
+
+  @override
+  String get assessmentRunPracticeBadge => 'Practice (not counted)';
+
+  @override
+  String assessmentRunProgress(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get assessmentRunQuit => 'Quit';
+
+  @override
+  String get assessmentRunQuitConfirmTitle => 'Quit this assessment?';
+
+  @override
+  String get assessmentRunQuitConfirmBody =>
+      'This run will not count toward your ability estimates; only an incomplete record stays in your history.';
+
+  @override
+  String get assessmentRunQuitConfirm => 'Quit';
+
+  @override
+  String get assessmentRunCancel => 'Keep going';
+
+  @override
+  String get assessmentRunTapPrompt => 'Tap when you see the target';
+
+  @override
+  String get assessmentRunChoicePrompt => 'Choose one';
+
+  @override
+  String get assessmentRunDigitPrompt => 'Enter the digits in reverse order';
+
+  @override
+  String get assessmentRunSubmit => 'Submit';
+
+  @override
+  String get assessmentRunClear => 'Clear';
+
+  @override
+  String get assessmentRunTimeout => 'Timed out';
+
+  @override
+  String assessmentRunSaveFailed(String error) {
+    return 'Could not save: $error';
+  }
+
+  @override
+  String get assessmentResultPageTitle => 'This run';
+
+  @override
+  String get assessmentResultSaved => 'Saved to your cognitive profile';
+
+  @override
+  String get assessmentResultMetricsTitle => 'Metrics';
+
+  @override
+  String get assessmentResultAbilityTitle => 'Updated ability estimates';
+
+  @override
+  String get assessmentResultQualityTitle => 'Quality flags';
+
+  @override
+  String get assessmentResultQualityNone => 'None';
+
+  @override
+  String get assessmentResultDone => 'Done';
+
+  @override
+  String assessmentResultMetricRow(String name, String value) {
+    return '$name: $value';
+  }
+
+  @override
+  String assessmentResultDuration(String duration) {
+    return 'Took $duration';
+  }
+
+  @override
+  String get assessmentProfileTitle => 'Cognitive profile';
+
+  @override
+  String get assessmentProfileIntro =>
+      'Values are your own baseline, not population norms; lower uncertainty is more trustworthy.';
+
+  @override
+  String get assessmentProfileAbilitiesTitle => 'Ability metrics';
+
+  @override
+  String get assessmentProfileParamsTitle => 'Cognitive model parameters';
+
+  @override
+  String get assessmentProfileSourceDefault => 'System prior';
+
+  @override
+  String get assessmentProfileSourceAssessment => 'Measured';
+
+  @override
+  String get assessmentProfileSourceDerived => 'Derived';
+
+  @override
+  String get assessmentProfileSourceOverride => 'Manual override';
+
+  @override
+  String get assessmentProfileStale => 'Design version changed — re-measure';
+
+  @override
+  String get assessmentProfileOverrideAction => 'Override';
+
+  @override
+  String assessmentProfileOverrideTitle(String name) {
+    return 'Override \"$name\"';
+  }
+
+  @override
+  String get assessmentProfileOverrideHint =>
+      'Use only with a good reason; automatic updates stop until you restore them.';
+
+  @override
+  String get assessmentProfileOverrideInvalid =>
+      'Enter a number between 0 and 1';
+
+  @override
+  String get assessmentProfileClearOverride => 'Restore automatic updates';
+
+  @override
+  String assessmentProfileUncertaintyRow(String value) {
+    return 'Uncertainty $value';
+  }
+
+  @override
+  String assessmentProfileMeasurementsCount(int count) {
+    return '$count measurements';
+  }
+
+  @override
+  String get assessmentProfileHistoryTitle => 'Recent runs';
+
+  @override
+  String get assessmentProfileHistoryEmpty => 'No runs yet';
+
+  @override
+  String assessmentProfileHistoryRow(String task, String time, String status) {
+    return '$task · $time · $status';
+  }
+
+  @override
+  String assessmentProfileLoadFailed(String error) {
+    return 'Could not load: $error';
+  }
+
+  @override
+  String get taskFastSimpleTaskI => 'Fast classification I';
+
+  @override
+  String get taskFastSimpleTaskIi => 'Fast classification II (sums)';
+
+  @override
+  String get taskFastSimpleTaskIii => 'Fast classification III';
+
+  @override
+  String get taskGoNogo => 'Go / No-Go';
+
+  @override
+  String get taskDigitSpanBackward => 'Backward digit span';
+
+  @override
+  String get taskNBack2 => '2-back';
+
+  @override
+  String get taskStroopCrosslang => 'Colour-word interference';
+
+  @override
+  String get taskSwitching => 'Task switching';
+
+  @override
+  String get taskFatigueBlock => 'Sustained attention (fatigue)';
+
+  @override
+  String get taskDecisionFatigue => 'Repeated decisions (fatigue)';
+
+  @override
+  String get abilityProcessingSpeed => 'Processing speed';
+
+  @override
+  String get abilityInhibitoryControl => 'Inhibitory control';
+
+  @override
+  String get abilityWorkingMemoryCapacity => 'Working memory capacity';
+
+  @override
+  String get abilityWorkingMemoryUpdateSpeed => 'Working memory update speed';
+
+  @override
+  String get abilityDistractionResistance => 'Distraction resistance';
+
+  @override
+  String get abilitySwitchCostAbility => 'Switching efficiency';
+
+  @override
+  String get abilityFatigueSlope => 'Fatigue slope';
+
+  @override
+  String get abilityStabilityDrift => 'Stability drift';
+
+  @override
+  String get abilityDecisionFatigue => 'Decision fatigue';
+
+  @override
+  String get abilityCrossLanguageCost => 'Cross-language cost';
+
+  @override
+  String get paramTaskDurationEstimate => 'Task duration estimate';
+
+  @override
+  String get paramChunkingThreshold => 'Chunking threshold';
+
+  @override
+  String get paramInterruptionCost => 'Interruption cost';
+
+  @override
+  String get paramSwitchPenalty => 'Switch penalty';
+
+  @override
+  String get paramHighLoadDiscount => 'High-load discount';
+
+  @override
+  String get paramSimilarFatiguePenalty => 'Similar-item fatigue penalty';
+
+  @override
+  String get paramScheduleIntensityCap => 'Schedule intensity cap';
+
+  @override
+  String get paramExpectedPressure => 'Expected pressure';
+
+  @override
+  String get paramTimeOfDayBias => 'Time-of-day bias';
+
+  @override
+  String get metricRtMedian => 'Median RT';
+
+  @override
+  String get metricRtIqr => 'RT IQR';
+
+  @override
+  String get metricAccuracy => 'Accuracy';
+
+  @override
+  String get metricHitRate => 'Hit rate';
+
+  @override
+  String get metricFalseAlarmRate => 'False-alarm rate';
+
+  @override
+  String get metricDPrime => 'd-prime';
+
+  @override
+  String get metricRtCost => 'RT cost';
+
+  @override
+  String get metricStableSpan => 'Stable span';
+
+  @override
+  String get metricRtSlope => 'RT slope';
+
+  @override
+  String get metricVarianceDrift => 'Variance drift';
+
+  @override
+  String get metricSwitchCost => 'Switch cost';
+
+  @override
+  String get metricConflictCost => 'Conflict cost';
+
+  @override
+  String get metricDecisionDrift => 'Decision drift';
+
+  @override
+  String get metricRepeatRt => 'Repeat RT';
+
+  @override
+  String get metricSwitchRt => 'Switch RT';
+
+  @override
+  String get metricCongruentRt => 'Congruent RT';
+
+  @override
+  String get metricLapseSlope => 'Lapse slope';
+
+  @override
+  String get metricFishTrialAccuracy => 'Fish-trial accuracy';
+
+  @override
+  String get metricDefaultChoiceRate => 'Default-choice rate';
+
+  @override
+  String assessmentCenterLoadFailed(String error) {
+    return 'Could not load the task list: $error';
+  }
+
+  @override
+  String get assessmentProfileOverrideInvalidZScore =>
+      'Enter a number between -5 and 5 (0 is your typical level)';
+
+  @override
+  String get settingsAssessmentTitle => 'Assessment & cognitive profile';
+
+  @override
+  String get settingsAssessmentHint =>
+      'Short local tasks measure abilities (speed, inhibition, working memory) and write them into your cognitive profile; override or restore automatic updates anytime.';
+
+  @override
   String get aiStepsTitle => 'Steps';
 
   @override

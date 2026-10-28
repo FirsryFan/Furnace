@@ -1750,3 +1750,287 @@ class AbilityScores extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// ---------------------------------------------------------------------------
+// 评测板块（schema v41，2026-10-29，《Furnace 用户评测板块设计文档》v1.0 §4/§5/§6/§7）
+//
+// 四层框架：评测任务 → 评测数据（session/trial/metric）→ 能力指标 →
+// 认知模型参数。后两层与任务是多对多，映射本身也存表（可配置、可换版本）。
+//
+// 为什么表名前面都带 `cog_` 前缀：v10 的认知先验层已经占用了
+// `assessment_sessions` / `assessment_responses` / `cognitive_priors` 三个表名，
+// 那是**知识点**维度的自评（docs/ASSESSMENT_DESIGN.md），语义与这里的
+// **能力**评测不同。改前缀而不是改旧表名，老用户的数据一行都不用搬家。
+//
+// 所有表都是新增的：v40 及更早的库没有任何一行需要回填。
+// ---------------------------------------------------------------------------
+
+/// 评测任务注册表。
+///
+/// 一行 = 一个可运行任务（`fast_simple_task_i`、`go_nogo`…）。`config_json`
+/// 存设计文档 §4.1 的完整配置（试次数、ISI、刺激集合、默认映射…）；
+/// `design_version` 升版后，旧测量不参与合并（标记 stale）。
+/// `enabled=false` 的任务不出现在评测中心（v1 里 fast_simple_task_iii 与
+/// decision_fatigue 是暂定/副本，默认关闭）。
+@DataClassName('CogAssessmentTaskRow')
+class CogAssessmentTasks extends Table {
+  @override
+  String get tableName => 'cog_assessment_tasks';
+
+  /// 稳定任务 id（域层 [AssessmentTaskConfig.id]）。
+  TextColumn get id => text()();
+
+  /// 展示名兜底（正常由 l10n 按 task id 渲染）。
+  TextColumn get displayName => text()();
+
+  /// 任务类型 code：`fast_simple` / `go_nogo` / `digit_span` / …
+  TextColumn get taskType => text()();
+
+  /// 设计版本（如 `assessment_v1`）。
+  TextColumn get designVersion => text()();
+
+  /// §4.1 的任务配置 JSON 文本。
+  TextColumn get configJson => text()();
+
+  /// 是否在评测中心可选。
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  /// 注册时刻（epoch ms）。
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一次评测会话。
+///
+/// `status` = completed / incomplete / aborted（§4.1 状态机）。未完成的会话
+/// 保留原始 trial，不产出能力估计；`quality_flags_json` 是 §9 的标记数组
+/// （标记只上调 uncertainty，不删数据）。
+@DataClassName('CogAssessmentSessionRow')
+class CogAssessmentSessions extends Table {
+  @override
+  String get tableName => 'cog_assessment_sessions';
+
+  TextColumn get id => text()();
+
+  /// 指向 [CogAssessmentTasks.id]（不建外键：任务注册表重建时不希望级联丢测量）。
+  TextColumn get taskId => text()();
+
+  TextColumn get designVersion => text()();
+
+  /// 设备标识（`windows` / `android`，§4.1 `device_baseline` 维度）。
+  TextColumn get device => text()();
+
+  /// 开始/完成时刻（epoch ms）。`completed_at` 为空 = 没有正常做完。
+  IntColumn get startedAt => integer()();
+  IntColumn get completedAt => integer().nullable()();
+
+  /// completed / incomplete / aborted。
+  TextColumn get status => text()();
+
+  /// §9 质量标记 JSON 数组；NULL = 无标记。
+  TextColumn get qualityFlagsJson => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 单次试次（§3 trial）。
+///
+/// 只追加：一次会话几十上百行。`rt_ms` 为空 = 漏答/超时；`correct` 为空 =
+/// 该试次没有对错（如疲劳块的持续按键）。`is_practice=true` 的试次不参与
+/// 指标计算但仍保留（§9 的 practice_block 标记也依赖它）。
+@DataClassName('CogAssessmentTrialRow')
+class CogAssessmentTrials extends Table {
+  @override
+  String get tableName => 'cog_assessment_trials';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get sessionId => text()();
+
+  /// 会话内从 0 开始的试次序号。
+  IntColumn get trialIndex => integer()();
+
+  /// 所属 block（疲劳块按段、digit span 按长度层）。
+  IntColumn get blockIndex => integer()();
+
+  /// 刺激与正确响应/条件的 JSON（`stimulus_json`，构造时冻结）。
+  TextColumn get stimulusJson => text()();
+
+  /// 用户的原始响应 JSON；NULL = 没有响应。
+  TextColumn get responseJson => text().nullable()();
+
+  /// 反应时（毫秒）；NULL = 漏答/超时。
+  IntColumn get rtMs => integer().nullable()();
+
+  /// 是否正确；NULL = 该试次不判对错。
+  BoolColumn get correct => boolean().nullable()();
+
+  BoolColumn get isPractice => boolean().withDefault(const Constant(false))();
+
+  /// 试次记录时刻（epoch ms）。
+  IntColumn get timestamp => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 会话级统计指标（§3 的 rt_median / d_prime / stable_span …）。
+///
+/// 一行 = 一个指标的一次计算。`n_trials` 记参与计算的试次数（审计用：
+/// 样本变少时 uncertainty 要上调）。重新计算就追加新行，不覆盖历史。
+@DataClassName('CogAssessmentMetricRow')
+class CogAssessmentMetrics extends Table {
+  @override
+  String get tableName => 'cog_assessment_metrics';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get sessionId => text()();
+
+  /// 指标名（域层 [MetricNames]，如 `rt_median`）。
+  TextColumn get metricName => text()();
+
+  RealColumn get value => real()();
+
+  IntColumn get nTrials => integer()();
+
+  /// 该指标层级的质量标记 JSON 数组；NULL = 无。
+  TextColumn get qualityFlagsJson => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 能力指标的个人档案（§5，10 项能力）。
+///
+/// 一行 = 一项能力的当前估计（合并后的结果，不是每次测量的流水）。
+/// `source`：default（出厂值，非人群常模）/ assessment_v1（实测合并）/
+/// user_override（用户手改，**此后不再自动更新**）。
+/// `uncertainty` 越低越可信，最低 0.15；`stale=true` 表示设计版本升级后
+/// 旧测量不再参与合并。
+@DataClassName('CogAbilityEstimateRow')
+class CogAbilityEstimates extends Table {
+  @override
+  String get tableName => 'cog_ability_estimates';
+
+  /// 能力 id（[AbilityIds]）。
+  TextColumn get abilityId => text()();
+
+  /// z-score 量纲的估计值（0 = 该用户典型水平，个体内基线，非常模）。
+  RealColumn get mean => real()();
+
+  RealColumn get uncertainty => real()();
+
+  /// 参与合并的测量次数。
+  IntColumn get nMeasurements => integer()();
+
+  /// default / assessment_v1 / user_override。
+  TextColumn get source => text()();
+
+  TextColumn get designVersion => text()();
+
+  TextColumn get mappingVersion => text()();
+
+  /// 个人基线（首次测量冻结的设备/试剂条件），JSON；NULL = 未建立。
+  TextColumn get personalBaselineJson => text().nullable()();
+
+  TextColumn get device => text().nullable()();
+
+  IntColumn get updatedAt => integer()();
+
+  BoolColumn get stale => boolean().withDefault(const Constant(false))();
+
+  /// 每次测量的贡献明细 JSON 数组（审计「这个数怎么来的」）。
+  TextColumn get contributionsJson => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {abilityId};
+}
+
+/// 认知模型参数（§6，9 项）。
+///
+/// 一行 = 一个参数（task_duration_estimate、chunking_threshold…）。
+/// `source`：default / derived（由能力指标经 §7.2 映射推出）/ user_override。
+/// `derived_from_json` 记推导来源（能力 id + 权重 + 方向），便于回溯。
+@DataClassName('CogCognitiveParamRow')
+class CogCognitiveParams extends Table {
+  @override
+  String get tableName => 'cog_cognitive_params';
+
+  TextColumn get paramId => text()();
+
+  RealColumn get value => real()();
+
+  RealColumn get uncertainty => real()();
+
+  /// default / derived / user_override。
+  TextColumn get source => text()();
+
+  TextColumn get derivedFromJson => text().nullable()();
+
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {paramId};
+}
+
+/// 任务 → 能力 的映射（§7.1）。
+///
+/// 一行 = 一条映射；`metric_source` 指定用哪个统计指标喂这个能力。
+/// 存表而不是写死在代码里，是为了不改代码就能调权重、换指标（§7 明确要求）。
+@DataClassName('CogTaskAbilityMappingRow')
+class CogTaskAbilityMappings extends Table {
+  @override
+  String get tableName => 'cog_task_ability_mapping';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get taskId => text()();
+
+  TextColumn get abilityId => text()();
+
+  /// 0–1；同一任务的多条权重之和应为 1（软约束，不建 DB 检查）。
+  RealColumn get weight => real()();
+
+  /// 使用的统计指标名（[MetricNames]）。
+  TextColumn get metricSource => text()();
+
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  TextColumn get mappingVersion => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 能力 → 参数 的映射（§7.2）。
+///
+/// `direction` = positive / negative：能力值升高时参数变大还是变小。
+/// 参数值按映射加权合成后 clamp 到参数自身的合法区间。
+@DataClassName('CogAbilityParamMappingRow')
+class CogAbilityParamMappings extends Table {
+  @override
+  String get tableName => 'cog_ability_param_mapping';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get abilityId => text()();
+
+  TextColumn get paramId => text()();
+
+  /// 0–1 权重。
+  RealColumn get weight => real()();
+
+  /// positive / negative。
+  TextColumn get direction => text()();
+
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  TextColumn get mappingVersion => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
