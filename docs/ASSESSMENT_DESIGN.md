@@ -238,7 +238,9 @@ abstract class AssessmentInstrument {
 
 - **P0 完成**：八张表 + schema v41 + 迁移/自愈 + 仓储（seed 幂等、默认行、override 语义）+ 十个任务注册 + 默认映射 + 引擎（十个任务共用一套声明式引擎）+ Fast I / Go-No-Go / 倒序 Digit Span 全流程 UI。
 - **P1 完成**：2-back / Stroop / 任务切换 / 疲劳块的注册与引擎路径、指标计算、增量更新（合并/参数推导）与能力估计；离线纯逻辑与组件测试见 `app/test/features/assessment/`。
-- **P2/P3 未做**：Thread 权重建议接口（`CognitiveParamsProvider.getParamsForThread()` → `ThreadWeightSuggestion`）、疲劳块/参数映射的模型侧消费、`.cogprofile` 导出接界面、决策疲劳与副本 III 的开启。
+- **P2 完成**（2026-10-29 轮次一百八十六，`reasoning-core`）：Thread 侧参数接口——`app/lib/features/assessment/application/cognitive_params_provider.dart` 的 `CognitiveParamsProvider` / `ThreadWeightSuggestion` / `threadWeightSuggestions`（九项参数、`usedDefault` 标记；缺估计或来源=default 用默认先验，`uncertainty > kThreadParamMaxUncertainty(0.4)` 回退默认、等于阈值保留，`user_override` 永远信任，NaN/±inf 视为不可用回退，未知 id 用中性兜底 0.5/0.7；25 例）；Riverpod 接线见 `assessment_providers.dart` 的 `cognitiveParamsProvider` / `threadWeightSuggestionsProvider`（Lead，3 例）。
+- **P3 部分完成**：`.cogprofile` 导出已接认知档案页——`assessment_cog_profile_export.dart`（`saveCogProfileWithFilePicker` / `cogProfileFileSaverProvider` / `cogProfileFileName` / `buildCogProfileBytes`）+ 档案页 AppBar 导出按钮（加载中/失败禁用、取消静默、成功/失败 SnackBar；7 例）。文件名 `furnace-cogprofile-yyyyMMdd-HHmm.cogprofile`，内容=§10.2 契约（`format_version` 1.0 + 10 能力 + 9 参数 + `exported_at` + privacy）。
+- **仍未接**：ThreadFlow 实际采纳建议值（接口与 provider 已提供，消费侧未接）；疲劳块/参数映射的模型侧消费；决策疲劳与副本 III 仍默认关闭（provisional）；`.cogprofile` 平台保存通道只有组件测试、未真机验证。
 - 设置页：原「能力测评」「能力画像」两个入口换成一个「评测与认知档案」（`settingsAssessmentTileKey` → `AssessmentCenterPage`）；旧 `ability_scores` 表/页面保留、无入口。
 
 ### 10.5 明确不做（与 §8 一致，重申）
@@ -246,5 +248,14 @@ abstract class AssessmentInstrument {
 - 不联网、不调 AI、不上传任何数据；所有任务本地静态刺激 + 可播种随机数。
 - 不做防作弊/反虚拟机：只做质量标记并上调 uncertainty。
 - 不给「绝对智商」或人群百分位：能力值是**个体内 z-score**（0 = 自己的典型水平）。
-- 不把评测结果写进 `card_states`/FSRS 排期；Thread 侧消费要等 P2 的接口接上后再谈。
+- 不把评测结果写进 `card_states`/FSRS 排期；P2 接口与 provider 已提供（轮次一百八十六），ThreadFlow 侧实际采纳仍待接。
+
+### 10.6 Thread 参数接口与 `.cogprofile` 导出（2026-10-29 轮次一百八十六）
+
+- **接口契约**（`app/lib/features/assessment/application/cognitive_params_provider.dart`，纯 Dart）：`CognitiveParamsProvider.fromEstimates(params)` 归一化（id trim、丢空、重复后写覆盖、只读视图）；`getParamsForThread({paramIds})` 默认返回 `kThreadRelevantParamIds` 九项（已知 id 固定顺序、未知 id 字典序）；`estimateFor(id)`；`suggestions()` / 顶层 `threadWeightSuggestions()` 返回 `ThreadWeightSuggestion(paramId, defaultValue, suggestedValue, uncertainty, source, usedDefault)`，可 `toJson()`。
+- **回退规则**：无估计 / 来源=default → `kCognitiveParamSpecs` 默认先验；`uncertainty > 0.4` 回退默认；`== 0.4` 保留；`user_override` 永远信任（不受阈值影响）；NaN/±inf 视为不可用；未登记 id 兜底 0.5 / 0.7。`usedDefault = (最终 source == default)`。
+- **Riverpod 接线**：`cognitiveParamsProvider` 从 `assessmentProfileProvider` 的已加载快照构造（加载中/失败退化为全默认，Thread 永远拿到可用值）；`threadWeightSuggestionsProvider` 给出九项建议。只给建议，不写库、不覆盖用户设置。
+- **导出**：`assessment_cog_profile_export.dart` 的 `buildCogProfileBytes` 走域层 `buildCogProfile` + `encodeCogProfile`；`cogProfileFileName` 用设备本地时间；档案页导出按钮在数据未就绪时禁用，保存返回 null（用户取消）不提示，异常提示错误原文。
+- **测试**：`cognitive_params_provider_test.dart` 25 例；`assessment_providers_test.dart` 3 例（空档案九项默认、低不确定性采纳+高不确定性回退、user_override 保留）；`assessment_profile_export_test.dart` 7 例（字节/文件名/成功/取消/失败/禁用/纯函数）。
+- **未验证**：真实 `FilePicker.saveFile` 平台通道（组件测试走 provider seam）；真机窄屏布局。
 

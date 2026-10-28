@@ -2,6 +2,17 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-10-29 轮次一百八十六：评测板块 P2/P3（Thread 参数接口 + .cogprofile 导出）
+
+- 目标：按《Furnace 用户评测板块设计文档》v1.0 把上一轮标注为「未做」的 P2（Thread 权重建议接口）与 P3（`.cogprofile` 导出接界面）补上；上一轮 P0/P1 已提交推送（43c85b7）。本轮不 bump 版本、不出包（用户没要求）。
+- 团队（send_message 复用 inactive 成员；共享任务 task-221/222）：reasoning-core 负责 P2 纯 Dart 接口 `app/lib/features/assessment/application/cognitive_params_provider.dart`（241 行）+ `app/test/features/assessment/application/cognitive_params_provider_test.dart`（428 行、25 例）；question-intake 负责 P3 导出 UI `app/lib/features/assessment/presentation/assessment_cog_profile_export.dart`（78 行）+ 改 `assessment_profile_page.dart`（AppBar 导出按钮）+ `assessment_profile_export_test.dart`（306 行、7 例）；threadflow-engine 本轮回未派工。
+- P2 契约：`kThreadParamMaxUncertainty = 0.4`、`kThreadRelevantParamIds`（九项、顺序同 `CognitiveParamIds.all`）、`CognitiveParamsProvider`（const 构造 / `fromEstimates` 归一化 / `getParamsForThread` 默认九项 / `estimateFor` / `suggestions`）、`ThreadWeightSuggestion`（paramId/defaultValue/suggestedValue/uncertainty/source/usedDefault + `isUserOverride` + `toJson` + `==`）、顶层 `threadWeightSuggestions`。回退规则：无估计或来源=default → `kCognitiveParamSpecs` 默认先验；`uncertainty > 0.4` 回退默认、等于阈值保留；`user_override` 永远信任（不受阈值影响）；NaN/±inf 视为不可用；未登记 id 兜底 0.5 / 0.7。`estimates` 用 getter 返回 `Map.unmodifiable`（契约外的小偏差，更安全）。
+- P2 接线（Lead）：`assessment_providers.dart` 新增 `cognitiveParamsProvider`（从 `assessmentProfileProvider` 快照构造，加载中/失败退化为全默认，Thread 永远拿得到可用值）与 `threadWeightSuggestionsProvider`（九项建议，只给建议不写库）；新增 `app/test/features/assessment/application/assessment_providers_test.dart` 3 例（空档案九项默认、低不确定性采纳 + 高不确定性回退、user_override 保留）。
+- P3 实现：`assessment_cog_profile_export.dart` 提供 `CogProfileFileSaver` typedef、`saveCogProfileWithFilePicker`（`FilePicker.saveFile` + `FileType.custom` + `allowedExtensions:['cogprofile']`）、`cogProfileFileSaverProvider`（测试 seam）、`cogProfileFileName`（`furnace-cogprofile-yyyyMMdd-HHmm.cogprofile`，本地时间补零）、`buildCogProfileBytes`（走域层 `buildCogProfile` + `encodeCogProfile`）。档案页 AppBar 导出按钮（key `assessmentProfileExportKey`）：数据未就绪禁用；保存返回 null（取消）静默；成功 SnackBar 显示文件名；异常 SnackBar 显示错误原文；await 后 mounted 检查。
+- l10n（Lead 独占）：`app_zh.arb` / `app_en.arb` 加 `assessmentProfileExport`（导出认知档案 / Export profile）、`assessmentProfileExportSuccess(fileName)`、`assessmentProfileExportFailed(error)` 三键（带 @metadata）+ `flutter gen-l10n` exit 0。
+- 文档：`docs/ASSESSMENT_DESIGN.md` §10.4 状态改为 P2 完成 / P3 部分完成 / 仍未接清单，§10.5 末条更新，新增 §10.6「Thread 参数接口与 .cogprofile 导出」（契约、回退规则、接线、导出行为、测试、未验证）；`docs/FEATURE_MATRIX.md` 评测板块行的「未做」改写为 P2/P3 已交付 + 剩余未做；`docs/USER_GUIDE.md` 第 6 步加「导出认知档案」条目、§10 版本段更新。
+- 门禁：`dart format` 本轮 7 个 dart 文件 0 changed；`dart analyze lib test` → **88 issues / 0 error / 0 warning**（与 v0.6.12 基线持平）；全量 `flutter test --concurrency=1` → **+6817 ~2 All tests passed，14:43，TEST_EXIT=0**（日志 E:/dsh-tmp-aot/test-186-full.txt）。
+- 未做与风险：ThreadFlow 侧实际采纳建议值未接（接口/provider 已提供，消费侧未接）；`FilePicker.saveFile` 平台通道只有组件测试（provider seam），未真机验证；决策疲劳与副本 III 仍默认关闭（provisional）；`design_version` 升级后 stale 自动扫描未接；本轮无 schema 变化、未 bump 版本、未出包。
 ## 2026-10-29 轮次一百八十五：用户评测板块 v1.0（schema v41）
 
 - 目标：用户 m21578 给出《Furnace 用户评测板块设计文档》v1.0（设计定稿）并说「请继续」——按四层框架（项目 Task → 评测数据 → 能力指标 → 认知模型参数）实现本地优先的评测板块：个人档案可增量更新、个体内基线（不是人群常模）、质量标记只上调 uncertainty、映射可配置、每个估计都带 uncertainty、用户可覆盖；不联网、不做防作弊、不给人群百分位。
