@@ -13,12 +13,14 @@
 
 > 核心原则：**本地优先**（不联网、无账号、无遥测）· **文件化传输**（`.tfpkg` 全量打包 / `.kpak` 班级分享）· **高自定义**。
 > 目标平台：**Windows 10/11** 与 **Android 8+**（同一套 Flutter 代码）。
+>
+> 当前版本：**0.6.12+31**（最新 tag `v0.6.12`，schema **v41**）。除上面四大模块外，App 里还有：**题库**（题目/题源/组卷/Word 导出）、**内置 AI「智能化」**（收题、找题、组卷、排计划）、**用户评测板块**（能力/认知参数）、**题库包 `.tqb` 与采集管线**。完整接手说明见 [docs/HANDOFF.md](docs/HANDOFF.md)。
 
 ## 当前状态
 
 | 能力 | 状态 |
 | --- | --- |
-| 数据层（Drift SQLite，schema v6，31 表，v1→v6 幂等迁移 + 缺失列自愈） | ✅ |
+| 数据层（Drift SQLite，schema **v41**，**57 表**，v1→v41 幂等迁移 + 缺失列/表自愈） | ✅ |
 | Thread 排序引擎（权重归一化、deadline 硬约束、期望时刻黄标提权） | ✅ |
 | Knowledge 复习引擎（FSRS-6、自由挖空、错题绑定、严格判分、标签树扩散、按天台账） | ✅ |
 | 界面（Thread / Time 日历 / Knowledge 复习 / 标签树 / 设置 / 使用文档） | ✅ |
@@ -27,9 +29,9 @@
 | **AI 对话**（agent loop + 工具层 + 审批引擎 + 对话/设置界面） | ✅ 闭环已实现；**默认关闭**，填入 key 后对话入口才出现 |
 | Windows 构建 | ✅ 实测可运行（`furnace.exe`） |
 | Android 构建 | ✅ 实测产出已签名 release APK（62.08 MB，`com.furnace.app`） |
-| 自动化测试 | **308 项全绿**；`dart analyze` **0 error / 0 warning** |
+| 自动化测试 | 全量 **+6817 通过 / 2 跳过**；`dart analyze lib test` = **88 issues / 0 error / 0 warning** |
 
-**尚未实现**：字体文件导入、正文与界面分开的字体、日程块的拖拽移动/拉伸改时长、真机（Android 手机）运行验证、真实 API 调用实测（缺 key）、`.fskill` 执行容器（格式已定稿，见 [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md)）、MindNet tierA 移植（接口已协商完，见 [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md)）。
+**尚未实现 / 待验证**：双端真机逐屏手测、采集管线 M2 剩余（材料容器与材料练习记录）、能力点录入与 T×A 报表、页面级设计 token 迁移、6:2:2 复习配额、错题按能力点自动建卡组、任务侧批量提前；云同步明确不做。详见 [docs/HANDOFF.md](docs/HANDOFF.md) 第 16 节。
 
 ## 目录结构
 
@@ -42,7 +44,7 @@ app/                     Flutter 应用
     domain/              纯 Dart 算法：排序、FSRS、挖空、扩散、时间窗口、主题模型
     features/            thread / timeboard / anki(Knowledge) / tags / settings / packages
     l10n/                中英 ARB 与生成的本地化
-  test/                  190 项测试，与 lib 结构对应
+  test/                  408 个测试文件，与 lib 结构对应
   android/               Android 工程 + 构建期 Gradle 修补
   windows/               Windows 工程
 docs/                    设计蓝图、权威规范、差距分析、进度、部署
