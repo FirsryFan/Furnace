@@ -1,4 +1,4 @@
-﻿# Android 构建脚本（本机环境已实测通过）
+# Android 构建脚本（本机环境已实测通过）
 #
 # 为什么需要这个脚本
 # ------------------
@@ -6,11 +6,15 @@
 # 及"网络受限"相关的坑。这些都不是代码问题，而是环境问题；脚本把它们固化下来，
 # 免得每次构建重新踩一遍。详见 docs/DEPLOY.md。
 #
-#   1) 项目路径含非 ASCII（E:\FirsryOS\Memory\一THREADRIPPER一\...）：
+#   1) 项目路径含非 ASCII（历史问题，2026-11-01 已修复）：
+#      仓库原在 E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity，
+#      已于 2026-11-01 迁至纯 ASCII 的 E:\Projects\class-productivity，
+#      因此下面三个现象不再出现；脚本与配置里的开关保留作兼容：
 #      - AGP 拒绝构建 -> gradle.properties 里 android.overridePathCheck=true
 #      - Kotlin 增量缓存写失败 -> kotlin.incremental=false
 #      - release 的 AOT 快照器读不到 app.dill（debug 走 JIT 所以没事）
-#        -> 必须从一条纯 ASCII 路径构建，脚本用 junction 解决
+#        -> 当时需从一条纯 ASCII 路径构建，脚本用 junction 解决；
+#           现在仓库本身已是 ASCII 路径，-AsciiPath 仅作兼容选项
 #   2) maven.google.com 不可达、dl.google.com 与 Maven Central 只有 ~60KB/s
 #      -> google-cdn.init.gradle 把所有仓库改写到阿里云镜像
 #

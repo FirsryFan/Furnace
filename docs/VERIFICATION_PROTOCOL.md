@@ -5,7 +5,7 @@
 > `docs/MINDNET_CONTRACT.md` §9。
 > 执行者：tierb-dev（t25）。日期：2026-10-01。
 > 本报告只写**本会话实际读到 / 实际跑到**的内容；关键断言带证据标签与来源（路径:行号 / 命令输出）。
-> 基线与环境：Furnace 仓库 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity`；
+> 基线与环境：Furnace 仓库 `E:\Projects\class-productivity`；
 > MindNet 只读参考 `E:\Document\MindNet`，HEAD = `f4eec9bae16e6e303c19177e7fbfcf7a756f6629`（本会话 `git log -1` 读数）。
 
 ---
@@ -252,14 +252,14 @@ index 2d99151..8fb71e8 100644
 
 ### 6.1 常量比对（验收 #1）
 ```powershell
-cd "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity"
+cd "E:\Projects\class-productivity"
 node %TEMP%\t25-constants2.cjs   # 读 app/test/fixtures/mindnet_vectors.json 与 mindnet_protocol.dart 逐项比对，打印 7/7 MATCH
 ```
 （脚本逻辑：`JSON.parse` fixture，正则取 `.dart` 常量；`mustBeExact` 按行解析，避免 `states[]` 里的 `]` 截断。）
 
 ### 6.2 禁止清单的 grep（验收 #2）
 ```powershell
-cd "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app"
+cd "E:\Projects\class-productivity\app"
 # 复习流程有没有碰 DsrCardState / applyReview：
 rg -n "DsrCardState\.|applyReview\(" lib/features      # 本会话等价 grep → 0 命中
 # 类名核对：
@@ -270,7 +270,7 @@ rg -n "hoursPerDay|\* 24|/ 24|24\.0|this\.legacyK" lib
 
 ### 6.3 证伪实验（验收 #3；**禁 PowerShell 改写 UTF-8**）
 ```powershell
-cd "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity"
+cd "E:\Projects\class-productivity"
 # 1) 备份 + 取 SHA256 + 单次替换 commit（Node）
 node -e "const fs=require('fs'),c=require('crypto');const P='app/test/fixtures/mindnet_vectors.json';const o=fs.readFileSync(P);fs.writeFileSync(process.env.TEMP+'/mindnet_vectors.backup.json',o);console.log('pre',c.createHash('sha256').update(o).digest('hex'));const t=o.toString('utf8').replace('ace605d9778e8641957c570c1e58049ca82e4a01','deadbeefdeadbeefdeadbeefdeadbeefdeadbeef');fs.writeFileSync(P,Buffer.from(t,'utf8'));"
 # 2) 期望失败
@@ -296,8 +296,8 @@ node E:\Document\MindNet\tools\conformance.js --check     # 只读；期望 exit
 
 ```powershell
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" `
-  "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\docs\VERIFICATION_PROTOCOL.md" `
-  --workspace "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity"
+  "E:\Projects\class-productivity\docs\VERIFICATION_PROTOCOL.md" `
+  --workspace "E:\Projects\class-productivity"
 # 结果：BLOCKER 12 · WARN 0 · REVIEW 29 —— 12 条全是同一类误报：
 #   （数字随报告正文引用的 git pathspec / package.json 脚本值条数变化；本文件最终修订态为 12 条）
 #   本报告为了可复现必须引用 MindNet 的**仓库相对**路径（git 的 pathspec 与被引的
@@ -309,8 +309,8 @@ node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" `
 
 ```powershell
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" `
-  "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\docs\VERIFICATION_PROTOCOL.md" `
-  --workspace "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity" `
+  "E:\Projects\class-productivity\docs\VERIFICATION_PROTOCOL.md" `
+  --workspace "E:\Projects\class-productivity" `
   --allow "conformance/" --allow "tools/"
 # 结果：BLOCKER 0 · WARN 0（见 §1/§2/§3 各项的行号锚点回显校验）
 ```
@@ -351,8 +351,8 @@ node "C:\Users\Public\mindnet-verify\recompute_b01.cjs"
 ```powershell
 # 裸模式（不带 --allow）：整份文档 61 条 BLOCKER，其中 §9 占 8 条（L634-639 / L658 / L665 / L666）
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" `
-  "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\docs\MINDNET_CONTRACT.md" `
-  --workspace "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity"
+  "E:\Projects\class-productivity\docs\MINDNET_CONTRACT.md" `
+  --workspace "E:\Projects\class-productivity"
 # 逐行分布（脚本见下）：把 BLOCKER 行号取出、按 >=518（§9 起始行）过滤即可看到那 8 条
 ```
 

@@ -98,7 +98,7 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 
 ## 1.1 这台机器上必须知道的环境事实（否则会反复踩坑）
 
-**A. 项目路径含非 ASCII**：工作区在 `E:\FirsryOS\Memory\一THREADRIPPER一\...`，由此引发三个问题：
+**A. 项目路径含非 ASCII（2026-11-01 已修复）**：仓库曾位于 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity`（路径含中文），由此引发下面三个问题。**2026-11-01 起仓库已迁至纯 ASCII 路径 `E:\Projects\class-productivity`，三个问题不再出现**；`android.overridePathCheck=true` 与 `kotlin.incremental=false` 仅为兼容非 ASCII 路径而保留（在当前 ASCII 路径下无副作用）。以下为历史记录：
 
 1. AGP 直接拒绝：`Your project path contains non-ASCII characters` → `android.overridePathCheck=true`；
 2. Kotlin 增量缓存写失败：`Could not close incremental caches ... class-fq-name-to-source.tab` → `kotlin.incremental=false`；
@@ -106,6 +106,7 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
    `Unable to read file ...\flutter_build\<hash>\app.dill` → `Target android_aot_release_android-arm64 failed`。
    **必须从纯 ASCII 路径构建**。`scripts/build_android.ps1` 用目录 junction 解决：
    `mklink /J E:\Document\furnace-build <真实路径>`，再从该路径执行 `flutter build`。
+   （仓库本身已是 ASCII 路径后，这条不再必要；junction 仍保留并已重定向到新路径。）
 
 **B. 网络受限**：`maven.google.com` **不可达**（`flutter doctor` 报其超时）；
 `dl.google.com` 与 Maven Central 通，但只有 **~60–100 KB/s**，会以 `Read timed out` 失败。
@@ -178,13 +179,15 @@ cd app; flutter build windows --release
 
 ---
 
-## 4. Windows release 也需要 ASCII 路径（2026-09-19 实测）
+## 4. Windows release 也需要 ASCII 路径（2026-09-19 实测；2026-11-01 已随仓库迁移修复）
 
-`flutter build windows --release` 在本工作区**会失败**，报错与 Android release 同源：
+> **2026-11-01 更新**：仓库已迁至纯 ASCII 路径 `E:\Projects\class-productivity`，本节描述的非 ASCII 问题不再出现；`E:\Document\furnace-build` junction 已重定向到新路径并保留作兼容。以下为历史记录。
+
+`flutter build windows --release` 在旧的非 ASCII 工作区**会失败**，报错与 Android release 同源：
 
 ```
 CUSTOMBUILD : error : Unable to read file:
-E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app\.dart_tool\flutter_build\<hash>\app.dill
+E:\Projects\class-productivity\app\.dart_tool\flutter_build\<hash>\app.dill
 error MSB8066: ... flutter_assemble.vcxproj ... 已退出，代码为 1
 ```
 

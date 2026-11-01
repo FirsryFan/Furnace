@@ -7829,7 +7829,7 @@ debug 能构建（JIT），release 失败：
 ### 4.1 运行方式（Windows）
 
 ```powershell
-cd "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app"
+cd "E:\Projects\class-productivity\app"
 flutter run -d windows        # 开发调试（支持热重载）
 # 或直接用已构建产物（免编译）：
 .\build\windows\x64\runner\Debug\knowflow.exe

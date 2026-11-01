@@ -15,7 +15,7 @@ import 'package:furnace/domain/services/srs/dsr_memory.dart';
 /// implementation** by `app/tool/gen_mindnet_tierb_diagnosis.cjs`:
 ///
 /// ```
-/// cd E:/FirsryOS/Memory/一THREADRIPPER一/class-productivity
+/// cd E:/Projects/class-productivity
 /// node app/tool/gen_mindnet_tierb_diagnosis.cjs
 /// ```
 ///

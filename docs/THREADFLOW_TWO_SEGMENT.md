@@ -183,7 +183,7 @@ inDangerZone, inDevelopmentZone, priorR0, priorConfidence }`。DB → 这个结�
 
 ## 7. 证据（本次实际运行的命令与结果）
 
-在 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity\app` 下：
+在 `E:\Projects\class-productivity\app` 下：
 
 * `dart analyze lib test`
   → `0` 条 error、`0` 条 warning、`96` 条 info（`96 issues found.`）。

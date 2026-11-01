@@ -54,7 +54,7 @@ import 'package:furnace/domain/services/cognitive/fast_engine.dart';
 /// through the same read-only generator:
 ///
 /// ```
-/// cd E:/FirsryOS/Memory/一THREADRIPPER一/class-productivity
+/// cd E:/Projects/class-productivity
 /// node app/tool/gen_mindnet_tierb_diagnosis.cjs
 /// ```
 ///

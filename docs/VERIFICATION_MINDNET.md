@@ -2,7 +2,7 @@
 
 - **验证者**：verifier（独立于 t14/t15/t16/t17 的实现者）
 - **报告时间**：2026-10-01 14:06（本机时钟；文中每个数字都带读数时刻）
-- **被测仓库**：Furnace `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity`
+- **被测仓库**：Furnace `E:\Projects\class-productivity`
   - HEAD = `ee0a6e11803aca9865cda887ba18981d856423c9`（**本轮所有产物都还没提交**，见 §0.2 的 porcelain）
   - Flutter 3.47.2 / Dart 3.13.2（`dart --version`）
 - **工具链**：所有复算脚本放在 `C:\Users\Public\mindnet-verify\`（**两个仓库之外**），见 §9。
@@ -493,7 +493,7 @@ index 2d99151..8fb71e8 100644
 
 **机械闸门**（本文件，实际执行的完整命令 —— 14:30 最终一次运行）
 ```
-cd "E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity"
+cd "E:\Projects\class-productivity"
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" "docs\VERIFICATION_MINDNET.md" \
   --workspace "." \
   --allow "conformance/mindnet_vectors.json" --allow "conformance.js" \

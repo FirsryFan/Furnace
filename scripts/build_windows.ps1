@@ -1,20 +1,20 @@
 # Build the Furnace Windows release.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
 #
-# Why this script builds from an ASCII path
-# -----------------------------------------
-# This checkout lives under `E:\FirsryOS\Memory\一THREADRIPPER一\...`, and the
-# release build's kernel-snapshot step cannot read its own output when that path
-# contains non-ASCII characters. Measured 2026-10-02, building in place:
+# Why this script may build through an ASCII junction
+# ------------------------------------------------
+# HISTORY: this checkout used to live under a non-ASCII path
+# (E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity). The release build's
+# kernel-snapshot step could not read its own output when the path contained
+# non-ASCII characters (measured 2026-10-02): error MSB8066, "Unable to read
+# file ...\flutter_build\<hash>\app.dill".
 #
-#   CUSTOMBUILD : error : Unable to read file:
-#     ...\app\.dart_tool\flutter_build\<hash>\app.dill
-#   error MSB8066: ... flutter_assemble.vcxproj ... exited with code 1.
-#
-# `scripts/build_android.ps1` hit the same class of problem and solved it the same
-# way (§3 there): build through a junction whose path is pure ASCII. Everything
-# else - `flutter create`, `pub get`, `gen-l10n`, `build_runner` - is happy in the
-# real directory; only the release build itself runs from the junction.
+# FIX: on 2026-11-01 the repository was moved to the pure-ASCII path
+# E:\Projects\class-productivity, so the in-place release build now works.
+# The junction option is retained for compatibility (E:\Document\furnace-build
+# is still redirected to the new app path); use -AsciiPath to build through it.
+# Everything else - `flutter create`, `pub get`, `gen-l10n`, `build_runner` -
+# has always been happy in the real directory.
 #
 # Output: <junction>\build\windows\x64\runner\Release\ - the same files as
 # app\build\windows\x64\runner\Release\, because a junction is not a copy.
