@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/review_plan_repository.dart';
+import 'package:furnace/features/anki/application/judge_mode_preference.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
+import 'package:furnace/features/anki/presentation/review_choice_options.dart';
 import 'package:furnace/features/anki/presentation/review_page.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -26,6 +29,10 @@ void main() {
     AppDatabase db, {
     List<Override> extra = const [],
   }) async {
+    // 2026-11-02 起产品默认是自判；这组用例断言的是自动判分那条路的细节，
+    // 所以在开屏前显式把全局偏好写成严格（用户明确选过严格的老库行为）。
+    await ReviewPlanRepository(db, AnkiRepository(db))
+        .setJudgeModePreference(JudgeModePreference.strict);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -230,12 +237,14 @@ void main() {
     expect(await db.select(db.reviewLogs).get(), isEmpty,
         reason: 'nothing is graded until the user judges');
 
-    await tester.tap(find.byTooltip('记得'));
+    // 7 档自判：第 2 档「比较熟练」= FSRS Good，记一次正确。
+    await tester.tap(find.text('比较熟练'));
     await settle(tester);
 
     final log = (await db.select(db.reviewLogs).get()).single;
     expect(log.judgeMode, 'self');
     expect(log.correct, 1, reason: 'the user said they remembered it');
+    expect(log.ratingFsrs, 3, reason: '比较熟练 → FSRS Good');
   });
 
   testWidgets('an essay card is always judged by the user', (tester) async {
@@ -254,20 +263,16 @@ void main() {
     expect(find.textContaining('自己判分'), findsOneWidget);
     expect(await db.select(db.reviewLogs).get(), isEmpty);
 
-    await tester.tap(find.byTooltip('忘记'));
-    await settle(tester);
-    expect(await db.select(db.reviewLogs).get(), isEmpty,
-        reason: 'the failed recall still waits for the solution question');
-
-    await tester.tap(find.text('还是不会'));
+    // 7 档自判：第 6 档「完全没印象」= 裸失败（lapse），不再追问「读过答案
+    // 吗」——档位本身已经回答了那件事。
+    await tester.tap(find.text('完全没印象'));
     await settle(tester);
 
     final log = (await db.select(db.reviewLogs).get()).single;
     expect(log.judgeMode, 'self');
     expect(log.correct, 0);
     expect(log.format, 'essay');
-    expect(log.reviewedSolution, isFalse,
-        reason: 'the user was asked and said no');
+    expect(log.reviewedSolution, isFalse);
     expect(log.closeness, isNull, reason: 'a bare lapse carries no closeness');
   });
 
@@ -662,5 +667,70 @@ void main() {
     final states = await db.select(db.cardStates).get();
     expect(states.single.forced, 1, reason: '绑定仍在库里，下一轮复习还会回来');
     expect(await db.select(db.reviewLogs).get(), hasLength(3));
+  });
+
+  // task-24 接线回归：correctIndex 在作答前就算得出来，选项面板必须靠
+  // _feedback 门控，否则绿勾会在提交前把正确选项标出来（泄题）。
+  Finder optionCorrectIcon() => find.descendant(
+        of: find.byKey(reviewOptionsKey),
+        matching: find.byIcon(Icons.check_circle_outline),
+      );
+
+  testWidgets('a choice card never reveals the correct option before submit',
+      (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'mcq',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+      options: ['线粒体', '叶绿体', '细胞核'],
+    );
+
+    await pumpReview(tester, db);
+
+    expect(find.text('叶绿体'), findsOneWidget, reason: '选项必须已经渲染');
+    expect(optionCorrectIcon(), findsNothing, reason: '提交前不能泄题');
+
+    await tester.tap(find.text('叶绿体'));
+    await tester.pump();
+    await tester.tap(find.text('提交'));
+    await settle(tester);
+
+    expect(optionCorrectIcon(), findsOneWidget, reason: '提交后正确项才画绿勾');
+  });
+
+  testWidgets('a self-judged choice card records the pick without grading it',
+      (tester) async {
+    final (db, anki) = await openDatabase();
+    await addCard(
+      anki,
+      type: 'mcq',
+      question: '光合作用的场所是？',
+      answer: '叶绿体',
+      options: ['线粒体', '叶绿体', '细胞核'],
+    );
+
+    await pumpReview(tester, db);
+
+    // 切到自判：先看答案，再由用户自己判对错。
+    await tester.tap(find.text('自判'));
+    await tester.pump();
+    await tester.tap(find.text('线粒体'));
+    await tester.pump();
+    await tester.tap(find.text('提交'));
+    await settle(tester);
+
+    // 自判模式不自动判分：选项上不画对错色/图标。
+    expect(optionCorrectIcon(), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(reviewOptionsKey),
+        matching: find.byIcon(Icons.cancel_outlined),
+      ),
+      findsNothing,
+    );
+    // 答案仍由反馈卡揭示。
+    expect(find.text('叶绿体'), findsWidgets);
   });
 }

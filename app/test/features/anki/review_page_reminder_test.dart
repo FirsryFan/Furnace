@@ -86,11 +86,11 @@ void main() {
     await settle(tester);
     expect(notifier.calls, isEmpty, reason: '刚开始复习时不该重排');
 
-    // essay 只能自判：提交 → 自己判「记得」。一张卡答对就进结束态。
-    // （答错会被 ForcedLoop 插回队列，队列反而变长，不适合验证结束态。）
+    // essay 只能自判：提交 → 7 档里选「比较熟练」（答对）。一张卡答对就进
+    // 结束态。（答错会被 ForcedLoop 插回队列，队列反而变长，不适合验证结束态。）
     await tester.tap(find.byTooltip('提交'));
     await settle(tester);
-    await tester.tap(find.byTooltip('记得'));
+    await tester.tap(find.text('比较熟练'));
     await settle(tester);
 
     expect(

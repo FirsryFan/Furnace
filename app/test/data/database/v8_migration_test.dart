@@ -20,9 +20,9 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 ///     same `beforeOpen` self-heal the v5/v6/v7 columns use: Drift skips
 ///     `onUpgrade` entirely when the stored version is already current.
 ///  3. The two v7 preference columns arrive **unset**. NULL means "the user
-///     never chose", which resolves to `strict` judging and the `mixed` card
-///     type - i.e. exactly the behaviour the app had before the settings
-///     existed. Writing today's defaults into every row would freeze them.
+///     never chose", which resolves to 自判 judging（2026-11-02 起的产品默认）
+///     and the `mixed` card type. Writing today's defaults into every row would
+///     freeze them.
 ///  4. A plan is keyed by the tag **id**, so a tag rename keeps the plan (the
 ///     path is what changes) and a tag delete takes its plan with it.
 ///
@@ -177,10 +177,10 @@ VALUES ('rl1', 'cs1', 2, 1, 'auto', 1700000000000, 1700000000000)''');
     // shipped defaults rather than having today's values frozen into it.
     expect(settings.ankiJudgeMode, isNull);
     expect(settings.ankiCardTypePreference, isNull);
-    // ...and the repository turns that NULL into today's behaviour.
+    // ...and the repository turns that NULL into today's behaviour: 默认自判
+    //（2026-11-02 口径「永远默认用户自判」），老库不回填。
     final repository = ReviewPlanRepository(db, AnkiRepository(db));
-    expect(await repository.getJudgeModePreference(),
-        JudgeModePreference.strict);
+    expect(await repository.getJudgeModePreference(), JudgeModePreference.self);
     expect(await repository.getCardTypePreference(), CardTypePreference.mixed);
     await db.close();
   });

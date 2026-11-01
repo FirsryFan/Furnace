@@ -40,7 +40,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindnetIntro =>
-      'The user-model engine: readings here are maintained by MindNet for personalised recommendation, scheduling and pushes. The page is read-only and does not change learning data directly.';
+      'MindNet reads your review history and suggests what to study. This page is read-only.';
 
   @override
   String get navSettings => 'Settings';
@@ -577,7 +577,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayPlanUncalibrated =>
-      'The bonus is not calibrated: this order is a hint, not a measurement.';
+      'This order is only a suggestion, not a score.';
 
   @override
   String get todayPlanEmpty =>
@@ -1740,7 +1740,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUsageDocHint =>
-      'How each part works and what its limits are: AI, review, knowledge base, question bank, photos/materials, cognitive model, ranking';
+      'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, cognitive model';
 
   @override
   String get docAiTitle =>
@@ -1748,56 +1748,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docAiBody =>
-      'The AI can only change data through tools, and every tool carries a risk level: read-only calls (query_tasks, query_schedule, query_content, fetch_page, evaluate_problem_fit, compose_paper, find_similar_questions, find_questions_by_capability, plan_today, review_metrics and friends) run immediately; writes (creating tags, flashcards, tasks, documents, material intake, applying today\'s plan...) wait for your consent in both the per-action and the plan-first modes; deletions ask every single time and can be undone. You see what a call will change before it runs and get one undo after it; the model never sees your API key, and skill scripts do not receive it either.';
+      'The AI can read your library and change it. It asks before touching data, and you approve each step; deletions are confirmed one by one and can be undone. It can\'t see your API key.';
 
   @override
   String get docReviewTitle => 'Review and flashcards';
 
   @override
   String get docReviewBody =>
-      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no row at all means no cap). Due dates come from FSRS alone - the cognitive model only changes what today\'s queue puts first. Grading can be strict, lenient or self-assessed; lenient ignores typos and word order, and a card you got wrong ignores the daily cap and comes back the same day. The first tab of the flashcard page is Decks: it lists today\'s new-card and review progress per deck (a check marks a finished one), a tap opens that deck\'s review session, and the settings button in its app bar edits the daily caps. Cards with no tag belong to no group, so no daily target can reach them: the deck settings screen shows how many such cards exist and offers a one-tap \"put them all in one group\" fix, and the new-flashcard dialog can take a group up front.';
+      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no cap if never set). When a card is due is calculated by the app from your history; what you see is only the order for today. Judging is self-reported by default: after each card choose your real state from seven levels (perfect / easy / hard recall / partly recalled / no recall but familiar / no memory at all / new); the app schedules the next appearance from that. You can set a deck to strict auto-grading instead. A wrong card comes back the same day, outside the daily cap.';
 
   @override
   String get docKnowledgeTitle => 'Knowledge base and tags';
 
   @override
   String get docKnowledgeBody =>
-      'Tags form a tree, with / separating the levels. Deleting a tag also deletes its whole subtree together with the flashcards and review history inside it (the AI\'s delete tool asks for each one and leaves an undoable snapshot). Both card shapes - cards generated from a template and cards created directly per unit - count on the cognitive readings page, and the orphan banner there cleans up only when you press its button.';
+      'Tags form a tree, with / separating the levels. Deleting a tag also deletes its subtree and everything in it (you confirm each step and can undo). Cards that belong to no deck show up as a hint on the readings page, where you can put them into a deck.';
 
   @override
   String get docBankTitle => 'Question bank and paper assembly';
 
   @override
   String get docBankBody =>
-      'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one (duplicates are matched by stem fingerprint, so an existing question is pointed at instead of stored twice); question-pack import and whole-paper capture from zujuan feed the same bank. The paper page assembles a paper only from questions you already have (at-risk and developing points first); when it cannot fill the paper it lists the missing knowledge points honestly - the AI never writes questions. The paper can be copied out as printable plain text. On the cognitive model page the capability-move profile opens a read-only list of questions whose chains used a move.';
+      'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one; duplicates are never stored twice. Question packs and whole papers from the web also land in the same bank. Paper assembly only uses questions already in the bank, preferring what you most need to practise, and lists what is missing instead of inventing questions. The paper can be copied or exported to Word for printing.';
 
   @override
   String get docMaterialTitle => 'Photos, materials and rehearsal';
 
   @override
   String get docMaterialBody =>
-      'Photo intake turns one photo into four kinds of proposals - extra tags, flashcards, MindNet knowledge-point nodes and questions transcribed verbatim - and writes nothing before you confirm; material intake turns a piece of material into knowledge points / cards / connections, again only writing after you confirm, with an undo trail. A photo can also become a run/1 request carrying mechanism parameters: the mechanism panel lets you try or rehearse it, and a rehearsal only reports readings without touching your data. Saying \"do not install the goal mechanism\" really leaves it out.';
+      'Photo intake turns one photo into tags, flashcards, knowledge points and questions (transcribed as-is); nothing is written to your study data until you confirm. Material intake turns a piece of material into knowledge points, cards and links; it is saved only after you confirm, with an undo record. Photos can also be used to rehearse a study plan - you see the result without changing your data.';
 
   @override
   String get docTodayTitle => 'What to do today, and when';
 
   @override
   String get docTodayBody =>
-      'Today\'s list shows the cards due today; the rhythm layer reports alpha(tau) attention availability; conflicting tasks and schedule blocks are flagged and can be pushed back with one tap; the cognitive ranking tier only changes which card comes first, never due dates, and is recomputed only when you press the sort button. Counterfactual V(pi) and the retention probe likewise only affect ordering.';
+      'Today\'s list shows the cards due today and suggests what to start with from your recent reviews and energy. Conflicting tasks and schedule blocks are flagged and can be pushed back in one tap; the ordering is recalculated only when you press the sort button.';
 
   @override
   String get docCognitiveTitle => 'How to read the cognitive model';
 
   @override
   String get docCognitiveBody =>
-      'Cognitive model in settings is a read-only readings page: R is current memory strength, R0 is the strength right after learning, Sigma is accumulated effort, and the developing-zone / dead-end column is the tierB diffusion verdict on the tag graph (starts are the most recently reviewed points, targets are the ones due today); with no tags or no usable start and target it reads unavailable, which is not the same as healthy. \"Danger\" comes from the metacognition rows: it appears only when your self-rated confidence and your actual recall differ enough, and a missing verdict is not the same as healthy. The capability-move profile groups stuck risk by the moves on solved chains and answers which kind of move to practise; tapping a row lists the questions whose chains used it (read-only). At the top of the readings page there is a read-only knowledge-network view that draws knowledge points and tags as one graph (colour = cognitive zone, size = card count); tap a node to read it. The statements at the top record that it does not move due dates, that its parameters are uncalibrated and that it does not decide for you. The AI\'s evaluate_problem_fit tool reads the same numbers to judge whether a question is worth doing now.';
+      'The cognitive model is a read-only page showing how well each card is remembered. \"Developing zone\" = what to review more now; \"at risk\" = you can do it but are close to forgetting. When there is no data it says unavailable, which does not mean healthy. The knowledge graph at the top draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. \"Capability actions\" groups the steps where you got stuck and lets you find questions by that action. These readings are guidance only and never change your data by themselves.';
 
   @override
   String get docFormulaTitle => 'How the score is computed';
 
   @override
   String get docFormulaBody =>
-      'Total = urgency x weight + goal match x weight + state fit x weight + expected pressure x weight - fatigue penalty x weight. Every component is between 0 and 1, the weights are normalized internally, so the total is between 0 and 1 as well. The order is only recomputed when you press the sort button - nothing changes in the background.';
+      'The total is a weighted sum of urgency, goal match, state fit, expected pressure and fatigue; each component is scored 0-1 first, then weighted by the values you set. It is recalculated only when you press the sort button.';
 
   @override
   String get docCurrentWeights =>
@@ -1805,7 +1805,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docWeightsNormalized =>
-      'Edited weights are normalized automatically: even if they do not add up to 1, the total never exceeds 1 because the ranker rescales by their sum.';
+      'Weights are rescaled automatically - they do not have to add up to 1. If you see no difference, keep the defaults.';
 
   @override
   String get docStatusTitle => 'Event bar edge colours';
@@ -1834,7 +1834,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutDataBody =>
-      'The database, skills, AI-written documents and image attachments all live under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).';
+      'All your data, including AI-written documents and images, lives under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).';
 
   @override
   String get aboutDataDirLabel => 'Application data directory';
@@ -1844,14 +1844,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutNetworkBody =>
-      'Only two things reach the network on their own: (1) AI requests, sent to the endpoint you configured in AI settings - conversation text and images both go there; (2) fetch_page, which reads public pages with GET only, no cookies, refuses loopback and private addresses, follows at most 5 redirects and caps a body at 2 MiB. A skill\'s scripts run only if you switch its network permission on, and that switch decides whether the script runs at all - it does not block individual domains.';
+      'Only two things reach the network: (1) AI requests, sent to the endpoint you configured in AI settings; (2) public web pages, read without your login information. Detailed limits are in the developer docs.';
 
   @override
   String get aboutGapsTitle => 'Known gaps';
 
   @override
   String get aboutGapsBody =>
-      '(1) No DOCX / PDF output - create_document writes .md / .txt only; (2) a skill\'s networkAllow is a switch, not per-domain enforcement (that would need OS-level egress control); (3) skill scripts run on Windows only, so those tools are absent on Android; (4) the browser bridge (browser_bridge) is not implemented; (5) the cognitive model has only the memory tier and the fast scheduler wired up - the run/1 session protocol, metacognition and rhythm tiers are not (see docs/MINDNET_ROADMAP.md); (6) fetch_page cannot refuse a host whose address fails to resolve (recorded, unfixed).';
+      'Some advanced features are not finished; they do not affect daily use. The detailed list is in the developer docs.';
 
   @override
   String get settingsAppearance => 'Appearance';
@@ -2026,7 +2026,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsQuestionPackImportConfirm =>
-      'Newly added questions never overwrite existing ones; identical stems (by fingerprint) are skipped';
+      'Questions with the same stem are skipped, not duplicated.';
 
   @override
   String settingsQuestionPackImportDone(int created, int skipped, int media) {
@@ -2149,7 +2149,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsBackupNote =>
-      'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
+      'This copies the data file itself; to move to another device use Export workspace above.';
 
   @override
   String get settingsKnowledgeLibrary => 'Knowledge library';
@@ -2163,7 +2163,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDiagnosticExportHint =>
-      'Local bundle: build, schema, settings summary, questions and AI content. Never includes the API key.';
+      'Bundles this problem\'s context: version, settings, questions and AI content. Never includes your key.';
 
   @override
   String get settingsDiagnosticIncludeContent =>
@@ -2220,6 +2220,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get threadEnergyUsePrediction => 'Use prediction';
+
+  @override
+  String get reviewRatingPrompt => 'How did that feel?';
+
+  @override
+  String get reviewRatingPerfect => 'Perfect';
+
+  @override
+  String get reviewRatingEasy => 'Easy';
+
+  @override
+  String get reviewRatingHard => 'Hard recall';
+
+  @override
+  String get reviewRatingPartial => 'Partly recalled';
+
+  @override
+  String get reviewRatingVague => 'No recall, but familiar';
+
+  @override
+  String get reviewRatingBlank => 'No memory at all';
+
+  @override
+  String get reviewRatingNew => 'New';
+
+  @override
+  String get reviewJudgeModeTitle => 'Judging';
+
+  @override
+  String get reviewJudgeSelf => 'Self-judge (default)';
+
+  @override
+  String get reviewJudgeStrict => 'Strict (auto-graded)';
+
+  @override
+  String get reviewJudgeModeHint =>
+      'Self-judge is the default; only groups explicitly set to strict are auto-graded.';
 
   @override
   String get navAi => 'AI';
@@ -2377,7 +2414,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAiApiKeyHint =>
-      'Stored in plain text locally, and exported inside .tfpkg';
+      'The key stays on this device. Exporting a workspace asks whether to include it.';
 
   @override
   String get settingsAiBaseUrl => 'Base URL';

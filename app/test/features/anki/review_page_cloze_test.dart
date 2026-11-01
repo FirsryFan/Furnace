@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/anki_repository.dart';
+import 'package:furnace/data/repositories/review_plan_repository.dart';
+import 'package:furnace/features/anki/application/judge_mode_preference.dart';
 import 'package:furnace/features/anki/presentation/review_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -27,6 +29,9 @@ void main() {
   }
 
   Future<void> pumpReview(WidgetTester tester, AppDatabase db) async {
+    // 本文件的用例断言自动判分路径；2026-11-02 起默认是自判，所以显式选严格。
+    await ReviewPlanRepository(db, AnkiRepository(db))
+        .setJudgeModePreference(JudgeModePreference.strict);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],

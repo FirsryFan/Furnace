@@ -1037,6 +1037,12 @@ class ReviewGroupPlans extends Table {
   /// "no reviews" in this schema.
   IntColumn get reviewCardsPerDay => integer().withDefault(const Constant(0))();
 
+  /// v43（2026-11-02）：这个卡组（标签子树）的判分方式。
+  ///
+  /// 可空、NULL = 跟随全局默认（自判）。目前只认 "strict"（自动判分）；
+  /// 其它值由读侧按默认处理，不回填。
+  TextColumn get judgeMode => text().nullable()();
+
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

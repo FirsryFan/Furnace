@@ -171,8 +171,11 @@ class AppDatabase extends _$AppDatabase {
   /// v42（2026-11-01）adds `knowledge_packages.enabled`：知识包启用/禁用位。
   /// 可空、NULL 读作「启用」（老库与首次导入即启用），迁移不回填；禁用只影响
   /// 知识库管理与导出范围，已经导入的内容行原样保留（见 docs/DECISIONS-2026-11.md）。
+  ///
+  /// v43（2026-11-02）adds `review_group_plans.judge_mode`：按卡组（标签子树）
+  /// 覆盖判分方式。可空、NULL = 跟随全局默认（自判），迁移不回填。
   @override
-  int get schemaVersion => 42;
+  int get schemaVersion => 43;
 
   @override
   MigrationStrategy get migration {
@@ -304,6 +307,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 42) {
           await _upgradeV41ToV42();
         }
+        if (from < 43) {
+          await _upgradeV42ToV43();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -424,6 +430,10 @@ class AppDatabase extends _$AppDatabase {
       // 却没有这一列时，Drift 跳过 onUpgrade，知识库页第一次读包就抛
       // no such column。列可空、NULL 读作启用，补列即可，没有回填。
       'knowledge_packages': [knowledgePackages.enabled],
+      // v43（2026-11-02）：卡组判分方式。同一个失败模式——老文件被盖成 v43
+      // 却没有这一列时，Drift 跳过 onUpgrade，卡组计划页第一次读就抛
+      // no such column。列可空、NULL 读作跟随全局默认，补列即可，没有回填。
+      'review_group_plans': [reviewGroupPlans.judgeMode],
     };
     final m = Migrator(this);
     for (final entry in expected.entries) {
@@ -1243,6 +1253,19 @@ class AppDatabase extends _$AppDatabase {
     final m = Migrator(this);
     await _addColumnIfMissing(
         m, 'knowledge_packages', knowledgePackages.enabled);
+  }
+
+  /// v42 -> v43：卡组判分方式 `review_group_plans.judge_mode`
+  /// （2026-11-02，闪存卡：默认自判，可按标签子树设严格）。
+  ///
+  /// 列可空、NULL 读作「跟随全局默认」，老库没有一行需要回填。表不存在就跳过
+  /// （由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV42ToV43() async {
+    if (!await _tableExists('review_group_plans')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(m, 'review_group_plans', reviewGroupPlans.judgeMode);
   }
 
   Future<void> _upgradeV4ToV5() async {

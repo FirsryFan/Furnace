@@ -15,8 +15,11 @@ import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../application/judge_mode_preference.dart';
 import '../application/review_advisory.dart';
+import '../application/review_rating_tier.dart';
 import '../application/review_reminder_service.dart';
 import '../application/review_service.dart';
+import 'review_choice_options.dart';
+import 'review_question_text.dart';
 import 'review_reminder_texts.dart';
 
 /// 「跳过这张」按钮（会话内跳过，不写库、不动排期）。
@@ -111,17 +114,11 @@ class _PendingWrong {
     required this.item,
     required this.submitted,
     required this.judgeMode,
-    required this.selfJudged,
   });
 
   final ReviewItem item;
   final String submitted;
   final JudgeMode judgeMode;
-
-  /// True when the user's own 忘记 press started this, which decides whether the
-  /// screen advances itself afterwards (as the self path does) or waits for the
-  /// next-card press (as the auto path does).
-  final bool selfJudged;
 }
 
 class _ReviewPageState extends ConsumerState<ReviewPage> {
@@ -145,6 +142,13 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   DateTime? _shownAt;
   ReviewOutcome? _outcome;
   _PendingWrong? _pendingWrong;
+
+  /// 知识点 id → 这个卡组显式设过的判分方式（覆盖全局）。
+  ///
+  /// 队列构建时读一次（判分规则 + 标签路径），之后这一轮不再变：一个已经
+  /// 开始的答案不该被外部改设置打断。
+  final Map<String, JudgeModePreference> _groupJudgeModes =
+      <String, JudgeModePreference>{};
 
   /// 与 [_queue] 一一对应的「时间下限」表：队列里第 i 张卡在这一刻之前不许出现。
   ///
@@ -207,9 +211,15 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     // user who chose 宽松 asked for recall rather than dictation, and a user who
     // chose 自判 asked to judge every answer themselves. It is only the starting
     // point - the per-answer control still wins for the card in front of them -
-    // and with nothing configured it resolves to 严格, which is the behaviour
-    // this screen had before the preference existed.
-    final initialMode = ref.initialAnswerMode;
+    // and with nothing configured it resolves to 自判（2026-11-02 的默认）：只有
+    // 用户明确设成严格的卡组（见 [_groupJudgeModes]）才自动判分。
+    // 等一次持久偏好落地再决定开屏模式：同步回退会在首帧读到「还没加载」的
+    // 产品默认（自判），把用户明确选过的严格/宽松吞掉——默认改成自判之后，
+    // 这条路径尤其容易把严格库变成自判库。
+    final initialMode = await _readInitialAnswerMode();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _loading = true;
       _mode = initialMode;
@@ -235,6 +245,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
           onlyPaths: onlyPaths,
           onlyUngrouped: widget.onlyUngrouped,
         );
+    // 卡组覆盖：队列里每个知识点查一次「它属于哪个设过判分方式的卡组」。
+    final groupModes = await _resolveGroupJudgeModes(queue);
     if (!mounted) {
       return;
     }
@@ -256,9 +268,56 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
       _finished = false;
       // 新的一轮：下一轮做完时还要再重排一次提醒。
       _reminderRefreshed = false;
+      _groupJudgeModes
+        ..clear()
+        ..addAll(groupModes);
     });
     // 队列加载完第一张就可以直接打字，不必先点一下输入框。
     _focusAnswer();
+  }
+
+  /// 解析这一轮里每张卡所属卡组的判分覆盖。
+  ///
+  /// 没有显式设过判分方式的卡组不产生规则（NULL 跟随全局），因此没有配置时
+  /// 这里零查询、返回空表——队列行为与加这个功能之前逐字段一致。
+  Future<Map<String, JudgeModePreference>> _resolveGroupJudgeModes(
+    List<ReviewItem> queue,
+  ) async {
+    if (queue.isEmpty) {
+      return const <String, JudgeModePreference>{};
+    }
+    final repository = ref.read(reviewPlanRepositoryProvider);
+    final rules = await repository.judgeModeRules();
+    if (rules.isEmpty) {
+      return const <String, JudgeModePreference>{};
+    }
+    final knowledgePointIds = <String>{
+      for (final item in queue) item.knowledgePointId,
+    };
+    final pathsByKnowledgePoint =
+        await repository.knowledgePointTagPaths(knowledgePointIds);
+    final modes = <String, JudgeModePreference>{};
+    for (final knowledgePointId in knowledgePointIds) {
+      final override = resolveGroupJudgeMode(
+        knowledgePointTagPaths:
+            pathsByKnowledgePoint[knowledgePointId] ?? const <String>[],
+        rules: rules,
+      );
+      if (override != null) {
+        modes[knowledgePointId] = override;
+      }
+    }
+    return modes;
+  }
+
+  /// 开屏判分方式：持久偏好读失败就退回产品默认（自判），绝不挡复习。
+  Future<AnswerMode> _readInitialAnswerMode() async {
+    try {
+      final preference = await ref.read(judgeModePreferenceProvider.future);
+      return preference.answerMode;
+    } catch (_) {
+      return JudgeModePreference.self.answerMode;
+    }
   }
 
   /// 把焦点放回答案框，但只在「现在真的可以作答」时做。
@@ -293,8 +352,21 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   ///
   /// An essay has no comparable answer - the app never decides whether prose is
   /// right - so it is always self-judged, whatever the control says.
-  AnswerMode _effectiveMode(ReviewItem item) =>
-      item.kind == ReviewItemKind.essay ? AnswerMode.self : _mode;
+  ///
+  /// 卡组覆盖优先于本轮控制：用户给这个卡组设了严格，就不能被一次点击改成
+  /// 自判，否则「某些卡组严格」这件事不成立。
+  AnswerMode _effectiveMode(ReviewItem item) {
+    if (item.kind == ReviewItemKind.essay) {
+      return AnswerMode.self;
+    }
+    final override = _groupJudgeModes[item.knowledgePointId];
+    return override?.answerMode ?? _mode;
+  }
+
+  /// 当前这张卡的判分方式是否由卡组锁定（控制要禁用）。
+  bool _modeLocked(ReviewItem item) =>
+      item.kind != ReviewItemKind.essay &&
+      _groupJudgeModes.containsKey(item.knowledgePointId);
 
   int? _elapsedSeconds() =>
       _shownAt == null ? null : DateTime.now().difference(_shownAt!).inSeconds;
@@ -321,7 +393,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         selected: selected,
       );
     } else {
-      correct = _mode == AnswerMode.strict
+      correct = _effectiveMode(item) == AnswerMode.strict
           ? ReviewService.strictMatch(item.answer, submitted)
           : ReviewService.lenientMatch(item.answer, submitted);
     }
@@ -336,7 +408,6 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         item: item,
         submitted: submitted,
         judgeMode: JudgeMode.auto,
-        selfJudged: false,
       );
       return;
     }
@@ -361,14 +432,12 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     required ReviewItem item,
     required String submitted,
     required JudgeMode judgeMode,
-    required bool selfJudged,
   }) {
     setState(() {
       _pendingWrong = _PendingWrong(
         item: item,
         submitted: submitted,
         judgeMode: judgeMode,
-        selfJudged: selfJudged,
       );
       _feedback = _Feedback(
         correct: false,
@@ -403,16 +472,6 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
           ? DsrCardState.closenessNearMiss
           : DsrCardState.closenessDefault,
     );
-    if (!mounted || !pending.selfJudged) {
-      return;
-    }
-    await ref
-        .read(reviewServiceProvider)
-        .consumeBoost(pending.item.knowledgePointId);
-    if (!mounted) {
-      return;
-    }
-    _advance();
   }
 
   /// Shows the expected answer and waits for the rating buttons.
@@ -538,32 +597,27 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     });
   }
 
-  /// Records the self-assessment and moves on.
+  /// Records the 7 档 self-assessment and moves on.
   ///
-  /// This press is the graded event of the self path: 忘记 means wrong and
-  /// anything else means right, which is why the log's `judge_mode` is `self`.
-  /// 忘记 goes through the solution question like every other failed recall, so
-  /// the self and auto paths cannot record the same event differently.
-  Future<void> _rate(FsrsRating rating) async {
+  /// 每一档先经 [reviewRatingMappingOf] 变成「FSRS rating + 对错 + MindNet
+  /// 事件参数」，再走与自动判分同一条 `grade` 写路径：一次答案只写一条日志。
+  /// 4/5 档（想起一部分 / 有印象）带 `reviewedSolution + closeness`，模型记
+  /// `retrieval_failure_feedback`；6/7 档是裸失败（lapse）。第 7 档的
+  /// `knowledge` 事件等事件层接上再改（见 `review_rating_tier.dart`）。
+  Future<void> _rateTier(ReviewRatingTier tier) async {
     final item = _current;
     if (item == null || _submitting) {
       return;
     }
-    if (rating == FsrsRating.again) {
-      _beginWrong(
-        item: item,
-        submitted: _answer.text.trim(),
-        judgeMode: JudgeMode.self,
-        selfJudged: true,
-      );
-      return;
-    }
+    final mapping = reviewRatingMappingOf(tier);
     await _record(
       item: item,
-      correct: true,
+      correct: mapping.correct,
       submitted: _answer.text.trim(),
       judgeMode: JudgeMode.self,
-      rating: rating,
+      rating: mapping.fsrsRating,
+      reviewedSolution: mapping.reviewedSolution,
+      closeness: mapping.closeness,
     );
     if (!mounted) {
       return;
@@ -863,8 +917,11 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                     revealed: _feedback?.expected,
                   ),
                 ] else
-                  SelectableText(
-                    item.question,
+                  // task-24：题干富文本（Markdown + LaTeX，图片由占位混排组件
+                  // 负责；本页暂不提供图片字节，所以与旧 SelectableText 逐字
+                  // 一致）。纯文本/模板卡/论述题仍走同一条渲染路径。
+                  ReviewQuestionText(
+                    text: item.question,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           height: 1.75,
                         ),
@@ -885,7 +942,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                   // control itself is disabled.
                   mode: _effectiveMode(item),
                   autoEnabled: item.kind != ReviewItemKind.essay,
-                  onChanged: _feedback == null
+                  // 卡组显式设了判分方式时控制锁住：严格卡组不能被一次点击
+                  // 改成自判（那样「某些卡组严格」就不成立）。
+                  onChanged: _feedback == null && !_modeLocked(item)
                       ? (mode) => setState(() {
                             // An essay is self-judged whatever the control says,
                             // so tapping 自判 on one must not decide the mode of
@@ -898,17 +957,36 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                 ),
                 const SizedBox(height: 16),
                 if (item.kind == ReviewItemKind.mcq) ...[
-                  for (var i = 0; i < item.options.length; i++)
-                    _OptionButton(
-                      label: item.options[i],
-                      selected: _selectedOption == item.options[i],
-                      isCorrect: _feedback == null ? null : correctIndex == i,
-                      onTap: _feedback == null
-                          ? () => setState(
-                                () => _selectedOption = item.options[i],
-                              )
-                          : null,
-                    ),
+                  // task-24：选项面板（A/B/C/D 字母 + 提交后对错色）。选中状态
+                  // 仍映射回原来的 `_selectedOption`，_submit / 判分 / 会话
+                  // 逻辑一个字都没动。
+                  ReviewChoiceOptions(
+                    options: item.options,
+                    selected: <int>{
+                      if (_selectedOption != null &&
+                          item.options.contains(_selectedOption))
+                        item.options.indexOf(_selectedOption!),
+                    },
+                    onChanged: _feedback == null
+                        ? (selection) => setState(
+                              () => _selectedOption = selection.isEmpty
+                                  ? null
+                                  : item.options[selection.first],
+                            )
+                        : null,
+                    // 提交前泄题门控：correctIndex 在揭示前就已经算得出来，必须
+                    // 用 _feedback 拦住，否则绿勾会提前标出正确项（旧
+                    // `_OptionButton` 就是 _feedback == null ? null : ... 的口径）。
+                    correctIndexes: _feedback == null || correctIndex == null
+                        ? null
+                        : <int>{correctIndex},
+                    // 自判模式只记录选择、不自动判分：揭示后也不给选项画对错
+                    // 色（正确答案由反馈卡呈现，选择本身仍被记录）。
+                    selfJudged: _effectiveMode(item) == AnswerMode.self,
+                    // multiple 固定 false：数据模型里选择题是单选，
+                    // ReviewService.mcqMatch 的 selected 是单个 String，接多选
+                    // 会破坏 _submit 的判分。
+                  ),
                   const SizedBox(height: 4),
                   FilledButton.icon(
                     onPressed: _feedback == null &&
@@ -958,6 +1036,15 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                         : null,
                   ),
                 ],
+                // 自判的 7 档按钮放在正文：底栏放不下 7 个带文字的按钮；
+                // 曝光 / 跳过 / 建任务仍留在底栏。
+                if (_feedback?.awaitingSelfJudge == true) ...[
+                  const SizedBox(height: 12),
+                  ReviewRatingBar(
+                    submitting: _submitting,
+                    onSelected: _rateTier,
+                  ),
+                ],
               ],
             ),
           ),
@@ -971,7 +1058,6 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
               _revealAnswer(current);
             }
           },
-          onRate: _rate,
           onExpose: _expose,
           // Pressing "next" before the solution question is answered would skip
           // the write of an answer that has not been recorded yet, so the
@@ -1309,6 +1395,7 @@ class _FeedbackCard extends StatelessWidget {
 /// be visible while answering.
 class AnswerModeSelector extends StatelessWidget {
   const AnswerModeSelector({
+    super.key,
     required this.mode,
     required this.autoEnabled,
     required this.onChanged,
@@ -1353,52 +1440,6 @@ class AnswerModeSelector extends StatelessWidget {
         onSelectionChanged: onChanged == null
             ? null
             : (selection) => onChanged!(selection.first),
-      ),
-    );
-  }
-}
-
-/// One choice of a single-choice card.
-class _OptionButton extends StatelessWidget {
-  const _OptionButton({
-    required this.label,
-    required this.selected,
-    required this.isCorrect,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-
-  /// Whether this is the card's correct option; null while the answer is open,
-  /// so the choice is not given away before submitting.
-  final bool? isCorrect;
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final background = isCorrect == true
-        ? Colors.green.withValues(alpha: 0.16)
-        : (isCorrect == false && selected)
-            ? theme.colorScheme.error.withValues(alpha: 0.14)
-            : selected
-                ? theme.colorScheme.primary.withValues(alpha: 0.14)
-                : null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          backgroundColor: background,
-          // The highlight has to survive the button being disabled after the
-          // answer, which is exactly when it matters.
-          disabledBackgroundColor: background,
-          minimumSize: const Size.fromHeight(44),
-        ),
-        child: Text(label),
       ),
     );
   }
@@ -1458,7 +1499,6 @@ class _BottomBar extends StatelessWidget {
     required this.feedback,
     required this.submitting,
     required this.onReveal,
-    required this.onRate,
     required this.onExpose,
     this.onNext,
     this.onSkip,
@@ -1468,7 +1508,6 @@ class _BottomBar extends StatelessWidget {
   final _Feedback? feedback;
   final bool submitting;
   final VoidCallback onReveal;
-  final ValueChanged<FsrsRating> onRate;
 
   /// "我读过，没测自己" - the exposure button, shown next to the rating buttons
   /// because that is the moment it describes: the answer is on screen and the
@@ -1514,36 +1553,15 @@ class _BottomBar extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  if (awaitingJudge) ...[
-                    IconButton(
-                      tooltip: l10n.ankiForgot,
-                      icon: const Icon(Icons.replay),
-                      color: Theme.of(context).colorScheme.error,
-                      onPressed:
-                          submitting ? null : () => onRate(FsrsRating.again),
-                    ),
-                    IconButton(
-                      tooltip: l10n.ankiFuzzy,
-                      icon: const Icon(Icons.trending_flat),
-                      onPressed:
-                          submitting ? null : () => onRate(FsrsRating.hard),
-                    ),
-                    IconButton.filled(
-                      tooltip: l10n.ankiRemembered,
-                      icon: const Icon(Icons.check),
-                      onPressed:
-                          submitting ? null : () => onRate(FsrsRating.good),
-                    ),
-                    // The honest third answer to "how well did you know it?":
-                    // "I did not test myself, I just read it". It is not a
-                    // grade, so it is not in the grade group's styling - a
-                    // plain IconButton, and the model hears `reread`.
+                  if (awaitingJudge)
+                    // 7 档自判按钮在正文的 ReviewRatingBar 里；底栏只留
+                    // 「我读过，没测自己」——它不是一次判分（模型记 `reread`）。
                     IconButton(
                       tooltip: l10n.ankiExposureTooltip,
                       icon: const Icon(Icons.chrome_reader_mode),
                       onPressed: submitting ? null : onExpose,
-                    ),
-                  ] else
+                    )
+                  else
                     // The answer is already recorded and judged: one press moves
                     // on, and nothing is written a second time. Disabled while
                     // the solution question is still open (onNext is null then).
@@ -1569,6 +1587,64 @@ class _BottomBar extends StatelessWidget {
     );
   }
 }
+
+/// 自判的 7 档反馈按钮（1 完全熟练 … 7 新知识）。
+///
+/// 文案来自 l10n 的 `reviewRating*` 键；这里只做呈现，档位语义在
+/// `review_rating_tier.dart`（按钮 → FSRS rating + MindNet 事件参数）。
+class ReviewRatingBar extends StatelessWidget {
+  const ReviewRatingBar({
+    super.key,
+    required this.onSelected,
+    this.submitting = false,
+  });
+
+  final ValueChanged<ReviewRatingTier> onSelected;
+
+  /// 写库期间禁用，避免一次答案写两条日志。
+  final bool submitting;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.reviewRatingPrompt, style: theme.textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final tier in ReviewRatingTier.values)
+              FilledButton.tonal(
+                key: reviewRatingTierKey(tier),
+                onPressed: submitting ? null : () => onSelected(tier),
+                child: Text(reviewRatingLabel(l10n, tier)),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 7 档按钮的稳定 key（测试定位用）。
+Key reviewRatingTierKey(ReviewRatingTier tier) =>
+    ValueKey<String>('review-rating-${tier.name}');
+
+/// 档位文案（l10n 不塞进映射层：映射只讲算法/模型语义）。
+String reviewRatingLabel(AppLocalizations l10n, ReviewRatingTier tier) =>
+    switch (tier) {
+      ReviewRatingTier.perfect => l10n.reviewRatingPerfect,
+      ReviewRatingTier.easy => l10n.reviewRatingEasy,
+      ReviewRatingTier.hard => l10n.reviewRatingHard,
+      ReviewRatingTier.partial => l10n.reviewRatingPartial,
+      ReviewRatingTier.vague => l10n.reviewRatingVague,
+      ReviewRatingTier.blank => l10n.reviewRatingBlank,
+      ReviewRatingTier.newKnowledge => l10n.reviewRatingNew,
+    };
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onReload});

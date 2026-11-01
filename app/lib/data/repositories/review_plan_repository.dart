@@ -40,8 +40,8 @@ class ReviewPlanRepository {
 
   // --- review preferences --------------------------------------------------
 
-  /// The persisted default judging mode, or [JudgeModePreference.strict] when
-  /// the user never chose (NULL) - today's behaviour.
+  /// The persisted default judging mode, or [JudgeModePreference.self] when the
+  /// user never chose (NULL) - 默认自判（2026-11-02 口径，老库不回填）。
   Future<JudgeModePreference> getJudgeModePreference() async {
     final row = await _settingsRow();
     return JudgeModePreference.fromStorage(row?.ankiJudgeMode);
@@ -92,6 +92,9 @@ class ReviewPlanRepository {
           newCardsPerDay: row.readTable(_db.reviewGroupPlans).newCardsPerDay,
           reviewCardsPerDay:
               row.readTable(_db.reviewGroupPlans).reviewCardsPerDay,
+          judgeMode: _judgeModeOfStored(
+            row.readTable(_db.reviewGroupPlans).judgeMode,
+          ),
         ),
     ];
   }
@@ -132,6 +135,69 @@ class ReviewPlanRepository {
             ),
           );
     });
+  }
+
+  /// 给一个卡组设置判分方式（2026-11-02）。
+  ///
+  /// [mode] 为 null = 跟随全局：写回 NULL，不是写 'self'。行不存在时建一条
+  /// 只有判分方式、每日任务量都是 0 的行——「0 张新卡 / 不限复习」是这张表
+  /// 表达「还没设任务量」的既有方式（`CardGroupPlan.isReviewCapped`），不会
+  /// 变成「禁止复习」。行存在时只改 judge_mode 与 updated_at，不动任务量。
+  Future<void> setGroupJudgeMode(
+    String tagId,
+    JudgeModePreference? mode,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _db.into(_db.reviewGroupPlans).insert(
+          ReviewGroupPlansCompanion.insert(
+            id: 'rgp::$tagId',
+            tagId: tagId,
+            judgeMode: Value<String?>(mode?.storageValue),
+            createdAt: now,
+            updatedAt: now,
+          ),
+          onConflict: DoUpdate(
+            (_) => ReviewGroupPlansCompanion(
+              judgeMode: Value<String?>(mode?.storageValue),
+              updatedAt: Value(now),
+            ),
+            target: [_db.reviewGroupPlans.tagId],
+          ),
+        );
+  }
+
+  /// 所有显式设过判分方式的卡组规则（NULL = 跟随全局，不产生规则）。
+  Future<List<GroupJudgeModeRule>> judgeModeRules() async {
+    final rows = await (_db.select(_db.reviewGroupPlans).join([
+      innerJoin(
+        _db.tags,
+        _db.tags.id.equalsExp(_db.reviewGroupPlans.tagId),
+      ),
+    ])
+          ..where(_db.reviewGroupPlans.judgeMode.isNotNull()))
+        .get();
+    return [
+      for (final row in rows)
+        if (_judgeModeOfStored(row.readTable(_db.reviewGroupPlans).judgeMode)
+            case final mode?)
+          GroupJudgeModeRule(
+            tagPath: row.readTable(_db.tags).path ?? '',
+            mode: mode,
+          ),
+    ];
+  }
+
+  /// 把库里存的字符串解析成偏好；未知值按「跟随全局」处理（不回填）。
+  static JudgeModePreference? _judgeModeOfStored(String? stored) {
+    if (stored == null) {
+      return null;
+    }
+    for (final preference in JudgeModePreference.values) {
+      if (preference.storageValue == stored) {
+        return preference;
+      }
+    }
+    return null;
   }
 
   /// Removes [tagId]'s target, which returns the group to "not configured"
@@ -356,6 +422,7 @@ class CardGroupPlan {
     required this.tagPath,
     required this.newCardsPerDay,
     required this.reviewCardsPerDay,
+    this.judgeMode,
   });
 
   final String id;
@@ -363,6 +430,12 @@ class CardGroupPlan {
   final String tagPath;
   final int newCardsPerDay;
   final int reviewCardsPerDay;
+
+  /// 这个组显式设过的判分方式；null = 跟随全局默认（自判）。
+  ///
+  /// v43 `review_group_plans.judge_mode` 的读取口径：NULL / 未知值都按
+  /// 「跟随全局」，不回填。
+  final JudgeModePreference? judgeMode;
 
   /// Whether this group's reviews are limited at all.
   ///

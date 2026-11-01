@@ -17,6 +17,13 @@ import '../application/review_retention_provider.dart';
 /// Watches the database revision so the list refreshes after a plan is saved
 /// from anywhere - the plan UI itself, but also a tag rename (which changes the
 /// path this list is ordered and labelled by).
+/// 「这个问题组判分方式 = 自判」chip 的 key（按卡组 tag id 区分）。
+Key reviewGroupJudgeSelfKey(String tagId) =>
+    ValueKey<String>('review-group-judge-self-$tagId');
+
+/// 「这个卡组判分方式 = 严格」chip 的 key（按卡组 tag id 区分）。
+Key reviewGroupJudgeStrictKey(String tagId) =>
+    ValueKey<String>('review-group-judge-strict-$tagId');
 final reviewGroupPlansProvider = FutureProvider<List<CardGroupPlan>>((ref) {
   ref.watchDatabaseRevision();
   return ref.watch(reviewPlanRepositoryProvider).groupPlans();
@@ -105,6 +112,47 @@ class CardGroupPlanCard extends ConsumerWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: 8),
+            // 每个卡组可以显式设成严格（自动判分）；不设 = 跟随全局默认
+            // （自判）。NULL 是「跟随」，写回的只有显式的两种值。
+            Row(
+              children: [
+                Tooltip(
+                  message: l10n.reviewJudgeModeHint,
+                  child: Text(
+                    l10n.reviewJudgeModeTitle,
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ChoiceChip(
+                        key: reviewGroupJudgeSelfKey(plan.tagId),
+                        label: Text(l10n.reviewJudgeSelf),
+                        selected: plan.judgeMode != JudgeModePreference.strict,
+                        onSelected: (_) => _selectJudgeMode(
+                          ref,
+                          JudgeModePreference.self,
+                        ),
+                      ),
+                      ChoiceChip(
+                        key: reviewGroupJudgeStrictKey(plan.tagId),
+                        label: Text(l10n.reviewJudgeStrict),
+                        selected: plan.judgeMode == JudgeModePreference.strict,
+                        onSelected: (_) => _selectJudgeMode(
+                          ref,
+                          JudgeModePreference.strict,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Text(
               l10n.reviewPlanDoneToday(group.alreadyDoneToday),
@@ -143,6 +191,18 @@ class CardGroupPlanCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// 写卡组判分方式并让计划页重新读表（显式写 self/strict，NULL 只在老库出现）。
+  Future<void> _selectJudgeMode(
+    WidgetRef ref,
+    JudgeModePreference mode,
+  ) async {
+    await ref
+        .read(reviewPlanRepositoryProvider)
+        .setGroupJudgeMode(group.plan.tagId, mode);
+    ref.invalidate(reviewGroupPlansProvider);
+    ref.invalidate(reviewDayLoadProvider);
   }
 }
 

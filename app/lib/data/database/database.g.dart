@@ -15663,6 +15663,12 @@ class $ReviewGroupPlansTable extends ReviewGroupPlans
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _judgeModeMeta =
+      const VerificationMeta('judgeMode');
+  @override
+  late final GeneratedColumn<String> judgeMode = GeneratedColumn<String>(
+      'judge_mode', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -15676,8 +15682,15 @@ class $ReviewGroupPlansTable extends ReviewGroupPlans
       'updated_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, tagId, newCardsPerDay, reviewCardsPerDay, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        tagId,
+        newCardsPerDay,
+        reviewCardsPerDay,
+        judgeMode,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -15710,6 +15723,10 @@ class $ReviewGroupPlansTable extends ReviewGroupPlans
           _reviewCardsPerDayMeta,
           reviewCardsPerDay.isAcceptableOrUnknown(
               data['review_cards_per_day']!, _reviewCardsPerDayMeta));
+    }
+    if (data.containsKey('judge_mode')) {
+      context.handle(_judgeModeMeta,
+          judgeMode.isAcceptableOrUnknown(data['judge_mode']!, _judgeModeMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -15744,6 +15761,8 @@ class $ReviewGroupPlansTable extends ReviewGroupPlans
           .read(DriftSqlType.int, data['${effectivePrefix}new_cards_per_day'])!,
       reviewCardsPerDay: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}review_cards_per_day'])!,
+      judgeMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}judge_mode']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -15778,6 +15797,12 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
   /// `ReviewGroupPlan.isReviewCapped`, which also spells out why 0 cannot mean
   /// "no reviews" in this schema.
   final int reviewCardsPerDay;
+
+  /// v43（2026-11-02）：这个卡组（标签子树）的判分方式。
+  ///
+  /// 可空、NULL = 跟随全局默认（自判）。目前只认 "strict"（自动判分）；
+  /// 其它值由读侧按默认处理，不回填。
+  final String? judgeMode;
   final int createdAt;
   final int updatedAt;
   const ReviewGroupPlan(
@@ -15785,6 +15810,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
       required this.tagId,
       required this.newCardsPerDay,
       required this.reviewCardsPerDay,
+      this.judgeMode,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -15794,6 +15820,9 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
     map['tag_id'] = Variable<String>(tagId);
     map['new_cards_per_day'] = Variable<int>(newCardsPerDay);
     map['review_cards_per_day'] = Variable<int>(reviewCardsPerDay);
+    if (!nullToAbsent || judgeMode != null) {
+      map['judge_mode'] = Variable<String>(judgeMode);
+    }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -15805,6 +15834,9 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
       tagId: Value(tagId),
       newCardsPerDay: Value(newCardsPerDay),
       reviewCardsPerDay: Value(reviewCardsPerDay),
+      judgeMode: judgeMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(judgeMode),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -15818,6 +15850,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
       tagId: serializer.fromJson<String>(json['tagId']),
       newCardsPerDay: serializer.fromJson<int>(json['newCardsPerDay']),
       reviewCardsPerDay: serializer.fromJson<int>(json['reviewCardsPerDay']),
+      judgeMode: serializer.fromJson<String?>(json['judgeMode']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -15830,6 +15863,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
       'tagId': serializer.toJson<String>(tagId),
       'newCardsPerDay': serializer.toJson<int>(newCardsPerDay),
       'reviewCardsPerDay': serializer.toJson<int>(reviewCardsPerDay),
+      'judgeMode': serializer.toJson<String?>(judgeMode),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -15840,6 +15874,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
           String? tagId,
           int? newCardsPerDay,
           int? reviewCardsPerDay,
+          Value<String?> judgeMode = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       ReviewGroupPlan(
@@ -15847,6 +15882,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
         tagId: tagId ?? this.tagId,
         newCardsPerDay: newCardsPerDay ?? this.newCardsPerDay,
         reviewCardsPerDay: reviewCardsPerDay ?? this.reviewCardsPerDay,
+        judgeMode: judgeMode.present ? judgeMode.value : this.judgeMode,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -15860,6 +15896,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
       reviewCardsPerDay: data.reviewCardsPerDay.present
           ? data.reviewCardsPerDay.value
           : this.reviewCardsPerDay,
+      judgeMode: data.judgeMode.present ? data.judgeMode.value : this.judgeMode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -15872,6 +15909,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
           ..write('tagId: $tagId, ')
           ..write('newCardsPerDay: $newCardsPerDay, ')
           ..write('reviewCardsPerDay: $reviewCardsPerDay, ')
+          ..write('judgeMode: $judgeMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -15879,8 +15917,8 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, tagId, newCardsPerDay, reviewCardsPerDay, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, tagId, newCardsPerDay, reviewCardsPerDay,
+      judgeMode, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -15889,6 +15927,7 @@ class ReviewGroupPlan extends DataClass implements Insertable<ReviewGroupPlan> {
           other.tagId == this.tagId &&
           other.newCardsPerDay == this.newCardsPerDay &&
           other.reviewCardsPerDay == this.reviewCardsPerDay &&
+          other.judgeMode == this.judgeMode &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -15898,6 +15937,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
   final Value<String> tagId;
   final Value<int> newCardsPerDay;
   final Value<int> reviewCardsPerDay;
+  final Value<String?> judgeMode;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -15906,6 +15946,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
     this.tagId = const Value.absent(),
     this.newCardsPerDay = const Value.absent(),
     this.reviewCardsPerDay = const Value.absent(),
+    this.judgeMode = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -15915,6 +15956,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
     required String tagId,
     this.newCardsPerDay = const Value.absent(),
     this.reviewCardsPerDay = const Value.absent(),
+    this.judgeMode = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -15927,6 +15969,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
     Expression<String>? tagId,
     Expression<int>? newCardsPerDay,
     Expression<int>? reviewCardsPerDay,
+    Expression<String>? judgeMode,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -15936,6 +15979,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
       if (tagId != null) 'tag_id': tagId,
       if (newCardsPerDay != null) 'new_cards_per_day': newCardsPerDay,
       if (reviewCardsPerDay != null) 'review_cards_per_day': reviewCardsPerDay,
+      if (judgeMode != null) 'judge_mode': judgeMode,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -15947,6 +15991,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
       Value<String>? tagId,
       Value<int>? newCardsPerDay,
       Value<int>? reviewCardsPerDay,
+      Value<String?>? judgeMode,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -15955,6 +16000,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
       tagId: tagId ?? this.tagId,
       newCardsPerDay: newCardsPerDay ?? this.newCardsPerDay,
       reviewCardsPerDay: reviewCardsPerDay ?? this.reviewCardsPerDay,
+      judgeMode: judgeMode ?? this.judgeMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -15976,6 +16022,9 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
     if (reviewCardsPerDay.present) {
       map['review_cards_per_day'] = Variable<int>(reviewCardsPerDay.value);
     }
+    if (judgeMode.present) {
+      map['judge_mode'] = Variable<String>(judgeMode.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -15995,6 +16044,7 @@ class ReviewGroupPlansCompanion extends UpdateCompanion<ReviewGroupPlan> {
           ..write('tagId: $tagId, ')
           ..write('newCardsPerDay: $newCardsPerDay, ')
           ..write('reviewCardsPerDay: $reviewCardsPerDay, ')
+          ..write('judgeMode: $judgeMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -35511,6 +35561,7 @@ typedef $$ReviewGroupPlansTableCreateCompanionBuilder
   required String tagId,
   Value<int> newCardsPerDay,
   Value<int> reviewCardsPerDay,
+  Value<String?> judgeMode,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -35521,6 +35572,7 @@ typedef $$ReviewGroupPlansTableUpdateCompanionBuilder
   Value<String> tagId,
   Value<int> newCardsPerDay,
   Value<int> reviewCardsPerDay,
+  Value<String?> judgeMode,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -35548,6 +35600,9 @@ class $$ReviewGroupPlansTableFilterComposer
   ColumnFilters<int> get reviewCardsPerDay => $composableBuilder(
       column: $table.reviewCardsPerDay,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get judgeMode => $composableBuilder(
+      column: $table.judgeMode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -35579,6 +35634,9 @@ class $$ReviewGroupPlansTableOrderingComposer
       column: $table.reviewCardsPerDay,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get judgeMode => $composableBuilder(
+      column: $table.judgeMode, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -35606,6 +35664,9 @@ class $$ReviewGroupPlansTableAnnotationComposer
 
   GeneratedColumn<int> get reviewCardsPerDay => $composableBuilder(
       column: $table.reviewCardsPerDay, builder: (column) => column);
+
+  GeneratedColumn<String> get judgeMode =>
+      $composableBuilder(column: $table.judgeMode, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -35645,6 +35706,7 @@ class $$ReviewGroupPlansTableTableManager extends RootTableManager<
             Value<String> tagId = const Value.absent(),
             Value<int> newCardsPerDay = const Value.absent(),
             Value<int> reviewCardsPerDay = const Value.absent(),
+            Value<String?> judgeMode = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -35654,6 +35716,7 @@ class $$ReviewGroupPlansTableTableManager extends RootTableManager<
             tagId: tagId,
             newCardsPerDay: newCardsPerDay,
             reviewCardsPerDay: reviewCardsPerDay,
+            judgeMode: judgeMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -35663,6 +35726,7 @@ class $$ReviewGroupPlansTableTableManager extends RootTableManager<
             required String tagId,
             Value<int> newCardsPerDay = const Value.absent(),
             Value<int> reviewCardsPerDay = const Value.absent(),
+            Value<String?> judgeMode = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -35672,6 +35736,7 @@ class $$ReviewGroupPlansTableTableManager extends RootTableManager<
             tagId: tagId,
             newCardsPerDay: newCardsPerDay,
             reviewCardsPerDay: reviewCardsPerDay,
+            judgeMode: judgeMode,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
