@@ -245,6 +245,35 @@ class ToolArgError implements Exception {
   String toString() => message;
 }
 
+/// A platform family a tool can be offered on.
+///
+/// The app ships exactly two targets - Windows 10/11 desktop and Android 8+
+/// (`docs/FURNACE_SPEC.md:14`) - so this enum deliberately has two members.
+/// [id] is a stable machine value used in exported capability descriptions and
+/// in tests; it is never localised.
+enum AiToolPlatform {
+  android('android'),
+  windows('windows');
+
+  const AiToolPlatform(this.id);
+
+  /// Stable id, e.g. `"windows"`. Exported and asserted in tests; never shown
+  /// to users.
+  final String id;
+
+  /// Every platform this build ships on.
+  static const Set<AiToolPlatform> all = {android, windows};
+
+  static AiToolPlatform? fromId(String id) {
+    for (final platform in values) {
+      if (platform.id == id) {
+        return platform;
+      }
+    }
+    return null;
+  }
+}
+
 /// One tool the agent loop may offer to the model.
 abstract class AiTool {
   const AiTool();
@@ -267,7 +296,22 @@ abstract class AiTool {
   /// forces one-by-one confirmation regardless of permission mode (D13b).
   bool reversibleFor(String action);
 
-  /// Which platforms may offer this tool.
+  /// Which platform families may offer this tool.
+  ///
+  /// Defaults to both shipped targets, so adding a tool does not accidentally
+  /// restrict it. This is a declaration *about platforms* (it can be reasoned
+  /// about and exported on any host); [availableOnCurrentPlatform] stays the
+  /// narrower "can it run in this process" gate for the running platform only.
+  /// The registry applies both - see `tool_registry.dart`.
+  Set<AiToolPlatform> get supportedPlatforms => AiToolPlatform.all;
+
+  /// Whether this tool may be offered in the running process.
+  ///
+  /// Kept for backward compatibility: every built-in tool answers `true`, and
+  /// `SkillTool` answers by package declaration
+  /// (`lib/domain/skill/skill_tool.dart:126`). New platform restrictions should
+  /// be expressed with [supportedPlatforms]; this bit stays because the agent
+  /// loop also consults it when wiring skill tools.
   bool get availableOnCurrentPlatform;
 
   /// True when the tool only reads.

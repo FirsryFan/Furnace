@@ -39,8 +39,9 @@ import '../tools/web_tools.dart';
 /// tool exists because it is in this list, and adding one is a code change.
 /// That is what "no cordis" means in practice.
 ///
-/// Platform gating lives on the tool itself (`availableOnCurrentPlatform`), so
-/// a Windows-only capability is simply absent from [forCurrentPlatform] on
+/// Platform gating is declared on the tool itself (`supportedPlatforms`, plus
+/// the legacy `availableOnCurrentPlatform` bit for the running process), so a
+/// Windows-only capability is simply absent from [forCurrentPlatform] on
 /// Android rather than failing at call time.
 class ToolRegistry {
   ToolRegistry(this._tools);
@@ -206,16 +207,69 @@ class ToolRegistry {
   /// the settings screen to explain what is missing and why.
   List<AiTool> get all => List.unmodifiable(_tools);
 
-  /// The tools this platform may actually offer.
-  List<AiTool> get forCurrentPlatform => [
+  /// The platform family this process runs as.
+  ///
+  /// Only two targets ship - Windows 10/11 and Android 8+
+  /// (`docs/FURNACE_SPEC.md:14`) - so every non-Android host (including the
+  /// Linux/macOS dev boxes that may run this repo's pure tests) is treated as
+  /// [AiToolPlatform.windows].
+  static AiToolPlatform get currentPlatform =>
+      Platform.isAndroid ? AiToolPlatform.android : AiToolPlatform.windows;
+
+  /// Whether [tool] may be offered on [platform].
+  ///
+  /// Two gates, in this order:
+  ///  * the tool's own [AiTool.supportedPlatforms] declaration (new; defaults to
+  ///    both shipped platforms);
+  ///  * the legacy [AiTool.availableOnCurrentPlatform] bit - consulted only for
+  ///    the running platform, because that getter has always meant "here", not
+  ///    "on platform X" (all built-in tools answer `true`; `SkillTool` answers
+  ///    from its package declaration, `lib/domain/skill/skill_tool.dart:126`).
+  bool isOfferedOn(AiTool tool, AiToolPlatform platform) {
+    if (!tool.supportedPlatforms.contains(platform)) {
+      return false;
+    }
+    if (platform == currentPlatform && !tool.availableOnCurrentPlatform) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Every tool that may be offered on [platform], in registration order.
+  List<AiTool> forPlatform(AiToolPlatform platform) => [
         for (final tool in _tools)
-          if (tool.availableOnCurrentPlatform) tool
+          if (isOfferedOn(tool, platform)) tool
       ];
+
+  /// The tools this platform may actually offer.
+  List<AiTool> get forCurrentPlatform => forPlatform(currentPlatform);
 
   /// Tools that are registered but unavailable here.
   List<AiTool> get unavailableHere => [
         for (final tool in _tools)
-          if (!tool.availableOnCurrentPlatform) tool
+          if (!forCurrentPlatform.contains(tool)) tool
+      ];
+
+  /// Machine-readable platform capability description for every registered
+  /// tool, in registration order.
+  ///
+  /// Pure data with stable ids and no l10n, so tests (and a future settings or
+  /// export surface) can read the same declaration the loop filters on instead
+  /// of re-deriving the rules. `supported_platforms` is the declaration;
+  /// `offered_here` is the applied result on the running platform.
+  List<Map<String, Object?>> describePlatformCapabilities() => [
+        for (final tool in _tools)
+          <String, Object?>{
+            'tool': tool.name,
+            'supported_platforms': [
+              for (final platform in AiToolPlatform.values)
+                if (tool.supportedPlatforms.contains(platform)) platform.id,
+            ],
+            'restricted_by_platform': !tool.supportedPlatforms.containsAll(
+              AiToolPlatform.values,
+            ),
+            'offered_here': isOfferedOn(tool, currentPlatform),
+          },
       ];
 
   AiTool? byName(String name) {
