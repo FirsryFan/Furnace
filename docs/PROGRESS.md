@@ -2,6 +2,21 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-02 轮次一百九十：夜战包（数据载入 + 闪存卡交互重做 + 三科题单 + 0.6.13 发布准备）
+
+- 目标（用户原话）：少花时间在反复 release 构建上（06:00 整只构建一次，更早完工也可）；本地代码版可检测；把本地题库全部加载进 Furnace；11.2 抓题改用 Furnace 内部 AI（不再用 DSH 子代理）；清空旧标签系统并重建（学科内容+学科能力，不局限高中）；生物卡已有→补英语/化学卡组（化学参考 E:/Gaokao/Chemistry；英语来源 OED）；资料同步 MindNet；闪存卡：选择题改四个按钮、题干支持照片/LaTeX、默认自判、可按标签卡组设严格、反馈按钮分 7 档并区分算法/MindNet；删掉学生不需要的"工程注释"；产出软件 + 内部数据 + 一份题单（数学/物理/语文各 2 道成熟题，合为一份文档）；用题目测试模式子 agent 初步审校；学 2023 新高考 I 卷官方解析语言风格。
+- 并行（8 名 teammate + 3 名写作子 agent + 2 名审校子 agent）：arch-code=题单排版；state-docs=用户 agent 模拟+工程文本审计+题单审校；ai-layer=7 档自判/按卡组严格；package-lifecycle=选择题选项/富文本题干组件与接线；data-bank=真实库题库导入+标签重建+卡内容/MindNet 写库；learning-loop=化学卡内容（81 卡）；mindnet-energy=英语卡内容（86 卡）；storage-relocation=06:00 release 自动化+本地冒烟+E 盘收口。
+- 闪存卡交互（schema **v43**）：`review_group_plans.judge_mode`（可空，NULL=跟随全局）；默认判分改 **自判**（老库不回填）；`review_rating_tier.dart` 定义 7 档 →（FSRS rating × MindNet 事件）：1 Easy / 2 Good / 3 Hard / 4-5 Again+reviewedSolution+closeness / 6-7 lapse（第 7 档带 isNewKnowledge 标记，knowledge 事件属事件层未接）；复习页自判路径显示 7 档按钮，严格卡组仍走客观判分；卡组设置页每卡组加「自判/严格」chip；新增 `review_choice_options.dart`（A/B/C/D 按钮、单选、提交后对错；**修复了一处提交前泄题 bug**：correctIndexes 必须 _feedback 门控）与 `review_question_text.dart`（Markdown+LaTeX、［图N］占位、图片路径、坏图不崩）；二者已接进 review_page。anki 全目录 **254 例全绿**（新增 22 + 2 回归），`dart analyze lib test` = **86 issues / 0 error / 0 warning**。
+- 数据载入（legacy %APPDATA% 库，canonical）：questions **131**（语文11/数学34/英语21/物理32/化学21/生物11+1空）、tags **82**、object_tags **1171**、knowledge_points **568**、card_templates **811**、cloze_slots **447**、card_states **1080**、knowledge_edges **156**（related92/contrast36/part_of18/prerequisite6/application4）、schema v43、integrity ok；47 张多空卡按 essay 自判写入（未做「a / b」拼接判分）；两条误挂 object_tags（化学节点挂到生物）已记录未修；20 个 legacy 知识点仍无标签（保留）。备份 6 份在 00-inbox/backup-20261101|02。
+- 英语卡（OED 来源问题，需如实记录）：逐条 web_fetch 76 个 oed.com 条目，全部 HTTP 202 + AWS WAF 挑战页，可读正文 0 条 → 卡片释义/例句为作者注、references 仅记录真实 OED URL 与抓取日期，未复制/伪造 OED 原文；86 卡/76 词+10 短语/24 选择题/86 挖空/知识节点 86/边 79。
+- 化学卡：81 卡（6 卡组，15 选择题/66 挖空，99 条 references 均指向 E:/Gaokao/Chemistry 真实文件）；未读通 15 个 .DOC 与扫描版学生版，已如实列入未用清单。
+- 题单：三科各 2 道（语文 2025 全国二卷诗歌 + 2026 浙江 Z20 信息类；数学 2024 新课标Ⅰ导数 + 自编解析几何；物理 2025 课标卷电磁 + 2025 浙江力学），含题目/先做提示/答案/分步思维链/易错与命题视角/扩展/能力点；子 agent 审校无阻塞错误，移除 2 处有争议扩展（物理纯滚动算错、数学 60° 口径不清），并按审校意见清掉组卷网题号/材料编号/复核说明等工程注记；docx/PDF 由 paper-composer 管线生成（见输出目录）。
+- 工程文本清理：按审计把使用文档 13 条（工具英文名清单、R/R0/Σ/α(τ)/V(π)/FSRS/指纹/未标定/run/1/schema 等）改写为学生能懂的话，并修掉"关于页说不生成 DOCX"与组卷导出 Word 的事实矛盾；中英 ARB 同步、gen-l10n 通过。
+- 数据路径收口：夜间冒烟曾把库迁到 E:\Furnace\data（快照 v42/31 题），与 load-library 并发造成分叉；决定 canonical 留在 legacy，E 快照移入 00-inbox/backup-20261101/E-data-snapshot-20261101-234331、删除 pointer；06:20 用户首启 0.6.13 时会自动从 legacy 迁移到 E:\Furnace\data。
+- 发布：版本 0.6.12+32 → **0.6.13+33**（app_info/pubspec 同步）；`00-inbox/release-20261102.ps1` 已静态校验通过；计划任务 `Furnace-Release-0600`（2026-11-02 06:00，Interactive）Ready；06:00 一次构建 Windows zip（28 entries）+ 签名 Android APK + RELEASE md。
+- 门禁：`dart analyze lib test` = **86 issues / 0 error / 0 warning**（比上轮少 1 条）；anki 254 全绿；其余改动区域 scoped 测试全绿（题单/数据脚本为 workspace 产物）。全量 flutter test 未跑（夜间交付窗口）。
+- 风险：OED 正文不可读（英语卡需老师/native 复核）；130 题无文字答案（仅答案截图）；47 张多空卡自判；review_group_plans 全清空（新卡组未设每日上限）；图片数据源未接（卡片题干图片暂不显示）；release 尚未实际跑（06:00 计划任务）；E 迁移需用户首启验证。
+
 ## 2026-11-01 轮次一百八十九：E2E 方向体系 + GitHub 每日清单 + 并行工作流（诊断包 / 精力 UI / 认知评价卡 / 题库初步加工 / 每日抓题）
 
 - 目标（用户原话）：「工程方向诊断只能端到端，用户直接检验产品并反馈问题」→ 需要多个具体方向并行做端到端测试优化；把每天的检验反馈任务列表放到 GitHub Furnace 仓库 issue；用户本周重点=题目内容设计 × 认知模型融合；另外要求每天自动从组卷网抓题 + 对题库做初步加工（脱离 MindNet，成熟题目阶段才融合 MindNet）；并让 agent 运行 Furnace 内部 AI 与 DSH 产出做流程对比；另开一个「题目测试模式」子 agent 审校产出文件。

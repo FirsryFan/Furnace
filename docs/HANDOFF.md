@@ -23,18 +23,18 @@
 | 仓库 / 分支 | `E:/Projects/Furnace` / `main` | `git status -sb` |
 | HEAD / 远端 | 轮次 188 提交见 `git log --oneline -6`（本文档修订前 HEAD `56ffd7f`；origin/main 本地 ref `c1ea421`） | 实测 |
 | 最新 tag | `v0.6.12`（tag 列表 v0.6.0–v0.6.12） | `git tag` |
-| app 版本 | `0.6.12+32`（dev 测试构建，未发 tag） | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
-| DB schema | `v41`（Drift） | `app/lib/data/database/database.dart:171` |
+| app 版本 | `0.6.13+33`（发布准备；06:00 计划任务构建双端包，未打 tag） | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
+| DB schema | `v43`（Drift） | `app/lib/data/database/database.dart:175` |
 | 数据表 | 57 张 `class X extends Table` | `app/lib/data/database/tables.dart` 实测 |
-| 代码规模 | `app/lib` 394 个 .dart；`app/test` 418 个 *_test.dart | 实测 |
+| 代码规模 | `app/lib` 397 个 .dart；`app/test` 424 个 *_test.dart | 实测 |
 | 文档 | `docs/` 47 份 | 实测 |
-| 静态门禁 | `dart analyze lib test` = 87 issues / 0 error / 0 warning | 轮次 188 实测（比基线少 1 条 info） |
+| 静态门禁 | `dart analyze lib test` = 86 issues / 0 error / 0 warning | 轮次 190 实测 |
 | 全量测试 | 轮次 188 全量 `+6864 ~2 -3`（3 个旧断言更新后单跑全绿）；轮次 189 未跑全量（dev 构建并行），改动区域 scoped **117 例全绿** | 轮次 188 日志 `E:/Workspaces/Furnace/00-inbox/furnace-understanding/test-188-full-c.txt` |
 | v0.6.12 产物 | zip 20,432,656 B；apk 98,728,918 B（SHA 见 §13） | `dist/`（gitignore） |
 | AI 工具 | 29 个（`ToolRegistry.forApp`） | `app/lib/features/ai/domain/tool_registry.dart` |
-| l10n | zh ARB 3791 行 / en ARB 3885 行 | 实测 |
+| l10n | zh ARB 3803 行 / en ARB 3897 行 | 实测 |
 
-**最后一条已发布的包是 v0.6.12**；之后轮次 185–188 的改动（评测板块 v1.0 = schema v41；轮次 188 = schema v42 / MindNet 顶层模块 / AI 入口常驻 / 知识库下沉设置 / Windows 数据目录迁 E:\Furnace\data / 平台门控基础 / 精力预测纯逻辑）**未 bump 版本、未出包**（用户没要求）。所以 `main` 比最新 tag 多若干提交，但 `app_info.dart` / `pubspec.yaml` 仍是 0.6.12+31。决策记录见 [DECISIONS-2026-11.md](DECISIONS-2026-11.md)。
+**最后一条已发布的包是 v0.6.12**；之后轮次 185–190 的改动（评测板块 v1.0 = schema v41；轮次 188 = schema v42 / MindNet 顶层模块 / AI 入口常驻 / 知识库下沉设置 / Windows 数据目录迁 E:\Furnace\data / 平台门控基础 / 精力预测纯逻辑）**未 bump 版本、未出包**（用户没要求）。所以 `main` 比最新 tag 多若干提交，但 `app_info.dart` / `pubspec.yaml` 仍是 0.6.12+31。决策记录见 [DECISIONS-2026-11.md](DECISIONS-2026-11.md)。
 
 ---
 
@@ -498,7 +498,7 @@ powershell -File scripts/build_android.ps1
 
 **总览/流程**：PROGRESS（逐轮记录，最权威的历史）、FEATURE_MATRIX（功能矩阵 + 实测增补表）、HANDOFF（本文）、HANDOFF_PIPELINE（采集管线 M1–M4）、USER_GUIDE（用户使用指南）、**DECISIONS-2026-11（决策唯一登记处，2026-11 用户评审后 D01–D09）**、ARCHITECTURE、FURNACE_SPEC、PRD、MILESTONES、GAP_ANALYSIS、OPEN_DECISIONS、OPEN_QUESTIONS、PRIVACY、DEV_SETUP、DEPLOY、VERIFICATION_PROTOCOL、REVIEW_FEEDBACK。
 
-**数据/领域**：DATA_MODEL（表语义 + v3→v42 全部章节）、KNOWLEDGE_PACKAGE、REACTIVITY_DESIGN、TAG_TREE_SORT_DESIGN、CALIBRATION、THREADFLOW_TWO_SEGMENT。
+**数据/领域**：DATA_MODEL（表语义 + v3→v43 全部章节）、KNOWLEDGE_PACKAGE、REACTIVITY_DESIGN、TAG_TREE_SORT_DESIGN、CALIBRATION、THREADFLOW_TWO_SEGMENT。
 
 **AI/推理**：AI_DESIGN、REASONING_LAYER_DESIGN、**MINDNET_FIRST_CLASS_DESIGN（MindNet 扶正设计）**、MINDNET_CONTRACT、MINDNET_INTEGRATION、MINDNET_ROADMAP、SIMILAR_QUESTIONS_DESIGN、PERSONA_DESIGN、SKILL_FORMAT。
 

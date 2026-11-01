@@ -72,6 +72,10 @@
 | 诊断包导出（含题目与 AI 内容，绝不含 key） | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D01）：设置→数据新增导出；zip=diag.json（版本/schema/设置摘要/统计/AI 会话摘要/题目样本/errors）+ README + 可选 workspace.tfpkg；三道防泄漏闸（key 脱敏、tfpkg 敏感列排除、打包前解回扫 key 命中即中止）；5 例测试 |
 | 精力预测接 Thread UI（MindNet 预测 + 手动覆盖） | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D13）：`energy_prediction_provider.dart` 读 7 天完成/复习记录 → 预测；顶栏精力按钮下显示预测值/置信/来源，新鲜手填显示「手动」徽标，否则「用预测值」写 thread_states；未自动写入（避免未标定值改排序）；13 例测试 |
 | 题目详情 MindNet 认知评价卡 | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D12）：`question_cognitive_provider.dart` 题→标签→知识点→代表卡→ProblemEvaluator 单题诊断+先验；详情页只读卡片显示 zone/fit/reason/advice/未标定，空态如实；17 例新测试 + 详情页回归 122 例全绿；en 文案待 l10n |
+| 闪存卡 7 档自判 + 默认自判 + 按卡组严格 | 表内无此节 | ✅ 2026-11-02（轮次一百九十，用户直令）：schema v43 `review_group_plans.judge_mode`；默认判分改自判（老库不回填）；7 档映射（Easy/Good/Hard/Again+reviewedSolution/Again/lapse×2）`review_rating_tier.dart`；复习页 7 档按钮、严格卡组自动判分、卡组设置页 chip 写库；anki 254 例全绿，含 2 例防泄题回归 |
+| 闪存卡：选择题四按钮 + 题干富文本（LaTeX/图占位） | 表内无此节 | ✅ 2026-11-02：`review_choice_options.dart` A/B/C/D 单选按钮、提交后对错（correctIndexes 有 _feedback 门控防泄题）；`review_question_text.dart` Markdown+LaTeX、［图N］占位、图片路径、坏图不崩；已接入 review_page |
+| 题库/标签/MindNet/化学+英语卡组数据载入 | 表内无此节 | ✅ 2026-11-02：legacy 库 schema v43——questions 131、tags 82、object_tags 1171、knowledge_points 568、card_templates 811、cloze_slots 447、card_states 1080、knowledge_edges 156；化学卡 81 / 英语卡 86（OED 正文被 WAF 拦，卡面为作者注并记录真实 OED URL）；备份 6 份 |
+| 三科成熟题单（数学/物理/语文各 2 题） | 表内无此节 | ✅ 2026-11-02（用户直令）：`00-inbox/tidan/` 三份源文 + paper-composer 管线输出 docx/PDF/逐页图/验收报告；含先做提示、答案、分步思维链、易错与命题视角、扩展；题目测试模式子 agent 与用户 agent 双审校 |
 
 ---
 
