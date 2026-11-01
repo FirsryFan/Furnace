@@ -9,18 +9,24 @@
 | **Thread** | 动态优先级事件流：加权综合排序（紧急度 / 目标匹配 / 状态适配 / 期望压力 / 同类疲劳惩罚），全部参数对用户公开可编辑 |
 | **Time** | 日程与时间轴：日/周/月 + 可自定义长度的多年时间轴（缩放 / 折叠），支持日模板与周模板一键排课 |
 | **Knowledge** | 间隔重复记忆：FSRS-6 调度、自由挖空、错题强制绑定、按天复习复盘 |
-| **标签（原 Mindnet）** | 树形标签体系，同时承担目标匹配与图谱扩散的“图” |
+| **标签** | 树形标签体系：组织、筛选与用途边界（卡组 = 标签） |
+| **MindNet** | 用户模型引擎：记忆/思维/判断建模，驱动个性化找题、排序、复习推送与精力预测（顶层模块，见 docs/DECISIONS-2026-11.md D03） |
 
 > 核心原则：**本地优先**（不联网、无账号、无遥测）· **文件化传输**（`.tfpkg` 全量打包 / `.kpak` 班级分享）· **高自定义**。
 > 目标平台：**Windows 10/11** 与 **Android 8+**（同一套 Flutter 代码）。
 >
-> 当前版本：**0.6.12+31**（最新 tag `v0.6.12`，schema **v41**）。除上面四大模块外，App 里还有：**题库**（题目/题源/组卷/Word 导出）、**内置 AI「智能化」**（收题、找题、组卷、排计划）、**用户评测板块**（能力/认知参数）、**题库包 `.tqb` 与采集管线**。完整接手说明见 [docs/HANDOFF.md](docs/HANDOFF.md)。
+> 当前版本：**0.6.12+31**（最新 tag `v0.6.12`；main 上 schema 已到 **v42**，未发版）。除核心模块外，App 里还有：**题库**（题目/题源/组卷/Word 导出）、**内置 AI「智能化」**（一等模块：收题、找题、组卷、排计划）、**用户评测板块**（能力/认知参数，归入 MindNet 用户模型）、**知识库 `.kpak`**（已下沉设置）、**题库包 `.tqb` 与采集管线**。Windows 数据默认目录为 `E:\Furnace\data`（可用指针文件重定位）。完整接手说明见 [docs/HANDOFF.md](docs/HANDOFF.md)。
 
 ## 当前状态
 
 | 能力 | 状态 |
 | --- | --- |
-| 数据层（Drift SQLite，schema **v41**，**57 表**，v1→v41 幂等迁移 + 缺失列/表自愈） | ✅ |
+| 数据层（Drift SQLite，schema **v42**，**57 表**，v1→v42 幂等迁移 + 缺失列/表自愈） | ✅ |
+| MindNet 顶层模块（认知模型 / 知识网络 / 今日清单 / 机制参数 / 评测档案入口） | ✅ 入口已接；引擎实现分阶段（D03） |
+| AI 一等模块（入口常驻，未配 key 时页面内配置引导；工具平台门控基础） | ✅ 基础 | 
+| 知识库下沉设置（启用/禁用/卸载/导入导出） | ✅（schema v42） |
+| Windows 数据目录迁 `E:\Furnace\data`（指针文件 + 一次性复制迁移 + 失败回退） | ✅ 代码与单测；真机端到端待验 |
+| MindNet 精力预测纯逻辑（预测/置信/来源/自主设定建议，未接 Thread UI） | ✅ 逻辑 + 22 测试 |
 | Thread 排序引擎（权重归一化、deadline 硬约束、期望时刻黄标提权） | ✅ |
 | Knowledge 复习引擎（FSRS-6、自由挖空、错题绑定、严格判分、标签树扩散、按天台账） | ✅ |
 | 界面（Thread / Time 日历 / Knowledge 复习 / 标签树 / 设置 / 使用文档） | ✅ |
@@ -95,6 +101,10 @@ dart analyze                 # 应为 0 error
 | 文档 | 内容 |
 | --- | --- |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **接手先读**：现状、硬约束、环境坑、验证方法、未完成项 |
+| [docs/DECISIONS-2026-11.md](docs/DECISIONS-2026-11.md) | **决策唯一登记处**：2026-11 用户评审后的 D01–D09（定位/平台/MindNet/AI/题库四层/全量记录/知识库/数据目录/精力预测） |
+| [docs/MINDNET_FIRST_CLASS_DESIGN.md](docs/MINDNET_FIRST_CLASS_DESIGN.md) | MindNet 扶正设计：撤销"并入标签"、现状盘点、目标架构与分阶段 |
+| [docs/QUESTION_MATURITY_PIPELINE.md](docs/QUESTION_MATURITY_PIPELINE.md) | 题库四层成熟度管线与 AI 自主"整"的设计 |
+| [docs/PLATFORM_CAPABILITY_MATRIX.md](docs/PLATFORM_CAPABILITY_MATRIX.md) | Android/Windows 任务分级与"不可用不给入口"门控矩阵 |
 | [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) | 已做的决定 + 需要用户定夺的问题 |
 | [docs/DESIGN_BLUEPRINT.md](docs/DESIGN_BLUEPRINT.md) | 设计蓝图 v2（已按用户批注修订，当前开发依据） |
 | [docs/FURNACE_SPEC.md](docs/FURNACE_SPEC.md) | 产品权威规范（定稿） |

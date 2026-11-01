@@ -1438,6 +1438,33 @@ NULL」）。生成代码 `database.g.dart` 的 `AiMessage` 数据类自动多�
 - P1 剩余：n_back_2 / stroop / task_switching / fatigue_block 的 UI 全流程真机手测；P2 的 Thread 权重建议接口（`CognitiveParamsProvider.getParamsForThread()`）与 P3 的 `.cogprofile` 导出尚未接界面。
 - 旧 `ability_scores` 表与旧四项小测页面保留但设置页已无入口（旧测试仍覆盖）；是否删除等用户确认。
 
+## 31. schema v42（2026-11-01）：知识包启用位
+
+### 31.1 变更
+
+- `knowledge_packages.enabled`：`BoolColumn get enabled => boolean().nullable()()`（`app/lib/data/database/tables.dart`）——**NULL 读作启用**：v42 之前导入的包、以及 `upsertPackage` 写入的新包都保持 NULL；只有知识库管理页会写 true/false。
+- `schemaVersion => 42`（`app/lib/data/database/database.dart`）；新增 `_upgradeV41ToV42()`：只给 `knowledge_packages` 补这一列、**不回填**，表不存在就跳过。
+- `_ensureColumns` 同步加 `'knowledge_packages': [knowledgePackages.enabled]`；`_tableFor` 补 `case 'knowledge_packages'`——历史迁移测试（v28 等）实测：自愈要按名字解析这张表，缺 case 会抛 `unknown table knowledge_packages`。
+- `database.g.dart` 已由 build_runner 重新生成（`KnowledgePackageRow.enabled` 为 `bool?`）。
+
+### 31.2 语义
+
+- **启用/禁用**只写这一列，不碰已导入的内容行。本轮禁用只影响知识库管理与导出范围展示，**不做内容级隐藏过滤**（禁用后内容仍出现在题库/闪存卡/复习里；内容级过滤需跨查询改造，见 `docs/DECISIONS-2026-11.md` D07 待确认项）。
+- **重新导入同一 packageId**：`PackageRepository.upsertPackage` 先读旧行并回填 `enabled`，避免 `InsertMode.insertOrReplace` 把禁用状态重置回 NULL（=重新启用）。
+- **卸载**：`PackageRepository.deletePackage` 单事务先删 `package_items` 再删 `knowledge_packages`，返回删除的归属行数；**保留**由包导入的知识点/闪存卡/标签（安全优先）。因此 `knowledge_points.package_id` 可能指向已删包（孤儿引用，无外键、不级联），按 packageId 过滤的 UI 需容忍。
+
+### 31.3 测试
+
+- `app/test/data/database/v42_migration_test.dart`：真实 v41 文件升级后 `enabled` 为 NULL 且读作启用、写入禁用后重开仍是 false；版本号被盖成 v42 却缺列时自愈补列；迁移幂等。
+- `app/test/data/repositories/package_repository_test.dart` **9 例**：NULL=启用、禁用/启用往返落库、getAllPackages 带标志、未知 id no-op、卸载删包+items 且保留知识点/模板/标签、重复卸载、只删目标包、重新导入保持禁用状态。
+- `app/test/features/packages/presentation/packages_page_test.dart`：行内启用开关与卸载确认的既有回归（本轮 UI 只做了静态检查 + 既有测试）。
+
+### 31.4 边界（截至本版）
+
+- 内容级「禁用后隐藏」未做；「卸载时连同内容删除」未做（两者都列在 DECISIONS-2026-11 待确认）。
+- 卸载不清理孤儿 `package_id`（保留内容是有意取舍）。
+
+
 
 
 

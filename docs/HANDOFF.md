@@ -21,20 +21,20 @@
 | 项 | 值 | 证据 |
 | --- | --- | --- |
 | 仓库 / 分支 | `E:/Projects/Furnace` / `main` | `git status -sb` |
-| HEAD / 远端 | `14f8d8a` / `origin/main=14f8d8a` | 实测 |
+| HEAD / 远端 | 轮次 188 提交见 `git log --oneline -6`（本文档修订前 HEAD `56ffd7f`；origin/main 本地 ref `c1ea421`） | 实测 |
 | 最新 tag | `v0.6.12`（tag 列表 v0.6.0–v0.6.12） | `git tag` |
 | app 版本 | `0.6.12+31` | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
 | DB schema | `v41`（Drift） | `app/lib/data/database/database.dart:171` |
 | 数据表 | 57 张 `class X extends Table` | `app/lib/data/database/tables.dart` 实测 |
-| 代码规模 | `app/lib` 388 个 .dart；`app/test` 408 个 *_test.dart | 实测 |
-| 文档 | `docs/` 43 份 | 实测 |
-| 静态门禁 | `dart analyze lib test` = 88 issues / 0 error / 0 warning | 轮次 186 记录（与 v0.6.12 基线持平） |
-| 全量测试 | `+6817 ~2: All tests passed`，14:43，TEST_EXIT=0 | `E:/dsh-tmp-aot/test-186-full.txt` |
+| 代码规模 | `app/lib` 391 个 .dart；`app/test` 413 个 *_test.dart | 实测 |
+| 文档 | `docs/` 47 份 | 实测 |
+| 静态门禁 | `dart analyze lib test` = 87 issues / 0 error / 0 warning | 轮次 188 实测（比基线少 1 条 info） |
+| 全量测试 | 轮次 188 全量 `+6864 ~2 -3`（31:22）；3 个失败均为行为变更后需要更新的旧断言（`ai_chat_ui_test` 2、`about_page_test` 1），更新后单跑全绿；**未再跑第二次全量** | `E:/Workspaces/Furnace/00-inbox/furnace-understanding/test-188-full-c.txt` |
 | v0.6.12 产物 | zip 20,432,656 B；apk 98,728,918 B（SHA 见 §13） | `dist/`（gitignore） |
 | AI 工具 | 29 个（`ToolRegistry.forApp`） | `app/lib/features/ai/domain/tool_registry.dart` |
-| l10n | zh ARB 3728 行 / en ARB 3821 行 | 实测 |
+| l10n | zh ARB 3760 行 / en ARB 3854 行 | 实测 |
 
-**最后一条已发布的包是 v0.6.12**；之后轮次 185–186 做了「用户评测板块 v1.0（schema v41）+ P2/P3」，**未 bump 版本、未出包**（用户没要求）。所以 `main` 比最新 tag 多两个提交的历史改动，但 `app_info.dart` / `pubspec.yaml` 仍是 0.6.12+31。
+**最后一条已发布的包是 v0.6.12**；之后轮次 185–188 的改动（评测板块 v1.0 = schema v41；轮次 188 = schema v42 / MindNet 顶层模块 / AI 入口常驻 / 知识库下沉设置 / Windows 数据目录迁 E:\Furnace\data / 平台门控基础 / 精力预测纯逻辑）**未 bump 版本、未出包**（用户没要求）。所以 `main` 比最新 tag 多若干提交，但 `app_info.dart` / `pubspec.yaml` 仍是 0.6.12+31。决策记录见 [DECISIONS-2026-11.md](DECISIONS-2026-11.md)。
 
 ---
 
@@ -49,6 +49,7 @@ Furnace 是一个本地优先的**学习 + 生产力应用**，核心闭环：
 - **题源与组卷（Zujuan / Paper）**：组卷网按知识点/章节/试卷取题、整卷取题、答案与解析截图；内部组卷器按约束组卷、复制卷面、导出 Word。
 - **AI「智能化」**：内置 agent（多轮工具调用）负责收题、找题、组卷、排计划、管理任务/时间/标签、造卡、提前复习（focus_review）、写文档；所有写操作有审批/撤销。
 - **评测板块**：本地认知/能力评测（10 个任务、19 个统计量、10 项能力、9 个认知参数），给 Thread 权重建议、可导出 `.cogprofile`。
+- **MindNet（用户模型引擎）**：记忆/思维/判断建模（tierA/tierB + 元认知 + 节律 + 控制层），驱动个性化找题、Thread 排序、闪存卡推送与精力预测；**2026-11-01 撤销「MindNet 并入标签」**（标签只做组织/检索）。见 docs/DECISIONS-2026-11.md D03。
 - **标签**：一棵标签树；可限定用途边界（time/question/knowledge/task/flashcard）并向下继承。
 
 用户是**学生**，目标不是「记笔记」，而是把「题目 → 能力 → 复习 → 计划」串成闭环。所以题库、组卷网、闪存卡、AI 收题是这个应用的重心；主题/外观是第二优先级。
@@ -72,7 +73,7 @@ Furnace/
 │  ├─ test/                 # 408 个 *_test.dart（镜像 lib 目录）
 │  ├─ android/  windows/    # 平台工程（图标、权限、签名）
 │  └─ tool/                 # tqb_verify.dart 等开发工具
-├─ docs/                    # 43 份设计与进度文档（见 §17）
+├─ docs/                    # 47 份设计与进度文档（见 §17）
 ├─ scripts/                 # bootstrap.ps1 / build_windows.ps1 / build_android.ps1
 └─ dist/                    # 发布产物（gitignore，不进 git/不推远端）
 ```
@@ -147,7 +148,7 @@ powershell -File scripts/build_android.ps1
 
 ### 5.2 schema 版本与迁移惯例
 
-`database.dart` 的 `schemaVersion` 当前 **41**；迁移链 `_upgradeV5ToV6` … `_upgradeV40ToV41` 完整存在。**新增列/表的固定流程**：
+`database.dart` 的 `schemaVersion` 当前 **42**；迁移链 `_upgradeV5ToV6` … `_upgradeV41ToV42` 完整存在。**新增列/表的固定流程**：
 
 1. `tables.dart` 加可空列或新表类（新列尽量可空，NULL 有明确语义）。
 2. `database.dart`：`schemaVersion` + 1；新增 `_upgradeVnToVn+1()`（只加列/建表，**不回填**）；在 `_ensureColumns` 的表→期望列清单里同步（用于「版本号被盖高却缺列」的自愈）。建新表也要在 `_ensureColumns` 里能建（`_tableExists` 探测；避免在早期迁移阶段引用尚不存在的表）。
@@ -493,17 +494,19 @@ powershell -File scripts/build_android.ps1
 
 ---
 
-## 17. 文档索引（43 份）
+## 17. 文档索引（47 份）
 
-**总览/流程**：PROGRESS（逐轮记录，758 KB，最权威的历史）、FEATURE_MATRIX（功能矩阵 + 实测增补表）、HANDOFF（本文）、HANDOFF_PIPELINE（采集管线 M1–M4）、USER_GUIDE（用户使用指南）、ARCHITECTURE、FURNACE_SPEC、PRD、MILESTONES、GAP_ANALYSIS、OPEN_DECISIONS、OPEN_QUESTIONS、PRIVACY、DEV_SETUP、DEPLOY、VERIFICATION_PROTOCOL、REVIEW_FEEDBACK。
+**总览/流程**：PROGRESS（逐轮记录，最权威的历史）、FEATURE_MATRIX（功能矩阵 + 实测增补表）、HANDOFF（本文）、HANDOFF_PIPELINE（采集管线 M1–M4）、USER_GUIDE（用户使用指南）、**DECISIONS-2026-11（决策唯一登记处，2026-11 用户评审后 D01–D09）**、ARCHITECTURE、FURNACE_SPEC、PRD、MILESTONES、GAP_ANALYSIS、OPEN_DECISIONS、OPEN_QUESTIONS、PRIVACY、DEV_SETUP、DEPLOY、VERIFICATION_PROTOCOL、REVIEW_FEEDBACK。
 
-**数据/领域**：DATA_MODEL（表语义 + v3→v41 全部章节）、KNOWLEDGE_PACKAGE、REACTIVITY_DESIGN、TAG_TREE_SORT_DESIGN、CALIBRATION、THREADFLOW_TWO_SEGMENT。
+**数据/领域**：DATA_MODEL（表语义 + v3→v42 全部章节）、KNOWLEDGE_PACKAGE、REACTIVITY_DESIGN、TAG_TREE_SORT_DESIGN、CALIBRATION、THREADFLOW_TWO_SEGMENT。
 
-**AI/推理**：AI_DESIGN、REASONING_LAYER_DESIGN、MINDNET_CONTRACT、MINDNET_INTEGRATION、MINDNET_ROADMAP、SIMILAR_QUESTIONS_DESIGN、PERSONA_DESIGN、SKILL_FORMAT。
+**AI/推理**：AI_DESIGN、REASONING_LAYER_DESIGN、**MINDNET_FIRST_CLASS_DESIGN（MindNet 扶正设计）**、MINDNET_CONTRACT、MINDNET_INTEGRATION、MINDNET_ROADMAP、SIMILAR_QUESTIONS_DESIGN、PERSONA_DESIGN、SKILL_FORMAT。
 
-**题库/收题/题源/组卷**：QUESTION_BANK_DESIGN、QUESTION_INTAKE_AUDIT_DESIGN、HANDWRITING_INTAKE_DESIGN、ZUJUAN_LINKS_DESIGN、PAPER_COMPOSER_DESIGN、DOCX_EXPORT_DESIGN。
+**题库/收题/题源/组卷**：QUESTION_BANK_DESIGN、QUESTION_INTAKE_AUDIT_DESIGN、HANDWRITING_INTAKE_DESIGN、ZUJUAN_LINKS_DESIGN、PAPER_COMPOSER_DESIGN、DOCX_EXPORT_DESIGN、**QUESTION_MATURITY_PIPELINE（题库四层成熟度管线设计）**。
 
 **外观/提醒/评测**：APPEARANCE_DESIGN、DESIGN_BLUEPRINT、REVIEW_REMINDER_DESIGN、ASSESSMENT_DESIGN。
+
+**平台/存储**：**PLATFORM_CAPABILITY_MATRIX（Android/Windows 任务分级与门控矩阵）**。
 
 **验证记录**：VERIFICATION_MINDNET、VERIFICATION_MINDNET_ROUND2。
 

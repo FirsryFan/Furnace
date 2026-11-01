@@ -2,6 +2,23 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-01 轮次一百八十八：用户评审后的架构修正（决策记录 + MindNet 扶正 + AI 一等模块 + 知识库下沉 + schema v42 + 数据目录迁 E）
+
+- 目标（用户原话）：用户评审《工程理解报告》后给出 7 条修正与三轮澄清——定位仍为"高密度信息工作者"；当前唯一测试者是用户本人、内测小组只审内容；Android/Windows 按任务分级隔离、不可用任务不给入口；DB 迁到 E 盘；**"MindNet 并入标签是极大的错误"**，MindNet 是用户模型引擎、用户状态全权由它处理；知识库下沉设置并支持启用/禁用；孤立单题错也要记录；AI 应是一等模块、"内置 DSH"指具备相应能力而非打包运行时、软件不能太大；题库分四层成熟度、整由 AI 自完成；精力由 MindNet 预测/自主设定。本轮不追求功能全量落地，先把**决策记录 + 地基**立起来。
+- 决策：新建 `docs/DECISIONS-2026-11.md`（D01–D09，决策唯一登记处）；`docs/DESIGN_BLUEPRINT.md` §2.8/决策索引 2.8 加"2026-11-01 撤销"标记；三份设计文档：`docs/MINDNET_FIRST_CLASS_DESIGN.md`（197 行）、`docs/QUESTION_MATURITY_PIPELINE.md`（239 行）、`docs/PLATFORM_CAPABILITY_MATRIX.md`（92 行）。
+- 团队（复用 5 名 inactive 成员 + 新 spawn 3 名，任务板 task-6..13）：storage-relocation 负责 Windows 数据目录迁 E（AppStorage 480 行 + 10 处落点 + 10 例测试）；package-lifecycle 负责知识包启用/禁用/卸载数据层（repository 134 行 + 9 例测试）；mindnet-energy 负责精力预测纯逻辑（743 行 + 22 例测试）；arch-code 负责 MindNet 顶层页 + 知识库页 UI；data-bank 负责 AI 工具平台门控基础 + 平台矩阵；ai-layer 负责 MindNet 扶正设计文档；learning-loop 负责题库四层成熟度设计文档；state-docs 负责 v42 迁移测试（3 例）。Lead 负责决策记录、schema v42、l10n、shell 导航、设置入口、集成、文档与门禁。过程中出现一次**任务归属冲突**（spawn 触发上限后 arch-code/data-bank/ai-layer 被误派已有 owner 的任务），Lead 当场改派 task-10/11/12 解决，未造成并发写覆盖。
+- schema v42（Lead）：`knowledge_packages.enabled`（Bool 可空，NULL 读作启用）；`schemaVersion 41→42`、`_upgradeV41ToV42()` 只补列不回填、`_ensureColumns` 同步、`_tableFor` 补 `case 'knowledge_packages'`（v28 迁移测试实测：缺 case 会抛 unknown table）、`build_runner` 重生成 `database.g.dart`；新增 `app/test/data/database/v42_migration_test.dart`（3 例，真实 v41 文件升级 / 版本号盖高缺列自愈 / 幂等）。
+- 数据目录（storage-relocation）：新 `app/lib/data/storage/app_storage.dart`——Windows 解析顺序"可写 pointer > `E:\Furnace\data`（create+写探针）> 回退 legacy"；首次迁移递归复制 legacy appSupport + 旧 `documents/question_pack_backups`，**复制不删旧、失败回滚不写 pointer**；`FLUTTER_TEST` 下禁用真实重定位。数据库 `_openConnection`、题库媒体、手写、AI 附件、技能、文档、背景图、题库包备份等 10 处落点改走 `AppStorage`；设置页备份/数据目录展示也改走它。
+- MindNet 扶正第一步（arch-code + Lead）：顶层导航新增 **MindNet** 模块（`features/cognitive/presentation/mindnet_page.dart`，聚合认知模型/知识网络/今日清单/机制参数/评测档案五个既有页面）；`AppIcons` 新增 `mindnet` 槽（默认 `hub`，知识库槽保留兼容旧主题）。
+- AI 一等模块（Lead + data-bank）：`home_shell` 去掉"配了 key 才出现"的条件，AI 与其它模块同级常驻（未配 key 时页面自己渲染配置引导）；新增 `AiToolPlatform{android,windows}`、`AiTool.supportedPlatforms`（默认两端）、`ToolRegistry.forPlatform` / `describePlatformCapabilities`，29 个内置工具行为不变；9 例门控测试。
+- 知识库下沉（arch-code + package-lifecycle + Lead）：顶层"知识库"目的地移除，设置页新增「知识库」入口；`packages_page` 行内启用/禁用 Switch + 卸载确认（只删包与 `package_items` 归属记录、保留知识点/闪存卡/标签）；`upsertPackage` 重新导入时回填旧 `enabled`，避免 REPLACE 把禁用重置为启用（Lead 补测）。
+- 精力预测（mindnet-energy + ai-layer 只读审校）：`domain/services/cognitive/energy_prediction.dart`（743 行）——手工值 2h 半开窗口优先、近 2h 负荷降档、节律/复习失败率/覆盖天数等确定性规则，输出 level/confidence/basis/shouldAutoSet/expiresAt；阈值全部 `[未标定]`；22 例测试；未接 Thread UI。
+- l10n（Lead 独占）：zh/en 新增 `navMindnet` / `mindnetIntro` / `settingsKnowledgeLibrary(+Hint)` / `packagesEnable/Disable/Disabled/Uninstall/UninstallTitle/UninstallConfirm/UninstallDone`（含 metadata），`flutter gen-l10n` exit 0；ARB 3760/3854 行。
+- 文档：README（模块表加 MindNet、schema v42、新增文档索引）；USER_GUIDE（入口表加 MindNet/知识库、§10 版本段）；FEATURE_MATRIX 增补 7 行；DATA_MODEL 新增 §31（v42 语义/测试/边界）；HANDOFF §1/§2/§5/§17 刷新；PROGRESS 本轮。
+- 门禁：`dart format` 改动文件 0 changed；`dart analyze lib test` = **87 issues / 0 error / 0 warning**（比上轮基线 88 少 1 条 info）；全量 `flutter test --concurrency=1` 跑到 **+6864 ~2 -3，31:22**，3 个失败均为**行为变更后需要更新的旧断言**（`ai_chat_ui_test` 2 条"AI 入口不存在"、`about_page_test` 1 条 AppStorage 缓存泄漏），更新断言后单跑全绿（ai_chat_ui 4 例、about_page 2 例）；所有本轮改动区域 scoped 测试 **105 例全绿**（storage/package/v42/energy/packages/settings/ai/home_shell/icons/question_bank）。**未再跑第二次全量**（单次约 31 分钟），如实记录：最终树 = 已跑全量中除上述 3 条旧断言外全部通过 + 这 3 条更新后单跑通过。
+- 未做/风险：E:\Furnace\data 只有注入临时目录的单元测试，未真机/桌面端到端验证；知识包"禁用"未做内容级隐藏、"卸载连内容删除"未做（待用户确认）；精力预测未接 Thread UI；MindNet 引擎（run/1 事件层、存档回退、评测/persona 并入）仍是设计阶段；题库四层成熟度只有设计、未实现 schema；DSH 能力清单未定。
+- 下一步（按 DECISIONS 待确认项与设计文档分阶段）：真机验收数据目录迁移 → MindNet 事件层设计评审 → 知识库内容级过滤/连内容删除确认 → AI 能力清单（docx 通用化/组卷网桥） → 题库四层 schema 评审。
+
 ## 2026-11-01 轮次一百八十七：完整交接文档（HANDOFF 重写 + README 状态刷新）
 
 - 目标（用户原话）：「请你产出完整的交接文档，包含所有已有的进展和技术细节。」要求不读完整对话历史也能安全接上开发/测试/构建/发布；顺带把 README 里过期的状态数字刷新，避免下一个接手者被误导。
