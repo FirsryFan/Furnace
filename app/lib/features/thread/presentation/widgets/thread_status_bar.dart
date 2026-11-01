@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/repositories/repository_providers.dart';
 import '../../../../domain/services/cognitive/study_rhythm.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../application/energy_prediction_provider.dart';
 import '../../application/study_rhythm_reader.dart';
 import '../../application/thread_rank_service.dart';
 import 'energy_bar.dart';
@@ -108,10 +109,21 @@ class _ThreadStatusBarState extends ConsumerState<ThreadStatusBar> {
     );
   }
 
+  /// "Use prediction": the user explicitly accepts the MindNet value, so it is
+  /// written exactly like a hand-filled one (energy + updated_at, stamped by the
+  /// repository). The prediction then reports the manual window - which is why
+  /// the "手动" badge replaces the button afterwards.
+  Future<void> _usePrediction(int level) async {
+    await ref.read(threadStateRepositoryProvider).updateState(energy: level);
+    ref.invalidate(threadStateProvider);
+    ref.invalidate(energyPredictionProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(threadStateProvider);
+    final energyPrediction = ref.watch(energyPredictionProvider);
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -145,6 +157,9 @@ class _ThreadStatusBarState extends ConsumerState<ThreadStatusBar> {
                         .read(threadStateRepositoryProvider)
                         .updateState(energy: value);
                     ref.invalidate(threadStateProvider);
+                    // The prediction's "manual" badge is derived from the same
+                    // row; refresh it even where no write hook is installed.
+                    ref.invalidate(energyPredictionProvider);
                   },
                 ),
                 const Spacer(),
@@ -181,8 +196,14 @@ class _ThreadStatusBarState extends ConsumerState<ThreadStatusBar> {
               ],
             ),
             // Collapsed, the strip is a single row by design: the reading is the
-            // first thing to go.
-            if (!_collapsed) const _AttentionHint(),
+            // first thing to go (the prediction line goes with it).
+            if (!_collapsed) ...[
+              _EnergyPredictionHint(
+                snapshot: energyPrediction.valueOrNull,
+                onUsePrediction: _usePrediction,
+              ),
+              const _AttentionHint(),
+            ],
           ],
         ),
       ),
@@ -280,6 +301,100 @@ class _AttentionHint extends ConsumerWidget {
               ref.invalidate(rhythmHintsEnabledProvider);
             },
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The MindNet energy-prediction line under the energy chip (D13).
+///
+/// Shows the predicted level and its confidence, explains where it came from in
+/// the tooltip (the predictor's own basis lines plus the uncalibrated note - the
+/// number must not read as a measurement), and offers "use prediction". When the
+/// status-bar value is the user's own recent hand-filled one, a "manual" badge
+/// replaces that button: writing the prediction back would be a no-op by
+/// definition, and the value on screen is already the user's own.
+class _EnergyPredictionHint extends StatelessWidget {
+  const _EnergyPredictionHint({
+    required this.snapshot,
+    required this.onUsePrediction,
+  });
+
+  /// Null while loading: nothing is drawn, so the bar never flickers between the
+  /// old and the new number.
+  final EnergyPredictionSnapshot? snapshot;
+
+  /// Writes [EnergyPrediction.level] as the status-bar energy.
+  final ValueChanged<int> onUsePrediction;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = this.snapshot;
+    if (snapshot == null) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final prediction = snapshot.prediction;
+    final manual = snapshot.manualOverrideActive;
+    final confidence = '${(prediction.confidence * 100).round()}%';
+
+    return Padding(
+      key: const Key('threadEnergyPredictionRow'),
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Tooltip(
+            message: '${l10n.threadEnergyPredictedNote}\n\n'
+                '${prediction.basis.join('\n')}',
+            child: Icon(
+              Icons.auto_awesome,
+              size: 16,
+              color: manual
+                  ? theme.colorScheme.outline
+                  : theme.colorScheme.tertiary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              l10n.threadEnergyPredicted(prediction.level, confidence),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (manual) ...[
+            const SizedBox(width: 6),
+            Container(
+              key: const Key('threadEnergyManualBadge'),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                l10n.threadEnergyManualBadge,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
+          ] else if (prediction.confidence > 0)
+            TextButton(
+              key: const Key('threadEnergyUsePrediction'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () => onUsePrediction(prediction.level),
+              child: Text(l10n.threadEnergyUsePrediction),
+            ),
         ],
       ),
     );
