@@ -3,7 +3,7 @@
 - **任务**：t33（软 MindNet 口径的补充独立验证，替代"因 MindNet 脏文件永远无法登记"的 t26）
 - **验证者**：verifier（独立于 t19/t20/t30 的实现者）
 - **报告时间**：2026-10-01 15:02–15:07（本机时钟）
-- **被测仓库**：Furnace `E:\Projects\class-productivity`（HEAD `ee0a6e1`，本轮产物仍未提交）
+- **被测仓库**：Furnace `E:\Projects\Furnace`（HEAD `ee0a6e1`，本轮产物仍未提交）
 - **三态约定**：§1–§7 为「已确认」（附命令原文与关键输出）；§8 为「未能确认 / 如何查证」。
 - **纪律（本报告遵循）**：跑门窗口内若 `app/lib`+`app/test` 的 `*.dart` 最新 mtime 变动，则读数标为"不可归因"。
 
@@ -220,7 +220,7 @@ C 分析后 mtime = 15:02:40 (15:06:26)   ← 窗口内无写入
 
 **机械闸门**（本文件，实际执行的完整命令）：
 ```
-cd "E:\Projects\class-productivity"
+cd "E:\Projects\Furnace"
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" "docs\VERIFICATION_MINDNET_ROUND2.md" \
   --workspace "." \
   --allow "conformance/mindnet_vectors.json" --allow "conformance.js" --allow "package.json" \

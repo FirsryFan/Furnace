@@ -4,13 +4,13 @@
 # Why this script may build through an ASCII junction
 # ------------------------------------------------
 # HISTORY: this checkout used to live under a non-ASCII path
-# (E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity). The release build's
+# (E:\FirsryOS\Memory\一THREADRIPPER一\Furnace). The release build's
 # kernel-snapshot step could not read its own output when the path contained
 # non-ASCII characters (measured 2026-10-02): error MSB8066, "Unable to read
 # file ...\flutter_build\<hash>\app.dill".
 #
 # FIX: on 2026-11-01 the repository was moved to the pure-ASCII path
-# E:\Projects\class-productivity, so the in-place release build now works.
+# E:\Projects\Furnace, so the in-place release build now works.
 # The junction option is retained for compatibility (E:\Document\furnace-build
 # is still redirected to the new app path); use -AsciiPath to build through it.
 # Everything else - `flutter create`, `pub get`, `gen-l10n`, `build_runner` -

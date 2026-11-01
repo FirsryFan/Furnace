@@ -2,7 +2,7 @@
 
 - **验证者**：verifier（独立于 t14/t15/t16/t17 的实现者）
 - **报告时间**：2026-10-01 14:06（本机时钟；文中每个数字都带读数时刻）
-- **被测仓库**：Furnace `E:\Projects\class-productivity`
+- **被测仓库**：Furnace `E:\Projects\Furnace`
   - HEAD = `ee0a6e11803aca9865cda887ba18981d856423c9`（**本轮所有产物都还没提交**，见 §0.2 的 porcelain）
   - Flutter 3.47.2 / Dart 3.13.2（`dart --version`）
 - **工具链**：所有复算脚本放在 `C:\Users\Public\mindnet-verify\`（**两个仓库之外**），见 §9。
@@ -181,7 +181,7 @@ CARD-BY-CARD: MATCH (R within 1e-9, gain within 1e-6)      exit 0
 - [跑] 基线于 `ee0a6e1` 干净树：`flutter test --concurrency=1` → 末尾 `04:06 +360: All tests passed!`，exit 0。
 
 ### 1.2 本轮第 1 次（覆盖到 13:55 左右的树）
-- [跑] 命令：在 `...\class-productivity\app` 执行 `flutter test --concurrency=1`
+- [跑] 命令：在 `...\Furnace\app` 执行 `flutter test --concurrency=1`
 - [跑] 结果：`=== FULL TEST EXIT: 0 ===`；末尾 `02:10 +491 ~1: All tests passed!`；失败标记计数 0。
 - 说明：这次读数（491 通过 / 1 跳过）**不是最终值** —— 跑完后 t9 的 `cognitive_tools.dart`（13:58:48）与 `tool_registry.dart`（14:03:22）才落盘。
 
@@ -408,7 +408,7 @@ index 2d99151..8fb71e8 100644
 
 ## 6. Windows release 构建（走 ASCII junction）
 
-- [跑] 起跑 `14:00:45`，工作目录 `E:\Document\furnace-build`（junction → `...\class-productivity\app`）。
+- [跑] 起跑 `14:00:45`，工作目录 `E:\Document\furnace-build`（junction → `...\Furnace\app`）。
 - [跑] 起跑时 `app/lib` 最新改动 = `cognitive_tools.dart` @ **13:58:48**。
 - [跑] 命令 `flutter build windows --release` 输出：
   ```
@@ -493,7 +493,7 @@ index 2d99151..8fb71e8 100644
 
 **机械闸门**（本文件，实际执行的完整命令 —— 14:30 最终一次运行）
 ```
-cd "E:\Projects\class-productivity"
+cd "E:\Projects\Furnace"
 node "D:\dsh-data\skills\anti-hallucination\scripts\audit-claims.mjs" "docs\VERIFICATION_MINDNET.md" \
   --workspace "." \
   --allow "conformance/mindnet_vectors.json" --allow "conformance.js" \

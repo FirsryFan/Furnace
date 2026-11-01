@@ -28,10 +28,10 @@ flutter doctor
 
 ## 2. 初始化本项目
 
-项目源码在 `class-productivity/app`。由于当前仓库只提交了 Dart 源码和配置，第一次需要在有 Flutter 的机器上生成平台目录：
+项目源码在 `Furnace/app`。由于当前仓库只提交了 Dart 源码和配置，第一次需要在有 Flutter 的机器上生成平台目录：
 
 ```powershell
-cd class-productivity/app
+cd Furnace/app
 
 # 生成 Windows 平台目录（以及其他缺失平台文件）
 flutter create --platforms=windows .
@@ -94,7 +94,7 @@ lib/
 `docs` 1.2 MB）。想腾空间时按顺序删，源码与历史都不会丢：
 
 ```powershell
-cd class-productivity/app
+cd Furnace/app
 
 # 1) Flutter 构建缓存：build/ + .dart_tool/ + windows/flutter/ephemeral/（≈5.8 GB）
 flutter clean

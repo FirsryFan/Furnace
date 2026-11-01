@@ -7,8 +7,8 @@
 # 免得每次构建重新踩一遍。详见 docs/DEPLOY.md。
 #
 #   1) 项目路径含非 ASCII（历史问题，2026-11-01 已修复）：
-#      仓库原在 E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity，
-#      已于 2026-11-01 迁至纯 ASCII 的 E:\Projects\class-productivity，
+#      仓库原在 E:\FirsryOS\Memory\一THREADRIPPER一\Furnace，
+#      已于 2026-11-01 迁至纯 ASCII 的 E:\Projects\Furnace，
 #      因此下面三个现象不再出现；脚本与配置里的开关保留作兼容：
 #      - AGP 拒绝构建 -> gradle.properties 里 android.overridePathCheck=true
 #      - Kotlin 增量缓存写失败 -> kotlin.incremental=false

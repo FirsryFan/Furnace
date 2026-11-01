@@ -3047,7 +3047,7 @@ exe 只做「能启动、窗口在、能响应」的冒烟，没有逐屏点过�
 
 **A. 空间：先量再删**
 
-清理前 `class-productivity` 全目录 **6,276.5 MB / 10,807 files**，源码只占 7.9 MB（`app/lib` 4.5 + `app/test` 2.2 +
+清理前 `Furnace` 全目录 **6,276.5 MB / 10,807 files**，源码只占 7.9 MB（`app/lib` 4.5 + `app/test` 2.2 +
 `docs` 1.2）；其余是 `app/build` 5,184.6 MB、`app/.dart_tool` 368.1 MB、`app/windows/flutter`（ephemeral 生成物）
 261.6 MB、`app/android/.gradle` 21.6 MB、`dist` 401.5 MB、`.git` 30.9 MB —— **大头全是可再生的构建产物**。
 
@@ -7360,7 +7360,7 @@ provider 的约束一无所知。凡是"客户端生成的、会被服务端校�
 | 文档 | 16 个 md；定稿 `THREADFLOW_SPEC.md` → **`FURNACE_SPEC.md`**，12 个文档里的 20 处引用同步更新 | 全仓扫描 0 残留 |
 | 脚本/配置 | IDE 模块名、签名密钥 `furnace-release.jks`、Gradle 镜像 `furnace-google-cdn.gradle`、ASCII 构建路径 `E:\Document\furnace-build` | 3 个 ps1 语法 0 错误 |
 
-保留的旧名（**故意不改**）：数据库文件回退链 `threadflow.db` / `knowflow.db`、`FURNACE_SPEC.md` 顶部的改名说明、`database.dart` 里记录历史名的那段注释。工作目录 `class-productivity/` 未改名。
+保留的旧名（**故意不改**）：数据库文件回退链 `threadflow.db` / `knowflow.db`、`FURNACE_SPEC.md` 顶部的改名说明、`database.dart` 里记录历史名的那段注释。工作目录 `Furnace/`（2026-11-01 由 `class-productivity` 更名）。
 
 ### 2. 🔴 改名引发的**真实数据丢失风险**（本轮最重要的发现）
 
@@ -7829,7 +7829,7 @@ debug 能构建（JIT），release 失败：
 ### 4.1 运行方式（Windows）
 
 ```powershell
-cd "E:\Projects\class-productivity\app"
+cd "E:\Projects\Furnace\app"
 flutter run -d windows        # 开发调试（支持热重载）
 # 或直接用已构建产物（免编译）：
 .\build\windows\x64\runner\Debug\knowflow.exe
@@ -7916,7 +7916,7 @@ flutter run -d windows        # 开发调试（支持热重载）
 
 > 项目定稿更名为 **Furnace**（权威规范：docs/FURNACE_SPEC.md；差距与迁移：docs/GAP_ANALYSIS.md）。
 
-- [x] R0：全量备份 `class-productivity` → `_backup/2026-09-07/`（630 文件）
+- [x] R0：全量备份 `Furnace` → `_backup/2026-09-07/`（630 文件）
 - [x] 定稿存档：`docs/FURNACE_SPEC.md`（逐字权威版）
 - [x] 差距清单：`docs/GAP_ANALYSIS.md`（D1–D13 决策、逐条差距矩阵、常量缺省表、.tfpkg 草案、R0–R6 路线）
 - [x] `docs/DATA_MODEL.md` 重写为 v2（树形标签 path、Tasks+expected_at/energy_required、ThreadStates、CompletionLogs、TaskTemplates、ClozeSlots/ClozeHistory、CardStates 呈现单元+FSRS 字段、BoostEntries、Themes、Attachments；schema 1→2 迁移步骤）

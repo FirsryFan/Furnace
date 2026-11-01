@@ -2,7 +2,7 @@
 
 > 撰写时间：2026-10-29。读者：下一个接手这个仓库的人或 agent。
 > 目标：不读完整对话历史，也能安全接上开发、测试、构建与发布。
-> 基线事实（本文撰写时实测）：仓库 `E:/Projects/class-productivity`，分支 `main`，HEAD `14f8d8a`（与 `origin/main` 一致），工作树干净；最新 tag `v0.6.12`；app 版本 `0.6.12+31`；schema `v41`。
+> 基线事实（本文撰写时实测）：仓库 `E:/Projects/Furnace`，分支 `main`，HEAD `14f8d8a`（与 `origin/main` 一致），工作树干净；最新 tag `v0.6.12`；app 版本 `0.6.12+31`；schema `v41`。
 > 逐轮细节在 [PROGRESS.md](PROGRESS.md)（758 KB，按时间倒序、每轮一节）；功能是否交付以 [FEATURE_MATRIX.md](FEATURE_MATRIX.md) 顶部增补表为准；数据表语义以 [DATA_MODEL.md](DATA_MODEL.md) 为准。
 
 ---
@@ -20,7 +20,7 @@
 
 | 项 | 值 | 证据 |
 | --- | --- | --- |
-| 仓库 / 分支 | `E:/Projects/class-productivity` / `main` | `git status -sb` |
+| 仓库 / 分支 | `E:/Projects/Furnace` / `main` | `git status -sb` |
 | HEAD / 远端 | `14f8d8a` / `origin/main=14f8d8a` | 实测 |
 | 最新 tag | `v0.6.12`（tag 列表 v0.6.0–v0.6.12） | `git tag` |
 | app 版本 | `0.6.12+31` | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
@@ -60,7 +60,7 @@ Furnace 是一个本地优先的**学习 + 生产力应用**，核心闭环：
 ### 3.1 目录结构
 
 ```text
-class-productivity/
+Furnace/
 ├─ app/                     # Flutter 工程（所有命令都在这里跑）
 │  ├─ lib/
 │  │  ├─ app/               # app.dart、shell/home_shell.dart（导航目的地）
@@ -513,7 +513,7 @@ powershell -File scripts/build_android.ps1
 
 ## 18. 冷启动检查清单
 
-1. `cd E:/Projects/class-productivity/app`；`git status -sb` 应干净、HEAD=origin/main。
+1. `cd E:/Projects/Furnace/app`；`git status -sb` 应干净、HEAD=origin/main。
 2. 读 §1 表格 + PROGRESS 顶部 3 节，确认当前版本/schema/最后一轮。
 3. `flutter pub get`；`flutter gen-l10n`（若 ARB 有改动）。
 4. 跑 `dart analyze lib test` 与单点测试确认环境；需要时再跑全量（14–16 分钟）。

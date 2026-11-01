@@ -270,7 +270,7 @@ JSON（例如 `"actionType": 42`），不再出现 `xxx.stuckRisk.stuckRisk` 这
 
 ## 8. 验收记录
 
-在 `app/` 下执行（工作目录 `E:\Projects\class-productivity\app`）：
+在 `app/` 下执行（工作目录 `E:\Projects\Furnace\app`）：
 
 - `dart analyze lib/domain/services/reasoning test/domain/services/reasoning`
   → `No issues found!`（本层文件 0 error / 0 warning / 0 info）

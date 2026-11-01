@@ -54,7 +54,7 @@ import 'package:furnace/domain/services/cognitive/fast_engine.dart';
 /// through the same read-only generator:
 ///
 /// ```
-/// cd E:/Projects/class-productivity
+/// cd E:/Projects/Furnace
 /// node app/tool/gen_mindnet_tierb_diagnosis.cjs
 /// ```
 ///

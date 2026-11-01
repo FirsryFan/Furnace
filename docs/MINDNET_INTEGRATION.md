@@ -8,7 +8,7 @@
 > **数字纪律**：本文每个数字都附来源（命令原文 或 `文件:行`）。没有来源的推测一律不写；
 > 无法确认的写「未能确认（原因）」。
 >
-> **基线**：Furnace 工作树 `E:\Projects\class-productivity`（本轮改动尚未提交）；
+> **基线**：Furnace 工作树 `E:\Projects\Furnace`（本轮改动尚未提交）；
 > MindNet 只读参考 `E:\Document\MindNet`，`git log -1 --format=%H` = `f4eec9bae16e6e303c19177e7fbfcf7a756f6629`。
 > 本文列出的命令均在 2026-10-01 本会话实跑。
 
@@ -410,7 +410,7 @@ forced → boosted → model → unseen
 ### 10.2 命令
 
 ```powershell
-cd E:\Projects\class-productivity\app
+cd E:\Projects\Furnace\app
 
 # 宿主式探针（默认读 %APPDATA%\FirsryFan\Furnace\furnace.db 的副本）
 flutter test test/tool/mindnet_probe_report_test.dart `
@@ -495,9 +495,9 @@ node "C:\Users\Public\mindnet-verify\recompute_b01.cjs"
 #   B01 RECOMPUTE: all fields match within fixture tolerances (rel<=1e-12, abs<=1e-15)
 
 # 2) Dart 侧：--packages 指向 app 的包配置；第二个参数是夹具路径
-dart --packages="E:\Projects\class-productivity\app\.dart_tool\package_config.json" `
+dart --packages="E:\Projects\Furnace\app\.dart_tool\package_config.json" `
   "C:\Users\Public\mindnet-verify\tierb_b01_check.dart" `
-  "E:\Projects\class-productivity\app\test\fixtures\mindnet_vectors.json"
+  "E:\Projects\Furnace\app\test\fixtures\mindnet_vectors.json"
 # 实测输出（本会话，exit 0）：
 #   vector          : B01-fast-layer-chain-5-rounds
 #   rounds expected : 5

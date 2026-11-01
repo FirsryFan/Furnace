@@ -15,7 +15,7 @@ import 'package:furnace/domain/services/srs/dsr_memory.dart';
 /// implementation** by `app/tool/gen_mindnet_tierb_diagnosis.cjs`:
 ///
 /// ```
-/// cd E:/Projects/class-productivity
+/// cd E:/Projects/Furnace
 /// node app/tool/gen_mindnet_tierb_diagnosis.cjs
 /// ```
 ///

@@ -1,6 +1,6 @@
 # 发布与分发（Windows + Android）
 
-> 产品名：Furnace（工作目录沿用 `class-productivity`，Dart 包名 `furnace`，
+> 产品名：Furnace（工作目录 `Furnace/`（2026-11-01 由 `class-productivity` 更名），Dart 包名 `furnace`，
 > Android 包名 `com.furnace.app`）
 > 环境实测日期：2026-09-19（本机）；Android 从零装好并**已产出可安装的 release APK**
 
@@ -49,7 +49,7 @@ build-tools;36.0.0       ndk;28.2.13676358   (2172 MB, sha1 已核对官方值)
 一键脚本（推荐，已固化下面所有环境坑）：
 
 ```powershell
-cd class-productivity
+cd Furnace
 powershell -ExecutionPolicy Bypass -File scripts/build_android.ps1              # release APK
 powershell -ExecutionPolicy Bypass -File scripts/build_android.ps1 -Mode debug  # debug APK
 powershell -ExecutionPolicy Bypass -File scripts/build_android.ps1 -Mode appbundle
@@ -98,7 +98,7 @@ E:\Document\AndroidDev\sdk\platform-tools\adb.exe install -r <apk 路径>
 
 ## 1.1 这台机器上必须知道的环境事实（否则会反复踩坑）
 
-**A. 项目路径含非 ASCII（2026-11-01 已修复）**：仓库曾位于 `E:\FirsryOS\Memory\一THREADRIPPER一\class-productivity`（路径含中文），由此引发下面三个问题。**2026-11-01 起仓库已迁至纯 ASCII 路径 `E:\Projects\class-productivity`，三个问题不再出现**；`android.overridePathCheck=true` 与 `kotlin.incremental=false` 仅为兼容非 ASCII 路径而保留（在当前 ASCII 路径下无副作用）。以下为历史记录：
+**A. 项目路径含非 ASCII（2026-11-01 已修复）**：仓库曾位于 `E:\FirsryOS\Memory\一THREADRIPPER一\Furnace`（路径含中文），由此引发下面三个问题。**2026-11-01 起仓库已迁至纯 ASCII 路径 `E:\Projects\Furnace`，三个问题不再出现**；`android.overridePathCheck=true` 与 `kotlin.incremental=false` 仅为兼容非 ASCII 路径而保留（在当前 ASCII 路径下无副作用）。以下为历史记录：
 
 1. AGP 直接拒绝：`Your project path contains non-ASCII characters` → `android.overridePathCheck=true`；
 2. Kotlin 增量缓存写失败：`Could not close incremental caches ... class-fq-name-to-source.tab` → `kotlin.incremental=false`；
@@ -151,7 +151,7 @@ hosts 文件不可用：无管理员权限不可写。
 ## 2. Windows 构建与分发
 
 ```powershell
-cd class-productivity
+cd Furnace
 powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
 # 或
 cd app; flutter build windows --release
@@ -181,13 +181,13 @@ cd app; flutter build windows --release
 
 ## 4. Windows release 也需要 ASCII 路径（2026-09-19 实测；2026-11-01 已随仓库迁移修复）
 
-> **2026-11-01 更新**：仓库已迁至纯 ASCII 路径 `E:\Projects\class-productivity`，本节描述的非 ASCII 问题不再出现；`E:\Document\furnace-build` junction 已重定向到新路径并保留作兼容。以下为历史记录。
+> **2026-11-01 更新**：仓库已迁至纯 ASCII 路径 `E:\Projects\Furnace`，本节描述的非 ASCII 问题不再出现；`E:\Document\furnace-build` junction 已重定向到新路径并保留作兼容。以下为历史记录。
 
 `flutter build windows --release` 在旧的非 ASCII 工作区**会失败**，报错与 Android release 同源：
 
 ```
 CUSTOMBUILD : error : Unable to read file:
-E:\Projects\class-productivity\app\.dart_tool\flutter_build\<hash>\app.dill
+E:\Projects\Furnace\app\.dart_tool\flutter_build\<hash>\app.dill
 error MSB8066: ... flutter_assemble.vcxproj ... 已退出，代码为 1
 ```
 

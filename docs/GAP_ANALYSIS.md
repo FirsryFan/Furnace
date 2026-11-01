@@ -2,7 +2,7 @@
 
 > 生成日期：2026-09-07
 > 上游规范：[FURNACE_SPEC.md](FURNACE_SPEC.md)（权威，冲突以此为准）
-> 现状基线：`class-productivity/app`（57 个 Dart 源文件，Drift schema v1，Flutter 3.47.2 / Dart 3.13.2 实机可用）
+> 现状基线：`Furnace/app`（57 个 Dart 源文件，Drift schema v1，Flutter 3.47.2 / Dart 3.13.2 实机可用）
 > 用途：逐条核对「定稿 vs 现状」差距与迁移方案；本文为后续所有文档与代码变更的 hub（命名、常量、格式决策一律读本文，禁止各文件私造版本）。
 
 ---
@@ -11,7 +11,7 @@
 
 | 编号 | 决策 | 内容 |
 | --- | --- | --- |
-| D1 | 产品名 | 全面启用 **Furnace**。应用标题/文案/ARB 全部替换“知序/Furnace”；Dart 包名最终由 `knowflow` 改为 **`furnace`**（本行原写 `threadflow`，是当时的中间名，已于 2026-09-21 全局改名时纠正）；工作目录沿用 `class-productivity/`（本轮未重命名）。 |
+| D1 | 产品名 | 全面启用 **Furnace**。应用标题/文案/ARB 全部替换“知序/Furnace”；Dart 包名最终由 `knowflow` 改为 **`furnace`**（本行原写 `threadflow`，是当时的中间名，已于 2026-09-21 全局改名时纠正）；工作目录 `Furnace/`（原名 `class-productivity`，2026-11-01 更名）。 |
 | D2 | 模块命名（用户可见层） | Mindnet＝思维导图；Thread＝任务事件流（待办）；Time＝时间/日程；Knowledge＝记忆/复习；“知识库/知识包页”降级为次级入口（见 D4）。导航文案、页面标题全部按定稿词表；**代码内部**保留现有目录/表名（tasks/timeboard/anki/mindmap…）及 `Task` 类，新增 Thread 概念采用新名（`ThreadRanker`、`ThreadState`、`CompletionLog`…），理由：内部改名是纯机械噪声，风险大于收益；对应关系记录在 ARCHITECTURE.md，绝不让“内部 task / 外部 Thread”产生行为分歧。 |
 | D3 | 标签 = 树形路径字符串 | 标签系统升级为**树形**：标签保留 `parent_id` + 缓存完整路径 `path`（`文化课/学科/语文/作文`）。路径是权威查询键；UI 默认只显示末级，hover/点击展开全路径。Mindnet “系”导入 = 把节点子树逐节点创建/关联为标签，路径按节点层级拼接。 |
 | D4 | `.kpak` 与 `.tfpkg` 并存 | `.kpak` 保留＝班级分享子集（知识点/模板/标签/导图，不含个人数据）；`.tfpkg` 新增＝定稿的“全量工作区打包”（SQLite 数据逻辑全量 + 附件 + 主题），用于备份/迁移/整体传输，合并提供“覆盖/追加”。知识库（`.kpak` 导入导出）从主导航移入设置/次级页。 |
@@ -182,7 +182,7 @@
 
 | 阶段 | 内容 | DoD |
 | --- | --- | --- |
-| R0 | 全量备份 `class-productivity` 到 `_backup/2026-09-07` | 文件树校验 |
+| R0 | 全量备份 `Furnace` 到 `_backup/2026-09-07` | 文件树校验 |
 | R1 | 文档对齐：README/PRD(标记被取代)/ARCHITECTURE/DATA_MODEL v2/KNOWLEDGE_PACKAGE(+tfpkg)/PRIVACY/MILESTONES 重排/FEATURE_MATRIX 重建/OPEN_QUESTIONS 结案 | 本文 §2 每行都有落点 |
 | R2 | schema v2 + 迁移 + Repository 扩展 + 单测（无 UI） | `flutter test` 数据层绿；`database.g.dart` 重生成 |
 | R3 | 纯 Dart 核心：ThreadRanker＋常量表、FSRS、自由挖空＋错题绑定状态机、图谱扩散、Time 占用/窗口引擎、模板/批改服务 | `dart test` 全绿（含新算法向量测试） |
