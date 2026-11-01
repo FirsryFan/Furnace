@@ -66,7 +66,7 @@ void main() {
     test('an unset preference is today\'s behaviour, not a stored default',
         () async {
       // No settings row and no preference row at all: the first-run case.
-      expect(await plans.getJudgeModePreference(), JudgeModePreference.strict);
+      expect(await plans.getJudgeModePreference(), JudgeModePreference.self);
       expect(await plans.getCardTypePreference(), CardTypePreference.mixed);
     });
 
@@ -87,11 +87,11 @@ void main() {
     test('a chosen card type preference survives a re-read', () async {
       await plans.setCardTypePreference(CardTypePreference.mcq);
       expect(await plans.getCardTypePreference(), CardTypePreference.mcq);
-      expect(await plans.getJudgeModePreference(), JudgeModePreference.strict);
+      expect(await plans.getJudgeModePreference(), JudgeModePreference.self);
 
       final both = await plans.getPreferences();
       expect(both.cardType, CardTypePreference.mcq);
-      expect(both.judgeMode, JudgeModePreference.strict);
+      expect(both.judgeMode, JudgeModePreference.self);
 
       // Choosing again overwrites rather than appending a second meaning.
       await plans.setCardTypePreference(CardTypePreference.essay);
@@ -113,11 +113,11 @@ void main() {
       expect(CardTypePreference.fromStorage(null), CardTypePreference.mixed);
       expect(
           CardTypePreference.fromStorage('quantum'), CardTypePreference.mixed);
-      expect(JudgeModePreference.fromStorage(null), JudgeModePreference.strict);
+      expect(JudgeModePreference.fromStorage(null), JudgeModePreference.self);
       expect(JudgeModePreference.fromStorage('self'), JudgeModePreference.self);
       expect(JudgeModePreference.fromStorage('nonsense'),
-          JudgeModePreference.strict,
-          reason: 'an unknown mode must not become the forgiving one');
+          JudgeModePreference.self,
+          reason: 'an unknown mode falls back to self-judging, deliberately');
     });
   });
 

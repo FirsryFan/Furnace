@@ -136,12 +136,12 @@ void main() {
     expect(repo.isPackageEnabled(package), isFalse);
     await db.close();
 
-    // 迁移把版本号写到 v42、列也补上了；禁用是显式 0。
-    expect(userVersionOf(file.path), 42);
+    // 迁移把版本号写到当前 schema（v43 起）、列也补上了；禁用是显式 0。
+    expect(userVersionOf(file.path), 43);
     expect(columnNames(file.path, 'knowledge_packages'), contains('enabled'));
     expect(enabledValueOf(file.path), 0, reason: 'false 落库是整数 0（Drift 布尔）');
 
-    // 已经是 v42，重开不再迁移；禁用状态与包数据原样还在。
+    // 已经是当前 schema，重开不再迁移；禁用状态与包数据原样还在。
     db = AppDatabase.forTesting(NativeDatabase(file));
     repo = PackageRepository(db);
     package = (await repo.getPackageById('pkg-loops'))!;
@@ -182,7 +182,7 @@ void main() {
     );
     await db.close();
 
-    expect(userVersionOf(file.path), 42, reason: '自愈不改版本号');
+    expect(userVersionOf(file.path), 43, reason: '版本被盖成 v42 的库打开时 onUpgrade 会推到当前 schema；自愈只补列');
     expect(
       columnNames(file.path, 'knowledge_packages'),
       contains('enabled'),
@@ -202,7 +202,7 @@ void main() {
       isTrue,
     );
     await db.close();
-    expect(userVersionOf(file.path), 42, reason: '第一次打开完成 v41 -> v42');
+    expect(userVersionOf(file.path), 43, reason: '第一次打开完成 v41 -> 当前 schema');
 
     // 第二次打开：onUpgrade 不再跑，只剩 beforeOpen 探列；NULL 不能被改写。
     db = AppDatabase.forTesting(NativeDatabase(file));
@@ -217,7 +217,7 @@ void main() {
     expect((await repo.getAllPackages()).length, 1);
     await db.close();
 
-    expect(userVersionOf(file.path), 42);
+    expect(userVersionOf(file.path), 43);
     expect(enabledValueOf(file.path), isNull, reason: '两次打开后仍是 NULL');
     expect(packageCountOf(file.path), 1);
   });
