@@ -36,6 +36,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navPackages => '知识库';
 
   @override
+  String get navMindnet => 'MindNet';
+
+  @override
+  String get mindnetIntro =>
+      '用户模型引擎：这里的读数由 MindNet 维护，用于个性化推荐、安排与推送；页面只读，不直接改学习数据。';
+
+  @override
   String get navSettings => '设置';
 
   @override
@@ -1123,6 +1130,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get packagesVersionHint => '例如 1.0.0';
 
   @override
+  String get packagesEnable => '启用';
+
+  @override
+  String get packagesDisable => '禁用';
+
+  @override
+  String get packagesDisabled => '已禁用';
+
+  @override
+  String get packagesUninstall => '卸载';
+
+  @override
+  String get packagesUninstallTitle => '卸载知识包？';
+
+  @override
+  String packagesUninstallConfirm(String name, int count) {
+    return '将删除「$name」的导入记录（$count 条归属记录）。由它导入的知识点、闪存卡和标签会保留，不删除内容。';
+  }
+
+  @override
+  String packagesUninstallDone(String name) {
+    return '已卸载「$name」';
+  }
+
+  @override
   String get tagsEmpty => '还没有标签';
 
   @override
@@ -2031,6 +2063,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsBackupNote => '这是原始数据库文件的副本；日常备份建议用 .tfpkg。';
+
+  @override
+  String get settingsKnowledgeLibrary => '知识库';
+
+  @override
+  String get settingsKnowledgeLibraryHint => '管理已导入的知识包：启用/禁用、卸载、导入导出。';
 
   @override
   String get navAi => '智能';

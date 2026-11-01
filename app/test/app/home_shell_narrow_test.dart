@@ -1,7 +1,8 @@
-/// 手机宽度下的外壳布局：八个目的地全部塞进底部导航，且每个都点得进去。
+/// 手机宽度下的外壳布局：八个常驻目的地全部塞进底部导航，且每个都点得进去。
 ///
-/// 用户反馈（m29307）"UI 布局有很多可以提升的地方"：这一轮加了题库目的地，
-/// 目的地从 7 个变 8 个。桌面是 NavigationRail（全标签），手机是 NavigationBar
+/// 用户反馈（m29307）"UI 布局有很多可以提升的地方"：这一轮 AI 入口改为常驻
+/// （轮次一百八十八），知识库下沉设置、MindNet 成为顶层模块，目的地仍是 8 个。
+/// 桌面是 NavigationRail（全标签），手机是 NavigationBar
 /// （`labelBehavior: onlyShowSelected`）——**这个文件守的就是"窄屏不溢出、题库
 /// 点得到"**：布局回归在 Flutter 里不会抛异常，只会画出黄黑条或压缩文字，
 /// 所以要看的是渲染与路由，不是"没崩"。
@@ -48,8 +49,8 @@ void main() {
     expect(bar, findsOneWidget);
     expect(
       find.descendant(of: bar, matching: find.byType(NavigationDestination)),
-      findsNWidgets(7),
-      reason: '没配 AI key 时：标签、Thread、Time、闪存卡、题库、知识库、设置',
+      findsNWidgets(8),
+      reason: 'AI 入口常驻后：标签、Thread、Time、闪存卡、题库、MindNet、智能、设置',
     );
 
     // 未选中的目的地只画图标（onlyShowSelected），所以按图标点「题库」。

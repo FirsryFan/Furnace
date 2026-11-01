@@ -36,6 +36,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navPackages => 'Library';
 
   @override
+  String get navMindnet => 'MindNet';
+
+  @override
+  String get mindnetIntro =>
+      'The user-model engine: readings here are maintained by MindNet for personalised recommendation, scheduling and pushes. The page is read-only and does not change learning data directly.';
+
+  @override
   String get navSettings => 'Settings';
 
   @override
@@ -1156,6 +1163,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get packagesVersionHint => 'e.g. 1.0.0';
 
   @override
+  String get packagesEnable => 'Enable';
+
+  @override
+  String get packagesDisable => 'Disable';
+
+  @override
+  String get packagesDisabled => 'Disabled';
+
+  @override
+  String get packagesUninstall => 'Uninstall';
+
+  @override
+  String get packagesUninstallTitle => 'Uninstall knowledge package?';
+
+  @override
+  String packagesUninstallConfirm(String name, int count) {
+    return 'This removes the import record for \"$name\" ($count owned items). Knowledge points, flashcards and tags it imported are kept; no content is deleted.';
+  }
+
+  @override
+  String packagesUninstallDone(String name) {
+    return 'Uninstalled \"$name\"';
+  }
+
+  @override
   String get tagsEmpty => 'No tags yet';
 
   @override
@@ -2118,6 +2150,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsBackupNote =>
       'This is a copy of the raw database file; prefer .tfpkg for regular backups.';
+
+  @override
+  String get settingsKnowledgeLibrary => 'Knowledge library';
+
+  @override
+  String get settingsKnowledgeLibraryHint =>
+      'Manage imported knowledge packages: enable/disable, uninstall, import and export.';
 
   @override
   String get navAi => 'AI';

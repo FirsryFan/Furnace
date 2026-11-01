@@ -152,6 +152,18 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get navPackages;
 
+  /// No description provided for @navMindnet.
+  ///
+  /// In en, this message translates to:
+  /// **'MindNet'**
+  String get navMindnet;
+
+  /// No description provided for @mindnetIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The user-model engine: readings here are maintained by MindNet for personalised recommendation, scheduling and pushes. The page is read-only and does not change learning data directly.'**
+  String get mindnetIntro;
+
   /// No description provided for @navSettings.
   ///
   /// In en, this message translates to:
@@ -2091,6 +2103,48 @@ abstract class AppLocalizations {
   /// **'e.g. 1.0.0'**
   String get packagesVersionHint;
 
+  /// No description provided for @packagesEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get packagesEnable;
+
+  /// No description provided for @packagesDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get packagesDisable;
+
+  /// No description provided for @packagesDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get packagesDisabled;
+
+  /// No description provided for @packagesUninstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall'**
+  String get packagesUninstall;
+
+  /// No description provided for @packagesUninstallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall knowledge package?'**
+  String get packagesUninstallTitle;
+
+  /// Confirmation for removing an imported knowledge package. The imported content itself is kept.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the import record for \"{name}\" ({count} owned items). Knowledge points, flashcards and tags it imported are kept; no content is deleted.'**
+  String packagesUninstallConfirm(String name, int count);
+
+  /// No description provided for @packagesUninstallDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstalled \"{name}\"'**
+  String packagesUninstallDone(String name);
+
   /// No description provided for @tagsEmpty.
   ///
   /// In en, this message translates to:
@@ -3692,6 +3746,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This is a copy of the raw database file; prefer .tfpkg for regular backups.'**
   String get settingsBackupNote;
+
+  /// No description provided for @settingsKnowledgeLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge library'**
+  String get settingsKnowledgeLibrary;
+
+  /// No description provided for @settingsKnowledgeLibraryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage imported knowledge packages: enable/disable, uninstall, import and export.'**
+  String get settingsKnowledgeLibraryHint;
 
   /// No description provided for @navAi.
   ///

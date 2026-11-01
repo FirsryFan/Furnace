@@ -5,14 +5,13 @@ import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../core/state/data_change_bus.dart';
 import '../../core/theme/app_icons.dart';
-import '../../features/ai/application/ai_providers.dart';
 import '../../features/ai/presentation/ai_chat_page.dart';
 import '../../features/anki/application/review_reminder_service.dart';
 import '../../features/anki/presentation/knowledge_page.dart';
 import '../../features/anki/presentation/review_reminder_texts.dart';
 import '../../features/settings/application/appearance_providers.dart';
 import '../../features/tags/presentation/tag_tree_page.dart';
-import '../../features/packages/presentation/packages_page.dart';
+import '../../features/cognitive/presentation/mindnet_page.dart';
 import '../../features/questions/presentation/question_bank_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/thread/application/thread_rank_service.dart';
@@ -31,7 +30,6 @@ import '../../features/timeboard/presentation/time_page.dart';
 List<NavigationDestination> shellDestinations({
   required AppLocalizations l10n,
   required Map<String, String> icons,
-  required bool aiConfigured,
 }) {
   NavigationDestination destination(String slot, String label) =>
       NavigationDestination(
@@ -46,8 +44,10 @@ List<NavigationDestination> shellDestinations({
     destination('time', l10n.navTime),
     destination('knowledge', l10n.navAnki),
     destination('questions', l10n.navQuestions),
-    destination('packages', l10n.navPackages),
-    if (aiConfigured) destination('ai', l10n.navAi),
+    // MindNet 是用户模型模块（决策记录 docs/DECISIONS-2026-11.md D3）；
+    // 知识库（.kpak）不再是顶层目的地，入口下沉到设置页。
+    destination('mindnet', l10n.navMindnet),
+    destination('ai', l10n.navAi),
     destination('settings', l10n.navSettings),
   ];
 }
@@ -145,21 +145,16 @@ class _HomeShellState extends ConsumerState<HomeShell>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // The AI destination exists only once a key is configured (AI_DESIGN D15 /
-    // requirement 8). Until then the shell is the app it was before the feature
-    // existed, which is what keeps "offline by default" a property rather than
-    // a promise.
-    final aiConfigured = ref.watch(aiEnabledProvider);
-
+    // AI 是一等模块（决策记录 D4）：入口常驻，未配置 key 时对话页自己渲染
+    // 配置引导。这样它不再像"某个开关打开后才存在的附属功能"。
     final pages = <Widget>[
       const TagTreePage(),
       const ThreadPage(),
       const TimePage(),
       const KnowledgePage(),
       const QuestionBankPage(),
-      const PackagesPage(),
-      if (aiConfigured)
-        AiChatPage(onOpenSettings: () => _goToTab(_settingsIndex)),
+      const MindNetPage(),
+      AiChatPage(onOpenSettings: () => _goToTab(_settingsIndex)),
       const SettingsPage(),
     ];
 
@@ -173,7 +168,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
       // slot then renders its factory icon.
       icons: ref.watch(activeAppearanceProvider).valueOrNull?.data?.icons ??
           const <String, String>{},
-      aiConfigured: aiConfigured,
     );
 
     // Clearing the key removes the AI destination; if it happened to be
@@ -185,7 +179,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
       child: Actions(
         actions: _actions(
           context,
-          aiConfigured: aiConfigured,
           pageCount: pages.length,
         ),
         child: _buildShell(context, l10n, pages, destinations, selected),
@@ -193,8 +186,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
     );
   }
 
-  /// Index of the Settings tab, which shifts when the AI page is present.
-  int get _settingsIndex => ref.read(aiEnabledProvider) ? 7 : 6;
+  /// 设置页在 8 个常驻目的地里固定是最后一个。
+  int get _settingsIndex => 7;
 
   void _goToTab(int index) => setState(() => _selectedIndex = index);
 
@@ -220,7 +213,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   Map<Type, Action<Intent>> _actions(
     BuildContext context, {
-    required bool aiConfigured,
     required int pageCount,
   }) =>
       {
@@ -248,7 +240,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
         // Ctrl+0 jumps to Settings, whose index shifts with the AI page.
         _GoToSettingsIntent: CallbackAction<_GoToSettingsIntent>(
           onInvoke: (intent) {
-            setState(() => _selectedIndex = aiConfigured ? 7 : 6);
+            setState(() => _selectedIndex = 7);
             return null;
           },
         ),

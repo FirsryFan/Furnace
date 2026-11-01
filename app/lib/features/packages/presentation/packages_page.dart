@@ -39,7 +39,8 @@ final packageLibraryProvider =
   final counts = await packages.itemCountsByPackage();
   return [
     for (final row in rows)
-      PackageLibraryEntry(row: row, counts: counts[row.id] ?? const <String, int>{}),
+      PackageLibraryEntry(
+          row: row, counts: counts[row.id] ?? const <String, int>{}),
   ];
 });
 
@@ -221,18 +222,17 @@ class PackagesPage extends ConsumerWidget {
 
     final version = versionController.text.trim();
     try {
-      final manifest = await ref
-          .read(packageExportServiceProvider)
-          .buildManifest(
-            name: nameController.text.trim().isEmpty
-                ? l10n.packagesDefaultName
-                : nameController.text.trim(),
-            author: authorController.text.trim().isEmpty
-                ? l10n.packagesDefaultAuthor
-                : authorController.text.trim(),
-            version: version.isEmpty ? '1.0.0' : version,
-            tagIds: byTag ? selectedTags : const <String>{},
-          );
+      final manifest =
+          await ref.read(packageExportServiceProvider).buildManifest(
+                name: nameController.text.trim().isEmpty
+                    ? l10n.packagesDefaultName
+                    : nameController.text.trim(),
+                author: authorController.text.trim().isEmpty
+                    ? l10n.packagesDefaultAuthor
+                    : authorController.text.trim(),
+                version: version.isEmpty ? '1.0.0' : version,
+                tagIds: byTag ? selectedTags : const <String>{},
+              );
       final bytes = KnowledgePackageCodec.encode(manifest: manifest);
 
       // file_picker 12: `saveFile` is a static method that takes the bytes and
@@ -341,9 +341,8 @@ class PackagesPage extends ConsumerWidget {
         return;
       }
 
-      final summary = await ref
-          .read(packageImportServiceProvider)
-          .importManifest(manifest);
+      final summary =
+          await ref.read(packageImportServiceProvider).importManifest(manifest);
 
       if (!context.mounted) {
         return;
@@ -424,15 +423,24 @@ class _LibraryList extends StatelessWidget {
   }
 }
 
-class _PackageTile extends StatelessWidget {
+class _PackageTile extends ConsumerWidget {
   const _PackageTile({required this.entry});
 
   final PackageLibraryEntry entry;
 
+  /// `package_items` 行数 = 这条导入记录拥有的条目数，卸载对话框里给用户看。
+  /// 直接用列表已经加载的计数，不再查一次库。
+  int get _itemCount =>
+      entry.counts.values.fold(0, (sum, value) => sum + value);
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final row = entry.row;
+    final enabled = ref.watch(packageRepositoryProvider).isPackageEnabled(row);
+    // 禁用行弱化：文字/图标走主题的 disabledColor，控件仍保持可操作性。
+    final muted = enabled ? null : TextStyle(color: theme.disabledColor);
     final parts = <String>[
       '${l10n.navAnki} ${entry.knowledgePoints}',
       if (entry.cardTemplates > 0)
@@ -440,30 +448,96 @@ class _PackageTile extends StatelessWidget {
       if (entry.tags > 0) '${l10n.navTags} ${entry.tags}',
       if (entry.mindMaps > 0) '${l10n.navMindMap} ${entry.mindMaps}',
     ];
-    final summary =
-        '${l10n.packagesImportedAt}: ${_stamp(row.importedAt)} · '
+    final summary = '${l10n.packagesImportedAt}: ${_stamp(row.importedAt)} · '
         '${l10n.packagesItemsCount} ${parts.join(' · ')}';
 
     return ListTile(
-      leading: const Icon(Icons.inventory_2_outlined),
+      leading: Icon(
+        Icons.inventory_2_outlined,
+        color: enabled ? null : theme.disabledColor,
+      ),
       title: Row(
         children: [
-          Flexible(child: Text(row.name, overflow: TextOverflow.ellipsis)),
+          Flexible(
+            child: Text(
+              row.name,
+              overflow: TextOverflow.ellipsis,
+              style: muted,
+            ),
+          ),
           const SizedBox(width: 8),
           Text(
             'v${row.version}',
-            style: Theme.of(context).textTheme.labelSmall,
+            style: theme.textTheme.labelSmall?.merge(muted),
           ),
+          if (!enabled) ...[
+            const SizedBox(width: 8),
+            _DisabledBadge(label: l10n.packagesDisabled),
+          ],
         ],
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${l10n.packagesExportAuthor}: ${row.author}'),
-          Text(summary),
+          Text('${l10n.packagesExportAuthor}: ${row.author}', style: muted),
+          Text(summary, style: muted),
         ],
       ),
       isThreeLine: true,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // NULL 读作启用（v42 之前导入的包没有这一列），所以这里直接问 repository。
+          Switch(
+            value: enabled,
+            onChanged: (value) async {
+              await ref
+                  .read(packageRepositoryProvider)
+                  .setPackageEnabled(row.id, value);
+            },
+          ),
+          IconButton(
+            tooltip: l10n.packagesUninstall,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _uninstall(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 卸载只删「导入记录」：`package_items` 映射 + `knowledge_packages` 行；
+  /// 由它导入的知识点/闪存卡/标签保留（repository 契约，对话框文案已说明）。
+  Future<void> _uninstall(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.packagesUninstallTitle),
+        content:
+            Text(l10n.packagesUninstallConfirm(entry.row.name, _itemCount)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.packagesUninstall),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await ref.read(packageRepositoryProvider).deletePackage(entry.row.id);
+    // 真机上写库会经 DbWriteInterceptor 触发 data revision、provider 自己重跑；
+    // 这里显式失效一次，让没有拦截器的 widget test 也立刻看到列表变化。
+    ref.invalidate(packageLibraryProvider);
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.packagesUninstallDone(entry.row.name))),
     );
   }
 
@@ -472,5 +546,30 @@ class _PackageTile extends StatelessWidget {
     String two(int value) => value.toString().padLeft(2, '0');
     return '${at.year}-${two(at.month)}-${two(at.day)} '
         '${two(at.hour)}:${two(at.minute)}';
+  }
+}
+
+/// 已禁用的行尾徽标。用主题色而非写死颜色，深浅色主题都成立。
+class _DisabledBadge extends StatelessWidget {
+  const _DisabledBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
   }
 }

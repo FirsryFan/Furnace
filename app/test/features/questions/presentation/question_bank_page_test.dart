@@ -347,11 +347,10 @@ void main() {
     expect(find.textContaining('整题截图'), findsNothing);
   });
 
-  test('shell 的目的地里多了一个「题库」，位置在闪存卡之后', () {
+  test('shell 目的地：题库在闪存卡之后，知识库下沉设置，MindNet 与智能常驻', () {
     final destinations = shellDestinations(
       l10n: zh,
       icons: const <String, String>{},
-      aiConfigured: false,
     );
     final labels = <String>[
       for (final destination in destinations) destination.label
@@ -361,8 +360,13 @@ void main() {
       labels.indexOf(zh.navQuestions),
       labels.indexOf(zh.navAnki) + 1,
     );
-    // 没有配 AI key 时：标签、Thread、Time、闪存卡、题库、知识库、设置。
-    expect(destinations, hasLength(7));
+    // 8 个常驻目的地：标签、Thread、Time、闪存卡、题库、MindNet、智能、设置。
+    // 知识库（.kpak）从顶层下沉到设置页，不再出现在导航里。
+    expect(destinations, hasLength(8));
+    expect(labels, contains(zh.navMindnet));
+    expect(labels, contains(zh.navAi));
+    expect(labels.last, zh.navSettings);
+    expect(labels, isNot(contains(zh.navPackages)));
   });
 
   testWidgets('有自测记录时顶部多一行「自测 N 次 · 答对 M 次（P%）」', (tester) async {

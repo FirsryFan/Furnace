@@ -10,8 +10,13 @@ class PackageRepository {
 
   final AppDatabase _db;
 
-  Future<KnowledgePackage> upsertPackage(KnowledgePackageManifest manifest) async {
+  Future<KnowledgePackage> upsertPackage(
+      KnowledgePackageManifest manifest) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Re-importing must not silently re-enable a disabled package: REPLACE
+    // resets columns the companion leaves absent, and `enabled` NULL reads as
+    // enabled (v42). Carry the previous flag forward instead.
+    final previous = await getPackageById(manifest.packageId);
     await _db.into(_db.knowledgePackages).insert(
           KnowledgePackagesCompanion.insert(
             id: manifest.packageId,
@@ -22,11 +27,12 @@ class PackageRepository {
             importedAt: now,
             createdAt: now,
             updatedAt: now,
+            enabled: Value(previous?.enabled),
           ),
           mode: InsertMode.insertOrReplace,
         );
-    return (await _db.select(_db.knowledgePackages)
-            ..where((t) => t.id.equals(manifest.packageId)))
+    return (_db.select(_db.knowledgePackages)
+          ..where((t) => t.id.equals(manifest.packageId)))
         .getSingle();
   }
 
@@ -89,6 +95,44 @@ class PackageRepository {
           ),
           mode: InsertMode.insertOrIgnore,
         );
+  }
+
+  /// Whether [package] is currently enabled.
+  ///
+  /// `knowledge_packages.enabled` is nullable (v42): NULL reads as enabled, so
+  /// packages imported before the column existed - and rows written by
+  /// [upsertPackage] - keep working. Only an explicit `false` disables one.
+  bool isPackageEnabled(KnowledgePackage package) => package.enabled ?? true;
+
+  /// Enables or disables [packageId], leaving the imported content untouched.
+  ///
+  /// Enabling writes `true` (not NULL) so the user's choice is explicit. An
+  /// unknown id matches no row and is a silent no-op.
+  Future<void> setPackageEnabled(String packageId, bool enabled) async {
+    await (_db.update(_db.knowledgePackages)
+          ..where((t) => t.id.equals(packageId)))
+        .write(KnowledgePackagesCompanion(enabled: Value(enabled)));
+  }
+
+  /// Uninstalls [packageId]: deletes its `package_items` mappings and then the
+  /// `knowledge_packages` row in one transaction, returning the number of item
+  /// rows removed.
+  ///
+  /// Content rows imported from the package (knowledge points, card templates
+  /// and states, tags, mind maps) are deliberately kept: the user may have
+  /// edited or reviewed them since, and the UI warns that uninstalling only
+  /// drops the package shell. Unknown ids return 0 and deleting twice is a
+  /// no-op; neither throws.
+  Future<int> deletePackage(String packageId) {
+    return _db.transaction(() async {
+      final itemsDeleted = await (_db.delete(_db.packageItems)
+            ..where((t) => t.packageId.equals(packageId)))
+          .go();
+      await (_db.delete(_db.knowledgePackages)
+            ..where((t) => t.id.equals(packageId)))
+          .go();
+      return itemsDeleted;
+    });
   }
 
   String _newId(String prefix) => Ids.next(prefix);

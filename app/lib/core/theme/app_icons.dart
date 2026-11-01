@@ -63,6 +63,7 @@ abstract final class AppIcons {
     'time',
     'knowledge',
     'questions',
+    'mindnet',
     'packages',
     'ai',
     'settings',
@@ -76,6 +77,9 @@ abstract final class AppIcons {
     'time': 'schedule',
     'knowledge': 'psychology',
     'questions': 'quiz',
+    // MindNet 顶层模块（2026-11-01 轮次一百八十八）：用户模型引擎。
+    'mindnet': 'hub',
+    // 知识库已下沉设置；slot 保留，避免旧主题 JSON 引用时被当成未知 slot。
     'packages': 'library_books',
     'ai': 'smart_toy',
     'settings': 'settings',

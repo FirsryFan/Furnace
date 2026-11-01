@@ -15,6 +15,8 @@
     "description": "Top-level destination for the question bank (题库): the overview list plus the intake/paper/photo/material entries."
   },
   "navPackages": "Library",
+  "navMindnet": "MindNet",
+  "mindnetIntro": "The user-model engine: readings here are maintained by MindNet for personalised recommendation, scheduling and pushes. The page is read-only and does not change learning data directly.",
   "navSettings": "Settings",
   "tagsTitle": "Tags",
   "settingsProfileName": "Profile name",
@@ -522,6 +524,20 @@
   "packagesCardTemplates": "Cards",
   "packagesImportedAt": "Imported",
   "packagesVersionHint": "e.g. 1.0.0",
+  "packagesEnable": "Enable",
+  "packagesDisable": "Disable",
+  "packagesDisabled": "Disabled",
+  "packagesUninstall": "Uninstall",
+  "packagesUninstallTitle": "Uninstall knowledge package?",
+  "packagesUninstallConfirm": "This removes the import record for \"{name}\" ({count} owned items). Knowledge points, flashcards and tags it imported are kept; no content is deleted.",
+  "@packagesUninstallConfirm": {
+    "description": "Confirmation for removing an imported knowledge package. The imported content itself is kept.",
+    "placeholders": { "name": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "packagesUninstallDone": "Uninstalled \"{name}\"",
+  "@packagesUninstallDone": {
+    "placeholders": { "name": { "type": "String" } }
+  },
 
   "tagsEmpty": "No tags yet",
   "tagsNewTop": "New top-level tag",
@@ -948,6 +964,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
+  "settingsKnowledgeLibrary": "Knowledge library",
+  "settingsKnowledgeLibraryHint": "Manage imported knowledge packages: enable/disable, uninstall, import and export.",
   "navAi": "AI",
   "aiTitle": "Intelligence",
   "aiNewConversation": "New chat",

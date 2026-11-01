@@ -9,6 +9,8 @@
   "navAnki": "闪存卡",
   "navQuestions": "题库",
   "navPackages": "知识库",
+  "navMindnet": "MindNet",
+  "mindnetIntro": "用户模型引擎：这里的读数由 MindNet 维护，用于个性化推荐、安排与推送；页面只读，不直接改学习数据。",
   "navSettings": "设置",
   "tagsTitle": "标签",
   "settingsProfileName": "姓名",
@@ -525,6 +527,19 @@
   "packagesCardTemplates": "卡片",
   "packagesImportedAt": "导入时间",
   "packagesVersionHint": "例如 1.0.0",
+  "packagesEnable": "启用",
+  "packagesDisable": "禁用",
+  "packagesDisabled": "已禁用",
+  "packagesUninstall": "卸载",
+  "packagesUninstallTitle": "卸载知识包？",
+  "packagesUninstallConfirm": "将删除「{name}」的导入记录（{count} 条归属记录）。由它导入的知识点、闪存卡和标签会保留，不删除内容。",
+  "@packagesUninstallConfirm": {
+    "placeholders": { "name": { "type": "String" }, "count": { "type": "int" } }
+  },
+  "packagesUninstallDone": "已卸载「{name}」",
+  "@packagesUninstallDone": {
+    "placeholders": { "name": { "type": "String" } }
+  },
 
   "tagsEmpty": "还没有标签",
   "tagsNewTop": "新建顶层标签",
@@ -951,6 +966,8 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
+  "settingsKnowledgeLibrary": "知识库",
+  "settingsKnowledgeLibraryHint": "管理已导入的知识包：启用/禁用、卸载、导入导出。",
   "navAi": "智能",
   "aiTitle": "智能化",
   "aiNewConversation": "新对话",

@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../data/storage/app_storage.dart';
 
 import '../../../app/settings/settings_controller.dart';
 import '../../../core/state/data_revision.dart';
@@ -21,6 +21,7 @@ import '../../assessment/presentation/assessment_center_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../questions/presentation/learning_insight_page.dart';
 import '../../questions/presentation/question_bank_page.dart';
+import '../../packages/presentation/packages_page.dart';
 import '../application/demo_data_service.dart';
 import '../application/user_persona_provider.dart';
 import 'appearance_section.dart';
@@ -38,6 +39,10 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) {
 
 /// 「自我描述」的设置入口（task-187）。
 const Key settingsUserPersonaTileKey = Key('settings-user-persona-tile');
+
+/// 知识库（.kpak）管理入口：从顶层导航下沉到设置（决策记录 D7）。
+const Key settingsKnowledgeLibraryTileKey =
+    Key('settings-knowledge-library-tile');
 
 /// 评测与认知档案的入口（用户评测板块设计文档 v1.0）。
 const Key settingsAssessmentTileKey = Key('settings-assessment-tile');
@@ -76,6 +81,19 @@ class SettingsPage extends ConsumerWidget {
           ),
           // Whole-workspace export/import (.tfpkg).
           const DataSection(),
+          // 知识库（.kpak）不再是顶层目的地：它只做已导入知识包的管理
+          // （启用/禁用/卸载）与导入导出，日常使用不经过它（决策记录 D7）。
+          ListTile(
+            key: settingsKnowledgeLibraryTileKey,
+            leading: const Icon(Icons.library_books_outlined),
+            title: Text(l10n.settingsKnowledgeLibrary),
+            subtitle: Text(l10n.settingsKnowledgeLibraryHint),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PackagesPage()),
+            ),
+          ),
           // 复习提醒：开关 + 每天提醒时刻（v28 两列，排程在 features/anki）。
           const ReviewReminderSection(),
           ListTile(
@@ -258,7 +276,7 @@ class SettingsPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final dir = await getApplicationSupportDirectory();
+      final dir = await AppStorage.supportDirectory();
       // The live file is `furnace.db`, but an install that predates the rename
       // is still served from `threadflow.db` / `knowflow.db` (see
       // _openConnection). Backing up only the current name would report

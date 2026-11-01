@@ -42,13 +42,17 @@ Future<(AppDatabase, AiConfig)> buildSeededDb({
 }) async {
   final appData = Platform.environment['APPDATA'];
   if (appData == null) {
-    return (AppDatabase.forTesting(NativeDatabase.memory()),
-        const AiConfig(enabled: false));
+    return (
+      AppDatabase.forTesting(NativeDatabase.memory()),
+      const AiConfig(enabled: false)
+    );
   }
   final path = '$appData\\FirsryFan\\Furnace\\furnace.db';
   if (!File(path).existsSync()) {
-    return (AppDatabase.forTesting(NativeDatabase.memory()),
-        const AiConfig(enabled: false));
+    return (
+      AppDatabase.forTesting(NativeDatabase.memory()),
+      const AiConfig(enabled: false)
+    );
   }
 
   final live = sql.sqlite3.open(path, mode: sql.OpenMode.readOnly);
@@ -64,11 +68,10 @@ Future<(AppDatabase, AiConfig)> buildSeededDb({
     apiKey: row['ai_api_key'] as String?,
     baseUrl: row['ai_base_url'] as String?,
     model: row['ai_model'] as String?,
-    permissionMode:
-        permissionMode ?? AiPermissionMode.fromId(row['ai_permission_mode'] as String?),
+    permissionMode: permissionMode ??
+        AiPermissionMode.fromId(row['ai_permission_mode'] as String?),
   );
-  await AiRepository(db)
-      .saveConfig(config, fallbackLanguage: 'zh');
+  await AiRepository(db).saveConfig(config, fallbackLanguage: 'zh');
   return (db, config);
 }
 
@@ -151,7 +154,8 @@ void main() {
 
     final created = await tasks.all();
     expect(created.map((t) => t.title), contains('界面链路测试'),
-        reason: 'approving must actually create the task through the repository');
+        reason:
+            'approving must actually create the task through the repository');
 
     // The approval panel is gone and the outcome is shown in the conversation.
     expect(find.byIcon(Icons.play_arrow), findsNothing);
@@ -229,8 +233,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    await tester.enterText(
-        find.byType(TextField).last, '帮我建一个任务：自动模式链路测试');
+    await tester.enterText(find.byType(TextField).last, '帮我建一个任务：自动模式链路测试');
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.send));
     await tester.pumpAndSettle();
@@ -246,7 +249,9 @@ void main() {
     await db.close();
   });
 
-  testWidgets('the AI tab is absent when no key is configured', (tester) async {
+  testWidgets(
+      'the AI tab is always present; without a key it shows setup guidance',
+      (tester) async {
     // A database with a settings row but no key: the shape of an install where
     // the user cleared the key.
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -266,20 +271,29 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(_aiTab, findsNothing,
-        reason: 'without a key the AI destination must not exist at all - '
-            'that is what keeps the app offline by default');
+    // AI 是一等模块（2026-11-01 决策 D04）：入口常驻，不再是"配了 key 才出现"。
+    expect(_aiTab, findsWidgets,
+        reason:
+            'the AI destination is a first-class module and must always exist');
+    await tester.tap(_aiTab.first);
+    await tester.pumpAndSettle();
+    // 未配置时页面是配置引导，不是输入框：离线默认仍由"不发请求"保证，
+    // 而不是由"入口消失"保证。
+    expect(find.byType(TextField), findsNothing,
+        reason:
+            'without a key the AI page is the setup guide, not the composer');
     // The rest of the shell is unaffected.
     expect(find.byIcon(Icons.settings_outlined), findsWidgets);
 
     await db.close();
   });
 
-  testWidgets('entering a key makes the tab appear without a restart',
+  testWidgets(
+      'entering a key turns the setup guide into the composer without a restart',
       (tester) async {
     // The settings screen promises this, and it depends on the write path
-    // invalidating the read provider. A missed invalidation would leave the tab
-    // missing until the app restarted - a subtle, very visible bug.
+    // invalidating the read provider. A missed invalidation would leave the
+    // setup guide in place until the app restarted - a subtle, very visible bug.
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     await db.into(db.localSettings).insert(
           LocalSettingsCompanion.insert(
@@ -296,7 +310,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(_aiTab, findsNothing);
+    await tester.tap(_aiTab.first);
+    await tester.pumpAndSettle();
+    // The setup guide has no composer and no "new conversation" button.
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
 
     // Exactly what the settings screen does when the user saves.
     await AiRepository(db).saveConfig(
@@ -314,8 +332,11 @@ void main() {
     container.invalidate(aiConfigProvider);
     await tester.pumpAndSettle();
 
-    expect(_aiTab, findsWidgets,
-        reason: 'saving a key must reveal the AI tab immediately');
+    // The configured surface appears immediately: its "new conversation"
+    // action is the stable, locale-independent marker.
+    expect(find.byIcon(Icons.add_comment_outlined), findsWidgets,
+        reason:
+            'saving a key must turn the guide into the chat surface immediately');
 
     await db.close();
   });
