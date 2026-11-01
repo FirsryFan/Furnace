@@ -55,7 +55,7 @@
 
 ## 2026-10-27 轮次一百八十二：采集管线 handoff M1–M4 接入（Markdown 渲染 + schema v40 + 扩展题/能力点）
 
-- 目标：用户 m20049——外部 agent 的交接目录 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`「没有更新就当作完工，拿来写入代码装载到软件里」。本轮按 FURNACE-PIPELINE-SPEC-v1.md 做 App 侧 M1（题目区整段 Markdown + LaTeX、`text_format`、`fullcard_` 前缀判整卡）、M2（`extension_of` / `capability`、词表与 T×A 统计口径、详情页 UI）、M4（契约工具随仓库落地）；M3 的 `focus_review` 已在轮次一百八十一提交（`8058c76`），本轮只回写规范。目录最后一次外部改动为 2026-10-27 00:10，判定为完工。
+- 目标：用户 m20049——外部 agent 的交接目录 `E:/Workspaces/Furnace/10-projects/furnace-pipeline/`「没有更新就当作完工，拿来写入代码装载到软件里」。本轮按 FURNACE-PIPELINE-SPEC-v1.md 做 App 侧 M1（题目区整段 Markdown + LaTeX、`text_format`、`fullcard_` 前缀判整卡）、M2（`extension_of` / `capability`、词表与 T×A 统计口径、详情页 UI）、M4（契约工具随仓库落地）；M3 的 `focus_review` 已在轮次一百八十一提交（`8058c76`），本轮只回写规范。目录最后一次外部改动为 2026-10-27 00:10，判定为完工。
 - 团队：用户 m00002 要求重建三名成员，实际 `spawn_teammate` 报「已存在」→ 沿用 `send_message` 复用：task-207 reasoning-core（能力词表 + T×A 统计纯逻辑）、task-208 threadflow-engine（扩展题母子索引 + 复习卡组键纯逻辑）、task-209 question-intake（详情页能力点 chips + 扩展题/母题入口）；Lead 负责数据层、渲染接线验收、l10n、文档与 git 提交。task-206 已完成（MarkdownQuestionText 组件 + 详情页接线，见下）。
 - 数据层（Lead）：`app/lib/domain/services/package/question_pack_record.dart` 新增可选 `textFormat` / `extensionOf` / `capability`（`text_format` 仅 markdown 时写入、能力码 `^A(10|[1-9])$` 校验 + 去重 + 数字升序、非法值报 `questions[i].*` 路径）；`Questions` 表加三列（NULL 语义：textFormat NULL=plain、extensionOf NULL=独立题、capability NULL=未标注，**不回填**），`database.dart` schema v39→**v40**（`_upgradeV39ToV40` + `_ensureColumns` 自愈），`database.g.dart` 重新生成；`QuestionDraft`/`ingest`/`updateFromPack`/`question_pack_service.dart`/`question_pack_source.dart` 双向映射（`updateFromPack` 区分 null=不动 与 `capability: []`=清空，旧包不会把 markdown 题降级）；新增 `byZujuanQuestionId`（同题号取最新）与 `questionsByExtensionOf`（题号升序、未编号最后）。`question_stem_image_plan.dart` 的 `planQuestionStemRender` 加 `hasFullcardImage` 入参（B0：`fullcard_` 前缀直接 snapshot，不看尺寸），详情页按媒体文件名传入。
 - 渲染（question-intake，task-206）：新 `app/lib/features/questions/presentation/question_markdown_view.dart` 的 `MarkdownQuestionText`（`questionTextFormatIsMarkdown` 判格式；代码栅栏/美元符不配对时退回 `SelectableText`）；题干、选项、答案、解析、理由在 `question_detail_page.dart` 统一接线，`text_format` 缺省/plain 的旧题行为不变。
@@ -76,7 +76,7 @@
 - 片 3（文档）：新建 `docs/USER_GUIDE.md`（10 节：三个常用入口 / AI 能做与不能做 / 高频指令模板 / 学习闭环六步 / 考前 focus_review 用法与边界 / 任务与题目推送同机制现状与未做项 / persona / 数据安全 / FAQ / 版本）；README 文档表加一行；FEATURE_MATRIX 顶部增补表加 2 行。
 - 验证：`dart format` 本轮 8 个 dart 文件 0 changed；`dart analyze lib test` **88 issues / 0 error / 0 warning**（日志 `E:/dsh-tmp-aot/analyze-181.txt`，基线 90→88）；全量 `flutter test --concurrency=1` **+6285 ~2 All tests passed，19:52，EXIT 0**（日志 `E:/dsh-tmp-aot/test-181b-full.txt`；v0.6.11 基线 +6257，本轮净增 28 = 16+12）。首次全量跑出 1 例失败：`test/features/ai/zujuan_paper_tool_test.dart` 断言「第 27 个工具」→ 工具总数变 28，已把断言与标题改成 28，单点修复后全量重跑全绿。
 - 未做/风险：focus_review 只有单元/组件测试，未在真机上手动跑一遍「预览→确认→撤销」；只改到期时间不改熟练度是**有意取舍**（提前复习不应伪造复习记录），文档已写明；任务/题目侧的「批量提前」未做（USER_GUIDE §6 已如实说明并给了下一步建议：任务侧 plan_shift 优先级更高）；v0.6.12 未出包。
-- 下一步：用户 m20048/m20049 指出外部 agent 已产出 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`（FURNACE-PIPELINE-SPEC-v1.md 等），要求「没有更新后当作完工，拿来实现并装载进软件」→ 轮次一百八十二按该规范做 App 侧 M1–M4 接入（题目区整段 Markdown+LaTeX、短题卡 `fullcard_` 标识、`extension_of` 关联与复习联动等，落地前先核对规范与现有实现的差异）。
+- 下一步：用户 m20048/m20049 指出外部 agent 已产出 `E:/Workspaces/Furnace/10-projects/furnace-pipeline/`（FURNACE-PIPELINE-SPEC-v1.md 等），要求「没有更新后当作完工，拿来实现并装载进软件」→ 轮次一百八十二按该规范做 App 侧 M1–M4 接入（题目区整段 Markdown+LaTeX、短题卡 `fullcard_` 标识、`extension_of` 关联与复习联动等，落地前先核对规范与现有实现的差异）。
 
 ## 2026-10-26 轮次一百八十：v0.6.11 双端发布（思维链/中断 + 新图标 + Time 行高 + 标签边界 + 能力测评）
 
@@ -1490,7 +1490,7 @@ Word / AI 读题四处做对，组卷候选、相似题、能力动作题、收�
    预检 / 门禁与未做），§25.4 的「真实 30 题包未导入对照」改为已验收；`docs/PROGRESS.md` 本轮条目。
 
 **验收证据（真实包，临时测试跑完已删）**
-- 包：`E:/FirsryOS/THREADRIPPER/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`
+- 包：`E:/Workspaces/Furnace/10-projects/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`
   （19,444,730 B，manifest 30 题 / 60 媒体，`app_version=0.5.9+18`，`generated_by=zujuan-harvest/1.0`）。
 - 内容：物理/数学/化学各 10；来源档位全 `gaokao`；`source_url`/`zujuan_question_id`/`zujuan_bank_id`
   30 题齐全；答案与解析文字 0 条（30 张 JPEG 截图，16 竖 14 横）；24 题无选项、6 题各 4 个选项且
@@ -1685,7 +1685,7 @@ v0.5.9 发布说明草稿）全部 completed。
 增 `tagPaths` 并归一进 `QuestionPackSelection`。l10n 五文件各 +8 key（两个 `count:int`）手改未跑 gen-l10n。
 测试 picker 10 例 + 导出筛选 +3 例 + section 8 键断言。
 
-**C. v0.5.9 发布说明草稿（task-113）**：仓库外 `E:/FirsryOS/THREADRIPPER/release-059-draft.md` 103 行，
+**C. v0.5.9 发布说明草稿（task-113）**：仓库外 `E:/Workspaces/Furnace/40-archive/release-drafts/release-059-draft.md` 103 行，
 按 `git log v0.5.8..HEAD` 的提交面整理 A-F 六块 + 验证 5 条（数字留给 Lead 构建后回填）+ 已知未做 10 条；
 同时点出「标签树排序」这一条必须真的接线（本轮已接）才能写进发布说明。
 

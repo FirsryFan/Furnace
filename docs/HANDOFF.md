@@ -284,7 +284,7 @@ powershell -File scripts/build_android.ps1
 
 ## 8. 题库包与采集管线（handoff M1–M4）
 
-外部采集 agent 在会话外交接：`E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/`（只读、无凭据、未进仓库）；App 侧按 `FURNACE-PIPELINE-SPEC-v1.md` 接入（轮次 182），状态见 [HANDOFF_PIPELINE.md](HANDOFF_PIPELINE.md)：
+外部采集 agent 在会话外交接：`E:/Workspaces/Furnace/10-projects/furnace-pipeline/`（只读、无凭据、未进仓库）；App 侧按 `FURNACE-PIPELINE-SPEC-v1.md` 接入（轮次 182），状态见 [HANDOFF_PIPELINE.md](HANDOFF_PIPELINE.md)：
 
 | 片 | 内容 | 状态 |
 | --- | --- | --- |

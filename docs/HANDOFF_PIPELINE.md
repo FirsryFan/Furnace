@@ -1,8 +1,8 @@
 # 采集管线交接（handoff M1–M4）落地映射
 
 > 更新：2026-10-27（轮次一百八十二，开发中，尚未发版：已发布 v0.6.11+30 / schema v39，本轮为 schema v40）
-> 交接来源：`E:\FirsryOS\THREADRIPPER\handoff\2026-10-26-furnace-pipeline\`
-> 权威规范：[FURNACE-PIPELINE-SPEC-v1.md](E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md)（v1.2，已按 README §3 回写实现状态）
+> 交接来源：`E:\Workspaces\Furnace\10-projects\furnace-pipeline\`
+> 权威规范：[FURNACE-PIPELINE-SPEC-v1.md](E:/Workspaces/Furnace/10-projects/furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md)（v1.2，已按 README §3 回写实现状态）
 > 边界：采集/材料生产在 App 之外；Furnace 只做`.tqb` 消费、Markdown 渲染、题型×能力记录与复习挂接。
 
 ---
@@ -83,7 +83,7 @@
 
 ```powershell
 # 包结构（Python 标准库）
-& "<python>" E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/tools/zip_check.py "<包路径>.tqb"
+& "<python>" E:/Workspaces/Furnace/10-projects/furnace-pipeline/tools/zip_check.py "<包路径>.tqb"
 # App 解码侧（App 仓库内）
 cd app
 dart run tool/tqb_verify.dart "<包路径>.tqb"

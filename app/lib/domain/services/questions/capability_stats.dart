@@ -3,7 +3,7 @@
 /// 输入是调用方从题库 / 练习记录读出的 [CapabilityAttempt] 列表（一题可挂多个能力），
 /// 输出是不可变报告：每个能力点正确率、每个题型正确率、题型×能力（T×A）交叉表，
 /// 以及「最弱能力点」排序。字段口径来自
-/// `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`
+/// `E:/Workspaces/Furnace/10-projects/furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`
 /// 第 5.6 节（A1–A10 能力层）与第 5.9 节（result = 对 / 错 / 部分对，capability 可多值）。
 ///
 /// 统计口径（测试锁定）：

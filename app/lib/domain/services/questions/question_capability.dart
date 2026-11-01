@@ -1,6 +1,6 @@
 /// 题库的跨科通用能力词表（A1–A10）。
 ///
-/// 定义来源：`E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`
+/// 定义来源：`E:/Workspaces/Furnace/10-projects/furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`
 /// 第 5.6 节（:404-425）的「编号 / 能力 / 一句话定义」三列；中文名与判定口径照抄原文，
 /// 不改写含义。同表的「主要落点」「可判定训练动作」属于材料写作口径，本词表不携带。
 ///

@@ -1329,7 +1329,7 @@ NULL」）。生成代码 `database.g.dart` 的 `AiMessage` 数据类自动多�
 - 没有思考的压缩/折叠阈值：长思考会整段存库（TEXT 无长度上限），列表渲染时才折叠。
 ## §29 schema v40：题目三列 `text_format` / `extension_of` / `capability`（轮次一百八十二）
 
-来源是外部 handoff 规范 `E:/FirsryOS/THREADRIPPER/handoff/2026-10-26-furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`（§4.3 包记录字段、§7 M1/M2 的 App 侧改动清单）。采集端约定：正文整段是 Markdown+LaTeX 的题目包，可在记录里带 `text_format: "markdown"`；扩展题用 `extension_of` 挂母题的组卷网题号；能力点用 `capability: ["A3","A7"]`。这三个都是**可选**字段——历史包没有它们也必须照旧导入，因此数据库侧只加可空列，NULL 表示「旧包 / 没声明」，不设默认值、不回填。
+来源是外部 handoff 规范 `E:/Workspaces/Furnace/10-projects/furnace-pipeline/FURNACE-PIPELINE-SPEC-v1.md`（§4.3 包记录字段、§7 M1/M2 的 App 侧改动清单）。采集端约定：正文整段是 Markdown+LaTeX 的题目包，可在记录里带 `text_format: "markdown"`；扩展题用 `extension_of` 挂母题的组卷网题号；能力点用 `capability: ["A3","A7"]`。这三个都是**可选**字段——历史包没有它们也必须照旧导入，因此数据库侧只加可空列，NULL 表示「旧包 / 没声明」，不设默认值、不回填。
 
 ### 29.1 表结构（`questions`）
 

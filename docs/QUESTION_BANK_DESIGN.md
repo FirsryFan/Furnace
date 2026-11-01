@@ -1241,7 +1241,7 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 这一轮先做验收：包能不能无损导入、渲染层会不会把「整卡截图 + ［图N］占位」的题库渲染成
 一堆裸露占位符。结论是**导入无损、渲染必须降级**——整卡快照包的题干正文不该内联整张截图。
 
-### 26.1 真实包画像（`E:/FirsryOS/THREADRIPPER/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`）
+### 26.1 真实包画像（`E:/Workspaces/Furnace/10-projects/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`）
 
 - 19,444,730 B；manifest：`format=furnace-question-bank`、`version=1`、`app_version=0.5.9+18`、
   `generated_by=zujuan-harvest/1.0`、`exported_at=2026-10-22T16:03:20.815Z`、`question_count=30`、
@@ -1564,7 +1564,7 @@ key 对齐、21 个新 key 占位符声明齐全（与 HEAD 相同的 29 条历�
 
 ### 29.4 真实抓题包验收（本机临时测试，已删除测试文件）
 
-- 包：`E:/FirsryOS/THREADRIPPER/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`
+- 包：`E:/Workspaces/Furnace/10-projects/zujuan-harvest/harvest/out/furnace-zujuan-2026-10-22T16-03-02.tqb`
   （19,444,730 B；30 题 / 60 媒体；`zujuan_question_id` 与 `zujuan_bank_id` **30/30 全非空**，
   所以真实包能走「按题号更新」而不是退回指纹跳过）。
 - 第一次 `importPack`：created=30 / updated=0 / skipped=0 / media=60 / warnings=0 / failures=0，836 ms。
