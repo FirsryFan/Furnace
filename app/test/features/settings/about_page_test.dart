@@ -75,9 +75,9 @@ void main() {
     expect(find.text('已知未做'), findsOneWidget);
     // The directory is resolved at runtime, not a constant.
     expect(find.text(supportDir.path), findsOneWidget);
-    // The gaps list has to name the two things most likely to be assumed.
-    expect(find.textContaining('DOCX'), findsOneWidget);
-    expect(find.textContaining('networkAllow'), findsOneWidget);
+    // 已知未做改成学生能懂的一句话：不列内部工具/格式名。
+    expect(find.textContaining('高级功能'), findsOneWidget);
+    expect(find.textContaining('开发文档'), findsWidgets);
   });
 
   testWidgets('the English page still shows the real version', (tester) async {
