@@ -27,6 +27,8 @@ import '../../../data/media/image_size.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/cognitive/problem_evaluator.dart'
+    show ProblemVerdict;
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/objective_answer.dart';
 import '../../../domain/services/questions/question_capability.dart';
@@ -38,6 +40,8 @@ import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
 import '../../../domain/services/srs/dsr_memory.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../cognitive/presentation/zone_labels.dart';
+import '../application/question_cognitive_provider.dart';
 import '../application/question_reasoning_service.dart';
 import '../application/question_stem_display_provider.dart';
 import '../application/similar_question_provider.dart';
@@ -73,6 +77,12 @@ const Key questionDetailReasoningSectionKey =
 /// 相似题区块的 key：自测未提交时整块不渲染（测试定位用）。
 const Key questionDetailSimilarSectionKey =
     Key('question-detail-similar-section');
+
+/// 「MindNet 认知评价」卡片的 key（测试定位用）。
+///
+/// 空态也渲染这张卡（标题 + 一句「还读不到」），所以测试既能断言「有卡片」，
+/// 也能断言空态文案；加载中/读库失败时整块零高度，这个 key 不出现。
+const Key questionCognitiveSectionKey = Key('question-cognitive-section');
 
 /// 自测历史摘要行的 key（测试定位用）。
 const Key questionAttemptHistoryKey = Key('question-attempt-history');
@@ -376,6 +386,9 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           // 它不剧透解法，自测中也保留。
           if (detail != null)
             QuestionAuditSection(questionId: widget.questionId),
+          // MindNet 认知评价：只读读数；同样不剧透解法，自测中也保留。
+          if (detail != null)
+            QuestionCognitiveSection(questionId: widget.questionId),
           if (_spoilersHidden)
             Padding(
               key: questionDetailSpoilerGuardHintKey,
@@ -2425,3 +2438,109 @@ class _EditSourceDialogState extends State<_EditSourceDialog> {
     );
   }
 }
+
+/// 「MindNet 认知评价」卡片：题目内容 × 认知模型的第一块可测界面。
+///
+/// 只读：数据全来自 [questionCognitiveReadingProvider]，卡片不写库、不调模型。
+/// 加载中/读库失败时整块零高度（附加读数不该挡住详情页）；空态显示一句
+/// 「还读不到」，不编一行数。
+class QuestionCognitiveSection extends ConsumerWidget {
+  const QuestionCognitiveSection({super.key, required this.questionId});
+
+  final String questionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final reading =
+        ref.watch(questionCognitiveReadingProvider(questionId)).valueOrNull;
+    if (reading == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      key: questionCognitiveSectionKey,
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.hub_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.questionCognitiveTitle,
+                  style: theme.textTheme.titleSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (reading.isEmpty)
+              Text(l10n.questionCognitiveEmpty,
+                  style: theme.textTheme.bodySmall)
+            else ...<Widget>[
+              Text(l10n.questionCognitiveZone(zoneLabel(l10n, reading.zone))),
+              const SizedBox(height: 4),
+              Text(
+                l10n.questionCognitiveFit(cognitiveFitLabel(reading.verdict!)),
+              ),
+              if (reading.hasPrior) ...<Widget>[
+                const SizedBox(height: 4),
+                Text(
+                  l10n.cognitiveEncodingPrior(
+                    reading.priorR0!.toStringAsFixed(2),
+                  ),
+                ),
+              ],
+              if (reading.reason.trim().isNotEmpty)
+                _LabelledText(
+                  label: l10n.questionCognitiveReason,
+                  value: reading.reason,
+                ),
+              _LabelledText(
+                label: l10n.questionCognitiveAdvice,
+                value: cognitiveAdviceLabel(reading.suggestion),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              l10n.questionCognitiveUncalibrated,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 六种判词的中文短标签。
+///
+/// l10n 目前只有 `questionCognitiveFit(verdict)` 模板、没有逐值键（本任务也
+/// 不改 ARB），所以具体措辞先放在这里；将来给六种判词加 ARB 键时整段迁走。
+String cognitiveFitLabel(ProblemVerdict verdict) => switch (verdict) {
+      ProblemVerdict.tooEasy => '已经会了，复习收益低',
+      ProblemVerdict.zpd => '发展中区，可做',
+      ProblemVerdict.tooHard => '偏难，现在做是硬啃',
+      ProblemVerdict.outOfScope => '超纲或死角',
+      ProblemVerdict.redundant => '与已有内容重复',
+      ProblemVerdict.highValue => '值得现在做',
+    };
+
+/// 建议的中文短标签（同上：l10n 没有逐值键）。
+String cognitiveAdviceLabel(QuestionCognitiveSuggestion suggestion) =>
+    switch (suggestion) {
+      QuestionCognitiveSuggestion.practiceNow => '现在练',
+      QuestionCognitiveSuggestion.buildPrior => '先补先验（危险区，先复习/先测评）',
+      QuestionCognitiveSuggestion.postpone => '暂缓',
+      QuestionCognitiveSuggestion.keepPlan => '按计划练',
+    };
