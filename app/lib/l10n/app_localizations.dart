@@ -3759,6 +3759,102 @@ abstract class AppLocalizations {
   /// **'Manage imported knowledge packages: enable/disable, uninstall, import and export.'**
   String get settingsKnowledgeLibraryHint;
 
+  /// No description provided for @settingsDiagnosticExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export diagnostics bundle'**
+  String get settingsDiagnosticExport;
+
+  /// No description provided for @settingsDiagnosticExportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Local bundle: build, schema, settings summary, questions and AI content. Never includes the API key.'**
+  String get settingsDiagnosticExportHint;
+
+  /// No description provided for @settingsDiagnosticIncludeContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Include questions and AI content'**
+  String get settingsDiagnosticIncludeContent;
+
+  /// No description provided for @settingsDiagnosticDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics bundle saved: {path}'**
+  String settingsDiagnosticDone(String path);
+
+  /// No description provided for @settingsDiagnosticFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics bundle failed: {error}'**
+  String settingsDiagnosticFailed(String error);
+
+  /// No description provided for @questionCognitiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MindNet cognitive fit'**
+  String get questionCognitiveTitle;
+
+  /// No description provided for @questionCognitiveZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Zone: {zone}'**
+  String questionCognitiveZone(String zone);
+
+  /// No description provided for @questionCognitiveFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit: {verdict}'**
+  String questionCognitiveFit(String verdict);
+
+  /// No description provided for @questionCognitiveReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Why'**
+  String get questionCognitiveReason;
+
+  /// No description provided for @questionCognitiveAdvice.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get questionCognitiveAdvice;
+
+  /// No description provided for @questionCognitiveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No cognitive state for this question yet: link it to a knowledge point and review a card first.'**
+  String get questionCognitiveEmpty;
+
+  /// No description provided for @questionCognitiveUncalibrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncalibrated reading: guidance only, not a measurement.'**
+  String get questionCognitiveUncalibrated;
+
+  /// No description provided for @threadEnergyPredicted.
+  ///
+  /// In en, this message translates to:
+  /// **'Predicted energy {level} (confidence {confidence})'**
+  String threadEnergyPredicted(int level, String confidence);
+
+  /// No description provided for @threadEnergyPredictedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Predicted by MindNet from recent completions and reviews; you can override it.'**
+  String get threadEnergyPredictedNote;
+
+  /// No description provided for @threadEnergyManualBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get threadEnergyManualBadge;
+
+  /// No description provided for @threadEnergyUsePrediction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use prediction'**
+  String get threadEnergyUsePrediction;
+
   /// No description provided for @navAi.
   ///
   /// In en, this message translates to:

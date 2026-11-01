@@ -2071,6 +2071,65 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsKnowledgeLibraryHint => '管理已导入的知识包：启用/禁用、卸载、导入导出。';
 
   @override
+  String get settingsDiagnosticExport => '导出诊断包';
+
+  @override
+  String get settingsDiagnosticExportHint =>
+      '本地打包：版本/schema/设置摘要/题目与 AI 内容；不含 API key。';
+
+  @override
+  String get settingsDiagnosticIncludeContent => '包含题目与 AI 内容';
+
+  @override
+  String settingsDiagnosticDone(String path) {
+    return '诊断包已导出：$path';
+  }
+
+  @override
+  String settingsDiagnosticFailed(String error) {
+    return '诊断包导出失败：$error';
+  }
+
+  @override
+  String get questionCognitiveTitle => 'MindNet 认知评价';
+
+  @override
+  String questionCognitiveZone(String zone) {
+    return '认知区域：$zone';
+  }
+
+  @override
+  String questionCognitiveFit(String verdict) {
+    return '适配判断：$verdict';
+  }
+
+  @override
+  String get questionCognitiveReason => '理由';
+
+  @override
+  String get questionCognitiveAdvice => '建议';
+
+  @override
+  String get questionCognitiveEmpty => '还读不到这道题的认知状态：需要先给题目挂知识点，并有过复习记录。';
+
+  @override
+  String get questionCognitiveUncalibrated => '读数未标定，只作参考，不是测量。';
+
+  @override
+  String threadEnergyPredicted(int level, String confidence) {
+    return '预测精力 $level（置信 $confidence）';
+  }
+
+  @override
+  String get threadEnergyPredictedNote => '由 MindNet 按近期完成与复习记录推出；可手动覆盖。';
+
+  @override
+  String get threadEnergyManualBadge => '手动';
+
+  @override
+  String get threadEnergyUsePrediction => '用预测值';
+
+  @override
   String get navAi => '智能';
 
   @override

@@ -2159,6 +2159,69 @@ class AppLocalizationsEn extends AppLocalizations {
       'Manage imported knowledge packages: enable/disable, uninstall, import and export.';
 
   @override
+  String get settingsDiagnosticExport => 'Export diagnostics bundle';
+
+  @override
+  String get settingsDiagnosticExportHint =>
+      'Local bundle: build, schema, settings summary, questions and AI content. Never includes the API key.';
+
+  @override
+  String get settingsDiagnosticIncludeContent =>
+      'Include questions and AI content';
+
+  @override
+  String settingsDiagnosticDone(String path) {
+    return 'Diagnostics bundle saved: $path';
+  }
+
+  @override
+  String settingsDiagnosticFailed(String error) {
+    return 'Diagnostics bundle failed: $error';
+  }
+
+  @override
+  String get questionCognitiveTitle => 'MindNet cognitive fit';
+
+  @override
+  String questionCognitiveZone(String zone) {
+    return 'Zone: $zone';
+  }
+
+  @override
+  String questionCognitiveFit(String verdict) {
+    return 'Fit: $verdict';
+  }
+
+  @override
+  String get questionCognitiveReason => 'Why';
+
+  @override
+  String get questionCognitiveAdvice => 'Suggestion';
+
+  @override
+  String get questionCognitiveEmpty =>
+      'No cognitive state for this question yet: link it to a knowledge point and review a card first.';
+
+  @override
+  String get questionCognitiveUncalibrated =>
+      'Uncalibrated reading: guidance only, not a measurement.';
+
+  @override
+  String threadEnergyPredicted(int level, String confidence) {
+    return 'Predicted energy $level (confidence $confidence)';
+  }
+
+  @override
+  String get threadEnergyPredictedNote =>
+      'Predicted by MindNet from recent completions and reviews; you can override it.';
+
+  @override
+  String get threadEnergyManualBadge => 'Manual';
+
+  @override
+  String get threadEnergyUsePrediction => 'Use prediction';
+
+  @override
   String get navAi => 'AI';
 
   @override

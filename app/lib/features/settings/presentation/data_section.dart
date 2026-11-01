@@ -19,6 +19,7 @@ import '../../questions/application/learning_advice_provider.dart';
 import '../../questions/application/question_audit_reader.dart';
 import '../../questions/presentation/question_intake_providers.dart';
 import '../application/appearance_providers.dart';
+import '../application/diagnostics_bundle.dart';
 import 'question_pack_export_filter_dialog.dart';
 import 'settings_page.dart' show currentProfileProvider;
 
@@ -57,6 +58,7 @@ class DataSection extends ConsumerWidget {
           subtitle: Text(l10n.settingsTfpkgImportHint),
           onTap: () => _import(context, ref),
         ),
+        const _DiagnosticsSection(),
         const _QuestionPackSection(),
         const _StudyDataSection(),
       ],
@@ -1203,6 +1205,88 @@ class _StudyDataSectionState extends ConsumerState<_StudyDataSection> {
         ),
       ],
     );
+  }
+}
+
+/// 诊断包（D01）：把版本/schema/设置摘要/题目与 AI 内容打包给用户回传。
+///
+/// 默认包含题目与 AI 内容（`workspace.tfpkg`），因为端到端问题基本都要靠原文
+/// 复现；开关可关掉。无论开关如何，API key 都不会进包 —— 安全契约与三道闸见
+/// `DiagnosticsBundleService`。
+class _DiagnosticsSection extends ConsumerStatefulWidget {
+  const _DiagnosticsSection();
+
+  @override
+  ConsumerState<_DiagnosticsSection> createState() =>
+      _DiagnosticsSectionState();
+}
+
+class _DiagnosticsSectionState extends ConsumerState<_DiagnosticsSection> {
+  /// 默认开：反馈问题最需要的就是原文。
+  bool _includeContent = true;
+
+  /// 生成/保存期间禁用按钮，避免双击导出两份。
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(
+          icon: Icons.monitor_heart_outlined,
+          title: l10n.settingsDiagnosticExport,
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.dataset_outlined),
+          title: Text(l10n.settingsDiagnosticIncludeContent),
+          value: _includeContent,
+          onChanged:
+              _busy ? null : (value) => setState(() => _includeContent = value),
+        ),
+        ListTile(
+          leading: const Icon(Icons.bug_report_outlined),
+          title: Text(l10n.settingsDiagnosticExport),
+          subtitle: Text(l10n.settingsDiagnosticExportHint),
+          enabled: !_busy,
+          onTap: _busy ? null : _export,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _export() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final bundle = await DiagnosticsBundleService(
+        database: ref.read(appDatabaseProvider),
+      ).build(includeContent: _includeContent);
+      final target = await FilePicker.saveFile(
+        dialogTitle: l10n.settingsDiagnosticExport,
+        fileName: bundle.fileName,
+        bytes: bundle.bytes,
+        type: FileType.any,
+      );
+      if (target == null) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.settingsDiagnosticDone(target.toFilePath())),
+        ),
+      );
+    } on Object catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsDiagnosticFailed('$error'))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
   }
 }
 

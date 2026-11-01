@@ -966,6 +966,37 @@
   "settingsBackupNote": "This is a copy of the raw database file; prefer .tfpkg for regular backups.",
   "settingsKnowledgeLibrary": "Knowledge library",
   "settingsKnowledgeLibraryHint": "Manage imported knowledge packages: enable/disable, uninstall, import and export.",
+  "settingsDiagnosticExport": "Export diagnostics bundle",
+  "settingsDiagnosticExportHint": "Local bundle: build, schema, settings summary, questions and AI content. Never includes the API key.",
+  "settingsDiagnosticIncludeContent": "Include questions and AI content",
+  "settingsDiagnosticDone": "Diagnostics bundle saved: {path}",
+  "@settingsDiagnosticDone": {
+    "placeholders": { "path": { "type": "String" } }
+  },
+  "settingsDiagnosticFailed": "Diagnostics bundle failed: {error}",
+  "@settingsDiagnosticFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionCognitiveTitle": "MindNet cognitive fit",
+  "questionCognitiveZone": "Zone: {zone}",
+  "@questionCognitiveZone": {
+    "placeholders": { "zone": { "type": "String" } }
+  },
+  "questionCognitiveFit": "Fit: {verdict}",
+  "@questionCognitiveFit": {
+    "placeholders": { "verdict": { "type": "String" } }
+  },
+  "questionCognitiveReason": "Why",
+  "questionCognitiveAdvice": "Suggestion",
+  "questionCognitiveEmpty": "No cognitive state for this question yet: link it to a knowledge point and review a card first.",
+  "questionCognitiveUncalibrated": "Uncalibrated reading: guidance only, not a measurement.",
+  "threadEnergyPredicted": "Predicted energy {level} (confidence {confidence})",
+  "@threadEnergyPredicted": {
+    "placeholders": { "level": { "type": "int" }, "confidence": { "type": "String" } }
+  },
+  "threadEnergyPredictedNote": "Predicted by MindNet from recent completions and reviews; you can override it.",
+  "threadEnergyManualBadge": "Manual",
+  "threadEnergyUsePrediction": "Use prediction",
   "navAi": "AI",
   "aiTitle": "Intelligence",
   "aiNewConversation": "New chat",

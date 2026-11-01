@@ -968,6 +968,37 @@
   "settingsBackupNote": "这是原始数据库文件的副本；日常备份建议用 .tfpkg。",
   "settingsKnowledgeLibrary": "知识库",
   "settingsKnowledgeLibraryHint": "管理已导入的知识包：启用/禁用、卸载、导入导出。",
+  "settingsDiagnosticExport": "导出诊断包",
+  "settingsDiagnosticExportHint": "本地打包：版本/schema/设置摘要/题目与 AI 内容；不含 API key。",
+  "settingsDiagnosticIncludeContent": "包含题目与 AI 内容",
+  "settingsDiagnosticDone": "诊断包已导出：{path}",
+  "@settingsDiagnosticDone": {
+    "placeholders": { "path": { "type": "String" } }
+  },
+  "settingsDiagnosticFailed": "诊断包导出失败：{error}",
+  "@settingsDiagnosticFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "questionCognitiveTitle": "MindNet 认知评价",
+  "questionCognitiveZone": "认知区域：{zone}",
+  "@questionCognitiveZone": {
+    "placeholders": { "zone": { "type": "String" } }
+  },
+  "questionCognitiveFit": "适配判断：{verdict}",
+  "@questionCognitiveFit": {
+    "placeholders": { "verdict": { "type": "String" } }
+  },
+  "questionCognitiveReason": "理由",
+  "questionCognitiveAdvice": "建议",
+  "questionCognitiveEmpty": "还读不到这道题的认知状态：需要先给题目挂知识点，并有过复习记录。",
+  "questionCognitiveUncalibrated": "读数未标定，只作参考，不是测量。",
+  "threadEnergyPredicted": "预测精力 {level}（置信 {confidence}）",
+  "@threadEnergyPredicted": {
+    "placeholders": { "level": { "type": "int" }, "confidence": { "type": "String" } }
+  },
+  "threadEnergyPredictedNote": "由 MindNet 按近期完成与复习记录推出；可手动覆盖。",
+  "threadEnergyManualBadge": "手动",
+  "threadEnergyUsePrediction": "用预测值",
   "navAi": "智能",
   "aiTitle": "智能化",
   "aiNewConversation": "新对话",
