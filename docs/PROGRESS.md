@@ -14,7 +14,7 @@
 - 工程文本清理：按审计把使用文档 13 条（工具英文名清单、R/R0/Σ/α(τ)/V(π)/FSRS/指纹/未标定/run/1/schema 等）改写为学生能懂的话，并修掉"关于页说不生成 DOCX"与组卷导出 Word 的事实矛盾；中英 ARB 同步、gen-l10n 通过。
 - 数据路径收口：夜间冒烟曾把库迁到 E:\Furnace\data（快照 v42/31 题），与 load-library 并发造成分叉；决定 canonical 留在 legacy，E 快照移入 00-inbox/backup-20261101/E-data-snapshot-20261101-234331、删除 pointer；06:20 用户首启 0.6.13 时会自动从 legacy 迁移到 E:\Furnace\data。
 - 发布：版本 0.6.12+32 → **0.6.13+33**（app_info/pubspec 同步）；`00-inbox/release-20261102.ps1` 已静态校验通过；计划任务 `Furnace-Release-0600`（2026-11-02 06:00，Interactive）Ready；06:00 一次构建 Windows zip（28 entries）+ 签名 Android APK + RELEASE md。
-- 门禁：`dart analyze lib test` = **86 issues / 0 error / 0 warning**（比上轮少 1 条）；anki 254 全绿；其余改动区域 scoped 测试全绿（题单/数据脚本为 workspace 产物）。全量 flutter test 未跑（夜间交付窗口）。
+- 门禁：`dart analyze lib test` = **86 issues / 0 error / 0 warning**；全量 `flutter test --concurrency=1` = **+6947 ~2 All tests passed（18:39，exit 0）**；anki 254、题单/数据脚本等 workspace 产物另有验收。修复过程中对齐了 v43 schema 与默认自判的 3 处旧期望、清理后使用文档/关于页的 3 处旧断言。
 - 风险：OED 正文不可读（英语卡需老师/native 复核）；130 题无文字答案（仅答案截图）；47 张多空卡自判；review_group_plans 全清空（新卡组未设每日上限）；图片数据源未接（卡片题干图片暂不显示）；release 尚未实际跑（06:00 计划任务）；E 迁移需用户首启验证。
 
 ## 2026-11-01 轮次一百八十九：E2E 方向体系 + GitHub 每日清单 + 并行工作流（诊断包 / 精力 UI / 认知评价卡 / 题库初步加工 / 每日抓题）

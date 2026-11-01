@@ -23,13 +23,13 @@
 | 仓库 / 分支 | `E:/Projects/Furnace` / `main` | `git status -sb` |
 | HEAD / 远端 | 轮次 188 提交见 `git log --oneline -6`（本文档修订前 HEAD `56ffd7f`；origin/main 本地 ref `c1ea421`） | 实测 |
 | 最新 tag | `v0.6.12`（tag 列表 v0.6.0–v0.6.12） | `git tag` |
-| app 版本 | `0.6.13+33`（发布准备；06:00 计划任务构建双端包，未打 tag） | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
+| app 版本 | `0.6.13+33`（发布；06:00 计划任务构建双端包，未打 tag） | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
 | DB schema | `v43`（Drift） | `app/lib/data/database/database.dart:175` |
 | 数据表 | 57 张 `class X extends Table` | `app/lib/data/database/tables.dart` 实测 |
 | 代码规模 | `app/lib` 397 个 .dart；`app/test` 424 个 *_test.dart | 实测 |
 | 文档 | `docs/` 47 份 | 实测 |
 | 静态门禁 | `dart analyze lib test` = 86 issues / 0 error / 0 warning | 轮次 190 实测 |
-| 全量测试 | 轮次 188 全量 `+6864 ~2 -3`（3 个旧断言更新后单跑全绿）；轮次 189 未跑全量（dev 构建并行），改动区域 scoped **117 例全绿** | 轮次 188 日志 `E:/Workspaces/Furnace/00-inbox/furnace-understanding/test-188-full-c.txt` |
+| 全量测试 | 轮次 190 全量 `+6947 ~2 All tests passed`（18:39，exit 0） | `E:/Workspaces/Furnace/00-inbox/test-190-full-c.txt` |
 | v0.6.12 产物 | zip 20,432,656 B；apk 98,728,918 B（SHA 见 §13） | `dist/`（gitignore） |
 | AI 工具 | 29 个（`ToolRegistry.forApp`） | `app/lib/features/ai/domain/tool_registry.dart` |
 | l10n | zh ARB 3803 行 / en ARB 3897 行 | 实测 |
