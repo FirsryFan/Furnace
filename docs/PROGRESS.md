@@ -18,7 +18,9 @@
 - 审校：新开「题目测试模式」子 agent 审校六科材料（先闭卷作答、后对照解析），报告 `00-inbox/review/REVIEW-six-subjects-chain-v1.md`（进行中，已完成闭卷部分）。
 - 门禁：`dart analyze lib test` = **87 issues / 0 error / 0 warning**；本轮改动区域 scoped 测试 117 例全绿（诊断 5、认知 14+3、精力 8+5、详情页 74、设置 18、thread 56、app_info 等）；全量 flutter test 未跑（构建并行，留给下一轮终验）。
 - 风险/未做：诊断包 FilePicker 未真机；en 判词/建议文案未 l10n；精力预测未自动写入（只建议）；认知卡未真机、大库耗时未测；每日抓题真实批次/登录探针未演练（等 06:00 首跑）；初步加工只验 zip_check+App 解码、真导入 App 未验；组卷网仅 3 科列表页 URL 实测；gh label/搜索索引异常（已绕开）；Android 签名构建需验证（key.properties 存在）；MindNet 事件层/题库四层仍设计阶段。
-- 下一步：dev 包（Windows zip + Android APK）产出后交用户跑 #18 清单；本周重点 D07/D08/D10/D12；每天 06:00/06:30 自动化首跑验收；审校报告完成后回灌材料管线。
+- 审校结果（子 agent「题目测试模式」）：六科材料报告 `00-inbox/review/REVIEW-six-subjects-chain-v1.md`（六科答案图与材料答案一致；最严重：语文范例原始链自曝找答案/论证与结论矛盾、全篇缺 T×A 双标签与差异归因、多个扩展错误/不可判定）→ GitHub #20；Furnace AI 产物报告 `00-inbox/review/REVIEW-furnace-ai-content-v1.md`（答案 5/5 对，但语文 Q1 错因论证站不住、缺先练后对/差异归因结构、可信度标注与自检错位）→ 并入 #21。
+- dev 测试构建（0.6.12+32，未发 tag）：Windows `dist/Furnace-0.6.12+32-windows-x64-dev.zip`（20,585,592 B，28 entries，SHA256 44A60D74…7EF1）；Android `dist/Furnace-0.6.12+32-android-dev.apk`（99,859,710 B，versionCode 32 / versionName 0.6.12，minSdk 24 / targetSdk 36，签名 SHA-256 57de8b8f… 与历史一致，SHA256 43AAF5E7…55B）；首次启动会触发数据目录迁 E:\Furnace\data（复制不删旧）。
+- 下一步：把 dev 包路径与审校结论发到 #18；本周重点 D07/D08/D10/D12；每天 06:00/06:30 自动化首跑验收；审校报告回灌材料管线。
 
 ## 2026-11-01 轮次一百八十八：用户评审后的架构修正（决策记录 + MindNet 扶正 + AI 一等模块 + 知识库下沉 + schema v42 + 数据目录迁 E）
 
