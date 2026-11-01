@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../data/storage/app_storage.dart';
 
 import '../../../core/app_info.dart';
 import '../../../l10n/app_localizations.dart';
@@ -137,7 +137,7 @@ class _DataDirCard extends StatelessWidget {
             Text(dirLabel, style: theme.textTheme.labelSmall),
             const SizedBox(height: 2),
             FutureBuilder<String>(
-              future: getApplicationSupportDirectory()
+              future: AppStorage.supportDirectory()
                   .then((directory) => directory.path),
               builder: (context, snapshot) {
                 final path = snapshot.data;

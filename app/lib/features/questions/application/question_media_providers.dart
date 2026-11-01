@@ -8,9 +8,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database_provider.dart';
+import '../../../data/storage/app_storage.dart';
 import '../data/question_media_store.dart';
 
 /// app support 目录。单独成一个 provider，测试才能把它指到临时目录，不去碰
@@ -18,7 +18,7 @@ import '../data/question_media_store.dart';
 /// `questionIntakeSupportDirectoryProvider` 同一个口径）。
 final questionMediaSupportDirectoryProvider =
     Provider<Future<Directory> Function()>((ref) {
-  return getApplicationSupportDirectory;
+  return AppStorage.supportDirectory;
 });
 
 /// 题目配图的 store。

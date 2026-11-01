@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import '../../../data/storage/app_storage.dart';
 
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/theme_profile.dart';
@@ -94,7 +94,7 @@ class _ThemeEditorPageState extends ConsumerState<ThemeEditorPage> {
         return;
       }
 
-      final dir = await getApplicationSupportDirectory();
+      final dir = await AppStorage.supportDirectory();
       final target = Directory(p.join(dir.path, _backgroundDirName));
       await target.create(recursive: true);
       // A fresh name per import: overwriting the previous file would leave any

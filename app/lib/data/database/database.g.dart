@@ -8106,6 +8106,15 @@ class $KnowledgePackagesTable extends KnowledgePackages
   late final GeneratedColumn<String> fileHash = GeneratedColumn<String>(
       'file_hash', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, true,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -8127,6 +8136,7 @@ class $KnowledgePackagesTable extends KnowledgePackages
         description,
         importedAt,
         fileHash,
+        enabled,
         createdAt,
         updatedAt
       ];
@@ -8181,6 +8191,10 @@ class $KnowledgePackagesTable extends KnowledgePackages
       context.handle(_fileHashMeta,
           fileHash.isAcceptableOrUnknown(data['file_hash']!, _fileHashMeta));
     }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -8216,6 +8230,8 @@ class $KnowledgePackagesTable extends KnowledgePackages
           .read(DriftSqlType.int, data['${effectivePrefix}imported_at'])!,
       fileHash: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}file_hash']),
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -8238,6 +8254,10 @@ class KnowledgePackage extends DataClass
   final String? description;
   final int importedAt;
   final String? fileHash;
+
+  /// v42（2026-11-01）：知识包启用/禁用位。可空、NULL 读作「启用」；
+  /// 只有知识库管理页会写它，已经导入的内容行不受影响。
+  final bool? enabled;
   final int createdAt;
   final int updatedAt;
   const KnowledgePackage(
@@ -8248,6 +8268,7 @@ class KnowledgePackage extends DataClass
       this.description,
       required this.importedAt,
       this.fileHash,
+      this.enabled,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -8263,6 +8284,9 @@ class KnowledgePackage extends DataClass
     map['imported_at'] = Variable<int>(importedAt);
     if (!nullToAbsent || fileHash != null) {
       map['file_hash'] = Variable<String>(fileHash);
+    }
+    if (!nullToAbsent || enabled != null) {
+      map['enabled'] = Variable<bool>(enabled);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -8282,6 +8306,9 @@ class KnowledgePackage extends DataClass
       fileHash: fileHash == null && nullToAbsent
           ? const Value.absent()
           : Value(fileHash),
+      enabled: enabled == null && nullToAbsent
+          ? const Value.absent()
+          : Value(enabled),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -8298,6 +8325,7 @@ class KnowledgePackage extends DataClass
       description: serializer.fromJson<String?>(json['description']),
       importedAt: serializer.fromJson<int>(json['importedAt']),
       fileHash: serializer.fromJson<String?>(json['fileHash']),
+      enabled: serializer.fromJson<bool?>(json['enabled']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -8313,6 +8341,7 @@ class KnowledgePackage extends DataClass
       'description': serializer.toJson<String?>(description),
       'importedAt': serializer.toJson<int>(importedAt),
       'fileHash': serializer.toJson<String?>(fileHash),
+      'enabled': serializer.toJson<bool?>(enabled),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -8326,6 +8355,7 @@ class KnowledgePackage extends DataClass
           Value<String?> description = const Value.absent(),
           int? importedAt,
           Value<String?> fileHash = const Value.absent(),
+          Value<bool?> enabled = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       KnowledgePackage(
@@ -8336,6 +8366,7 @@ class KnowledgePackage extends DataClass
         description: description.present ? description.value : this.description,
         importedAt: importedAt ?? this.importedAt,
         fileHash: fileHash.present ? fileHash.value : this.fileHash,
+        enabled: enabled.present ? enabled.value : this.enabled,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -8350,6 +8381,7 @@ class KnowledgePackage extends DataClass
       importedAt:
           data.importedAt.present ? data.importedAt.value : this.importedAt,
       fileHash: data.fileHash.present ? data.fileHash.value : this.fileHash,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -8365,6 +8397,7 @@ class KnowledgePackage extends DataClass
           ..write('description: $description, ')
           ..write('importedAt: $importedAt, ')
           ..write('fileHash: $fileHash, ')
+          ..write('enabled: $enabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -8373,7 +8406,7 @@ class KnowledgePackage extends DataClass
 
   @override
   int get hashCode => Object.hash(id, name, version, author, description,
-      importedAt, fileHash, createdAt, updatedAt);
+      importedAt, fileHash, enabled, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8385,6 +8418,7 @@ class KnowledgePackage extends DataClass
           other.description == this.description &&
           other.importedAt == this.importedAt &&
           other.fileHash == this.fileHash &&
+          other.enabled == this.enabled &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -8397,6 +8431,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
   final Value<String?> description;
   final Value<int> importedAt;
   final Value<String?> fileHash;
+  final Value<bool?> enabled;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -8408,6 +8443,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
     this.description = const Value.absent(),
     this.importedAt = const Value.absent(),
     this.fileHash = const Value.absent(),
+    this.enabled = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -8420,6 +8456,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
     this.description = const Value.absent(),
     required int importedAt,
     this.fileHash = const Value.absent(),
+    this.enabled = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -8438,6 +8475,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
     Expression<String>? description,
     Expression<int>? importedAt,
     Expression<String>? fileHash,
+    Expression<bool>? enabled,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -8450,6 +8488,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
       if (description != null) 'description': description,
       if (importedAt != null) 'imported_at': importedAt,
       if (fileHash != null) 'file_hash': fileHash,
+      if (enabled != null) 'enabled': enabled,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -8464,6 +8503,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
       Value<String?>? description,
       Value<int>? importedAt,
       Value<String?>? fileHash,
+      Value<bool?>? enabled,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -8475,6 +8515,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
       description: description ?? this.description,
       importedAt: importedAt ?? this.importedAt,
       fileHash: fileHash ?? this.fileHash,
+      enabled: enabled ?? this.enabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -8505,6 +8546,9 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
     if (fileHash.present) {
       map['file_hash'] = Variable<String>(fileHash.value);
     }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -8527,6 +8571,7 @@ class KnowledgePackagesCompanion extends UpdateCompanion<KnowledgePackage> {
           ..write('description: $description, ')
           ..write('importedAt: $importedAt, ')
           ..write('fileHash: $fileHash, ')
+          ..write('enabled: $enabled, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -31760,6 +31805,7 @@ typedef $$KnowledgePackagesTableCreateCompanionBuilder
   Value<String?> description,
   required int importedAt,
   Value<String?> fileHash,
+  Value<bool?> enabled,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -31773,6 +31819,7 @@ typedef $$KnowledgePackagesTableUpdateCompanionBuilder
   Value<String?> description,
   Value<int> importedAt,
   Value<String?> fileHash,
+  Value<bool?> enabled,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -31807,6 +31854,9 @@ class $$KnowledgePackagesTableFilterComposer
 
   ColumnFilters<String> get fileHash => $composableBuilder(
       column: $table.fileHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -31845,6 +31895,9 @@ class $$KnowledgePackagesTableOrderingComposer
   ColumnOrderings<String> get fileHash => $composableBuilder(
       column: $table.fileHash, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -31881,6 +31934,9 @@ class $$KnowledgePackagesTableAnnotationComposer
 
   GeneratedColumn<String> get fileHash =>
       $composableBuilder(column: $table.fileHash, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -31924,6 +31980,7 @@ class $$KnowledgePackagesTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<int> importedAt = const Value.absent(),
             Value<String?> fileHash = const Value.absent(),
+            Value<bool?> enabled = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -31936,6 +31993,7 @@ class $$KnowledgePackagesTableTableManager extends RootTableManager<
             description: description,
             importedAt: importedAt,
             fileHash: fileHash,
+            enabled: enabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -31948,6 +32006,7 @@ class $$KnowledgePackagesTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             required int importedAt,
             Value<String?> fileHash = const Value.absent(),
+            Value<bool?> enabled = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -31960,6 +32019,7 @@ class $$KnowledgePackagesTableTableManager extends RootTableManager<
             description: description,
             importedAt: importedAt,
             fileHash: fileHash,
+            enabled: enabled,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

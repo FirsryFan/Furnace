@@ -21,7 +21,6 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/app_info.dart';
 import '../../../data/database/app_database_provider.dart';
@@ -31,6 +30,7 @@ import '../../../data/package/question_pack_source.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
+import '../../../data/storage/app_storage.dart';
 import '../../../domain/services/package/question_pack_import_preview.dart';
 import '../../../domain/services/package/question_pack_manifest.dart';
 import '../../../domain/services/package/question_pack_plan.dart';
@@ -172,14 +172,15 @@ class QuestionPackService {
         _mediaStore = mediaStore,
         _tags = tags,
         _documentsDirectory =
-            documentsDirectory ?? getApplicationDocumentsDirectory;
+            documentsDirectory ?? AppStorage.documentsDirectory;
 
   final AppDatabase _database;
   final QuestionRepository _questions;
   final QuestionMediaStore _mediaStore;
   final TagRepository _tags;
 
-  /// backups 落到哪个 documents 目录（测试注入临时目录，生产走 path_provider）。
+  /// backups 落到哪个 documents 目录（测试注入临时目录，生产走
+  /// [AppStorage.documentsDirectory]，随数据根走）。
   final Future<Directory> Function() _documentsDirectory;
 
   /// 导出（默认整个、可按 [selection] 或 [questionIds] 筛选）题库为 `.tqb` 字节。

@@ -29,14 +29,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../../../data/storage/app_storage.dart';
 import '../domain/ai_tool.dart';
 
 /// Writes one markdown or plain-text document into the app's documents folder.
 class CreateDocumentTool extends AiTool {
   CreateDocumentTool({Future<Directory> Function()? supportDirectory})
-      : _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+      : _supportDirectory = supportDirectory ?? AppStorage.supportDirectory;
 
   /// Injected in tests, which must not touch the real app data directory. The
   /// same seam `AiAttachmentStore` and `SkillStore` use.
@@ -90,8 +90,7 @@ class CreateDocumentTool extends AiTool {
   String get name => toolName;
 
   @override
-  String get description =>
-      '把一段内容写成一份真正的文档文件（Markdown 或纯文本），保存在应用的文档目录里，'
+  String get description => '把一段内容写成一份真正的文档文件（Markdown 或纯文本），保存在应用的文档目录里，'
       '并把完整路径返回给你。'
       '**用户要求"生成文档 / 写一份材料 / 导出成文件 / 整理成一份笔记 / 存下来"时用这个工具**：'
       '你自己组织好正文（标题、分节、列表都用 Markdown 写），一次调用只写一份文档。'
@@ -244,7 +243,8 @@ class CreateDocumentTool extends AiTool {
   /// under the same title. `exclusive: true` is what makes that a property and
   /// not a hope: the file is created with CREATE_NEW semantics, so a name that
   /// appeared between two checks still cannot be clobbered.
-  Future<File> _claim(Directory directory, String base, String extension) async {
+  Future<File> _claim(
+      Directory directory, String base, String extension) async {
     for (var attempt = 1; attempt <= maxCollisionAttempts; attempt++) {
       final name =
           attempt == 1 ? '$base.$extension' : '$base-$attempt.$extension';
@@ -352,8 +352,9 @@ Future<bool> deleteCreatedDocuments(
   if (raw is! List || raw.isEmpty) {
     return false;
   }
-  final root = await (supportDirectory ?? getApplicationSupportDirectory)();
-  final directory = Directory(p.join(root.path, CreateDocumentTool.directoryName));
+  final root = await (supportDirectory ?? AppStorage.supportDirectory)();
+  final directory =
+      Directory(p.join(root.path, CreateDocumentTool.directoryName));
   for (final entry in raw) {
     if (entry is! String || entry.isEmpty) {
       continue;

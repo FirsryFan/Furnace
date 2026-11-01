@@ -24,7 +24,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
@@ -33,6 +32,7 @@ import '../../../data/repositories/handwriting_proposal_repository.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/tag_repository.dart';
+import '../../../data/storage/app_storage.dart';
 import '../../../domain/services/intake/handwriting_proposal_preview.dart';
 import '../../../domain/services/intake/handwriting_proposals.dart';
 import '../../../domain/services/questions/question_number.dart'
@@ -48,7 +48,7 @@ import '../data/handwriting_intake_store.dart';
 /// 不去碰真实的 app 数据目录。
 final questionIntakeSupportDirectoryProvider =
     Provider<Future<Directory> Function()>((ref) {
-  return getApplicationSupportDirectory;
+  return AppStorage.supportDirectory;
 });
 
 /// 拍照/选图落到哪个 store。

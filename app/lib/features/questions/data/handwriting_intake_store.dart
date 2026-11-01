@@ -23,11 +23,11 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/ids.dart';
 import '../../../data/media/image_mime.dart';
+import '../../../data/storage/app_storage.dart';
 
 /// 一张已经落盘的待整理图片。
 class PendingHandwritingImage {
@@ -63,7 +63,7 @@ class HandwritingIntakeStore {
     required AppDatabase database,
     Future<Directory> Function()? supportDirectory,
   })  : _db = database,
-        _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+        _supportDirectory = supportDirectory ?? AppStorage.supportDirectory;
 
   final AppDatabase _db;
 
@@ -133,8 +133,7 @@ class HandwritingIntakeStore {
         absolutePath: await absolutePath(row.relPath),
         fileName: p.basename(row.relPath),
         mime: row.mime,
-        createdAt:
-            DateTime.fromMillisecondsSinceEpoch(row.createdAt).toLocal(),
+        createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt).toLocal(),
       ));
     }
     return result;
@@ -167,8 +166,8 @@ class HandwritingIntakeStore {
   /// 顺序是"先读路径再删行"：行删了，路径就不知道去哪儿找了。
   Future<void> delete(PendingHandwritingImage image) async {
     await (_db.delete(_db.attachments)
-          ..where(
-              (t) => t.ownerType.equals(ownerType) & t.relPath.equals(image.relPath)))
+          ..where((t) =>
+              t.ownerType.equals(ownerType) & t.relPath.equals(image.relPath)))
         .go();
     await _deleteFile(image.relPath);
   }

@@ -3,7 +3,8 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import '../data/storage/app_storage.dart';
 
 /// Paints a theme's background image behind the app, with the theme's
 /// background colour laid over it as a translucent scrim.
@@ -74,7 +75,7 @@ class _BackdropState extends State<Backdrop> {
 
   Future<void> _resolve() async {
     try {
-      final dir = await getApplicationSupportDirectory();
+      final dir = await AppStorage.supportDirectory();
       if (!mounted) {
         return;
       }

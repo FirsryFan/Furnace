@@ -13,10 +13,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../data/ids.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/storage/app_storage.dart';
 import '../domain/model_adapter.dart';
 import '../domain/vision_payload.dart';
 
@@ -68,7 +68,7 @@ class AiAttachmentStore {
     required AiRepository repository,
     Future<Directory> Function()? supportDirectory,
   })  : _repository = repository,
-        _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+        _supportDirectory = supportDirectory ?? AppStorage.supportDirectory;
 
   final AiRepository _repository;
 

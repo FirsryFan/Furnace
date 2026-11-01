@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../storage/app_storage.dart';
 import 'db_write_interceptor.dart';
 import 'tables.dart';
 
@@ -167,8 +167,12 @@ class AppDatabase extends _$AppDatabase {
   /// (《Furnace 用户评测板块设计文档》v1.0): 任务注册表、会话、试次、会话指标、
   /// 能力估计、认知参数、任务→能力映射、能力→参数映射。全部纯新增、幂等，
   /// 老库没有一行要回填；旧 v10 的 `assessment_sessions` 等表原样保留。
+  ///
+  /// v42（2026-11-01）adds `knowledge_packages.enabled`：知识包启用/禁用位。
+  /// 可空、NULL 读作「启用」（老库与首次导入即启用），迁移不回填；禁用只影响
+  /// 知识库管理与导出范围，已经导入的内容行原样保留（见 docs/DECISIONS-2026-11.md）。
   @override
-  int get schemaVersion => 41;
+  int get schemaVersion => 42;
 
   @override
   MigrationStrategy get migration {
@@ -297,6 +301,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 41) {
           await _upgradeV40ToV41();
         }
+        if (from < 42) {
+          await _upgradeV41ToV42();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -413,6 +420,10 @@ class AppDatabase extends _$AppDatabase {
       'material_intake_batches': [
         materialIntakeBatches.detailText,
       ],
+      // v42（2026-11-01）：知识包启用位。同一个失败模式——老文件被盖成 v42
+      // 却没有这一列时，Drift 跳过 onUpgrade，知识库页第一次读包就抛
+      // no such column。列可空、NULL 读作启用，补列即可，没有回填。
+      'knowledge_packages': [knowledgePackages.enabled],
     };
     final m = Migrator(this);
     for (final entry in expected.entries) {
@@ -1220,6 +1231,20 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// v41 -> v42：知识包启用位 `knowledge_packages.enabled`
+  /// （2026-11-01，知识库入口下沉设置 + 启用/禁用）。
+  ///
+  /// 列可空、NULL 读作「启用」：老库导入过的包默认仍生效，没有回填。表不存在
+  /// 就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV41ToV42() async {
+    if (!await _tableExists('knowledge_packages')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'knowledge_packages', knowledgePackages.enabled);
+  }
+
   Future<void> _upgradeV4ToV5() async {
     if (!await _tableExists('time_view_settings')) {
       return;
@@ -1475,6 +1500,11 @@ class AppDatabase extends _$AppDatabase {
         return cogTaskAbilityMappings;
       case 'cog_ability_param_mapping':
         return cogAbilityParamMappings;
+      // v42（2026-11-01）：知识包启用位。自愈那一趟要给 knowledge_packages 补
+      // enabled 列，所以必须能按名字解析到这张表；v28 等历史迁移测试实测过
+      // 缺 case 会抛 unknown table。
+      case 'knowledge_packages':
+        return knowledgePackages;
       default:
         throw ArgumentError('unknown table $name');
     }
@@ -1687,7 +1717,7 @@ WHERE tags.id = x.id AND x.rn > 1''');
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = await AppStorage.supportDirectory();
     final target = File(p.join(dir.path, 'furnace.db'));
 
     // Database file resolution, newest name first.

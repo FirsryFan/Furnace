@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/domain/services/package/question_pack_import_preview.dart';
 import 'package:furnace/domain/services/package/question_pack_selection.dart';
 import 'package:furnace/features/questions/application/question_pack_service.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../data/storage/app_storage.dart';
 
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/package/tfpkg_codec.dart';
@@ -241,7 +241,7 @@ class DataSection extends ConsumerWidget {
   /// silently skipping the safety net would be worse than a warning.
   Future<void> _autoBackup(WidgetRef ref) async {
     try {
-      final dir = await getApplicationSupportDirectory();
+      final dir = await AppStorage.supportDirectory();
       final service = TfpkgService(ref.read(appDatabaseProvider));
       final bytes = await service.exportBytes();
       final stamp = DateTime.now()

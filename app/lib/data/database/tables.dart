@@ -553,6 +553,10 @@ class KnowledgePackages extends Table {
   TextColumn get description => text().nullable()();
   IntColumn get importedAt => integer()();
   TextColumn get fileHash => text().nullable()();
+
+  /// v42（2026-11-01）：知识包启用/禁用位。可空、NULL 读作「启用」；
+  /// 只有知识库管理页会写它，已经导入的内容行不受影响。
+  BoolColumn get enabled => boolean().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

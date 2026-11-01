@@ -30,9 +30,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../domain/skill/skill_manifest.dart';
+import '../storage/app_storage.dart';
 import 'skill_archive.dart';
 import 'skill_package_codec.dart';
 
@@ -84,7 +84,8 @@ class InstalledSkill {
   bool isRunnableOn(SkillPlatform platform) =>
       platform == SkillPlatform.windows && manifest.supports(platform);
 
-  InstalledSkill copyWith({bool? enabled, bool? networkAllowed}) => InstalledSkill(
+  InstalledSkill copyWith({bool? enabled, bool? networkAllowed}) =>
+      InstalledSkill(
         manifest: manifest,
         prompt: prompt,
         tools: tools,
@@ -98,7 +99,7 @@ class InstalledSkill {
 /// Installs, lists, enables and removes `.fskill` packages.
 class SkillStore {
   SkillStore({Future<Directory> Function()? supportDirectory})
-      : _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+      : _supportDirectory = supportDirectory ?? AppStorage.supportDirectory;
 
   /// Injected in tests, which must not touch the real app data directory.
   final Future<Directory> Function() _supportDirectory;
@@ -183,8 +184,10 @@ class SkillStore {
   /// This is the list whose prompts reach the model, so it is deliberately
   /// derived from disk on every turn: a skill disabled a second ago must not
   /// still be speaking to the model on the next message.
-  Future<List<InstalledSkill>> enabled() async =>
-      [for (final skill in await list()) if (skill.enabled) skill];
+  Future<List<InstalledSkill>> enabled() async => [
+        for (final skill in await list())
+          if (skill.enabled) skill
+      ];
 
   /// Turns one skill on or off. Returns false when it is not installed.
   ///
@@ -197,10 +200,12 @@ class SkillStore {
     if (!directory.existsSync()) {
       return false;
     }
-    await _updateState(directory, (state) => {
-          ...state,
-          'enabled': enabled,
-        });
+    await _updateState(
+        directory,
+        (state) => {
+              ...state,
+              'enabled': enabled,
+            });
     return true;
   }
 
@@ -217,10 +222,12 @@ class SkillStore {
     if (!directory.existsSync()) {
       return false;
     }
-    await _updateState(directory, (state) => {
-          ...state,
-          'networkAllowed': allowed,
-        });
+    await _updateState(
+        directory,
+        (state) => {
+              ...state,
+              'networkAllowed': allowed,
+            });
     return true;
   }
 
@@ -366,9 +373,9 @@ class SkillStore {
       // edited by hand - can be missing it, and both should read as "no consent
       // was recorded" rather than as consent.
       networkAllowed: state['networkAllowed'] == true,
-      installedAt:
-          DateTime.tryParse(state['installedAt']?.toString() ?? '')?.toLocal() ??
-              directory.statSync().modified,
+      installedAt: DateTime.tryParse(state['installedAt']?.toString() ?? '')
+              ?.toLocal() ??
+          directory.statSync().modified,
       directory: directory.path,
     );
   }
@@ -445,8 +452,8 @@ class SkillStore {
     final next = change(state);
     // The install time is preserved unless the caller deliberately replaces it;
     // it is the one field the user sees and cannot otherwise recover.
-    next['installedAt'] ??=
-        (state['installedAt'] as String?) ?? DateTime.now().toUtc().toIso8601String();
+    next['installedAt'] ??= (state['installedAt'] as String?) ??
+        DateTime.now().toUtc().toIso8601String();
     final file = File(p.join(directory.path, stateFileName));
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(next),

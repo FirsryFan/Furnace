@@ -18,11 +18,10 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-
 import '../../../data/database/database.dart';
 import '../../../data/ids.dart';
 import '../../../data/media/image_mime.dart';
+import '../../../data/storage/app_storage.dart';
 
 /// 一张题目图片在题目里的角色（`attachments.role`，v27 起）。
 ///
@@ -99,7 +98,7 @@ class QuestionMediaStore {
     required AppDatabase database,
     Future<Directory> Function()? supportDirectory,
   })  : _db = database,
-        _supportDirectory = supportDirectory ?? getApplicationSupportDirectory;
+        _supportDirectory = supportDirectory ?? AppStorage.supportDirectory;
 
   final AppDatabase _db;
 

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/core/app_info.dart';
+import 'package:furnace/data/storage/app_storage.dart';
 import 'package:furnace/features/settings/presentation/about_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -23,6 +24,9 @@ void main() {
   late Directory supportDir;
 
   setUp(() {
+    // AppStorage memoizes the resolved directory per process; each test mocks a
+    // different path provider directory, so the cache has to be dropped.
+    AppStorage.debugReset();
     supportDir = Directory.systemTemp.createTempSync('furnace_about_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -34,6 +38,7 @@ void main() {
   });
 
   tearDown(() {
+    AppStorage.debugReset();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
     if (supportDir.existsSync()) {
@@ -41,7 +46,8 @@ void main() {
     }
   });
 
-  Future<void> pumpPage(WidgetTester tester, {Locale locale = const Locale('zh')}) {
+  Future<void> pumpPage(WidgetTester tester,
+      {Locale locale = const Locale('zh')}) {
     // The four cards are taller than the default 800x600 viewport, and a
     // ListView does not build what is far off-screen: without this the "known
     // gaps" card simply would not exist in the tree.
