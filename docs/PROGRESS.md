@@ -2,6 +2,24 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-01 轮次一百八十九：E2E 方向体系 + GitHub 每日清单 + 并行工作流（诊断包 / 精力 UI / 认知评价卡 / 题库初步加工 / 每日抓题）
+
+- 目标（用户原话）：「工程方向诊断只能端到端，用户直接检验产品并反馈问题」→ 需要多个具体方向并行做端到端测试优化；把每天的检验反馈任务列表放到 GitHub Furnace 仓库 issue；用户本周重点=题目内容设计 × 认知模型融合；另外要求每天自动从组卷网抓题 + 对题库做初步加工（脱离 MindNet，成熟题目阶段才融合 MindNet）；并让 agent 运行 Furnace 内部 AI 与 DSH 产出做流程对比；另开一个「题目测试模式」子 agent 审校产出文件。
+- 方向体系：把 16 个端到端方向写成 GitHub issue（#1–#16）+ 总览 #17；每日清单 #18（脚本每天 06:30 自动创建，标签 daily/e2e，指派 FirsryFan）；方向卡源文件在 `10-projects/e2e/scripts/Dxx.md`、`directions.json`、`daily-state.json`。用户本周重点标在 #7/#8/#10/#12（收题 / 刷题错题 / 题单 / MindNet 读数）。
+- 每日自动化：Windows 计划任务 `Furnace-DailyHarvest`（06:00，交互式）跑新 `daily_pipeline.ps1`：组卷网抓题（`daily_harvest.ps1` 529 行 + `daily_collect.mjs` 473 行，登录/30 道额度保护、失败写报告）→ 最新未加工 `.tqb` 用 `prelim_process.py`（1303 行，脱离 MindNet 的 L2 加工）→ `zip_check` 校验 → 写 `harvest/out/daily-pipeline-*.md`；计划任务 `Furnace-DailyE2E`（06:30）跑 `daily-issue.ps1` 生成每日清单（幂等：全量 issue 客户端标题匹配，避开本机 gh label/搜索索引异常）。
+- 并行工作流（7 名 teammate 同时开工，task-14..20）：arch-code=诊断包；package-lifecycle=精力预测接 Thread UI；ai-layer=题目详情 MindNet 认知评价卡；learning-loop=题库 L2 初步加工管线；data-bank=每日抓题 runner；mindnet-energy=Furnace AI vs DSH 产出对比；state-docs=每日清单自动化。
+- D01 诊断包（arch-code）：新 `features/settings/application/diagnostics_bundle.dart`——zip 含 diag.json（版本/build/schema=42/平台/设置摘要/题库·AI·知识行数/最近 5 条 AI 会话摘要/最近 10 道题样本/errors）+ README.txt + workspace.tfpkg（可选，excludeSensitive）；三道防泄漏闸（设置摘要 key→***、tfpkg 敏感列排除、打包前解回逐表扫真实 key 命中即中止）；设置页数据区加开关（默认含题目与 AI 内容）+ 导出按钮；5 例测试。
+- D13 精力预测接 UI（package-lifecycle）：新 `features/thread/application/energy_prediction_provider.dart`（读 7 天完成/复习记录 + thread_states 手填值 → EnergyPredictor）；Thread 顶栏精力按钮下加预测行（level/置信/Tooltip=note+basis+未标定声明）、新鲜手填显示「手动」徽标、否则「用预测值」写 thread_states 并刷新；8+5 例测试，thread 模块回归 56/56。
+- D12 题目认知评价卡（ai-layer）：新 `features/questions/application/question_cognitive_provider.dart`（题→共享标签→知识点→代表卡→ProblemEvaluator 单题扩散诊断→判词/理由/区域 + cognitive_priors 先验）；详情页在入库体检后、自测前加只读卡「MindNet 认知评价」（zone/fit/reason/advice/prior/未标定，空态如实说明）；14+3 例新测试，详情页相关回归 74+48 全绿。已知：六种判词/四种建议的中文短标签暂在页面顶层、en locale 仍显示中文（待加 ARB 键）。
+- l10n（Lead）：zh/en 新增 31 行键（诊断包 6、认知评价 7、精力 4 + metadata），`flutter gen-l10n` exit 0。
+- 构建：`app/pubspec.yaml` 0.6.12+31 → **0.6.12+32**（`app_info.dart` 同步，app_info_test 通过），用于本轮 dev 测试包；未打 tag、未更新 RELEASE 文档。
+- 工作区：新 `10-projects/e2e/`（方向卡/每日清单脚本/state）；新 `10-projects/zujuan-harvest/DAILY-HARVEST.md` 与 `tools/daily_harvest.ps1`、`daily_collect.mjs`、`daily_pipeline.ps1`；`10-projects/furnace-pipeline/tools/prelim_process.py` + README §6；演练 `00-inbox/prelim-process/…processed.tqb`（36 题/72 媒体，zip_check + App 解码器 OK）。
+- AI 能力验证：从真实库只读读 key（不打印）调 DeepSeek /models → 200，model=deepseek-flash；mindnet-energy 跑通 `live/agent_loop_live_test.dart`（只读查询/建任务/撤销/删除审批/拒绝全链路，内存库）；新 `app/live/furnace_content_compare_test.dart` 对比实验中。
+- 审校：新开「题目测试模式」子 agent 审校六科材料（先闭卷作答、后对照解析），报告 `00-inbox/review/REVIEW-six-subjects-chain-v1.md`（进行中，已完成闭卷部分）。
+- 门禁：`dart analyze lib test` = **87 issues / 0 error / 0 warning**；本轮改动区域 scoped 测试 117 例全绿（诊断 5、认知 14+3、精力 8+5、详情页 74、设置 18、thread 56、app_info 等）；全量 flutter test 未跑（构建并行，留给下一轮终验）。
+- 风险/未做：诊断包 FilePicker 未真机；en 判词/建议文案未 l10n；精力预测未自动写入（只建议）；认知卡未真机、大库耗时未测；每日抓题真实批次/登录探针未演练（等 06:00 首跑）；初步加工只验 zip_check+App 解码、真导入 App 未验；组卷网仅 3 科列表页 URL 实测；gh label/搜索索引异常（已绕开）；Android 签名构建需验证（key.properties 存在）；MindNet 事件层/题库四层仍设计阶段。
+- 下一步：dev 包（Windows zip + Android APK）产出后交用户跑 #18 清单；本周重点 D07/D08/D10/D12；每天 06:00/06:30 自动化首跑验收；审校报告完成后回灌材料管线。
+
 ## 2026-11-01 轮次一百八十八：用户评审后的架构修正（决策记录 + MindNet 扶正 + AI 一等模块 + 知识库下沉 + schema v42 + 数据目录迁 E）
 
 - 目标（用户原话）：用户评审《工程理解报告》后给出 7 条修正与三轮澄清——定位仍为"高密度信息工作者"；当前唯一测试者是用户本人、内测小组只审内容；Android/Windows 按任务分级隔离、不可用任务不给入口；DB 迁到 E 盘；**"MindNet 并入标签是极大的错误"**，MindNet 是用户模型引擎、用户状态全权由它处理；知识库下沉设置并支持启用/禁用；孤立单题错也要记录；AI 应是一等模块、"内置 DSH"指具备相应能力而非打包运行时、软件不能太大；题库分四层成熟度、整由 AI 自完成；精力由 MindNet 预测/自主设定。本轮不追求功能全量落地，先把**决策记录 + 地基**立起来。

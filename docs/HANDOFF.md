@@ -23,16 +23,16 @@
 | 仓库 / 分支 | `E:/Projects/Furnace` / `main` | `git status -sb` |
 | HEAD / 远端 | 轮次 188 提交见 `git log --oneline -6`（本文档修订前 HEAD `56ffd7f`；origin/main 本地 ref `c1ea421`） | 实测 |
 | 最新 tag | `v0.6.12`（tag 列表 v0.6.0–v0.6.12） | `git tag` |
-| app 版本 | `0.6.12+31` | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
+| app 版本 | `0.6.12+32`（dev 测试构建，未发 tag） | `app/pubspec.yaml:4`、`app/lib/core/app_info.dart:11/15` |
 | DB schema | `v41`（Drift） | `app/lib/data/database/database.dart:171` |
 | 数据表 | 57 张 `class X extends Table` | `app/lib/data/database/tables.dart` 实测 |
-| 代码规模 | `app/lib` 391 个 .dart；`app/test` 413 个 *_test.dart | 实测 |
+| 代码规模 | `app/lib` 394 个 .dart；`app/test` 418 个 *_test.dart | 实测 |
 | 文档 | `docs/` 47 份 | 实测 |
 | 静态门禁 | `dart analyze lib test` = 87 issues / 0 error / 0 warning | 轮次 188 实测（比基线少 1 条 info） |
-| 全量测试 | 轮次 188 全量 `+6864 ~2 -3`（31:22）；3 个失败均为行为变更后需要更新的旧断言（`ai_chat_ui_test` 2、`about_page_test` 1），更新后单跑全绿；**未再跑第二次全量** | `E:/Workspaces/Furnace/00-inbox/furnace-understanding/test-188-full-c.txt` |
+| 全量测试 | 轮次 188 全量 `+6864 ~2 -3`（3 个旧断言更新后单跑全绿）；轮次 189 未跑全量（dev 构建并行），改动区域 scoped **117 例全绿** | 轮次 188 日志 `E:/Workspaces/Furnace/00-inbox/furnace-understanding/test-188-full-c.txt` |
 | v0.6.12 产物 | zip 20,432,656 B；apk 98,728,918 B（SHA 见 §13） | `dist/`（gitignore） |
 | AI 工具 | 29 个（`ToolRegistry.forApp`） | `app/lib/features/ai/domain/tool_registry.dart` |
-| l10n | zh ARB 3760 行 / en ARB 3854 行 | 实测 |
+| l10n | zh ARB 3791 行 / en ARB 3885 行 | 实测 |
 
 **最后一条已发布的包是 v0.6.12**；之后轮次 185–188 的改动（评测板块 v1.0 = schema v41；轮次 188 = schema v42 / MindNet 顶层模块 / AI 入口常驻 / 知识库下沉设置 / Windows 数据目录迁 E:\Furnace\data / 平台门控基础 / 精力预测纯逻辑）**未 bump 版本、未出包**（用户没要求）。所以 `main` 比最新 tag 多若干提交，但 `app_info.dart` / `pubspec.yaml` 仍是 0.6.12+31。决策记录见 [DECISIONS-2026-11.md](DECISIONS-2026-11.md)。
 

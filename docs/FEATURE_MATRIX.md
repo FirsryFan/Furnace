@@ -69,6 +69,9 @@
 | Windows 数据目录迁 `E:\Furnace\data` | 表内无此节 | ✅ 2026-11-01（轮次一百八十八）：新 `app/lib/data/storage/app_storage.dart`（pointer 文件 + 复制迁移 + 失败回退；Android 不变）；数据库/媒体/附件/技能/文档/备份等落点改走 `AppStorage`；10 例存储测试；真机端到端待验 |
 | MindNet 精力预测纯逻辑 | 表内无此节 | ✅ 2026-11-01（轮次一百八十八）：`domain/services/cognitive/energy_prediction.dart`——手工值 2h 窗口优先、近 2h 负荷降档、节律/复习/覆盖天数等确定性规则，输出 level/confidence/basis/shouldAutoSet/expiresAt；22 例测试；阈值全部 `[未标定]`；未接 Thread UI（D09） |
 | 题库四层成熟度管线设计 + 决策记录 | 表内无此节 | ✅ 2026-11-01（轮次一百八十八）：新增 [DECISIONS-2026-11.md](DECISIONS-2026-11.md)（D01–D09）与 [QUESTION_MATURITY_PIPELINE.md](QUESTION_MATURITY_PIPELINE.md)（原始→未加工→已加工→成熟、AI 自主整、事件层全量记录、schema 建议）；仅设计与决策，未实现 |
+| 诊断包导出（含题目与 AI 内容，绝不含 key） | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D01）：设置→数据新增导出；zip=diag.json（版本/schema/设置摘要/统计/AI 会话摘要/题目样本/errors）+ README + 可选 workspace.tfpkg；三道防泄漏闸（key 脱敏、tfpkg 敏感列排除、打包前解回扫 key 命中即中止）；5 例测试 |
+| 精力预测接 Thread UI（MindNet 预测 + 手动覆盖） | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D13）：`energy_prediction_provider.dart` 读 7 天完成/复习记录 → 预测；顶栏精力按钮下显示预测值/置信/来源，新鲜手填显示「手动」徽标，否则「用预测值」写 thread_states；未自动写入（避免未标定值改排序）；13 例测试 |
+| 题目详情 MindNet 认知评价卡 | 表内无此节 | ✅ 2026-11-01（轮次一百八十九，D12）：`question_cognitive_provider.dart` 题→标签→知识点→代表卡→ProblemEvaluator 单题诊断+先验；详情页只读卡片显示 zone/fit/reason/advice/未标定，空态如实；17 例新测试 + 详情页回归 122 例全绿；en 文案待 l10n |
 
 ---
 
