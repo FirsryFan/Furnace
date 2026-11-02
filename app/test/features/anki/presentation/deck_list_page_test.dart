@@ -370,13 +370,16 @@ void main() {
       ),
     );
 
-    expect(find.byKey(deckListSettingsActionKey), findsOneWidget);
-    await tester.tap(find.byKey(deckListSettingsActionKey));
+    final l10n = l10nOf(tester);
+    // 卡组设置收进「更多」菜单，不再单独占一个图标。
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await settle(tester);
+    await tester.tap(find.text(l10n.settingsCardGroups).last);
     await settle(tester);
     expect(find.byType(ReviewPlanPage), findsOneWidget);
   });
 
-  testWidgets('第一 Tab 标题是「卡组」；切到管理 Tab 后卡组设置消失、通用复习计划出现', (tester) async {
+  testWidgets('只剩一个卡组页：标题、带文字的新建入口、无管理 Tab', (tester) async {
     final db = await openDatabase();
     final math = planFor('tag-math', '数学');
     await pumpKnowledge(
@@ -397,35 +400,17 @@ void main() {
     final l10n = l10nOf(tester);
 
     expect(find.widgetWithText(AppBar, l10n.deckListTitle), findsOneWidget);
-    expect(find.byKey(deckListSettingsActionKey), findsOneWidget);
-    expect(find.byIcon(Icons.folder_shared_outlined), findsOneWidget);
-    expect(
-      find.byTooltip(l10n.reviewPlanTitle),
-      findsNothing,
-      reason: '卡组 Tab 只留「卡组设置」：两个同图标按钮都进 ReviewPlanPage，重复',
-    );
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text(l10n.ankiManage),
-      ),
-    );
+    // 主操作是一个带文字的按钮，而不是右上角的小加号。
+    expect(find.byKey(deckListCreateActionKey), findsOneWidget);
+    expect(find.text(l10n.deckListCreate), findsWidgets);
+    // 不再有第二个 Tab，也不再有手动管理卡片的页面。
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text(l10n.ankiManage), findsNothing);
+    // 低频操作仍可达：更多菜单里有卡组设置与复习偏好。
+    await tester.tap(find.byIcon(Icons.more_vert));
     await settle(tester);
-
-    // 管理 Tab 里 AnkiManagePage 自带一条 AppBar（既有先例），所以这里只钉
-    // 标题存在，不钉条数；本任务要钉的是设置入口只属于卡组 Tab。
-    expect(find.widgetWithText(AppBar, l10n.ankiManage), findsWidgets);
-    expect(
-      find.byKey(deckListSettingsActionKey),
-      findsNothing,
-      reason: '管理 Tab 没有卡组可配，设置入口只属于卡组 Tab',
-    );
-    expect(
-      find.byTooltip(l10n.reviewPlanTitle),
-      findsOneWidget,
-      reason: '通用「复习计划」入口从「始终显示」改成只在管理 Tab 显示',
-    );
+    expect(find.text(l10n.settingsCardGroups), findsOneWidget);
+    expect(find.text(l10n.reviewPreferences), findsOneWidget);
   });
 
   testWidgets('读取中显示进度圈，读完之后出现卡组行', (tester) async {

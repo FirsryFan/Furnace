@@ -2,6 +2,15 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-03 轮次一百九十一：交付流程提速 skill + GitHub Release + 闪存卡/导航简化
+
+- 用户反馈（题单 v4）：题干已有文字就不重复放题干照片；思维树统一 33% 缩放；总结这次生成过程为什么慢/错误多；上传 0.6.13 与本机数据到 release；继续简化 UI（闪存卡设置、右上角按钮混乱、手动管理页用不上）。
+- 题单 v4（纯 markdown，单文件合集）：6 题、14 棵形状树（矩形=步骤、平行四边形=原文/条件、菱形=判断、胶囊=结论、虚线=弯路、双线=修正、六边形=检查）；每个小题一棵树；删图例/对照/题干照片；树图 33% 缩放；答案分「判断点 + 完整答案（对照用）」；扩展放开（语文背景补充 4 段 ×190 字、物理 2 段、数学近扩展 3 条）。路径 30-study/furnace-2026-11-02/题单-新六题-v4/。
+- 流程复盘：写 00-inbox/RETRO-2026-11-02-delivery.md；安装新 skill **delivery-velocity**（D:/dsh-data/skills/delivery-velocity），把样本先行/需求冻结/预检/委派契约/失败 2 次换路/阶段门固化；含 scripts/preflight.ps1。
+- GitHub：创建 release **v0.6.13**（tag 指向远端 main；本地领先提交未推），上传 Windows zip（SHA-256 F626C58C…8187F9，20,221,309 B）、Android APK（CF321843…C5C66BE876，99,876,126 B）、Furnace-local-data-2026-11-03.zip（176 MB；E:\Furnace\data 全量 530 文件；ai_api_key 已清空）与 release notes。
+- UI 简化（本轮）：手机底部导航 8→5（Thread/复习/题库/MindNet/更多），标签树/Time/AI/设置进「更多」；桌面 Rail 不变；闪存卡模块去掉「复习/管理」双 Tab，只保留卡组单页；「新建卡组」改为带文字主操作 + 列表底部入口；手动管理页不再有入口。新增 docs/UI_SIMPLIFICATION_AUDIT.md（已改/待改/统一规则）。
+- 验证：dart analyze 三个改动文件 No issues found；flutter test test/app test/features/anki --concurrency=1 = **270 例全绿**。
+
 ## 2026-11-02 补充（轮次一百九十·收尾）：0.6.13 手动发布 + 本地题库新六题 + 抓题登录阻塞
 
 - 06:00 计划任务未执行：机器 01:17 进入 Modern Standby（Kernel-Power 506，Idle Timeout），06:35 被键盘唤醒（507）；三个计划任务 lastResult=0x41303（未运行）。已把 AC/DC standby 与 hibernate 超时都设为 0，避免再次休眠。

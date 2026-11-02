@@ -246,6 +246,34 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ),
       };
 
+  /// 手机底部导航的「更多」面板：低频入口不挤占主 Tab，但一步可达。
+  void _openMoreSheet(
+    BuildContext context,
+    List<({int index, IconData icon, String label})> items, {
+    required ValueChanged<int> onPick,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final item in items)
+              ListTile(
+                leading: Icon(item.icon),
+                title: Text(item.label),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  onPick(item.index);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildShell(
     BuildContext context,
     AppLocalizations l10n,
@@ -282,17 +310,44 @@ class _HomeShellState extends ConsumerState<HomeShell>
           );
         }
 
+        // 手机宽度只放 5 个主入口：Thread、复习、题库、MindNet、更多。
+        // 其余入口（标签树、Time、AI、设置）收进「更多」面板，底部导航不再
+        // 挤 8 个图标；桌面端 NavigationRail 仍保留全部目的地。
+        const primaryIndices = <int>[1, 3, 4, 5];
+        final secondary = <({int index, IconData icon, String label})>[
+          (index: 0, icon: Icons.sell_outlined, label: l10n.navTags),
+          (index: 2, icon: Icons.schedule_outlined, label: l10n.navTime),
+          (index: 6, icon: Icons.forum_outlined, label: l10n.navAi),
+          (index: 7, icon: Icons.settings_outlined, label: l10n.navSettings),
+        ];
+        final primaryPosition = primaryIndices.indexOf(selected);
         return Scaffold(
           body: pages[selected],
           bottomNavigationBar: NavigationBar(
-            selectedIndex: selected,
-            // 八个目的地挤在手机宽度里，全称标签会换行/截断；只给选中项显示
-            // 标签是 Material 允许的做法，桌面端（rail）仍然是全标签。
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
+            selectedIndex: primaryPosition >= 0 ? primaryPosition : 4,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: (position) {
+              if (position == 4) {
+                _openMoreSheet(context, secondary, onPick: (index) {
+                  setState(() => _selectedIndex = index);
+                });
+                return;
+              }
+              setState(() => _selectedIndex = primaryIndices[position]);
             },
-            destinations: destinations,
+            destinations: [
+              for (final index in primaryIndices)
+                NavigationDestination(
+                  icon: destinations[index].icon,
+                  selectedIcon: destinations[index].selectedIcon,
+                  label: destinations[index].label,
+                ),
+              NavigationDestination(
+                icon: const Icon(Icons.more_horiz),
+                selectedIcon: const Icon(Icons.more_horiz),
+                label: l10n.knowledgeMoreActions,
+              ),
+            ],
           ),
         );
       },

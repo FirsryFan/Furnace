@@ -16,6 +16,12 @@ const Key deckListUngroupedTileKey = Key('deck-list-ungrouped');
 /// 空态里的「新建卡组」。
 const Key deckListCreateButtonKey = Key('deck-list-create');
 
+/// AppBar 上的「新建卡组」主操作（带文字，不是光秃秃的加号）。
+const Key deckListCreateActionKey = Key('deck-list-create-action');
+
+/// 列表底部的「新建卡组」入口（卡组已存在时也能找到）。
+const Key deckListCreateTileKey = Key('deck-list-create-tile');
+
 /// AppBar 上进卡组设置的入口。
 const Key deckListSettingsActionKey = Key('deck-list-settings');
 
@@ -90,6 +96,10 @@ class DeckListPage extends ConsumerWidget {
                       scopeTagId: group.plan.tagId,
                     ),
                   ),
+                _CreateDeckTile(
+                  key: deckListCreateTileKey,
+                  onTap: () => _openPlans(context),
+                ),
                 if (ungrouped > 0)
                   _DeckCard(
                     key: deckListUngroupedTileKey,
@@ -248,6 +258,29 @@ class _DeckCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: child,
+      ),
+    );
+  }
+}
+
+/// 卡组列表底部的「新建卡组」：卡组已经存在时也有明确入口。
+class _CreateDeckTile extends StatelessWidget {
+  const _CreateDeckTile({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: const Icon(Icons.add),
+        title: Text(l10n.deckListCreate),
+        subtitle: Text(l10n.settingsCardGroupsHint,
+            maxLines: 2, overflow: TextOverflow.ellipsis),
+        onTap: onTap,
       ),
     );
   }
