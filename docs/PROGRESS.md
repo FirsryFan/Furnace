@@ -2,6 +2,16 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-02 补充（轮次一百九十·收尾）：0.6.13 手动发布 + 本地题库新六题 + 抓题登录阻塞
+
+- 06:00 计划任务未执行：机器 01:17 进入 Modern Standby（Kernel-Power 506，Idle Timeout），06:35 被键盘唤醒（507）；三个计划任务 lastResult=0x41303（未运行）。已把 AC/DC standby 与 hibernate 超时都设为 0，避免再次休眠。
+- release：手动重跑 release-20261102.ps1 期间修了三处环境问题——① PS5.1 把 dart/flutter 的 stderr 当 NativeCommandError（build_runner、build_windows 两步），改为 EAP=Continue + 按退出码判定；② tools.edit 会写掉 UTF-8 BOM，导致 PS5.1 解析中文失败，已用 utf-8-sig 重写并加 parse-check；③ package-windows 的 data/app.so 校验改成斜杠归一化比较（06:51 跑实际生成 zip 含 app.so，但断言误报；产物已人工校验补齐）。
+- 0.6.13 产物：Windows zip 20,221,309 B / SHA256 BF6BED5D…8A6EF3CA（28 entries、无 kernel_blob、CRC 通过、exe FileVersion 0.6.13+33）；Android APK 99,876,126 B / SHA256 CF321843…C5C66BE876（versionCode 33、versionName 0.6.13、minSdk 24、targetSdk 36、签名 57de8b8f… 与 0.6.12 一致）；发行说明 dist/RELEASE-0.6.13-20261102.md。
+- 冒烟：解压启动成功（窗口 Furnace、优雅退出）；首启迁移 legacy→E:\Furnace\data 成功（v43 / integrity ok / 131 题 / 82 标签 / 568 知识点 / 811 卡模板 / 1080 卡状态 / 156 边），pointer 已指向 E；旧 legacy 保留。截图 00-inbox/app-smoke/release-0.6.13-shot.png。
+- 题单（用户 22:48 追加）：从**本地题库**（furnace.db，131 题，7 个 .tqb 导入）排除此前题单/材料用过的题，重选 6 道（语文 118/120、数学 53/74、物理 5/10），按“闭卷先做→对答案→错则重想→思维树”流程写成 markdown：30-study/furnace-2026-11-02/题单-新六题-{语文,数学,物理}.md（过程文件在 00-inbox/tidan3/）。
+- 抓题：06:00 未跑；22:51 手动探测扩展已能连桥，但登录态缺失（probe exit 2，login_probe_unparsed HTTP 200），需用户在 Edge 默认配置登录组卷网后补跑 30 道；额度仍 0/30。
+- 未验证：Android 真机安装/升级；新六题的实体打印；06:00 之后计划任务下一次自动执行（已设 11-03 06:00）。
+
 ## 2026-11-02 轮次一百九十：夜战包（数据载入 + 闪存卡交互重做 + 三科题单 + 0.6.13 发布准备）
 
 - 目标（用户原话）：少花时间在反复 release 构建上（06:00 整只构建一次，更早完工也可）；本地代码版可检测；把本地题库全部加载进 Furnace；11.2 抓题改用 Furnace 内部 AI（不再用 DSH 子代理）；清空旧标签系统并重建（学科内容+学科能力，不局限高中）；生物卡已有→补英语/化学卡组（化学参考 E:/Gaokao/Chemistry；英语来源 OED）；资料同步 MindNet；闪存卡：选择题改四个按钮、题干支持照片/LaTeX、默认自判、可按标签卡组设严格、反馈按钮分 7 档并区分算法/MindNet；删掉学生不需要的"工程注释"；产出软件 + 内部数据 + 一份题单（数学/物理/语文各 2 道成熟题，合为一份文档）；用题目测试模式子 agent 初步审校；学 2023 新高考 I 卷官方解析语言风格。
