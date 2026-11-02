@@ -1776,6 +1776,17 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "questionBankSelect": "Select multiple",
+  "questionBankAiPaper": "AI paper",
+  "paperGenTitle": "Generate a paper with AI",
+  "paperGenDate": "Paper date",
+  "paperGenChangeDate": "Change",
+  "paperGenIntro": "Pick 6 questions from the bank automatically (2 each for Chinese / Math / Physics, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, judgement points, full answer, thinking tree, common mistakes, extensions. It can take a few minutes.",
+  "paperGenStart": "Generate",
+  "paperGenRunning": "Generating…",
+  "paperGenSelecting": "Selecting questions…",
+  "paperGenDone": "Done",
+  "paperGenOpenHint": "Open the .md file at the path above in Typora or an editor.",
+  "paperGenNeedKey": "No usable AI key yet: set the key and model in Settings → AI first.",
   "questionBankSelectedCount": "{count} selected",
   "@questionBankSelectedCount": {
     "placeholders": { "count": { "type": "int" } }

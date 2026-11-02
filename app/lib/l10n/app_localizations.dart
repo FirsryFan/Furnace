@@ -6329,6 +6329,72 @@ abstract class AppLocalizations {
   /// **'Select multiple'**
   String get questionBankSelect;
 
+  /// No description provided for @questionBankAiPaper.
+  ///
+  /// In en, this message translates to:
+  /// **'AI paper'**
+  String get questionBankAiPaper;
+
+  /// No description provided for @paperGenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a paper with AI'**
+  String get paperGenTitle;
+
+  /// No description provided for @paperGenDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper date'**
+  String get paperGenDate;
+
+  /// No description provided for @paperGenChangeDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get paperGenChangeDate;
+
+  /// No description provided for @paperGenIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick 6 questions from the bank automatically (2 each for Chinese / Math / Physics, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, judgement points, full answer, thinking tree, common mistakes, extensions. It can take a few minutes.'**
+  String get paperGenIntro;
+
+  /// No description provided for @paperGenStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get paperGenStart;
+
+  /// No description provided for @paperGenRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating…'**
+  String get paperGenRunning;
+
+  /// No description provided for @paperGenSelecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Selecting questions…'**
+  String get paperGenSelecting;
+
+  /// No description provided for @paperGenDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get paperGenDone;
+
+  /// No description provided for @paperGenOpenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the .md file at the path above in Typora or an editor.'**
+  String get paperGenOpenHint;
+
+  /// No description provided for @paperGenNeedKey.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable AI key yet: set the key and model in Settings → AI first.'**
+  String get paperGenNeedKey;
+
   /// No description provided for @questionBankSelectedCount.
   ///
   /// In en, this message translates to:

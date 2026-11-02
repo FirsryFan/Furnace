@@ -44,11 +44,15 @@ import 'question_detail_page.dart';
 import 'question_library_filter_bar.dart';
 import 'question_library_tag_filter_dialog.dart';
 import 'question_media_view.dart';
+import 'paper_generator_page.dart';
 import 'question_paper_page.dart' show QuestionPaperPage, subjectLabelOf;
 import 'question_title_dialog.dart';
 
 /// AppBar 上「自动命名缺名的题」按钮。
 const Key questionBankAutoNameKey = Key('question-bank-auto-name');
+
+/// AppBar 上「AI 生成题单」按钮。
+const Key questionBankAiPaperKey = Key('question-bank-ai-paper');
 
 /// AppBar 上「进入多选」按钮。
 const Key questionBankSelectKey = Key('question-bank-select');
@@ -726,6 +730,12 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 ),
               ]
             : <Widget>[
+                TextButton.icon(
+                  key: questionBankAiPaperKey,
+                  onPressed: () => _open(const PaperGeneratorPage()),
+                  icon: const Icon(Icons.auto_awesome, size: 18),
+                  label: Text(l10n.questionBankAiPaper),
+                ),
                 if (snapshot != null && snapshot.entries.isNotEmpty)
                   IconButton(
                     key: questionBankSelectKey,

@@ -27,6 +27,7 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
     required this.model,
     HttpClient? client,
     this.temperature = 0.2,
+    this.maxTokens,
     this.connectTimeout = const Duration(seconds: 20),
     this.requestTimeout = const Duration(minutes: 3),
   }) : _client = client ?? HttpClient() {
@@ -37,6 +38,10 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
   final String baseUrl;
   final String model;
   final double temperature;
+
+  /// 单轮输出上限；null 表示不传，交给服务端默认。
+  /// 题单生成这类任务需要显式给足，否则推理会吃掉全部预算导致 content 为空。
+  final int? maxTokens;
   final Duration connectTimeout;
   final Duration requestTimeout;
   final HttpClient _client;
@@ -120,6 +125,7 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
         'stream_options': {'include_usage': true},
         if (tools.isNotEmpty) 'tool_choice': 'auto',
         'temperature': temperature,
+        if (maxTokens != null) 'max_tokens': maxTokens,
       });
       request.add(utf8.encode(body));
       _activeRequest = request;

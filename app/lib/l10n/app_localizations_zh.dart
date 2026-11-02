@@ -3573,6 +3573,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionBankSelect => '多选';
 
   @override
+  String get questionBankAiPaper => 'AI 题单';
+
+  @override
+  String get paperGenTitle => 'AI 生成题单';
+
+  @override
+  String get paperGenDate => '题单日期';
+
+  @override
+  String get paperGenChangeDate => '改日期';
+
+  @override
+  String get paperGenIntro =>
+      '从题库自动选 6 题（语文/数学/物理各 2 题，排除之前用过的题），AI 读取题干与答案截图后生成：题目、先做提示、判断点、完整答案、思维树、易错点、扩展。生成过程可能需要几分钟。';
+
+  @override
+  String get paperGenStart => '开始生成';
+
+  @override
+  String get paperGenRunning => '生成中…';
+
+  @override
+  String get paperGenSelecting => '正在从题库选题…';
+
+  @override
+  String get paperGenDone => '生成完成';
+
+  @override
+  String get paperGenOpenHint => '用 Typora 或编辑器打开上面路径的 .md 文件查看。';
+
+  @override
+  String get paperGenNeedKey => '还没有配置可用的 AI key：请先到 设置 → AI 填好 key 与模型。';
+
+  @override
   String questionBankSelectedCount(int count) {
     return '已选 $count 项';
   }

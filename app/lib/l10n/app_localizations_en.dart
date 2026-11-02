@@ -3731,6 +3731,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questionBankSelect => 'Select multiple';
 
   @override
+  String get questionBankAiPaper => 'AI paper';
+
+  @override
+  String get paperGenTitle => 'Generate a paper with AI';
+
+  @override
+  String get paperGenDate => 'Paper date';
+
+  @override
+  String get paperGenChangeDate => 'Change';
+
+  @override
+  String get paperGenIntro =>
+      'Pick 6 questions from the bank automatically (2 each for Chinese / Math / Physics, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, judgement points, full answer, thinking tree, common mistakes, extensions. It can take a few minutes.';
+
+  @override
+  String get paperGenStart => 'Generate';
+
+  @override
+  String get paperGenRunning => 'Generating…';
+
+  @override
+  String get paperGenSelecting => 'Selecting questions…';
+
+  @override
+  String get paperGenDone => 'Done';
+
+  @override
+  String get paperGenOpenHint =>
+      'Open the .md file at the path above in Typora or an editor.';
+
+  @override
+  String get paperGenNeedKey =>
+      'No usable AI key yet: set the key and model in Settings → AI first.';
+
+  @override
   String questionBankSelectedCount(int count) {
     return '$count selected';
   }

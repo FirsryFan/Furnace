@@ -2,6 +2,16 @@
 
 > 记录每一轮自动/手动迭代的进展，作为持续开发的“长期记忆”。
 
+## 2026-11-03 轮次一百九十二：Furnace 内置 AI 生成题单（0.6.14+34）
+
+- 用户要求：今晚起不再用 DSH，直接在 Furnace 里用内置 AI 完成 11-04 题单生成；今晚必须能验收。
+- 新功能：题库页 AppBar 新增「AI 题单」入口 → 选日期 → 自动从本地题库选 6 题（语文/数学/物理各 2 题，排除 paper_history 已用题）→ 逐题把题干图+答案图交给内置多模态模型（deepseek-flash 支持图片输入）→ 模型返回结构化 JSON（题目/先做提示/判断点/完整答案/思维树/易错点/命题视角/扩展/能力点）→ 应用把思维树渲染为无颜色形状 SVG、拼成单个 Markdown 合集，写到 documents/题单-YYYY-MM-DD/。
+- 关键实现：lib/features/questions/application/paper_generator_service.dart（选题/视觉请求/JSON 解析/Markdown 组装/历史记录）、paper_tree_svg.dart（纯 Dart SVG 渲染，形状区分类别、无颜色）、presentation/paper_generator_page.dart、题库页入口；OpenAiCompatAdapter 增加可选 maxTokens，题单请求设 12000，避免推理吃掉全部输出预算导致 content 为空（11-03 实测）。
+- 实测：用真实 key 对一道数学题（题干图+答案图）调用 deepseek-flash，返回合法 JSON（2 棵树、完整答案 1046 字，reasoning 约 15.7k 字符）；Dart SVG 渲染样例已转 PNG 目视检查（矩形/平行四边形/菱形/胶囊/虚线/双线/六边形均正确）。
+- 包：0.6.14+34 Windows zip（20,208,958 B，SHA-256 19B38669…DB3FD8，28 entries，无 kernel_blob），解压启动冒烟通过（窗口 Furnace、优雅退出）；输出 dist/Furnace-0.6.14-windows-x64.zip 与 30-study/furnace-2026-11-02/app-0.6.14/。
+- 已把题单 v4 用过的 6 题 id 写入 E:\Furnace\data\documents\paper_history.json，首次生成不会重复这 6 题。
+- 验证：paper_tree_svg_test 2 例；question bank 28 例；AI 694 例；dart analyze lib = 0 error / 0 warning（info 仍为项目既有基线）。
+
 ## 2026-11-03 轮次一百九十一：交付流程提速 skill + GitHub Release + 闪存卡/导航简化
 
 - 用户反馈（题单 v4）：题干已有文字就不重复放题干照片；思维树统一 33% 缩放；总结这次生成过程为什么慢/错误多；上传 0.6.13 与本机数据到 release；继续简化 UI（闪存卡设置、右上角按钮混乱、手动管理页用不上）。
