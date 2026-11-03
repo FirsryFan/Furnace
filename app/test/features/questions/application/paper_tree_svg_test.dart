@@ -60,6 +60,33 @@ void main() {
     expect(svg, contains('题1 思维树'));
   });
 
+  test('宽树改为纵向可读布局，并把 LaTeX 转成普通文字', () {
+    final children = <Object?>[
+      for (var i = 0; i < 8; i++)
+        <String, Object?>{
+          'label': '分支' + i.toString(),
+          'note': r'$W=\frac{1}{2}mv^2+fx$',
+          'status': 'step',
+          'children': <Object?>[],
+        }
+    ];
+    final svg = PaperTreeSvg.render(<String, Object?>{
+      'title': '宽树',
+      'root': <String, Object?>{
+        'label': '根节点',
+        'note': '',
+        'status': 'step',
+        'children': children,
+      },
+    });
+    final size = RegExp(r'width="(\d+)" height="(\d+)"').firstMatch(svg)!;
+    final w = int.parse(size.group(1)!);
+    final h = int.parse(size.group(2)!);
+    expect(w / h, lessThan(2.2), reason: '宽高比应接近正常图片');
+    expect(svg, isNot(contains(r'\frac')));
+    expect(svg, isNot(contains(r'$')));
+  });
+
   test('XML 转义 & < >', () {
     final svg = PaperTreeSvg.render(<String, Object?>{
       'title': 'A & B',

@@ -9,35 +9,31 @@ const String _font = 'Microsoft YaHei, PingFang SC, sans-serif';
 const double _labelSize = 13;
 const double _noteSize = 11;
 const double _pad = 12;
-const double _vgap = 34;
-const double _hgap = 22;
 
 class PaperTreeSvg {
   static String render(Map<String, Object?> spec) {
     final root = _Node.parse(spec['root']);
     final title = (spec['title'] as String?)?.trim() ?? '';
-    _measure(root);
-    final levels = <double>[];
-    _levels(root, 0, levels);
-    final levelY = <double>[72];
-    for (var d = 1; d < levels.length; d++) {
-      levelY.add(levelY[d - 1] + levels[d - 1] + _vgap);
-    }
-    _layout(root, 20, 0, levelY);
-    var maxX = 0.0;
-    var maxY = 0.0;
-    void ext(_Node n) {
-      maxX = math.max(maxX, n.x + n.w);
-      maxY = math.max(maxY, n.y + n.h);
+    _measure(root, 0);
+    var y = title.isEmpty ? 24.0 : 64.0;
+    final all = <_Node>[];
+    void place(_Node n, int depth) {
+      n.x = 20 + depth * 30;
+      n.y = y;
+      y += n.h + 18;
+      all.add(n);
       for (final c in n.children) {
-        ext(c);
+        place(c, depth + 1);
       }
     }
 
-    ext(root);
-    final titleW = title.isEmpty ? 0.0 : _textWidth(title, 16) + 40;
-    final width = math.max(maxX + 22, titleW).ceilToDouble();
-    final height = (maxY + 26).ceilToDouble();
+    place(root, 0);
+    var maxX = 0.0;
+    for (final n in all) {
+      maxX = math.max(maxX, n.x + n.w);
+    }
+    final width = (maxX + 24).ceilToDouble();
+    final height = (y + 18).ceilToDouble();
     final out = <String>[
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<svg xmlns="http://www.w3.org/2000/svg" width="' +
@@ -53,39 +49,31 @@ class PaperTreeSvg {
     ];
     if (title.isNotEmpty) {
       out.add(
-          '<text x="20" y="34" font-size="16" font-weight="bold" fill="#111" font-family="' +
+          '<text x="20" y="32" font-size="17" font-weight="bold" fill="#111" font-family="' +
               _font +
               '">' +
-              _esc(title) +
+              _esc(_plain(title)) +
               '</text>');
     }
+    // 纵向树：从父节点底部引到子节点左侧；缩进本身就是层级。
     void edges(_Node n) {
       for (final c in n.children) {
+        final px = n.x + n.w / 2;
+        final py = n.y + n.h;
+        final cy = c.y + c.h / 2;
+        final cx = c.x;
         final dash = c.status == 'wrong' ? ' stroke-dasharray="6 4"' : '';
-        final x1 = n.x + n.w / 2;
-        final y1 = n.y + n.h;
-        final x2 = c.x + c.w / 2;
-        final y2 = c.y;
-        final midY = (y1 + y2) / 2;
         out.add('<path d="M' +
-            _n(x1) +
+            _n(px) +
             ' ' +
-            _n(y1) +
-            ' C' +
-            _n(x1) +
-            ' ' +
-            _n(midY) +
-            ' ' +
-            _n(x2) +
-            ' ' +
-            _n(midY) +
-            ' ' +
-            _n(x2) +
-            ' ' +
-            _n(y2) +
+            _n(py) +
+            ' V' +
+            _n(cy) +
+            ' H' +
+            _n(cx) +
             '" fill="none" stroke="' +
             _stroke +
-            '" stroke-width="1.4" opacity="0.75"' +
+            '" stroke-width="1.3" opacity="0.72"' +
             dash +
             '/>');
         edges(c);
@@ -247,111 +235,176 @@ class PaperTreeSvg {
 
   static String _text(_Node n) {
     final out = <String>[];
-    if (n.status == 'diamond') {
-      final cx = _n(n.x + n.w / 2);
-      final labelY = _n(n.y + (n.note == null ? 36 : 30));
+    final center = n.status == 'diamond' || n.status == 'answer';
+    final tx = center ? n.x + n.w / 2 : n.x + _pad;
+    final anchor = center ? ' text-anchor="middle"' : '';
+    var ty = n.y + 18;
+    for (final line in n.labelLines) {
       out.add('<text x="' +
-          cx +
+          _n(tx) +
           '" y="' +
-          labelY +
-          '" font-size="13" font-weight="600" fill="#111" text-anchor="middle" font-family="' +
+          _n(ty) +
+          '" font-size="13" font-weight="600" fill="#111"' +
+          anchor +
+          ' font-family="' +
           _font +
           '">' +
-          _esc(n.label) +
+          _esc(line) +
           '</text>');
-      if (n.note != null) {
-        out.add('<text x="' +
-            cx +
-            '" y="' +
-            _n(n.y + 50) +
-            '" font-size="11" fill="#37474f" text-anchor="middle" font-family="' +
-            _font +
-            '">' +
-            _esc(n.note!) +
-            '</text>');
-      }
-      return out.join();
+      ty += 17;
     }
-    final tx = _n(n.x + _pad);
-    out.add('<text x="' +
-        tx +
-        '" y="' +
-        _n(n.y + 20) +
-        '" font-size="13" font-weight="600" fill="#111" font-family="' +
-        _font +
-        '">' +
-        _esc(n.label) +
-        '</text>');
-    if (n.note != null) {
+    ty += 2;
+    for (final line in n.noteLines) {
       out.add('<text x="' +
-          tx +
+          _n(tx) +
           '" y="' +
-          _n(n.y + 37) +
-          '" font-size="11" fill="#37474f" font-family="' +
+          _n(ty) +
+          '" font-size="11" fill="#37474f"' +
+          anchor +
+          ' font-family="' +
           _font +
           '">' +
-          _esc(n.note!) +
+          _esc(line) +
           '</text>');
+      ty += 14;
     }
     return out.join();
   }
 
-  static void _measure(_Node n) {
-    n.w = math.max(_textWidth(n.label, _labelSize),
-            n.note == null ? 0 : _textWidth(n.note!, _noteSize)) +
-        _pad * 2;
-    n.h = n.note == null ? 32 : 46;
+  static void _measure(_Node n, int depth) {
+    final maxText = math.max(180.0, 500.0 - depth * 30.0);
+    n.labelLines = _wrap(_plain(n.label), _labelSize, maxText);
+    n.noteLines = n.note == null
+        ? <String>[]
+        : _wrap(_plain(n.note!), _noteSize, maxText);
+    var w = 0.0;
+    for (final line in n.labelLines) {
+      w = math.max(w, _textWidth(line, _labelSize));
+    }
+    for (final line in n.noteLines) {
+      w = math.max(w, _textWidth(line, _noteSize));
+    }
+    n.w = math.min(maxText, w) + _pad * 2;
+    n.h = n.labelLines.length * 17 +
+        (n.noteLines.isEmpty ? 0 : n.noteLines.length * 14 + 6) +
+        16;
     if (n.status == 'diamond') {
-      n.w = math.max(n.w * 1.18, _textWidth(n.label, _labelSize) + 90);
-      n.h = n.note == null ? 58 : 74;
-    } else if (n.status == 'check') {
-      n.w += 14;
+      n.w = math.max(n.w, 160);
+      n.h = math.max(n.h + 8, 58);
+    } else if (n.status == 'answer' || n.status == 'check') {
       n.h += 4;
     }
     for (final c in n.children) {
-      _measure(c);
+      _measure(c, depth + 1);
     }
   }
 
-  static double _subtreeWidth(_Node n) {
-    if (n.children.isEmpty) {
-      return n.w;
+  static List<String> _wrap(String text, double size, double maxWidth) {
+    if (text.trim().isEmpty) {
+      return <String>[''];
     }
-    var total = 0.0;
-    for (final c in n.children) {
-      total += _subtreeWidth(c);
+    final lines = <String>[];
+    var current = '';
+    for (final rune in text.runes) {
+      final ch = String.fromCharCode(rune);
+      final next = current + ch;
+      if (_textWidth(next, size) > maxWidth && current.isNotEmpty) {
+        lines.add(current);
+        current = ch;
+      } else {
+        current = next;
+      }
     }
-    total += _hgap * (n.children.length - 1);
-    return math.max(n.w, total);
+    if (current.isNotEmpty) {
+      lines.add(current);
+    }
+    return lines.isEmpty ? <String>[''] : lines;
   }
 
-  static void _levels(_Node n, int depth, List<double> levels) {
-    if (levels.length <= depth) {
-      levels.add(0);
-    }
-    levels[depth] = math.max(levels[depth], n.h);
-    for (final c in n.children) {
-      _levels(c, depth + 1, levels);
-    }
-  }
-
-  static void _layout(_Node n, double left, int depth, List<double> levelY) {
-    final sw = _subtreeWidth(n);
-    n.x = left + sw / 2 - n.w / 2;
-    n.y = levelY[depth];
-    if (n.children.isEmpty) {
-      return;
-    }
-    var total = 0.0;
-    for (final c in n.children) {
-      total += _subtreeWidth(c);
-    }
-    total += _hgap * (n.children.length - 1);
-    var x = left + (sw - total) / 2;
-    for (final c in n.children) {
-      _layout(c, x, depth + 1, levelY);
-      x += _subtreeWidth(c) + _hgap;
-    }
+  static String _plain(String raw) {
+    var s = raw.replaceAll(r'\$', '');
+    s = s.replaceAll(r'$', '');
+    final frac = RegExp(r'\\d?frac\{([^{}]*)\}\{([^{}]*)\}');
+    s = s.replaceAllMapped(
+        frac, (m) => (m.group(1) ?? '') + '/' + (m.group(2) ?? ''));
+    s = s.replaceAllMapped(
+        RegExp(r'\\sqrt\{([^{}]*)\}'), (m) => '√(' + (m.group(1) ?? '') + ')');
+    s = s.replaceAllMapped(
+        RegExp(r'\\text\{([^{}]*)\}'), (m) => m.group(1) ?? '');
+    const greek = {
+      r'\\alpha': 'α',
+      r'\\beta': 'β',
+      r'\\gamma': 'γ',
+      r'\\delta': 'δ',
+      r'\\Delta': 'Δ',
+      r'\\theta': 'θ',
+      r'\\lambda': 'λ',
+      r'\\mu': 'μ',
+      r'\\pi': 'π',
+      r'\\rho': 'ρ',
+      r'\\sigma': 'σ',
+      r'\\phi': 'φ',
+      r'\\omega': 'ω',
+      r'\\Omega': 'Ω',
+    };
+    greek.forEach((k, v) => s = s.replaceAll(k, v));
+    const symbols = {
+      r'\\propto': '∝',
+      r'\\times': '×',
+      r'\\cdot': '·',
+      r'\\pm': '±',
+      r'\\le': '≤',
+      r'\\leq': '≤',
+      r'\\ge': '≥',
+      r'\\geq': '≥',
+      r'\\ne': '≠',
+      r'\\neq': '≠',
+      r'\\rightarrow': '→',
+      r'\\to': '→',
+      r'\\Rightarrow': '⇒',
+      r'\\infty': '∞',
+      r'\\circ': '°',
+      r'\\sin': 'sin',
+      r'\\cos': 'cos',
+      r'\\tan': 'tan',
+      r'\\log': 'log',
+      r'\\ln': 'ln',
+      r'\\max': 'max',
+      r'\\min': 'min',
+    };
+    symbols.forEach((k, v) => s = s.replaceAll(k, v));
+    s = s.replaceAllMapped(RegExp(r'\^\{?([0-9])\}?'), (m) {
+      const sup = {
+        '0': '⁰',
+        '1': '¹',
+        '2': '²',
+        '3': '³',
+        '4': '⁴',
+        '5': '⁵',
+        '6': '⁶',
+        '7': '⁷',
+        '8': '⁸',
+        '9': '⁹'
+      };
+      return sup[m.group(1)] ?? m.group(1)!;
+    });
+    s = s.replaceAllMapped(RegExp(r'\_\{?([0-9])\}?'), (m) {
+      const sub = {
+        '0': '₀',
+        '1': '₁',
+        '2': '₂',
+        '3': '₃',
+        '4': '₄',
+        '5': '₅',
+        '6': '₆',
+        '7': '₇',
+        '8': '₈',
+        '9': '₉'
+      };
+      return sub[m.group(1)] ?? m.group(1)!;
+    });
+    s = s.replaceAll('{', '').replaceAll('}', '').replaceAll(r'\\', '');
+    return s.replaceAll(RegExp(r'\\[a-zA-Z]+'), '');
   }
 
   static double _textWidth(String s, double size) {
@@ -388,6 +441,8 @@ class _Node {
   double y = 0;
   double w = 0;
   double h = 0;
+  List<String> labelLines = <String>[];
+  List<String> noteLines = <String>[];
 
   static _Node parse(Object? raw) {
     final map =
