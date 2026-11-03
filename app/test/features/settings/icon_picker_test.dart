@@ -40,7 +40,8 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Widget _app(Widget home, {List<Override> overrides = const []}) => ProviderScope(
+Widget _app(Widget home, {List<Override> overrides = const []}) =>
+    ProviderScope(
       overrides: overrides,
       child: MaterialApp(
         locale: const Locale('zh'),
@@ -231,9 +232,12 @@ void main() {
         ],
       ));
       await _settle(tester);
+      final navigation = find.byType(NavigationRail).evaluate().isNotEmpty
+          ? find.byType(NavigationRail)
+          : find.byType(NavigationBar);
       return tester
           .widgetList<Icon>(find.descendant(
-            of: find.byType(NavigationBar),
+            of: navigation,
             matching: find.byType(Icon),
           ))
           .map((icon) => icon.icon!)
@@ -242,13 +246,14 @@ void main() {
 
     testWidgets('the IconData it renders follows the theme\'s icons map',
         (tester) async {
-      _useTallSurface(tester);
+      _useTallSurface(tester, width: 1200);
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
       // Factory theme: the icons the shell hard-coded before D1. The selected
       // destination (tags, index 0) renders the *filled* variant.
-      final before = await navIcons(tester, const ThemeProfileData(name: 'a'), db);
+      final before =
+          await navIcons(tester, const ThemeProfileData(name: 'a'), db);
       expect(before, contains(Icons.account_tree));
       expect(before, contains(Icons.bolt_outlined));
 
@@ -270,7 +275,8 @@ void main() {
       );
       expect(after, isNot(before));
       expect(after, contains(Icons.star),
-          reason: 'the selected slot must render the filled variant of the choice');
+          reason:
+              'the selected slot must render the filled variant of the choice');
       expect(after, contains(Icons.rocket_launch_outlined),
           reason: 'an unselected slot renders the outlined variant');
       expect(after, isNot(contains(Icons.account_tree)));
@@ -282,7 +288,7 @@ void main() {
 
     testWidgets('an unknown name in the theme falls back, it does not throw',
         (tester) async {
-      _useTallSurface(tester);
+      _useTallSurface(tester, width: 1200);
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 

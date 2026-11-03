@@ -6,7 +6,7 @@ import '../../../features/ai/application/ai_providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_generator_service.dart';
 
-/// 「AI 生成题单」：从题库选 6 题（每科 2 题），把题干图+答案图交给内置
+/// 「AI 生成题单」：从题库选 8 题（物理/数学/语文/英语各 2 题），把题干图+答案图交给内置
 /// 多模态模型，逐题生成题单内容；应用负责树图渲染与 Markdown 合并。
 ///
 /// 这是给「明天早上要一份题单」这种场景的固定流程，不是开放式对话：

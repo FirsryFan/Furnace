@@ -3586,7 +3586,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get paperGenIntro =>
-      '从题库自动选 6 题（语文/数学/物理各 2 题，排除之前用过的题），AI 读取题干与答案截图后生成：题目、先做提示、判断点、完整答案、思维树、易错点、扩展。生成过程可能需要几分钟。';
+      '从题库自动选 8 题（物理/数学/语文/英语各 2 题，排除之前用过的题），AI 读取题干与答案截图后生成：题目、先做提示、答案、思维树、易错点、命题视角、扩展。生成过程约几分钟。';
 
   @override
   String get paperGenStart => '开始生成';

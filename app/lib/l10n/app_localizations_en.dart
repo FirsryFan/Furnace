@@ -3744,7 +3744,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paperGenIntro =>
-      'Pick 6 questions from the bank automatically (2 each for Chinese / Math / Physics, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, judgement points, full answer, thinking tree, common mistakes, extensions. It can take a few minutes.';
+      'Pick 8 questions from the bank automatically (2 each for Physics / Math / Chinese / English, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, answer, thinking tree, common mistakes, examiner view, extensions. It can take a few minutes.';
 
   @override
   String get paperGenStart => 'Generate';

@@ -1780,7 +1780,7 @@
   "paperGenTitle": "Generate a paper with AI",
   "paperGenDate": "Paper date",
   "paperGenChangeDate": "Change",
-  "paperGenIntro": "Pick 6 questions from the bank automatically (2 each for Chinese / Math / Physics, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, judgement points, full answer, thinking tree, common mistakes, extensions. It can take a few minutes.",
+  "paperGenIntro": "Pick 8 questions from the bank automatically (2 each for Physics / Math / Chinese / English, excluding questions used before). The AI reads the question and answer screenshots and writes the paper: question, hint, answer, thinking tree, common mistakes, examiner view, extensions. It can take a few minutes.",
   "paperGenStart": "Generate",
   "paperGenRunning": "Generating…",
   "paperGenSelecting": "Selecting questions…",

@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show OrderingMode, OrderingTerm;
@@ -62,6 +63,7 @@ class PaperGeneratorService {
     VisionImageEncoder? encoder,
     Future<Directory> Function()? supportDirectory,
     Future<Directory> Function()? documentsDirectory,
+    this.questionConcurrency = 3,
   })  : _db = db,
         _config = config,
         _adapter = adapter ??
@@ -84,11 +86,21 @@ class PaperGeneratorService {
   final Future<Directory> Function() _supportDirectory;
   final Future<Directory> Function() _documentsDirectory;
 
-  static const List<String> subjects = <String>['chinese', 'math', 'physics'];
+  /// 同时向模型发几道题。串行 6 题要等 10–20 分钟；3 路并发把等待压到约一半。
+  /// 不担心 token 成本，但也不无上限地打爆服务端。
+  final int questionConcurrency;
+
+  static const List<String> subjects = <String>[
+    'physics',
+    'math',
+    'chinese',
+    'english',
+  ];
   static const Map<String, String> subjectLabels = <String, String>{
-    'chinese': '语文',
-    'math': '数学',
     'physics': '物理',
+    'math': '数学',
+    'chinese': '语文',
+    'english': '英语',
   };
   static const String historyFileName = 'paper_history.json';
 
@@ -103,7 +115,7 @@ class PaperGeneratorService {
     }
     final picks = await _pickQuestions(perSubject: perSubject);
     if (picks.length < subjects.length * perSubject) {
-      throw PaperGenerationException('题库里可用的题不足：需要 3 科 × ' +
+      throw PaperGenerationException('题库里可用的题不足：需要 4 科 × ' +
           perSubject.toString() +
           ' 题，目前只找到 ' +
           picks.length.toString() +
@@ -123,11 +135,45 @@ class PaperGeneratorService {
     markdown.writeln('# 题单 · ' + dateText);
     markdown.writeln();
     markdown.writeln(
-        '> 由 Furnace 内置 AI 生成；先做题，再看答案。每题：题目 → 先做提示 → 判断点 → 完整答案（对照用）→ 思维树 → 易错点与命题视角 → 扩展 → 能力点与难度。');
+        '> 由 Furnace 内置 AI 生成；先做题，再看答案。每题按学习需要组织：题目 → 先做提示 → 答案 → 思维树 → 易错点/命题视角 → 扩展 → 能力点。');
     markdown.writeln();
 
+    // 6 道题的模型请求并行发出（默认 3 路），不要一道一道串行等。
+    // 每道题的内容完全独立；文件写入与 Markdown 拼装仍在全部内容回来后串行做，
+    // 避免并发写同一文档。
+    final contents = <String, Map<String, Object?>>{};
+    var nextIndex = 0;
+    var finished = 0;
+    final workersCount = math.min(questionConcurrency, picks.length);
+    final workers = <Future<void>>[];
+    for (var w = 0; w < workersCount; w++) {
+      workers.add(() async {
+        while (true) {
+          final index = nextIndex;
+          nextIndex++;
+          if (index >= picks.length) {
+            return;
+          }
+          final pick = picks[index];
+          final json = await _askForQuestion(pick, support, onProgress);
+          contents[pick.question.id] = json;
+          finished++;
+          onProgress?.call('已完成 ' +
+              finished.toString() +
+              '/' +
+              picks.length.toString() +
+              ' 题');
+        }
+      }());
+    }
+    onProgress?.call('已提交 ' +
+        picks.length.toString() +
+        ' 题，最多 ' +
+        workersCount.toString() +
+        ' 题并行…');
+    await Future.wait(workers);
+
     var treeIndex = 0;
-    var done = 0;
     for (final subject in subjects) {
       markdown.writeln('# ' + subjectLabels[subject]!);
       markdown.writeln();
@@ -135,17 +181,7 @@ class PaperGeneratorService {
           picks.where((pick) => pick.question.subjectKey == subject).toList();
       for (var i = 0; i < subjectPicks.length; i++) {
         final pick = subjectPicks[i];
-        done++;
-        onProgress?.call('正在生成 ' +
-            subjectLabels[subject]! +
-            ' 第 ' +
-            (i + 1).toString() +
-            ' 题（' +
-            done.toString() +
-            '/' +
-            picks.length.toString() +
-            '）…');
-        final json = await _askForQuestion(pick, support, onProgress);
+        final json = contents[pick.question.id]!;
         final trees =
             (json['trees'] is List) ? json['trees'] as List : const <Object?>[];
         final treeImages = <String>[];
@@ -183,6 +219,20 @@ class PaperGeneratorService {
     );
   }
 
+  static bool _isWritingTask(String? stem) {
+    if (stem == null || stem.isEmpty) {
+      return false;
+    }
+    return RegExp(r'写一篇文章|不少于800字|自拟标题|写一篇作文|作文题|请写一篇').hasMatch(stem);
+  }
+
+  static bool _isEnglishWritingTask(String? stem) {
+    if (stem == null || stem.isEmpty) {
+      return false;
+    }
+    return RegExp(r'书面表达|写一篇|作文|词左右|100词|80词|应用文写作').hasMatch(stem);
+  }
+
   Future<List<PaperQuestionPick>> _pickQuestions(
       {required int perSubject}) async {
     final support = await _supportDirectory();
@@ -213,8 +263,29 @@ class PaperGeneratorService {
         return null;
       }
 
+      // 质量优先的初筛：
+      // * 语文写作题（作文）没有可对照的官方答案，也不是“成熟题目”的形态，排除；
+      // * 数学/物理优先大题（solution），选择题容易过简，只在不够时回退；
+      // * 同一份题单内不重复同一题（history 之外再按 id 去重）。
+      final preferred = rows.where((q) {
+        if (subject == 'chinese') {
+          return !_isWritingTask(q.stem) &&
+              (q.questionType == 'single_choice' ||
+                  q.questionType == 'multi_choice');
+        }
+        if (subject == 'english') {
+          return !_isEnglishWritingTask(q.stem) &&
+              (q.questionType == 'single_choice' ||
+                  q.questionType == 'multi_choice');
+        }
+        return q.questionType == 'solution';
+      }).toList();
+      final ordered = <Question>[
+        ...preferred,
+        ...rows.where((q) => !preferred.contains(q)),
+      ];
       var found = 0;
-      for (final q in rows) {
+      for (final q in ordered) {
         if (history.contains(q.id)) {
           continue;
         }
@@ -257,20 +328,22 @@ class PaperGeneratorService {
       throw PaperGenerationException('题目图片无法读取：' + pick.question.id);
     }
     final system = _systemPrompt();
-    final user = _userPrompt(pick);
-    var text = await _run(system, user, images);
-    var data = _tryParse(text);
-    if (data == null) {
-      onProgress?.call('模型返回格式不对，要求它重新输出 JSON…');
-      text = await _run(
-          system, user + '\n\n只输出一个合法 JSON 对象，不要解释、不要 Markdown 代码围栏。', images);
+    final baseUser = _userPrompt(pick);
+    Map<String, Object?>? data;
+    for (var attempt = 0; attempt < 4; attempt++) {
+      final suffix = attempt == 0
+          ? ''
+          : '\n\n上一次输出不是合法 JSON。请缩短每段文字、保证 JSON 完整；'
+              '只输出一个合法 JSON 对象，不要解释、不要 Markdown 代码围栏。';
+      final text = await _run(system, baseUser + suffix, images);
       data = _tryParse(text);
+      if (data != null) {
+        return data;
+      }
+      onProgress?.call('模型返回格式不对，重试第 ' + (attempt + 2).toString() + '/4 次…');
     }
-    if (data == null) {
-      throw PaperGenerationException(
-          '模型没有返回可解析的 JSON（题 ' + pick.question.id + '）。');
-    }
-    return data;
+    throw PaperGenerationException(
+        '模型连续 4 次没有返回可解析的 JSON（题 ' + pick.question.id + '）。');
   }
 
   Future<String> _run(
@@ -348,53 +421,91 @@ class PaperGeneratorService {
     _bullets(buffer, json['hint']);
     buffer.writeln('---');
     buffer.writeln();
-    buffer.writeln('### 判断点');
+    buffer.writeln('### 答案');
     buffer.writeln();
-    _bullets(buffer, json['judgement']);
-    buffer.writeln('### 完整答案（对照用）');
-    buffer.writeln();
+    final judgementRaw = json['judgement'];
+    final hasJudgement = judgementRaw is List
+        ? judgementRaw.isNotEmpty
+        : (judgementRaw is String && judgementRaw.trim().isNotEmpty);
+    if (hasJudgement) {
+      buffer.writeln('**判断点**：');
+      _bullets(buffer, judgementRaw);
+      buffer.writeln();
+    }
     buffer.writeln(((json['answer'] as String?) ?? '').trim());
     buffer.writeln();
-    buffer.writeln('### 思维树');
-    buffer.writeln();
-    for (var i = 0; i < treeNames.length; i++) {
-      final treeTitle = i == 0 ? '完整过程' : '第 ' + (i + 1).toString() + ' 棵';
-      buffer.writeln('<img src="trees/' +
-          treeNames[i] +
-          '" alt="' +
-          subject +
-          '题' +
-          index.toString() +
-          '思维树' +
-          treeTitle +
-          '" style="zoom:33%;" />');
+    if (treeNames.isNotEmpty) {
+      buffer.writeln('### 思维树');
       buffer.writeln();
-    }
-    buffer.writeln('### 易错点与命题视角');
-    buffer.writeln();
-    _bullets(buffer, json['mistakes']);
-    final perspective = (json['perspective'] as String?)?.trim();
-    if (perspective != null && perspective.isNotEmpty) {
-      buffer.writeln('**命题视角**：' + perspective);
-      buffer.writeln();
-    }
-    buffer.writeln('### 扩展');
-    buffer.writeln();
-    buffer.writeln('#### 近扩展');
-    buffer.writeln();
-    _bullets(buffer, json['nearExtensions']);
-    buffer.writeln('#### 背景补充');
-    buffer.writeln();
-    final background = json['background'];
-    if (background is List) {
-      for (final item in background) {
-        buffer.writeln((item as String).trim());
+      for (var i = 0; i < treeNames.length; i++) {
+        final treeTitle = i == 0 ? '完整过程' : '第 ' + (i + 1).toString() + ' 棵';
+        buffer.writeln('<img src="trees/' +
+            treeNames[i] +
+            '" alt="' +
+            subject +
+            '题' +
+            index.toString() +
+            '思维树' +
+            treeTitle +
+            '" style="zoom:33%;" />');
         buffer.writeln();
       }
     }
-    buffer.writeln('### 能力点与难度');
-    buffer.writeln();
-    buffer.writeln(((json['ability'] as String?) ?? '').trim());
+    final mistakes = json['mistakes'];
+    final hasMistakes = mistakes is List
+        ? mistakes.isNotEmpty
+        : (mistakes is String && mistakes.trim().isNotEmpty);
+    final perspective = (json['perspective'] as String?)?.trim();
+    if (hasMistakes || (perspective != null && perspective.isNotEmpty)) {
+      buffer.writeln('### 易错点');
+      buffer.writeln();
+      if (hasMistakes) {
+        _bullets(buffer, mistakes);
+        buffer.writeln();
+      }
+      if (perspective != null && perspective.isNotEmpty) {
+        buffer.writeln('### 命题视角');
+        buffer.writeln();
+        buffer.writeln(perspective);
+        buffer.writeln();
+      }
+    }
+    final near = json['nearExtensions'];
+    final background = json['background'];
+    final hasNear = near is List
+        ? near.isNotEmpty
+        : (near is String && near.trim().isNotEmpty);
+    final hasBackground = (background is List && background.isNotEmpty) ||
+        (background is String && background.trim().isNotEmpty);
+    if (hasNear || hasBackground) {
+      buffer.writeln('### 扩展');
+      buffer.writeln();
+      if (hasNear) {
+        buffer.writeln('#### 近扩展');
+        buffer.writeln();
+        _bullets(buffer, near);
+        buffer.writeln();
+      }
+      if (hasBackground) {
+        buffer.writeln('#### 背景补充');
+        buffer.writeln();
+        if (background is List) {
+          for (final item in background) {
+            buffer.writeln(item.toString().trim());
+            buffer.writeln();
+          }
+        } else {
+          buffer.writeln((background as String).trim());
+          buffer.writeln();
+        }
+      }
+    }
+    final ability = (json['ability'] as String?)?.trim();
+    if (ability != null && ability.isNotEmpty) {
+      buffer.writeln('### 能力点与难度');
+      buffer.writeln();
+      buffer.writeln(ability);
+    }
     return buffer.toString();
   }
 
@@ -409,16 +520,26 @@ class PaperGeneratorService {
   }
 
   String _systemPrompt() {
-    return '你是高三题单编辑。你会收到一道题的题干截图与答案截图；请理解题目、核对答案，'
-        '输出一个 JSON 对象，字段如下：'
-        '{"title":"一句话题型/主题","questionText":"题干全文（可读文本，公式用 \$...\$）",'
-        '"hint":["先做提示，2-4 条"],"judgement":["判断点：选择题逐项，或大题分点给分/关键判断"],'
-        '"answer":"完整、组织好的答案，供学生对照","trees":[{"title":"第1问：任务","root":{"label":"审题：...","note":"依据/原句/算式（不超过40字）","status":"step","children":[...]}}],'
-        '"mistakes":["易错点/命题视角要点"],"perspective":"命题视角一段","nearExtensions":["近扩展，可判定"],'
-        '"background":["背景补充，每段150-300字，按内容重要性给篇幅"],"ability":"能力点与难度一句话"}'
-        '。要求：每个小题单独一棵树，顺序是审题→定原文/条件→判断→形成观点/建模→组织答案→检查；'
-        '树节点 status 只能是 step（普通步骤）、evidence（原文/条件）、decision（关键判断）、answer（结论/成文）、wrong（真实弯路）、fix（修正/直路）、check（检查）；'
-        'label 不超过12字，note 不超过40字但有依据/原句/算式；不要图例、不要“对照”段、不要 Markdown 代码围栏、不要解释。';
+    return '你是高三内容编辑，不是排版工具。你只对内容质量负责：让学生读完能理解这道题、学到可迁移的思考方式，而不是把一份模板填满。'
+        '你会收到一道题的题干截图与答案截图；请仔细读题、读答案，必要时逐字核对。'
+        '只输出一个 JSON 对象（不要 Markdown 代码围栏、不要解释）：'
+        '{"title":"一句话题型/主题","questionText":"题干全文（保留原题格式；公式用 \$...\$）",'
+        '"hint":["提示1","提示2"],"judgement":["仅主观题需要的词语级判断点"],'
+        '"answer":"答案（按答题卡口径的官方答案）","trees":[{"title":"第1问：任务","root":{"label":"审题：...","note":"依据/原句/算式/为什么","status":"step","children":[...]}}],'
+        '"mistakes":["真正容易错的点"],"perspective":"命题视角（必须与解析不同）","nearExtensions":["扩展到新结构/新条件的任务"],'
+        '"background":["可直接引用的原文/资料或一段讲解"],"ability":"能力点与难度"}'
+        '内容规则：'
+        '1) answer 必须是答案截图里的官方答案：选择题只给选项字母；主观题写答题卡上会写的那几句，简洁、完整；答案图看不清时不要编，按图里能确认的内容写并保持克制。'
+        '2) 选择题/填空题不要给 judgement（给空数组）；主观题的 judgement 是词语级关键判断，不是整段解析；写作/作文题同样不要 judgement，也不要硬编“官方答案”。'
+        '3) hint 只给方向或问题，用问句把思考交还学生：这是什么类型的问题？这类问题通常从哪些角度想？教材里有没有类似例子？不要提前说出答案或解析内容。'
+        '4) 解析写进 trees，不要另起解析段落。每个小题单独一棵树；树的目的是让学生看懂怎么想到的。选项并列时（如 ABCD）应是同一判断节点下的并列分支，不能按做题顺序串成父子；不要看D→定D这种只有动作没有思路的链。每一步必须有依据/策略（为什么想到这一步、用了什么提示）；顺序确实非常规时，用节点 note 解释。'
+        '5) 用答案截图与解析订正树：只保留真实常见的学生错误作为 wrong 分支；只有 AI 会犯、学生基本不会犯的错误不要放进树。'
+        '6) mistakes 只写真正容易错的点；一眼就明白的逻辑不要凑数。'
+        '7) perspective 必须提供解析以外的观察（如设题结构、干扰项设计、能力落点），不要复述解析，不要写立德树人这类空泛官方话。'
+        '8) background 涉及他人评论/资料时优先直接引用原文；讲知识就讲透，不写无关历史。理科扩展要能动手推导/计算，公式要解释；不用计算器也能完成。'
+        '9) 近扩展要改变题目结构或条件，而不只是改一个数字；简单题如果值得学就短而准，不值得学就不要硬写长。'
+        '10) 一切以是否真的帮学生提升为准：不需要的板块就留空/短写，不要为格式完整而重复、凑数、注水。'
+        '树节点 status 只能是 step（步骤）、evidence（原文/条件）、decision（关键判断）、answer（结论）、wrong（真实弯路）、fix（修正/直路）、check（检查）；label 尽量短，note 要写依据或怎么想到。';
   }
 
   String _userPrompt(PaperQuestionPick pick) {
