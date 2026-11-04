@@ -650,7 +650,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       ),
                     ),
                   for (final row in rows)
-                    if (row.role == AiRepository.roleTool)
+                    if (row.role == AiRepository.roleTool &&
+                        _turn.steps.isEmpty)
                       _ToolResultTile(
                         row: row,
                         l10n: l10n,
@@ -676,7 +677,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   // 本轮运行时间线（用户 2026-10-27）：第几轮、正在调用哪个工具、
                   // 参数摘要、等待审批、耗时都在发生时就出现，而不是等整轮结束后
                   // 才看到结果卡片。运行中自动展开，本轮结束后折叠成一行摘要。
-                  if (_turn.generating && _turn.steps.isNotEmpty)
+                  if (_turn.steps.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: RunTimeline(state: _turn, l10n: l10n),
