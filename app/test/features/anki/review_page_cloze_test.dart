@@ -132,7 +132,7 @@ void main() {
     await tapNext(tester);
 
     // 4) 还没到点：老实等着，不提前放它出来。
-    expect(find.text('这个空刚答对一次，要过一会儿才再出现：还有 10 分钟。'), findsOneWidget);
+    expect(find.text('这个空刚答对一次，要过一会儿才再出现：还有 60 分钟。'), findsOneWidget);
     expect(find.text('到点了，继续'), findsOneWidget);
     expect(find.byKey(const ValueKey('cloze-sentence')), findsNothing,
         reason: '没到下限的空不许提前显示');

@@ -138,7 +138,7 @@ void main() {
           reason: 'the unit must come back today');
       expect(outcome.released, isFalse);
       expect(outcome.nextDueAt.difference(DateTime.now()).inMinutes,
-          lessThanOrEqualTo(10));
+          lessThanOrEqualTo(60));
 
       final states =
           await anki.unitStatesForKnowledgePoint(item.knowledgePointId);

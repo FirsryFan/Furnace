@@ -48,9 +48,9 @@ void main() {
 
   group('the stored budget', () {
     test('the shipped default is 30, inside the offered range', () async {
-      expect(AiConfig.defaultMaxRounds, 30);
+      expect(AiConfig.defaultMaxRounds, 200);
       expect(AiConfig.minMaxRounds, 1);
-      expect(AiConfig.maxMaxRounds, 60);
+      expect(AiConfig.maxMaxRounds, 200);
       expect(
           AiConfig.minMaxRounds, lessThanOrEqualTo(AiConfig.defaultMaxRounds));
       expect(
@@ -127,7 +127,7 @@ void main() {
     test('an out-of-range value cannot be written in the first place',
         () async {
       await repository.saveConfig(
-        const AiConfig(enabled: true, apiKey: 'sk-test', maxRounds: 99),
+        const AiConfig(enabled: true, apiKey: 'sk-test', maxRounds: 999),
         fallbackLanguage: 'zh',
       );
       final row = (await db.select(db.localSettings).get()).single;

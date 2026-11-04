@@ -576,6 +576,123 @@ class _UngroupedCardsCard extends ConsumerWidget {
   }
 }
 
+class _FlashcardTagTreeDialog extends StatefulWidget {
+  const _FlashcardTagTreeDialog({required this.tags, required this.title});
+
+  final List<Tag> tags;
+  final String title;
+
+  @override
+  State<_FlashcardTagTreeDialog> createState() =>
+      _FlashcardTagTreeDialogState();
+}
+
+class _FlashcardTagTreeDialogState extends State<_FlashcardTagTreeDialog> {
+  final Set<String> _expanded = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final byParent = <String?, List<Tag>>{};
+    final ids = widget.tags.map((t) => t.id).toSet();
+    for (final tag in widget.tags) {
+      final parent = tag.parentId != null && ids.contains(tag.parentId)
+          ? tag.parentId
+          : null;
+      (byParent[parent] ??= <Tag>[]).add(tag);
+    }
+    for (final list in byParent.values) {
+      list.sort((a, b) => (a.path ?? a.name).compareTo(b.path ?? b.name));
+    }
+    final l10n = AppLocalizations.of(context);
+    Widget node(Tag tag, int depth) {
+      final children = byParent[tag.id] ?? const <Tag>[];
+      final expanded = _expanded.contains(tag.id);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => Navigator.pop(context, tag),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16 + depth * 18, 8, 12, 8),
+              child: Row(
+                children: [
+                  if (children.isNotEmpty)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints(minWidth: 28, minHeight: 28),
+                      icon: Icon(expanded
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_right),
+                      onPressed: () => setState(() {
+                        if (expanded) {
+                          _expanded.remove(tag.id);
+                        } else {
+                          _expanded.add(tag.id);
+                        }
+                      }),
+                    )
+                  else
+                    const SizedBox(width: 28),
+                  Expanded(
+                    child: Text(
+                      tag.name,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  Text(
+                    '设置卡组',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded)
+            for (final child in children) node(child, depth + 1),
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 440,
+        height: 520,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.tagUsageScopeHintFlashcard,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final root in byParent[null] ?? const <Tag>[])
+                      node(root, 0),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.commonCancel),
+        ),
+      ],
+    );
+  }
+}
+
 String _tagLabel(Tag tag) => tag.path ?? tag.name;
 
 /// The tags a flashcard picker may offer, or null when a message was shown
@@ -619,23 +736,7 @@ Future<Tag?> _pickTag(
 }) {
   return showDialog<Tag>(
     context: context,
-    builder: (context) => SimpleDialog(
-      title: Text(title),
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-          child: Text(
-            AppLocalizations.of(context).tagUsageScopeHintFlashcard,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        for (final tag in tags)
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, tag),
-            child: Text(_tagLabel(tag)),
-          ),
-      ],
-    ),
+    builder: (context) => _FlashcardTagTreeDialog(tags: tags, title: title),
   );
 }
 

@@ -8,11 +8,11 @@
 library;
 
 /// Marketing version, matching `pubspec.yaml`'s `version:` before the `+`.
-const String kAppVersion = '0.6.15';
+const String kAppVersion = '0.6.16';
 
 /// Build number, matching `pubspec.yaml`'s `version:` after the `+`. Android
 /// publishes this as `versionCode`.
-const int kAppBuildNumber = 35;
+const int kAppBuildNumber = 36;
 
 /// What the app calls itself over HTTP. Kept honest about who is calling rather
 /// than impersonating a browser.

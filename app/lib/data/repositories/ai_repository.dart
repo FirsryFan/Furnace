@@ -76,14 +76,14 @@ class AiConfig {
   /// question intake — transcribe a photo of several questions, look up tags,
   /// then write each question — which routinely needs more than a dozen
   /// round-trips for one message. The setting stays user-editable.
-  static const int defaultMaxRounds = 30;
+  static const int defaultMaxRounds = 200;
 
   /// The range the setting offers, and the range any stored value is resolved
   /// into. Bounded on purpose: a hand-edited or future-written
   /// `ai_max_rounds` must not be able to make one message spend an unbounded
   /// number of paid calls, and zero rounds would answer nothing at all.
   static const int minMaxRounds = 1;
-  static const int maxMaxRounds = 60;
+  static const int maxMaxRounds = 200;
 
   /// [stored] as a usable budget: the default when nothing was chosen, clamped
   /// into [minMaxRounds]..[maxMaxRounds] otherwise. Applied on the way in *and*

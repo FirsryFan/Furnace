@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -131,6 +133,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   /// 只在第一次挂载时触发，答完一张后必须再点一下输入框才能打下一张。这里显式
   /// 持有节点，在「真的可以作答」的时机重新请求焦点（见 [_focusAnswer]）。
   final _answerFocus = FocusNode();
+
+  /// 只有桌面端自动把焦点放进答案框；手机端自动弹输入法会挡住题目。
+  bool get _autoFocusAnswer => !Platform.isAndroid;
 
   List<ReviewItem> _queue = const [];
   int _index = 0;
@@ -325,6 +330,9 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
   /// 三道门槛都是必要的：选择题没有答案框；已判分的卡输入框是禁用的；时间下限
   /// 还没到的强制卡还在等待态、根本没渲染输入框。抢焦点会让人以为可以提前作答。
   void _focusAnswer() {
+    if (!_autoFocusAnswer) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _loading) {
         return;
@@ -887,12 +895,14 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  item.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
+                // 用户要求：卡片标题先隐藏，显示答案后再出现，避免标题提前泄题。
+                if (_feedback != null)
+                  Text(
+                    item.title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
                 if (diagnosedZone != null) ...[
                   const SizedBox(height: 6),
                   Align(
@@ -1001,7 +1011,7 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                   TextField(
                     controller: _answer,
                     focusNode: _answerFocus,
-                    autofocus: true,
+                    autofocus: _autoFocusAnswer,
                     enabled: _feedback == null,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) {

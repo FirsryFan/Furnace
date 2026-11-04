@@ -68,7 +68,7 @@ class FurnaceDefaults {
   static const double newClozeProbability = 0.5;
 
   /// Short relearning interval after a wrong answer.
-  static const int forcedRelearnMinutes = 10;
+  static const int forcedRelearnMinutes = 60;
 
   /// Consecutive correct answers required to release a forced unit.
   static const int forcedConsecutiveCorrect = 2;

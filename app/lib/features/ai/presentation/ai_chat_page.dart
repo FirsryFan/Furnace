@@ -95,6 +95,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   /// 一次：每次 rebuild 都强制跳会把正在翻历史的用户拽回底部。
   String? _pendingInitialScrollConversationId;
 
+  /// 用户是否仍在对话底部。滚动到上面看思维链时，流式更新不应把用户拽回底部。
+  bool _stickToBottom = true;
+
   /// Images picked but not yet sent. They are already files on disk (that is
   /// what makes the thumbnail work without holding megabytes in memory); the
   /// database rows only appear once the message they belong to exists.
@@ -155,6 +158,18 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      if (!_scroll.hasClients) {
+        return;
+      }
+      final position = _scroll.position;
+      _stickToBottom = position.pixels >= position.maxScrollExtent - 80;
+    });
+  }
+
   /// Binds to a conversation and starts listening to its loop.
   ///
   /// Rebuilt whenever the id changes because the loop owns per-conversation
@@ -180,7 +195,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     setState(() {});
   }
 
-  void _scrollToEnd() {
+  void _scrollToEnd({bool force = false}) {
+    if (!force && !_stickToBottom) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
@@ -658,22 +676,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   // 本轮运行时间线（用户 2026-10-27）：第几轮、正在调用哪个工具、
                   // 参数摘要、等待审批、耗时都在发生时就出现，而不是等整轮结束后
                   // 才看到结果卡片。运行中自动展开，本轮结束后折叠成一行摘要。
-                  if (_turn.steps.isNotEmpty)
+                  if (_turn.generating && _turn.steps.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: RunTimeline(state: _turn, l10n: l10n),
                     ),
                   if (_turn.streamingText.isNotEmpty)
                     _MessageBubble.streaming(_turn.streamingText),
-                  for (final call in _turn.executed)
-                    if (!persistedActionIds.contains(call.actionId))
-                      _ExecutedTile(
-                        call: call,
-                        l10n: l10n,
-                        onUndo: call.result.isUndoable
-                            ? () => _undo(call.actionId)
-                            : null,
-                      ),
                   if (_turn.cancelled) _CancelledLabel(l10n: l10n),
                 ],
               );
