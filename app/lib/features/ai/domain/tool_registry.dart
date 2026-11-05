@@ -281,6 +281,21 @@ class ToolRegistry {
     return null;
   }
 
+  /// Whether [name] is one of the registered tools that declares itself
+  /// read-only ([AiTool.readOnly]).
+  ///
+  /// The chat surface uses this to decide what deserves a result card: a query
+  /// or a page fetch is context the model used, not an operation the user
+  /// performed, so it stays out of the conversation. Unknown names answer
+  /// false - a tool the registry does not know (a skill-declared tool, or a row
+  /// from an older build) is not silently reclassified as read-only.
+  bool isReadOnly(String? name) {
+    if (name == null || name.isEmpty) {
+      return false;
+    }
+    return byName(name)?.readOnly ?? false;
+  }
+
   /// The provider-facing declarations. Sent on every turn rather than cached,
   /// because the list depends on the platform and would otherwise be wrong on
   /// whichever platform it was not built for.

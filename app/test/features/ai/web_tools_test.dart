@@ -87,7 +87,8 @@ void main() {
           for (var i = 1; i <= 25; i++)
             '<a class="item" href="/n/$i">第 $i 条</a>',
         ].join();
-        response.write('<html><body><div class="list">$links</div></body></html>');
+        response
+            .write('<html><body><div class="list">$links</div></body></html>');
       } else if (path == '/r/1') {
         response.statusCode = HttpStatus.movedPermanently;
         response.headers.set(HttpHeaders.locationHeader, '/r/2');
@@ -113,14 +114,16 @@ void main() {
       } else if (path == '/latin1') {
         response.headers.contentType =
             ContentType('text', 'html', charset: 'iso-8859-1');
-        response.add(latin1.encode('<html><body><p>caf\u00e9</p></body></html>'));
+        response
+            .add(latin1.encode('<html><body><p>caf\u00e9</p></body></html>'));
       } else if (path == '/gbk') {
         // A declared charset Dart has no codec for. The bytes are whatever a GBK
         // page would send; the point is that they are NOT silently transcoded and
         // NOT presented as if they were.
         response.headers.contentType =
             ContentType('text', 'html', charset: 'gb2312');
-        response.add(const [0xD6, 0xD0, 0xCE, 0xC4, 0x0A, 0xB2, 0xE2, 0xCA, 0xD4]);
+        response
+            .add(const [0xD6, 0xD0, 0xCE, 0xC4, 0x0A, 0xB2, 0xE2, 0xCA, 0xD4]);
       } else if (path == '/redirect-to-gbk') {
         response.statusCode = HttpStatus.found;
         response.headers.set(HttpHeaders.locationHeader, '/gbk');
@@ -194,16 +197,22 @@ void main() {
     test('the schema declares url as required and the two optional knobs', () {
       final parameters = toolWith().parameters;
       expect(parameters['type'], 'object');
-      final properties = (parameters['properties']! as Map).cast<String, Object?>();
-      expect(properties.keys, containsAll(['url', 'selector', 'limit']));
+      final properties =
+          (parameters['properties']! as Map).cast<String, Object?>();
+      expect(
+        properties.keys,
+        containsAll(['url', 'selector', 'limit', 'max_chars']),
+      );
       expect(parameters['required'], ['url']);
       expect((properties['url']! as Map)['type'], 'string');
       expect((properties['selector']! as Map)['type'], 'string');
       expect((properties['limit']! as Map)['type'], 'integer');
+      expect((properties['max_chars']! as Map)['type'], 'integer');
       // The caps the model is told about must be the caps the tool enforces.
       expect(FetchPageTool.defaultLimit, 5);
       expect(FetchPageTool.maxLimit, 20);
       expect(FetchPageTool.maxTextChars, 8000);
+      expect(FetchPageTool.minTextChars, 400);
     });
 
     test('the description says when to use it and that it is http/https only',
@@ -234,6 +243,13 @@ void main() {
 
       expect(registry.byName('fetch_page'), isA<FetchPageTool>());
       expect(registry.forCurrentPlatform.first.name, 'fetch_page');
+      // Read/write classification used by the chat surface: a query or a page
+      // fetch produces no result card, a write does.
+      expect(registry.isReadOnly('fetch_page'), isTrue);
+      expect(registry.isReadOnly('query_content'), isTrue);
+      expect(registry.isReadOnly('manage_task'), isFalse);
+      expect(registry.isReadOnly('not_a_tool'), isFalse);
+      expect(registry.isReadOnly(null), isFalse);
       final spec =
           registry.modelSpecs.firstWhere((s) => s.name == 'fetch_page');
       expect(spec.description, contains('http/https'));
@@ -241,7 +257,10 @@ void main() {
       expect(spec.parameters['required'], ['url']);
       final properties =
           (spec.parameters['properties']! as Map).cast<String, Object?>();
-      expect(properties.keys.toSet(), {'url', 'selector', 'limit'});
+      expect(
+        properties.keys.toSet(),
+        {'url', 'selector', 'limit', 'max_chars'},
+      );
       // …and the pre-existing tools are still registered.
       expect(registry.byName('query_tasks'), isNotNull);
       expect(registry.byName('manage_task'), isNotNull);
@@ -250,7 +269,8 @@ void main() {
   });
 
   group('plain text result', () {
-    test('returns the title and readable text, without script or style', () async {
+    test('returns the title and readable text, without script or style',
+        () async {
       final result = await toolWith().run(invoke({'url': url('/links')}));
 
       expect(result.ok, isTrue);
@@ -288,7 +308,8 @@ void main() {
       server2.listen((request) async {
         request.response.headers.contentType =
             ContentType('text', 'html', charset: 'utf-8');
-        request.response.write('<html><body><p>${'字' * 12000}</p></body></html>');
+        request.response
+            .write('<html><body><p>${'字' * 12000}</p></body></html>');
         await request.response.close();
       });
       addTearDown(() => server2.close(force: true));
@@ -303,6 +324,48 @@ void main() {
       expect(data['text_truncated'], isTrue);
       expect(text.length, lessThanOrEqualTo(FetchPageTool.maxTextChars));
       expect(text, contains('[截断：'));
+    });
+
+    test('max_chars lowers the cap for dictionary-style lookups', () async {
+      final server2 = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server2.listen((request) async {
+        request.response.headers.contentType =
+            ContentType('text', 'html', charset: 'utf-8');
+        request.response
+            .write('<html><body><p>${'字' * 3000}</p></body></html>');
+        await request.response.close();
+      });
+      addTearDown(() => server2.close(force: true));
+
+      final result = await toolWith().run(
+        invoke({
+          'url': 'http://127.0.0.1:${server2.port}/entry',
+          'max_chars': 1200,
+        }),
+      );
+
+      expect(result.ok, isTrue);
+      final data = resultOf(result);
+      final text = data['text']! as String;
+      expect(data['max_text_chars'], 1200);
+      expect(data['default_max_text_chars'], FetchPageTool.maxTextChars);
+      expect(data['text_truncated'], isTrue);
+      expect(text.length, lessThanOrEqualTo(1200));
+      expect(text, contains('[截断：页面文本超过 1200 字符'));
+    });
+
+    test('max_chars below the floor is clamped, not honoured literally',
+        () async {
+      final result = await toolWith().run(
+        invoke({'url': url('/links'), 'max_chars': 5}),
+      );
+
+      expect(result.ok, isTrue);
+      expect(
+        resultOf(result)['max_text_chars'],
+        FetchPageTool.minTextChars,
+        reason: 'a 5-character page read is not a page read',
+      );
     });
   });
 
@@ -400,8 +463,8 @@ void main() {
       expect(data['truncated'], isTrue);
       // The indexes are positions in the returned slice.
       expect(elementsOf(result).map((e) => e['index']), [0, 1, 2]);
-      expect(elementsOf(result).map((e) => e['text']),
-          ['第一 & 篇', '第二篇', '第三篇']);
+      expect(
+          elementsOf(result).map((e) => e['text']), ['第一 & 篇', '第二篇', '第三篇']);
     });
 
     test('limit defaults to 5 and is clamped to the documented maximum',
@@ -519,8 +582,7 @@ void main() {
       final data = resultOf(result);
       expect(data['final_url'], url('/final'));
       expect(data['status'], 200);
-      expect(data['redirects'],
-          [url('/r/2'), url('/r/3'), url('/final')]);
+      expect(data['redirects'], [url('/r/2'), url('/r/3'), url('/final')]);
       expect(data['text'], contains('arrived'));
       expect(data['title'], '终点');
       // 301 -> 302 -> 303 -> 200, three hops, each a GET.
@@ -537,7 +599,8 @@ void main() {
       expect(seenMethods.length, 6);
     });
 
-    test('a fetch that starts on a refused host never opens a socket', () async {
+    test('a fetch that starts on a refused host never opens a socket',
+        () async {
       final result = await FetchPageTool(
         fetcher: WebFetcher(hostPolicy: refuseNonPublicHost),
       ).run(invoke({'url': url('/links')}));
@@ -546,7 +609,8 @@ void main() {
       expect(seenMethods, isEmpty);
     });
 
-    test('a non-2xx status is an error that includes the status code', () async {
+    test('a non-2xx status is an error that includes the status code',
+        () async {
       final result = await toolWith().run(invoke({'url': url('/missing')}));
       expect(result.ok, isFalse);
       expect(result.error, contains('404'));
@@ -637,7 +701,8 @@ void main() {
       expect(data['text'], contains('café'));
     });
 
-    test('an undecodable charset is reported, not silently mojibaked', () async {
+    test('an undecodable charset is reported, not silently mojibaked',
+        () async {
       final result = await toolWith().run(invoke({'url': url('/gbk')}));
       expect(result.ok, isTrue);
       final data = resultOf(result);

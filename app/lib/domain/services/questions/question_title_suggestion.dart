@@ -37,6 +37,7 @@ const Map<String, String> _subjectLabelsZh = <String, String>{
   'politics': '政治',
   'informatics': '信息学竞赛',
   'qiangji': '强基计划',
+  'algorithm': '算法竞赛',
 };
 
 /// 拼装时的分隔符：「 · 」（两侧各一个半角空格）。

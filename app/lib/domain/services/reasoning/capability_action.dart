@@ -64,7 +64,9 @@ class CapabilityAction {
 
   /// 允许出现在 [subjectHints] 里的学科轨道键（稳定、snake_case）。
   ///
-  /// 八个轨道对应产品要覆盖的八类材料；[subjectLabelsZh] 给出中文名。
+  /// 九个轨道对应产品要覆盖的九类材料；[subjectLabelsZh] 给出中文名。
+  /// 2026-11-06 新增 [algorithm]（算法竞赛）：题目来源是洛谷，见
+  /// docs/ALGORITHM_SUBJECT_DESIGN.md。
   static const List<String> subjectKeys = <String>[
     'math',
     'physics',
@@ -74,6 +76,7 @@ class CapabilityAction {
     'history',
     'informatics',
     'qiangji',
+    'algorithm',
   ];
 
   /// 学科轨道的中文名，用于提示词与界面。
@@ -86,13 +89,14 @@ class CapabilityAction {
     'history': '历史',
     'informatics': '信息学竞赛',
     'qiangji': '强基计划',
+    'algorithm': '算法竞赛',
   };
 
   /// [transferable] 的判据阈值：至少出现在 4 条学科轨道上才算可迁移。
   ///
-  /// 4 而不是 3：八轨道里跨过一半才算「跨学科」；取 3 会让只覆盖数学/信息学/
-  /// 强基（这三者共享同一批竞赛技巧）的动作也被标成可迁移，而那恰恰是我们要
-  /// 和真正跨学科的动作区分开的情况。
+  /// 4 而不是 3：九轨道里接近一半才算「跨学科」；取 3 会让只覆盖数学/信息学/
+  /// 强基/算法竞赛（这四者共享同一批竞赛技巧）的动作也被标成可迁移，而那恰恰
+  /// 是我们要和真正跨学科的动作区分开的情况。
   static const int transferableSubjectThreshold = 4;
 
   /// 排序后的完整词表：**迁移性强的在前**。

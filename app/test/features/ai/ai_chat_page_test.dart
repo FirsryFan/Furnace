@@ -332,6 +332,7 @@ void main() {
       String? beforeJson,
       String? afterJson,
       bool recordAction = true,
+      String toolName = 'manage_task',
     }) async {
       final repository = AiRepository(db);
       final conversation = await repository.createConversation();
@@ -349,7 +350,7 @@ void main() {
       if (recordAction) {
         await repository.recordAction(
           conversationId: conversation.id,
-          toolName: 'manage_task',
+          toolName: toolName,
           risk: 'write',
           argsJson: '{}',
           toolCallId: toolCallId,
@@ -397,14 +398,54 @@ void main() {
     testWidgets('offers no undo when the call left no snapshot',
         (tester) async {
       await seedToolTurn(
-        content: jsonEncode({'ok': true, 'summary': '只读查询完成'}),
+        content: jsonEncode({'ok': true, 'summary': '完成但没有快照的操作'}),
+      );
+      await pumpPage(tester);
+
+      expect(find.textContaining('完成但没有快照的操作'), findsOneWidget);
+      expect(find.text('撤销'), findsNothing,
+          reason: 'an undo button with no snapshot would lie');
+    });
+
+    testWidgets('a committed read-only query leaves no card in the transcript',
+        (tester) async {
+      await seedToolTurn(
+        toolName: 'query_content',
+        content: jsonEncode({'ok': true, 'summary': '查到 3 张闪存卡'}),
+        beforeJson: '{}',
+      );
+      await pumpPage(tester);
+
+      expect(find.textContaining('查到 3 张闪存卡'), findsNothing,
+          reason: 'a query result is model context, not a user action');
+    });
+
+    testWidgets('a fetch_page result is not shown as a card either',
+        (tester) async {
+      await seedToolTurn(
+        toolName: 'fetch_page',
+        content: jsonEncode({
+          'ok': true,
+          'summary': '已读取页面「牛津词典」',
+          'result': {'text': '...'},
+        }),
+        beforeJson: '{}',
+      );
+      await pumpPage(tester);
+
+      expect(find.textContaining('已读取页面「牛津词典」'), findsNothing);
+    });
+
+    testWidgets('a tool row with no action ledger entry is hidden',
+        (tester) async {
+      await seedToolTurn(
+        content: jsonEncode({'ok': true, 'summary': '无账本的历史行'}),
         recordAction: false,
       );
       await pumpPage(tester);
 
-      expect(find.textContaining('只读查询完成'), findsOneWidget);
-      expect(find.text('撤销'), findsNothing,
-          reason: 'an undo button with no snapshot would lie');
+      expect(find.textContaining('无账本的历史行'), findsNothing,
+          reason: 'only write/undoable calls earn a card');
     });
 
     testWidgets('a failed call reads differently from a success',

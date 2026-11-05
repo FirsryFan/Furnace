@@ -14,26 +14,24 @@ class PaperTreeSvg {
   static String render(Map<String, Object?> spec) {
     final root = _Node.parse(spec['root']);
     final title = (spec['title'] as String?)?.trim() ?? '';
-    _measure(root, 0);
-    var y = title.isEmpty ? 24.0 : 64.0;
-    final all = <_Node>[];
-    void place(_Node n, int depth) {
-      n.x = 20 + depth * 30;
-      n.y = y;
-      y += n.h + 18;
-      all.add(n);
+    _measure(root);
+    final rootH = _subtreeHeight(root);
+    final top = title.isEmpty ? 20.0 : 60.0;
+    _layout(root, 18, top + (rootH - root.h) / 2);
+    var maxX = 0.0;
+    var maxY = 0.0;
+    void ext(_Node n) {
+      maxX = math.max(maxX, n.x + n.w);
+      maxY = math.max(maxY, n.y + n.h);
       for (final c in n.children) {
-        place(c, depth + 1);
+        ext(c);
       }
     }
 
-    place(root, 0);
-    var maxX = 0.0;
-    for (final n in all) {
-      maxX = math.max(maxX, n.x + n.w);
-    }
-    final width = (maxX + 24).ceilToDouble();
-    final height = (y + 18).ceilToDouble();
+    ext(root);
+    final titleW = title.isEmpty ? 0.0 : _textWidth(title, 16) + 40;
+    final width = math.max(maxX + 20, titleW).ceilToDouble();
+    final height = (maxY + 22).ceilToDouble();
     final out = <String>[
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<svg xmlns="http://www.w3.org/2000/svg" width="' +
@@ -49,31 +47,33 @@ class PaperTreeSvg {
     ];
     if (title.isNotEmpty) {
       out.add(
-          '<text x="20" y="32" font-size="17" font-weight="bold" fill="#111" font-family="' +
+          '<text x="20" y="32" font-size="16" font-weight="bold" fill="#111" font-family="' +
               _font +
               '">' +
               _esc(_plain(title)) +
               '</text>');
     }
-    // 纵向树：从父节点底部引到子节点左侧；缩进本身就是层级。
     void edges(_Node n) {
       for (final c in n.children) {
-        final px = n.x + n.w / 2;
-        final py = n.y + n.h;
-        final cy = c.y + c.h / 2;
-        final cx = c.x;
+        final x1 = n.x + n.w;
+        final y1 = n.y + n.h / 2;
+        final x2 = c.x;
+        final y2 = c.y + c.h / 2;
+        final gutter = x1 + 12;
         final dash = c.status == 'wrong' ? ' stroke-dasharray="6 4"' : '';
         out.add('<path d="M' +
-            _n(px) +
+            _n(x1) +
             ' ' +
-            _n(py) +
-            ' V' +
-            _n(cy) +
+            _n(y1) +
             ' H' +
-            _n(cx) +
+            _n(gutter) +
+            ' V' +
+            _n(y2) +
+            ' H' +
+            _n(x2) +
             '" fill="none" stroke="' +
             _stroke +
-            '" stroke-width="1.3" opacity="0.72"' +
+            '" stroke-width="1.3" opacity="0.75"' +
             dash +
             '/>');
         edges(c);
@@ -96,6 +96,17 @@ class PaperTreeSvg {
 
   static String _shape(_Node n) {
     final x = _n(n.x);
+    if (n.status == 'diamond') {
+      return '<rect x="' +
+          x +
+          '" y="' +
+          _n(n.y) +
+          '" width="' +
+          _n(n.w) +
+          '" height="' +
+          _n(n.h) +
+          '" rx="3" fill="#ffffff" stroke="#263238" stroke-width="1.7"/>';
+    }
     final y = _n(n.y);
     final w = _n(n.w);
     final h = _n(n.h);
@@ -233,25 +244,51 @@ class PaperTreeSvg {
     }
   }
 
+  static String _kindLabel(String status) {
+    switch (status) {
+      case 'evidence':
+        return '依据';
+      case 'decision':
+      case 'diamond':
+        return '判断';
+      case 'answer':
+        return '结论';
+      case 'wrong':
+        return '弯路';
+      case 'fix':
+        return '修正';
+      case 'check':
+        return '检查';
+      default:
+        return '步骤';
+    }
+  }
+
   static String _text(_Node n) {
     final out = <String>[];
-    final center = n.status == 'diamond' || n.status == 'answer';
-    final tx = center ? n.x + n.w / 2 : n.x + _pad;
-    final anchor = center ? ' text-anchor="middle"' : '';
-    var ty = n.y + 18;
+    final tx = n.x + _pad;
+    // 右上角节点类型：不放图例，每个框自己说明。
+    out.add('<text x="' +
+        _n(n.x + n.w - 8) +
+        '" y="' +
+        _n(n.y + 15) +
+        '" font-size="11" fill="#111" text-anchor="end" font-family="' +
+        _font +
+        '">' +
+        _kindLabel(n.status) +
+        '</text>');
+    var ty = n.y + 31;
     for (final line in n.labelLines) {
       out.add('<text x="' +
           _n(tx) +
           '" y="' +
           _n(ty) +
-          '" font-size="13" font-weight="600" fill="#111"' +
-          anchor +
-          ' font-family="' +
+          '" font-size="14" font-weight="600" fill="#111" font-family="' +
           _font +
           '">' +
           _esc(line) +
           '</text>');
-      ty += 17;
+      ty += 18;
     }
     ty += 2;
     for (final line in n.noteLines) {
@@ -259,43 +296,50 @@ class PaperTreeSvg {
           _n(tx) +
           '" y="' +
           _n(ty) +
-          '" font-size="11" fill="#37474f"' +
-          anchor +
-          ' font-family="' +
+          '" font-size="13" fill="#111" font-family="' +
           _font +
           '">' +
           _esc(line) +
           '</text>');
-      ty += 14;
+      ty += 16;
     }
     return out.join();
   }
 
-  static void _measure(_Node n, int depth) {
-    final maxText = math.max(180.0, 500.0 - depth * 30.0);
-    n.labelLines = _wrap(_plain(n.label), _labelSize, maxText);
-    n.noteLines = n.note == null
-        ? <String>[]
-        : _wrap(_plain(n.note!), _noteSize, maxText);
-    var w = 0.0;
-    for (final line in n.labelLines) {
-      w = math.max(w, _textWidth(line, _labelSize));
-    }
-    for (final line in n.noteLines) {
-      w = math.max(w, _textWidth(line, _noteSize));
-    }
-    n.w = math.min(maxText, w) + _pad * 2;
-    n.h = n.labelLines.length * 17 +
-        (n.noteLines.isEmpty ? 0 : n.noteLines.length * 14 + 6) +
-        16;
-    if (n.status == 'diamond') {
-      n.w = math.max(n.w, 160);
-      n.h = math.max(n.h + 8, 58);
-    } else if (n.status == 'answer' || n.status == 'check') {
-      n.h += 4;
-    }
+  static void _measure(_Node n) {
+    const maxText = 158.0;
+    n.labelLines = _wrap(_plain(n.label), 14, maxText);
+    n.noteLines =
+        n.note == null ? <String>[] : _wrap(_plain(n.note!), 13, maxText);
+    n.w = 190;
+    n.h = 34 +
+        n.labelLines.length * 18 +
+        (n.noteLines.isEmpty ? 0 : n.noteLines.length * 16 + 8) +
+        12;
     for (final c in n.children) {
-      _measure(c, depth + 1);
+      _measure(c);
+    }
+  }
+
+  static double _subtreeHeight(_Node n) {
+    if (n.children.isEmpty) {
+      return n.h;
+    }
+    var total = 0.0;
+    for (final c in n.children) {
+      total += _subtreeHeight(c);
+    }
+    total += 14 * (n.children.length - 1);
+    return math.max(n.h, total);
+  }
+
+  static void _layout(_Node n, double x, double y) {
+    n.x = x;
+    n.y = y + (_subtreeHeight(n) - n.h) / 2;
+    var cy = y;
+    for (final c in n.children) {
+      _layout(c, x + n.w + 34, cy);
+      cy += _subtreeHeight(c) + 14;
     }
   }
 

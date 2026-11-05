@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/skill/argumentative_writing_skill.dart';
 import 'package:furnace/data/skill/builtin_skill.dart';
 import 'package:furnace/data/skill/builtin_skills.dart';
+import 'package:furnace/data/skill/oed_dictionary_skill.dart';
 import 'package:furnace/data/skill/skill_archive.dart';
 import 'package:furnace/data/skill/skill_package_codec.dart';
+import 'package:furnace/data/skill/skill_prompt.dart';
 import 'package:furnace/data/skill/skill_store.dart';
 import 'package:furnace/data/skill/zujuan_finder_skill.dart';
 import 'package:furnace/domain/skill/skill_manifest.dart';
@@ -47,17 +49,23 @@ void main() {
   String promptOf(BuiltinSkill skill) =>
       SkillPackageCodec.readPrompt(entriesOf(skill))!;
 
-  test('the catalog offers both jobs, and each package is named after its entry',
-      () {
+  test(
+      'the catalog offers all three jobs, and each package is named after '
+      'its entry', () {
     expect(
       [for (final skill in BuiltinSkills.cardEntries) skill.name],
-      [ZujuanFinderSkill.name, ArgumentativeWritingSkill.name],
+      [
+        OedDictionarySkill.name,
+        ZujuanFinderSkill.name,
+        ArgumentativeWritingSkill.name,
+      ],
     );
 
     for (final skill in BuiltinSkills.all) {
       final manifest = SkillPackageCodec.readManifest(entriesOf(skill))!;
       expect(manifest.name, skill.name,
-          reason: 'the card label and the installed directory must be the same name');
+          reason:
+              'the card label and the installed directory must be the same name');
       expect(manifest.format, SkillManifest.currentFormat);
     }
   });
@@ -70,7 +78,8 @@ void main() {
         expect(
           result.failure,
           isNull,
-          reason: '${skill.name} on ${platform.id}: ${result.failure?.message ?? ''}',
+          reason:
+              '${skill.name} on ${platform.id}: ${result.failure?.message ?? ''}',
         );
       }
     }
@@ -110,12 +119,41 @@ void main() {
     expect(
       installed.networkAllowed,
       isFalse,
-      reason: 'a fresh install records a question, not consent to use the network',
+      reason:
+          'a fresh install records a question, not consent to use the network',
     );
     // The prompt really reached the disk, and no script directory did.
     expect(installed.prompt, contains('fetch_page'));
     expect(File('${installed.directory}/prompt.md').existsSync(), isTrue);
     expect(Directory('${installed.directory}/scripts').existsSync(), isFalse);
+  });
+
+  test('牛津查词 installs enabled with the Oxford domain it declares', () async {
+    final outcome = await store.install(OedDictionarySkill.build());
+    expect(outcome.failure, isNull, reason: outcome.failure?.message ?? '');
+
+    final installed = (await store.list()).single;
+    expect(installed.name, 'oed-dictionary');
+    expect(installed.manifest.version, OedDictionarySkill.version);
+    expect(installed.manifest.version, '1.1.0');
+    expect(installed.enabled, isTrue, reason: 'a fresh install is on');
+    expect(
+      installed.manifest.platforms,
+      [SkillPlatform.windows, SkillPlatform.android],
+    );
+    expect(
+      installed.manifest.networkAllow,
+      ['www.oxfordlearnersdictionaries.com'],
+      reason: 'the allow-list is exactly the site the prompt fetches',
+    );
+    expect(installed.manifest.scripts, isEmpty);
+    expect(installed.tools, isEmpty);
+    expect(
+      installed.networkAllowed,
+      isFalse,
+      reason:
+          'a fresh install records a question, not consent to use the network',
+    );
   });
 
   test('议论文写作 installs enabled, prompt-only and offline', () async {
@@ -148,6 +186,18 @@ void main() {
     );
   });
 
+  test('the Oxford skill reaches the model prompt once enabled', () async {
+    await store.install(OedDictionarySkill.build());
+    final installed = (await store.enabled()).single;
+
+    final prompt = SkillPrompt.build('BASE', [installed]);
+    expect(prompt, contains(SkillPrompt.sectionStart));
+    expect(prompt, contains('--- skill: oed-dictionary ---'));
+    expect(prompt, contains('www.oxfordlearnersdictionaries.com'));
+    expect(prompt, contains('不要先查闪存卡'));
+    expect(prompt, contains('max_chars'));
+  });
+
   test('removing a built-in undoes the install completely', () async {
     await store.install(ZujuanFinderSkill.build());
     final directory = Directory(
@@ -160,7 +210,8 @@ void main() {
     expect(await store.list(), isEmpty);
     expect(await store.enabled(), isEmpty);
     expect(directory.existsSync(), isFalse,
-        reason: 'the existing remove action is the undo, and it deletes the directory');
+        reason:
+            'the existing remove action is the undo, and it deletes the directory');
   });
 
   test('the 组卷网 prompt tells the model what an anonymous fetch cannot do', () {
@@ -185,6 +236,27 @@ void main() {
     }
     expect(prompt, contains('先怀疑自己'));
     expect(prompt, contains('样本 <5 道'));
+  });
+
+  test('the dictionary prompt keeps the lookup on Oxford and off flashcards',
+      () {
+    const prompt = OedDictionarySkill.prompt;
+
+    // The one allowed source, and the same URL the manifest declares.
+    expect(prompt, contains('https://www.oxfordlearnersdictionaries.com/'));
+    expect(prompt, contains('search/dictionary'));
+    // Routing: word lookup is not a local-card search.
+    expect(prompt, contains('不要先查闪存卡'));
+    expect(prompt, contains('不要先调用 query_content'));
+    expect(prompt, contains('我的卡里'));
+    // Concision contract: max_chars and the 12-line answer.
+    expect(prompt, contains('max_chars'));
+    expect(prompt, contains('800–1500'));
+    expect(prompt, contains('12 行'));
+    // Honesty: no substitute dictionary, no invented entry.
+    expect(prompt, contains('Cambridge'));
+    expect(prompt, contains('未返回词条'));
+    expect(prompt, contains('OED.com'));
   });
 
   test('the writing prompt forbids passing an AI draft off as the answer', () {

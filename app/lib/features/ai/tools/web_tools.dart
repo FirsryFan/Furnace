@@ -67,9 +67,16 @@ class FetchPageTool extends AiTool {
   /// turn; past that the model should narrow the selector instead.
   static const int maxLimit = 20;
 
-  /// The cap on a page-wide text answer. Enough for a long article's opening,
-  /// small enough that a tool result cannot crowd out the conversation.
+  /// The default and ceiling on a page-wide text answer. Enough for a long
+  /// article's opening, small enough that a tool result cannot crowd out the
+  /// conversation.
   static const int maxTextChars = 8000;
+
+  /// The floor a caller may ask for via `max_chars`.
+  ///
+  /// Below this the answer stops being a page read at all; a dictionary-skill
+  /// caller asks for 800-1500, not for twenty characters.
+  static const int minTextChars = 400;
 
   /// A tool call may not run longer than this, including every redirect hop.
   static const Duration overallTimeout = Duration(seconds: 25);
@@ -78,13 +85,13 @@ class FetchPageTool extends AiTool {
   String get name => 'fetch_page';
 
   @override
-  String get description =>
-      '抓取一个网页并读取内容。用在：用户贴了一个链接让你看、让你上网查某件事、'
+  String get description => '抓取一个网页并读取内容。用在：用户贴了一个链接让你看、让你上网查某件事、'
       '或者问页面里某个具体部分（那时用 selector 精确取元素）。'
       '**只支持 http/https**（file:// 等一律拒绝），只做 GET，不发送任何 cookie 或登录凭据。'
       '不给 selector 时返回标题 + 正文纯文本（脚本/样式已去掉，HTML 实体已解码，'
       '连续空白已折叠）'
-      '，正文最多 $maxTextChars 字符，被截断时会明确标注。'
+      '，正文默认最多 $maxTextChars 字符（可用 max_chars 降到 '
+      '$minTextChars–$maxTextChars，查词/摘录场景建议 800–1500），被截断时会明确标注。'
       '给 selector 时返回匹配到的元素列表：每个元素的 index/tag/id/class/text/属性'
       '（a 给 href，img 给 src/alt，表单给 value/name，其余标签给全部属性），'
       '外加 selector / matchCount（总命中数）/ returned（本次返回数）。'
@@ -107,15 +114,20 @@ class FetchPageTool extends AiTool {
           },
           'selector': {
             'type': 'string',
-            'description':
-                '可选。只取页面里匹配该选择器的元素。支持：`div`、`#main`、`.item`、'
-                    '`div.item`、`.a.b`、`[data-x]`、`[name="q"]`、空格分隔的后代组合'
-                    '（如 `main .item a`）。不支持 `>` `+` `~` `:伪类` `*` 逗号列表'
-                    '及除 `=` 外的属性运算符。',
+            'description': '可选。只取页面里匹配该选择器的元素。支持：`div`、`#main`、`.item`、'
+                '`div.item`、`.a.b`、`[data-x]`、`[name="q"]`、空格分隔的后代组合'
+                '（如 `main .item a`）。不支持 `>` `+` `~` `:伪类` `*` 逗号列表'
+                '及除 `=` 外的属性运算符。',
           },
           'limit': {
             'type': 'integer',
             'description': '最多返回几个匹配元素，默认 $defaultLimit，上限 $maxLimit',
+          },
+          'max_chars': {
+            'type': 'integer',
+            'description': '可选。整页正文最多保留多少字符，默认 $maxTextChars，范围 '
+                '$minTextChars–$maxTextChars。只想知道某个词条/一小段时传 '
+                '800–1500，避免把整页倾倒进上下文。',
           },
         },
         'required': <String>['url'],
@@ -195,8 +207,15 @@ class FetchPageTool extends AiTool {
     }
 
     final limit = (args.optInt('limit') ?? defaultLimit).clamp(1, maxLimit);
+    final maxChars = (args.optInt('max_chars') ?? maxTextChars)
+        .clamp(minTextChars, maxTextChars);
 
-    return _fetchWithinBudget(parsed, selector: selector, limit: limit);
+    return _fetchWithinBudget(
+      parsed,
+      selector: selector,
+      limit: limit,
+      maxChars: maxChars,
+    );
   }
 
   /// Applies [overallTimeout] around the redirected fetch.
@@ -208,6 +227,7 @@ class FetchPageTool extends AiTool {
     Uri url, {
     required String? selector,
     required int limit,
+    required int maxChars,
   }) async {
     final result = await _fetcher.fetch(url).timeout(overallTimeout);
     final page = result;
@@ -259,6 +279,7 @@ class FetchPageTool extends AiTool {
         base: base,
         page: page,
         notes: notes,
+        maxChars: maxChars,
       );
     }
     return _selectorResult(
@@ -275,9 +296,10 @@ class FetchPageTool extends AiTool {
     required Map<String, Object?> base,
     required WebFetchResult page,
     required List<String> notes,
+    required int maxChars,
   }) {
     final title = document.root.title;
-    final text = document.extractText(document.root, maxChars: maxTextChars);
+    final text = document.extractText(document.root, maxChars: maxChars);
     final textTruncated = text.contains('[截断：');
 
     return ToolResult(
@@ -290,7 +312,8 @@ class FetchPageTool extends AiTool {
         'title': title,
         'text': text,
         'text_truncated': textTruncated,
-        'max_text_chars': maxTextChars,
+        'max_text_chars': maxChars,
+        'default_max_text_chars': maxTextChars,
       },
     );
   }

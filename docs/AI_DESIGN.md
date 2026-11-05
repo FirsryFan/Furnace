@@ -362,8 +362,15 @@ scripts/**         配套脚本
      （JSON 的 ok/summary/error 解析出摘要，非 JSON 兜底原文）；
    - 有撤销快照时 tile 上直接给撤销入口，撤销后 invalidate 动作 provider。
 
+**2026-11-06 追加（查词/工具 UX，P1）**：`roleTool` 行不再一律渲染。只读工具（`query_content`、
+`fetch_page` 等，分类来自 `ToolRegistry.isReadOnly` 读 `AiTool.readOnly`）是模型取上下文，
+不是用户做过的事，其**结果卡从对话里移除**；只有写操作/可撤销操作保留卡片，无 action 台账的
+历史行同样不渲染。同批：`fetch_page` 增加 `max_chars`（400–8000，查词/摘录建议 800–1500）；
+查词 intent 在系统提示规则 7 与内置 `oed-dictionary` skill 中都要求「先查公开词典，不先查闪存卡」。
+
 **验收**：`app/test/features/ai/ai_chat_page_test.dart` 12 例（原 7 + 新 5：拖拽按新语义、40 条
-历史打开即滚到底且上滚后切换侧栏不跳回、持久化 tool 结果 4 例含去重）。
+历史打开即滚到底且上滚后切换侧栏不跳回、持久化 tool 结果 4 例含去重）；2026-11-06 追加只读结果
+静默 3 例、写操作卡片与无快照撤销 2 例。
 
 
 ---

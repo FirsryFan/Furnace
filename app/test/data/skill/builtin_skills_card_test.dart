@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/skill/argumentative_writing_skill.dart';
 import 'package:furnace/data/skill/skill_archive.dart';
 import 'package:furnace/data/skill/skill_package_codec.dart';
+import 'package:furnace/data/skill/oed_dictionary_skill.dart';
 import 'package:furnace/data/skill/skill_store.dart';
 import 'package:furnace/data/skill/zujuan_finder_skill.dart';
 import 'package:furnace/domain/skill/skill_manifest.dart';
@@ -76,8 +77,10 @@ void main() {
     await pumpCard(tester, _FakeSkillStore());
 
     // One install button per built-in, labelled with the skill it installs.
+    expect(find.text('安装 牛津查词'), findsOneWidget);
     expect(find.text('安装 组卷网找题'), findsOneWidget);
     expect(find.text('安装 议论文写作'), findsOneWidget);
+    expect(find.byKey(installKeyFor(OedDictionarySkill.name)), findsOneWidget);
     expect(find.byKey(installKeyFor(ZujuanFinderSkill.name)), findsOneWidget);
     expect(
       find.byKey(installKeyFor(ArgumentativeWritingSkill.name)),
@@ -88,6 +91,36 @@ void main() {
     // The sample keeps its own button: the built-ins are additions, not a
     // replacement for the "does the script container work here" check.
     expect(find.text('安装示例 skill'), findsOneWidget);
+  });
+
+  testWidgets('one tap installs 牛津查词 with the Oxford URL in its prompt',
+      (tester) async {
+    final store = _FakeSkillStore();
+    await pumpCard(tester, store);
+
+    await tapVisible(
+      tester,
+      find.byKey(installKeyFor(OedDictionarySkill.name)),
+    );
+
+    expect(store.installCalls, 1);
+    expect(store.lastInstalledManifestName, OedDictionarySkill.name);
+    final entries = SkillPackageCodec.read(store.lastInstalledBytes!).entries;
+    expect(entries['prompt.md']!.text.trim(), OedDictionarySkill.prompt.trim());
+    final manifest = SkillPackageCodec.readManifest(entries)!;
+    expect(manifest.version, '1.1.0');
+    expect(
+      manifest.networkAllow,
+      ['www.oxfordlearnersdictionaries.com'],
+    );
+
+    final state = tester.state<SkillsCardState>(find.byType(SkillsCard));
+    expect(state.errorMessage, isNull);
+    expect(find.text('oed-dictionary  ·  v1.1.0'), findsOneWidget);
+    expect(
+      find.text('允许联网：www.oxfordlearnersdictionaries.com'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('one tap installs 组卷网找题 and the tile states what it declared',
@@ -103,8 +136,7 @@ void main() {
     // compared instead.
     expect(store.installCalls, 1);
     expect(store.lastInstalledManifestName, ZujuanFinderSkill.name);
-    final entries =
-        SkillPackageCodec.read(store.lastInstalledBytes!).entries;
+    final entries = SkillPackageCodec.read(store.lastInstalledBytes!).entries;
     expect(entries.keys.toList()..sort(), ['manifest.json', 'prompt.md'],
         reason: 'a prompt-only built-in ships exactly these two files');
     expect(
@@ -125,7 +157,8 @@ void main() {
     expect(find.textContaining('容器不提供'), findsNothing);
   });
 
-  testWidgets('installing both and then removing one leaves the other installed',
+  testWidgets(
+      'installing both and then removing one leaves the other installed',
       (tester) async {
     final store = _FakeSkillStore();
     await pumpCard(tester, store);
@@ -179,8 +212,7 @@ class _FakeSkillStore extends SkillStore {
 
   int get installCalls => installs.length;
 
-  Uint8List? get lastInstalledBytes =>
-      installs.isEmpty ? null : installs.last;
+  Uint8List? get lastInstalledBytes => installs.isEmpty ? null : installs.last;
 
   /// The manifest name inside the last installed package, read back out of the
   /// bytes rather than remembered from the call site.

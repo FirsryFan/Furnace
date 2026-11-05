@@ -94,7 +94,7 @@ class CreateQuestionsTool extends AiTool {
                 'subject_key': {
                   'type': 'string',
                   'description':
-                      '学科 key：math/physics/chemistry/biology/chinese/english/history/geography/politics，不确定用 other',
+                      '学科 key：math/physics/chemistry/biology/chinese/english/history/geography/politics/algorithm（算法竞赛），不确定用 other',
                 },
                 'question_type': {
                   'type': 'string',

@@ -55,6 +55,12 @@ class PaperGenerationException implements Exception {
 /// 多模态模型 → 模型返回结构化 JSON（题目/判断点/完整答案/思维树/易错/扩展）→
 /// 应用把树渲染为 SVG、拼成单个 Markdown 合集。AI 负责理解题与写内容；排版、
 /// 树图、文件写入由应用完成，避免模型自由发挥格式。
+///
+/// **算法竞赛（subject_key = algorithm）刻意不在这里的 [subjects] 里**：本生成器
+/// 的选题与提示词都建立在「题干截图 + 答案截图」上（[_pickQuestions] 会跳过没有
+/// 配图的题），而算法题是纯文本程序题、不伪造配图；把它加进来只会让「题库里可用的
+/// 题不足」的错误更早出现。算法题走题库筛选、PaperComposer 组卷与 .tqb 导出。
+/// 详见 docs/ALGORITHM_SUBJECT_DESIGN.md。
 class PaperGeneratorService {
   PaperGeneratorService({
     required AppDatabase db,

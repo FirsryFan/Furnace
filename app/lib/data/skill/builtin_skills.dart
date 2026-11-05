@@ -13,6 +13,7 @@ library;
 
 import 'argumentative_writing_skill.dart';
 import 'builtin_skill.dart';
+import 'oed_dictionary_skill.dart';
 import 'sample_skill.dart';
 import 'zujuan_finder_skill.dart';
 
@@ -29,6 +30,12 @@ abstract final class BuiltinSkills {
 
   /// The built-ins the card lists with one install button each, in show order.
   static const List<BuiltinSkill> cardEntries = [
+    BuiltinSkill(
+      name: OedDictionarySkill.name,
+      title: '牛津查词',
+      summary: OedDictionarySkill.description,
+      build: OedDictionarySkill.build,
+    ),
     BuiltinSkill(
       name: ZujuanFinderSkill.name,
       title: '组卷网找题',

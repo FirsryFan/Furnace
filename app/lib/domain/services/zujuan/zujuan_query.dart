@@ -31,9 +31,10 @@ import 'zujuan_link.dart' show zujuanBaseUrl;
 /// biology / chinese / english）与站点 path（gzsx / gzwl / gzhx / gzsw / gzyw /
 /// gzyy）；中文名不在接口范围内（返回 null，不猜）。
 ///
-/// 说明：仓库的八轨道词表（capability_action.dart:68-77）里没有 english 轨道，
+/// 说明：仓库的学科轨道词表（capability_action.dart:68-77）里没有 english 轨道，
 /// 但组卷网有英语列表页（gzyy，url-grammar.md:83），所以这里保留英语映射；
-/// history / informatics / qiangji 在组卷网没有对应学科，解析返回 null。
+/// history / informatics / qiangji / algorithm 在组卷网没有对应学科，解析返回 null
+/// （algorithm 的题源是洛谷，不走组卷网，见 docs/ALGORITHM_SUBJECT_DESIGN.md）。
 enum ZujuanSubject {
   chinese(
     path: 'gzyw',

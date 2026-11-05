@@ -14,6 +14,7 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../application/ai_providers.dart';
 import '../domain/agent_loop.dart';
+import '../domain/tool_registry.dart';
 import 'widgets/run_timeline.dart';
 import 'widgets/turn_usage_panel.dart';
 import '../domain/ai_tool.dart';
@@ -185,13 +186,22 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final loop = ref.read(agentLoopProvider(conversationId));
     _loop = loop;
     _turn = loop?.state ?? const AgentTurnState();
+    _usage.attach(states: loop?.states, initial: _turn);
+    // 一轮结束时把 messages/actions 重新拉一遍：两者在发送时就被读过一次，而
+    // 工具行与动作台账是**这一轮执行后**才写库的。不刷新的话，刚做完的写操作
+    // 要等下次切会话/重开页面才看得到（撤销入口也一起迟到）。
+    var wasGenerating = _turn.generating;
     _subscription = loop?.states.listen((state) {
+      final finished = wasGenerating && !state.generating && !state.hasPending;
+      wasGenerating = state.generating;
       if (mounted) {
         setState(() => _turn = state);
         _scrollToEnd();
       }
+      if (finished) {
+        _invalidateConversation(conversationId);
+      }
     });
-    _usage.attach(states: loop?.states, initial: _turn);
     setState(() {});
   }
 
@@ -575,6 +585,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final messages = ref.watch(messagesProvider(id));
     // 已落库的工具调用：历史 tool 行靠它对上工具名/撤销，并与内存态去重。
     final actions = ref.watch(_conversationActionsProvider(id));
+    // 工具语义（只读/写）来自同一条注册表：查询类工具的结果卡不该出现在对话里。
+    final toolRegistry = ref.watch(toolRegistryProvider);
     // Absolute paths, resolved outside the widget so the bubbles stay
     // synchronous; a conversation whose files are gone simply shows no pictures.
     final imagesByMessage = ref.watch(messageImagesProvider(id)).valueOrNull ??
@@ -650,15 +662,18 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       ),
                     ),
                   for (final row in rows)
-                    if (row.role == AiRepository.roleTool &&
-                        _turn.steps.isEmpty)
-                      _ToolResultTile(
-                        row: row,
-                        l10n: l10n,
-                        action: actionsByToolCall[row.toolCallId],
-                        onUndo: _undoFor(actionsByToolCall[row.toolCallId]),
-                      )
-                    else if (row.role != AiRepository.roleSystem &&
+                    if (row.role == AiRepository.roleTool) ...[
+                      if (_shouldShowToolResult(
+                        toolRegistry,
+                        actionsByToolCall[row.toolCallId],
+                      ))
+                        _ToolResultTile(
+                          row: row,
+                          l10n: l10n,
+                          action: actionsByToolCall[row.toolCallId],
+                          onUndo: _undoFor(actionsByToolCall[row.toolCallId]),
+                        ),
+                    ] else if (row.role != AiRepository.roleSystem &&
                         row.id != cancelledEchoId)
                       _MessageBubble(
                         row: row,
@@ -1510,14 +1525,43 @@ class _ExecutedTile extends StatelessWidget {
   }
 }
 
+/// Whether a persisted tool call earns a result card.
+///
+/// Only **write / undoable** calls do (user 2026-11-06): a query or a page
+/// fetch is context the model consumed, and its result block in the transcript
+/// is noise. A row with no action-ledger entry (legacy data) is hidden for the
+/// same reason - there is no operation to confirm or undo.
+bool _shouldShowToolResult(ToolRegistry registry, AiActionRecord? action) {
+  if (action == null) {
+    return false;
+  }
+  if (registry.isReadOnly(action.toolName)) {
+    return false;
+  }
+  // Skill-declared tools are not in the registry; keep the name-shape fallback
+  // so a query-shaped tool from an installed package stays silent too.
+  const readPrefixes = <String>[
+    'query_',
+    'find_',
+    'list_',
+    'fetch_',
+    'read_',
+    'search_',
+    'get_',
+  ];
+  return !readPrefixes.any(action.toolName.startsWith);
+}
+
 /// One tool call that is already written into the conversation, as a result block.
 ///
 /// Before this existed, reopening a conversation dropped every `roleTool` row on
-/// the floor (the list skipped them and only in-memory [_ExecutedTile]s were
+/// the floor (the list skipped them and only in-memory [`_ExecutedTile`]s were
 /// shown), so a turn looked as if the model had answered without doing anything.
 /// The payload is the same JSON the loop gave the model: `summary`, `ok`,
 /// `error`, and the full result under `result`. The summary is shown at all
 /// times, the raw payload only on request, because a result can be huge.
+///
+/// Only write/undoable calls get one - see [_shouldShowToolResult].
 class _ToolResultTile extends StatefulWidget {
   const _ToolResultTile({
     required this.row,

@@ -879,5 +879,15 @@ void main() {
       expect(prompt, isNot(contains(lead)));
       expect(await SettingsRepository(db).getUserPersona(), isNull);
     });
+
+    test('系统提示把查词路由到公开词典，而不是先查闪存卡', () async {
+      final adapter = FakeModelAdapter([FakeModelAdapter.answer('好')]);
+      final prompt = await promptFor(adapter);
+
+      expect(prompt, contains('查英语单词'));
+      expect(prompt, contains('不要先查闪存卡'));
+      expect(prompt, contains('公开词典网页'));
+      expect(prompt, contains('我的卡/复习/题库里有没有'));
+    });
   });
 }
