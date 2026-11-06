@@ -243,6 +243,20 @@ class PaperGeneratorService {
       {required int perSubject}) async {
     final support = await _supportDirectory();
     final history = await _loadHistory();
+    // 历史只存 id 时，同题不同入库记录仍会重复出；把历史题目的题干指纹一并取出，
+    // 作为“已出过”的底层判据。空指纹（旧数据）不参与，避免误杀。
+    final historyFingerprints = <String>{};
+    if (history.isNotEmpty) {
+      final used = await (_db.select(_db.questions)
+            ..where((t) => t.id.isIn(history.toList())))
+          .get();
+      for (final q in used) {
+        final fp = q.stemFingerprint.trim();
+        if (fp.isNotEmpty) {
+          historyFingerprints.add(fp);
+        }
+      }
+    }
     final picks = <PaperQuestionPick>[];
     for (final subject in subjects) {
       final rows = await (_db.select(_db.questions)
@@ -292,7 +306,8 @@ class PaperGeneratorService {
       ];
       var found = 0;
       for (final q in ordered) {
-        if (history.contains(q.id)) {
+        if (history.contains(q.id) ||
+            historyFingerprints.contains(q.stemFingerprint.trim())) {
           continue;
         }
         final stem = pathOf(q.id, 'stem');
