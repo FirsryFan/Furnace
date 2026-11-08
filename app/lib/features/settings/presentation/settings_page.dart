@@ -21,6 +21,7 @@ import '../../assessment/presentation/assessment_center_page.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart';
 import '../../questions/presentation/learning_insight_page.dart';
 import '../../questions/presentation/question_bank_page.dart';
+import '../../library/presentation/gaokao_library_page.dart';
 import '../../packages/presentation/packages_page.dart';
 import '../application/demo_data_service.dart';
 import '../application/user_persona_provider.dart';
@@ -225,6 +226,18 @@ class SettingsPage extends ConsumerWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const QuestionBankPage(),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('高考资源库'),
+            subtitle: const Text('高考真题、试题分析、专题资料；只读索引'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const GaokaoLibraryPage(),
               ),
             ),
           ),
