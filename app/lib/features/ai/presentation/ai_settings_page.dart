@@ -1,3 +1,15 @@
+/// AI configuration: key, endpoint, model, permission mode.
+///
+/// Reached from Settings. The screen doubles as the explanation of what turning
+/// AI on actually changes - the app is offline by default, and adding a network
+/// permission is a real change to that, so it is stated here rather than buried.
+///
+/// 2026-11-15 第二遍清理（task-113）：普通用户只看到模型 / API / 权限。
+/// 轮次上限（一次对话最多几次工具调用）、可用工具清单、技能包（.fskill）
+/// 属于开发者参数，收进页面底部默认折叠的「开发者参数」里；它们仍然可改，
+/// 只是不再和「填 key」并排出现。
+library;
+
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -16,11 +28,10 @@ import '../application/ai_providers.dart';
 import '../application/ai_settings_notifier.dart';
 import '../domain/tool_registry.dart';
 
-/// AI configuration: key, endpoint, model, permission mode.
-///
-/// Reached from Settings. The screen doubles as the explanation of what turning
-/// AI on actually changes - the app is offline by default, and adding a network
-/// permission is a real change to that, so it is stated here rather than buried.
+/// 「开发者参数」的显示/隐藏按钮（默认折叠；测试点它展开）。
+const Key aiSettingsDeveloperToggleKey =
+    Key('ai-settings-developer-toggle');
+
 class AiSettingsPage extends ConsumerStatefulWidget {
   const AiSettingsPage({super.key});
 
@@ -41,6 +52,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
   int _maxRounds = AiConfig.defaultMaxRounds;
   bool _loaded = false;
   bool _obscureKey = true;
+
+  /// 开发者参数是否展开。默认 false：普通用户只看到模型 / API / 权限。
+  bool _developerExpanded = false;
 
   @override
   void dispose() {
@@ -176,51 +190,94 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(l10n.settingsAiMaxRounds,
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ),
-                  Text(
-                    l10n.settingsAiMaxRoundsValue(_maxRounds),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              Slider(
-                // One division per round, so the slider can only land on whole
-                // rounds: a paid model call is not divisible.
-                value: _maxRounds.toDouble(),
-                min: AiConfig.minMaxRounds.toDouble(),
-                max: AiConfig.maxMaxRounds.toDouble(),
-                divisions: AiConfig.maxMaxRounds - AiConfig.minMaxRounds,
-                label: l10n.settingsAiMaxRoundsValue(_maxRounds),
-                onChanged: (value) =>
-                    setState(() => _maxRounds = value.round()),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Text(
-                  l10n.settingsAiMaxRoundsHint,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
               FilledButton(
                 onPressed: () => _save(l10n),
                 child: Text(l10n.settingsAiSave),
               ),
               const SizedBox(height: 24),
-              _ToolsCard(registry: registry, l10n: l10n),
-              const SizedBox(height: 16),
-              const SkillsCard(),
+              // 开发者参数（默认折叠）：轮次上限 / 可用工具清单 / 技能包。
+              // 普通用户不需要它们；展开才构建，和设置页的开发者分区一致。
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.aiDeveloperParamsTitle,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: aiSettingsDeveloperToggleKey,
+                    onPressed: () => setState(
+                      () => _developerExpanded = !_developerExpanded,
+                    ),
+                    icon: Icon(
+                      _developerExpanded
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                    ),
+                    label: Text(
+                      _developerExpanded
+                          ? l10n.aiDeveloperParamsHide
+                          : l10n.aiDeveloperParamsShow,
+                    ),
+                  ),
+                ],
+              ),
+              if (!_developerExpanded)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    l10n.aiDeveloperParamsHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ),
+              if (_developerExpanded) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(l10n.settingsAiMaxRounds,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                    Text(
+                      l10n.settingsAiMaxRoundsValue(_maxRounds),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  // One division per round, so the slider can only land on whole
+                  // rounds: a paid model call is not divisible.
+                  value: _maxRounds.toDouble(),
+                  min: AiConfig.minMaxRounds.toDouble(),
+                  max: AiConfig.maxMaxRounds.toDouble(),
+                  divisions: AiConfig.maxMaxRounds - AiConfig.minMaxRounds,
+                  label: l10n.settingsAiMaxRoundsValue(_maxRounds),
+                  onChanged: (value) =>
+                      setState(() => _maxRounds = value.round()),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: Text(
+                    l10n.settingsAiMaxRoundsHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _ToolsCard(registry: registry, l10n: l10n),
+                const SizedBox(height: 16),
+                const SkillsCard(),
+              ],
             ],
           );
         },

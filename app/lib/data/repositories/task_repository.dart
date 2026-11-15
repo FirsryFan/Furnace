@@ -1,14 +1,28 @@
 import 'package:drift/drift.dart';
 
-import '../../domain/services/time/actual_time.dart';
+import '../../domain/services/thread/thread_flow_writer.dart';
+import '../../domain/services/thread/thread_node_kind.dart';
+import '../../domain/services/thread/thread_status.dart';
 import '../database/database.dart';
 import '../ids.dart';
 
 /// Repository for tasks, subtasks, dependencies and task-time links.
+///
+/// `tasks` is the Thread node table (contract §3.1): **status transitions are
+/// written by [ThreadFlowWriter]**, never by a bare `UPDATE tasks.status`.
+/// Creation, start, complete, submit, stuck, skip and reopen all funnel through
+/// the writer so the append-only `thread_events` flow gets one row per fact.
+/// `updateTask(status:)` is a routing convenience over the same writer: it has
+/// **no direct status write** left (v47's `reopened` event landed in task-90, so
+/// the old `todo` direct-write exception is gone).
 class TaskRepository {
   TaskRepository(this._db);
 
   final AppDatabase _db;
+
+  /// The single status write port (v47). Kept lazy so constructing the
+  /// repository stays cheap.
+  late final ThreadFlowWriter _flow = ThreadFlowWriter(_db);
 
   Future<Task> createTask({
     required String title,
@@ -22,29 +36,28 @@ class TaskRepository {
     int? expectedAt,
     int? energyRequired,
     int? startedAt,
+    ThreadNodeKind kind = ThreadNodeKind.task,
+    String? sourceKey,
   }) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final id = _newId('task');
-    await _db.into(_db.tasks).insert(
-          TasksCompanion.insert(
-            id: id,
-            parentId: Value(parentId),
-            title: title,
-            description: Value(description),
-            status: Value(status),
-            priority: Value(priority),
-            estimateMinutes: Value(estimateMinutes),
-            dueAt: Value(dueAt),
-            remindAt: Value(remindAt),
-            expectedAt: Value(expectedAt),
-            energyRequired: Value(energyRequired),
-            startedAt: Value(startedAt),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-    return (await _db.select(_db.tasks)..where((t) => t.id.equals(id)))
-        .getSingle();
+    // Creation also goes through the writer: a node is born with a `created`
+    // event, and `source_key` makes materialisation idempotent (paper/week/day/
+    // review nodes). Without a source key every call inserts a new row, exactly
+    // like the old `createTask`.
+    return _flow.ensureTask(
+      title: title,
+      kind: kind,
+      sourceKey: sourceKey,
+      parentId: parentId,
+      description: description,
+      status: status,
+      priority: priority,
+      estimateMinutes: estimateMinutes,
+      dueAt: dueAt,
+      remindAt: remindAt,
+      expectedAt: expectedAt,
+      energyRequired: energyRequired,
+      startedAt: startedAt,
+    );
   }
 
   Future<List<Task>> getTasks({
@@ -56,7 +69,13 @@ class TaskRepository {
       query.where((t) => t.parentId.equals(parentId));
     }
     if (!includeDone) {
-      query.where((t) => t.status.equals('done').not());
+      // v47: open means exactly `todo|doing`. `blocked`/`skipped` are neither
+      // 待办 nor 完成 — they must not leak into ready lists or the scheduler.
+      query.where(
+        (t) => t.status.isIn(
+          <String>[ThreadStatus.todo.id, ThreadStatus.doing.id],
+        ),
+      );
     }
     query.orderBy([
       (t) => OrderingTerm.desc(t.priority),
@@ -70,6 +89,38 @@ class TaskRepository {
   Future<Task?> getTaskById(String id) {
     return (_db.select(_db.tasks)..where((t) => t.id.equals(id)))
         .getSingleOrNull();
+  }
+
+  /// 按 id 批量取任务（只读；标签知识入口一次取回标签挂着的全部 Thread 节点）。
+  ///
+  /// 去空、去重后按 500 分块（SQLite 绑定变量上限）。只返回仍然存在的行：
+  /// `object_tags` 没有指向 `tasks` 的外键，删任务后的残留链接由调用方计数，
+  /// 这里不伪造行。顺序不保证，调用方自己排。
+  Future<List<Task>> byIds(Iterable<String> ids) async {
+    final clean = <String>[];
+    final seen = <String>{};
+    for (final raw in ids) {
+      final id = raw.trim();
+      if (id.isEmpty || !seen.add(id)) {
+        continue;
+      }
+      clean.add(id);
+    }
+    if (clean.isEmpty) {
+      return const <Task>[];
+    }
+    final result = <Task>[];
+    const chunkSize = 500;
+    for (var start = 0; start < clean.length; start += chunkSize) {
+      final end =
+          start + chunkSize < clean.length ? start + chunkSize : clean.length;
+      result.addAll(
+        await (_db.select(_db.tasks)
+              ..where((t) => t.id.isIn(clean.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
   }
 
   Future<void> updateTask(
@@ -90,12 +141,24 @@ class TaskRepository {
     bool clearEnergyRequired = false,
     bool clearStartedAt = false,
   }) async {
+    // A status change is a ThreadFlow transition, not a column edit: all five
+    // v47 statuses have an event (todo goes through `reopened` since task-90),
+    // so they are routed through the writer and `status` is **never** written
+    // by the UPDATE below. An unknown value is a caller bug and throws; an
+    // unknown id stays the old silent no-op (routing is skipped, and every
+    // other field's UPDATE simply matches no row).
+    if (status != null) {
+      final current = await getTaskById(id);
+      if (current != null && current.status != status) {
+        await _routeStatus(id, status);
+      }
+    }
+
     await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
       TasksCompanion(
         title: title == null ? const Value.absent() : Value(title),
         description:
             description == null ? const Value.absent() : Value(description),
-        status: status == null ? const Value.absent() : Value(status),
         priority: priority == null ? const Value.absent() : Value(priority),
         estimateMinutes: estimateMinutes == null
             ? const Value.absent()
@@ -126,15 +189,16 @@ class TaskRepository {
   ///
   /// This is the only "start" bookkeeping there is: no ticking timer runs, the
   /// actual duration is derived later from start/completion stamps
-  /// (blueprint 2.6).
+  /// (blueprint 2.6). v47: it is a `todo|doing|blocked → doing` transition, so
+  /// the started stamp and the `started` event are written in one transaction.
+  ///
+  /// An unknown id stays a silent no-op, matching the pre-v47 behaviour.
   Future<void> startTask(String id, {DateTime? at}) async {
-    final now = (at ?? DateTime.now()).millisecondsSinceEpoch;
-    await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
-      TasksCompanion(
-        startedAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
+    final existing = await getTaskById(id);
+    if (existing == null) {
+      return;
+    }
+    await _flow.start(id, at: at);
   }
 
   /// Marks [id] done and writes a completion-history snapshot
@@ -146,6 +210,11 @@ class TaskRepository {
   /// is ever timed in the background. A suspiciously long record is excluded
   /// from the duration model by default ([useActualTime] mirrors the global
   /// switch) while remaining visible and switchable.
+  ///
+  /// v47: one transaction writes `status=done` + `completed_at` + the
+  /// `completed` thread event + the completion-log snapshot (only `completed`
+  /// writes history; see [ThreadFlowWriter]). An unknown id stays a silent
+  /// no-op, matching the pre-v47 behaviour.
   Future<void> completeTask(
     String id, {
     List<String>? tagIds,
@@ -156,48 +225,103 @@ class TaskRepository {
     bool useActualTime = true,
     DateTime? completedAt,
   }) async {
-    final now = (completedAt ?? DateTime.now()).millisecondsSinceEpoch;
     final task = await getTaskById(id);
     if (task == null) {
       return;
     }
+    await _flow.complete(
+      id,
+      at: completedAt,
+      tagIds: tagIds,
+      tagPaths: tagPaths,
+      title: title,
+      estimateMinutes: estimateMinutes,
+      energyRequired: energyRequired,
+      useActualTime: useActualTime,
+    );
+  }
 
-    final startedAt = task.startedAt;
-    ActualTimeRecord? actual;
-    if (startedAt != null) {
-      actual = ActualTime.compute(
-        startedAt: DateTime.fromMillisecondsSinceEpoch(startedAt),
-        completedAt: DateTime.fromMillisecondsSinceEpoch(now),
-        estimateMinutes: estimateMinutes ?? task.estimateMinutes,
+  /// 提交答案/交卷（状态不变；只追加 `submitted` 事实，不写完成历史）。
+  Future<ThreadTransitionResult> submitTask(
+    String id, {
+    Map<String, Object?> payload = const <String, Object?>{},
+    String? sourceKey,
+    DateTime? at,
+  }) =>
+      _flow.submit(id, at: at, payload: payload, sourceKey: sourceKey);
+
+  /// 卡住（todo/doing → blocked；不写完成历史、不写正确性）。
+  Future<ThreadTransitionResult> markTaskStuck(
+    String id, {
+    String? reason,
+    Map<String, Object?> payload = const <String, Object?>{},
+    String? sourceKey,
+    DateTime? at,
+  }) =>
+      _flow.markStuck(
+        id,
+        reason: reason,
+        at: at,
+        payload: payload,
+        sourceKey: sourceKey,
       );
+
+  /// 跳过（todo/doing/blocked → skipped；行与引用保留）。
+  Future<ThreadTransitionResult> skipTask(
+    String id, {
+    String? reason,
+    Map<String, Object?> payload = const <String, Object?>{},
+    String? sourceKey,
+    DateTime? at,
+  }) =>
+      _flow.skip(
+        id,
+        reason: reason,
+        at: at,
+        payload: payload,
+        sourceKey: sourceKey,
+      );
+
+  /// 重开/恢复（blocked/skipped/done → todo；写一条 `reopened` 事件）。
+  ///
+  /// 只清 `tasks.completed_at`，**不回滚** `completion_logs`；`started_at` 按
+  /// 契约 §3.4 保持原样。状态机拒绝来源状态（例如 `todo → todo`、`doing →
+  /// todo`）时抛 [StateError]，与其它迁移入口一致。
+  Future<ThreadTransitionResult> reopenTask(
+    String id, {
+    String? reason,
+    Map<String, Object?> payload = const <String, Object?>{},
+    String? sourceKey,
+    DateTime? at,
+  }) =>
+      _flow.reopen(
+        id,
+        reason: reason,
+        at: at,
+        payload: payload,
+        sourceKey: sourceKey,
+      );
+
+  /// Routes a status value through the writer.
+  ///
+  /// All five [ThreadStatus] ids are accepted here and nowhere else writes
+  /// `tasks.status`; anything else is a caller bug and throws [ArgumentError]
+  /// instead of silently writing an unknown string (that silent path was the
+  /// old `directStatus` fallback removed in task-90).
+  Future<void> _routeStatus(String id, String status) async {
+    if (status == ThreadStatus.todo.id) {
+      await reopenTask(id);
+    } else if (status == ThreadStatus.done.id) {
+      await completeTask(id);
+    } else if (status == ThreadStatus.doing.id) {
+      await startTask(id);
+    } else if (status == ThreadStatus.blocked.id) {
+      await _flow.markStuck(id);
+    } else if (status == ThreadStatus.skipped.id) {
+      await _flow.skip(id);
+    } else {
+      throw ArgumentError.value(status, 'status', 'not a ThreadStatus id');
     }
-
-    await _db.transaction(() async {
-      await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
-        TasksCompanion(
-          status: const Value('done'),
-          completedAt: Value(now),
-          updatedAt: Value(now),
-        ),
-      );
-      await _db.into(_db.completionLogs).insert(
-            CompletionLogsCompanion.insert(
-              id: _newId('cl'),
-              taskId: id,
-              title: title ?? task.title,
-              tagIds: Value(_encodeList(tagIds)),
-              tagPaths: Value(_encodeList(tagPaths)),
-              estimateMinutes: Value(estimateMinutes ?? task.estimateMinutes),
-              energyRequired: Value(energyRequired ?? task.energyRequired),
-              completedAt: now,
-              actualMinutes: Value(actual?.actualMinutes),
-              includeInModel:
-                  Value(useActualTime && (actual?.includeInModel ?? true)),
-              durationSuspicious: Value(actual?.suspicious ?? false),
-              createdAt: now,
-            ),
-          );
-    });
   }
 
   /// Flips the "may this record feed the duration model" flag on one
@@ -247,13 +371,6 @@ class TaskRepository {
     }
     query.orderBy([(c) => OrderingTerm.desc(c.completedAt)]);
     return query.get();
-  }
-
-  static String? _encodeList(List<String>? values) {
-    if (values == null || values.isEmpty) {
-      return null;
-    }
-    return values.join('\u0001');
   }
 
   Future<void> deleteTask(String id) async {
@@ -349,6 +466,12 @@ class TaskRepository {
         .go();
     await (_db.delete(_db.taskTimeBlocks)
           ..where((t) => t.taskId.equals(parentId)))
+        .go();
+    // Thread events belong to the node's scheduling history (contract §8), not
+    // to learning history: deleting the node deletes its flow. Completion logs
+    // are learning history and are deliberately NOT deleted with the task.
+    await (_db.delete(_db.threadEvents)
+          ..where((e) => e.taskId.equals(parentId)))
         .go();
     await (_db.delete(_db.tasks)..where((t) => t.id.equals(parentId))).go();
   }

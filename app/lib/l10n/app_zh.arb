@@ -9,8 +9,8 @@
   "navAnki": "闪存卡",
   "navQuestions": "题库",
   "navPackages": "知识库",
-  "navMindnet": "MindNet",
-  "mindnetIntro": "MindNet 会参考你的复习记录，给出学习建议；这一页只能看，不能改数据。",
+  "navMindnet": "学习状态",
+  "mindnetIntro": "这里只回答「我现在学得怎么样、今天该做什么」：档位、强项弱项、今天就绪情况、最近一周；模型参数与原始读数不在这里。",
   "navSettings": "设置",
   "tagsTitle": "标签",
   "settingsProfileName": "姓名",
@@ -62,6 +62,67 @@
   "tasksReminder": "提醒",
   "tasksReminderPermissionDenied": "系统没有允许通知权限，这条提醒不会弹出。请在系统设置里允许 Furnace 发送通知后重新设置提醒。",
   "tasksDueAt": "截止时刻",
+  "tasksStatus": "状态",
+  "tasksStatusTodo": "待办",
+  "tasksStatusDoing": "进行中",
+  "tasksStatusDone": "已完成",
+  "tasksStatusBlocked": "卡住",
+  "tasksStatusSkipped": "跳过",
+  "tasksStatusSectionTodo": "待办",
+  "tasksStatusSectionDone": "已完成",
+  "tasksStatusSectionArchived": "卡住 / 跳过",
+  "tasksStatusMenu": "状态操作",
+  "tasksSubmit": "提交",
+  "tasksMarkStuck": "卡住",
+  "tasksSkip": "跳过",
+  "tasksSubmitTitle": "提交「{title}」？",
+  "@tasksSubmitTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSubmitBody": "提交只追加一条“已提交”事实，不改变任务状态，也不会把它标记为完成。",
+  "tasksStuckTitle": "把「{title}」标记为卡住？",
+  "@tasksStuckTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStuckBody": "卡住会退出待办列表，不记录对错、不影响能力；之后可以再开始，或直接跳过。",
+  "tasksSkipTitle": "跳过「{title}」？",
+  "@tasksSkipTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSkipBody": "跳过不是删除：任务和它引用的内容都保留，只是不再出现在待办里。",
+  "tasksSubmitDone": "已提交「{title}」",
+  "@tasksSubmitDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStuckDone": "已把「{title}」标记为卡住",
+  "@tasksStuckDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSkipDone": "已跳过「{title}」",
+  "@tasksSkipDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksReopen": "恢复",
+  "tasksReopenTitle": "恢复「{title}」？",
+  "@tasksReopenTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksReopenBody": "恢复会把任务放回待办，并记一条 reopened 流程事件。完成历史不会回滚：那是“做过”的事实，只是任务重新排队。",
+  "tasksReopenDone": "已恢复「{title}」",
+  "@tasksReopenDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStatusNotAllowed": "当前状态（{status}）不允许「{action}」",
+  "@tasksStatusNotAllowed": {
+    "placeholders": {
+      "status": { "type": "String" },
+      "action": { "type": "String" }
+    }
+  },
+  "tasksStatusActionFailed": "操作失败：{error}",
+  "@tasksStatusActionFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
   "timeNewBlock": "新建日程块",
   "timeTodaySchedule": "安排",
   "timeAvailable": "可用",
@@ -586,6 +647,32 @@
   "@tagsBatchResultMixed": {
     "placeholders": { "success": { "type": "int" }, "failed": { "type": "int" }, "errors": { "type": "String" } }
   },
+  "tagsSearchHint": "搜索标签",
+  "@tagsSearchHint": { "description": "标签图顶部搜索框的占位提示。" },
+  "tagsSearchEmpty": "没有匹配的标签",
+  "@tagsSearchEmpty": { "description": "标签图搜索没有命中时的空态。" },
+  "tagsSearchCount": "匹配 {count} 个标签",
+  "@tagsSearchCount": {
+    "description": "搜索生效后图上方显示的命中数量。",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsClearSearch": "清除搜索",
+  "tagsGraphPanHint": "图比一屏宽：拖动平移、双指或滚轮缩放查看",
+  "@tagsGraphPanHint": { "description": "图太宽、降级为可平移缩放时的提示。" },
+  "tagsCollapsedHidden": "还有 {count} 个下级标签",
+  "@tagsCollapsedHidden": {
+    "description": "折叠节点上的角标提示：被藏起来的下级标签数。",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsNodeSettings": "标签设置",
+  "@tagsNodeSettings": { "description": "单击标签节点后弹出的设置浮窗标题。" },
+  "tagsNodeSettingsHint": "折叠/展开用节点上的箭头；这里只管这个标签本身。",
+  "@tagsNodeSettingsHint": { "description": "设置浮窗底部说明，区分节点箭头与浮窗职责。" },
+  "tagsMoveSingleTitle": "移动「{label}」到",
+  "@tagsMoveSingleTitle": {
+    "description": "单标签移动对话框标题。",
+    "placeholders": { "label": { "type": "String" } }
+  },
 
   "threadTitle": "Thread",
   "threadSort": "更新与排序",
@@ -604,6 +691,100 @@
   "threadCognitiveRankNote": "认知排序已打开：离当前目标或刚复习过的知识点近的任务排前面；加成未标定，只是次序提示",
   "threadNeedsSort": "需要重新排序",
   "threadNoEvents": "还没有事件",
+  "threadWindowAll": "全部",
+  "threadWindowWeek": "本周任务",
+  "threadWindowDay": "本日任务",
+  "threadWindowEmpty": "这个时间窗里没有任务",
+  "threadWindowTemporary": "临时分类：只按时间窗过滤你已经排好的任务，不改排序、不写库。",
+  "threadRollupSubtasks": "子任务",
+  "@threadRollupSubtasks": {
+    "description": "容器行上只读子任务汇总行的前缀。"
+  },
+  "threadRollupDoneOf": "{done}/{total}",
+  "@threadRollupDoneOf": {
+    "description": "子任务完成数 / 子任务总数（容器汇总）。",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupPercent": "{percent}%",
+  "@threadRollupPercent": {
+    "description": "汇总进度百分比（done / total）。",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupBlocked": "卡住 {count}",
+  "@threadRollupBlocked": {
+    "description": "汇总行里的卡住子任务数（只在 > 0 时显示）。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupSkipped": "跳过 {count}",
+  "@threadRollupSkipped": {
+    "description": "汇总行里的跳过子任务数（只在 > 0 时显示）。",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupSection": "子任务汇总（只读）",
+  "@threadRollupSection": {
+    "description": "事件属性页里只读子任务汇总卡片的标题。"
+  },
+  "threadRollupStatus": "汇总状态",
+  "@threadRollupStatus": {
+    "description": "由子任务推导出的状态（不会写回父容器）。"
+  },
+  "threadRollupCountsLine": "待办 {todo} · 进行中 {doing} · 已完成 {done} · 卡住 {blocked} · 跳过 {skipped}",
+  "@threadRollupCountsLine": {
+    "description": "按状态列出的子任务计数（容器汇总）。",
+    "placeholders": {
+      "todo": {
+        "type": "int"
+      },
+      "doing": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      },
+      "blocked": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupEstimate": "子任务估时合计 {minutes} 分钟",
+  "@threadRollupEstimate": {
+    "description": "容器汇总里子任务估时的和。",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupEstimateUnknown": "估时未知（有子任务没填估时）",
+  "@threadRollupEstimateUnknown": {
+    "description": "任一子任务估时为 null 时替代合计显示的文案。"
+  },
+  "threadRollupReadOnly": "只读汇总：显示它不会写回父容器状态。",
+  "@threadRollupReadOnly": {
+    "description": "汇总卡片下方的说明：汇总只是只读投影。"
+  },
   "threadGoal": "当前主要目标",
   "threadGoalEmpty": "未设置目标",
   "threadEnergy": "精力",
@@ -767,7 +948,7 @@
   "settingsCardGroups": "卡组设置",
   "settingsCardGroupsHint": "卡组就是标签树：给一个标签设每日新卡/复习上限，它整棵子树都算这个卡组；判分方式与卡片类型也在这里改。",
   "reviewReminderSettingTitle": "复习提醒",
-  "reviewReminderSettingOff": "关",
+  "reviewReminderSettingOff": "未开启（点按设置每天提醒）",
   "reviewReminderSettingOn": "每天 {time} · 有到期卡片时提醒",
   "@reviewReminderSettingOn": { "placeholders": { "time": { "type": "String" } } },
   "reviewReminderDialogTitle": "复习提醒",
@@ -783,7 +964,7 @@
   "settingsQuestionBankHint": "题库总览、组卷、材料入库都从这一页进；收题交给「智能」助手——拍照或粘贴过去，它誊写进题库。",
 
   "settingsUsageDoc": "使用文档",
-  "settingsUsageDocHint": "AI、复习、题库、组卷、拍照、认知模型：怎么用、有什么限制都写在这里",
+  "settingsUsageDocHint": "AI、复习、题库、组卷、拍照、学习状态：怎么用、有什么限制都写在这里",
   "docAiTitle": "AI 助手能做什么、什么要你确认",
   "docAiBody": "AI 能查你的库，也能改你的库。动数据前会先问你，你点同意才执行；删除类操作会逐条确认，而且都能撤销。执行前会告诉你改什么。它看不到你的 API key。",
   "docReviewTitle": "复习与闪存卡",
@@ -796,8 +977,8 @@
   "docMaterialBody": "拍照整理会把一张照片整理成四类待确认内容：标签、闪存卡、知识点、题目（原样誊写），确认前不会写入你的学习数据；资料入库把一段材料整理成知识点/卡片/连接，确认后才保存，撤回有记录。照片也可以拿来先试排一次学习计划，只看结果，不改你的数据。",
   "docTodayTitle": "今天做什么、什么时候做",
   "docTodayBody": "今日清单列出今天到期的卡，并按你最近的复习和精力建议先做哪些。任务与日程时间冲突会提示，可以一键顺延；只有你点排序按钮时才会重新排序。",
-  "docCognitiveTitle": "认知模型读数怎么理解",
-  "docCognitiveBody": "「认知模型」是只读页：显示每张卡记得牢不牢。「发展区」= 最近该多看的；「危险」= 会做但快忘了的。没有数据时显示「不可用」，这不等于「没问题」。页面顶部的「知识网络图」把知识点和标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点可以看读数。「能力动作画像」按你解题时卡住的动作归纳，点一行可以按动作找题。这里的数字只作参考，不会自己改你的数据。",
+  "docCognitiveTitle": "学习状态读数怎么理解",
+  "docCognitiveBody": "「学习状态」是只读页：当前档位、强项/弱项、今天该复习什么、最近一周的一句话趋势。档位与强弱项按**知识点**算（不是按闪存卡张数）：同一知识点下多张卡先取平均，有复习记录的知识点才算证据；少于门槛或差异太大时显示 ? 或「证据不足」，这不等于「没问题」。页面里的「知识网络图」把知识点和标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点可以看读数。「能力动作画像」按你解题时卡住的动作归纳，点一行可以按动作找题。模型参数与每张卡的原始读数在「设置 → 开发者 → 开发者信息（只读）」里，默认折叠。这里的数字只作参考，不会自己改你的数据。",
   "docFormulaTitle": "总分怎么算",
   "docFormulaBody": "总分由紧急度、目标匹配、状态适配、期望压力和疲劳五项加权得出；每项先算一个 0 到 1 的分，再按你调的比重加权。只有你点排序按钮时才会重算，软件不会在后台自动改顺序。",
   "docCurrentWeights": "当前权重（括号内为出厂值）",
@@ -1069,6 +1250,18 @@
   "aiUsageLiveEstimate": "仍在生成：按已到达的文本估算。",
   "aiUsageNoUsage": "本轮没有返回 token 用量。",
   "aiUsageUnavailable": "—",
+  "aiEffort": "思考强度",
+  "aiEffortDefault": "默认",
+  "aiEffortLow": "低",
+  "aiEffortHigh": "高",
+  "aiEffortMax": "最高",
+  "aiEffortTooltip": "选择等级会在请求里发送 reasoning_effort；「默认」不发送这个字段。服务端是否接受由所用模型决定。",
+  "aiEffortBusy": "生成中不能切换思考强度",
+  "aiDropImageHint": "松手把图片加进这条消息",
+  "aiDropImageSkipped": "已跳过 {count} 个不是图片的文件",
+  "@aiDropImageSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAiSection": "AI 接入",
   "settingsAiEnabled": "启用 AI",
   "settingsAiApiKey": "API Key",
@@ -1084,7 +1277,7 @@
   "@settingsAiMaxRoundsValue": {
     "placeholders": { "rounds": { "type": "int" } }
   },
-  "settingsAiMaxRoundsHint": "每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 30 轮。",
+  "settingsAiMaxRoundsHint": "每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 200 轮。",
   "settingsAiSave": "保存",
   "settingsAiSaved": "已保存",
   "settingsAiKeyRequired": "填入 API key 后才能启用",
@@ -1168,8 +1361,6 @@
   "settingsTfpkgExportNoSecrets": "不含密钥（发给别人）",
   "settingsTfpkgExportDoneNoSecrets": "工作区已导出（未包含 API key）",
 
-  "cognitiveModelTitle": "认知模型",
-  "cognitiveModelSubtitle": "只读读数：R / 分组 / 发展区",
   "cognitiveGraphTitle": "知识网络图（只读）",
   "cognitiveGraphHint": "圆点=知识点（颜色=认知区域，大小=卡片数），方块=标签；一条线=这个知识点挂在那个标签上。图上没有任何可改的东西：不改到期时间，也不改排序。",
   "cognitiveGraphEmpty": "还没有可画的读数：先建知识点与标签，再复习几张卡。",
@@ -1181,12 +1372,11 @@
       "links": { "type": "int" }
     }
   },
-  "cognitiveGraphPointDetail": "区域：{zone} · {cards} 张卡 · 平均 R {mean}",
+    "cognitiveGraphPointDetail": "区域：{zone} · {cards} 张卡",
   "@cognitiveGraphPointDetail": {
     "placeholders": {
       "zone": { "type": "String" },
-      "cards": { "type": "int" },
-      "mean": { "type": "String" }
+      "cards": { "type": "int" }
     }
   },
   "cognitiveGraphTagDetail": "这个标签下挂着 {count} 个知识点",
@@ -2083,6 +2273,11 @@
   "zujuanPaperClose": "关闭",
   "questionDetailTitle": "题目详情",
   "questionDetailQuestionMissing": "这道题已不在题库里（可能刚被删掉）。",
+  "questionDeveloperEntry": "开发者信息",
+  "questionDeveloperTitle": "开发者信息",
+  "questionDeveloperHint": "内部字段、来源编辑与配图管理；学生页默认不显示这些。",
+  "questionDeveloperRawTitle": "内部字段（只读）",
+  "questionDeveloperImagesTitle": "配图管理",
   "questionDetailEditSource": "改来源",
   "questionDetailEditSourceTitle": "改一改来源",
   "questionDetailEditSourceHint": "留空的字段 = 不改那一列；题干、答案与选项一个字不动。",
@@ -3810,5 +4005,145 @@
   "@aiStepsSummary": {
     "description": "折叠态运行时间线摘要。",
     "placeholders": { "count": { "type": "int" } }
-  }
+  },
+  "tagsKnowledgeEntry": "关联内容",
+  "@tagsKnowledgeEntry": {"description":"标签行菜单/叶子标签点击后打开的知识入口。"},
+  "tagKnowledgeEntryTitle": "关联内容",
+  "@tagKnowledgeEntryTitle": {"description":"标签知识入口页标题。"},
+  "tagKnowledgeEntryIntro": "这个标签下挂着的题目、闪存卡与任务。只显示真实关联；没有关联的项写「暂无」，不做推测。",
+  "@tagKnowledgeEntryIntro": {"description":"标签知识入口页顶部说明。"},
+  "tagKnowledgeIncludeDescendants": "含子标签",
+  "@tagKnowledgeIncludeDescendants": {"description":"标签知识入口的范围开关。"},
+  "tagKnowledgeIncludeDescendantsHint": "打开后把整棵子树的关联一起统计（卡组本来就按子树划分）。",
+  "@tagKnowledgeIncludeDescendantsHint": {"description":"标签知识入口的范围开关说明。"},
+  "tagKnowledgeQuestions": "题目",
+  "@tagKnowledgeQuestions": {"description":"标签知识入口的题目块标题。"},
+  "tagKnowledgeFlashcards": "闪存卡",
+  "@tagKnowledgeFlashcards": {"description":"标签知识入口的闪存卡块标题。"},
+  "tagKnowledgeTasks": "任务",
+  "@tagKnowledgeTasks": {"description":"标签知识入口的任务块标题。"},
+  "tagKnowledgeEmptyQuestions": "暂无题目",
+  "@tagKnowledgeEmptyQuestions": {"description":"标签下没有题目时的诚实空态。"},
+  "tagKnowledgeEmptyFlashcards": "暂无闪存卡",
+  "@tagKnowledgeEmptyFlashcards": {"description":"标签下没有闪存卡时的诚实空态。"},
+  "tagKnowledgeEmptyTasks": "暂无任务",
+  "@tagKnowledgeEmptyTasks": {"description":"标签下没有任务时的诚实空态。"},
+  "tagKnowledgeMissingTargets": "另有 {count} 条标签链接指向已删除的对象，未计入上面三块。",
+  "@tagKnowledgeMissingTargets": {
+    "description": "多态标签链接指向已删除对象时的诚实提示。",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagKnowledgeTagMissing": "这个标签已不存在（可能刚被删除）。",
+  "@tagKnowledgeTagMissing": {"description":"打开知识入口时标签已被删除的提示。"},
+  "tagKnowledgeLoadFailed": "读取标签内容失败：{error}",
+  "@tagKnowledgeLoadFailed": {
+    "description": "标签知识入口读取失败提示。",
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "tagKnowledgeQuestionNoStem": "（无题干）",
+  "@tagKnowledgeQuestionNoStem": {"description":"题目没有题干摘要时的占位。"},
+  "tagKnowledgeCardPreviewTitle": "闪存卡",
+  "@tagKnowledgeCardPreviewTitle": {"description":"卡详情弹窗标题。"},
+  "tagKnowledgeCardFront": "正面",
+  "@tagKnowledgeCardFront": {"description":"卡详情弹窗的正面对内容标签。"},
+  "tagKnowledgeCardAnswer": "答案",
+  "@tagKnowledgeCardAnswer": {"description":"卡详情弹窗的答案标签。"},
+  "tagKnowledgeCardHint": "提示",
+  "@tagKnowledgeCardHint": {"description":"卡详情弹窗的提示标签。"},
+  "tagKnowledgeCardKnowledgePoint": "知识点：{title}",
+  "@tagKnowledgeCardKnowledgePoint": {
+    "description": "卡详情弹窗的知识点归属。",
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tagKnowledgeCardTypeUnknown": "卡片",
+  "@tagKnowledgeCardTypeUnknown": {"description":"卡模板类型认不出时的兜底名称。"},
+  "tagKnowledgeCardReview": "去复习「{group}」卡组",
+  "@tagKnowledgeCardReview": {
+    "description": "卡详情弹窗里进入所属卡组复习的按钮。",
+    "placeholders": { "group": { "type": "String" } }
+  },
+  "tagKnowledgeNoReviewGroup": "这个标签不属于任何已配置的卡组，所以没有可进入的复习队列。",
+  "@tagKnowledgeNoReviewGroup": {"description":"标签没有上级卡组时的诚实提示。"},
+  "mindnetStatusIntro": "只看学习状态和今天该做什么；模型参数不在这里。",
+  "mindnetBandTitle": "当前档位",
+  "mindnetBandHint": "按你有复习记录的知识点的记忆保持度粗分；只显示档位，不显示分数。",
+  "mindnetBandEvidence": "依据：{count} 个知识点的复习记录",
+  "@mindnetBandEvidence": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetBandInsufficient": "证据不足：至少 {count} 个知识点有复习记录才给档位，现在只显示 ?",
+  "@mindnetBandInsufficient": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetBandUnstable": "证据不足：现有复习记录差异太大，暂不给档位",
+  "mindnetStrengthsTitle": "强项",
+  "mindnetWeaknessesTitle": "弱项",
+  "mindnetEvidenceMeasured": "实测",
+  "mindnetStrengthsEmpty": "证据不足：还没有复习记录",
+  "mindnetWeaknessesEmpty": "证据不足：至少要有两个复习过的知识点才分得出弱项",
+  "mindnetUntitledKnowledgePoint": "未命名知识点",
+  "mindnetTodayTitle": "今天",
+  "mindnetTodayReviews": "闪存卡待复习 {count} 张",
+  "@mindnetTodayReviews": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetTodayTasks": "今日任务 {count} 项",
+  "@mindnetTodayTasks": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetStartReview": "开始复习",
+  "mindnetTrendTitle": "最近一周",
+  "mindnetTrendEmpty": "证据不足：最近两周没有复习记录",
+  "mindnetTrendNoThisWeek": "本周还没有复习（上周 {count} 次）",
+  "@mindnetTrendNoThisWeek": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetTrendRetention": "最近 7 天复习 {count} 次，留存 {percent}%",
+  "@mindnetTrendRetention": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "percent": { "type": "int" }
+    }
+  },
+  "mindnetTrendCompare": "（上周 {count} 次）",
+  "@mindnetTrendCompare": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetDeveloperInfo": "开发者信息（只读）",
+  "mindnetDeveloperInfoHint": "模型参数、每张卡读数、校准与诊断明细",
+  "mindnetDeveloperInfoTitle": "开发者信息",
+  "mindnetDeveloperEntryHint": "模型参数与原始读数，默认不显示",
+  "cognitiveGraphUntitledTag": "未命名标签",
+  "settingsProfileIdentity": "学生",
+  "settingsProfileEditHint": "点按修改姓名",
+  "settingsSectionLearning": "学习与计划",
+  "settingsSectionAi": "AI",
+  "settingsSectionAppearanceReading": "外观与阅读",
+  "settingsSectionHelp": "帮助",
+  "settingsSectionDeveloper": "开发者",
+  "settingsDeveloperShow": "显示",
+  "settingsDeveloperHide": "隐藏",
+  "settingsDeveloperHint": "开发者与原型入口，默认隐藏；日常使用不需要它们。",
+  "settingsTodayPlan": "今日计划",
+  "settingsDataLocation": "数据位置",
+  "settingsDataLocationHint": "点按复制本机数据目录",
+  "settingsDataLocationCopied": "路径已复制",
+  "settingsBackupRestoreTitle": "备份与恢复",
+  "settingsBackupRestoreHint": "导出整个工作区，或从备份恢复；导入前会自动备份当前数据",
+  "aiDeveloperParamsTitle": "开发者参数",
+  "aiDeveloperParamsHint": "轮次上限、可用工具、技能包；日常对话不需要改",
+  "aiDeveloperParamsShow": "显示",
+  "aiDeveloperParamsHide": "隐藏"
 }

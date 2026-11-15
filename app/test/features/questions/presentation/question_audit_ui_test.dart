@@ -1,9 +1,9 @@
-/// 入库体检的界面契约：详情页把结论摊开，题库列表只在脏题上挂徽标。
+/// 入库体检的界面契约：开发者信息页把结论摊开，学生题库列表不再挂徽标。
 ///
 /// 三件事：
 ///  1. 每条 finding 的严重度标签、中文说明与可展开的 evidence 都看得见，
 ///     并且按 error → warning → info 的分组顺序排；
-///  2. 干净题给「未发现硬伤」+「只报不改」，列表页不挂徽标；
+///  2. 干净题给「未发现硬伤」+「只报不改」，列表页不出现体检读数；
 ///  3. 体检读失败不挡题面：区块零高度、题面照常渲染。
 ///
 /// 报告全部用 `questionAuditReportProvider.overrideWith` 注入：这里测的是 UI
@@ -26,6 +26,7 @@ import 'package:furnace/features/questions/application/question_media_providers.
 import 'package:furnace/features/questions/presentation/question_audit_view.dart';
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_developer_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 import 'support/question_media_fakes.dart';
@@ -154,7 +155,7 @@ void main() {
     expect(find.text(_zh.questionAuditEvidence), findsNothing);
   });
 
-  testWidgets('题库列表：脏题挂带数量的徽标，干净题不占位', (WidgetTester tester) async {
+  testWidgets('题库列表：不再挂体检徽标（开发读数进开发者信息）', (WidgetTester tester) async {
     final database = _newDatabase();
     await _seedBankQuestion(
       database,
@@ -187,14 +188,13 @@ void main() {
 
     await _pumpBank(tester, database, report: report);
 
-    // 两行都渲染出来了，但只有脏题挂了徽标。
+    // 两行都渲染出来了；体检徽章不再挂在学生题库列表（开发读数统一进
+    // 详情页的「开发者信息」）。
     expect(find.text('这道题缺答案，体检会报错'), findsOneWidget);
     expect(find.text('这道题很干净，没有体检问题'), findsOneWidget);
-    expect(find.byKey(questionAuditBadgeKey), findsOneWidget);
-    final tooltip = tester.widget<Tooltip>(
-      find.byKey(questionAuditBadgeKey),
-    );
-    expect(tooltip.message, _zh.questionAuditBadgeTooltip(1, 1));
+    expect(find.byKey(questionAuditBadgeKey), findsNothing);
+    expect(find.textContaining(_zh.questionAuditBadgeTooltip(1, 1)),
+        findsNothing);
   });
 
   testWidgets('体检读失败：详情页题面照常渲染，体检区块零高度', (WidgetTester tester) async {
@@ -202,7 +202,7 @@ void main() {
     await _seedDetailQuestion(database);
 
     await _pumpDetail(tester, database, reportFails: true);
-    await _waitForText(tester, _stem);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     expect(find.text(_zh.questionAuditSectionTitle), findsNothing);
     expect(find.byKey(questionAuditSectionKey), findsNothing);
@@ -281,6 +281,13 @@ Future<void> _pumpDetail(
     ),
   );
   await _settle(tester);
+  // 入库体检是开发侧读数，现在只在「开发者信息」页展示。
+  final entry = find.byKey(questionDeveloperEntryKey);
+  await tester.ensureVisible(entry);
+  await tester.pumpAndSettle();
+  await tester.tap(entry);
+  await _settle(tester);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpBank(

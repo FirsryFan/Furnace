@@ -4,11 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/scheduling/thread_windows.dart';
+// 流程状态（todo/doing/done/blocked/skipped）与下面 `widgets/thread_status_edge.dart`
+// 里同名的**时间** lifecycle 枚举不是一回事：本文件里 `ThreadStatus` 指时间颜色，
+// 流程判断走 `taskFlowStatus()`（来自 task_status_actions.dart），比较时用前缀别名。
+import '../../../domain/services/thread/thread_node_kind.dart';
+import '../../../domain/services/thread/thread_rollup.dart';
+import '../../../domain/services/thread/thread_status.dart' as flow;
 import '../../../l10n/app_localizations.dart';
+import '../../tasks/presentation/widgets/task_status_actions.dart';
 import '../application/study_rhythm_reader.dart';
 import '../application/thread_rank_service.dart';
+import '../application/thread_rollup_projection.dart';
+import '../application/thread_window_projection.dart';
 import 'event_properties_page.dart';
 import 'widgets/energy_colors.dart';
+import 'widgets/thread_rollup_progress.dart';
 import 'widgets/thread_status_bar.dart';
 import 'widgets/thread_status_edge.dart';
 
@@ -169,15 +180,29 @@ class _ThreadPageState extends ConsumerState<ThreadPage> {
 
 /// The ranked event stream. Before the first sort it says so instead of
 /// showing an arbitrary order (user annotation 12).
-class _EventStreamView extends ConsumerWidget {
+///
+/// 顶部「全部 / 本周任务 / 本日任务」是**临时分类**（契约 §3.5，2026-11-15）：
+/// 只对已经排好的 [ThreadFeed.readyTasks] 按时间窗过滤，不改排序、不写库、不新增
+/// 第二份任务状态。两个时间窗都空时整条分类栏不渲染（不显示空分类）。
+class _EventStreamView extends ConsumerStatefulWidget {
   const _EventStreamView({required this.feed});
 
   final ThreadFeed? feed;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_EventStreamView> createState() => _EventStreamViewState();
+}
+
+/// 临时分类：`all` = 原来的事件流（默认），其余两个是窗口过滤。
+enum _ThreadWindowFilter { all, week, day }
+
+class _EventStreamViewState extends ConsumerState<_EventStreamView> {
+  _ThreadWindowFilter _filter = _ThreadWindowFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final current = feed;
+    final current = widget.feed;
     if (current == null) {
       return Center(
         child: Column(
@@ -191,24 +216,169 @@ class _EventStreamView extends ConsumerWidget {
         ),
       );
     }
-    final tasks = current.readyTasks;
-    if (tasks.isEmpty) {
-      return Center(child: Text(l10n.threadNoEvents));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 24),
-      itemCount: tasks.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) => _EventTile(
-        task: tasks[index],
-        reason: current.reasonFor(tasks[index].id),
-      ),
+
+    final buckets = ref.watch(threadWindowBucketsProvider);
+    // 父容器的子任务汇总（只读；来自 feed 里已有的任务行，不查库不写库）。
+    final rollups = ref.watch(threadRollupsProvider);
+    final canFilter = buckets != null && !buckets.isEmpty;
+    // 选中的窗口如果已经空了（任务被完成/删掉后重排），回落到「全部」而不是让
+    // 用户看到一个空列表 + 一条已经消失的 chip。
+    final effective = canFilter ? _filter : _ThreadWindowFilter.all;
+    final tasks = _tasksFor(current, buckets, effective);
+
+    return Column(
+      children: [
+        if (canFilter)
+          _ThreadWindowFilterBar(
+            selected: effective,
+            buckets: buckets,
+            // chips 上的进度只取"同类容器"的汇总：本周 chip 只看 week 容器、
+            // 本日 chip 只看 day 容器，避免周容器锚点落在周一 0 点时被算进"本日"。
+            weekRollup: threadContainerRollupOf(
+              nodes: buckets.week,
+              rollups: rollups,
+              kind: ThreadNodeKind.week,
+            ),
+            dayRollup: threadContainerRollupOf(
+              nodes: buckets.day,
+              rollups: rollups,
+              kind: ThreadNodeKind.day,
+            ),
+            onSelected: (filter) => setState(() => _filter = filter),
+          ),
+        Expanded(
+          child: tasks.isEmpty
+              ? Center(
+                  child: Text(
+                    effective == _ThreadWindowFilter.all
+                        ? l10n.threadNoEvents
+                        : l10n.threadWindowEmpty,
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  itemCount: tasks.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) => _EventTile(
+                    task: tasks[index],
+                    reason: current.reasonFor(tasks[index].id),
+                    // 容器行显示汇总；叶子任务没有 rollup，显示零高度。
+                    rollup: rollups[tasks[index].id],
+                  ),
+                ),
+        ),
+      ],
     );
+  }
+
+  /// 分类内只做过滤，次序沿用 [ThreadFeed.readyTasks]（分类不重新排序）。
+  List<Task> _tasksFor(
+    ThreadFeed feed,
+    ThreadWindowBuckets? buckets,
+    _ThreadWindowFilter filter,
+  ) {
+    final nodes = switch (filter) {
+      _ThreadWindowFilter.all => null,
+      _ThreadWindowFilter.week => buckets?.week ?? const <ThreadWindowNode>[],
+      _ThreadWindowFilter.day => buckets?.day ?? const <ThreadWindowNode>[],
+    };
+    if (nodes == null) {
+      return feed.readyTasks;
+    }
+    return [
+      for (final node in nodes)
+        if (feed.tasks[node.id] != null) feed.tasks[node.id]!,
+    ];
   }
 }
 
+/// 「全部 / 本周任务 / 本日任务」的临时分类栏；空桶不显示对应 chip。
+class _ThreadWindowFilterBar extends StatelessWidget {
+  const _ThreadWindowFilterBar({
+    required this.selected,
+    required this.buckets,
+    required this.onSelected,
+    this.weekRollup,
+    this.dayRollup,
+  });
+
+  final _ThreadWindowFilter selected;
+  final ThreadWindowBuckets buckets;
+  final ValueChanged<_ThreadWindowFilter> onSelected;
+
+  /// 「本周」chip 上的汇总进度（week 容器的子任务；null = 没有可汇总的容器）。
+  final ThreadRollup? weekRollup;
+
+  /// 「本日」chip 上的汇总进度（day 容器的子任务；null = 没有可汇总的容器）。
+  final ThreadRollup? dayRollup;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Tooltip(
+      message: l10n.threadWindowTemporary,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        child: Row(
+          children: [
+            _chip(context, l10n.threadWindowAll, _ThreadWindowFilter.all, null),
+            if (buckets.week.isNotEmpty)
+              _chip(
+                context,
+                l10n.threadWindowWeek,
+                _ThreadWindowFilter.week,
+                weekRollup,
+              ),
+            if (buckets.day.isNotEmpty)
+              _chip(
+                context,
+                l10n.threadWindowDay,
+                _ThreadWindowFilter.day,
+                dayRollup,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(
+    BuildContext context,
+    String label,
+    _ThreadWindowFilter filter,
+    ThreadRollup? rollup,
+  ) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(
+          // chip 文字保持原样（测试与用户都按这个名字找）；汇总进度是紧挨着的
+          // 第二段文字，没有可汇总的容器时完全不出现。
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              if (rollup != null && !rollup.isEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  AppLocalizations.of(context)
+                      .threadRollupDoneOf(rollup.counts.done, rollup.counts.total),
+                  key: ValueKey('thread-window-rollup-${filter.name}'),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ],
+          ),
+          selected: selected == filter,
+          onSelected: (_) => onSelected(filter),
+        ),
+      );
+}
+
 class _EventTile extends ConsumerWidget {
-  const _EventTile({required this.task, this.reason});
+  const _EventTile({required this.task, this.reason, this.rollup});
 
   final Task task;
 
@@ -220,11 +390,20 @@ class _EventTile extends ConsumerWidget {
   /// (it would move the wording, not the rule).
   final String? reason;
 
+  /// 这个节点作为父容器时的子任务汇总（只读）；叶子任务为 null。
+  ///
+  /// 只有在本周/本日分类里容器行会出现在列表里（`readyTasks` 不含 week/day
+  /// 容器），所以这行进度也只在这些视图里可见。
+  final ThreadRollup? rollup;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final status = ThreadStatus.of(task, DateTime.now());
+    // v47 流程状态（todo/doing/done/blocked/skipped）；和上面那个「边缘色」状态
+    // 是两套词表：这里决定"哪些动作此刻可用"，不参与颜色。
+    final flowStatus = taskFlowStatus(task);
     final reasonText = reason;
     final details = <String>[
       if (task.estimateMinutes != null) '${task.estimateMinutes} min',
@@ -259,7 +438,10 @@ class _EventTile extends ConsumerWidget {
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.radio_button_unchecked),
                 color: theme.colorScheme.primary,
-                onPressed: () => _complete(context, ref),
+                // 完成只允许 todo/doing（writer 状态机）：窗口分类里的 blocked
+                // 行不能从这里"完成"，否则会抛非法迁移。
+                onPressed:
+                    flowStatus.isSchedulable ? () => _complete(context, ref) : null,
               ),
               Expanded(
                 child: Column(
@@ -280,6 +462,13 @@ class _EventTile extends ConsumerWidget {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
+                      ),
+                    ],
+                    if (rollup != null && !rollup!.isEmpty) ...[
+                      const SizedBox(height: 2),
+                      ThreadRollupProgressLine(
+                        key: ValueKey('thread-rollup-line-${task.id}'),
+                        rollup: rollup!,
                       ),
                     ],
                     if (reasonText != null && reasonText.isNotEmpty) ...[
@@ -309,10 +498,26 @@ class _EventTile extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
+                key: ValueKey('event-actions-${task.id}'),
                 tooltip: l10n.commonEdit,
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) async {
                   switch (value) {
+                    // 提交 / 卡住 / 跳过 / 恢复：走 TaskRepository →
+                    // ThreadFlowWriter；每个动作都先二次确认（见
+                    // task_status_actions.dart）。
+                    case 'submitted':
+                      await _runStatusAction(context, ref,
+                          TaskStatusAction.submit);
+                    case 'stuck':
+                      await _runStatusAction(context, ref,
+                          TaskStatusAction.stuck);
+                    case 'skipped':
+                      await _runStatusAction(context, ref,
+                          TaskStatusAction.skip);
+                    case 'reopened':
+                      await _runStatusAction(context, ref,
+                          TaskStatusAction.reopen);
                     case 'properties':
                       await openEventProperties(context, task);
                     case 'delete':
@@ -322,6 +527,12 @@ class _EventTile extends ConsumerWidget {
                   }
                 },
                 itemBuilder: (context) => [
+                  for (final action in TaskStatusAction.values)
+                    PopupMenuItem(
+                      value: action.eventKind.id,
+                      enabled: action.allowedFrom(flowStatus),
+                      child: Text(action.label(l10n)),
+                    ),
                   PopupMenuItem(
                     value: 'properties',
                     child: Text(l10n.commonEdit),
@@ -373,6 +584,27 @@ class _EventTile extends ConsumerWidget {
     await ref.read(threadFeedProvider.notifier).sort();
   }
 
+  /// 提交 / 卡住 / 跳过 / 恢复：确认 + 写库交给共享入口，成功后重排事件流。
+  ///
+  /// 跳过会让这一行退出 ready 列表、恢复会让它回到 ready；数据修订订阅本来也会
+  /// 触发一次重排，这里显式再排一次是为了让"用户刚点的动作"立刻生效，而不是等
+  /// 下一个微任务。
+  Future<void> _runStatusAction(
+    BuildContext context,
+    WidgetRef ref,
+    TaskStatusAction action,
+  ) async {
+    final changed = await runTaskStatusAction(
+      context,
+      ref,
+      task: task,
+      action: action,
+    );
+    if (changed) {
+      await ref.read(threadFeedProvider.notifier).sort();
+    }
+  }
+
   Future<void> _complete(BuildContext context, WidgetRef ref) async {
     final repo = ref.read(taskRepositoryProvider);
     final tags = await ref.read(tagRepositoryProvider).tagsForObject(
@@ -401,7 +633,8 @@ class _EventTile extends ConsumerWidget {
   }
 }
 
-/// Completed + not-enough-time + overdue (user annotations 5 and 11).
+/// Completed + not-enough-time + overdue + 卡住/跳过 (user annotations 5 and 11;
+/// 卡住/跳过段是 task-90 加的「恢复」落点).
 class _ArchiveView extends ConsumerWidget {
   const _ArchiveView({required this.feed});
 
@@ -418,14 +651,41 @@ class _ArchiveView extends ConsumerWidget {
     final completed = current.completedTasks;
     final insufficient = current.ranked.insufficient;
     final overdue = current.ranked.overdue;
+    // 卡住/跳过既不在 ready（它们不是待办），也不在完成历史里；归档视图就是
+    // "离开 ready 的节点"的落点，所以在这里给它们一行 + 一个显式「恢复」。
+    // 排序用 `updated_at` 倒序：最近被卡住/跳过的最可能需要恢复。
+    final parked = <Task>[
+      for (final task in current.tasks.values)
+        if (_isParked(task)) task,
+    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-    if (completed.isEmpty && insufficient.isEmpty && overdue.isEmpty) {
+    if (completed.isEmpty &&
+        insufficient.isEmpty &&
+        overdue.isEmpty &&
+        parked.isEmpty) {
       return Center(child: Text(l10n.threadArchiveEmpty));
     }
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        if (parked.isNotEmpty) ...[
+          _SectionHeader(
+            icon: Icons.inventory_2_outlined,
+            color: ThreadStatus.expectedPassed.color,
+            title: l10n.tasksStatusSectionArchived,
+          ),
+          for (final task in parked)
+            _ArchivedTile(
+              title: task.title,
+              // 真正的流程状态写在副标题；边缘色沿用"时间已过"的黄色（UI 的
+              // `ThreadStatus` 只表达时间 lifecycle，不表达 blocked/skipped）。
+              subtitle: taskStatusLabel(l10n, task),
+              status: ThreadStatus.expectedPassed,
+              task: task,
+              restorable: true,
+            ),
+        ],
         if (insufficient.isNotEmpty) ...[
           _SectionHeader(
             icon: Icons.hourglass_disabled,
@@ -475,8 +735,16 @@ class _ArchiveView extends ConsumerWidget {
   }
 }
 
+/// 卡住/跳过：两个"离开待办但不是完成"的流程状态（`ThreadFlow` 词表）。
+bool _isParked(Task task) {
+  final status = taskFlowStatus(task);
+  return status == flow.ThreadStatus.blocked ||
+      status == flow.ThreadStatus.skipped;
+}
+
 /// One archived row: same coloured edge as the main list, plus the two actions
-/// that make the archive useful (edit / delete).
+/// that make the archive useful (edit / delete) and, for blocked/skipped rows,
+/// the explicit restore entry (task-90).
 class _ArchivedTile extends ConsumerWidget {
   const _ArchivedTile({
     required this.title,
@@ -484,6 +752,7 @@ class _ArchivedTile extends ConsumerWidget {
     required this.task,
     this.subtitle,
     this.done = false,
+    this.restorable = false,
   });
 
   final String title;
@@ -491,6 +760,9 @@ class _ArchivedTile extends ConsumerWidget {
   final Task? task;
   final String? subtitle;
   final bool done;
+
+  /// true = 这一行是卡住/跳过，给出「恢复」（`reopened` 事件，二次确认）。
+  final bool restorable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -561,6 +833,23 @@ class _ArchivedTile extends ConsumerWidget {
                 ],
               ),
             ),
+            if (task != null && restorable)
+              IconButton(
+                key: ValueKey('archived-restore-${task!.id}'),
+                tooltip: l10n.tasksReopen,
+                icon: const Icon(Icons.undo),
+                onPressed: () async {
+                  final changed = await runTaskStatusAction(
+                    context,
+                    ref,
+                    task: task!,
+                    action: TaskStatusAction.reopen,
+                  );
+                  if (changed) {
+                    await ref.read(threadFeedProvider.notifier).sort();
+                  }
+                },
+              ),
             if (task != null)
               IconButton(
                 tooltip: l10n.commonEdit,

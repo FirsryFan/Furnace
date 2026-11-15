@@ -1,0 +1,261 @@
+{
+  "schema": "furnace.preset-select/0.1",
+  "source_document": "PRESET-SCORING-2026-11-15.json",
+  "source_document_sha256": "3172c21b3cff5b0d1d2eac97621f2d330358a1c235f0441785a9fc06d445da29",
+  "source_status": "prototype_uncalibrated",
+  "one_line": "4 档预设 × 3 题内容包小样的规则模型期望分；不是真实成绩、不是学习结果、不是完整真题分数。",
+  "disclaimers": [
+    "3 题小样：物理/数学/语文各 1 题，共 18 分（原型 6 分/题尺度）",
+    "预设估计：规则模型 + 未标定系数（source=preset, calibrated=false）",
+    "不是高考分、不是真实成绩、不是学习结果"
+  ],
+  "sample": {
+    "question_count": 3,
+    "points_total": 18.0,
+    "points_per_question": 6.0,
+    "is_full_exam": false,
+    "is_measurement": false,
+    "scale_note": "18 分制是原型统一尺度；真实高考各题分值不同，不能用它推真题总分。",
+    "questions": [
+      {
+        "id": "Q-PH0001",
+        "subject_label": "物理",
+        "topic_label": "平抛运动与运动的分解"
+      },
+      {
+        "id": "Q-MA0001",
+        "subject_label": "数学",
+        "topic_label": "独立性检验（2×2 列联表）"
+      },
+      {
+        "id": "Q-CH0001",
+        "subject_label": "语文",
+        "topic_label": "近体诗尾联的收束与宕开、托物言志/以物喻人"
+      }
+    ]
+  },
+  "presets": [
+    {
+      "id": "preset-weak",
+      "name": "基础薄弱",
+      "description": "高一高二基础大面积遗忘；能背结论但不会自己搭模型，遇到术语近似或需回读条件时容易掉。",
+      "expected": {
+        "points": 4.584,
+        "points_total": 18.0,
+        "rate": 0.2547,
+        "interval90": [
+          3.678,
+          5.41
+        ]
+      },
+      "strengths": [
+        "愿意按步骤写",
+        "简单直接套公式的题可拿部分分"
+      ],
+      "weaknesses": [
+        "A4 建模最弱",
+        "A10 几乎不检查",
+        "知识先验低"
+      ],
+      "question_lines": [
+        {
+          "question_id": "Q-PH0001",
+          "subject_label": "物理",
+          "expected_points": 2.581,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-Q1-06",
+          "stuck_step_label": "检验 C：合速度大小增大",
+          "stuck_severity": "高"
+        },
+        {
+          "question_id": "Q-MA0001",
+          "subject_label": "数学",
+          "expected_points": 1.197,
+          "points_total": 6.0,
+          "outcome": "错",
+          "stuck_step": "N-MA-04",
+          "stuck_step_label": "求 p：180/200=9/10",
+          "stuck_severity": "高"
+        },
+        {
+          "question_id": "Q-CH0001",
+          "subject_label": "语文",
+          "expected_points": 0.806,
+          "points_total": 6.0,
+          "outcome": "错",
+          "stuck_step": "N-CH-03",
+          "stuck_step_label": "“袍色”指官袍不是砚色：注③是钥匙",
+          "stuck_severity": "高"
+        }
+      ]
+    },
+    {
+      "id": "preset-medium",
+      "name": "中等",
+      "description": "常规题能按模板走；多步题需要提示或回读；粗心与误读开始成为主要丢分点。",
+      "expected": {
+        "points": 7.491,
+        "points_total": 18.0,
+        "rate": 0.4162,
+        "interval90": [
+          6.255,
+          8.508
+        ]
+      },
+      "strengths": [
+        "模板题稳定",
+        "四则运算与基本变形可靠"
+      ],
+      "weaknesses": [
+        "多步结构化建模不稳",
+        "A9 表达不成分点",
+        "粗心滑落"
+      ],
+      "question_lines": [
+        {
+          "question_id": "Q-PH0001",
+          "subject_label": "物理",
+          "expected_points": 3.426,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-Q1-06",
+          "stuck_step_label": "检验 C：合速度大小增大",
+          "stuck_severity": "高"
+        },
+        {
+          "question_id": "Q-MA0001",
+          "subject_label": "数学",
+          "expected_points": 2.219,
+          "points_total": 6.0,
+          "outcome": "错",
+          "stuck_step": "N-MA-04",
+          "stuck_step_label": "求 p：180/200=9/10",
+          "stuck_severity": "高"
+        },
+        {
+          "question_id": "Q-CH0001",
+          "subject_label": "语文",
+          "expected_points": 1.846,
+          "points_total": 6.0,
+          "outcome": "错",
+          "stuck_step": "N-CH-08",
+          "stuck_step_label": "组织三点答案：手法→惋惜→赞美",
+          "stuck_severity": "中"
+        }
+      ]
+    },
+    {
+      "id": "preset-above",
+      "name": "中上",
+      "description": "班里前 1/3；常规题基本稳，多步题能自己搭但会漏条件；主要风险是粗心与误读。",
+      "expected": {
+        "points": 9.988,
+        "points_total": 18.0,
+        "rate": 0.5549,
+        "interval90": [
+          8.603,
+          11.088
+        ]
+      },
+      "strengths": [
+        "常规题稳定",
+        "能自己搭多步模型",
+        "时间分配尚可"
+      ],
+      "weaknesses": [
+        "A10 自检不足",
+        "语文表达缺踩分点",
+        "长题注意力衰减"
+      ],
+      "question_lines": [
+        {
+          "question_id": "Q-PH0001",
+          "subject_label": "物理",
+          "expected_points": 4.133,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-Q1-06",
+          "stuck_step_label": "检验 C：合速度大小增大",
+          "stuck_severity": "中"
+        },
+        {
+          "question_id": "Q-MA0001",
+          "subject_label": "数学",
+          "expected_points": 3.148,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-MA-04",
+          "stuck_step_label": "求 p：180/200=9/10",
+          "stuck_severity": "中"
+        },
+        {
+          "question_id": "Q-CH0001",
+          "subject_label": "语文",
+          "expected_points": 2.707,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-CH-03",
+          "stuck_step_label": "“袍色”指官袍不是砚色：注③是钥匙",
+          "stuck_severity": "中"
+        }
+      ]
+    },
+    {
+      "id": "preset-top",
+      "name": "拔尖",
+      "description": "年级前列；模型、计算、表达都较稳；剩余风险主要是粗心、误读和主观题评分口径。",
+      "expected": {
+        "points": 13.2,
+        "points_total": 18.0,
+        "rate": 0.7333,
+        "interval90": [
+          11.757,
+          14.218
+        ]
+      },
+      "strengths": [
+        "建模与计算稳",
+        "表达分点",
+        "容量足"
+      ],
+      "weaknesses": [
+        "主观题评分口径风险",
+        "偶发粗心",
+        "自检习惯一般"
+      ],
+      "question_lines": [
+        {
+          "question_id": "Q-PH0001",
+          "subject_label": "物理",
+          "expected_points": 4.953,
+          "points_total": 6.0,
+          "outcome": "对",
+          "stuck_step": "N-Q1-06",
+          "stuck_step_label": "检验 C：合速度大小增大",
+          "stuck_severity": "低"
+        },
+        {
+          "question_id": "Q-MA0001",
+          "subject_label": "数学",
+          "expected_points": 4.342,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-MA-07",
+          "stuck_step_label": "收口：拒绝 H0，认为有关",
+          "stuck_severity": "低"
+        },
+        {
+          "question_id": "Q-CH0001",
+          "subject_label": "语文",
+          "expected_points": 3.905,
+          "points_total": 6.0,
+          "outcome": "卡住",
+          "stuck_step": "N-CH-08",
+          "stuck_step_label": "组织三点答案：手法→惋惜→赞美",
+          "stuck_severity": "低"
+        }
+      ]
+    }
+  ]
+}

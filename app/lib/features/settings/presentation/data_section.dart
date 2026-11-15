@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -8,36 +7,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:furnace/domain/services/package/question_pack_import_preview.dart';
 import 'package:furnace/domain/services/package/question_pack_selection.dart';
 import 'package:furnace/features/questions/application/question_pack_service.dart';
-import '../../../data/storage/app_storage.dart';
 
-import '../../../data/database/app_database_provider.dart';
-import '../../../data/package/tfpkg_codec.dart';
-import '../../../data/package/tfpkg_service.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../questions/application/learning_advice_provider.dart';
 import '../../questions/application/question_audit_reader.dart';
 import '../../questions/presentation/question_intake_providers.dart';
-import '../application/appearance_providers.dart';
-import '../application/diagnostics_bundle.dart';
+import 'data_backup_page.dart';
 import 'question_pack_export_filter_dialog.dart';
-import 'settings_page.dart' show currentProfileProvider;
+import 'settings_layout.dart';
 
-/// Data section of the settings page: whole-workspace backup and restore via
-/// `.tfpkg` (spec §3 / GAP D4).
+/// 「备份与恢复」在设置页数据分区里的入口行（测试按它定位）。
+const Key settingsDataBackupTileKey = Key('settings-data-backup-tile');
+
+/// Data section of the settings page: one entry group, not nine loose rows.
 ///
-/// Export writes one zip containing a logical JSON dump of every table plus the
-/// theme documents. Import always backs the current workspace up first, so a
-/// wrong choice of merge mode is recoverable.
+/// 第二遍清理（task-113）后的形状：
 ///
-/// Also hosts the question-bank package (`.tqb`), which carries questions and
-/// their images only. Records without a zujuan.com question id are always
-/// appended; records that carry one update the matching question in place, so
-/// its serial number and the title the user gave it survive. Before writing,
-/// [QuestionPackService.importPack] snapshots the current bank into a `.tqb`
-/// backup (listed in this section) when it is not empty.
+/// * **备份与恢复**——一行，进 [DataBackupPage] 才是 `.tfpkg` 导出/导入。
+///   工作区备份只有这一个入口（旧的「备份数据」直连 db 入口已在 task-107 删除，
+///   导入前的自动备份仍在导入流程里）；
+/// * **题库包（.tqb）**——题目与图片的搬运用它，和整库备份不是一回事；
+/// * **学习数据**——清空作答记录。
+///
+/// 诊断包是排障工具，不在这一组：`settings_page.dart` 把它放在开发者分区
+/// （见 `data_backup_page.dart` 的 `DiagnosticsBundlePage`）。
 class DataSection extends ConsumerWidget {
-  const DataSection({super.key});
+  const DataSection({super.key, this.showHeader = true});
+
+  /// 设置页重构后，分区标题由页面统一画（`SettingsSectionHeader`），这里只画
+  /// 卡片内部的二级标题；单独使用本组件（测试/别的入口）时保留原「数据」标题。
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,225 +45,27 @@ class DataSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(icon: Icons.folder_outlined, title: l10n.settingsData),
+        if (showHeader)
+          SettingsGroupHeader(
+            icon: Icons.folder_outlined,
+            title: l10n.settingsData,
+          ),
         ListTile(
-          leading: const Icon(Icons.archive_outlined),
-          title: Text(l10n.settingsTfpkgExport),
-          subtitle: Text(l10n.settingsTfpkgExportHint),
-          onTap: () => _export(context, ref),
+          key: settingsDataBackupTileKey,
+          leading: const Icon(Icons.settings_backup_restore),
+          title: Text(l10n.settingsBackupRestoreTitle),
+          subtitle: Text(l10n.settingsBackupRestoreHint),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => const DataBackupPage(),
+            ),
+          ),
         ),
-        ListTile(
-          leading: const Icon(Icons.unarchive_outlined),
-          title: Text(l10n.settingsTfpkgImport),
-          subtitle: Text(l10n.settingsTfpkgImportHint),
-          onTap: () => _import(context, ref),
-        ),
-        const _DiagnosticsSection(),
         const _QuestionPackSection(),
         const _StudyDataSection(),
       ],
     );
-  }
-
-  Future<void> _export(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-
-    // A `.tfpkg` is the thing people hand to each other, and it carries the AI
-    // API key (a plain settings column). Ask before including it rather than
-    // deciding for the user - defaulting to "include" would leak a working
-    // credential the first time someone shares a package without thinking.
-    final includeSecrets = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.settingsTfpkgExport),
-        content: Text(l10n.settingsTfpkgExportSecretsHint),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.settingsTfpkgExportNoSecrets),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.settingsTfpkgExportWithSecrets),
-          ),
-        ],
-      ),
-    );
-    if (includeSecrets == null) {
-      return;
-    }
-
-    try {
-      final service = TfpkgService(ref.read(appDatabaseProvider));
-      final bytes =
-          await service.exportBytes(excludeSensitive: !includeSecrets);
-      final stamp = DateTime.now()
-          .toIso8601String()
-          .substring(0, 16)
-          .replaceAll(':', '')
-          .replaceAll('-', '');
-      final target = await FilePicker.saveFile(
-        dialogTitle: l10n.settingsTfpkgExport,
-        fileName: 'furnace-$stamp.tfpkg',
-        bytes: bytes,
-        type: FileType.any,
-      );
-      if (target == null) {
-        return;
-      }
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(includeSecrets
-              ? l10n.settingsTfpkgExportDone
-              : l10n.settingsTfpkgExportDoneNoSecrets),
-        ),
-      );
-    } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('${l10n.settingsTfpkgExport}: $error')),
-      );
-    }
-  }
-
-  Future<void> _import(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final picked = await FilePicker.pickFiles(type: FileType.any);
-      if (picked.isEmpty) {
-        return;
-      }
-      final Uint8List bytes;
-      try {
-        bytes = await picked.first.readAsBytes();
-      } catch (error) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('${l10n.settingsTfpkgImport}: $error')),
-        );
-        return;
-      }
-
-      final TfpkgDump dump;
-      try {
-        dump = TfpkgCodec.readManifest(bytes);
-      } catch (_) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(l10n.settingsTfpkgInvalid)),
-        );
-        return;
-      }
-
-      if (!context.mounted) {
-        return;
-      }
-      final mode = await _askMergeMode(context, l10n, dump);
-      if (mode == null || !context.mounted) {
-        return;
-      }
-
-      // Back the current workspace up before touching it.
-      await _autoBackup(ref);
-
-      final service = TfpkgService(ref.read(appDatabaseProvider));
-      final report = await service.importDump(dump, mode: mode);
-      _invalidateEverything(ref);
-
-      final skipped = report.skippedTables.length;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${l10n.settingsTfpkgImportDone(report.totalWritten)}'
-            '${skipped == 0 ? '' : '\n${l10n.settingsTfpkgSkippedTables(skipped)}'}',
-          ),
-        ),
-      );
-    } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('${l10n.settingsTfpkgImport}: $error')),
-      );
-    }
-  }
-
-  /// Shows what is inside the package and lets the user choose the merge mode.
-  Future<TfpkgMergeMode?> _askMergeMode(
-    BuildContext context,
-    AppLocalizations l10n,
-    TfpkgDump dump,
-  ) {
-    return showDialog<TfpkgMergeMode>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.settingsTfpkgImport),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.settingsTfpkgImportPreview(
-                dump.totalRows,
-                dump.tables.length,
-                dump.themes.length,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.merge_type),
-              title: Text(l10n.settingsTfpkgMergeAppend),
-              onTap: () => Navigator.of(context).pop(TfpkgMergeMode.append),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.swap_horiz),
-              title: Text(l10n.settingsTfpkgMergeReplace),
-              onTap: () => Navigator.of(context).pop(TfpkgMergeMode.replace),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.settingsTfpkgImportHint,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: l10n.commonCancel,
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Writes a timestamped `.tfpkg` next to the database before an import.
-  ///
-  /// Failure is not fatal: the import continues, but it is reported, because
-  /// silently skipping the safety net would be worse than a warning.
-  Future<void> _autoBackup(WidgetRef ref) async {
-    try {
-      final dir = await AppStorage.supportDirectory();
-      final service = TfpkgService(ref.read(appDatabaseProvider));
-      final bytes = await service.exportBytes();
-      final stamp = DateTime.now()
-          .toIso8601String()
-          .substring(0, 19)
-          .replaceAll(':', '')
-          .replaceAll('-', '');
-      final file = File('${dir.path}/pre-import-$stamp.tfpkg');
-      await file.writeAsBytes(bytes);
-    } catch (_) {
-      // Reported by the caller's snack bar through the import result; a failed
-      // backup must not abort a restorable import.
-    }
-  }
-
-  /// Every module watches its own provider, so all of them are refreshed.
-  void _invalidateEverything(WidgetRef ref) {
-    ref.invalidate(themesProvider);
-    ref.invalidate(activeAppearanceProvider);
-    ref.invalidate(currentProfileProvider);
   }
 }
 
@@ -333,7 +135,7 @@ class _QuestionPackSectionState extends ConsumerState<_QuestionPackSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
+        SettingsGroupHeader(
           icon: Icons.inventory_2_outlined,
           title: l10n.settingsQuestionPackSection,
         ),
@@ -1191,7 +993,7 @@ class _StudyDataSectionState extends ConsumerState<_StudyDataSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
+        SettingsGroupHeader(
           icon: Icons.insights_outlined,
           title: l10n.settingsStudyDataTitle,
         ),
@@ -1204,114 +1006,6 @@ class _StudyDataSectionState extends ConsumerState<_StudyDataSection> {
           onTap: enabled ? _clearAll : null,
         ),
       ],
-    );
-  }
-}
-
-/// 诊断包（D01）：把版本/schema/设置摘要/题目与 AI 内容打包给用户回传。
-///
-/// 默认包含题目与 AI 内容（`workspace.tfpkg`），因为端到端问题基本都要靠原文
-/// 复现；开关可关掉。无论开关如何，API key 都不会进包 —— 安全契约与三道闸见
-/// `DiagnosticsBundleService`。
-class _DiagnosticsSection extends ConsumerStatefulWidget {
-  const _DiagnosticsSection();
-
-  @override
-  ConsumerState<_DiagnosticsSection> createState() =>
-      _DiagnosticsSectionState();
-}
-
-class _DiagnosticsSectionState extends ConsumerState<_DiagnosticsSection> {
-  /// 默认开：反馈问题最需要的就是原文。
-  bool _includeContent = true;
-
-  /// 生成/保存期间禁用按钮，避免双击导出两份。
-  bool _busy = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SectionHeader(
-          icon: Icons.monitor_heart_outlined,
-          title: l10n.settingsDiagnosticExport,
-        ),
-        SwitchListTile(
-          secondary: const Icon(Icons.dataset_outlined),
-          title: Text(l10n.settingsDiagnosticIncludeContent),
-          value: _includeContent,
-          onChanged:
-              _busy ? null : (value) => setState(() => _includeContent = value),
-        ),
-        ListTile(
-          leading: const Icon(Icons.bug_report_outlined),
-          title: Text(l10n.settingsDiagnosticExport),
-          subtitle: Text(l10n.settingsDiagnosticExportHint),
-          enabled: !_busy,
-          onTap: _busy ? null : _export,
-        ),
-      ],
-    );
-  }
-
-  Future<void> _export() async {
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _busy = true);
-    try {
-      final bundle = await DiagnosticsBundleService(
-        database: ref.read(appDatabaseProvider),
-      ).build(includeContent: _includeContent);
-      final target = await FilePicker.saveFile(
-        dialogTitle: l10n.settingsDiagnosticExport,
-        fileName: bundle.fileName,
-        bytes: bundle.bytes,
-        type: FileType.any,
-      );
-      if (target == null) {
-        return;
-      }
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.settingsDiagnosticDone(target.toFilePath())),
-        ),
-      );
-    } on Object catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.settingsDiagnosticFailed('$error'))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busy = false);
-      }
-    }
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(color: theme.colorScheme.primary),
-          ),
-        ],
-      ),
     );
   }
 }

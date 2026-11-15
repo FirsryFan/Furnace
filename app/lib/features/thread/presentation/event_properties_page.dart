@@ -13,7 +13,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../settings/presentation/usage_doc_page.dart';
 import '../../tasks/presentation/widgets/schedule_conflict_dialog.dart';
 import '../application/thread_rank_service.dart';
+import '../application/thread_rollup_projection.dart';
 import 'widgets/energy_bar.dart';
+import 'widgets/thread_rollup_progress.dart';
 
 /// The event property page (blueprint 2.4; user annotations 6 and 13).
 ///
@@ -207,6 +209,9 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
     final feed = ref.watch(threadFeedProvider).valueOrNull;
     final ranked =
         feed?.ranked.all.where((r) => r.event.id == widget.taskId).toList();
+    // 父容器（week/day/paper 或任何带子任务的节点）的子任务汇总：只读，来自内存
+    // 里的 feed；显示它不会写回父状态（状态写口仍然只有 ThreadFlowWriter）。
+    final rollup = ref.watch(threadRollupsProvider)[widget.taskId];
 
     return Scaffold(
       appBar: AppBar(
@@ -298,6 +303,8 @@ class _EventPropertiesPageState extends ConsumerState<EventPropertiesPage> {
                     ),
                   ),
                 ),
+                if (rollup != null && !rollup.isEmpty)
+                  ThreadRollupCard(rollup: rollup),
                 _AlgorithmSection(
                     ranked: ranked?.isEmpty == false ? ranked!.first : null),
               ],

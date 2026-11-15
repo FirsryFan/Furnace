@@ -176,6 +176,20 @@ class HtmlNode {
 
   /// Elements whose content is raw text (never markup).
   static const Set<String> rawTextTags = {'script', 'style', 'textarea', 'title'};
+
+  /// Tags a repeated start tag closes implicitly, the way HTML does.
+  ///
+  /// Used by [HtmlDocument.parse] when an open tag repeats the innermost open
+  /// tag: for these tags the second start tag means "the first one ended"
+  /// (`<p>one<p>two`, `<li>a<li>b`), so they are siblings. Every other tag -
+  /// `div`, `span`, `section`, headings, ... - nests normally, because
+  /// `<div><div>` is valid markup and flattening it loses structure that
+  /// element-based readers depend on. Content models from HTML's own
+  /// optional-end-tag rules.
+  static const Set<String> autoSiblingTags = {
+    'p', 'li', 'dt', 'dd', 'tr', 'td', 'th', 'option', 'optgroup', //
+    'thead', 'tbody', 'tfoot', 'rt', 'rp',
+  };
 }
 
 /// The scanned page: a root node plus the source it was scanned from.
@@ -248,11 +262,21 @@ class HtmlDocument {
       }
 
       final node = tag.node!;
-      // A repeated unclosed tag (`<p>one<p>two`) is treated as a sibling rather
-      // than a nesting: the source gives no closing tag to tell them apart, and
-      // nesting identical tags would hide the first one's text from any
-      // per-element extraction.
-      if (stack.length > 1 && stack.last.tag == node.tag) {
+      // A repeated unclosed tag of a kind that cannot contain itself
+      // (`<p>one<p>two`, `<li>a<li>b`) is treated as a sibling rather than a
+      // nesting: the source gives no closing tag to tell them apart, and nesting
+      // identical tags would hide the first one's text from any per-element
+      // extraction.
+      //
+      // Only [HtmlNode.autoSiblingTags] get this treatment. A `div` inside a
+      // `div` is valid and extremely common (every real page's layout), so
+      // flattening it - as an earlier version did for every tag - destroyed the
+      // nesting that structured readers (the OALD parser) rely on. The tags in
+      // that set are exactly the ones HTML itself auto-closes when a new start
+      // tag of the same name appears.
+      if (stack.length > 1 &&
+          stack.last.tag == node.tag &&
+          HtmlNode.autoSiblingTags.contains(node.tag!)) {
         _attach(stack[stack.length - 2], stack.removeLast());
       }
       _attach(stack.last, node);

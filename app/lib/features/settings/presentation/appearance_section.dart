@@ -9,7 +9,9 @@ import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../data/repositories/theme_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../markdown/presentation/markdown_settings_page.dart';
 import '../application/appearance_providers.dart';
+import 'settings_layout.dart';
 import 'theme_editor_page.dart';
 
 /// Appearance section of the settings page (spec §4).
@@ -17,7 +19,11 @@ import 'theme_editor_page.dart';
 /// Keeps the legacy system/light/dark choice as the top entry and lists the
 /// stored theme documents below it, with import / export / duplicate / delete.
 class AppearanceSection extends ConsumerWidget {
-  const AppearanceSection({super.key});
+  const AppearanceSection({super.key, this.showHeader = true});
+
+  /// 设置页重构后，页面统一画「外观与阅读」分区标题；单独挂载本组件时仍保留
+  /// 原来的「外观」小标题。
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,10 +34,11 @@ class AppearanceSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
-          icon: Icons.palette_outlined,
-          title: l10n.settingsAppearance,
-        ),
+        if (showHeader)
+          SettingsGroupHeader(
+            icon: Icons.palette_outlined,
+            title: l10n.settingsAppearance,
+          ),
         ListTile(
           leading: const Icon(Icons.brightness_auto),
           title: Text(l10n.settingsThemeSystemEntry),
@@ -66,6 +73,13 @@ class AppearanceSection extends ConsumerWidget {
           subtitle: Text(l10n.settingsThemeImportHint),
           onTap: () => _importTheme(context, ref),
         ),
+        // 「主题设置 → Markdown」：所有 Markdown 渲染（AI/题目/闪存卡）与 PDF
+        // 共用的版式主题。左边 A4 预览、右边个性化设置，代码模式可编辑但不保存。
+        const SettingsGroupHeader(
+          icon: Icons.code,
+          title: 'Markdown',
+        ),
+        const MarkdownSettingsTile(),
       ],
     );
   }
@@ -227,32 +241,6 @@ class _ThemeSwatch extends StatelessWidget {
             borderRadius: BorderRadius.circular(3),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(color: theme.colorScheme.primary),
-          ),
-        ],
       ),
     );
   }

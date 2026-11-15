@@ -8,6 +8,7 @@ import 'package:furnace/data/repositories/anki_repository.dart';
 import 'package:furnace/data/repositories/review_plan_repository.dart';
 import 'package:furnace/features/anki/application/judge_mode_preference.dart';
 import 'package:furnace/features/anki/presentation/review_page.dart';
+import 'package:furnace/features/questions/presentation/question_blank_view.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 /// Q26 的界面两半：**自由挖空就地呈现**，以及**会话内强制重做闭环**（D11）。
@@ -61,16 +62,22 @@ void main() {
     );
   }
 
-  /// 就地渲染的那一句（含空格位置的整句）。
+  /// 就地渲染的那一句（空位是下划线组件，纯文字只剩前后两段）。
   String clozeSentence(WidgetTester tester) {
-    final selectable = tester.widget<SelectableText>(
+    final rich = tester.widget<RichText>(
       find.descendant(
         of: find.byKey(const ValueKey('cloze-sentence')),
-        matching: find.byType(SelectableText),
+        matching: find.byType(RichText),
       ),
     );
-    return selectable.textSpan!.toPlainText();
+    return rich.text.toPlainText(includePlaceholders: false);
   }
+
+  /// 空位组件（未揭示时的空白下划线）。
+  Finder clozeBlank() => find.descendant(
+        of: find.byKey(const ValueKey('cloze-sentence')),
+        matching: find.byType(QuestionBlankUnderline),
+      );
 
   Future<void> tapNext(WidgetTester tester) async {
     await tester.tap(find.widgetWithIcon(IconButton, Icons.arrow_forward));
@@ -83,8 +90,9 @@ void main() {
 
     await pumpReview(tester, db);
 
-    // 就地呈现：整句还是原来那句，只有被抽走的那一段变成下划线。
-    expect(clozeSentence(tester), '光合作用的主要场所是______。');
+    // 就地呈现：整句还是原来那句，只有被抽走的那一段变成空白下划线。
+    expect(clozeSentence(tester), '光合作用的主要场所是。');
+    expect(clozeBlank(), findsOneWidget);
     expect(find.text('新空'), findsOneWidget, reason: '第一次抽到、还没复习过的空');
 
     await tester.enterText(find.byType(TextField), '叶绿体');
@@ -115,7 +123,8 @@ void main() {
     // 2) 队列只有这一张、后面没有空卡：按用户新口径它只能连续出现 —— 会话内
     // 闭环，不用等下一轮队列。
     await tapNext(tester);
-    expect(clozeSentence(tester), '光合作用的主要场所是______。');
+    expect(clozeSentence(tester), '光合作用的主要场所是。');
+    expect(clozeBlank(), findsOneWidget);
     expect(find.text('新空'), findsNothing, reason: '重做不是一张新空');
 
     // 3) 这次答对：仍在强制期内，位置隔 gap 张（这里没有别的卡），约 10 分钟后

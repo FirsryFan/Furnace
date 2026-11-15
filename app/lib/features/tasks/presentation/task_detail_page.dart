@@ -11,6 +11,7 @@ import '../../../domain/services/tags/tag_usage.dart';
 import '../../tags/application/tag_usage_scope.dart';
 import '../application/task_scheduler_providers.dart';
 import 'widgets/schedule_conflict_dialog.dart';
+import 'widgets/task_status_actions.dart';
 
 /// Task detail page: subtasks, dependencies, reminder.
 class TaskDetailPage extends ConsumerStatefulWidget {
@@ -100,6 +101,27 @@ class _TaskDetailPageState extends ConsumerState<TaskDetailPage> {
                       '${_priorityLabel(l10n, task.priority)}'
                       '${task.estimateMinutes != null ? ' · ${task.estimateMinutes} min' : ''}'
                       '${task.remindAt != null ? ' · ${l10n.tasksReminder}' : ''}',
+                    ),
+                    const SizedBox(height: 8),
+                    // v47 流程状态 + 状态动作（task-76；task-90 加「恢复」）：
+                    // 按状态可用，每次点击都先二次确认；写库仍走
+                    // TaskRepository/ThreadFlowWriter（`reopen` 也是事件迁移）。
+                    Text(
+                      '${l10n.tasksStatus}: ${taskStatusLabel(l10n, task)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    TaskStatusActions(
+                      task: task,
+                      onChanged: (_) {
+                        ref.invalidate(taskListProvider);
+                        ref.invalidate(scheduleSuggestionsProvider);
+                        _load();
+                      },
                     ),
                     const Divider(height: 32),
                     Row(

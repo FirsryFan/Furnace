@@ -50,6 +50,59 @@ class LocalSettings extends Table {
   /// must keep the behaviour it had before this setting existed.
   IntColumn get aiMaxRounds => integer().nullable()();
 
+  // --- v46: model-parameter layer (2026-11-15, MODEL-CONFIG-2026-11-15.md) ---
+  //
+  // Same contract as every nullable preference above: NULL means "the user
+  // never chose", which the app resolves to the value the code shipped before
+  // this layer existed. The migration writes no value, because writing today's
+  // default into every existing install would freeze it there and make a later
+  // change of that default unreachable for those users.
+
+  /// v46: thinking effort for the student solver's reasoning turn
+  /// (`low` | `high` | `max`). NULL = send no `reasoning_effort` at all.
+  ///
+  /// Stored as the wire value; parsing lives in `ReasoningEffort.fromId`.
+  TextColumn get aiReasoningEffort => text().nullable()();
+
+  /// v46: temperature for the reasoning/solve turn. NULL = shipped 0.6.
+  ///
+  /// DeepSeek documents that temperature has **no effect** in thinking mode
+  /// (it is accepted but ignored), so this column only has an effect when the
+  /// model runs without thinking - see MODEL-CONFIG-2026-11-15.md.
+  RealColumn get aiTemperature => real().nullable()();
+
+  /// v46: temperature for the answer-scribe ("finalizer") turn. NULL = 0.2.
+  RealColumn get aiAnswerTemperature => real().nullable()();
+
+  /// v46: temperature for the independent content verifier turn. NULL = 0.2.
+  RealColumn get aiVerifierTemperature => real().nullable()();
+
+  /// v46: `max_tokens` for the reasoning turn. NULL = 20 000.
+  ///
+  /// The reasoning turn needs a large output budget or the chain of thought
+  /// eats it and `content` comes back empty with `finish_reason = length`.
+  IntColumn get aiMaxReasoningTokens => integer().nullable()();
+
+  /// v46: `max_tokens` for the answer-scribe and verifier turns. NULL = 3 000.
+  ///
+  /// The answer reserve: the second, cheap turn that only writes the answer
+  /// sheet after reasoning consumed its budget.
+  IntColumn get aiAnswerReserveTokens => integer().nullable()();
+
+  /// v46: model name for the verifier turn. NULL = the solver's model.
+  ///
+  /// Stored even before there is UI for it, so an experiment can point the
+  /// verifier at a different model without a second migration later.
+  TextColumn get aiVerifierModel => text().nullable()();
+
+  /// v46: thinking effort for the verifier turn (`low` | `high` | `max`).
+  ///
+  /// NULL = send no `reasoning_effort`; deliberately **not** inherited from
+  /// [aiReasoningEffort], because the verifier was a fresh, parameterless turn
+  /// before this column existed and that is the behaviour an empty config must
+  /// keep.
+  TextColumn get aiVerifierEffort => text().nullable()();
+
   // --- v7: review preferences (user request "提出题型方式的喜好") ---
   //
   // Both columns are nullable and read as NULL on every upgraded row, because
@@ -295,6 +348,26 @@ class Tasks extends Table {
 
   /// v2: completion moment (convenience; authority is CompletionLogs).
   IntColumn get completedAt => integer().nullable()();
+
+  /// v47（2026-11-15，ThreadFlow 整合底座）：节点种类。
+  ///
+  /// 词表 `task` / `paper` / `week` / `day` / `review`（域层
+  /// `ThreadNodeKind`）。可空、**迁移不回填**：NULL 读作 `task`，所以老库的
+  /// 每一行语义不变；物化器新建计划节点时才需要显式写 `paper`/`week`/`day`/
+  /// `review`。调度入口仍然只有 `ThreadRankService`，这张列只用来区分节点，
+  /// 不新建第二张计划表。
+  TextColumn get kind => text().nullable()();
+
+  /// v47（2026-11-15）：物化幂等键（`paper:{QSET id}` / `week:2026-W47` /
+  /// `day:2026-11-15` / `practice:{Q id}:2026-11-15` …）。
+  ///
+  /// 可空、**迁移不回填**：老库全部 NULL（SQLite 唯一索引允许多个 NULL）。
+  /// 唯一索引 `idx_tasks_source_key` 由 database.dart 建（不是 Drift 的
+  /// `uniqueKeys`：ALTER TABLE 无法给已存在的表补表级约束，必须建独立索引，
+  /// 这样迁移、onCreate、beforeOpen 自愈三条路都走同一句
+  /// `CREATE UNIQUE INDEX IF NOT EXISTS`）。物化器必须"查 source_key → 复用/
+  /// 更新，不存在才插入"，绝不无条件 insert。
+  TextColumn get sourceKey => text().nullable()();
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
@@ -912,6 +985,21 @@ class AiConversations extends Table {
 
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
+
+  /// The agent preset chosen while this conversation was blank.
+  ///
+  /// NULL on rows created before presets existed; the read side resolves NULL
+  /// to `assistant`, so an upgraded database keeps the old behaviour. The value
+  /// is immutable once the conversation has a message (see
+  /// `AiRepository.setConversationPresets`); there is deliberately no
+  /// `preset_version` / `preset_hash` / `locked_at` column - the preset is a
+  /// live definition resolved by id, exactly like DSH.
+  TextColumn get agentPresetId => text().nullable()();
+
+  /// The preset a subagent session is started with.
+  ///
+  /// NULL means "inherit the parent session's preset".
+  TextColumn get subagentPresetId => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -2043,4 +2131,400 @@ class CogAbilityParamMappings extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+// ---------------------------------------------------------------------------
+// v45（2026-11-14）：全局 agent run 的持久化（《STUDENT-MODE-AND-AGENT-LOOP-
+// DESIGN-2026-11-14》§5）。
+//
+// 五张表都是**纯新增**：v44 及更早的库没有任何一行需要回填。它们记录的是
+// "一次运行发生了什么"，不是可再生的缓存——但是它们**不存 raw CoT**：
+// reasoning 全文留在 `<appSupport>/student_solver_traces/` 的 trace 文件里，
+// 库里只留 `reasoning_chars`（长度）和结构化摘要。同一条纪律与
+// `docs/REVIEW_FEEDBACK.md` §4a 的 `ai_messages.reasoning` 不同：那条是用户要
+// 在历史里折叠查看的正文，而这里的 CoT 是过程审计的原料，读它的只有
+// ProcessAuditor，塞进库只会让一次运行的存储涨 20k token 而没有任何读侧。
+// ---------------------------------------------------------------------------
+
+/// 一次 agent 运行（schema v45，设计文档 §5.1）。
+///
+/// 一行 = 一次 `AgentRun`：普通对话的一轮、或学生模式的一次 solve→answer→
+/// verify→repair。`status` 是运行级终态，`verifier_verdict` 是 run 级摘要
+/// （详细证据在 [AgentVerifications]）。
+///
+/// 不存 raw CoT 是这一张表的核心约束：[answerSheetJson] 只放结构化答案，
+/// [reasoningChars] 只放长度；要读原文请顺着 [tracePath] 去 trace 文件。
+@DataClassName('AgentRunRow')
+class AgentRuns extends Table {
+  @override
+  String get tableName => 'agent_runs';
+
+  TextColumn get id => text()();
+
+  /// 所属会话（`ai_conversations.id`）。不建外键：运行记录是审计流水，删会话
+  /// 不该把它一起抹掉（这也是本项目「生成 schema 不带外键」的既有口径）。
+  TextColumn get conversationId => text()();
+
+  /// 这次运行解析到的 preset id（`assistant` / `student_solver`）。只存 id，
+  /// 不存定义/版本/hash —— 与 `ai_conversations.agent_preset_id` 同一个契约。
+  TextColumn get presetId => text()();
+
+  /// `chat` / `student`（域层 `AgentMode.id`）。
+  TextColumn get mode => text()();
+
+  /// `solve` / `answer` / `verify` / `repair` / `present`（域层
+  /// `AgentPhase.id`），运行中会被推进。
+  TextColumn get phase => text()();
+
+  /// `running` / `answered` / `failed` / `stopped`（域层 `AgentRunStatus.id`）。
+  TextColumn get status => text()();
+
+  /// 终态原因（域层 `StopReason.id`）；NULL = 还在跑或正常结束。
+  TextColumn get stopReason => text().nullable()();
+
+  /// 已执行的模型/工具步数（= [AgentSteps] 的行数，冗余一列便于不读明细）。
+  IntColumn get steps => integer().withDefault(const Constant(0))();
+
+  IntColumn get promptTokens => integer().withDefault(const Constant(0))();
+  IntColumn get completionTokens => integer().withDefault(const Constant(0))();
+
+  /// provider 报告的 reasoning token 数；NULL = provider 没报（不是 0）。
+  IntColumn get reasoningTokens => integer().nullable()();
+
+  /// reasoning 的字符数。**不是全文**：长度足以比较「这一跑想了多少」，
+  /// 原文留在 trace 文件里。
+  IntColumn get reasoningChars => integer().withDefault(const Constant(0))();
+
+  IntColumn get elapsedMs => integer().nullable()();
+
+  /// 结构化答案卡（域层 `StudentAnswerSheet.toJson()` 的 JSON 文本）。
+  /// 只放题型/答案/过程这些答案本身，不放 CoT。
+  TextColumn get answerSheetJson => text().nullable()();
+
+  /// 原始 trace 文件路径（`<appSupport>/student_solver_traces/<stamp>.json`）。
+  TextColumn get tracePath => text().nullable()();
+
+  /// run 级验证结论摘要（`pass` / `fail` / `unknown` / `error`）；明细在
+  /// [AgentVerifications]。
+  TextColumn get verifierVerdict => text().nullable()();
+
+  /// ProcessAuditor 的过程报告（`ProcessReport.toJson()`）；NULL = 没跑过程审计。
+  TextColumn get processReportJson => text().nullable()();
+
+  IntColumn get startedAt => integer()();
+  IntColumn get endedAt => integer().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一次运行里的一步（schema v45，设计文档 §5.2）。
+///
+/// 每次模型调用、每次答案落盘、每次验证都追加一行；`UNIQUE(run_id, seq)` 让
+/// 同一序号不可能写两次（重放同一 run 时是幂等冲突而不是悄悄长出重复步）。
+///
+/// [stateFingerprint] 是 StepGuard/ProcessAuditor 判断"状态连续不变"的依据，
+/// [claimHash] 是 claim 级循环检测的锚点（claim 正文不在这里，见
+/// [AgentClaims]）。[summary] 只放一句人话，**不放 raw CoT**。
+@DataClassName('AgentStepRow')
+class AgentSteps extends Table {
+  @override
+  String get tableName => 'agent_steps';
+
+  TextColumn get id => text()();
+
+  TextColumn get runId => text()();
+
+  /// 运行内从 0 开始（或从 1 开始，由写入方统一）的步序号。
+  IntColumn get seq => integer()();
+
+  /// 这一步处于哪个 phase（`AgentPhase.id`）。
+  TextColumn get phase => text()();
+
+  /// `model` / `answer` / `verify` / `repair` / `persist`。
+  TextColumn get kind => text()();
+
+  /// 工具名（只有 `kind` 为工具步时非空）。
+  TextColumn get toolName => text().nullable()();
+
+  /// 规范化的参数 hash（`StepGuard.actionKey` 的 hash 部分）。
+  TextColumn get argsHash => text().nullable()();
+
+  /// 这一步之后的状态指纹（`StepGuard.stateFingerprint`）。
+  TextColumn get stateFingerprint => text().nullable()();
+
+  /// 这一步涉及的 claim canonical hash（可选）。
+  TextColumn get claimHash => text().nullable()();
+
+  /// `ok` / `failed` / `skipped`。
+  TextColumn get status => text()();
+
+  /// 这一步消耗的 token 数（provider 报告时才有意义；NULL = 不知道）。
+  IntColumn get tokens => integer().nullable()();
+
+  /// 一句人话摘要（例如「模型返回答案卡」「验证 fail: missing_answer」）。
+  TextColumn get summary => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {runId, seq},
+      ];
+}
+
+/// 一次验证/审计的结论（schema v45，设计文档 §5.3）。
+///
+/// ContentVerifier 与 ProcessAuditor **分开记**（`kind` = `content` / `process`），
+/// 因为两者的输入和独立性不同：内容验证不看 solver 的 raw CoT
+/// （[independent] = true），过程审计必须读 CoT（[processReportJson]）。
+/// 合成一行会把「答案对不对」和「过程有没有打转」两件事混成一个 verdict。
+@DataClassName('AgentVerificationRow')
+class AgentVerifications extends Table {
+  @override
+  String get tableName => 'agent_verifications';
+
+  TextColumn get id => text()();
+
+  TextColumn get runId => text()();
+
+  /// 验证者标识：`student_independent_v1` / `process_auditor` / …
+  TextColumn get verifier => text()();
+
+  /// `content` / `process`。
+  TextColumn get kind => text().withDefault(const Constant('content'))();
+
+  /// `pass` / `fail` / `unknown` / `error`（域层 `Verdict.id`）。
+  TextColumn get verdict => text()();
+
+  /// `missing_answer` / `wrong_branch` / `loop` / `self_doubt` / …（域层
+  /// `FailureType.id`）；NULL = 没有可归类的失败。
+  TextColumn get failureType => text().nullable()();
+
+  /// 这次验证是不是**独立**于 solver 的（内容验证 true；过程审计 false）。
+  BoolColumn get independent => boolean().withDefault(const Constant(true))();
+
+  /// 验证证据（`Verification.toJson()`）：issues/evidence/confidence 等。
+  TextColumn get evidenceJson => text().nullable()();
+
+  /// 过程审计报告（`ProcessReport.toJson()`）；`kind = process` 时才有。
+  TextColumn get processReportJson => text().nullable()();
+
+  IntColumn get promptTokens => integer().nullable()();
+  IntColumn get completionTokens => integer().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一条 claim（schema v45，设计文档 §5.4）。
+///
+/// 全局可选模块，学生 v1 不写；v45 先把表建好，ClaimLedger 接进来时不用再改
+/// schema。`canonical` 是规范化后的命题文本（不是 hash：hash 做去重键，正文
+/// 做可读证据）；`deps_json` 存依赖 claim 的 `[{id, version}]`，依赖版本没变
+/// 时同一 ClaimKey 命中检查缓存，不重复判。
+@DataClassName('AgentClaimRow')
+class AgentClaims extends Table {
+  @override
+  String get tableName => 'agent_claims';
+
+  TextColumn get id => text()();
+
+  TextColumn get runId => text()();
+
+  /// `given` / `equation` / `decision` / `assumption` / `open`。
+  TextColumn get kind => text()();
+
+  /// 规范化后的命题文本（用于匹配/展示；不存中文以外的本地化标签）。
+  TextColumn get canonical => text()();
+
+  /// 命题原文（模型/审计器抽出来的那句话）。
+  TextColumn get statement => text()();
+
+  /// 依赖列表 JSON：`[{"id": "...", "version": 1}]`；NULL = 无依赖。
+  TextColumn get depsJson => text().nullable()();
+
+  /// `proposed` / `verified` / `refuted` / `open`。
+  TextColumn get status => text()();
+
+  /// `deterministic` / `symbolic` / `nli` / `judge`；NULL = 还没检查过。
+  TextColumn get checkMethod => text().nullable()();
+
+  /// 这个 claim 被检查时依赖的版本号（依赖变了就要重查）。
+  IntColumn get checkedVersion => integer().withDefault(const Constant(0))();
+
+  TextColumn get evidence => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 一条验证后经验（schema v45，设计文档 §5.5，P1）。
+///
+/// 只写「已经过验证」的经验，不写模型的自我评价；[revokedAt] 非空 = 这条经验
+/// 已被撤销，不再参与复用。学生 v1 不启用，表先建好。
+@DataClassName('AgentExperienceRow')
+class AgentExperiences extends Table {
+  @override
+  String get tableName => 'agent_experiences';
+
+  TextColumn get id => text()();
+
+  /// 经验聚类键（同一类问题的经验放一起）。
+  TextColumn get cluster => text()();
+
+  /// 状态键（`StepGuard` 的 state fingerprint / claim 状态摘要）。
+  TextColumn get stateKey => text()();
+
+  /// 动作键（`StepGuard.actionKey`）。
+  TextColumn get action => text()();
+
+  /// 奖励（验证后的收益/代价，可负）。
+  RealColumn get reward => real()();
+
+  /// provenance：这条经验来自哪次 run / 哪条验证（可空，撤销时要有据可查）。
+  TextColumn get provenanceRunId => text().nullable()();
+  TextColumn get provenanceVerifierId => text().nullable()();
+
+  IntColumn get version => integer().withDefault(const Constant(1))();
+
+  /// NULL = 有效；非空 = 撤销时刻（epoch ms），保留行而不是删除。
+  IntColumn get revokedAt => integer().nullable()();
+
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+// ---------------------------------------------------------------------------
+// v47（2026-11-15）：ThreadFlow 内容整合底座
+// 契约：`INTEGRATION-CONTRACT-2026-11-15.md` §2.2 / §3.1 / §3.4。
+// 两张新表 + `tasks.kind` / `tasks.source_key` 两列；调度器仍只有
+// `ThreadRankService`，不新增 papers / weekly_plans / daily_plans / thread_nodes。
+// ---------------------------------------------------------------------------
+
+/// 内容对象 ↔ 产品对象的 ID 桥（schema v47，契约 §2.2）。
+///
+/// 一行 = 一条引用：C 层内容 id（`Q-PH0001` / `QSET-20261115-01` / 内容知识节点
+/// `kp-*`）指向一个产品对象（`task` / `question` / `knowledge_point` /
+/// `card_template`），用 [role] 区分同一对象上的不同来源。
+///
+/// **只引用、不复制正文**：这张表没有任何题干/答案/解析/DAG 正文字段。内容正文
+/// 的唯一存放处是产品 `questions`/`knowledge_points` 与工作区内容包；
+/// `metadata_json` 只放"怎么引用"的摘要（node_id / board / trust / source_mode
+/// 等），不放正文。
+///
+/// 唯一键 `(content_id, object_type, object_id, role)`：内容换版（`content_hash`
+/// 变）时**原地更新**这一行，不新建第二张版本表（避免第三套历史）；需要审计时
+/// 把旧 hash 写进 `metadata_json.previous_hash`。
+@DataClassName('ContentRefRow')
+class ContentRefs extends Table {
+  @override
+  String get tableName => 'content_refs';
+
+  TextColumn get id => text()();
+
+  /// C 层 id：`Q-<SUBJ><NNNN>` / `QSET-<yyyyMMdd>-<n>` / 内容知识节点
+  /// `kp-<slug>`。永不复用、永不改名：修订 = 版本 + hash 变化，新题 = 新 id。
+  TextColumn get contentId => text()();
+
+  /// 内容包 `provenance.version`（整数、单调 +1）或 board 版本；NULL = 引用方
+  /// 没记录版本。**version 与 hash 要么同时给、要么都不给**，只给一个是脏数据
+  /// —— 见 `ContentRefRepository` 的成对校验。
+  IntColumn get contentVersion => integer().nullable()();
+
+  /// sha256（question 或 board 的 `content_hash`）。注意它与产品
+  /// `questions.stem_fingerprint`（FNV-1a 64）同名不同算法，**禁止互比**
+  /// （契约 §2.3 第 3 条）。
+  TextColumn get contentHash => text().nullable()();
+
+  /// 过滤用（physics / math / chinese），不参与 join 语义。
+  TextColumn get subject => text().nullable()();
+
+  /// 产品对象类型：`task` / `question` / `knowledge_point` / `card_template`
+  /// （域层 `ContentObjectType`）。自由 TEXT 与 `object_tags.object_type` 同一
+  /// 纪律：新增值要改常量并做一次全库审计。
+  TextColumn get objectType => text()();
+
+  /// 产品对象 id（`task-<uuid>` / `q-<uuid>` / `kp-<uuid>` / `tpl-<uuid>`）。
+  /// **本地 id 不是跨设备锚点**：禁止把它写回内容包。
+  TextColumn get objectId => text()();
+
+  /// `source_package` / `paper_item` / `node` / `dag_node` / `card_seed` /
+  /// `analysis_ref`（域层 `ContentRefRole`）。词表固定，新增要改常量 + 迁移审计。
+  TextColumn get role => text()();
+
+  /// 引用摘要（node_id / board / trust / source_mode / previous_hash …）；
+  /// 不存正文。
+  TextColumn get metadataJson => text().nullable()();
+
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {contentId, objectType, objectId, role},
+      ];
+}
+
+/// ThreadFlow 状态事件流（schema v47，契约 §3.1/§3.4）。
+///
+/// **append-only**：每次状态迁移追加一行，不更新（删 task 时随节点删 —— 事件
+/// 属于该节点的调度历史；`completion_logs` 是学习历史、保留）。唯一写口是
+/// `ThreadFlowWriter`。
+///
+/// 事件种类 `created` / `planned` / `started` / `submitted` / `stuck` /
+/// `skipped` / `completed` / `reopened`（域层 `ThreadEventKind`；`reopened`
+/// 是 task-90 按契约 §3.4「重开」补的第 8 种，**只加值不加列**）。词表与
+/// 任务书一致；状态 `blocked` 由 `stuck` 事件驱动（契约里该事件叫 `blocked`，
+/// 这里按任务书的 `stuck` 落地，两者是同一个事实）。
+///
+/// 幂等：`UNIQUE(task_id, kind, source_key)`。`source_key` 为 NULL 时 SQLite
+/// 允许多行，所以普通"每次迁移都追加"不受影响；调用方要重试幂等时给
+/// `source_key`（例如 `QSET-20261115-01:completed`），重复写同一事实会命中
+/// 唯一键而不是悄悄长出第二行。
+///
+/// **不存正文**：`payload_json` 只放流程事实（reason / verdict / attempt_ids /
+/// agent_run_id / card_state_ids 数量等），不放题干/答案/解析，也**不是**复习
+/// 记录或作答记录 —— 那两件事分别归 `review_logs` / `question_attempts`。
+@DataClassName('ThreadEventRow')
+class ThreadEvents extends Table {
+  @override
+  String get tableName => 'thread_events';
+
+  TextColumn get id => text()();
+
+  TextColumn get taskId => text()();
+
+  /// `created` / `planned` / `started` / `submitted` / `stuck` / `skipped` /
+  /// `completed` / `reopened`（域层 `ThreadEventKind.id`）。
+  TextColumn get kind => text()();
+
+  /// 事件事实 JSON；NULL = 这个事件没有附加事实。限 4 KB（契约 R4）。
+  TextColumn get payloadJson => text().nullable()();
+
+  /// 事件发生时刻（epoch ms，与全库同一个时钟）。
+  IntColumn get occurredAt => integer()();
+
+  /// 幂等键；NULL = 不参与幂等（每次调用都追加）。
+  TextColumn get sourceKey => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+        {taskId, kind, sourceKey},
+      ];
 }

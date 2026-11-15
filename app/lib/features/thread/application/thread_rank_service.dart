@@ -15,6 +15,8 @@ import '../../../domain/services/scheduling/domain_balance.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
 import '../../../domain/services/scheduling/thread_ranker.dart';
 import '../../../domain/services/scheduling/time_window_engine.dart';
+import '../../../domain/services/thread/thread_node_kind.dart';
+import '../../../domain/services/thread/thread_status.dart';
 import 'cognitive_rank_reader.dart';
 import 'thread_balance_provider.dart';
 
@@ -221,8 +223,12 @@ class ThreadRankService {
 
     final events = <RankEvent>[];
     for (final task in tasks) {
-      if (task.status == 'done') {
-        continue; // completed events belong to the archive view
+      // v47 读侧：ready 集合 = 显式 `todo|doing`，且容器节点（week/day）不参与
+      // 段 A 排序。旧口径是 `!= done`，会把 blocked/skipped 当成待办。
+      final status = ThreadStatus.fromStorage(task.status);
+      final nodeKind = ThreadNodeKind.fromStorage(task.kind);
+      if (!status.isSchedulable || nodeKind.isContainer) {
+        continue;
       }
       events.add(RankEvent(
         id: task.id,

@@ -155,13 +155,13 @@ abstract class AppLocalizations {
   /// No description provided for @navMindnet.
   ///
   /// In en, this message translates to:
-  /// **'MindNet'**
+  /// **'Learning status'**
   String get navMindnet;
 
   /// No description provided for @mindnetIntro.
   ///
   /// In en, this message translates to:
-  /// **'MindNet reads your review history and suggests what to study. This page is read-only.'**
+  /// **'This page answers two things only - how your learning looks and what to do today: level, strengths and weak spots, today\'s readiness, last week. Model parameters and raw readings are not shown here.'**
   String get mindnetIntro;
 
   /// No description provided for @navSettings.
@@ -469,6 +469,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deadline'**
   String get tasksDueAt;
+
+  /// No description provided for @tasksStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get tasksStatus;
+
+  /// No description provided for @tasksStatusTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'To do'**
+  String get tasksStatusTodo;
+
+  /// No description provided for @tasksStatusDoing.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get tasksStatusDoing;
+
+  /// No description provided for @tasksStatusDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get tasksStatusDone;
+
+  /// No description provided for @tasksStatusBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stuck'**
+  String get tasksStatusBlocked;
+
+  /// No description provided for @tasksStatusSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get tasksStatusSkipped;
+
+  /// No description provided for @tasksStatusSectionTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'To do'**
+  String get tasksStatusSectionTodo;
+
+  /// No description provided for @tasksStatusSectionDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get tasksStatusSectionDone;
+
+  /// No description provided for @tasksStatusSectionArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Stuck / skipped'**
+  String get tasksStatusSectionArchived;
+
+  /// No description provided for @tasksStatusMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Status actions'**
+  String get tasksStatusMenu;
+
+  /// No description provided for @tasksSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get tasksSubmit;
+
+  /// No description provided for @tasksMarkStuck.
+  ///
+  /// In en, this message translates to:
+  /// **'Stuck'**
+  String get tasksMarkStuck;
+
+  /// No description provided for @tasksSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get tasksSkip;
+
+  /// No description provided for @tasksSubmitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit \"{title}\"?'**
+  String tasksSubmitTitle(String title);
+
+  /// No description provided for @tasksSubmitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting only records that the work was handed in; it does not change the task status and does not mark it done.'**
+  String get tasksSubmitBody;
+
+  /// No description provided for @tasksStuckTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark \"{title}\" as stuck?'**
+  String tasksStuckTitle(String title);
+
+  /// No description provided for @tasksStuckBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Stuck removes the task from the to-do list without recording right or wrong and without changing ability; you can start it again later, or skip it.'**
+  String get tasksStuckBody;
+
+  /// No description provided for @tasksSkipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip \"{title}\"?'**
+  String tasksSkipTitle(String title);
+
+  /// No description provided for @tasksSkipBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipping is not deleting: the task and everything it references stay; it just leaves the to-do list.'**
+  String get tasksSkipBody;
+
+  /// No description provided for @tasksSubmitDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted \"{title}\"'**
+  String tasksSubmitDone(String title);
+
+  /// No description provided for @tasksStuckDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked \"{title}\" as stuck'**
+  String tasksStuckDone(String title);
+
+  /// No description provided for @tasksSkipDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped \"{title}\"'**
+  String tasksSkipDone(String title);
+
+  /// No description provided for @tasksReopen.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get tasksReopen;
+
+  /// No description provided for @tasksReopenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore \"{title}\"?'**
+  String tasksReopenTitle(String title);
+
+  /// No description provided for @tasksReopenBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring puts the task back in the to-do list and records a reopened event. Completion history is not rolled back: it stays as the record that the work was done.'**
+  String get tasksReopenBody;
+
+  /// No description provided for @tasksReopenDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored \"{title}\"'**
+  String tasksReopenDone(String title);
+
+  /// No description provided for @tasksStatusNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{action}\" is not allowed while the task is {status}'**
+  String tasksStatusNotAllowed(String status, String action);
+
+  /// No description provided for @tasksStatusActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed: {error}'**
+  String tasksStatusActionFailed(String error);
 
   /// No description provided for @timeNewBlock.
   ///
@@ -2289,6 +2457,60 @@ abstract class AppLocalizations {
   /// **'{success} succeeded, {failed} failed: {errors}'**
   String tagsBatchResultMixed(int success, int failed, String errors);
 
+  /// Placeholder of the tag graph search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tags'**
+  String get tagsSearchHint;
+
+  /// Empty state when the tag search has no hit.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tags'**
+  String get tagsSearchEmpty;
+
+  /// Hit count shown while the tag search is active.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matching tags'**
+  String tagsSearchCount(int count);
+
+  /// No description provided for @tagsClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get tagsClearSearch;
+
+  /// Hint when the graph falls back to a pan/zoom canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Wider than the screen: drag to pan, scroll or pinch to zoom'**
+  String get tagsGraphPanHint;
+
+  /// Badge on a collapsed node: how many child tags are hidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} child tags hidden'**
+  String tagsCollapsedHidden(int count);
+
+  /// Title of the panel opened by tapping a tag node.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag settings'**
+  String get tagsNodeSettings;
+
+  /// Footer of the node settings dialog, separating arrows from the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the arrow on the node to expand or collapse; this panel edits this tag only.'**
+  String get tagsNodeSettingsHint;
+
+  /// Title of the single-tag move dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Move \"{label}\" to'**
+  String tagsMoveSingleTitle(String label);
+
   /// No description provided for @threadTitle.
   ///
   /// In en, this message translates to:
@@ -2372,6 +2594,103 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No events yet'**
   String get threadNoEvents;
+
+  /// No description provided for @threadWindowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get threadWindowAll;
+
+  /// No description provided for @threadWindowWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get threadWindowWeek;
+
+  /// No description provided for @threadWindowDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get threadWindowDay;
+
+  /// No description provided for @threadWindowEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks in this window'**
+  String get threadWindowEmpty;
+
+  /// No description provided for @threadWindowTemporary.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary view: filters the tasks you already sorted by time window. It changes no order and writes nothing.'**
+  String get threadWindowTemporary;
+
+  /// Prefix of the read-only subtask rollup line on a container row.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtasks'**
+  String get threadRollupSubtasks;
+
+  /// Subtasks completed / subtasks total (container rollup).
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total}'**
+  String threadRollupDoneOf(int done, int total);
+
+  /// Rollup progress percent (done / total subtasks).
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String threadRollupPercent(int percent);
+
+  /// Number of stuck subtasks in the rollup line (only shown when > 0).
+  ///
+  /// In en, this message translates to:
+  /// **'stuck {count}'**
+  String threadRollupBlocked(int count);
+
+  /// Number of skipped subtasks in the rollup line (only shown when > 0).
+  ///
+  /// In en, this message translates to:
+  /// **'skipped {count}'**
+  String threadRollupSkipped(int count);
+
+  /// Title of the read-only subtask rollup card in the event properties page.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtask rollup (read-only)'**
+  String get threadRollupSection;
+
+  /// Label of the status derived from subtasks (never written back).
+  ///
+  /// In en, this message translates to:
+  /// **'Rolled-up status'**
+  String get threadRollupStatus;
+
+  /// Subtask counts by status (container rollup).
+  ///
+  /// In en, this message translates to:
+  /// **'To do {todo} · In progress {doing} · Done {done} · Stuck {blocked} · Skipped {skipped}'**
+  String threadRollupCountsLine(
+      int todo, int doing, int done, int blocked, int skipped);
+
+  /// Sum of subtask estimates in the container rollup.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtasks add up to {minutes} min'**
+  String threadRollupEstimate(int minutes);
+
+  /// Shown instead of a sum when any subtask estimate is null.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate unknown (a subtask has no estimate)'**
+  String get threadRollupEstimateUnknown;
+
+  /// Note under the rollup card: the rollup is a read-only projection.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only rollup: showing it never writes the parent status.'**
+  String get threadRollupReadOnly;
 
   /// No description provided for @threadGoal.
   ///
@@ -2988,7 +3307,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewReminderSettingOff.
   ///
   /// In en, this message translates to:
-  /// **'Off'**
+  /// **'Off (tap to set a daily reminder)'**
   String get reviewReminderSettingOff;
 
   /// No description provided for @reviewReminderSettingOn.
@@ -3066,7 +3385,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUsageDocHint.
   ///
   /// In en, this message translates to:
-  /// **'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, cognitive model'**
+  /// **'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, learning status'**
   String get settingsUsageDocHint;
 
   /// No description provided for @docAiTitle.
@@ -3144,13 +3463,13 @@ abstract class AppLocalizations {
   /// No description provided for @docCognitiveTitle.
   ///
   /// In en, this message translates to:
-  /// **'How to read the cognitive model'**
+  /// **'How to read your learning status'**
   String get docCognitiveTitle;
 
   /// No description provided for @docCognitiveBody.
   ///
   /// In en, this message translates to:
-  /// **'The cognitive model is a read-only page showing how well each card is remembered. \"Developing zone\" = what to review more now; \"at risk\" = you can do it but are close to forgetting. When there is no data it says unavailable, which does not mean healthy. The knowledge graph at the top draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. \"Capability actions\" groups the steps where you got stuck and lets you find questions by that action. These readings are guidance only and never change your data by themselves.'**
+  /// **'Learning status is a read-only page: current level, strengths and weak spots, what to review today, and a one-line trend for the last week. The level and the lists are computed per knowledge point, not per flashcard: cards under one knowledge point are averaged first, and only points with review history count as evidence. Below the threshold, or when readings disagree too much, it shows ? or not enough evidence - which does not mean healthy. The knowledge graph draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. Capability actions groups the steps where you got stuck and lets you find questions by that action. Model parameters and per-card raw readings live under Settings > Developer > Developer info (read-only), collapsed by default. These readings are guidance only and never change your data by themselves.'**
   String get docCognitiveBody;
 
   /// No description provided for @docFormulaTitle.
@@ -4185,6 +4504,60 @@ abstract class AppLocalizations {
   /// **'—'**
   String get aiUsageUnavailable;
 
+  /// No description provided for @aiEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking effort'**
+  String get aiEffort;
+
+  /// No description provided for @aiEffortDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get aiEffortDefault;
+
+  /// No description provided for @aiEffortLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get aiEffortLow;
+
+  /// No description provided for @aiEffortHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get aiEffortHigh;
+
+  /// No description provided for @aiEffortMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get aiEffortMax;
+
+  /// No description provided for @aiEffortTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'A chosen level is sent as reasoning_effort on the chat request; Default sends no such field. Whether the server accepts it depends on the model.'**
+  String get aiEffortTooltip;
+
+  /// No description provided for @aiEffortBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The thinking effort cannot change while a turn is running'**
+  String get aiEffortBusy;
+
+  /// No description provided for @aiDropImageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to add the image to this message'**
+  String get aiDropImageHint;
+
+  /// No description provided for @aiDropImageSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} non-image file(s) skipped'**
+  String aiDropImageSkipped(int count);
+
   /// No description provided for @settingsAiSection.
   ///
   /// In en, this message translates to:
@@ -4260,7 +4633,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAiMaxRoundsHint.
   ///
   /// In en, this message translates to:
-  /// **'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.'**
+  /// **'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 200.'**
   String get settingsAiMaxRoundsHint;
 
   /// No description provided for @settingsAiSave.
@@ -4545,18 +4918,6 @@ abstract class AppLocalizations {
   /// **'Workspace exported (API key excluded)'**
   String get settingsTfpkgExportDoneNoSecrets;
 
-  /// No description provided for @cognitiveModelTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Cognitive model'**
-  String get cognitiveModelTitle;
-
-  /// No description provided for @cognitiveModelSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Read-only readings: R / band / zone'**
-  String get cognitiveModelSubtitle;
-
   /// No description provided for @cognitiveGraphTitle.
   ///
   /// In en, this message translates to:
@@ -4584,8 +4945,8 @@ abstract class AppLocalizations {
   /// No description provided for @cognitiveGraphPointDetail.
   ///
   /// In en, this message translates to:
-  /// **'Zone: {zone} · {cards} cards · mean R {mean}'**
-  String cognitiveGraphPointDetail(String zone, int cards, String mean);
+  /// **'Zone: {zone} · {cards} cards'**
+  String cognitiveGraphPointDetail(String zone, int cards);
 
   /// No description provided for @cognitiveGraphTagDetail.
   ///
@@ -7546,6 +7907,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This question is no longer in the library (it may have just been deleted).'**
   String get questionDetailQuestionMissing;
+
+  /// No description provided for @questionDeveloperEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer info'**
+  String get questionDeveloperEntry;
+
+  /// No description provided for @questionDeveloperTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer info'**
+  String get questionDeveloperTitle;
+
+  /// No description provided for @questionDeveloperHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal fields, source editing and image management; hidden from the student page.'**
+  String get questionDeveloperHint;
+
+  /// No description provided for @questionDeveloperRawTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal fields (read-only)'**
+  String get questionDeveloperRawTitle;
+
+  /// No description provided for @questionDeveloperImagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image management'**
+  String get questionDeveloperImagesTitle;
 
   /// No description provided for @questionDetailEditSource.
   ///
@@ -10861,6 +11252,420 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} steps this turn'**
   String aiStepsSummary(int count);
+
+  /// Row menu / leaf tap entry that opens the tag knowledge page.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked content'**
+  String get tagsKnowledgeEntry;
+
+  /// Title of the tag knowledge entry page.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked content'**
+  String get tagKnowledgeEntryTitle;
+
+  /// Intro line on the tag knowledge entry page.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions, flashcards and tasks attached to this tag. Only real links are shown; anything without links says \"none\" instead of guessing.'**
+  String get tagKnowledgeEntryIntro;
+
+  /// Scope switch on the tag knowledge entry page.
+  ///
+  /// In en, this message translates to:
+  /// **'Include sub-tags'**
+  String get tagKnowledgeIncludeDescendants;
+
+  /// Explains the scope switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Also count the whole sub-tree (card groups are sub-tree based already).'**
+  String get tagKnowledgeIncludeDescendantsHint;
+
+  /// Questions section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions'**
+  String get tagKnowledgeQuestions;
+
+  /// Flashcards section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashcards'**
+  String get tagKnowledgeFlashcards;
+
+  /// Tasks section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tagKnowledgeTasks;
+
+  /// Honest empty state for questions.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions yet'**
+  String get tagKnowledgeEmptyQuestions;
+
+  /// Honest empty state for flashcards.
+  ///
+  /// In en, this message translates to:
+  /// **'No flashcards yet'**
+  String get tagKnowledgeEmptyFlashcards;
+
+  /// Honest empty state for tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks yet'**
+  String get tagKnowledgeEmptyTasks;
+
+  /// Shown when polymorphic tag links point at deleted objects.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more tag link(s) point at deleted objects and are not counted above.'**
+  String tagKnowledgeMissingTargets(int count);
+
+  /// Shown when the tag was deleted before the page opened.
+  ///
+  /// In en, this message translates to:
+  /// **'This tag no longer exists (it may have just been deleted).'**
+  String get tagKnowledgeTagMissing;
+
+  /// Load failure message for the tag knowledge entry page.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the tag content: {error}'**
+  String tagKnowledgeLoadFailed(String error);
+
+  /// Placeholder when a question has no readable stem.
+  ///
+  /// In en, this message translates to:
+  /// **'(no stem)'**
+  String get tagKnowledgeQuestionNoStem;
+
+  /// Card preview dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashcard'**
+  String get tagKnowledgeCardPreviewTitle;
+
+  /// Card front label in the preview dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Front'**
+  String get tagKnowledgeCardFront;
+
+  /// Card answer label in the preview dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer'**
+  String get tagKnowledgeCardAnswer;
+
+  /// Card hint label in the preview dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint'**
+  String get tagKnowledgeCardHint;
+
+  /// Knowledge point of a card in the preview dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Knowledge point: {title}'**
+  String tagKnowledgeCardKnowledgePoint(String title);
+
+  /// Fallback name for an unknown card template type.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get tagKnowledgeCardTypeUnknown;
+
+  /// Button that opens the card's deck in the review screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the \"{group}\" deck'**
+  String tagKnowledgeCardReview(String group);
+
+  /// Honest note when the tag has no deck group.
+  ///
+  /// In en, this message translates to:
+  /// **'This tag is not part of any configured deck, so there is no review queue to open.'**
+  String get tagKnowledgeNoReviewGroup;
+
+  /// No description provided for @mindnetStatusIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Only your current study state; model parameters are not shown here.'**
+  String get mindnetStatusIntro;
+
+  /// No description provided for @mindnetBandTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current level'**
+  String get mindnetBandTitle;
+
+  /// No description provided for @mindnetBandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.'**
+  String get mindnetBandHint;
+
+  /// No description provided for @mindnetBandEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on {count} knowledge point(s) with review history'**
+  String mindnetBandEvidence(int count);
+
+  /// No description provided for @mindnetBandInsufficient.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough evidence: at least {count} knowledge point(s) with review history are needed for a level, so this stays ?'**
+  String mindnetBandInsufficient(int count);
+
+  /// No description provided for @mindnetBandUnstable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough evidence: the reviewed knowledge points disagree too much, so no level yet'**
+  String get mindnetBandUnstable;
+
+  /// No description provided for @mindnetStrengthsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Strengths'**
+  String get mindnetStrengthsTitle;
+
+  /// No description provided for @mindnetWeaknessesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak spots'**
+  String get mindnetWeaknessesTitle;
+
+  /// No description provided for @mindnetEvidenceMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'measured'**
+  String get mindnetEvidenceMeasured;
+
+  /// No description provided for @mindnetStrengthsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough evidence: no reviews yet'**
+  String get mindnetStrengthsEmpty;
+
+  /// No description provided for @mindnetWeaknessesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough evidence: at least two reviewed knowledge points are needed to name a weak spot'**
+  String get mindnetWeaknessesEmpty;
+
+  /// No description provided for @mindnetUntitledKnowledgePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled knowledge point'**
+  String get mindnetUntitledKnowledgePoint;
+
+  /// No description provided for @mindnetTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get mindnetTodayTitle;
+
+  /// No description provided for @mindnetTodayReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} flashcard(s) to review'**
+  String mindnetTodayReviews(int count);
+
+  /// No description provided for @mindnetTodayTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} task(s) due today'**
+  String mindnetTodayTasks(int count);
+
+  /// No description provided for @mindnetStartReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Start review'**
+  String get mindnetStartReview;
+
+  /// No description provided for @mindnetTrendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 days'**
+  String get mindnetTrendTitle;
+
+  /// No description provided for @mindnetTrendEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough evidence: no reviews in the last two weeks'**
+  String get mindnetTrendEmpty;
+
+  /// No description provided for @mindnetTrendNoThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing reviewed yet this week ({count} last week)'**
+  String mindnetTrendNoThisWeek(int count);
+
+  /// No description provided for @mindnetTrendRetention.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reviews in the last 7 days, {percent}% recalled'**
+  String mindnetTrendRetention(int count, int percent);
+
+  /// No description provided for @mindnetTrendCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'({count} last week)'**
+  String mindnetTrendCompare(int count);
+
+  /// No description provided for @mindnetDeveloperInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer info (read-only)'**
+  String get mindnetDeveloperInfo;
+
+  /// No description provided for @mindnetDeveloperInfoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters, per-card readings, calibration and diagnosis details'**
+  String get mindnetDeveloperInfoHint;
+
+  /// No description provided for @mindnetDeveloperInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer info'**
+  String get mindnetDeveloperInfoTitle;
+
+  /// No description provided for @mindnetDeveloperEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Model parameters and raw readings, hidden by default'**
+  String get mindnetDeveloperEntryHint;
+
+  /// No description provided for @cognitiveGraphUntitledTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled tag'**
+  String get cognitiveGraphUntitledTag;
+
+  /// No description provided for @settingsProfileIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Student'**
+  String get settingsProfileIdentity;
+
+  /// No description provided for @settingsProfileEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to edit your name'**
+  String get settingsProfileEditHint;
+
+  /// No description provided for @settingsSectionLearning.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning & plan'**
+  String get settingsSectionLearning;
+
+  /// No description provided for @settingsSectionAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get settingsSectionAi;
+
+  /// No description provided for @settingsSectionAppearanceReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance & reading'**
+  String get settingsSectionAppearanceReading;
+
+  /// No description provided for @settingsSectionHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get settingsSectionHelp;
+
+  /// No description provided for @settingsSectionDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get settingsSectionDeveloper;
+
+  /// No description provided for @settingsDeveloperShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get settingsDeveloperShow;
+
+  /// No description provided for @settingsDeveloperHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get settingsDeveloperHide;
+
+  /// No description provided for @settingsDeveloperHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer and prototype entries, hidden by default; daily use does not need them.'**
+  String get settingsDeveloperHint;
+
+  /// No description provided for @settingsTodayPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s plan'**
+  String get settingsTodayPlan;
+
+  /// No description provided for @settingsDataLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Data location'**
+  String get settingsDataLocation;
+
+  /// No description provided for @settingsDataLocationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to copy the data folder path'**
+  String get settingsDataLocationHint;
+
+  /// No description provided for @settingsDataLocationCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Path copied'**
+  String get settingsDataLocationCopied;
+
+  /// No description provided for @settingsBackupRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup & restore'**
+  String get settingsBackupRestoreTitle;
+
+  /// No description provided for @settingsBackupRestoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Export the whole workspace or restore from a backup; the current data is backed up before an import'**
+  String get settingsBackupRestoreHint;
+
+  /// No description provided for @aiDeveloperParamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer parameters'**
+  String get aiDeveloperParamsTitle;
+
+  /// No description provided for @aiDeveloperParamsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Round cap, available tools, skill packages; not needed for everyday chat'**
+  String get aiDeveloperParamsHint;
+
+  /// No description provided for @aiDeveloperParamsShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get aiDeveloperParamsShow;
+
+  /// No description provided for @aiDeveloperParamsHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get aiDeveloperParamsHide;
 }
 
 class _AppLocalizationsDelegate

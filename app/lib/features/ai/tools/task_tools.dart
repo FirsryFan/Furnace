@@ -4,6 +4,9 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/task_repository.dart';
+import '../../../domain/services/thread/thread_event_kind.dart';
+import '../../../domain/services/thread/thread_flow_writer.dart';
+import '../../../domain/services/thread/thread_status.dart';
 import '../domain/ai_tool.dart';
 
 /// Task operations exposed to the model.
@@ -43,7 +46,8 @@ class QueryTasksTool extends AiTool {
         'properties': {
           'status': {
             'type': 'string',
-            'description': '按状态过滤：todo（未完成，默认）| done（已完成）| all（全部）',
+            'description':
+                '按状态过滤：todo（未完成待办，含 todo/doing，默认）| done（已完成）| all（全部，含卡住/跳过）',
             'enum': ['todo', 'done', 'all'],
           },
           'search': {
@@ -91,10 +95,13 @@ class QueryTasksTool extends AiTool {
 
     final all = await _tasks.getTasks(includeDone: true);
     final filtered = all.where((task) {
-      if (status == 'todo' && task.status == 'done') {
+      // v47 读侧：todo 只含 `todo|doing`；blocked/skipped 既不是待办也不是
+      // 完成，只在 all 里出现。
+      final taskStatus = ThreadStatus.fromStorage(task.status);
+      if (status == 'todo' && !taskStatus.isSchedulable) {
         return false;
       }
-      if (status == 'done' && task.status != 'done') {
+      if (status == 'done' && taskStatus != ThreadStatus.done) {
         return false;
       }
       if (search != null) {
@@ -369,6 +376,238 @@ class ManageTaskTool extends AiTool {
       afterJson: jsonEncode(await snapshotTask(_db, id)),
     );
   }
+}
+
+/// 提交 / 卡住 / 跳过 / 恢复的共用实现（task-76；`reopen_task` 于 task-90 追加）。
+///
+/// 四个动作在 writer 里是四条同形状的迁移：校验来源状态 → 写一次状态/事件 →
+/// 不写完成历史。所以这里只写一次公共骨架，具体动作只决定"调仓储的哪个方法"。
+///
+/// 四个工具都声明 `reversibleFor == false`：`reopened` 是**显式的向前恢复**
+/// 事件，不是快照回滚——它不会撤销已经写过的提交/卡住/跳过事件，也不会回滚
+/// 完成历史，所以 `ApprovalEngine` 在**任何权限模式**下都逐条确认（与删除同一
+/// 档），而不是靠"可撤销"自动执行。
+abstract class _TaskStatusTool extends AiTool {
+  _TaskStatusTool(this._tasks);
+
+  final TaskRepository _tasks;
+
+  /// 落库事件种类（同时决定状态机里允许的来源状态）。
+  ThreadEventKind get eventKind;
+
+  /// 用户可读的动作名（"提交" / "标记卡住" / "跳过"）。
+  String get actionLabel;
+
+  /// 是否接受 `reason`（卡住/跳过带原因；提交不带）。
+  bool get acceptsReason => false;
+
+  @override
+  Map<String, Object?> get parameters => {
+        'type': 'object',
+        'properties': {
+          'id': {
+            'type': 'string',
+            'description': '任务 id（可从 query_tasks 得到）',
+          },
+          if (acceptsReason)
+            'reason': {
+              'type': 'string',
+              'description': '可选：卡住/跳过/恢复的原因，作为事件的 payload 落库',
+            },
+          'source_key': {
+            'type': 'string',
+            'description':
+                '可选：幂等键。同一 (task, 事件种类, source_key) 重复调用不会写第二条事件',
+          },
+        },
+        'required': ['id'],
+      };
+
+  @override
+  ToolRisk riskFor(String action) => ToolRisk.write;
+
+  /// 状态迁移不能靠快照回滚（`reopened` 只是显式恢复，不撤销已写事件），所以
+  /// 永远逐条确认。
+  @override
+  bool reversibleFor(String action) => false;
+
+  @override
+  bool get availableOnCurrentPlatform => true;
+
+  /// 具体动作：调用 `TaskRepository` 对应的仓储方法（内部走 ThreadFlowWriter）。
+  Future<ThreadTransitionResult> write(
+    String id, {
+    String? reason,
+    String? sourceKey,
+  });
+
+  @override
+  Future<ToolResult> run(ToolInvocation invocation) async {
+    final args = ToolArgs(invocation.arguments);
+    final String id;
+    try {
+      id = args.requireString('id');
+    } on ToolArgError catch (e) {
+      return ToolResult.failure(e.message);
+    }
+    final reason = acceptsReason ? args.optString('reason') : null;
+    final sourceKey = args.optString('source_key');
+
+    final before = await _tasks.getTaskById(id);
+    if (before == null) {
+      return ToolResult.failure('找不到任务：$id');
+    }
+
+    try {
+      final result = await write(id, reason: reason, sourceKey: sourceKey);
+      final event = result.event;
+      return ToolResult(
+        ok: true,
+        summary: result.applied
+            ? '已$actionLabel「${before.title}」，当前状态 ${result.task.status}'
+            : '这条「$actionLabel」记录已经存在（source_key 幂等），没有重复写入',
+        modelResult: {
+          'task_id': id,
+          'title': before.title,
+          'status': result.task.status,
+          'applied': result.applied,
+          'event': event == null
+              ? null
+              : {
+                  'id': event.id,
+                  'kind': event.kind,
+                  'occurred_at_ms': event.occurredAt,
+                  'source_key': event.sourceKey,
+                },
+        },
+      );
+    } on StateError catch (error) {
+      // writer 的非法迁移消息已经写明 from 状态与 task id，原样带出，模型/用户
+      // 都能据此判断"不是 bug，是状态不允许"。
+      return ToolResult.failure('任务当前状态不允许$actionLabel：${error.message}');
+    } on ArgumentError catch (error) {
+      return ToolResult.failure('参数不合法：${error.message}');
+    }
+  }
+}
+
+/// 提交答案/交卷：状态不变，只追加 `submitted` 事实（不写完成历史）。
+class SubmitTaskTool extends _TaskStatusTool {
+  SubmitTaskTool(super.tasks);
+
+  @override
+  String get name => 'submit_task';
+
+  @override
+  String get description =>
+      '提交一条任务/题目的答案或交卷：只记录“已提交”这一流程事实，不改变任务状态、'
+      '不写入完成历史、不判对错。返回 task_id、当前状态与事件。'
+      '允许从 todo/doing 提交；blocked/skipped 会被状态机拒绝。';
+  @override
+  ThreadEventKind get eventKind => ThreadEventKind.submitted;
+
+  @override
+  String get actionLabel => '提交';
+
+  @override
+  Future<ThreadTransitionResult> write(
+    String id, {
+    String? reason,
+    String? sourceKey,
+  }) =>
+      _tasks.submitTask(id, sourceKey: sourceKey);
+}
+
+/// 卡住：todo/doing → blocked；不写完成历史、不写正确性。
+class MarkTaskStuckTool extends _TaskStatusTool {
+  MarkTaskStuckTool(super.tasks);
+
+  @override
+  String get name => 'mark_task_stuck';
+
+  @override
+  String get description =>
+      '把任务标记为卡住（todo/doing → blocked）：只记流程事实，不判对错、不降能力、'
+      '不写完成历史。卡住的任务退出待办；之后可以重新开始，或跳过。'
+      '返回 task_id、当前状态与事件。';
+  @override
+  ThreadEventKind get eventKind => ThreadEventKind.stuck;
+
+  @override
+  String get actionLabel => '标记为卡住';
+
+  @override
+  bool get acceptsReason => true;
+
+  @override
+  Future<ThreadTransitionResult> write(
+    String id, {
+    String? reason,
+    String? sourceKey,
+  }) =>
+      _tasks.markTaskStuck(id, reason: reason, sourceKey: sourceKey);
+}
+
+/// 跳过：todo/doing/blocked → skipped；行与内容引用都保留。
+class SkipTaskTool extends _TaskStatusTool {
+  SkipTaskTool(super.tasks);
+
+  @override
+  String get name => 'skip_task';
+
+  @override
+  String get description =>
+      '跳过任务（todo/doing/blocked → skipped）：不是删除，任务行与它引用的内容都'
+      '保留，只是退出待办与时间窗投影。之后可以用 reopen_task 恢复到待办。'
+      '返回 task_id、当前状态与事件。';
+  @override
+  ThreadEventKind get eventKind => ThreadEventKind.skipped;
+
+  @override
+  String get actionLabel => '跳过';
+
+  @override
+  bool get acceptsReason => true;
+
+  @override
+  Future<ThreadTransitionResult> write(
+    String id, {
+    String? reason,
+    String? sourceKey,
+  }) =>
+      _tasks.skipTask(id, reason: reason, sourceKey: sourceKey);
+}
+
+/// 恢复/重开：blocked/skipped/done → todo；写 `reopened`，不回滚完成历史。
+class ReopenTaskTool extends _TaskStatusTool {
+  ReopenTaskTool(super.tasks);
+
+  @override
+  String get name => 'reopen_task';
+
+  @override
+  String get description =>
+      '把卡住 / 跳过 / 已完成的任务恢复成待办（blocked/skipped/done → todo）：'
+      '写一条 reopened 流程事件、清空 completed_at，但**不回滚**完成历史'
+      '（completion_logs 是"做过"的事实，恢复只让任务回到待办）。'
+      'todo/doing 的任务不需要恢复，会被状态机拒绝。'
+      '返回 task_id、当前状态与事件。';
+  @override
+  ThreadEventKind get eventKind => ThreadEventKind.reopened;
+
+  @override
+  String get actionLabel => '恢复';
+
+  @override
+  bool get acceptsReason => true;
+
+  @override
+  Future<ThreadTransitionResult> write(
+    String id, {
+    String? reason,
+    String? sourceKey,
+  }) =>
+      _tasks.reopenTask(id, reason: reason, sourceKey: sourceKey);
 }
 
 /// Reads everything needed to restore a task, or null when it does not exist.

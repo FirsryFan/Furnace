@@ -65,10 +65,15 @@ class TaskSchedulerService {
     return TaskScheduler.schedule(tasks: tasks, timeBlocks: blocks);
   }
 
+  /// `tasks.status` 是自由 TEXT（v47 五值）。这里显式映射，不再用 `_ => todo`
+  /// 兜底：那会把 `blocked` / `skipped` 悄悄当成待办。`getOpenTasks()` 已经只取
+  /// `todo|doing`，本方法只是让"万一传进来"时也不说谎。
   TaskStatus _mapStatus(String status) {
     return switch (status) {
       'doing' => TaskStatus.doing,
       'done' => TaskStatus.done,
+      'blocked' => TaskStatus.blocked,
+      'skipped' => TaskStatus.skipped,
       _ => TaskStatus.todo,
     };
   }

@@ -20,6 +20,11 @@ import '../../features/timeboard/presentation/time_page.dart';
 
 /// The shell's destinations, with their icons resolved from the active theme.
 ///
+/// Order is the navigation order: **AI first (the default home), 标签 second
+/// (the knowledge entry)**, then Thread / Time / 闪存卡 / 题库 / MindNet /
+/// 设置. `pages` in [_HomeShellState.build] must list the same eight in the same
+/// order - the selected index addresses both lists.
+///
 /// Slot names are the only thing that ties a destination to an icon: the labels
 /// stay exactly where they were (l10n), and an unconfigured slot renders the
 /// factory icon, so an untouched theme looks like the app always looked.
@@ -38,7 +43,10 @@ List<NavigationDestination> shellDestinations({
         label: label,
       );
 
+  // 用户决定（2026-11-15）：AI 是默认首页，导航里排第一位；标签排第二位，
+  // 仍是知识入口（标签页保留，不删）。其余模块保持原有相对顺序。
   return <NavigationDestination>[
+    destination('ai', l10n.navAi),
     destination('tags', l10n.navTags),
     destination('thread', l10n.navThread),
     destination('time', l10n.navTime),
@@ -47,7 +55,6 @@ List<NavigationDestination> shellDestinations({
     // MindNet 是用户模型模块（决策记录 docs/DECISIONS-2026-11.md D3）；
     // 知识库（.kpak）不再是顶层目的地，入口下沉到设置页。
     destination('mindnet', l10n.navMindnet),
-    destination('ai', l10n.navAi),
     destination('settings', l10n.navSettings),
   ];
 }
@@ -57,15 +64,14 @@ class _SortThreadIntent extends Intent {
   const _SortThreadIntent();
 }
 
-/// Ctrl+1..5: jump to a top-level module.
+/// Ctrl+1..7: jump to a top-level module (1 = AI, 2 = 标签, ...).
 class _GoToTabIntent extends Intent {
   const _GoToTabIntent(this.index);
 
   final int index;
 }
 
-/// Ctrl+0: jump to Settings, whose index depends on whether the AI page is
-/// present.
+/// Ctrl+0: jump to Settings, the eighth destination.
 class _GoToSettingsIntent extends Intent {
   const _GoToSettingsIntent();
 }
@@ -80,6 +86,8 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
+  /// 0 = AI：用户决定让 AI 当默认首页，启动第一帧就落在对话页。没配 key 时
+  /// 对话页自己渲染配置引导（[_NotConfigured]），不会是一片空白。
   int _selectedIndex = 0;
 
   /// 是否正在重排复习提醒：启动首帧与回到前台可能挨着触发，只跑一次。
@@ -145,16 +153,17 @@ class _HomeShellState extends ConsumerState<HomeShell>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // AI 是一等模块（决策记录 D4）：入口常驻，未配置 key 时对话页自己渲染
-    // 配置引导。这样它不再像"某个开关打开后才存在的附属功能"。
+    // AI 是默认首页（用户决定，2026-11-15），标签排第二、仍是知识入口。
+    // 未配置 key 时对话页自己渲染配置引导。这个顺序必须与
+    // [shellDestinations] 完全一致：selected index 同时索引两份列表。
     final pages = <Widget>[
+      AiChatPage(onOpenSettings: () => _goToTab(_settingsIndex)),
       const TagTreePage(),
       const ThreadPage(),
       const TimePage(),
       const KnowledgePage(),
       const QuestionBankPage(),
       const MindNetPage(),
-      AiChatPage(onOpenSettings: () => _goToTab(_settingsIndex)),
       const SettingsPage(),
     ];
 
@@ -170,8 +179,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
           const <String, String>{},
     );
 
-    // Clearing the key removes the AI destination; if it happened to be
-    // selected, the index would point past the end.
+    // 8 个目的地是固定的（AI 常驻，不再随 key 有无增删），clamp 只是防止
+    // 越界索引把 `pages[selected]` 打崩。
     final selected = _selectedIndex.clamp(0, pages.length - 1);
 
     return Shortcuts(
@@ -193,6 +202,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   /// Desktop keyboard shortcuts (user feedback item 2: the app needed
   /// shortcuts, not only mouse targets).
+  ///
+  /// Ctrl+1..7 follow the navigation order (1 = AI, 2 = 标签, ...) and Ctrl+0
+  /// is Settings, so the number a user learns matches the rail position.
   static final Map<ShortcutActivator, Intent> _shortcuts = {
     const SingleActivator(LogicalKeyboardKey.keyR, control: true):
         const _SortThreadIntent(),
@@ -204,9 +216,12 @@ class _HomeShellState extends ConsumerState<HomeShell>
         const _GoToTabIntent(2),
     const SingleActivator(LogicalKeyboardKey.digit4, control: true):
         const _GoToTabIntent(3),
-    // Ctrl+5: 题库。它和 Ctrl+1..4 一样钉在固定位置（AI 目的地在它后面插入）。
     const SingleActivator(LogicalKeyboardKey.digit5, control: true):
         const _GoToTabIntent(4),
+    const SingleActivator(LogicalKeyboardKey.digit6, control: true):
+        const _GoToTabIntent(5),
+    const SingleActivator(LogicalKeyboardKey.digit7, control: true):
+        const _GoToTabIntent(6),
     const SingleActivator(LogicalKeyboardKey.digit0, control: true):
         const _GoToSettingsIntent(),
   };
@@ -219,9 +234,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
         _SortThreadIntent: CallbackAction<_SortThreadIntent>(
           onInvoke: (intent) {
             // Sorting is a Thread action; if the user is elsewhere, switch
-            // there first so the shortcut has a visible effect.
-            if (_selectedIndex != 1) {
-              setState(() => _selectedIndex = 1);
+            // there first so the shortcut has a visible effect. Thread is the
+            // third destination (AI, 标签, Thread, ...).
+            if (_selectedIndex != 2) {
+              setState(() => _selectedIndex = 2);
             }
             ref.read(threadFeedProvider.notifier).sort();
             return null;
@@ -229,18 +245,18 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ),
         _GoToTabIntent: CallbackAction<_GoToTabIntent>(
           onInvoke: (intent) {
-            // Ctrl+1..4 stay pinned to the first four modules: their positions
-            // never move, so the shortcuts a user learned keep working no
-            // matter whether the AI page is present.
+            // Ctrl+1..7 map 1-based onto the navigation order (1 = AI,
+            // 2 = 标签, ...). The order is fixed, so a number a user learns
+            // keeps opening the same page.
             final index = intent.index.clamp(0, pageCount - 1);
             setState(() => _selectedIndex = index);
             return null;
           },
         ),
-        // Ctrl+0 jumps to Settings, whose index shifts with the AI page.
+        // Ctrl+0 jumps to Settings, the fixed eighth destination.
         _GoToSettingsIntent: CallbackAction<_GoToSettingsIntent>(
           onInvoke: (intent) {
-            setState(() => _selectedIndex = 7);
+            setState(() => _selectedIndex = _settingsIndex);
             return null;
           },
         ),
@@ -310,14 +326,15 @@ class _HomeShellState extends ConsumerState<HomeShell>
           );
         }
 
-        // 手机宽度只放 5 个主入口：Thread、复习、题库、MindNet、更多。
-        // 其余入口（标签树、Time、AI、设置）收进「更多」面板，底部导航不再
-        // 挤 8 个图标；桌面端 NavigationRail 仍保留全部目的地。
-        const primaryIndices = <int>[1, 3, 4, 5];
+        // 手机宽度仍然是 5 个主入口：AI、Thread、复习、题库、更多。
+        // AI 是默认首页，所以放进主 Tab 的第一个位置——否则启动时底部高亮的
+        // 会是「更多」，与实际页面（AI）不符。标签树、Time、MindNet、设置收进
+        // 「更多」面板，底部导航不挤 8 个图标；桌面端 NavigationRail 仍保留全部。
+        const primaryIndices = <int>[0, 2, 4, 5];
         final secondary = <({int index, IconData icon, String label})>[
-          (index: 0, icon: Icons.sell_outlined, label: l10n.navTags),
-          (index: 2, icon: Icons.schedule_outlined, label: l10n.navTime),
-          (index: 6, icon: Icons.forum_outlined, label: l10n.navAi),
+          (index: 1, icon: Icons.sell_outlined, label: l10n.navTags),
+          (index: 3, icon: Icons.schedule_outlined, label: l10n.navTime),
+          (index: 6, icon: Icons.hub_outlined, label: l10n.navMindnet),
           (index: 7, icon: Icons.settings_outlined, label: l10n.navSettings),
         ];
         final primaryPosition = primaryIndices.indexOf(selected);

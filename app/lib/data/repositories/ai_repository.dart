@@ -1,7 +1,26 @@
 import 'package:drift/drift.dart';
 
+import '../../features/ai/domain/agent_preset.dart';
+import '../../features/ai/domain/conversation_title.dart';
+import '../../features/ai/domain/model_adapter.dart' show ReasoningEffort;
 import '../database/database.dart';
 import '../ids.dart';
+
+/// Thrown when a caller tries to change a conversation's preset after the
+/// conversation has started.
+///
+/// DSH semantics: a preset is selected on a **blank** session and is immutable
+/// from its first message/run. This is a programming/wiring error, not a user
+/// action, so it is an exception rather than a silently ignored write.
+class ConversationPresetsLockedException implements Exception {
+  const ConversationPresetsLockedException(this.conversationId);
+
+  final String conversationId;
+
+  @override
+  String toString() =>
+      'conversation $conversationId has started; its preset is immutable';
+}
 
 /// How much the AI is allowed to do without asking (see docs/AI_DESIGN.md
 /// §6.1 D12 v2).
@@ -45,6 +64,14 @@ class AiConfig {
     this.model,
     this.permissionMode = AiPermissionMode.plan,
     this.maxRounds = defaultMaxRounds,
+    this.reasoningEffort,
+    this.temperature,
+    this.answerTemperature,
+    this.verifierTemperature,
+    this.maxReasoningTokens,
+    this.answerReserveTokens,
+    this.verifierModel,
+    this.verifierEffort,
   });
 
   /// The master switch. When false the rest is ignored and the app must make
@@ -64,10 +91,114 @@ class AiConfig {
   /// while a longer multi-step task may need more than the default allows.
   final int maxRounds;
 
+  // --- model-parameter layer (v46, 2026-11-15) -----------------------------
+  //
+  // Every field below is nullable, and NULL keeps its documented meaning
+  // everywhere: "the user never chose". The `effective*` getters resolve that
+  // to the shipped default, which is exactly the value the code used before
+  // this layer existed - so an install that never touches these settings keeps
+  // the old wire requests byte for byte.
+
+  /// Thinking effort for the student solver's reasoning turn. NULL = do not
+  /// send `reasoning_effort`.
+  final ReasoningEffort? reasoningEffort;
+
+  /// Temperature of the reasoning/solve turn. NULL = [defaultTemperature].
+  final double? temperature;
+
+  /// Temperature of the answer-scribe turn. NULL = [defaultAnswerTemperature].
+  final double? answerTemperature;
+
+  /// Temperature of the verifier turn. NULL = [defaultVerifierTemperature].
+  final double? verifierTemperature;
+
+  /// `max_tokens` of the reasoning turn. NULL = [defaultMaxReasoningTokens].
+  final int? maxReasoningTokens;
+
+  /// `max_tokens` of the answer-scribe and verifier turns.
+  /// NULL = [defaultAnswerReserveTokens].
+  final int? answerReserveTokens;
+
+  /// Model for the verifier turn. Blank/NULL = the solver's model.
+  final String? verifierModel;
+
+  /// Thinking effort for the verifier turn. NULL = do not send
+  /// `reasoning_effort` (deliberately not inherited from [reasoningEffort]).
+  final ReasoningEffort? verifierEffort;
+
   /// DeepSeek's OpenAI-compatible endpoint. Kept here rather than in the
   /// adapter so the default is visible next to the setting it belongs to.
   static const String defaultBaseUrl = 'https://api.deepseek.com';
   static const String defaultModel = 'deepseek-chat';
+
+  /// The shipped reasoning-turn temperature. 0.6 was the literal in
+  /// `ai_providers.dart` before the parameter layer existed.
+  static const double defaultTemperature = 0.6;
+
+  /// The shipped answer-scribe temperature (old literal: 0.2).
+  static const double defaultAnswerTemperature = 0.2;
+
+  /// The shipped verifier temperature (old behaviour: the verifier reused the
+  /// answer adapter, so 0.2).
+  static const double defaultVerifierTemperature = 0.2;
+
+  /// The shipped reasoning-turn output budget (old literal: 20 000).
+  static const int defaultMaxReasoningTokens = 20000;
+
+  /// The shipped answer-scribe / verifier output budget (old literal: 3 000).
+  static const int defaultAnswerReserveTokens = 3000;
+
+  /// DeepSeek's documented `temperature` range (0..2). Anything stored outside
+  /// it is clamped on the way out, so a hand-edited file cannot send a request
+  /// the API rejects.
+  static const double minTemperature = 0;
+  static const double maxTemperature = 2;
+
+  /// DeepSeek's documented `max_tokens` upper bound for Chat Completions
+  /// (393 216 = 384K, checked 2026-11-15). Lower bound 1.
+  static const int maxOutputTokens = 393216;
+  static const int minOutputTokens = 1;
+
+  /// [stored] as a usable temperature: [fallback] when nothing was chosen,
+  /// clamped into [minTemperature]..[maxTemperature] otherwise. A NaN (which
+  /// SQLite can hold) also falls back rather than poisoning the request body.
+  static double resolveTemperature(double? stored, double fallback) {
+    if (stored == null || stored.isNaN || stored.isInfinite) {
+      return fallback;
+    }
+    return stored.clamp(minTemperature, maxTemperature).toDouble();
+  }
+
+  /// [stored] as a usable output budget, clamped into
+  /// [minOutputTokens]..[maxOutputTokens].
+  static int resolveOutputTokens(int? stored, int fallback) {
+    if (stored == null) {
+      return fallback;
+    }
+    return stored.clamp(minOutputTokens, maxOutputTokens);
+  }
+
+  double get effectiveTemperature =>
+      resolveTemperature(temperature, defaultTemperature);
+
+  double get effectiveAnswerTemperature =>
+      resolveTemperature(answerTemperature, defaultAnswerTemperature);
+
+  double get effectiveVerifierTemperature =>
+      resolveTemperature(verifierTemperature, defaultVerifierTemperature);
+
+  int get effectiveMaxReasoningTokens =>
+      resolveOutputTokens(maxReasoningTokens, defaultMaxReasoningTokens);
+
+  int get effectiveAnswerReserveTokens =>
+      resolveOutputTokens(answerReserveTokens, defaultAnswerReserveTokens);
+
+  /// The verifier's model name, falling back to the solver's model when unset
+  /// or blank - the verifier shipped as "same model, independent call".
+  String get effectiveVerifierModel {
+    final raw = verifierModel?.trim();
+    return (raw == null || raw.isEmpty) ? effectiveModel : raw;
+  }
 
   /// The shipped round budget, used when the user has never chosen one (a NULL
   /// `local_settings.ai_max_rounds`, which is every row on an upgraded file).
@@ -115,6 +246,29 @@ class AiConfig {
     return (raw == null || raw.isEmpty) ? defaultModel : raw;
   }
 
+  /// A copy with only the chat turn's thinking effort replaced.
+  ///
+  /// Unlike [copyWith], passing `null` here **clears** the effort: `copyWith`
+  /// cannot express "no effort chosen" (null means "keep the current value"), and
+  /// the chat page's effort control has a real "默认 / Default" option that must
+  /// write NULL back. Every other field is carried over unchanged.
+  AiConfig withReasoningEffort(ReasoningEffort? effort) => AiConfig(
+        enabled: enabled,
+        apiKey: apiKey,
+        baseUrl: baseUrl,
+        model: model,
+        permissionMode: permissionMode,
+        maxRounds: maxRounds,
+        reasoningEffort: effort,
+        temperature: temperature,
+        answerTemperature: answerTemperature,
+        verifierTemperature: verifierTemperature,
+        maxReasoningTokens: maxReasoningTokens,
+        answerReserveTokens: answerReserveTokens,
+        verifierModel: verifierModel,
+        verifierEffort: verifierEffort,
+      );
+
   AiConfig copyWith({
     bool? enabled,
     String? apiKey,
@@ -122,6 +276,14 @@ class AiConfig {
     String? model,
     AiPermissionMode? permissionMode,
     int? maxRounds,
+    ReasoningEffort? reasoningEffort,
+    double? temperature,
+    double? answerTemperature,
+    double? verifierTemperature,
+    int? maxReasoningTokens,
+    int? answerReserveTokens,
+    String? verifierModel,
+    ReasoningEffort? verifierEffort,
   }) =>
       AiConfig(
         enabled: enabled ?? this.enabled,
@@ -130,6 +292,14 @@ class AiConfig {
         model: model ?? this.model,
         permissionMode: permissionMode ?? this.permissionMode,
         maxRounds: maxRounds ?? this.maxRounds,
+        reasoningEffort: reasoningEffort ?? this.reasoningEffort,
+        temperature: temperature ?? this.temperature,
+        answerTemperature: answerTemperature ?? this.answerTemperature,
+        verifierTemperature: verifierTemperature ?? this.verifierTemperature,
+        maxReasoningTokens: maxReasoningTokens ?? this.maxReasoningTokens,
+        answerReserveTokens: answerReserveTokens ?? this.answerReserveTokens,
+        verifierModel: verifierModel ?? this.verifierModel,
+        verifierEffort: verifierEffort ?? this.verifierEffort,
       );
 }
 
@@ -212,6 +382,17 @@ class AiRepository {
       // NULL means "never chosen" - see [AiConfig.resolveMaxRounds] - so an
       // upgraded install keeps the behaviour it had before the setting existed.
       maxRounds: AiConfig.resolveMaxRounds(row.aiMaxRounds),
+      // v46 model-parameter layer: read raw and leave NULL alone. Range
+      // clamping happens in the `effective*` getters, so the file keeps the
+      // distinction between "never chose" and "chose the default value".
+      reasoningEffort: ReasoningEffort.fromId(row.aiReasoningEffort),
+      temperature: row.aiTemperature,
+      answerTemperature: row.aiAnswerTemperature,
+      verifierTemperature: row.aiVerifierTemperature,
+      maxReasoningTokens: row.aiMaxReasoningTokens,
+      answerReserveTokens: row.aiAnswerReserveTokens,
+      verifierModel: row.aiVerifierModel,
+      verifierEffort: ReasoningEffort.fromId(row.aiVerifierEffort),
     );
   }
 
@@ -220,6 +401,10 @@ class AiRepository {
   /// Only the AI columns are touched. The settings row is shared with language,
   /// theme and profile, so writing it from the AI screen must not reset any of
   /// those - a save here is not a save of the whole settings row.
+  ///
+  /// The v46 model parameters are written **raw but clamped**: NULL stays NULL
+  /// (never chosen), a chosen number is stored inside its documented range so
+  /// a hand-edited value cannot reach the wire later.
   ///
   /// [fallbackLanguage] is used only when the row has to be created from
   /// scratch (a database that predates the settings row entirely).
@@ -248,6 +433,29 @@ class AiRepository {
         // Resolved rather than stored verbatim, so the file can never hold a
         // budget outside the range the UI offers.
         aiMaxRounds: Value(AiConfig.resolveMaxRounds(config.maxRounds)),
+        aiReasoningEffort: Value(config.reasoningEffort?.wireValue),
+        aiTemperature: Value(config.temperature == null
+            ? null
+            : AiConfig.resolveTemperature(
+                config.temperature, AiConfig.defaultTemperature)),
+        aiAnswerTemperature: Value(config.answerTemperature == null
+            ? null
+            : AiConfig.resolveTemperature(
+                config.answerTemperature, AiConfig.defaultAnswerTemperature)),
+        aiVerifierTemperature: Value(config.verifierTemperature == null
+            ? null
+            : AiConfig.resolveTemperature(config.verifierTemperature,
+                AiConfig.defaultVerifierTemperature)),
+        aiMaxReasoningTokens: Value(config.maxReasoningTokens == null
+            ? null
+            : AiConfig.resolveOutputTokens(config.maxReasoningTokens,
+                AiConfig.defaultMaxReasoningTokens)),
+        aiAnswerReserveTokens: Value(config.answerReserveTokens == null
+            ? null
+            : AiConfig.resolveOutputTokens(config.answerReserveTokens,
+                AiConfig.defaultAnswerReserveTokens)),
+        aiVerifierModel: Value(config.verifierModel),
+        aiVerifierEffort: Value(config.verifierEffort?.wireValue),
         updatedAt: Value(now),
       ),
     );
@@ -278,9 +486,18 @@ class AiRepository {
     return rows.isEmpty ? null : rows.first;
   }
 
-  /// Creates a conversation, or returns the most recent one when the caller
-  /// has no preference - which is what the UI does on first open.
-  Future<AiConversation> createConversation({String? title}) async {
+  /// Creates a conversation with the preset selected while it is still blank.
+  ///
+  /// A preset is a composition (tools + prompt + persona), not a stored
+  /// definition: the row keeps only its stable id, and every read resolves the
+  /// id against the current definition. [subagentPreset] is the preset a
+  /// subagent session started from this conversation is created with; null
+  /// means "inherit the parent".
+  Future<AiConversation> createConversation({
+    String? title,
+    AgentPreset agentPreset = AgentPreset.assistant,
+    SubagentPreset? subagentPreset,
+  }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = Ids.next('conv');
     await _db.into(_db.aiConversations).insert(
@@ -291,9 +508,67 @@ class AiRepository {
                 : title.trim(),
             createdAt: now,
             updatedAt: now,
+            agentPresetId: Value(agentPreset.id),
+            subagentPresetId: Value(subagentPreset?.id),
           ),
         );
     return (await getConversation(id))!;
+  }
+
+  /// The preset state of [conversationId], or null when it does not exist.
+  ///
+  /// [ConversationPresetState.locked] is derived from the message list rather
+  /// than stored: a session is blank until it has its first message, and every
+  /// run writes one. There is deliberately no persisted preset version/hash -
+  /// the same session resolves the current definition of its id, as in DSH.
+  Future<ConversationPresetState?> presetStateFor(String conversationId) async {
+    final row = await getConversation(conversationId);
+    if (row == null) {
+      return null;
+    }
+    final messages = await listMessages(conversationId);
+    return ConversationPresetState(
+      agent: row.agentPresetChoice,
+      subagent: row.subagentPresetChoice,
+      locked: messages.isNotEmpty,
+    );
+  }
+
+  /// Selects the preset of a conversation that has not started yet.
+  ///
+  /// Only a blank session may be re-composed; after the first message this
+  /// throws [ConversationPresetsLockedException]. Passing null for either
+  /// preset leaves that column unchanged, so a caller can change one without
+  /// clearing the other.
+  Future<void> setConversationPresets({
+    required String conversationId,
+    AgentPreset? agentPreset,
+    SubagentPreset? subagentPreset,
+  }) async {
+    if (agentPreset == null && subagentPreset == null) {
+      return;
+    }
+    final row = await getConversation(conversationId);
+    if (row == null) {
+      throw ArgumentError.value(
+        conversationId,
+        'conversationId',
+        'unknown conversation',
+      );
+    }
+    if ((await listMessages(conversationId)).isNotEmpty) {
+      throw ConversationPresetsLockedException(conversationId);
+    }
+    await (_db.update(_db.aiConversations)
+          ..where((t) => t.id.equals(conversationId)))
+        .write(AiConversationsCompanion(
+      agentPresetId:
+          agentPreset == null ? const Value.absent() : Value(agentPreset.id),
+      subagentPresetId: subagentPreset == null
+          ? const Value.absent()
+          : Value(subagentPreset.id),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
   }
 
   Future<void> renameConversation(String id, String title) async {
@@ -306,6 +581,37 @@ class AiRepository {
       title: Value(trimmed),
       updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
     ));
+  }
+
+  /// 用第一条用户消息给会话自动取名。
+  ///
+  /// 只在标题还是 [createConversation] 生成的占位符（`对话 MM-DD HH:mm`）时改名：
+  /// 用户自己改过的标题、调用方显式传入的标题都算「已有」，一律复用，不覆盖
+  /// （用户 2026-11-15 第 5 点）。占位符由 [createdAt] 唯一确定，所以不需要额外
+  /// 标记列，也不需要改 schema。
+  ///
+  /// 返回是否真的改了名，供调用方/测试判断；改名失败不算错误——它只是显示层
+  /// 的便利，不该让一条已经花过模型预算的消息失败。
+  Future<bool> autoTitleFromFirstMessage({
+    required String conversationId,
+    required String text,
+    int maxLength = defaultConversationTitleLength,
+  }) async {
+    final row = await getConversation(conversationId);
+    if (row == null) {
+      return false;
+    }
+    if (row.title != _defaultTitle(row.createdAt)) {
+      // A title that is not the placeholder is either the user's or the
+      // caller's; treat it as deliberate and keep it.
+      return false;
+    }
+    final title = autoConversationTitle(text, maxLength: maxLength);
+    if (title == null || title == row.title) {
+      return false;
+    }
+    await renameConversation(conversationId, title);
+    return true;
   }
 
   /// Deletes a conversation and everything under it.
@@ -563,4 +869,19 @@ class AiRepository {
         resultJson: row.resultJson,
         createdAt: row.createdAt,
       );
+}
+
+/// Preset view of a stored conversation row.
+///
+/// The database keeps only ids (and NULL for rows written before presets
+/// existed); resolving them here keeps every caller on the same fallback:
+/// NULL/unknown means the shipped `assistant` / `inherit` behaviour.
+extension AiConversationPresets on AiConversation {
+  AgentPreset get agentPresetChoice => AgentPreset.fromId(agentPresetId);
+
+  SubagentPreset get subagentPresetChoice =>
+      SubagentPreset.fromId(subagentPresetId);
+
+  /// Whether this preset runs the main agent loop. Student mode does not.
+  bool get runsMainAgent => agentPresetChoice.runsMainAgent;
 }

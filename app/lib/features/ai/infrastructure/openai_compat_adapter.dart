@@ -28,6 +28,7 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
     HttpClient? client,
     this.temperature = 0.2,
     this.maxTokens,
+    this.reasoningEffort,
     this.connectTimeout = const Duration(seconds: 20),
     this.requestTimeout = const Duration(minutes: 3),
   }) : _client = client ?? HttpClient() {
@@ -42,6 +43,17 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
   /// 单轮输出上限；null 表示不传，交给服务端默认。
   /// 题单生成这类任务需要显式给足，否则推理会吃掉全部预算导致 content 为空。
   final int? maxTokens;
+
+  /// 思考等级；null 表示**不发送** `reasoning_effort` 字段。
+  ///
+  /// DeepSeek 的 Chat Completions 参考文档（2026-11-15 核对）把
+  /// `reasoning_effort` 列为 `none|low|high|max`（兼容映射见
+  /// [ReasoningEffort]）。发这个字段只在用户显式配置了等级时发生：默认配置
+  /// 保持旧行为，请求体与旧版逐字节一致。对本应用默认的 `deepseek-chat` 是否
+  /// 接受该参数**未验证**（文档当前列出的模型是 `deepseek-flash` /
+  /// `deepseek-v4-pro`），见 MODEL-CONFIG-2026-11-15.md。
+  final ReasoningEffort? reasoningEffort;
+
   final Duration connectTimeout;
   final Duration requestTimeout;
   final HttpClient _client;
@@ -126,6 +138,10 @@ class OpenAiCompatAdapter implements CancellableModelAdapter {
         if (tools.isNotEmpty) 'tool_choice': 'auto',
         'temperature': temperature,
         if (maxTokens != null) 'max_tokens': maxTokens,
+        // Only when the user explicitly chose an effort: an empty config must
+        // keep sending exactly what the pre-parameter-layer build sent.
+        if (reasoningEffort != null)
+          'reasoning_effort': reasoningEffort!.wireValue,
       });
       request.add(utf8.encode(body));
       _activeRequest = request;

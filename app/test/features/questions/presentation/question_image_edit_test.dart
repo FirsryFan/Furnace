@@ -24,6 +24,7 @@ import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_developer_page.dart';
 import 'package:furnace/features/questions/presentation/question_media_view.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -43,8 +44,8 @@ void main() {
     final database = _newDatabase();
     final question = await _seedQuestion(database);
 
-    await _pumpDetail(tester, database, question.id);
-    await _waitForText(tester, _stem);
+    await _pumpDetail(tester, database, question.id, developer: true);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     expect(find.byKey(questionImageAddButtonKey), findsOneWidget);
     expect(find.text(_zh.questionImageEmptyHint), findsOneWidget);
@@ -61,8 +62,8 @@ void main() {
       FakePickedFile('side.jpg', tinyPngBytes),
     ]);
 
-    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _stem);
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     await tester.tap(find.byKey(questionImageAddButtonKey));
     await _waitForText(tester, _zh.questionImageAddDone(2));
@@ -92,8 +93,8 @@ void main() {
       FakePickedFile('ok.png', tinyPngBytes),
     ]);
 
-    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _stem);
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     await tester.tap(find.byKey(questionImageAddButtonKey));
     await _waitForTextContaining(tester, _zh.questionImageAddDone(1));
@@ -113,8 +114,8 @@ void main() {
     final mediaStore = FakeQuestionMediaStore(database: database);
     _installPicker(<PlatformFile>[FakePickedFile('empty.png', Uint8List(0))]);
 
-    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _stem);
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     await tester.tap(find.byKey(questionImageAddButtonKey));
     await _waitForText(tester, _zh.questionImageAddSkipped(1));
@@ -132,8 +133,8 @@ void main() {
       FakePickedFile('ok.png', tinyPngBytes),
     ]);
 
-    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _stem);
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+    await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
     await tester.tap(find.byKey(questionImageAddButtonKey));
     await _waitForTextContaining(tester, _zh.questionImageAddDone(1));
@@ -151,7 +152,7 @@ void main() {
         bytes: tinyPngBytes,
       );
 
-    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+    await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
     await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
@@ -193,7 +194,6 @@ void main() {
       );
 
     await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
     // 大图铺满题面宽度：测试视口 1200 宽、页面左右各 16 → 1168；DPR=1.0。
@@ -226,7 +226,6 @@ void main() {
       );
 
     await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-    await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
     await tester.tap(find.byType(Image));
@@ -248,8 +247,8 @@ void main() {
       final database = _newDatabase();
       final question = await _seedQuestion(database);
 
-      await _pumpDetail(tester, database, question.id);
-      await _waitForText(tester, _stem);
+      await _pumpDetail(tester, database, question.id, developer: true);
+      await _waitForText(tester, _zh.questionDeveloperRawTitle);
       await _waitForText(tester, _zh.questionAnswerImageEmptyHint);
 
       expect(find.byKey(questionImageAddButtonKey), findsOneWidget);
@@ -271,8 +270,8 @@ void main() {
         FakePickedFile('answer-2.png', tinyPngBytes),
       ]);
 
-      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-      await _waitForText(tester, _stem);
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+      await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
       await tester.tap(find.byKey(questionAnswerImageAddButtonKey));
       await _waitForText(tester, _zh.questionImageAddDone(2));
@@ -390,7 +389,7 @@ void main() {
         role: QuestionImageRole.answer,
       );
 
-      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
       await _waitForCount(tester, find.byType(Image), 2);
 
       await tester.tap(find.byKey(questionImageDeleteButtonKey(
@@ -427,8 +426,8 @@ void main() {
         FakePickedFile('ok.png', tinyPngBytes),
       ]);
 
-      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore);
-      await _waitForText(tester, _stem);
+      await _pumpDetail(tester, database, question.id, mediaStore: mediaStore, developer: true);
+      await _waitForText(tester, _zh.questionDeveloperRawTitle);
 
       await tester.tap(find.byKey(questionAnswerImageAddButtonKey));
       await _waitForTextContaining(tester, _zh.questionImageAddDone(1));
@@ -573,6 +572,7 @@ Future<void> _pumpDetail(
   AppDatabase database,
   String questionId, {
   FakeQuestionMediaStore? mediaStore,
+  bool developer = false,
 }) async {
   _bigSurface(tester);
   await tester.pumpWidget(
@@ -593,6 +593,15 @@ Future<void> _pumpDetail(
     ),
   );
   await _settle(tester);
+  if (developer) {
+    // 配图增删现在只在「开发者信息」页：学生页只展示，不给入口。
+    final entry = find.byKey(questionDeveloperEntryKey);
+    await tester.ensureVisible(entry);
+    await tester.pumpAndSettle();
+    await tester.tap(entry);
+    await _settle(tester);
+    await tester.pumpAndSettle();
+  }
 }
 
 /// 页面很长，默认 800×600 视口里 `ListView` 只建可见的那几行。

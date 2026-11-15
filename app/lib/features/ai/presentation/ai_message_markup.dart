@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
+
+import '../../markdown/presentation/markdown_renderer.dart';
 
 /// Renders one message body of the AI conversation.
 ///
@@ -32,20 +33,11 @@ class AiMessageBody extends StatelessWidget {
     if (isUser || !aiMessageRendersAsMarkdown(text)) {
       return SelectableText(text);
     }
-    // `SelectionArea` keeps the reply selectable, which is what the plain-text
-    // rendering this replaced already offered. Colours are left to the ambient
-    // theme: the package derives code blocks, tables and inline code from
-    // `ColorScheme`, so the only value that has to be supplied is the link
-    // colour, whose package default is a hard-coded blue.
-    return SelectionArea(
-      child: GptMarkdown(
-        text,
-        style: theme.textTheme.bodyMedium,
-        useDollarSignsForLatex: true,
-        styleSheet: GptMarkdownStyleSheet(
-          link: LinkStyle(color: theme.colorScheme.primary),
-        ),
-      ),
+    // 全软件统一渲染入口：颜色跟随当前软件主题（surface 模式），排版（中英文
+    // 字体/字号/标题/表格/代码块/公式）跟随「主题设置 → Markdown」。
+    return MarkdownRenderer(
+      markdown: text,
+      style: theme.textTheme.bodyMedium,
     );
   }
 }

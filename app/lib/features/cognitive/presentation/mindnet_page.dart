@@ -1,108 +1,68 @@
+/// MindNet 顶层模块页：**用户层学习状态**首页（task-103 删繁就简）。
+///
+/// 用户反馈：认知模型/MindNet 的测试入口、评价体系、可视化太复杂，用户看什么、
+/// 开发者看什么没明确。现在这一页只回答四件事：
+///
+/// 1. 当前档位 S/A/B/C/D/`?`；
+/// 2. 3 个强项 + 3 个弱项（知识点，带证据状态）；
+/// 3. 今日复习/任务数量 + 一个主按钮「开始复习」；
+/// 4. 一句话趋势（最近一周复习），没有数据说「证据不足」。
+///
+/// 2026-11-15 第二遍清理（task-113）：这就是用户层「学习状态」的**唯一**入口，
+/// 外壳导航标签从 `MindNet` 改成「学习状态」；设置页不再放「认知模型」原页。
+/// 档位与强弱项以**知识点**为观测单位（不是闪存卡张数），所以这里读起来是
+/// 学习状态，不是闪存卡统计。开发者字段统一在设置页开发者分区的
+/// 「开发者信息（只读）」里（`CognitiveDeveloperPage`）。
+///
+/// 数字全部来自 provider，这一页不复制读数、不写库
+/// （`learning_status_view.dart` 是四块的唯一实现）。
+library;
+
 import 'package:flutter/material.dart';
-import 'package:furnace/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../assessment/presentation/assessment_center_page.dart';
-import 'cognitive_graph_page.dart';
-import 'cognitive_model_page.dart';
-import 'mechanism_page.dart';
-import 'today_plan_page.dart';
+import '../../../l10n/app_localizations.dart';
+import 'learning_status_view.dart';
 
-/// MindNet 顶层模块页：用户模型引擎的入口。
-///
-/// 这一页只做导航，不复制读数：每个子页仍从各自的 provider 取数（认知模型页
-/// 读 cognitiveReadingsProvider、网络图自己查库、机制页读 mechanismPanelProvider），
-/// 放在这里再读一遍只会让同一屏有两份真相。
-///
-/// 条目顺序按「先看清、再行动」：认知模型 → 知识网络 → 今日清单 → 机制参数 →
-/// 评测中心。五个子页都是既有页面，本页不新增任何业务逻辑。
-class MindNetPage extends StatelessWidget {
+class MindNetPage extends ConsumerWidget {
   const MindNetPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final entries = <_MindNetEntry>[
-      _MindNetEntry(
-        icon: Icons.insights_outlined,
-        title: l10n.cognitiveModelTitle,
-        subtitle: l10n.cognitiveModelSubtitle,
-        builder: (_) => const CognitiveModelPage(),
-      ),
-      _MindNetEntry(
-        icon: Icons.hub_outlined,
-        title: l10n.cognitiveGraphTitle,
-        subtitle: l10n.cognitiveGraphTapHint,
-        builder: (_) => const CognitiveGraphPage(),
-      ),
-      _MindNetEntry(
-        icon: Icons.today_outlined,
-        title: l10n.todayPlanTitle,
-        subtitle: l10n.todayPlanUncalibrated,
-        builder: (_) => const TodayPlanPage(),
-      ),
-      _MindNetEntry(
-        icon: Icons.tune,
-        title: l10n.mechanismPanelTitle,
-        subtitle: l10n.mechanismPanelSubtitle,
-        builder: (_) => const MechanismPage(),
-      ),
-      _MindNetEntry(
-        icon: Icons.assessment_outlined,
-        title: l10n.settingsAssessmentTitle,
-        subtitle: l10n.assessmentCenterIntro,
-        builder: (_) => const AssessmentCenterPage(),
-      ),
-    ];
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.navMindnet)),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Text(
-              l10n.mindnetIntro,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+      appBar: AppBar(
+        title: Text(l10n.navMindnet),
+        actions: <Widget>[
+          IconButton(
+            tooltip: l10n.commonRefresh,
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              // 四块各自取数：刷新必须一起失效，否则会出现半新半旧的首页。
+              ref.invalidate(learningStatusProvider);
+              ref.invalidate(dueCardCountProvider);
+              ref.invalidate(todayTaskCountProvider);
+              ref.invalidate(weeklyReviewTrendProvider);
+            },
           ),
-          for (final entry in entries) _MindNetTile(entry: entry),
         ],
       ),
-    );
-  }
-}
-
-/// One row of the MindNet hub: a title, a one-line explanation and the page to
-/// open. A value type so the list above stays declarative and testable.
-class _MindNetEntry {
-  const _MindNetEntry({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.builder,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final WidgetBuilder builder;
-}
-
-class _MindNetTile extends StatelessWidget {
-  const _MindNetTile({required this.entry});
-
-  final _MindNetEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(entry.icon),
-      title: Text(entry.title),
-      subtitle: Text(entry.subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: entry.builder),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: <Widget>[
+          Text(
+            l10n.mindnetStatusIntro,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const LearningStatusView(),
+          const SizedBox(height: 16),
+          const LearningStatusEntries(),
+        ],
       ),
     );
   }

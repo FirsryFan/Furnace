@@ -18,16 +18,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../domain/services/media/thumbnail_spec.dart';
+import '../../../domain/services/questions/question_blank_markup.dart';
+import '../../../domain/services/questions/question_markdown_source.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../markdown/presentation/markdown_renderer.dart';
 import '../application/question_media_providers.dart';
 import '../data/question_media_store.dart';
 import 'drop_intake_filter.dart';
+import 'question_blank_view.dart';
 
 /// 按 id 读题目编号（`questions.serialNo`）；题不存在时返回 null。
 final questionSerialProvider =
@@ -158,20 +161,28 @@ class QuestionRichText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     if (!containsMath(text)) {
+      // 纯文字题面：有填空空位时画成空白下划线组件（可选中），否则保持原来的
+      // 可选原文——公式下标/单下划线不在这里动。
+      if (questionTextHasBlanks(text)) {
+        return QuestionTextWithBlankWidgets(
+          text: text,
+          style: style,
+          textAlign: textAlign ?? TextAlign.start,
+        );
+      }
       return SelectableText(text, style: style, textAlign: textAlign);
     }
-    return SelectionArea(
-      child: GptMarkdown(
-        text,
-        style: style,
-        textAlign: textAlign ?? TextAlign.start,
-        useDollarSignsForLatex: true,
-        styleSheet: GptMarkdownStyleSheet(
-          link: LinkStyle(color: theme.colorScheme.primary),
-        ),
-      ),
+    // 行内公式也走全软件统一的 Markdown 渲染器：支持 `$...$` / `\(...\)`，
+    // 排版（字体/字号/公式样式）跟随「主题设置 → Markdown」。填空空位换成
+    // 空白下划线组件，数字开头的公式换成 `\(…\)` 避开价格启发式。
+    final fontSize =
+        style?.fontSize ?? Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14;
+    return MarkdownRenderer(
+      markdown: questionMarkdownSource(text, fontSize: fontSize),
+      style: style,
+      textAlign: textAlign,
+      imageBuilder: questionBlankOrNetworkImage,
     );
   }
 }

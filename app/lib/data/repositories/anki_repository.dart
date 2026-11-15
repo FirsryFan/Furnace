@@ -128,6 +128,109 @@ class AnkiRepository {
         .getSingleOrNull();
   }
 
+  /// 按 id 批量取知识点（只读；标签知识入口给卡片补「属于哪个知识点」的标题）。
+  ///
+  /// 去空、去重后按 500 分块（与 [tagPathsForObjects] 同一绑定变量上限理由）。
+  /// 只返回仍然存在的行；顺序不保证。
+  Future<List<KnowledgePoint>> knowledgePointsByIds(
+    Iterable<String> knowledgePointIds,
+  ) async {
+    final ids = _cleanIds(knowledgePointIds);
+    if (ids.isEmpty) {
+      return const <KnowledgePoint>[];
+    }
+    final result = <KnowledgePoint>[];
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      result.addAll(
+        await (_db.select(_db.knowledgePoints)
+              ..where((t) => t.id.isIn(ids.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
+  /// 按 id 批量取卡模板（只读；`object_tags` 直接挂在卡模板上的历史行用）。
+  ///
+  /// 与 [knowledgePointsByIds] 同一分块与去重口径；只返回仍存在的行。
+  Future<List<CardTemplate>> templatesByIds(
+    Iterable<String> templateIds,
+  ) async {
+    final ids = _cleanIds(templateIds);
+    if (ids.isEmpty) {
+      return const <CardTemplate>[];
+    }
+    final result = <CardTemplate>[];
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      result.addAll(
+        await (_db.select(_db.cardTemplates)
+              ..where((t) => t.id.isIn(ids.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
+  /// 一批知识点的全部卡模板（只读；标签知识入口按标签子树取卡）。
+  ///
+  /// 一次 `WHERE knowledge_point_id IN (...)`，按 500 分块；空集合返回空列表。
+  /// 顺序不保证，调用方自己排。
+  Future<List<CardTemplate>> templatesForKnowledgePoints(
+    Iterable<String> knowledgePointIds,
+  ) async {
+    final ids = _cleanIds(knowledgePointIds);
+    if (ids.isEmpty) {
+      return const <CardTemplate>[];
+    }
+    final result = <CardTemplate>[];
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      result.addAll(
+        await (_db.select(_db.cardTemplates)
+              ..where((t) => t.knowledgePointId.isIn(ids.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
+  /// trim、去空、去重，保持第一次出现的顺序。
+  static List<String> _cleanIds(Iterable<String> ids) {
+    final clean = <String>[];
+    final seen = <String>{};
+    for (final raw in ids) {
+      final id = raw.trim();
+      if (id.isEmpty || !seen.add(id)) {
+        continue;
+      }
+      clean.add(id);
+    }
+    return clean;
+  }
+
+  /// The templates that carry [externalId].
+  ///
+  /// This is the idempotency lookup for generated content-seed cards
+  /// (`content:<Q-id>#<node-id>`, see `INTEGRATION-CONTRACT-2026-11-15.md` §6.2
+  /// and `DagFlashcardGenerator`). `card_templates.external_id` has no UNIQUE
+  /// constraint (schema v47 keeps the table unchanged), so "already exists" is
+  /// answered here rather than by the database; a list (not a single row) keeps
+  /// a pre-existing duplicate from crashing the reader and lets the caller
+  /// report which row it found.
+  Future<List<CardTemplate>> getTemplatesByExternalId(String externalId) {
+    return (_db.select(_db.cardTemplates)
+          ..where((t) => t.externalId.equals(externalId)))
+        .get();
+  }
+
   Future<List<CardTemplate>> getAllTemplates() {
     return _db.select(_db.cardTemplates).get();
   }

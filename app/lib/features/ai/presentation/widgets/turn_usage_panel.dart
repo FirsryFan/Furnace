@@ -60,14 +60,22 @@ class TurnUsageNotifier extends ValueNotifier<TurnUsageView> {
   /// page binds to a different conversation, whose loop is a different object
   /// with its own turn.
   ///
+  /// [preserveLast] keeps the last finished turn's figures when the page is only
+  /// rebinding to a rebuilt loop (the effort control rebuilds the adapter), not
+  /// switching conversations. Without it the metrics bar would blank out because
+  /// of a configuration change that had nothing to do with the measurement.
+  ///
   /// Takes a stream rather than an [AgentLoop] so the bookkeeping can be tested
   /// without a database, a provider or a socket.
   void attach({
     Stream<AgentTurnState>? states,
     AgentTurnState initial = const AgentTurnState(),
+    bool preserveLast = false,
   }) {
     _subscription?.cancel();
-    _lastCompleted = null;
+    if (!preserveLast) {
+      _lastCompleted = null;
+    }
     // Seeded first, and unconditionally: the state the loop is already in counts
     // even when the notifier is handed no stream (a caller that only wants to
     // render one known state), and a page attached to a conversation whose turn

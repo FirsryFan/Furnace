@@ -40,6 +40,7 @@ import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/application/similar_question_provider.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_developer_page.dart';
 import 'package:furnace/features/questions/presentation/question_media_view.dart';
 import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
 import 'package:furnace/features/questions/presentation/question_source_edit_dialog.dart';
@@ -307,6 +308,7 @@ void main() {
 
     await _pumpDetail(tester, database, seeded.question.id, adapter: null);
     await _waitForText(tester, '不确定来源的一道题');
+    await _openDeveloper(tester);
 
     expect(find.text(_zh.questionDetailEditSource), findsOneWidget);
     await tester.tap(find.text(_zh.questionDetailEditSource));
@@ -330,10 +332,10 @@ void main() {
     await tester.tap(find.text(_zh.commonSave));
     await tester.pumpAndSettle();
 
-    // 页面自己刷新：来源行变成"高考真题"，年份也在。
+    // 开发者页自己刷新：来源分级变成"高考真题"，地区也在（学生页不显示这些）。
     await tester.pumpAndSettle();
     expect(find.textContaining(_zh.questionIntakeSourceGaokao), findsWidgets);
-    expect(find.textContaining(_zh.questionDetailYear(2024)), findsWidgets);
+    expect(find.text('湖南'), findsOneWidget);
 
     // 库里的四列变了，题干/答案没动。
     final after = (await repository.byId(seeded.question.id))!;
@@ -360,6 +362,7 @@ void main() {
 
     await _pumpDetail(tester, database, seeded.question.id, adapter: null);
     await _waitForText(tester, '年份写错的那道题');
+    await _openDeveloper(tester);
     await tester.tap(find.text(_zh.questionDetailEditSource));
     await tester.pumpAndSettle();
 
@@ -430,10 +433,8 @@ void main() {
       adapter: null,
       mediaStore: mediaStore,
     );
-    await _waitForText(tester, _zh.questionImageCount(1));
     await _waitForType(tester, Image);
 
-    expect(find.text(_zh.questionImageCount(1)), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
     // 没有「题目配图」这种独占区块标题：图直接跟在题干文字里。
     expect(find.text(_zh.questionDetailImagesSection), findsNothing);
@@ -594,7 +595,11 @@ void main() {
       adapter: null,
       mediaStore: mediaStore,
     );
-    await _waitForText(tester, _zh.questionImageCount(1));
+    await _waitForCount(
+      tester,
+      find.byIcon(Icons.broken_image_outlined),
+      1,
+    );
 
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(find.byType(Image), findsNothing);
@@ -1042,6 +1047,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
     expect(find.text(expected.host), findsOneWidget);
@@ -1087,6 +1093,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
     expect(find.text(_zh.questionSourceZujuan), findsOneWidget);
@@ -1114,6 +1121,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
     expect(find.text(_zh.questionSourceZujuan), findsOneWidget);
@@ -1126,6 +1134,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     expect(find.byKey(questionSourceCopyButtonKey), findsNothing);
     expect(find.byKey(questionSourceEditButtonKey), findsOneWidget);
@@ -1148,6 +1157,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     expect(find.byKey(questionSourceCopyButtonKey), findsOneWidget);
     expect(find.byKey(questionSourceEditButtonKey), findsOneWidget);
@@ -1167,6 +1177,7 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _stem);
+    await _openDeveloper(tester);
 
     await tester.tap(find.byKey(questionSourceEditButtonKey));
     await tester.pumpAndSettle();
@@ -1198,8 +1209,10 @@ void main() {
     await _waitForText(tester, '二次函数最值题型');
 
     expect(find.text('二次函数最值题型'), findsOneWidget);
-    expect(find.byKey(questionTitleEditButtonKey), findsOneWidget);
     expect(find.text(_zh.questionTitleUntitled), findsNothing);
+    // 改名入口不在学生页：进开发者信息页才出现。
+    await _openDeveloper(tester);
+    expect(find.byKey(questionTitleEditButtonKey), findsOneWidget);
   });
 
   testWidgets('没题名时标题位置给弱化占位，而不是空白', (WidgetTester tester) async {
@@ -1209,6 +1222,8 @@ void main() {
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, _zh.questionTitleUntitled);
 
+    expect(find.byKey(questionTitleEditButtonKey), findsNothing);
+    await _openDeveloper(tester);
     expect(find.byKey(questionTitleEditButtonKey), findsOneWidget);
   });
 
@@ -1219,6 +1234,7 @@ void main() {
     await _pumpDetail(tester, database, question.id, adapter: null);
     await _waitForText(tester, '旧名字');
 
+    await _openDeveloper(tester);
     await tester.tap(find.byKey(questionTitleEditButtonKey));
     await tester.pumpAndSettle();
     expect(find.byKey(questionTitleFieldKey), findsOneWidget);
@@ -1229,6 +1245,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(questionTitleFieldKey), findsNothing);
+    // 开发者页的内部字段卡显示新题名（学生页在下一层，返回后同样会刷新）。
+    await _waitForText(tester, '新题名');
     expect(find.text('新题名'), findsOneWidget);
     final row = await QuestionRepository(database).byId(question.id);
     expect(row!.title, '新题名');
@@ -2467,6 +2485,17 @@ Future<void> _pumpDetail(
     ),
   );
   await _settle(tester);
+}
+
+/// 开发侧动作（改名 / 改来源 / 原题链接 / 配图）现在只在「开发者信息」页出现；
+/// 学生页只留一个入口按钮。
+Future<void> _openDeveloper(WidgetTester tester) async {
+  final entry = find.byKey(questionDeveloperEntryKey);
+  await tester.ensureVisible(entry);
+  await tester.pumpAndSettle();
+  await tester.tap(entry);
+  await _settle(tester);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpIntake(

@@ -1,15 +1,18 @@
-// 用户反馈："flashcard 的卡组设置我还没有找到在哪里"。
+// 用户反馈（两次）：
+//  1. "flashcard 的卡组设置我还没有找到在哪里"（task-107 时把入口放进了设置页）；
+//  2. "卡组设置不应放总设置；很多入口要合并"（task-113 第二遍清理）。
 //
-// 卡组在这个 app 里就是一个**标签**（`docs/AI_DESIGN.md` 的复习一节：标签树就是卡组），
-// 真正的设置在「复习计划」页：每个标签的每日新卡/复习上限 + 判分方式/卡片类型。
-// 之前它只挂在复习页顶栏的两个图标后面，等于藏起来了 —— 这条测试钉住设置页里的
-// 明确入口，防止它再被"顺手挪走"。
+// 结论：卡组就是标签树，卡组的每日新卡/复习上限 + 判分方式属于**闪存卡模块**，
+// 不是总设置。这条测试钉住两件事：
+//  * 总设置里没有「卡组设置」；
+//  * 闪存卡模块（复习 Tab 的顶栏「更多」菜单）里有它，点进去是复习计划页。
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
+import 'package:furnace/features/anki/presentation/knowledge_page.dart';
 import 'package:furnace/features/anki/presentation/review_plan_page.dart';
 import 'package:furnace/features/assessment/presentation/assessment_center_page.dart';
 import 'package:furnace/features/settings/presentation/settings_page.dart';
@@ -28,11 +31,12 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<void> pumpSettings(
-    WidgetTester tester, {
+  Future<void> pumpPage(
+    WidgetTester tester,
+    Widget page, {
     Locale locale = const Locale('zh'),
   }) async {
-    // 设置页是一长列 tile：视口够高才不会让"卡组设置"这一行根本没被构建。
+    // 设置页是一长列 tile：视口够高才不会让目标行根本没被构建。
     tester.view.physicalSize = const Size(1200, 5000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -45,19 +49,36 @@ void main() {
           locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const SettingsPage(),
+          home: page,
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('设置里有「卡组设置」，点进去就是卡组（=标签树）的每日任务量与复习偏好', (tester) async {
-    await pumpSettings(tester);
+  testWidgets('总设置里没有「卡组设置」（卡组属于闪存卡模块）', (tester) async {
+    await pumpPage(tester, const SettingsPage());
 
+    expect(find.text(zh.settingsCardGroups), findsNothing);
+    expect(find.text(zh.settingsCardGroupsHint), findsNothing);
+    expect(find.byType(ReviewPlanPage), findsNothing);
+  });
+
+  testWidgets('English settings does not show deck settings either', (tester) async {
+    await pumpPage(tester, const SettingsPage(), locale: const Locale('en'));
+
+    expect(find.text(en.settingsCardGroups), findsNothing);
+  });
+
+  testWidgets('闪存卡模块里有「卡组设置」，点进去是复习计划页（卡组=标签树）',
+      (tester) async {
+    await pumpPage(tester, const KnowledgePage());
+
+    // 主操作是「新建卡组」；卡组设置收在顶栏「更多」菜单里（低频入口不占图标）。
+    expect(find.text(zh.deckListCreate), findsWidgets);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
     expect(find.text(zh.settingsCardGroups), findsOneWidget);
-    // 副标题把"卡组=标签树"说清楚，不让人再猜一次。
-    expect(find.text(zh.settingsCardGroupsHint), findsOneWidget);
 
     await tester.tap(find.text(zh.settingsCardGroups));
     await tester.pumpAndSettle();
@@ -67,21 +88,10 @@ void main() {
     expect(find.text(zh.reviewPreferences), findsWidgets);
   });
 
-  testWidgets('English settings points at the same place', (tester) async {
-    await pumpSettings(tester, locale: const Locale('en'));
-
-    expect(find.text(en.settingsCardGroups), findsOneWidget);
-
-    await tester.tap(find.text(en.settingsCardGroups));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ReviewPlanPage), findsOneWidget);
-  });
-
   // 用户评测板块设计文档 v1.0：设置页只留一个入口，旧的四项小测/画像两行
   // 收进评测中心页（能力测评与认知档案统一在 cog_* 八表里）。
   testWidgets('设置里有「评测与认知档案」，点进去是评测中心页', (tester) async {
-    await pumpSettings(tester);
+    await pumpPage(tester, const SettingsPage());
 
     expect(find.text(zh.settingsAssessmentTitle), findsOneWidget);
     expect(find.text(zh.settingsAssessmentHint), findsOneWidget);

@@ -358,7 +358,7 @@ class _CognitiveGraphPageState extends ConsumerState<CognitiveGraphPage> {
     final filterTagId = _tagFilterId;
     final filterTitle = filterTagId == null
         ? null
-        : (data.tagTitles[filterTagId] ?? filterTagId);
+        : (data.tagTitles[filterTagId] ?? l10n.cognitiveGraphUntitledTag);
     final summary = searching
         ? l10n.cognitiveGraphSearchCount(points.length)
         : l10n.cognitiveGraphSummary(
@@ -756,7 +756,6 @@ class _SelectionDetails extends StatelessWidget {
       detail = l10n.cognitiveGraphPointDetail(
         reading == null ? '—' : zoneLabel(l10n, reading.zone),
         reading?.cardCount ?? 0,
-        reading?.meanR == null ? '—' : reading!.meanR!.toStringAsFixed(2),
       );
     } else if (tag != null) {
       title = '「${tag.title}」';
@@ -843,7 +842,8 @@ class _ZoneDot extends StatelessWidget {
       );
 }
 
-/// 知识点详情底部 sheet：区域 / 卡数 / 平均 R + 标签 chips。
+/// 知识点详情底部 sheet：区域 / 卡数 + 标签 chips（task-103：平均 R 属开发者读数，
+/// 不再出现在用户层；要看原始读数请到设置「开发者信息」）。
 ///
 /// 标题与三行读数都从同一份 CognitiveGraphData 读；点标签 chip 关闭 sheet 并回传
 /// 标签 id，由页面把它变成图谱筛选 —— sheet 自己不写任何状态。
@@ -874,7 +874,6 @@ class _PointDetailSheet extends StatelessWidget {
             (data.tagTitles[a] ?? a).compareTo(data.tagTitles[b] ?? b);
         return byTitle != 0 ? byTitle : a.compareTo(b);
       });
-    final meanR = reading?.meanR;
 
     return SafeArea(
       key: cognitiveGraphDetailSheetKey,
@@ -896,14 +895,6 @@ class _PointDetailSheet extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.style_outlined),
               title: Text(reading.cardCount.toString()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.show_chart),
-              title: Text(
-                l10n.cognitiveRetrievability(
-                  meanR == null ? '—' : meanR.toStringAsFixed(2),
-                ),
-              ),
             ),
           ],
           const Divider(height: 8),
@@ -928,7 +919,10 @@ class _PointDetailSheet extends StatelessWidget {
                       for (final tagId in tagIds)
                         ActionChip(
                           tooltip: l10n.cognitiveGraphFilterTag,
-                          label: Text(data.tagTitles[tagId] ?? tagId),
+                          label: Text(
+                            data.tagTitles[tagId] ??
+                                l10n.cognitiveGraphUntitledTag,
+                          ),
                           onPressed: () => Navigator.of(context).pop(tagId),
                         ),
                     ],

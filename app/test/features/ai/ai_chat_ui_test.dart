@@ -80,7 +80,19 @@ Future<(AppDatabase, AiConfig)> buildSeededDb({
 /// The test environment runs in English while the app's primary locale is
 /// Chinese, so matching on a label string would be brittle in exactly the way
 /// that hides real failures. The icon is stable across locales.
-final _aiTab = find.byIcon(Icons.smart_toy_outlined);
+///
+/// Both variants are matched: since 2026-11-15 AI is the default home, so the
+/// shell draws the *filled* [Icons.smart_toy] when selected (the outlined
+/// variant is what an unselected destination - and the setup guide's hero icon -
+/// uses). Matching only the outlined one made this test depend on AI not being
+/// the selected destination, which is exactly the thing that changed.
+final _aiTab = find.byWidgetPredicate(
+  (widget) =>
+      widget is Icon &&
+      (widget.icon == Icons.smart_toy_outlined ||
+          widget.icon == Icons.smart_toy),
+  description: 'the AI destination icon (outlined or selected/filled)',
+);
 
 void main() {
   testWidgets('the whole chat flow works through the real UI', (tester) async {

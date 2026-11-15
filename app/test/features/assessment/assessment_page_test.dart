@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/app_database_provider.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/features/assessment/presentation/assessment_page.dart';
-import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
+import 'package:furnace/features/cognitive/presentation/cognitive_developer_page.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
 /// Pumps an arbitrary page against [db] (the reading page's entry test needs a
@@ -266,7 +266,8 @@ void main() {
       hasLength(2),
       reason: 'the seed must be visible before the page reads it',
     );
-    await _pumpPage(tester, db, const CognitiveModelPage());
+    // task-103：评测入口随原始读数搬到了开发者页（用户层不再显示）。
+    await _pumpPage(tester, db, const CognitiveDeveloperPage());
 
     final entry = find.widgetWithText(FilledButton, '测一测（给模型一个起点）');
     expect(

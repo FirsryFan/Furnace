@@ -36,11 +36,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navPackages => 'Library';
 
   @override
-  String get navMindnet => 'MindNet';
+  String get navMindnet => 'Learning status';
 
   @override
   String get mindnetIntro =>
-      'MindNet reads your review history and suggests what to study. This page is read-only.';
+      'This page answers two things only - how your learning looks and what to do today: level, strengths and weak spots, today\'s readiness, last week. Model parameters and raw readings are not shown here.';
 
   @override
   String get navSettings => 'Settings';
@@ -195,6 +195,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksDueAt => 'Deadline';
+
+  @override
+  String get tasksStatus => 'Status';
+
+  @override
+  String get tasksStatusTodo => 'To do';
+
+  @override
+  String get tasksStatusDoing => 'In progress';
+
+  @override
+  String get tasksStatusDone => 'Done';
+
+  @override
+  String get tasksStatusBlocked => 'Stuck';
+
+  @override
+  String get tasksStatusSkipped => 'Skipped';
+
+  @override
+  String get tasksStatusSectionTodo => 'To do';
+
+  @override
+  String get tasksStatusSectionDone => 'Done';
+
+  @override
+  String get tasksStatusSectionArchived => 'Stuck / skipped';
+
+  @override
+  String get tasksStatusMenu => 'Status actions';
+
+  @override
+  String get tasksSubmit => 'Submit';
+
+  @override
+  String get tasksMarkStuck => 'Stuck';
+
+  @override
+  String get tasksSkip => 'Skip';
+
+  @override
+  String tasksSubmitTitle(String title) {
+    return 'Submit \"$title\"?';
+  }
+
+  @override
+  String get tasksSubmitBody =>
+      'Submitting only records that the work was handed in; it does not change the task status and does not mark it done.';
+
+  @override
+  String tasksStuckTitle(String title) {
+    return 'Mark \"$title\" as stuck?';
+  }
+
+  @override
+  String get tasksStuckBody =>
+      'Stuck removes the task from the to-do list without recording right or wrong and without changing ability; you can start it again later, or skip it.';
+
+  @override
+  String tasksSkipTitle(String title) {
+    return 'Skip \"$title\"?';
+  }
+
+  @override
+  String get tasksSkipBody =>
+      'Skipping is not deleting: the task and everything it references stay; it just leaves the to-do list.';
+
+  @override
+  String tasksSubmitDone(String title) {
+    return 'Submitted \"$title\"';
+  }
+
+  @override
+  String tasksStuckDone(String title) {
+    return 'Marked \"$title\" as stuck';
+  }
+
+  @override
+  String tasksSkipDone(String title) {
+    return 'Skipped \"$title\"';
+  }
+
+  @override
+  String get tasksReopen => 'Restore';
+
+  @override
+  String tasksReopenTitle(String title) {
+    return 'Restore \"$title\"?';
+  }
+
+  @override
+  String get tasksReopenBody =>
+      'Restoring puts the task back in the to-do list and records a reopened event. Completion history is not rolled back: it stays as the record that the work was done.';
+
+  @override
+  String tasksReopenDone(String title) {
+    return 'Restored \"$title\"';
+  }
+
+  @override
+  String tasksStatusNotAllowed(String status, String action) {
+    return '\"$action\" is not allowed while the task is $status';
+  }
+
+  @override
+  String tasksStatusActionFailed(String error) {
+    return 'Action failed: $error';
+  }
 
   @override
   String get timeNewBlock => 'New schedule block';
@@ -1276,6 +1384,41 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get tagsSearchHint => 'Search tags';
+
+  @override
+  String get tagsSearchEmpty => 'No matching tags';
+
+  @override
+  String tagsSearchCount(int count) {
+    return '$count matching tags';
+  }
+
+  @override
+  String get tagsClearSearch => 'Clear search';
+
+  @override
+  String get tagsGraphPanHint =>
+      'Wider than the screen: drag to pan, scroll or pinch to zoom';
+
+  @override
+  String tagsCollapsedHidden(int count) {
+    return '$count child tags hidden';
+  }
+
+  @override
+  String get tagsNodeSettings => 'Tag settings';
+
+  @override
+  String get tagsNodeSettingsHint =>
+      'Use the arrow on the node to expand or collapse; this panel edits this tag only.';
+
+  @override
+  String tagsMoveSingleTitle(String label) {
+    return 'Move \"$label\" to';
+  }
+
+  @override
   String get threadTitle => 'Thread';
 
   @override
@@ -1322,6 +1465,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get threadNoEvents => 'No events yet';
+
+  @override
+  String get threadWindowAll => 'All';
+
+  @override
+  String get threadWindowWeek => 'This week';
+
+  @override
+  String get threadWindowDay => 'Today';
+
+  @override
+  String get threadWindowEmpty => 'No tasks in this window';
+
+  @override
+  String get threadWindowTemporary =>
+      'Temporary view: filters the tasks you already sorted by time window. It changes no order and writes nothing.';
+
+  @override
+  String get threadRollupSubtasks => 'Subtasks';
+
+  @override
+  String threadRollupDoneOf(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String threadRollupPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String threadRollupBlocked(int count) {
+    return 'stuck $count';
+  }
+
+  @override
+  String threadRollupSkipped(int count) {
+    return 'skipped $count';
+  }
+
+  @override
+  String get threadRollupSection => 'Subtask rollup (read-only)';
+
+  @override
+  String get threadRollupStatus => 'Rolled-up status';
+
+  @override
+  String threadRollupCountsLine(
+      int todo, int doing, int done, int blocked, int skipped) {
+    return 'To do $todo · In progress $doing · Done $done · Stuck $blocked · Skipped $skipped';
+  }
+
+  @override
+  String threadRollupEstimate(int minutes) {
+    return 'Subtasks add up to $minutes min';
+  }
+
+  @override
+  String get threadRollupEstimateUnknown =>
+      'Estimate unknown (a subtask has no estimate)';
+
+  @override
+  String get threadRollupReadOnly =>
+      'Read-only rollup: showing it never writes the parent status.';
 
   @override
   String get threadGoal => 'Main goal';
@@ -1691,7 +1898,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewReminderSettingTitle => 'Review reminder';
 
   @override
-  String get reviewReminderSettingOff => 'Off';
+  String get reviewReminderSettingOff => 'Off (tap to set a daily reminder)';
 
   @override
   String reviewReminderSettingOn(String time) {
@@ -1740,7 +1947,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUsageDocHint =>
-      'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, cognitive model';
+      'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, learning status';
 
   @override
   String get docAiTitle =>
@@ -1786,11 +1993,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Today\'s list shows the cards due today and suggests what to start with from your recent reviews and energy. Conflicting tasks and schedule blocks are flagged and can be pushed back in one tap; the ordering is recalculated only when you press the sort button.';
 
   @override
-  String get docCognitiveTitle => 'How to read the cognitive model';
+  String get docCognitiveTitle => 'How to read your learning status';
 
   @override
   String get docCognitiveBody =>
-      'The cognitive model is a read-only page showing how well each card is remembered. \"Developing zone\" = what to review more now; \"at risk\" = you can do it but are close to forgetting. When there is no data it says unavailable, which does not mean healthy. The knowledge graph at the top draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. \"Capability actions\" groups the steps where you got stuck and lets you find questions by that action. These readings are guidance only and never change your data by themselves.';
+      'Learning status is a read-only page: current level, strengths and weak spots, what to review today, and a one-line trend for the last week. The level and the lists are computed per knowledge point, not per flashcard: cards under one knowledge point are averaged first, and only points with review history count as evidence. Below the threshold, or when readings disagree too much, it shows ? or not enough evidence - which does not mean healthy. The knowledge graph draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. Capability actions groups the steps where you got stuck and lets you find questions by that action. Model parameters and per-card raw readings live under Settings > Developer > Developer info (read-only), collapsed by default. These readings are guidance only and never change your data by themselves.';
 
   @override
   String get docFormulaTitle => 'How the score is computed';
@@ -2404,6 +2611,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiUsageUnavailable => '—';
 
   @override
+  String get aiEffort => 'Thinking effort';
+
+  @override
+  String get aiEffortDefault => 'Default';
+
+  @override
+  String get aiEffortLow => 'Low';
+
+  @override
+  String get aiEffortHigh => 'High';
+
+  @override
+  String get aiEffortMax => 'Max';
+
+  @override
+  String get aiEffortTooltip =>
+      'A chosen level is sent as reasoning_effort on the chat request; Default sends no such field. Whether the server accepts it depends on the model.';
+
+  @override
+  String get aiEffortBusy =>
+      'The thinking effort cannot change while a turn is running';
+
+  @override
+  String get aiDropImageHint => 'Drop to add the image to this message';
+
+  @override
+  String aiDropImageSkipped(int count) {
+    return '$count non-image file(s) skipped';
+  }
+
+  @override
   String get settingsAiSection => 'AI';
 
   @override
@@ -2446,7 +2684,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAiMaxRoundsHint =>
-      'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.';
+      'Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 200.';
 
   @override
   String get settingsAiSave => 'Save';
@@ -2611,12 +2849,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Workspace exported (API key excluded)';
 
   @override
-  String get cognitiveModelTitle => 'Cognitive model';
-
-  @override
-  String get cognitiveModelSubtitle => 'Read-only readings: R / band / zone';
-
-  @override
   String get cognitiveGraphTitle => 'Knowledge network (read-only)';
 
   @override
@@ -2633,8 +2865,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String cognitiveGraphPointDetail(String zone, int cards, String mean) {
-    return 'Zone: $zone · $cards cards · mean R $mean';
+  String cognitiveGraphPointDetail(String zone, int cards) {
+    return 'Zone: $zone · $cards cards';
   }
 
   @override
@@ -4464,6 +4696,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionDetailQuestionMissing =>
       'This question is no longer in the library (it may have just been deleted).';
+
+  @override
+  String get questionDeveloperEntry => 'Developer info';
+
+  @override
+  String get questionDeveloperTitle => 'Developer info';
+
+  @override
+  String get questionDeveloperHint =>
+      'Internal fields, source editing and image management; hidden from the student page.';
+
+  @override
+  String get questionDeveloperRawTitle => 'Internal fields (read-only)';
+
+  @override
+  String get questionDeveloperImagesTitle => 'Image management';
 
   @override
   String get questionDetailEditSource => 'Edit source';
@@ -6477,4 +6725,247 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiStepsSummary(int count) {
     return '$count steps this turn';
   }
+
+  @override
+  String get tagsKnowledgeEntry => 'Linked content';
+
+  @override
+  String get tagKnowledgeEntryTitle => 'Linked content';
+
+  @override
+  String get tagKnowledgeEntryIntro =>
+      'Questions, flashcards and tasks attached to this tag. Only real links are shown; anything without links says \"none\" instead of guessing.';
+
+  @override
+  String get tagKnowledgeIncludeDescendants => 'Include sub-tags';
+
+  @override
+  String get tagKnowledgeIncludeDescendantsHint =>
+      'Also count the whole sub-tree (card groups are sub-tree based already).';
+
+  @override
+  String get tagKnowledgeQuestions => 'Questions';
+
+  @override
+  String get tagKnowledgeFlashcards => 'Flashcards';
+
+  @override
+  String get tagKnowledgeTasks => 'Tasks';
+
+  @override
+  String get tagKnowledgeEmptyQuestions => 'No questions yet';
+
+  @override
+  String get tagKnowledgeEmptyFlashcards => 'No flashcards yet';
+
+  @override
+  String get tagKnowledgeEmptyTasks => 'No tasks yet';
+
+  @override
+  String tagKnowledgeMissingTargets(int count) {
+    return '$count more tag link(s) point at deleted objects and are not counted above.';
+  }
+
+  @override
+  String get tagKnowledgeTagMissing =>
+      'This tag no longer exists (it may have just been deleted).';
+
+  @override
+  String tagKnowledgeLoadFailed(String error) {
+    return 'Could not load the tag content: $error';
+  }
+
+  @override
+  String get tagKnowledgeQuestionNoStem => '(no stem)';
+
+  @override
+  String get tagKnowledgeCardPreviewTitle => 'Flashcard';
+
+  @override
+  String get tagKnowledgeCardFront => 'Front';
+
+  @override
+  String get tagKnowledgeCardAnswer => 'Answer';
+
+  @override
+  String get tagKnowledgeCardHint => 'Hint';
+
+  @override
+  String tagKnowledgeCardKnowledgePoint(String title) {
+    return 'Knowledge point: $title';
+  }
+
+  @override
+  String get tagKnowledgeCardTypeUnknown => 'Card';
+
+  @override
+  String tagKnowledgeCardReview(String group) {
+    return 'Review the \"$group\" deck';
+  }
+
+  @override
+  String get tagKnowledgeNoReviewGroup =>
+      'This tag is not part of any configured deck, so there is no review queue to open.';
+
+  @override
+  String get mindnetStatusIntro =>
+      'Only your current study state; model parameters are not shown here.';
+
+  @override
+  String get mindnetBandTitle => 'Current level';
+
+  @override
+  String get mindnetBandHint =>
+      'A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.';
+
+  @override
+  String mindnetBandEvidence(int count) {
+    return 'Based on $count knowledge point(s) with review history';
+  }
+
+  @override
+  String mindnetBandInsufficient(int count) {
+    return 'Not enough evidence: at least $count knowledge point(s) with review history are needed for a level, so this stays ?';
+  }
+
+  @override
+  String get mindnetBandUnstable =>
+      'Not enough evidence: the reviewed knowledge points disagree too much, so no level yet';
+
+  @override
+  String get mindnetStrengthsTitle => 'Strengths';
+
+  @override
+  String get mindnetWeaknessesTitle => 'Weak spots';
+
+  @override
+  String get mindnetEvidenceMeasured => 'measured';
+
+  @override
+  String get mindnetStrengthsEmpty => 'Not enough evidence: no reviews yet';
+
+  @override
+  String get mindnetWeaknessesEmpty =>
+      'Not enough evidence: at least two reviewed knowledge points are needed to name a weak spot';
+
+  @override
+  String get mindnetUntitledKnowledgePoint => 'Untitled knowledge point';
+
+  @override
+  String get mindnetTodayTitle => 'Today';
+
+  @override
+  String mindnetTodayReviews(int count) {
+    return '$count flashcard(s) to review';
+  }
+
+  @override
+  String mindnetTodayTasks(int count) {
+    return '$count task(s) due today';
+  }
+
+  @override
+  String get mindnetStartReview => 'Start review';
+
+  @override
+  String get mindnetTrendTitle => 'Last 7 days';
+
+  @override
+  String get mindnetTrendEmpty =>
+      'Not enough evidence: no reviews in the last two weeks';
+
+  @override
+  String mindnetTrendNoThisWeek(int count) {
+    return 'Nothing reviewed yet this week ($count last week)';
+  }
+
+  @override
+  String mindnetTrendRetention(int count, int percent) {
+    return '$count reviews in the last 7 days, $percent% recalled';
+  }
+
+  @override
+  String mindnetTrendCompare(int count) {
+    return '($count last week)';
+  }
+
+  @override
+  String get mindnetDeveloperInfo => 'Developer info (read-only)';
+
+  @override
+  String get mindnetDeveloperInfoHint =>
+      'Model parameters, per-card readings, calibration and diagnosis details';
+
+  @override
+  String get mindnetDeveloperInfoTitle => 'Developer info';
+
+  @override
+  String get mindnetDeveloperEntryHint =>
+      'Model parameters and raw readings, hidden by default';
+
+  @override
+  String get cognitiveGraphUntitledTag => 'Untitled tag';
+
+  @override
+  String get settingsProfileIdentity => 'Student';
+
+  @override
+  String get settingsProfileEditHint => 'Tap to edit your name';
+
+  @override
+  String get settingsSectionLearning => 'Learning & plan';
+
+  @override
+  String get settingsSectionAi => 'AI';
+
+  @override
+  String get settingsSectionAppearanceReading => 'Appearance & reading';
+
+  @override
+  String get settingsSectionHelp => 'Help';
+
+  @override
+  String get settingsSectionDeveloper => 'Developer';
+
+  @override
+  String get settingsDeveloperShow => 'Show';
+
+  @override
+  String get settingsDeveloperHide => 'Hide';
+
+  @override
+  String get settingsDeveloperHint =>
+      'Developer and prototype entries, hidden by default; daily use does not need them.';
+
+  @override
+  String get settingsTodayPlan => 'Today\'s plan';
+
+  @override
+  String get settingsDataLocation => 'Data location';
+
+  @override
+  String get settingsDataLocationHint => 'Tap to copy the data folder path';
+
+  @override
+  String get settingsDataLocationCopied => 'Path copied';
+
+  @override
+  String get settingsBackupRestoreTitle => 'Backup & restore';
+
+  @override
+  String get settingsBackupRestoreHint =>
+      'Export the whole workspace or restore from a backup; the current data is backed up before an import';
+
+  @override
+  String get aiDeveloperParamsTitle => 'Developer parameters';
+
+  @override
+  String get aiDeveloperParamsHint =>
+      'Round cap, available tools, skill packages; not needed for everyday chat';
+
+  @override
+  String get aiDeveloperParamsShow => 'Show';
+
+  @override
+  String get aiDeveloperParamsHide => 'Hide';
 }

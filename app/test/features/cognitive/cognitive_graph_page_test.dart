@@ -242,13 +242,8 @@ void main() {
     );
     expect(
         find.descendant(of: sheet, matching: find.text('1')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: sheet,
-        matching: find.text(zh.cognitiveRetrievability('0.66')),
-      ),
-      findsOneWidget,
-    );
+    // task-103：平均 R 是开发者读数，不再出现在用户层的详情里。
+    expect(find.byIcon(Icons.show_chart), findsNothing);
     expect(
       find.descendant(
           of: sheet, matching: find.text(zh.cognitiveGraphDetailTags)),
@@ -394,10 +389,9 @@ void main() {
     final rect = tester.getRect(find.byKey(cognitiveGraphViewportKey));
     final screen = screenOf(tester, controllerOf(tester).value, node.center);
     expect((screen - rect.center).distance, lessThan(0.5));
-    // 选中它之后底部有只读详情（区域 / 卡数 / 平均 R）。
+    // 选中它之后底部有只读详情（区域 / 卡数；平均 R 已收进开发者信息）。
     expect(
-      find.text(
-          zh.cognitiveGraphPointDetail(zh.cognitiveZoneOverload, 3, '0.45')),
+      find.text(zh.cognitiveGraphPointDetail(zh.cognitiveZoneOverload, 3)),
       findsOneWidget,
     );
   });

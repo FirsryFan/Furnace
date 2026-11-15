@@ -23,6 +23,7 @@ import 'package:furnace/features/questions/application/question_library_sort.dar
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
+import 'package:furnace/features/questions/presentation/question_media_view.dart';
 import 'package:furnace/features/questions/presentation/question_paper_page.dart';
 import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
 import 'package:furnace/l10n/app_localizations.dart';
@@ -88,7 +89,7 @@ void main() {
     expect(find.text('求二次函数最小值'), findsNothing);
   });
 
-  testWidgets('有题名的行优先显示题名；没题名回退题干摘要', (tester) async {
+  testWidgets('卡片：有题名显示题名；没题名显示「未命名」；题干摘要都在卡片上', (tester) async {
     await _seedQuestion(
       db,
       id: 'q-named',
@@ -100,9 +101,10 @@ void main() {
     await _pump(tester, db);
 
     expect(find.text('二次函数最值题型'), findsOneWidget);
-    // 有题名的行不再用题干摘要占主行。
-    expect(find.text('已知函数 f(x)=x^2+2x，求最小值'), findsNothing);
-    expect(find.text('求小球的加速度'), findsOneWidget);
+    // 2026-11-15 用户要求：题干要摆在卡片上（不只是没题名时的兜底）。
+    expect(_cardStemTexts(tester), contains('已知函数 f(x)=x^2+2x，求最小值'));
+    expect(find.text(zh.questionTitleUntitled), findsOneWidget);
+    expect(_cardStemTexts(tester), contains('求小球的加速度'));
   });
 
   testWidgets('行尾 ⋮ 菜单：改名写库后列表立刻显示新题名', (tester) async {
@@ -255,12 +257,22 @@ void main() {
     expect(find.text('文化课/学科/数学'), findsNothing);
   });
 
-  testWidgets('行不套卡片底座，整页没有 Card', (tester) async {
-    await _seedQuestion(db, id: 'q-flat', stem: '铺在背景上的题');
+  testWidgets('题库列表是设置页同款卡片（圆角 16 / 0 高度 / 细描边）', (tester) async {
+    await _seedQuestion(db, id: 'q-flat', stem: '铺在卡片上的题');
 
     await _pump(tester, db);
 
-    expect(find.byType(Card), findsNothing);
+    expect(find.byType(Card), findsOneWidget);
+    final card = tester.widget<Card>(find.byType(Card));
+    expect(card.elevation, questionBankCardElevation);
+    final shape = card.shape! as RoundedRectangleBorder;
+    expect(shape.borderRadius, BorderRadius.circular(questionBankCardRadius));
+    expect(
+      card.color,
+      Theme.of(tester.element(find.byType(QuestionBankPage)))
+          .colorScheme
+          .surfaceContainerLow,
+    );
     expect(find.text(zh.questionBankIntro), findsNothing);
   });
 
@@ -360,7 +372,7 @@ void main() {
       labels.indexOf(zh.navQuestions),
       labels.indexOf(zh.navAnki) + 1,
     );
-    // 8 个常驻目的地：标签、Thread、Time、闪存卡、题库、MindNet、智能、设置。
+    // 8 个常驻目的地：智能、标签、Thread、Time、闪存卡、题库、MindNet、设置。
     // 知识库（.kpak）从顶层下沉到设置页，不再出现在导航里。
     expect(destinations, hasLength(8));
     expect(labels, contains(zh.navMindnet));
@@ -593,6 +605,17 @@ void main() {
     });
   });
 }
+
+/// 卡片上题干摘要的原文（`QuestionRichText.text`）。
+///
+/// 摘要可能是 `Text`/`SelectableText`/RichText，直接按文字找容易受渲染细节影响；
+/// 这里按组件取原始文本，断言"题干在卡片上"。
+List<String> _cardStemTexts(WidgetTester tester) => <String>[
+      for (final widget in tester.widgetList<QuestionRichText>(
+        find.byType(QuestionRichText),
+      ))
+        widget.text,
+    ];
 
 Future<void> _pump(
   WidgetTester tester,

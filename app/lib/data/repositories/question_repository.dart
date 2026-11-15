@@ -346,6 +346,39 @@ class QuestionRepository {
       (_db.select(_db.questions)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
 
+  /// 按 id 批量取题（只读；标签知识入口一次取回一个标签挂着的全部题目）。
+  ///
+  /// trim、去空、去重后按 500 分块查（SQLite 绑定变量上限）。**只返回仍然存在
+  /// 的题**：`object_tags` 是多态关联、没有指向 `questions` 的外键，删题后残留的
+  /// 链接会指到不存在的行；让它们静默缺席，由调用方把「链接数 - 行数」当作
+  /// 悬空链接如实计数，而不是伪造一行。顺序不保证，调用方自己排。
+  Future<List<Question>> byIds(Iterable<String> ids) async {
+    final clean = <String>[];
+    final seen = <String>{};
+    for (final raw in ids) {
+      final id = raw.trim();
+      if (id.isEmpty || !seen.add(id)) {
+        continue;
+      }
+      clean.add(id);
+    }
+    if (clean.isEmpty) {
+      return const <Question>[];
+    }
+    final result = <Question>[];
+    const chunkSize = 500;
+    for (var start = 0; start < clean.length; start += chunkSize) {
+      final end =
+          start + chunkSize < clean.length ? start + chunkSize : clean.length;
+      result.addAll(
+        await (_db.select(_db.questions)
+              ..where((t) => t.id.isIn(clean.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
   Future<Question?> findByFingerprint(String fingerprint) =>
       (_db.select(_db.questions)
             ..where((t) => t.stemFingerprint.equals(fingerprint))

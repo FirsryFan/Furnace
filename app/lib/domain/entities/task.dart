@@ -1,7 +1,11 @@
 /// Task domain entity used by the scheduling engine.
 library;
 
-enum TaskStatus { todo, doing, done }
+/// 调度层看到的状态（schema v47 五值：`tasks.status` 是自由 TEXT）。
+///
+/// 用值补齐而不是替换：`blocked` / `skipped` 是 v47 加的值、不加列；调度器只
+/// 处理 `todo|doing`（见 [TaskItem.isOpen]），卡住/跳过不应当成待办。
+enum TaskStatus { todo, doing, done, blocked, skipped }
 
 enum TaskPriority { low, medium, high }
 
@@ -26,7 +30,10 @@ class TaskItem {
   final List<String> dependencies;
   final List<String> tags;
 
-  bool get isOpen => status != TaskStatus.done;
+  /// 能不能进调度器（段 A/B）的候选集：只有 `todo|doing`。
+  ///
+  /// v47 之前这里写的是 `status != done`，于是 blocked/skipped 会被排进待办。
+  bool get isOpen => status == TaskStatus.todo || status == TaskStatus.doing;
 
   TaskItem copyWith({
     TaskStatus? status,

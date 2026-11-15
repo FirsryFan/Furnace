@@ -60,6 +60,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // 2026-11-15 第二遍清理（task-113）：轮次上限属于开发者参数，默认折叠。
+    // 普通用户只看到模型 / API / 权限；这条测试先展开再验滑块。
+    expect(find.byType(Slider), findsNothing);
+    await tester.tap(find.byKey(aiSettingsDeveloperToggleKey));
+    await tester.pumpAndSettle();
+
     // Nothing was ever chosen, so the shipped default is what is shown.
     expect(AiConfig.defaultMaxRounds, 200);
     expect(find.text('200 轮'), findsOneWidget);

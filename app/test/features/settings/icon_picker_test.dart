@@ -251,10 +251,13 @@ void main() {
       addTearDown(db.close);
 
       // Factory theme: the icons the shell hard-coded before D1. The selected
-      // destination (tags, index 0) renders the *filled* variant.
+      // destination is AI - index 0, the default home since 2026-11-15 - so it
+      // renders the *filled* variant; 标签 is second and unselected, so it
+      // renders outlined.
       final before =
           await navIcons(tester, const ThemeProfileData(name: 'a'), db);
-      expect(before, contains(Icons.account_tree));
+      expect(before, contains(Icons.smart_toy));
+      expect(before, contains(Icons.account_tree_outlined));
       expect(before, contains(Icons.bolt_outlined));
 
       // Same shell, different theme document: two slots are re-pointed.
@@ -269,17 +272,17 @@ void main() {
         tester,
         const ThemeProfileData(
           name: 'b',
-          icons: {'tags': 'star', 'thread': 'rocket_launch'},
+          icons: {'ai': 'star', 'thread': 'rocket_launch'},
         ),
         db,
       );
       expect(after, isNot(before));
       expect(after, contains(Icons.star),
           reason:
-              'the selected slot must render the filled variant of the choice');
+              'the selected slot (AI) must render the filled variant of the choice');
       expect(after, contains(Icons.rocket_launch_outlined),
           reason: 'an unselected slot renders the outlined variant');
-      expect(after, isNot(contains(Icons.account_tree)));
+      expect(after, isNot(contains(Icons.smart_toy)));
       expect(after, isNot(contains(Icons.bolt_outlined)));
       // Untouched slots keep their factory icons.
       expect(after, contains(Icons.schedule_outlined));
@@ -300,7 +303,8 @@ void main() {
         ),
         db,
       );
-      expect(icons, contains(Icons.account_tree));
+      expect(icons, contains(Icons.account_tree_outlined),
+          reason: 'the unknown name falls back to the slot factory icon');
       expect(icons, isNot(contains(Icons.bolt)));
     });
   });

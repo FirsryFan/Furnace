@@ -1,4 +1,4 @@
-import 'package:drift/native.dart';
+﻿import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/ai_repository.dart';
@@ -394,7 +394,7 @@ void main() {
       );
 
       expect(registry.byName('read_zujuan_paper'), isA<ReadZujuanPaperTool>());
-      expect(registry.all, hasLength(29));
+      expect(registry.all, hasLength(35));
       expect(
         registry.forCurrentPlatform.map((item) => item.name),
         contains('read_zujuan_paper'),

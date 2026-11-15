@@ -317,6 +317,11 @@ void main() {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
 
+    // 2026-11-15 设置页重构：能力词表属于开发者分区，默认折叠。
+    expect(find.text(zh.capabilityVocabularySettingsTitle), findsNothing);
+    await tester.tap(find.byKey(settingsDeveloperToggleKey));
+    await tester.pumpAndSettle();
+
     expect(find.text(zh.capabilityVocabularySettingsTitle), findsOneWidget);
     expect(find.text(zh.capabilityVocabularySettingsHint), findsOneWidget);
 

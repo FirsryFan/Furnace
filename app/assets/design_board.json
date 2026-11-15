@@ -1,0 +1,2351 @@
+{
+ "schemaVersion": 1,
+ "generatedAt": "2026-11-15",
+ "source": {
+  "document": "FURNACE-DESIGN-REFERENCE-2026-11-15.md",
+  "workspace": "E:\\Workspaces\\agent-control\\10-projects\\agent-control-plane",
+  "note": "只读精简版：47 条从 105 条参考库节选，逐条字段来自参考库；不是新设计，不改任何 Furnace 运行逻辑。"
+ },
+ "layers": [
+  {
+   "id": "L1",
+   "label": "L1 控制/验证",
+   "description": "Agent Control Plane：与学科无关的运行控制（状态/引用/预算/停止/验证/handoff/trace）"
+  },
+  {
+   "id": "L2-A",
+   "label": "L2-A 系统教育逻辑",
+   "description": "软件理解学生、决定教学的运行逻辑（能力矩阵/知识追踪/诊断与决策分离）"
+  },
+  {
+   "id": "L2-B",
+   "label": "L2-B 内容实体",
+   "description": "内容本身的字段与实体（题型/知识点/题眼/陷阱/变式/提示/错因）"
+  },
+  {
+   "id": "L2-C",
+   "label": "L2-C 板块设计",
+   "description": "为吃透题目设置的板块与额外任务（Thinking DAG/易错点/变式/扩展）"
+  },
+  {
+   "id": "L3",
+   "label": "L3 产品流程",
+   "description": "人和设备怎么用（周频纸质/双端节奏/打印/组卷/数据回流）"
+  }
+ ],
+ "realContentSamples": [
+  {
+   "id": "Q-PH0001",
+   "title": "真实内容样品（Q-PH0001）",
+   "subtitle": "2023 全国甲卷物理第 1 题（真实 Source 题目，不是示例）：答案逐字来自 Source；DAG/板块为 AI 整理，未独立审核；private_study_only。",
+   "statusLabel": "真实样品",
+   "expandable": true,
+   "chips": [
+    "答案来自 Source，非 AI 生成",
+    "信任等级 B_independently_verified",
+    "DAG 为 AI 整理，未独立审核",
+    "private_study_only（不发布）"
+   ],
+   "lines": [
+    "题干（短片段）：1. 一同学将铅球水平推出，不计空气阻力和转动的影响，铅球在平抛运动过程中（ ） A. 机械能一直增加 B. 加速度保持不变 C. 速度大小保持不变 D. 被推出后瞬间动能最大",
+    "答案：B（逐字来自解析卷 docx 段落 3 / PDF 第 1 页 char 114–119）；official_trust = B_independently_verified，不是 A_official（解析卷未标发布者）。",
+    "来源：2023 全国甲卷物理第 1 题（题目块）；解析卷 docx 段落 1–8、PDF 第 1 页 char 22–114；空白卷 docx 段落 1–2 交叉核对；evidence 19 条（8 Source + 1 盲解 + 9 AI 推导）。",
+    "Thinking DAG：6 节点 / 7 边 / 成功路径 6；source_mode=expert_authored（AI 整理，不是官方解析或真实学生 trace）；独立盲解 attempt_log 1 次；failed_branches=0（未观测到真实失败，不画假回退边）。",
+    "板块：五维 5 / 题眼 1 / 陷阱 2 / 分层提示 0（简单题不设提示）/ 错因 2 / 变式 1 / 扩展 1 / 额外任务 2 / 学科板 8 块（modeling, force_analysis, equation_list, approximation, experiment, critical_boundary, units_and_figures, difficulty_tier）；9 个公共板全给（omitted_boards=[]）。",
+    "证据与校验：validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）；负向篡改 4/4 拒绝；只证结构/引用/hash，不证 DAG 语义或内容质量。",
+    "限制：review.status=pending（3×p1 + 4×p2）；分值 null（Source 未给）、难度 = AI 估计 2（confidence 0.35）、评分细则 none；变式/扩展/额外任务均为 AI 生成（confidence 0.4，verified_by none/not_run）；n=1；private_study_only，不发布、不复制整本书（约 230 字）。"
+   ],
+   "detailSections": [
+    {
+     "title": "题干（必要文本）",
+     "items": [
+      "1. 一同学将铅球水平推出，不计空气阻力和转动的影响，铅球在平抛运动过程中（ ）\n\nA. 机械能一直增加\nB. 加速度保持不变\nC. 速度大小保持不变\nD. 被推出后瞬间动能最大"
+     ]
+    },
+    {
+     "title": "答案与信任",
+     "items": [
+      "答案：B（selection）",
+      "official_trust = B_independently_verified；B 级说明：Source 是未标注发布者的“解析卷”（docx 元数据为空、PDF 元数据为空），不是教育部官方答案页，故不按 A_official 处理；已由独立上下文盲解 A1 复核一致，按 B 级使用。",
+      "answer_source：解析卷 docx 段落 3（sha256 3fde4249f68b…）"
+     ]
+    },
+    {
+     "title": "Thinking DAG（AI 整理，未独立审核）",
+     "items": [
+      "N-Q1-01 [condition] 审题：一个过程、四条结论、三条前提",
+      "N-Q1-02 [formula_or_model] 建模：平抛 = 水平匀速 + 竖直自由落体",
+      "N-Q1-03 [check] 判 B：合力恒为重力 ⇒ a=g 不变（B 成立）",
+      "N-Q1-04 [check] 判 A：只有重力做功 ⇒ 机械能守恒（A 假）",
+      "N-Q1-05 [computation] 判 C、D：v(t) 单调增大 ⇒ 推出瞬间最小（C、D 假）",
+      "N-Q1-06 [conclusion] 收口：唯一成立项是 B",
+      "边 7 条；成功路径 6 节点；failed_branches=0（未观测到失败，不画假回退边）",
+      "source_mode=expert_authored：AI 整理，不是官方解析、也不是真实学生 trace；独立盲解 1 次；未独立审核。"
+     ]
+    },
+    {
+     "title": "9 个公共板块摘要",
+     "items": [
+      "五维 5；题眼 1；陷阱 2；提示 0；错因 2；变式 1；扩展 1；额外任务 2",
+      "学科板 8 块：modeling, force_analysis, equation_list, approximation, experiment, critical_boundary, units_and_figures, difficulty_tier",
+      "9 个公共板全给（omitted_boards=[]）"
+     ]
+    },
+    {
+     "title": "来源与证据",
+     "items": [
+      "2023 全国甲卷物理第 1 题；题干/答案/详解同属解析卷 docx 段落 1–8（w:p 文档序）",
+      "PDF 第 1 页 char 22–114；空白卷 docx 段落 1–2 交叉核对",
+      "evidence 19 条（8 Source + 1 盲解 + 9 AI 推导）"
+     ]
+    },
+    {
+     "title": "校验",
+     "items": [
+      "validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）",
+      "负向篡改 4/4 拒绝；机械校验只证明结构/引用/hash，不证明 DAG 语义或内容质量"
+     ]
+    },
+    {
+     "title": "限制（未验证）",
+     "items": [
+      "review.status=pending（3×p1 + 4×p2）",
+      "分值 null（Source 未给）、难度 = AI 估计 2（0.35）、评分细则 none",
+      "private_study_only，不发布、不复制整本书（约 230 字）"
+     ]
+    }
+   ],
+   "dagGraph": {
+    "sourceMode": "expert_authored",
+    "nodes": [
+     {
+      "id": "N-Q1-01",
+      "kind": "condition",
+      "role": "read_question",
+      "label": "审题：一个过程、四条结论、三条前提",
+      "body": "过程是铅球离手后的平抛阶段（t=0 到落地）。待判命题：A 机械能一直增加；B 加速度保持不变；C 速度大小保持不变；D 推出瞬间动能最大。前提来自题干：平抛 ⇒ 初速度水平、只受重力；“不计空气阻力和转动的影响” ⇒ 无其他力做功、视为质点；“被推出后瞬间”就是 t=0，此时竖直分速度为 0。",
+      "stepType": "thinking",
+      "formulas": [
+       "t=0:\\ v_x=v_0,\\ v_y=0"
+      ],
+      "keyQuantities": [
+       "v_0：水平初速度（全程不变）",
+       "t：离手后经过的时间",
+       "g：重力加速度（大小方向都不变）"
+      ],
+      "result": "过程=离手到落地；待判 A/B/C/D；前提=只受重力、视为质点"
+     },
+     {
+      "id": "N-Q1-02",
+      "kind": "formula_or_model",
+      "role": "construct",
+      "label": "建模：平抛 = 水平匀速 + 竖直自由落体",
+      "body": "平抛就是“初速度水平、只受重力”。水平方向不受力，vx=v0 全程不变；竖直方向只受重力、初速度为 0，vy=gt 线性增大。两个分运动合起来 v(t)=√(v0²+g²t²)，轨迹是抛物线。模型一写出，四条命题就都变成可代入判断的式子。",
+      "stepType": "derivation",
+      "formulas": [
+       "v_x=v_0",
+       "v_y=gt",
+       "v(t)=\\sqrt{v_0^2+g^2t^2}"
+      ],
+      "keyQuantities": [
+       "vx=v0：水平分速度（不变）",
+       "vy=gt：竖直分速度（从 0 增大）",
+       "a=g：加速度"
+      ],
+      "result": "vx=v0、vy=gt、a=g；速度大小与动能由 v(t) 决定"
+     },
+     {
+      "id": "N-Q1-03",
+      "kind": "check",
+      "role": "judge",
+      "label": "判 B：合力恒为重力 ⇒ a=g 不变（B 成立）",
+      "body": "只受重力，合力 F=mg 是恒矢量；由牛顿第二定律 a=F/m=g，大小和方向都不随时间改变，所以“加速度保持不变”成立。速度大小在变、加速度却不变，两者并不矛盾——平抛就是匀变速曲线运动。",
+      "stepType": "derivation",
+      "formulas": [
+       "\\vec a=\\frac{\\vec F}{m}=\\vec g=\\text{const}"
+      ],
+      "keyQuantities": [
+       "a=g：恒矢量",
+       "F=mg：恒力"
+      ],
+      "result": "B 真"
+     },
+     {
+      "id": "N-Q1-04",
+      "kind": "check",
+      "role": "exclude",
+      "label": "判 A：只有重力做功 ⇒ 机械能守恒（A 假）",
+      "body": "不计空气阻力和转动，过程中只有重力做功，W其他=0。由功能关系 ΔEk=W_G 与 ΔEp=−W_G 相加得 Δ(Ek+Ep)=0，机械能守恒。动能确实越落越大，但重力势能同幅减小，总量不变，所以“机械能一直增加”不成立。",
+      "stepType": "derivation",
+      "formulas": [
+       "W_{\\text{其他}}=0",
+       "\\Delta(E_k+E_p)=0",
+       "\\tfrac12 mv^2-\\tfrac12 mv_0^2=mgh"
+      ],
+      "keyQuantities": [
+       "E=Ek+Ep：机械能（守恒）",
+       "W_G=mgh：重力做的功"
+      ],
+      "result": "A 假：机械能守恒"
+     },
+     {
+      "id": "N-Q1-05",
+      "kind": "computation",
+      "role": "compute",
+      "label": "判 C、D：v(t) 单调增大 ⇒ 推出瞬间最小（C、D 假）",
+      "body": "v(t)=√(v0²+g²t²) 里 v0、g 都是常数，t≥0 时 g²t² 只增不减，所以速度大小从 v0 起单调增大，“保持不变”不成立，C 假。动能 Ek=½mv² 随 v² 一起单调增大，最小值在 t=0，也就是推出瞬间；D 把最小值说成最大值，D 也假。C 的干扰来自“水平分速度确实不变”——那只是一个分速度不变。",
+      "stepType": "derivation",
+      "formulas": [
+       "v(t)=\\sqrt{v_0^2+g^2t^2}",
+       "v(0)=v_0<v(t>0)",
+       "E_k(t)=\\tfrac12 m(v_0^2+g^2t^2)"
+      ],
+      "keyQuantities": [
+       "v(t)：速度大小（随时间增大）",
+       "Ek(0)=½mv0²：过程最小动能"
+      ],
+      "result": "C 假、D 假"
+     },
+     {
+      "id": "N-Q1-06",
+      "kind": "conclusion",
+      "role": "conclude",
+      "label": "收口：唯一成立项是 B",
+      "body": "四项判完：A 假（机械能守恒）、B 真（a=g 恒矢量）、C 假（速度大小增大）、D 假（动能最小在推出瞬间）。只有 B 与平抛模型相容，答案 B。三个错误项各记一句成因：把动能当机械能、把分速度当合速度、把最小值的时刻当成最大值。",
+      "stepType": "derivation",
+      "formulas": [
+       "A\\ \\text{假},\\ B\\ \\text{真},\\ C\\ \\text{假},\\ D\\ \\text{假}\\Rightarrow B"
+      ],
+      "keyQuantities": [
+       "唯一真项：B"
+      ],
+      "result": "答案 B"
+     }
+    ],
+    "edges": [
+     {
+      "from": "N-Q1-01",
+      "to": "N-Q1-02",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-02",
+      "to": "N-Q1-03",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-02",
+      "to": "N-Q1-04",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-02",
+      "to": "N-Q1-05",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-03",
+      "to": "N-Q1-06",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-04",
+      "to": "N-Q1-06",
+      "type": "derives"
+     },
+     {
+      "from": "N-Q1-05",
+      "to": "N-Q1-06",
+      "type": "derives"
+     }
+    ],
+    "alternatePaths": [
+     {
+      "id": "AP-PH-01",
+      "kind": "shortcut_path",
+      "methodName": "直取法：先确认 B 即收口",
+      "nodeIds": [
+       "N-Q1-01",
+       "N-Q1-02",
+       "N-Q1-03",
+       "N-Q1-06"
+      ],
+      "verdict": "same_answer",
+      "note": "单选题也可以先把 B 证成再收口，A/C/D 留作检查；三条检验和主路径完全相同，只是执行顺序提前或推后，不改变答案 B。"
+     }
+    ],
+    "successPath": [
+     "N-Q1-01",
+     "N-Q1-02",
+     "N-Q1-03",
+     "N-Q1-04",
+     "N-Q1-05",
+     "N-Q1-06"
+    ],
+    "failedBranches": 0,
+    "failureBranches": [],
+    "note": ""
+   },
+   "boardSelection": {
+    "schema_version": "furnace.board-selection/1",
+    "question_id": "Q-PH0001",
+    "subject": "physics",
+    "complexity": "simple",
+    "complexity_source": "default_simple",
+    "question_type": "concept",
+    "question_type_source": "content_type_axes",
+    "boards": [
+     {
+      "board_id": "l0_question_entity",
+      "level": "L0",
+      "order": 10,
+      "legacy_panel": "question_entity",
+      "item_count": 1
+     },
+     {
+      "board_id": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "legacy_panel": "key_eye",
+      "item_count": 1
+     },
+     {
+      "board_id": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "legacy_panel": "traps",
+      "item_count": 2
+     },
+     {
+      "board_id": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "legacy_panel": "error_causes",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "legacy_panel": "extra_tasks",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "legacy_panel": "variants",
+      "item_count": 1
+     },
+     {
+      "board_id": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "legacy_panel": "extensions",
+      "item_count": 1
+     },
+     {
+      "board_id": "l5_meta",
+      "level": "L5",
+      "order": 60,
+      "legacy_panel": "five_dimension",
+      "item_count": 1
+     }
+    ],
+    "empty_boards": [
+     {
+      "board_id": "l3_similar_questions",
+      "level": "L3",
+      "reason": "no_candidates"
+     },
+     {
+      "board_id": "l4_subject_history",
+      "level": "L4",
+      "reason": "no_legacy_source"
+     }
+    ]
+   },
+   "studentContent": {
+    "stem": "1. 一同学将铅球水平推出，不计空气阻力和转动的影响，铅球在平抛运动过程中（ ） A. 机械能一直增加 B. 加速度保持不变 C. 速度大小保持不变 D. 被推出后瞬间动能最大",
+    "answer": "B",
+    "solution": "",
+    "solutionNote": "",
+    "showSourceAnalysis": false,
+    "figures": [],
+    "responseKind": "choice",
+    "answerAreaHeightMm": 0.0,
+    "panels": [
+     {
+      "boardId": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "title": "题眼",
+      "items": [
+       "题眼1：“被推出后瞬间”是竖直分速度为 0 的初态，水平分速度全程不变；因此速度大小与动能都在此刻取最小值，而不是最大值。；为什么关键：误以为“水平速度最大⇒动能最大”会直接错选 D；只有抓住 vy(t=0)=0 且 vx 不变，才能判定动能单调增大。；常见误判：把“被推出后瞬间”当成速度最大时刻、把“水平分速度不变”当成速度大小不变"
+      ]
+     },
+     {
+      "boardId": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "title": "陷阱/易错点",
+      "items": [
+       "陷阱1：把“水平方向速度不变”当成“速度大小保持不变”，选 C。；正确做法：合速度 v=√(vx²+vy²)，vy 从 0 增大 ⇒ 速度大小增大；水平分速度不变只是其中一个分量不变。；怎么验证：写出 v(t) 表达式并比较 t=0 与 t>0 两点的速度大小。",
+       "陷阱2：因为“动能越来越大”，就判断“机械能一直增加”，选 A。；正确做法：机械能=动能+重力势能；重力势能同幅减小，总量守恒，故机械能不增加。；怎么验证：分别写出 Ek 与 Ep 的变化，再相加看是否抵消。"
+      ]
+     },
+     {
+      "boardId": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "title": "错因",
+      "items": [
+       "混淆“水平分速度不变”与“速度大小不变”，错选 C。；根因：平抛速度分解只记住“水平匀速”，没有把合速度矢量式写出来。；补救：做 1 组“v-t 表达式对照”任务：写出 v(t)，取 t=0、t=1 s 两点比较合速度大小与方向。",
+       "把“动能越来越大”直接当成“机械能一直增加”，错选 A。；根因：机械能=动能+重力势能，漏掉重力势能项。；补救：做 1 道“机械能分项填表”任务：在 t=0、中间时刻、落地三点分别填 Ek、Ep、Ek+Ep。"
+      ]
+     },
+     {
+      "boardId": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "title": "额外任务",
+      "items": [
+       "任务1：下面这段解释错在哪：“铅球做平抛运动，速度越来越大，所以机械能一直增加，选 A。”指出错误并改正。；产出：一句话；达标：指出机械能=动能+重力势能，势能减小抵消动能增加；给出“机械能守恒”的正确结论并说明依据（只有重力做功）",
+       "任务2：把“不计空气阻力”改为“受大小不变的空气阻力”（阻力方向始终与速度反向）：四个选项的结论哪些会变？分别说明理由。；产出：列表；达标：指出阻力与速度反向、做负功 ⇒ 机械能一直减少；A 仍错，但错因从“守恒”变成“持续减少”；指出阻力方向随速度方向改变 ⇒ 合力的大小和方向都变，a 不再是恒矢量，B 变错；指出速度不一定一直增大：释放瞬间重力沿速度方向的分量为 0，阻力使速度先减小；之后重力沿速度的分量增大，f<mg 时速度会回升"
+      ]
+     },
+     {
+      "boardId": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "title": "变式",
+      "items": [
+       "变式1（条件推广）：把“水平推出”改为“斜向上推出”（初速度与水平方向成 θ 角），仍不计空气阻力和转动。铅球在运动过程中 A. 机械能一直增加 B. 加速度保持不变 C. 速度大小保持不变 D. 在最高点动能最小；答案：B、D。只受重力时机械能守恒、a=g 不变；斜抛到最高点时竖直分速度为零，速度与动能最小。"
+      ]
+     },
+     {
+      "boardId": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "title": "扩展资料",
+      "items": [
+       "【高考内·特殊例子，不要求掌握】自由落体参考系：把平抛看成匀速直线运动：平抛在地面系里是抛物线；换到“和铅球一起以 g 自由下落”的参考系，铅球的相对速度恒定，做匀速直线运动——该参考系的加速度恰好抵消重力。这个看法只针对“只受重力、加速度恒为 g”的本题情形，是一次参考系变换，高考允许使用；普遍的非惯性系（任意加速度、转动参考系）不要求，也不用记。；为什么：一句话把受力的曲线运动变成不受力的直线运动：速度大小是相对量——地面系里增大、自由落体系里不变；而加速度、机械能是规律…"
+      ]
+     }
+    ],
+    "upperKnowledge": [
+     {
+      "title": "【高考内·特殊例子，不要求掌握】自由落体参考系：把平抛看成匀速直线运动",
+      "level": "上位知识",
+      "what": "平抛在地面系里是抛物线；换到“和铅球一起以 g 自由下落”的参考系，铅球的相对速度恒定，做匀速直线运动——该参考系的加速度恰好抵消重力。这个看法只针对“只受重力、加速度恒为 g”的本题情形，是一次参考系变换，高考允许使用；普遍的非惯性系（任意加速度、转动参考系）不要求，也不用记。",
+      "why": "一句话把受力的曲线运动变成不受力的直线运动：速度大小是相对量——地面系里增大、自由落体系里不变；而加速度、机械能是规律层面的判断。你只需学到“换到跟着重力自由下落的参考系，可以把平抛拉直”这一招，以及“换系不改变物理结论，只改变速度、动能、机械能的数值”。",
+      "how": "三步换系：地面系 v=(v0, gt) → 自由落体系 v′=v−gt=(v0, 0) → 该系里匀速直线，回代即 y=gx²/(2v0²)。只受恒力的题都可以试换到“跟着这个力加速”的参考系；换成任意非惯性系或转动参考系，本题不要求。",
+      "buildSteps": [
+       "平抛 = 初速度水平、只受重力，加速度恒为 g（本题 B 项）。",
+       "相对一个以 g 自由下落的参考系，铅球的相对速度 v′=v−gt=(v0, 0)：大小与方向都不变，所以在该系里做匀速直线运动。",
+       "该系的加速度恰好抵消重力：相对加速度 a′=a−g=0，所以在这一个特殊参考系里，铅球不受“剩下的力”，运动满足牛顿第一定律。注意：这只是一次参考系变换，不是普遍的非惯性系理论。",
+       "把匀速直线运动换回地面系（v=v′+gt），轨迹即抛物线 y=gx²/(2v0²)；这也说明速度大小是参考系相关的量。"
+      ],
+      "example": "经典“猴子与猎人”：枪口正对树上悬着的猴子，开火同时猴子松手。换到随子弹自由下落的参考系，子弹做匀速直线运动、猴子相对该系不动，于是必然命中；地面系里则要算两条抛物线相交。本题同理：换到自由落体系，C 的“速度大小不变”在该系成立、在地面系不成立，说明速度大小是相对量；而“加速度是否恒定”在匀加速参考系之间保持一致（a′=a−A，两者都是常量），这才是 B 比 C 稳健的原因。",
+      "limitations": "① 只对“加速度恒为 g、无阻力”的本题成立；有空气阻力或力方向在变时，跟着下落的参考系不再好使。② 不要把它推广成“所有参考系都能随便换”：普遍的非惯性系（加速度任意、转动参考系）与惯性力属于超纲背景，高考不要求。③ 换参考系不改变物理结论，但会改变速度、动能、机械能的具体数值——它们是相对量，别把换系误当成物理规律变了。"
+     }
+    ],
+    "aiAnswer": {
+     "answer": "B（与参考答案一致；AI 独立判断）",
+     "reasoning": "平抛只受重力，加速度恒为 g（大小、方向都不变），所以 B 对。机械能守恒，A 错；水平分速度不变不等于速度大小不变，竖直分速度从 0 增大，C 错；动能从推出瞬间起单调增大，推出瞬间反而最小，D 错。",
+     "debate": "可辩论点：D 的原句“被推出后瞬间动能最大”是否把“动能最小”说反了？请判断：若选项写“动能最小”，本题答案会变吗？",
+     "note": ""
+    }
+   },
+   "problemState": {
+    "counts": {
+     "facts": 8,
+     "assumptions": 5,
+     "decisions": 4,
+     "unknowns": 7,
+     "artifacts": 6
+    },
+    "factTrustVerified": 7,
+    "factTrustReported": 1,
+    "decisionsProposed": 4,
+    "decisionsAccepted": 0,
+    "decisionsRejected": 0,
+    "decisionsAllProposed": true,
+    "unknowns": [
+     "本题官方分值与评分细则是什么？Source 缺失，points=null / total_points=null 是否与真实卷面一致无法确认。",
+     "8 节点 DAG 每一步在语义上是否正确？目前只有 schema + 自评 quality + 1 次盲解，review.status=pending。",
+     "本题的纯文本抽取路线不能覆盖同卷含 OLE 公式的其余题块（全卷 127 个 w:object）；OLE 公式如何保真转录（OMML 管线 / OCR）未解决。",
+     "盲解 A1 是否真正独立（同机执行、未审计工具调用、只有 1 次）？",
+     "内容包是否已被 Furnace 产品路径消费（DB 映射、UI 展示、打印）？本任务只验证 JSON 可被 ProblemState.fromJson 解析，未接产品。"
+    ],
+    "unknownsMore": 2,
+    "oracleKind": "deterministic",
+    "oracleDescription": "只验机械层：schema、18 条 E-id 引用完整性、board/question 双 content_hash、stem 指纹。通过不等于答案或 DAG 正确；答案只到 B 级，DAG/难度/变式仍是未验证假设。",
+    "budgetNull": true,
+    "nodeStatus": "draft",
+    "note": "材料快照，未审批；未接 ProblemStateStore/DB/UI。"
+   }
+  },
+  {
+   "id": "Q-MA0001",
+   "title": "真实内容样品（Q-MA0001）",
+   "subtitle": "2025 全国一卷数学第 15 题（真实 Source 题目，不是示例）：答案逐字来自答案 docx；16 条 OMML 已结构转换为 LaTeX；DAG/板块为 AI 整理，未独立审核；private_study_only。",
+   "statusLabel": "真实样品",
+   "expandable": true,
+   "chips": [
+    "答案来自 Source，非 AI 生成",
+    "信任等级 B_independently_verified",
+    "DAG 为 AI 整理，未独立审核",
+    "16 条 OMML（结构转换，无渲染 oracle）",
+    "private_study_only（不发布）"
+   ],
+   "lines": [
+    "题干（短片段）：15．为研究某疾病与超声波检查结果的关系，从做过超声波检查的人群中随机调查了1000人，得到如下列联表： | 超声波检查结果组别 | 正常 | 不正常 | 合计 | | --- | --- | --- | --- | | 患该疾病 | 20 | 180 | 200 | | 未患该疾病 | 780 |…（2×2 列联表、χ² 公式与临界值表略，完整见内容包）",
+    "答案：(1) \\frac{9}{10}；(2) 有关（逐字来自答案 docx w:p 343–344；docx 无稳定页码，按 w:p 文档序）；official_trust = B_independently_verified，不是 A_official（第三方答案 docx，无官方元数据）；已用题目表格精确复算 p=9/10、χ²=765.625>10.828，并做 1 次独立盲解复核。",
+    "来源：2025 新高考全国Ⅰ卷数学第 15 题（独立性检验）；题干 docx w:p 61–91、答案 docx w:p 343–344、解析 w:p 345–351；evidence 23 条（4 Source 文件 + 1 Source 分析 + 15 AI 推导 + 1 盲解 + 1 复算 + 1 validator）。",
+    "公式：16 条 OMML 结构转换为 LaTeX（unsupported=0、空输出=0、机械 LaTeX 校验 0 问题；formula_fidelity.unresolved_count=0）；但本机无渲染 oracle（pdflatex/xelatex/lualatex/latex/pandoc/soffice 均 NOT_FOUND），0 unresolved 只表示结构层全部转出，不代表渲染/语义已验证；源详解把 χ²_0.001 写成 x_0.001（源错误，原样保留并标注）。",
+    "Thinking DAG：10 节点 / 12 边 / 主路径 8；source_mode=expert_authored（AI 整理，不是官方解析或真实学生 trace）；独立盲解 attempt_log 1 次；failed_branches=0（未观测到失败，不画假回退边）。",
+    "板块：五维 5 / 题眼 1 / 陷阱 2 / 分层提示 0（教材套公式题不设提示）/ 错因 2 / 变式 1 / 扩展 1 / 额外任务 2 / 学科板 3 块（essence_three_steps, algebra_final, formula_fidelity；未生成技巧题/解几/立几，不属该内容类型）；9 个公共板全给（omitted_boards=[]）。",
+    "校验：validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）；负向篡改 4/5 被拒，但“改答案并重算 hash”的包会通过——机械校验不是答案 oracle。",
+    "限制：review.status=pending（4×p1 + 7×p2）；分值 null（Source 未给）、难度 = AI 估计 3（confidence 0.35）、评分细则 none；DAG 语义未独立审核；公式无渲染 oracle；n=1；private_study_only，不发布、不复制整本书（约 900 字）。"
+   ],
+   "detailSections": [
+    {
+     "title": "题干（必要文本）",
+     "items": [
+      "15．为研究某疾病与超声波检查结果的关系，从做过超声波检查的人群中随机调查了1000人，得到如下列联表：\n\n| 超声波检查结果组别 | 正常 | 不正常 | 合计 |\n| --- | --- | --- | --- |\n| 患该疾病 | 20 | 180 | 200 |\n| 未患该疾病 | 780 | 20 | 800 |\n| 合计 | 800 | 200 | 1000 |\n\n(1)记超声波检查结果不正常者患该疾病的概率为p，求p的估计值；\n\n(2)根据小概率值$\\alpha=0.001$的独立性检验，分析超声波检查结果是否与患该疾病有关.\n\n附${\\chi}^{2}=\\frac{n{(ad-bc)}^{2}}{(a+b)(c+d)(a+c)(b+d)}$，\n\n| $P\\left( {\\chi}^{2}\\ge k \\right)$ | 0.050 | 0.010 | 0.001 |\n| --- | --- | --- | --- |\n| $k$ | 3.841 | 6.635 | 10.828 |",
+      "本题无图（figures=[]）；表格与公式按内容包原文，公式为 OMML→LaTeX 转换结果。"
+     ]
+    },
+    {
+     "title": "答案与信任",
+     "items": [
+      "答案：(1) \\frac{9}{10}；(2) 有关（LaTeX 原值 \\frac{9}{10}；文字结论：有关）",
+      "official_trust = B_independently_verified；B 级说明：答案为第三方答案 docx（非教育部官方答案页），按 B 级使用：已用题目表格精确复算 p=9/10、χ²=765.625>10.828，并用独立盲解复核一致。Source 详解把 χ²_{0.001} 写成 x_{0.001}（源内容错误，未在答案值中沿用）；任何展示该原文的视图须加脚注“原文笔误，应为 χ²_{0.001}”。",
+      "answer_source：答案 docx w:p 343–344（sha256 0ae2e6ff75be…）"
+     ]
+    },
+    {
+     "title": "Thinking DAG（AI 整理，未独立审核）",
+     "items": [
+      "N-MA-01 [condition] 审题：读列联表，定行、列与四个合计",
+      "N-MA-02 [goal] 拆两问：条件概率、独立性检验，各用什么工具",
+      "N-MA-04 [computation] 第 (1) 问：p=180/200=9/10",
+      "N-MA-03 [formula_or_model] 第 (2) 问：把题给公式对齐到 a,b,c,d",
+      "N-MA-05 [computation] 代入 χ²：765.625",
+      "N-MA-06 [check] 查表比较：765.625 > 10.828",
+      "N-MA-07 [conclusion] 收口：拒绝 H0，认为有关",
+      "N-MA-08 [check] 检查：把答案回代表格核对",
+      "N-MA-09 [formula_or_model] 第二解法①：先算四个期望频数",
+      "N-MA-10 [computation] 第二解法②：定义式逐格求和，同样得 765.625",
+      "边 12 条；成功路径 8 节点；failed_branches=0（未观测到失败，不画假回退边）",
+      "source_mode=expert_authored：AI 整理，不是官方解析、也不是真实学生 trace；独立盲解 1 次；未独立审核。"
+     ]
+    },
+    {
+     "title": "9 个公共板块摘要",
+     "items": [
+      "五维 5；题眼 1；陷阱 2；提示 0；错因 2；变式 1；扩展 1；额外任务 2",
+      "学科板 3 块：essence_three_steps, algebra_final, formula_fidelity",
+      "9 个公共板全给（omitted_boards=[]）"
+     ]
+    },
+    {
+     "title": "公式保真（16 条 OMML）",
+     "items": [
+      "source_mode=omml_converted；formula_count=16；unresolved_count=0；unsupported=0、空输出=0、机械 LaTeX 校验 0 问题。",
+      "无渲染 oracle：pdflatex/xelatex/lualatex/latex/pandoc/soffice 均 NOT_FOUND；0 unresolved 只表示结构层全部转出，不代表渲染/语义已验证。",
+      "源详解把 χ²_0.001 写成 x_0.001（源错误，原样保留并标注）。"
+     ]
+    },
+    {
+     "title": "来源与证据",
+     "items": [
+      "2025 新高考全国Ⅰ卷数学第 15 题（独立性检验）；题干 docx w:p 61–91、答案 w:p 343–344、解析 w:p 345–351（docx 无稳定页码）",
+      "evidence 23 条（4 Source 文件 + 1 Source 分析 + 15 AI 推导 + 1 盲解 + 1 复算 + 1 validator）"
+     ]
+    },
+    {
+     "title": "校验",
+     "items": [
+      "validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）",
+      "负向篡改 4/5 被拒；改答案并重算 hash 的包会通过（机械校验不是答案 oracle）"
+     ]
+    },
+    {
+     "title": "限制（未验证）",
+     "items": [
+      "review.status=pending（4×p1 + 7×p2）",
+      "分值 null（Source 未给）、难度 = AI 估计 3（0.35）、评分细则 none",
+      "DAG 未独立审核、公式无渲染 oracle；n=1；private_study_only，不发布、不复制整本书（约 900 字）"
+     ]
+    }
+   ],
+   "dagGraph": {
+    "sourceMode": "expert_authored",
+    "nodes": [
+     {
+      "id": "N-MA-01",
+      "kind": "condition",
+      "role": "read_question",
+      "label": "审题：读列联表，定行、列与四个合计",
+      "body": "先把行列读定：行＝是否患该疾病（患病 200、未患 800），列＝检查结果（正常 800、不正常 200），总人数 n=1000。四格：a=20（患病·正常）、b=180（患病·不正常）、c=780（未患·正常）、d=20（未患·不正常）。核合计：20+180=200、780+20=800、20+780=800、180+20=200，全部自洽，说明格子没取错。",
+      "stepType": "thinking",
+      "formulas": [
+       "a=20,\\ b=180,\\ c=780,\\ d=20,\\quad n=1000",
+       "a+b=200,\\quad c+d=800,\\quad a+c=800,\\quad b+d=200"
+      ],
+      "keyQuantities": [
+       "a,b,c,d：四个格子频数",
+       "a+b, c+d, a+c, b+d：四个和式（行合计/列合计）",
+       "n=1000：总人数"
+      ],
+      "result": "a=20,b=180,c=780,d=20；四个和式 200/800/800/200；n=1000"
+     },
+     {
+      "id": "N-MA-02",
+      "kind": "goal",
+      "role": "judge",
+      "label": "拆两问：条件概率、独立性检验，各用什么工具",
+      "body": "两问共用一张表，但两问的取数方式不同：(1) 求“检查结果不正常者中患病的概率”＝条件概率 P(患病|不正常)：分母是“不正常”列合计 200，分子是该列中的患病格 180。(2) 在 α=0.001 下做独立性检验：用题给 χ² 公式，再与附表里 α=0.001 对应的临界值 10.828 比较，χ²≥临界值就拒绝 H0。先做 (1)（一步读数），再做 (2)。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "p：P(患病|不正常)",
+       "H0：检查结果与患病无关",
+       "α=0.001 ↔ 10.828"
+      ],
+      "result": "子目标 (1) 条件概率；(2) χ² 独立性检验"
+     },
+     {
+      "id": "N-MA-04",
+      "kind": "computation",
+      "role": "compute",
+      "label": "第 (1) 问：p=180/200=9/10",
+      "body": "(1) p=P(患病|不正常)=180/200=9/10=0.9。两种易错取法：拿 20 当分子（那是“患病且检查正常”格）得 0.1；拿总人数 1000 当分母得 0.18——都错在没把事件“不正常”对应到列。也可用补集核对：不正常者中未患病 20 人，p=1−20/200=9/10，与上式一致。",
+      "stepType": "derivation",
+      "formulas": [
+       "p=\\dfrac{P(\\text{患病}\\cap\\text{不正常})}{P(\\text{不正常})}=\\dfrac{180}{200}=\\dfrac{9}{10}",
+       "p=1-\\dfrac{20}{200}=\\dfrac{9}{10}"
+      ],
+      "keyQuantities": [
+       "分子 b=180（不正常列中患病格）",
+       "分母 b+d=200（不正常列合计）",
+       "p=9/10"
+      ],
+      "result": "(1) p 的估计值 = 9/10"
+     },
+     {
+      "id": "N-MA-03",
+      "kind": "formula_or_model",
+      "role": "construct",
+      "label": "第 (2) 问：把题给公式对齐到 a,b,c,d",
+      "body": "把题给公式 χ²=n(ad−bc)²/[(a+b)(c+d)(a+c)(b+d)] 与表格逐项对齐：a+b=200、c+d=800、a+c=800、b+d=200；ad−bc=20×20−180×780=−140000。注意：本题四个和式恰好成对相等（200/800/800/200），即使 a,b,c,d 的对应搞错，也可能算出同一个 765.625——数值对不等于映射对，必须回读行列标签确认。",
+      "stepType": "derivation",
+      "formulas": [
+       "\\chi^2=\\dfrac{n(ad-bc)^2}{(a+b)(c+d)(a+c)(b+d)}",
+       "ad-bc=20\\times20-180\\times780=-140000"
+      ],
+      "keyQuantities": [
+       "四个和式：200/800/800/200",
+       "ad−bc=−140000"
+      ],
+      "result": "四个和式 200/800/800/200；ad−bc=−140000；注意数值对≠映射对"
+     },
+     {
+      "id": "N-MA-05",
+      "kind": "computation",
+      "role": "compute",
+      "label": "代入 χ²：765.625",
+      "body": "把数代到底：χ²=1000×(−140000)²/(200×800×800×200)=1000×1.96×10¹⁰/(2.56×10¹⁰)=765.625=6125/8。这个数远大于临界值 10.828，说明数据与“两者无关”的假设偏离极大。",
+      "stepType": "derivation",
+      "formulas": [
+       "ad-bc=-140000,\\qquad (ad-bc)^2=1.96\\times10^{10}",
+       "(a+b)(c+d)(a+c)(b+d)=200\\times800\\times800\\times200=2.56\\times10^{10}",
+       "\\chi^2=\\dfrac{1000\\times1.96\\times10^{10}}{2.56\\times10^{10}}=765.625=\\dfrac{6125}{8}"
+      ],
+      "keyQuantities": [
+       "分子 1000×(ad−bc)²=1.96×10^13",
+       "分母 2.56×10^10",
+       "χ²=765.625=6125/8"
+      ],
+      "result": "χ²=765.625=6125/8"
+     },
+     {
+      "id": "N-MA-06",
+      "kind": "check",
+      "role": "judge",
+      "label": "查表比较：765.625 > 10.828",
+      "body": "附表把 α 与临界值一一对应：0.05↔3.841、0.01↔6.635、0.001↔10.828。本题 α=0.001，所以和 10.828 比：χ²=765.625≫10.828，落在拒绝域。查表只需 α 对行、别拿错档；临界值为什么是这些数，看后面的上位知识。",
+      "stepType": "derivation",
+      "formulas": [
+       "\\chi^2=765.625>10.828=\\chi^2_{0.001}"
+      ],
+      "keyQuantities": [
+       "α=0.001 ↔ 临界值 10.828",
+       "比较结果：765.625≫10.828"
+      ],
+      "result": "χ²=765.625 > 10.828 ⇒ 拒绝 H0"
+     },
+     {
+      "id": "N-MA-07",
+      "kind": "conclusion",
+      "role": "conclude",
+      "label": "收口：拒绝 H0，认为有关",
+      "body": "零假设 H0：超声波检查结果与患该疾病无关。判定规则：χ²≥临界值 ⇒ 拒绝 H0。这里 χ²=765.625>10.828，故拒绝 H0，认为超声波检查结果与患该疾病有关；该推断犯错误的概率不超过 0.001。措辞要点：结论写“有关（拒绝 H0）”，不能写“接受 H0 即无关”（方向反了）；0.001 是“拒绝 H0 时判错的概率上界”，不是“患病概率”。",
+      "stepType": "derivation",
+      "formulas": [
+       "H_0:\\ \\text{检查结果与患病无关}",
+       "\\chi^2=765.625>10.828\\Rightarrow \\text{拒绝}\\ H_0"
+      ],
+      "keyQuantities": [
+       "H0：两者无关",
+       "犯错误概率上界 0.001"
+      ],
+      "result": "(2) 结论：有关（拒绝 H0，犯错误概率不超过 0.001）"
+     },
+     {
+      "id": "N-MA-08",
+      "kind": "check",
+      "role": "verify",
+      "label": "检查：把答案回代表格核对",
+      "body": "收口后回读一遍：① p=180/200 的分子分母都落在“不正常”列；② χ²=6125/8=765.625 与四个和式对得上，且四个期望频数都不小于 5（卡方近似可用）；③ 零假设、临界值与结论方向没有写反。三处都过，答案才稳。",
+      "stepType": "meta_decision",
+      "formulas": [],
+      "keyQuantities": [],
+      "result": "核对一致：p=9/10、χ²=765.625、结论“有关”"
+     },
+     {
+      "id": "N-MA-09",
+      "kind": "formula_or_model",
+      "role": "construct",
+      "label": "第二解法①：先算四个期望频数",
+      "body": "第二解法走 χ² 的定义式“（实际频数−期望频数）²/期望频数”逐格求和，先要 H0 下的期望频数。H0 说“检查结果与患病无关”，此时每格期望频数＝该行合计×该列合计/总人数：E₁₁=200×800/1000=160、E₁₂=200×200/1000=40、E₂₁=800×800/1000=640、E₂₂=800×200/1000=160。四格期望都不小于 5，近似可用。",
+      "stepType": "derivation",
+      "formulas": [
+       "E_{ij}=\\dfrac{(\\text{行合计})_i\\times(\\text{列合计})_j}{n}",
+       "E_{11}=160,\\ E_{12}=40,\\ E_{21}=640,\\ E_{22}=160"
+      ],
+      "keyQuantities": [
+       "期望频数 160/40/640/160",
+       "实际频数 20/180/780/20"
+      ],
+      "result": "期望频数 E=160/40/640/160（均 ≥5）"
+     },
+     {
+      "id": "N-MA-10",
+      "kind": "computation",
+      "role": "compute",
+      "label": "第二解法②：定义式逐格求和，同样得 765.625",
+      "body": "χ²=Σ(O−E)²/E=(20−160)²/160+(180−40)²/40+(780−640)²/640+(20−160)²/160=122.5+490+30.625+122.5=765.625，与题给公式算出的完全一致。两条算法一致，说明题给公式就是定义式的化简。",
+      "stepType": "derivation",
+      "formulas": [
+       "\\chi^2=\\sum\\dfrac{(O_{ij}-E_{ij})^2}{E_{ij}}",
+       "=\\dfrac{19600}{160}+\\dfrac{19600}{40}+\\dfrac{19600}{640}+\\dfrac{19600}{160}",
+       "=122.5+490+30.625+122.5=765.625"
+      ],
+      "keyQuantities": [
+       "四格贡献 122.5/490/30.625/122.5",
+       "合计 χ²=765.625"
+      ],
+      "result": "χ²=765.625（与主路径完全一致）"
+     }
+    ],
+    "edges": [
+     {
+      "from": "N-MA-01",
+      "to": "N-MA-02",
+      "type": "derives"
+     },
+     {
+      "from": "N-MA-02",
+      "to": "N-MA-03",
+      "type": "derives"
+     },
+     {
+      "from": "N-MA-03",
+      "to": "N-MA-05",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-MA-02",
+      "to": "N-MA-04",
+      "type": "decision_selects"
+     },
+     {
+      "from": "N-MA-01",
+      "to": "N-MA-04",
+      "type": "condition_ref"
+     },
+     {
+      "from": "N-MA-05",
+      "to": "N-MA-06",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-MA-06",
+      "to": "N-MA-07",
+      "type": "derives"
+     },
+     {
+      "from": "N-MA-07",
+      "to": "N-MA-08",
+      "type": "verify"
+     },
+     {
+      "from": "N-MA-04",
+      "to": "N-MA-08",
+      "type": "verify"
+     },
+     {
+      "from": "N-MA-01",
+      "to": "N-MA-09",
+      "type": "condition_ref"
+     },
+     {
+      "from": "N-MA-09",
+      "to": "N-MA-10",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-MA-10",
+      "to": "N-MA-08",
+      "type": "verify"
+     }
+    ],
+    "alternatePaths": [
+     {
+      "id": "AP-MA-01",
+      "kind": "second_method",
+      "methodName": "第二解法：χ² 定义式逐格求和（期望频数 160/40/640/160）",
+      "nodeIds": [
+       "N-MA-01",
+       "N-MA-09",
+       "N-MA-10",
+       "N-MA-06",
+       "N-MA-07",
+       "N-MA-08"
+      ],
+      "verdict": "same_answer",
+      "note": "与主路径同结论（χ²=765.625，拒绝 H0）。价值在互相检验：定义式与题给公式给出同一个数。第 (1) 问也可用补集 p=1−20/200=9/10。"
+     }
+    ],
+    "successPath": [
+     "N-MA-01",
+     "N-MA-02",
+     "N-MA-04",
+     "N-MA-03",
+     "N-MA-05",
+     "N-MA-06",
+     "N-MA-07",
+     "N-MA-08"
+    ],
+    "failedBranches": 0,
+    "failureBranches": [],
+    "note": ""
+   },
+   "boardSelection": {
+    "schema_version": "furnace.board-selection/1",
+    "question_id": "Q-MA0001",
+    "subject": "math",
+    "complexity": "complex",
+    "complexity_source": "second_method",
+    "question_type": "calculation",
+    "question_type_source": "content_type_axes",
+    "boards": [
+     {
+      "board_id": "l0_question_entity",
+      "level": "L0",
+      "order": 10,
+      "legacy_panel": "question_entity",
+      "item_count": 1
+     },
+     {
+      "board_id": "l1_thinking_dag",
+      "level": "L1",
+      "order": 20,
+      "legacy_panel": "thinking_dag",
+      "item_count": 10
+     },
+     {
+      "board_id": "l1_solution_walkthrough",
+      "level": "L1",
+      "order": 21,
+      "legacy_panel": "thinking_dag",
+      "item_count": 8
+     },
+     {
+      "board_id": "l1_multi_solution",
+      "level": "L1",
+      "order": 22,
+      "legacy_panel": "thinking_dag",
+      "item_count": 1
+     },
+     {
+      "board_id": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "legacy_panel": "key_eye",
+      "item_count": 1
+     },
+     {
+      "board_id": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "legacy_panel": "traps",
+      "item_count": 2
+     },
+     {
+      "board_id": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "legacy_panel": "error_causes",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "legacy_panel": "extra_tasks",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "legacy_panel": "variants",
+      "item_count": 1
+     },
+     {
+      "board_id": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "legacy_panel": "extensions",
+      "item_count": 1
+     },
+     {
+      "board_id": "l5_meta",
+      "level": "L5",
+      "order": 60,
+      "legacy_panel": "five_dimension",
+      "item_count": 1
+     }
+    ],
+    "empty_boards": [
+     {
+      "board_id": "l2_stuck_points",
+      "level": "L2",
+      "reason": "empty_legacy_panel"
+     },
+     {
+      "board_id": "l2_layered_hints",
+      "level": "L2",
+      "reason": "empty_legacy_panel"
+     },
+     {
+      "board_id": "l3_similar_questions",
+      "level": "L3",
+      "reason": "no_candidates"
+     },
+     {
+      "board_id": "l4_subject_history",
+      "level": "L4",
+      "reason": "no_legacy_source"
+     }
+    ]
+   },
+   "studentContent": {
+    "stem": "15．为研究某疾病与超声波检查结果的关系，从做过超声波检查的人群中随机调查了1000人，得到如下列联表： | 超声波检查结果组别 | 正常 | 不正常 | 合计 | | --- | --- | --- | --- | | 患该疾病 | 20 | 180 | 200 | | 未患该疾病 | 780 | 20 | 800 | | 合计 | 800 | 200 | 1000 | (1)记超声波检查结果不正常者患该疾病的概率为p，求p的估计值； (2)根据小概率值$\\alpha=0.001$的独立性检验，分析超声波检查结果是否与患该疾病有关. 附${\\chi}^{2}=\\frac{n{(ad-bc)}^{2}}{(a+b)(c+d)(a+c)(b+d)}$， | $P\\left( {\\chi}^{2}\\ge k \\right)$ | 0.050 | 0.010 | 0.001 | | --- | --- | --- | --- | | $k$ | 3.841 | 6.635 | 10.828 |",
+    "answer": "(1) 9/10；(2) 有关",
+    "solution": "",
+    "solutionNote": "",
+    "showSourceAnalysis": false,
+    "figures": [],
+    "responseKind": "solution",
+    "answerAreaHeightMm": 135.0,
+    "panels": [
+     {
+      "boardId": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "title": "题眼",
+      "items": [
+       "题眼1：列联表的行列含义决定 (1) 的分母与 (2) 的 a,b,c,d：“检查结果不正常”列共 200 人、其中患病 180 人 ⇒ p=180/200=9/10；χ² 取 a=20,b=180,c=780,d=20。；为什么关键：分母取错（20/200 或 20/1000）会直接算错 p；a,b,c,d 映射错会让 χ² 与四个和式错位。抓住行列标签，两问才能共用一张表。；常见误判：用“患该疾病且检查正常”的 20 当分子（得 0.1）、用总人数 1000 当分母（得 …"
+      ]
+     },
+     {
+      "boardId": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "title": "陷阱/易错点",
+      "items": [
+       "陷阱1：把 p 算成 20/200=0.1 或 20/1000=0.02：把“患病且检查正常”的格子当成分子，或用错分母。；正确做法：p=P(患该疾病|检查结果不正常)，分母取“不正常”列合计 200，分子取该列中患病格 180，得 9/10。；怎么验证：先写 p=P(A|B) 的文字定义，把 B 对应到列标签，再取分子分母；或用四个合计交叉核对。",
+       "陷阱2：χ²=765.625 明显大于临界值，却写成“接受 H0，检查结果与患病无关”；或把“犯错误概率不超过 0.001”解释成“患病概率 0.001”。；正确做法：χ²>10.828 ⇒ 拒绝 H0 ⇒ 认为超声波检查结果与患该疾病有关；0.001 是“拒绝 H0 时犯错误概率的上界”，不是患病概率。；怎么验证：回读 H0 的表述与判定规则：χ²≥临界值 → 拒绝 H0；再检查结论句的主语与方向。"
+      ]
+     },
+     {
+      "boardId": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "title": "错因",
+      "items": [
+       "(1) 中 p 的分母/分子取错，答案出现 0.1、0.02、0.18 等。；根因：没有把条件概率 P(A|B) 的事件 B 映射到列联表的“不正常”列合计，只在表格里找“看起来像”的数字。；补救：做 2 道 2×2 表填表训练：先标四个合计，再把 p=P(A|B) 写成“某列中某格/该列合计”的表达式。",
+       "独立性检验的判定方向写反，或把 α 与“患病概率”混为一谈。；根因：把模板记成“χ² 越大越无关”，或没有把临界值列与 α 对应起来，结论句缺“拒绝/不拒绝 H0”这一环。；补救：按 H0→χ²→临界值→结论四步模板重做 3 组不同 α 的对照表，每组都写出结论句并检查方向。"
+      ]
+     },
+     {
+      "boardId": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "title": "额外任务",
+      "items": [
+       "任务1：下面这段解答错在哪：“检查结果不正常的有 200 人，所以 p=20/200=0.1；又因为 χ²=765.625 大于 3.841，所以接受 H0，认为检查结果与患病无关。”请指出两处错误并改正。；产出：段落；达标：指出 p 的分子应取“不正常”列中患病的 180，p=180/200=9/10；指出 α=0.001 应对应 10.828，且 χ² 大于临界值应拒绝 H0、结论为“有关”",
+       "任务2：不改变表格数据：(1) 把 α 由 0.001 改为 0.05，独立性检验的结论是否改变？说明理由；(2) 把列联表的行与列对调后重算 χ²，数值是否改变？说明理由。；产出：列表；达标：指出 χ²=765.625 仍大于 3.841，结论仍是“有关”（α 只改变临界值）；指出行列对调时 ad−bc 只差符号、四个和式同步对调，(ad−bc)² 与分母不变，故 χ² 不变"
+      ]
+     },
+     {
+      "boardId": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "title": "变式",
+      "items": [
+       "变式1（同法换载体）：为研究某药物是否有效，随机调查 200 人，得到列联表：服药组有效 30、无效 70；未服药组有效 50、无效 50。分别用 α=0.05、0.01、0.001 的独立性检验，判断药物是否有效（附：P(χ²≥k) 表同原题）。；答案：χ²=25/3≈8.333。α=0.05（临界 3.841）与 α=0.01（6.635）下拒绝 H0、认为药物有效；α=0.001（10.828）下不能拒绝 H0、不能认为有关。"
+      ]
+     },
+     {
+      "boardId": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "title": "扩展资料",
+      "items": [
+       "【超纲背景·不要求掌握】χ² 是怎么来的：从期望数到临界值：先分清两层。高考内（要会）：题干给出 χ² 公式和临界值表，读出 α 对应的临界值，把算出的 χ² 与它比较，再写“拒绝/不拒绝”的结论。超纲背景（不要求掌握）：这个统计量为什么这样造、为什么服从 χ²(1)、附表里的 3.841/6.635/10.828 怎么来。下面六步把第二层走一遍，能看懂表就行，不用背。；为什么：看懂表而不是背结论：χ² 把四格的“实际数−期望数”按期望数加权求平方和；在“两者无关”的假设下，…"
+      ]
+     }
+    ],
+    "upperKnowledge": [
+     {
+      "title": "【超纲背景·不要求掌握】χ² 是怎么来的：从期望数到临界值",
+      "level": "竞赛/大学",
+      "what": "先分清两层。高考内（要会）：题干给出 χ² 公式和临界值表，读出 α 对应的临界值，把算出的 χ² 与它比较，再写“拒绝/不拒绝”的结论。超纲背景（不要求掌握）：这个统计量为什么这样造、为什么服从 χ²(1)、附表里的 3.841/6.635/10.828 怎么来。下面六步把第二层走一遍，能看懂表就行，不用背。",
+      "why": "看懂表而不是背结论：χ² 把四格的“实际数−期望数”按期望数加权求平方和；在“两者无关”的假设下，这个和恰好能写成一个标准正态量的平方，所以自由度是 1，临界值就是标准正态上侧分位数的平方。",
+      "how": "六步：① 期望数 E=行合计×列合计/n；② 每格偏差 O−E；③ 偏差平方除以期望数，四格相加；④ 这个和恒等于 [√n(ad−bc)/√((a+b)(c+d)(a+c)(b+d))]²；⑤ 随机独立抽样、每格期望数不太小时，括号里的量近似 N(0,1)，平方服从 χ²(1)；⑥ 附表临界值 = 标准正态上侧分位数的平方。考试只需要“查表 + 比较”这一步。",
+      "buildSteps": [
+       "H0 下每格期望频数＝行合计×列合计/总人数：本题 E=160/40/640/160（四格都不小于 5，近似可用）。",
+       "每格偏差 O−E 都等于 ±(ad−bc)/n：本题 ad−bc=−140000、n=1000，所以四格偏差是 −140、+140、+140、−140。",
+       "按定义式求平方和：χ²=Σ(O−E)²/E=19600/160+19600/40+19600/640+19600/160=765.625，与题给公式算出的完全一致。",
+       "这个和恒等于 n(ad−bc)²/[(a+b)(c+d)(a+c)(b+d)]，也等于 [√n(ad−bc)/√((a+b)(c+d)(a+c)(b+d))]²：本题为 765.625=(−27.67)²。",
+       "H0 下 √n(ad−bc)/√((a+b)(c+d)(a+c)(b+d)) 近似标准正态：本题 Z≈−27.67，远离 0；它的平方服从 χ²(1)，这就是自由度 1 的来源（2×2 表只剩一个独立方向）。",
+       "临界值就是标准正态上侧分位数的平方：√3.841=1.9598、√6.635=2.5758、√10.828=3.2906，正好对应双侧 5%/1%/0.1%；α 越小分位数越靠外、临界值越大、越难拒绝 H0。"
+      ],
+      "example": "本题自己验一遍：ad−bc=−140000，√n(ad−bc)/√[(a+b)(c+d)(a+c)(b+d)]=√1000×(−140000)/160000≈−27.67，平方即 765.625。把 765.625 开方得 27.67，远大于 1.96，等价于“χ²>3.841”。三步都能手算，临界值表的来历一目了然。",
+      "limitations": "卡方近似是 n 大时的极限结论，期望频数过小时失真（2×2 小样本改用 Fisher 精确检验）；χ² 显著只说明关联，不能直接解释为因果；近似还假设观测独立、随机抽样。2×2 表的自由度恒为 1。"
+     }
+    ],
+    "aiAnswer": {
+     "answer": "（1）9/10；（2）有关（与参考答案一致；AI 独立复算）",
+     "reasoning": "p=180/200=9/10。代入 χ²=n(ad−bc)²/[(a+b)(c+d)(a+c)(b+d)]=1000×(20×20−780×180)²/(800×200×800×200)=765.625；765.625>10.828（α=0.001），拒绝独立性假设，所以认为有关。",
+     "debate": "可辩论点：若把 α 改成 0.05（临界 3.841），结论仍是“有关”；但这能说明“有关”的强度吗？请讨论显著性水平与结论强度的区别。",
+     "note": ""
+    }
+   },
+   "problemState": {
+    "counts": {
+     "facts": 8,
+     "assumptions": 5,
+     "decisions": 4,
+     "unknowns": 8,
+     "artifacts": 5
+    },
+    "factTrustVerified": 7,
+    "factTrustReported": 1,
+    "decisionsProposed": 4,
+    "decisionsAccepted": 0,
+    "decisionsRejected": 0,
+    "decisionsAllProposed": true,
+    "unknowns": [
+     "本题官方答案页、分值与评分细则是什么？Source 只有第三方答案 docx，points=null / total_points=null 无法确认真实分值。",
+     "转出的 LaTeX 与源 OMML 在视觉/语义上是否等价？本机无渲染 oracle，unresolved_count=0 不能证明公式全对。",
+     "OLE 未解：数学真题分析.docx 的 2450 个 MathType/OLE 公式不在本路线覆盖范围；公式题如何批量摄取未解决。",
+     "8 节点 DAG 每一步在语义上是否正确？目前只有 schema + 自评 quality + 1 次盲解，review.status=pending。",
+     "盲解 A1 是否真正独立（同机执行、未审计工具调用、只有 1 次）？"
+    ],
+    "unknownsMore": 3,
+    "oracleKind": "deterministic",
+    "oracleDescription": "机械层（schema/引用完整性/双 hash/stem 指纹）+ 答案精确复算。它不证明公式渲染等价、不证明 DAG 语义正确、不证明变式答案正确——这些仍是未知。",
+    "budgetNull": true,
+    "nodeStatus": "draft",
+    "note": "材料快照，未审批；未接 ProblemStateStore/DB/UI。"
+   }
+  },
+  {
+   "id": "Q-CH0001",
+   "title": "真实内容样品（Q-CH0001）",
+   "subtitle": "2025 全国一卷语文阅读IV 第 16 题（真实 Source 题目，不是示例）：答案逐字来自参考答案；Source 无官方评分细则，分点分值是 AI 均分；DAG/板块为 AI 整理，未独立审核；private_study_only。",
+   "statusLabel": "真实样品",
+   "expandable": true,
+   "chips": [
+    "答案来自 Source，非 AI 生成",
+    "信任等级 B_independently_verified",
+    "Source 无官方评分细则（0 命中）",
+    "分点分值是 AI 均分 · human_review_required",
+    "DAG 为 AI 整理，未独立审核",
+    "private_study_only（不发布）"
+   ],
+   "lines": [
+    "题干（短片段）：元珍以诗送绿石砚所谓玉堂①新样者 王安石 玉堂新样世争传，况以蛮溪②绿石镌。 嗟我长来无异物，愧君持赠有佳篇。 久埋瘴雾看犹湿，一取春波洗更鲜。 还与故人袍色⑧似，论心于此亦同坚。 [注]①玉堂：宋代称翰林院为玉堂。②蛮溪：指南方的溪流。③袍色：官袍的颜色。古时低级官员袍服为青绿色。 16.尾联丰富…（诗 4 联 + 注 3 条；完整见内容包。材料第 4 行原文“袍色⑧”与 [注]③ 编号不一致，按原文保留、未擅自改写）",
+    "答案：①尾联两句以砚喻人。②由石砚的绿色联想到友人官位低微，暗含惋惜；③继而赞美友人的节操坚贞不移，一如石砚的质地坚硬纯正。（逐字来自答案 docx 段落 1015；official_trust = B_independently_verified，不是 A_official——Source docProps 带微信引流字样 + WPS 另存，属二次传播副本；参考答案非唯一标准答案。）",
+    "来源：2025 全国一卷语文阅读IV 第 16 题（诗歌）；docx 段落 961/965/975–980/1011/1015/1021/1026/1029–1030/1035（全文 2145 段，无稳定页码）；evidence 28 条（13 Source 文件 + 1 盲解 + 10 AI 推导）。",
+    "评分（关键）：Source 全文 0 命中“评分标准/评分参考/评分细则/评分说明/答案要点”；3 条踩分点文字逐字来自参考答案，但 2/2/2 的分值是 AI 均分（题干 (6分) 是 Source 原文，6 分总分是事实）→ scoring.source=ai_derived、锚点 source=source_analysis_derived、verified=false、human_review_required；全包 0 处 official_rubric。",
+    "Thinking DAG：11 节点 / 12 边 / 成功路径 10；source_mode=expert_authored（AI 整理，不是官方解析或真实学生 trace），未独立审核；独立盲解 attempt_log 1 次；failed_branches=0（未观测到失败，不画假回退边）。",
+    "板块：五维 5 / 题眼 1 / 陷阱 3 / 分层提示 2（only_hard，must_not_contain_answer）/ 错因 3 / 变式 2 / 扩展 2 / 额外任务 2 / 学科板 4 块（question_kind, poetry, scoring_map, text_evidence_policy）；9 个公共板全给（omitted_boards=[]）。",
+    "文本证据：每个评分锚点都挂 text_evidence_refs（落到“袍色/注③/同坚”原句）；every_point_needs_quote=true、quote_max_chars=40、4 条禁止模式（只写术语 / 感受式 / 脱离本诗谈套路 / 把“感谢”当尾联主项）。",
+    "校验：validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）；独立抽取校验 52/52；负向 6 类被拒，但“冒充官方评分细则”NOT-CAUGHT（机械门禁测不出，只能靠人工/checker）。",
+    "限制：review.status=pending（3×p1 + 5×p2）；无第二副本可交叉（另一份语文 PDF 是扫描件：143 页 / 6006 字符 / 0 命中）；难度 = AI 估计 5（0.35）；DAG 未独立审核；评分拆分待人工复核；n=1；private_study_only，不发布、不复制整本书（约 220 字 + 6 句 ≤40 字引文）。"
+   ],
+   "detailSections": [
+    {
+     "title": "题干（必要文本）",
+     "items": [
+      "元珍以诗送绿石砚所谓玉堂①新样者 王安石\n玉堂新样世争传，况以蛮溪②绿石镌。\n嗟我长来无异物，愧君持赠有佳篇。\n久埋瘴雾看犹湿，一取春波洗更鲜。\n还与故人袍色⑧似，论心于此亦同坚。\n[注]①玉堂：宋代称翰林院为玉堂。②蛮溪：指南方的溪流。③袍色：官袍的颜色。古时低级官员袍服为青绿色。\n\n16.尾联丰富了诗歌的情感内涵，请简要赏析。(6分)",
+      "本题无图、无公式（figures=[]）；材料第 4 行原文“袍色⑧”与 [注]③ 编号不一致，按原文保留。"
+     ]
+    },
+    {
+     "title": "答案与信任",
+     "items": [
+      "答案：①尾联两句以砚喻人。②由石砚的绿色联想到友人官位低微，暗含惋惜；③继而赞美友人的节操坚贞不移，一如石砚的质地坚硬纯正。",
+      "official_trust = B_independently_verified；B 级说明：Source 文件是《2026年版高考语文试题分析》的二次传播副本（docProps 带微信引流字样、WPS 另存），无法认证为出版方原件，故不按 A_official 处理；答案文字逐字取自 Source【参考答案】，并由独立盲解 A1 覆盖三点，按 B 级使用。另：诗歌赏析属主观题，参考答案不是唯一标准答案。",
+      "answer_source：答案 docx 段落 1015（sha256 f6e6dad89db9…）"
+     ]
+    },
+    {
+     "title": "Thinking DAG（AI 整理，未独立审核）",
+     "items": [
+      "N-CH-01 [condition] 审题：锁定“尾联”与“情感内涵”",
+      "N-CH-02 [prerequisite_recall] 基线：先扫前六句，定“丰富”比较的起点",
+      "N-CH-03 [insight] 结构定位：尾联的收束与“宕开一笔”",
+      "N-CH-04 [insight] 破题：“袍色”是官袍的颜色，注③是钥匙",
+      "N-CH-05 [decision] 手法判定：以砚喻人（颜色线 + 质地线）",
+      "N-CH-06 [check] 情感层一：惋惜（友人官位低微）",
+      "N-CH-07 [check] 情感层二：赞美（节操坚贞如石）",
+      "N-CH-08 [check] 排除误读：不是重复“感谢赠砚”，也不是泛化“友情”",
+      "N-CH-09 [conclusion] 组织三点答案：手法→惋惜→赞美",
+      "N-CH-10 [check] 自检：点—句对照，逐条回原句",
+      "N-CH-11 [branch_try] 另一种读法：自勉 / 知己相知",
+      "边 12 条；成功路径 10 节点；failed_branches=0（未观测到失败，不画假回退边）",
+      "source_mode=expert_authored：AI 整理，不是官方解析、也不是真实学生 trace；独立盲解 1 次；未独立审核。"
+     ]
+    },
+    {
+     "title": "评分锚点（Source 无官方评分细则）",
+     "items": [
+      "Source 全文 0 命中“评分标准/评分参考/评分细则/评分说明/答案要点”；2/2/2 的分值是 AI 均分（题干“(6分)”是 Source 原文，6 分总分是事实）。",
+      "scoring.source=ai_derived；锚点 source=source_analysis_derived、verified=false、human_review_required；全包 0 处 official_rubric。",
+      "三条踩分点文字逐字来自参考答案（①以砚喻人；②绿色联想官位低微、暗含惋惜；③赞美节操坚贞如石）。"
+     ]
+    },
+    {
+     "title": "9 个公共板块摘要",
+     "items": [
+      "五维 5；题眼 1；陷阱 3；提示 2；错因 3；变式 2；扩展 2；额外任务 2",
+      "学科板 4 块：question_kind, poetry, scoring_map, text_evidence_policy",
+      "9 个公共板全给（omitted_boards=[]）"
+     ]
+    },
+    {
+     "title": "来源与证据",
+     "items": [
+      "2025 全国一卷语文阅读IV 第 16 题；docx 段落 961/965/975–980/1011/1015/1021/1026/1029–1030/1035（全文 2145 段，无稳定页码）",
+      "evidence 28 条（13 Source 文件 + 1 盲解 + 10 AI 推导）"
+     ]
+    },
+    {
+     "title": "校验",
+     "items": [
+      "validate.py --package → PACKAGE VALID（7 项 [OK]，exit 0）",
+      "独立抽取校验 52/52；负向 6 类被拒，但“冒充官方评分细则”NOT-CAUGHT（机械门禁测不出，只能人工/checker）"
+     ]
+    },
+    {
+     "title": "限制（未验证）",
+     "items": [
+      "review.status=pending（3×p1 + 5×p2）",
+      "无第二副本可交叉（另一份语文 PDF 是扫描件：143 页 / 6006 字符 / 0 命中）",
+      "难度 = AI 估计 5（0.35）；DAG 未独立审核；评分拆分待人工复核；n=1；private_study_only，不发布、不复制整本书（约 220 字 + 6 句 ≤40 字引文）"
+     ]
+    }
+   ],
+   "dagGraph": {
+    "sourceMode": "expert_authored",
+    "nodes": [
+     {
+      "id": "N-CH-01",
+      "kind": "condition",
+      "role": "read_question",
+      "label": "审题：锁定“尾联”与“情感内涵”",
+      "body": "题面三个限定：“尾联”把范围压到“还与故人袍色似，论心于此亦同坚”两句；“赏析”不是翻译，要同时给手法和情感；“丰富”说明要答相对前六句新增的那一层。范围、任务、比较基准定死，才不会被“赠砚诗”带成读后感。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "范围：尾联两句",
+       "任务：手法 + 情感",
+       "比较基准：前六句已表达的情感"
+      ],
+      "result": "任务 = 手法 + 情感；范围 = 尾联两句；要求答“新增”的情感层"
+     },
+     {
+      "id": "N-CH-02",
+      "kind": "prerequisite_recall",
+      "role": "judge",
+      "label": "基线：先扫前六句，定“丰富”比较的起点",
+      "body": "“丰富”是相对前六句说的，先定基线：首联称道这方砚新样、名贵、材质好；颔联“愧君持赠有佳篇”谢赠兼惭愧；颈联怜惜这块久埋瘴雾的绿石。前六句都停在“咏物—谢赠”。尾联若只是再谢一次，就谈不上“丰富”；只有跳出去、新增一层情感，题干才成立。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "首联：赏爱称道",
+       "颔联：感谢兼惭愧",
+       "颈联：珍视怜惜",
+       "前六句共同点：停在咏物与谢赠"
+      ],
+      "result": "基线：前六句 = 赏爱 → 感谢 → 珍视，都停留在咏物与谢赠层面"
+     },
+     {
+      "id": "N-CH-03",
+      "kind": "insight",
+      "role": "construct",
+      "label": "结构定位：尾联的收束与“宕开一笔”",
+      "body": "七律尾联要收束全诗，又要“宕开一笔”。本诗前六句都围绕赠砚，到尾联忽然由物写到人，“似断实连”——这正是“丰富”发生的位置：不在砚本身，而在砚与人的对接处。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "尾联功能：收束 + 宕开",
+       "跳转点：由物及人"
+      ],
+      "result": "尾联 = 收束 + 宕开一笔；新增情感就在“由物及人”的跳转处"
+     },
+     {
+      "id": "N-CH-04",
+      "kind": "insight",
+      "role": "judge",
+      "label": "破题：“袍色”是官袍的颜色，注③是钥匙",
+      "body": "注③说“袍色：官袍的颜色。古时低级官员袍服为青绿色”。所以“似”的是友人官袍的绿：砚是青绿，袍也是青绿，颜色把物和人接上。再走一步：穿青绿袍的是低级官员，友人此时官位不高。宋代服色按品级分紫、朱、绿、青（三品以上紫、五品以上朱、七品以上绿、九品以上青），服青绿者“地位相对要低一些”，“青衫”“绿袍”在诗里常与低位、迁谪相连。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "袍色：青绿 = 低级官员服色",
+       "制度：紫>朱>绿>青，青绿者地位较低"
+      ],
+      "result": "袍色 = 友人（低级官员）的青绿官袍 ⇒ 由砚及人的转折点"
+     },
+     {
+      "id": "N-CH-05",
+      "kind": "decision",
+      "role": "construct",
+      "label": "手法判定：以砚喻人（颜色线 + 质地线）",
+      "body": "尾联两句各用砚的一种物性去对友人的一面：上句用“颜色”，砚绿对袍绿，落到身份；下句用“质地”，砚坚对心坚，落到节操。两条线合起来才是完整的“以砚喻人”。说成“托物言志”“以物喻人”“借砚写人”都可以，但必须点明砚与“故人”的对应；只写“用了比喻”而不说喻什么，等于没答。",
+      "stepType": "meta_decision",
+      "formulas": [],
+      "keyQuantities": [
+       "颜色线：砚绿 ↔ 袍绿（官位）",
+       "质地线：砚坚 ↔ 心坚（节操）"
+      ],
+      "result": "手法 = 以砚喻人（双线：色→身份、坚→节操）；托物言志等说法也认可，但须落“砚↔故人”"
+     },
+     {
+      "id": "N-CH-06",
+      "kind": "check",
+      "role": "judge",
+      "label": "情感层一：惋惜（友人官位低微）",
+      "body": "青绿官袍意味着品级低、沉居下僚。所给解析说丁宝臣人到中年仍沉居下僚，官阶不过是太常博士（从七品上），袍色正与石砚相似，这份处境令诗人感叹惋惜。所以这一层是惋惜、同情，不是泛泛的友情；漏了它，答案就少了三分之一。",
+      "stepType": "derivation",
+      "formulas": [],
+      "keyQuantities": [
+       "情感：惋惜/同情",
+       "落点：袍色、注③、沉居下僚"
+      ],
+      "result": "情感层一：惋惜（友人官位低微、怀才不遇）"
+     },
+     {
+      "id": "N-CH-07",
+      "kind": "check",
+      "role": "judge",
+      "label": "情感层二：赞美（节操坚贞如石）",
+      "body": "下句“论心于此亦同坚”：把“心”读成“心志、节操”，石之坚即心之坚。所给解析点明“称之为如石之坚，是对友人高尚品质的热情赞美”，并补了传统依据——坚硬的石头是比喻人心志节操坚定不移的常用意象。于是由砚的质地转到对友人品质的赞美：这是第二层新增情感，与“惋惜”并列而不是替代。",
+      "stepType": "derivation",
+      "formulas": [],
+      "keyQuantities": [
+       "情感：赞美/钦佩",
+       "落点：论心于此亦同坚、石喻坚贞传统"
+      ],
+      "result": "情感层二：赞美（友人心志/节操坚贞如石）"
+     },
+     {
+      "id": "N-CH-08",
+      "kind": "check",
+      "role": "exclude",
+      "label": "排除误读：不是重复“感谢赠砚”，也不是泛化“友情”",
+      "body": "三类常见答法要当场排除：① “感谢赠砚”——颔联已经谢过，再说一遍等于不答“丰富”；② “思念友人/友谊深厚”这类通用情感——尾联原句里找不到触发词，前六句也没写离别；③ 只写“以砚喻人”的术语而不落到原句词，是空话。排除后剩下的必须同时满足“新增 + 能落回原句”，那就只有“惋惜 + 赞美”两层。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "排除项：重复感谢 / 泛化友情 / 空术语",
+       "保留项：惋惜 + 赞美（能落原句）"
+      ],
+      "result": "排除：重复感谢、泛化“友情/思念”、只有术语无原句落点"
+     },
+     {
+      "id": "N-CH-09",
+      "kind": "conclusion",
+      "role": "conclude",
+      "label": "组织三点答案：手法→惋惜→赞美",
+      "body": "按“手法—惋惜—赞美”排：① 尾联两句以砚喻人（颜色线→袍色、质地线→同坚）；② 由石砚的绿色联想到友人官位低微（青绿官袍），暗含惋惜；③ 由砚之坚赞美友人节操坚贞不移，一如石头的质地坚硬纯正。每点写“判断 + 原句 + 情感”，不写读后感。",
+      "stepType": "derivation",
+      "formulas": [],
+      "keyQuantities": [
+       "① 以砚喻人（手法）",
+       "② 惋惜官位低微",
+       "③ 赞美节操坚贞"
+      ],
+      "result": "三点答案：①以砚喻人 ②惋惜官位低微 ③赞美节操坚贞"
+     },
+     {
+      "id": "N-CH-10",
+      "kind": "check",
+      "role": "verify",
+      "label": "自检：点—句对照，逐条回原句",
+      "body": "收口后逐条回原句自检（考场上也这样做）：① 以砚喻人 → “袍色似”“同坚”；② 惋惜 → “袍色”+注③“青绿=低级官员”；③ 赞美 → “论心于此亦同坚”。哪条指不出词，就判为无效重写；再查有没有把“以砚喻人”写成光秃秃的“比喻”、有没有把“感谢赠砚”当新增层写回来。",
+      "stepType": "meta_decision",
+      "formulas": [],
+      "keyQuantities": [
+       "检查项：每条 ≤10 字原句落点",
+       "检查项：手法对象写清（砚↔故人）"
+      ],
+      "result": "自检通过：三条点各有原句落点，与参考答案①②③对应"
+     },
+     {
+      "id": "N-CH-11",
+      "kind": "branch_try",
+      "role": "judge",
+      "label": "另一种读法：自勉 / 知己相知",
+      "body": "“论心于此亦同坚”还可以读成诗人自勉（以砚之坚自况），或读成借砚写二人同道相知。这两层都从原句“心”“坚”生发，文脉说得通，可以作为补充理解；不过参考答案只列三种，答题时以那三点最稳。",
+      "stepType": "thinking",
+      "formulas": [],
+      "keyQuantities": [
+       "额外层：自勉（自况）",
+       "额外层：知己相知"
+      ],
+      "result": "另一种读法（补充理解；参考答案未列这两层）"
+     }
+    ],
+    "edges": [
+     {
+      "from": "N-CH-01",
+      "to": "N-CH-02",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-02",
+      "to": "N-CH-03",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-03",
+      "to": "N-CH-04",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-02",
+      "to": "N-CH-08",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-CH-04",
+      "to": "N-CH-05",
+      "type": "decision_selects"
+     },
+     {
+      "from": "N-CH-05",
+      "to": "N-CH-06",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-05",
+      "to": "N-CH-07",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-06",
+      "to": "N-CH-08",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-CH-07",
+      "to": "N-CH-08",
+      "type": "depends_on"
+     },
+     {
+      "from": "N-CH-08",
+      "to": "N-CH-09",
+      "type": "derives"
+     },
+     {
+      "from": "N-CH-09",
+      "to": "N-CH-10",
+      "type": "verify"
+     },
+     {
+      "from": "N-CH-07",
+      "to": "N-CH-11",
+      "type": "try_alternate"
+     }
+    ],
+    "alternatePaths": [
+     {
+      "id": "AP-CH-01",
+      "kind": "unverified_alternative_reading",
+      "methodName": "另一种读法：自勉 / 知己相知",
+      "nodeIds": [
+       "N-CH-07",
+       "N-CH-11"
+      ],
+      "verdict": "unverified_extra_layer",
+      "note": "同一尾联的另一种理解：诗人以砚之坚自况（自勉），或借砚写二人同道相知（知己）。参考答案没有列这两层，可以作为补充，不作为答题要点。"
+     }
+    ],
+    "successPath": [
+     "N-CH-01",
+     "N-CH-02",
+     "N-CH-03",
+     "N-CH-04",
+     "N-CH-05",
+     "N-CH-06",
+     "N-CH-07",
+     "N-CH-08",
+     "N-CH-09",
+     "N-CH-10"
+    ],
+    "failedBranches": 0,
+    "failureBranches": [],
+    "note": ""
+   },
+   "boardSelection": {
+    "schema_version": "furnace.board-selection/1",
+    "question_id": "Q-CH0001",
+    "subject": "chinese",
+    "complexity": "complex",
+    "complexity_source": "hints_ladder",
+    "question_type": "reading",
+    "question_type_source": "content_type_axes",
+    "boards": [
+     {
+      "board_id": "l0_question_entity",
+      "level": "L0",
+      "order": 10,
+      "legacy_panel": "question_entity",
+      "item_count": 1
+     },
+     {
+      "board_id": "l1_thinking_dag",
+      "level": "L1",
+      "order": 20,
+      "legacy_panel": "thinking_dag",
+      "item_count": 11
+     },
+     {
+      "board_id": "l1_solution_walkthrough",
+      "level": "L1",
+      "order": 21,
+      "legacy_panel": "thinking_dag",
+      "item_count": 10
+     },
+     {
+      "board_id": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "legacy_panel": "key_eye",
+      "item_count": 1
+     },
+     {
+      "board_id": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "legacy_panel": "traps",
+      "item_count": 3
+     },
+     {
+      "board_id": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "legacy_panel": "error_causes",
+      "item_count": 3
+     },
+     {
+      "board_id": "l2_layered_hints",
+      "level": "L2",
+      "order": 34,
+      "legacy_panel": "hints",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "legacy_panel": "extra_tasks",
+      "item_count": 2
+     },
+     {
+      "board_id": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "legacy_panel": "variants",
+      "item_count": 2
+     },
+     {
+      "board_id": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "legacy_panel": "extensions",
+      "item_count": 2
+     },
+     {
+      "board_id": "l5_meta",
+      "level": "L5",
+      "order": 60,
+      "legacy_panel": "five_dimension",
+      "item_count": 1
+     }
+    ],
+    "empty_boards": [
+     {
+      "board_id": "l2_stuck_points",
+      "level": "L2",
+      "reason": "empty_legacy_panel"
+     },
+     {
+      "board_id": "l3_similar_questions",
+      "level": "L3",
+      "reason": "no_candidates"
+     },
+     {
+      "board_id": "l4_subject_history",
+      "level": "L4",
+      "reason": "no_legacy_source"
+     }
+    ]
+   },
+   "studentContent": {
+    "stem": "元珍以诗送绿石砚所谓玉堂①新样者 王安石 玉堂新样世争传，况以蛮溪②绿石镌。 嗟我长来无异物，愧君持赠有佳篇。 久埋瘴雾看犹湿，一取春波洗更鲜。 还与故人袍色⑧似，论心于此亦同坚。 [注]①玉堂：宋代称翰林院为玉堂。②蛮溪：指南方的溪流。③袍色：官袍的颜色。古时低级官员袍服为青绿色。 16.尾联丰富了诗歌的情感内涵，请简要赏析。(6分)",
+    "answer": "①尾联两句以砚喻人。②由石砚的绿色联想到友人官位低微，暗含惋惜；③继而赞美友人的节操坚贞不移，一如石砚的质地坚硬纯正。",
+    "solution": "【考查目标】 《普通高中语文课程标准》学业质量水平4要求学生在阅读文学作品时“能在阅读和表达交流中探析有关文化现象；能结合具体作品，分析、论述相关的文化现象和观念”。本题以此为依据，考查考生在基本理解古代诗歌意思的基础上，正确分析诗歌谋篇结构及情感脉络，准确把握诗人思想感情的能力。 【试题分析】 尾联上句承袭颈联对颜色的关注，由石砚而起，却又跳脱出石砚，诗人联想到友人官服的颜色，也即联想到友人当下的身份。宋因唐制，三品以上服紫，五品以上服朱，七品以上服绿，九品以上服青。所谓“满朝朱紫贵”,服青或服绿的官员则意味着还没有进入朝廷官僚体系的核心圈子，地位相对要低一些。唐宋诗词中“青衫”“绿袍”一类的词语经常出现，无一不与穿衣人的身份相关，如考生所熟悉的白居易《琵琶行并序》(统编语文教材必修上册课文)中“江州司马青衫湿”一句，就是在强调白居易自己的贬谪之身，与序言中“是夕始觉有迁谪意”的说法呼应，唯其如此，白居易才会觉得自己与琵琶女“同是天涯沦落人”。丁宝臣在向王安石赠送石砚时，大概率是在端州知州任上，虽然是一州的最高长官，但据王安石《司封员外郎秘阁校理丁君墓志铭》记载，此时他的官阶不过是太常博士，从七品上，袍色正与石砚相似。王安石对这位故友是非常欣赏的，丁宝臣人到中年仍沉居下僚，不能不令王安石感叹惋惜。走笔至此，诗人的关注点已经不仅停留在石砚之上了，而是把石砚与送砚的友人联系到了一起，顺理成章，尾联下句又从石砚的“坚”联想到友人的“心”。这里的“心”可理解为“心志、节操”,称之为如石之坚，是对友人高尚品质的热情赞美。 【试题亮点】 本题以诗歌的结尾作为考查点，用意在于提升考生对诗歌艺术境界的体悟。古人将好的诗歌结尾比喻为“豹尾”,即是要求诗歌的结尾响亮，且留有余韵。 古代诗人对于诗歌结尾用心颇多，探索出许多行之有效的方法，为古代诗歌艺术技巧增加了丰富的内容。诸如首尾呼应、事断意贯等，都是诗歌作结时的常用办法，就本诗而言，则采用了宕开一笔、推开作结的方法。推开作结可以是跳过一步，暂时终止对当下的言说，以作者的思考与想象再造诗境，从而提升诗歌的艺术境界。全诗的前六句都是针对友人赠砚这一事实展开，无论是对石砚的鉴赏称道，还是对友人的感谢之情都是如此，进入尾联则有一个以砚喻人的跳跃，这一联的内容与上文似断实连，“故人袍色”所隐指的友人空怀才干却不甚得志的状况，与石砚本身并没有特别密切的联系，是因为诗人对友人怀有的深厚感情，才引发了诗人这样的联想。如果说上文表现的两人之间的情感还只是在感谢的层面，这里的联想则体现了诗人的惋惜与同情，使得诗歌整体的情感内涵进一步丰富。但还不止于此，诗人从石砚颜色上发现了它与友人之间的联系，那就不妨碍他再进一步，继续在其他方面有所发现，于是就有了尾联的下句“论心于此亦同坚”。石砚还拥有另外一个特质，即质地坚硬，“义心如石屹不转，死节如石确不移”,在传统语境中，坚硬的石头是比喻人心志节操坚定不移的常用意象，由石砚的这一特质，对友人品质的赞美自然水到渠成。诗人惋惜友人的怀才不遇，钦佩友人不肯与世俗妥协、不肯随波逐流的情操，诗歌的情感抒发至此达到高潮，全诗也在这样的强音中结束。这个结尾充分体现了诗人谋篇布局的匠心，诗人对于友人复杂的情感在此升华，表达诗人发自内心的惋惜之情和精神层面的肯定与赞赏，出于意料之外，但仍在情理之中。学习古代诗歌，收获可以是多方面的，既可以从思想内容上受到感染，神接古人，实现文化精神的传递，也可以从艺术手法上体悟古代诗人高超的写作手法，领悟几千年中国语言艺术的优美与精微。",
+    "solutionNote": "《2026年版全国高考语文试题分析》（教育部教育考试院编）（逐字转录；该来源为高考试题分析，不是评分细则）",
+    "showSourceAnalysis": true,
+    "figures": [],
+    "responseKind": "solution",
+    "answerAreaHeightMm": 80.0,
+    "panels": [
+     {
+      "boardId": "l2_key_eye",
+      "level": "L2",
+      "order": 30,
+      "title": "题眼",
+      "items": [
+       "题眼1：尾联的“袍色”不是砚色而是官袍之色——注③把“青绿色”与“低级官员”绑定；抓住这一点，才能从咏物读出“惋惜”这一层。；为什么关键：漏掉注③，只能答出“以砚喻人+赞美坚贞”，丢掉“惋惜友人官位低微”这一层（6 分里约 2 分），答案会退化成泛泛咏物。；常见误判：把“袍色似”当成单纯写砚台颜色、把“论心”读成砚台的纹理或工艺、把尾联情感答成“感谢赠砚”（感谢已在颔联“愧君持赠有佳篇”写过）"
+      ]
+     },
+     {
+      "boardId": "l2_traps",
+      "level": "L2",
+      "order": 31,
+      "title": "陷阱/易错点",
+      "items": [
+       "陷阱1：只写“尾联运用了以砚喻人的手法，情感丰富”，不引“袍色”“同坚”，也不说惋惜什么、赞美什么。；正确做法：每一条都要引原句并落到具体情感：颜色线→惋惜官位低微；质地线→赞美节操坚贞。；怎么验证：逐点做“点—句对照”：每条左边写判断，右边抄尾联中的对应词（≤10 字）。",
+       "陷阱2：只答“赞美友人节操坚贞”，漏掉“惋惜友人官位低微”。；正确做法：由注③“低级官员袍服为青绿色”推出友人沉居下僚，补出“惋惜/同情”一层。；怎么验证：把答案三点与参考答案①②③逐一对照，缺②即扣该点分值。",
+       "陷阱3：把尾联情感套成“表达对友人的思念/友谊深厚”，用一个通用情感覆盖所有赠答诗。；正确做法：尾联的情感是“惋惜+赞美”两层，且由砚的颜色与质地这两种具体物性触发，必须落回“袍色”“同坚”。；怎么验证：检查每个情感词能否在尾联找到触发原句。"
+      ]
+     },
+     {
+      "boardId": "l2_error_causes",
+      "level": "L2",
+      "order": 32,
+      "title": "错因",
+      "items": [
+       "读题失误：答案只覆盖“以砚喻人+赞美”，漏“惋惜官位低微”，6 分最多拿 4 分。；根因：没把注③当作解题信息，按“咏物诗=赞美”的套路读尾联。；补救：做 1 组“注释反推”任务：遮住参考答案，用注③写出“袍色”可能指向的三种意思并说明取舍依据。",
+       "答案有术语、有感受，但没有一个原句落点，判卷无法给分。；根因：没有按“判断+原句+情感”三件套组织，把赏析写成读后感。；补救：做 1 次“点—句对照表”：左边三条得分点，右边抄出对应原句词，抄不出就重写该点。",
+       "把尾联答成“感谢赠砚/思念友人”，与前六句重复或脱空。；根因：没有先看全诗的情感推进，直接套赠答诗模板。；补救：做 1 次“四联情感标注”：给首/颔/颈/尾各写一句情感，圈出哪一联在“推进”。"
+      ]
+     },
+     {
+      "boardId": "l2_layered_hints",
+      "level": "L2",
+      "order": 34,
+      "title": "分层提示",
+      "items": [
+       "第1级（方向）：先看尾联上句的“袍色”指的是谁的、什么颜色，再回看注释③说的是哪一类官员的服色。",
+       "第2级（关键观察）：尾联两句各用砚的一种物性对应人的一面：一句用“颜色”，一句用“坚”。分别想它们各自能推出哪一层情感。"
+      ]
+     },
+     {
+      "boardId": "l3_extra_tasks",
+      "level": "L3",
+      "order": 40,
+      "title": "额外任务",
+      "items": [
+       "任务1：给下面这份答案按“手法—惋惜—赞美”三条评分：“尾联以砚喻人，赞美了友人的坚贞。”指出它能得几分、丢在哪，并补写缺的那一层。；产出：列表；达标：指出它只覆盖参考答案①③、缺②（惋惜官位低微）；指出“以砚喻人”没有引原句，属空术语；补写出一句能落到“袍色/注③”的惋惜层表述",
+       "任务2：用“点—句对照表”自检你刚写的答案：每条得分点旁边抄出尾联中对应的词（不超过 10 字），抄不出的那条判为无效。；产出：表格；达标：三条点各有 ≤10 字的原句落点；“以砚喻人”能对到“袍色似/同坚”两个词；自检后能指出自己缺的是哪一层并补写"
+      ]
+     },
+     {
+      "boardId": "l3_variants",
+      "level": "L3",
+      "order": 41,
+      "title": "变式",
+      "items": [
+       "变式1（表征转换）：把“赏析尾联情感内涵”改为：分析颈联“久埋瘴雾看犹湿，一取春波洗更鲜”在全诗中的作用。（6分）；答案：颈联承接首联的赏砚，写砚的湿润晶莹（“久埋瘴雾看犹湿，一取春波洗更鲜”）：既落实“蛮溪绿石”的材质，又把它写得有生气，为尾联由砚的色与质转向写人作铺垫，与“袍色”“同坚”形成由物到人的递进。",
+       "变式2（删条件）：如果把注③“袍色：官袍的颜色。古时低级官员袍服为青绿色”删掉，还能不能读出“惋惜友人官位低微”？说明理由。（4分）；答案：不能确证。没有注③，“袍色”只能读作颜色词（砚色或袍色），可以读出“以砚喻人”，但“低级官员/地位低”这一层失去文本依据，只能算猜测——这正是注③作为信息门槛的作用。"
+      ]
+     },
+     {
+      "boardId": "l4_extension_material",
+      "level": "L4",
+      "order": 50,
+      "title": "扩展资料",
+      "items": [
+       "【超纲背景·扩展背景，课内不学】移情与比德：石头为什么能替人说话：咏物诗的读法背后有一条发展线索：先秦的“比德”山水观先把自然物读成人格（水比智、山比仁）；后来的美学把它讲成“移情”——人把情感移注外物，物的形象成为人的情趣的返照（朱光潜《谈美》讲得最清楚，可作扩展阅读）；诗学里再沉淀成“意象编码”：石头长期承担“坚贞”，竹承担“有节”，玉承担“温润”。课内不学这套美学史，高考不考名词与年代；要学的是“哪种物性对上人的哪一面”这条可迁移的判断。；为什么：有了这条编码，读咏物诗…",
+       "【超纲背景·扩展背景，课内不学】服色即身份：颜色词怎样读出人的处境：唐宋官服按品级分色（宋：三品以上紫、五品以上朱、七品以上绿、九品以上青），颜色因此成了一套“读人”的编码：紫朱是显达，青绿是沉沦。读“青衫”“绿袍”“朱绂”“紫袍”时，先判断人物处境，再判断诗人态度（自嘲、惋惜、赞美）。课内不学这套制度史，也不要求记品级条文与作者年代；要学的是“颜色词可以指身份”这一条可迁移判断。；为什么：古人写颜色常常是在写身份。读到“青衫”“绿袍”“朱绂”“紫袍”，先判断人物处境，再判断…"
+      ]
+     }
+    ],
+    "upperKnowledge": [
+     {
+      "title": "【超纲背景·扩展背景，课内不学】移情与比德：石头为什么能替人说话",
+      "level": "远背景",
+      "what": "咏物诗的读法背后有一条发展线索：先秦的“比德”山水观先把自然物读成人格（水比智、山比仁）；后来的美学把它讲成“移情”——人把情感移注外物，物的形象成为人的情趣的返照（朱光潜《谈美》讲得最清楚，可作扩展阅读）；诗学里再沉淀成“意象编码”：石头长期承担“坚贞”，竹承担“有节”，玉承担“温润”。课内不学这套美学史，高考不考名词与年代；要学的是“哪种物性对上人的哪一面”这条可迁移的判断。",
+      "why": "有了这条编码，读咏物诗就不只是套“托物言志”，而能问：这种物性在传统里对应什么人格？诗人把它对给了谁？本诗用砚的“绿”对官袍、“坚”对心，惋惜与赞美才有根。理论怎么变（比德→移情→意象编码）不用背，会用就行。",
+      "how": "三步迁移：①圈物性词（色/坚/润/香）；②想它在这一传统里对应什么人格（石→坚贞、竹→有节、玉→温润）；③看它对给了谁，情感方向由对位决定。",
+      "buildSteps": [
+       "先秦的“比德”山水观把自然物的形态读成人格：“知者乐水，仁者乐山”（水比智、山比仁）。",
+       "近代美学把同类现象讲成“移情”：人把情感移到外物，物的形象是人的情趣的返照；朱光潜《谈美》是这条讲法的通俗入口（扩展阅读，不要求记书名年代）。",
+       "诗学把它沉淀为“意象编码”：同一物性反复与同一人格配对，读诗时可按“物性→人格→对给谁”解码；“石”长期承担“坚贞”（“我心匪石，不可转也”“金石可镂”）。",
+       "课本名例只作对照：《石灰吟》以石灰之“清白”写人格，《竹石》以竹之“坚劲”写不屈；换物不换编码。",
+       "本诗尾联把砚的色对袍色、砚的坚对心，是这条编码的现场使用。"
+      ],
+      "example": "用这套编码读本诗：砚之“绿”→“袍之绿”→友人官位低（惋惜）；砚之“坚”→“心之坚”→节操坚贞（赞美）。再看同一编码在别处：《石灰吟》“粉骨碎身浑不怕，要留清白在人间”用石灰之清白写人格；《竹石》“千磨万击还坚劲”用竹之坚劲写不屈——物换了，编码没换。",
+      "limitations": "比德不是万能钥匙：没有“物—人”对位的纯写景不能强解；同一物性在不同语境可指不同品格（水可喻智，也可喻时光流逝），要靠上下文定；把任何颜色都读成身份，就是过度阐释。理论线索（比德→移情→意象编码）只要知道“物性可编码成人格”，人名、书名、年代都不用记。"
+     },
+     {
+      "title": "【超纲背景·扩展背景，课内不学】服色即身份：颜色词怎样读出人的处境",
+      "level": "远背景",
+      "what": "唐宋官服按品级分色（宋：三品以上紫、五品以上朱、七品以上绿、九品以上青），颜色因此成了一套“读人”的编码：紫朱是显达，青绿是沉沦。读“青衫”“绿袍”“朱绂”“紫袍”时，先判断人物处境，再判断诗人态度（自嘲、惋惜、赞美）。课内不学这套制度史，也不要求记品级条文与作者年代；要学的是“颜色词可以指身份”这一条可迁移判断。",
+      "why": "古人写颜色常常是在写身份。读到“青衫”“绿袍”“朱绂”“紫袍”，先判断人物处境，再判断诗人态度（自嘲、惋惜、赞美）；这正是“袍色”能带出惋惜的原因。",
+      "how": "三步：①看颜色修饰的是衣、物还是自然景物；②若指服色，按品级换算身份；③看诗人用这个颜色想说什么。",
+      "buildSteps": [
+       "注③只给最小信息：“袍色：官袍的颜色。古时低级官员袍服为青绿色。”",
+       "所给解析补全制度：三品以上紫、五品以上朱、七品以上绿、九品以上青，服青绿者“地位相对要低一些”。",
+       "颜色词在诗里常与身份相关：同一份解析举白居易《琵琶行》“江州司马青衫湿”为例，青衫即低品级服色。"
+      ],
+      "example": "本诗“袍色”→友人低级官位→惋惜；《琵琶行》“青衫”→白居易贬谪自伤。同一编码，两处用法。读到“绿袍”先别当风景，它常常在告诉读者这个人“在什么位置上”。",
+      "limitations": "品级服色历代有变，宋代内部也调整过；颜色也可纯用于写景，不能一律政治化；只能用来判断“低位/高位”这一层，不能反推具体官阶。品级条文与年代都不用记。"
+     }
+    ],
+    "aiAnswer": {
+     "answer": "①以砚喻人；②惋惜（友人官位低微）；③赞美（节操坚贞如石）。AI 另补：④物我绾合/知己相契；⑤自勉。",
+     "reasoning": "①②③与参考答案一致。④⑤来自 AI 对尾联“论心于此亦同坚”的另一种读法：砚与故人“同坚”既可读成赞美对方，也可读成自我期许；若把尾联看成“物—人—心”三层，④⑤是对“心”这一层的再展开。",
+     "debate": "可辩论点：④⑤在参考答案中没有出现，是否应给分？参考答案非唯一标准答案，请评判这两层是否成立、能否由原句支撑。",
+     "note": ""
+    }
+   },
+   "problemState": {
+    "counts": {
+     "facts": 9,
+     "assumptions": 6,
+     "decisions": 5,
+     "unknowns": 9,
+     "artifacts": 4
+    },
+    "factTrustVerified": 8,
+    "factTrustReported": 1,
+    "decisionsProposed": 5,
+    "decisionsAccepted": 0,
+    "decisionsRejected": 0,
+    "decisionsAllProposed": true,
+    "unknowns": [
+     "本题官方评分细则是什么？2/2/2 的分值拆分是否符合真实评分标准，还是只应按三条要点整体给 6 分？",
+     "参考答案是否唯一？盲解 A1 额外提出“自勉/知己相知”两层，是否给分未定；acceptable_variants 也未经人工裁定。",
+     "Source 是否为出版方原件？docProps 只有二次传播痕迹，未联网核实原书出版信息，无法确认。",
+     "第二副本交叉是否可以完成？2027 年版语文 PDF 是扫描件（143 页 / 6006 字符 / 未检出本题），OCR 未做，答案因此只到 B 级。",
+     "8 节点 DAG 每一步在语义上是否正确？目前只有 schema + 自评 quality + 1 次盲解，review.status=pending。"
+    ],
+    "unknownsMore": 4,
+    "oracleKind": "deterministic",
+    "oracleDescription": "机械层（schema/引用完整性/双 hash/stem 指纹）+ 抽取保真 52 项。它不证明评分点分值与参考答案唯一性——这两项没有 oracle，必须人工复核。",
+    "budgetNull": true,
+    "nodeStatus": "draft",
+    "note": "材料快照，未审批；未接 ProblemStateStore/DB/UI。"
+   }
+  }
+ ],
+ "entries": [
+  {
+   "id": "L1-01",
+   "name": "Problem State Store（问题状态存储）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定+修正",
+   "userEval": "用户判定：肯定+修正。「从更高视角看问题 有一个问题模型（根问题、不变量、约束、未知、验收），任务只是它的视图，不是主体」",
+   "summary": "跨轮稳定住\"到底要解决什么\"，让 anchors/claims/decisions/unknowns 不随上下文压缩丢失。 把事实（facts）、假设（assumptions）、决策（decisions）、废弃（rejected）分栏存放，并给每条挂验收 oracle 与预算；任务只能引用 problem node，不能独立存在。",
+   "mechanism": "• 作用：跨轮稳定住\"到底要解决什么\"，让 anchors/claims/decisions/unknowns 不随上下文压缩丢失。\n• 原理：把事实（facts）、假设（assumptions）、决策（decisions）、废弃（rejected）分栏存放，并给每条挂验收 oracle 与预算；任务只能引用 problem node，不能独立存在。\n• 机制（早期 HANDOFF 原字段）：goal / constraints / unknowns / assumptions / evidence / decisions / acceptance oracle / budget。",
+   "evidence": "A3",
+   "paper": "无单篇论文（用户/项目原创）；结构上最接近的一手是 Always-On Agents 综述的\"持久状态 = 记忆/目标/权限/触发/来源/执行记录\"六轴：https://arxiv.org/abs/2606.30306"
+  },
+  {
+   "id": "L1-02",
+   "name": "Reference-first Context（引用优先上下文）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Partial",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「所以不是\"raw CoT 太噪，扔掉\"，而是：原样存档 raw CoT（带 hash）；离线分段：读题/建模/分支/计算/检查/回退/结论；去重但不丢语义：重复段落折叠，保留出现次数和原段落指针；提取 thought moves：它做了什么判断、用了什么条件、在哪里回退；压缩成 evaluator 可用的\"思维摘要 + 原始证据指针\"，不把整段 CoT 再塞进下游上下文。」",
+   "summary": "降 token、降失真、让摘要可回源。 客观具体内容（题干、答案、公式、文件、代码、日志）只存引用（路径/ID/hash/精确片段）；只有判断、假设、取舍、未决问题做有损摘要；摘要必须带指针。",
+   "mechanism": "• 作用：降 token、降失真、让摘要可回源。\n• 原理：客观具体内容（题干、答案、公式、文件、代码、日志）只存引用（路径/ID/hash/精确片段）；只有判断、假设、取舍、未决问题做有损摘要；摘要必须带指针。\n• 机制：ref + sha256 + span；读取时用工具按需取，不在上下文里转述。",
+   "evidence": "A3",
+   "paper": "无单篇论文；一手相邻：Anthropic《The components of agent memory》四层记忆（原始会话 / 记忆笔记 / Wiki / 自动加载小上下文）：https://www.anthropic.com/research/components-of-agent-memory（A3，来自用户粘贴摘要 seq=11455）"
+  },
+  {
+   "id": "L1-04",
+   "name": "Minimal Loop（最小循环）",
+   "layer": "L1",
+   "status": "否定",
+   "statusRaw": "Expired / Revised",
+   "userVerdict": "否定（旧表述）",
+   "userEval": "用户判定：否定（旧表述）。「而不是每步加检查，不不不，每步的检查是必要的！如果你嫌麻烦，可以选择每多少时间或者每几步检查一次，但是一定要有原始的，高频、小代价、处理简单任务的检查！」",
+   "summary": "• 旧主张：不做固定仪式、不做每步审核，只在已知失败模式设 gate，避免昂贵盲审。\n• 修正后的原理：检查成本必须与检查频率匹配——确定性 micro-check 可以每步；LLM 语义审查一次；二者不可互相替代（依据：Huang 负结果 + 本地 v4 改坏答案事故）。",
+   "mechanism": "• 旧主张：不做固定仪式、不做每步审核，只在已知失败模式设 gate，避免昂贵盲审。\n• 修正后的原理：检查成本必须与检查频率匹配——确定性 micro-check 可以每步；LLM 语义审查一次；二者不可互相替代（依据：Huang 负结果 + 本地 v4 改坏答案事故）。",
+   "evidence": "A3",
+   "paper": "无论文；相邻负结果：Huang et al. 2023《Large Language Models Cannot Self-Correct Reasoning Yet》https://arxiv.org/abs/2310.01798（A2，本次核对摘要）"
+  },
+  {
+   "id": "L1-09",
+   "name": "Budget + Stop（预算与停线）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Partial",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「同时，这个 token 消耗会不会太多了？它有很多重复、试探、自我推翻，直接塞进上下文会很贵、很噪，这是我们要解决的问题，而不是逃避」",
+   "summary": "防止思维链吃光答案、无限自我怀疑、重复调用。 每阶段 token/时间预算；预算到 70% → forceAnswer；answer reserve 不允许被 reasoning 吃掉；同一失败两次 → 停线（不换 agent 硬试）。",
+   "mechanism": "• 作用：防止思维链吃光答案、无限自我怀疑、重复调用。\n• 原理：每阶段 token/时间预算；预算到 70% → forceAnswer；answer reserve 不允许被 reasoning 吃掉；同一失败两次 → 停线（不换 agent 硬试）。\n• 机制：RunBudget + StepGuardDecision{proceed/forceAnswer/stop/repair} + stop_reason 结构化落库。",
+   "evidence": "A2",
+   "paper": "无单篇论文；一手相邻：MIP 显示\"实例数 200 后整批准确率明显退化\"https://arxiv.org/abs/2603.22608（A2）——说明硬预算/分片是必需，不是优化"
+  },
+  {
+   "id": "L1-10",
+   "name": "Typed Handoff（类型化交接）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Partial",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「Typed Handoff：artifact/sha256/p0/p1/evidence/unknowns/cost 短结构，建议扩展到通用。」",
+   "summary": "让交接可机读、可审计、低 token。 报告只写 artifact 路径、sha256、P0/P1 问题、证据指针、未知项、成本；禁止长散文。",
+   "mechanism": "• 作用：让交接可机读、可审计、低 token。\n• 原理：报告只写 artifact 路径、sha256、P0/P1 问题、证据指针、未知项、成本；禁止长散文。\n• 机制：确定性程序构造 handoff → checker 只读结构 → 结论回写。",
+   "evidence": "A2",
+   "paper": "无单篇论文；相邻一手：MIP 的诊断版本\"4620 次实验里 171 次漏掉实例级答案，仅 27 次明确建议分批\"https://arxiv.org/abs/2603.22608（A2）——说明结构化交接缺失会造成系统性遗漏"
+  },
+  {
+   "id": "L1-11",
+   "name": "Trace + Cost/Quality（事件图 + 指标）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Partial",
+   "userVerdict": "修正（降级实验指标）",
+   "userEval": "用户判定：修正（降级实验指标）。「Trace + Cost/Quality：事件图；首过率/返工/同因复发/cache/context 稀释/handoff 损失/token 接受件，这是什么我怎么看不懂？」",
+   "summary": "把\"这次变好没有\"变成可比较数字。 事件图（goal/task/step/tool/evidence/decision/artifact/error）+ 指标；指标服务实验，不服务 UI。",
+   "mechanism": "• 作用：把\"这次变好没有\"变成可比较数字。\n• 原理：事件图（goal/task/step/tool/evidence/decision/artifact/error）+ 指标；指标服务实验，不服务 UI。\n• 机制：run/step/verification 落库；实验侧另算首过率、返工、同因复发。",
+   "evidence": "A3",
+   "paper": "无单篇论文；一手相邻：MIP 与 Always-On 的治理/审计要求（A2）"
+  },
+  {
+   "id": "L1-12",
+   "name": "Checker teammate（独立审查者）",
+   "layer": "L1",
+   "status": "审核中",
+   "statusRaw": "Affirmed，Under review",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「你的设计非常好！掌握到了我的设计哲学！唯一的问题是 CheckerHandoff 是什么？」",
+   "summary": "发现\"程序检查不到的隐藏逻辑/认知问题\"。 答案先冻结（AnswerGate 通过）→ checker 拿确定性处理过的 CoT 做一次全量语义审查 → solver 局部重推 → 复验一次。",
+   "mechanism": "• 作用：发现\"程序检查不到的隐藏逻辑/认知问题\"。\n• 原理：答案先冻结（AnswerGate 通过）→ checker 拿确定性处理过的 CoT 做一次全量语义审查 → solver 局部重推 → 复验一次。\n• 机制：独立 context/工具/数据管线；结构化报告（step_id/evidence/violated/minimal_fix）；同一 issue 二次出现 → 停并转 unknown/人工。",
+   "evidence": "A3",
+   "paper": "无单篇论文；相邻一手：Viva La Vida（fail-closed verifier 把\"系统错误\"与\"数学否定\"混成 false，A3）；Stellar Colosseum\"定向证伪 + 局部修复\"https://arxiv.org/abs/2609.15983（A3）"
+  },
+  {
+   "id": "L1-13",
+   "name": "AnswerGate + Anchor/Checkpoint",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Partial",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「我有一个思路，即关键量和关键关系根据题目一定是确定的。」",
+   "summary": "在花钱的 checker 之前，用确定性规则打掉明显错答案。 题目决定的关键量/关系/点/临界/定义域是方法无关必要条件（锚点），不是固定步骤；required 锚点任何合法解法都要满足。",
+   "mechanism": "• 作用：在花钱的 checker 之前，用确定性规则打掉明显错答案。\n• 原理：题目决定的关键量/关系/点/临界/定义域是方法无关必要条件（锚点），不是固定步骤；required 锚点任何合法解法都要满足。\n• 机制：Anchor{kind, scope: required/ifReferenced/ifUsed, constraints: numeric/symbolic/interval/exclusion/domain/textEvidence}；多解法 OR 组；无法判断 → unknown，不误杀。",
+   "evidence": "A3",
+   "paper": "无单篇论文；一手相邻：Gao et al. 代理奖励过优化 https://arxiv.org/abs/2210.10760（A2）——说明 reward/proxy 必须由真值兜底"
+  },
+  {
+   "id": "L1-14",
+   "name": "StepVerifier（每步确定性检查）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「而不是每步加检查，不不不，每步的检查是必要的！如果你嫌麻烦，可以选择每多少时间或者每几步检查一次，但是一定要有原始的，高频、小代价、处理简单任务的检查！」",
+   "summary": "在便宜的地方拦住\"未定义符号、单位错、代数小变形错、重复、状态无变化、局部条件/分支 guard\"。 确定性规则只能\"高精度发现确定问题\"，不能\"认证全部正确\"。",
+   "mechanism": "• 作用：在便宜的地方拦住\"未定义符号、单位错、代数小变形错、重复、状态无变化、局部条件/分支 guard\"。\n• 原理：确定性规则只能\"高精度发现确定问题\"，不能\"认证全部正确\"。\n• 机制（本地 spike，转引 STUDENT-MODE-AND-AGENT-LOOP-DESIGN-2026-11-14.md §7.7）：strict 规则 invalid precision 1.00、false-valid 0/20、valid 覆盖 0.40、模型体积 0。",
+   "evidence": "A3",
+   "paper": "无单篇论文；一手相邻：Huang et al. 自纠正负结果 https://arxiv.org/abs/2310.01798（A2）——证明\"靠模型自己再检查\"不可靠，必须换确定性手段"
+  },
+  {
+   "id": "L1-15",
+   "name": "LoopGuard / ProcessAuditor（循环与过程审计）",
+   "layer": "L1",
+   "status": "已落地",
+   "statusRaw": "Landed/Partial",
+   "userVerdict": "质疑→修正",
+   "userEval": "用户判定：质疑→修正。「这个能观测到的问题其实不是很够，因为很多反复无意义尝试，可能是一个大的尝试环，ABCDEFG -> ABCDEFG，每个字母代表不同的工具、参数，你这样子能检测到吗？」",
+   "summary": "检测循环、重复怀疑、无进展，不阻止有效探索。 动作/阶段序列 n-gram 周期、状态 fingerprint 连续不变、同一 claim 在依赖版本未变时重复出现、自我怀疑短语密度、已 settled 分支重开。",
+   "mechanism": "• 作用：检测循环、重复怀疑、无进展，不阻止有效探索。\n• 原理：动作/阶段序列 n-gram 周期、状态 fingerprint 连续不变、同一 claim 在依赖版本未变时重复出现、自我怀疑短语密度、已 settled 分支重开。\n• 机制：ProcessReport{loopDetected, stagnation, repeatedClaimCount, selfDoubtCount, flags, extractedClaims}。",
+   "evidence": "A3",
+   "paper": "无单篇论文；一手相邻：Huang et al.（自我怀疑/自纠正会变差，A2）"
+  },
+  {
+   "id": "L1-16",
+   "name": "ClaimLedger / ClaimMatcher（命题账本与匹配）",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Partial",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「hash 要求内部内容的精确相同，而 LLM 的特征，或者说自然语言的特征，就是可以用多种表述方法指向同一问题，所以我认为你的检测方式是失效了的，除非你有特殊算法可以应对这一问题；Claim 的具体方法是什么呢？」",
+   "summary": "让\"哪些结论已成立、依赖谁\"可追踪；去重检查成本。 claim DAG + 依赖版本 + 一次检查缓存；依赖变化只失效下游；只有 verified/given 可进最终答案。",
+   "mechanism": "• 作用：让\"哪些结论已成立、依赖谁\"可追踪；去重检查成本。\n• 原理：claim DAG + 依赖版本 + 一次检查缓存；依赖变化只失效下游；只有 verified/given 可进最终答案。\n• 机制：精确 hash → 规范化 hash → 结构化字段 → 词法/n-gram/MinHash/同义词 → 数学 AST → 少量 LLM judge（只判\"是否同一命题\"）；不确定标 possibly_duplicate，不合并。",
+   "evidence": "A3",
+   "paper": "无单篇论文；相邻一手：Stellar Colosseum 依赖图/局部修复 https://arxiv.org/abs/2609.15983（A3）"
+  },
+  {
+   "id": "L1-18",
+   "name": "Answer 信任等级 A/B/C",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「有了标准的答案是不够的，很多教辅资料的解析是错误的，或者逻辑存在漏洞，没有讲清楚，更有甚者就是用自然语言把答案念出来，毫无意义。」",
+   "summary": "防止把教辅答案当真理。 A=官方/教师确认；B=权威教辅（可错）；C=弱标签/AI 生成（不可当 oracle）。",
+   "mechanism": "• 作用：防止把教辅答案当真理。\n• 原理：A=官方/教师确认；B=权威教辅（可错）；C=弱标签/AI 生成（不可当 oracle）。\n• 机制：答案带 trust_level + source + provenance；oracle 只吃 A 级。",
+   "evidence": "A3",
+   "paper": "无单篇论文；相邻一手：Always-On Agents 的 authority/provenance 六轴 https://arxiv.org/abs/2606.30306（A2）"
+  },
+  {
+   "id": "L1-22",
+   "name": "Preset / Composition 绑定",
+   "layer": "L1",
+   "status": "待完善",
+   "statusRaw": "Partial",
+   "userVerdict": "肯定+修正",
+   "userEval": "用户判定：肯定+修正。「这样，你先完成 preset 甚至是 dsh 软件代码的更改（一个新的 agent loop 之类的，一个 preset 包含什么啊？」",
+   "summary": "preset 决定 composition（loop / prompt sections / tools / budget / verifier / phase policy）；会话只存 id；blank session 才能改。",
+   "mechanism": "preset 决定 composition（loop / prompt sections / tools / budget / verifier / phase policy）；会话只存 id；blank session 才能改。",
+   "evidence": "A3",
+   "paper": "无论文（照 DSH 语义，用户要求\"直接照搬 dsh\"）"
+  },
+  {
+   "id": "K-01",
+   "name": "MIRT / Q-matrix",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「能力矩阵（MIRT/Q-matrix，知识+逻辑/严谨/空间/运算）Affirmed，未落地 当前无学生模型。」",
+   "summary": "把\"一个标量分数\"拆成\"多维度能力向量\"，从而解释\"哪一类能力在退化\"。 经典 IRT 用题目难度 b、区分度 a、学生潜在能力 θ 决定答对概率；MIRT 把 θ 扩成向量，Q-matrix 描述题目考哪些能力维度。",
+   "mechanism": "• 作用：把\"一个标量分数\"拆成\"多维度能力向量\"，从而解释\"哪一类能力在退化\"。\n• 原理：经典 IRT 用题目难度 b、区分度 a、学生潜在能力 θ 决定答对概率；MIRT 把 θ 扩成向量，Q-matrix 描述题目考哪些能力维度。\n• 机制（设计层，非已实现）：题目带能力权重向量 → 更新 θ 向量 → 输出雷达图/薄弱维度。用户已否定\"给题目打一个 0.8 的权重分\"这种拍脑袋做法，要求从\"问题/内容\"正推（seq=2259 第 36 轮）。",
+   "evidence": "A4",
+   "paper": "无一手论文链接（SMALL-COGNITIVE-MODEL-RESEARCH-2026-11-14.md §8.3 明确\"IRT/MIRT 一手文献本次未读，不引用\"）。可查方向：多维 IRT 专著/综述（未核）。相邻可读一手：KT 综述的模型分类 https://arxiv.org/abs/2105.15106（A2，本次核对摘要）"
+  },
+  {
+   "id": "K-02",
+   "name": "IRT",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「F，要是连续的值」",
+   "summary": "题目参数与学生能力分开估计，预测答对概率。 \\(P(\\text{correct}) = f(\\theta - b)\\) 或其多参数形式；能力是连续潜变量。",
+   "mechanism": "• 作用：题目参数与学生能力分开估计，预测答对概率。\n• 原理：\\(P(\\text{correct}) = f(\\theta - b)\\) 或其多参数形式；能力是连续潜变量。\n• 机制（工程）：先跑单参数（Rasch，参数少、可解释），有数据再上多维。",
+   "evidence": "A4",
+   "paper": "无一手链接（本轮未读，不引用）。可查方向：Rasch 模型 / 单参数 IRT 教材与综述（未核）"
+  },
+  {
+   "id": "K-03",
+   "name": "BKT",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "整合",
+   "userEval": "用户判定：整合。「BKT 冷启动 Affirmed，未落地 数据少时可选；AKT/GKT 深度追踪 Deferred 数据量/冷启动不足；未来；RPKT 递归前置探查 Affirmed，未落地 用于 MindNet 补全/诊断回溯。」",
+   "summary": "逐知识点估计\"掌握概率\"并随作答更新。 BKT 是 HMM 特例，四参数：\\(P(L_0)\\) 初始掌握、\\(P(T)\\) 学习率、\\(P(G)\\) 猜对、\\(P(S)\\) 失误；假设两态、学会后不遗忘，每个 KC 独立一套参数。",
+   "mechanism": "（A1 转引，SMALL-COGNITIVE-MODEL-RESEARCH-2026-11-14.md §2.4）：\n• 作用：逐知识点估计\"掌握概率\"并随作答更新。\n• 原理：BKT 是 HMM 特例，四参数：\\(P(L_0)\\) 初始掌握、\\(P(T)\\) 学习率、\\(P(G)\\) 猜对、\\(P(S)\\) 失误；假设两态、学会后不遗忘，每个 KC 独立一套参数。\n• 机制：答对/答错做贝叶斯后验更新，再叠加学习转移。",
+   "evidence": "A1转引",
+   "paper": "一手综述（读到 arXiv HTML 正文，A1 转引）：https://arxiv.org/abs/2105.15106（*A Survey of Knowledge Tracing: Models, Variants, and Applications*；本次核对作者为 Shen, Liu, Huang, Zheng, Yin, Wang, Chen；IEEE TLT 17(2024)1898"
+  },
+  {
+   "id": "K-05",
+   "name": "GKT / DBKT",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Deferred",
+   "userVerdict": "肯定+修正",
+   "userEval": "用户判定：肯定+修正。「还有 Graph 的题库组织架构设计当时也很惊艳我，题库中题目的选取融入神经网络我觉得非常合理且有用。」",
+   "summary": "把课程知识结构当图，让状态沿依赖关系传递，从而处理综合题。 用动态贝叶斯网把多个 KC 联合建模，能表达前置层级（KC1、KC2 → KC3）。",
+   "mechanism": "• 作用：把课程知识结构当图，让状态沿依赖关系传递，从而处理综合题。\n• 原理（GKT 摘要原话）：把 KT 重构为 GNN 上的时序节点级分类；知识图结构在多数场景并不显式给出，作者提出多种图构造方式；\"could potentially improve\"预测表现且更可解释。\n• 原理（DBKT，综述正文）：用动态贝叶斯网把多个 KC 联合建模，能表达前置层级（KC1、KC2 → KC3）。\n• 机制（推荐形态，A4 设计）：节点状态 4–16 维；边只前向；先按图聚合前置状态，再用本次作答做贝叶斯更新；在目标 KC 节点线性读出。",
+   "evidence": "A3",
+   "paper": "GKT https://doi.org/10.1145/3350546.3352513（Nakagawa, Iwasawa, Matsuo, 2019；A3，本会话只取到摘要）；DBKT 见 KT 综述 https://arxiv.org/abs/2105.15106（A1 转引）"
+  },
+  {
+   "id": "K-07",
+   "name": "SLOW",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept，Partial",
+   "userVerdict": "肯定+待定",
+   "userEval": "用户判定：肯定+待定。「SLOW 诊断/决策分离 Affirmed concept，Partial 与 Checker/AnswerGate 分离同构；情感推理未定，经过我后续线下思考，情感推理这部分我觉得是一个非常棒的我忽略的部分。」",
+   "summary": "避免\"快思考\"把认知诊断、情感感知、教学决策混在一次生成里。 受双过程理论启发，显式分离\"学习者状态推断\"与\"教学动作选择\"。",
+   "mechanism": "（A2 摘要）：\n• 作用：避免\"快思考\"把认知诊断、情感感知、教学决策混在一次生成里。\n• 原理：受双过程理论启发，显式分离\"学习者状态推断\"与\"教学动作选择\"。\n• 机制：三块——从学习者语言解析因果证据；模糊认知诊断 + 反事实稳定性分析；前瞻性情感推理（预判某教学选择如何影响学习者情绪轨迹）。评测为 hybrid human-AI judgments。",
+   "evidence": "A2",
+   "paper": "https://arxiv.org/abs/2603.28062（AIED 2026；A2 摘要）"
+  },
+  {
+   "id": "K-09",
+   "name": "LearnerCoMPASS",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「LearnerCoMPASS 能干什么？能反馈知识点吗？」",
+   "summary": "（A3，用户粘贴/检索摘要）：Graph-RAG 从动态知识图谱召回的不是\"相关文本片段\"，而是事实锚点与逻辑约束，作为 LLM 推理的硬边界；多模型路径规划 + 动态认知诊断 + 可信推理引擎（A3）。",
+   "mechanism": "（A3，用户粘贴/检索摘要）：Graph-RAG 从动态知识图谱召回的不是\"相关文本片段\"，而是事实锚点与逻辑约束，作为 LLM 推理的硬边界；多模型路径规划 + 动态认知诊断 + 可信推理引擎（A3）。",
+   "evidence": "A3",
+   "paper": "ACL 2026 长文 *LearnerCoMPASS: Intelligent Tutoring System with Dynamic Cognitive Diagnosis and Multi-Model Path Planning*（Sheng, Tie, Wang, Zhou, Liu）；本轮未取到 arXiv 号，二手入口 https://www.semanticscholar.org"
+  },
+  {
+   "id": "K-12",
+   "name": "ACT-R / 工作记忆",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept",
+   "userVerdict": "待定/质疑",
+   "userEval": "用户判定：待定/质疑。「不是让模型自己\"涌现\"出容量限制。可做的是：有限工作记忆槽位；有限思考步数/计算预算；一次只能选一个 production 的结构化槽位；注意力/计算资源上限。」",
+   "summary": "• ACT-R（A3）：多模块理论；chunk 放进 buffer，production system 对 buffer 模式反应；任一时刻只选中一条 production；subsymbolic 过程决定规则选择；学习很大程度是这些 subsymbolic 过程的调参。\n• ACT（A2）：RNN 学会\"输入到输出走多少计算步\"；合成任务大幅提升，Wikipedia 字符级 LM 无大幅提升，但把更多计算分给难预测的转移。",
+   "mechanism": "• ACT-R（A3）：多模块理论；chunk 放进 buffer，production system 对 buffer 模式反应；任一时刻只选中一条 production；subsymbolic 过程决定规则选择；学习很大程度是这些 subsymbolic 过程的调参。\n• ACT（A2）：RNN 学会\"输入到输出走多少计算步\"；合成任务大幅提升，Wikipedia 字符级 LM 无大幅提升，但把更多计算分给难预测的转移。\n• NTM（A2）：网络耦合外部记忆，通过注意过程读写，端到端可微；学会 copying/sorting/associative recall。\n• Cowan（A3）：单一中心容量上限，平均约 4 个 chunk（区间 3–5）；这是人类 STM 证据，不是网络性质。\n• Soar（A2）：impasse 与 substate（卡住时自动开子目标）、chunking、语义/情节记忆。",
+   "evidence": "A2+A3",
+   "paper": "- ACT-R：Anderson et al. 2004, *Psychological Review* 111(4):1036–1060（本地记录入口 https://www.fachportal-paedagogik.de/literatur/vollanzeige.html?FId=eric_ej688629，A3，本轮未重取）\n - ACT：https://arxiv.org/abs/16"
+  },
+  {
+   "id": "K-14",
+   "name": "认知负荷理论",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept",
+   "userVerdict": "肯定方向",
+   "userEval": "用户判定：肯定方向。「可以不同学科荤素搭配吃不腻，同时思维难和过程复杂，也就是考脑子和考\"肌肉\"的题目也可以搭配，等等。」",
+   "summary": "（A1 转引）：\n• 三成分：extraneous load（无关要求）、intrinsic load（任务复杂度相对先验）、germane load（资源重新分配给学习相关加工）。\n• 内在负荷主源：element interactivity（元素数量及相互作用，需同时在工作记忆保持）。",
+   "mechanism": "（A1 转引）：\n• 三成分：extraneous load（无关要求）、intrinsic load（任务复杂度相对先验）、germane load（资源重新分配给学习相关加工）。\n• 内在负荷主源：element interactivity（元素数量及相互作用，需同时在工作记忆保持）。\n• worked-example effect：初始技能习得阶段学范例优于直接解题。\n• 实验细节：142 名心理学学生；\"相关 vs 无关示例域\"三类负荷均无显著差异；自报负荷与学习结果无显著关联；部分学生单次材料耗时达 8 h（认知耗竭解释）。",
+   "evidence": "A1转引",
+   "paper": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2024.1387095/full（Front. Psychol. 15:1387095, 2024；A1 转引全文）"
+  },
+  {
+   "id": "K-16",
+   "name": "图→状态 vs 状态→图",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "图→状态 Affirmed",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「保留旧 MindNet 的激活扩散动力学，把\"小神经网络\"作为动力学参数/点火函数的学习组件，而不是替代它。」",
+   "summary": "• 图→状态：节点=知识点，边=前置；消息沿边聚合；DBKT 把前置层级写进动态贝叶斯网。\n• 状态→图：把学到的边权/依赖强度写回图（参数级，可做）；改拓扑（结构级，无一手证据，必须人工/规则闸门）。",
+   "mechanism": "• 图→状态：节点=知识点，边=前置；消息沿边聚合；DBKT 把前置层级写进动态贝叶斯网。\n• 状态→图：把学到的边权/依赖强度写回图（参数级，可做）；改拓扑（结构级，无一手证据，必须人工/规则闸门）。\n• 神经同步矩阵当图用：范畴错误（CTM 的同步矩阵不是知识图，A4）。",
+   "evidence": "A3",
+   "paper": "无（这是设计判断）；依据 GKT https://doi.org/10.1145/3350546.3352513、KT 综述 https://arxiv.org/abs/2105.15106、RPKT https://arxiv.org/abs/2508.11892"
+  },
+  {
+   "id": "K-17",
+   "name": "学生模型模拟",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「学生模型模拟：先预测学生下一步/答案/错误类型，再给真实反馈，比较差异，更新学生模型；这里没有任何问题，只是我们沟通中表述改一下：solver 代表学生 agent，而\"学生模型\"特指软件对于学生用户的刻画。」",
+   "summary": "预测学生下一步/答案/错误类型 → 与真实反馈比较 → 更新学生模型；solver 的 CoT 只作为被观察对象，不当作学生数据。",
+   "mechanism": "预测学生下一步/答案/错误类型 → 与真实反馈比较 → 更新学生模型；solver 的 CoT 只作为被观察对象，不当作学生数据。",
+   "evidence": "A3",
+   "paper": "无单篇论文；相邻一手：SLOW（学习者状态推断）https://arxiv.org/abs/2603.28062（A2）、EduLoop（NCD）https://arxiv.org/abs/2510.22559（A2）"
+  },
+  {
+   "id": "M-01",
+   "name": "激活扩散动力学",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "肯定+修正",
+   "userEval": "用户判定：肯定+修正。「保留旧 MindNet 的激活扩散动力学，把\"小神经网络\"作为动力学参数/点火函数的学习组件，而不是替代它。」",
+   "summary": "（M1 v0.2 §1）：\n• 节点快状态：激活 a、亚阈积累 q、输入驱动 x；慢状态：记忆 R0/S/Σ/D。\n• 每轮：驱动 = 入边激活加权和 + 目标偏置 + 亚阈 − 抑制；激活按分流方程更新；容量限制进入意识的数量；概率点火；落到 conscious/subconscious/inactive。",
+   "mechanism": "（M1 v0.2 §1）：\n• 节点快状态：激活 a、亚阈积累 q、输入驱动 x；慢状态：记忆 R0/S/Σ/D。\n• 每轮：驱动 = 入边激活加权和 + 目标偏置 + 亚阈 − 抑制；激活按分流方程更新；容量限制进入意识的数量；概率点火；落到 conscious/subconscious/inactive。\n• 输出：每轮激活状态、驱动来源、点火、诊断、处方、完整 trace。\n• 定位：模拟\"想得到/想不到、卡在哪一步\"，不是判卷（IRT 只预测对错，不是主线）。",
+   "evidence": "A3",
+   "paper": "无（项目原创设计）；相邻一手：ACT-R 的激活/缓冲与 Soar 的 impasse 结构（A3/A2）"
+  },
+  {
+   "id": "M-08",
+   "name": "神经+图双结构",
+   "layer": "L2-A",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「这个部分的设计我仔细讨论过，最终决定是做成一个小型神经网络 + 图结构的同步两部分模型，具有各自内部设计和双结构信息同步三个要点。」",
+   "summary": "图管\"外部联系/前置约束\"；小网络管\"能力参数/点火\"；同步=参数回写（可做）+ 结构回写（未验证）。",
+   "mechanism": "图管\"外部联系/前置约束\"；小网络管\"能力参数/点火\"；同步=参数回写（可做）+ 结构回写（未验证）。",
+   "evidence": "A3",
+   "paper": "无；相邻一手：GKT/DBKT（图→状态）A3/A1；CTM（非 transformer 动力学）A2"
+  },
+  {
+   "id": "B-01",
+   "name": "内容导向题型",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "否定举例式定义",
+   "userEval": "用户判定：否定举例式定义。「② 你不能因为我举5例子便定义这五维，不合规矩。」",
+   "summary": "让\"这道题在练什么\"可生成、可比对、可迁移。 题型 = 固定的知识节点组合 + 解题路径拓扑（带权有向图）+ 干扰/变异算子（隐藏前置条件、增加冗余变量、反转因果方向等）。",
+   "mechanism": "• 作用：让\"这道题在练什么\"可生成、可比对、可迁移。\n• 原理：题型 = 固定的知识节点组合 + 解题路径拓扑（带权有向图）+ 干扰/变异算子（隐藏前置条件、增加冗余变量、反转因果方向等）。\n• 机制（设计）：能力权重由拓扑自动推导（分支多 → 逻辑推演要求高；参数运算子图大 → 运算负荷高），不靠人拍权重。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：MIP 只测\"英语精确统计、算术/分类/抽取\"，不能替代题型设计（A2）"
+  },
+  {
+   "id": "B-03",
+   "name": "题眼/陷阱",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「③题眼、④高频陷阱。……③④：不仅要能识别，还要能推导、会使用。」",
+   "summary": "题眼不能只写\"注意摩擦力\"，必须规则化为 Trigger → Action（\"看到『恰好不掉落』→ 必须想到向心力等于重力 → 推出临界速度\"）。",
+   "mechanism": "题眼不能只写\"注意摩擦力\"，必须规则化为 Trigger → Action（\"看到『恰好不掉落』→ 必须想到向心力等于重力 → 推出临界速度\"）。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：Viva La Vida 的\"被悄悄加强的假设/循环论证/定理误用\"证伪清单（A3）可作陷阱枚举参考"
+  },
+  {
+   "id": "B-04",
+   "name": "变式/同源题",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定+修正",
+   "userEval": "用户判定：肯定+修正。「⑤变式生成、⑥同源题库。……⑤⑥：保证变式正确、不重复、有深度关联。」",
+   "summary": "变式不是随机改数；是\"保留关键步骤、替换情景/条件/设问\"，用单一变量原则训练迁移。",
+   "mechanism": "变式不是随机改数；是\"保留关键步骤、替换情景/条件/设问\"，用单一变量原则训练迁移。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：Stellar Colosseum 的\"局部修复/保留竞争路线\"（A3）可类比对变式的多解保留"
+  },
+  {
+   "id": "B-05",
+   "name": "分层提示",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed concept，但\"分层\"被用户修正",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「⑨分层提示……②：提示不一定要分层；高频低频是指学生运用软件处理不同类别任务的频率不同；学生水平调节是另一个更难的完整的版块；」",
+   "summary": "提示按\"思路级 / 公式级 / 步骤级\"递进，避免一步给答案。",
+   "mechanism": "提示按\"思路级 / 公式级 / 步骤级\"递进，避免一步给答案。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：CLT worked-example/明确指向（A1 转引）https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2024.1387095/full"
+  },
+  {
+   "id": "B-06",
+   "name": "错因诊断",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定+边界",
+   "userEval": "用户判定：肯定+边界。「⑩错因诊断。……⑩这个不能预测，但根据薄弱出变式是可行的。」",
+   "summary": "• 9 类错因（A3，MindNet 反馈规范）：knowledge_gap / method_missing / computation / logic / expression / careless / misread / time / other。\n• 规则：knowledge_gap→下调对应 KP；careless→只记执行可靠性，不当作\"不会\"；time→上下文证据。",
+   "mechanism": "• 9 类错因（A3，MindNet 反馈规范）：knowledge_gap / method_missing / computation / logic / expression / careless / misread / time / other。\n• 规则：knowledge_gap→下调对应 KP；careless→只记执行可靠性，不当作\"不会\"；time→上下文证据。\n• 单次幅度上限、连续证据门槛归 M3（设计稿 v0.1 §5.4）。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：BKT 的 P(S)/P(G) 与 9 类错因的映射见 MindNet 反馈规范（A3，update-rules-v1.md 转引）"
+  },
+  {
+   "id": "B-07",
+   "name": "多维能力标签",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「⑦多维能力标签……⑦：能识别，要标定，准，通用，用户据此了解自己，便于题因选择。」",
+   "summary": "给题目打\"逻辑/计算/空间/信息提取\"等权重；学生侧累积为能力向量；关键要求是标定（不能拍脑袋）。",
+   "mechanism": "给题目打\"逻辑/计算/空间/信息提取\"等权重；学生侧累积为能力向量；关键要求是标定（不能拍脑袋）。",
+   "evidence": "A3",
+   "paper": "MIRT/Q-matrix 见 [K-01](#k-01-mirt--q-matrix多维项目反应理论--能力矩阵)（A4+）"
+  },
+  {
+   "id": "B-08",
+   "name": "认知负荷估算",
+   "layer": "L2-B",
+   "status": "审核中",
+   "statusRaw": "Under review",
+   "userVerdict": "待定",
+   "userEval": "用户判定：待定。「⑧认知负荷估算。……⑧便于任务安排，时间、精力估算困难。」",
+   "summary": "内在负荷主源 = element interactivity；可用\"元素数/步骤数/计算复杂度\"做粗档位；自报负荷与学习结果无显著关联（CLT 实验），所以只能当信号。",
+   "mechanism": "内在负荷主源 = element interactivity；可用\"元素数/步骤数/计算复杂度\"做粗档位；自报负荷与学习结果无显著关联（CLT 实验），所以只能当信号。",
+   "evidence": "A3",
+   "paper": "CLT https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2024.1387095/full（A1 转引）"
+  },
+  {
+   "id": "B-09",
+   "name": "五维正向推导",
+   "layer": "L2-B",
+   "status": "否定",
+   "statusRaw": "Rejected",
+   "userVerdict": "否定",
+   "userEval": "用户判定：否定。「五维正向推导：题型/考法/命题思路/解题思路/能力训练 Affirmed，未落地 顶层教研 schema 未实现，这五个维度其实很不严谨，是当时提出的 Agent 根据我的举例子直接照抄得来的，完全不合适。」",
+   "summary": "原五维是\"从 AI 举例反推的 schema\"，不是从教研问题正推；因此不成立。",
+   "mechanism": "原五维是\"从 AI 举例反推的 schema\"，不是从教研问题正推；因此不成立。",
+   "evidence": "A3",
+   "paper": "无论文"
+  },
+  {
+   "id": "B-11",
+   "name": "Answer sheet 契约",
+   "layer": "L2-B",
+   "status": "已落地",
+   "statusRaw": "Landed",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「最终输出返回只有答案。请你牢记于心：答案的意思是写在答题卡上的部分。」",
+   "summary": "把\"答案\"与\"过程\"分开：answer 只放最终结论；process 只放必要步骤；不写\"我可能/也许/另一种理解\"；不确定时按最自然理解，不在答案卡列分支。",
+   "mechanism": "把\"答案\"与\"过程\"分开：answer 只放最终结论；process 只放必要步骤；不写\"我可能/也许/另一种理解\"；不确定时按最自然理解，不在答案卡列分支。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：MIP 整批 exact 指标说明\"漏项/格式错即整批错\"（A2）——支持\"答案卡必须结构化\""
+  },
+  {
+   "id": "B-12",
+   "name": "非二元反馈",
+   "layer": "L2-B",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「用户反馈不是 AC or WA，还有所有过程中的状态。」",
+   "summary": "区分\"实际结果\"与\"用户自述\"；自述带可靠性，不直接当真值；一次错题不直接改一大片状态（单次幅度上限）。",
+   "mechanism": "区分\"实际结果\"与\"用户自述\"；自述带可靠性，不直接当真值；一次错题不直接改一大片状态（单次幅度上限）。",
+   "evidence": "A3",
+   "paper": "无；相邻一手：sensor-free affect detection 依赖行为日志（A1 转引）——纸屏拿不到，只能自报"
+  },
+  {
+   "id": "C-01",
+   "name": "Thinking DAG",
+   "layer": "L2-C",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Partial",
+   "userVerdict": "保留+修正",
+   "userEval": "用户判定：保留+修正。「思维 DAG 保留，但\"分支 DAG\"没有论文验证：目前证据都是线性步骤链。」",
+   "summary": "把\"思路过程\"结构化（≠ 推导过程）；每个节点独立可验证；分支是待验证结构，先做线性/局部链。",
+   "mechanism": "把\"思路过程\"结构化（≠ 推导过程）；每个节点独立可验证；分支是待验证结构，先做线性/局部链。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：Stellar Colosseum 的\"证明 DAG + 局部修复\"https://arxiv.org/abs/2609.15983（A3，但那是长证明场景，单题用是过度设计）"
+  },
+  {
+   "id": "C-02",
+   "name": "DAG Maker",
+   "layer": "L2-C",
+   "status": "审核中",
+   "statusRaw": "DESIGN",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「这个肯定要让 DAG Maker 专门处理，但是 DAG Maker 处理的材料 和 Checker 高绑定。」",
+   "summary": "DAG 不是\"看起来像\"，而是 MindNet 实际能跑、能解释的结构（M1 设计稿 v0.2 §7）。",
+   "mechanism": "DAG 不是\"看起来像\"，而是 MindNet 实际能跑、能解释的结构（M1 设计稿 v0.2 §7）。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：Stellar 的\"失败即局部重跑\"（A3）"
+  },
+  {
+   "id": "C-03",
+   "name": "题目附加任务",
+   "layer": "L2-C",
+   "status": "待完善",
+   "statusRaw": "Affirmed，未落地",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「这种板块设计也不仅仅是 thinking DAG，还有易错点、变式、扩展等等，为了吃透一个题目设置的额外任务。」",
+   "summary": "在题后附\"陷阱提醒 / 变式 / 知识扩展 / 复述任务\"，把一道题变成一组训练任务。",
+   "mechanism": "在题后附\"陷阱提醒 / 变式 / 知识扩展 / 复述任务\"，把一道题变成一组训练任务。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：CLT worked example（A1 转引）"
+  },
+  {
+   "id": "C-05",
+   "name": "板块可选",
+   "layer": "L2-C",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「T，由于 App 内支持看内容，所以用户可以选择哪些板块要、不要；」",
+   "summary": "板块默认全量，用户可裁剪；裁剪结果影响打印与 App 视图。",
+   "mechanism": "板块默认全量，用户可裁剪；裁剪结果影响打印与 App 视图。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "C-06",
+   "name": "错题本入口",
+   "layer": "L2-C",
+   "status": "否定",
+   "statusRaw": "Rejected",
+   "userVerdict": "否定",
+   "userEval": "用户判定：否定。「B，App 内支持随机跳题、看完整题目内容，而且没有\"做错题本\"的这个选择；」",
+   "summary": "错题不是\"收集\"而是\"诊断+变式+回流\"。",
+   "mechanism": "错题不是\"收集\"而是\"诊断+变式+回流\"。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "C-07",
+   "name": "解析组织方式",
+   "layer": "L2-C",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「除了《高考试题分析》的解析，其余解析要以思维 DAG 的形式组织并几乎完整地呈现，而不给出单独的解析板块；」",
+   "summary": "把解析变成\"可跟着走的思路\"，而不是\"念答案\"。",
+   "mechanism": "把解析变成\"可跟着走的思路\"，而不是\"念答案\"。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "P-01",
+   "name": "周频纸质学案",
+   "layer": "L3",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Deferred",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「如果你认为这个项目大功告成（测试下来的确有提升），你就告诉 Furnace 可以重新开始一轮生成，重新选题目且每个科目一道题的资料，题目必须是压轴题。」",
+   "summary": "纸质是\"思考/学习的媒介\"，绝大多数内容先落笔头再上云；系统只在周频节点产出与回收。",
+   "mechanism": "纸质是\"思考/学习的媒介\"，绝大多数内容先落笔头再上云；系统只在周频节点产出与回收。",
+   "evidence": "A3",
+   "paper": "无论文；相邻一手：CLT（题单编排需控负荷）A1 转引"
+  },
+  {
+   "id": "P-03",
+   "name": "自主对答案",
+   "layer": "L3",
+   "status": "待完善",
+   "statusRaw": "Affirmed，Deferred",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「F，手写 OCR 不用于批改答案，但是用于输入数据调整内部模型，同时检查用户是否存在答案以外的问题……」",
+   "summary": "砍掉\"拍照批改 OCR\"重灾区；用自报 + 勾选错题；数据上传仍要保留（全量拍照）。",
+   "mechanism": "砍掉\"拍照批改 OCR\"重灾区；用自报 + 勾选错题；数据上传仍要保留（全量拍照）。",
+   "evidence": "A3",
+   "paper": "无；相邻一手：sensor-free affect 需要日志/标注，纸屏没有（A1 转引）→ 只能靠自报"
+  },
+  {
+   "id": "P-05",
+   "name": "数据回流",
+   "layer": "L3",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "否定旧方案",
+   "userEval": "用户判定：否定旧方案。「固定资料预生成、仅错题回流 Affirmed，Deferred 纸屏同步，仅错题回流是错的！」",
+   "summary": "回流数据决定学生模型上限；纸屏能稳定拿到\"题号+对错+自报卡点+用时\"，拿不到每步操作。",
+   "mechanism": "回流数据决定学生模型上限；纸屏能稳定拿到\"题号+对错+自报卡点+用时\"，拿不到每步操作。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "P-06",
+   "name": "单休制 30 分钟",
+   "layer": "L3",
+   "status": "待完善",
+   "statusRaw": "Affirmed",
+   "userVerdict": "肯定",
+   "userEval": "用户判定：肯定。「单休制约束 Affirmed 产品核心约束」",
+   "summary": "周日只有 30 分钟生成窗口；超时即失败，因此内容必须预生成、只做增量。",
+   "mechanism": "周日只有 30 分钟生成窗口；超时即失败，因此内容必须预生成、只做增量。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "P-08",
+   "name": "手写 OCR 用途",
+   "layer": "L3",
+   "status": "否定",
+   "statusRaw": "Rejected",
+   "userVerdict": "修正",
+   "userEval": "用户判定：修正。「F，手写 OCR 不用于批改答案，但是用于输入数据调整内部模型，同时检查用户是否存在答案以外的问题」",
+   "summary": "识别质量不足以判分，但可作为学生状态证据。",
+   "mechanism": "识别质量不足以判分，但可作为学生状态证据。",
+   "evidence": "A3",
+   "paper": "无"
+  },
+  {
+   "id": "P-09",
+   "name": "UI 后置",
+   "layer": "L3",
+   "status": "待完善",
+   "statusRaw": "Deferred",
+   "userVerdict": "后置",
+   "userEval": "用户判定：后置。「下一步设计：直接学生模式，这应当是这一步设计。 UI 先不需要处理。」",
+   "summary": "接口按内核需要定，外层后更新。",
+   "mechanism": "接口按内核需要定，外层后更新。",
+   "evidence": "A3",
+   "paper": "无"
+  }
+ ],
+ "abilityMatrix": {
+  "title": "能力矩阵（真实数据，2026-11-15）",
+  "subtitle": "实测 22 + preset 7 + unknown 549；数据源 task-48 ability-matrix-ui.json / ability-map.json（只读），未接 DB。",
+  "statusLabel": "数据摘要",
+  "expandable": true,
+  "chips": [
+   "measured 22",
+   "preset 7 · 预设",
+   "unknown 549 · 证据不足",
+   "absent 0",
+   "图覆盖 0",
+   "不能声称已验证有效"
+  ],
+  "lines": [
+   "measured 22（19 知识点 + 3 元能力） / preset 7 / unknown 549 / absent 0（无逐题响应、无错因标签）",
+   "3 个实测元能力（均值±不确定度，n=测量次数）：加工速度 -0.223±0.577（n=2，assessment_v1）；抑制控制 +1.917±0.707（n=1，assessment_v1）；抗干扰 -3.000±0.707（n=1，assessment_v1）。其中 2 个仅 1 次测量，不能当稳定特质。",
+   "知识点样例（19 个 measured 中最多 5 个，含 95% 区间与证据数）：",
+   "· 蛋白质是生命活动的主要承担者：mean 0.600，95% [0.227, 0.885]，n_obs=3（self_report，弱标签）",
+   "· 糖被：mean 0.667，95% [0.200, 0.941]，n_obs=1（self_report，弱标签）",
+   "· 溶酶体：mean 0.667，95% [0.200, 0.941]，n_obs=1（self_report，弱标签）",
+   "· 分泌蛋白合成运输的能量来源：mean 0.667，95% [0.200, 0.941]，n_obs=1（self_report，弱标签）",
+   "· 染色质的组成：mean 0.600，95% [0.227, 0.885]，n_obs=3（self_report，弱标签）",
+   "549 个知识点为 unknown（mean=null、source=unknown、sd_logit=4.0）：只显示“证据不足”，不显示 0/50%；其中 116 个在图上。",
+   "三题 ability map 摘要：Q-PH0001：知识节点 4；能力码 A4 0.5 / A10 0.3 / A3 0.2；8 步；难度 2（AI，conf 0.35）；审核 pending；Q-MA0001：知识节点 4；能力码 A4 0.4 / A10 0.3 / A3 0.3；8 步；难度 3（AI，conf 0.35）；审核 pending；Q-CH0001：知识节点 5；能力码 A2 0.4 / A9 0.35 / A10 0.25；8 步；难度 5（AI，conf 0.35）；审核 pending",
+   "warnings：19 个真实复习 KP 图上覆盖 = 0（external_id 全 NULL，属 452 个孤立节点）；内容知识节点→产品 568 KP 映射 0（精确/包含均 0）；错因 0；70/102 复习无 KP；7/10 元能力为 default 先验。",
+   "measured / preset / unknown 分开显示；preset 带“预设”徽标；549 个 unknown 只能看证据不足，不能当 0/50%；不声称矩阵已验证，也不声称图先验改善能力估计。"
+  ]
+ },
+ "contentSchema": {
+  "title": "内容 schema 示例（L2-B / L2-C）",
+  "subtitle": "来源 task-23：CONTENT-ORGANIZATION-SCHEMA-2026-11-15.md + content-schema/examples/；示例数据为自拟示例，不是 Source 原文，不得直接导入题库。",
+  "statusLabel": "示例",
+  "chips": [
+   "五维正向推导",
+   "Thinking DAG",
+   "题眼",
+   "陷阱",
+   "分层提示",
+   "错因",
+   "变式",
+   "扩展/上位知识",
+   "额外任务"
+  ],
+  "lines": [
+   "题目板块示例：physics-example.json 的 board 含 five_dimension / thinking_dag / key_eye / traps / hints / error_causes / variants / extensions / extra_tasks / subject_specific。",
+   "Base Question（L1）只存事实：题干/图/答案/评分锚点/来源/知识点/能力/内容题型/难度/版权/证据；答案只是弱标签，A_official 才可当 oracle。",
+   "层间规则：L2 不得回写 L1；L1 变更使 L2 失效（base-question.schema.json 的 panels.invalidated_by）。",
+   "示例题 Q-P0001（物理，示例数据）：official_trust = B_independently_verified，状态 entity_complete。"
+  ]
+ },
+ "unfinished": {}
+}

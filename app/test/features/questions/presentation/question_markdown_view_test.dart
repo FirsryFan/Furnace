@@ -176,10 +176,28 @@ void main() {
       );
       final markdown = tester.widget<GptMarkdown>(find.byType(GptMarkdown));
       expect(markdown.data, '## 标题');
-      expect(markdown.style, style);
+      // 字号/对齐从调用方透传；字体族由统一 Markdown 主题补足。
+      expect(markdown.style?.fontSize, style.fontSize);
+      expect(markdown.style?.fontFamilyFallback, isNotEmpty);
       expect(markdown.textAlign, TextAlign.center);
       expect(markdown.useDollarSignsForLatex, isTrue);
       expect(markdown.styleSheet?.link?.color, isNotNull);
+    });
+
+    testWidgets('markdown=true 复杂 LaTeX（\\varphi / \\le / \\mathbf）不留源码',
+        (tester) async {
+      // 2026-11-15 题库卡片化的实测样本：数学 19 题（serial 659）第 (3) 问。
+      const text = r'(3) 设 $b\in\mathbf{R}$，若存在 $\varphi\in\mathbf{R}$ '
+          r'使得 $5\cos x-\cos(5x+\varphi)\le b$ 对 $x\in\mathbf{R}$ 恒成立。';
+      await pumpQuestionText(
+        tester,
+        const MarkdownQuestionText(text: text, markdown: true),
+      );
+      final plain = renderedText(tester);
+      expect(plain, isNot(contains(r'\varphi')));
+      expect(plain, isNot(contains(r'\le')));
+      expect(plain, isNot(contains(r'\mathbf')));
+      expect(mathWidgetCount(tester), 4);
     });
 
     testWidgets('markdown=true 在未闭合代码栅栏时退回可选中的原文', (tester) async {

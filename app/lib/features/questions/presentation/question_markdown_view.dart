@@ -5,8 +5,9 @@
 ///
 ///  * `plain` / 缺省 / 未知值 → [QuestionRichText]：原文是数据，只有闭合的
 ///    行内公式交给 Markdown 渲染，`*`、`_`、`#` 原样显示（历史题行为不变）；
-///  * `markdown` → 整段交给 [GptMarkdown]（打开 `useDollarSignsForLatex`），
-///    `$…$`、`$$…$$`、标题、列表、代码块、表格都会被解析。
+///  * `markdown` → 整段交给统一渲染器 [MarkdownRenderer]（打开
+///    `useDollarSignsForLatex`），`$…$`、`$$…$$`、标题、列表、代码块、表格都会
+///    被解析；主题（字体/字号/标题/表格/代码块）来自「主题设置 → Markdown」。
 ///
 /// Markdown 只有结构完整时才交给渲染器：未闭合的代码栅栏或 `$`/`$$` 定界符
 /// 会把后面的整段文本吞进去，此时退回 [SelectableText] 原文。检查口径与 AI
@@ -15,9 +16,14 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 
+import '../../../domain/services/questions/question_markdown_source.dart';
+import '../../markdown/presentation/markdown_renderer.dart';
+import 'question_blank_view.dart';
 import 'question_media_view.dart';
+
+export '../../../domain/services/questions/question_markdown_source.dart'
+    show questionMarkdownSource;
 
 /// 题目记录的 `text_format` 是否要求整段 Markdown 渲染。
 ///
@@ -67,17 +73,16 @@ class MarkdownQuestionText extends StatelessWidget {
     if (!questionMarkdownRendersAsMarkdown(text)) {
       return SelectableText(text, style: style, textAlign: textAlign);
     }
-    final theme = Theme.of(context);
-    return SelectionArea(
-      child: GptMarkdown(
-        text,
-        style: style,
-        textAlign: textAlign ?? TextAlign.start,
-        useDollarSignsForLatex: true,
-        styleSheet: GptMarkdownStyleSheet(
-          link: LinkStyle(color: theme.colorScheme.primary),
-        ),
-      ),
+    // 全软件统一渲染入口：LaTeX、标题、表格、代码块、分栏等排版都走它。
+    // 填空空位先换成空位标记（`![宽x高](question-blank:N)`），由 imageBuilder
+    // 画成空白下划线组件；数字开头的公式换成 `\(…\)` 避开价格启发式。
+    final fontSize =
+        style?.fontSize ?? Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14;
+    return MarkdownRenderer(
+      markdown: questionMarkdownSource(text, fontSize: fontSize),
+      style: style,
+      textAlign: textAlign,
+      imageBuilder: questionBlankOrNetworkImage,
     );
   }
 }

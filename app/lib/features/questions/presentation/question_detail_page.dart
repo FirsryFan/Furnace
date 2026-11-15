@@ -19,7 +19,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
@@ -33,7 +32,7 @@ import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/objective_answer.dart';
 import '../../../domain/services/questions/question_capability.dart';
 import '../../../domain/services/questions/question_number_query.dart';
-import '../../../domain/services/questions/question_source.dart';
+import '../../../domain/services/questions/question_option_layout.dart';
 import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
@@ -45,17 +44,12 @@ import '../application/question_cognitive_provider.dart';
 import '../application/question_reasoning_service.dart';
 import '../application/question_stem_display_provider.dart';
 import '../application/similar_question_provider.dart';
-import 'question_audit_view.dart';
+import 'question_developer_page.dart';
 import 'question_detail_providers.dart';
 import 'question_markdown_view.dart';
 import 'question_media_view.dart';
-import 'question_source_edit_dialog.dart';
-import 'question_title_dialog.dart';
-import 'question_vocab_labels.dart';
+import 'question_stem_markdown_view.dart';
 import 'question_zujuan_search.dart';
-
-/// 复制「原题链接」按钮的 key（测试定位用）。
-const Key questionSourceCopyButtonKey = Key('question-source-copy');
 
 /// 「自测」开关与「提交答案」按钮的 key（测试定位用）。
 const Key questionSelfTestToggleKey = Key('question-self-test-toggle');
@@ -64,6 +58,12 @@ const Key questionSelfTestSubmitKey = Key('question-self-test-submit');
 /// 自测模式下单个选项行的 key：`question-self-test-option-<label>`。
 Key questionSelfTestOptionKey(String label) =>
     ValueKey<String>('question-self-test-option-$label');
+
+/// 详情页单个选项格子的 key：`question-option-cell-<label>`。
+///
+/// 不管单列还是两列布局都在，测试用它断言排布（同一行的 dy 相同 = 两列）。
+Key questionDetailOptionCellKey(String label) =>
+    ValueKey<String>('question-option-cell-$label');
 
 /// 自测防剧透提示的 key：自测未提交时，AI 解题/相似题/找原题三个区块被收起，
 /// 在这里显示一句说明（测试定位用）。
@@ -189,58 +189,6 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     });
   }
 
-  /// 改原题链接：加 / 改 / 清空都在对话框里完成（对话框自己 invalidate 详情）。
-  Future<void> _editSourceLinks(Question question) async {
-    await showQuestionSourceEditDialog(context, question: question);
-  }
-
-  /// 改题名：对话框自己写库并 invalidate 题库总览 / 本题详情（同一套逻辑也在
-  /// 题库列表的 ⋮ 菜单里用）。这里不重复写库，也不重复 invalidate。
-  Future<void> _editTitle(Question question) async {
-    await showQuestionTitleDialog(
-      context,
-      questionId: question.id,
-      stem: question.stem,
-      currentTitle: question.title,
-      subjectKey: question.subjectKey,
-      questionType: question.questionType,
-    );
-  }
-
-  /// 改来源：只动"来源元信息"四列（题干与答案一个字不改）。
-  ///
-  /// 题目进来时的来源分级常常是 `unknown`（粘贴时没标、拍照读不出），事后知道了
-  /// "这是 2024 湖南师大附中的月考"，得有个地方改 —— 不然 `aiQuality`/排序的权重
-  /// 一直按"未标注"算。
-  Future<void> _editSource(Question question) async {
-    final edited = await showDialog<
-        ({String level, String label, int? year, String? region})>(
-      context: context,
-      builder: (_) => _EditSourceDialog(question: question),
-    );
-    if (edited == null || !mounted) {
-      return;
-    }
-    try {
-      await ref.read(questionRepositoryProvider).updateSource(
-            question.id,
-            sourceLevel: edited.level,
-            sourceLabel: edited.label,
-            year: edited.year,
-            region: edited.region,
-          );
-      // 保存完立刻重读：不把"屏幕上已经变了"寄望于全局写拦截器（测试里不装它，
-      // 而且这一页本来就该在「我按了保存」之后自己刷新）。
-      ref.invalidate(questionDetailProvider(question.id));
-    } on ArgumentError catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('${error.message}')));
-    }
-  }
-
   /// 翻到相邻题：用 `pushReplacement` 而不是 `push`。
   ///
   /// 翻页是"在同一层里横向走"，不是"往下钻"——每按一次就往返回栈里堆一层，
@@ -314,7 +262,26 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.questionDetailTitle),
+        // 题名是学生页的主标题；「第 N / 共 M 题」只是次级读数，放 AppBar
+        // 副行，不从题面顶部抢走第一眼（2026-11-15 学生端干净 UI）。
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(l10n.questionDetailTitle),
+            if (position != null)
+              Text(
+                key: questionDetailSerialPositionKey,
+                l10n.questionDetailSerialPosition(
+                  position.index,
+                  position.total,
+                ),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             key: questionDetailPreviousQuestionKey,
@@ -343,21 +310,6 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 进度行放在最上面、题面之前：先知道"这是第几道"，再读题。
-          if (position != null)
-            Padding(
-              key: questionDetailSerialPositionKey,
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                l10n.questionDetailSerialPosition(
-                  position.index,
-                  position.total,
-                ),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
           if (detailAsync.isLoading && !detailAsync.hasValue)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -368,11 +320,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           else if (missing)
             Text(l10n.questionDetailQuestionMissing)
           else if (detail != null)
+            // 学生视图：只留题干/选项/答案/自测/学习读数；改名、改来源、原题
+            // 链接、配图编辑、入库体检等开发动作统一收进「开发者信息」。
             _QuestionBody(
               detail: detail,
-              onEditTitle: () => _editTitle(detail.question),
-              onEditSource: () => _editSource(detail.question),
-              onEditSourceLinks: () => _editSourceLinks(detail.question),
               onSelfTestChanged: _onSelfTestChanged,
             ),
           // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
@@ -382,10 +333,6 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               stem: detail.question.stem,
               subjectKey: detail.question.subjectKey,
             ),
-          // 入库体检：只报不改；体检没跑出来/失败时整块零高度，不挡下面的解题入口。
-          // 它不剧透解法，自测中也保留。
-          if (detail != null)
-            QuestionAuditSection(questionId: widget.questionId),
           // MindNet 认知评价：只读读数；同样不剧透解法，自测中也保留。
           if (detail != null)
             QuestionCognitiveSection(questionId: widget.questionId),
@@ -414,6 +361,25 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             _SimilarQuestionsSection(
               key: questionDetailSimilarSectionKey,
               questionId: widget.questionId,
+            ),
+          ],
+          // 开发者信息的**唯一**入口：内部字段、来源编辑与配图管理都在那一页。
+          // 学生页不摊开这些，只留一个低权重文字按钮。
+          if (detail != null) ...[
+            const SizedBox(height: 24),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: questionDeveloperEntryKey,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        QuestionDeveloperPage(questionId: widget.questionId),
+                  ),
+                ),
+                icon: const Icon(Icons.code, size: 16),
+                label: Text(l10n.questionDeveloperEntry),
+              ),
             ),
           ],
         ],
@@ -484,29 +450,20 @@ class _JumpToSerialDialogState extends State<_JumpToSerialDialog> {
   }
 }
 
-/// 题目本身：题干、选项、答案、解析、来源与质量。
+/// 学生视图里的题目正文：题干、选项、答案、解析。
 ///
 /// 不再套卡片底座：题干、图片、选项、答案直接铺在页面背景上，靠小节标题、
 /// 间距和细分隔线分段（需求原文：「很多文字不需要放在一个卡片底座上」）。
+///
+/// 开发侧动作（改题名 / 改来源 / 原题链接 / 配图增删 / 入库体检 / 原始字段）
+/// 一律不在这里：学生页只读，入口是页底的「开发者信息」（`QuestionDeveloperPage`）。
 class _QuestionBody extends StatefulWidget {
   const _QuestionBody({
     required this.detail,
-    this.onEditTitle,
-    this.onEditSource,
-    this.onEditSourceLinks,
     this.onSelfTestChanged,
   });
 
   final QuestionDetail detail;
-
-  /// 「改题名」（可空：没给缝就不摆这个按钮）。题名是自己起的标签，不是题干。
-  final VoidCallback? onEditTitle;
-
-  /// 「改来源」（可空：没给缝就不摆这个按钮 —— 与页面上别的可注入动作同一个做法）。
-  final VoidCallback? onEditSource;
-
-  /// 「改原题链接」：加/改/清空都走同一个对话框；没有可信链接时也留入口。
-  final VoidCallback? onEditSourceLinks;
 
   /// 自测防剧透状态变化：true = 打开自测且未提交（父页面据此收起会剧透的区块），
   /// false = 没在自测 / 已提交 / 已结束。可选：测试里可以只关心正文。
@@ -602,9 +559,70 @@ class _QuestionBodyState extends State<_QuestionBody> {
     }
   }
 
-  /// 一行选项。普通模式与改动前一致；自测模式加复选框、整行可点选、选中高亮，
-  /// 提交后锁定。未提交时**不显示**「正确答案」标记——否则自测没意义。
-  Widget _buildOptionRow(BuildContext context, QuestionOption option) {
+  /// 选项栏的整体排布：短选项两列/流式，长选项一行一个，窄屏退化单列。
+  ///
+  /// 判定在 `question_option_layout.dart`（纯逻辑、可单测）：四个选项都是短
+  /// 单行文字（如化学 Q15）且宽度够时排两列，否则保持原来的一行一个。自测
+  /// 勾选、正确答案标记、判分横幅都在单元格里，不因换排布丢信息。
+  Widget _buildOptionsLayout(
+    BuildContext context,
+    List<QuestionOption> options,
+  ) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        // 2560 宽屏下选项不要拉满整页；两列时每列约 380px，短选项不再空。
+        constraints: const BoxConstraints(maxWidth: 780),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final twoColumns = questionOptionsFlowIntoTwoColumns(
+              optionContents: <String>[
+                for (final option in options) option.content
+              ],
+              availableWidth: constraints.maxWidth,
+            );
+            if (!twoColumns) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (final option in options)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: KeyedSubtree(
+                        key: questionDetailOptionCellKey(option.label),
+                        child: _buildOptionCell(context, option),
+                      ),
+                    ),
+                ],
+              );
+            }
+            final cellWidth =
+                (constraints.maxWidth - kTwoColumnOptionSpacing) / 2;
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Wrap(
+                spacing: kTwoColumnOptionSpacing,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.start,
+                children: <Widget>[
+                  for (final option in options)
+                    SizedBox(
+                      key: questionDetailOptionCellKey(option.label),
+                      width: cellWidth,
+                      child: _buildOptionCell(context, option),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// 一个选项格子。普通模式与改动前一致；自测模式加复选框、整格可点选、
+  /// 选中高亮，提交后锁定。未提交时**不显示**「正确答案」标记。
+  Widget _buildOptionCell(BuildContext context, QuestionOption option) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final selected = _selectedLabels.contains(option.label);
@@ -617,7 +635,10 @@ class _QuestionBodyState extends State<_QuestionBody> {
           ),
         );
     // 题目声明为 Markdown 时选项也跟着整段渲染；缺省仍是原文 + 行内公式。
-    Widget contentText() => MarkdownQuestionText(
+    // 选项里的「［图N］」公式图与题干共用同一套图片清单，走统一 Markdown
+    // 渲染器的行内图片路径（化学压轴题的选项中段全是公式图）。
+    Widget contentText() => QuestionMarkdownTextWithImages(
+          questionId: widget.detail.question.id,
           text: option.content,
           markdown: questionTextFormatIsMarkdown(
             widget.detail.question.textFormat,
@@ -636,67 +657,60 @@ class _QuestionBodyState extends State<_QuestionBody> {
         : null;
 
     if (!_selfTest) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: labelText(),
-            ),
-            Expanded(child: contentText()),
-            if (correctMark != null) correctMark,
-          ],
-        ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: labelText(),
+          ),
+          Flexible(child: contentText()),
+          if (correctMark != null) correctMark,
+        ],
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: InkWell(
-        key: questionSelfTestOptionKey(option.label),
-        borderRadius: BorderRadius.circular(8),
-        onTap: selectable ? () => _toggleOption(option.label) : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          decoration: BoxDecoration(
-            color: selected ? theme.colorScheme.primaryContainer : null,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
+    return InkWell(
+      key: questionSelfTestOptionKey(option.label),
+      borderRadius: BorderRadius.circular(8),
+      onTap: selectable ? () => _toggleOption(option.label) : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? theme.colorScheme.primaryContainer : null,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Checkbox(
+              value: selected,
+              onChanged: selectable ? (_) => _toggleOption(option.label) : null,
+              visualDensity: VisualDensity.compact,
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Checkbox(
-                value: selected,
-                onChanged:
-                    selectable ? (_) => _toggleOption(option.label) : null,
-                visualDensity: VisualDensity.compact,
+            Padding(
+              padding: const EdgeInsets.only(right: 6, top: 10),
+              child: labelText(),
+            ),
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                // 自测里整行都是点击目标：选项文字若是可选中的
+                // SelectableText，会吃掉这次点击，让 InkWell 收不到。
+                child: IgnorePointer(child: contentText()),
               ),
+            ),
+            if (correctMark != null)
               Padding(
-                padding: const EdgeInsets.only(right: 6, top: 10),
-                child: labelText(),
+                padding: const EdgeInsets.only(top: 10),
+                child: correctMark,
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  // 自测里整行都是点击目标：选项文字若是可选中的
-                  // SelectableText，会吃掉这次点击，让 InkWell 收不到。
-                  child: IgnorePointer(child: contentText()),
-                ),
-              ),
-              if (correctMark != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: correctMark,
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -709,22 +723,13 @@ class _QuestionBodyState extends State<_QuestionBody> {
     final detail = widget.detail;
     final question = detail.question;
 
-    // 「点回去核对原题」只认可信的绝对 http(s) 链接，或组卷网两个数字 id；
-    // 别的（相对路径、javascript: 之类）一律当作没有来源（question_source.dart）。
-    final source = questionSourceFor(
-      sourceUrl: question.sourceUrl,
-      zujuanQuestionId: question.zujuanQuestionId,
-      zujuanBankId: question.zujuanBankId,
-    );
-
+    // 学生页的来源行只留「年份 / 地区 / 科目」这类题面身份：`content_package`、
+    // `已结构化`、来源分级、内部 id 都是开发字段，统一在「开发者信息」里。
     final meta = <String>[
       question.subjectKey.trim().isEmpty
           ? l10n.questionIntakeSubjectNone
           : CapabilityAction.subjectLabelsZh[question.subjectKey] ??
               question.subjectKey,
-      sourceLevelLabel(l10n, question.sourceLevel),
-      stateLabel(l10n, question.state),
-      _originLabel(l10n, question.origin),
       if (question.year != null) l10n.questionDetailYear(question.year!),
       if (question.region != null && question.region!.trim().isNotEmpty)
         question.region!.trim(),
@@ -770,52 +775,18 @@ class _QuestionBodyState extends State<_QuestionBody> {
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    meta.join(' · '),
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      meta.join(' · '),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (widget.onEditTitle != null)
-              IconButton(
-                key: questionTitleEditButtonKey,
-                tooltip: l10n.questionTitleEditTooltip,
-                onPressed: widget.onEditTitle,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                visualDensity: VisualDensity.compact,
-              ),
-            // 「改来源」：来源分级/来源说明/年份/地区都是"事后也可能知道"的
-            // 元信息，题干与答案不动。
-            if (widget.onEditSource != null)
-              TextButton.icon(
-                onPressed: widget.onEditSource,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: Text(l10n.questionDetailEditSource),
-              ),
           ],
         ),
-        // 来源行自己有顶部 8 间距；没有可信链接时不给来源名，但仍留一个
-        // 低权重「添加原题链接」入口（用户手里可能有链接，只是还没入库）。
-        if (source != null)
-          _QuestionSourceLine(
-            source: source,
-            onEditSourceLinks: widget.onEditSourceLinks,
-          )
-        else if (widget.onEditSourceLinks != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: TextButton.icon(
-                key: questionSourceEditButtonKey,
-                onPressed: widget.onEditSourceLinks,
-                icon: const Icon(Icons.add_link, size: 16),
-                label: Text(l10n.questionSourceAdd),
-              ),
-            ),
-          ),
         const SizedBox(height: 12),
         // 题干与题干配图混排：文字段/图片段按「［图1］」占位拆分，
         // 没被占位引用的图接在题干文字末尾（见 question_stem_segments.dart）。
@@ -824,13 +795,6 @@ class _QuestionBodyState extends State<_QuestionBody> {
           stem: question.stem,
           markdown: markdownText,
         ),
-        if (question.difficulty != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            l10n.questionDetailDifficulty(_number(question.difficulty!)),
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
         // 能力点与扩展关联（handoff §7 M2）：有数据才出现，两边都空时零高度，
         // 老题看起来与加这个功能之前完全一样。
         _QuestionRelationsSection(question: question),
@@ -873,7 +837,7 @@ class _QuestionBodyState extends State<_QuestionBody> {
               ),
             ),
           if (_attempt != null) _SelfTestResultBanner(result: _attempt!),
-          for (final option in detail.options) _buildOptionRow(context, option),
+          _buildOptionsLayout(context, detail.options),
           // 未选任何选项时禁用：自测要有一个明确的「我答完了」动作。
           if (_selfTest && !_submitted)
             Padding(
@@ -903,7 +867,6 @@ class _QuestionBodyState extends State<_QuestionBody> {
           const SizedBox(height: 8),
           QuestionImagesSection(
             questionId: question.id,
-            editable: true,
             kind: QuestionImagesSectionKind.answer,
           ),
         ],
@@ -920,23 +883,14 @@ class _QuestionBodyState extends State<_QuestionBody> {
             markdown: markdownText,
           ),
         if (answer.isEmpty && !_answersHidden) ...[
-          // 没有文字答案时也不藏编辑入口：不是每道题都有现成答案，
-          // 用户可能先只截了一张答案图。
+          // 没有文字答案时也把答案图摆出来（只读）：不是每道题都有现成
+          // 文字答案，先截一张答案图也可能。
           const SizedBox(height: 8),
           QuestionImagesSection(
             questionId: question.id,
-            editable: true,
             kind: QuestionImagesSectionKind.answer,
           ),
         ],
-        if (question.aiQuality != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              l10n.questionDetailAiQuality(_number(question.aiQuality!)),
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
       ],
     );
   }
@@ -1548,7 +1502,25 @@ class _QuestionStemView extends ConsumerWidget {
         child: QuestionInlineImage(
           questionId: questionId,
           image: list[order],
-          editable: true,
+        ),
+      );
+    }
+
+    // 多图题（化学 Q15 的 18 处公式图这类）：把占位翻成行内 Markdown 图片，
+    // 交给统一渲染器排版，避免题面被切成「一列大图 + 碎文字」。
+    //
+    // 注意**不能**沿用快照判定：`planQuestionStemRender` 把「有一张 >= 1000×400
+    // 的大图」当整卡截图，而导入的公式图是同一字号放大导出的（化学 Q15 有
+    // 2624×1408、2912×576 这类），18 张里任何一张都会把整题误判成快照，于是
+    // 公式图全被堆到正文末尾。显式 `fullcard_` 标记仍按快照处理；多图题一律
+    // 走行内排版。
+    if (markdown && images != null && images.length >= 2 && !hasFullcardImage) {
+      return KeyedSubtree(
+        key: questionStemImagesKey,
+        child: QuestionMarkdownTextWithImages(
+          questionId: questionId,
+          text: stem,
+          style: theme.textTheme.titleMedium,
         ),
       );
     }
@@ -1578,12 +1550,6 @@ class _QuestionStemView extends ConsumerWidget {
             ),
           ),
         for (final order in plan.trailingImageOrders) imageAt(order),
-        // 末尾一行只留「添加配图 + 已加 N 张」，图片本身已经混排在上面。
-        QuestionImagesSection(
-          questionId: questionId,
-          editable: true,
-          showImages: false,
-        ),
       ],
     );
   }
@@ -2060,89 +2026,6 @@ class _LabelledText extends StatelessWidget {
   }
 }
 
-/// 「题目来源」：一行链接图标 + 来源名 + 复制按钮 + 编辑按钮。
-///
-/// 只复制链接，不打开浏览器：App 不内置 url_launcher（链接交给浏览器打开）。
-/// 组卷网来源显示「组卷网原题」，其它站显示规范化后的 host。没有可信链接时
-/// 调用方不摆这一行，改摆「添加原题链接」入口（同一个 key）。
-class _QuestionSourceLine extends StatelessWidget {
-  const _QuestionSourceLine({required this.source, this.onEditSourceLinks});
-
-  final QuestionSourceRef source;
-
-  /// 打开「改原题链接」对话框；可空（没给缝就不摆编辑按钮）。
-  final VoidCallback? onEditSourceLinks;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: <Widget>[
-          Icon(
-            Icons.link,
-            size: 16,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              source.isZujuan ? l10n.questionSourceZujuan : source.host,
-              style: theme.textTheme.bodySmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          TextButton.icon(
-            key: questionSourceCopyButtonKey,
-            onPressed: () => _copyQuestionSource(context, source),
-            icon: const Icon(Icons.copy_outlined, size: 16),
-            label: Text(l10n.questionSourceCopyLink),
-          ),
-          if (onEditSourceLinks != null)
-            TextButton.icon(
-              key: questionSourceEditButtonKey,
-              onPressed: onEditSourceLinks,
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: Text(l10n.questionSourceEdit),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 复制规范化后的原题链接，写进剪贴板后再提示（顺序与题号复制一致，
-/// 既有测试用的就是 SystemChannels.platform 的 `Clipboard.setData`）。
-Future<void> _copyQuestionSource(
-  BuildContext context,
-  QuestionSourceRef source,
-) async {
-  final l10n = AppLocalizations.of(context);
-  final messenger = ScaffoldMessenger.of(context);
-  await Clipboard.setData(ClipboardData(text: source.url));
-  if (!context.mounted) return;
-  messenger.showSnackBar(SnackBar(content: Text(l10n.questionSourceCopyDone)));
-}
-
-/// 来源（`origin`）：手工 / 拍照扫描 / Furnace 内建。
-String _originLabel(AppLocalizations l10n, String origin) => switch (origin) {
-      'manual' => l10n.questionIntakeOriginManual,
-      'ai_scan' => l10n.questionIntakeOriginAiScan,
-      'furnace' => l10n.questionIntakeOriginFurnace,
-      _ => origin.trim().isEmpty ? l10n.questionIntakeOriginManual : origin,
-    };
-
-/// 数值显示：整数不拖 `.0`，小数保留一位（难度 6 而不是 6.0）。
-String _number(double value) {
-  final rounded = value.roundToDouble();
-  return rounded == value
-      ? rounded.toInt().toString()
-      : value.toStringAsFixed(1);
-}
-
 /// 找相似题：只从**已有题库**里找。领域层已经排好序、写好理由，这里不改顺序、
 /// 不复算分量、不把 `score` 当百分比——只画 `reasonZh` 与「跨学科迁移」角标。
 ///
@@ -2307,134 +2190,6 @@ class _TransferBadge extends StatelessWidget {
         style: theme.textTheme.labelSmall
             ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
       ),
-    );
-  }
-}
-
-/// 「改来源」对话框：来源分级（白名单下拉）+ 来源说明/年份/地区。
-///
-/// 三条纪律：① 只改来源元信息（题干/答案/选项一个字不动）；② 留空的字段 =
-/// **不改**那一列（不是清空 —— 想清空得再定一次口径，这一轮不顺手做半套）；
-/// ③ 年份写错就停在对话框里说清楚，不悄悄当"没填"。
-class _EditSourceDialog extends StatefulWidget {
-  const _EditSourceDialog({required this.question});
-
-  final Question question;
-
-  @override
-  State<_EditSourceDialog> createState() => _EditSourceDialogState();
-}
-
-class _EditSourceDialogState extends State<_EditSourceDialog> {
-  late String _level = widget.question.sourceLevel;
-  late final TextEditingController _labelController =
-      TextEditingController(text: widget.question.sourceLabel);
-  late final TextEditingController _yearController =
-      TextEditingController(text: widget.question.year?.toString() ?? '');
-  late final TextEditingController _regionController =
-      TextEditingController(text: widget.question.region ?? '');
-  String? _yearProblem;
-
-  @override
-  void dispose() {
-    _labelController.dispose();
-    _yearController.dispose();
-    _regionController.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final l10n = AppLocalizations.of(context);
-    final rawYear = _yearController.text.trim();
-    int? year;
-    if (rawYear.isNotEmpty) {
-      year = int.tryParse(rawYear);
-      if (year == null || year < 1900 || year > 2200) {
-        setState(() => _yearProblem = l10n.questionDetailEditSourceYearBad);
-        return;
-      }
-    }
-    final label = _labelController.text.trim();
-    final region = _regionController.text.trim();
-    Navigator.of(context).pop((
-      level: _level,
-      label: label,
-      year: year,
-      region: region.isEmpty ? null : region,
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return AlertDialog(
-      title: Text(l10n.questionDetailEditSourceTitle),
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            DropdownButtonFormField<String>(
-              initialValue: _level,
-              decoration: InputDecoration(
-                labelText: l10n.questionIntakeSourceLevelLabel,
-              ),
-              items: <DropdownMenuItem<String>>[
-                for (final level in kSourceLevelWeight.keys)
-                  DropdownMenuItem<String>(
-                    value: level,
-                    child: Text(sourceLevelLabel(l10n, level)),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _level = value);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _labelController,
-              decoration: InputDecoration(
-                labelText: l10n.questionIntakeSourceLabelLabel,
-                hintText: l10n.questionIntakeSourceLabelHint,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _yearController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: l10n.questionIntakeYearLabel,
-                errorText: _yearProblem,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _regionController,
-              decoration: InputDecoration(
-                labelText: l10n.questionIntakeRegionLabel,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.questionDetailEditSourceHint,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.commonClose),
-        ),
-        FilledButton(
-          onPressed: _save,
-          child: Text(l10n.commonSave),
-        ),
-      ],
     );
   }
 }

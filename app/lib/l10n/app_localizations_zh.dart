@@ -36,10 +36,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navPackages => '知识库';
 
   @override
-  String get navMindnet => 'MindNet';
+  String get navMindnet => '学习状态';
 
   @override
-  String get mindnetIntro => 'MindNet 会参考你的复习记录，给出学习建议；这一页只能看，不能改数据。';
+  String get mindnetIntro =>
+      '这里只回答「我现在学得怎么样、今天该做什么」：档位、强项弱项、今天就绪情况、最近一周；模型参数与原始读数不在这里。';
 
   @override
   String get navSettings => '设置';
@@ -194,6 +195,111 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tasksDueAt => '截止时刻';
+
+  @override
+  String get tasksStatus => '状态';
+
+  @override
+  String get tasksStatusTodo => '待办';
+
+  @override
+  String get tasksStatusDoing => '进行中';
+
+  @override
+  String get tasksStatusDone => '已完成';
+
+  @override
+  String get tasksStatusBlocked => '卡住';
+
+  @override
+  String get tasksStatusSkipped => '跳过';
+
+  @override
+  String get tasksStatusSectionTodo => '待办';
+
+  @override
+  String get tasksStatusSectionDone => '已完成';
+
+  @override
+  String get tasksStatusSectionArchived => '卡住 / 跳过';
+
+  @override
+  String get tasksStatusMenu => '状态操作';
+
+  @override
+  String get tasksSubmit => '提交';
+
+  @override
+  String get tasksMarkStuck => '卡住';
+
+  @override
+  String get tasksSkip => '跳过';
+
+  @override
+  String tasksSubmitTitle(String title) {
+    return '提交「$title」？';
+  }
+
+  @override
+  String get tasksSubmitBody => '提交只追加一条“已提交”事实，不改变任务状态，也不会把它标记为完成。';
+
+  @override
+  String tasksStuckTitle(String title) {
+    return '把「$title」标记为卡住？';
+  }
+
+  @override
+  String get tasksStuckBody => '卡住会退出待办列表，不记录对错、不影响能力；之后可以再开始，或直接跳过。';
+
+  @override
+  String tasksSkipTitle(String title) {
+    return '跳过「$title」？';
+  }
+
+  @override
+  String get tasksSkipBody => '跳过不是删除：任务和它引用的内容都保留，只是不再出现在待办里。';
+
+  @override
+  String tasksSubmitDone(String title) {
+    return '已提交「$title」';
+  }
+
+  @override
+  String tasksStuckDone(String title) {
+    return '已把「$title」标记为卡住';
+  }
+
+  @override
+  String tasksSkipDone(String title) {
+    return '已跳过「$title」';
+  }
+
+  @override
+  String get tasksReopen => '恢复';
+
+  @override
+  String tasksReopenTitle(String title) {
+    return '恢复「$title」？';
+  }
+
+  @override
+  String get tasksReopenBody =>
+      '恢复会把任务放回待办，并记一条 reopened 流程事件。完成历史不会回滚：那是“做过”的事实，只是任务重新排队。';
+
+  @override
+  String tasksReopenDone(String title) {
+    return '已恢复「$title」';
+  }
+
+  @override
+  String tasksStatusNotAllowed(String status, String action) {
+    return '当前状态（$status）不允许「$action」';
+  }
+
+  @override
+  String tasksStatusActionFailed(String error) {
+    return '操作失败：$error';
+  }
 
   @override
   String get timeNewBlock => '新建日程块';
@@ -1240,6 +1346,39 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get tagsSearchHint => '搜索标签';
+
+  @override
+  String get tagsSearchEmpty => '没有匹配的标签';
+
+  @override
+  String tagsSearchCount(int count) {
+    return '匹配 $count 个标签';
+  }
+
+  @override
+  String get tagsClearSearch => '清除搜索';
+
+  @override
+  String get tagsGraphPanHint => '图比一屏宽：拖动平移、双指或滚轮缩放查看';
+
+  @override
+  String tagsCollapsedHidden(int count) {
+    return '还有 $count 个下级标签';
+  }
+
+  @override
+  String get tagsNodeSettings => '标签设置';
+
+  @override
+  String get tagsNodeSettingsHint => '折叠/展开用节点上的箭头；这里只管这个标签本身。';
+
+  @override
+  String tagsMoveSingleTitle(String label) {
+    return '移动「$label」到';
+  }
+
+  @override
   String get threadTitle => 'Thread';
 
   @override
@@ -1283,6 +1422,67 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get threadNoEvents => '还没有事件';
+
+  @override
+  String get threadWindowAll => '全部';
+
+  @override
+  String get threadWindowWeek => '本周任务';
+
+  @override
+  String get threadWindowDay => '本日任务';
+
+  @override
+  String get threadWindowEmpty => '这个时间窗里没有任务';
+
+  @override
+  String get threadWindowTemporary => '临时分类：只按时间窗过滤你已经排好的任务，不改排序、不写库。';
+
+  @override
+  String get threadRollupSubtasks => '子任务';
+
+  @override
+  String threadRollupDoneOf(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String threadRollupPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String threadRollupBlocked(int count) {
+    return '卡住 $count';
+  }
+
+  @override
+  String threadRollupSkipped(int count) {
+    return '跳过 $count';
+  }
+
+  @override
+  String get threadRollupSection => '子任务汇总（只读）';
+
+  @override
+  String get threadRollupStatus => '汇总状态';
+
+  @override
+  String threadRollupCountsLine(
+      int todo, int doing, int done, int blocked, int skipped) {
+    return '待办 $todo · 进行中 $doing · 已完成 $done · 卡住 $blocked · 跳过 $skipped';
+  }
+
+  @override
+  String threadRollupEstimate(int minutes) {
+    return '子任务估时合计 $minutes 分钟';
+  }
+
+  @override
+  String get threadRollupEstimateUnknown => '估时未知（有子任务没填估时）';
+
+  @override
+  String get threadRollupReadOnly => '只读汇总：显示它不会写回父容器状态。';
 
   @override
   String get threadGoal => '当前主要目标';
@@ -1627,7 +1827,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reviewReminderSettingTitle => '复习提醒';
 
   @override
-  String get reviewReminderSettingOff => '关';
+  String get reviewReminderSettingOff => '未开启（点按设置每天提醒）';
 
   @override
   String reviewReminderSettingOn(String time) {
@@ -1672,7 +1872,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsUsageDoc => '使用文档';
 
   @override
-  String get settingsUsageDocHint => 'AI、复习、题库、组卷、拍照、认知模型：怎么用、有什么限制都写在这里';
+  String get settingsUsageDocHint => 'AI、复习、题库、组卷、拍照、学习状态：怎么用、有什么限制都写在这里';
 
   @override
   String get docAiTitle => 'AI 助手能做什么、什么要你确认';
@@ -1717,11 +1917,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '今日清单列出今天到期的卡，并按你最近的复习和精力建议先做哪些。任务与日程时间冲突会提示，可以一键顺延；只有你点排序按钮时才会重新排序。';
 
   @override
-  String get docCognitiveTitle => '认知模型读数怎么理解';
+  String get docCognitiveTitle => '学习状态读数怎么理解';
 
   @override
   String get docCognitiveBody =>
-      '「认知模型」是只读页：显示每张卡记得牢不牢。「发展区」= 最近该多看的；「危险」= 会做但快忘了的。没有数据时显示「不可用」，这不等于「没问题」。页面顶部的「知识网络图」把知识点和标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点可以看读数。「能力动作画像」按你解题时卡住的动作归纳，点一行可以按动作找题。这里的数字只作参考，不会自己改你的数据。';
+      '「学习状态」是只读页：当前档位、强项/弱项、今天该复习什么、最近一周的一句话趋势。档位与强弱项按**知识点**算（不是按闪存卡张数）：同一知识点下多张卡先取平均，有复习记录的知识点才算证据；少于门槛或差异太大时显示 ? 或「证据不足」，这不等于「没问题」。页面里的「知识网络图」把知识点和标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点可以看读数。「能力动作画像」按你解题时卡住的动作归纳，点一行可以按动作找题。模型参数与每张卡的原始读数在「设置 → 开发者 → 开发者信息（只读）」里，默认折叠。这里的数字只作参考，不会自己改你的数据。';
 
   @override
   String get docFormulaTitle => '总分怎么算';
@@ -2300,6 +2500,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiUsageUnavailable => '—';
 
   @override
+  String get aiEffort => '思考强度';
+
+  @override
+  String get aiEffortDefault => '默认';
+
+  @override
+  String get aiEffortLow => '低';
+
+  @override
+  String get aiEffortHigh => '高';
+
+  @override
+  String get aiEffortMax => '最高';
+
+  @override
+  String get aiEffortTooltip =>
+      '选择等级会在请求里发送 reasoning_effort；「默认」不发送这个字段。服务端是否接受由所用模型决定。';
+
+  @override
+  String get aiEffortBusy => '生成中不能切换思考强度';
+
+  @override
+  String get aiDropImageHint => '松手把图片加进这条消息';
+
+  @override
+  String aiDropImageSkipped(int count) {
+    return '已跳过 $count 个不是图片的文件';
+  }
+
+  @override
   String get settingsAiSection => 'AI 接入';
 
   @override
@@ -2339,7 +2569,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsAiMaxRoundsHint =>
-      '每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 30 轮。';
+      '每多一轮都是一次额外的付费模型调用；轮数越大，一条消息越能一次做完较长的多步任务。默认 200 轮。';
 
   @override
   String get settingsAiSave => '保存';
@@ -2501,12 +2731,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTfpkgExportDoneNoSecrets => '工作区已导出（未包含 API key）';
 
   @override
-  String get cognitiveModelTitle => '认知模型';
-
-  @override
-  String get cognitiveModelSubtitle => '只读读数：R / 分组 / 发展区';
-
-  @override
   String get cognitiveGraphTitle => '知识网络图（只读）';
 
   @override
@@ -2522,8 +2746,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String cognitiveGraphPointDetail(String zone, int cards, String mean) {
-    return '区域：$zone · $cards 张卡 · 平均 R $mean';
+  String cognitiveGraphPointDetail(String zone, int cards) {
+    return '区域：$zone · $cards 张卡';
   }
 
   @override
@@ -4277,6 +4501,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionDetailQuestionMissing => '这道题已不在题库里（可能刚被删掉）。';
+
+  @override
+  String get questionDeveloperEntry => '开发者信息';
+
+  @override
+  String get questionDeveloperTitle => '开发者信息';
+
+  @override
+  String get questionDeveloperHint => '内部字段、来源编辑与配图管理；学生页默认不显示这些。';
+
+  @override
+  String get questionDeveloperRawTitle => '内部字段（只读）';
+
+  @override
+  String get questionDeveloperImagesTitle => '配图管理';
 
   @override
   String get questionDetailEditSource => '改来源';
@@ -6219,4 +6458,235 @@ class AppLocalizationsZh extends AppLocalizations {
   String aiStepsSummary(int count) {
     return '本轮 $count 步';
   }
+
+  @override
+  String get tagsKnowledgeEntry => '关联内容';
+
+  @override
+  String get tagKnowledgeEntryTitle => '关联内容';
+
+  @override
+  String get tagKnowledgeEntryIntro =>
+      '这个标签下挂着的题目、闪存卡与任务。只显示真实关联；没有关联的项写「暂无」，不做推测。';
+
+  @override
+  String get tagKnowledgeIncludeDescendants => '含子标签';
+
+  @override
+  String get tagKnowledgeIncludeDescendantsHint =>
+      '打开后把整棵子树的关联一起统计（卡组本来就按子树划分）。';
+
+  @override
+  String get tagKnowledgeQuestions => '题目';
+
+  @override
+  String get tagKnowledgeFlashcards => '闪存卡';
+
+  @override
+  String get tagKnowledgeTasks => '任务';
+
+  @override
+  String get tagKnowledgeEmptyQuestions => '暂无题目';
+
+  @override
+  String get tagKnowledgeEmptyFlashcards => '暂无闪存卡';
+
+  @override
+  String get tagKnowledgeEmptyTasks => '暂无任务';
+
+  @override
+  String tagKnowledgeMissingTargets(int count) {
+    return '另有 $count 条标签链接指向已删除的对象，未计入上面三块。';
+  }
+
+  @override
+  String get tagKnowledgeTagMissing => '这个标签已不存在（可能刚被删除）。';
+
+  @override
+  String tagKnowledgeLoadFailed(String error) {
+    return '读取标签内容失败：$error';
+  }
+
+  @override
+  String get tagKnowledgeQuestionNoStem => '（无题干）';
+
+  @override
+  String get tagKnowledgeCardPreviewTitle => '闪存卡';
+
+  @override
+  String get tagKnowledgeCardFront => '正面';
+
+  @override
+  String get tagKnowledgeCardAnswer => '答案';
+
+  @override
+  String get tagKnowledgeCardHint => '提示';
+
+  @override
+  String tagKnowledgeCardKnowledgePoint(String title) {
+    return '知识点：$title';
+  }
+
+  @override
+  String get tagKnowledgeCardTypeUnknown => '卡片';
+
+  @override
+  String tagKnowledgeCardReview(String group) {
+    return '去复习「$group」卡组';
+  }
+
+  @override
+  String get tagKnowledgeNoReviewGroup => '这个标签不属于任何已配置的卡组，所以没有可进入的复习队列。';
+
+  @override
+  String get mindnetStatusIntro => '只看学习状态和今天该做什么；模型参数不在这里。';
+
+  @override
+  String get mindnetBandTitle => '当前档位';
+
+  @override
+  String get mindnetBandHint => '按你有复习记录的知识点的记忆保持度粗分；只显示档位，不显示分数。';
+
+  @override
+  String mindnetBandEvidence(int count) {
+    return '依据：$count 个知识点的复习记录';
+  }
+
+  @override
+  String mindnetBandInsufficient(int count) {
+    return '证据不足：至少 $count 个知识点有复习记录才给档位，现在只显示 ?';
+  }
+
+  @override
+  String get mindnetBandUnstable => '证据不足：现有复习记录差异太大，暂不给档位';
+
+  @override
+  String get mindnetStrengthsTitle => '强项';
+
+  @override
+  String get mindnetWeaknessesTitle => '弱项';
+
+  @override
+  String get mindnetEvidenceMeasured => '实测';
+
+  @override
+  String get mindnetStrengthsEmpty => '证据不足：还没有复习记录';
+
+  @override
+  String get mindnetWeaknessesEmpty => '证据不足：至少要有两个复习过的知识点才分得出弱项';
+
+  @override
+  String get mindnetUntitledKnowledgePoint => '未命名知识点';
+
+  @override
+  String get mindnetTodayTitle => '今天';
+
+  @override
+  String mindnetTodayReviews(int count) {
+    return '闪存卡待复习 $count 张';
+  }
+
+  @override
+  String mindnetTodayTasks(int count) {
+    return '今日任务 $count 项';
+  }
+
+  @override
+  String get mindnetStartReview => '开始复习';
+
+  @override
+  String get mindnetTrendTitle => '最近一周';
+
+  @override
+  String get mindnetTrendEmpty => '证据不足：最近两周没有复习记录';
+
+  @override
+  String mindnetTrendNoThisWeek(int count) {
+    return '本周还没有复习（上周 $count 次）';
+  }
+
+  @override
+  String mindnetTrendRetention(int count, int percent) {
+    return '最近 7 天复习 $count 次，留存 $percent%';
+  }
+
+  @override
+  String mindnetTrendCompare(int count) {
+    return '（上周 $count 次）';
+  }
+
+  @override
+  String get mindnetDeveloperInfo => '开发者信息（只读）';
+
+  @override
+  String get mindnetDeveloperInfoHint => '模型参数、每张卡读数、校准与诊断明细';
+
+  @override
+  String get mindnetDeveloperInfoTitle => '开发者信息';
+
+  @override
+  String get mindnetDeveloperEntryHint => '模型参数与原始读数，默认不显示';
+
+  @override
+  String get cognitiveGraphUntitledTag => '未命名标签';
+
+  @override
+  String get settingsProfileIdentity => '学生';
+
+  @override
+  String get settingsProfileEditHint => '点按修改姓名';
+
+  @override
+  String get settingsSectionLearning => '学习与计划';
+
+  @override
+  String get settingsSectionAi => 'AI';
+
+  @override
+  String get settingsSectionAppearanceReading => '外观与阅读';
+
+  @override
+  String get settingsSectionHelp => '帮助';
+
+  @override
+  String get settingsSectionDeveloper => '开发者';
+
+  @override
+  String get settingsDeveloperShow => '显示';
+
+  @override
+  String get settingsDeveloperHide => '隐藏';
+
+  @override
+  String get settingsDeveloperHint => '开发者与原型入口，默认隐藏；日常使用不需要它们。';
+
+  @override
+  String get settingsTodayPlan => '今日计划';
+
+  @override
+  String get settingsDataLocation => '数据位置';
+
+  @override
+  String get settingsDataLocationHint => '点按复制本机数据目录';
+
+  @override
+  String get settingsDataLocationCopied => '路径已复制';
+
+  @override
+  String get settingsBackupRestoreTitle => '备份与恢复';
+
+  @override
+  String get settingsBackupRestoreHint => '导出整个工作区，或从备份恢复；导入前会自动备份当前数据';
+
+  @override
+  String get aiDeveloperParamsTitle => '开发者参数';
+
+  @override
+  String get aiDeveloperParamsHint => '轮次上限、可用工具、技能包；日常对话不需要改';
+
+  @override
+  String get aiDeveloperParamsShow => '显示';
+
+  @override
+  String get aiDeveloperParamsHide => '隐藏';
 }

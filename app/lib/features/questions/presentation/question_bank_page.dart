@@ -1,15 +1,18 @@
 /// 题库（顶部目的地）。
 ///
-/// 用户反馈（m09439）：题库总览不需要那么多详细信息，呈现必要信息、标签和
-/// 题目命名（自己命名或自动生成），图片要大一点。于是这一页：
+/// 用户反馈（2026-11-15 卡片化）：题库要像设置页那样是**卡片**，题干要摆在卡片
+/// 上、公式用 LaTeX 排出来。于是这一页：
 ///
 /// * 上面两个按钮 = 往题库里加东西的全部入口（收题/拍照整理改由内置 agent
 ///   收题：用户直接把照片或题目粘贴发给 agent，见 AI 工具 create_questions）；
 /// * 搜索框 + 标签筛选 + 学科筛选 + 错题本开关（四者 AND，可一键清除）；
-///   自测答错过的题在行内带「错 N 次」徽标；
 /// * 一行小字统计；
-/// * 每行 = 封面图（128×96）+ 题名（没题名时用题干摘要兜底）+ 题号徽章、
-///   学科、标签叶子名；行尾 ⋮ 菜单可改名 / 自动命名 / 复制题号。
+/// * 每张卡片 = 封面图 + 题名（没题名时显示「未命名」）+ 题号/学科/年份/标签/
+///   错题徽标 + **题干摘要**。摘要保留 `$…$` 公式，交给统一 Markdown 渲染器
+///   （task-104 的 `MarkdownRenderer`）真排公式，而不是把定界符剥成平文本。
+///
+/// 卡片外观与设置页的 `SettingsSectionCard` 同一套：圆角 16、0 高度、
+/// `surfaceContainerLow` 底色、`outlineVariant` 细描边、居中最大宽度 988。
 ///
 /// 数据走 `questionLibrarySnapshotProvider`：筛选或非「最新」排序生效时读全库
 /// （否则只在前 500 题里筛/排，后面的题永远筛不到）；一次拿全题目 + 题名 +
@@ -28,6 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/media/thumbnail_spec.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_stem_excerpt.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/material_intake_page.dart';
 import '../application/question_attempt_stats_provider.dart';
@@ -38,7 +42,6 @@ import '../application/question_library_sort.dart';
 import '../application/question_library_sort_preference.dart';
 import '../application/question_media_providers.dart';
 import '../application/question_pack_service.dart';
-import 'question_audit_view.dart';
 import 'question_bulk_tag_dialog.dart';
 import 'question_detail_page.dart';
 import 'question_library_filter_bar.dart';
@@ -92,6 +95,12 @@ String questionBankWrongBadgeKeyFor(String questionId) =>
 
 /// 顶部「自测统计」一行（全库有作答记录时才出现）。
 const Key questionBankAttemptStatsKey = Key('question-bank-attempt-stats');
+
+/// 题库卡片的圆角。与设置页 `SettingsSectionCard` 的 16 同一套版式。
+const double questionBankCardRadius = 16;
+
+/// 题库卡片的底色/描边也跟设置页一致；测试按这些值断言「同款卡片」。
+const double questionBankCardElevation = 0;
 
 /// 行菜单「清除作答记录」项按题 id 生成 key：
 /// `question-bank-clear-attempts-<id>`（只有答错过的行才出现）。
@@ -861,12 +870,17 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
         if (entry.hasTitle) entry.title!.trim(),
     ];
 
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: CustomScrollView(
-        slivers: <Widget>[
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+    return Center(
+      child: ConstrainedBox(
+        // 与设置页同一套：桌面宽屏上卡片是一列短行，整行铺满会把卡片拉成
+        // 一条条长横线，卡片边界反而看不出来。
+        constraints: const BoxConstraints(maxWidth: 988),
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
             sliver: SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1002,13 +1016,14 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, 32),
               sliver: SliverList.separated(
                 itemCount: shown.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final entry = shown[index];
-                  return _QuestionRow(
+                  return _QuestionCard(
                     entry: entry,
                     selectionMode: _selecting,
                     selected: _selected.contains(entry.questionId),
@@ -1025,7 +1040,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 },
               ),
             ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1074,12 +1091,18 @@ class _EntryRow extends StatelessWidget {
 /// 其它行仍是原来的三项。
 enum _QuestionRowAction { rename, autoName, copySerial, clearAttempts }
 
-/// 一道题：封面大图 + 题名/题干摘要 + 题号/学科/标签 + 体检徽章 + ⋮ 菜单。
+/// 一道题的卡片：封面图 + 题名 + 题号/学科/年份/标签 + **题干摘要**。
 ///
-/// 不套 Card：整行铺在页面背景上，行间只用一条细分隔线（用户反馈「很多文字
-/// 不需要放在一个卡片底座上」）。点整行进详情页。
-class _QuestionRow extends ConsumerWidget {
-  const _QuestionRow({
+/// 外观与设置页的 `SettingsSectionCard` 同一套：圆角 [questionBankCardRadius]、
+/// 0 高度、`surfaceContainerLow` 底色、`outlineVariant` 细描边。用户反馈
+/// （2026-11-15）：题库要像设置页那样是卡片，题干要摆在卡片上、公式要排
+/// LaTeX——所以卡片上有一行题干摘要（`$…$` 交给统一渲染器真排公式），而不是
+/// 把定界符剥掉的平文本。
+///
+/// 入库体检徽章不在学生列表出现：它是开发侧数据质量读数，统一在题目详情页的
+/// 「开发者信息」（`QuestionDeveloperPage`）里看。点整卡进详情页。
+class _QuestionCard extends ConsumerWidget {
+  const _QuestionCard({
     required this.entry,
     required this.selectionMode,
     required this.selected,
@@ -1093,7 +1116,7 @@ class _QuestionRow extends ConsumerWidget {
 
   final QuestionLibraryEntry entry;
 
-  /// 多选态：点整行 = 勾选/取消；行首长按也能进入多选。
+  /// 多选态：点整张卡 = 勾选/取消；长按卡片也能进入多选。
   final bool selectionMode;
   final bool selected;
   final VoidCallback onToggle;
@@ -1122,127 +1145,166 @@ class _QuestionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final cover = entry.coverImage;
     final hasTitle = entry.hasTitle;
     final leaves = questionBankTagLeafNames(entry.tagPaths);
+    // 整卡截图题的题干是碎片（`，。［图1］…`），摘要没有信息量：标题沿用
+    // 「可读摘录 / 整题截图 · N 处」的旧兜底，摘要行不渲染。
+    final titleText = hasTitle
+        ? entry.title!.trim()
+        : entry.isSnapshotStem
+            ? entry.displayTitle
+            : l10n.questionTitleUntitled;
+    final excerpt = entry.isSnapshotStem
+        ? ''
+        : questionCardStemExcerpt(entry.stem);
+    final meta = <String>[
+      subjectLabelOf(l10n, entry.subjectKey),
+      if (entry.year != null) l10n.questionDetailYear(entry.year!),
+    ].where((part) => part.trim().isNotEmpty).toList(growable: false);
 
-    return InkWell(
-      key: ValueKey(questionBankRowKeyFor(entry.questionId)),
-      onTap: selectionMode ? onToggle : onOpen,
-      onLongPress: selectionMode ? null : onEnterSelection,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (selectionMode)
-              Checkbox(
-                value: selected,
-                onChanged: (_) => onToggle(),
-              ),
-            if (cover != null) ...[
-              _QuestionCover(image: cover),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    entry.displayTitle,
-                    maxLines: hasTitle ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: hasTitle
-                        ? theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          )
-                        : theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(questionBankCardRadius),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.55)),
+      ),
+      child: InkWell(
+        key: ValueKey(questionBankRowKeyFor(entry.questionId)),
+        onTap: selectionMode ? onToggle : onOpen,
+        onLongPress: selectionMode ? null : onEnterSelection,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (selectionMode)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4, top: 2),
+                  child: Checkbox(
+                    value: selected,
+                    onChanged: (_) => onToggle(),
                   ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: <Widget>[
-                      QuestionSerialBadge(
-                        serialNo: entry.serialNo,
-                        copyable: false,
-                        dense: true,
-                      ),
-                      if (entry.hasWrongAttempt)
-                        _WrongPill(
-                          questionId: entry.questionId,
-                          count: entry.wrongAttemptCount,
+                ),
+              if (cover != null) ...[
+                _QuestionCover(image: cover),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      titleText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: hasTitle
+                          ? theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            )
+                          : theme.textTheme.titleSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: <Widget>[
+                        QuestionSerialBadge(
+                          serialNo: entry.serialNo,
+                          copyable: false,
+                          dense: true,
                         ),
-                      Text(
-                        subjectLabelOf(l10n, entry.subjectKey),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      // 整卡截图题：只在标题没回落成「整题截图 · N 处公式/图」
-                      // 时补一个小标签，避免同一行出现两个「整题截图」。
-                      if (entry.isSnapshotStem &&
-                          ((entry.snapshotExcerpt ?? '').trim().isNotEmpty ||
-                              hasTitle))
+                        if (entry.hasWrongAttempt)
+                          _WrongPill(
+                            questionId: entry.questionId,
+                            count: entry.wrongAttemptCount,
+                          ),
                         Text(
-                          l10n.questionBankSnapshotBadge,
+                          meta.join(' · '),
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: colors.onSurfaceVariant,
                           ),
                         ),
-                      for (final leaf in leaves.take(3)) _TagPill(label: leaf),
-                      if (leaves.length > 3)
-                        _TagPill(label: '+${leaves.length - 3}'),
+                        // 整卡截图题：只在标题没回落成「整题截图 · N 处公式/图」
+                        // 时补一个小标签，避免同一行出现两个「整题截图」。
+                        if (entry.isSnapshotStem &&
+                            ((entry.snapshotExcerpt ?? '').trim().isNotEmpty ||
+                                hasTitle))
+                          Text(
+                            l10n.questionBankSnapshotBadge,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        for (final leaf in leaves.take(3))
+                          _TagPill(label: leaf),
+                        if (leaves.length > 3)
+                          _TagPill(label: '+${leaves.length - 3}'),
+                      ],
+                    ),
+                    // 题干摘要：保留 `$…$` 公式，含公式时交给统一 Markdown
+                    // 渲染器排真公式；纯文字时是可选择的原文（不误解析 `_`/`*`）。
+                    if (excerpt.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      QuestionRichText(
+                        text: excerpt,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
                     ],
+                  ],
+                ),
+              ),
+              PopupMenuButton<_QuestionRowAction>(
+                key: ValueKey(questionBankRowMenuKeyFor(entry.questionId)),
+                tooltip: l10n.questionBankRowMenuTooltip,
+                onSelected: (action) {
+                  switch (action) {
+                    case _QuestionRowAction.rename:
+                      onRename();
+                    case _QuestionRowAction.autoName:
+                      onAutoName();
+                    case _QuestionRowAction.copySerial:
+                      _copySerial(context, l10n);
+                    case _QuestionRowAction.clearAttempts:
+                      onClearAttempts();
+                  }
+                },
+                itemBuilder: (context) => <PopupMenuEntry<_QuestionRowAction>>[
+                  PopupMenuItem<_QuestionRowAction>(
+                    value: _QuestionRowAction.rename,
+                    child: Text(l10n.questionTitleRename),
                   ),
+                  PopupMenuItem<_QuestionRowAction>(
+                    value: _QuestionRowAction.autoName,
+                    child: Text(l10n.questionBankAutoNameMenu),
+                  ),
+                  PopupMenuItem<_QuestionRowAction>(
+                    value: _QuestionRowAction.copySerial,
+                    enabled: entry.serialNo != null,
+                    child: Text(l10n.questionBankCopySerial),
+                  ),
+                  // 只有答错过的题才有记录可清；没错过的行菜单保持原三项。
+                  if (entry.hasWrongAttempt)
+                    PopupMenuItem<_QuestionRowAction>(
+                      key: ValueKey(
+                        questionBankClearAttemptsKeyFor(entry.questionId),
+                      ),
+                      value: _QuestionRowAction.clearAttempts,
+                      child: Text(l10n.questionDetailAttemptClearAction),
+                    ),
                 ],
               ),
-            ),
-            QuestionAuditBadge(questionId: entry.questionId),
-            PopupMenuButton<_QuestionRowAction>(
-              key: ValueKey(questionBankRowMenuKeyFor(entry.questionId)),
-              tooltip: l10n.questionBankRowMenuTooltip,
-              onSelected: (action) {
-                switch (action) {
-                  case _QuestionRowAction.rename:
-                    onRename();
-                  case _QuestionRowAction.autoName:
-                    onAutoName();
-                  case _QuestionRowAction.copySerial:
-                    _copySerial(context, l10n);
-                  case _QuestionRowAction.clearAttempts:
-                    onClearAttempts();
-                }
-              },
-              itemBuilder: (context) => <PopupMenuEntry<_QuestionRowAction>>[
-                PopupMenuItem<_QuestionRowAction>(
-                  value: _QuestionRowAction.rename,
-                  child: Text(l10n.questionTitleRename),
-                ),
-                PopupMenuItem<_QuestionRowAction>(
-                  value: _QuestionRowAction.autoName,
-                  child: Text(l10n.questionBankAutoNameMenu),
-                ),
-                PopupMenuItem<_QuestionRowAction>(
-                  value: _QuestionRowAction.copySerial,
-                  enabled: entry.serialNo != null,
-                  child: Text(l10n.questionBankCopySerial),
-                ),
-                // 只有答错过的题才有记录可清；没错过的行菜单保持原三项。
-                if (entry.hasWrongAttempt)
-                  PopupMenuItem<_QuestionRowAction>(
-                    key: ValueKey(
-                      questionBankClearAttemptsKeyFor(entry.questionId),
-                    ),
-                    value: _QuestionRowAction.clearAttempts,
-                    child: Text(l10n.questionDetailAttemptClearAction),
-                  ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

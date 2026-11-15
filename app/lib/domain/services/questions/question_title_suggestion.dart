@@ -302,6 +302,18 @@ String? _subjectLabel(String? subjectKey) {
   return _subjectLabelsZh[key] ?? key;
 }
 
+/// 学科键 → 中文显示名：[_subjectLabel] 的公开入口。
+///
+/// 与 [suggestQuestionTitle] 共用同一份学科词表（含 `english` /
+/// `geography` / `politics` 三个 `CapabilityAction.subjectLabelsZh` 没有的常见
+/// 学科）；已知键给中文名，未知但非空的键原样返回键本身（不硬编造中文名），
+/// 空键 / `null` 返回 `null`。
+///
+/// 公开它是因为"按学科名找同名标签"（`PaperTaskMaterializer` 写
+/// `object_tags(object_type='task')` 时把学科根挂到任务上）必须与题名建议用
+/// **同一套**学科中文名；再抄一份词表就是第二真相。
+String? subjectLabelZhOf(String? subjectKey) => _subjectLabel(subjectKey);
+
 String _corePhrase(String stem, int limit) {
   String text = stem.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   text = text.replaceAll(_markdownImagePattern, ' ');

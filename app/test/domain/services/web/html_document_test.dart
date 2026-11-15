@@ -137,6 +137,45 @@ void main() {
     test('stray close tags are ignored', () {
       expect(textOf('</div><p>text</p></span>'), 'text');
     });
+
+    // The scanner used to flatten *every* repeated open tag, which made a
+    // `<div><div>` layout (every real page's structure, and the OALD entry the
+    // dictionary tool reads) lose its nesting. Only the tags HTML itself
+    // auto-closes may be flattened (`autoSiblingTags`); everything else nests.
+    test('nested same-name containers keep their nesting', () {
+      final document = HtmlDocument.parse(
+        '<div class="outer"><div class="inner">x</div></div>',
+      );
+      expect(document.select('div.outer div.inner'), hasLength(1));
+      expect(document.select('div.outer div.inner').single.parent?.classNames,
+          contains('outer'));
+      final outer = document.select('div.outer').single;
+      expect(document.extractElementText(outer), 'x');
+    });
+
+    test('deeply nested divs keep one text run reachable at the depth cap', () {
+      final document =
+          HtmlDocument.parse('${'<div>' * 400}deep${'</div>' * 400}');
+      expect(document.extractText(document.root), contains('deep'));
+    });
+
+    test('tags HTML auto-closes still become siblings', () {
+      final document = HtmlDocument.parse('<p>one<p>two');
+      final paragraphs = document.select('p');
+      expect(paragraphs, hasLength(2));
+      expect(
+        paragraphs.map((node) => document.extractElementText(node)).toList(),
+        ['one', 'two'],
+      );
+      final list = HtmlDocument.parse('<ul><li>a<li>b</ul>');
+      expect(
+        list
+            .select('li')
+            .map((node) => list.extractElementText(node))
+            .toList(),
+        ['a', 'b'],
+      );
+    });
   });
 
   group('selector subset', () {

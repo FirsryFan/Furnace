@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+﻿import 'dart:io' show Platform;
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -142,11 +142,11 @@ void main() {
       await db.close();
     });
 
-    test('all 29 built-in tools are offered on both shipped platforms', () {
-      expect(registry.all, hasLength(29));
-      expect(registry.forPlatform(AiToolPlatform.android), hasLength(29));
-      expect(registry.forPlatform(AiToolPlatform.windows), hasLength(29));
-      expect(registry.forCurrentPlatform, hasLength(29));
+    test('all 35 built-in tools are offered on both shipped platforms', () {
+      expect(registry.all, hasLength(35));
+      expect(registry.forPlatform(AiToolPlatform.android), hasLength(35));
+      expect(registry.forPlatform(AiToolPlatform.windows), hasLength(35));
+      expect(registry.forCurrentPlatform, hasLength(35));
       expect(registry.unavailableHere, isEmpty);
     });
 

@@ -344,6 +344,49 @@ class TagRepository {
     return rows.map((row) => row.readTable(_db.tags)).toList();
   }
 
+  /// 批量反查：对象 id → 它**直挂**的标签 id（同一 [objectType]，一次查询）。
+  ///
+  /// 为什么需要：写 `object_tags(object_type='task')` 时要复用**别人已经挂好的**
+  /// 标签（题目的学科根、知识点的章节/知识点标签），逐对象调 [tagsForObject]
+  /// 会按对象数开查询。这里一条 JOIN 拿全。
+  ///
+  /// 只返回**仍然存在**的标签：`INNER JOIN tags` 会丢掉指向已删标签的残渣行，
+  /// 调用方拿这些 id 去挂新对象时不会引用不存在的标签（FK 也会拒绝）。
+  /// 每个对象的 id 去重后排序；未挂标签的对象不出现在结果里（"没挂"与
+  /// "挂了 0 个"不是同一个信号，调用方能从缺键区分）。只读，不写库。
+  Future<Map<String, List<String>>> tagIdsByObjectIds({
+    required String objectType,
+    required Iterable<String> objectIds,
+  }) async {
+    final cleanType = objectType.trim();
+    final ids = _cleanObjectIds(objectIds);
+    if (cleanType.isEmpty || ids.isEmpty) {
+      return const <String, List<String>>{};
+    }
+    final query = _db.select(_db.tags).join([
+      innerJoin(
+        _db.objectTags,
+        _db.objectTags.tagId.equalsExp(_db.tags.id),
+      ),
+    ])
+      ..where(
+        _db.objectTags.objectType.equals(cleanType) &
+            _db.objectTags.objectId.isIn(ids),
+      );
+    final rows = await query.get();
+    final byObject = <String, Set<String>>{};
+    for (final row in rows) {
+      final objectId = row.readTable(_db.objectTags).objectId;
+      final tagId = row.readTable(_db.tags).id;
+      (byObject[objectId] ??= <String>{}).add(tagId);
+    }
+    final sortedObjectIds = byObject.keys.toList()..sort();
+    return <String, List<String>>{
+      for (final objectId in sortedObjectIds)
+        objectId: byObject[objectId]!.toList()..sort(),
+    };
+  }
+
   // --- cards with no card group --------------------------------------------
 
   /// How many knowledge points carry no tag at all.
@@ -415,6 +458,41 @@ class TagRepository {
   Future<List<ObjectTag>> objectLinksForTag(String tagId) {
     return (_db.select(_db.objectTags)..where((t) => t.tagId.equals(tagId)))
         .get();
+  }
+
+  /// 一批标签上的全部对象链接（只读；标签知识入口查「这棵子树挂了什么」用）。
+  ///
+  /// 一次 `WHERE tag_id IN (...)` 而不是每个标签查一次；按 500 分块，理由与
+  /// [tagIdsByObjectIds] 相同（SQLite 的绑定变量上限）。空集合直接返回空列表，
+  /// 不查库。顺序不保证：调用方按 `object_type` / `object_id` 自己分组。
+  Future<List<ObjectTag>> objectLinksForTags(Iterable<String> tagIds) async {
+    final ids = tagIds.toSet().toList();
+    if (ids.isEmpty) {
+      return const <ObjectTag>[];
+    }
+    final result = <ObjectTag>[];
+    const chunkSize = 500;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      result.addAll(
+        await (_db.select(_db.objectTags)
+              ..where((t) => t.tagId.isIn(ids.sublist(start, end))))
+            .get(),
+      );
+    }
+    return result;
+  }
+
+  /// 一棵子树的标签 id（含 [tagId] 自身），沿 `parent_id` 走、**不依赖 `path`
+  /// 缓存**——`path` 只是派生列，坏数据/手工写入的行可能没有它。
+  ///
+  /// 只读；顺序为深度优先、兄弟按创建时间（[getChildren] 的口径），因此同一份
+  /// 数据每次给同一个顺序，便于测试与稳定展示。
+  Future<List<String>> subtreeTagIds(String tagId) async {
+    final ids = <String>[tagId];
+    ids.addAll(await _descendantIds(tagId));
+    return ids;
   }
 
   /// How many objects carry each tag, for the tag tree's "sort by content"

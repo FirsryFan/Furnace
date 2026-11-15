@@ -87,6 +87,19 @@ part 'database.g.dart';
     CogCognitiveParams,
     CogTaskAbilityMappings,
     CogAbilityParamMappings,
+    // v45（2026-11-14，STUDENT-MODE-AND-AGENT-LOOP-DESIGN §5）：全局 agent run
+    // 的持久化 —— run / step / verification / claim / experience。纯新增五表，
+    // 不存 raw CoT（原文在 trace 文件里，库里只留长度和结构化摘要）。
+    AgentRuns,
+    AgentSteps,
+    AgentVerifications,
+    AgentClaims,
+    AgentExperiences,
+    // v47（2026-11-15，INTEGRATION-CONTRACT-2026-11-15 §2.2/§3.1）：
+    // 内容 ID 桥 `content_refs` + ThreadFlow 事件流 `thread_events`，外加
+    // `tasks.kind` / `tasks.source_key`。调度器仍只有 ThreadRankService。
+    ContentRefs,
+    ThreadEvents,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -174,14 +187,64 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// v43（2026-11-02）adds `review_group_plans.judge_mode`：按卡组（标签子树）
   /// 覆盖判分方式。可空、NULL = 跟随全局默认（自判），迁移不回填。
+  /// v44（2026-11-14）adds `ai_conversations.agent_preset_id` /
+  /// `subagent_preset_id`：会话创建时选择、开聊前可改、首条消息后不可改的
+  /// agent/subagent preset。可空、NULL 读作 assistant / inherit（老会话行为不变），
+  /// 迁移不回填；**不存** preset 定义、版本或 hash——同一个 id 永远解析到当前定义
+  /// （docs/AI_PRESETS.md）。
+  ///
+  /// v45（2026-11-14）adds the five global agent-run tables
+  /// `agent_runs` / `agent_steps` / `agent_verifications` / `agent_claims` /
+  /// `agent_experiences`（STUDENT-MODE-AND-AGENT-LOOP-DESIGN §5）：一次运行的
+  /// 状态/预算/步骤/验证结论/claim/经验分别成表，索引在建表后补。纯新增、全空，
+  /// 老库没有一行要回填；**不存 raw CoT** —— reasoning 原文留在
+  /// `<appSupport>/student_solver_traces/`，库里只有 `reasoning_chars` 和结构化
+  /// 摘要（`answer_sheet_json` / `process_report_json`）。
+  ///
+  /// v46（2026-11-15）adds eight `local_settings` columns for the model-parameter
+  /// layer（MODEL-CONFIG-2026-11-15.md）：推理等级 `ai_reasoning_effort`、
+  /// 三个温度（`ai_temperature` / `ai_answer_temperature` /
+  /// `ai_verifier_temperature`）、两个输出预算（`ai_max_reasoning_tokens` /
+  /// `ai_answer_reserve_tokens`）、验证器模型与等级（`ai_verifier_model` /
+  /// `ai_verifier_effort`）。八列全可空、**迁移不回填**：NULL 读作「用户没调过」，
+  /// 应用解析成这层出现之前的出厂值（0.6 / 0.2 / 0.2、20k / 3k、不发
+  /// `reasoning_effort`），所以升级来的库发出的请求与旧版一致。
+  ///
+  /// v47（2026-11-15）adds the ThreadFlow/content integration foundation
+  /// (INTEGRATION-CONTRACT-2026-11-15.md §2.2/§3.1/§3.4):
+  ///
+  ///  1. `content_refs`: the ID bridge from content ids (`Q-…` / `QSET-…` /
+  ///     content knowledge node `kp-…`) to product objects, with
+  ///     `UNIQUE(content_id, object_type, object_id, role)`. **No body copy**:
+  ///     no stem/answer/solution/DAG columns live here.
+  ///  2. `thread_events`: append-only flow facts (created/planned/started/
+  ///     submitted/stuck/skipped/completed) with `UNIQUE(task_id, kind,
+  ///     source_key)` for retry idempotency. Flow facts only - never mastery,
+  ///     never review/attempt records.
+  ///  3. `tasks.kind` (task/paper/week/day/review, NULL reads as `task`) and
+  ///     `tasks.source_key` (materializer idempotency key, NULL for every old
+  ///     row) + `UNIQUE INDEX idx_tasks_source_key` (partial: only non-NULL).
+  ///
+  /// All additive and **not backfilled**: an upgraded database has zero rows in
+  /// the two new tables and NULL in the two new columns, so every existing
+  /// behaviour is unchanged. The unique index is created separately
+  /// ([_ensureV47Indexes]) because SQLite cannot add a table-level UNIQUE
+  /// constraint with ALTER TABLE.
   @override
-  int get schemaVersion => 43;
+  int get schemaVersion => 47;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (m) async {
         await m.createAll();
+        // v45 的索引不属于 createAll（Drift 的表定义不带 index），所以新建库
+        // 也要补一趟；语句是 IF NOT EXISTS，重复执行无害。
+        await _ensureAgentRunIndexes();
+        // v47（2026-11-15）：`tasks.source_key` 的唯一索引与两张新表的查询索引。
+        // 表级 UNIQUE 约束由 createAll 建（content_refs / thread_events 的
+        // uniqueKeys），但 `tasks` 是已存在的表，只能建独立唯一索引。
+        await _ensureV47Indexes();
       },
       onUpgrade: (m, from, to) async {
         if (from < 2) {
@@ -310,6 +373,18 @@ class AppDatabase extends _$AppDatabase {
         if (from < 43) {
           await _upgradeV42ToV43();
         }
+        if (from < 44) {
+          await _upgradeV43ToV44();
+        }
+        if (from < 45) {
+          await _upgradeV44ToV45();
+        }
+        if (from < 46) {
+          await _upgradeV45ToV46();
+        }
+        if (from < 47) {
+          await _upgradeV46ToV47();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -339,7 +414,15 @@ class AppDatabase extends _$AppDatabase {
       // 却没有这一列时，Drift 跳过 onUpgrade，标签树/时间表第一次读标签就抛
       // no such column。列可空、NULL 读作「这一级没有声明」，补列即可，没有回填。
       'tags': [tags.usageCodes],
-      'tasks': [tasks.startedAt],
+      'tasks': [
+        tasks.startedAt,
+        // v47（2026-11-15）：节点种类 + 物化幂等键。同一个失败模式——老文件被
+        // 盖成 v47 却没有这两列时，Drift 跳过 onUpgrade，读 Thread 节点就抛
+        // no such column。两列都可空、NULL 分别读作 `task` / 「没有幂等键」，
+        // 补列即可，没有回填。
+        tasks.kind,
+        tasks.sourceKey,
+      ],
       'completion_logs': [
         completionLogs.actualMinutes,
         completionLogs.includeInModel,
@@ -399,6 +482,17 @@ class AppDatabase extends _$AppDatabase {
         // 老文件被盖成 v36 却没有这一列时，读设置就抛 no such column。列可空，
         // NULL 读作出厂 0.85，补列即可。
         localSettings.reviewRetention,
+        // v46（2026-11-15）：模型参数层八列。同一个失败模式——老文件被盖成 v46
+        // 却没有这些列时，Drift 跳过 onUpgrade，读 AI 配置就抛 no such column。
+        // 八列全可空、NULL 读作「用户没调过」的出厂值，补列即可，没有回填。
+        localSettings.aiReasoningEffort,
+        localSettings.aiTemperature,
+        localSettings.aiAnswerTemperature,
+        localSettings.aiVerifierTemperature,
+        localSettings.aiMaxReasoningTokens,
+        localSettings.aiAnswerReserveTokens,
+        localSettings.aiVerifierModel,
+        localSettings.aiVerifierEffort,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -434,6 +528,13 @@ class AppDatabase extends _$AppDatabase {
       // 却没有这一列时，Drift 跳过 onUpgrade，卡组计划页第一次读就抛
       // no such column。列可空、NULL 读作跟随全局默认，补列即可，没有回填。
       'review_group_plans': [reviewGroupPlans.judgeMode],
+      // v44（2026-11-14）：会话的 agent/subagent preset。同一个失败模式——老文件
+      // 被盖成 v44 却没有这两列时，Drift 跳过 onUpgrade，列会话列表/打开对话就抛
+      // no such column。列可空、NULL 读作 assistant / inherit，补列即可，没有回填。
+      'ai_conversations': [
+        aiConversations.agentPresetId,
+        aiConversations.subagentPresetId,
+      ],
     };
     final m = Migrator(this);
     for (final entry in expected.entries) {
@@ -584,6 +685,36 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(entry.value);
       }
     }
+    // v45（2026-11-14）：五张 agent-run 表。同一个失败模式——老文件被盖成 v45 却
+    // 缺表（迁移被打断）时，读 run/step 就抛 no such table，一次运行看起来像
+    // 从来没发生过。五张表都是纯新增、没有列要补，建表即可。
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'agent_runs': agentRuns,
+      'agent_steps': agentSteps,
+      'agent_verifications': agentVerifications,
+      'agent_claims': agentClaims,
+      'agent_experiences': agentExperiences,
+    }.entries) {
+      if (!await _tableExists(entry.key)) {
+        await m.createTable(entry.value);
+      }
+    }
+    // v47（2026-11-15）：内容 ID 桥与 ThreadFlow 事件流。同一个失败模式——老文件
+    // 被盖成 v47 却缺表（迁移被打断）时，写 content_refs / thread_events 就抛
+    // no such table，整合链路看起来像从来没接过。两张表都是纯新增、没有列要补，
+    // 建表即可。
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'content_refs': contentRefs,
+      'thread_events': threadEvents,
+    }.entries) {
+      if (!await _tableExists(entry.key)) {
+        await m.createTable(entry.value);
+      }
+    }
+    // 索引放在表补齐之后：`CREATE INDEX` 引用的表必须已经存在。语句本身是
+    // `IF NOT EXISTS`，所以健康库这一趟只是几条空转的探测。
+    await _ensureAgentRunIndexes();
+    await _ensureV47Indexes();
   }
 
   /// v4 -> v5: the day/week grid no longer defaults to whole-hour rows.
@@ -1265,7 +1396,180 @@ class AppDatabase extends _$AppDatabase {
       return;
     }
     final m = Migrator(this);
-    await _addColumnIfMissing(m, 'review_group_plans', reviewGroupPlans.judgeMode);
+    await _addColumnIfMissing(
+        m, 'review_group_plans', reviewGroupPlans.judgeMode);
+  }
+
+  /// v43 -> v44：会话的 agent/subagent preset（2026-11-14，`docs/AI_PRESETS.md`）。
+  ///
+  /// 两列都可空、只补列不回填：NULL 读作 `assistant` / `inherit`，所以升级过来
+  /// 的会话行为**完全不变**——这正是「preset 只在 blank session 上选择」的兼容
+  /// 语义：老会话从第一条消息起就已经是 assistant，没有可选的余地。
+  /// 表不存在就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV43ToV44() async {
+    if (!await _tableExists('ai_conversations')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'ai_conversations', aiConversations.agentPresetId);
+    await _addColumnIfMissing(
+        m, 'ai_conversations', aiConversations.subagentPresetId);
+  }
+
+  /// v44 -> v45：全局 agent run 五表 + 索引（2026-11-14，
+  /// 《STUDENT-MODE-AND-AGENT-LOOP-DESIGN-2026-11-14》§5）。
+  ///
+  /// 五张表都是纯新增、建完为空：v44 及更早的库没有任何一行需要回填或搬家。
+  /// 每张表先探测再建 —— 版本号被盖高、或 [_ensureColumns] 自愈先一步建过时，
+  /// createTable 不会重复执行（v37 -> v38 起就是这个写法）。
+  ///
+  /// 索引单独补一趟（[_ensureAgentRunIndexes]）：Drift 的 `createAll` /
+  /// `createTable` 只建表不建 index，而这几条是「按会话找 run」「按 run 找步骤/
+  /// 验证」的读路径，缺了只是慢、不会报错，所以更容易被忘掉。
+  Future<void> _upgradeV44ToV45() async {
+    final m = Migrator(this);
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'agent_runs': agentRuns,
+      'agent_steps': agentSteps,
+      'agent_verifications': agentVerifications,
+      'agent_claims': agentClaims,
+      'agent_experiences': agentExperiences,
+    }.entries) {
+      if (await _tableExists(entry.key)) {
+        continue;
+      }
+      await m.createTable(entry.value);
+    }
+    await _ensureAgentRunIndexes();
+  }
+
+  /// v45 -> v46：模型参数层八列（2026-11-15，MODEL-CONFIG-2026-11-15.md）。
+  ///
+  /// 全部可空、只补列不回填：NULL 读作「用户没调过」，读侧解析成这层出现之前
+  /// 的出厂值，所以升级来的库行为不变——与 `ai_max_rounds` 等可空偏好的契约相同。
+  /// 表不存在就跳过（由 [_ensureColumns] 自愈补列）。
+  Future<void> _upgradeV45ToV46() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    for (final column in <GeneratedColumn<Object>>[
+      localSettings.aiReasoningEffort,
+      localSettings.aiTemperature,
+      localSettings.aiAnswerTemperature,
+      localSettings.aiVerifierTemperature,
+      localSettings.aiMaxReasoningTokens,
+      localSettings.aiAnswerReserveTokens,
+      localSettings.aiVerifierModel,
+      localSettings.aiVerifierEffort,
+    ]) {
+      await _addColumnIfMissing(m, 'local_settings', column);
+    }
+  }
+
+  /// 建 v45 的索引（设计文档 §5.1-§5.5）；表不存在就跳过。
+  ///
+  /// 全部 `IF NOT EXISTS`，所以迁移、`onCreate`、`beforeOpen` 自愈三条路可以
+  /// 重复调用 —— 这正是「迁移可重复执行」在这里的落点：再开一次库不会因为
+  /// 索引已存在而抛错。
+  Future<void> _ensureAgentRunIndexes() async {
+    const statements = <String, List<String>>{
+      'agent_runs': [
+        'CREATE INDEX IF NOT EXISTS idx_agent_runs_conversation '
+            'ON agent_runs(conversation_id)',
+        'CREATE INDEX IF NOT EXISTS idx_agent_runs_started '
+            'ON agent_runs(started_at)',
+      ],
+      'agent_steps': [
+        'CREATE INDEX IF NOT EXISTS idx_agent_steps_run '
+            'ON agent_steps(run_id)',
+      ],
+      'agent_verifications': [
+        'CREATE INDEX IF NOT EXISTS idx_agent_verifications_run '
+            'ON agent_verifications(run_id)',
+      ],
+      'agent_claims': [
+        'CREATE INDEX IF NOT EXISTS idx_agent_claims_run '
+            'ON agent_claims(run_id)',
+      ],
+      'agent_experiences': [
+        'CREATE INDEX IF NOT EXISTS idx_agent_experiences_cluster '
+            'ON agent_experiences(cluster, state_key)',
+      ],
+    };
+    for (final entry in statements.entries) {
+      if (!await _tableExists(entry.key)) {
+        continue;
+      }
+      for (final sql in entry.value) {
+        await customStatement(sql);
+      }
+    }
+  }
+
+  /// v46 -> v47：ThreadFlow 内容整合底座（2026-11-15，
+  /// `INTEGRATION-CONTRACT-2026-11-15.md` §2.2 / §3.1 / §3.4）。
+  ///
+  /// 三件事，全部**只加结构、不回填**：
+  ///
+  ///  1. `content_refs`：内容 id ↔ 产品对象的 ID 桥（唯一键
+  ///     `content_id + object_type + object_id + role`）。只存引用，不复制正文。
+  ///  2. `thread_events`：append-only 状态事件流（`created` / `planned` /
+  ///     `started` / `submitted` / `stuck` / `skipped` / `completed`），
+  ///     `UNIQUE(task_id, kind, source_key)` 让重试幂等。
+  ///  3. `tasks.kind` / `tasks.source_key` 两列 + `source_key` 唯一索引。
+  ///     两列可空：NULL 分别读作 `task` / 「没有幂等键」，老库每一行语义不变。
+  ///
+  /// 可重复执行：表先探测再建，列走 [_addColumnIfMissing]，索引全 `IF NOT EXISTS`
+  /// —— 版本号被盖高、或 [_ensureColumns] 自愈先一步做过时，这里整趟是空转。
+  Future<void> _upgradeV46ToV47() async {
+    final m = Migrator(this);
+    for (final entry in <String, TableInfo<Table, dynamic>>{
+      'content_refs': contentRefs,
+      'thread_events': threadEvents,
+    }.entries) {
+      if (await _tableExists(entry.key)) {
+        continue;
+      }
+      await m.createTable(entry.value);
+    }
+    if (await _tableExists('tasks')) {
+      await _addColumnIfMissing(m, 'tasks', tasks.kind);
+      await _addColumnIfMissing(m, 'tasks', tasks.sourceKey);
+    }
+    await _ensureV47Indexes();
+  }
+
+  /// 建 v47 的索引（契约 §2.2 / §3.4）；表不存在就跳过。
+  ///
+  /// 全部 `IF NOT EXISTS`，所以迁移、`onCreate`、`beforeOpen` 自愈三条路可以
+  /// 重复调用。`idx_tasks_source_key` 是**部分**唯一索引（`WHERE source_key IS
+  /// NOT NULL`）：老库的 NULL 行不受约束，物化器写同一个 `source_key` 两次才会
+  /// 撞键 —— 这正是「跑两次只一行」的落点。
+  Future<void> _ensureV47Indexes() async {
+    if (await _tableExists('tasks')) {
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_source_key '
+        'ON tasks(source_key) WHERE source_key IS NOT NULL',
+      );
+    }
+    if (await _tableExists('content_refs')) {
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_refs_content '
+        'ON content_refs(content_id)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_refs_object '
+        'ON content_refs(object_type, object_id)',
+      );
+    }
+    if (await _tableExists('thread_events')) {
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_thread_events_task '
+        'ON thread_events(task_id, occurred_at)',
+      );
+    }
   }
 
   Future<void> _upgradeV4ToV5() async {
@@ -1528,6 +1832,25 @@ class AppDatabase extends _$AppDatabase {
       // 缺 case 会抛 unknown table。
       case 'knowledge_packages':
         return knowledgePackages;
+      // v45（2026-11-14）：agent-run 五表。现在自愈只按名字建表、不补列，用不到
+      // 这几条；但「给 agent_* 补一列」是这套表最可能的下一版改动，提前登记，
+      // 免得那时才踩「自愈抛 unknown table」（v31/v37/v42 都实测过这个坑）。
+      case 'agent_runs':
+        return agentRuns;
+      case 'agent_steps':
+        return agentSteps;
+      case 'agent_verifications':
+        return agentVerifications;
+      case 'agent_claims':
+        return agentClaims;
+      case 'agent_experiences':
+        return agentExperiences;
+      // v47（2026-11-15）：内容 ID 桥 + ThreadFlow 事件流。自愈那一趟要按名字
+      // 建它们，`.tfpkg` 导出/恢复也要按名字解析用户表，所以必须登记。
+      case 'content_refs':
+        return contentRefs;
+      case 'thread_events':
+        return threadEvents;
       default:
         throw ArgumentError('unknown table $name');
     }

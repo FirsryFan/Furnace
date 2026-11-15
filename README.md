@@ -115,6 +115,7 @@ dart analyze                 # 应为 0 error
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 构建、环境事实与踩坑记录 |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | 逐轮开发进展（长期记忆） |
 | [docs/AI_DESIGN.md](docs/AI_DESIGN.md) | AI 集成设计（20 条决策与依据） |
+| [docs/STUDENT_SOLVER.md](docs/STUDENT_SOLVER.md) | 学生模式求解器：AI 工具层接线、预算/答案预留、测试与真实 API 冒烟 |
 | [docs/APPEARANCE_DESIGN.md](docs/APPEARANCE_DESIGN.md) | 界面个性化设计（现状核对 + 图标/主题色/字体方案） |
 | [docs/SKILL_FORMAT.md](docs/SKILL_FORMAT.md) | `.fskill` 包格式与安全边界 |
 | [docs/MINDNET_CONTRACT.md](docs/MINDNET_CONTRACT.md) | 与 MindNet 的接口约定（双方回应都在里面） |

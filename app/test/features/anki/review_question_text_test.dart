@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/features/anki/presentation/review_question_text.dart';
+import 'package:furnace/features/questions/presentation/question_blank_view.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
 /// 2×2 合法 PNG（纯红色）：让 `Image.memory` 真的解码，而不是拿垃圾字节糊弄。
@@ -161,6 +162,88 @@ void main() {
       expect(find.textContaining('前面的文字'), findsOneWidget);
       expect(find.textContaining('后面的文字'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('文本渲染口径（Markdown 检测）', () {
+    bool asMarkdown(String text, {String? textFormat}) =>
+        reviewCardTextRendersAsMarkdown(text: text, textFormat: textFormat);
+
+    test('普通中文句子与价格里的美元符号不切换 Markdown', () {
+      expect(asMarkdown('光合作用的场所是叶绿体。'), isFalse);
+      expect(asMarkdown(r'价格 $5 到 $9。'), isFalse);
+      expect(asMarkdown('注意：* 不是强调'), isFalse);
+      expect(
+        asMarkdown('1. 光合作用的第一步。'),
+        isFalse,
+        reason: '单行 "1." 是普通句子，不是列表',
+      );
+      expect(asMarkdown('填空题的 ______ 还在'), isFalse);
+    });
+
+    test('闭合公式/块级公式/标题/列表/表格/代码/链接按 Markdown', () {
+      expect(asMarkdown(r'已知 $x^2-5x+6=0$，求两根之和。'), isTrue);
+      expect(asMarkdown(r'求 $$\Delta H$$ 的值。'), isTrue);
+      expect(asMarkdown('# 题干标题\n\n正文'), isTrue);
+      expect(asMarkdown('**重点**内容'), isTrue);
+      expect(asMarkdown('1. 第一步\n2. 第二步'), isTrue);
+      expect(asMarkdown('| 量 | 值 |\n| --- | --- |\n| a | 1 |'), isTrue);
+      expect(asMarkdown('```\ncode\n```'), isTrue);
+      expect(asMarkdown('见 [链接](https://example.com)'), isTrue);
+      expect(asMarkdown('![图](a.png)'), isTrue);
+    });
+
+    test('结构不完整的文本不切换（不吞后面的文字）', () {
+      expect(asMarkdown('```\n没闭合的代码栅栏'), isFalse);
+      expect(asMarkdown(r'落单的 $x^2'), isFalse);
+    });
+
+    test('显式格式优先于检测', () {
+      expect(asMarkdown('普通文本', textFormat: 'markdown'), isTrue);
+      expect(asMarkdown('**加粗**', textFormat: 'plain'), isFalse);
+      expect(asMarkdown('**加粗**', textFormat: '  Markdown  '), isTrue);
+    });
+
+    testWidgets('检测到 Markdown 的题干能排出标题与列表，不留下语法字符', (tester) async {
+      await pump(
+        tester,
+        const ReviewQuestionText(
+          text: '# 题干标题\n\n- 甲\n- 乙',
+          markdown: true,
+        ),
+      );
+      expect(find.byType(GptMarkdown), findsWidgets);
+      expect(
+        find.textContaining('# 题干标题', findRichText: true),
+        findsNothing,
+      );
+      expect(find.textContaining('- 甲', findRichText: true), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('填空卡的 ______ 渲染成下划线组件（不再是被 Markdown 吃掉的字符）',
+        (tester) async {
+      await pump(
+        tester,
+        const ReviewQuestionText(
+          text: r'宏观上 $\Delta H=$ ______。',
+          markdown: true,
+        ),
+      );
+      expect(find.byType(GptMarkdown), findsWidgets);
+      // 2026-11-15（task-117）：空位改成真正的空白下划线组件；卡片/详情/复习页
+      // 同一套。渲染文字里不再有 `______` 字符，但空位看得见。
+      expect(find.byType(QuestionBlankUnderline), findsOneWidget);
+      final blank = tester.widget<QuestionBlankUnderline>(
+        find.byType(QuestionBlankUnderline),
+      );
+      expect(blank.width, greaterThan(30));
+      final texts = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((text) => text.data ?? text.textSpan?.toPlainText() ?? '')
+          .join();
+      expect(texts, isNot(contains(r'$')));
+      expect(texts, isNot(contains('______')));
     });
   });
 

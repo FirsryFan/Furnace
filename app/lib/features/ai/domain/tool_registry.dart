@@ -10,6 +10,9 @@ import '../../../data/repositories/time_block_repository.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/ai_tool.dart';
 import '../domain/model_adapter.dart';
+import '../domain/student_solver.dart';
+import '../domain/student_solver_context.dart';
+import '../infrastructure/student_trace_store.dart';
 import '../tools/card_group_tools.dart';
 import '../tools/cognitive_tools.dart';
 import '../tools/tag_tools.dart';
@@ -25,10 +28,12 @@ import '../tools/review_focus_tool.dart';
 import '../tools/question_audit_tools.dart';
 import '../tools/question_tools.dart';
 import '../tools/question_write_tools.dart';
+import '../tools/student_solver_tool.dart';
 import '../tools/zujuan_paper_tool.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
 import '../tools/ingest_tools.dart';
+import '../tools/oald_lookup_tool.dart';
 import '../tools/today_tools.dart';
 import '../tools/web_tools.dart';
 
@@ -60,12 +65,27 @@ class ToolRegistry {
     required TagRepository tags,
     CognitiveModel model = const MindNetCognitiveModel(),
     DateTime Function()? clock,
+    StudentSolver? studentSolver,
+    StudentSolverContext? studentSolverContext,
   }) {
     final reviewPlans = ReviewPlanRepository(db, anki);
     return ToolRegistry([
       FetchPageTool(),
+      // 查词的统一入口（task-114）：OALD 词条页的专用读取器。与 fetch_page 一样
+      // 只读、一个 URL、无 cookie；区别是它按页面结构取出词性/音标/义项/例句/词族
+      // 并落结构化 JSON，而且只**筛选/省略**原文、不改写。查不到或被反爬拦截时返回
+      // 明确错误（不是模型记忆里的释义），见 tools/oald_lookup_tool.dart。
+      OaldLookupTool(),
       QueryTasksTool(tasks, db),
       ManageTaskTool(tasks, db),
+      // 任务流程的四个状态入口（task-76；恢复 task-90）：提交/卡住/跳过/恢复。
+      // 都经 TaskRepository → ThreadFlowWriter；`reopened` 是显式恢复事件、不是
+      // 快照回滚（不撤销已写事件、不回滚完成历史），所以审批引擎在任何权限模式下
+      // 都逐条确认（tools/task_tools.dart 的 _TaskStatusTool）。
+      SubmitTaskTool(tasks),
+      MarkTaskStuckTool(tasks),
+      SkipTaskTool(tasks),
+      ReopenTaskTool(tasks),
       QueryScheduleTool(blocks),
       ManageTimeBlockTool(blocks, db),
       // 用途 1 (docs/MINDNET_CONTRACT.md §6.3): read-only problem evaluation.
@@ -76,6 +96,16 @@ class ToolRegistry {
         model: model,
         clock: clock,
       ),
+      // A clean exam-style run of the same model, with its own bounded answer
+      // reserve. Only present when the app has a usable model adapter; the
+      // standalone Python agent-core is the reference implementation.
+      if (studentSolver != null)
+        SolveQuestionAsStudentTool(
+          studentSolver,
+          database: db,
+          traceStore: StudentTraceStore(),
+          context: studentSolverContext,
+        ),
       // 控制层（roadmap §1 控制层行 / §3 第 5 行）：把到期卡与候选题合成一份
       // 「今天做这几件事」的清单，按 V(π)=ΔR/cost 排序，每条带度量与人话理由。
       // 纯逻辑在 `domain/services/scheduling/today_plan.dart`（Q32a），
@@ -141,6 +171,11 @@ class ToolRegistry {
       // (`cognitive/application/library_diagnosis_reader.dart`)，
       // 所以同一个知识点不会这边说危险、那边说健康 (tools/paper_tools.dart)。
       ComposePaperTool(db: db),
+      // 组卷落库（契约 §3.2/§3.5，2026-11-15）：与上面**同一个**组卷装配之后调用
+      // `PaperTaskMaterializer`，把卷子物化成「week/day 父容器 + 每题一个子任务」。
+      // 幂等靠 `tasks.source_key`（同周/同日重卷只复用容器）；写操作、不可自动撤销，
+      // 所以每个调用都要用户确认。`compose_paper` 本身仍是只读的，不受影响。
+      MaterializePaperTool(db: db),
       // 题库质量的只读体检（轮次一百二十五）：判据在
       // domain/services/questions/question_intake_audit.dart，读表在
       // questions/application/question_audit_reader.dart。只报不改——

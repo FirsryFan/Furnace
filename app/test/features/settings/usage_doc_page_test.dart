@@ -40,7 +40,7 @@ void main() {
     );
   }
 
-  testWidgets('the guide covers AI, review, knowledge and the cognitive model',
+  testWidgets('the guide covers AI, review, knowledge and the learning status',
       (tester) async {
     await pumpPage(tester);
     await tester.pumpAndSettle();
@@ -51,7 +51,7 @@ void main() {
     expect(find.text('题库与组卷'), findsOneWidget);
     expect(find.text('拍照、资料与演练'), findsOneWidget);
     expect(find.text('今天做什么、什么时候做'), findsOneWidget);
-    expect(find.text('认知模型读数怎么理解'), findsOneWidget);
+    expect(find.text('学习状态读数怎么理解'), findsOneWidget);
     // Bodies, not just headings: one distinctive claim from each.
     expect(find.textContaining('动数据前会先问你'), findsOneWidget);
     expect(find.textContaining('7 档'), findsOneWidget);

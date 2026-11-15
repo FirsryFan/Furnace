@@ -19,6 +19,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../domain/services/questions/question_stem_segments.dart';
+import '../../questions/presentation/question_media_view.dart' show QuestionRichText;
 import '../../questions/presentation/question_markdown_view.dart';
 
 /// 一张已读成字节的题干图。
@@ -33,6 +34,84 @@ class ReviewQuestionImage {
   /// 无障碍描述；null 时读屏不把它当内容图片。
   final String? semanticLabel;
 }
+
+/// 这张卡的文本要走「原文 + 行内公式」还是「整段 Markdown」。
+///
+/// 口径（2026-11-15，task-101）：
+///
+///  * **显式格式优先**：[textFormat] 非空时只认它。内容推导出来的卡可以带
+///    `knowledge_points.content_format`（`plain` / `markdown`，NULL 表示没声明）；
+///    模板卡（`card_templates`）没有格式列，恒传 null，交给下面的检测。
+///  * **没有显式格式时才检测**（[reviewCardTextLooksMarkdown]）：只有结构完整的
+///    Markdown 才切换，普通中文句子、单独出现的 `*`/`_`/`#`、没闭合的 `$`
+///    一律留在原来的口径——历史纯文本卡（价格里的 `$5 到 $9`、题面上的星号）
+///    不会因为这次检测而改变观感。
+bool reviewCardTextRendersAsMarkdown({
+  required String text,
+  String? textFormat,
+}) {
+  final explicit = textFormat?.trim().toLowerCase();
+  if (explicit != null && explicit.isNotEmpty) {
+    return questionTextFormatIsMarkdown(explicit);
+  }
+  return reviewCardTextLooksMarkdown(text);
+}
+
+/// 卡片文本是否含有**完整**的 Markdown 结构信号。
+///
+/// 为什么不是「见到 `$` / `*` / `#` 就当 Markdown」：卡片文本是用户和 AI 写的
+/// 数据，价格里的 `$`、题面上的星号、`1.` 开头的普通句子都可能出现；猜错会把
+/// 一次纯文本显示改成列表/强调。这里只认成对或成块的语法：
+///
+///  * 闭合的行内公式 `$…$` / `\(…\)`：与旧「行内公式口径」同一判定，切换后
+///    这些卡本来就走同一个渲染器，观感不变；`$$…$$` 只有整段 Markdown 才会
+///    排成块级公式；
+///  * 标题行 `# …`、成对的代码栅栏、成对的 `**加粗**`、成对的 `行内代码`、
+///    `[文字](地址)` / `![说明](图)`；
+///  * 至少两行的无序/有序列表、至少两行的表格行。
+///
+/// 文本本身结构不完整（落单的代码栅栏、落单的 `$`）时直接返回 false：这种
+/// 文本交给整段 Markdown 渲染器会被吞进构造里，[MarkdownQuestionText] 也会
+/// 退回原文，但「行内公式口径」至少还能排一半公式，所以这里不切换。
+bool reviewCardTextLooksMarkdown(String text) {
+  if (text.isEmpty) return false;
+  if (!questionMarkdownRendersAsMarkdown(text)) {
+    return false;
+  }
+  // 闭合的行内公式：与 QuestionRichText 的口径一致（旧路径本来就走
+  // GptMarkdown，切换后这些卡的观感不变）。
+  if (QuestionRichText.containsMath(text)) return true;
+  // `$$…$$` 块级公式。
+  if (_displayMath.hasMatch(text)) return true;
+  // 标题行。
+  if (_headingLine.hasMatch(text)) return true;
+  // 成对的加粗（`**x**`）。下划线加粗不认：填空卡的 `______` 是数据，不是强调。
+  if (_strongText.hasMatch(text)) return true;
+  // 成对的行内代码。
+  if (_inlineCode.hasMatch(text)) return true;
+  // Markdown 链接与图片（图片另有字节管线，但它本身就是 Markdown 语法）。
+  if (_markdownLink.hasMatch(text)) return true;
+  if (_markdownImage.hasMatch(text)) return true;
+  // 至少两行列表 / 至少两行表格：单行 `1. 光合作用…` 是很常见的普通句子，
+  // 一出现就切列表会把历史卡整段变形。
+  if (_listLines.allMatches(text).length >= 2) return true;
+  if (_tableLines.allMatches(text).length >= 2) return true;
+  // 成对的代码栅栏。
+  final fences = _fenceLines.allMatches(text).length;
+  if (fences > 0 && fences.isEven) return true;
+  return false;
+}
+
+final RegExp _displayMath = RegExp(r'\$\$[^$]*\$\$');
+final RegExp _headingLine = RegExp(r'^[ \t]{0,3}#{1,6}[ \t]+\S', multiLine: true);
+final RegExp _strongText = RegExp(r'\*\*[^*\n]+\*\*');
+final RegExp _inlineCode = RegExp(r'`[^`\n]+`');
+final RegExp _markdownLink = RegExp(r'\[[^\]\n]+\]\([^)\n]+\)');
+final RegExp _markdownImage = RegExp(r'!\[[^\]\n]*\]\([^)\n]+\)');
+final RegExp _listLines =
+    RegExp(r'^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+\S', multiLine: true);
+final RegExp _tableLines = RegExp(r'^[ \t]*\|.*\|[ \t]*$', multiLine: true);
+final RegExp _fenceLines = RegExp(r'^[ \t]*(?:```|~~~)', multiLine: true);
 
 /// 题干渲染块的根 key。
 const Key reviewQuestionTextKey = Key('review-question-text');

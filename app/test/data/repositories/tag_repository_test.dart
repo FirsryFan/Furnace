@@ -499,4 +499,76 @@ void main() {
       expect(await linksOf(tag), hasLength(20));
     });
   });
+
+  group('tagIdsByObjectIds：批量反查对象直挂的标签', () {
+    test('一次查询按对象分组，id 去重排序；未挂的对象不出现在结果里', () async {
+      final a = await tags.createTag(name: '甲');
+      final b = await tags.createTag(name: '乙');
+      final c = await tags.createTag(name: '丙');
+      await tags.addTagToObject(tagId: a.id, objectType: 'task', objectId: 't-1');
+      await tags.addTagToObject(tagId: c.id, objectType: 'task', objectId: 't-1');
+      await tags.addTagToObject(tagId: b.id, objectType: 'task', objectId: 't-2');
+      await tags.addTagToObject(tagId: b.id, objectType: 'task', objectId: 't-3');
+
+      final byTask = await tags.tagIdsByObjectIds(
+        objectType: 'task',
+        objectIds: ['t-1', 't-2', 't-none'],
+      );
+
+      final expectedA = [a.id, c.id]..sort();
+      expect(byTask['t-1'], expectedA);
+      expect(byTask['t-2'], [b.id]);
+      expect(byTask.containsKey('t-3'), isFalse, reason: '不在请求里的对象不返回');
+      expect(byTask.containsKey('t-none'), isFalse, reason: '没挂标签就不出键');
+    });
+
+    test('objectType 隔离 + 空输入立即返回空表', () async {
+      final tag = await tags.createTag(name: '甲');
+      await tags.addTagToObject(
+        tagId: tag.id,
+        objectType: 'question',
+        objectId: 'q-1',
+      );
+
+      expect(
+        await tags.tagIdsByObjectIds(
+          objectType: 'task',
+          objectIds: ['q-1'],
+        ),
+        isEmpty,
+      );
+      expect(
+        await tags.tagIdsByObjectIds(objectType: 'question', objectIds: []),
+        isEmpty,
+      );
+      expect(
+        await tags.tagIdsByObjectIds(objectType: '  ', objectIds: ['q-1']),
+        isEmpty,
+      );
+    });
+
+    test('只读：不写库，重复调用结果相同', () async {
+      final tag = await tags.createTag(name: '甲');
+      await tags.addTagToObject(
+        tagId: tag.id,
+        objectType: 'knowledge_point',
+        objectId: 'kp-1',
+      );
+      final linkRows = (await db.select(db.objectTags).get()).length;
+      final tagRows = (await db.select(db.tags).get()).length;
+
+      final first = await tags.tagIdsByObjectIds(
+        objectType: 'knowledge_point',
+        objectIds: ['kp-1'],
+      );
+      final second = await tags.tagIdsByObjectIds(
+        objectType: 'knowledge_point',
+        objectIds: ['kp-1'],
+      );
+
+      expect(first, second);
+      expect((await db.select(db.objectTags).get()).length, linkRows);
+      expect((await db.select(db.tags).get()).length, tagRows);
+    });
+  });
 }

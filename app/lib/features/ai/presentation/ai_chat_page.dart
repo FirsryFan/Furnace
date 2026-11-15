@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 // Key events and the hardware keyboard state: `material.dart` re-exports the
 // text-input enums but not the key classes this page handles.
@@ -12,10 +12,14 @@ import 'package:furnace/l10n/app_localizations.dart';
 
 import '../../../data/database/database.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../questions/presentation/drop_intake_reader.dart';
 import '../application/ai_providers.dart';
+import '../application/ai_settings_notifier.dart';
 import '../domain/agent_loop.dart';
+import '../domain/model_adapter.dart' show ReasoningEffort;
 import '../domain/tool_registry.dart';
 import 'widgets/run_timeline.dart';
+import 'widgets/turn_metrics_bar.dart';
 import 'widgets/turn_usage_panel.dart';
 import '../domain/ai_tool.dart';
 import '../domain/approval_engine.dart';
@@ -59,6 +63,15 @@ Key aiHistoryReasoningKey(String messageId) =>
 ///    two places to trigger it and two sets of state.
 ///  * The approval list is part of the message flow: the user sees what the
 ///    model wants to do, in the conversation, before anything happens.
+///
+/// 2026-11-15 redesign (user feedback, see AI-CHAT-REDESIGN-2026-11-15.md): no
+/// top bar; the sidebar collapse lives on the left edge (`>` / `<`); the new
+/// conversation button is top-right; each left row deletes its own conversation
+/// and carries no chat icon; titles name themselves from the first message;
+/// photos arrive by drag-and-drop instead of a picker button; the resize strip
+/// sits at the left and the key hint is gone; the thinking effort is selectable
+/// next to send; and a metrics strip under the composer shows rounds, tool
+/// calls, tokens, cache hits and context occupancy from real run records.
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key, this.onOpenSettings});
 
@@ -66,12 +79,32 @@ class AiChatPage extends ConsumerStatefulWidget {
   /// the navigation stays in one place instead of the page owning routes.
   final VoidCallback? onOpenSettings;
 
-  /// The three controls a widget test has to find without matching on a
-  /// localised label. Public so the test and the widget cannot drift apart.
+  /// The controls a widget test has to find without matching on a localised
+  /// label. Public so the test and the widget cannot drift apart.
   static const Key sidebarToggleKey = ValueKey<String>('aiSidebarToggle');
   static const Key sidebarKey = ValueKey<String>('aiConversationSidebar');
   static const Key inputResizeHandleKey =
       ValueKey<String>('aiInputResizeHandle');
+
+  /// 右上角的「新对话」按钮（用户 2026-11-15 第 3 点）。
+  static const Key newConversationKey = ValueKey<String>('aiNewConversation');
+
+  /// 提交按钮旁的 effort 选择器及其每个选项。
+  static const Key effortButtonKey = ValueKey<String>('aiEffortButton');
+
+  static Key effortOptionKey(ReasoningEffort? effort) =>
+      ValueKey<String>('aiEffortOption-${effort?.wireValue ?? 'default'}');
+
+  /// 左栏每条会话的删除按钮（用户 2026-11-15 第 4 点）。
+  static Key conversationDeleteKey(String conversationId) =>
+      ValueKey<String>('aiConversationDelete-$conversationId');
+
+  /// 拖拽悬停时的提示层。
+  static const Key dropHintKey = ValueKey<String>('aiDropHint');
+
+  /// 输入框上方暂存的图片（还没发送）。
+  static Key stagedImageKey(int index) =>
+      ValueKey<String>('aiStagedImage-$index');
 
   @override
   ConsumerState<AiChatPage> createState() => _AiChatPageState();
@@ -99,17 +132,23 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   /// 用户是否仍在对话底部。滚动到上面看思维链时，流式更新不应把用户拽回底部。
   bool _stickToBottom = true;
 
-  /// Images picked but not yet sent. They are already files on disk (that is
-  /// what makes the thumbnail work without holding megabytes in memory); the
-  /// database rows only appear once the message they belong to exists.
+  /// Images picked or dropped but not yet sent. They are already files on disk
+  /// (that is what makes the thumbnail work without holding megabytes in
+  /// memory); the database rows only appear once the message they belong to
+  /// exists.
   final List<PendingImage> _pendingImages = [];
 
-  /// True while a picked photo is being decoded, downscaled and written.
+  /// True while a dropped photo is being decoded, downscaled and written.
   bool _preparingImages = false;
 
+  /// True while a file is hovering over the conversation, so the drop hint can
+  /// be shown.
+  bool _dragOver = false;
+
   /// Below this width the conversation list would squeeze the thread rather than
-  /// sit beside it, so it is not offered at all - and neither is the toggle that
-  /// shows it, because a button that cannot do anything is worse than no button.
+  /// sit beside it, so it is not offered at all - and neither is the edge toggle
+  /// that shows it, because a button that cannot do anything is worse than no
+  /// button.
   static const double _sidebarBreakpoint = 900;
 
   /// Whether the conversation list is expanded.
@@ -146,9 +185,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   int _dragStartLines = _defaultInputLines;
   double _dragDistance = 0;
 
-  /// The one encoder the screen uses. Limits live in the class so the size cap
-  /// is a property of the feature, not a number sprinkled in the UI.
-  static const VisionImageEncoder _encoder = VisionImageEncoder();
+  /// 现在的输入区能不能接收拖进来的图片。
+  ///
+  /// 生成中 / 等审批时不收：这条消息发不出去，收下只会让用户以为已经附上了。
+  bool get _canDrop =>
+      _conversationId != null &&
+      !_turn.generating &&
+      !_turn.hasPending &&
+      !_preparingImages;
 
   @override
   void dispose() {
@@ -179,14 +223,29 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     if (_conversationId == conversationId) {
       return;
     }
-    _subscription?.cancel();
     _conversationId = conversationId;
     // 消息加载完后滚到底一次（新对话与打开已有对话同一条路径）。
     _pendingInitialScrollConversationId = conversationId;
+    _bindLoop(conversationId);
+    setState(() {});
+  }
+
+  /// (Re)reads the loop this page is bound to and listens to its state stream.
+  ///
+  /// Split from [_attach] because a configuration change (the effort control)
+  /// rebuilds `modelAdapterProvider`, which rebuilds the loop: the page must pick
+  /// the new loop up without pretending the conversation changed, and without
+  /// losing the last finished turn's figures from the metrics bar.
+  void _bindLoop(String conversationId, {bool preserveUsage = false}) {
+    _subscription?.cancel();
     final loop = ref.read(agentLoopProvider(conversationId));
     _loop = loop;
     _turn = loop?.state ?? const AgentTurnState();
-    _usage.attach(states: loop?.states, initial: _turn);
+    _usage.attach(
+      states: loop?.states,
+      initial: _turn,
+      preserveLast: preserveUsage,
+    );
     // 一轮结束时把 messages/actions 重新拉一遍：两者在发送时就被读过一次，而
     // 工具行与动作台账是**这一轮执行后**才写库的。不刷新的话，刚做完的写操作
     // 要等下次切会话/重开页面才看得到（撤销入口也一起迟到）。
@@ -200,9 +259,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       }
       if (finished) {
         _invalidateConversation(conversationId);
+        // 自动标题是这一轮开始时写进去的：左栏要重新读一次才看得到。
+        ref.invalidate(conversationsProvider);
       }
     });
-    setState(() {});
   }
 
   void _scrollToEnd({bool force = false}) {
@@ -268,6 +328,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       setState(_pendingImages.clear);
     }
     _invalidateConversation(id);
+    // 左栏标题在写消息时自动取好了：重新读列表才能看到新名字。
+    ref.invalidate(conversationsProvider);
   }
 
   /// Stops the turn in flight.
@@ -279,26 +341,46 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   /// approval is dropped by the same call.
   void _stop() => _loop?.cancel();
 
-  /// Picks one or more images, downscales them, and stages them for the next
-  /// message.
+  /// 把拖进窗口的文件收成待发送图片（用户 2026-11-15 第 7 点）。
   ///
-  /// Failures are answered per image instead of aborting the batch: one
-  /// unsupported file must not throw away the three good ones next to it.
-  Future<void> _pickImages() async {
+  /// 分类/去重/扩展名+魔数双保险复用题目拍照入口的 [DropIntakeReader]（同一套
+  /// 规则、同一份测试），这里只做「编码 → 落盘 → 暂存」三步，用的仍是发送时
+  /// 那条 attachment 管线（[VisionImageEncoder] + [AiAttachmentStore]）。
+  ///
+  /// 坏图逐张报错而不是整批放弃：拖进来的 5 个文件里有 1 个不是图片，另外 4 个
+  /// 没理由一起丢掉。
+  Future<void> _handleDrop(DropDoneDetails details) async {
+    if (!_canDrop || details.files.isEmpty) {
+      return;
+    }
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final reader = ref.read(dropIntakeReaderProvider);
+    final encoder = ref.read(visionImageEncoderProvider);
     final store = ref.read(aiAttachmentStoreProvider);
+    setState(() => _preparingImages = true);
     try {
-      final picked = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'gif'],
-      );
-      if (picked.isEmpty) {
+      final batch = await reader.examine(details.files);
+      if (!mounted) {
         return;
       }
-      setState(() => _preparingImages = true);
-      for (final file in picked) {
-        final result = await _encoder.encode(await file.readAsBytes());
+      final skipped = batch.plan.nonImageCount +
+          batch.plan.duplicateCount +
+          batch.plan.directoryCount;
+      if (skipped > 0) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.aiDropImageSkipped(skipped))),
+        );
+      }
+      for (final decision in batch.plan.images) {
+        final bytes = batch.bytes[decision.path];
+        if (bytes == null) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.aiImageUnreadable)),
+          );
+          continue;
+        }
+        final result = await encoder.encode(bytes);
         switch (result) {
           case VisionImageRejected(:final code):
             messenger.showSnackBar(
@@ -313,8 +395,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         }
       }
     } catch (error) {
-      // A picker that cannot open (missing platform implementation, revoked
-      // permission) must say so rather than leaving the button dead.
+      // A drop can fail for reasons that are not the user's: a moved temp file,
+      // a revoked permission. Say so rather than leaving the drop silent.
       messenger.showSnackBar(
         SnackBar(content: Text('${l10n.aiAttachImage}: $error')),
       );
@@ -323,6 +405,27 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         setState(() => _preparingImages = false);
       }
     }
+  }
+
+  /// 只改聊天回合的思考强度；写的是已有配置列，不新增 schema。
+  ///
+  /// 配置一变，adapter 与 loop 都会重建，所以顺手 rebind 一次：下一次发送立即
+  /// 用新的 effort，不需要重开页面。
+  Future<void> _setEffort(ReasoningEffort? effort) async {
+    if (_turn.generating || _turn.hasPending) {
+      return;
+    }
+    final config = ref.read(aiConfigProvider).valueOrNull;
+    if (config == null || config.reasoningEffort == effort) {
+      return;
+    }
+    await ref.read(aiSettingsControllerProvider).saveReasoningEffort(effort);
+    final id = _conversationId;
+    if (!mounted || id == null || id != _conversationId) {
+      return;
+    }
+    _bindLoop(id, preserveUsage: true);
+    setState(() {});
   }
 
   /// Drops a staged image, file included - nothing references it yet, and an
@@ -337,6 +440,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     ref.invalidate(messageImagesProvider(id));
     // 历史 tool 行靠这张表显示工具名与撤销：每次 turn 提交/撤销都会变。
     ref.invalidate(_conversationActionsProvider(id));
+    // 底部指标的落库回退（轮数/token）来自这张运行记录表，一轮结束后要重读。
+    ref.invalidate(latestAgentRunProvider(id));
   }
 
   /// Which key sends and which one breaks the line.
@@ -486,86 +591,87 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
 
     final conversations = ref.watch(conversationsProvider);
-    // Resolved once, here, so the toggle and the list it controls can never
+    // Resolved once, here, so the edge toggle and the list it controls can never
     // disagree about whether the list is offered at this width.
     final hasSidebar = MediaQuery.sizeOf(context).width >= _sidebarBreakpoint;
+    // 用户 2026-11-15 第 1 点：AI 页不要顶栏。标题/操作都散到页内——新对话在
+    // 右上角，折叠按钮在左栏边缘，删除在左栏每条里。
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.aiTitle),
-        actions: [
-          if (hasSidebar)
-            IconButton(
-              key: AiChatPage.sidebarToggleKey,
-              tooltip: _sidebarOpen
-                  ? l10n.aiHideConversationList
-                  : l10n.aiShowConversationList,
-              icon: Icon(_sidebarOpen
-                  ? Icons.vertical_split
-                  : Icons.vertical_split_outlined),
-              onPressed: _toggleSidebar,
-            ),
-          IconButton(
-            tooltip: l10n.aiNewConversation,
-            icon: const Icon(Icons.add_comment_outlined),
-            onPressed: _newConversation,
-          ),
-          if (_conversationId != null)
-            IconButton(
-              tooltip: l10n.aiDeleteConversation,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmDelete(l10n),
-            ),
-        ],
-      ),
       body: conversations.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
         data: (list) {
-          if (list.isEmpty) {
-            return _EmptyConversation(
-              l10n: l10n,
-              onCreate: _newConversation,
-              onOpen: (id) => _attach(id),
-            );
-          }
           // Default to the newest conversation, which is what a returning user
           // expects, without an extra click.
-          if (_conversationId == null ||
-              !list.any((c) => c.id == _conversationId)) {
+          if (list.isNotEmpty &&
+              (_conversationId == null ||
+                  !list.any((c) => c.id == _conversationId))) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 _attach(list.first.id);
               }
             });
           }
-          return Row(
-            children: [
-              if (hasSidebar)
-                AnimatedSize(
-                  // The space is animated rather than the list itself: the list
-                  // is swapped in and out (a hidden list must not keep
-                  // rebuilding), and this makes the swap read as a slide.
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.centerLeft,
-                  child: _sidebarOpen
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _ConversationList(
-                              key: AiChatPage.sidebarKey,
-                              conversations: list,
-                              selectedId: _conversationId,
-                              onSelect: _attach,
-                              l10n: l10n,
-                            ),
-                            const VerticalDivider(width: 1),
-                          ],
-                        )
-                      : const SizedBox(width: 0),
+          return DropTarget(
+            // 拖拽接收整条对话列：用户从资源管理器拖进来时，落点常常在消息
+            // 区域而不是小小的输入框上。生成中/等审批时不收（见 [_canDrop]）。
+            enable: _canDrop,
+            onDragEntered: (_) => setState(() => _dragOver = true),
+            onDragExited: (_) => setState(() => _dragOver = false),
+            onDragDone: (details) {
+              setState(() => _dragOver = false);
+              unawaited(_handleDrop(details));
+            },
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    if (hasSidebar) ...[
+                      AnimatedSize(
+                        // The space is animated rather than the list itself: the
+                        // list is swapped in and out (a hidden list must not keep
+                        // rebuilding), and this makes the swap read as a slide.
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeInOut,
+                        alignment: Alignment.centerLeft,
+                        child: _sidebarOpen
+                            ? _ConversationList(
+                                key: AiChatPage.sidebarKey,
+                                conversations: list,
+                                selectedId: _conversationId,
+                                onSelect: _attach,
+                                onDelete: (conversationId) =>
+                                    _confirmDeleteConversation(
+                                        l10n, conversationId),
+                                deleteLabel: l10n.aiDeleteConversation,
+                              )
+                            : const SizedBox(width: 0),
+                      ),
+                      // 用户 2026-11-15：折叠按钮不能单独占一列；它是贴在
+                      // 左栏边缘的突起，放在 Stack 里覆盖，不参与 Row 布局。
+                      const VerticalDivider(width: 1),
+                    ],
+                    Expanded(
+                      child: _buildConversation(l10n, hasSidebar: hasSidebar),
+                    ),
+                  ],
                 ),
-              Expanded(child: _buildConversation(l10n, list)),
-            ],
+                if (hasSidebar)
+                  Positioned(
+                    left: _sidebarOpen ? 240 : 0,
+                    top: MediaQuery.sizeOf(context).height / 2 - 24,
+                    child: _SidebarEdgeButton(
+                      key: AiChatPage.sidebarToggleKey,
+                      expanded: _sidebarOpen,
+                      tooltip: _sidebarOpen
+                          ? l10n.aiHideConversationList
+                          : l10n.aiShowConversationList,
+                      onPressed: _toggleSidebar,
+                    ),
+                  ),
+                if (_dragOver) _DropHint(l10n: l10n),
+              ],
+            ),
           );
         },
       ),
@@ -573,13 +679,32 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   Widget _buildConversation(
-      AppLocalizations l10n, List<AiConversation> conversations) {
+    AppLocalizations l10n, {
+    required bool hasSidebar,
+  }) {
     final id = _conversationId;
+    // 用户 2026-11-15 第 3 点：新对话在右上角。这不是一条「顶栏」：没有标题、
+    // 没有底板、没有分割线，只占右上角一小块，消息区因此能多用一行。
+    final header = _ConversationHeader(
+      l10n: l10n,
+      onNew: _newConversation,
+      // 窄窗口没有左栏，逐条删除入口不能跟着消失：退回右上角，保持可达。
+      onDelete: !hasSidebar && id != null
+          ? () => _confirmDeleteConversation(l10n, id)
+          : null,
+    );
     if (id == null) {
-      return _EmptyConversation(
-        l10n: l10n,
-        onCreate: _newConversation,
-        onOpen: _attach,
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: _EmptyConversation(
+              l10n: l10n,
+              onCreate: _newConversation,
+              onOpen: _attach,
+            ),
+          ),
+          Positioned(top: 10, right: 10, child: header),
+        ],
       );
     }
     final messages = ref.watch(messagesProvider(id));
@@ -592,158 +717,169 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final imagesByMessage = ref.watch(messageImagesProvider(id)).valueOrNull ??
         const <String, List<AiMessageImage>>{};
     final config = ref.watch(aiConfigProvider).valueOrNull;
+    // 本轮没有内存态时（重开页面/刚切会话），底部指标退回最近一次落库的运行记录。
+    final latestRun = ref.watch(latestAgentRunProvider(id)).valueOrNull;
 
-    return Column(
+    return Stack(
       children: [
-        if (config?.permissionMode == AiPermissionMode.auto)
-          _ModeBanner(l10n: l10n),
-        Expanded(
-          child: messages.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('$e')),
-            data: (rows) {
-              // 消息到了才滚：这一步必须发生在第一帧布局之后，见方法注释。
-              _scheduleInitialScroll(id);
-              final actionsByToolCall = <String, AiActionRecord>{
-                for (final action
-                    in actions.valueOrNull ?? const <AiActionRecord>[])
-                  if (action.toolCallId != null &&
-                      action.toolCallId!.isNotEmpty)
-                    action.toolCallId!: action,
-              };
-              // 同一个调用只显示一次：已落库的 tool 行已经能显示结果，内存态就藏起来。
-              final persistedCallIds = <String>{
-                for (final row in rows)
-                  if (row.role == AiRepository.roleTool &&
-                      row.toolCallId != null)
-                    row.toolCallId!,
-              };
-              final persistedActionIds = <String>{
-                for (final action in actionsByToolCall.values)
-                  if (persistedCallIds.contains(action.toolCallId)) action.id,
-              };
-              // A stopped turn's partial answer is kept in `streamingText` by
-              // the loop *and* written to the database, so the reloaded history
-              // would show the same text twice. The streaming bubble already
-              // renders it; hide that one echo until the next turn resets the
-              // state.
-              String? cancelledEchoId;
-              if (_turn.cancelled && _turn.streamingText.isNotEmpty) {
-                for (final row in rows.reversed) {
-                  if (row.role == AiRepository.roleAssistant &&
-                      row.content == _turn.streamingText) {
-                    cancelledEchoId = row.id;
-                    break;
+        Column(
+          children: [
+            Expanded(
+              child: messages.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('$e')),
+                data: (rows) {
+                  // 消息到了才滚：这一步必须发生在第一帧布局之后，见方法注释。
+                  _scheduleInitialScroll(id);
+                  final actionsByToolCall = <String, AiActionRecord>{
+                    for (final action
+                        in actions.valueOrNull ?? const <AiActionRecord>[])
+                      if (action.toolCallId != null &&
+                          action.toolCallId!.isNotEmpty)
+                        action.toolCallId!: action,
+                  };
+                  // 同一个调用只显示一次：已落库的 tool 行已经能显示结果，内存态就藏起来。
+                  final persistedCallIds = <String>{
+                    for (final row in rows)
+                      if (row.role == AiRepository.roleTool &&
+                          row.toolCallId != null)
+                        row.toolCallId!,
+                  };
+                  final persistedActionIds = <String>{
+                    for (final action in actionsByToolCall.values)
+                      if (persistedCallIds.contains(action.toolCallId))
+                        action.id,
+                  };
+                  // A stopped turn's partial answer is kept in `streamingText` by
+                  // the loop *and* written to the database, so the reloaded history
+                  // would show the same text twice. The streaming bubble already
+                  // renders it; hide that one echo until the next turn resets the
+                  // state.
+                  String? cancelledEchoId;
+                  if (_turn.cancelled && _turn.streamingText.isNotEmpty) {
+                    for (final row in rows.reversed) {
+                      if (row.role == AiRepository.roleAssistant &&
+                          row.content == _turn.streamingText) {
+                        cancelledEchoId = row.id;
+                        break;
+                      }
+                    }
                   }
-                }
-              }
-              // v39 起思考过程随助手消息一起落库：一轮结束后 reload 回来的
-              // 历史行已经自带折叠块，流式面板再画一次就会出现两个「思考过程」。
-              // 同一段思考已经在历史里时，只保留历史行里的那个。
-              final streamingReasoning = _turn.reasoningText.trim();
-              final streamingReasoningPersisted =
-                  streamingReasoning.isNotEmpty &&
+                  // v39 起思考过程随助手消息一起落库：一轮结束后 reload 回来的
+                  // 历史行已经自带折叠块，流式面板再画一次就会出现两个「思考过程」。
+                  // 同一段思考已经在历史里时，只保留历史行里的那个。
+                  final streamingReasoning = _turn.reasoningText.trim();
+                  final streamingReasoningPersisted = streamingReasoning
+                          .isNotEmpty &&
                       rows.any((row) =>
                           row.role == AiRepository.roleAssistant &&
                           (row.reasoning?.trim() ?? '') == streamingReasoning);
-              return ListView(
-                controller: _scroll,
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (rows.isEmpty && _turn.streamingText.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 48),
-                      child: Center(
-                        child: Text(
-                          l10n.aiEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ),
-                    ),
-                  for (final row in rows)
-                    if (row.role == AiRepository.roleTool) ...[
-                      if (_shouldShowToolResult(
-                        toolRegistry,
-                        actionsByToolCall[row.toolCallId],
-                      ))
-                        _ToolResultTile(
-                          row: row,
-                          l10n: l10n,
-                          action: actionsByToolCall[row.toolCallId],
-                          onUndo: _undoFor(actionsByToolCall[row.toolCallId]),
-                        ),
-                    ] else if (row.role != AiRepository.roleSystem &&
-                        row.id != cancelledEchoId)
-                      _MessageBubble(
-                        row: row,
-                        images: imagesByMessage[row.id] ?? const [],
-                      ),
-                  // The thinking comes before the answer it produced. It is not
-                  // part of the history: the loop resets it when the next turn
-                  // starts, so nothing here is cached by the page.
-                  if (streamingReasoning.isNotEmpty &&
-                      !streamingReasoningPersisted)
-                    _ReasoningPanel(
-                      text: _turn.reasoningText,
-                      generating: _turn.generating,
-                      l10n: l10n,
-                    ),
-                  // 本轮运行时间线（用户 2026-10-27）：第几轮、正在调用哪个工具、
-                  // 参数摘要、等待审批、耗时都在发生时就出现，而不是等整轮结束后
-                  // 才看到结果卡片。运行中自动展开，本轮结束后折叠成一行摘要。
-                  if (_turn.steps.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: RunTimeline(state: _turn, l10n: l10n),
-                    ),
-                  if (_turn.streamingText.isNotEmpty)
-                    _MessageBubble.streaming(_turn.streamingText),
-                  if (_turn.cancelled) _CancelledLabel(l10n: l10n),
-                ],
-              );
-            },
-          ),
-        ),
-        if (_turn.error != null) _ErrorBanner(text: _turn.error!),
-        if (_turn.hasPending)
-          _ApprovalPanel(
-            pending: _turn.pending,
-            l10n: l10n,
-            onApprove: _approve,
-            onReject: _reject,
-          ),
-        if (_turn.generating) const LinearProgressIndicator(minHeight: 2),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_pendingImages.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final image in _pendingImages)
-                          _StagedImage(
-                            image: image,
-                            removeLabel: l10n.aiRemoveImage,
-                            onRemove: () => _removePending(image),
+                  return ListView(
+                    controller: _scroll,
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      if (rows.isEmpty && _turn.streamingText.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Center(
+                            child: Text(
+                              l10n.aiEmptyHint,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
                           ),
-                      ],
-                    ),
-                  ),
-                // The drag handle, and the one place the key behaviour is
-                // documented for the user: which key sends and which breaks the
-                // line is a convention, and a convention nobody can see is a
-                // support question.
-                Row(
+                        ),
+                      for (final row in rows)
+                        if (row.role == AiRepository.roleTool) ...[
+                          if (_shouldShowToolResult(
+                            toolRegistry,
+                            actionsByToolCall[row.toolCallId],
+                          ))
+                            _ToolResultTile(
+                              row: row,
+                              l10n: l10n,
+                              action: actionsByToolCall[row.toolCallId],
+                              onUndo:
+                                  _undoFor(actionsByToolCall[row.toolCallId]),
+                            ),
+                        ] else if (row.role != AiRepository.roleSystem &&
+                            row.id != cancelledEchoId)
+                          _MessageBubble(
+                            row: row,
+                            images: imagesByMessage[row.id] ?? const [],
+                          ),
+                      // The thinking comes before the answer it produced. It is not
+                      // part of the history: the loop resets it when the next turn
+                      // starts, so nothing here is cached by the page.
+                      if (streamingReasoning.isNotEmpty &&
+                          !streamingReasoningPersisted)
+                        _ReasoningPanel(
+                          text: _turn.reasoningText,
+                          generating: _turn.generating,
+                          l10n: l10n,
+                        ),
+                      // 本轮运行时间线（用户 2026-10-27）：第几轮、正在调用哪个工具、
+                      // 参数摘要、等待审批、耗时都在发生时就出现，而不是等整轮结束后
+                      // 才看到结果卡片。运行中自动展开，本轮结束后折叠成一行摘要。
+                      if (_turn.steps.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: RunTimeline(state: _turn, l10n: l10n),
+                        ),
+                      if (_turn.streamingText.isNotEmpty)
+                        _MessageBubble.streaming(_turn.streamingText),
+                      if (_turn.cancelled) _CancelledLabel(l10n: l10n),
+                    ],
+                  );
+                },
+              ),
+            ),
+            if (_turn.error != null) _ErrorBanner(text: _turn.error!),
+            if (_turn.hasPending)
+              _ApprovalPanel(
+                pending: _turn.pending,
+                l10n: l10n,
+                onApprove: _approve,
+                onReject: _reject,
+              ),
+            if (_turn.generating) const LinearProgressIndicator(minHeight: 2),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
+                    if (_pendingImages.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (var i = 0; i < _pendingImages.length; i++)
+                              _StagedImage(
+                                key: AiChatPage.stagedImageKey(i),
+                                image: _pendingImages[i],
+                                removeLabel: l10n.aiRemoveImage,
+                                onRemove: () =>
+                                    _removePending(_pendingImages[i]),
+                              ),
+                          ],
+                        ),
+                      ),
+                    if (config?.permissionMode == AiPermissionMode.auto)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: _ModeBanner(l10n: l10n),
+                      ),
+                    // 上下拖动条：中心偏左（用户 2026-11-15 第 8 点），并且不再显示
+                    // 「Enter 发送 · Shift+Enter 换行」这类提示——键盘行为在输入框
+                    // 自己身上，不需要一行常驻说明；
+                    // 拖拽图片的提示在真正拖拽时才出现（[_DropHint]）。
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: _InputResizeHandle(
                         key: AiChatPage.inputResizeHandleKey,
                         tooltip: l10n.aiInputResizeHandle,
@@ -751,98 +887,96 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         onDragUpdate: _resizeInput,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        l10n.aiInputKeyHint,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      tooltip: l10n.aiAttachImage,
-                      onPressed: (_turn.generating ||
-                              _turn.hasPending ||
-                              _preparingImages)
-                          ? null
-                          : _pickImages,
-                      icon: _preparingImages
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add_photo_alternate_outlined),
-                    ),
-                    Expanded(
-                      child: Focus(
-                        // Sits above the field in the focus chain, so it decides
-                        // Enter and Shift+Enter before any platform default.
-                        onKeyEvent: _onInputKey,
-                        child: TextField(
-                          controller: _input,
-                          // minLines == maxLines: the box keeps the height the
-                          // user chose with the handle above, and scrolls inside
-                          // itself once the text needs more room, instead of
-                          // growing and pushing the conversation away.
-                          minLines: _inputLines,
-                          maxLines: _inputLines,
-                          keyboardType: TextInputType.multiline,
-                          // The engine's own "send" for the Enter key, so the
-                          // desktop text-input path and [_onInputKey] agree.
-                          textInputAction: TextInputAction.send,
-                          enabled: !_turn.generating && !_turn.hasPending,
-                          onSubmitted: (_) => _send(),
-                          decoration: InputDecoration(
-                            hintText: l10n.aiInputHint,
-                            border: const OutlineInputBorder(),
-                            isDense: true,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Focus(
+                            // Sits above the field in the focus chain, so it decides
+                            // Enter and Shift+Enter before any platform default.
+                            onKeyEvent: _onInputKey,
+                            child: TextField(
+                              controller: _input,
+                              // minLines == maxLines: the box keeps the height the
+                              // user chose with the handle above, and scrolls inside
+                              // itself once the text needs more room, instead of
+                              // growing and pushing the conversation away.
+                              minLines: _inputLines,
+                              maxLines: _inputLines,
+                              keyboardType: TextInputType.multiline,
+                              // The engine's own "send" for the Enter key, so the
+                              // desktop text-input path and [_onInputKey] agree.
+                              textInputAction: TextInputAction.send,
+                              enabled: !_turn.generating && !_turn.hasPending,
+                              onSubmitted: (_) => _send(),
+                              decoration: InputDecoration(
+                                hintText: l10n.aiInputHint,
+                                border: const OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        // 用户 2026-11-15 第 9 点：提交按钮旁选择模型 effort。
+                        _EffortMenu(
+                          effort: config?.reasoningEffort,
+                          busy: _turn.generating || _turn.hasPending,
+                          onSelected: (effort) => unawaited(_setEffort(effort)),
+                        ),
+                        const SizedBox(width: 2),
+                        // One slot, two meanings: while a turn is in flight (or
+                        // waiting for approval) stopping it is the useful action,
+                        // and a disabled send button would leave the user no way
+                        // out. A pending batch is dropped by the same cancel.
+                        if (_turn.generating || _turn.hasPending)
+                          IconButton.filled(
+                            key: aiStopButtonKey,
+                            tooltip: l10n.aiStopTooltip,
+                            onPressed: _stop,
+                            icon: const Icon(Icons.stop),
+                          )
+                        else
+                          IconButton.filled(
+                            tooltip: l10n.aiSend,
+                            onPressed: _preparingImages ? null : _send,
+                            icon: _preparingImages
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.send),
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // One slot, two meanings: while a turn is in flight (or
-                    // waiting for approval) stopping it is the useful action,
-                    // and a disabled send button would leave the user no way
-                    // out. A pending batch is dropped by the same cancel.
-                    if (_turn.generating || _turn.hasPending)
-                      IconButton.filled(
-                        key: aiStopButtonKey,
-                        tooltip: l10n.aiStopTooltip,
-                        onPressed: _stop,
-                        icon: const Icon(Icons.stop),
-                      )
-                    else
-                      IconButton.filled(
-                        tooltip: l10n.aiSend,
-                        onPressed: _preparingImages ? null : _send,
-                        icon: const Icon(Icons.send),
-                      ),
+                    const SizedBox(height: 2),
+                    // 用户 2026-11-15 第 10 点：底部常驻指标条。数据只来自真实运行
+                    // 记录（本轮内存态优先，其次 agent_runs）；没有数据的格子是 `—`。
+                    TurnMetricsSection(
+                      notifier: _usage,
+                      persistedRun: latestRun,
+                    ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
+        Positioned(top: 10, right: 10, child: header),
       ],
     );
   }
 
-  Future<void> _confirmDelete(AppLocalizations l10n) async {
-    final id = _conversationId;
-    if (id == null) {
-      return;
-    }
+  /// 删除一条会话（用户 2026-11-15 第 4 点：入口在左栏每条里）。
+  ///
+  /// 与旧版「只删当前对话」的区别：可以删任意一条；只有被删的正好是当前对话时
+  /// 才解绑 loop 并清空页面状态。确认框保留——删除不可撤销。
+  Future<void> _confirmDeleteConversation(
+    AppLocalizations l10n,
+    String id,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -860,19 +994,30 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ],
       ),
     );
-    if (ok != true) {
+    if (ok != true || !mounted) {
       return;
     }
-    _subscription?.cancel();
+    final deletingCurrent = _conversationId == id;
+    if (deletingCurrent) {
+      _subscription?.cancel();
+    }
     // Files before rows: the paths are read from the rows the delete removes.
     await ref.read(aiAttachmentStoreProvider).deleteConversationFiles(id);
     await ref.read(aiRepositoryProvider).deleteConversation(id);
-    setState(() {
-      _conversationId = null;
-      _loop = null;
-      _turn = const AgentTurnState();
-    });
+    if (!mounted) {
+      return;
+    }
+    if (deletingCurrent) {
+      setState(() {
+        _conversationId = null;
+        _loop = null;
+        _turn = const AgentTurnState();
+        _pendingImages.clear();
+      });
+      _usage.attach();
+    }
     ref.invalidate(conversationsProvider);
+    ref.invalidate(messagesProvider(id));
   }
 }
 
@@ -895,7 +1040,6 @@ class _NotConfigured extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.aiTitle)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -961,30 +1105,261 @@ class _ConversationList extends StatelessWidget {
     required this.conversations,
     required this.selectedId,
     required this.onSelect,
-    required this.l10n,
+    required this.onDelete,
+    required this.deleteLabel,
   });
 
   final List<AiConversation> conversations;
   final String? selectedId;
   final void Function(String) onSelect;
-  final AppLocalizations l10n;
+  final void Function(String) onDelete;
+  final String deleteLabel;
 
   @override
   Widget build(BuildContext context) {
+    // 空列表就是一条空栏，不在左栏重复正文区的空态说明。
+    if (conversations.isEmpty) {
+      return const SizedBox(width: 240);
+    }
     return SizedBox(
       width: 240,
       child: ListView(
         children: [
           for (final c in conversations)
             ListTile(
+              key: ValueKey<String>('ai-conversation-${c.id}'),
               dense: true,
               selected: c.id == selectedId,
-              leading: const Icon(Icons.chat_bubble_outline, size: 18),
-              title:
-                  Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              // 用户 2026-11-15 第 6 点：左栏条目不需要对话型 icon，这里
+              // 全是对话；标题占满整行。
+              title: Text(
+                c.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               onTap: () => onSelect(c.id),
+              trailing: IconButton(
+                key: AiChatPage.conversationDeleteKey(c.id),
+                tooltip: deleteLabel,
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onDelete(c.id),
+                icon: const Icon(Icons.delete_outline),
+              ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 左栏与对话列之间的折叠按钮。
+///
+/// 用户 2026-11-15 第 2 点：按钮在左栏边缘，`<` 收起、`>` 展开。展开时它贴着
+/// 左栏的右缘；收起后左栏宽度归零，它就只剩自己贴在窗口左缘——同一个位置、同一
+/// 个控件，所以用户不用在两处之间找。
+class _SidebarEdgeButton extends StatelessWidget {
+  const _SidebarEdgeButton({
+    super.key,
+    required this.expanded,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final bool expanded;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 34,
+      height: 48,
+      child: Center(
+        child: Tooltip(
+          message: tooltip,
+          child: Material(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: onPressed,
+              child: SizedBox(
+                width: 28,
+                height: 48,
+                child: Icon(
+                  expanded ? Icons.chevron_left : Icons.chevron_right,
+                  size: 18,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 右上角的新对话按钮。
+///
+/// 它替代了旧顶栏：没有标题、没有底板、没有分割线。窄窗口没有左栏时，这里还
+/// 兼作删除当前对话的入口（见 [onDelete]），保证功能不会因为布局改变而消失。
+class _ConversationHeader extends StatelessWidget {
+  const _ConversationHeader({
+    required this.l10n,
+    required this.onNew,
+    this.onDelete,
+  });
+
+  final AppLocalizations l10n;
+  final Future<void> Function() onNew;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onDelete != null)
+          IconButton.filledTonal(
+            tooltip: l10n.aiDeleteConversation,
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline),
+          ),
+        if (onDelete != null) const SizedBox(width: 8),
+        FilledButton.tonalIcon(
+          key: AiChatPage.newConversationKey,
+          onPressed: () => unawaited(onNew()),
+          icon: const Icon(Icons.add, size: 18),
+          label: Text(l10n.aiNewConversation),
+        ),
+      ],
+    );
+  }
+}
+
+/// 提交按钮旁的 effort 选择器：默认 / 低 / 高 / 最高（用户 2026-11-15 第 9 点）。
+///
+/// 选项是 [ReasoningEffort] 现有的三个线上值；「默认」写回 NULL，也就是**不发送**
+/// `reasoning_effort` 字段（旧行为）。这里不发明等级，也不给 medium/xhigh——
+/// DeepSeek 文档把两者映射到 high，一个静默等于另一个的设置是陷阱。
+class _EffortMenu extends StatelessWidget {
+  const _EffortMenu({
+    required this.effort,
+    required this.busy,
+    required this.onSelected,
+  });
+
+  final ReasoningEffort? effort;
+  final bool busy;
+  final ValueChanged<ReasoningEffort?> onSelected;
+
+  static const String _defaultValue = 'default';
+
+  String _label(AppLocalizations l10n) => switch (effort) {
+        null => l10n.aiEffortDefault,
+        ReasoningEffort.low => l10n.aiEffortLow,
+        ReasoningEffort.high => l10n.aiEffortHigh,
+        ReasoningEffort.max => l10n.aiEffortMax,
+      };
+
+  String _optionLabel(AppLocalizations l10n, ReasoningEffort? value) =>
+      switch (value) {
+        null => l10n.aiEffortDefault,
+        ReasoningEffort.low => l10n.aiEffortLow,
+        ReasoningEffort.high => l10n.aiEffortHigh,
+        ReasoningEffort.max => l10n.aiEffortMax,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final style = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    return Tooltip(
+      message: busy ? l10n.aiEffortBusy : l10n.aiEffortTooltip,
+      child: PopupMenuButton<String>(
+        key: AiChatPage.effortButtonKey,
+        enabled: !busy,
+        tooltip: '',
+        initialValue: effort?.wireValue ?? _defaultValue,
+        onSelected: (value) => onSelected(
+          value == _defaultValue ? null : ReasoningEffort.fromId(value),
+        ),
+        itemBuilder: (context) => [
+          for (final option in const <ReasoningEffort?>[
+            null,
+            ReasoningEffort.low,
+            ReasoningEffort.high,
+            ReasoningEffort.max,
+          ])
+            PopupMenuItem<String>(
+              key: AiChatPage.effortOptionKey(option),
+              value: option?.wireValue ?? _defaultValue,
+              child: Text(_optionLabel(l10n, option)),
+            ),
+        ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.psychology_outlined,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 3),
+              Text(_label(l10n), style: style),
+              Icon(Icons.arrow_drop_down, size: 18, color: scheme.outline),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 拖拽悬停时的提示层。
+///
+/// 用 [IgnorePointer] 包住：它只是提示，不能把拖拽的落点从 [DropTarget] 手里抢
+/// 走。半透明底色让下面正在拖到的消息区仍然看得见。
+class _DropHint extends StatelessWidget {
+  const _DropHint({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Positioned.fill(
+      key: AiChatPage.dropHintKey,
+      child: IgnorePointer(
+        child: Container(
+          color: scheme.primary.withValues(alpha: 0.08),
+          alignment: Alignment.center,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: scheme.primary),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_photo_alternate_outlined,
+                    size: 18, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(l10n.aiDropImageHint),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1015,7 +1390,6 @@ class _InputResizeHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: MouseRegion(
@@ -1024,20 +1398,33 @@ class _InputResizeHandle extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onVerticalDragStart: (_) => onDragStart(),
           onVerticalDragUpdate: (details) => onDragUpdate(details.delta.dy),
-          child: SizedBox(
+          // 固定宽度而不是铺满整行：拖动条的视觉中心偏左（用户 2026-11-15
+          // 第 8 点），右边让给输入框内容。
+          child: const SizedBox(
+            width: 56,
             height: 14,
             child: Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: scheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+              child: _ResizePill(),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The pill inside the resize strip.
+class _ResizePill extends StatelessWidget {
+  const _ResizePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.outlineVariant,
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
@@ -1053,19 +1440,24 @@ class _ModeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: scheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(999),
+        ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bolt, size: 16, color: scheme.onSecondaryContainer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.settingsAiPermissionAuto,
-                style:
-                    TextStyle(fontSize: 12, color: scheme.onSecondaryContainer),
+            Icon(Icons.bolt, size: 14, color: scheme.onSecondaryContainer),
+            const SizedBox(width: 4),
+            Text(
+              l10n.settingsAiPermissionAuto,
+              style: TextStyle(
+                fontSize: 11,
+                color: scheme.onSecondaryContainer,
               ),
             ),
           ],
@@ -1436,6 +1828,7 @@ class _MessageImage extends StatelessWidget {
 /// A picked image waiting to be sent, with its remove affordance.
 class _StagedImage extends StatelessWidget {
   const _StagedImage({
+    super.key,
     required this.image,
     required this.removeLabel,
     required this.onRemove,

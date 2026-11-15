@@ -9,17 +9,20 @@ import '../../../domain/services/cloze/cloze_layout.dart';
 import '../../../domain/services/cloze/forced_loop.dart';
 import '../../../domain/services/srs/dsr_card_state.dart';
 import '../../../domain/services/srs/fsrs_scheduler.dart';
+import '../../../domain/services/questions/question_blank_markup.dart';
 import '../../../l10n/app_localizations.dart';
 // The tierB verdict shown on a card is read from the very reading the 认知模型
 // page renders (`zoneByKnowledgePoint`), not re-derived here: the page and this
 // screen must not disagree about one zone. This import also brings the zone
 // words it re-exports (`zoneLabel`), so there is one vocabulary as well.
 import '../../cognitive/presentation/cognitive_model_page.dart';
+import '../../questions/presentation/question_blank_view.dart';
 import '../application/judge_mode_preference.dart';
 import '../application/review_advisory.dart';
 import '../application/review_rating_tier.dart';
 import '../application/review_reminder_service.dart';
 import '../application/review_service.dart';
+import 'review_card_media.dart';
 import 'review_choice_options.dart';
 import 'review_question_text.dart';
 import 'review_reminder_texts.dart';
@@ -881,6 +884,36 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     final cloze = item.clozeSlotKey == null
         ? null
         : ClozeLayout.of(question: item.question, slotStart: item.slotStart);
+    // task-101：卡面文本的渲染口径。
+    //
+    //  * 内容推导出来的卡（`templateId == null`）可以带知识点显式的
+    //    `content_format`；模板卡没有格式列（`card_templates` 无该列），恒走检测；
+    //  * 检测只认完整的 Markdown 结构（见 `reviewCardTextRendersAsMarkdown`），
+    //    历史纯文本卡的观感不变；
+    //  * 图片字节只从卡面文本里的 Markdown 图片路径读本地文件（见
+    //    `review_card_media.dart`），读不到就保留字面文本，不联网、不崩。
+    final cardTextFormat =
+        item.templateId == null ? item.knowledgePoint.contentFormat : null;
+    final questionMarkdown = reviewCardTextRendersAsMarkdown(
+      text: item.question,
+      textFormat: cardTextFormat,
+    );
+    final questionImages =
+        ref.watch(reviewCardImageBytesProvider(item.question)).valueOrNull ??
+            const <String, ReviewQuestionImage>{};
+    final feedback = _feedback;
+    final answerMarkdown = feedback == null
+        ? false
+        : reviewCardTextRendersAsMarkdown(
+            text: feedback.expected,
+            textFormat: cardTextFormat,
+          );
+    final answerImages = feedback == null
+        ? const <String, ReviewQuestionImage>{}
+        : ref
+                .watch(reviewCardImageBytesProvider(feedback.expected))
+                .valueOrNull ??
+            const <String, ReviewQuestionImage>{};
     return Column(
       children: [
         _ProgressHeader(
@@ -927,11 +960,13 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                     revealed: _feedback?.expected,
                   ),
                 ] else
-                  // task-24：题干富文本（Markdown + LaTeX，图片由占位混排组件
-                  // 负责；本页暂不提供图片字节，所以与旧 SelectableText 逐字
-                  // 一致）。纯文本/模板卡/论述题仍走同一条渲染路径。
+                  // task-24/task-101：题干富文本（Markdown + LaTeX）。整段
+                  // Markdown 只在显式格式或完整 Markdown 结构时打开；纯文本/
+                  // 模板卡/论述题仍走同一条渲染路径，观感与改造前一致。
                   ReviewQuestionText(
                     text: item.question,
+                    markdown: questionMarkdown,
+                    imageByPath: questionImages,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           height: 1.75,
                         ),
@@ -1031,15 +1066,17 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                           : null,
                     ),
                   ),
-                if (_feedback != null) ...[
+                if (feedback != null) ...[
                   const SizedBox(height: 20),
                   _FeedbackCard(
-                    feedback: _feedback!,
+                    feedback: feedback,
                     outcome: _outcome,
+                    answerMarkdown: answerMarkdown,
+                    answerImagesByPath: answerImages,
                     // The question is asked only while it is still unanswered:
                     // once the review is written there is nothing left to tell
                     // the model, and the card's buttons must not reappear.
-                    onResolveSolution: _feedback!.awaitingSolution
+                    onResolveSolution: feedback.awaitingSolution
                         ? (reviewedSolution) => _resolveWrong(
                               reviewedSolution: reviewedSolution,
                             )
@@ -1137,27 +1174,41 @@ class _ClozeSentence extends StatelessWidget {
     final scheme = theme.colorScheme;
     final style = theme.textTheme.headlineSmall?.copyWith(height: 1.75);
     final answer = revealed;
-    return SelectableText.rich(
-      TextSpan(
-        style: style,
-        children: [
-          TextSpan(text: layout.prefix),
-          if (answer == null || answer.isEmpty)
-            TextSpan(
-              text: layout.blank,
-              style: style?.copyWith(color: scheme.primary),
-            )
-          else
-            TextSpan(
-              text: answer,
-              style: style?.copyWith(
-                color: scheme.onPrimaryContainer,
-                backgroundColor: scheme.primaryContainer,
-                fontWeight: FontWeight.w700,
+    final fontSize = style?.fontSize ?? theme.textTheme.bodyMedium?.fontSize ?? 14;
+    final blankSize = questionBlankDisplaySize(
+      layout.blank.length,
+      fontSize,
+    );
+    // 空位是**组件**（空白下划线），不是 `______` 字符：与题库卡片/详情页同一套
+    // 观感；揭示后把答案填回原位置。`SelectableText.rich` 不支持 WidgetSpan，
+    // 所以换成 SelectionArea + RichText（仍然可选中）。
+    return SelectionArea(
+      child: RichText(
+        text: TextSpan(
+          style: style,
+          children: [
+            TextSpan(text: layout.prefix),
+            if (answer == null || answer.isEmpty)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.bottom,
+                child: QuestionBlankUnderline(
+                  width: blankSize.width,
+                  height: blankSize.height,
+                  color: scheme.primary,
+                ),
+              )
+            else
+              TextSpan(
+                text: answer,
+                style: style?.copyWith(
+                  color: scheme.onPrimaryContainer,
+                  backgroundColor: scheme.primaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          TextSpan(text: layout.suffix),
-        ],
+            TextSpan(text: layout.suffix),
+          ],
+        ),
       ),
     );
   }
@@ -1278,11 +1329,20 @@ class _FeedbackCard extends StatelessWidget {
   const _FeedbackCard({
     required this.feedback,
     required this.outcome,
+    this.answerMarkdown = false,
+    this.answerImagesByPath = const <String, ReviewQuestionImage>{},
     this.onResolveSolution,
   });
 
   final _Feedback feedback;
   final ReviewOutcome? outcome;
+
+  /// 答案是否按整段 Markdown 渲染（task-101）；false 且没有图片时仍用改造前的
+  /// 单行 `Text('答案: …')`，历史纯文本卡的呈现逐字不变。
+  final bool answerMarkdown;
+
+  /// 答案文本里的 Markdown 图片路径 → 已读好的字节（见 `review_card_media.dart`）。
+  final Map<String, ReviewQuestionImage> answerImagesByPath;
 
   /// Non-null only while a failed recall still needs its one missing detail.
   /// The value is "did you read the answer and still recognise it?".
@@ -1328,7 +1388,28 @@ class _FeedbackCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('${l10n.ankiAnswer}: ${feedback.expected}'),
+            // task-101：「答案：」标签保留；答案本身在 Markdown/图片时走与题干
+            // 同一个富文本渲染器（纯文本答案仍逐字保持改造前的单行 `Text`）。
+            if (answerMarkdown || answerImagesByPath.isNotEmpty)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${l10n.ankiAnswer}: ',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  Expanded(
+                    child: ReviewQuestionText(
+                      text: feedback.expected,
+                      style: theme.textTheme.bodyMedium,
+                      markdown: answerMarkdown,
+                      imageByPath: answerImagesByPath,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Text('${l10n.ankiAnswer}: ${feedback.expected}'),
             // The user's own answer is withheld only when the app already said
             // it was right.
             if (correct != true && feedback.submitted.isNotEmpty) ...[

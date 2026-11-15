@@ -15,8 +15,8 @@
     "description": "Top-level destination for the question bank (题库): the overview list plus the intake/paper/photo/material entries."
   },
   "navPackages": "Library",
-  "navMindnet": "MindNet",
-  "mindnetIntro": "MindNet reads your review history and suggests what to study. This page is read-only.",
+  "navMindnet": "Learning status",
+  "mindnetIntro": "This page answers two things only - how your learning looks and what to do today: level, strengths and weak spots, today's readiness, last week. Model parameters and raw readings are not shown here.",
   "navSettings": "Settings",
   "tagsTitle": "Tags",
   "settingsProfileName": "Profile name",
@@ -68,6 +68,67 @@
   "tasksReminder": "Reminder",
   "tasksReminderPermissionDenied": "Notifications are not allowed, so this reminder will not appear. Allow notifications for Furnace in system settings, then set the reminder again.",
   "tasksDueAt": "Deadline",
+  "tasksStatus": "Status",
+  "tasksStatusTodo": "To do",
+  "tasksStatusDoing": "In progress",
+  "tasksStatusDone": "Done",
+  "tasksStatusBlocked": "Stuck",
+  "tasksStatusSkipped": "Skipped",
+  "tasksStatusSectionTodo": "To do",
+  "tasksStatusSectionDone": "Done",
+  "tasksStatusSectionArchived": "Stuck / skipped",
+  "tasksStatusMenu": "Status actions",
+  "tasksSubmit": "Submit",
+  "tasksMarkStuck": "Stuck",
+  "tasksSkip": "Skip",
+  "tasksSubmitTitle": "Submit \"{title}\"?",
+  "@tasksSubmitTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSubmitBody": "Submitting only records that the work was handed in; it does not change the task status and does not mark it done.",
+  "tasksStuckTitle": "Mark \"{title}\" as stuck?",
+  "@tasksStuckTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStuckBody": "Stuck removes the task from the to-do list without recording right or wrong and without changing ability; you can start it again later, or skip it.",
+  "tasksSkipTitle": "Skip \"{title}\"?",
+  "@tasksSkipTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSkipBody": "Skipping is not deleting: the task and everything it references stay; it just leaves the to-do list.",
+  "tasksSubmitDone": "Submitted \"{title}\"",
+  "@tasksSubmitDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStuckDone": "Marked \"{title}\" as stuck",
+  "@tasksStuckDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksSkipDone": "Skipped \"{title}\"",
+  "@tasksSkipDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksReopen": "Restore",
+  "tasksReopenTitle": "Restore \"{title}\"?",
+  "@tasksReopenTitle": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksReopenBody": "Restoring puts the task back in the to-do list and records a reopened event. Completion history is not rolled back: it stays as the record that the work was done.",
+  "tasksReopenDone": "Restored \"{title}\"",
+  "@tasksReopenDone": {
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tasksStatusNotAllowed": "\"{action}\" is not allowed while the task is {status}",
+  "@tasksStatusNotAllowed": {
+    "placeholders": {
+      "status": { "type": "String" },
+      "action": { "type": "String" }
+    }
+  },
+  "tasksStatusActionFailed": "Action failed: {error}",
+  "@tasksStatusActionFailed": {
+    "placeholders": { "error": { "type": "String" } }
+  },
   "timeNewBlock": "New schedule block",
   "timeTodaySchedule": "Schedule",
   "timeAvailable": "Open",
@@ -584,6 +645,32 @@
   "@tagsBatchResultMixed": {
     "placeholders": { "success": { "type": "int" }, "failed": { "type": "int" }, "errors": { "type": "String" } }
   },
+  "tagsSearchHint": "Search tags",
+  "@tagsSearchHint": { "description": "Placeholder of the tag graph search field." },
+  "tagsSearchEmpty": "No matching tags",
+  "@tagsSearchEmpty": { "description": "Empty state when the tag search has no hit." },
+  "tagsSearchCount": "{count} matching tags",
+  "@tagsSearchCount": {
+    "description": "Hit count shown while the tag search is active.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsClearSearch": "Clear search",
+  "tagsGraphPanHint": "Wider than the screen: drag to pan, scroll or pinch to zoom",
+  "@tagsGraphPanHint": { "description": "Hint when the graph falls back to a pan/zoom canvas." },
+  "tagsCollapsedHidden": "{count} child tags hidden",
+  "@tagsCollapsedHidden": {
+    "description": "Badge on a collapsed node: how many child tags are hidden.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagsNodeSettings": "Tag settings",
+  "@tagsNodeSettings": { "description": "Title of the panel opened by tapping a tag node." },
+  "tagsNodeSettingsHint": "Use the arrow on the node to expand or collapse; this panel edits this tag only.",
+  "@tagsNodeSettingsHint": { "description": "Footer of the node settings dialog, separating arrows from the panel." },
+  "tagsMoveSingleTitle": "Move \"{label}\" to",
+  "@tagsMoveSingleTitle": {
+    "description": "Title of the single-tag move dialog.",
+    "placeholders": { "label": { "type": "String" } }
+  },
 
   "threadTitle": "Thread",
   "threadSort": "Update & sort",
@@ -602,6 +689,100 @@
   "threadCognitiveRankNote": "Cognitive ordering is on: tasks closer to the current goal or to just-reviewed knowledge points come first; the boosts are uncalibrated - a hint, not a measurement",
   "threadNeedsSort": "Needs re-sorting",
   "threadNoEvents": "No events yet",
+  "threadWindowAll": "All",
+  "threadWindowWeek": "This week",
+  "threadWindowDay": "Today",
+  "threadWindowEmpty": "No tasks in this window",
+  "threadWindowTemporary": "Temporary view: filters the tasks you already sorted by time window. It changes no order and writes nothing.",
+  "threadRollupSubtasks": "Subtasks",
+  "@threadRollupSubtasks": {
+    "description": "Prefix of the read-only subtask rollup line on a container row."
+  },
+  "threadRollupDoneOf": "{done}/{total}",
+  "@threadRollupDoneOf": {
+    "description": "Subtasks completed / subtasks total (container rollup).",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupPercent": "{percent}%",
+  "@threadRollupPercent": {
+    "description": "Rollup progress percent (done / total subtasks).",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupBlocked": "stuck {count}",
+  "@threadRollupBlocked": {
+    "description": "Number of stuck subtasks in the rollup line (only shown when > 0).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupSkipped": "skipped {count}",
+  "@threadRollupSkipped": {
+    "description": "Number of skipped subtasks in the rollup line (only shown when > 0).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupSection": "Subtask rollup (read-only)",
+  "@threadRollupSection": {
+    "description": "Title of the read-only subtask rollup card in the event properties page."
+  },
+  "threadRollupStatus": "Rolled-up status",
+  "@threadRollupStatus": {
+    "description": "Label of the status derived from subtasks (never written back)."
+  },
+  "threadRollupCountsLine": "To do {todo} · In progress {doing} · Done {done} · Stuck {blocked} · Skipped {skipped}",
+  "@threadRollupCountsLine": {
+    "description": "Subtask counts by status (container rollup).",
+    "placeholders": {
+      "todo": {
+        "type": "int"
+      },
+      "doing": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      },
+      "blocked": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupEstimate": "Subtasks add up to {minutes} min",
+  "@threadRollupEstimate": {
+    "description": "Sum of subtask estimates in the container rollup.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "threadRollupEstimateUnknown": "Estimate unknown (a subtask has no estimate)",
+  "@threadRollupEstimateUnknown": {
+    "description": "Shown instead of a sum when any subtask estimate is null."
+  },
+  "threadRollupReadOnly": "Read-only rollup: showing it never writes the parent status.",
+  "@threadRollupReadOnly": {
+    "description": "Note under the rollup card: the rollup is a read-only projection."
+  },
   "threadGoal": "Main goal",
   "threadGoalEmpty": "No goal set",
   "threadEnergy": "Energy",
@@ -765,7 +946,7 @@
   "settingsCardGroups": "Deck settings",
   "settingsCardGroupsHint": "A deck is a tag: give a tag a daily new/review cap and its whole subtree counts as that deck; grading mode and card type are changed here too.",
   "reviewReminderSettingTitle": "Review reminder",
-  "reviewReminderSettingOff": "Off",
+  "reviewReminderSettingOff": "Off (tap to set a daily reminder)",
   "reviewReminderSettingOn": "Every day at {time} when cards are due",
   "@reviewReminderSettingOn": { "placeholders": { "time": { "type": "String" } } },
   "reviewReminderDialogTitle": "Review reminder",
@@ -781,7 +962,7 @@
   "settingsQuestionBankHint": "Question overview, paper assembly and material intake all start here; to add questions, send photos or pasted text to the assistant and it transcribes them into the bank.",
 
   "settingsUsageDoc": "Usage guide",
-  "settingsUsageDocHint": "How each part works and what its limits are: AI, review, question bank, paper assembly, photos, cognitive model",
+  "settingsUsageDocHint": "How each part works and what its limits are: AI, review, question bank, paper assembly, photos, learning status",
   "docAiTitle": "What the assistant can do, and what waits for your consent",
   "docAiBody": "The AI can read your library and change it. It asks before touching data, and you approve each step; deletions are confirmed one by one and can be undone. It can't see your API key.",
   "docReviewTitle": "Review and flashcards",
@@ -794,8 +975,8 @@
   "docMaterialBody": "Photo intake turns one photo into tags, flashcards, knowledge points and questions (transcribed as-is); nothing is written to your study data until you confirm. Material intake turns a piece of material into knowledge points, cards and links; it is saved only after you confirm, with an undo record. Photos can also be used to rehearse a study plan - you see the result without changing your data.",
   "docTodayTitle": "What to do today, and when",
   "docTodayBody": "Today's list shows the cards due today and suggests what to start with from your recent reviews and energy. Conflicting tasks and schedule blocks are flagged and can be pushed back in one tap; the ordering is recalculated only when you press the sort button.",
-  "docCognitiveTitle": "How to read the cognitive model",
-  "docCognitiveBody": "The cognitive model is a read-only page showing how well each card is remembered. \"Developing zone\" = what to review more now; \"at risk\" = you can do it but are close to forgetting. When there is no data it says unavailable, which does not mean healthy. The knowledge graph at the top draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. \"Capability actions\" groups the steps where you got stuck and lets you find questions by that action. These readings are guidance only and never change your data by themselves.",
+  "docCognitiveTitle": "How to read your learning status",
+  "docCognitiveBody": "Learning status is a read-only page: current level, strengths and weak spots, what to review today, and a one-line trend for the last week. The level and the lists are computed per knowledge point, not per flashcard: cards under one knowledge point are averaged first, and only points with review history count as evidence. Below the threshold, or when readings disagree too much, it shows ? or not enough evidence - which does not mean healthy. The knowledge graph draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. Capability actions groups the steps where you got stuck and lets you find questions by that action. Model parameters and per-card raw readings live under Settings > Developer > Developer info (read-only), collapsed by default. These readings are guidance only and never change your data by themselves.",
   "docFormulaTitle": "How the score is computed",
   "docFormulaBody": "The total is a weighted sum of urgency, goal match, state fit, expected pressure and fatigue; each component is scored 0-1 first, then weighted by the values you set. It is recalculated only when you press the sort button.",
   "docCurrentWeights": "Current weights (shipped values in brackets)",
@@ -1067,6 +1248,18 @@
   "aiUsageLiveEstimate": "Still streaming: counted from the text that has arrived so far.",
   "aiUsageNoUsage": "This turn reported no token usage.",
   "aiUsageUnavailable": "—",
+  "aiEffort": "Thinking effort",
+  "aiEffortDefault": "Default",
+  "aiEffortLow": "Low",
+  "aiEffortHigh": "High",
+  "aiEffortMax": "Max",
+  "aiEffortTooltip": "A chosen level is sent as reasoning_effort on the chat request; Default sends no such field. Whether the server accepts it depends on the model.",
+  "aiEffortBusy": "The thinking effort cannot change while a turn is running",
+  "aiDropImageHint": "Drop to add the image to this message",
+  "aiDropImageSkipped": "{count} non-image file(s) skipped",
+  "@aiDropImageSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "settingsAiSection": "AI",
   "settingsAiEnabled": "Enable AI",
   "settingsAiApiKey": "API key",
@@ -1082,7 +1275,7 @@
   "@settingsAiMaxRoundsValue": {
     "placeholders": { "rounds": { "type": "int" } }
   },
-  "settingsAiMaxRoundsHint": "Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 30.",
+  "settingsAiMaxRoundsHint": "Each extra round is another paid model call; more rounds let one message finish longer multi-step work. Defaults to 200.",
   "settingsAiSave": "Save",
   "settingsAiSaved": "Saved",
   "settingsAiKeyRequired": "An API key is required to enable this",
@@ -1166,8 +1359,6 @@
   "settingsTfpkgExportNoSecrets": "Without secrets (to share)",
   "settingsTfpkgExportDoneNoSecrets": "Workspace exported (API key excluded)",
 
-  "cognitiveModelTitle": "Cognitive model",
-  "cognitiveModelSubtitle": "Read-only readings: R / band / zone",
   "cognitiveGraphTitle": "Knowledge network (read-only)",
   "cognitiveGraphHint": "Dots are knowledge points (colour = cognitive zone, size = card count), squares are tags, and a line means the point hangs off that tag. Nothing here is editable: no due dates and no ordering change.",
   "cognitiveGraphEmpty": "Nothing to draw yet: create knowledge points and tags, then review a few cards.",
@@ -1179,12 +1370,11 @@
       "links": { "type": "int" }
     }
   },
-  "cognitiveGraphPointDetail": "Zone: {zone} · {cards} cards · mean R {mean}",
+    "cognitiveGraphPointDetail": "Zone: {zone} · {cards} cards",
   "@cognitiveGraphPointDetail": {
     "placeholders": {
       "zone": { "type": "String" },
-      "cards": { "type": "int" },
-      "mean": { "type": "String" }
+      "cards": { "type": "int" }
     }
   },
   "cognitiveGraphTagDetail": "{count} knowledge points hang off this tag",
@@ -2204,6 +2394,11 @@
   "zujuanPaperClose": "Close",
   "questionDetailTitle": "Question detail",
   "questionDetailQuestionMissing": "This question is no longer in the library (it may have just been deleted).",
+  "questionDeveloperEntry": "Developer info",
+  "questionDeveloperTitle": "Developer info",
+  "questionDeveloperHint": "Internal fields, source editing and image management; hidden from the student page.",
+  "questionDeveloperRawTitle": "Internal fields (read-only)",
+  "questionDeveloperImagesTitle": "Image management",
   "questionDetailEditSource": "Edit source",
   "questionDetailEditSourceTitle": "Edit the source",
   "questionDetailEditSourceHint": "A field left empty is left unchanged; the stem, answer and options are never touched.",
@@ -3904,5 +4099,145 @@
   "@aiStepsSummary": {
     "description": "Collapsed run timeline summary.",
     "placeholders": { "count": { "type": "int" } }
-  }
+  },
+  "tagsKnowledgeEntry": "Linked content",
+  "@tagsKnowledgeEntry": {"description":"Row menu / leaf tap entry that opens the tag knowledge page."},
+  "tagKnowledgeEntryTitle": "Linked content",
+  "@tagKnowledgeEntryTitle": {"description":"Title of the tag knowledge entry page."},
+  "tagKnowledgeEntryIntro": "Questions, flashcards and tasks attached to this tag. Only real links are shown; anything without links says \"none\" instead of guessing.",
+  "@tagKnowledgeEntryIntro": {"description":"Intro line on the tag knowledge entry page."},
+  "tagKnowledgeIncludeDescendants": "Include sub-tags",
+  "@tagKnowledgeIncludeDescendants": {"description":"Scope switch on the tag knowledge entry page."},
+  "tagKnowledgeIncludeDescendantsHint": "Also count the whole sub-tree (card groups are sub-tree based already).",
+  "@tagKnowledgeIncludeDescendantsHint": {"description":"Explains the scope switch."},
+  "tagKnowledgeQuestions": "Questions",
+  "@tagKnowledgeQuestions": {"description":"Questions section title."},
+  "tagKnowledgeFlashcards": "Flashcards",
+  "@tagKnowledgeFlashcards": {"description":"Flashcards section title."},
+  "tagKnowledgeTasks": "Tasks",
+  "@tagKnowledgeTasks": {"description":"Tasks section title."},
+  "tagKnowledgeEmptyQuestions": "No questions yet",
+  "@tagKnowledgeEmptyQuestions": {"description":"Honest empty state for questions."},
+  "tagKnowledgeEmptyFlashcards": "No flashcards yet",
+  "@tagKnowledgeEmptyFlashcards": {"description":"Honest empty state for flashcards."},
+  "tagKnowledgeEmptyTasks": "No tasks yet",
+  "@tagKnowledgeEmptyTasks": {"description":"Honest empty state for tasks."},
+  "tagKnowledgeMissingTargets": "{count} more tag link(s) point at deleted objects and are not counted above.",
+  "@tagKnowledgeMissingTargets": {
+    "description": "Shown when polymorphic tag links point at deleted objects.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "tagKnowledgeTagMissing": "This tag no longer exists (it may have just been deleted).",
+  "@tagKnowledgeTagMissing": {"description":"Shown when the tag was deleted before the page opened."},
+  "tagKnowledgeLoadFailed": "Could not load the tag content: {error}",
+  "@tagKnowledgeLoadFailed": {
+    "description": "Load failure message for the tag knowledge entry page.",
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "tagKnowledgeQuestionNoStem": "(no stem)",
+  "@tagKnowledgeQuestionNoStem": {"description":"Placeholder when a question has no readable stem."},
+  "tagKnowledgeCardPreviewTitle": "Flashcard",
+  "@tagKnowledgeCardPreviewTitle": {"description":"Card preview dialog title."},
+  "tagKnowledgeCardFront": "Front",
+  "@tagKnowledgeCardFront": {"description":"Card front label in the preview dialog."},
+  "tagKnowledgeCardAnswer": "Answer",
+  "@tagKnowledgeCardAnswer": {"description":"Card answer label in the preview dialog."},
+  "tagKnowledgeCardHint": "Hint",
+  "@tagKnowledgeCardHint": {"description":"Card hint label in the preview dialog."},
+  "tagKnowledgeCardKnowledgePoint": "Knowledge point: {title}",
+  "@tagKnowledgeCardKnowledgePoint": {
+    "description": "Knowledge point of a card in the preview dialog.",
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tagKnowledgeCardTypeUnknown": "Card",
+  "@tagKnowledgeCardTypeUnknown": {"description":"Fallback name for an unknown card template type."},
+  "tagKnowledgeCardReview": "Review the \"{group}\" deck",
+  "@tagKnowledgeCardReview": {
+    "description": "Button that opens the card's deck in the review screen.",
+    "placeholders": { "group": { "type": "String" } }
+  },
+  "tagKnowledgeNoReviewGroup": "This tag is not part of any configured deck, so there is no review queue to open.",
+  "@tagKnowledgeNoReviewGroup": {"description":"Honest note when the tag has no deck group."},
+  "mindnetStatusIntro": "Only your current study state; model parameters are not shown here.",
+  "mindnetBandTitle": "Current level",
+  "mindnetBandHint": "A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.",
+  "mindnetBandEvidence": "Based on {count} knowledge point(s) with review history",
+  "@mindnetBandEvidence": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetBandInsufficient": "Not enough evidence: at least {count} knowledge point(s) with review history are needed for a level, so this stays ?",
+  "@mindnetBandInsufficient": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetBandUnstable": "Not enough evidence: the reviewed knowledge points disagree too much, so no level yet",
+  "mindnetStrengthsTitle": "Strengths",
+  "mindnetWeaknessesTitle": "Weak spots",
+  "mindnetEvidenceMeasured": "measured",
+  "mindnetStrengthsEmpty": "Not enough evidence: no reviews yet",
+  "mindnetWeaknessesEmpty": "Not enough evidence: at least two reviewed knowledge points are needed to name a weak spot",
+  "mindnetUntitledKnowledgePoint": "Untitled knowledge point",
+  "mindnetTodayTitle": "Today",
+  "mindnetTodayReviews": "{count} flashcard(s) to review",
+  "@mindnetTodayReviews": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetTodayTasks": "{count} task(s) due today",
+  "@mindnetTodayTasks": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetStartReview": "Start review",
+  "mindnetTrendTitle": "Last 7 days",
+  "mindnetTrendEmpty": "Not enough evidence: no reviews in the last two weeks",
+  "mindnetTrendNoThisWeek": "Nothing reviewed yet this week ({count} last week)",
+  "@mindnetTrendNoThisWeek": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetTrendRetention": "{count} reviews in the last 7 days, {percent}% recalled",
+  "@mindnetTrendRetention": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "percent": { "type": "int" }
+    }
+  },
+  "mindnetTrendCompare": "({count} last week)",
+  "@mindnetTrendCompare": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mindnetDeveloperInfo": "Developer info (read-only)",
+  "mindnetDeveloperInfoHint": "Model parameters, per-card readings, calibration and diagnosis details",
+  "mindnetDeveloperInfoTitle": "Developer info",
+  "mindnetDeveloperEntryHint": "Model parameters and raw readings, hidden by default",
+  "cognitiveGraphUntitledTag": "Untitled tag",
+  "settingsProfileIdentity": "Student",
+  "settingsProfileEditHint": "Tap to edit your name",
+  "settingsSectionLearning": "Learning & plan",
+  "settingsSectionAi": "AI",
+  "settingsSectionAppearanceReading": "Appearance & reading",
+  "settingsSectionHelp": "Help",
+  "settingsSectionDeveloper": "Developer",
+  "settingsDeveloperShow": "Show",
+  "settingsDeveloperHide": "Hide",
+  "settingsDeveloperHint": "Developer and prototype entries, hidden by default; daily use does not need them.",
+  "settingsTodayPlan": "Today's plan",
+  "settingsDataLocation": "Data location",
+  "settingsDataLocationHint": "Tap to copy the data folder path",
+  "settingsDataLocationCopied": "Path copied",
+  "settingsBackupRestoreTitle": "Backup & restore",
+  "settingsBackupRestoreHint": "Export the whole workspace or restore from a backup; the current data is backed up before an import",
+  "aiDeveloperParamsTitle": "Developer parameters",
+  "aiDeveloperParamsHint": "Round cap, available tools, skill packages; not needed for everyday chat",
+  "aiDeveloperParamsShow": "Show",
+  "aiDeveloperParamsHide": "Hide"
 }

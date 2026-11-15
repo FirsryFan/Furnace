@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/ids.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
@@ -25,9 +26,18 @@ import '../tools/review_focus_tool.dart';
 import '../tools/tag_tools.dart';
 import '../tools/schedule_tools.dart';
 import '../tools/task_tools.dart';
+// 运行记录的 domain 类型用前缀引入：这个文件自己声明了界面时间线用的
+// `AgentStep` / `AgentStepKind` / `AgentStepStatus`，与 `agent_run.dart` 里的
+// 同名持久化类型不是一回事。前缀让「时间线的一步」和「落库的一步」在代码里
+// 一眼可分，也不会因为同名而互相遮蔽。
+import 'agent_budget.dart';
+import 'agent_run.dart' as agent_run;
+import 'agent_run_sink.dart';
 import 'ai_tool.dart';
 import 'approval_engine.dart';
 import 'model_adapter.dart';
+import 'step_guard.dart';
+import 'student_solver_context.dart';
 import 'tool_registry.dart';
 
 /// A tool call waiting for the user's decision.
@@ -583,8 +593,12 @@ class AgentLoop {
     this.skills,
     this.skillRunner,
     this.skillPlatform,
+    this.studentContext,
+    this.runSink,
+    this.stepGuard,
     this.maxRounds = defaultMaxRounds,
     this.contextWindowTokens = defaultContextWindowTokens,
+    this.echoReasoning = false,
   });
 
   final ModelAdapter adapter;
@@ -599,6 +613,28 @@ class AgentLoop {
   /// a loop built without it simply cannot carry images, and says so rather than
   /// sending a message whose photo silently went nowhere.
   final AiAttachmentStore? attachments;
+
+  /// Images of the current user turn for tools that need them (student solver).
+  final StudentSolverContext? studentContext;
+
+  /// Optional recorder for the global `AgentRun` / `AgentStep` audit trail
+  /// (design §3.1 / §7.1).
+  ///
+  /// Default `null`, and the default is load-bearing: a loop built without it
+  /// writes no `agent_runs` / `agent_steps` rows at all, so every pre-existing
+  /// test and every pre-existing behaviour stays byte-identical. The app wires
+  /// it in [agentLoopProvider]; a test that wants to observe runs injects a
+  /// fake.
+  final AgentRunSink? runSink;
+
+  /// Optional step guard for the main chat loop (design §7.2).
+  ///
+  /// Default `null` for the same reason as [runSink]. It only *decides*: this
+  /// loop acts on a `stop` / `force_answer` / `repair` decision by ending the
+  /// turn with an explicit error and a persisted `stop_reason`, never by
+  /// silently looping on. Its history must not leak across turns, so it is
+  /// [StepGuard.reset] when a new user message starts a run.
+  final StepGuard? stepGuard;
 
   /// Where installed `.fskill` packages live.
   ///
@@ -661,6 +697,18 @@ class AgentLoop {
   /// The 64k default of [contextWindowTokens].
   static const int defaultContextWindowTokens = 65536;
 
+  /// Whether stored assistant thinking is echoed back as `reasoning_content`.
+  ///
+  /// Off by default, and the default is load-bearing: with thinking mode off this
+  /// loop must send exactly the history it sent before the field existed, and a
+  /// provider that does not know the field must never see it. It is turned on
+  /// only when the user configured a chat thinking effort
+  /// (`AiConfig.reasoningEffort != null`), because a tool-calling request in
+  /// thinking mode has to carry the previous assistant turn's thinking back - a
+  /// provider rejects the request otherwise. The text itself already lives in
+  /// `ai_messages.reasoning`; this flag only decides whether it is replayed.
+  final bool echoReasoning;
+
   /// Everything the current turn has cost. Reset when a new turn starts, and
   /// **not** reset by an approval, because approving continues the same turn -
   /// its round-trips and tokens belong to the same user message.
@@ -682,10 +730,31 @@ class AgentLoop {
 
   int _nextStepId = 0;
 
+  /// The run record for the user turn in flight, or `null` when no [runSink] and
+  /// no [stepGuard] was injected.
+  ///
+  /// One run covers one user message **including** the rounds an approval
+  /// continues: it is created in [sendUserMessage] and only replaced there, so
+  /// [approvePending] / [rejectPending] keep feeding the same run.
+  agent_run.AgentRunState? _run;
+
+  /// Next `agent_steps.seq` for [_run]. Reset with the run.
+  int _runStepSeq = 0;
+
   /// Set by [cancel], checked at every point this loop could start another
   /// round or act on a call. Cleared when a new user message starts a turn, so
   /// a cancel only ever affects the turn it was issued for.
   bool _cancelRequested = false;
+
+  /// Set by [dispose]. After it, the sink is not written any more.
+  ///
+  /// The owner of the loop (the page's provider container) is going away at that
+  /// point, so a database write started by the disposal-time cancel would race
+  /// the owner's own teardown - in widget tests it deadlocks the in-memory
+  /// database's `close()`. The in-memory run still gets its terminal state; only
+  /// the last audit row is skipped, and the reason is the same one a killed
+  /// process leaves behind: the run row stays `running`.
+  bool _disposed = false;
 
   Stream<AgentTurnState> get states => _states.stream;
   AgentTurnState get state => _state;
@@ -725,12 +794,19 @@ class AgentLoop {
         cancelled: true,
         usage: _metrics.snapshot(),
       ));
+      // 取消也要有终态：这条路径里没有 `_drive` 在跑，不在这里落定，run 会永远
+      // 停在 `running`。写入是旁路，失败不影响已经发生的取消。
+      unawaited(_finishRun(
+        agent_run.AgentRunStatus.stopped,
+        stopReason: StopReason.cancelled,
+      ));
     }
   }
 
   /// Releases the state stream. An in-flight turn is cancelled first so the
   /// stream is not left waiting on a provider that will never finish.
   void dispose() {
+    _disposed = true;
     cancel();
     _states.close();
   }
@@ -901,6 +977,18 @@ class AgentLoop {
     if (trimmed.isEmpty && images.isEmpty) {
       return;
     }
+    // DSH preset semantics: a session created with a non-main-agent preset
+    // answers through its own composition. The student preset runs the isolated
+    // solver, so this loop must not pick the message up - refusing here keeps a
+    // future wiring mistake from turning student mode back into a tool of the
+    // main agent.
+    final conversation = await repository.getConversation(conversationId);
+    if (conversation != null && !conversation.runsMainAgent) {
+      _emit(const AgentTurnState(
+        error: '这个会话使用学生模式 preset：由独立的学生模式作答，不走主对话。',
+      ));
+      return;
+    }
     if (_state.hasPending) {
       // Driving a new turn while a previous one is unresolved would leave the
       // model's tool calls unanswered in the history, and the provider rejects
@@ -921,25 +1009,57 @@ class AgentLoop {
     // A new turn: any cancel from the previous one stops applying here, which
     // is what keeps a stopped turn from silently swallowing the next message.
     _cancelRequested = false;
-    // A new user message starts a new turn, so the counters start over here and
-    // only here: an approval continues the turn it belongs to.
-    _metrics = _TurnMetrics(
-      maxRounds: maxRounds,
-      contextWindowTokens: contextWindowTokens,
-    );
-    _resetSteps();
-    _emit(const AgentTurnState(generating: true));
-    final message = await repository.addMessage(
-      conversationId: conversationId,
-      role: AiRepository.roleUser,
-      // An image-only message has no text; storing NULL keeps the empty string
-      // out of the history instead of turning it into a text part.
-      content: trimmed.isEmpty ? null : trimmed,
-    );
-    if (images.isNotEmpty) {
-      await store!.register(message.id, images);
+    // The global run record starts here, after every early return above: a run
+    // row is only created for a message this loop actually picks up (the student
+    // preset rejection and the pending/attachment guards never reach a turn).
+    _startRun(conversationId, conversation);
+    try {
+      // A new user message starts a new turn; old attachments must not leak into
+      // a student-solver call made from this one.
+      studentContext?.clear();
+      // A new user message starts a new turn, so the counters start over here and
+      // only here: an approval continues the turn it belongs to.
+      _metrics = _TurnMetrics(
+        maxRounds: maxRounds,
+        contextWindowTokens: contextWindowTokens,
+      );
+      _resetSteps();
+      _emit(const AgentTurnState(generating: true));
+      final message = await repository.addMessage(
+        conversationId: conversationId,
+        role: AiRepository.roleUser,
+        // An image-only message has no text; storing NULL keeps the empty string
+        // out of the history instead of turning it into a text part.
+        content: trimmed.isEmpty ? null : trimmed,
+      );
+      // 左栏标题自动取第一条用户消息（用户 2026-11-15 第 5 点）。放在写消息
+      // 之后、跑模型之前：标题早点出现在左栏，而且与这一轮是否成功无关。
+      // 失败只影响显示层，不让已经花预算的回合变成异常。
+      if (trimmed.isNotEmpty) {
+        try {
+          await repository.autoTitleFromFirstMessage(
+            conversationId: conversationId,
+            text: trimmed,
+          );
+        } catch (_) {
+          // A title is a label, not a result; see above.
+        }
+      }
+      if (images.isNotEmpty) {
+        await store!.register(message.id, images);
+        studentContext?.setImages(await store.partsForMessage(message.id));
+      }
+      await _drive(conversationId);
+    } catch (error) {
+      // Existing errors are rethrown exactly as before: recording a run must not
+      // turn a broken turn into a successful one. The run itself still gets a
+      // terminal state so it cannot be left `running` forever.
+      await _finishRun(
+        agent_run.AgentRunStatus.failed,
+        stopReason: StopReason.error,
+      );
+      rethrow;
     }
-    await _drive(conversationId);
   }
 
   /// Executes the calls the user approved, then lets the model continue.
@@ -1009,6 +1129,13 @@ class AgentLoop {
       clearPendingTurn: true,
       usage: _metrics.snapshot(),
     ));
+    // A rejected batch ends this user turn: the model only continues after the
+    // next message (the refusals are in the history it will be shown). The run
+    // is stopped the same way a user stop is, rather than left running.
+    await _finishRun(
+      agent_run.AgentRunStatus.stopped,
+      stopReason: StopReason.cancelled,
+    );
   }
 
   /// Undoes one executed call by applying its before-snapshot.
@@ -1148,6 +1275,21 @@ class AgentLoop {
       _metrics.inFlightChars = 0;
       _metrics.inFlightElapsed = Duration.zero;
 
+      // 运行记录 + StepGuard（设计文档 §7.1/§7.2）：每个模型回合一条 step。判定
+      // 结果留到「执行本轮工具 / 再跑下一轮」之前才生效——先记录再判定，才能
+      // 保证判定看到的就是刚刚发生的那一步。两个注入点都为空时
+      // [_recordModelRound] 直接返回 null，这条路径与旧版完全一致。
+      final guardDecision = await _recordModelRound(
+        round: _metrics.rounds,
+        calls: calls,
+        promptTokens: roundUsage?.promptTokens ?? 0,
+        completionTokens: roundUsage?.completionTokens ?? 0,
+        reasoningChars: reasoningBuffer.length,
+        textChars: textBuffer.length,
+        cancelled: _cancelRequested,
+        failure: failure,
+      );
+
       if (_cancelRequested) {
         await _finishCancelled(conversationId, textBuffer, reasoningBuffer);
         return;
@@ -1171,6 +1313,10 @@ class AgentLoop {
           error: failure,
           usage: _metrics.snapshot(),
         ));
+        await _finishRun(
+          agent_run.AgentRunStatus.failed,
+          stopReason: StopReason.error,
+        );
         return;
       }
 
@@ -1188,6 +1334,21 @@ class AgentLoop {
           rounds: _metrics.rounds,
           usage: _metrics.snapshot(),
         ));
+        await _finishRun(agent_run.AgentRunStatus.answered);
+        return;
+      }
+
+      // StepGuard 的判定必须先于执行工具与下一轮模型：否则保护只是记录，
+      // 循环照旧跑。普通对话没有独立的「交卷」阶段，所以 `force_answer`
+      // （以及理论上的 `repair`，chat budget 不会产生）和 `stop` 一样终止本轮，
+      // 并把原因写进 `agent_runs.stop_reason`。
+      if (guardDecision != null && guardDecision.interruptsLoop) {
+        await _stopForGuard(
+          conversationId,
+          guardDecision,
+          textBuffer,
+          reasoningBuffer,
+        );
         return;
       }
 
@@ -1289,6 +1450,13 @@ class AgentLoop {
       rounds: _metrics.rounds,
       usage: _metrics.snapshot(),
     ));
+    // The loop's own round cap is a stop reason of the same kind StepGuard
+    // reports, so the run ends `stopped` with `max_steps` rather than looking
+    // like a normal answer.
+    await _finishRun(
+      agent_run.AgentRunStatus.stopped,
+      stopReason: StopReason.maxSteps,
+    );
   }
 
   /// Ends the turn as cancelled.
@@ -1324,6 +1492,263 @@ class AgentLoop {
       rounds: _metrics.rounds,
       usage: _metrics.snapshot(),
     ));
+    await _finishRun(
+      agent_run.AgentRunStatus.stopped,
+      stopReason: StopReason.cancelled,
+    );
+  }
+
+  // --- run recording (design §7.1 / §7.2) ----------------------------------
+
+  /// 开一次运行记录（第一行 `agent_runs` 由第一个模型回合写入）。
+  ///
+  /// [runSink] 与 [stepGuard] 都为 null 时是 no-op，所以默认构造的 loop 连一次
+  /// 数据库写入都不会多出来。只注入了 guard 时 run 只存在内存里：guard 需要
+  /// 一个 [agent_run.AgentRunState] 来累计步数与 token，但不落库。
+  void _startRun(String conversationId, AiConversation? conversation) {
+    final sink = runSink;
+    final guard = stepGuard;
+    if (sink == null && guard == null) {
+      return;
+    }
+    // 同一个 loop（同一个会话）会跑很多个用户回合；guard 的历史属于一次 run，
+    // 不能把上一轮的重复动作算到这一轮头上。
+    guard?.reset();
+    _runStepSeq = 0;
+    _run = agent_run.AgentRunState.start(
+      id: Ids.next('run'),
+      conversationId: conversationId,
+      // 会话的 preset id；NULL/未知值按 `assistant` 解析（与数据库读路径同一
+      // 口径）。学生 preset 在上面的拒绝分支就已经返回，这里不会出现。
+      presetId: conversation?.agentPresetChoice.id ?? 'assistant',
+      mode: agent_run.AgentMode.chat,
+      startedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    // run 的第一行由第一个模型回合（[_recordModelRound]）写入，这里**不**写：
+    // 这条路径在「发出这条消息」的最开头，任何 await（包括 fire-and-forget 的
+    // 数据库写）都会让 widget 测试的 fake-async 时序停在模型调用开始之前，
+    // 让 `ai_chat_page_test` 的「等待 adapter 开始」永远等不到。run 已经在内存
+    // 里，[_drive] 立即就能用；真正中断在第一轮之前的回合会由
+    // [_finishRun]（取消/失败路径）落一行终态。
+  }
+
+  /// 保存当前 run；没有 run 或没有 sink 时什么都不做。
+  ///
+  /// 记录是审计旁路：写失败不改变这一轮的结果（答案已经花过模型预算，不能因为
+  /// 审计表抖动把它变成异常），与 `StudentRun` 对 recorder 的契约一致。
+  Future<void> _saveRun() async {
+    final run = _run;
+    final sink = runSink;
+    if (run == null || sink == null || _disposed) {
+      return;
+    }
+    try {
+      await sink.saveRun(run);
+    } catch (_) {
+      // See doc: an audit write failure must not decide the turn.
+    }
+  }
+
+  /// 落定 run 的终态并保存。
+  ///
+  /// `finish` 本身幂等（终态优先），所以正常结束路径与 [cancel] 里的兜底可以
+  /// 同时调用，不会互相覆盖原因。
+  Future<void> _finishRun(
+    agent_run.AgentRunStatus status, {
+    StopReason? stopReason,
+  }) async {
+    final run = _run;
+    if (run == null) {
+      return;
+    }
+    if (status == agent_run.AgentRunStatus.answered) {
+      run.enterPhase(agent_run.AgentPhase.present);
+    }
+    run.finish(
+      status,
+      stopReason: stopReason,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _saveRun();
+  }
+
+  /// 追加一条 `agent_steps`（或交给假 sink）。
+  Future<void> _appendRunStep({
+    required agent_run.AgentPhase phase,
+    required agent_run.AgentStepKind kind,
+    required agent_run.AgentStepStatus status,
+    String? summary,
+    int? tokens,
+    String? stateFingerprint,
+  }) async {
+    final run = _run;
+    final sink = runSink;
+    if (run == null || sink == null || _disposed) {
+      return;
+    }
+    final step = agent_run.AgentStep(
+      id: '${run.id}-s$_runStepSeq',
+      runId: run.id,
+      seq: _runStepSeq,
+      phase: phase,
+      kind: kind,
+      status: status,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      tokens: tokens,
+      summary: summary,
+      stateFingerprint: stateFingerprint,
+    );
+    _runStepSeq += 1;
+    try {
+      await sink.appendStep(step);
+    } catch (_) {
+      // 同 [_saveRun]：审计写失败不阻断对话。
+    }
+  }
+
+  /// 记录一个模型回合，并返回 StepGuard 的判定（`null` = 不需要判定）。
+  ///
+  /// 返回 null 的三种情况，都是「这一轮已经自己结束、再判定只会混淆原因」：
+  /// 没有注入 sink/guard；回合被用户取消；回合以模型失败收场。这三条路径各自
+  /// 把 run 落成 stopped/failed。
+  ///
+  /// 状态指纹包含回合数、本回合工具数、assistant 文本长度与 reasoning 长度：
+  /// 普通对话没有学生答题卡那种可比状态，这些量能区分「同一个位置又说了一遍」
+  /// 与「换了位置」。指纹只喂给 StepGuard 的日志/周期判定，预算判定仍由
+  /// [StepGuard] 自己的步数与 token 规则负责。
+  Future<StepGuardDecision?> _recordModelRound({
+    required int round,
+    required List<ToolCallRequest> calls,
+    required int promptTokens,
+    required int completionTokens,
+    required int reasoningChars,
+    required int textChars,
+    required bool cancelled,
+    required String? failure,
+  }) async {
+    final run = _run;
+    if (run == null) {
+      return null;
+    }
+    run.recordStep(
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      reasoningChars: reasoningChars,
+    );
+    final fingerprint = AgentStateFingerprint.of({
+      'round': round,
+      'tool_calls': calls.length,
+      'assistant_chars': textChars,
+      'reasoning_chars': reasoningChars,
+    });
+    final status = cancelled
+        ? agent_run.AgentStepStatus.skipped
+        : failure != null
+            ? agent_run.AgentStepStatus.failed
+            : agent_run.AgentStepStatus.ok;
+    await _appendRunStep(
+      phase: agent_run.AgentPhase.solve,
+      kind: agent_run.AgentStepKind.model,
+      status: status,
+      summary: _roundSummary(
+        round,
+        calls,
+        failure: failure,
+        cancelled: cancelled,
+      ),
+      tokens: completionTokens,
+      stateFingerprint: fingerprint,
+    );
+    await _saveRun();
+
+    if (cancelled || failure != null) {
+      return null;
+    }
+    final guard = stepGuard;
+    if (guard == null) {
+      return null;
+    }
+    return guard.check(
+      run: run,
+      actionKey: _actionKeyOf(calls),
+      stateFingerprint: fingerprint,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+      reasoningTokens: run.reasoningTokens,
+      completionTokens: run.completionTokens,
+    );
+  }
+
+  /// StepGuard 判定中断时的终止路径。
+  ///
+  /// 普通对话没有「交卷」阶段，所以 `force_answer`（以及 chat budget 本来不会
+  /// 产生的 `repair`）与 `stop` 一样结束本轮：不再执行本轮提议的工具、不再跑
+  /// 下一轮模型。已经收到的文本按失败路径的规则保留（partial answer is still
+  /// an answer），但停止原因写进 `agent_runs.stop_reason`，并在 `state.error`
+  /// 上说清楚——不静默停下（设计文档 §7.2 / §11.3）。
+  Future<void> _stopForGuard(
+    String conversationId,
+    StepGuardDecision decision,
+    StringBuffer textBuffer,
+    StringBuffer reasoningBuffer,
+  ) async {
+    final reason = decision.reason ?? StopReason.error;
+    _closeOpenSteps(AgentStepStatus.cancelled);
+    if (textBuffer.isNotEmpty) {
+      await repository.addMessage(
+        conversationId: conversationId,
+        role: AiRepository.roleAssistant,
+        content: textBuffer.toString(),
+        reasoning: _reasoningOrNull(reasoningBuffer),
+      );
+    }
+    final detail = decision.message == null ? '' : '：${decision.message}';
+    final notice = '本次运行已被步进保护终止（${reason.id}）$detail。'
+        '需要继续请再发一条消息。';
+    _emit(_state.copyWith(
+      generating: false,
+      streamingText: '',
+      error: notice,
+      rounds: _metrics.rounds,
+      usage: _metrics.snapshot(),
+    ));
+    await _finishRun(agent_run.AgentRunStatus.stopped, stopReason: reason);
+  }
+
+  /// 本回合的动作键：一个模型回合的「动作」就是它提议的工具调用集合。
+  ///
+  /// 用 [AgentActionKey.ofTool] 而不是一个固定字符串，是因为「同一个动作」必须
+  /// 把参数算进去：查询同一个 id 三次算重复，查三个不同 id 不算。没有工具调用
+  /// 时回落成模型步（这种回合本来就要结束，key 只进历史）。
+  static String _actionKeyOf(List<ToolCallRequest> calls) {
+    if (calls.isEmpty) {
+      return AgentActionKey.ofStep(
+        agent_run.AgentStepKind.model,
+        phase: agent_run.AgentPhase.solve,
+      );
+    }
+    return calls
+        .map((call) => AgentActionKey.ofTool(call.name, call.arguments))
+        .join('+');
+  }
+
+  /// 一条 step 的人话摘要；只写「这轮发生了什么」，不写正文（§5.2）。
+  static String _roundSummary(
+    int round,
+    List<ToolCallRequest> calls, {
+    String? failure,
+    bool cancelled = false,
+  }) {
+    if (cancelled) {
+      return '回合 $round：已取消';
+    }
+    if (failure != null) {
+      return '回合 $round：模型失败';
+    }
+    if (calls.isEmpty) {
+      return '回合 $round：无工具调用';
+    }
+    final names = {for (final call in calls) call.name}.join(', ');
+    return '回合 $round：${calls.length} 个工具调用（$names）';
   }
 
   /// The reasoning text to persist: null when the provider never streamed any
@@ -1508,11 +1933,18 @@ class AgentLoop {
           ));
         case AiRepository.roleAssistant:
           final turn = byMessage[row.id];
+          // Thinking mode: the provider needs the previous assistant turn's
+          // thinking back on a tool-calling history. Off by default, so a
+          // configuration that never chose an effort sends no extra field.
+          final reasoning = echoReasoning ? row.reasoning : null;
           if (turn == null || turn.isEmpty) {
             if (row.content == null || row.content!.isEmpty) {
               continue;
             }
-            messages.add(ChatMessage.assistant(content: row.content));
+            messages.add(ChatMessage.assistant(
+              content: row.content,
+              reasoningContent: reasoning,
+            ));
             break;
           }
           // The turn's tool calls, then their answers, in the order the calls
@@ -1520,6 +1952,7 @@ class AgentLoop {
           // request and reply paired even if a reply was written late.
           messages.add(ChatMessage.assistant(
             content: row.content,
+            reasoningContent: reasoning,
             toolCalls: [
               for (final action in turn)
                 if (action.toolCallId != null)
@@ -1693,12 +2126,16 @@ class AgentLoop {
         '6. 要"生成文档 / 导出文件"时用 create_document，文档是写在'
         '<appSupport>/documents 里的文件；把返回的 path 原样告诉用户，'
         '不要声称已经发送、上传或分享过任何东西。\n'
-        // 查词路由（用户 2026-11-06）：查公开词典不是查用户自己的库。
-        // 已启用的词典 skill 提供网址与输出格式；即使没装，也不要先翻闪存卡。
+        // 查词路由（用户 2026-11-06，2026-11-15 补统一工具）：查公开词典不是查
+        // 用户自己的库。lookup_oald 是内部 agent 的统一查词入口；装了 skill 时它的
+        // 简化输出要求仍然适用，但即使没装也不要先翻闪存卡。词典内容只能筛选/省略，
+        // 不改写释义、例句、词性（用户 2026-11-15 口径）。
         '7. 用户只是查英语单词/短语的意思、音标或用法时，不要先查闪存卡或 '
-        'query_content；先查公开词典网页（装了查词 skill 就按它给的 Oxford '
-        '网址与简洁输出格式），只有用户明确问"我的卡/复习/题库里有没有"时'
-        '才查本地卡片。';
+        'query_content；先查公开词典网页：**优先调用 lookup_oald 工具**'
+        '（Oxford Learner\'s Dictionaries，返回词性/音标/义项/例句/词族，'
+        '失败会明确报错）；没有这个工具时再按查词 skill 给的 Oxford '
+        '网址与简洁输出格式。引用词典原文时只能筛选/省略，不得改写释义、例句或词性。'
+        '只有用户明确问"我的卡/复习/题库里有没有"时才查本地卡片。';
   }
 
   /// Applies a before-snapshot. Returns false when the action has none.

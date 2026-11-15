@@ -1,5 +1,42 @@
 import 'dart:convert';
 
+/// The thinking effort a provider is asked to use, in wire form.
+///
+/// This is a **provider-facing** value, not a UI label: [wireValue] is exactly
+/// the string the request carries. The three values are the ones DeepSeek's
+/// Chat Completions reference documents as *distinct* (`low` / `high` / `max`;
+/// checked 2026-11-15 against
+/// https://api-docs.deepseek.com/api/create-chat-completion and
+/// https://api-docs.deepseek.com/guides/thinking_mode). The same docs accept
+/// `medium` / `xhigh` for compatibility but map both to `high`, so they are
+/// deliberately not offered here: a setting that silently behaves like another
+/// setting is a trap for the effort-alignment experiment this layer exists for.
+/// `none` (which the docs support) is also not offered - it switches thinking
+/// mode off instead of choosing an effort, which is a different decision.
+///
+/// NULL everywhere this type appears means "send no `reasoning_effort` field at
+/// all", i.e. the behaviour the app had before this setting existed.
+enum ReasoningEffort {
+  low('low'),
+  high('high'),
+  max('max');
+
+  const ReasoningEffort(this.wireValue);
+
+  /// The exact string sent as `reasoning_effort`. Never localise it.
+  final String wireValue;
+
+  /// The stored value -> enum. Anything unknown (including NULL on an upgraded
+  /// database) reads as `null`, which means "no effort configured" - the
+  /// shipped behaviour - rather than guessing a level the user never chose.
+  static ReasoningEffort? fromId(String? id) => switch (id) {
+        'low' => ReasoningEffort.low,
+        'high' => ReasoningEffort.high,
+        'max' => ReasoningEffort.max,
+        _ => null,
+      };
+}
+
 /// A tool the model may call, in the shape the provider expects.
 ///
 /// This is only the *declaration* - the provider-facing half. Executing a call
@@ -59,29 +96,43 @@ class ChatMessage {
     this.images = const [],
     this.toolCallId,
     this.toolCalls = const [],
+    this.reasoningContent,
   });
 
   const ChatMessage.user(String this.content, {this.images = const []})
       : role = 'user',
         toolCallId = null,
-        toolCalls = const [];
+        toolCalls = const [],
+        reasoningContent = null;
 
   const ChatMessage.system(String this.content)
       : role = 'system',
         images = const [],
         toolCallId = null,
-        toolCalls = const [];
+        toolCalls = const [],
+        reasoningContent = null;
 
   /// A tool result being handed back. [toolCallId] must match the id the model
   /// produced, or the provider rejects the request.
   const ChatMessage.tool(String this.content, {required String this.toolCallId})
       : role = 'tool',
         images = const [],
-        toolCalls = const [];
+        toolCalls = const [],
+        reasoningContent = null;
 
-  /// An assistant turn: text and/or tool calls.
-  const ChatMessage.assistant({this.content, this.toolCalls = const []})
-      : role = 'assistant',
+  /// An assistant turn: text and/or tool calls, and - when thinking mode is on -
+  /// the thinking that produced them.
+  ///
+  /// [reasoningContent] is echoed back as the provider's `reasoning_content`
+  /// field. A tool-calling request in thinking mode must carry the previous
+  /// assistant turn's thinking back, or the provider rejects the request; a
+  /// text-only request must not grow the field, which is why `null` (the
+  /// default, and every call site before thinking mode) omits it entirely.
+  const ChatMessage.assistant({
+    this.content,
+    this.toolCalls = const [],
+    this.reasoningContent,
+  })  : role = 'assistant',
         images = const [],
         toolCallId = null;
 
@@ -96,6 +147,13 @@ class ChatMessage {
 
   final String? toolCallId;
   final List<ToolCallRequest> toolCalls;
+
+  /// The assistant turn's thinking, echoed back as `reasoning_content`.
+  ///
+  /// `null` - the default everywhere outside thinking mode - omits the field, so
+  /// a request that never enabled thinking sends exactly the body it sent
+  /// before this field existed.
+  final String? reasoningContent;
 
   /// The provider's `content` field.
   ///
@@ -117,10 +175,14 @@ class ChatMessage {
 
   Map<String, Object?> toJson() {
     final parts = contentParts;
+    final thinking = reasoningContent;
     return {
       'role': role,
       if (parts != null) 'content': parts,
       if (toolCallId != null) 'tool_call_id': toolCallId,
+      // Only when thinking mode put something here: an empty string would be a
+      // field the provider has to parse and can only get wrong.
+      if (thinking != null && thinking.isNotEmpty) 'reasoning_content': thinking,
       if (toolCalls.isNotEmpty)
         'tool_calls': [for (final call in toolCalls) call.toJson()],
     };

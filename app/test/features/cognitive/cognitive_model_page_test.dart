@@ -1,9 +1,12 @@
-// Widget tests for the read-only "认知模型" page (t19).
+// Widget tests for the read-only cognitive-model readings (t19; task-103 split).
 //
-// Three things are pinned here:
+// Since task-103 the original "认知模型" page is the developer-only view
+// (`CognitiveDeveloperPage`); the user layer is covered by
+// `mindnet_simplification_test.dart`. What is pinned here still holds for the
+// developer view:
 //
 // 1. **the disclaimers are on the page** - advisor mode and the uncalibrated
-//    weights are the deliverable, not decoration;
+//    weights are part of the developer surface, not decoration;
 // 2. **the readings come from the injected `CognitiveModel`** - a fake with
 //    fixed numbers, so the assertions are exact rather than "something showed";
 // 3. **the page writes nothing** - it is pumped against a real in-memory
@@ -26,6 +29,7 @@ import 'package:furnace/domain/services/cognitive/metacognition.dart';
 import 'package:furnace/domain/services/reasoning/capability_profile.dart';
 import 'package:furnace/data/repositories/question_repository.dart';
 import 'package:furnace/features/anki/application/review_advisory.dart';
+import 'package:furnace/features/cognitive/presentation/cognitive_developer_page.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_graph_page.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/capability_action_questions_provider.dart';
@@ -179,7 +183,7 @@ Future<void> _pumpPage(
         locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const CognitiveModelPage(),
+        home: const CognitiveDeveloperPage(),
       ),
     ),
   );
@@ -275,7 +279,9 @@ void main() {
       reason:
           'danger is computed now, so the note may not claim it never appears',
     );
-    expect(find.text('认知模型'), findsOneWidget);
+    expect(find.text('认知模型'), findsNothing,
+        reason: 'task-103：原始读数页已改名为开发者信息，不再是用户层「认知模型」');
+    expect(find.text('开发者信息'), findsOneWidget);
   });
 
   testWidgets('能力动作画像：链上的步骤按动作聚合，只信真有的读数', (tester) async {
@@ -524,14 +530,14 @@ void main() {
 
   testWidgets('the metacognition section names danger and underestimation',
       (tester) async {
-    final danger = MetacognitionRow(
+    const danger = MetacognitionRow(
       node: 'kp-1',
       name: '光合作用',
       belief: 0.80,
       r: 0.36,
       diff: 0.44,
     );
-    final anxiety = MetacognitionRow(
+    const anxiety = MetacognitionRow(
       node: 'kp-2',
       name: '呼吸作用',
       belief: 0.30,
@@ -545,8 +551,8 @@ void main() {
             .overrideWith((ref) => _fixtureInputs()),
         cognitiveModelProvider.overrideWithValue(const _FakeModel()),
         cognitiveLibraryDiagnosisProvider.overrideWith(
-          (ref) async => LibraryDiagnosis(
-            byKnowledgePoint: const {'kp-1': BottleneckType.weak},
+          (ref) async => const LibraryDiagnosis(
+            byKnowledgePoint: {'kp-1': BottleneckType.weak},
             fastLayerRan: true,
             rounds: 4,
             metacognition: MetacognitionReading(
@@ -594,37 +600,37 @@ void main() {
     expect(find.textContaining('平均偏差'), findsNothing);
   });
 
-  testWidgets('a judged run with no gap names the threshold it did not cross',
-      (tester) async {
-    await _pumpPage(
-      tester,
-      overrides: [
-        cognitiveObservationInputsProvider
-            .overrideWith((ref) => _fixtureInputs()),
-        cognitiveModelProvider.overrideWithValue(const _FakeModel()),
-        cognitiveLibraryDiagnosisProvider.overrideWith(
-          (ref) async => LibraryDiagnosis(
-            byKnowledgePoint: const {'kp-1': BottleneckType.weak},
-            fastLayerRan: true,
-            rounds: 4,
-            metacognition: MetacognitionReading(
-              rows: [
-                const MetacognitionRow(
-                  node: 'kp-1',
-                  name: '光合作用',
-                  belief: 0.44,
-                  r: 0.42,
-                  diff: 0.02,
+      testWidgets('a judged run with no gap names the threshold it did not cross',
+          (tester) async {
+        await _pumpPage(
+          tester,
+          overrides: [
+            cognitiveObservationInputsProvider
+                .overrideWith((ref) => _fixtureInputs()),
+            cognitiveModelProvider.overrideWithValue(const _FakeModel()),
+            cognitiveLibraryDiagnosisProvider.overrideWith(
+              (ref) async => const LibraryDiagnosis(
+                byKnowledgePoint: {'kp-1': BottleneckType.weak},
+                fastLayerRan: true,
+                rounds: 4,
+                metacognition: MetacognitionReading(
+                  rows: [
+                    MetacognitionRow(
+                      node: 'kp-1',
+                      name: '光合作用',
+                      belief: 0.44,
+                      r: 0.42,
+                      diff: 0.02,
+                    ),
+                  ],
+                  danger: [],
+                  anxiety: [],
+                  calibration: 0.02,
                 ),
-              ],
-              danger: const [],
-              anxiety: const [],
-              calibration: 0.02,
+              ),
             ),
-          ),
-        ),
-      ],
-    );
+          ],
+        );
 
     expect(find.textContaining('平均偏差 0.020'), findsOneWidget);
     expect(find.textContaining('没有一个知识点越过 0.2'), findsOneWidget);
@@ -714,7 +720,7 @@ void main() {
     expect(find.textContaining('还没有测评先验'), findsOneWidget);
   });
 
-  testWidgets('the settings entry opens the page', (tester) async {
+  testWidgets('设置里的「开发者信息」入口直接打开开发者页', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     await _seed(db);
@@ -739,17 +745,22 @@ void main() {
     );
     await _settleProviders(tester);
 
-    final entry = find.widgetWithText(ListTile, '认知模型');
-    expect(entry, findsOneWidget);
-    await tester.ensureVisible(entry);
+    // 2026-11-15 设置页重构：开发者入口默认折叠，先点开「开发者」分区。
+    expect(find.byKey(settingsCognitiveDeveloperTileKey), findsNothing);
+    await tester.tap(find.byKey(settingsDeveloperToggleKey));
+    await tester.pumpAndSettle();
+
+    final devTile = find.byKey(settingsCognitiveDeveloperTileKey);
+    expect(devTile, findsOneWidget);
+    await tester.ensureVisible(devTile);
     await tester.pump();
-    await tester.tap(entry);
+    await tester.tap(devTile);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await _settleProviders(tester);
 
-    expect(find.byType(CognitiveModelPage), findsOneWidget);
-    expect(find.text('顾问模式：不改到期时间'), findsOneWidget);
+    expect(find.byType(CognitiveDeveloperPage), findsOneWidget);
+    expect(find.text('R0 0.70'), findsOneWidget);
   });
 
   group('the learning-effect card (M6)', () {

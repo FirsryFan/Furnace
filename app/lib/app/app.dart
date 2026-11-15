@@ -4,6 +4,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/theme_profile.dart';
+import '../features/markdown/application/markdown_providers.dart';
+import '../features/markdown/presentation/markdown_renderer.dart';
 import '../features/settings/application/appearance_providers.dart';
 import 'background_layer.dart';
 import 'page_zoom.dart';
@@ -23,6 +25,9 @@ class FurnaceApp extends ConsumerWidget {
     final settings = ref.watch(settingsControllerProvider);
     final locale = settings.language.resolve();
     final appearanceAsync = ref.watch(activeAppearanceProvider);
+    // 全局 Markdown 主题：所有 Markdown 渲染入口（AI/题目/闪存卡/设置预览）
+    // 都从这条 scope 取，改一次全软件生效。
+    final markdownTheme = ref.watch(markdownRenderThemeProvider);
 
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
@@ -34,9 +39,12 @@ class FurnaceApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      builder: (context, child) => _AppearanceScope(
-        appearance: appearanceAsync.valueOrNull,
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => MarkdownThemeScope(
+        theme: markdownTheme,
+        child: _AppearanceScope(
+          appearance: appearanceAsync.valueOrNull,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       theme: appearanceAsync.valueOrNull?.themeFor(Brightness.light) ??
           ThemeData(

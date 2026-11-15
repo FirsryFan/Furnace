@@ -363,6 +363,54 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<int> aiMaxRounds = GeneratedColumn<int>(
       'ai_max_rounds', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _aiReasoningEffortMeta =
+      const VerificationMeta('aiReasoningEffort');
+  @override
+  late final GeneratedColumn<String> aiReasoningEffort =
+      GeneratedColumn<String>('ai_reasoning_effort', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiTemperatureMeta =
+      const VerificationMeta('aiTemperature');
+  @override
+  late final GeneratedColumn<double> aiTemperature = GeneratedColumn<double>(
+      'ai_temperature', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _aiAnswerTemperatureMeta =
+      const VerificationMeta('aiAnswerTemperature');
+  @override
+  late final GeneratedColumn<double> aiAnswerTemperature =
+      GeneratedColumn<double>('ai_answer_temperature', aliasedName, true,
+          type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _aiVerifierTemperatureMeta =
+      const VerificationMeta('aiVerifierTemperature');
+  @override
+  late final GeneratedColumn<double> aiVerifierTemperature =
+      GeneratedColumn<double>('ai_verifier_temperature', aliasedName, true,
+          type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _aiMaxReasoningTokensMeta =
+      const VerificationMeta('aiMaxReasoningTokens');
+  @override
+  late final GeneratedColumn<int> aiMaxReasoningTokens = GeneratedColumn<int>(
+      'ai_max_reasoning_tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _aiAnswerReserveTokensMeta =
+      const VerificationMeta('aiAnswerReserveTokens');
+  @override
+  late final GeneratedColumn<int> aiAnswerReserveTokens = GeneratedColumn<int>(
+      'ai_answer_reserve_tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _aiVerifierModelMeta =
+      const VerificationMeta('aiVerifierModel');
+  @override
+  late final GeneratedColumn<String> aiVerifierModel = GeneratedColumn<String>(
+      'ai_verifier_model', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _aiVerifierEffortMeta =
+      const VerificationMeta('aiVerifierEffort');
+  @override
+  late final GeneratedColumn<String> aiVerifierEffort = GeneratedColumn<String>(
+      'ai_verifier_effort', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _ankiJudgeModeMeta =
       const VerificationMeta('ankiJudgeMode');
   @override
@@ -470,6 +518,14 @@ class $LocalSettingsTable extends LocalSettings
         aiModel,
         aiPermissionMode,
         aiMaxRounds,
+        aiReasoningEffort,
+        aiTemperature,
+        aiAnswerTemperature,
+        aiVerifierTemperature,
+        aiMaxReasoningTokens,
+        aiAnswerReserveTokens,
+        aiVerifierModel,
+        aiVerifierEffort,
         ankiJudgeMode,
         ankiCardTypePreference,
         rhythmHintsEnabled,
@@ -545,6 +601,54 @@ class $LocalSettingsTable extends LocalSettings
           _aiMaxRoundsMeta,
           aiMaxRounds.isAcceptableOrUnknown(
               data['ai_max_rounds']!, _aiMaxRoundsMeta));
+    }
+    if (data.containsKey('ai_reasoning_effort')) {
+      context.handle(
+          _aiReasoningEffortMeta,
+          aiReasoningEffort.isAcceptableOrUnknown(
+              data['ai_reasoning_effort']!, _aiReasoningEffortMeta));
+    }
+    if (data.containsKey('ai_temperature')) {
+      context.handle(
+          _aiTemperatureMeta,
+          aiTemperature.isAcceptableOrUnknown(
+              data['ai_temperature']!, _aiTemperatureMeta));
+    }
+    if (data.containsKey('ai_answer_temperature')) {
+      context.handle(
+          _aiAnswerTemperatureMeta,
+          aiAnswerTemperature.isAcceptableOrUnknown(
+              data['ai_answer_temperature']!, _aiAnswerTemperatureMeta));
+    }
+    if (data.containsKey('ai_verifier_temperature')) {
+      context.handle(
+          _aiVerifierTemperatureMeta,
+          aiVerifierTemperature.isAcceptableOrUnknown(
+              data['ai_verifier_temperature']!, _aiVerifierTemperatureMeta));
+    }
+    if (data.containsKey('ai_max_reasoning_tokens')) {
+      context.handle(
+          _aiMaxReasoningTokensMeta,
+          aiMaxReasoningTokens.isAcceptableOrUnknown(
+              data['ai_max_reasoning_tokens']!, _aiMaxReasoningTokensMeta));
+    }
+    if (data.containsKey('ai_answer_reserve_tokens')) {
+      context.handle(
+          _aiAnswerReserveTokensMeta,
+          aiAnswerReserveTokens.isAcceptableOrUnknown(
+              data['ai_answer_reserve_tokens']!, _aiAnswerReserveTokensMeta));
+    }
+    if (data.containsKey('ai_verifier_model')) {
+      context.handle(
+          _aiVerifierModelMeta,
+          aiVerifierModel.isAcceptableOrUnknown(
+              data['ai_verifier_model']!, _aiVerifierModelMeta));
+    }
+    if (data.containsKey('ai_verifier_effort')) {
+      context.handle(
+          _aiVerifierEffortMeta,
+          aiVerifierEffort.isAcceptableOrUnknown(
+              data['ai_verifier_effort']!, _aiVerifierEffortMeta));
     }
     if (data.containsKey('anki_judge_mode')) {
       context.handle(
@@ -661,6 +765,23 @@ class $LocalSettingsTable extends LocalSettings
           DriftSqlType.string, data['${effectivePrefix}ai_permission_mode']),
       aiMaxRounds: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}ai_max_rounds']),
+      aiReasoningEffort: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}ai_reasoning_effort']),
+      aiTemperature: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}ai_temperature']),
+      aiAnswerTemperature: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}ai_answer_temperature']),
+      aiVerifierTemperature: attachedDatabase.typeMapping.read(
+          DriftSqlType.double,
+          data['${effectivePrefix}ai_verifier_temperature']),
+      aiMaxReasoningTokens: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}ai_max_reasoning_tokens']),
+      aiAnswerReserveTokens: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}ai_answer_reserve_tokens']),
+      aiVerifierModel: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}ai_verifier_model']),
+      aiVerifierEffort: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}ai_verifier_effort']),
       ankiJudgeMode: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}anki_judge_mode']),
       ankiCardTypePreference: attachedDatabase.typeMapping.read(
@@ -736,6 +857,51 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// default rather than writing a value during the migration: an upgraded row
   /// must keep the behaviour it had before this setting existed.
   final int? aiMaxRounds;
+
+  /// v46: thinking effort for the student solver's reasoning turn
+  /// (`low` | `high` | `max`). NULL = send no `reasoning_effort` at all.
+  ///
+  /// Stored as the wire value; parsing lives in `ReasoningEffort.fromId`.
+  final String? aiReasoningEffort;
+
+  /// v46: temperature for the reasoning/solve turn. NULL = shipped 0.6.
+  ///
+  /// DeepSeek documents that temperature has **no effect** in thinking mode
+  /// (it is accepted but ignored), so this column only has an effect when the
+  /// model runs without thinking - see MODEL-CONFIG-2026-11-15.md.
+  final double? aiTemperature;
+
+  /// v46: temperature for the answer-scribe ("finalizer") turn. NULL = 0.2.
+  final double? aiAnswerTemperature;
+
+  /// v46: temperature for the independent content verifier turn. NULL = 0.2.
+  final double? aiVerifierTemperature;
+
+  /// v46: `max_tokens` for the reasoning turn. NULL = 20 000.
+  ///
+  /// The reasoning turn needs a large output budget or the chain of thought
+  /// eats it and `content` comes back empty with `finish_reason = length`.
+  final int? aiMaxReasoningTokens;
+
+  /// v46: `max_tokens` for the answer-scribe and verifier turns. NULL = 3 000.
+  ///
+  /// The answer reserve: the second, cheap turn that only writes the answer
+  /// sheet after reasoning consumed its budget.
+  final int? aiAnswerReserveTokens;
+
+  /// v46: model name for the verifier turn. NULL = the solver's model.
+  ///
+  /// Stored even before there is UI for it, so an experiment can point the
+  /// verifier at a different model without a second migration later.
+  final String? aiVerifierModel;
+
+  /// v46: thinking effort for the verifier turn (`low` | `high` | `max`).
+  ///
+  /// NULL = send no `reasoning_effort`; deliberately **not** inherited from
+  /// [aiReasoningEffort], because the verifier was a fresh, parameterless turn
+  /// before this column existed and that is the behaviour an empty config must
+  /// keep.
+  final String? aiVerifierEffort;
 
   /// Default judging mode for a new answer: `strict` | `lenient` | `self`.
   ///
@@ -853,6 +1019,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.aiModel,
       this.aiPermissionMode,
       this.aiMaxRounds,
+      this.aiReasoningEffort,
+      this.aiTemperature,
+      this.aiAnswerTemperature,
+      this.aiVerifierTemperature,
+      this.aiMaxReasoningTokens,
+      this.aiAnswerReserveTokens,
+      this.aiVerifierModel,
+      this.aiVerifierEffort,
       this.ankiJudgeMode,
       this.ankiCardTypePreference,
       this.rhythmHintsEnabled,
@@ -894,6 +1068,30 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || aiMaxRounds != null) {
       map['ai_max_rounds'] = Variable<int>(aiMaxRounds);
+    }
+    if (!nullToAbsent || aiReasoningEffort != null) {
+      map['ai_reasoning_effort'] = Variable<String>(aiReasoningEffort);
+    }
+    if (!nullToAbsent || aiTemperature != null) {
+      map['ai_temperature'] = Variable<double>(aiTemperature);
+    }
+    if (!nullToAbsent || aiAnswerTemperature != null) {
+      map['ai_answer_temperature'] = Variable<double>(aiAnswerTemperature);
+    }
+    if (!nullToAbsent || aiVerifierTemperature != null) {
+      map['ai_verifier_temperature'] = Variable<double>(aiVerifierTemperature);
+    }
+    if (!nullToAbsent || aiMaxReasoningTokens != null) {
+      map['ai_max_reasoning_tokens'] = Variable<int>(aiMaxReasoningTokens);
+    }
+    if (!nullToAbsent || aiAnswerReserveTokens != null) {
+      map['ai_answer_reserve_tokens'] = Variable<int>(aiAnswerReserveTokens);
+    }
+    if (!nullToAbsent || aiVerifierModel != null) {
+      map['ai_verifier_model'] = Variable<String>(aiVerifierModel);
+    }
+    if (!nullToAbsent || aiVerifierEffort != null) {
+      map['ai_verifier_effort'] = Variable<String>(aiVerifierEffort);
     }
     if (!nullToAbsent || ankiJudgeMode != null) {
       map['anki_judge_mode'] = Variable<String>(ankiJudgeMode);
@@ -966,6 +1164,30 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiMaxRounds: aiMaxRounds == null && nullToAbsent
           ? const Value.absent()
           : Value(aiMaxRounds),
+      aiReasoningEffort: aiReasoningEffort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiReasoningEffort),
+      aiTemperature: aiTemperature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiTemperature),
+      aiAnswerTemperature: aiAnswerTemperature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiAnswerTemperature),
+      aiVerifierTemperature: aiVerifierTemperature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiVerifierTemperature),
+      aiMaxReasoningTokens: aiMaxReasoningTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiMaxReasoningTokens),
+      aiAnswerReserveTokens: aiAnswerReserveTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiAnswerReserveTokens),
+      aiVerifierModel: aiVerifierModel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiVerifierModel),
+      aiVerifierEffort: aiVerifierEffort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(aiVerifierEffort),
       ankiJudgeMode: ankiJudgeMode == null && nullToAbsent
           ? const Value.absent()
           : Value(ankiJudgeMode),
@@ -1023,6 +1245,19 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       aiModel: serializer.fromJson<String?>(json['aiModel']),
       aiPermissionMode: serializer.fromJson<String?>(json['aiPermissionMode']),
       aiMaxRounds: serializer.fromJson<int?>(json['aiMaxRounds']),
+      aiReasoningEffort:
+          serializer.fromJson<String?>(json['aiReasoningEffort']),
+      aiTemperature: serializer.fromJson<double?>(json['aiTemperature']),
+      aiAnswerTemperature:
+          serializer.fromJson<double?>(json['aiAnswerTemperature']),
+      aiVerifierTemperature:
+          serializer.fromJson<double?>(json['aiVerifierTemperature']),
+      aiMaxReasoningTokens:
+          serializer.fromJson<int?>(json['aiMaxReasoningTokens']),
+      aiAnswerReserveTokens:
+          serializer.fromJson<int?>(json['aiAnswerReserveTokens']),
+      aiVerifierModel: serializer.fromJson<String?>(json['aiVerifierModel']),
+      aiVerifierEffort: serializer.fromJson<String?>(json['aiVerifierEffort']),
       ankiJudgeMode: serializer.fromJson<String?>(json['ankiJudgeMode']),
       ankiCardTypePreference:
           serializer.fromJson<String?>(json['ankiCardTypePreference']),
@@ -1061,6 +1296,15 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'aiModel': serializer.toJson<String?>(aiModel),
       'aiPermissionMode': serializer.toJson<String?>(aiPermissionMode),
       'aiMaxRounds': serializer.toJson<int?>(aiMaxRounds),
+      'aiReasoningEffort': serializer.toJson<String?>(aiReasoningEffort),
+      'aiTemperature': serializer.toJson<double?>(aiTemperature),
+      'aiAnswerTemperature': serializer.toJson<double?>(aiAnswerTemperature),
+      'aiVerifierTemperature':
+          serializer.toJson<double?>(aiVerifierTemperature),
+      'aiMaxReasoningTokens': serializer.toJson<int?>(aiMaxReasoningTokens),
+      'aiAnswerReserveTokens': serializer.toJson<int?>(aiAnswerReserveTokens),
+      'aiVerifierModel': serializer.toJson<String?>(aiVerifierModel),
+      'aiVerifierEffort': serializer.toJson<String?>(aiVerifierEffort),
       'ankiJudgeMode': serializer.toJson<String?>(ankiJudgeMode),
       'ankiCardTypePreference':
           serializer.toJson<String?>(ankiCardTypePreference),
@@ -1093,6 +1337,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<String?> aiModel = const Value.absent(),
           Value<String?> aiPermissionMode = const Value.absent(),
           Value<int?> aiMaxRounds = const Value.absent(),
+          Value<String?> aiReasoningEffort = const Value.absent(),
+          Value<double?> aiTemperature = const Value.absent(),
+          Value<double?> aiAnswerTemperature = const Value.absent(),
+          Value<double?> aiVerifierTemperature = const Value.absent(),
+          Value<int?> aiMaxReasoningTokens = const Value.absent(),
+          Value<int?> aiAnswerReserveTokens = const Value.absent(),
+          Value<String?> aiVerifierModel = const Value.absent(),
+          Value<String?> aiVerifierEffort = const Value.absent(),
           Value<String?> ankiJudgeMode = const Value.absent(),
           Value<String?> ankiCardTypePreference = const Value.absent(),
           Value<bool?> rhythmHintsEnabled = const Value.absent(),
@@ -1122,6 +1374,29 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
             ? aiPermissionMode.value
             : this.aiPermissionMode,
         aiMaxRounds: aiMaxRounds.present ? aiMaxRounds.value : this.aiMaxRounds,
+        aiReasoningEffort: aiReasoningEffort.present
+            ? aiReasoningEffort.value
+            : this.aiReasoningEffort,
+        aiTemperature:
+            aiTemperature.present ? aiTemperature.value : this.aiTemperature,
+        aiAnswerTemperature: aiAnswerTemperature.present
+            ? aiAnswerTemperature.value
+            : this.aiAnswerTemperature,
+        aiVerifierTemperature: aiVerifierTemperature.present
+            ? aiVerifierTemperature.value
+            : this.aiVerifierTemperature,
+        aiMaxReasoningTokens: aiMaxReasoningTokens.present
+            ? aiMaxReasoningTokens.value
+            : this.aiMaxReasoningTokens,
+        aiAnswerReserveTokens: aiAnswerReserveTokens.present
+            ? aiAnswerReserveTokens.value
+            : this.aiAnswerReserveTokens,
+        aiVerifierModel: aiVerifierModel.present
+            ? aiVerifierModel.value
+            : this.aiVerifierModel,
+        aiVerifierEffort: aiVerifierEffort.present
+            ? aiVerifierEffort.value
+            : this.aiVerifierEffort,
         ankiJudgeMode:
             ankiJudgeMode.present ? ankiJudgeMode.value : this.ankiJudgeMode,
         ankiCardTypePreference: ankiCardTypePreference.present
@@ -1174,6 +1449,30 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           : this.aiPermissionMode,
       aiMaxRounds:
           data.aiMaxRounds.present ? data.aiMaxRounds.value : this.aiMaxRounds,
+      aiReasoningEffort: data.aiReasoningEffort.present
+          ? data.aiReasoningEffort.value
+          : this.aiReasoningEffort,
+      aiTemperature: data.aiTemperature.present
+          ? data.aiTemperature.value
+          : this.aiTemperature,
+      aiAnswerTemperature: data.aiAnswerTemperature.present
+          ? data.aiAnswerTemperature.value
+          : this.aiAnswerTemperature,
+      aiVerifierTemperature: data.aiVerifierTemperature.present
+          ? data.aiVerifierTemperature.value
+          : this.aiVerifierTemperature,
+      aiMaxReasoningTokens: data.aiMaxReasoningTokens.present
+          ? data.aiMaxReasoningTokens.value
+          : this.aiMaxReasoningTokens,
+      aiAnswerReserveTokens: data.aiAnswerReserveTokens.present
+          ? data.aiAnswerReserveTokens.value
+          : this.aiAnswerReserveTokens,
+      aiVerifierModel: data.aiVerifierModel.present
+          ? data.aiVerifierModel.value
+          : this.aiVerifierModel,
+      aiVerifierEffort: data.aiVerifierEffort.present
+          ? data.aiVerifierEffort.value
+          : this.aiVerifierEffort,
       ankiJudgeMode: data.ankiJudgeMode.present
           ? data.ankiJudgeMode.value
           : this.ankiJudgeMode,
@@ -1226,6 +1525,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('aiModel: $aiModel, ')
           ..write('aiPermissionMode: $aiPermissionMode, ')
           ..write('aiMaxRounds: $aiMaxRounds, ')
+          ..write('aiReasoningEffort: $aiReasoningEffort, ')
+          ..write('aiTemperature: $aiTemperature, ')
+          ..write('aiAnswerTemperature: $aiAnswerTemperature, ')
+          ..write('aiVerifierTemperature: $aiVerifierTemperature, ')
+          ..write('aiMaxReasoningTokens: $aiMaxReasoningTokens, ')
+          ..write('aiAnswerReserveTokens: $aiAnswerReserveTokens, ')
+          ..write('aiVerifierModel: $aiVerifierModel, ')
+          ..write('aiVerifierEffort: $aiVerifierEffort, ')
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
@@ -1257,6 +1564,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         aiModel,
         aiPermissionMode,
         aiMaxRounds,
+        aiReasoningEffort,
+        aiTemperature,
+        aiAnswerTemperature,
+        aiVerifierTemperature,
+        aiMaxReasoningTokens,
+        aiAnswerReserveTokens,
+        aiVerifierModel,
+        aiVerifierEffort,
         ankiJudgeMode,
         ankiCardTypePreference,
         rhythmHintsEnabled,
@@ -1287,6 +1602,14 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.aiModel == this.aiModel &&
           other.aiPermissionMode == this.aiPermissionMode &&
           other.aiMaxRounds == this.aiMaxRounds &&
+          other.aiReasoningEffort == this.aiReasoningEffort &&
+          other.aiTemperature == this.aiTemperature &&
+          other.aiAnswerTemperature == this.aiAnswerTemperature &&
+          other.aiVerifierTemperature == this.aiVerifierTemperature &&
+          other.aiMaxReasoningTokens == this.aiMaxReasoningTokens &&
+          other.aiAnswerReserveTokens == this.aiAnswerReserveTokens &&
+          other.aiVerifierModel == this.aiVerifierModel &&
+          other.aiVerifierEffort == this.aiVerifierEffort &&
           other.ankiJudgeMode == this.ankiJudgeMode &&
           other.ankiCardTypePreference == this.ankiCardTypePreference &&
           other.rhythmHintsEnabled == this.rhythmHintsEnabled &&
@@ -1316,6 +1639,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<String?> aiModel;
   final Value<String?> aiPermissionMode;
   final Value<int?> aiMaxRounds;
+  final Value<String?> aiReasoningEffort;
+  final Value<double?> aiTemperature;
+  final Value<double?> aiAnswerTemperature;
+  final Value<double?> aiVerifierTemperature;
+  final Value<int?> aiMaxReasoningTokens;
+  final Value<int?> aiAnswerReserveTokens;
+  final Value<String?> aiVerifierModel;
+  final Value<String?> aiVerifierEffort;
   final Value<String?> ankiJudgeMode;
   final Value<String?> ankiCardTypePreference;
   final Value<bool?> rhythmHintsEnabled;
@@ -1342,6 +1673,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiModel = const Value.absent(),
     this.aiPermissionMode = const Value.absent(),
     this.aiMaxRounds = const Value.absent(),
+    this.aiReasoningEffort = const Value.absent(),
+    this.aiTemperature = const Value.absent(),
+    this.aiAnswerTemperature = const Value.absent(),
+    this.aiVerifierTemperature = const Value.absent(),
+    this.aiMaxReasoningTokens = const Value.absent(),
+    this.aiAnswerReserveTokens = const Value.absent(),
+    this.aiVerifierModel = const Value.absent(),
+    this.aiVerifierEffort = const Value.absent(),
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
@@ -1369,6 +1708,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.aiModel = const Value.absent(),
     this.aiPermissionMode = const Value.absent(),
     this.aiMaxRounds = const Value.absent(),
+    this.aiReasoningEffort = const Value.absent(),
+    this.aiTemperature = const Value.absent(),
+    this.aiAnswerTemperature = const Value.absent(),
+    this.aiVerifierTemperature = const Value.absent(),
+    this.aiMaxReasoningTokens = const Value.absent(),
+    this.aiAnswerReserveTokens = const Value.absent(),
+    this.aiVerifierModel = const Value.absent(),
+    this.aiVerifierEffort = const Value.absent(),
     this.ankiJudgeMode = const Value.absent(),
     this.ankiCardTypePreference = const Value.absent(),
     this.rhythmHintsEnabled = const Value.absent(),
@@ -1397,6 +1744,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<String>? aiModel,
     Expression<String>? aiPermissionMode,
     Expression<int>? aiMaxRounds,
+    Expression<String>? aiReasoningEffort,
+    Expression<double>? aiTemperature,
+    Expression<double>? aiAnswerTemperature,
+    Expression<double>? aiVerifierTemperature,
+    Expression<int>? aiMaxReasoningTokens,
+    Expression<int>? aiAnswerReserveTokens,
+    Expression<String>? aiVerifierModel,
+    Expression<String>? aiVerifierEffort,
     Expression<String>? ankiJudgeMode,
     Expression<String>? ankiCardTypePreference,
     Expression<bool>? rhythmHintsEnabled,
@@ -1424,6 +1779,18 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (aiModel != null) 'ai_model': aiModel,
       if (aiPermissionMode != null) 'ai_permission_mode': aiPermissionMode,
       if (aiMaxRounds != null) 'ai_max_rounds': aiMaxRounds,
+      if (aiReasoningEffort != null) 'ai_reasoning_effort': aiReasoningEffort,
+      if (aiTemperature != null) 'ai_temperature': aiTemperature,
+      if (aiAnswerTemperature != null)
+        'ai_answer_temperature': aiAnswerTemperature,
+      if (aiVerifierTemperature != null)
+        'ai_verifier_temperature': aiVerifierTemperature,
+      if (aiMaxReasoningTokens != null)
+        'ai_max_reasoning_tokens': aiMaxReasoningTokens,
+      if (aiAnswerReserveTokens != null)
+        'ai_answer_reserve_tokens': aiAnswerReserveTokens,
+      if (aiVerifierModel != null) 'ai_verifier_model': aiVerifierModel,
+      if (aiVerifierEffort != null) 'ai_verifier_effort': aiVerifierEffort,
       if (ankiJudgeMode != null) 'anki_judge_mode': ankiJudgeMode,
       if (ankiCardTypePreference != null)
         'anki_card_type_preference': ankiCardTypePreference,
@@ -1460,6 +1827,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<String?>? aiModel,
       Value<String?>? aiPermissionMode,
       Value<int?>? aiMaxRounds,
+      Value<String?>? aiReasoningEffort,
+      Value<double?>? aiTemperature,
+      Value<double?>? aiAnswerTemperature,
+      Value<double?>? aiVerifierTemperature,
+      Value<int?>? aiMaxReasoningTokens,
+      Value<int?>? aiAnswerReserveTokens,
+      Value<String?>? aiVerifierModel,
+      Value<String?>? aiVerifierEffort,
       Value<String?>? ankiJudgeMode,
       Value<String?>? ankiCardTypePreference,
       Value<bool?>? rhythmHintsEnabled,
@@ -1486,6 +1861,16 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       aiModel: aiModel ?? this.aiModel,
       aiPermissionMode: aiPermissionMode ?? this.aiPermissionMode,
       aiMaxRounds: aiMaxRounds ?? this.aiMaxRounds,
+      aiReasoningEffort: aiReasoningEffort ?? this.aiReasoningEffort,
+      aiTemperature: aiTemperature ?? this.aiTemperature,
+      aiAnswerTemperature: aiAnswerTemperature ?? this.aiAnswerTemperature,
+      aiVerifierTemperature:
+          aiVerifierTemperature ?? this.aiVerifierTemperature,
+      aiMaxReasoningTokens: aiMaxReasoningTokens ?? this.aiMaxReasoningTokens,
+      aiAnswerReserveTokens:
+          aiAnswerReserveTokens ?? this.aiAnswerReserveTokens,
+      aiVerifierModel: aiVerifierModel ?? this.aiVerifierModel,
+      aiVerifierEffort: aiVerifierEffort ?? this.aiVerifierEffort,
       ankiJudgeMode: ankiJudgeMode ?? this.ankiJudgeMode,
       ankiCardTypePreference:
           ankiCardTypePreference ?? this.ankiCardTypePreference,
@@ -1543,6 +1928,34 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     }
     if (aiMaxRounds.present) {
       map['ai_max_rounds'] = Variable<int>(aiMaxRounds.value);
+    }
+    if (aiReasoningEffort.present) {
+      map['ai_reasoning_effort'] = Variable<String>(aiReasoningEffort.value);
+    }
+    if (aiTemperature.present) {
+      map['ai_temperature'] = Variable<double>(aiTemperature.value);
+    }
+    if (aiAnswerTemperature.present) {
+      map['ai_answer_temperature'] =
+          Variable<double>(aiAnswerTemperature.value);
+    }
+    if (aiVerifierTemperature.present) {
+      map['ai_verifier_temperature'] =
+          Variable<double>(aiVerifierTemperature.value);
+    }
+    if (aiMaxReasoningTokens.present) {
+      map['ai_max_reasoning_tokens'] =
+          Variable<int>(aiMaxReasoningTokens.value);
+    }
+    if (aiAnswerReserveTokens.present) {
+      map['ai_answer_reserve_tokens'] =
+          Variable<int>(aiAnswerReserveTokens.value);
+    }
+    if (aiVerifierModel.present) {
+      map['ai_verifier_model'] = Variable<String>(aiVerifierModel.value);
+    }
+    if (aiVerifierEffort.present) {
+      map['ai_verifier_effort'] = Variable<String>(aiVerifierEffort.value);
     }
     if (ankiJudgeMode.present) {
       map['anki_judge_mode'] = Variable<String>(ankiJudgeMode.value);
@@ -1609,6 +2022,14 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('aiModel: $aiModel, ')
           ..write('aiPermissionMode: $aiPermissionMode, ')
           ..write('aiMaxRounds: $aiMaxRounds, ')
+          ..write('aiReasoningEffort: $aiReasoningEffort, ')
+          ..write('aiTemperature: $aiTemperature, ')
+          ..write('aiAnswerTemperature: $aiAnswerTemperature, ')
+          ..write('aiVerifierTemperature: $aiVerifierTemperature, ')
+          ..write('aiMaxReasoningTokens: $aiMaxReasoningTokens, ')
+          ..write('aiAnswerReserveTokens: $aiAnswerReserveTokens, ')
+          ..write('aiVerifierModel: $aiVerifierModel, ')
+          ..write('aiVerifierEffort: $aiVerifierEffort, ')
           ..write('ankiJudgeMode: $ankiJudgeMode, ')
           ..write('ankiCardTypePreference: $ankiCardTypePreference, ')
           ..write('rhythmHintsEnabled: $rhythmHintsEnabled, ')
@@ -3489,6 +3910,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   late final GeneratedColumn<int> completedAt = GeneratedColumn<int>(
       'completed_at', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceKeyMeta =
+      const VerificationMeta('sourceKey');
+  @override
+  late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
+      'source_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3516,6 +3948,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         startedAt,
         energyRequired,
         completedAt,
+        kind,
+        sourceKey,
         createdAt,
         updatedAt
       ];
@@ -3594,6 +4028,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
           completedAt.isAcceptableOrUnknown(
               data['completed_at']!, _completedAtMeta));
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('source_key')) {
+      context.handle(_sourceKeyMeta,
+          sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -3641,6 +4083,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
           .read(DriftSqlType.int, data['${effectivePrefix}energy_required']),
       completedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}completed_at']),
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind']),
+      sourceKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_key']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -3678,6 +4124,26 @@ class Task extends DataClass implements Insertable<Task> {
 
   /// v2: completion moment (convenience; authority is CompletionLogs).
   final int? completedAt;
+
+  /// v47（2026-11-15，ThreadFlow 整合底座）：节点种类。
+  ///
+  /// 词表 `task` / `paper` / `week` / `day` / `review`（域层
+  /// `ThreadNodeKind`）。可空、**迁移不回填**：NULL 读作 `task`，所以老库的
+  /// 每一行语义不变；物化器新建计划节点时才需要显式写 `paper`/`week`/`day`/
+  /// `review`。调度入口仍然只有 `ThreadRankService`，这张列只用来区分节点，
+  /// 不新建第二张计划表。
+  final String? kind;
+
+  /// v47（2026-11-15）：物化幂等键（`paper:{QSET id}` / `week:2026-W47` /
+  /// `day:2026-11-15` / `practice:{Q id}:2026-11-15` …）。
+  ///
+  /// 可空、**迁移不回填**：老库全部 NULL（SQLite 唯一索引允许多个 NULL）。
+  /// 唯一索引 `idx_tasks_source_key` 由 database.dart 建（不是 Drift 的
+  /// `uniqueKeys`：ALTER TABLE 无法给已存在的表补表级约束，必须建独立索引，
+  /// 这样迁移、onCreate、beforeOpen 自愈三条路都走同一句
+  /// `CREATE UNIQUE INDEX IF NOT EXISTS`）。物化器必须"查 source_key → 复用/
+  /// 更新，不存在才插入"，绝不无条件 insert。
+  final String? sourceKey;
   final int createdAt;
   final int updatedAt;
   const Task(
@@ -3694,6 +4160,8 @@ class Task extends DataClass implements Insertable<Task> {
       this.startedAt,
       this.energyRequired,
       this.completedAt,
+      this.kind,
+      this.sourceKey,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -3729,6 +4197,12 @@ class Task extends DataClass implements Insertable<Task> {
     }
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<int>(completedAt);
+    }
+    if (!nullToAbsent || kind != null) {
+      map['kind'] = Variable<String>(kind);
+    }
+    if (!nullToAbsent || sourceKey != null) {
+      map['source_key'] = Variable<String>(sourceKey);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -3767,6 +4241,10 @@ class Task extends DataClass implements Insertable<Task> {
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
+      kind: kind == null && nullToAbsent ? const Value.absent() : Value(kind),
+      sourceKey: sourceKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKey),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3789,6 +4267,8 @@ class Task extends DataClass implements Insertable<Task> {
       startedAt: serializer.fromJson<int?>(json['startedAt']),
       energyRequired: serializer.fromJson<int?>(json['energyRequired']),
       completedAt: serializer.fromJson<int?>(json['completedAt']),
+      kind: serializer.fromJson<String?>(json['kind']),
+      sourceKey: serializer.fromJson<String?>(json['sourceKey']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -3810,6 +4290,8 @@ class Task extends DataClass implements Insertable<Task> {
       'startedAt': serializer.toJson<int?>(startedAt),
       'energyRequired': serializer.toJson<int?>(energyRequired),
       'completedAt': serializer.toJson<int?>(completedAt),
+      'kind': serializer.toJson<String?>(kind),
+      'sourceKey': serializer.toJson<String?>(sourceKey),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -3829,6 +4311,8 @@ class Task extends DataClass implements Insertable<Task> {
           Value<int?> startedAt = const Value.absent(),
           Value<int?> energyRequired = const Value.absent(),
           Value<int?> completedAt = const Value.absent(),
+          Value<String?> kind = const Value.absent(),
+          Value<String?> sourceKey = const Value.absent(),
           int? createdAt,
           int? updatedAt}) =>
       Task(
@@ -3848,6 +4332,8 @@ class Task extends DataClass implements Insertable<Task> {
         energyRequired:
             energyRequired.present ? energyRequired.value : this.energyRequired,
         completedAt: completedAt.present ? completedAt.value : this.completedAt,
+        kind: kind.present ? kind.value : this.kind,
+        sourceKey: sourceKey.present ? sourceKey.value : this.sourceKey,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -3873,6 +4359,8 @@ class Task extends DataClass implements Insertable<Task> {
           : this.energyRequired,
       completedAt:
           data.completedAt.present ? data.completedAt.value : this.completedAt,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3894,6 +4382,8 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('startedAt: $startedAt, ')
           ..write('energyRequired: $energyRequired, ')
           ..write('completedAt: $completedAt, ')
+          ..write('kind: $kind, ')
+          ..write('sourceKey: $sourceKey, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3915,6 +4405,8 @@ class Task extends DataClass implements Insertable<Task> {
       startedAt,
       energyRequired,
       completedAt,
+      kind,
+      sourceKey,
       createdAt,
       updatedAt);
   @override
@@ -3934,6 +4426,8 @@ class Task extends DataClass implements Insertable<Task> {
           other.startedAt == this.startedAt &&
           other.energyRequired == this.energyRequired &&
           other.completedAt == this.completedAt &&
+          other.kind == this.kind &&
+          other.sourceKey == this.sourceKey &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3952,6 +4446,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<int?> startedAt;
   final Value<int?> energyRequired;
   final Value<int?> completedAt;
+  final Value<String?> kind;
+  final Value<String?> sourceKey;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -3969,6 +4465,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.startedAt = const Value.absent(),
     this.energyRequired = const Value.absent(),
     this.completedAt = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.sourceKey = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -3987,6 +4485,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.startedAt = const Value.absent(),
     this.energyRequired = const Value.absent(),
     this.completedAt = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.sourceKey = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -4008,6 +4508,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<int>? startedAt,
     Expression<int>? energyRequired,
     Expression<int>? completedAt,
+    Expression<String>? kind,
+    Expression<String>? sourceKey,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -4026,6 +4528,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (startedAt != null) 'started_at': startedAt,
       if (energyRequired != null) 'energy_required': energyRequired,
       if (completedAt != null) 'completed_at': completedAt,
+      if (kind != null) 'kind': kind,
+      if (sourceKey != null) 'source_key': sourceKey,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4046,6 +4550,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       Value<int?>? startedAt,
       Value<int?>? energyRequired,
       Value<int?>? completedAt,
+      Value<String?>? kind,
+      Value<String?>? sourceKey,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -4063,6 +4569,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
       startedAt: startedAt ?? this.startedAt,
       energyRequired: energyRequired ?? this.energyRequired,
       completedAt: completedAt ?? this.completedAt,
+      kind: kind ?? this.kind,
+      sourceKey: sourceKey ?? this.sourceKey,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4111,6 +4619,12 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (completedAt.present) {
       map['completed_at'] = Variable<int>(completedAt.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (sourceKey.present) {
+      map['source_key'] = Variable<String>(sourceKey.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -4139,6 +4653,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('startedAt: $startedAt, ')
           ..write('energyRequired: $energyRequired, ')
           ..write('completedAt: $completedAt, ')
+          ..write('kind: $kind, ')
+          ..write('sourceKey: $sourceKey, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -14315,8 +14831,21 @@ class $AiConversationsTable extends AiConversations
   late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
       'updated_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _agentPresetIdMeta =
+      const VerificationMeta('agentPresetId');
   @override
-  List<GeneratedColumn> get $columns => [id, title, createdAt, updatedAt];
+  late final GeneratedColumn<String> agentPresetId = GeneratedColumn<String>(
+      'agent_preset_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subagentPresetIdMeta =
+      const VerificationMeta('subagentPresetId');
+  @override
+  late final GeneratedColumn<String> subagentPresetId = GeneratedColumn<String>(
+      'subagent_preset_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, title, createdAt, updatedAt, agentPresetId, subagentPresetId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -14350,6 +14879,18 @@ class $AiConversationsTable extends AiConversations
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('agent_preset_id')) {
+      context.handle(
+          _agentPresetIdMeta,
+          agentPresetId.isAcceptableOrUnknown(
+              data['agent_preset_id']!, _agentPresetIdMeta));
+    }
+    if (data.containsKey('subagent_preset_id')) {
+      context.handle(
+          _subagentPresetIdMeta,
+          subagentPresetId.isAcceptableOrUnknown(
+              data['subagent_preset_id']!, _subagentPresetIdMeta));
+    }
     return context;
   }
 
@@ -14367,6 +14908,10 @@ class $AiConversationsTable extends AiConversations
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      agentPresetId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}agent_preset_id']),
+      subagentPresetId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}subagent_preset_id']),
     );
   }
 
@@ -14384,11 +14929,28 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
   final String title;
   final int createdAt;
   final int updatedAt;
+
+  /// The agent preset chosen while this conversation was blank.
+  ///
+  /// NULL on rows created before presets existed; the read side resolves NULL
+  /// to `assistant`, so an upgraded database keeps the old behaviour. The value
+  /// is immutable once the conversation has a message (see
+  /// `AiRepository.setConversationPresets`); there is deliberately no
+  /// `preset_version` / `preset_hash` / `locked_at` column - the preset is a
+  /// live definition resolved by id, exactly like DSH.
+  final String? agentPresetId;
+
+  /// The preset a subagent session is started with.
+  ///
+  /// NULL means "inherit the parent session's preset".
+  final String? subagentPresetId;
   const AiConversation(
       {required this.id,
       required this.title,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      this.agentPresetId,
+      this.subagentPresetId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -14396,6 +14958,12 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
     map['title'] = Variable<String>(title);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || agentPresetId != null) {
+      map['agent_preset_id'] = Variable<String>(agentPresetId);
+    }
+    if (!nullToAbsent || subagentPresetId != null) {
+      map['subagent_preset_id'] = Variable<String>(subagentPresetId);
+    }
     return map;
   }
 
@@ -14405,6 +14973,12 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
       title: Value(title),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      agentPresetId: agentPresetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(agentPresetId),
+      subagentPresetId: subagentPresetId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subagentPresetId),
     );
   }
 
@@ -14416,6 +14990,8 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
       title: serializer.fromJson<String>(json['title']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      agentPresetId: serializer.fromJson<String?>(json['agentPresetId']),
+      subagentPresetId: serializer.fromJson<String?>(json['subagentPresetId']),
     );
   }
   @override
@@ -14426,16 +15002,28 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
       'title': serializer.toJson<String>(title),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
+      'agentPresetId': serializer.toJson<String?>(agentPresetId),
+      'subagentPresetId': serializer.toJson<String?>(subagentPresetId),
     };
   }
 
   AiConversation copyWith(
-          {String? id, String? title, int? createdAt, int? updatedAt}) =>
+          {String? id,
+          String? title,
+          int? createdAt,
+          int? updatedAt,
+          Value<String?> agentPresetId = const Value.absent(),
+          Value<String?> subagentPresetId = const Value.absent()}) =>
       AiConversation(
         id: id ?? this.id,
         title: title ?? this.title,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        agentPresetId:
+            agentPresetId.present ? agentPresetId.value : this.agentPresetId,
+        subagentPresetId: subagentPresetId.present
+            ? subagentPresetId.value
+            : this.subagentPresetId,
       );
   AiConversation copyWithCompanion(AiConversationsCompanion data) {
     return AiConversation(
@@ -14443,6 +15031,12 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
       title: data.title.present ? data.title.value : this.title,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      agentPresetId: data.agentPresetId.present
+          ? data.agentPresetId.value
+          : this.agentPresetId,
+      subagentPresetId: data.subagentPresetId.present
+          ? data.subagentPresetId.value
+          : this.subagentPresetId,
     );
   }
 
@@ -14452,13 +15046,16 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('agentPresetId: $agentPresetId, ')
+          ..write('subagentPresetId: $subagentPresetId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id, title, createdAt, updatedAt, agentPresetId, subagentPresetId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -14466,7 +15063,9 @@ class AiConversation extends DataClass implements Insertable<AiConversation> {
           other.id == this.id &&
           other.title == this.title &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.agentPresetId == this.agentPresetId &&
+          other.subagentPresetId == this.subagentPresetId);
 }
 
 class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
@@ -14474,12 +15073,16 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
   final Value<String> title;
   final Value<int> createdAt;
   final Value<int> updatedAt;
+  final Value<String?> agentPresetId;
+  final Value<String?> subagentPresetId;
   final Value<int> rowid;
   const AiConversationsCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.agentPresetId = const Value.absent(),
+    this.subagentPresetId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AiConversationsCompanion.insert({
@@ -14487,6 +15090,8 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
     required String title,
     required int createdAt,
     required int updatedAt,
+    this.agentPresetId = const Value.absent(),
+    this.subagentPresetId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         title = Value(title),
@@ -14497,6 +15102,8 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
     Expression<String>? title,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
+    Expression<String>? agentPresetId,
+    Expression<String>? subagentPresetId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -14504,6 +15111,8 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
       if (title != null) 'title': title,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (agentPresetId != null) 'agent_preset_id': agentPresetId,
+      if (subagentPresetId != null) 'subagent_preset_id': subagentPresetId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -14513,12 +15122,16 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
       Value<String>? title,
       Value<int>? createdAt,
       Value<int>? updatedAt,
+      Value<String?>? agentPresetId,
+      Value<String?>? subagentPresetId,
       Value<int>? rowid}) {
     return AiConversationsCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      agentPresetId: agentPresetId ?? this.agentPresetId,
+      subagentPresetId: subagentPresetId ?? this.subagentPresetId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -14538,6 +15151,12 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (agentPresetId.present) {
+      map['agent_preset_id'] = Variable<String>(agentPresetId.value);
+    }
+    if (subagentPresetId.present) {
+      map['subagent_preset_id'] = Variable<String>(subagentPresetId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -14551,6 +15170,8 @@ class AiConversationsCompanion extends UpdateCompanion<AiConversation> {
           ..write('title: $title, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('agentPresetId: $agentPresetId, ')
+          ..write('subagentPresetId: $subagentPresetId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -28087,6 +28708,4304 @@ class CogAbilityParamMappingsCompanion
   }
 }
 
+class $AgentRunsTable extends AgentRuns
+    with TableInfo<$AgentRunsTable, AgentRunRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentRunsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _conversationIdMeta =
+      const VerificationMeta('conversationId');
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+      'conversation_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _presetIdMeta =
+      const VerificationMeta('presetId');
+  @override
+  late final GeneratedColumn<String> presetId = GeneratedColumn<String>(
+      'preset_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+      'mode', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+      'phase', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stopReasonMeta =
+      const VerificationMeta('stopReason');
+  @override
+  late final GeneratedColumn<String> stopReason = GeneratedColumn<String>(
+      'stop_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<int> steps = GeneratedColumn<int>(
+      'steps', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _promptTokensMeta =
+      const VerificationMeta('promptTokens');
+  @override
+  late final GeneratedColumn<int> promptTokens = GeneratedColumn<int>(
+      'prompt_tokens', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _completionTokensMeta =
+      const VerificationMeta('completionTokens');
+  @override
+  late final GeneratedColumn<int> completionTokens = GeneratedColumn<int>(
+      'completion_tokens', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _reasoningTokensMeta =
+      const VerificationMeta('reasoningTokens');
+  @override
+  late final GeneratedColumn<int> reasoningTokens = GeneratedColumn<int>(
+      'reasoning_tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _reasoningCharsMeta =
+      const VerificationMeta('reasoningChars');
+  @override
+  late final GeneratedColumn<int> reasoningChars = GeneratedColumn<int>(
+      'reasoning_chars', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _elapsedMsMeta =
+      const VerificationMeta('elapsedMs');
+  @override
+  late final GeneratedColumn<int> elapsedMs = GeneratedColumn<int>(
+      'elapsed_ms', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _answerSheetJsonMeta =
+      const VerificationMeta('answerSheetJson');
+  @override
+  late final GeneratedColumn<String> answerSheetJson = GeneratedColumn<String>(
+      'answer_sheet_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tracePathMeta =
+      const VerificationMeta('tracePath');
+  @override
+  late final GeneratedColumn<String> tracePath = GeneratedColumn<String>(
+      'trace_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _verifierVerdictMeta =
+      const VerificationMeta('verifierVerdict');
+  @override
+  late final GeneratedColumn<String> verifierVerdict = GeneratedColumn<String>(
+      'verifier_verdict', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _processReportJsonMeta =
+      const VerificationMeta('processReportJson');
+  @override
+  late final GeneratedColumn<String> processReportJson =
+      GeneratedColumn<String>('process_report_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startedAtMeta =
+      const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+      'started_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _endedAtMeta =
+      const VerificationMeta('endedAt');
+  @override
+  late final GeneratedColumn<int> endedAt = GeneratedColumn<int>(
+      'ended_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        conversationId,
+        presetId,
+        mode,
+        phase,
+        status,
+        stopReason,
+        steps,
+        promptTokens,
+        completionTokens,
+        reasoningTokens,
+        reasoningChars,
+        elapsedMs,
+        answerSheetJson,
+        tracePath,
+        verifierVerdict,
+        processReportJson,
+        startedAt,
+        endedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_runs';
+  @override
+  VerificationContext validateIntegrity(Insertable<AgentRunRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+          _conversationIdMeta,
+          conversationId.isAcceptableOrUnknown(
+              data['conversation_id']!, _conversationIdMeta));
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('preset_id')) {
+      context.handle(_presetIdMeta,
+          presetId.isAcceptableOrUnknown(data['preset_id']!, _presetIdMeta));
+    } else if (isInserting) {
+      context.missing(_presetIdMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+          _modeMeta, mode.isAcceptableOrUnknown(data['mode']!, _modeMeta));
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('phase')) {
+      context.handle(
+          _phaseMeta, phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta));
+    } else if (isInserting) {
+      context.missing(_phaseMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('stop_reason')) {
+      context.handle(
+          _stopReasonMeta,
+          stopReason.isAcceptableOrUnknown(
+              data['stop_reason']!, _stopReasonMeta));
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+          _stepsMeta, steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta));
+    }
+    if (data.containsKey('prompt_tokens')) {
+      context.handle(
+          _promptTokensMeta,
+          promptTokens.isAcceptableOrUnknown(
+              data['prompt_tokens']!, _promptTokensMeta));
+    }
+    if (data.containsKey('completion_tokens')) {
+      context.handle(
+          _completionTokensMeta,
+          completionTokens.isAcceptableOrUnknown(
+              data['completion_tokens']!, _completionTokensMeta));
+    }
+    if (data.containsKey('reasoning_tokens')) {
+      context.handle(
+          _reasoningTokensMeta,
+          reasoningTokens.isAcceptableOrUnknown(
+              data['reasoning_tokens']!, _reasoningTokensMeta));
+    }
+    if (data.containsKey('reasoning_chars')) {
+      context.handle(
+          _reasoningCharsMeta,
+          reasoningChars.isAcceptableOrUnknown(
+              data['reasoning_chars']!, _reasoningCharsMeta));
+    }
+    if (data.containsKey('elapsed_ms')) {
+      context.handle(_elapsedMsMeta,
+          elapsedMs.isAcceptableOrUnknown(data['elapsed_ms']!, _elapsedMsMeta));
+    }
+    if (data.containsKey('answer_sheet_json')) {
+      context.handle(
+          _answerSheetJsonMeta,
+          answerSheetJson.isAcceptableOrUnknown(
+              data['answer_sheet_json']!, _answerSheetJsonMeta));
+    }
+    if (data.containsKey('trace_path')) {
+      context.handle(_tracePathMeta,
+          tracePath.isAcceptableOrUnknown(data['trace_path']!, _tracePathMeta));
+    }
+    if (data.containsKey('verifier_verdict')) {
+      context.handle(
+          _verifierVerdictMeta,
+          verifierVerdict.isAcceptableOrUnknown(
+              data['verifier_verdict']!, _verifierVerdictMeta));
+    }
+    if (data.containsKey('process_report_json')) {
+      context.handle(
+          _processReportJsonMeta,
+          processReportJson.isAcceptableOrUnknown(
+              data['process_report_json']!, _processReportJsonMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta,
+          startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(_endedAtMeta,
+          endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AgentRunRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentRunRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      conversationId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}conversation_id'])!,
+      presetId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}preset_id'])!,
+      mode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mode'])!,
+      phase: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phase'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      stopReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stop_reason']),
+      steps: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}steps'])!,
+      promptTokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}prompt_tokens'])!,
+      completionTokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}completion_tokens'])!,
+      reasoningTokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reasoning_tokens']),
+      reasoningChars: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reasoning_chars'])!,
+      elapsedMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}elapsed_ms']),
+      answerSheetJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}answer_sheet_json']),
+      tracePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trace_path']),
+      verifierVerdict: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}verifier_verdict']),
+      processReportJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}process_report_json']),
+      startedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}started_at'])!,
+      endedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ended_at']),
+    );
+  }
+
+  @override
+  $AgentRunsTable createAlias(String alias) {
+    return $AgentRunsTable(attachedDatabase, alias);
+  }
+}
+
+class AgentRunRow extends DataClass implements Insertable<AgentRunRow> {
+  final String id;
+
+  /// 所属会话（`ai_conversations.id`）。不建外键：运行记录是审计流水，删会话
+  /// 不该把它一起抹掉（这也是本项目「生成 schema 不带外键」的既有口径）。
+  final String conversationId;
+
+  /// 这次运行解析到的 preset id（`assistant` / `student_solver`）。只存 id，
+  /// 不存定义/版本/hash —— 与 `ai_conversations.agent_preset_id` 同一个契约。
+  final String presetId;
+
+  /// `chat` / `student`（域层 `AgentMode.id`）。
+  final String mode;
+
+  /// `solve` / `answer` / `verify` / `repair` / `present`（域层
+  /// `AgentPhase.id`），运行中会被推进。
+  final String phase;
+
+  /// `running` / `answered` / `failed` / `stopped`（域层 `AgentRunStatus.id`）。
+  final String status;
+
+  /// 终态原因（域层 `StopReason.id`）；NULL = 还在跑或正常结束。
+  final String? stopReason;
+
+  /// 已执行的模型/工具步数（= [AgentSteps] 的行数，冗余一列便于不读明细）。
+  final int steps;
+  final int promptTokens;
+  final int completionTokens;
+
+  /// provider 报告的 reasoning token 数；NULL = provider 没报（不是 0）。
+  final int? reasoningTokens;
+
+  /// reasoning 的字符数。**不是全文**：长度足以比较「这一跑想了多少」，
+  /// 原文留在 trace 文件里。
+  final int reasoningChars;
+  final int? elapsedMs;
+
+  /// 结构化答案卡（域层 `StudentAnswerSheet.toJson()` 的 JSON 文本）。
+  /// 只放题型/答案/过程这些答案本身，不放 CoT。
+  final String? answerSheetJson;
+
+  /// 原始 trace 文件路径（`<appSupport>/student_solver_traces/<stamp>.json`）。
+  final String? tracePath;
+
+  /// run 级验证结论摘要（`pass` / `fail` / `unknown` / `error`）；明细在
+  /// [AgentVerifications]。
+  final String? verifierVerdict;
+
+  /// ProcessAuditor 的过程报告（`ProcessReport.toJson()`）；NULL = 没跑过程审计。
+  final String? processReportJson;
+  final int startedAt;
+  final int? endedAt;
+  const AgentRunRow(
+      {required this.id,
+      required this.conversationId,
+      required this.presetId,
+      required this.mode,
+      required this.phase,
+      required this.status,
+      this.stopReason,
+      required this.steps,
+      required this.promptTokens,
+      required this.completionTokens,
+      this.reasoningTokens,
+      required this.reasoningChars,
+      this.elapsedMs,
+      this.answerSheetJson,
+      this.tracePath,
+      this.verifierVerdict,
+      this.processReportJson,
+      required this.startedAt,
+      this.endedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['conversation_id'] = Variable<String>(conversationId);
+    map['preset_id'] = Variable<String>(presetId);
+    map['mode'] = Variable<String>(mode);
+    map['phase'] = Variable<String>(phase);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || stopReason != null) {
+      map['stop_reason'] = Variable<String>(stopReason);
+    }
+    map['steps'] = Variable<int>(steps);
+    map['prompt_tokens'] = Variable<int>(promptTokens);
+    map['completion_tokens'] = Variable<int>(completionTokens);
+    if (!nullToAbsent || reasoningTokens != null) {
+      map['reasoning_tokens'] = Variable<int>(reasoningTokens);
+    }
+    map['reasoning_chars'] = Variable<int>(reasoningChars);
+    if (!nullToAbsent || elapsedMs != null) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs);
+    }
+    if (!nullToAbsent || answerSheetJson != null) {
+      map['answer_sheet_json'] = Variable<String>(answerSheetJson);
+    }
+    if (!nullToAbsent || tracePath != null) {
+      map['trace_path'] = Variable<String>(tracePath);
+    }
+    if (!nullToAbsent || verifierVerdict != null) {
+      map['verifier_verdict'] = Variable<String>(verifierVerdict);
+    }
+    if (!nullToAbsent || processReportJson != null) {
+      map['process_report_json'] = Variable<String>(processReportJson);
+    }
+    map['started_at'] = Variable<int>(startedAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<int>(endedAt);
+    }
+    return map;
+  }
+
+  AgentRunsCompanion toCompanion(bool nullToAbsent) {
+    return AgentRunsCompanion(
+      id: Value(id),
+      conversationId: Value(conversationId),
+      presetId: Value(presetId),
+      mode: Value(mode),
+      phase: Value(phase),
+      status: Value(status),
+      stopReason: stopReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stopReason),
+      steps: Value(steps),
+      promptTokens: Value(promptTokens),
+      completionTokens: Value(completionTokens),
+      reasoningTokens: reasoningTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasoningTokens),
+      reasoningChars: Value(reasoningChars),
+      elapsedMs: elapsedMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(elapsedMs),
+      answerSheetJson: answerSheetJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(answerSheetJson),
+      tracePath: tracePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tracePath),
+      verifierVerdict: verifierVerdict == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verifierVerdict),
+      processReportJson: processReportJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processReportJson),
+      startedAt: Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+    );
+  }
+
+  factory AgentRunRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentRunRow(
+      id: serializer.fromJson<String>(json['id']),
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      presetId: serializer.fromJson<String>(json['presetId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      phase: serializer.fromJson<String>(json['phase']),
+      status: serializer.fromJson<String>(json['status']),
+      stopReason: serializer.fromJson<String?>(json['stopReason']),
+      steps: serializer.fromJson<int>(json['steps']),
+      promptTokens: serializer.fromJson<int>(json['promptTokens']),
+      completionTokens: serializer.fromJson<int>(json['completionTokens']),
+      reasoningTokens: serializer.fromJson<int?>(json['reasoningTokens']),
+      reasoningChars: serializer.fromJson<int>(json['reasoningChars']),
+      elapsedMs: serializer.fromJson<int?>(json['elapsedMs']),
+      answerSheetJson: serializer.fromJson<String?>(json['answerSheetJson']),
+      tracePath: serializer.fromJson<String?>(json['tracePath']),
+      verifierVerdict: serializer.fromJson<String?>(json['verifierVerdict']),
+      processReportJson:
+          serializer.fromJson<String?>(json['processReportJson']),
+      startedAt: serializer.fromJson<int>(json['startedAt']),
+      endedAt: serializer.fromJson<int?>(json['endedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'conversationId': serializer.toJson<String>(conversationId),
+      'presetId': serializer.toJson<String>(presetId),
+      'mode': serializer.toJson<String>(mode),
+      'phase': serializer.toJson<String>(phase),
+      'status': serializer.toJson<String>(status),
+      'stopReason': serializer.toJson<String?>(stopReason),
+      'steps': serializer.toJson<int>(steps),
+      'promptTokens': serializer.toJson<int>(promptTokens),
+      'completionTokens': serializer.toJson<int>(completionTokens),
+      'reasoningTokens': serializer.toJson<int?>(reasoningTokens),
+      'reasoningChars': serializer.toJson<int>(reasoningChars),
+      'elapsedMs': serializer.toJson<int?>(elapsedMs),
+      'answerSheetJson': serializer.toJson<String?>(answerSheetJson),
+      'tracePath': serializer.toJson<String?>(tracePath),
+      'verifierVerdict': serializer.toJson<String?>(verifierVerdict),
+      'processReportJson': serializer.toJson<String?>(processReportJson),
+      'startedAt': serializer.toJson<int>(startedAt),
+      'endedAt': serializer.toJson<int?>(endedAt),
+    };
+  }
+
+  AgentRunRow copyWith(
+          {String? id,
+          String? conversationId,
+          String? presetId,
+          String? mode,
+          String? phase,
+          String? status,
+          Value<String?> stopReason = const Value.absent(),
+          int? steps,
+          int? promptTokens,
+          int? completionTokens,
+          Value<int?> reasoningTokens = const Value.absent(),
+          int? reasoningChars,
+          Value<int?> elapsedMs = const Value.absent(),
+          Value<String?> answerSheetJson = const Value.absent(),
+          Value<String?> tracePath = const Value.absent(),
+          Value<String?> verifierVerdict = const Value.absent(),
+          Value<String?> processReportJson = const Value.absent(),
+          int? startedAt,
+          Value<int?> endedAt = const Value.absent()}) =>
+      AgentRunRow(
+        id: id ?? this.id,
+        conversationId: conversationId ?? this.conversationId,
+        presetId: presetId ?? this.presetId,
+        mode: mode ?? this.mode,
+        phase: phase ?? this.phase,
+        status: status ?? this.status,
+        stopReason: stopReason.present ? stopReason.value : this.stopReason,
+        steps: steps ?? this.steps,
+        promptTokens: promptTokens ?? this.promptTokens,
+        completionTokens: completionTokens ?? this.completionTokens,
+        reasoningTokens: reasoningTokens.present
+            ? reasoningTokens.value
+            : this.reasoningTokens,
+        reasoningChars: reasoningChars ?? this.reasoningChars,
+        elapsedMs: elapsedMs.present ? elapsedMs.value : this.elapsedMs,
+        answerSheetJson: answerSheetJson.present
+            ? answerSheetJson.value
+            : this.answerSheetJson,
+        tracePath: tracePath.present ? tracePath.value : this.tracePath,
+        verifierVerdict: verifierVerdict.present
+            ? verifierVerdict.value
+            : this.verifierVerdict,
+        processReportJson: processReportJson.present
+            ? processReportJson.value
+            : this.processReportJson,
+        startedAt: startedAt ?? this.startedAt,
+        endedAt: endedAt.present ? endedAt.value : this.endedAt,
+      );
+  AgentRunRow copyWithCompanion(AgentRunsCompanion data) {
+    return AgentRunRow(
+      id: data.id.present ? data.id.value : this.id,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      presetId: data.presetId.present ? data.presetId.value : this.presetId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      status: data.status.present ? data.status.value : this.status,
+      stopReason:
+          data.stopReason.present ? data.stopReason.value : this.stopReason,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      promptTokens: data.promptTokens.present
+          ? data.promptTokens.value
+          : this.promptTokens,
+      completionTokens: data.completionTokens.present
+          ? data.completionTokens.value
+          : this.completionTokens,
+      reasoningTokens: data.reasoningTokens.present
+          ? data.reasoningTokens.value
+          : this.reasoningTokens,
+      reasoningChars: data.reasoningChars.present
+          ? data.reasoningChars.value
+          : this.reasoningChars,
+      elapsedMs: data.elapsedMs.present ? data.elapsedMs.value : this.elapsedMs,
+      answerSheetJson: data.answerSheetJson.present
+          ? data.answerSheetJson.value
+          : this.answerSheetJson,
+      tracePath: data.tracePath.present ? data.tracePath.value : this.tracePath,
+      verifierVerdict: data.verifierVerdict.present
+          ? data.verifierVerdict.value
+          : this.verifierVerdict,
+      processReportJson: data.processReportJson.present
+          ? data.processReportJson.value
+          : this.processReportJson,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentRunRow(')
+          ..write('id: $id, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('presetId: $presetId, ')
+          ..write('mode: $mode, ')
+          ..write('phase: $phase, ')
+          ..write('status: $status, ')
+          ..write('stopReason: $stopReason, ')
+          ..write('steps: $steps, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('reasoningTokens: $reasoningTokens, ')
+          ..write('reasoningChars: $reasoningChars, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('answerSheetJson: $answerSheetJson, ')
+          ..write('tracePath: $tracePath, ')
+          ..write('verifierVerdict: $verifierVerdict, ')
+          ..write('processReportJson: $processReportJson, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      conversationId,
+      presetId,
+      mode,
+      phase,
+      status,
+      stopReason,
+      steps,
+      promptTokens,
+      completionTokens,
+      reasoningTokens,
+      reasoningChars,
+      elapsedMs,
+      answerSheetJson,
+      tracePath,
+      verifierVerdict,
+      processReportJson,
+      startedAt,
+      endedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentRunRow &&
+          other.id == this.id &&
+          other.conversationId == this.conversationId &&
+          other.presetId == this.presetId &&
+          other.mode == this.mode &&
+          other.phase == this.phase &&
+          other.status == this.status &&
+          other.stopReason == this.stopReason &&
+          other.steps == this.steps &&
+          other.promptTokens == this.promptTokens &&
+          other.completionTokens == this.completionTokens &&
+          other.reasoningTokens == this.reasoningTokens &&
+          other.reasoningChars == this.reasoningChars &&
+          other.elapsedMs == this.elapsedMs &&
+          other.answerSheetJson == this.answerSheetJson &&
+          other.tracePath == this.tracePath &&
+          other.verifierVerdict == this.verifierVerdict &&
+          other.processReportJson == this.processReportJson &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt);
+}
+
+class AgentRunsCompanion extends UpdateCompanion<AgentRunRow> {
+  final Value<String> id;
+  final Value<String> conversationId;
+  final Value<String> presetId;
+  final Value<String> mode;
+  final Value<String> phase;
+  final Value<String> status;
+  final Value<String?> stopReason;
+  final Value<int> steps;
+  final Value<int> promptTokens;
+  final Value<int> completionTokens;
+  final Value<int?> reasoningTokens;
+  final Value<int> reasoningChars;
+  final Value<int?> elapsedMs;
+  final Value<String?> answerSheetJson;
+  final Value<String?> tracePath;
+  final Value<String?> verifierVerdict;
+  final Value<String?> processReportJson;
+  final Value<int> startedAt;
+  final Value<int?> endedAt;
+  final Value<int> rowid;
+  const AgentRunsCompanion({
+    this.id = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.presetId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.status = const Value.absent(),
+    this.stopReason = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.reasoningTokens = const Value.absent(),
+    this.reasoningChars = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.answerSheetJson = const Value.absent(),
+    this.tracePath = const Value.absent(),
+    this.verifierVerdict = const Value.absent(),
+    this.processReportJson = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentRunsCompanion.insert({
+    required String id,
+    required String conversationId,
+    required String presetId,
+    required String mode,
+    required String phase,
+    required String status,
+    this.stopReason = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.reasoningTokens = const Value.absent(),
+    this.reasoningChars = const Value.absent(),
+    this.elapsedMs = const Value.absent(),
+    this.answerSheetJson = const Value.absent(),
+    this.tracePath = const Value.absent(),
+    this.verifierVerdict = const Value.absent(),
+    this.processReportJson = const Value.absent(),
+    required int startedAt,
+    this.endedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        conversationId = Value(conversationId),
+        presetId = Value(presetId),
+        mode = Value(mode),
+        phase = Value(phase),
+        status = Value(status),
+        startedAt = Value(startedAt);
+  static Insertable<AgentRunRow> custom({
+    Expression<String>? id,
+    Expression<String>? conversationId,
+    Expression<String>? presetId,
+    Expression<String>? mode,
+    Expression<String>? phase,
+    Expression<String>? status,
+    Expression<String>? stopReason,
+    Expression<int>? steps,
+    Expression<int>? promptTokens,
+    Expression<int>? completionTokens,
+    Expression<int>? reasoningTokens,
+    Expression<int>? reasoningChars,
+    Expression<int>? elapsedMs,
+    Expression<String>? answerSheetJson,
+    Expression<String>? tracePath,
+    Expression<String>? verifierVerdict,
+    Expression<String>? processReportJson,
+    Expression<int>? startedAt,
+    Expression<int>? endedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (presetId != null) 'preset_id': presetId,
+      if (mode != null) 'mode': mode,
+      if (phase != null) 'phase': phase,
+      if (status != null) 'status': status,
+      if (stopReason != null) 'stop_reason': stopReason,
+      if (steps != null) 'steps': steps,
+      if (promptTokens != null) 'prompt_tokens': promptTokens,
+      if (completionTokens != null) 'completion_tokens': completionTokens,
+      if (reasoningTokens != null) 'reasoning_tokens': reasoningTokens,
+      if (reasoningChars != null) 'reasoning_chars': reasoningChars,
+      if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+      if (answerSheetJson != null) 'answer_sheet_json': answerSheetJson,
+      if (tracePath != null) 'trace_path': tracePath,
+      if (verifierVerdict != null) 'verifier_verdict': verifierVerdict,
+      if (processReportJson != null) 'process_report_json': processReportJson,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentRunsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? conversationId,
+      Value<String>? presetId,
+      Value<String>? mode,
+      Value<String>? phase,
+      Value<String>? status,
+      Value<String?>? stopReason,
+      Value<int>? steps,
+      Value<int>? promptTokens,
+      Value<int>? completionTokens,
+      Value<int?>? reasoningTokens,
+      Value<int>? reasoningChars,
+      Value<int?>? elapsedMs,
+      Value<String?>? answerSheetJson,
+      Value<String?>? tracePath,
+      Value<String?>? verifierVerdict,
+      Value<String?>? processReportJson,
+      Value<int>? startedAt,
+      Value<int?>? endedAt,
+      Value<int>? rowid}) {
+    return AgentRunsCompanion(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      presetId: presetId ?? this.presetId,
+      mode: mode ?? this.mode,
+      phase: phase ?? this.phase,
+      status: status ?? this.status,
+      stopReason: stopReason ?? this.stopReason,
+      steps: steps ?? this.steps,
+      promptTokens: promptTokens ?? this.promptTokens,
+      completionTokens: completionTokens ?? this.completionTokens,
+      reasoningTokens: reasoningTokens ?? this.reasoningTokens,
+      reasoningChars: reasoningChars ?? this.reasoningChars,
+      elapsedMs: elapsedMs ?? this.elapsedMs,
+      answerSheetJson: answerSheetJson ?? this.answerSheetJson,
+      tracePath: tracePath ?? this.tracePath,
+      verifierVerdict: verifierVerdict ?? this.verifierVerdict,
+      processReportJson: processReportJson ?? this.processReportJson,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (presetId.present) {
+      map['preset_id'] = Variable<String>(presetId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (stopReason.present) {
+      map['stop_reason'] = Variable<String>(stopReason.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<int>(steps.value);
+    }
+    if (promptTokens.present) {
+      map['prompt_tokens'] = Variable<int>(promptTokens.value);
+    }
+    if (completionTokens.present) {
+      map['completion_tokens'] = Variable<int>(completionTokens.value);
+    }
+    if (reasoningTokens.present) {
+      map['reasoning_tokens'] = Variable<int>(reasoningTokens.value);
+    }
+    if (reasoningChars.present) {
+      map['reasoning_chars'] = Variable<int>(reasoningChars.value);
+    }
+    if (elapsedMs.present) {
+      map['elapsed_ms'] = Variable<int>(elapsedMs.value);
+    }
+    if (answerSheetJson.present) {
+      map['answer_sheet_json'] = Variable<String>(answerSheetJson.value);
+    }
+    if (tracePath.present) {
+      map['trace_path'] = Variable<String>(tracePath.value);
+    }
+    if (verifierVerdict.present) {
+      map['verifier_verdict'] = Variable<String>(verifierVerdict.value);
+    }
+    if (processReportJson.present) {
+      map['process_report_json'] = Variable<String>(processReportJson.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<int>(endedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentRunsCompanion(')
+          ..write('id: $id, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('presetId: $presetId, ')
+          ..write('mode: $mode, ')
+          ..write('phase: $phase, ')
+          ..write('status: $status, ')
+          ..write('stopReason: $stopReason, ')
+          ..write('steps: $steps, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('reasoningTokens: $reasoningTokens, ')
+          ..write('reasoningChars: $reasoningChars, ')
+          ..write('elapsedMs: $elapsedMs, ')
+          ..write('answerSheetJson: $answerSheetJson, ')
+          ..write('tracePath: $tracePath, ')
+          ..write('verifierVerdict: $verifierVerdict, ')
+          ..write('processReportJson: $processReportJson, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AgentStepsTable extends AgentSteps
+    with TableInfo<$AgentStepsTable, AgentStepRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentStepsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+      'run_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+      'seq', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+      'phase', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _toolNameMeta =
+      const VerificationMeta('toolName');
+  @override
+  late final GeneratedColumn<String> toolName = GeneratedColumn<String>(
+      'tool_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _argsHashMeta =
+      const VerificationMeta('argsHash');
+  @override
+  late final GeneratedColumn<String> argsHash = GeneratedColumn<String>(
+      'args_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stateFingerprintMeta =
+      const VerificationMeta('stateFingerprint');
+  @override
+  late final GeneratedColumn<String> stateFingerprint = GeneratedColumn<String>(
+      'state_fingerprint', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _claimHashMeta =
+      const VerificationMeta('claimHash');
+  @override
+  late final GeneratedColumn<String> claimHash = GeneratedColumn<String>(
+      'claim_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tokensMeta = const VerificationMeta('tokens');
+  @override
+  late final GeneratedColumn<int> tokens = GeneratedColumn<int>(
+      'tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _summaryMeta =
+      const VerificationMeta('summary');
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+      'summary', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        runId,
+        seq,
+        phase,
+        kind,
+        toolName,
+        argsHash,
+        stateFingerprint,
+        claimHash,
+        status,
+        tokens,
+        summary,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_steps';
+  @override
+  VerificationContext validateIntegrity(Insertable<AgentStepRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('run_id')) {
+      context.handle(
+          _runIdMeta, runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta));
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('seq')) {
+      context.handle(
+          _seqMeta, seq.isAcceptableOrUnknown(data['seq']!, _seqMeta));
+    } else if (isInserting) {
+      context.missing(_seqMeta);
+    }
+    if (data.containsKey('phase')) {
+      context.handle(
+          _phaseMeta, phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta));
+    } else if (isInserting) {
+      context.missing(_phaseMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('tool_name')) {
+      context.handle(_toolNameMeta,
+          toolName.isAcceptableOrUnknown(data['tool_name']!, _toolNameMeta));
+    }
+    if (data.containsKey('args_hash')) {
+      context.handle(_argsHashMeta,
+          argsHash.isAcceptableOrUnknown(data['args_hash']!, _argsHashMeta));
+    }
+    if (data.containsKey('state_fingerprint')) {
+      context.handle(
+          _stateFingerprintMeta,
+          stateFingerprint.isAcceptableOrUnknown(
+              data['state_fingerprint']!, _stateFingerprintMeta));
+    }
+    if (data.containsKey('claim_hash')) {
+      context.handle(_claimHashMeta,
+          claimHash.isAcceptableOrUnknown(data['claim_hash']!, _claimHashMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('tokens')) {
+      context.handle(_tokensMeta,
+          tokens.isAcceptableOrUnknown(data['tokens']!, _tokensMeta));
+    }
+    if (data.containsKey('summary')) {
+      context.handle(_summaryMeta,
+          summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {runId, seq},
+      ];
+  @override
+  AgentStepRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentStepRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      runId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}run_id'])!,
+      seq: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}seq'])!,
+      phase: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phase'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      toolName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tool_name']),
+      argsHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}args_hash']),
+      stateFingerprint: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}state_fingerprint']),
+      claimHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}claim_hash']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      tokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}tokens']),
+      summary: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}summary']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AgentStepsTable createAlias(String alias) {
+    return $AgentStepsTable(attachedDatabase, alias);
+  }
+}
+
+class AgentStepRow extends DataClass implements Insertable<AgentStepRow> {
+  final String id;
+  final String runId;
+
+  /// 运行内从 0 开始（或从 1 开始，由写入方统一）的步序号。
+  final int seq;
+
+  /// 这一步处于哪个 phase（`AgentPhase.id`）。
+  final String phase;
+
+  /// `model` / `answer` / `verify` / `repair` / `persist`。
+  final String kind;
+
+  /// 工具名（只有 `kind` 为工具步时非空）。
+  final String? toolName;
+
+  /// 规范化的参数 hash（`StepGuard.actionKey` 的 hash 部分）。
+  final String? argsHash;
+
+  /// 这一步之后的状态指纹（`StepGuard.stateFingerprint`）。
+  final String? stateFingerprint;
+
+  /// 这一步涉及的 claim canonical hash（可选）。
+  final String? claimHash;
+
+  /// `ok` / `failed` / `skipped`。
+  final String status;
+
+  /// 这一步消耗的 token 数（provider 报告时才有意义；NULL = 不知道）。
+  final int? tokens;
+
+  /// 一句人话摘要（例如「模型返回答案卡」「验证 fail: missing_answer」）。
+  final String? summary;
+  final int createdAt;
+  const AgentStepRow(
+      {required this.id,
+      required this.runId,
+      required this.seq,
+      required this.phase,
+      required this.kind,
+      this.toolName,
+      this.argsHash,
+      this.stateFingerprint,
+      this.claimHash,
+      required this.status,
+      this.tokens,
+      this.summary,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['run_id'] = Variable<String>(runId);
+    map['seq'] = Variable<int>(seq);
+    map['phase'] = Variable<String>(phase);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || toolName != null) {
+      map['tool_name'] = Variable<String>(toolName);
+    }
+    if (!nullToAbsent || argsHash != null) {
+      map['args_hash'] = Variable<String>(argsHash);
+    }
+    if (!nullToAbsent || stateFingerprint != null) {
+      map['state_fingerprint'] = Variable<String>(stateFingerprint);
+    }
+    if (!nullToAbsent || claimHash != null) {
+      map['claim_hash'] = Variable<String>(claimHash);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || tokens != null) {
+      map['tokens'] = Variable<int>(tokens);
+    }
+    if (!nullToAbsent || summary != null) {
+      map['summary'] = Variable<String>(summary);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AgentStepsCompanion toCompanion(bool nullToAbsent) {
+    return AgentStepsCompanion(
+      id: Value(id),
+      runId: Value(runId),
+      seq: Value(seq),
+      phase: Value(phase),
+      kind: Value(kind),
+      toolName: toolName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toolName),
+      argsHash: argsHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(argsHash),
+      stateFingerprint: stateFingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateFingerprint),
+      claimHash: claimHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(claimHash),
+      status: Value(status),
+      tokens:
+          tokens == null && nullToAbsent ? const Value.absent() : Value(tokens),
+      summary: summary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(summary),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AgentStepRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentStepRow(
+      id: serializer.fromJson<String>(json['id']),
+      runId: serializer.fromJson<String>(json['runId']),
+      seq: serializer.fromJson<int>(json['seq']),
+      phase: serializer.fromJson<String>(json['phase']),
+      kind: serializer.fromJson<String>(json['kind']),
+      toolName: serializer.fromJson<String?>(json['toolName']),
+      argsHash: serializer.fromJson<String?>(json['argsHash']),
+      stateFingerprint: serializer.fromJson<String?>(json['stateFingerprint']),
+      claimHash: serializer.fromJson<String?>(json['claimHash']),
+      status: serializer.fromJson<String>(json['status']),
+      tokens: serializer.fromJson<int?>(json['tokens']),
+      summary: serializer.fromJson<String?>(json['summary']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'runId': serializer.toJson<String>(runId),
+      'seq': serializer.toJson<int>(seq),
+      'phase': serializer.toJson<String>(phase),
+      'kind': serializer.toJson<String>(kind),
+      'toolName': serializer.toJson<String?>(toolName),
+      'argsHash': serializer.toJson<String?>(argsHash),
+      'stateFingerprint': serializer.toJson<String?>(stateFingerprint),
+      'claimHash': serializer.toJson<String?>(claimHash),
+      'status': serializer.toJson<String>(status),
+      'tokens': serializer.toJson<int?>(tokens),
+      'summary': serializer.toJson<String?>(summary),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AgentStepRow copyWith(
+          {String? id,
+          String? runId,
+          int? seq,
+          String? phase,
+          String? kind,
+          Value<String?> toolName = const Value.absent(),
+          Value<String?> argsHash = const Value.absent(),
+          Value<String?> stateFingerprint = const Value.absent(),
+          Value<String?> claimHash = const Value.absent(),
+          String? status,
+          Value<int?> tokens = const Value.absent(),
+          Value<String?> summary = const Value.absent(),
+          int? createdAt}) =>
+      AgentStepRow(
+        id: id ?? this.id,
+        runId: runId ?? this.runId,
+        seq: seq ?? this.seq,
+        phase: phase ?? this.phase,
+        kind: kind ?? this.kind,
+        toolName: toolName.present ? toolName.value : this.toolName,
+        argsHash: argsHash.present ? argsHash.value : this.argsHash,
+        stateFingerprint: stateFingerprint.present
+            ? stateFingerprint.value
+            : this.stateFingerprint,
+        claimHash: claimHash.present ? claimHash.value : this.claimHash,
+        status: status ?? this.status,
+        tokens: tokens.present ? tokens.value : this.tokens,
+        summary: summary.present ? summary.value : this.summary,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AgentStepRow copyWithCompanion(AgentStepsCompanion data) {
+    return AgentStepRow(
+      id: data.id.present ? data.id.value : this.id,
+      runId: data.runId.present ? data.runId.value : this.runId,
+      seq: data.seq.present ? data.seq.value : this.seq,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      toolName: data.toolName.present ? data.toolName.value : this.toolName,
+      argsHash: data.argsHash.present ? data.argsHash.value : this.argsHash,
+      stateFingerprint: data.stateFingerprint.present
+          ? data.stateFingerprint.value
+          : this.stateFingerprint,
+      claimHash: data.claimHash.present ? data.claimHash.value : this.claimHash,
+      status: data.status.present ? data.status.value : this.status,
+      tokens: data.tokens.present ? data.tokens.value : this.tokens,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentStepRow(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('seq: $seq, ')
+          ..write('phase: $phase, ')
+          ..write('kind: $kind, ')
+          ..write('toolName: $toolName, ')
+          ..write('argsHash: $argsHash, ')
+          ..write('stateFingerprint: $stateFingerprint, ')
+          ..write('claimHash: $claimHash, ')
+          ..write('status: $status, ')
+          ..write('tokens: $tokens, ')
+          ..write('summary: $summary, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      runId,
+      seq,
+      phase,
+      kind,
+      toolName,
+      argsHash,
+      stateFingerprint,
+      claimHash,
+      status,
+      tokens,
+      summary,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentStepRow &&
+          other.id == this.id &&
+          other.runId == this.runId &&
+          other.seq == this.seq &&
+          other.phase == this.phase &&
+          other.kind == this.kind &&
+          other.toolName == this.toolName &&
+          other.argsHash == this.argsHash &&
+          other.stateFingerprint == this.stateFingerprint &&
+          other.claimHash == this.claimHash &&
+          other.status == this.status &&
+          other.tokens == this.tokens &&
+          other.summary == this.summary &&
+          other.createdAt == this.createdAt);
+}
+
+class AgentStepsCompanion extends UpdateCompanion<AgentStepRow> {
+  final Value<String> id;
+  final Value<String> runId;
+  final Value<int> seq;
+  final Value<String> phase;
+  final Value<String> kind;
+  final Value<String?> toolName;
+  final Value<String?> argsHash;
+  final Value<String?> stateFingerprint;
+  final Value<String?> claimHash;
+  final Value<String> status;
+  final Value<int?> tokens;
+  final Value<String?> summary;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AgentStepsCompanion({
+    this.id = const Value.absent(),
+    this.runId = const Value.absent(),
+    this.seq = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.toolName = const Value.absent(),
+    this.argsHash = const Value.absent(),
+    this.stateFingerprint = const Value.absent(),
+    this.claimHash = const Value.absent(),
+    this.status = const Value.absent(),
+    this.tokens = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentStepsCompanion.insert({
+    required String id,
+    required String runId,
+    required int seq,
+    required String phase,
+    required String kind,
+    this.toolName = const Value.absent(),
+    this.argsHash = const Value.absent(),
+    this.stateFingerprint = const Value.absent(),
+    this.claimHash = const Value.absent(),
+    required String status,
+    this.tokens = const Value.absent(),
+    this.summary = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        runId = Value(runId),
+        seq = Value(seq),
+        phase = Value(phase),
+        kind = Value(kind),
+        status = Value(status),
+        createdAt = Value(createdAt);
+  static Insertable<AgentStepRow> custom({
+    Expression<String>? id,
+    Expression<String>? runId,
+    Expression<int>? seq,
+    Expression<String>? phase,
+    Expression<String>? kind,
+    Expression<String>? toolName,
+    Expression<String>? argsHash,
+    Expression<String>? stateFingerprint,
+    Expression<String>? claimHash,
+    Expression<String>? status,
+    Expression<int>? tokens,
+    Expression<String>? summary,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (runId != null) 'run_id': runId,
+      if (seq != null) 'seq': seq,
+      if (phase != null) 'phase': phase,
+      if (kind != null) 'kind': kind,
+      if (toolName != null) 'tool_name': toolName,
+      if (argsHash != null) 'args_hash': argsHash,
+      if (stateFingerprint != null) 'state_fingerprint': stateFingerprint,
+      if (claimHash != null) 'claim_hash': claimHash,
+      if (status != null) 'status': status,
+      if (tokens != null) 'tokens': tokens,
+      if (summary != null) 'summary': summary,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentStepsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? runId,
+      Value<int>? seq,
+      Value<String>? phase,
+      Value<String>? kind,
+      Value<String?>? toolName,
+      Value<String?>? argsHash,
+      Value<String?>? stateFingerprint,
+      Value<String?>? claimHash,
+      Value<String>? status,
+      Value<int?>? tokens,
+      Value<String?>? summary,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AgentStepsCompanion(
+      id: id ?? this.id,
+      runId: runId ?? this.runId,
+      seq: seq ?? this.seq,
+      phase: phase ?? this.phase,
+      kind: kind ?? this.kind,
+      toolName: toolName ?? this.toolName,
+      argsHash: argsHash ?? this.argsHash,
+      stateFingerprint: stateFingerprint ?? this.stateFingerprint,
+      claimHash: claimHash ?? this.claimHash,
+      status: status ?? this.status,
+      tokens: tokens ?? this.tokens,
+      summary: summary ?? this.summary,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (toolName.present) {
+      map['tool_name'] = Variable<String>(toolName.value);
+    }
+    if (argsHash.present) {
+      map['args_hash'] = Variable<String>(argsHash.value);
+    }
+    if (stateFingerprint.present) {
+      map['state_fingerprint'] = Variable<String>(stateFingerprint.value);
+    }
+    if (claimHash.present) {
+      map['claim_hash'] = Variable<String>(claimHash.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (tokens.present) {
+      map['tokens'] = Variable<int>(tokens.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentStepsCompanion(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('seq: $seq, ')
+          ..write('phase: $phase, ')
+          ..write('kind: $kind, ')
+          ..write('toolName: $toolName, ')
+          ..write('argsHash: $argsHash, ')
+          ..write('stateFingerprint: $stateFingerprint, ')
+          ..write('claimHash: $claimHash, ')
+          ..write('status: $status, ')
+          ..write('tokens: $tokens, ')
+          ..write('summary: $summary, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AgentVerificationsTable extends AgentVerifications
+    with TableInfo<$AgentVerificationsTable, AgentVerificationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentVerificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+      'run_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _verifierMeta =
+      const VerificationMeta('verifier');
+  @override
+  late final GeneratedColumn<String> verifier = GeneratedColumn<String>(
+      'verifier', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('content'));
+  static const VerificationMeta _verdictMeta =
+      const VerificationMeta('verdict');
+  @override
+  late final GeneratedColumn<String> verdict = GeneratedColumn<String>(
+      'verdict', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _failureTypeMeta =
+      const VerificationMeta('failureType');
+  @override
+  late final GeneratedColumn<String> failureType = GeneratedColumn<String>(
+      'failure_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _independentMeta =
+      const VerificationMeta('independent');
+  @override
+  late final GeneratedColumn<bool> independent = GeneratedColumn<bool>(
+      'independent', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("independent" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _evidenceJsonMeta =
+      const VerificationMeta('evidenceJson');
+  @override
+  late final GeneratedColumn<String> evidenceJson = GeneratedColumn<String>(
+      'evidence_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _processReportJsonMeta =
+      const VerificationMeta('processReportJson');
+  @override
+  late final GeneratedColumn<String> processReportJson =
+      GeneratedColumn<String>('process_report_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _promptTokensMeta =
+      const VerificationMeta('promptTokens');
+  @override
+  late final GeneratedColumn<int> promptTokens = GeneratedColumn<int>(
+      'prompt_tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _completionTokensMeta =
+      const VerificationMeta('completionTokens');
+  @override
+  late final GeneratedColumn<int> completionTokens = GeneratedColumn<int>(
+      'completion_tokens', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        runId,
+        verifier,
+        kind,
+        verdict,
+        failureType,
+        independent,
+        evidenceJson,
+        processReportJson,
+        promptTokens,
+        completionTokens,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_verifications';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<AgentVerificationRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('run_id')) {
+      context.handle(
+          _runIdMeta, runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta));
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('verifier')) {
+      context.handle(_verifierMeta,
+          verifier.isAcceptableOrUnknown(data['verifier']!, _verifierMeta));
+    } else if (isInserting) {
+      context.missing(_verifierMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('verdict')) {
+      context.handle(_verdictMeta,
+          verdict.isAcceptableOrUnknown(data['verdict']!, _verdictMeta));
+    } else if (isInserting) {
+      context.missing(_verdictMeta);
+    }
+    if (data.containsKey('failure_type')) {
+      context.handle(
+          _failureTypeMeta,
+          failureType.isAcceptableOrUnknown(
+              data['failure_type']!, _failureTypeMeta));
+    }
+    if (data.containsKey('independent')) {
+      context.handle(
+          _independentMeta,
+          independent.isAcceptableOrUnknown(
+              data['independent']!, _independentMeta));
+    }
+    if (data.containsKey('evidence_json')) {
+      context.handle(
+          _evidenceJsonMeta,
+          evidenceJson.isAcceptableOrUnknown(
+              data['evidence_json']!, _evidenceJsonMeta));
+    }
+    if (data.containsKey('process_report_json')) {
+      context.handle(
+          _processReportJsonMeta,
+          processReportJson.isAcceptableOrUnknown(
+              data['process_report_json']!, _processReportJsonMeta));
+    }
+    if (data.containsKey('prompt_tokens')) {
+      context.handle(
+          _promptTokensMeta,
+          promptTokens.isAcceptableOrUnknown(
+              data['prompt_tokens']!, _promptTokensMeta));
+    }
+    if (data.containsKey('completion_tokens')) {
+      context.handle(
+          _completionTokensMeta,
+          completionTokens.isAcceptableOrUnknown(
+              data['completion_tokens']!, _completionTokensMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AgentVerificationRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentVerificationRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      runId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}run_id'])!,
+      verifier: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}verifier'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      verdict: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}verdict'])!,
+      failureType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}failure_type']),
+      independent: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}independent'])!,
+      evidenceJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}evidence_json']),
+      processReportJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}process_report_json']),
+      promptTokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}prompt_tokens']),
+      completionTokens: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}completion_tokens']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AgentVerificationsTable createAlias(String alias) {
+    return $AgentVerificationsTable(attachedDatabase, alias);
+  }
+}
+
+class AgentVerificationRow extends DataClass
+    implements Insertable<AgentVerificationRow> {
+  final String id;
+  final String runId;
+
+  /// 验证者标识：`student_independent_v1` / `process_auditor` / …
+  final String verifier;
+
+  /// `content` / `process`。
+  final String kind;
+
+  /// `pass` / `fail` / `unknown` / `error`（域层 `Verdict.id`）。
+  final String verdict;
+
+  /// `missing_answer` / `wrong_branch` / `loop` / `self_doubt` / …（域层
+  /// `FailureType.id`）；NULL = 没有可归类的失败。
+  final String? failureType;
+
+  /// 这次验证是不是**独立**于 solver 的（内容验证 true；过程审计 false）。
+  final bool independent;
+
+  /// 验证证据（`Verification.toJson()`）：issues/evidence/confidence 等。
+  final String? evidenceJson;
+
+  /// 过程审计报告（`ProcessReport.toJson()`）；`kind = process` 时才有。
+  final String? processReportJson;
+  final int? promptTokens;
+  final int? completionTokens;
+  final int createdAt;
+  const AgentVerificationRow(
+      {required this.id,
+      required this.runId,
+      required this.verifier,
+      required this.kind,
+      required this.verdict,
+      this.failureType,
+      required this.independent,
+      this.evidenceJson,
+      this.processReportJson,
+      this.promptTokens,
+      this.completionTokens,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['run_id'] = Variable<String>(runId);
+    map['verifier'] = Variable<String>(verifier);
+    map['kind'] = Variable<String>(kind);
+    map['verdict'] = Variable<String>(verdict);
+    if (!nullToAbsent || failureType != null) {
+      map['failure_type'] = Variable<String>(failureType);
+    }
+    map['independent'] = Variable<bool>(independent);
+    if (!nullToAbsent || evidenceJson != null) {
+      map['evidence_json'] = Variable<String>(evidenceJson);
+    }
+    if (!nullToAbsent || processReportJson != null) {
+      map['process_report_json'] = Variable<String>(processReportJson);
+    }
+    if (!nullToAbsent || promptTokens != null) {
+      map['prompt_tokens'] = Variable<int>(promptTokens);
+    }
+    if (!nullToAbsent || completionTokens != null) {
+      map['completion_tokens'] = Variable<int>(completionTokens);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AgentVerificationsCompanion toCompanion(bool nullToAbsent) {
+    return AgentVerificationsCompanion(
+      id: Value(id),
+      runId: Value(runId),
+      verifier: Value(verifier),
+      kind: Value(kind),
+      verdict: Value(verdict),
+      failureType: failureType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failureType),
+      independent: Value(independent),
+      evidenceJson: evidenceJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidenceJson),
+      processReportJson: processReportJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processReportJson),
+      promptTokens: promptTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptTokens),
+      completionTokens: completionTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completionTokens),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AgentVerificationRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentVerificationRow(
+      id: serializer.fromJson<String>(json['id']),
+      runId: serializer.fromJson<String>(json['runId']),
+      verifier: serializer.fromJson<String>(json['verifier']),
+      kind: serializer.fromJson<String>(json['kind']),
+      verdict: serializer.fromJson<String>(json['verdict']),
+      failureType: serializer.fromJson<String?>(json['failureType']),
+      independent: serializer.fromJson<bool>(json['independent']),
+      evidenceJson: serializer.fromJson<String?>(json['evidenceJson']),
+      processReportJson:
+          serializer.fromJson<String?>(json['processReportJson']),
+      promptTokens: serializer.fromJson<int?>(json['promptTokens']),
+      completionTokens: serializer.fromJson<int?>(json['completionTokens']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'runId': serializer.toJson<String>(runId),
+      'verifier': serializer.toJson<String>(verifier),
+      'kind': serializer.toJson<String>(kind),
+      'verdict': serializer.toJson<String>(verdict),
+      'failureType': serializer.toJson<String?>(failureType),
+      'independent': serializer.toJson<bool>(independent),
+      'evidenceJson': serializer.toJson<String?>(evidenceJson),
+      'processReportJson': serializer.toJson<String?>(processReportJson),
+      'promptTokens': serializer.toJson<int?>(promptTokens),
+      'completionTokens': serializer.toJson<int?>(completionTokens),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AgentVerificationRow copyWith(
+          {String? id,
+          String? runId,
+          String? verifier,
+          String? kind,
+          String? verdict,
+          Value<String?> failureType = const Value.absent(),
+          bool? independent,
+          Value<String?> evidenceJson = const Value.absent(),
+          Value<String?> processReportJson = const Value.absent(),
+          Value<int?> promptTokens = const Value.absent(),
+          Value<int?> completionTokens = const Value.absent(),
+          int? createdAt}) =>
+      AgentVerificationRow(
+        id: id ?? this.id,
+        runId: runId ?? this.runId,
+        verifier: verifier ?? this.verifier,
+        kind: kind ?? this.kind,
+        verdict: verdict ?? this.verdict,
+        failureType: failureType.present ? failureType.value : this.failureType,
+        independent: independent ?? this.independent,
+        evidenceJson:
+            evidenceJson.present ? evidenceJson.value : this.evidenceJson,
+        processReportJson: processReportJson.present
+            ? processReportJson.value
+            : this.processReportJson,
+        promptTokens:
+            promptTokens.present ? promptTokens.value : this.promptTokens,
+        completionTokens: completionTokens.present
+            ? completionTokens.value
+            : this.completionTokens,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AgentVerificationRow copyWithCompanion(AgentVerificationsCompanion data) {
+    return AgentVerificationRow(
+      id: data.id.present ? data.id.value : this.id,
+      runId: data.runId.present ? data.runId.value : this.runId,
+      verifier: data.verifier.present ? data.verifier.value : this.verifier,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      verdict: data.verdict.present ? data.verdict.value : this.verdict,
+      failureType:
+          data.failureType.present ? data.failureType.value : this.failureType,
+      independent:
+          data.independent.present ? data.independent.value : this.independent,
+      evidenceJson: data.evidenceJson.present
+          ? data.evidenceJson.value
+          : this.evidenceJson,
+      processReportJson: data.processReportJson.present
+          ? data.processReportJson.value
+          : this.processReportJson,
+      promptTokens: data.promptTokens.present
+          ? data.promptTokens.value
+          : this.promptTokens,
+      completionTokens: data.completionTokens.present
+          ? data.completionTokens.value
+          : this.completionTokens,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentVerificationRow(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('verifier: $verifier, ')
+          ..write('kind: $kind, ')
+          ..write('verdict: $verdict, ')
+          ..write('failureType: $failureType, ')
+          ..write('independent: $independent, ')
+          ..write('evidenceJson: $evidenceJson, ')
+          ..write('processReportJson: $processReportJson, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      runId,
+      verifier,
+      kind,
+      verdict,
+      failureType,
+      independent,
+      evidenceJson,
+      processReportJson,
+      promptTokens,
+      completionTokens,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentVerificationRow &&
+          other.id == this.id &&
+          other.runId == this.runId &&
+          other.verifier == this.verifier &&
+          other.kind == this.kind &&
+          other.verdict == this.verdict &&
+          other.failureType == this.failureType &&
+          other.independent == this.independent &&
+          other.evidenceJson == this.evidenceJson &&
+          other.processReportJson == this.processReportJson &&
+          other.promptTokens == this.promptTokens &&
+          other.completionTokens == this.completionTokens &&
+          other.createdAt == this.createdAt);
+}
+
+class AgentVerificationsCompanion
+    extends UpdateCompanion<AgentVerificationRow> {
+  final Value<String> id;
+  final Value<String> runId;
+  final Value<String> verifier;
+  final Value<String> kind;
+  final Value<String> verdict;
+  final Value<String?> failureType;
+  final Value<bool> independent;
+  final Value<String?> evidenceJson;
+  final Value<String?> processReportJson;
+  final Value<int?> promptTokens;
+  final Value<int?> completionTokens;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AgentVerificationsCompanion({
+    this.id = const Value.absent(),
+    this.runId = const Value.absent(),
+    this.verifier = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.verdict = const Value.absent(),
+    this.failureType = const Value.absent(),
+    this.independent = const Value.absent(),
+    this.evidenceJson = const Value.absent(),
+    this.processReportJson = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentVerificationsCompanion.insert({
+    required String id,
+    required String runId,
+    required String verifier,
+    this.kind = const Value.absent(),
+    required String verdict,
+    this.failureType = const Value.absent(),
+    this.independent = const Value.absent(),
+    this.evidenceJson = const Value.absent(),
+    this.processReportJson = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        runId = Value(runId),
+        verifier = Value(verifier),
+        verdict = Value(verdict),
+        createdAt = Value(createdAt);
+  static Insertable<AgentVerificationRow> custom({
+    Expression<String>? id,
+    Expression<String>? runId,
+    Expression<String>? verifier,
+    Expression<String>? kind,
+    Expression<String>? verdict,
+    Expression<String>? failureType,
+    Expression<bool>? independent,
+    Expression<String>? evidenceJson,
+    Expression<String>? processReportJson,
+    Expression<int>? promptTokens,
+    Expression<int>? completionTokens,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (runId != null) 'run_id': runId,
+      if (verifier != null) 'verifier': verifier,
+      if (kind != null) 'kind': kind,
+      if (verdict != null) 'verdict': verdict,
+      if (failureType != null) 'failure_type': failureType,
+      if (independent != null) 'independent': independent,
+      if (evidenceJson != null) 'evidence_json': evidenceJson,
+      if (processReportJson != null) 'process_report_json': processReportJson,
+      if (promptTokens != null) 'prompt_tokens': promptTokens,
+      if (completionTokens != null) 'completion_tokens': completionTokens,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentVerificationsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? runId,
+      Value<String>? verifier,
+      Value<String>? kind,
+      Value<String>? verdict,
+      Value<String?>? failureType,
+      Value<bool>? independent,
+      Value<String?>? evidenceJson,
+      Value<String?>? processReportJson,
+      Value<int?>? promptTokens,
+      Value<int?>? completionTokens,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AgentVerificationsCompanion(
+      id: id ?? this.id,
+      runId: runId ?? this.runId,
+      verifier: verifier ?? this.verifier,
+      kind: kind ?? this.kind,
+      verdict: verdict ?? this.verdict,
+      failureType: failureType ?? this.failureType,
+      independent: independent ?? this.independent,
+      evidenceJson: evidenceJson ?? this.evidenceJson,
+      processReportJson: processReportJson ?? this.processReportJson,
+      promptTokens: promptTokens ?? this.promptTokens,
+      completionTokens: completionTokens ?? this.completionTokens,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (verifier.present) {
+      map['verifier'] = Variable<String>(verifier.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (verdict.present) {
+      map['verdict'] = Variable<String>(verdict.value);
+    }
+    if (failureType.present) {
+      map['failure_type'] = Variable<String>(failureType.value);
+    }
+    if (independent.present) {
+      map['independent'] = Variable<bool>(independent.value);
+    }
+    if (evidenceJson.present) {
+      map['evidence_json'] = Variable<String>(evidenceJson.value);
+    }
+    if (processReportJson.present) {
+      map['process_report_json'] = Variable<String>(processReportJson.value);
+    }
+    if (promptTokens.present) {
+      map['prompt_tokens'] = Variable<int>(promptTokens.value);
+    }
+    if (completionTokens.present) {
+      map['completion_tokens'] = Variable<int>(completionTokens.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentVerificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('verifier: $verifier, ')
+          ..write('kind: $kind, ')
+          ..write('verdict: $verdict, ')
+          ..write('failureType: $failureType, ')
+          ..write('independent: $independent, ')
+          ..write('evidenceJson: $evidenceJson, ')
+          ..write('processReportJson: $processReportJson, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AgentClaimsTable extends AgentClaims
+    with TableInfo<$AgentClaimsTable, AgentClaimRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentClaimsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<String> runId = GeneratedColumn<String>(
+      'run_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _canonicalMeta =
+      const VerificationMeta('canonical');
+  @override
+  late final GeneratedColumn<String> canonical = GeneratedColumn<String>(
+      'canonical', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statementMeta =
+      const VerificationMeta('statement');
+  @override
+  late final GeneratedColumn<String> statement = GeneratedColumn<String>(
+      'statement', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _depsJsonMeta =
+      const VerificationMeta('depsJson');
+  @override
+  late final GeneratedColumn<String> depsJson = GeneratedColumn<String>(
+      'deps_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _checkMethodMeta =
+      const VerificationMeta('checkMethod');
+  @override
+  late final GeneratedColumn<String> checkMethod = GeneratedColumn<String>(
+      'check_method', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _checkedVersionMeta =
+      const VerificationMeta('checkedVersion');
+  @override
+  late final GeneratedColumn<int> checkedVersion = GeneratedColumn<int>(
+      'checked_version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _evidenceMeta =
+      const VerificationMeta('evidence');
+  @override
+  late final GeneratedColumn<String> evidence = GeneratedColumn<String>(
+      'evidence', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        runId,
+        kind,
+        canonical,
+        statement,
+        depsJson,
+        status,
+        checkMethod,
+        checkedVersion,
+        evidence,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_claims';
+  @override
+  VerificationContext validateIntegrity(Insertable<AgentClaimRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('run_id')) {
+      context.handle(
+          _runIdMeta, runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta));
+    } else if (isInserting) {
+      context.missing(_runIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('canonical')) {
+      context.handle(_canonicalMeta,
+          canonical.isAcceptableOrUnknown(data['canonical']!, _canonicalMeta));
+    } else if (isInserting) {
+      context.missing(_canonicalMeta);
+    }
+    if (data.containsKey('statement')) {
+      context.handle(_statementMeta,
+          statement.isAcceptableOrUnknown(data['statement']!, _statementMeta));
+    } else if (isInserting) {
+      context.missing(_statementMeta);
+    }
+    if (data.containsKey('deps_json')) {
+      context.handle(_depsJsonMeta,
+          depsJson.isAcceptableOrUnknown(data['deps_json']!, _depsJsonMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('check_method')) {
+      context.handle(
+          _checkMethodMeta,
+          checkMethod.isAcceptableOrUnknown(
+              data['check_method']!, _checkMethodMeta));
+    }
+    if (data.containsKey('checked_version')) {
+      context.handle(
+          _checkedVersionMeta,
+          checkedVersion.isAcceptableOrUnknown(
+              data['checked_version']!, _checkedVersionMeta));
+    }
+    if (data.containsKey('evidence')) {
+      context.handle(_evidenceMeta,
+          evidence.isAcceptableOrUnknown(data['evidence']!, _evidenceMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AgentClaimRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentClaimRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      runId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}run_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      canonical: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}canonical'])!,
+      statement: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}statement'])!,
+      depsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}deps_json']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      checkMethod: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}check_method']),
+      checkedVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}checked_version'])!,
+      evidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}evidence']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AgentClaimsTable createAlias(String alias) {
+    return $AgentClaimsTable(attachedDatabase, alias);
+  }
+}
+
+class AgentClaimRow extends DataClass implements Insertable<AgentClaimRow> {
+  final String id;
+  final String runId;
+
+  /// `given` / `equation` / `decision` / `assumption` / `open`。
+  final String kind;
+
+  /// 规范化后的命题文本（用于匹配/展示；不存中文以外的本地化标签）。
+  final String canonical;
+
+  /// 命题原文（模型/审计器抽出来的那句话）。
+  final String statement;
+
+  /// 依赖列表 JSON：`[{"id": "...", "version": 1}]`；NULL = 无依赖。
+  final String? depsJson;
+
+  /// `proposed` / `verified` / `refuted` / `open`。
+  final String status;
+
+  /// `deterministic` / `symbolic` / `nli` / `judge`；NULL = 还没检查过。
+  final String? checkMethod;
+
+  /// 这个 claim 被检查时依赖的版本号（依赖变了就要重查）。
+  final int checkedVersion;
+  final String? evidence;
+  final int createdAt;
+  const AgentClaimRow(
+      {required this.id,
+      required this.runId,
+      required this.kind,
+      required this.canonical,
+      required this.statement,
+      this.depsJson,
+      required this.status,
+      this.checkMethod,
+      required this.checkedVersion,
+      this.evidence,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['run_id'] = Variable<String>(runId);
+    map['kind'] = Variable<String>(kind);
+    map['canonical'] = Variable<String>(canonical);
+    map['statement'] = Variable<String>(statement);
+    if (!nullToAbsent || depsJson != null) {
+      map['deps_json'] = Variable<String>(depsJson);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || checkMethod != null) {
+      map['check_method'] = Variable<String>(checkMethod);
+    }
+    map['checked_version'] = Variable<int>(checkedVersion);
+    if (!nullToAbsent || evidence != null) {
+      map['evidence'] = Variable<String>(evidence);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AgentClaimsCompanion toCompanion(bool nullToAbsent) {
+    return AgentClaimsCompanion(
+      id: Value(id),
+      runId: Value(runId),
+      kind: Value(kind),
+      canonical: Value(canonical),
+      statement: Value(statement),
+      depsJson: depsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(depsJson),
+      status: Value(status),
+      checkMethod: checkMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkMethod),
+      checkedVersion: Value(checkedVersion),
+      evidence: evidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidence),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AgentClaimRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentClaimRow(
+      id: serializer.fromJson<String>(json['id']),
+      runId: serializer.fromJson<String>(json['runId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      canonical: serializer.fromJson<String>(json['canonical']),
+      statement: serializer.fromJson<String>(json['statement']),
+      depsJson: serializer.fromJson<String?>(json['depsJson']),
+      status: serializer.fromJson<String>(json['status']),
+      checkMethod: serializer.fromJson<String?>(json['checkMethod']),
+      checkedVersion: serializer.fromJson<int>(json['checkedVersion']),
+      evidence: serializer.fromJson<String?>(json['evidence']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'runId': serializer.toJson<String>(runId),
+      'kind': serializer.toJson<String>(kind),
+      'canonical': serializer.toJson<String>(canonical),
+      'statement': serializer.toJson<String>(statement),
+      'depsJson': serializer.toJson<String?>(depsJson),
+      'status': serializer.toJson<String>(status),
+      'checkMethod': serializer.toJson<String?>(checkMethod),
+      'checkedVersion': serializer.toJson<int>(checkedVersion),
+      'evidence': serializer.toJson<String?>(evidence),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AgentClaimRow copyWith(
+          {String? id,
+          String? runId,
+          String? kind,
+          String? canonical,
+          String? statement,
+          Value<String?> depsJson = const Value.absent(),
+          String? status,
+          Value<String?> checkMethod = const Value.absent(),
+          int? checkedVersion,
+          Value<String?> evidence = const Value.absent(),
+          int? createdAt}) =>
+      AgentClaimRow(
+        id: id ?? this.id,
+        runId: runId ?? this.runId,
+        kind: kind ?? this.kind,
+        canonical: canonical ?? this.canonical,
+        statement: statement ?? this.statement,
+        depsJson: depsJson.present ? depsJson.value : this.depsJson,
+        status: status ?? this.status,
+        checkMethod: checkMethod.present ? checkMethod.value : this.checkMethod,
+        checkedVersion: checkedVersion ?? this.checkedVersion,
+        evidence: evidence.present ? evidence.value : this.evidence,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AgentClaimRow copyWithCompanion(AgentClaimsCompanion data) {
+    return AgentClaimRow(
+      id: data.id.present ? data.id.value : this.id,
+      runId: data.runId.present ? data.runId.value : this.runId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      canonical: data.canonical.present ? data.canonical.value : this.canonical,
+      statement: data.statement.present ? data.statement.value : this.statement,
+      depsJson: data.depsJson.present ? data.depsJson.value : this.depsJson,
+      status: data.status.present ? data.status.value : this.status,
+      checkMethod:
+          data.checkMethod.present ? data.checkMethod.value : this.checkMethod,
+      checkedVersion: data.checkedVersion.present
+          ? data.checkedVersion.value
+          : this.checkedVersion,
+      evidence: data.evidence.present ? data.evidence.value : this.evidence,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentClaimRow(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('kind: $kind, ')
+          ..write('canonical: $canonical, ')
+          ..write('statement: $statement, ')
+          ..write('depsJson: $depsJson, ')
+          ..write('status: $status, ')
+          ..write('checkMethod: $checkMethod, ')
+          ..write('checkedVersion: $checkedVersion, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, runId, kind, canonical, statement,
+      depsJson, status, checkMethod, checkedVersion, evidence, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentClaimRow &&
+          other.id == this.id &&
+          other.runId == this.runId &&
+          other.kind == this.kind &&
+          other.canonical == this.canonical &&
+          other.statement == this.statement &&
+          other.depsJson == this.depsJson &&
+          other.status == this.status &&
+          other.checkMethod == this.checkMethod &&
+          other.checkedVersion == this.checkedVersion &&
+          other.evidence == this.evidence &&
+          other.createdAt == this.createdAt);
+}
+
+class AgentClaimsCompanion extends UpdateCompanion<AgentClaimRow> {
+  final Value<String> id;
+  final Value<String> runId;
+  final Value<String> kind;
+  final Value<String> canonical;
+  final Value<String> statement;
+  final Value<String?> depsJson;
+  final Value<String> status;
+  final Value<String?> checkMethod;
+  final Value<int> checkedVersion;
+  final Value<String?> evidence;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AgentClaimsCompanion({
+    this.id = const Value.absent(),
+    this.runId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.canonical = const Value.absent(),
+    this.statement = const Value.absent(),
+    this.depsJson = const Value.absent(),
+    this.status = const Value.absent(),
+    this.checkMethod = const Value.absent(),
+    this.checkedVersion = const Value.absent(),
+    this.evidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentClaimsCompanion.insert({
+    required String id,
+    required String runId,
+    required String kind,
+    required String canonical,
+    required String statement,
+    this.depsJson = const Value.absent(),
+    required String status,
+    this.checkMethod = const Value.absent(),
+    this.checkedVersion = const Value.absent(),
+    this.evidence = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        runId = Value(runId),
+        kind = Value(kind),
+        canonical = Value(canonical),
+        statement = Value(statement),
+        status = Value(status),
+        createdAt = Value(createdAt);
+  static Insertable<AgentClaimRow> custom({
+    Expression<String>? id,
+    Expression<String>? runId,
+    Expression<String>? kind,
+    Expression<String>? canonical,
+    Expression<String>? statement,
+    Expression<String>? depsJson,
+    Expression<String>? status,
+    Expression<String>? checkMethod,
+    Expression<int>? checkedVersion,
+    Expression<String>? evidence,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (runId != null) 'run_id': runId,
+      if (kind != null) 'kind': kind,
+      if (canonical != null) 'canonical': canonical,
+      if (statement != null) 'statement': statement,
+      if (depsJson != null) 'deps_json': depsJson,
+      if (status != null) 'status': status,
+      if (checkMethod != null) 'check_method': checkMethod,
+      if (checkedVersion != null) 'checked_version': checkedVersion,
+      if (evidence != null) 'evidence': evidence,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentClaimsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? runId,
+      Value<String>? kind,
+      Value<String>? canonical,
+      Value<String>? statement,
+      Value<String?>? depsJson,
+      Value<String>? status,
+      Value<String?>? checkMethod,
+      Value<int>? checkedVersion,
+      Value<String?>? evidence,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AgentClaimsCompanion(
+      id: id ?? this.id,
+      runId: runId ?? this.runId,
+      kind: kind ?? this.kind,
+      canonical: canonical ?? this.canonical,
+      statement: statement ?? this.statement,
+      depsJson: depsJson ?? this.depsJson,
+      status: status ?? this.status,
+      checkMethod: checkMethod ?? this.checkMethod,
+      checkedVersion: checkedVersion ?? this.checkedVersion,
+      evidence: evidence ?? this.evidence,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (runId.present) {
+      map['run_id'] = Variable<String>(runId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (canonical.present) {
+      map['canonical'] = Variable<String>(canonical.value);
+    }
+    if (statement.present) {
+      map['statement'] = Variable<String>(statement.value);
+    }
+    if (depsJson.present) {
+      map['deps_json'] = Variable<String>(depsJson.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (checkMethod.present) {
+      map['check_method'] = Variable<String>(checkMethod.value);
+    }
+    if (checkedVersion.present) {
+      map['checked_version'] = Variable<int>(checkedVersion.value);
+    }
+    if (evidence.present) {
+      map['evidence'] = Variable<String>(evidence.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentClaimsCompanion(')
+          ..write('id: $id, ')
+          ..write('runId: $runId, ')
+          ..write('kind: $kind, ')
+          ..write('canonical: $canonical, ')
+          ..write('statement: $statement, ')
+          ..write('depsJson: $depsJson, ')
+          ..write('status: $status, ')
+          ..write('checkMethod: $checkMethod, ')
+          ..write('checkedVersion: $checkedVersion, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AgentExperiencesTable extends AgentExperiences
+    with TableInfo<$AgentExperiencesTable, AgentExperienceRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AgentExperiencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _clusterMeta =
+      const VerificationMeta('cluster');
+  @override
+  late final GeneratedColumn<String> cluster = GeneratedColumn<String>(
+      'cluster', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stateKeyMeta =
+      const VerificationMeta('stateKey');
+  @override
+  late final GeneratedColumn<String> stateKey = GeneratedColumn<String>(
+      'state_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+      'action', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _rewardMeta = const VerificationMeta('reward');
+  @override
+  late final GeneratedColumn<double> reward = GeneratedColumn<double>(
+      'reward', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _provenanceRunIdMeta =
+      const VerificationMeta('provenanceRunId');
+  @override
+  late final GeneratedColumn<String> provenanceRunId = GeneratedColumn<String>(
+      'provenance_run_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _provenanceVerifierIdMeta =
+      const VerificationMeta('provenanceVerifierId');
+  @override
+  late final GeneratedColumn<String> provenanceVerifierId =
+      GeneratedColumn<String>('provenance_verifier_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _revokedAtMeta =
+      const VerificationMeta('revokedAt');
+  @override
+  late final GeneratedColumn<int> revokedAt = GeneratedColumn<int>(
+      'revoked_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        cluster,
+        stateKey,
+        action,
+        reward,
+        provenanceRunId,
+        provenanceVerifierId,
+        version,
+        revokedAt,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'agent_experiences';
+  @override
+  VerificationContext validateIntegrity(Insertable<AgentExperienceRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('cluster')) {
+      context.handle(_clusterMeta,
+          cluster.isAcceptableOrUnknown(data['cluster']!, _clusterMeta));
+    } else if (isInserting) {
+      context.missing(_clusterMeta);
+    }
+    if (data.containsKey('state_key')) {
+      context.handle(_stateKeyMeta,
+          stateKey.isAcceptableOrUnknown(data['state_key']!, _stateKeyMeta));
+    } else if (isInserting) {
+      context.missing(_stateKeyMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(_actionMeta,
+          action.isAcceptableOrUnknown(data['action']!, _actionMeta));
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('reward')) {
+      context.handle(_rewardMeta,
+          reward.isAcceptableOrUnknown(data['reward']!, _rewardMeta));
+    } else if (isInserting) {
+      context.missing(_rewardMeta);
+    }
+    if (data.containsKey('provenance_run_id')) {
+      context.handle(
+          _provenanceRunIdMeta,
+          provenanceRunId.isAcceptableOrUnknown(
+              data['provenance_run_id']!, _provenanceRunIdMeta));
+    }
+    if (data.containsKey('provenance_verifier_id')) {
+      context.handle(
+          _provenanceVerifierIdMeta,
+          provenanceVerifierId.isAcceptableOrUnknown(
+              data['provenance_verifier_id']!, _provenanceVerifierIdMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('revoked_at')) {
+      context.handle(_revokedAtMeta,
+          revokedAt.isAcceptableOrUnknown(data['revoked_at']!, _revokedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AgentExperienceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AgentExperienceRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      cluster: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cluster'])!,
+      stateKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state_key'])!,
+      action: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}action'])!,
+      reward: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}reward'])!,
+      provenanceRunId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}provenance_run_id']),
+      provenanceVerifierId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}provenance_verifier_id']),
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      revokedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}revoked_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AgentExperiencesTable createAlias(String alias) {
+    return $AgentExperiencesTable(attachedDatabase, alias);
+  }
+}
+
+class AgentExperienceRow extends DataClass
+    implements Insertable<AgentExperienceRow> {
+  final String id;
+
+  /// 经验聚类键（同一类问题的经验放一起）。
+  final String cluster;
+
+  /// 状态键（`StepGuard` 的 state fingerprint / claim 状态摘要）。
+  final String stateKey;
+
+  /// 动作键（`StepGuard.actionKey`）。
+  final String action;
+
+  /// 奖励（验证后的收益/代价，可负）。
+  final double reward;
+
+  /// provenance：这条经验来自哪次 run / 哪条验证（可空，撤销时要有据可查）。
+  final String? provenanceRunId;
+  final String? provenanceVerifierId;
+  final int version;
+
+  /// NULL = 有效；非空 = 撤销时刻（epoch ms），保留行而不是删除。
+  final int? revokedAt;
+  final int createdAt;
+  const AgentExperienceRow(
+      {required this.id,
+      required this.cluster,
+      required this.stateKey,
+      required this.action,
+      required this.reward,
+      this.provenanceRunId,
+      this.provenanceVerifierId,
+      required this.version,
+      this.revokedAt,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['cluster'] = Variable<String>(cluster);
+    map['state_key'] = Variable<String>(stateKey);
+    map['action'] = Variable<String>(action);
+    map['reward'] = Variable<double>(reward);
+    if (!nullToAbsent || provenanceRunId != null) {
+      map['provenance_run_id'] = Variable<String>(provenanceRunId);
+    }
+    if (!nullToAbsent || provenanceVerifierId != null) {
+      map['provenance_verifier_id'] = Variable<String>(provenanceVerifierId);
+    }
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || revokedAt != null) {
+      map['revoked_at'] = Variable<int>(revokedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  AgentExperiencesCompanion toCompanion(bool nullToAbsent) {
+    return AgentExperiencesCompanion(
+      id: Value(id),
+      cluster: Value(cluster),
+      stateKey: Value(stateKey),
+      action: Value(action),
+      reward: Value(reward),
+      provenanceRunId: provenanceRunId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provenanceRunId),
+      provenanceVerifierId: provenanceVerifierId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(provenanceVerifierId),
+      version: Value(version),
+      revokedAt: revokedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(revokedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AgentExperienceRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AgentExperienceRow(
+      id: serializer.fromJson<String>(json['id']),
+      cluster: serializer.fromJson<String>(json['cluster']),
+      stateKey: serializer.fromJson<String>(json['stateKey']),
+      action: serializer.fromJson<String>(json['action']),
+      reward: serializer.fromJson<double>(json['reward']),
+      provenanceRunId: serializer.fromJson<String?>(json['provenanceRunId']),
+      provenanceVerifierId:
+          serializer.fromJson<String?>(json['provenanceVerifierId']),
+      version: serializer.fromJson<int>(json['version']),
+      revokedAt: serializer.fromJson<int?>(json['revokedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'cluster': serializer.toJson<String>(cluster),
+      'stateKey': serializer.toJson<String>(stateKey),
+      'action': serializer.toJson<String>(action),
+      'reward': serializer.toJson<double>(reward),
+      'provenanceRunId': serializer.toJson<String?>(provenanceRunId),
+      'provenanceVerifierId': serializer.toJson<String?>(provenanceVerifierId),
+      'version': serializer.toJson<int>(version),
+      'revokedAt': serializer.toJson<int?>(revokedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  AgentExperienceRow copyWith(
+          {String? id,
+          String? cluster,
+          String? stateKey,
+          String? action,
+          double? reward,
+          Value<String?> provenanceRunId = const Value.absent(),
+          Value<String?> provenanceVerifierId = const Value.absent(),
+          int? version,
+          Value<int?> revokedAt = const Value.absent(),
+          int? createdAt}) =>
+      AgentExperienceRow(
+        id: id ?? this.id,
+        cluster: cluster ?? this.cluster,
+        stateKey: stateKey ?? this.stateKey,
+        action: action ?? this.action,
+        reward: reward ?? this.reward,
+        provenanceRunId: provenanceRunId.present
+            ? provenanceRunId.value
+            : this.provenanceRunId,
+        provenanceVerifierId: provenanceVerifierId.present
+            ? provenanceVerifierId.value
+            : this.provenanceVerifierId,
+        version: version ?? this.version,
+        revokedAt: revokedAt.present ? revokedAt.value : this.revokedAt,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AgentExperienceRow copyWithCompanion(AgentExperiencesCompanion data) {
+    return AgentExperienceRow(
+      id: data.id.present ? data.id.value : this.id,
+      cluster: data.cluster.present ? data.cluster.value : this.cluster,
+      stateKey: data.stateKey.present ? data.stateKey.value : this.stateKey,
+      action: data.action.present ? data.action.value : this.action,
+      reward: data.reward.present ? data.reward.value : this.reward,
+      provenanceRunId: data.provenanceRunId.present
+          ? data.provenanceRunId.value
+          : this.provenanceRunId,
+      provenanceVerifierId: data.provenanceVerifierId.present
+          ? data.provenanceVerifierId.value
+          : this.provenanceVerifierId,
+      version: data.version.present ? data.version.value : this.version,
+      revokedAt: data.revokedAt.present ? data.revokedAt.value : this.revokedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentExperienceRow(')
+          ..write('id: $id, ')
+          ..write('cluster: $cluster, ')
+          ..write('stateKey: $stateKey, ')
+          ..write('action: $action, ')
+          ..write('reward: $reward, ')
+          ..write('provenanceRunId: $provenanceRunId, ')
+          ..write('provenanceVerifierId: $provenanceVerifierId, ')
+          ..write('version: $version, ')
+          ..write('revokedAt: $revokedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, cluster, stateKey, action, reward,
+      provenanceRunId, provenanceVerifierId, version, revokedAt, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AgentExperienceRow &&
+          other.id == this.id &&
+          other.cluster == this.cluster &&
+          other.stateKey == this.stateKey &&
+          other.action == this.action &&
+          other.reward == this.reward &&
+          other.provenanceRunId == this.provenanceRunId &&
+          other.provenanceVerifierId == this.provenanceVerifierId &&
+          other.version == this.version &&
+          other.revokedAt == this.revokedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class AgentExperiencesCompanion extends UpdateCompanion<AgentExperienceRow> {
+  final Value<String> id;
+  final Value<String> cluster;
+  final Value<String> stateKey;
+  final Value<String> action;
+  final Value<double> reward;
+  final Value<String?> provenanceRunId;
+  final Value<String?> provenanceVerifierId;
+  final Value<int> version;
+  final Value<int?> revokedAt;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const AgentExperiencesCompanion({
+    this.id = const Value.absent(),
+    this.cluster = const Value.absent(),
+    this.stateKey = const Value.absent(),
+    this.action = const Value.absent(),
+    this.reward = const Value.absent(),
+    this.provenanceRunId = const Value.absent(),
+    this.provenanceVerifierId = const Value.absent(),
+    this.version = const Value.absent(),
+    this.revokedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AgentExperiencesCompanion.insert({
+    required String id,
+    required String cluster,
+    required String stateKey,
+    required String action,
+    required double reward,
+    this.provenanceRunId = const Value.absent(),
+    this.provenanceVerifierId = const Value.absent(),
+    this.version = const Value.absent(),
+    this.revokedAt = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        cluster = Value(cluster),
+        stateKey = Value(stateKey),
+        action = Value(action),
+        reward = Value(reward),
+        createdAt = Value(createdAt);
+  static Insertable<AgentExperienceRow> custom({
+    Expression<String>? id,
+    Expression<String>? cluster,
+    Expression<String>? stateKey,
+    Expression<String>? action,
+    Expression<double>? reward,
+    Expression<String>? provenanceRunId,
+    Expression<String>? provenanceVerifierId,
+    Expression<int>? version,
+    Expression<int>? revokedAt,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (cluster != null) 'cluster': cluster,
+      if (stateKey != null) 'state_key': stateKey,
+      if (action != null) 'action': action,
+      if (reward != null) 'reward': reward,
+      if (provenanceRunId != null) 'provenance_run_id': provenanceRunId,
+      if (provenanceVerifierId != null)
+        'provenance_verifier_id': provenanceVerifierId,
+      if (version != null) 'version': version,
+      if (revokedAt != null) 'revoked_at': revokedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AgentExperiencesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? cluster,
+      Value<String>? stateKey,
+      Value<String>? action,
+      Value<double>? reward,
+      Value<String?>? provenanceRunId,
+      Value<String?>? provenanceVerifierId,
+      Value<int>? version,
+      Value<int?>? revokedAt,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return AgentExperiencesCompanion(
+      id: id ?? this.id,
+      cluster: cluster ?? this.cluster,
+      stateKey: stateKey ?? this.stateKey,
+      action: action ?? this.action,
+      reward: reward ?? this.reward,
+      provenanceRunId: provenanceRunId ?? this.provenanceRunId,
+      provenanceVerifierId: provenanceVerifierId ?? this.provenanceVerifierId,
+      version: version ?? this.version,
+      revokedAt: revokedAt ?? this.revokedAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (cluster.present) {
+      map['cluster'] = Variable<String>(cluster.value);
+    }
+    if (stateKey.present) {
+      map['state_key'] = Variable<String>(stateKey.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (reward.present) {
+      map['reward'] = Variable<double>(reward.value);
+    }
+    if (provenanceRunId.present) {
+      map['provenance_run_id'] = Variable<String>(provenanceRunId.value);
+    }
+    if (provenanceVerifierId.present) {
+      map['provenance_verifier_id'] =
+          Variable<String>(provenanceVerifierId.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (revokedAt.present) {
+      map['revoked_at'] = Variable<int>(revokedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AgentExperiencesCompanion(')
+          ..write('id: $id, ')
+          ..write('cluster: $cluster, ')
+          ..write('stateKey: $stateKey, ')
+          ..write('action: $action, ')
+          ..write('reward: $reward, ')
+          ..write('provenanceRunId: $provenanceRunId, ')
+          ..write('provenanceVerifierId: $provenanceVerifierId, ')
+          ..write('version: $version, ')
+          ..write('revokedAt: $revokedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ContentRefsTable extends ContentRefs
+    with TableInfo<$ContentRefsTable, ContentRefRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ContentRefsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentIdMeta =
+      const VerificationMeta('contentId');
+  @override
+  late final GeneratedColumn<String> contentId = GeneratedColumn<String>(
+      'content_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentVersionMeta =
+      const VerificationMeta('contentVersion');
+  @override
+  late final GeneratedColumn<int> contentVersion = GeneratedColumn<int>(
+      'content_version', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _contentHashMeta =
+      const VerificationMeta('contentHash');
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+      'content_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subjectMeta =
+      const VerificationMeta('subject');
+  @override
+  late final GeneratedColumn<String> subject = GeneratedColumn<String>(
+      'subject', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _objectTypeMeta =
+      const VerificationMeta('objectType');
+  @override
+  late final GeneratedColumn<String> objectType = GeneratedColumn<String>(
+      'object_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _objectIdMeta =
+      const VerificationMeta('objectId');
+  @override
+  late final GeneratedColumn<String> objectId = GeneratedColumn<String>(
+      'object_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _metadataJsonMeta =
+      const VerificationMeta('metadataJson');
+  @override
+  late final GeneratedColumn<String> metadataJson = GeneratedColumn<String>(
+      'metadata_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        contentId,
+        contentVersion,
+        contentHash,
+        subject,
+        objectType,
+        objectId,
+        role,
+        metadataJson,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'content_refs';
+  @override
+  VerificationContext validateIntegrity(Insertable<ContentRefRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('content_id')) {
+      context.handle(_contentIdMeta,
+          contentId.isAcceptableOrUnknown(data['content_id']!, _contentIdMeta));
+    } else if (isInserting) {
+      context.missing(_contentIdMeta);
+    }
+    if (data.containsKey('content_version')) {
+      context.handle(
+          _contentVersionMeta,
+          contentVersion.isAcceptableOrUnknown(
+              data['content_version']!, _contentVersionMeta));
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+          _contentHashMeta,
+          contentHash.isAcceptableOrUnknown(
+              data['content_hash']!, _contentHashMeta));
+    }
+    if (data.containsKey('subject')) {
+      context.handle(_subjectMeta,
+          subject.isAcceptableOrUnknown(data['subject']!, _subjectMeta));
+    }
+    if (data.containsKey('object_type')) {
+      context.handle(
+          _objectTypeMeta,
+          objectType.isAcceptableOrUnknown(
+              data['object_type']!, _objectTypeMeta));
+    } else if (isInserting) {
+      context.missing(_objectTypeMeta);
+    }
+    if (data.containsKey('object_id')) {
+      context.handle(_objectIdMeta,
+          objectId.isAcceptableOrUnknown(data['object_id']!, _objectIdMeta));
+    } else if (isInserting) {
+      context.missing(_objectIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('metadata_json')) {
+      context.handle(
+          _metadataJsonMeta,
+          metadataJson.isAcceptableOrUnknown(
+              data['metadata_json']!, _metadataJsonMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {contentId, objectType, objectId, role},
+      ];
+  @override
+  ContentRefRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ContentRefRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      contentId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_id'])!,
+      contentVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}content_version']),
+      contentHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_hash']),
+      subject: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subject']),
+      objectType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}object_type'])!,
+      objectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}object_id'])!,
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
+      metadataJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}metadata_json']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ContentRefsTable createAlias(String alias) {
+    return $ContentRefsTable(attachedDatabase, alias);
+  }
+}
+
+class ContentRefRow extends DataClass implements Insertable<ContentRefRow> {
+  final String id;
+
+  /// C 层 id：`Q-<SUBJ><NNNN>` / `QSET-<yyyyMMdd>-<n>` / 内容知识节点
+  /// `kp-<slug>`。永不复用、永不改名：修订 = 版本 + hash 变化，新题 = 新 id。
+  final String contentId;
+
+  /// 内容包 `provenance.version`（整数、单调 +1）或 board 版本；NULL = 引用方
+  /// 没记录版本。**version 与 hash 要么同时给、要么都不给**，只给一个是脏数据
+  /// —— 见 `ContentRefRepository` 的成对校验。
+  final int? contentVersion;
+
+  /// sha256（question 或 board 的 `content_hash`）。注意它与产品
+  /// `questions.stem_fingerprint`（FNV-1a 64）同名不同算法，**禁止互比**
+  /// （契约 §2.3 第 3 条）。
+  final String? contentHash;
+
+  /// 过滤用（physics / math / chinese），不参与 join 语义。
+  final String? subject;
+
+  /// 产品对象类型：`task` / `question` / `knowledge_point` / `card_template`
+  /// （域层 `ContentObjectType`）。自由 TEXT 与 `object_tags.object_type` 同一
+  /// 纪律：新增值要改常量并做一次全库审计。
+  final String objectType;
+
+  /// 产品对象 id（`task-<uuid>` / `q-<uuid>` / `kp-<uuid>` / `tpl-<uuid>`）。
+  /// **本地 id 不是跨设备锚点**：禁止把它写回内容包。
+  final String objectId;
+
+  /// `source_package` / `paper_item` / `node` / `dag_node` / `card_seed` /
+  /// `analysis_ref`（域层 `ContentRefRole`）。词表固定，新增要改常量 + 迁移审计。
+  final String role;
+
+  /// 引用摘要（node_id / board / trust / source_mode / previous_hash …）；
+  /// 不存正文。
+  final String? metadataJson;
+  final int createdAt;
+  final int updatedAt;
+  const ContentRefRow(
+      {required this.id,
+      required this.contentId,
+      this.contentVersion,
+      this.contentHash,
+      this.subject,
+      required this.objectType,
+      required this.objectId,
+      required this.role,
+      this.metadataJson,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['content_id'] = Variable<String>(contentId);
+    if (!nullToAbsent || contentVersion != null) {
+      map['content_version'] = Variable<int>(contentVersion);
+    }
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
+    if (!nullToAbsent || subject != null) {
+      map['subject'] = Variable<String>(subject);
+    }
+    map['object_type'] = Variable<String>(objectType);
+    map['object_id'] = Variable<String>(objectId);
+    map['role'] = Variable<String>(role);
+    if (!nullToAbsent || metadataJson != null) {
+      map['metadata_json'] = Variable<String>(metadataJson);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ContentRefsCompanion toCompanion(bool nullToAbsent) {
+    return ContentRefsCompanion(
+      id: Value(id),
+      contentId: Value(contentId),
+      contentVersion: contentVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentVersion),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
+      subject: subject == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subject),
+      objectType: Value(objectType),
+      objectId: Value(objectId),
+      role: Value(role),
+      metadataJson: metadataJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metadataJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ContentRefRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ContentRefRow(
+      id: serializer.fromJson<String>(json['id']),
+      contentId: serializer.fromJson<String>(json['contentId']),
+      contentVersion: serializer.fromJson<int?>(json['contentVersion']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
+      subject: serializer.fromJson<String?>(json['subject']),
+      objectType: serializer.fromJson<String>(json['objectType']),
+      objectId: serializer.fromJson<String>(json['objectId']),
+      role: serializer.fromJson<String>(json['role']),
+      metadataJson: serializer.fromJson<String?>(json['metadataJson']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'contentId': serializer.toJson<String>(contentId),
+      'contentVersion': serializer.toJson<int?>(contentVersion),
+      'contentHash': serializer.toJson<String?>(contentHash),
+      'subject': serializer.toJson<String?>(subject),
+      'objectType': serializer.toJson<String>(objectType),
+      'objectId': serializer.toJson<String>(objectId),
+      'role': serializer.toJson<String>(role),
+      'metadataJson': serializer.toJson<String?>(metadataJson),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ContentRefRow copyWith(
+          {String? id,
+          String? contentId,
+          Value<int?> contentVersion = const Value.absent(),
+          Value<String?> contentHash = const Value.absent(),
+          Value<String?> subject = const Value.absent(),
+          String? objectType,
+          String? objectId,
+          String? role,
+          Value<String?> metadataJson = const Value.absent(),
+          int? createdAt,
+          int? updatedAt}) =>
+      ContentRefRow(
+        id: id ?? this.id,
+        contentId: contentId ?? this.contentId,
+        contentVersion:
+            contentVersion.present ? contentVersion.value : this.contentVersion,
+        contentHash: contentHash.present ? contentHash.value : this.contentHash,
+        subject: subject.present ? subject.value : this.subject,
+        objectType: objectType ?? this.objectType,
+        objectId: objectId ?? this.objectId,
+        role: role ?? this.role,
+        metadataJson:
+            metadataJson.present ? metadataJson.value : this.metadataJson,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ContentRefRow copyWithCompanion(ContentRefsCompanion data) {
+    return ContentRefRow(
+      id: data.id.present ? data.id.value : this.id,
+      contentId: data.contentId.present ? data.contentId.value : this.contentId,
+      contentVersion: data.contentVersion.present
+          ? data.contentVersion.value
+          : this.contentVersion,
+      contentHash:
+          data.contentHash.present ? data.contentHash.value : this.contentHash,
+      subject: data.subject.present ? data.subject.value : this.subject,
+      objectType:
+          data.objectType.present ? data.objectType.value : this.objectType,
+      objectId: data.objectId.present ? data.objectId.value : this.objectId,
+      role: data.role.present ? data.role.value : this.role,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ContentRefRow(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentVersion: $contentVersion, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('subject: $subject, ')
+          ..write('objectType: $objectType, ')
+          ..write('objectId: $objectId, ')
+          ..write('role: $role, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, contentId, contentVersion, contentHash,
+      subject, objectType, objectId, role, metadataJson, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ContentRefRow &&
+          other.id == this.id &&
+          other.contentId == this.contentId &&
+          other.contentVersion == this.contentVersion &&
+          other.contentHash == this.contentHash &&
+          other.subject == this.subject &&
+          other.objectType == this.objectType &&
+          other.objectId == this.objectId &&
+          other.role == this.role &&
+          other.metadataJson == this.metadataJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ContentRefsCompanion extends UpdateCompanion<ContentRefRow> {
+  final Value<String> id;
+  final Value<String> contentId;
+  final Value<int?> contentVersion;
+  final Value<String?> contentHash;
+  final Value<String?> subject;
+  final Value<String> objectType;
+  final Value<String> objectId;
+  final Value<String> role;
+  final Value<String?> metadataJson;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const ContentRefsCompanion({
+    this.id = const Value.absent(),
+    this.contentId = const Value.absent(),
+    this.contentVersion = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.subject = const Value.absent(),
+    this.objectType = const Value.absent(),
+    this.objectId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ContentRefsCompanion.insert({
+    required String id,
+    required String contentId,
+    this.contentVersion = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.subject = const Value.absent(),
+    required String objectType,
+    required String objectId,
+    required String role,
+    this.metadataJson = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        contentId = Value(contentId),
+        objectType = Value(objectType),
+        objectId = Value(objectId),
+        role = Value(role),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ContentRefRow> custom({
+    Expression<String>? id,
+    Expression<String>? contentId,
+    Expression<int>? contentVersion,
+    Expression<String>? contentHash,
+    Expression<String>? subject,
+    Expression<String>? objectType,
+    Expression<String>? objectId,
+    Expression<String>? role,
+    Expression<String>? metadataJson,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (contentId != null) 'content_id': contentId,
+      if (contentVersion != null) 'content_version': contentVersion,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (subject != null) 'subject': subject,
+      if (objectType != null) 'object_type': objectType,
+      if (objectId != null) 'object_id': objectId,
+      if (role != null) 'role': role,
+      if (metadataJson != null) 'metadata_json': metadataJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ContentRefsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? contentId,
+      Value<int?>? contentVersion,
+      Value<String?>? contentHash,
+      Value<String?>? subject,
+      Value<String>? objectType,
+      Value<String>? objectId,
+      Value<String>? role,
+      Value<String?>? metadataJson,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return ContentRefsCompanion(
+      id: id ?? this.id,
+      contentId: contentId ?? this.contentId,
+      contentVersion: contentVersion ?? this.contentVersion,
+      contentHash: contentHash ?? this.contentHash,
+      subject: subject ?? this.subject,
+      objectType: objectType ?? this.objectType,
+      objectId: objectId ?? this.objectId,
+      role: role ?? this.role,
+      metadataJson: metadataJson ?? this.metadataJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (contentId.present) {
+      map['content_id'] = Variable<String>(contentId.value);
+    }
+    if (contentVersion.present) {
+      map['content_version'] = Variable<int>(contentVersion.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (subject.present) {
+      map['subject'] = Variable<String>(subject.value);
+    }
+    if (objectType.present) {
+      map['object_type'] = Variable<String>(objectType.value);
+    }
+    if (objectId.present) {
+      map['object_id'] = Variable<String>(objectId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(metadataJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ContentRefsCompanion(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentVersion: $contentVersion, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('subject: $subject, ')
+          ..write('objectType: $objectType, ')
+          ..write('objectId: $objectId, ')
+          ..write('role: $role, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ThreadEventsTable extends ThreadEvents
+    with TableInfo<$ThreadEventsTable, ThreadEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ThreadEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+      'task_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _occurredAtMeta =
+      const VerificationMeta('occurredAt');
+  @override
+  late final GeneratedColumn<int> occurredAt = GeneratedColumn<int>(
+      'occurred_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _sourceKeyMeta =
+      const VerificationMeta('sourceKey');
+  @override
+  late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
+      'source_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, taskId, kind, payloadJson, occurredAt, sourceKey];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'thread_events';
+  @override
+  VerificationContext validateIntegrity(Insertable<ThreadEventRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(_taskIdMeta,
+          taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta));
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    }
+    if (data.containsKey('occurred_at')) {
+      context.handle(
+          _occurredAtMeta,
+          occurredAt.isAcceptableOrUnknown(
+              data['occurred_at']!, _occurredAtMeta));
+    } else if (isInserting) {
+      context.missing(_occurredAtMeta);
+    }
+    if (data.containsKey('source_key')) {
+      context.handle(_sourceKeyMeta,
+          sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {taskId, kind, sourceKey},
+      ];
+  @override
+  ThreadEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ThreadEventRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      taskId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}task_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json']),
+      occurredAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}occurred_at'])!,
+      sourceKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_key']),
+    );
+  }
+
+  @override
+  $ThreadEventsTable createAlias(String alias) {
+    return $ThreadEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ThreadEventRow extends DataClass implements Insertable<ThreadEventRow> {
+  final String id;
+  final String taskId;
+
+  /// `created` / `planned` / `started` / `submitted` / `stuck` / `skipped` /
+  /// `completed`（域层 `ThreadEventKind.id`）。
+  final String kind;
+
+  /// 事件事实 JSON；NULL = 这个事件没有附加事实。限 4 KB（契约 R4）。
+  final String? payloadJson;
+
+  /// 事件发生时刻（epoch ms，与全库同一个时钟）。
+  final int occurredAt;
+
+  /// 幂等键；NULL = 不参与幂等（每次调用都追加）。
+  final String? sourceKey;
+  const ThreadEventRow(
+      {required this.id,
+      required this.taskId,
+      required this.kind,
+      this.payloadJson,
+      required this.occurredAt,
+      this.sourceKey});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['task_id'] = Variable<String>(taskId);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || payloadJson != null) {
+      map['payload_json'] = Variable<String>(payloadJson);
+    }
+    map['occurred_at'] = Variable<int>(occurredAt);
+    if (!nullToAbsent || sourceKey != null) {
+      map['source_key'] = Variable<String>(sourceKey);
+    }
+    return map;
+  }
+
+  ThreadEventsCompanion toCompanion(bool nullToAbsent) {
+    return ThreadEventsCompanion(
+      id: Value(id),
+      taskId: Value(taskId),
+      kind: Value(kind),
+      payloadJson: payloadJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payloadJson),
+      occurredAt: Value(occurredAt),
+      sourceKey: sourceKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKey),
+    );
+  }
+
+  factory ThreadEventRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ThreadEventRow(
+      id: serializer.fromJson<String>(json['id']),
+      taskId: serializer.fromJson<String>(json['taskId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      payloadJson: serializer.fromJson<String?>(json['payloadJson']),
+      occurredAt: serializer.fromJson<int>(json['occurredAt']),
+      sourceKey: serializer.fromJson<String?>(json['sourceKey']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'taskId': serializer.toJson<String>(taskId),
+      'kind': serializer.toJson<String>(kind),
+      'payloadJson': serializer.toJson<String?>(payloadJson),
+      'occurredAt': serializer.toJson<int>(occurredAt),
+      'sourceKey': serializer.toJson<String?>(sourceKey),
+    };
+  }
+
+  ThreadEventRow copyWith(
+          {String? id,
+          String? taskId,
+          String? kind,
+          Value<String?> payloadJson = const Value.absent(),
+          int? occurredAt,
+          Value<String?> sourceKey = const Value.absent()}) =>
+      ThreadEventRow(
+        id: id ?? this.id,
+        taskId: taskId ?? this.taskId,
+        kind: kind ?? this.kind,
+        payloadJson: payloadJson.present ? payloadJson.value : this.payloadJson,
+        occurredAt: occurredAt ?? this.occurredAt,
+        sourceKey: sourceKey.present ? sourceKey.value : this.sourceKey,
+      );
+  ThreadEventRow copyWithCompanion(ThreadEventsCompanion data) {
+    return ThreadEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      occurredAt:
+          data.occurredAt.present ? data.occurredAt.value : this.occurredAt,
+      sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThreadEventRow(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('sourceKey: $sourceKey')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, taskId, kind, payloadJson, occurredAt, sourceKey);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ThreadEventRow &&
+          other.id == this.id &&
+          other.taskId == this.taskId &&
+          other.kind == this.kind &&
+          other.payloadJson == this.payloadJson &&
+          other.occurredAt == this.occurredAt &&
+          other.sourceKey == this.sourceKey);
+}
+
+class ThreadEventsCompanion extends UpdateCompanion<ThreadEventRow> {
+  final Value<String> id;
+  final Value<String> taskId;
+  final Value<String> kind;
+  final Value<String?> payloadJson;
+  final Value<int> occurredAt;
+  final Value<String?> sourceKey;
+  final Value<int> rowid;
+  const ThreadEventsCompanion({
+    this.id = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.occurredAt = const Value.absent(),
+    this.sourceKey = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ThreadEventsCompanion.insert({
+    required String id,
+    required String taskId,
+    required String kind,
+    this.payloadJson = const Value.absent(),
+    required int occurredAt,
+    this.sourceKey = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        taskId = Value(taskId),
+        kind = Value(kind),
+        occurredAt = Value(occurredAt);
+  static Insertable<ThreadEventRow> custom({
+    Expression<String>? id,
+    Expression<String>? taskId,
+    Expression<String>? kind,
+    Expression<String>? payloadJson,
+    Expression<int>? occurredAt,
+    Expression<String>? sourceKey,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (taskId != null) 'task_id': taskId,
+      if (kind != null) 'kind': kind,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (occurredAt != null) 'occurred_at': occurredAt,
+      if (sourceKey != null) 'source_key': sourceKey,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ThreadEventsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? taskId,
+      Value<String>? kind,
+      Value<String?>? payloadJson,
+      Value<int>? occurredAt,
+      Value<String?>? sourceKey,
+      Value<int>? rowid}) {
+    return ThreadEventsCompanion(
+      id: id ?? this.id,
+      taskId: taskId ?? this.taskId,
+      kind: kind ?? this.kind,
+      payloadJson: payloadJson ?? this.payloadJson,
+      occurredAt: occurredAt ?? this.occurredAt,
+      sourceKey: sourceKey ?? this.sourceKey,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (occurredAt.present) {
+      map['occurred_at'] = Variable<int>(occurredAt.value);
+    }
+    if (sourceKey.present) {
+      map['source_key'] = Variable<String>(sourceKey.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ThreadEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('taskId: $taskId, ')
+          ..write('kind: $kind, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('occurredAt: $occurredAt, ')
+          ..write('sourceKey: $sourceKey, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -28174,6 +33093,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $CogTaskAbilityMappingsTable(this);
   late final $CogAbilityParamMappingsTable cogAbilityParamMappings =
       $CogAbilityParamMappingsTable(this);
+  late final $AgentRunsTable agentRuns = $AgentRunsTable(this);
+  late final $AgentStepsTable agentSteps = $AgentStepsTable(this);
+  late final $AgentVerificationsTable agentVerifications =
+      $AgentVerificationsTable(this);
+  late final $AgentClaimsTable agentClaims = $AgentClaimsTable(this);
+  late final $AgentExperiencesTable agentExperiences =
+      $AgentExperiencesTable(this);
+  late final $ContentRefsTable contentRefs = $ContentRefsTable(this);
+  late final $ThreadEventsTable threadEvents = $ThreadEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -28235,7 +33163,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         cogAbilityEstimates,
         cogCognitiveParams,
         cogTaskAbilityMappings,
-        cogAbilityParamMappings
+        cogAbilityParamMappings,
+        agentRuns,
+        agentSteps,
+        agentVerifications,
+        agentClaims,
+        agentExperiences,
+        contentRefs,
+        threadEvents
       ];
 }
 
@@ -28402,6 +33337,14 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<String?> aiModel,
   Value<String?> aiPermissionMode,
   Value<int?> aiMaxRounds,
+  Value<String?> aiReasoningEffort,
+  Value<double?> aiTemperature,
+  Value<double?> aiAnswerTemperature,
+  Value<double?> aiVerifierTemperature,
+  Value<int?> aiMaxReasoningTokens,
+  Value<int?> aiAnswerReserveTokens,
+  Value<String?> aiVerifierModel,
+  Value<String?> aiVerifierEffort,
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
@@ -28430,6 +33373,14 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<String?> aiModel,
   Value<String?> aiPermissionMode,
   Value<int?> aiMaxRounds,
+  Value<String?> aiReasoningEffort,
+  Value<double?> aiTemperature,
+  Value<double?> aiAnswerTemperature,
+  Value<double?> aiVerifierTemperature,
+  Value<int?> aiMaxReasoningTokens,
+  Value<int?> aiAnswerReserveTokens,
+  Value<String?> aiVerifierModel,
+  Value<String?> aiVerifierEffort,
   Value<String?> ankiJudgeMode,
   Value<String?> ankiCardTypePreference,
   Value<bool?> rhythmHintsEnabled,
@@ -28488,6 +33439,37 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<int> get aiMaxRounds => $composableBuilder(
       column: $table.aiMaxRounds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiReasoningEffort => $composableBuilder(
+      column: $table.aiReasoningEffort,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get aiTemperature => $composableBuilder(
+      column: $table.aiTemperature, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get aiAnswerTemperature => $composableBuilder(
+      column: $table.aiAnswerTemperature,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get aiVerifierTemperature => $composableBuilder(
+      column: $table.aiVerifierTemperature,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get aiMaxReasoningTokens => $composableBuilder(
+      column: $table.aiMaxReasoningTokens,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get aiAnswerReserveTokens => $composableBuilder(
+      column: $table.aiAnswerReserveTokens,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiVerifierModel => $composableBuilder(
+      column: $table.aiVerifierModel,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aiVerifierEffort => $composableBuilder(
+      column: $table.aiVerifierEffort,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get ankiJudgeMode => $composableBuilder(
       column: $table.ankiJudgeMode, builder: (column) => ColumnFilters(column));
@@ -28585,6 +33567,38 @@ class $$LocalSettingsTableOrderingComposer
   ColumnOrderings<int> get aiMaxRounds => $composableBuilder(
       column: $table.aiMaxRounds, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get aiReasoningEffort => $composableBuilder(
+      column: $table.aiReasoningEffort,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get aiTemperature => $composableBuilder(
+      column: $table.aiTemperature,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get aiAnswerTemperature => $composableBuilder(
+      column: $table.aiAnswerTemperature,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get aiVerifierTemperature => $composableBuilder(
+      column: $table.aiVerifierTemperature,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get aiMaxReasoningTokens => $composableBuilder(
+      column: $table.aiMaxReasoningTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get aiAnswerReserveTokens => $composableBuilder(
+      column: $table.aiAnswerReserveTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiVerifierModel => $composableBuilder(
+      column: $table.aiVerifierModel,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aiVerifierEffort => $composableBuilder(
+      column: $table.aiVerifierEffort,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get ankiJudgeMode => $composableBuilder(
       column: $table.ankiJudgeMode,
       builder: (column) => ColumnOrderings(column));
@@ -28680,6 +33694,30 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<int> get aiMaxRounds => $composableBuilder(
       column: $table.aiMaxRounds, builder: (column) => column);
 
+  GeneratedColumn<String> get aiReasoningEffort => $composableBuilder(
+      column: $table.aiReasoningEffort, builder: (column) => column);
+
+  GeneratedColumn<double> get aiTemperature => $composableBuilder(
+      column: $table.aiTemperature, builder: (column) => column);
+
+  GeneratedColumn<double> get aiAnswerTemperature => $composableBuilder(
+      column: $table.aiAnswerTemperature, builder: (column) => column);
+
+  GeneratedColumn<double> get aiVerifierTemperature => $composableBuilder(
+      column: $table.aiVerifierTemperature, builder: (column) => column);
+
+  GeneratedColumn<int> get aiMaxReasoningTokens => $composableBuilder(
+      column: $table.aiMaxReasoningTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get aiAnswerReserveTokens => $composableBuilder(
+      column: $table.aiAnswerReserveTokens, builder: (column) => column);
+
+  GeneratedColumn<String> get aiVerifierModel => $composableBuilder(
+      column: $table.aiVerifierModel, builder: (column) => column);
+
+  GeneratedColumn<String> get aiVerifierEffort => $composableBuilder(
+      column: $table.aiVerifierEffort, builder: (column) => column);
+
   GeneratedColumn<String> get ankiJudgeMode => $composableBuilder(
       column: $table.ankiJudgeMode, builder: (column) => column);
 
@@ -28760,6 +33798,14 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> aiModel = const Value.absent(),
             Value<String?> aiPermissionMode = const Value.absent(),
             Value<int?> aiMaxRounds = const Value.absent(),
+            Value<String?> aiReasoningEffort = const Value.absent(),
+            Value<double?> aiTemperature = const Value.absent(),
+            Value<double?> aiAnswerTemperature = const Value.absent(),
+            Value<double?> aiVerifierTemperature = const Value.absent(),
+            Value<int?> aiMaxReasoningTokens = const Value.absent(),
+            Value<int?> aiAnswerReserveTokens = const Value.absent(),
+            Value<String?> aiVerifierModel = const Value.absent(),
+            Value<String?> aiVerifierEffort = const Value.absent(),
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
@@ -28787,6 +33833,14 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiModel: aiModel,
             aiPermissionMode: aiPermissionMode,
             aiMaxRounds: aiMaxRounds,
+            aiReasoningEffort: aiReasoningEffort,
+            aiTemperature: aiTemperature,
+            aiAnswerTemperature: aiAnswerTemperature,
+            aiVerifierTemperature: aiVerifierTemperature,
+            aiMaxReasoningTokens: aiMaxReasoningTokens,
+            aiAnswerReserveTokens: aiAnswerReserveTokens,
+            aiVerifierModel: aiVerifierModel,
+            aiVerifierEffort: aiVerifierEffort,
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
@@ -28814,6 +33868,14 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<String?> aiModel = const Value.absent(),
             Value<String?> aiPermissionMode = const Value.absent(),
             Value<int?> aiMaxRounds = const Value.absent(),
+            Value<String?> aiReasoningEffort = const Value.absent(),
+            Value<double?> aiTemperature = const Value.absent(),
+            Value<double?> aiAnswerTemperature = const Value.absent(),
+            Value<double?> aiVerifierTemperature = const Value.absent(),
+            Value<int?> aiMaxReasoningTokens = const Value.absent(),
+            Value<int?> aiAnswerReserveTokens = const Value.absent(),
+            Value<String?> aiVerifierModel = const Value.absent(),
+            Value<String?> aiVerifierEffort = const Value.absent(),
             Value<String?> ankiJudgeMode = const Value.absent(),
             Value<String?> ankiCardTypePreference = const Value.absent(),
             Value<bool?> rhythmHintsEnabled = const Value.absent(),
@@ -28841,6 +33903,14 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             aiModel: aiModel,
             aiPermissionMode: aiPermissionMode,
             aiMaxRounds: aiMaxRounds,
+            aiReasoningEffort: aiReasoningEffort,
+            aiTemperature: aiTemperature,
+            aiAnswerTemperature: aiAnswerTemperature,
+            aiVerifierTemperature: aiVerifierTemperature,
+            aiMaxReasoningTokens: aiMaxReasoningTokens,
+            aiAnswerReserveTokens: aiAnswerReserveTokens,
+            aiVerifierModel: aiVerifierModel,
+            aiVerifierEffort: aiVerifierEffort,
             ankiJudgeMode: ankiJudgeMode,
             ankiCardTypePreference: ankiCardTypePreference,
             rhythmHintsEnabled: rhythmHintsEnabled,
@@ -29746,6 +34816,8 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<int?> startedAt,
   Value<int?> energyRequired,
   Value<int?> completedAt,
+  Value<String?> kind,
+  Value<String?> sourceKey,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -29764,6 +34836,8 @@ typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<int?> startedAt,
   Value<int?> energyRequired,
   Value<int?> completedAt,
+  Value<String?> kind,
+  Value<String?> sourceKey,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -29817,6 +34891,12 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -29875,6 +34955,12 @@ class $$TasksTableOrderingComposer
   ColumnOrderings<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -29930,6 +35016,12 @@ class $$TasksTableAnnotationComposer
   GeneratedColumn<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKey =>
+      $composableBuilder(column: $table.sourceKey, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -29973,6 +35065,8 @@ class $$TasksTableTableManager extends RootTableManager<
             Value<int?> startedAt = const Value.absent(),
             Value<int?> energyRequired = const Value.absent(),
             Value<int?> completedAt = const Value.absent(),
+            Value<String?> kind = const Value.absent(),
+            Value<String?> sourceKey = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -29991,6 +35085,8 @@ class $$TasksTableTableManager extends RootTableManager<
             startedAt: startedAt,
             energyRequired: energyRequired,
             completedAt: completedAt,
+            kind: kind,
+            sourceKey: sourceKey,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -30009,6 +35105,8 @@ class $$TasksTableTableManager extends RootTableManager<
             Value<int?> startedAt = const Value.absent(),
             Value<int?> energyRequired = const Value.absent(),
             Value<int?> completedAt = const Value.absent(),
+            Value<String?> kind = const Value.absent(),
+            Value<String?> sourceKey = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -30027,6 +35125,8 @@ class $$TasksTableTableManager extends RootTableManager<
             startedAt: startedAt,
             energyRequired: energyRequired,
             completedAt: completedAt,
+            kind: kind,
+            sourceKey: sourceKey,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -34918,6 +40018,8 @@ typedef $$AiConversationsTableCreateCompanionBuilder = AiConversationsCompanion
   required String title,
   required int createdAt,
   required int updatedAt,
+  Value<String?> agentPresetId,
+  Value<String?> subagentPresetId,
   Value<int> rowid,
 });
 typedef $$AiConversationsTableUpdateCompanionBuilder = AiConversationsCompanion
@@ -34926,6 +40028,8 @@ typedef $$AiConversationsTableUpdateCompanionBuilder = AiConversationsCompanion
   Value<String> title,
   Value<int> createdAt,
   Value<int> updatedAt,
+  Value<String?> agentPresetId,
+  Value<String?> subagentPresetId,
   Value<int> rowid,
 });
 
@@ -34949,6 +40053,13 @@ class $$AiConversationsTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get agentPresetId => $composableBuilder(
+      column: $table.agentPresetId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subagentPresetId => $composableBuilder(
+      column: $table.subagentPresetId,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$AiConversationsTableOrderingComposer
@@ -34971,6 +40082,14 @@ class $$AiConversationsTableOrderingComposer
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get agentPresetId => $composableBuilder(
+      column: $table.agentPresetId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subagentPresetId => $composableBuilder(
+      column: $table.subagentPresetId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AiConversationsTableAnnotationComposer
@@ -34993,6 +40112,12 @@ class $$AiConversationsTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get agentPresetId => $composableBuilder(
+      column: $table.agentPresetId, builder: (column) => column);
+
+  GeneratedColumn<String> get subagentPresetId => $composableBuilder(
+      column: $table.subagentPresetId, builder: (column) => column);
 }
 
 class $$AiConversationsTableTableManager extends RootTableManager<
@@ -35026,6 +40151,8 @@ class $$AiConversationsTableTableManager extends RootTableManager<
             Value<String> title = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
+            Value<String?> agentPresetId = const Value.absent(),
+            Value<String?> subagentPresetId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AiConversationsCompanion(
@@ -35033,6 +40160,8 @@ class $$AiConversationsTableTableManager extends RootTableManager<
             title: title,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            agentPresetId: agentPresetId,
+            subagentPresetId: subagentPresetId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -35040,6 +40169,8 @@ class $$AiConversationsTableTableManager extends RootTableManager<
             required String title,
             required int createdAt,
             required int updatedAt,
+            Value<String?> agentPresetId = const Value.absent(),
+            Value<String?> subagentPresetId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AiConversationsCompanion.insert(
@@ -35047,6 +40178,8 @@ class $$AiConversationsTableTableManager extends RootTableManager<
             title: title,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            agentPresetId: agentPresetId,
+            subagentPresetId: subagentPresetId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -41576,6 +46709,1949 @@ typedef $$CogAbilityParamMappingsTableProcessedTableManager
         ),
         CogAbilityParamMappingRow,
         PrefetchHooks Function()>;
+typedef $$AgentRunsTableCreateCompanionBuilder = AgentRunsCompanion Function({
+  required String id,
+  required String conversationId,
+  required String presetId,
+  required String mode,
+  required String phase,
+  required String status,
+  Value<String?> stopReason,
+  Value<int> steps,
+  Value<int> promptTokens,
+  Value<int> completionTokens,
+  Value<int?> reasoningTokens,
+  Value<int> reasoningChars,
+  Value<int?> elapsedMs,
+  Value<String?> answerSheetJson,
+  Value<String?> tracePath,
+  Value<String?> verifierVerdict,
+  Value<String?> processReportJson,
+  required int startedAt,
+  Value<int?> endedAt,
+  Value<int> rowid,
+});
+typedef $$AgentRunsTableUpdateCompanionBuilder = AgentRunsCompanion Function({
+  Value<String> id,
+  Value<String> conversationId,
+  Value<String> presetId,
+  Value<String> mode,
+  Value<String> phase,
+  Value<String> status,
+  Value<String?> stopReason,
+  Value<int> steps,
+  Value<int> promptTokens,
+  Value<int> completionTokens,
+  Value<int?> reasoningTokens,
+  Value<int> reasoningChars,
+  Value<int?> elapsedMs,
+  Value<String?> answerSheetJson,
+  Value<String?> tracePath,
+  Value<String?> verifierVerdict,
+  Value<String?> processReportJson,
+  Value<int> startedAt,
+  Value<int?> endedAt,
+  Value<int> rowid,
+});
+
+class $$AgentRunsTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentRunsTable> {
+  $$AgentRunsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get presetId => $composableBuilder(
+      column: $table.presetId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stopReason => $composableBuilder(
+      column: $table.stopReason, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get steps => $composableBuilder(
+      column: $table.steps, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reasoningTokens => $composableBuilder(
+      column: $table.reasoningTokens,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reasoningChars => $composableBuilder(
+      column: $table.reasoningChars,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get elapsedMs => $composableBuilder(
+      column: $table.elapsedMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get answerSheetJson => $composableBuilder(
+      column: $table.answerSheetJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tracePath => $composableBuilder(
+      column: $table.tracePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verifierVerdict => $composableBuilder(
+      column: $table.verifierVerdict,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AgentRunsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentRunsTable> {
+  $$AgentRunsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+      column: $table.conversationId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get presetId => $composableBuilder(
+      column: $table.presetId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+      column: $table.mode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stopReason => $composableBuilder(
+      column: $table.stopReason, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get steps => $composableBuilder(
+      column: $table.steps, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reasoningTokens => $composableBuilder(
+      column: $table.reasoningTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reasoningChars => $composableBuilder(
+      column: $table.reasoningChars,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get elapsedMs => $composableBuilder(
+      column: $table.elapsedMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get answerSheetJson => $composableBuilder(
+      column: $table.answerSheetJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tracePath => $composableBuilder(
+      column: $table.tracePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verifierVerdict => $composableBuilder(
+      column: $table.verifierVerdict,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startedAt => $composableBuilder(
+      column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get endedAt => $composableBuilder(
+      column: $table.endedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AgentRunsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentRunsTable> {
+  $$AgentRunsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+      column: $table.conversationId, builder: (column) => column);
+
+  GeneratedColumn<String> get presetId =>
+      $composableBuilder(column: $table.presetId, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get stopReason => $composableBuilder(
+      column: $table.stopReason, builder: (column) => column);
+
+  GeneratedColumn<int> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get reasoningTokens => $composableBuilder(
+      column: $table.reasoningTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get reasoningChars => $composableBuilder(
+      column: $table.reasoningChars, builder: (column) => column);
+
+  GeneratedColumn<int> get elapsedMs =>
+      $composableBuilder(column: $table.elapsedMs, builder: (column) => column);
+
+  GeneratedColumn<String> get answerSheetJson => $composableBuilder(
+      column: $table.answerSheetJson, builder: (column) => column);
+
+  GeneratedColumn<String> get tracePath =>
+      $composableBuilder(column: $table.tracePath, builder: (column) => column);
+
+  GeneratedColumn<String> get verifierVerdict => $composableBuilder(
+      column: $table.verifierVerdict, builder: (column) => column);
+
+  GeneratedColumn<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+}
+
+class $$AgentRunsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AgentRunsTable,
+    AgentRunRow,
+    $$AgentRunsTableFilterComposer,
+    $$AgentRunsTableOrderingComposer,
+    $$AgentRunsTableAnnotationComposer,
+    $$AgentRunsTableCreateCompanionBuilder,
+    $$AgentRunsTableUpdateCompanionBuilder,
+    (AgentRunRow, BaseReferences<_$AppDatabase, $AgentRunsTable, AgentRunRow>),
+    AgentRunRow,
+    PrefetchHooks Function()> {
+  $$AgentRunsTableTableManager(_$AppDatabase db, $AgentRunsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentRunsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentRunsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentRunsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> conversationId = const Value.absent(),
+            Value<String> presetId = const Value.absent(),
+            Value<String> mode = const Value.absent(),
+            Value<String> phase = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> stopReason = const Value.absent(),
+            Value<int> steps = const Value.absent(),
+            Value<int> promptTokens = const Value.absent(),
+            Value<int> completionTokens = const Value.absent(),
+            Value<int?> reasoningTokens = const Value.absent(),
+            Value<int> reasoningChars = const Value.absent(),
+            Value<int?> elapsedMs = const Value.absent(),
+            Value<String?> answerSheetJson = const Value.absent(),
+            Value<String?> tracePath = const Value.absent(),
+            Value<String?> verifierVerdict = const Value.absent(),
+            Value<String?> processReportJson = const Value.absent(),
+            Value<int> startedAt = const Value.absent(),
+            Value<int?> endedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentRunsCompanion(
+            id: id,
+            conversationId: conversationId,
+            presetId: presetId,
+            mode: mode,
+            phase: phase,
+            status: status,
+            stopReason: stopReason,
+            steps: steps,
+            promptTokens: promptTokens,
+            completionTokens: completionTokens,
+            reasoningTokens: reasoningTokens,
+            reasoningChars: reasoningChars,
+            elapsedMs: elapsedMs,
+            answerSheetJson: answerSheetJson,
+            tracePath: tracePath,
+            verifierVerdict: verifierVerdict,
+            processReportJson: processReportJson,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String conversationId,
+            required String presetId,
+            required String mode,
+            required String phase,
+            required String status,
+            Value<String?> stopReason = const Value.absent(),
+            Value<int> steps = const Value.absent(),
+            Value<int> promptTokens = const Value.absent(),
+            Value<int> completionTokens = const Value.absent(),
+            Value<int?> reasoningTokens = const Value.absent(),
+            Value<int> reasoningChars = const Value.absent(),
+            Value<int?> elapsedMs = const Value.absent(),
+            Value<String?> answerSheetJson = const Value.absent(),
+            Value<String?> tracePath = const Value.absent(),
+            Value<String?> verifierVerdict = const Value.absent(),
+            Value<String?> processReportJson = const Value.absent(),
+            required int startedAt,
+            Value<int?> endedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentRunsCompanion.insert(
+            id: id,
+            conversationId: conversationId,
+            presetId: presetId,
+            mode: mode,
+            phase: phase,
+            status: status,
+            stopReason: stopReason,
+            steps: steps,
+            promptTokens: promptTokens,
+            completionTokens: completionTokens,
+            reasoningTokens: reasoningTokens,
+            reasoningChars: reasoningChars,
+            elapsedMs: elapsedMs,
+            answerSheetJson: answerSheetJson,
+            tracePath: tracePath,
+            verifierVerdict: verifierVerdict,
+            processReportJson: processReportJson,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AgentRunsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AgentRunsTable,
+    AgentRunRow,
+    $$AgentRunsTableFilterComposer,
+    $$AgentRunsTableOrderingComposer,
+    $$AgentRunsTableAnnotationComposer,
+    $$AgentRunsTableCreateCompanionBuilder,
+    $$AgentRunsTableUpdateCompanionBuilder,
+    (AgentRunRow, BaseReferences<_$AppDatabase, $AgentRunsTable, AgentRunRow>),
+    AgentRunRow,
+    PrefetchHooks Function()>;
+typedef $$AgentStepsTableCreateCompanionBuilder = AgentStepsCompanion Function({
+  required String id,
+  required String runId,
+  required int seq,
+  required String phase,
+  required String kind,
+  Value<String?> toolName,
+  Value<String?> argsHash,
+  Value<String?> stateFingerprint,
+  Value<String?> claimHash,
+  required String status,
+  Value<int?> tokens,
+  Value<String?> summary,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AgentStepsTableUpdateCompanionBuilder = AgentStepsCompanion Function({
+  Value<String> id,
+  Value<String> runId,
+  Value<int> seq,
+  Value<String> phase,
+  Value<String> kind,
+  Value<String?> toolName,
+  Value<String?> argsHash,
+  Value<String?> stateFingerprint,
+  Value<String?> claimHash,
+  Value<String> status,
+  Value<int?> tokens,
+  Value<String?> summary,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AgentStepsTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentStepsTable> {
+  $$AgentStepsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get seq => $composableBuilder(
+      column: $table.seq, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toolName => $composableBuilder(
+      column: $table.toolName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get argsHash => $composableBuilder(
+      column: $table.argsHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stateFingerprint => $composableBuilder(
+      column: $table.stateFingerprint,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get claimHash => $composableBuilder(
+      column: $table.claimHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get tokens => $composableBuilder(
+      column: $table.tokens, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get summary => $composableBuilder(
+      column: $table.summary, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AgentStepsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentStepsTable> {
+  $$AgentStepsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get seq => $composableBuilder(
+      column: $table.seq, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+      column: $table.phase, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toolName => $composableBuilder(
+      column: $table.toolName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get argsHash => $composableBuilder(
+      column: $table.argsHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stateFingerprint => $composableBuilder(
+      column: $table.stateFingerprint,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get claimHash => $composableBuilder(
+      column: $table.claimHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get tokens => $composableBuilder(
+      column: $table.tokens, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+      column: $table.summary, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AgentStepsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentStepsTable> {
+  $$AgentStepsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get runId =>
+      $composableBuilder(column: $table.runId, builder: (column) => column);
+
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get toolName =>
+      $composableBuilder(column: $table.toolName, builder: (column) => column);
+
+  GeneratedColumn<String> get argsHash =>
+      $composableBuilder(column: $table.argsHash, builder: (column) => column);
+
+  GeneratedColumn<String> get stateFingerprint => $composableBuilder(
+      column: $table.stateFingerprint, builder: (column) => column);
+
+  GeneratedColumn<String> get claimHash =>
+      $composableBuilder(column: $table.claimHash, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get tokens =>
+      $composableBuilder(column: $table.tokens, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AgentStepsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AgentStepsTable,
+    AgentStepRow,
+    $$AgentStepsTableFilterComposer,
+    $$AgentStepsTableOrderingComposer,
+    $$AgentStepsTableAnnotationComposer,
+    $$AgentStepsTableCreateCompanionBuilder,
+    $$AgentStepsTableUpdateCompanionBuilder,
+    (
+      AgentStepRow,
+      BaseReferences<_$AppDatabase, $AgentStepsTable, AgentStepRow>
+    ),
+    AgentStepRow,
+    PrefetchHooks Function()> {
+  $$AgentStepsTableTableManager(_$AppDatabase db, $AgentStepsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentStepsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentStepsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentStepsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> runId = const Value.absent(),
+            Value<int> seq = const Value.absent(),
+            Value<String> phase = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String?> toolName = const Value.absent(),
+            Value<String?> argsHash = const Value.absent(),
+            Value<String?> stateFingerprint = const Value.absent(),
+            Value<String?> claimHash = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int?> tokens = const Value.absent(),
+            Value<String?> summary = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentStepsCompanion(
+            id: id,
+            runId: runId,
+            seq: seq,
+            phase: phase,
+            kind: kind,
+            toolName: toolName,
+            argsHash: argsHash,
+            stateFingerprint: stateFingerprint,
+            claimHash: claimHash,
+            status: status,
+            tokens: tokens,
+            summary: summary,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String runId,
+            required int seq,
+            required String phase,
+            required String kind,
+            Value<String?> toolName = const Value.absent(),
+            Value<String?> argsHash = const Value.absent(),
+            Value<String?> stateFingerprint = const Value.absent(),
+            Value<String?> claimHash = const Value.absent(),
+            required String status,
+            Value<int?> tokens = const Value.absent(),
+            Value<String?> summary = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentStepsCompanion.insert(
+            id: id,
+            runId: runId,
+            seq: seq,
+            phase: phase,
+            kind: kind,
+            toolName: toolName,
+            argsHash: argsHash,
+            stateFingerprint: stateFingerprint,
+            claimHash: claimHash,
+            status: status,
+            tokens: tokens,
+            summary: summary,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AgentStepsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AgentStepsTable,
+    AgentStepRow,
+    $$AgentStepsTableFilterComposer,
+    $$AgentStepsTableOrderingComposer,
+    $$AgentStepsTableAnnotationComposer,
+    $$AgentStepsTableCreateCompanionBuilder,
+    $$AgentStepsTableUpdateCompanionBuilder,
+    (
+      AgentStepRow,
+      BaseReferences<_$AppDatabase, $AgentStepsTable, AgentStepRow>
+    ),
+    AgentStepRow,
+    PrefetchHooks Function()>;
+typedef $$AgentVerificationsTableCreateCompanionBuilder
+    = AgentVerificationsCompanion Function({
+  required String id,
+  required String runId,
+  required String verifier,
+  Value<String> kind,
+  required String verdict,
+  Value<String?> failureType,
+  Value<bool> independent,
+  Value<String?> evidenceJson,
+  Value<String?> processReportJson,
+  Value<int?> promptTokens,
+  Value<int?> completionTokens,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AgentVerificationsTableUpdateCompanionBuilder
+    = AgentVerificationsCompanion Function({
+  Value<String> id,
+  Value<String> runId,
+  Value<String> verifier,
+  Value<String> kind,
+  Value<String> verdict,
+  Value<String?> failureType,
+  Value<bool> independent,
+  Value<String?> evidenceJson,
+  Value<String?> processReportJson,
+  Value<int?> promptTokens,
+  Value<int?> completionTokens,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AgentVerificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentVerificationsTable> {
+  $$AgentVerificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verifier => $composableBuilder(
+      column: $table.verifier, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verdict => $composableBuilder(
+      column: $table.verdict, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get failureType => $composableBuilder(
+      column: $table.failureType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get independent => $composableBuilder(
+      column: $table.independent, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get evidenceJson => $composableBuilder(
+      column: $table.evidenceJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AgentVerificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentVerificationsTable> {
+  $$AgentVerificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verifier => $composableBuilder(
+      column: $table.verifier, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verdict => $composableBuilder(
+      column: $table.verdict, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get failureType => $composableBuilder(
+      column: $table.failureType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get independent => $composableBuilder(
+      column: $table.independent, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get evidenceJson => $composableBuilder(
+      column: $table.evidenceJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AgentVerificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentVerificationsTable> {
+  $$AgentVerificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get runId =>
+      $composableBuilder(column: $table.runId, builder: (column) => column);
+
+  GeneratedColumn<String> get verifier =>
+      $composableBuilder(column: $table.verifier, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get verdict =>
+      $composableBuilder(column: $table.verdict, builder: (column) => column);
+
+  GeneratedColumn<String> get failureType => $composableBuilder(
+      column: $table.failureType, builder: (column) => column);
+
+  GeneratedColumn<bool> get independent => $composableBuilder(
+      column: $table.independent, builder: (column) => column);
+
+  GeneratedColumn<String> get evidenceJson => $composableBuilder(
+      column: $table.evidenceJson, builder: (column) => column);
+
+  GeneratedColumn<String> get processReportJson => $composableBuilder(
+      column: $table.processReportJson, builder: (column) => column);
+
+  GeneratedColumn<int> get promptTokens => $composableBuilder(
+      column: $table.promptTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get completionTokens => $composableBuilder(
+      column: $table.completionTokens, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AgentVerificationsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AgentVerificationsTable,
+    AgentVerificationRow,
+    $$AgentVerificationsTableFilterComposer,
+    $$AgentVerificationsTableOrderingComposer,
+    $$AgentVerificationsTableAnnotationComposer,
+    $$AgentVerificationsTableCreateCompanionBuilder,
+    $$AgentVerificationsTableUpdateCompanionBuilder,
+    (
+      AgentVerificationRow,
+      BaseReferences<_$AppDatabase, $AgentVerificationsTable,
+          AgentVerificationRow>
+    ),
+    AgentVerificationRow,
+    PrefetchHooks Function()> {
+  $$AgentVerificationsTableTableManager(
+      _$AppDatabase db, $AgentVerificationsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentVerificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentVerificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentVerificationsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> runId = const Value.absent(),
+            Value<String> verifier = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> verdict = const Value.absent(),
+            Value<String?> failureType = const Value.absent(),
+            Value<bool> independent = const Value.absent(),
+            Value<String?> evidenceJson = const Value.absent(),
+            Value<String?> processReportJson = const Value.absent(),
+            Value<int?> promptTokens = const Value.absent(),
+            Value<int?> completionTokens = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentVerificationsCompanion(
+            id: id,
+            runId: runId,
+            verifier: verifier,
+            kind: kind,
+            verdict: verdict,
+            failureType: failureType,
+            independent: independent,
+            evidenceJson: evidenceJson,
+            processReportJson: processReportJson,
+            promptTokens: promptTokens,
+            completionTokens: completionTokens,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String runId,
+            required String verifier,
+            Value<String> kind = const Value.absent(),
+            required String verdict,
+            Value<String?> failureType = const Value.absent(),
+            Value<bool> independent = const Value.absent(),
+            Value<String?> evidenceJson = const Value.absent(),
+            Value<String?> processReportJson = const Value.absent(),
+            Value<int?> promptTokens = const Value.absent(),
+            Value<int?> completionTokens = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentVerificationsCompanion.insert(
+            id: id,
+            runId: runId,
+            verifier: verifier,
+            kind: kind,
+            verdict: verdict,
+            failureType: failureType,
+            independent: independent,
+            evidenceJson: evidenceJson,
+            processReportJson: processReportJson,
+            promptTokens: promptTokens,
+            completionTokens: completionTokens,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AgentVerificationsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AgentVerificationsTable,
+    AgentVerificationRow,
+    $$AgentVerificationsTableFilterComposer,
+    $$AgentVerificationsTableOrderingComposer,
+    $$AgentVerificationsTableAnnotationComposer,
+    $$AgentVerificationsTableCreateCompanionBuilder,
+    $$AgentVerificationsTableUpdateCompanionBuilder,
+    (
+      AgentVerificationRow,
+      BaseReferences<_$AppDatabase, $AgentVerificationsTable,
+          AgentVerificationRow>
+    ),
+    AgentVerificationRow,
+    PrefetchHooks Function()>;
+typedef $$AgentClaimsTableCreateCompanionBuilder = AgentClaimsCompanion
+    Function({
+  required String id,
+  required String runId,
+  required String kind,
+  required String canonical,
+  required String statement,
+  Value<String?> depsJson,
+  required String status,
+  Value<String?> checkMethod,
+  Value<int> checkedVersion,
+  Value<String?> evidence,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AgentClaimsTableUpdateCompanionBuilder = AgentClaimsCompanion
+    Function({
+  Value<String> id,
+  Value<String> runId,
+  Value<String> kind,
+  Value<String> canonical,
+  Value<String> statement,
+  Value<String?> depsJson,
+  Value<String> status,
+  Value<String?> checkMethod,
+  Value<int> checkedVersion,
+  Value<String?> evidence,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AgentClaimsTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentClaimsTable> {
+  $$AgentClaimsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get canonical => $composableBuilder(
+      column: $table.canonical, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get statement => $composableBuilder(
+      column: $table.statement, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get depsJson => $composableBuilder(
+      column: $table.depsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get checkedVersion => $composableBuilder(
+      column: $table.checkedVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get evidence => $composableBuilder(
+      column: $table.evidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AgentClaimsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentClaimsTable> {
+  $$AgentClaimsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get runId => $composableBuilder(
+      column: $table.runId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get canonical => $composableBuilder(
+      column: $table.canonical, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get statement => $composableBuilder(
+      column: $table.statement, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get depsJson => $composableBuilder(
+      column: $table.depsJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get checkedVersion => $composableBuilder(
+      column: $table.checkedVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get evidence => $composableBuilder(
+      column: $table.evidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AgentClaimsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentClaimsTable> {
+  $$AgentClaimsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get runId =>
+      $composableBuilder(column: $table.runId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get canonical =>
+      $composableBuilder(column: $table.canonical, builder: (column) => column);
+
+  GeneratedColumn<String> get statement =>
+      $composableBuilder(column: $table.statement, builder: (column) => column);
+
+  GeneratedColumn<String> get depsJson =>
+      $composableBuilder(column: $table.depsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get checkMethod => $composableBuilder(
+      column: $table.checkMethod, builder: (column) => column);
+
+  GeneratedColumn<int> get checkedVersion => $composableBuilder(
+      column: $table.checkedVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get evidence =>
+      $composableBuilder(column: $table.evidence, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AgentClaimsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AgentClaimsTable,
+    AgentClaimRow,
+    $$AgentClaimsTableFilterComposer,
+    $$AgentClaimsTableOrderingComposer,
+    $$AgentClaimsTableAnnotationComposer,
+    $$AgentClaimsTableCreateCompanionBuilder,
+    $$AgentClaimsTableUpdateCompanionBuilder,
+    (
+      AgentClaimRow,
+      BaseReferences<_$AppDatabase, $AgentClaimsTable, AgentClaimRow>
+    ),
+    AgentClaimRow,
+    PrefetchHooks Function()> {
+  $$AgentClaimsTableTableManager(_$AppDatabase db, $AgentClaimsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentClaimsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentClaimsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentClaimsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> runId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> canonical = const Value.absent(),
+            Value<String> statement = const Value.absent(),
+            Value<String?> depsJson = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> checkMethod = const Value.absent(),
+            Value<int> checkedVersion = const Value.absent(),
+            Value<String?> evidence = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentClaimsCompanion(
+            id: id,
+            runId: runId,
+            kind: kind,
+            canonical: canonical,
+            statement: statement,
+            depsJson: depsJson,
+            status: status,
+            checkMethod: checkMethod,
+            checkedVersion: checkedVersion,
+            evidence: evidence,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String runId,
+            required String kind,
+            required String canonical,
+            required String statement,
+            Value<String?> depsJson = const Value.absent(),
+            required String status,
+            Value<String?> checkMethod = const Value.absent(),
+            Value<int> checkedVersion = const Value.absent(),
+            Value<String?> evidence = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentClaimsCompanion.insert(
+            id: id,
+            runId: runId,
+            kind: kind,
+            canonical: canonical,
+            statement: statement,
+            depsJson: depsJson,
+            status: status,
+            checkMethod: checkMethod,
+            checkedVersion: checkedVersion,
+            evidence: evidence,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AgentClaimsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AgentClaimsTable,
+    AgentClaimRow,
+    $$AgentClaimsTableFilterComposer,
+    $$AgentClaimsTableOrderingComposer,
+    $$AgentClaimsTableAnnotationComposer,
+    $$AgentClaimsTableCreateCompanionBuilder,
+    $$AgentClaimsTableUpdateCompanionBuilder,
+    (
+      AgentClaimRow,
+      BaseReferences<_$AppDatabase, $AgentClaimsTable, AgentClaimRow>
+    ),
+    AgentClaimRow,
+    PrefetchHooks Function()>;
+typedef $$AgentExperiencesTableCreateCompanionBuilder
+    = AgentExperiencesCompanion Function({
+  required String id,
+  required String cluster,
+  required String stateKey,
+  required String action,
+  required double reward,
+  Value<String?> provenanceRunId,
+  Value<String?> provenanceVerifierId,
+  Value<int> version,
+  Value<int?> revokedAt,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$AgentExperiencesTableUpdateCompanionBuilder
+    = AgentExperiencesCompanion Function({
+  Value<String> id,
+  Value<String> cluster,
+  Value<String> stateKey,
+  Value<String> action,
+  Value<double> reward,
+  Value<String?> provenanceRunId,
+  Value<String?> provenanceVerifierId,
+  Value<int> version,
+  Value<int?> revokedAt,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$AgentExperiencesTableFilterComposer
+    extends Composer<_$AppDatabase, $AgentExperiencesTable> {
+  $$AgentExperiencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cluster => $composableBuilder(
+      column: $table.cluster, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stateKey => $composableBuilder(
+      column: $table.stateKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get action => $composableBuilder(
+      column: $table.action, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get reward => $composableBuilder(
+      column: $table.reward, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get provenanceRunId => $composableBuilder(
+      column: $table.provenanceRunId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get provenanceVerifierId => $composableBuilder(
+      column: $table.provenanceVerifierId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get revokedAt => $composableBuilder(
+      column: $table.revokedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AgentExperiencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AgentExperiencesTable> {
+  $$AgentExperiencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cluster => $composableBuilder(
+      column: $table.cluster, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stateKey => $composableBuilder(
+      column: $table.stateKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get action => $composableBuilder(
+      column: $table.action, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get reward => $composableBuilder(
+      column: $table.reward, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get provenanceRunId => $composableBuilder(
+      column: $table.provenanceRunId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get provenanceVerifierId => $composableBuilder(
+      column: $table.provenanceVerifierId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get revokedAt => $composableBuilder(
+      column: $table.revokedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AgentExperiencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AgentExperiencesTable> {
+  $$AgentExperiencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get cluster =>
+      $composableBuilder(column: $table.cluster, builder: (column) => column);
+
+  GeneratedColumn<String> get stateKey =>
+      $composableBuilder(column: $table.stateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<double> get reward =>
+      $composableBuilder(column: $table.reward, builder: (column) => column);
+
+  GeneratedColumn<String> get provenanceRunId => $composableBuilder(
+      column: $table.provenanceRunId, builder: (column) => column);
+
+  GeneratedColumn<String> get provenanceVerifierId => $composableBuilder(
+      column: $table.provenanceVerifierId, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<int> get revokedAt =>
+      $composableBuilder(column: $table.revokedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AgentExperiencesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AgentExperiencesTable,
+    AgentExperienceRow,
+    $$AgentExperiencesTableFilterComposer,
+    $$AgentExperiencesTableOrderingComposer,
+    $$AgentExperiencesTableAnnotationComposer,
+    $$AgentExperiencesTableCreateCompanionBuilder,
+    $$AgentExperiencesTableUpdateCompanionBuilder,
+    (
+      AgentExperienceRow,
+      BaseReferences<_$AppDatabase, $AgentExperiencesTable, AgentExperienceRow>
+    ),
+    AgentExperienceRow,
+    PrefetchHooks Function()> {
+  $$AgentExperiencesTableTableManager(
+      _$AppDatabase db, $AgentExperiencesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AgentExperiencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AgentExperiencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AgentExperiencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> cluster = const Value.absent(),
+            Value<String> stateKey = const Value.absent(),
+            Value<String> action = const Value.absent(),
+            Value<double> reward = const Value.absent(),
+            Value<String?> provenanceRunId = const Value.absent(),
+            Value<String?> provenanceVerifierId = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<int?> revokedAt = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentExperiencesCompanion(
+            id: id,
+            cluster: cluster,
+            stateKey: stateKey,
+            action: action,
+            reward: reward,
+            provenanceRunId: provenanceRunId,
+            provenanceVerifierId: provenanceVerifierId,
+            version: version,
+            revokedAt: revokedAt,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String cluster,
+            required String stateKey,
+            required String action,
+            required double reward,
+            Value<String?> provenanceRunId = const Value.absent(),
+            Value<String?> provenanceVerifierId = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<int?> revokedAt = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AgentExperiencesCompanion.insert(
+            id: id,
+            cluster: cluster,
+            stateKey: stateKey,
+            action: action,
+            reward: reward,
+            provenanceRunId: provenanceRunId,
+            provenanceVerifierId: provenanceVerifierId,
+            version: version,
+            revokedAt: revokedAt,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AgentExperiencesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AgentExperiencesTable,
+    AgentExperienceRow,
+    $$AgentExperiencesTableFilterComposer,
+    $$AgentExperiencesTableOrderingComposer,
+    $$AgentExperiencesTableAnnotationComposer,
+    $$AgentExperiencesTableCreateCompanionBuilder,
+    $$AgentExperiencesTableUpdateCompanionBuilder,
+    (
+      AgentExperienceRow,
+      BaseReferences<_$AppDatabase, $AgentExperiencesTable, AgentExperienceRow>
+    ),
+    AgentExperienceRow,
+    PrefetchHooks Function()>;
+typedef $$ContentRefsTableCreateCompanionBuilder = ContentRefsCompanion
+    Function({
+  required String id,
+  required String contentId,
+  Value<int?> contentVersion,
+  Value<String?> contentHash,
+  Value<String?> subject,
+  required String objectType,
+  required String objectId,
+  required String role,
+  Value<String?> metadataJson,
+  required int createdAt,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$ContentRefsTableUpdateCompanionBuilder = ContentRefsCompanion
+    Function({
+  Value<String> id,
+  Value<String> contentId,
+  Value<int?> contentVersion,
+  Value<String?> contentHash,
+  Value<String?> subject,
+  Value<String> objectType,
+  Value<String> objectId,
+  Value<String> role,
+  Value<String?> metadataJson,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ContentRefsTableFilterComposer
+    extends Composer<_$AppDatabase, $ContentRefsTable> {
+  $$ContentRefsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentId => $composableBuilder(
+      column: $table.contentId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get contentVersion => $composableBuilder(
+      column: $table.contentVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subject => $composableBuilder(
+      column: $table.subject, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get objectType => $composableBuilder(
+      column: $table.objectType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get objectId => $composableBuilder(
+      column: $table.objectId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ContentRefsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ContentRefsTable> {
+  $$ContentRefsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentId => $composableBuilder(
+      column: $table.contentId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get contentVersion => $composableBuilder(
+      column: $table.contentVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subject => $composableBuilder(
+      column: $table.subject, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get objectType => $composableBuilder(
+      column: $table.objectType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get objectId => $composableBuilder(
+      column: $table.objectId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ContentRefsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ContentRefsTable> {
+  $$ContentRefsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get contentId =>
+      $composableBuilder(column: $table.contentId, builder: (column) => column);
+
+  GeneratedColumn<int> get contentVersion => $composableBuilder(
+      column: $table.contentVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => column);
+
+  GeneratedColumn<String> get subject =>
+      $composableBuilder(column: $table.subject, builder: (column) => column);
+
+  GeneratedColumn<String> get objectType => $composableBuilder(
+      column: $table.objectType, builder: (column) => column);
+
+  GeneratedColumn<String> get objectId =>
+      $composableBuilder(column: $table.objectId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ContentRefsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ContentRefsTable,
+    ContentRefRow,
+    $$ContentRefsTableFilterComposer,
+    $$ContentRefsTableOrderingComposer,
+    $$ContentRefsTableAnnotationComposer,
+    $$ContentRefsTableCreateCompanionBuilder,
+    $$ContentRefsTableUpdateCompanionBuilder,
+    (
+      ContentRefRow,
+      BaseReferences<_$AppDatabase, $ContentRefsTable, ContentRefRow>
+    ),
+    ContentRefRow,
+    PrefetchHooks Function()> {
+  $$ContentRefsTableTableManager(_$AppDatabase db, $ContentRefsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ContentRefsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ContentRefsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ContentRefsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> contentId = const Value.absent(),
+            Value<int?> contentVersion = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> subject = const Value.absent(),
+            Value<String> objectType = const Value.absent(),
+            Value<String> objectId = const Value.absent(),
+            Value<String> role = const Value.absent(),
+            Value<String?> metadataJson = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ContentRefsCompanion(
+            id: id,
+            contentId: contentId,
+            contentVersion: contentVersion,
+            contentHash: contentHash,
+            subject: subject,
+            objectType: objectType,
+            objectId: objectId,
+            role: role,
+            metadataJson: metadataJson,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String contentId,
+            Value<int?> contentVersion = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> subject = const Value.absent(),
+            required String objectType,
+            required String objectId,
+            required String role,
+            Value<String?> metadataJson = const Value.absent(),
+            required int createdAt,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ContentRefsCompanion.insert(
+            id: id,
+            contentId: contentId,
+            contentVersion: contentVersion,
+            contentHash: contentHash,
+            subject: subject,
+            objectType: objectType,
+            objectId: objectId,
+            role: role,
+            metadataJson: metadataJson,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ContentRefsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ContentRefsTable,
+    ContentRefRow,
+    $$ContentRefsTableFilterComposer,
+    $$ContentRefsTableOrderingComposer,
+    $$ContentRefsTableAnnotationComposer,
+    $$ContentRefsTableCreateCompanionBuilder,
+    $$ContentRefsTableUpdateCompanionBuilder,
+    (
+      ContentRefRow,
+      BaseReferences<_$AppDatabase, $ContentRefsTable, ContentRefRow>
+    ),
+    ContentRefRow,
+    PrefetchHooks Function()>;
+typedef $$ThreadEventsTableCreateCompanionBuilder = ThreadEventsCompanion
+    Function({
+  required String id,
+  required String taskId,
+  required String kind,
+  Value<String?> payloadJson,
+  required int occurredAt,
+  Value<String?> sourceKey,
+  Value<int> rowid,
+});
+typedef $$ThreadEventsTableUpdateCompanionBuilder = ThreadEventsCompanion
+    Function({
+  Value<String> id,
+  Value<String> taskId,
+  Value<String> kind,
+  Value<String?> payloadJson,
+  Value<int> occurredAt,
+  Value<String?> sourceKey,
+  Value<int> rowid,
+});
+
+class $$ThreadEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $ThreadEventsTable> {
+  $$ThreadEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get occurredAt => $composableBuilder(
+      column: $table.occurredAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnFilters(column));
+}
+
+class $$ThreadEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ThreadEventsTable> {
+  $$ThreadEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+      column: $table.taskId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get occurredAt => $composableBuilder(
+      column: $table.occurredAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ThreadEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ThreadEventsTable> {
+  $$ThreadEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<int> get occurredAt => $composableBuilder(
+      column: $table.occurredAt, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKey =>
+      $composableBuilder(column: $table.sourceKey, builder: (column) => column);
+}
+
+class $$ThreadEventsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ThreadEventsTable,
+    ThreadEventRow,
+    $$ThreadEventsTableFilterComposer,
+    $$ThreadEventsTableOrderingComposer,
+    $$ThreadEventsTableAnnotationComposer,
+    $$ThreadEventsTableCreateCompanionBuilder,
+    $$ThreadEventsTableUpdateCompanionBuilder,
+    (
+      ThreadEventRow,
+      BaseReferences<_$AppDatabase, $ThreadEventsTable, ThreadEventRow>
+    ),
+    ThreadEventRow,
+    PrefetchHooks Function()> {
+  $$ThreadEventsTableTableManager(_$AppDatabase db, $ThreadEventsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ThreadEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ThreadEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ThreadEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> taskId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String?> payloadJson = const Value.absent(),
+            Value<int> occurredAt = const Value.absent(),
+            Value<String?> sourceKey = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ThreadEventsCompanion(
+            id: id,
+            taskId: taskId,
+            kind: kind,
+            payloadJson: payloadJson,
+            occurredAt: occurredAt,
+            sourceKey: sourceKey,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String taskId,
+            required String kind,
+            Value<String?> payloadJson = const Value.absent(),
+            required int occurredAt,
+            Value<String?> sourceKey = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ThreadEventsCompanion.insert(
+            id: id,
+            taskId: taskId,
+            kind: kind,
+            payloadJson: payloadJson,
+            occurredAt: occurredAt,
+            sourceKey: sourceKey,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ThreadEventsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ThreadEventsTable,
+    ThreadEventRow,
+    $$ThreadEventsTableFilterComposer,
+    $$ThreadEventsTableOrderingComposer,
+    $$ThreadEventsTableAnnotationComposer,
+    $$ThreadEventsTableCreateCompanionBuilder,
+    $$ThreadEventsTableUpdateCompanionBuilder,
+    (
+      ThreadEventRow,
+      BaseReferences<_$AppDatabase, $ThreadEventsTable, ThreadEventRow>
+    ),
+    ThreadEventRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -41698,4 +48774,18 @@ class $AppDatabaseManager {
   $$CogAbilityParamMappingsTableTableManager get cogAbilityParamMappings =>
       $$CogAbilityParamMappingsTableTableManager(
           _db, _db.cogAbilityParamMappings);
+  $$AgentRunsTableTableManager get agentRuns =>
+      $$AgentRunsTableTableManager(_db, _db.agentRuns);
+  $$AgentStepsTableTableManager get agentSteps =>
+      $$AgentStepsTableTableManager(_db, _db.agentSteps);
+  $$AgentVerificationsTableTableManager get agentVerifications =>
+      $$AgentVerificationsTableTableManager(_db, _db.agentVerifications);
+  $$AgentClaimsTableTableManager get agentClaims =>
+      $$AgentClaimsTableTableManager(_db, _db.agentClaims);
+  $$AgentExperiencesTableTableManager get agentExperiences =>
+      $$AgentExperiencesTableTableManager(_db, _db.agentExperiences);
+  $$ContentRefsTableTableManager get contentRefs =>
+      $$ContentRefsTableTableManager(_db, _db.contentRefs);
+  $$ThreadEventsTableTableManager get threadEvents =>
+      $$ThreadEventsTableTableManager(_db, _db.threadEvents);
 }
