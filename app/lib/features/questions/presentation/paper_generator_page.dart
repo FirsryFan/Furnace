@@ -39,18 +39,22 @@ class _PaperGeneratorPageState extends ConsumerState<PaperGeneratorPage> {
 
   Future<void> _start() async {
     final l10n = AppLocalizations.of(context);
-    final config = await ref.read(aiConfigProvider.future);
-    if (!config.isUsable) {
-      setState(() => _error = l10n.paperGenNeedKey);
-      return;
-    }
-    setState(() {
-      _running = true;
-      _error = null;
-      _resultPath = null;
-      _status = l10n.paperGenSelecting;
-    });
     try {
+      final config = await ref.read(aiConfigProvider.future);
+      if (!config.isUsable) {
+        if (mounted) {
+          setState(() => _error = l10n.paperGenNeedKey);
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _running = true;
+          _error = null;
+          _resultPath = null;
+          _status = l10n.paperGenSelecting;
+        });
+      }
       final db = ref.read(appDatabaseProvider);
       final service = PaperGeneratorService(db: db, config: config);
       final result = await service.generate(
