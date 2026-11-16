@@ -57,6 +57,24 @@ void main() {
     expect(result.evidence['source'], 'branch_table_verifier');
   });
 
+  test('multi-branch answer with only one branch line fails', () async {
+    final answer = StudentAnswerSheet(
+      kind: StudentQuestionKind.solution,
+      raw: '【题型】解答题\n【答案】a 或 b\n【过程】【分支表】只列一支',
+      result: 'a 或 b',
+      process: '【分支表】只列一支',
+      structured: true,
+    );
+    final result = await verifier.verify(
+      question: 'q',
+      answer: answer,
+      claims: ClaimSummary.empty(),
+    );
+    expect(result.verdict, Verdict.fail);
+    expect(result.failureType, FailureType.incompleteSubQuestion);
+    expect(result.evidence['branch_count'], lessThan(2));
+  });
+
   test('solution with branch table passes', () async {
     final answer = StudentAnswerSheet(
       kind: StudentQuestionKind.solution,

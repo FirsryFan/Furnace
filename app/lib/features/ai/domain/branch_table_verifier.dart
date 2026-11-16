@@ -58,6 +58,38 @@ class BranchTableVerifier implements Verifier {
         },
       );
     }
+    final branchCount = _branchCount(process);
+    if (_resultHasAlternatives(answer.result) && branchCount < 2) {
+      return Verification.fail(
+        failureType: FailureType.incompleteSubQuestion,
+        issues: <String>[
+          '答案出现“或/∪”多分支，但【分支表】只识别到 $branchCount 条分支。',
+        ],
+        evidence: <String, Object?>{
+          'source': 'branch_table_verifier',
+          'has_branch_table': true,
+          'branch_count': branchCount,
+        },
+      );
+    }
     return baseResult;
+  }
+
+  static bool _resultHasAlternatives(String result) {
+    final text = result.replaceAll(' ', '');
+    return text.contains('或') || text.contains('∪') || text.contains(r'\cup');
+  }
+
+  static int _branchCount(String process) {
+    final index = process.indexOf(marker);
+    if (index < 0) return 0;
+    final body = process.substring(index + marker.length);
+    final markers = RegExp(r'(≤|≥|<|>|=|时|支|①|②|③|A\.|B\.|A、|B、)');
+    var count = 0;
+    for (final line in body.split(RegExp(r'[\n；;]'))) {
+      if (line.trim().isEmpty) continue;
+      if (markers.hasMatch(line)) count += 1;
+    }
+    return count;
   }
 }
