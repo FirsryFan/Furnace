@@ -9,6 +9,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/domain/services/cognitive/library_diagnosis.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_model_page.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
+import 'package:furnace/features/questions/application/paper_plan_provider.dart';
 import 'package:furnace/features/questions/data/question_media_store.dart';
 import 'package:furnace/features/questions/presentation/question_bank_page.dart';
 import 'package:furnace/features/questions/presentation/question_paper_page.dart';
@@ -72,5 +73,16 @@ void main() {
     }
     expect(tester.takeException(), isNull);
     expect(find.byType(QuestionPaperPage), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(QuestionPaperPage)),
+    );
+    final plan = await container.read(paperPlanProvider.future);
+    expect(plan.items, isNotEmpty);
+    expect(
+      plan.items.any((item) => item.matchedKnowledgePointIds.isNotEmpty),
+      isTrue,
+      reason: '真实库修复后应至少有一道题匹配到知识点标签',
+    );
   });
 }
