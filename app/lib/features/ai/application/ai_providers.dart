@@ -23,6 +23,8 @@ import '../infrastructure/experience_store.dart';
 import '../infrastructure/student_trace_store.dart';
 import '../infrastructure/student_verifier.dart';
 import 'ai_model_adapters.dart';
+import '../../../domain/services/cognitive/preset_prior.dart';
+import '../../student_preset/application/preset_selection.dart';
 import 'conversation_runner.dart';
 import 'student_mode_controller.dart';
 
@@ -86,9 +88,17 @@ final studentSolverProvider = Provider<StudentSolver?>((ref) {
   if (config == null || !config.isUsable) {
     return null;
   }
+  final selection = ref.watch(presetSelectionProvider);
+  final prior = PresetPrior.fromSelectionId(selection?.presetId);
   return StudentSolver(
     reasonAdapter: AiModelAdapters.solver(config),
     answerAdapter: AiModelAdapters.answer(config),
+    systemPrompt: prior == null
+        ? StudentSolver.defaultSystemPrompt
+        : '${StudentSolver.defaultSystemPrompt}\n\n'
+            '当前用户预设档位：${prior.band.label}。按这个档位的考场目标作答：'
+            '不省略必要步骤，但不要引入超出该档位的额外理论；'
+            '仍以题目条件和高中知识为准。',
   );
 });
 
