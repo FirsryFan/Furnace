@@ -153,3 +153,12 @@ P1：
 - 本文件与用户**新消息**冲突时，以新消息为准，并更新本文件；
 - 未列入“必须做”的旧要求，不再作为验收阻塞项；
 - 未验证项不得写成“已完成”。
+
+## 8. 本轮新增执行口径（2026-11-17 07:0x）
+
+- GitHub 进度 issue：https://github.com/FirsryFan/Furnace/issues/22
+- 台账已提交到仓库：`docs/requirements-ledger-2026-11-17.md`
+- DAG 实际渲染样张：`docs/dag-samples/TR-00668-dag.png`
+- 自动化：每天 08:05 / 12:05 / 18:05 开始；09–12、14–18 停止。
+- GitHub 不能实时推送；只能允许时段轮询 issue 评论。
+- maxGoalRounds = 10000，不再以轮数耗尽为停止条件。
