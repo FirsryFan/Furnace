@@ -6819,6 +6819,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.';
 
   @override
+  String get mindnetBandPreset =>
+      'Preset baseline: no review evidence yet; the level comes from your selected preset.';
+
+  @override
   String mindnetBandEvidence(int count) {
     return 'Based on $count knowledge point(s) with review history';
   }

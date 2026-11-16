@@ -6548,6 +6548,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mindnetBandHint => '按你有复习记录的知识点的记忆保持度粗分；只显示档位，不显示分数。';
 
   @override
+  String get mindnetBandPreset => '预设起点：还没有复习记录，档位来自你选择的预设。';
+
+  @override
   String mindnetBandEvidence(int count) {
     return '依据：$count 个知识点的复习记录';
   }

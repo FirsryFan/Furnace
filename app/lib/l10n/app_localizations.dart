@@ -11409,6 +11409,12 @@ abstract class AppLocalizations {
   /// **'A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.'**
   String get mindnetBandHint;
 
+  /// No description provided for @mindnetBandPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Level from your selected preset; no review evidence yet.'**
+  String get mindnetBandPreset;
+
   /// No description provided for @mindnetBandEvidence.
   ///
   /// In en, this message translates to:

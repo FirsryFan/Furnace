@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:furnace/domain/services/cognitive/ability_band.dart';
 import 'package:furnace/domain/services/cognitive/learning_metrics.dart';
 import 'package:furnace/domain/services/cognitive/learning_status.dart';
+import 'package:furnace/domain/services/cognitive/preset_prior.dart';
 
 LearningStatusCard _card(
   String kp,
@@ -35,6 +36,21 @@ void main() {
       expect(status.hasBand, isFalse);
       expect(status.strengths, isEmpty);
       expect(status.weaknesses, isEmpty);
+    });
+
+    test('选了预设且没有观测：从预设档位起步，不显示 ?', () {
+      final status = buildLearningStatus(
+        cards: [
+          _card('kp-1', 0.9, observed: false),
+        ],
+        preset: PresetPrior.fromSelectionId('preset-above'),
+      );
+
+      expect(status.band.band, AbilityBand.a);
+      expect(status.band.source, AbilitySource.preset);
+      expect(status.hasBand, isTrue);
+      expect(status.hasEvidence, isFalse);
+      expect(status.observedKnowledgePointCount, 0);
     });
 
     test('只有没复习过的卡：不算证据，档位仍是 ?', () {

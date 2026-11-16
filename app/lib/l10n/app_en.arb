@@ -4161,6 +4161,7 @@
   "mindnetStatusIntro": "Only your current study state; model parameters are not shown here.",
   "mindnetBandTitle": "Current level",
   "mindnetBandHint": "A coarse memory-retention level over the knowledge points you have reviews for; only the level is shown, never a score.",
+  "mindnetBandPreset": "Preset baseline: no review evidence yet; the level comes from your selected preset.",
   "mindnetBandEvidence": "Based on {count} knowledge point(s) with review history",
   "@mindnetBandEvidence": {
     "placeholders": {

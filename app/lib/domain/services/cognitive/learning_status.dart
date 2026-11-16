@@ -25,6 +25,7 @@ import 'dart:math' as math;
 
 import 'ability_band.dart';
 import 'learning_metrics.dart';
+import 'preset_prior.dart';
 
 /// 一张卡在用户层能提供的读数。
 ///
@@ -179,6 +180,7 @@ class LearningStatus {
 LearningStatus buildLearningStatus({
   required List<LearningStatusCard> cards,
   AbilityBandPolicy bandPolicy = AbilityBandPolicy.mastery,
+  PresetPrior? preset,
   int maxItems = 3,
 }) {
   if (maxItems < 1) {
@@ -249,10 +251,19 @@ LearningStatus buildLearningStatus({
   return LearningStatus(
     // 档位的观测单位是知识点（每个知识点取有观测卡片的平均 R），不是卡片：
     // 「一张卡复习过 5 次」不等于「5 个知识点有证据」（task-113）。
-    band: _bandOf(
-      <double>[for (final item in measured) item.meanRetrievability],
-      bandPolicy,
-    ),
+    band: measured.isEmpty && preset != null
+        ? readAbilityBand(
+            AbilityBandInput(
+              source: AbilitySource.preset,
+              nObs: 0,
+              mean: preset.band.mean,
+            ),
+            policy: bandPolicy,
+          )
+        : _bandOf(
+            <double>[for (final item in measured) item.meanRetrievability],
+            bandPolicy,
+          ),
     strengths: List<LearningStatusItem>.unmodifiable(strengths),
     weaknesses: List<LearningStatusItem>.unmodifiable(weaknesses),
     knowledgePointCount: grouped.length,

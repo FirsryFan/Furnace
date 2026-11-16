@@ -23,8 +23,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/ability_band.dart'
-    show AbilityUnknownReason;
+    show AbilitySource, AbilityUnknownReason;
 import '../../../domain/services/cognitive/learning_status.dart';
+import '../../../domain/services/cognitive/preset_prior.dart';
+import '../../student_preset/application/preset_selection.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/presentation/review_page.dart';
 import 'cognitive_graph_page.dart';
@@ -52,6 +54,7 @@ const Key mindnetGraphEntryKey = Key('mindnet-graph-entry');
 final learningStatusProvider =
     FutureProvider.autoDispose<LearningStatus>((ref) async {
   final readings = await ref.watch(cognitiveReadingsProvider.future);
+  final selection = ref.watch(presetSelectionProvider);
   return buildLearningStatus(
     cards: <LearningStatusCard>[
       for (final card in readings.cards)
@@ -62,6 +65,7 @@ final learningStatusProvider =
           hasObservation: card.hasObservation,
         ),
     ],
+    preset: PresetPrior.fromSelectionId(selection?.presetId),
   );
 });
 
@@ -266,6 +270,9 @@ class _BandCard extends ConsumerWidget {
   /// 读成 0 分）。观测单位是知识点，不是闪存卡（task-113）。
   String _evidenceLine(AppLocalizations l10n, LearningStatus status) {
     if (status.hasBand) {
+      if (status.band.source == AbilitySource.preset) {
+        return l10n.mindnetBandPreset;
+      }
       return l10n.mindnetBandEvidence(status.observedKnowledgePointCount);
     }
     if (!status.hasEvidence ||
