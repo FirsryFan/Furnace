@@ -23,6 +23,7 @@ import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
 import '../../questions/application/capability_profile_provider.dart';
 import '../../questions/presentation/capability_action_questions_page.dart';
+import '../application/preset_matrix_provider.dart';
 import '../../settings/application/user_persona_provider.dart';
 import '../../settings/presentation/user_persona_page.dart';
 import 'cognitive_graph_page.dart';
@@ -75,6 +76,8 @@ class CognitiveDeveloperPage extends ConsumerWidget {
               priorCount: data.priorCount,
             ),
             const SizedBox(height: 8),
+            const _PresetMatrixCard(),
+            const SizedBox(height: 8),
             const _PersonaCard(),
             const SizedBox(height: 8),
             const _GraphEntryCard(),
@@ -97,6 +100,41 @@ class CognitiveDeveloperPage extends ConsumerWidget {
             else
               for (final card in data.cards) _CardTile(l10n: l10n, card: card),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// MindNet 预设矩阵 seed 的只读摘要。
+///
+/// 只显示数据层可核对的事实：多少 measured、哪些预设档、preset_global 不是实测。
+class _PresetMatrixCard extends ConsumerWidget {
+  const _PresetMatrixCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seed = ref.watch(presetMatrixSeedProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: seed.when(
+          loading: () => const Text('矩阵 seed：读取中…'),
+          error: (error, _) => Text('矩阵 seed 读取失败：$error'),
+          data: (data) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <String>[
+              '矩阵 seed（只读）',
+              '实测单元：${data.measuredCount}',
+              '预设档：${data.presetGlobalMean.keys.join(" / ")}',
+              'preset_global 是全局先验，不是逐知识点实测；其余仍为 unknown。',
+            ]
+                .map((line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(line),
+                    ))
+                .toList(),
+          ),
         ),
       ),
     );
