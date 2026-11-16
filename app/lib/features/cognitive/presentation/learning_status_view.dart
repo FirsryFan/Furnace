@@ -27,6 +27,7 @@ import '../../../domain/services/cognitive/ability_band.dart'
 import '../../../domain/services/cognitive/learning_status.dart';
 import '../../../domain/services/cognitive/preset_prior.dart';
 import '../../student_preset/application/preset_selection.dart';
+import '../application/preset_matrix_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/presentation/review_page.dart';
 import 'cognitive_graph_page.dart';
@@ -55,6 +56,7 @@ final learningStatusProvider =
     FutureProvider.autoDispose<LearningStatus>((ref) async {
   final readings = await ref.watch(cognitiveReadingsProvider.future);
   final selection = ref.watch(presetSelectionProvider);
+  final matrix = ref.watch(presetMatrixSeedProvider).valueOrNull;
   return buildLearningStatus(
     cards: <LearningStatusCard>[
       for (final card in readings.cards)
@@ -65,7 +67,10 @@ final learningStatusProvider =
           hasObservation: card.hasObservation,
         ),
     ],
-    preset: PresetPrior.fromSelectionId(selection?.presetId),
+    preset: PresetPrior.fromSelectionId(
+      selection?.presetId,
+      presetMeans: matrix?.presetGlobalMean,
+    ),
   );
 });
 
@@ -168,7 +173,8 @@ class LearningStatusEntries extends StatelessWidget {
             subtitle: Text(l10n.cognitiveGraphTapHint),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const CognitiveGraphPage()),
+              MaterialPageRoute<void>(
+                  builder: (_) => const CognitiveGraphPage()),
             ),
           ),
         ),
@@ -276,8 +282,7 @@ class _BandCard extends ConsumerWidget {
       return l10n.mindnetBandEvidence(status.observedKnowledgePointCount);
     }
     if (!status.hasEvidence ||
-        status.band.unknownReason ==
-            AbilityUnknownReason.tooFewObservations) {
+        status.band.unknownReason == AbilityUnknownReason.tooFewObservations) {
       return l10n.mindnetBandInsufficient(status.bandMinObservations);
     }
     return l10n.mindnetBandUnstable;
@@ -350,9 +355,7 @@ class _RankCard extends ConsumerWidget {
     final items = isStrengths ? status.strengths : status.weaknesses;
     if (items.isEmpty) {
       return Text(
-        isStrengths
-            ? l10n.mindnetStrengthsEmpty
-            : l10n.mindnetWeaknessesEmpty,
+        isStrengths ? l10n.mindnetStrengthsEmpty : l10n.mindnetWeaknessesEmpty,
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -405,7 +408,8 @@ class _TodayCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _CardHeader(icon: Icons.today_outlined, title: l10n.mindnetTodayTitle),
+            _CardHeader(
+                icon: Icons.today_outlined, title: l10n.mindnetTodayTitle),
             const SizedBox(height: 8),
             Row(
               children: <Widget>[

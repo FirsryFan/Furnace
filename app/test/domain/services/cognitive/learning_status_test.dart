@@ -38,6 +38,20 @@ void main() {
       expect(status.weaknesses, isEmpty);
     });
 
+    test('矩阵提供该档均值时，预设起点用矩阵值', () {
+      final prior = PresetPrior.fromSelectionId(
+        'preset-above',
+        presetMeans: <String, double>{'A': 0.82},
+      );
+      expect(prior, isNotNull);
+      expect(prior!.band.label, 'A');
+      expect(prior.effectiveMean, 0.82);
+      expect(
+        PresetPrior.fromSelectionId('preset-above')!.effectiveMean,
+        StudentPresetBand.a.mean,
+      );
+    });
+
     test('选了预设且没有观测：从预设档位起步，不显示 ?', () {
       final status = buildLearningStatus(
         cards: [

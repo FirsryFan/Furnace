@@ -28,11 +28,17 @@ class PresetPrior {
   const PresetPrior({
     required this.presetId,
     required this.band,
+    this.mean,
     this.source = 'preset',
   });
 
   final String presetId;
   final StudentPresetBand band;
+
+  /// 矩阵提供该档的全局均值时用它；否则退回档位默认均值。
+  final double? mean;
+
+  double get effectiveMean => mean ?? band.mean;
 
   /// 固定为 `preset`；测试与 UI 用它区分实测。
   final String source;
@@ -45,7 +51,8 @@ class PresetPrior {
   /// * `preset-weak` → C
   ///
   /// D 目前没有对应预设；需要新增“基础”预设后才可出现。
-  static PresetPrior? fromSelectionId(String? presetId) {
+  static PresetPrior? fromSelectionId(String? presetId,
+      {Map<String, double>? presetMeans}) {
     final id = (presetId ?? '').trim();
     final band = switch (id) {
       'preset-top' => StudentPresetBand.s,
@@ -55,6 +62,10 @@ class PresetPrior {
       _ => null,
     };
     if (band == null) return null;
-    return PresetPrior(presetId: id, band: band);
+    return PresetPrior(
+      presetId: id,
+      band: band,
+      mean: presetMeans?[band.label],
+    );
   }
 }

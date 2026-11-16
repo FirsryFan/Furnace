@@ -195,7 +195,8 @@ LearningStatus buildLearningStatus({
 
   final grouped = <String, List<LearningStatusCard>>{};
   for (final card in cards) {
-    grouped.putIfAbsent(card.knowledgePointId, () => <LearningStatusCard>[])
+    grouped
+        .putIfAbsent(card.knowledgePointId, () => <LearningStatusCard>[])
         .add(card);
   }
 
@@ -206,10 +207,9 @@ LearningStatus buildLearningStatus({
         if (card.hasObservation && card.retrievability.isFinite) card,
     ];
     if (observed.isEmpty) continue;
-    final mean = observed
-            .map((card) => card.retrievability)
-            .reduce((a, b) => a + b) /
-        observed.length;
+    final mean =
+        observed.map((card) => card.retrievability).reduce((a, b) => a + b) /
+            observed.length;
     measured.add(
       LearningStatusItem(
         knowledgePointId: entry.key,
@@ -234,8 +234,7 @@ LearningStatus buildLearningStatus({
     strengths.add(measured.first);
   } else if (measured.length >= 2) {
     final strengthCount = math.min(maxItems, measured.length - 1);
-    final weaknessCount =
-        math.min(maxItems, measured.length - strengthCount);
+    final weaknessCount = math.min(maxItems, measured.length - strengthCount);
     strengths.addAll(measured.take(strengthCount));
     final rest = measured.skip(strengthCount).toList();
     rest.sort((a, b) {
@@ -256,7 +255,7 @@ LearningStatus buildLearningStatus({
             AbilityBandInput(
               source: AbilitySource.preset,
               nObs: 0,
-              mean: preset.band.mean,
+              mean: preset.effectiveMean,
             ),
             policy: bandPolicy,
           )
