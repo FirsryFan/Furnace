@@ -346,7 +346,7 @@ void main() {
 
     // The configured surface appears immediately: its "new conversation"
     // action is the stable, locale-independent marker.
-    expect(find.byIcon(Icons.add_comment_outlined), findsWidgets,
+    expect(find.byIcon(Icons.add), findsWidgets,
         reason:
             'saving a key must turn the guide into the chat surface immediately');
 
