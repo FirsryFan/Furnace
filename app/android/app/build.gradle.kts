@@ -59,6 +59,11 @@ android {
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
+                // 老设备/部分安装器只认 v1/v3；v2-only 会被报“证书无效”。
+                // 三个方案都开，Android 会选最高可用方案，不牺牲兼容性。
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
