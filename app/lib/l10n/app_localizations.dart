@@ -11412,7 +11412,7 @@ abstract class AppLocalizations {
   /// No description provided for @mindnetBandPreset.
   ///
   /// In en, this message translates to:
-  /// **'Level from your selected preset; no review evidence yet.'**
+  /// **'Preset baseline: no review evidence yet; the level comes from your selected preset.'**
   String get mindnetBandPreset;
 
   /// No description provided for @mindnetBandEvidence.
