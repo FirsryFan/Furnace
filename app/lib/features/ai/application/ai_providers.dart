@@ -6,6 +6,7 @@ import '../../../data/repositories/repository_providers.dart';
 import '../../../data/skill/skill_store.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
 import '../domain/agent_budget.dart';
+import '../domain/branch_table_verifier.dart';
 import '../domain/agent_loop.dart';
 import '../domain/agent_run.dart' as agent_run;
 import '../domain/agent_run_sink.dart';
@@ -114,7 +115,9 @@ final studentVerifierProvider = Provider<Verifier?>((ref) {
   if (config == null || !config.isUsable) {
     return null;
   }
-  return StudentVerifier(adapter: AiModelAdapters.verifier(config));
+  return BranchTableVerifier(
+    base: StudentVerifier(adapter: AiModelAdapters.verifier(config)),
+  );
 });
 
 /// Where direct student-mode solves write their local trace.
