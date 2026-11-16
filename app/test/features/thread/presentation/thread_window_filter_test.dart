@@ -35,6 +35,7 @@ void main() {
       overrides: [
         appDatabaseProvider.overrideWithValue(db),
         threadWindowNowProvider.overrideWithValue(now),
+        threadRankNowProvider.overrideWithValue(now),
       ],
     );
     addTearDown(container.dispose);

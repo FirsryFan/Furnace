@@ -403,6 +403,7 @@ class ThreadFeedNotifier extends AsyncNotifier<ThreadFeed?> {
       final seed =
           cognitiveEnabled ? await _cognitiveSeed() : CognitiveRankSeed.empty;
       return ref.read(threadRankServiceProvider).build(
+            now: ref.read(threadRankNowProvider),
             balance: balance,
             cognitiveSeed: seed,
             cognitiveRankEnabled: cognitiveEnabled,
@@ -478,6 +479,10 @@ final threadRankServiceProvider = Provider<ThreadRankService>((ref) {
     threadStateRepository: ref.watch(threadStateRepositoryProvider),
   );
 });
+
+/// 排序时钟。测试覆盖它来钉死“现在”，避免固定日期用例随时间变成 overdue；
+/// 运行时不覆盖 = `DateTime.now()`。
+final threadRankNowProvider = Provider<DateTime>((ref) => DateTime.now());
 
 final threadFeedProvider =
     AsyncNotifierProvider<ThreadFeedNotifier, ThreadFeed?>(
