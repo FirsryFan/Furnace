@@ -23,6 +23,7 @@ import '../../anki/application/review_advisory.dart';
 import '../../assessment/presentation/assessment_page.dart';
 import '../../questions/application/capability_profile_provider.dart';
 import '../../questions/presentation/capability_action_questions_page.dart';
+import '../application/leaf_preset_matrix_provider.dart';
 import '../application/preset_matrix_provider.dart';
 import '../../settings/application/user_persona_provider.dart';
 import '../../settings/presentation/user_persona_page.dart';
@@ -77,6 +78,8 @@ class CognitiveDeveloperPage extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             const _PresetMatrixCard(),
+            const SizedBox(height: 8),
+            const _LeafPresetMatrixCard(),
             const SizedBox(height: 8),
             const _PersonaCard(),
             const SizedBox(height: 8),
@@ -979,6 +982,41 @@ class _ErrorNote extends StatelessWidget {
           const SizedBox(height: 8),
           Text('$error', style: Theme.of(context).textTheme.bodySmall),
         ],
+      ),
+    );
+  }
+}
+
+/// 逐知识点预设矩阵 seed 的只读摘要。
+class _LeafPresetMatrixCard extends ConsumerWidget {
+  const _LeafPresetMatrixCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seed = ref.watch(leafPresetMatrixProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: seed.when(
+          loading: () => const Text('逐点矩阵 seed：读取中…'),
+          error: (error, _) => Text('逐点矩阵 seed 读取失败：$error'),
+          data: (data) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <String>[
+              '逐点矩阵 seed（只读）',
+              '节点：${data.nodeCount}',
+              '单元：${data.cellCount}',
+              '预设档：${data.bands.join(" / ")}',
+              '能力项：${data.abilityCodes.join(" / ")}',
+              '全部 preset_global，n_obs=0；不是逐点实测，也未接学习状态。',
+            ]
+                .map((line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(line),
+                    ))
+                .toList(),
+          ),
+        ),
       ),
     );
   }

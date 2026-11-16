@@ -83,6 +83,8 @@ flutter:
     - assets/preset_scoring.json
     # 预设能力矩阵 seed：19 个真实 measured + 2905 条 preset_global（明示非逐点标定）
     - assets/preset-ability-matrix.json
+    # 逐知识点 seed：110 个三级 tag × S/A/B/C/D × A1–A10，全部 preset_global
+    - assets/leaf-preset-matrix.json
     # PDF 导出内置中文字体（Noto Sans SC Regular，OFL 1.1；来源/许可/SHA256
     # 见 assets/fonts/FONT-NOTICE.md）。Windows 与 Android 共用这一份 TTF，
     # 不依赖系统字体/`C:\Windows\Fonts`，也不使用 TTC。
