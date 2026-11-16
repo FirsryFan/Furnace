@@ -72,8 +72,37 @@ class BranchTableVerifier implements Verifier {
         },
       );
     }
+    final missingConditions = _missingConditions(answer.result, process);
+    if (missingConditions.isNotEmpty) {
+      return Verification.fail(
+        failureType: FailureType.incompleteSubQuestion,
+        issues: <String>[
+          '答案的某些分支条件没有出现在【分支表】里：${missingConditions.join('、')}。',
+        ],
+        evidence: <String, Object?>{
+          'source': 'branch_table_verifier',
+          'has_branch_table': true,
+          'missing_conditions': missingConditions,
+        },
+      );
+    }
     return baseResult;
   }
+
+  static List<String> _missingConditions(String result, String process) {
+    final normalizedProcess = _normalize(process);
+    final conditions = RegExp(r'(?:≤|≥|<|>|=)\s*[0-9]+')
+        .allMatches(result)
+        .map((m) => _normalize(m.group(0)!))
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    return conditions
+        .where((c) => !normalizedProcess.contains(c))
+        .toList(growable: false);
+  }
+
+  static String _normalize(String text) =>
+      text.replaceAll(' ', '').replaceAll(r'\le', '≤').replaceAll(r'\ge', '≥');
 
   static bool _resultHasAlternatives(String result) {
     final text = result.replaceAll(' ', '');

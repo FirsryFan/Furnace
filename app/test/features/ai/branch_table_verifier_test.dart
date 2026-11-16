@@ -75,6 +75,40 @@ void main() {
     expect(result.evidence['branch_count'], lessThan(2));
   });
 
+  test('missing numeric branch condition fails', () async {
+    final answer = StudentAnswerSheet(
+      kind: StudentQuestionKind.solution,
+      raw: '【题型】解答题\n【答案】x≤1 或 x=2\n【过程】【分支表】x≤1 一支',
+      result: 'x≤1 或 x=2',
+      process: '【分支表】x≤1 一支；x>3 另一支',
+      structured: true,
+    );
+    final result = await verifier.verify(
+      question: 'q',
+      answer: answer,
+      claims: ClaimSummary.empty(),
+    );
+    expect(result.verdict, Verdict.fail);
+    expect(result.failureType, FailureType.incompleteSubQuestion);
+    expect(result.evidence['missing_conditions'], contains('=2'));
+  });
+
+  test('all numeric branch conditions present passes', () async {
+    final answer = StudentAnswerSheet(
+      kind: StudentQuestionKind.solution,
+      raw: '【题型】解答题\n【答案】x≤1 或 x=2\n【过程】【分支表】x≤1 一支；x=2 另一支',
+      result: 'x≤1 或 x=2',
+      process: '【分支表】x≤1 一支；x=2 另一支',
+      structured: true,
+    );
+    final result = await verifier.verify(
+      question: 'q',
+      answer: answer,
+      claims: ClaimSummary.empty(),
+    );
+    expect(result.verdict, Verdict.pass);
+  });
+
   test('solution with branch table passes', () async {
     final answer = StudentAnswerSheet(
       kind: StudentQuestionKind.solution,
