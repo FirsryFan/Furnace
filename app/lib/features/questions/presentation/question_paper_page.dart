@@ -84,6 +84,36 @@ const List<double> paperTargetDifficultyOptions = <double>[
 /// 每个知识点上限的候选（"自动"是 `null`，交由组卷器按候选分布算）。
 const List<int> paperPerKnowledgePointCapOptions = <int>[1, 2, 3, 4, 5];
 
+/// 恢复/导入的 spec 可能带任意合法难度；下拉必须把当前值算进 items，
+/// 否则 DropdownButton 的 value 不在 items 里会断言崩溃。
+List<double> targetDifficultyOptionsFor(double? current) {
+  if (current == null ||
+      current < 1.0 ||
+      current > 10.0 ||
+      paperTargetDifficultyOptions.contains(current)) {
+    return paperTargetDifficultyOptions;
+  }
+  return <double>[...paperTargetDifficultyOptions, current]..sort();
+}
+
+/// 同上：当前 cap 不在 1..5 时也要列出来，避免白屏。
+List<int> perKnowledgePointCapOptionsFor(int? current) {
+  if (current == null || paperPerKnowledgePointCapOptions.contains(current)) {
+    return paperPerKnowledgePointCapOptions;
+  }
+  return <int>[...paperPerKnowledgePointCapOptions, current]..sort();
+}
+
+/// 来源下限同理：未知/历史值也要有 item。
+List<String> sourceLevelOptionsFor(String? current) {
+  if (current == null ||
+      current.isEmpty ||
+      paperMinSourceLevelOptions.contains(current)) {
+    return paperMinSourceLevelOptions;
+  }
+  return <String>[...paperMinSourceLevelOptions, current];
+}
+
 /// 「复制卷面」按钮的 key。
 ///
 /// 页面上不止一个 `TextButton`（配额区有「清空配额」），测试不能再用
@@ -215,7 +245,7 @@ class _PaperControls extends ConsumerWidget {
                   value: '',
                   child: Text(l10n.questionPaperSourceLevelAny),
                 ),
-                for (final level in paperMinSourceLevelOptions)
+                for (final level in sourceLevelOptionsFor(spec.minSourceLevel))
                   DropdownMenuItem<String>(
                     value: level,
                     child: Text(sourceLevelLabel(l10n, level)),
@@ -235,7 +265,8 @@ class _PaperControls extends ConsumerWidget {
                   value: null,
                   child: Text(l10n.questionPaperDifficultyAny),
                 ),
-                for (final value in paperTargetDifficultyOptions)
+                for (final value
+                    in targetDifficultyOptionsFor(spec.targetDifficulty))
                   DropdownMenuItem<double>(
                     value: value,
                     child: Text(
@@ -262,7 +293,8 @@ class _PaperControls extends ConsumerWidget {
                   value: null,
                   child: Text(l10n.questionPaperCapAuto),
                 ),
-                for (final cap in paperPerKnowledgePointCapOptions)
+                for (final cap in perKnowledgePointCapOptionsFor(
+                    spec.perKnowledgePointCap))
                   DropdownMenuItem<int>(
                     value: cap,
                     child: Text(l10n.questionPaperCapOption(cap)),

@@ -699,6 +699,17 @@ void main() {
     expect(targetCountOptionsFor(0), paperTargetCountOptions);
   });
 
+  test('难度/上限/来源下拉恢复历史值时也不会白屏', () {
+    expect(targetDifficultyOptionsFor(7.25),
+        <double>[...paperTargetDifficultyOptions, 7.25]..sort());
+    expect(targetDifficultyOptionsFor(6.0), paperTargetDifficultyOptions);
+    expect(perKnowledgePointCapOptionsFor(9), <int>[1, 2, 3, 4, 5, 9]);
+    expect(perKnowledgePointCapOptionsFor(3), paperPerKnowledgePointCapOptions);
+    expect(sourceLevelOptionsFor('legacy_level'),
+        <String>[...paperMinSourceLevelOptions, 'legacy_level']);
+    expect(sourceLevelOptionsFor('gaokao'), paperMinSourceLevelOptions);
+  });
+
   testWidgets('能力动作画像：有开关与说明，关掉后加成消失、说明行也消失', (tester) async {
     // 两道条件完全相同的题，差别只在"有没有链、链里是什么动作"。
     await _seedQuestion(db,
