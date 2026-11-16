@@ -115,9 +115,7 @@ final studentVerifierProvider = Provider<Verifier?>((ref) {
   if (config == null || !config.isUsable) {
     return null;
   }
-  return BranchTableVerifier(
-    base: StudentVerifier(adapter: AiModelAdapters.verifier(config)),
-  );
+  return StudentVerifier(adapter: AiModelAdapters.verifier(config));
 });
 
 /// Where direct student-mode solves write their local trace.
@@ -162,7 +160,7 @@ final studentModeControllerProvider = Provider<StudentModeController?>((ref) {
     solver: solver,
     // 显式注入 verifier：它的模型/温度/预算/effort 来自 v46 模型参数层；
     // 空配置时与「从 answer adapter 推导」的旧行为完全一致。
-    verifier: verifier,
+    verifier: BranchTableVerifier(base: verifier),
     traceStore: ref.watch(studentTraceStoreProvider),
     recorder: AgentRunStoreRecorder(
       AgentRunStore(ref.watch(appDatabaseProvider)),
