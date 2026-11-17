@@ -1,0 +1,24 @@
+import 'dart:io';
+
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:furnace/data/database/database.dart';
+import 'package:furnace/features/questions/application/question_corpus_reader.dart';
+
+void main() {
+  test('real db: paper corpus groups counted once', () async {
+    final src = File(r'E:\Furnace\data\furnace.db');
+    final tmp = await Directory.systemTemp.createTemp('furnace-paper-live');
+    final copy = await src.copy('${tmp.path}/furnace.db');
+    final db = AppDatabase.forTesting(NativeDatabase(copy));
+    addTearDown(() async {
+      await db.close();
+      await tmp.delete(recursive: true);
+    });
+    final corpus = await readPaperCorpus(db);
+    // ignore: avoid_print
+    print('PAPER candidates=${corpus.candidates.length} '
+        'subjects=${corpus.subjectKeys}');
+    expect(corpus.candidates, isNotEmpty);
+  });
+}

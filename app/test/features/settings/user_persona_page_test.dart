@@ -190,17 +190,14 @@ void main() {
     expect(find.byKey(userPersonaClearKey), findsOneWidget);
   });
 
-  testWidgets('设置页入口：在学习洞察之后，空态给说明，点进去是编辑页', (tester) async {
+  testWidgets('设置页入口：空态给说明，点进去是编辑页', (tester) async {
     await pumpSettings(tester);
 
     expect(find.byKey(settingsUserPersonaTileKey), findsOneWidget);
     expect(find.text(zh.personaSettingsSubtitle), findsOneWidget);
-    // 顺序：学习洞察入口在上，自我描述紧随其后（用户不必猜它在哪）。
-    // （task-113 后「认知模型」入口已从设置页移走，学习分区里在它之前的是学习洞察。）
-    expect(
-      tester.getTopLeft(find.text(zh.learningInsightSettingsTitle)).dy,
-      lessThan(tester.getTopLeft(find.text(zh.personaTitle)).dy),
-    );
+    // 「今日计划」「学习洞察」入口已按用户要求删除；自我描述仍在学习分区。
+    expect(find.text(zh.learningInsightSettingsTitle), findsNothing);
+    expect(find.text(zh.settingsTodayPlan), findsNothing);
 
     await tester.tap(find.byKey(settingsUserPersonaTileKey));
     await tester.pumpAndSettle();

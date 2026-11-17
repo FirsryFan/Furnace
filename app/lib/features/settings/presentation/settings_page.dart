@@ -35,11 +35,9 @@ import '../../../domain/services/cognitive/user_persona.dart';
 import '../../ai/presentation/ai_settings_page.dart';
 import '../../assessment/presentation/assessment_center_page.dart';
 import '../../cognitive/presentation/cognitive_developer_page.dart';
-import '../../cognitive/presentation/today_plan_page.dart';
 import '../../design_board/presentation/design_board_page.dart';
 import '../../library/presentation/gaokao_library_page.dart';
 import '../../packages/presentation/packages_page.dart';
-import '../../questions/presentation/learning_insight_page.dart';
 import '../../student_preset/application/preset_selection.dart';
 import '../../student_preset/presentation/preset_select_page.dart';
 import '../../tags/presentation/tag_tree_page.dart';
@@ -164,22 +162,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
         SettingsSectionCard(
           children: [
-            SettingsNavTile(
-              tileKey: settingsTodayPlanTileKey,
-              icon: Icons.today_outlined,
-              title: l10n.settingsTodayPlan,
-              onTap: () => _push(context, const TodayPlanPage()),
-            ),
             // 复习提醒：开关 + 每天提醒时刻（v28 两列，排程在 features/anki）。
             const ReviewReminderSection(),
-            // 学习洞察入口（task-39）：只读展示已聚合好的解题链洞察与卡点。
-            SettingsNavTile(
-              tileKey: settingsLearningInsightTileKey,
-              icon: Icons.auto_graph,
-              title: l10n.learningInsightSettingsTitle,
-              subtitle: l10n.learningInsightSettingsHint,
-              onTap: () => _push(context, const LearningInsightPage()),
-            ),
             // 自我描述（task-187）：AI 对话会把它当背景。
             SettingsNavTile(
               tileKey: settingsUserPersonaTileKey,

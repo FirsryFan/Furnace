@@ -145,6 +145,7 @@ class PaperCandidate {
     this.trapNote,
     this.matchedKnowledgePointIds = const [],
     this.actionTypes = const [],
+    this.groupQuestionIds = const [],
   });
 
   final String questionId;
@@ -176,6 +177,13 @@ class PaperCandidate {
   /// 组卷用它回答"这道题能不能练到我最该练的那类动作"——动作词表是跨学科的，所以
   /// 这一维可以在数学卷上被物理题命中（`docs/REASONING_LAYER_DESIGN.md` §3）。
   final List<String> actionTypes;
+
+  /// 题组内全部小问的题目 id，按小问顺序（serialNo 升序；没有编号时按 id）。
+  ///
+  /// 空表 = 独立题；长度 > 1 = 「一篇文章 + N 个小问」的题组。候选人仍然只有
+  /// [questionId] 一个（组卷按题组合题计数），这里带全组 id 是为了让导出层能把
+  /// 第 2 个以后的小问也排进卷面（材料只出现一次）。
+  final List<String> groupQuestionIds;
 
   /// 来源分级优先级。
   double get sourcePriority => kSourceLevelPriority[sourceLevel.trim()] ?? 0.0;
@@ -285,6 +293,7 @@ class PaperItem {
     required this.improvementNote,
     required this.backgroundZh,
     this.matchedPreferredActions = const [],
+    this.groupQuestionIds = const [],
   });
 
   final String questionId;
@@ -315,6 +324,12 @@ class PaperItem {
   /// 知识背景（标签路径 → 知识点名 → 知识点 id → "未标注知识点"）。
   final String backgroundZh;
 
+  /// 题组内全部小问的题目 id（按小问顺序）；空表 = 独立题。
+  ///
+  /// 导出卷面据此把组内第 2+ 小问展开（`paper_docx.dart`）。卷子的**题数**仍按
+  /// [PaperPlan.items] 计（一个题组 = 一道题），不按小问计。
+  final List<String> groupQuestionIds;
+
   Map<String, Object?> toJson() => {
         'question_id': questionId,
         'subject_key': subjectKey,
@@ -331,6 +346,7 @@ class PaperItem {
         'background': backgroundZh,
         if (matchedPreferredActions.isNotEmpty)
           'matched_preferred_actions': matchedPreferredActions,
+        if (groupQuestionIds.isNotEmpty) 'group_question_ids': groupQuestionIds,
       };
 }
 
@@ -951,6 +967,7 @@ abstract final class PaperComposer {
                   knowledgePointTagPaths,
                 ),
           matchedPreferredActions: entry.matchedPreferredActions,
+          groupQuestionIds: entry.candidate.groupQuestionIds,
         ),
       );
     }

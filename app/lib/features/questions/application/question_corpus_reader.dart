@@ -154,18 +154,32 @@ List<PaperCandidate> _paperCandidatesOf(
       sourceLabel: row.sourceLabel,
     );
     final List<String> matchedKnowledgePointIds;
+    final List<String> groupQuestionIds;
     if (signature == null) {
-      matchedKnowledgePointIds =
-          pointsByQuestion[row.id] ?? const <String>[];
+      matchedKnowledgePointIds = pointsByQuestion[row.id] ?? const <String>[];
+      groupQuestionIds = const <String>[];
     } else {
       if (!emittedGroupKeys.add(signature.groupKey)) {
         continue;
       }
+      final members = rowsByGroupKey[signature.groupKey]!;
       matchedKnowledgePointIds = <String>{
-        for (final member in rowsByGroupKey[signature.groupKey]!)
-          ...?pointsByQuestion[member.id],
+        for (final member in members) ...?pointsByQuestion[member.id],
       }.toList()
         ..sort();
+      // 组内小问顺序：serialNo 升序（整卷导入按试卷顺序编号，这是库内唯一持久化的
+      // 小问顺序）；没有编号的旧行按 id 兜底，保证同一份库两次导出顺序一致。
+      final ordered = <Question>[...members]..sort((a, b) {
+          final left = a.serialNo;
+          final right = b.serialNo;
+          if (left != null && right != null && left != right) {
+            return left.compareTo(right);
+          }
+          if (left == null && right != null) return 1;
+          if (left != null && right == null) return -1;
+          return a.id.compareTo(b.id);
+        });
+      groupQuestionIds = <String>[for (final member in ordered) member.id];
     }
     candidates.add(
       PaperCandidate(
@@ -177,6 +191,9 @@ List<PaperCandidate> _paperCandidatesOf(
         aiQuality: row.aiQuality,
         trapNote: row.trapNote,
         matchedKnowledgePointIds: matchedKnowledgePointIds,
+        groupQuestionIds: groupQuestionIds.length > 1
+            ? List<String>.unmodifiable(groupQuestionIds)
+            : const <String>[],
       ),
     );
   }

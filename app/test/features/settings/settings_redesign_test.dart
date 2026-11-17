@@ -25,11 +25,9 @@ import 'package:furnace/data/storage/app_storage.dart';
 import 'package:furnace/features/ai/presentation/ai_settings_page.dart';
 import 'package:furnace/features/assessment/presentation/assessment_center_page.dart';
 import 'package:furnace/features/cognitive/presentation/cognitive_developer_page.dart';
-import 'package:furnace/features/cognitive/presentation/today_plan_page.dart';
 import 'package:furnace/features/design_board/presentation/design_board_page.dart';
 import 'package:furnace/features/markdown/presentation/markdown_settings_page.dart';
 import 'package:furnace/features/packages/presentation/packages_page.dart';
-import 'package:furnace/features/questions/presentation/learning_insight_page.dart';
 import 'package:furnace/features/settings/presentation/about_page.dart';
 import 'package:furnace/features/settings/presentation/data_backup_page.dart';
 import 'package:furnace/features/settings/presentation/data_location_tile.dart';
@@ -253,7 +251,7 @@ void main() {
     }
   });
 
-  testWidgets('关键入口仍可达：今日计划 / 备份与恢复 / Markdown / 知识库 / 使用文档 / 关于',
+  testWidgets('关键入口仍可达：备份与恢复 / Markdown / 知识库 / 使用文档 / 关于',
       (tester) async {
     await pumpSettings(tester);
 
@@ -273,8 +271,6 @@ void main() {
       expect(find.byType(pageType), findsNothing);
     }
 
-    await open(settingsTodayPlanTileKey, TodayPlanPage);
-    await open(settingsLearningInsightTileKey, LearningInsightPage);
     await open(settingsUserPersonaTileKey, UserPersonaPage);
     await open(settingsAssessmentTileKey, AssessmentCenterPage);
     await open(settingsAiTileKey, AiSettingsPage);

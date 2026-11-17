@@ -24,6 +24,7 @@ library;
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -280,6 +281,31 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   void _open(Widget page) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (context) => page),
+    );
+  }
+
+  /// 组卷页在 Windows release/AOT 下存在原生崩溃（0xC0000005）；
+  /// 在根因修好前不允许 release 用户进入崩溃页。debug/widget 测试仍可打开。
+  void _openPaper() {
+    if (!kReleaseMode) {
+      _open(const QuestionPaperPage());
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('组卷暂不可用'),
+        content: const Text(
+          '当前 Windows 发布版的组卷页存在原生崩溃，已临时关闭入口；'
+          '修复后会恢复。可以先用「AI 题单」生成练习。',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -891,7 +917,7 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                 children: <Widget>[
                   _EntryRow(
                     l10n: l10n,
-                    onPaper: () => _open(const QuestionPaperPage()),
+                    onPaper: _openPaper,
                     onPending: () => _open(const QuestionPendingPage()),
                     pendingCount:
                         ref.watch(questionPendingStatsProvider).valueOrNull?.total,

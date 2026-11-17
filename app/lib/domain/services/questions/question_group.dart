@@ -105,6 +105,36 @@ QuestionGroupSignature? questionGroupSignatureOf({
   );
 }
 
+/// 组内一行的题面拆分结果：材料原文（含 `【材料 …】` 标题行）+ 小问题干。
+class QuestionGroupStemParts {
+  const QuestionGroupStemParts(
+      {required this.material, required this.question});
+
+  /// 材料原文（含 `【材料 …】` 标题行，不含 `【题目】` 分隔行）。
+  final String material;
+
+  /// 小问题干（`【题目】` 之后的部分）。
+  final String question;
+}
+
+/// 把「材料 + 【题目】 + 小问」的整卷导入题面拆成材料与小问题干。
+///
+/// 组卷卷面要"材料只出现一次、小问连续排"，所以导出层必须先切：本函数与
+/// [questionGroupSignatureOf] 用同一套判据（同一个 `【题目】` 分隔行）。
+/// 不是题组 / 旧数据没有分隔行时返回 null——调用方**不要猜**，回落到代表题整段
+/// 渲染，并把"未展开"写进导出提示。
+QuestionGroupStemParts? splitQuestionGroupStem(String stem) {
+  final text = stem.trim();
+  if (text.isEmpty) return null;
+  if (_leadingMaterialMarker.firstMatch(text) == null) return null;
+  final section = _questionSectionMarker.firstMatch(text);
+  if (section == null) return null;
+  final material = text.substring(0, section.start).trim();
+  final question = text.substring(section.end).trim();
+  if (material.isEmpty || question.isEmpty) return null;
+  return QuestionGroupStemParts(material: material, question: question);
+}
+
 /// 材料全文的归一化（只收拾行尾空白与整体首尾空白）。
 ///
 /// 不做更激进的空白折叠：同一份整卷导入写出的材料逐字相同，归一化只是为了容忍

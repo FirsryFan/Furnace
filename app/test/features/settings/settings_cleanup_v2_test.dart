@@ -65,20 +65,21 @@ void main() {
   }
 
   group('总设置：入口合并与归位', () {
-    testWidgets('学习分区只剩 5 个普通入口；卡组/认知模型/高考资源库都不在',
-        (tester) async {
+    testWidgets('学习分区只剩 3 个普通入口；今日计划/学习洞察已删', (tester) async {
       await pumpPage(tester, const SettingsPage());
 
       // 保留的普通入口。
       for (final kept in <Key>[
-        settingsTodayPlanTileKey,
-        settingsLearningInsightTileKey,
         settingsUserPersonaTileKey,
         settingsAssessmentTileKey,
       ]) {
         expect(find.byKey(kept), findsOneWidget, reason: '应保留入口 $kept');
       }
       expect(find.text(zh.reviewReminderSettingTitle), findsOneWidget);
+
+      // 用户明确要求删掉的入口。
+      expect(find.byKey(settingsTodayPlanTileKey), findsNothing);
+      expect(find.byKey(settingsLearningInsightTileKey), findsNothing);
 
       // 移走的入口（功能在各自模块里，不在总设置）。
       expect(find.text(zh.settingsCardGroups), findsNothing, reason: '卡组设置属于闪存卡模块');

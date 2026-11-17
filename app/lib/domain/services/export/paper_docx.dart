@@ -20,6 +20,7 @@ import 'dart:typed_data';
 
 import '../paper/paper_composer.dart';
 import '../paper/paper_quality_report.dart';
+import '../questions/question_group.dart';
 import '../reasoning/capability_action.dart';
 import 'docx_writer.dart';
 
@@ -153,6 +154,8 @@ class PaperDocxBuildResult {
     required this.formulaFailures,
     this.answerImageCount = 0,
     this.snapshotStemCount = 0,
+    this.expandedGroupCount = 0,
+    this.expandedSubQuestionCount = 0,
   });
 
   final Uint8List bytes;
@@ -170,6 +173,12 @@ class PaperDocxBuildResult {
 
   /// 题干是整卡快照的题目数（正文只渲染降级文字，原题看图）。
   final int snapshotStemCount;
+
+  /// 卷面按题组展开的组数（「一篇文章 + N 个小问」= 1 道题）。
+  final int expandedGroupCount;
+
+  /// 展开在卷面上的小问总数（含每组的第 1 小问）；独立题不计入。
+  final int expandedSubQuestionCount;
   final int formulaCount;
   final int formulaFailureCount;
   final int missingQuestionCount;
@@ -513,6 +522,14 @@ class _Assembler {
   /// 题干是整卡快照的题目数。
   int _snapshotStemCount = 0;
 
+  /// 按题组展开的组数 / 展开的小问总数（卷面统计，不是题数）。
+  int _expandedGroupCount = 0;
+  int _expandedSubQuestionCount = 0;
+
+  /// 题组没能展开的原因（旧数据缺【题目】分隔、组内材料不一致、成员行缺失），
+  /// 写进卷末「导出提示」，不静默少排小问。
+  final List<String> groupExpansionNotes = <String>[];
+
   /// 附录里是否已经出过标题：只有第一个标题另起一页。
   bool _appendixStarted = false;
 
@@ -582,7 +599,12 @@ class _Assembler {
 
   void _addQuestion(int number, PaperItem item) {
     final question = questions[item.questionId];
-    final serial = question?.serialNo?.trim() ?? '';
+    // 题组：题号行用组内第 1 个小问的编号（代表题可能恰好是最后一个，如真实库里
+    // S1-M1 组代表题是 serialNo 712，直接印 712 会让读者以为卷首丢了 4 个小问）。
+    final groupMembers = _groupMemberQuestionsOf(item);
+    final serialQuestion =
+        groupMembers.isNotEmpty ? groupMembers.first : question;
+    final serial = serialQuestion?.serialNo?.trim() ?? '';
     final numberText = serial.isEmpty ? '$number.' : '$number.  $serial';
     builder.addParagraph(
       DocxParagraph(
@@ -624,9 +646,136 @@ class _Assembler {
       );
       return;
     }
+    // 题组（一篇文章 + 多个小问）：材料只排一次，小问按组内顺序连续编号。
+    // 题数仍是 plan.items 的一个题额（调用方按题组计数），这里只展开内容。
+    if (_addQuestionGroup(number, item)) {
+      return;
+    }
     _addStem(question);
     _addOptions(question);
-    _addImages(number, question);
+    _addImages(_questionLabel(number), question);
+  }
+
+  /// 题组展开：成功渲染返回 true；不是题组 / 没法安全展开返回 false（走单题老路）。
+  ///
+  /// 展开失败的原因都进 [groupExpansionNotes]（卷末导出提示），不静默丢小问：
+  /// * 组内某行读不到（被删/题干不在）；
+  /// * 旧数据题面没有 `【题目】` 分隔行，切不出小问；
+  /// * 组内材料文本互相不一致（组键本来按材料建，出现不一致说明数据被改过）。
+  bool _addQuestionGroup(int number, PaperItem item) {
+    if (item.groupQuestionIds.length < 2) return false;
+    final members = <PaperDocxQuestion>[];
+    for (final rawId in item.groupQuestionIds) {
+      final id = rawId.trim();
+      if (id.isEmpty) continue;
+      final member = questions[id];
+      if (member == null) {
+        groupExpansionNotes.add('第 $number 题：题组成员 $id 在题库里找不到，未排进卷面');
+        continue;
+      }
+      members.add(member);
+    }
+    if (members.length < 2) {
+      if (members.length == 1) {
+        groupExpansionNotes.add('第 $number 题：题组只剩 1 个可读小问，按单题排');
+      }
+      return false;
+    }
+    final parts = <QuestionGroupStemParts>[];
+    for (final member in members) {
+      final split = splitQuestionGroupStem(member.stem);
+      if (split == null) {
+        groupExpansionNotes.add('第 $number 题：题面缺少【题目】分隔行，题组未展开');
+        return false;
+      }
+      parts.add(split);
+    }
+    final material = parts.first.material;
+    if (parts.any((part) => part.material != material)) {
+      groupExpansionNotes.add('第 $number 题：组内材料原文不一致，按第 1 个小问的材料排');
+    }
+    _expandedGroupCount++;
+    _expandedSubQuestionCount += members.length;
+
+    // 材料只出现一次（含【材料 …】标题行）。
+    final materialLines = _splitLines(material);
+    for (var index = 0; index < materialLines.length; index++) {
+      builder.addParagraph(
+        DocxParagraph(
+          inlines: _inlines(materialLines[index], sizeHalfPt: kDocxBodyHalfPt),
+          spacingAfterTw: 40,
+          keepLines: true,
+          keepNext: true,
+        ),
+      );
+    }
+    for (var index = 0; index < members.length; index++) {
+      final member = members[index];
+      final lines = _splitLines(parts[index].question);
+      if (lines.isEmpty) {
+        missingStemCount++;
+        builder.addParagraph(
+          DocxParagraph(
+            inlines: <DocxInline>[
+              DocxText(
+                labels.emptyStem,
+                sizeHalfPt: kDocxBodyHalfPt,
+                colorHex: '808080',
+              ),
+            ],
+            spacingAfterTw: 60,
+          ),
+        );
+      } else {
+        final subLabel = '（${index + 1}）';
+        final hasFollowing =
+            member.options.isNotEmpty || member.images.isNotEmpty;
+        for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+          builder.addParagraph(
+            DocxParagraph(
+              inlines: <DocxInline>[
+                if (lineIndex == 0)
+                  DocxText(
+                    subLabel,
+                    sizeHalfPt: kDocxBodyHalfPt,
+                    bold: true,
+                  ),
+                ..._inlines(lines[lineIndex], sizeHalfPt: kDocxBodyHalfPt),
+              ],
+              spacingAfterTw: 40,
+              keepLines: true,
+              keepNext: lineIndex < lines.length - 1 || hasFollowing,
+            ),
+          );
+        }
+      }
+      if (member.stemIsSnapshot) {
+        _snapshotStemCount++;
+        _addSnapshotStemNote();
+      }
+      _addOptions(member);
+      _addImages(
+        _questionLabel(number, subIndex: index + 1),
+        member,
+      );
+    }
+    return true;
+  }
+
+  /// 卷面提示里的题目定位（`第 3 题` / `第 3 题（2）`）。
+  String _questionLabel(int number, {int? subIndex}) {
+    return subIndex == null ? '第 $number 题' : '第 $number 题（$subIndex）';
+  }
+
+  /// 题组里在题库中读得到的成员（按 groupQuestionIds 顺序；独立题返回空表）。
+  ///
+  /// 附录用：正文那边会单独把"哪一行读不到"写进导出提示，这里只取能排的。
+  List<PaperDocxQuestion> _groupMemberQuestionsOf(PaperItem item) {
+    if (item.groupQuestionIds.length < 2) return const <PaperDocxQuestion>[];
+    return <PaperDocxQuestion>[
+      for (final rawId in item.groupQuestionIds)
+        if (questions[rawId.trim()] != null) questions[rawId.trim()]!,
+    ];
   }
 
   void _addStem(PaperDocxQuestion question) {
@@ -706,7 +855,7 @@ class _Assembler {
     }
   }
 
-  void _addImages(int number, PaperDocxQuestion question) {
+  void _addImages(String label, PaperDocxQuestion question) {
     if (question.stemIsSnapshot && question.images.isNotEmpty) {
       builder.addParagraph(
         DocxParagraph(
@@ -724,18 +873,18 @@ class _Assembler {
         ),
       );
     }
-    _appendImages(number, question.images, answerShot: false);
+    _appendImages(label, question.images, answerShot: false);
   }
 
   /// 附录里的答案/解析截图：标签行由 [_addAnswerImagesHeading] 单独渲染。
-  void _addAnswerImages(int number, PaperDocxQuestion question) {
-    _appendImages(number, question.answerImages, answerShot: true);
+  void _addAnswerImages(String label, PaperDocxQuestion question) {
+    _appendImages(label, question.answerImages, answerShot: true);
   }
 
   /// 题干配图与答案截图共用同一套嵌入规则：等比缩放、支持的扩展名、
-  /// 像素尺寸校验；note 只差来源前缀（答案截图带「答案截图」字样）。
+  /// 像素尺寸校验；[label] 是卷面定位（`第 3 题` / `第 3 题（2）`）。
   void _appendImages(
-    int number,
+    String label,
     List<PaperDocxImage> images, {
     required bool answerShot,
   }) {
@@ -745,13 +894,12 @@ class _Assembler {
       final suffix = fileName.isEmpty ? '' : '（$fileName）';
       if (!image.hasUSatisfactoryExtent) {
         imageSkippedCount++;
-        imageSkippedNotes.add('第 $number 题$kind$suffix：图片字节或尺寸信息缺失');
+        imageSkippedNotes.add('$label$kind$suffix：图片字节或尺寸信息缺失');
         continue;
       }
       if (!supportsDocxImageExtension(image.extension)) {
         imageSkippedCount++;
-        imageSkippedNotes
-            .add('第 $number 题$kind$suffix：格式 ${image.extension} 不支持嵌入');
+        imageSkippedNotes.add('$label$kind$suffix：格式 ${image.extension} 不支持嵌入');
         continue;
       }
       builder.addImage(
@@ -762,7 +910,7 @@ class _Assembler {
           pixelHeight: image.pixelHeight,
           spacingBeforeTw: 60,
           spacingAfterTw: 40,
-          note: '第 $number 题$kind$suffix',
+          note: '$label$kind$suffix',
         ),
       );
       if (answerShot) {
@@ -832,6 +980,18 @@ class _Assembler {
       );
       return;
     }
+    final groupMembers = _groupMemberQuestionsOf(item);
+    if (groupMembers.length > 1) {
+      _addGroupAnswerEntry(
+        number: number,
+        item: item,
+        members: groupMembers,
+        includeAnswers: includeAnswers,
+        includeSolutions: includeSolutions,
+        includeReasons: includeReasons,
+      );
+      return;
+    }
     if (includeAnswers) {
       final answer = _answerText(question);
       if (answer == null) missingAnswerCount++;
@@ -885,23 +1045,7 @@ class _Assembler {
           ),
         );
       } else {
-        for (final line in _splitLines(solution)) {
-          builder.addParagraph(
-            DocxParagraph(
-              inlines: <DocxInline>[
-                DocxText(
-                  labels.solutionLabel,
-                  sizeHalfPt: kDocxBodyHalfPt,
-                  bold: true,
-                  colorHex: '404040',
-                ),
-                ..._inlines(line, sizeHalfPt: kDocxBodyHalfPt),
-              ],
-              spacingAfterTw: 20,
-              keepLines: true,
-            ),
-          );
-        }
+        _addSolutionLines(question, number: null);
       }
     }
     if (includeReasons) {
@@ -909,7 +1053,127 @@ class _Assembler {
     }
     if (question.answerImages.isNotEmpty) {
       _addAnswerImagesHeading();
-      _addAnswerImages(number, question);
+      _addAnswerImages(_questionLabel(number), question);
+    }
+  }
+
+  /// 题组在附录里的答案：仍是「题号 + 答案」形状——题号只出一次，小问只加
+  /// （1）（2）标号；不把题干/材料搬进答案区（答案册口径不变）。
+  void _addGroupAnswerEntry({
+    required int number,
+    required PaperItem item,
+    required List<PaperDocxQuestion> members,
+    required bool includeAnswers,
+    required bool includeSolutions,
+    required bool includeReasons,
+  }) {
+    if (includeAnswers) {
+      builder.addParagraph(
+        DocxParagraph(
+          inlines: <DocxInline>[
+            DocxText('$number. ', sizeHalfPt: kDocxBodyHalfPt, bold: true),
+            DocxText(
+              labels.answerLabel,
+              sizeHalfPt: kDocxBodyHalfPt,
+              bold: true,
+            ),
+          ],
+          spacingBeforeTw: 80,
+          spacingAfterTw: 20,
+          keepNext: true,
+        ),
+      );
+      for (var index = 0; index < members.length; index++) {
+        final answer = _answerText(members[index]);
+        if (answer == null) missingAnswerCount++;
+        builder.addParagraph(
+          DocxParagraph(
+            inlines: <DocxInline>[
+              DocxText(
+                '（${index + 1}）',
+                sizeHalfPt: kDocxBodyHalfPt,
+                bold: true,
+              ),
+              ..._inlines(answer ?? labels.noAnswer,
+                  sizeHalfPt: kDocxBodyHalfPt),
+            ],
+            spacingAfterTw: 20,
+            keepLines: true,
+          ),
+        );
+      }
+    }
+    if (includeSolutions) {
+      for (var index = 0; index < members.length; index++) {
+        _addSolutionLines(members[index], number: index + 1);
+      }
+    }
+    if (includeReasons) {
+      _addReasonLines(item);
+    }
+    final withImages = <int>[
+      for (var index = 0; index < members.length; index++)
+        if (members[index].answerImages.isNotEmpty) index,
+    ];
+    if (withImages.isNotEmpty) {
+      _addAnswerImagesHeading();
+      for (final index in withImages) {
+        _addAnswerImages(
+          _questionLabel(number, subIndex: index + 1),
+          members[index],
+        );
+      }
+    }
+  }
+
+  /// 解析段；[number] 非空时是题组里的小问，前面加（i）标号。
+  void _addSolutionLines(PaperDocxQuestion question, {int? number}) {
+    final solution = question.solution?.trim() ?? '';
+    final prefix = number == null ? '' : '（$number）';
+    if (solution.isEmpty) {
+      missingSolutionCount++;
+      builder.addParagraph(
+        DocxParagraph(
+          inlines: <DocxInline>[
+            if (prefix.isNotEmpty)
+              DocxText(prefix, sizeHalfPt: kDocxBodyHalfPt, bold: true),
+            DocxText(
+              labels.solutionLabel,
+              sizeHalfPt: kDocxBodyHalfPt,
+              bold: true,
+              colorHex: '404040',
+            ),
+            DocxText(
+              labels.noSolution,
+              sizeHalfPt: kDocxBodyHalfPt,
+              colorHex: '808080',
+            ),
+          ],
+          spacingAfterTw: 20,
+          keepLines: true,
+        ),
+      );
+      return;
+    }
+    final lines = _splitLines(solution);
+    for (var index = 0; index < lines.length; index++) {
+      builder.addParagraph(
+        DocxParagraph(
+          inlines: <DocxInline>[
+            if (prefix.isNotEmpty)
+              DocxText(prefix, sizeHalfPt: kDocxBodyHalfPt, bold: true),
+            DocxText(
+              labels.solutionLabel,
+              sizeHalfPt: kDocxBodyHalfPt,
+              bold: true,
+              colorHex: '404040',
+            ),
+            ..._inlines(lines[index], sizeHalfPt: kDocxBodyHalfPt),
+          ],
+          spacingAfterTw: 20,
+          keepLines: true,
+        ),
+      );
     }
   }
 
@@ -1273,6 +1537,9 @@ class _Assembler {
     for (final failure in formulaFailures) {
       notes.add('公式未能编译（已保留 LaTeX 原文）：$failure');
     }
+    for (final note in groupExpansionNotes) {
+      notes.add(note);
+    }
     if (notes.isEmpty) return;
     _addAppendixHeading(labels.exportNotesHeading);
     for (final note in notes) {
@@ -1472,6 +1739,8 @@ class _Assembler {
       imageSkippedCount: imageSkippedCount,
       answerImageCount: _answerImageCount,
       snapshotStemCount: _snapshotStemCount,
+      expandedGroupCount: _expandedGroupCount,
+      expandedSubQuestionCount: _expandedSubQuestionCount,
       formulaCount: builder.mathCount,
       formulaFailureCount: formulaFailureCount,
       missingQuestionCount: missingQuestionLabels.length,

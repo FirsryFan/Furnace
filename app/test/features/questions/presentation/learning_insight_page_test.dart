@@ -399,7 +399,7 @@ void main() {
       expect(builds, greaterThan(1));
     });
 
-    testWidgets('设置页有学习洞察入口并能打开页面', (tester) async {
+    testWidgets('设置页不再有学习洞察入口（用户要求删除）', (tester) async {
       tester.view.physicalSize = const Size(1200, 8000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -420,11 +420,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final entry = find.text(zh.learningInsightSettingsTitle);
-      expect(entry, findsOneWidget);
-      await tester.tap(entry);
-      await tester.pumpAndSettle();
-      expect(find.byKey(learningInsightPageKey), findsOneWidget);
+      expect(find.text(zh.learningInsightSettingsTitle), findsNothing);
+      expect(find.byKey(learningInsightPageKey), findsNothing);
     });
   });
 }

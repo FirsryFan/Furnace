@@ -76,6 +76,7 @@ Future<PaperPlanBuild> buildPaperPlan({
         trapNote: candidate.trapNote,
         matchedKnowledgePointIds: candidate.matchedKnowledgePointIds,
         actionTypes: chainActions[candidate.questionId] ?? const <String>[],
+        groupQuestionIds: candidate.groupQuestionIds,
       ),
   ];
 

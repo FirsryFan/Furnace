@@ -74,9 +74,14 @@ Future<PaperDocxExportResult> buildPaperDocxExport({
   DateTime? generatedAt,
 }) async {
   final now = generatedAt ?? DateTime.now();
+  // 组卷卷面要把题组的小问全部排进去：读行/读图都不能只读代表题，否则材料里的
+  // 第 2+ 小问在导出时根本不存在。题数仍按 `plan.items`（题组）计。
   final questionIds = <String>{
-    for (final item in plan.items)
+    for (final item in plan.items) ...[
       if (item.questionId.trim().isNotEmpty) item.questionId.trim(),
+      for (final groupId in item.groupQuestionIds)
+        if (groupId.trim().isNotEmpty) groupId.trim(),
+    ],
   };
   final rows = await readQuestionDocxRows(db, ids: questionIds);
   final knowledgePointNames = await readKnowledgePointNames(db);
