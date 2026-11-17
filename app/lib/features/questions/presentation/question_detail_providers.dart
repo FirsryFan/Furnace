@@ -25,6 +25,8 @@ import '../../../domain/services/reasoning/reasoning_prompt.dart';
 import '../../../domain/services/scheduling/thread_balance_inputs.dart';
 import '../../../domain/services/srs/dsr_card_state.dart';
 import '../../../domain/services/srs/dsr_memory.dart';
+import '../application/question_library_reader.dart'
+    show QuestionGroupInfo, readQuestionGroupInfo;
 
 /// 详情页顶部要的一份数据：题目 + 它的选项。
 class QuestionDetail {
@@ -61,6 +63,20 @@ final questionAttemptHistoryProvider = FutureProvider.autoDispose
   final repository = ref.watch(questionAttemptRepositoryProvider);
   return QuestionAttemptHistory.fromEntries(
     await repository.historyFor(questionId),
+  );
+});
+
+/// 这道题所在的题组（`本组共 N 小问`）。
+///
+/// 独立题（没有 `【材料 …】` 前缀 / 来源标签为空）返回 null；只有一个材料行时
+/// 返回 size 为 1 的题组，页面据此不显示本组提示。读法与题库列表折叠同一份逻辑
+/// （`readQuestionGroupInfo` → `questionGroupSignatureOf`），不在这里另写一套组键。
+final questionGroupInfoProvider = FutureProvider.autoDispose
+    .family<QuestionGroupInfo?, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  return readQuestionGroupInfo(
+    ref.watch(appDatabaseProvider),
+    questionId,
   );
 });
 

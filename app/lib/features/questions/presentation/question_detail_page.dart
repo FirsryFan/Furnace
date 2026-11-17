@@ -147,6 +147,11 @@ const Key questionDetailNextQuestionKey = Key('question-detail-next-question');
 const Key questionDetailSerialPositionKey =
     Key('question-detail-serial-position');
 
+/// 「本组共 N 小问」提示行的 key（测试定位用）。
+///
+/// 独立题不渲染这一行；题组（一篇文章 + 多个小问）才出现。
+const Key questionDetailGroupHintKey = Key('question-detail-group-hint');
+
 /// AppBar 上「跳题号」按钮的 key（测试定位用）。
 const Key questionDetailJumpSerialKey = Key('question-detail-jump-serial');
 
@@ -850,6 +855,10 @@ class _QuestionBodyState extends State<_QuestionBody> {
           ],
         ),
         const SizedBox(height: 12),
+        // 题组提示：一篇文章 + 多个小问在题库里是一道题；打开组内任意一题时
+        // 明确告诉用户「本组共 N 小问」，不让人以为自己只看到半道题。
+        // 独立题零高度（不占版面）。
+        _QuestionGroupHint(questionId: question.id),
         // 题干版块标题：让「题干 / 答案 / 思维 DAG / 元数据 …」的版块边界
         // 一眼可见（此前题干没有任何标题，只有题名与来源行）。
         Text(l10n.questionIntakeStemLabel, style: theme.textTheme.titleSmall),
@@ -961,6 +970,47 @@ class _QuestionBodyState extends State<_QuestionBody> {
             _EmptyAnswerHint(questionId: question.id),
         ],
       ],
+    );
+  }
+}
+
+/// 「本组共 N 小问」：一篇文章 + 多个小问在题库里算**一道题**（题组）。
+///
+/// 只在题组且组内多于一个小问时出现；独立题返回零高度，不占版面、不改旧页面
+/// 的版块顺序。数据来自 `questionGroupInfoProvider`（与题库列表折叠同一份组键）。
+class _QuestionGroupHint extends ConsumerWidget {
+  const _QuestionGroupHint({required this.questionId});
+
+  final String questionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final info =
+        ref.watch(questionGroupInfoProvider(questionId)).valueOrNull;
+    if (info == null || !info.isGroup) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          key: questionDetailGroupHintKey,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${info.label} · ${l10n.questionDetailGroupSize(info.size)}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

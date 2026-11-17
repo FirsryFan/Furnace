@@ -4203,5 +4203,15 @@
   },
   "questionDetailOriginalLink": "原题链接",
   "questionDetailCopyLink": "复制链接",
-  "questionDetailAiCognitiveSection": "AI 解题与 MindNet 认知评价"
+  "questionDetailAiCognitiveSection": "AI 解题与 MindNet 认知评价",
+  "questionBankGroupSubCount": "{count} 小问",
+  "@questionBankGroupSubCount": {
+    "description": "题库列表题组卡上的徽标：一篇文章 + 这么多小问算一道题。",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailGroupSize": "本组共 {count} 小问",
+  "@questionDetailGroupSize": {
+    "description": "题目详情：这道题属于一个题组（一篇文章 + 若干小问），显示组内小问数。",
+    "placeholders": { "count": { "type": "int" } }
+  }
 }

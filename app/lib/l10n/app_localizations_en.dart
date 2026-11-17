@@ -7107,4 +7107,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionDetailAiCognitiveSection =>
       'AI solving & MindNet evaluation';
+
+  @override
+  String questionBankGroupSubCount(int count) {
+    return '$count sub-questions';
+  }
+
+  @override
+  String questionDetailGroupSize(int count) {
+    return 'This group has $count sub-questions';
+  }
 }

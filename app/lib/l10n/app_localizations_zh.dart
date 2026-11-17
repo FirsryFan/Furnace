@@ -6827,4 +6827,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionDetailAiCognitiveSection => 'AI 解题与 MindNet 认知评价';
+
+  @override
+  String questionBankGroupSubCount(int count) {
+    return '$count 小问';
+  }
+
+  @override
+  String questionDetailGroupSize(int count) {
+    return '本组共 $count 小问';
+  }
 }

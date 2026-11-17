@@ -4297,5 +4297,15 @@
   },
   "questionDetailOriginalLink": "Original link",
   "questionDetailCopyLink": "Copy link",
-  "questionDetailAiCognitiveSection": "AI solving & MindNet evaluation"
+  "questionDetailAiCognitiveSection": "AI solving & MindNet evaluation",
+  "questionBankGroupSubCount": "{count} sub-questions",
+  "@questionBankGroupSubCount": {
+    "description": "Library list badge on a folded question-group card: one article plus this many sub-questions is ONE question.",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailGroupSize": "This group has {count} sub-questions",
+  "@questionDetailGroupSize": {
+    "description": "Question detail: this question belongs to a group (one article + several sub-questions); show how many sub-questions the group has.",
+    "placeholders": { "count": { "type": "int" } }
+  }
 }

@@ -16,6 +16,7 @@ library;
 import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
+import '../../../domain/services/questions/question_group.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/questions/question_readiness.dart';
 import '../../../domain/services/questions/question_snapshot_summary.dart';
@@ -26,6 +27,9 @@ import '../../../domain/services/questions/question_stem_preview.dart';
 const String kQuestionLibraryStemRole = 'stem';
 const String kQuestionLibraryAnswerRole = 'answer';
 const String kQuestionLibrarySolutionRole = 'solution';
+
+/// 材料块开头的 `【材料 S1-M1】` 标题行（摘要里剥掉，标题单独显示）。
+final RegExp _materialMarkerLine = RegExp(r'^【材料[^】\n]*】[ \t]*\n?');
 
 /// 题库总览里的一道题的一张图。
 class QuestionLibraryImage {
@@ -80,6 +84,11 @@ class QuestionLibraryEntry {
     this.snapshotExcerpt,
     this.wrongAttemptCount = 0,
     this.readiness = QuestionReadiness.ready,
+    this.groupKey,
+    this.groupQuestionIds = const <String>[],
+    this.groupSize = 1,
+    this.groupLabel,
+    this.groupMaterial,
   });
 
   final String questionId;
@@ -127,6 +136,41 @@ class QuestionLibraryEntry {
   /// 的题，「待处理题目」入口列待处理的题。默认 ready 是为了让历史构造点
   /// （测试/预览）不用全改。
   final QuestionReadiness readiness;
+
+  /// 题组键（[QuestionGroupSignature.groupKey]）；null = 独立题。
+  ///
+  /// 同一篇文章的每个小问拿到的都是同一个键；读表时整组折成**一张卡**
+  /// （见 [readQuestionLibrary]）。独立题永远是 null。
+  final String? groupKey;
+
+  /// 组内全部小问的题目 id（组键排序后的顺序；第一个是代表题，
+  /// 也就是本 entry 的 [questionId]）。独立题为空表。
+  final List<String> groupQuestionIds;
+
+  /// 这道题代表几个小问（题组计数口径：一张卡 = 1 道题）。独立题为 1。
+  final int groupSize;
+
+  /// 题组的中文标签（`材料 S1-M1`）；独立题为 null。
+  final String? groupLabel;
+
+  /// 材料原文（含 `【材料 …】` 标题行，不含小问题干）；独立题或旧数据为 null。
+  final String? groupMaterial;
+
+  /// 是否是「一篇文章 + 多个小问」折成的题组卡。
+  bool get isQuestionGroup => groupSize > 1 && groupQuestionIds.isNotEmpty;
+
+  /// 材料摘要（列表卡上「材料 + N 小问」的那一行）；没有材料时为 null。
+  String? get groupMaterialPreview {
+    final material = (groupMaterial ?? '').trim();
+    if (material.isEmpty) {
+      return null;
+    }
+    // 材料块的第一行是 `【材料 S1-M1】` 标题：标题已经在 [groupLabel] 里，
+    // 摘要从正文开始，不重复摆一遍标题。
+    final body = material.replaceFirst(_materialMarkerLine, '').trim();
+    final preview = questionStemPreview(body);
+    return preview.isEmpty ? null : preview;
+  }
 
   /// 是否待处理（不进主题库）。
   bool get isPending => readiness.isPending;
@@ -196,7 +240,10 @@ class QuestionLibrarySnapshot {
 
   final List<QuestionLibraryEntry> entries;
 
-  /// 这次读到的行数（受 `limit` 约束）；不是库里题目总数。
+  /// 这次读到的**题组数**（受 `limit` 约束；不是库里题目总行数）。
+  ///
+  /// 判据生效时是「过滤后、截断前」的可见题组数（沿用主题库口径）；无判据时是
+  /// 截断后实际返回的题组数。两者都按**题组**计数：一篇文章 + N 个小问算 1。
   final int totalCount;
 
   /// 是否因为 `limit` 截断（库里的题比这里多）。
@@ -229,55 +276,91 @@ class QuestionLibrarySnapshot {
 
 /// 读一次题库总览。
 ///
-/// [limit] 默认 500（一个平板题库页一次最多画这么多行；`<=0` 表示不限）。
+/// [limit] 默认 500（一个平板题库页一次最多画这么多**题组卡**；`<=0` 表示不限）。
 /// 排序固定为 **updatedAt 降序、id 升序**：最近收/改的题在最上面，同一毫秒内
 /// 也稳定。
+///
+/// **题组折叠**：整卷导入把材料内联进每个小问的 stem（`【材料 Sx-Mx】…`），同一篇
+/// 文章的多行题在题库里应该是**一道题**（判据见
+/// `domain/services/questions/question_group.dart`）。折叠必须在 `LIMIT` **之前**
+/// 做：先读全表、按组键收拢、只给每组第一行建 [QuestionLibraryEntry]，再按
+/// [limit] 截断——否则从第 500 行附近的一组会被截成半组。组卡保留组内全部小问
+/// id（[QuestionLibraryEntry.groupQuestionIds]）；标签与答错次数按**全组**聚合
+/// （筛「错题本」不会因为答错的是第 2 小问而漏掉）。
 ///
 /// [policy] 是完整性判据：默认 [QuestionCompletenessPolicy.includeAll]（读表函数
 /// 的历史行为，任何题都算完整）；主题库数据源传
 /// [QuestionCompletenessPolicy.hidePending]，于是「没答案没解析」的题被滤掉。
 /// [pendingOnly] 为 true 时反过来**只留待处理题**（「待处理题目」入口用）。
 ///
-/// 有判据时不能在 SQL 里先 `LIMIT`：那会把第 N 条之后的完整/待处理题判错，所以
-/// 先读全表再筛、再按 `limit` 截断（本地 SQLite、题量万级以内可接受）。
+/// 有判据时更不能在 SQL 里先 `LIMIT`：那会把第 N 条之后的完整/待处理题判错，所以
+/// 先读全表再折叠、再筛、再按 `limit` 截断（本地 SQLite、题量万级以内可接受）。
 Future<QuestionLibrarySnapshot> readQuestionLibrary(
   AppDatabase db, {
   int limit = 500,
   QuestionCompletenessPolicy policy = QuestionCompletenessPolicy.includeAll,
   bool pendingOnly = false,
 }) async {
-  final filtering = policy.filtersAnything || pendingOnly;
-  final capped = limit > 0 ? limit + 1 : 0;
-  final query = db.select(db.questions)
-    ..orderBy([
-      (t) => OrderingTerm.desc(t.updatedAt),
-      (t) => OrderingTerm.asc(t.id),
-    ]);
-  if (!filtering && capped > 0) {
-    query.limit(capped);
-  }
-  final questionRows = await query.get();
-  final truncatedByRead =
-      !filtering && capped > 0 && questionRows.length > limit;
-  final rows = truncatedByRead ? questionRows.sublist(0, limit) : questionRows;
-  if (rows.isEmpty) {
+  // 先读全表（不 SQL LIMIT）：题组折叠要知道每组的全部行。
+  final questionRows = await (db.select(db.questions)
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.updatedAt),
+          (t) => OrderingTerm.asc(t.id),
+        ]))
+      .get();
+  if (questionRows.isEmpty) {
     return const QuestionLibrarySnapshot(
       entries: <QuestionLibraryEntry>[],
       totalCount: 0,
     );
   }
 
-  final ids = <String>[for (final row in rows) row.id];
+  // 1) 每行的组签名；同组行按排序顺序收拢（第一行 = 代表行，组卡的入口）。
+  final signatureByRowId = <String, QuestionGroupSignature>{};
+  final rowIdsByGroupKey = <String, List<String>>{};
+  for (final row in questionRows) {
+    final signature = questionGroupSignatureOf(
+      stem: row.stem,
+      sourceLabel: row.sourceLabel,
+    );
+    if (signature == null) {
+      continue;
+    }
+    signatureByRowId[row.id] = signature;
+    (rowIdsByGroupKey[signature.groupKey] ??= <String>[]).add(row.id);
+  }
+  final groupIdsByRepresentative = <String, List<String>>{};
+  final signatureByRepresentative = <String, QuestionGroupSignature>{};
+  for (final entry in rowIdsByGroupKey.entries) {
+    final ids = entry.value;
+    if (ids.isEmpty) {
+      continue;
+    }
+    groupIdsByRepresentative[ids.first] = List<String>.unmodifiable(ids);
+    signatureByRepresentative[ids.first] = signatureByRowId[ids.first]!;
+  }
+
+  // 2) 代表行清单：独立题是自己；题组是排序后的第一行。
+  final representativeIds = <String>[
+    for (final row in questionRows)
+      if (!signatureByRowId.containsKey(row.id) ||
+          groupIdsByRepresentative[row.id]?.first == row.id)
+        row.id,
+  ];
+  final allRowIds = <String>[for (final row in questionRows) row.id];
+  // 附件只查代表行（组卡显示代表题的封面/答案图）；标签与错题记录按**全组**
+  // 查询，折成一张卡后组内任一小问的标签/答错都不丢。
   final attachmentRows = await (db.select(db.attachments)
-        ..where((t) => t.ownerType.equals('question') & t.ownerId.isIn(ids)))
+        ..where((t) =>
+            t.ownerType.equals('question') & t.ownerId.isIn(representativeIds)))
       .get();
   final linkRows = await (db.select(db.objectTags)
-        ..where((t) => t.objectType.equals('question') & t.objectId.isIn(ids)))
+        ..where((t) => t.objectType.equals('question') & t.objectId.isIn(allRowIds)))
       .get();
   // 错题本口径：只数答错的自测（`question_attempts.is_correct = 0`）；
   // 做对过的题不进错题本，没做过的题也不进。
   final wrongRows = await (db.select(db.questionAttempts)
-        ..where((t) => t.questionId.isIn(ids) & t.isCorrect.equals(false)))
+        ..where((t) => t.questionId.isIn(allRowIds) & t.isCorrect.equals(false)))
       .get();
   final wrongCountByQuestion = <String, int>{};
   for (final row in wrongRows) {
@@ -316,15 +399,34 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
     });
   }
 
+  final rowById = <String, Question>{
+    for (final row in questionRows) row.id: row,
+  };
   final entries = <QuestionLibraryEntry>[];
-  for (final row in rows) {
+  for (final representativeId in representativeIds) {
+    final row = rowById[representativeId];
+    if (row == null) {
+      continue;
+    }
+    final groupIds =
+        groupIdsByRepresentative[representativeId] ?? const <String>[];
+    final memberIds = groupIds.isEmpty ? <String>[representativeId] : groupIds;
+    final signature = signatureByRepresentative[representativeId];
     final stemImages =
-        _imagesOf(imagesByQuestion[row.id], kQuestionLibraryStemRole);
+        _imagesOf(imagesByQuestion[representativeId], kQuestionLibraryStemRole);
     // 只拿到题干图数量、没有像素尺寸：走 B2 兜底（1 图 + >=2 处占位即快照）。
     final snapshot = summarizeQuestionStemSnapshot(
       stem: row.stem,
       stemImageCount: stemImages.length,
     );
+    // 组内标签取并集、答错次数求和：折卡后「第 2 小问挂了标签/答错过」仍然可筛。
+    final groupTagIds = <String>{
+      for (final memberId in memberIds) ...?tagIdsByQuestion[memberId],
+    };
+    var groupWrongAttemptCount = 0;
+    for (final memberId in memberIds) {
+      groupWrongAttemptCount += wrongCountByQuestion[memberId] ?? 0;
+    }
     entries.add(
       QuestionLibraryEntry(
         questionId: row.id,
@@ -339,21 +441,22 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
         questionType: row.questionType,
         difficulty: row.difficulty,
         updatedAt: row.updatedAt,
-        tagPaths: _sortedPaths(
-          tagIdsByQuestion[row.id] ?? const <String>{},
-          pathByTagId,
-        ),
+        tagPaths: _sortedPaths(groupTagIds, pathByTagId),
         stemImages: stemImages,
-        answerImages:
-            _imagesOf(imagesByQuestion[row.id], kQuestionLibraryAnswerRole),
-        solutionImages:
-            _imagesOf(imagesByQuestion[row.id], kQuestionLibrarySolutionRole),
+        answerImages: _imagesOf(
+          imagesByQuestion[representativeId],
+          kQuestionLibraryAnswerRole,
+        ),
+        solutionImages: _imagesOf(
+          imagesByQuestion[representativeId],
+          kQuestionLibrarySolutionRole,
+        ),
         isSnapshotStem: snapshot.isSnapshot,
         snapshotLabel: snapshot.labelZh.isEmpty ? null : snapshot.labelZh,
         snapshotExcerpt: snapshot.isSnapshot && snapshot.hasTextExcerpt
             ? snapshot.textExcerpt
             : null,
-        wrongAttemptCount: wrongCountByQuestion[row.id] ?? 0,
+        wrongAttemptCount: groupWrongAttemptCount,
         readiness: evaluateQuestionReadiness(
           answer: row.answer,
           solution: row.solution,
@@ -361,15 +464,24 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
           stemImageCount: stemImages.length,
           policy: policy,
         ),
+        // 组卡只在真的多于一个小问时才摆「N 小问」；单行材料题仍按普通题显示。
+        groupKey: signature?.groupKey,
+        groupQuestionIds: groupIds.length > 1 ? groupIds : const <String>[],
+        groupSize: groupIds.isEmpty ? 1 : groupIds.length,
+        groupLabel: signature?.label,
+        groupMaterial: signature?.material,
       ),
     );
   }
 
+  final filtering = policy.filtersAnything || pendingOnly;
   if (!filtering) {
+    final truncated = limit > 0 && entries.length > limit;
+    final shown = truncated ? entries.sublist(0, limit) : entries;
     return QuestionLibrarySnapshot(
-      entries: List<QuestionLibraryEntry>.unmodifiable(entries),
-      totalCount: entries.length,
-      truncated: truncatedByRead,
+      entries: List<QuestionLibraryEntry>.unmodifiable(shown),
+      totalCount: shown.length,
+      truncated: truncated,
     );
   }
 
@@ -385,6 +497,88 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
     entries: List<QuestionLibraryEntry>.unmodifiable(shown),
     totalCount: totalCount,
     truncated: truncated,
+  );
+}
+
+/// 一道题所在的题组（详情页「本组共 N 小问」用）。
+///
+/// 独立题（没有材料前缀 / 来源标签为空）没有题组，读表函数返回 null；只有一个小问
+/// 的材料题返回 size 为 1 的题组，页面据此不显示「本组共…」。
+class QuestionGroupInfo {
+  const QuestionGroupInfo({
+    required this.groupKey,
+    required this.label,
+    required this.questionIds,
+    this.material,
+  });
+
+  /// 组键（与读表折叠用的是同一个，见 `questionGroupSignatureOf`）。
+  final String groupKey;
+
+  /// 组的中文标签（`材料 S1-M1`）。
+  final String label;
+
+  /// 组内全部小问 id，按「updatedAt 降序、id 升序」排；第一个是代表题。
+  final List<String> questionIds;
+
+  /// 材料原文；旧数据无法切分时为 null。
+  final String? material;
+
+  int get size => questionIds.length;
+
+  /// 是否真的多于一个小问。
+  bool get isGroup => size > 1;
+
+  /// 代表题（读表折叠后列表卡打开的那一道）。
+  String get representativeId => questionIds.first;
+}
+
+/// 读这道题所在题组的成员与材料；独立题返回 null。
+///
+/// 只查同一 `source_label` 下的行（组键里带来源标签，跨来源不可能同组），再按组键
+/// 过滤——不会把别的卷子的 `S1-M1` 算进来。
+Future<QuestionGroupInfo?> readQuestionGroupInfo(
+  AppDatabase db,
+  String questionId,
+) async {
+  final row = await (db.select(db.questions)
+        ..where((t) => t.id.equals(questionId)))
+      .getSingleOrNull();
+  if (row == null) {
+    return null;
+  }
+  final signature = questionGroupSignatureOf(
+    stem: row.stem,
+    sourceLabel: row.sourceLabel,
+  );
+  if (signature == null) {
+    return null;
+  }
+  final candidates = await (db.select(db.questions)
+        ..where((t) => t.sourceLabel.equals(row.sourceLabel))
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.updatedAt),
+          (t) => OrderingTerm.asc(t.id),
+        ]))
+      .get();
+  final questionIds = <String>[
+    for (final candidate in candidates)
+      if (questionGroupSignatureOf(
+            stem: candidate.stem,
+            sourceLabel: candidate.sourceLabel,
+          )?.groupKey ==
+          signature.groupKey)
+        candidate.id,
+  ];
+  if (questionIds.isEmpty) {
+    // 理论上不会发生（这道题自己就满足组键）；保守回落到单题，不抛错。
+    questionIds.add(questionId);
+  }
+  return QuestionGroupInfo(
+    groupKey: signature.groupKey,
+    label: signature.label,
+    questionIds: List<String>.unmodifiable(questionIds),
+    material: signature.material,
   );
 }
 

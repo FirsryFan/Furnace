@@ -25,6 +25,7 @@ import '../../../domain/services/cognitive/knowledge_point_tag_bridge.dart';
 import '../../../domain/services/cognitive/library_diagnosis.dart';
 import '../../../domain/services/export/paper_docx.dart';
 import '../../../domain/services/paper/paper_composer.dart';
+import '../../../domain/services/questions/question_group.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/scheduling/cognitive_readings.dart';
 import '../../../domain/services/scheduling/domain_balance.dart';
@@ -40,6 +41,9 @@ class PaperCorpus {
   });
 
   /// 题干非空的全部题目（`state` 不筛：还没加工的题也能进卷，只是质量分低）。
+  ///
+  /// **按题组折叠**：一篇材料 + N 个小问只出一个候选（组卷的 3 精研 / 6 速刷按
+  /// 合题计数，同一组不会被选两次）；候选 id 是组内代表题（排序后的第一行）。
   final List<PaperCandidate> candidates;
 
   /// 知识点 id → 标题（`KnowledgePoints.title`），用于理由行说人话。
@@ -63,8 +67,17 @@ class PaperCorpus {
 }
 
 /// 读一次题库，拼出组卷需要的两张表（题目 + 知识点名/标签路径）。
+///
+/// 题目行先按「updatedAt 降序、id 升序」排序，再按题组折叠：同一篇材料的小问只出
+/// 一个 [PaperCandidate]（代表题 = 排序后的第一行）。组卷按合题计数、同组不会被选
+/// 两次，前提就是这里先折好。
 Future<PaperCorpus> readPaperCorpus(AppDatabase db) async {
-  final questionRows = await db.select(db.questions).get();
+  final questionRows = await (db.select(db.questions)
+        ..orderBy([
+          (t) => OrderingTerm.desc(t.updatedAt),
+          (t) => OrderingTerm.asc(t.id),
+        ]))
+      .get();
   final pointRows = await db.select(db.knowledgePoints).get();
   final tagRows = await db.select(db.tags).get();
   final linkRows = await db.select(db.objectTags).get();
@@ -91,21 +104,7 @@ Future<PaperCorpus> readPaperCorpus(AppDatabase db) async {
   };
 
   return PaperCorpus(
-    candidates: <PaperCandidate>[
-      for (final row in questionRows)
-        if (row.stem.trim().isNotEmpty)
-          PaperCandidate(
-            questionId: row.id,
-            subjectKey: row.subjectKey,
-            sourceLevel: row.sourceLevel,
-            questionType: row.questionType,
-            difficulty: row.difficulty,
-            aiQuality: row.aiQuality,
-            trapNote: row.trapNote,
-            matchedKnowledgePointIds:
-                pointsByQuestion[row.id] ?? const <String>[],
-          ),
-    ],
+    candidates: _paperCandidatesOf(questionRows, pointsByQuestion),
     knowledgePointNames: <String, String>{
       for (final row in pointRows)
         if (row.title.trim().isNotEmpty) row.id: row.title.trim(),
@@ -118,6 +117,70 @@ Future<PaperCorpus> readPaperCorpus(AppDatabase db) async {
         ],
     },
   );
+}
+
+/// 题目行 → 组卷候选：**一组只出一个候选**（同一篇文章的小问共享一个题额）。
+///
+/// 组内知识点取并集：组里任何一个小问挂过的知识点，都算这道题覆盖到——否则
+/// 「危险区知识点只有第 2 小问挂着」时，题组会被排到卷外。独立题行为与折叠前
+/// 逐字段一致（知识点列表原样透传，不重排）。
+List<PaperCandidate> _paperCandidatesOf(
+  List<Question> questionRows,
+  Map<String, List<String>> pointsByQuestion,
+) {
+  final rowsByGroupKey = <String, List<Question>>{};
+  for (final row in questionRows) {
+    if (row.stem.trim().isEmpty) {
+      continue;
+    }
+    final signature = questionGroupSignatureOf(
+      stem: row.stem,
+      sourceLabel: row.sourceLabel,
+    );
+    if (signature == null) {
+      continue;
+    }
+    (rowsByGroupKey[signature.groupKey] ??= <Question>[]).add(row);
+  }
+
+  final emittedGroupKeys = <String>{};
+  final candidates = <PaperCandidate>[];
+  for (final row in questionRows) {
+    if (row.stem.trim().isEmpty) {
+      continue;
+    }
+    final signature = questionGroupSignatureOf(
+      stem: row.stem,
+      sourceLabel: row.sourceLabel,
+    );
+    final List<String> matchedKnowledgePointIds;
+    if (signature == null) {
+      matchedKnowledgePointIds =
+          pointsByQuestion[row.id] ?? const <String>[];
+    } else {
+      if (!emittedGroupKeys.add(signature.groupKey)) {
+        continue;
+      }
+      matchedKnowledgePointIds = <String>{
+        for (final member in rowsByGroupKey[signature.groupKey]!)
+          ...?pointsByQuestion[member.id],
+      }.toList()
+        ..sort();
+    }
+    candidates.add(
+      PaperCandidate(
+        questionId: row.id,
+        subjectKey: row.subjectKey,
+        sourceLevel: row.sourceLevel,
+        questionType: row.questionType,
+        difficulty: row.difficulty,
+        aiQuality: row.aiQuality,
+        trapNote: row.trapNote,
+        matchedKnowledgePointIds: matchedKnowledgePointIds,
+      ),
+    );
+  }
+  return List<PaperCandidate>.unmodifiable(candidates);
 }
 
 /// 一道题的最新一条链的步骤动作序列（`idx` 升序），键是题目 id。

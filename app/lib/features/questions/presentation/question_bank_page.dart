@@ -93,6 +93,10 @@ String questionBankRowKeyFor(String questionId) =>
 String questionBankWrongBadgeKeyFor(String questionId) =>
     'question-bank-wrong-badge-$questionId';
 
+/// 题组卡上「N 小问」徽标按代表题 id 生成 key：`question-bank-group-badge-<id>`。
+String questionBankGroupBadgeKeyFor(String questionId) =>
+    'question-bank-group-badge-$questionId';
+
 /// 顶部「自测统计」一行（全库有作答记录时才出现）。
 const Key questionBankAttemptStatsKey = Key('question-bank-attempt-stats');
 
@@ -1161,16 +1165,26 @@ class _QuestionCard extends ConsumerWidget {
     final cover = entry.coverImage;
     final hasTitle = entry.hasTitle;
     final leaves = questionBankTagLeafNames(entry.tagPaths);
+    final isGroup = entry.isQuestionGroup;
+    final groupPreview = entry.groupMaterialPreview;
     // 整卡截图题的题干是碎片（`，。［图1］…`），摘要没有信息量：标题沿用
     // 「可读摘录 / 整题截图 · N 处」的旧兜底，摘要行不渲染。
+    //
+    // 题组卡不同：它代表「一篇文章 + N 个小问」这一**道题**，标题优先用材料标签
+    // （没有用户题名时），摘要行显示材料正文，徽标写「N 小问」——不拿第一个小问
+    // 冒充整道题。
     final titleText = hasTitle
         ? entry.title!.trim()
+        : isGroup
+            ? (entry.groupLabel ?? entry.displayTitle)
+            : entry.isSnapshotStem
+                ? entry.displayTitle
+                : l10n.questionTitleUntitled;
+    final excerpt = isGroup
+        ? (groupPreview ?? questionCardStemExcerpt(entry.stem))
         : entry.isSnapshotStem
-            ? entry.displayTitle
-            : l10n.questionTitleUntitled;
-    final excerpt = entry.isSnapshotStem
-        ? ''
-        : questionCardStemExcerpt(entry.stem);
+            ? ''
+            : questionCardStemExcerpt(entry.stem);
     final meta = <String>[
       subjectLabelOf(l10n, entry.subjectKey),
       if (entry.year != null) l10n.questionDetailYear(entry.year!),
@@ -1233,6 +1247,13 @@ class _QuestionCard extends ConsumerWidget {
                           copyable: false,
                           dense: true,
                         ),
+                        if (isGroup)
+                          _GroupPill(
+                            key: ValueKey<String>(
+                              questionBankGroupBadgeKeyFor(entry.questionId),
+                            ),
+                            count: entry.groupSize,
+                          ),
                         if (entry.hasWrongAttempt)
                           _WrongPill(
                             questionId: entry.questionId,
@@ -1392,6 +1413,35 @@ class _TagPill extends StatelessWidget {
         label,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// 题组卡上的「N 小问」徽标。
+///
+/// 用户口径：一篇文章 + 若干小问 = **一道题**；列表折成一张卡后，这里明确写出
+/// 组内小问数，避免让人以为少了题。
+class _GroupPill extends StatelessWidget {
+  const _GroupPill({super.key, required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        l10n.questionBankGroupSubCount(count),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
     );

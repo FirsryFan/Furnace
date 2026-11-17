@@ -11906,6 +11906,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI solving & MindNet evaluation'**
   String get questionDetailAiCognitiveSection;
+
+  /// Library list badge on a folded question-group card: one article plus this many sub-questions is ONE question.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sub-questions'**
+  String questionBankGroupSubCount(int count);
+
+  /// Question detail: this question belongs to a group (one article + several sub-questions); show how many sub-questions the group has.
+  ///
+  /// In en, this message translates to:
+  /// **'This group has {count} sub-questions'**
+  String questionDetailGroupSize(int count);
 }
 
 class _AppLocalizationsDelegate
