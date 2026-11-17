@@ -42,7 +42,6 @@ import '../application/preset_matrix_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/presentation/review_page.dart';
 import 'cognitive_model_page.dart' show cognitiveReadingsProvider;
-import 'today_plan_page.dart';
 
 /// 档位卡：大字档位 + 一句依据。测试与将来首页卡片共用定位点。
 const Key learningStatusBandKey = Key('learning-status-band');
@@ -53,9 +52,6 @@ const Key learningStatusTrendKey = Key('learning-status-trend');
 
 /// 「开始复习」主按钮。
 const Key mindnetStartReviewKey = Key('mindnet-start-review');
-
-/// 入口：今日清单。旧 MindNet 的「知识网络图」入口已从这里删除。
-const Key mindnetTodayPlanEntryKey = Key('mindnet-today-plan-entry');
 
 /// 用户层学习状态：只有档位 + 强项/弱项（折算见 [buildLearningStatus]）。
 ///
@@ -144,39 +140,6 @@ class LearningStatusView extends StatelessWidget {
         _TodayCard(),
         SizedBox(height: 8),
         _TrendCard(),
-      ],
-    );
-  }
-}
-
-/// 入口：只留「今日清单」。
-///
-/// 「今日清单」保留的理由（现有产品口径）：学习状态页的职责是回答「今天该做
-/// 什么」，而今日清单页是同一口径下**唯一**展开今日任务/复习步骤的页面；它
-/// 不是新入口，也不复制读数。旧 MindNet 的「知识网络图」入口已删除：那是一张
-/// 开发者视图，现在只从设置 → 开发者信息（`CognitiveDeveloperPage`）进入。
-class LearningStatusEntries extends StatelessWidget {
-  const LearningStatusEntries({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            key: mindnetTodayPlanEntryKey,
-            leading: const Icon(Icons.today_outlined),
-            title: Text(l10n.todayPlanTitle),
-            subtitle: Text(l10n.todayPlanUncalibrated),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const TodayPlanPage()),
-            ),
-          ),
-        ),
       ],
     );
   }

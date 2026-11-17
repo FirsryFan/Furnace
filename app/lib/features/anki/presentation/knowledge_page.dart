@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/app_localizations.dart';
-import '../../cognitive/presentation/today_plan_page.dart';
 import 'deck_list_page.dart';
 import 'knowledge_edge_page.dart';
 import 'knowledge_insight_page.dart';
@@ -48,8 +47,6 @@ class KnowledgePage extends ConsumerWidget {
                   _push(context, const KnowledgeEdgePage());
                 case _KnowledgeMoreAction.insight:
                   _push(context, const KnowledgeInsightPage());
-                case _KnowledgeMoreAction.todayPlan:
-                  _push(context, const TodayPlanPage());
               }
             },
             itemBuilder: (context) => [
@@ -86,14 +83,6 @@ class KnowledgePage extends ConsumerWidget {
                   title: Text(l10n.knowledgeInsight),
                 ),
               ),
-              PopupMenuItem(
-                value: _KnowledgeMoreAction.todayPlan,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.checklist),
-                  title: Text(l10n.todayPlanTitle),
-                ),
-              ),
             ],
           ),
         ],
@@ -123,5 +112,4 @@ enum _KnowledgeMoreAction {
   reviewPreferences,
   edges,
   insight,
-  todayPlan,
 }

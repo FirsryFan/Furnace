@@ -60,8 +60,6 @@ class MindNetPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           const LearningStatusView(),
-          const SizedBox(height: 16),
-          const LearningStatusEntries(),
         ],
       ),
     );

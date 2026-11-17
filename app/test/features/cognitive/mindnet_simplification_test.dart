@@ -245,8 +245,7 @@ void main() {
     expect(find.byKey(learningStatusTrendKey), findsOneWidget);
     expect(find.text(zh.mindnetTrendEmpty), findsOneWidget);
 
-    // 入口只剩今日清单；旧 MindNet 的「知识网络图」入口不再出现。
-    expect(find.byKey(mindnetTodayPlanEntryKey), findsOneWidget);
+    // 今日清单入口已随“今日计划界面删除”一并移除；旧 MindNet 图入口也不出现。
     expect(find.text(zh.cognitiveGraphTitle), findsNothing);
     expect(find.byType(CognitiveGraphPage), findsNothing);
 
