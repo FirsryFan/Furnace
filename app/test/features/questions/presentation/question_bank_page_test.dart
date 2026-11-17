@@ -25,6 +25,7 @@ import 'package:furnace/features/questions/presentation/question_bank_page.dart'
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
 import 'package:furnace/features/questions/presentation/question_media_view.dart';
 import 'package:furnace/features/questions/presentation/question_paper_page.dart';
+import 'package:furnace/features/questions/presentation/question_pending_page.dart';
 import 'package:furnace/features/questions/presentation/question_title_dialog.dart';
 import 'package:furnace/l10n/app_localizations.dart';
 
@@ -48,13 +49,17 @@ void main() {
     await db.close();
   });
 
-  testWidgets('题库为空时给出可读空态，只留组卷与材料入库两个入口', (tester) async {
+  testWidgets('题库为空时给出可读空态，只留组卷入口', (tester) async {
     await _pump(tester, db);
 
     expect(find.text(zh.questionBankEmpty), findsOneWidget);
     expect(find.text(zh.questionBankEmptyHint), findsOneWidget);
     expect(find.text(zh.questionPaperTitle), findsOneWidget);
-    expect(find.text(zh.materialIntakeTitle), findsOneWidget);
+    // 「添加资料」（MaterialIntakePage）已从题库页移除：它做的是 MindNet 材料
+    // 入库，不产生题目；题库页不再摆这个入口。
+    expect(find.text(zh.materialIntakeTitle), findsNothing);
+    // 空题库没有待处理题：入口不出现。
+    expect(find.byKey(questionBankPendingEntryKey), findsNothing);
     // 收题/拍照整理改为内置 agent 收题（create_questions 工具），题库页不再有
     // 手动收题入口。
     expect(find.text(zh.questionIntakeTitle), findsNothing);
@@ -64,6 +69,58 @@ void main() {
     expect(find.byKey(questionBankAutoNameKey), findsNothing);
     // 空题库也没有可多选的题，多选入口同样不出现。
     expect(find.byKey(questionBankSelectKey), findsNothing);
+  });
+
+  testWidgets('无答案与解析的题不进主题库；待处理入口按数量与原因列出', (tester) async {
+    await _seedQuestion(db, id: 'q-ready', stem: '完整题：有答案也有解析');
+    await _seedQuestion(
+      db,
+      id: 'q-pending',
+      stem: '待处理题：答案与解析都还没补',
+      answer: '',
+      solution: '',
+    );
+
+    await _pump(tester, db);
+
+    // 主题库只列完整的题。
+    expect(find.text('完整题：有答案也有解析'), findsOneWidget);
+    expect(find.text('待处理题：答案与解析都还没补'), findsNothing);
+    // 入口写明待处理数量。
+    expect(find.byKey(questionBankPendingEntryKey), findsOneWidget);
+    expect(find.text(zh.questionPendingEntry(1)), findsOneWidget);
+
+    await tester.tap(find.byKey(questionBankPendingEntryKey));
+    await tester.pumpAndSettle();
+
+    // 待处理页：标题、统计与原因都在；题目可点开。
+    expect(find.text(zh.questionPendingTitle), findsOneWidget);
+    expect(find.byKey(questionPendingStatsKey), findsOneWidget);
+    expect(find.text(zh.questionPendingSummary(1)), findsOneWidget);
+    expect(find.text(zh.questionPendingReasonAnswer(1)), findsOneWidget);
+    expect(find.text(zh.questionPendingReasonSolution(1)), findsOneWidget);
+    expect(
+      find.byKey(ValueKey<String>(questionPendingRowKeyFor('q-pending'))),
+      findsOneWidget,
+    );
+    // 没题名时行标题与摘要都落到题干上：同一段文字出现两次是预期（标题 + 摘要）。
+    expect(find.text('待处理题：答案与解析都还没补'), findsWidgets);
+  });
+
+  testWidgets('只有答案、没有解析的题仍进主题库（默认口径是「两者都空」才隐藏）',
+      (tester) async {
+    await _seedQuestion(
+      db,
+      id: 'q-answer-only',
+      stem: '有答案没解析的题',
+      answer: 'B',
+      solution: '',
+    );
+
+    await _pump(tester, db);
+
+    expect(find.text('有答案没解析的题'), findsOneWidget);
+    expect(find.byKey(questionBankPendingEntryKey), findsNothing);
   });
 
   testWidgets('有题时列出题名/题干、统计与学科筛选（筛选真的过滤列表）', (tester) async {
@@ -724,6 +781,10 @@ Future<void> _seedQuestion(
   String sourceLevel = 'gaokao',
   int? serialNo,
   String? title,
+  // 默认写成「有答案也有解析」的完整题：题库页默认隐藏「答案与解析都为空」
+  // 的待处理题（见 question_readiness.dart），测试夹具必须显式表达这一点。
+  String answer = 'A',
+  String solution = '解析',
 }) {
   return db.into(db.questions).insert(
         QuestionsCompanion.insert(
@@ -735,6 +796,8 @@ Future<void> _seedQuestion(
           sourceLevel: Value(sourceLevel),
           serialNo: Value(serialNo),
           title: Value(title),
+          answer: Value(answer),
+          solution: Value(solution),
         ),
       );
 }

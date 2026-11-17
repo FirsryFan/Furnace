@@ -9,11 +9,14 @@
 ///    （算法竞赛题面开头那一串），只留正文；
 ///  * 有 `## 题目描述` 这类标题时从第一个标题之后开始取（跳过标题前的元信息）；
 ///  * 图片占位 `［图N］` 收成 `［图］`，读者知道这里有图；
+///  * 整卷源格式的 `{{asset:NAME}}` 占位同样收成 `［图］`（不是原始占位符）；
 ///  * 折叠所有空白成一行，按 rune 截断；截断点落在公式/链接/强调里时退到安全
 ///    位置，保证交给渲染器的片段结构完整（不会把后面的文字吞进构造里）。
 ///
 /// 返回的片段适合 `MarkdownQuestionText(markdown: true)` 渲染；空题干返回空串。
 library;
+
+import 'question_asset_placeholder.dart';
 
 /// 卡片摘要默认长度（rune）。
 const int kQuestionCardStemMaxLength = 120;
@@ -105,6 +108,10 @@ List<String> _contentLines(String stem) {
     line = line.replaceAllMapped(
       _markdownLink,
       (match) => match.group(1) ?? '',
+    );
+    line = collapseQuestionAssetPlaceholders(
+      line,
+      token: kQuestionCardImageToken,
     );
     line = line.replaceAll(_imagePlaceholder, kQuestionCardImageToken);
     line = line.replaceAll(_listMarker, '');

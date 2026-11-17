@@ -171,7 +171,7 @@ void main() {
     expect(reloaded.verifierEffort, ReasoningEffort.max);
     await db.close();
 
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
   });
 
   test('migration is idempotent: opening twice does not throw or change data',
@@ -182,14 +182,14 @@ void main() {
     await expectAllColumnsPresent(db);
     await expectOldSettingsIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
 
     // Second open: onUpgrade no longer runs, only beforeOpen probes.
     db = AppDatabase.forTesting(NativeDatabase(file));
     await expectAllColumnsPresent(db);
     await expectOldSettingsIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
   });
 
   test('a file stamped v46 but missing the columns is healed on open',
@@ -202,14 +202,13 @@ void main() {
     await expectAllColumnsPresent(db);
     await expectOldSettingsIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47,
-        reason: '打开时补上 v46 列，并一路升到当前 v47');
+    expect(userVersionOf(file.path), 48, reason: '打开时补上 v46 列，并一路升到当前 v48');
   });
 
   test('a fresh database has the current schemaVersion and the columns',
       () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    expect(db.schemaVersion, 47);
+    expect(db.schemaVersion, 48);
     await db.select(db.localSettings).get(); // triggers onCreate
     await expectAllColumnsPresent(db);
     await db.close();

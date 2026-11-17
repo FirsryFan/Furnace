@@ -475,6 +475,12 @@ class $LocalSettingsTable extends LocalSettings
   late final GeneratedColumn<String> tagTreeSortMode = GeneratedColumn<String>(
       'tag_tree_sort_mode', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tagTreeExpandedIdsMeta =
+      const VerificationMeta('tagTreeExpandedIds');
+  @override
+  late final GeneratedColumn<String> tagTreeExpandedIds =
+      GeneratedColumn<String>('tag_tree_expanded_ids', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _questionLibrarySortModeMeta =
       const VerificationMeta('questionLibrarySortMode');
   @override
@@ -535,6 +541,7 @@ class $LocalSettingsTable extends LocalSettings
         reviewReminderEnabled,
         reviewReminderMinutes,
         tagTreeSortMode,
+        tagTreeExpandedIds,
         questionLibrarySortMode,
         userPersona,
         reviewRetention,
@@ -703,6 +710,12 @@ class $LocalSettingsTable extends LocalSettings
           tagTreeSortMode.isAcceptableOrUnknown(
               data['tag_tree_sort_mode']!, _tagTreeSortModeMeta));
     }
+    if (data.containsKey('tag_tree_expanded_ids')) {
+      context.handle(
+          _tagTreeExpandedIdsMeta,
+          tagTreeExpandedIds.isAcceptableOrUnknown(
+              data['tag_tree_expanded_ids']!, _tagTreeExpandedIdsMeta));
+    }
     if (data.containsKey('question_library_sort_mode')) {
       context.handle(
           _questionLibrarySortModeMeta,
@@ -802,6 +815,8 @@ class $LocalSettingsTable extends LocalSettings
           DriftSqlType.int, data['${effectivePrefix}review_reminder_minutes']),
       tagTreeSortMode: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}tag_tree_sort_mode']),
+      tagTreeExpandedIds: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}tag_tree_expanded_ids']),
       questionLibrarySortMode: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}question_library_sort_mode']),
@@ -977,6 +992,18 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
   /// 否则改文案会把已存值变成读不懂的字符串。
   final String? tagTreeSortMode;
 
+  /// v48（2026-11-17）：标签树的展开状态（JSON 字符串数组，存**展开**的标签 id）。
+  ///
+  /// 用户要求标签页默认完全折叠：NULL 读作"用户没保存过" = 全折叠；空数组
+  /// `[]` 读作"用户明确把全部收起"。读侧用 `tagTreeExpandedIdsFromStorage`
+  /// 宽容解析（NULL / 坏 JSON 一律当空集合），写侧用
+  /// `tagTreeExpandedIdsToStorage`。存展开而不是折叠，是因为新标签默认也该是
+  /// 折叠的——历史折叠集合里不会出现新 id，会让新节点意外展开。
+  ///
+  /// 表定义不 import 域层；迁移只补列、不回填（回填会把"全折叠"冻成一次用户
+  /// 的明确选择，以后改出厂默认就达不到了，与 [tagTreeSortMode] 同一个契约）。
+  final String? tagTreeExpandedIds;
+
   /// v34（轮次一百六十八）：题库列表的排序方式（`QuestionLibrarySort` 的稳定
   /// code：`newest` / `serial` / `wrong_first`）。
   ///
@@ -1036,6 +1063,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       this.reviewReminderEnabled,
       this.reviewReminderMinutes,
       this.tagTreeSortMode,
+      this.tagTreeExpandedIds,
       this.questionLibrarySortMode,
       this.userPersona,
       this.reviewRetention,
@@ -1121,6 +1149,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
     }
     if (!nullToAbsent || tagTreeSortMode != null) {
       map['tag_tree_sort_mode'] = Variable<String>(tagTreeSortMode);
+    }
+    if (!nullToAbsent || tagTreeExpandedIds != null) {
+      map['tag_tree_expanded_ids'] = Variable<String>(tagTreeExpandedIds);
     }
     if (!nullToAbsent || questionLibrarySortMode != null) {
       map['question_library_sort_mode'] =
@@ -1216,6 +1247,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       tagTreeSortMode: tagTreeSortMode == null && nullToAbsent
           ? const Value.absent()
           : Value(tagTreeSortMode),
+      tagTreeExpandedIds: tagTreeExpandedIds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagTreeExpandedIds),
       questionLibrarySortMode: questionLibrarySortMode == null && nullToAbsent
           ? const Value.absent()
           : Value(questionLibrarySortMode),
@@ -1273,6 +1307,8 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       reviewReminderMinutes:
           serializer.fromJson<int?>(json['reviewReminderMinutes']),
       tagTreeSortMode: serializer.fromJson<String?>(json['tagTreeSortMode']),
+      tagTreeExpandedIds:
+          serializer.fromJson<String?>(json['tagTreeExpandedIds']),
       questionLibrarySortMode:
           serializer.fromJson<String?>(json['questionLibrarySortMode']),
       userPersona: serializer.fromJson<String?>(json['userPersona']),
@@ -1316,6 +1352,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       'reviewReminderEnabled': serializer.toJson<bool?>(reviewReminderEnabled),
       'reviewReminderMinutes': serializer.toJson<int?>(reviewReminderMinutes),
       'tagTreeSortMode': serializer.toJson<String?>(tagTreeSortMode),
+      'tagTreeExpandedIds': serializer.toJson<String?>(tagTreeExpandedIds),
       'questionLibrarySortMode':
           serializer.toJson<String?>(questionLibrarySortMode),
       'userPersona': serializer.toJson<String?>(userPersona),
@@ -1354,6 +1391,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           Value<bool?> reviewReminderEnabled = const Value.absent(),
           Value<int?> reviewReminderMinutes = const Value.absent(),
           Value<String?> tagTreeSortMode = const Value.absent(),
+          Value<String?> tagTreeExpandedIds = const Value.absent(),
           Value<String?> questionLibrarySortMode = const Value.absent(),
           Value<String?> userPersona = const Value.absent(),
           Value<double?> reviewRetention = const Value.absent(),
@@ -1421,6 +1459,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         tagTreeSortMode: tagTreeSortMode.present
             ? tagTreeSortMode.value
             : this.tagTreeSortMode,
+        tagTreeExpandedIds: tagTreeExpandedIds.present
+            ? tagTreeExpandedIds.value
+            : this.tagTreeExpandedIds,
         questionLibrarySortMode: questionLibrarySortMode.present
             ? questionLibrarySortMode.value
             : this.questionLibrarySortMode,
@@ -1498,6 +1539,9 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
       tagTreeSortMode: data.tagTreeSortMode.present
           ? data.tagTreeSortMode.value
           : this.tagTreeSortMode,
+      tagTreeExpandedIds: data.tagTreeExpandedIds.present
+          ? data.tagTreeExpandedIds.value
+          : this.tagTreeExpandedIds,
       questionLibrarySortMode: data.questionLibrarySortMode.present
           ? data.questionLibrarySortMode.value
           : this.questionLibrarySortMode,
@@ -1542,6 +1586,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
+          ..write('tagTreeExpandedIds: $tagTreeExpandedIds, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
           ..write('userPersona: $userPersona, ')
           ..write('reviewRetention: $reviewRetention, ')
@@ -1581,6 +1626,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
         reviewReminderEnabled,
         reviewReminderMinutes,
         tagTreeSortMode,
+        tagTreeExpandedIds,
         questionLibrarySortMode,
         userPersona,
         reviewRetention,
@@ -1620,6 +1666,7 @@ class LocalSetting extends DataClass implements Insertable<LocalSetting> {
           other.reviewReminderEnabled == this.reviewReminderEnabled &&
           other.reviewReminderMinutes == this.reviewReminderMinutes &&
           other.tagTreeSortMode == this.tagTreeSortMode &&
+          other.tagTreeExpandedIds == this.tagTreeExpandedIds &&
           other.questionLibrarySortMode == this.questionLibrarySortMode &&
           other.userPersona == this.userPersona &&
           other.reviewRetention == this.reviewRetention &&
@@ -1656,6 +1703,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   final Value<bool?> reviewReminderEnabled;
   final Value<int?> reviewReminderMinutes;
   final Value<String?> tagTreeSortMode;
+  final Value<String?> tagTreeExpandedIds;
   final Value<String?> questionLibrarySortMode;
   final Value<String?> userPersona;
   final Value<double?> reviewRetention;
@@ -1690,6 +1738,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.reviewReminderEnabled = const Value.absent(),
     this.reviewReminderMinutes = const Value.absent(),
     this.tagTreeSortMode = const Value.absent(),
+    this.tagTreeExpandedIds = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
     this.userPersona = const Value.absent(),
     this.reviewRetention = const Value.absent(),
@@ -1725,6 +1774,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     this.reviewReminderEnabled = const Value.absent(),
     this.reviewReminderMinutes = const Value.absent(),
     this.tagTreeSortMode = const Value.absent(),
+    this.tagTreeExpandedIds = const Value.absent(),
     this.questionLibrarySortMode = const Value.absent(),
     this.userPersona = const Value.absent(),
     this.reviewRetention = const Value.absent(),
@@ -1761,6 +1811,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     Expression<bool>? reviewReminderEnabled,
     Expression<int>? reviewReminderMinutes,
     Expression<String>? tagTreeSortMode,
+    Expression<String>? tagTreeExpandedIds,
     Expression<String>? questionLibrarySortMode,
     Expression<String>? userPersona,
     Expression<double>? reviewRetention,
@@ -1806,6 +1857,8 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       if (reviewReminderMinutes != null)
         'review_reminder_minutes': reviewReminderMinutes,
       if (tagTreeSortMode != null) 'tag_tree_sort_mode': tagTreeSortMode,
+      if (tagTreeExpandedIds != null)
+        'tag_tree_expanded_ids': tagTreeExpandedIds,
       if (questionLibrarySortMode != null)
         'question_library_sort_mode': questionLibrarySortMode,
       if (userPersona != null) 'user_persona': userPersona,
@@ -1844,6 +1897,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       Value<bool?>? reviewReminderEnabled,
       Value<int?>? reviewReminderMinutes,
       Value<String?>? tagTreeSortMode,
+      Value<String?>? tagTreeExpandedIds,
       Value<String?>? questionLibrarySortMode,
       Value<String?>? userPersona,
       Value<double?>? reviewRetention,
@@ -1884,6 +1938,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
       reviewReminderMinutes:
           reviewReminderMinutes ?? this.reviewReminderMinutes,
       tagTreeSortMode: tagTreeSortMode ?? this.tagTreeSortMode,
+      tagTreeExpandedIds: tagTreeExpandedIds ?? this.tagTreeExpandedIds,
       questionLibrarySortMode:
           questionLibrarySortMode ?? this.questionLibrarySortMode,
       userPersona: userPersona ?? this.userPersona,
@@ -1989,6 +2044,9 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
     if (tagTreeSortMode.present) {
       map['tag_tree_sort_mode'] = Variable<String>(tagTreeSortMode.value);
     }
+    if (tagTreeExpandedIds.present) {
+      map['tag_tree_expanded_ids'] = Variable<String>(tagTreeExpandedIds.value);
+    }
     if (questionLibrarySortMode.present) {
       map['question_library_sort_mode'] =
           Variable<String>(questionLibrarySortMode.value);
@@ -2039,6 +2097,7 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
           ..write('reviewReminderEnabled: $reviewReminderEnabled, ')
           ..write('reviewReminderMinutes: $reviewReminderMinutes, ')
           ..write('tagTreeSortMode: $tagTreeSortMode, ')
+          ..write('tagTreeExpandedIds: $tagTreeExpandedIds, ')
           ..write('questionLibrarySortMode: $questionLibrarySortMode, ')
           ..write('userPersona: $userPersona, ')
           ..write('reviewRetention: $reviewRetention, ')
@@ -32766,7 +32825,7 @@ class ThreadEventRow extends DataClass implements Insertable<ThreadEventRow> {
   final String taskId;
 
   /// `created` / `planned` / `started` / `submitted` / `stuck` / `skipped` /
-  /// `completed`（域层 `ThreadEventKind.id`）。
+  /// `completed` / `reopened`（域层 `ThreadEventKind.id`）。
   final String kind;
 
   /// 事件事实 JSON；NULL = 这个事件没有附加事实。限 4 KB（契约 R4）。
@@ -33354,6 +33413,7 @@ typedef $$LocalSettingsTableCreateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> reviewReminderEnabled,
   Value<int?> reviewReminderMinutes,
   Value<String?> tagTreeSortMode,
+  Value<String?> tagTreeExpandedIds,
   Value<String?> questionLibrarySortMode,
   Value<String?> userPersona,
   Value<double?> reviewRetention,
@@ -33390,6 +33450,7 @@ typedef $$LocalSettingsTableUpdateCompanionBuilder = LocalSettingsCompanion
   Value<bool?> reviewReminderEnabled,
   Value<int?> reviewReminderMinutes,
   Value<String?> tagTreeSortMode,
+  Value<String?> tagTreeExpandedIds,
   Value<String?> questionLibrarySortMode,
   Value<String?> userPersona,
   Value<double?> reviewRetention,
@@ -33503,6 +33564,10 @@ class $$LocalSettingsTableFilterComposer
 
   ColumnFilters<String> get tagTreeSortMode => $composableBuilder(
       column: $table.tagTreeSortMode,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tagTreeExpandedIds => $composableBuilder(
+      column: $table.tagTreeExpandedIds,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get questionLibrarySortMode => $composableBuilder(
@@ -33634,6 +33699,10 @@ class $$LocalSettingsTableOrderingComposer
       column: $table.tagTreeSortMode,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get tagTreeExpandedIds => $composableBuilder(
+      column: $table.tagTreeExpandedIds,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get questionLibrarySortMode => $composableBuilder(
       column: $table.questionLibrarySortMode,
       builder: (column) => ColumnOrderings(column));
@@ -33745,6 +33814,9 @@ class $$LocalSettingsTableAnnotationComposer
   GeneratedColumn<String> get tagTreeSortMode => $composableBuilder(
       column: $table.tagTreeSortMode, builder: (column) => column);
 
+  GeneratedColumn<String> get tagTreeExpandedIds => $composableBuilder(
+      column: $table.tagTreeExpandedIds, builder: (column) => column);
+
   GeneratedColumn<String> get questionLibrarySortMode => $composableBuilder(
       column: $table.questionLibrarySortMode, builder: (column) => column);
 
@@ -33815,6 +33887,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> reviewReminderEnabled = const Value.absent(),
             Value<int?> reviewReminderMinutes = const Value.absent(),
             Value<String?> tagTreeSortMode = const Value.absent(),
+            Value<String?> tagTreeExpandedIds = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
             Value<String?> userPersona = const Value.absent(),
             Value<double?> reviewRetention = const Value.absent(),
@@ -33850,6 +33923,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             reviewReminderEnabled: reviewReminderEnabled,
             reviewReminderMinutes: reviewReminderMinutes,
             tagTreeSortMode: tagTreeSortMode,
+            tagTreeExpandedIds: tagTreeExpandedIds,
             questionLibrarySortMode: questionLibrarySortMode,
             userPersona: userPersona,
             reviewRetention: reviewRetention,
@@ -33885,6 +33959,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             Value<bool?> reviewReminderEnabled = const Value.absent(),
             Value<int?> reviewReminderMinutes = const Value.absent(),
             Value<String?> tagTreeSortMode = const Value.absent(),
+            Value<String?> tagTreeExpandedIds = const Value.absent(),
             Value<String?> questionLibrarySortMode = const Value.absent(),
             Value<String?> userPersona = const Value.absent(),
             Value<double?> reviewRetention = const Value.absent(),
@@ -33920,6 +33995,7 @@ class $$LocalSettingsTableTableManager extends RootTableManager<
             reviewReminderEnabled: reviewReminderEnabled,
             reviewReminderMinutes: reviewReminderMinutes,
             tagTreeSortMode: tagTreeSortMode,
+            tagTreeExpandedIds: tagTreeExpandedIds,
             questionLibrarySortMode: questionLibrarySortMode,
             userPersona: userPersona,
             reviewRetention: reviewRetention,

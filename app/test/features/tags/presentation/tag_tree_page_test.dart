@@ -26,6 +26,7 @@ import 'package:furnace/data/database/database.dart';
 import 'package:furnace/data/repositories/repository_providers.dart';
 import 'package:furnace/data/repositories/settings_repository.dart';
 import 'package:furnace/data/repositories/tag_repository.dart';
+import 'package:furnace/domain/services/tags/tag_tree_expansion.dart';
 import 'package:furnace/domain/services/tags/tag_tree_sort.dart';
 import 'package:furnace/domain/services/tags/tag_usage.dart';
 import 'package:furnace/features/tags/presentation/tag_graph_layout.dart';
@@ -154,6 +155,52 @@ void main() {
   AppLocalizations l10nOf(WidgetTester tester) =>
       AppLocalizations.of(tester.element(find.byType(TagTreePage)));
 
+  Finder expandAllButton() =>
+      find.byKey(const ValueKey<String>('tag-tree-expand-all'));
+
+  Finder collapseAllButton() =>
+      find.byKey(const ValueKey<String>('tag-tree-collapse-all'));
+
+  /// 点 AppBar 的「全部打开」。
+  Future<void> expandAll(WidgetTester tester) async {
+    await tester.tap(expandAllButton());
+    await tester.pumpAndSettle();
+  }
+
+  /// pump + 「全部打开」。
+  ///
+  /// v48 起标签树默认**完全折叠**，所以需要看见子层的既有用例都先走这一条；
+  /// 专门验证折叠/搜索的用例保持 [pumpPage] 原样。
+  Future<void> pumpExpanded(
+    WidgetTester tester, {
+    List<Override> overrides = const <Override>[],
+    ThemeData? theme,
+    Size size = const Size(1000, 1800),
+  }) async {
+    await pumpPage(tester, overrides: overrides, theme: theme, size: size);
+    await expandAll(tester);
+  }
+
+  /// 持久化的展开集合（写库是 fire-and-forget，轮询到满足 [ready] 为止）。
+  Future<String?> waitExpandedIds(
+    WidgetTester tester, {
+    required bool Function(Set<String> ids) ready,
+  }) async {
+    final repo = SettingsRepository(db);
+    String? stored;
+    for (var attempt = 0; attempt < 100; attempt++) {
+      stored = await repo.getTagTreeExpandedIds();
+      if (stored != null && ready(tagTreeExpandedIdsFromStorage(stored))) {
+        return stored;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    return stored;
+  }
+
+  Finder nodeOf(String tagId) =>
+      find.byKey(ValueKey<String>('tag-graph-node-$tagId'));
+
   /// The node cards in render order (= preorder: parent before children).
   List<TagGraphNodeCard> cards(WidgetTester tester) =>
       tester.widgetList<TagGraphNodeCard>(find.byType(TagGraphNodeCard))
@@ -230,7 +277,7 @@ void main() {
 
   testWidgets('默认字典序：图是节点 + 父子连线，不是列表', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     expect(
         nodeTitles(tester), ['alpha', 'alpha-a', 'alpha-b', 'beta', 'gamma']);
@@ -253,7 +300,7 @@ void main() {
 
   testWidgets('切到「按内容量」：每层按内容量重排，并出现角标', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     await selectMode(tester, '按内容量');
 
@@ -277,7 +324,7 @@ void main() {
 
   testWidgets('切到「按添加时间」：先加的在前（含子层）', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     await selectMode(tester, '按添加时间');
 
@@ -288,7 +335,7 @@ void main() {
 
   testWidgets('折叠状态跨重排保留：收起的分支不因换排序而展开', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
     await toggle(tester, 't-alpha');
     expect(find.text('alpha-a'), findsNothing);
     expect(collapsedChipOf('t-alpha'), findsOneWidget);
@@ -308,7 +355,7 @@ void main() {
 
   testWidgets('从「按内容量」切回字典序：角标消失、顺序复原', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     await selectMode(tester, '按内容量');
     expect(
@@ -334,7 +381,7 @@ void main() {
     await seedFixture();
     final pending = Completer<Map<String, int>>();
 
-    await pumpPage(
+    await pumpExpanded(
       tester,
       overrides: <Override>[
         tagObjectCountsProvider.overrideWith((ref) => pending.future),
@@ -363,7 +410,7 @@ void main() {
 
   testWidgets('排序选择器：三档中文名，当前档打勾，切换立即重排', (tester) async {
     await seedFixture();
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     await tester.tap(find.byIcon(Icons.sort));
     await tester.pumpAndSettle();
@@ -397,12 +444,15 @@ void main() {
     );
   });
 
-  testWidgets('首次打开不落盘：按字典序，读取偏好本身不写库', (tester) async {
+  testWidgets('首次打开不落盘：默认全折叠，读取偏好本身不写库', (tester) async {
     await seedFixture();
     await pumpPage(tester);
 
-    expect(
-        nodeTitles(tester), ['alpha', 'alpha-a', 'alpha-b', 'beta', 'gamma']);
+    // v48：出厂默认全折叠——只有根上屏，子层收在 alpha 里。
+    expect(find.text('alpha-a'), findsNothing);
+    expect(find.text('alpha-b'), findsNothing);
+    expect(nodeTitles(tester), <String>['alpha', 'beta', 'gamma']);
+    // 读取偏好本身不写库：NULL 就是「用户没保存过」。
     expect(await db.select(db.localSettings).get(), isEmpty);
   });
 
@@ -412,7 +462,7 @@ void main() {
     await repo.ensureSettings();
     await repo.updateTagTreeSortMode(TagTreeSortMode.byCreatedAt.code);
 
-    await pumpPage(tester);
+    await pumpExpanded(tester);
 
     expect(
         nodeTitles(tester), ['gamma', 'alpha', 'alpha-b', 'alpha-a', 'beta']);
@@ -446,7 +496,7 @@ void main() {
 
   testWidgets('读偏好失败时回退字典序，页面不报错', (tester) async {
     await seedFixture();
-    await pumpPage(
+    await pumpExpanded(
       tester,
       overrides: <Override>[
         tagTreeSortModeProvider.overrideWith(
@@ -462,7 +512,7 @@ void main() {
 
   testWidgets('写偏好失败只记日志：本次会话的切换仍然生效', (tester) async {
     await seedFixture();
-    await pumpPage(
+    await pumpExpanded(
       tester,
       overrides: <Override>[
         settingsRepositoryProvider
@@ -480,7 +530,7 @@ void main() {
   group('标签图布局与折叠', () {
     testWidgets('节点/连线数量与布局一致；典型深度不出现横向滚动', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
 
       final layout = graphLayout(tester);
       expect(layout.nodes, hasLength(5));
@@ -498,7 +548,7 @@ void main() {
 
     testWidgets('折叠有子节点的节点：后代与连线一起消失，再展开复原', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       expect(graphLayout(tester).edges, hasLength(2));
 
       await toggle(tester, 't-alpha');
@@ -525,7 +575,7 @@ void main() {
 
     testWidgets('深树降级为可平移/缩放，仍不出现横向滚动条', (tester) async {
       await seedDeepChain(7);
-      await pumpPage(tester);
+      await pumpExpanded(tester);
 
       expect(cards(tester), hasLength(7));
       expect(graphLayout(tester).edges, hasLength(6));
@@ -537,7 +587,7 @@ void main() {
 
     testWidgets('深色主题下节点照常渲染（颜色取自 colorScheme）', (tester) async {
       await seedFixture();
-      await pumpPage(tester, theme: ThemeData.dark(useMaterial3: true));
+      await pumpExpanded(tester, theme: ThemeData.dark(useMaterial3: true));
 
       expect(cards(tester), hasLength(5));
       expect(find.text('alpha'), findsOneWidget);
@@ -548,7 +598,7 @@ void main() {
   group('搜索', () {
     testWidgets('搜索自动展开命中路径并高亮命中节点', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await toggle(tester, 't-alpha');
       expect(find.text('alpha-a'), findsNothing);
 
@@ -582,7 +632,7 @@ void main() {
 
     testWidgets('搜分支名：命中整条分支并按命中数显示计数', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await toggle(tester, 't-alpha');
 
       await enterSearch(tester, 'alpha');
@@ -648,7 +698,7 @@ void main() {
 
     testWidgets('折叠箭头不打开设置浮窗', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
 
       await toggle(tester, 't-alpha');
 
@@ -863,11 +913,11 @@ void main() {
       await seedTag('t-parent', '父标签', createdAt: 1000);
       await seedTag('t-child', '子标签', parentId: 't-parent', createdAt: 2000);
       await TagRepository(db).updateTagUsageCodes('t-parent', {TagUsage.time});
-      await pumpPage(tester);
+      await pumpExpanded(tester);
 
       expect(badgeOf('t-parent'), findsOneWidget);
 
-      // 默认全展开，子标签本来就在图上。
+      // v48 默认全折叠：pumpExpanded 已把子标签打开，子节点本来就在图上。
       expect(find.text('子标签'), findsOneWidget);
       expect(badgeOf('t-child'), findsNothing);
 
@@ -910,7 +960,7 @@ void main() {
 
     testWidgets('进入多选出现勾选框与底部操作条；退出后消失、选择清空', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
 
       await enterSelection(tester);
       expect(find.byType(Checkbox), findsNWidgets(5));
@@ -937,12 +987,12 @@ void main() {
 
     testWidgets('整行点击勾选/取消勾选，计数跟随；点击不展开/折叠', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await enterSelection(tester);
 
       await selectRow(tester, 'alpha');
       expect(find.text('已选 1 项'), findsOneWidget);
-      // 默认展开，点节点只勾选，不改变折叠状态。
+      // 已展开，点节点只勾选，不改变折叠状态。
       expect(find.text('alpha-a'), findsOneWidget);
 
       await selectRow(tester, 'beta');
@@ -965,7 +1015,7 @@ void main() {
 
     testWidgets('全选包含折叠起来的子层，再点取消全选', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await enterSelection(tester);
       await toggle(tester, 't-alpha');
       expect(find.text('alpha-a'), findsNothing);
@@ -983,7 +1033,7 @@ void main() {
 
     testWidgets('展开箭头在多选中仍可展开分支，且不改变选择', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await enterSelection(tester);
 
       await toggle(tester, 't-alpha');
@@ -1023,7 +1073,7 @@ void main() {
 
     testWidgets('批量删除点取消：一个标签都不删，选择保留', (tester) async {
       await seedFixture();
-      await pumpPage(tester);
+      await pumpExpanded(tester);
       await enterSelection(tester);
       await selectRow(tester, 'alpha');
 
@@ -1184,6 +1234,165 @@ void main() {
       expect(find.text('关联内容'), findsOneWidget);
     });
   });
+
+  group('折叠状态持久化（v48）', () {
+    const rootsOnly = <String>['alpha', 'beta', 'gamma'];
+
+    testWidgets('a) 首次进入全折叠：只画根，子层收进折叠角标', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+
+      expect(nodeTitles(tester), rootsOnly);
+      expect(nodeOf('t-alpha-a'), findsNothing);
+      expect(nodeOf('t-alpha-b'), findsNothing);
+      expect(graphLayout(tester).edges, isEmpty);
+      // 有子节点的 alpha 显示折叠角标；叶子节点没有折叠箭头。
+      expect(collapsedChipOf('t-alpha'), findsOneWidget);
+      expect(toggleOf('t-beta'), findsNothing);
+      // 读取状态本身不写库：NULL = 用户没保存过。
+      expect(await db.select(db.localSettings).get(), isEmpty);
+    });
+
+    testWidgets('b) 点「全部打开」后全部节点上屏，并把展开集合写进库', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+
+      expect(expandAllButton(), findsOneWidget);
+      await expandAll(tester);
+
+      expect(
+        nodeTitles(tester),
+        <String>['alpha', 'alpha-a', 'alpha-b', 'beta', 'gamma'],
+      );
+      expect(collapsedChipOf('t-alpha'), findsNothing);
+      expect(graphLayout(tester).edges, hasLength(2));
+
+      final stored = await waitExpandedIds(
+        tester,
+        ready: (ids) => ids.isNotEmpty,
+      );
+      expect(
+        tagTreeExpandedIdsFromStorage(stored),
+        <String>{'t-alpha', 't-alpha-a', 't-alpha-b', 't-beta', 't-gamma'},
+      );
+    });
+
+    testWidgets('「全部折叠」回到出厂状态并落盘为空数组', (tester) async {
+      await seedFixture();
+      await pumpExpanded(tester);
+      expect(find.text('alpha-a'), findsOneWidget);
+
+      await tester.tap(collapseAllButton());
+      await tester.pumpAndSettle();
+
+      expect(nodeTitles(tester), rootsOnly);
+      expect(collapsedChipOf('t-alpha'), findsOneWidget);
+      final stored = await waitExpandedIds(
+        tester,
+        ready: (ids) => ids.isEmpty,
+      );
+      expect(stored, '[]', reason: '空数组 = 用户明确全部收起，与 NULL 区分');
+    });
+
+    testWidgets('c) 折叠一个节点后离开页面再进，状态还在', (tester) async {
+      await seedFixture();
+      await pumpExpanded(tester);
+      await toggle(tester, 't-alpha'); // 收起 alpha 分支
+      expect(nodeOf('t-alpha-a'), findsNothing);
+
+      // 等这次折叠真正写进库，再用全新的 ProviderScope + 页面模拟「离开后再进 /
+      // 重开应用」：同一份数据库，读的只能是持久化状态。
+      await waitExpandedIds(tester, ready: (ids) => !ids.contains('t-alpha'));
+      await pumpPage(tester);
+
+      expect(nodeTitles(tester), rootsOnly);
+      expect(collapsedChipOf('t-alpha'), findsOneWidget);
+      expect(nodeOf('t-alpha-a'), findsNothing);
+
+      // 展开回来也跨重进保留。
+      await toggle(tester, 't-alpha');
+      expect(nodeOf('t-alpha-a'), findsOneWidget);
+      await waitExpandedIds(tester, ready: (ids) => ids.contains('t-alpha'));
+      await pumpPage(tester);
+      expect(nodeOf('t-alpha-a'), findsOneWidget);
+    });
+
+    testWidgets('d) 搜索自动展开只是渲染期效果，不永久改用户状态', (tester) async {
+      await seedFixture();
+      await pumpPage(tester);
+      expect(nodeOf('t-alpha-a'), findsNothing);
+
+      await enterSearch(tester, 'alpha-a');
+      expect(nodeOf('t-alpha-a'), findsOneWidget);
+
+      // 搜索期间没有写库：仍然没有设置行。
+      expect(await db.select(db.localSettings).get(), isEmpty);
+
+      await tester.tap(find.byTooltip(l10nOf(tester).tagsClearSearch));
+      await tester.pumpAndSettle();
+      expect(nodeOf('t-alpha-a'), findsNothing);
+      expect(nodeTitles(tester), rootsOnly);
+      expect(await db.select(db.localSettings).get(), isEmpty);
+    });
+
+    testWidgets('d2) 用户自己保存过的折叠状态在搜索后原样恢复', (tester) async {
+      await seedFixture();
+      await pumpExpanded(tester);
+      await toggle(tester, 't-alpha'); // 用户主动收起 alpha
+      await waitExpandedIds(tester, ready: (ids) => !ids.contains('t-alpha'));
+
+      await enterSearch(tester, 'alpha-a');
+      expect(nodeOf('t-alpha-a'), findsOneWidget, reason: '搜索临时摊开命中路径');
+      await tester.tap(find.byTooltip(l10nOf(tester).tagsClearSearch));
+      await tester.pumpAndSettle();
+
+      // 回到用户状态：alpha 仍然是收起的。
+      expect(nodeOf('t-alpha-a'), findsNothing);
+      expect(collapsedChipOf('t-alpha'), findsOneWidget);
+      // 也没有把搜索的临时展开写进库。
+      expect(
+        tagTreeExpandedIdsFromStorage(
+          await SettingsRepository(db).getTagTreeExpandedIds(),
+        ),
+        isNot(contains('t-alpha')),
+      );
+    });
+
+    testWidgets('写展开状态失败只记日志：本次会话照常展开，无 SnackBar', (tester) async {
+      await seedFixture();
+      await pumpPage(
+        tester,
+        overrides: <Override>[
+          settingsRepositoryProvider.overrideWithValue(
+            _ThrowingExpansionWriteSettingsRepository(db),
+          ),
+        ],
+      );
+
+      await expandAll(tester);
+
+      expect(
+        nodeTitles(tester),
+        <String>['alpha', 'alpha-a', 'alpha-b', 'beta', 'gamma'],
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('读展开状态失败时回退出厂全折叠，页面不报错', (tester) async {
+      await seedFixture();
+      await pumpPage(
+        tester,
+        overrides: <Override>[
+          settingsRepositoryProvider.overrideWithValue(
+            _ThrowingExpansionReadSettingsRepository(db),
+          ),
+        ],
+      );
+
+      expect(nodeTitles(tester), rootsOnly);
+      expect(find.textContaining('settings unreadable'), findsNothing);
+    });
+  });
 }
 
 /// Answers with a fixed mode without touching the settings repository.
@@ -1242,5 +1451,27 @@ class _HangingDeleteTagRepository extends TagRepository {
   Future<void> deleteTag(String id) async {
     await _gate.future;
     await super.deleteTag(id);
+  }
+}
+
+/// A settings repository whose expansion-state write fails; the in-memory
+/// expansion must survive for the session and no error may reach the page.
+class _ThrowingExpansionWriteSettingsRepository extends SettingsRepository {
+  _ThrowingExpansionWriteSettingsRepository(super.db);
+
+  @override
+  Future<void> updateTagTreeExpandedIds(String? encoded) async {
+    throw StateError('disk full');
+  }
+}
+
+/// A settings repository whose expansion-state read fails; the page must fall
+/// back to the shipped fully-collapsed tree instead of an error screen.
+class _ThrowingExpansionReadSettingsRepository extends SettingsRepository {
+  _ThrowingExpansionReadSettingsRepository(super.db);
+
+  @override
+  Future<String?> getTagTreeExpandedIds() async {
+    throw StateError('settings unreadable');
   }
 }

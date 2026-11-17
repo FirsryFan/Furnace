@@ -253,6 +253,41 @@ class SettingsRepository {
     ));
   }
 
+  /// Reads the tag-tree expansion state (schema v48, 2026-11-17) as the raw
+  /// stored JSON string, or `null` when the user never saved one.
+  ///
+  /// `null` is not "nothing expanded": the caller translates it — together with
+  /// a malformed payload — into the shipped default, which is the empty set
+  /// (the whole tree collapsed) through `tagTreeExpandedIdsFromStorage`. This
+  /// repository does not import the domain layer, so it hands back exactly what
+  /// the row says and lets the read side own the meaning.
+  Future<String?> getTagTreeExpandedIds() async {
+    final row = await getSettings();
+    return row?.tagTreeExpandedIds;
+  }
+
+  /// Persists the tag-tree expansion state (schema v48) as the raw JSON the
+  /// domain layer produced (`tagTreeExpandedIdsToStorage`), or `null` to fall
+  /// back to the shipped default.
+  ///
+  /// Blank input is stored as NULL rather than `''`: "empty" is not a valid
+  /// payload and must not become a third state the reader has to guess about.
+  /// Unknown ids are not rejected here — a stale id simply never matches a tag
+  /// and is harmless, and the write side must not second-guess the page's
+  /// snapshot.
+  ///
+  /// The settings row is created lazily ([ensureSettings]); updating before it
+  /// exists would silently affect zero rows and lose the user's state.
+  Future<void> updateTagTreeExpandedIds(String? encoded) async {
+    await ensureSettings();
+    final json = encoded?.trim();
+    await (_db.update(_db.localSettings)..where((t) => t.id.equals(1)))
+        .write(LocalSettingsCompanion(
+      tagTreeExpandedIds: Value(json == null || json.isEmpty ? null : json),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   /// Reads the question-library sort mode (schema v34, 轮次一百六十八) as the
   /// raw stored code, or `null` when the user never picked one.
   ///

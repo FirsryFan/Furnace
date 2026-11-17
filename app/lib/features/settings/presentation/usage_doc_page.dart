@@ -5,11 +5,21 @@ import '../../../domain/services/scheduling/thread_ranker.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../thread/application/thread_rank_service.dart';
 
-/// Settings -> Usage documentation (user feedback item 1).
+/// Settings -> Usage guide.
 ///
-/// Every ranking parameter is explained in ONE place instead of being
-/// duplicated inside the event property page. The property page keeps the
-/// labels and the live numbers; the "why" lives here.
+/// Written for the student using the app, not for the developer who built it:
+/// what the three printed booklets are for, one line per module, where the
+/// numbers come from, and the few details that change how a day goes.
+///
+/// Internal vocabulary stays out of this page on purpose. Words like "subtree",
+/// "capability profile" and "raw readings under developer info" told the reader
+/// nothing about their own studying; the plain-language versions live in the l10n
+/// strings, and the developer-only material already has its own page
+/// (Settings -> Developer).
+///
+/// Layout is grouped so the page can be skimmed: booklets -> modules -> numbers
+/// -> day-to-day details -> ordering. The ranking entry keeps the labels and the
+/// live numbers; this page explains them once.
 class UsageDocPage extends ConsumerWidget {
   const UsageDocPage({super.key});
 
@@ -22,9 +32,57 @@ class UsageDocPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
         children: [
-          // The four modules a user meets before the ranking algorithm. The
-          // ranking block below stays where it was; this page is the one place
-          // that explains how the app behaves, not just how it sorts.
+          // 1. The printed booklets: the first thing a new user meets.
+          _SectionHeader(title: l10n.docSectionStart),
+          _DocEntry(
+            icon: Icons.menu_book_outlined,
+            title: l10n.docBooksTitle,
+            body: l10n.docBooksBody,
+          ),
+
+          // 2. One line per module, so "what is this tab" has a one-line answer.
+          _SectionHeader(title: l10n.docSectionModules),
+          _DocEntry(
+            icon: Icons.today_outlined,
+            title: l10n.docModuleTodayTitle,
+            body: l10n.docModuleTodayBody,
+          ),
+          _DocEntry(
+            icon: Icons.insights_outlined,
+            title: l10n.docModuleStatusTitle,
+            body: l10n.docModuleStatusBody,
+          ),
+          _DocEntry(
+            icon: Icons.fact_check_outlined,
+            title: l10n.docModuleAssessmentTitle,
+            body: l10n.docModuleAssessmentBody,
+          ),
+          _DocEntry(
+            icon: Icons.library_books_outlined,
+            title: l10n.docModuleLibraryTitle,
+            body: l10n.docModuleLibraryBody,
+          ),
+          _DocEntry(
+            icon: Icons.account_tree_outlined,
+            title: l10n.docModuleTagsTitle,
+            body: l10n.docModuleTagsBody,
+          ),
+          _DocEntry(
+            icon: Icons.quiz_outlined,
+            title: l10n.docModuleBankTitle,
+            body: l10n.docModuleBankBody,
+          ),
+
+          // 3. The three words that decide how much a number is worth.
+          _SectionHeader(title: l10n.docSectionNumbers),
+          _DocEntry(
+            icon: Icons.percent,
+            title: l10n.docNumbersTitle,
+            body: l10n.docNumbersBody,
+          ),
+
+          // 4. Day-to-day behaviour worth knowing before it surprises you.
+          _SectionHeader(title: l10n.docSectionDetails),
           _DocEntry(
             icon: Icons.smart_toy_outlined,
             title: l10n.docAiTitle,
@@ -36,35 +94,19 @@ class UsageDocPage extends ConsumerWidget {
             body: l10n.docReviewBody,
           ),
           _DocEntry(
-            icon: Icons.account_tree_outlined,
-            title: l10n.docKnowledgeTitle,
-            body: l10n.docKnowledgeBody,
-          ),
-          _DocEntry(
-            icon: Icons.quiz_outlined,
-            title: l10n.docBankTitle,
-            body: l10n.docBankBody,
-          ),
-          _DocEntry(
             icon: Icons.photo_library_outlined,
             title: l10n.docMaterialTitle,
             body: l10n.docMaterialBody,
           ),
-          _DocEntry(
-            icon: Icons.today_outlined,
-            title: l10n.docTodayTitle,
-            body: l10n.docTodayBody,
-          ),
-          _DocEntry(
-            icon: Icons.insights_outlined,
-            title: l10n.docCognitiveTitle,
-            body: l10n.docCognitiveBody,
-          ),
+
+          // 5. Ordering: the total, the weights and the colours.
+          _SectionHeader(title: l10n.docSectionSorting),
           _DocEntry(
             icon: Icons.functions,
             title: l10n.docFormulaTitle,
             body: l10n.docFormulaBody,
           ),
+          _LiveDefaultsCard(),
           _DocEntry(
             icon: Icons.local_fire_department,
             title: l10n.propUrgency,
@@ -95,13 +137,37 @@ class UsageDocPage extends ConsumerWidget {
             title: l10n.propWeights,
             body: l10n.propWeightsHint,
           ),
-          _LiveDefaultsCard(),
           _DocEntry(
             icon: Icons.flag_outlined,
             title: l10n.docStatusTitle,
             body: l10n.docStatusBody,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One group heading in the guide ("Start here", "What each part does").
+///
+/// The page used to be one flat list of cards; a long list with no landmarks is
+/// hard to skim, which was the "can't follow it" half of the user feedback.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

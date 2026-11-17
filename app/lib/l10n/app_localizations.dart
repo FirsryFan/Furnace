@@ -2361,6 +2361,18 @@ abstract class AppLocalizations {
   /// **'Collapse'**
   String get tagsCollapse;
 
+  /// No description provided for @tagsExpandAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all'**
+  String get tagsExpandAll;
+
+  /// No description provided for @tagsCollapseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse all'**
+  String get tagsCollapseAll;
+
   /// No description provided for @tagsDeleteTitle.
   ///
   /// In en, this message translates to:
@@ -3385,19 +3397,121 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUsageDocHint.
   ///
   /// In en, this message translates to:
-  /// **'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, learning status'**
+  /// **'What the three printed booklets are for, what each part of the app does, and where the numbers come from'**
   String get settingsUsageDocHint;
+
+  /// No description provided for @docSectionStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start here'**
+  String get docSectionStart;
+
+  /// No description provided for @docBooksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The three booklets, and how to use them'**
+  String get docBooksTitle;
+
+  /// No description provided for @docBooksBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and export it as Word.'**
+  String get docBooksBody;
+
+  /// No description provided for @docSectionModules.
+  ///
+  /// In en, this message translates to:
+  /// **'What each part does, in one line'**
+  String get docSectionModules;
+
+  /// No description provided for @docModuleTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s plan'**
+  String get docModuleTodayTitle;
+
+  /// No description provided for @docModuleTodayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening it gives you today\'s list: the cards due today in a suggested order. The order is advice, not a score, and it changes only when you press sort.'**
+  String get docModuleTodayBody;
+
+  /// No description provided for @docModuleStatusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning status'**
+  String get docModuleStatusTitle;
+
+  /// No description provided for @docModuleStatusBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your current level, strengths and weak spots, and what to review today, all based on your own review history; today\'s task count and review trend come from the task list and review logs respectively. It is read-only, and when there is not enough evidence it says so instead of guessing.'**
+  String get docModuleStatusBody;
+
+  /// No description provided for @docModuleAssessmentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessment'**
+  String get docModuleAssessmentTitle;
+
+  /// No description provided for @docModuleAssessmentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A few short tasks that run on this device and replace the app\'s guesses with an estimate based on how you actually perform. No network, no grading; you see the result right away.'**
+  String get docModuleAssessmentBody;
+
+  /// No description provided for @docModuleLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Packages'**
+  String get docModuleLibraryTitle;
+
+  /// No description provided for @docModuleLibraryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The knowledge packages you imported. You can enable, disable, uninstall, import and export them; uninstalling removes only the import record, not the tags, cards or knowledge points it brought in.'**
+  String get docModuleLibraryBody;
+
+  /// No description provided for @docModuleTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag tree'**
+  String get docModuleTagsTitle;
+
+  /// No description provided for @docModuleTagsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything hangs off tags, and tags can be nested as deep as you like. A deck is simply a tag: a daily new/review cap set on one tag covers every tag below it.'**
+  String get docModuleTagsBody;
+
+  /// No description provided for @docModuleBankTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Question bank and paper assembly'**
+  String get docModuleBankTitle;
+
+  /// No description provided for @docModuleBankBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper or export it to Word for printing.'**
+  String get docModuleBankBody;
+
+  /// No description provided for @docSectionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'When you use it'**
+  String get docSectionDetails;
 
   /// No description provided for @docAiTitle.
   ///
   /// In en, this message translates to:
-  /// **'What the assistant can do, and what waits for your consent'**
+  /// **'What the assistant can do'**
   String get docAiTitle;
 
   /// No description provided for @docAiBody.
   ///
   /// In en, this message translates to:
-  /// **'The AI can read your library and change it. It asks before touching data, and you approve each step; deletions are confirmed one by one and can be undone. It can\'t see your API key.'**
+  /// **'It can read your library and change it for you: add cards, edit tags, write questions. It asks first and only acts after you agree; deletions are confirmed one by one and can be undone. It never sees your API key.'**
   String get docAiBody;
 
   /// No description provided for @docReviewTitle.
@@ -3409,79 +3523,37 @@ abstract class AppLocalizations {
   /// No description provided for @docReviewBody.
   ///
   /// In en, this message translates to:
-  /// **'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no cap if never set). When a card is due is calculated by the app from your history; what you see is only the order for today. Judging is self-reported by default: after each card choose your real state from seven levels (perfect / easy / hard recall / partly recalled / no recall but familiar / no memory at all / new); the app schedules the next appearance from that. You can set a deck to strict auto-grading instead. A wrong card comes back the same day, outside the daily cap.'**
+  /// **'Flashcards live under tags, so the tag tree doubles as your decks. By default you grade yourself: after each card, pick the one of seven states that matches you, from perfectly familiar down to no memory at all, and the app schedules the next appearance from that. A wrong card comes back the same day, outside the daily cap.'**
   String get docReviewBody;
-
-  /// No description provided for @docKnowledgeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Knowledge base and tags'**
-  String get docKnowledgeTitle;
-
-  /// No description provided for @docKnowledgeBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Tags form a tree, with / separating the levels. Deleting a tag also deletes its subtree and everything in it (you confirm each step and can undo). Cards that belong to no deck show up as a hint on the readings page, where you can put them into a deck.'**
-  String get docKnowledgeBody;
-
-  /// No description provided for @docBankTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Question bank and paper assembly'**
-  String get docBankTitle;
-
-  /// No description provided for @docBankBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one; duplicates are never stored twice. Question packs and whole papers from the web also land in the same bank. Paper assembly only uses questions already in the bank, preferring what you most need to practise, and lists what is missing instead of inventing questions. The paper can be copied or exported to Word for printing.'**
-  String get docBankBody;
 
   /// No description provided for @docMaterialTitle.
   ///
   /// In en, this message translates to:
-  /// **'Photos, materials and rehearsal'**
+  /// **'Photos and materials'**
   String get docMaterialTitle;
 
   /// No description provided for @docMaterialBody.
   ///
   /// In en, this message translates to:
-  /// **'Photo intake turns one photo into tags, flashcards, knowledge points and questions (transcribed as-is); nothing is written to your study data until you confirm. Material intake turns a piece of material into knowledge points, cards and links; it is saved only after you confirm, with an undo record. Photos can also be used to rehearse a study plan - you see the result without changing your data.'**
+  /// **'Send a photo to the assistant and it sorts out tags, flashcards, knowledge points and questions, then shows you the proposal; nothing is written until you confirm. Material intake works the same way, and what it saved can be undone.'**
   String get docMaterialBody;
 
-  /// No description provided for @docTodayTitle.
+  /// No description provided for @docSectionSorting.
   ///
   /// In en, this message translates to:
-  /// **'What to do today, and when'**
-  String get docTodayTitle;
-
-  /// No description provided for @docTodayBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Today\'s list shows the cards due today and suggests what to start with from your recent reviews and energy. Conflicting tasks and schedule blocks are flagged and can be pushed back in one tap; the ordering is recalculated only when you press the sort button.'**
-  String get docTodayBody;
-
-  /// No description provided for @docCognitiveTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'How to read your learning status'**
-  String get docCognitiveTitle;
-
-  /// No description provided for @docCognitiveBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Learning status is a read-only page: current level, strengths and weak spots, what to review today, and a one-line trend for the last week. The level and the lists are computed per knowledge point, not per flashcard: cards under one knowledge point are averaged first, and only points with review history count as evidence. Below the threshold, or when readings disagree too much, it shows ? or not enough evidence - which does not mean healthy. The knowledge graph draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. Capability actions groups the steps where you got stuck and lets you find questions by that action. Model parameters and per-card raw readings live under Settings > Developer > Developer info (read-only), collapsed by default. These readings are guidance only and never change your data by themselves.'**
-  String get docCognitiveBody;
+  /// **'Ordering and colours'**
+  String get docSectionSorting;
 
   /// No description provided for @docFormulaTitle.
   ///
   /// In en, this message translates to:
-  /// **'How the score is computed'**
+  /// **'How the total score is computed'**
   String get docFormulaTitle;
 
   /// No description provided for @docFormulaBody.
   ///
   /// In en, this message translates to:
-  /// **'The total is a weighted sum of urgency, goal match, state fit, expected pressure and fatigue; each component is scored 0-1 first, then weighted by the values you set. It is recalculated only when you press the sort button.'**
+  /// **'Each event gets a total from five things: urgency, how well it matches your goal, how well it fits your current state, the pressure of its expected time, and fatigue from doing the same kind of thing. Each is scored 0-1 first, then added up with the weights you set.'**
   String get docFormulaBody;
 
   /// No description provided for @docCurrentWeights.
@@ -3493,20 +3565,38 @@ abstract class AppLocalizations {
   /// No description provided for @docWeightsNormalized.
   ///
   /// In en, this message translates to:
-  /// **'Weights are rescaled automatically - they do not have to add up to 1. If you see no difference, keep the defaults.'**
+  /// **'Weights are rescaled automatically and do not have to add up to 1; keep the defaults if you see no difference.'**
   String get docWeightsNormalized;
 
   /// No description provided for @docStatusTitle.
   ///
   /// In en, this message translates to:
-  /// **'Event bar edge colours'**
+  /// **'The colour on the left edge of an event'**
   String get docStatusTitle;
 
   /// No description provided for @docStatusBody.
   ///
   /// In en, this message translates to:
-  /// **'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.'**
+  /// **'Green = done; blue = waiting (expected time not reached); yellow = expected time has passed; red = deadline has passed. The colour reports state and never changes the ordering.'**
   String get docStatusBody;
+
+  /// No description provided for @docSectionNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the numbers come from'**
+  String get docSectionNumbers;
+
+  /// No description provided for @docNumbersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured, preset, uncalibrated'**
+  String get docNumbersTitle;
+
+  /// No description provided for @docNumbersBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbers in the app come from three different places:\n\n· Measured: computed from your own reviews and answers - the most trustworthy.\n· Preset: a starting value used before you have any history of your own (the shipped default, or the level you picked when you started).\n· Uncalibrated: the figure has not been checked against your real performance yet; treat it as a starting point, not a conclusion.\n\nSo uncalibrated means guidance only. It becomes measured as you review more or take an assessment.'**
+  String get docNumbersBody;
 
   /// No description provided for @settingsAbout.
   ///
@@ -3517,7 +3607,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAboutHint.
   ///
   /// In en, this message translates to:
-  /// **'Version, data location, network egress, known gaps'**
+  /// **'Version, open-source license and feedback links'**
   String get settingsAboutHint;
 
   /// No description provided for @aboutVersionLabel.
@@ -3526,53 +3616,41 @@ abstract class AppLocalizations {
   /// **'Version'**
   String get aboutVersionLabel;
 
-  /// No description provided for @aboutVersionValue.
+  /// No description provided for @aboutLicenseTitle.
   ///
   /// In en, this message translates to:
-  /// **'{version} (build {build})'**
-  String aboutVersionValue(String version, int build);
+  /// **'Open source and license'**
+  String get aboutLicenseTitle;
 
-  /// No description provided for @aboutDataTitle.
+  /// No description provided for @aboutLicenseBody.
   ///
   /// In en, this message translates to:
-  /// **'Where the data lives'**
-  String get aboutDataTitle;
+  /// **'Furnace is open source under the MIT license: you may use, modify and share it, keeping the copyright notice. The source code and the issue tracker are on GitHub.'**
+  String get aboutLicenseBody;
 
-  /// No description provided for @aboutDataBody.
+  /// No description provided for @aboutRepoLabel.
   ///
   /// In en, this message translates to:
-  /// **'All your data, including AI-written documents and images, lives under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).'**
-  String get aboutDataBody;
+  /// **'Source code'**
+  String get aboutRepoLabel;
 
-  /// No description provided for @aboutDataDirLabel.
+  /// No description provided for @aboutIssuesLabel.
   ///
   /// In en, this message translates to:
-  /// **'Application data directory'**
-  String get aboutDataDirLabel;
+  /// **'Report a problem'**
+  String get aboutIssuesLabel;
 
-  /// No description provided for @aboutNetworkTitle.
+  /// No description provided for @aboutViewLicenses.
   ///
   /// In en, this message translates to:
-  /// **'Network egress'**
-  String get aboutNetworkTitle;
+  /// **'Third-party licenses'**
+  String get aboutViewLicenses;
 
-  /// No description provided for @aboutNetworkBody.
+  /// No description provided for @aboutLinkCopied.
   ///
   /// In en, this message translates to:
-  /// **'Only two things reach the network: (1) AI requests, sent to the endpoint you configured in AI settings; (2) public web pages, read without your login information. Detailed limits are in the developer docs.'**
-  String get aboutNetworkBody;
-
-  /// No description provided for @aboutGapsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Known gaps'**
-  String get aboutGapsTitle;
-
-  /// No description provided for @aboutGapsBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Some advanced features are not finished; they do not affect daily use. The detailed list is in the developer docs.'**
-  String get aboutGapsBody;
+  /// **'Link copied'**
+  String get aboutLinkCopied;
 
   /// No description provided for @settingsAppearance.
   ///
@@ -8139,7 +8217,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionDetailNoChainYet.
   ///
   /// In en, this message translates to:
-  /// **'No reasoning chain yet. Use the button above to have the AI solve it; the chain is saved to your local library.'**
+  /// **'No thinking DAG yet: there is no reasoning chain. Tap \"AI solving\" below to have the AI solve it; the chain is saved to your local library.'**
   String get questionDetailNoChainYet;
 
   /// No description provided for @questionDetailChainFromLibrary.
@@ -8285,6 +8363,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Build a paper'**
   String get questionPaperTitle;
+
+  /// No description provided for @questionPendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending questions'**
+  String get questionPendingTitle;
+
+  /// No description provided for @questionPendingEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending ({count})'**
+  String questionPendingEntry(int count);
+
+  /// No description provided for @questionPendingIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'These questions are in the bank but have no answer/solution (or no figure). Complete them and they return to the main library. This page is read-only; open a question to fix it.'**
+  String get questionPendingIntro;
+
+  /// No description provided for @questionPendingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending questions'**
+  String get questionPendingEmpty;
+
+  /// No description provided for @questionPendingEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every question in the bank has an answer or a solution.'**
+  String get questionPendingEmptyHint;
+
+  /// No description provided for @questionPendingSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String questionPendingSummary(int count);
+
+  /// No description provided for @questionPendingReasonAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing answer(s)'**
+  String questionPendingReasonAnswer(int count);
+
+  /// No description provided for @questionPendingReasonSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing solution(s)'**
+  String questionPendingReasonSolution(int count);
+
+  /// No description provided for @questionPendingReasonMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} missing figure(s)'**
+  String questionPendingReasonMedia(int count);
+
+  /// No description provided for @questionPendingReasonMediaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing figure'**
+  String get questionPendingReasonMediaLabel;
 
   /// No description provided for @questionPaperEntryHint.
   ///
@@ -11394,7 +11532,7 @@ abstract class AppLocalizations {
   /// No description provided for @mindnetStatusIntro.
   ///
   /// In en, this message translates to:
-  /// **'Only your current study state; model parameters are not shown here.'**
+  /// **'Where these readings come from: your level and strengths/weak spots are folded from your review history (card readings grouped by knowledge point); due reviews come from the due-card queue, today\'s tasks from the task list, and the trend from review logs. With no review history, the level falls back to your chosen preset. Model parameters and raw readings are not shown here.'**
   String get mindnetStatusIntro;
 
   /// No description provided for @mindnetBandTitle.
@@ -11448,7 +11586,7 @@ abstract class AppLocalizations {
   /// No description provided for @mindnetEvidenceMeasured.
   ///
   /// In en, this message translates to:
-  /// **'measured'**
+  /// **'review history'**
   String get mindnetEvidenceMeasured;
 
   /// No description provided for @mindnetStrengthsEmpty.
@@ -11672,6 +11810,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide'**
   String get aiDeveloperParamsHide;
+
+  /// No description provided for @questionDetailAnswerSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer & solution'**
+  String get questionDetailAnswerSection;
+
+  /// No description provided for @questionDetailAnswerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No answer or solution yet (not processed).'**
+  String get questionDetailAnswerEmpty;
+
+  /// No description provided for @questionDetailDagSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking DAG'**
+  String get questionDetailDagSection;
+
+  /// No description provided for @questionDetailDagStepCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} steps'**
+  String questionDetailDagStepCount(int count);
+
+  /// No description provided for @questionDetailMetadataSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata'**
+  String get questionDetailMetadataSection;
+
+  /// No description provided for @questionDetailMetadataDifficulty.
+  ///
+  /// In en, this message translates to:
+  /// **'Difficulty'**
+  String get questionDetailMetadataDifficulty;
+
+  /// No description provided for @questionDetailMetadataTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get questionDetailMetadataTags;
+
+  /// No description provided for @questionDetailMetadataNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None yet'**
+  String get questionDetailMetadataNone;
+
+  /// No description provided for @questionDetailSourceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Source file & package'**
+  String get questionDetailSourceSection;
+
+  /// No description provided for @questionDetailSourcePackage.
+  ///
+  /// In en, this message translates to:
+  /// **'Source package'**
+  String get questionDetailSourcePackage;
+
+  /// No description provided for @questionDetailSourceFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Source file'**
+  String get questionDetailSourceFile;
+
+  /// No description provided for @questionDetailSourceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No source package recorded: this question may have been added by hand.'**
+  String get questionDetailSourceEmpty;
+
+  /// No description provided for @questionDetailSourceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read source packages: {error}'**
+  String questionDetailSourceFailed(String error);
+
+  /// No description provided for @questionDetailOriginalLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Original link'**
+  String get questionDetailOriginalLink;
+
+  /// No description provided for @questionDetailCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get questionDetailCopyLink;
+
+  /// No description provided for @questionDetailAiCognitiveSection.
+  ///
+  /// In en, this message translates to:
+  /// **'AI solving & MindNet evaluation'**
+  String get questionDetailAiCognitiveSection;
 }
 
 class _AppLocalizationsDelegate

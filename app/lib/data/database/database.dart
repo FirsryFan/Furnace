@@ -230,8 +230,17 @@ class AppDatabase extends _$AppDatabase {
   /// behaviour is unchanged. The unique index is created separately
   /// ([_ensureV47Indexes]) because SQLite cannot add a table-level UNIQUE
   /// constraint with ALTER TABLE.
+  ///
+  /// v48（2026-11-17）adds `local_settings.tag_tree_expanded_ids`: **the tag
+  /// tree's expansion state**, as a JSON array of expanded tag ids. This is the
+  /// one row/column case where NULL deliberately does NOT mean "ship the old
+  /// behaviour": the user asked for the tree to start fully collapsed, so NULL
+  /// reads as the empty set (no node expanded) through
+  /// `tagTreeExpandedIdsFromStorage`. The migration only adds the column and
+  /// writes nothing — backfilling `[]` would freeze today's default into every
+  /// existing install (the same contract as `tagTreeSortMode`).
   @override
-  int get schemaVersion => 47;
+  int get schemaVersion => 48;
 
   @override
   MigrationStrategy get migration {
@@ -385,6 +394,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 47) {
           await _upgradeV46ToV47();
         }
+        if (from < 48) {
+          await _upgradeV47ToV48();
+        }
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -493,6 +505,10 @@ class AppDatabase extends _$AppDatabase {
         localSettings.aiAnswerReserveTokens,
         localSettings.aiVerifierModel,
         localSettings.aiVerifierEffort,
+        // v48（2026-11-17）：标签树展开状态。同一个失败模式——老文件被盖成 v48
+        // 却没有这一列时，Drift 跳过 onUpgrade，标签树第一次读设置就抛
+        // no such column。列可空、NULL 读作出厂「全折叠」，补列即可，没有回填。
+        localSettings.tagTreeExpandedIds,
       ],
       // v16: 认知排序档位的开关（非空、默认 false）。
       'thread_rank_settings': [threadRankSettings.cognitiveRankEnabled],
@@ -1570,6 +1586,26 @@ class AppDatabase extends _$AppDatabase {
         'ON thread_events(task_id, occurred_at)',
       );
     }
+  }
+
+  /// v47 -> v48：标签树展开状态
+  /// `local_settings.tag_tree_expanded_ids`（2026-11-17，用户要求「默认完全
+  /// 折叠 + 记住上次状态」）。
+  ///
+  /// 纯新增一列、可空：NULL 读作「用户没保存过」= 出厂默认全折叠（应用层
+  /// `tagTreeExpandedIdsFromStorage` 把 NULL / 坏 JSON 翻译成空集合）。存的是
+  /// **展开**的 id，不是折叠的 id，理由见 [LocalSettings.tagTreeExpandedIds]。
+  /// 迁移只补列、不回填——回填会把默认状态冻成一次用户选择，以后改出厂默认
+  /// 就达不到了（与 `tagTreeSortMode` / `questionLibrarySortMode` 同一个契约）。
+  ///
+  /// 表不存在就跳过：被盖成 v48 却缺表的文件由 [_ensureColumns] 的自愈建表补列。
+  Future<void> _upgradeV47ToV48() async {
+    if (!await _tableExists('local_settings')) {
+      return;
+    }
+    final m = Migrator(this);
+    await _addColumnIfMissing(
+        m, 'local_settings', localSettings.tagTreeExpandedIds);
   }
 
   Future<void> _upgradeV4ToV5() async {

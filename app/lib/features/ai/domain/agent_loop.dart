@@ -455,6 +455,7 @@ class AgentTurnState {
     this.generating = false,
     this.streamingText = '',
     this.reasoningText = '',
+    this.userMessageId,
     this.pending = const [],
     this.pendingTurn,
     this.executed = const [],
@@ -478,6 +479,19 @@ class AgentTurnState {
   /// that does not think simply leaves this empty. A UI that does not show
   /// thinking can ignore it and still be correct.
   final String reasoningText;
+
+  /// The stored row this turn is answering, or `null` before it is written.
+  ///
+  /// The loop writes the user's message **before** it asks the model anything
+  /// (see [sendUserMessage]), and emits this id in the same breath. A page that
+  /// only reloads the stored messages when the turn ends would leave the user's
+  /// own message invisible for the whole thinking phase - the user sees their
+  /// send produce nothing, then their message and the answer appear together.
+  ///
+  /// The id, not a copy of the row: the database stays the single source of
+  /// truth, and the page uses this only as "the row exists now, reload it".
+  /// It belongs to one turn and is cleared by the fresh state a new turn emits.
+  final String? userMessageId;
 
   /// Calls that need a decision before anything happens.
   final List<PendingCall> pending;
@@ -535,6 +549,7 @@ class AgentTurnState {
     bool? generating,
     String? streamingText,
     String? reasoningText,
+    String? userMessageId,
     List<PendingCall>? pending,
     TurnGroup? pendingTurn,
     List<ExecutedCall>? executed,
@@ -555,6 +570,7 @@ class AgentTurnState {
       generating: generating ?? this.generating,
       streamingText: streamingText ?? this.streamingText,
       reasoningText: reasoningText ?? this.reasoningText,
+      userMessageId: userMessageId ?? this.userMessageId,
       pending: pending ?? this.pending,
       pendingTurn: clearPendingTurn ? null : (pendingTurn ?? this.pendingTurn),
       executed: executed ?? this.executed,
@@ -1049,6 +1065,12 @@ class AgentLoop {
         await store!.register(message.id, images);
         studentContext?.setImages(await store.partsForMessage(message.id));
       }
+      // 用户消息（含图片行）已经落库：立刻把它的 id 发到状态里，**在模型被
+      // 调用之前**。页面靠这个 id 立刻重读已存消息与图片；只在回合结束时刷新
+      // 的话，用户发完话整个思考阶段对话区都是空的，用户消息会和答案一起突然
+      // 出现（2026-11-17 用户反馈）。这里只发 id、不发整行：数据库仍是唯一
+      // 数据源。放在图片注册之后，否则纯图片消息会先显示成一个空气泡。
+      _emit(_state.copyWith(generating: true, userMessageId: message.id));
       await _drive(conversationId);
     } catch (error) {
       // Existing errors are rethrown exactly as before: recording a run must not

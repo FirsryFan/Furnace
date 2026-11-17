@@ -123,6 +123,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   final TurnUsageNotifier _usage = TurnUsageNotifier();
   AgentTurnState _turn = const AgentTurnState();
 
+  /// 本回合已落库、并且已经触发过一次重读的用户消息 id。
+  ///
+  /// [AgentTurnState.userMessageId] 在整个回合里都保留着，所以要记住「这条已经
+  /// 处理过」，否则每一次流式状态刷新都会让消息列表重读一遍。
+  String? _persistedUserMessageId;
+
   /// 刚打开、还没滚动到底的对话 id。
   ///
   /// 打开已有对话时要等消息加载完再滚一次到底（否则长对话从顶部开始），但只滚
@@ -241,6 +247,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final loop = ref.read(agentLoopProvider(conversationId));
     _loop = loop;
     _turn = loop?.state ?? const AgentTurnState();
+    // 已经落库的用户消息（重绑时 loop 还是同一个对象）不重复触发重读。
+    _persistedUserMessageId = _turn.userMessageId;
     _usage.attach(
       states: loop?.states,
       initial: _turn,
@@ -253,9 +261,21 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     _subscription = loop?.states.listen((state) {
       final finished = wasGenerating && !state.generating && !state.hasPending;
       wasGenerating = state.generating;
+      // 用户消息是循环在**调用模型之前**就写库的，状态里一带上它的 id 就重读
+      // 已存消息：否则直到本轮某个非生成状态（等审批/结束）之前，对话区里都
+      // 没有用户刚发的那句话，看起来就像「发了没反应，答案出来时才一起出现」。
+      final persistedUserMessageId = state.userMessageId;
+      final userMessagePersisted = persistedUserMessageId != null &&
+          persistedUserMessageId != _persistedUserMessageId;
+      _persistedUserMessageId = persistedUserMessageId;
       if (mounted) {
         setState(() => _turn = state);
         _scrollToEnd();
+        if (userMessagePersisted) {
+          // 只重读消息与图片：动作台账、运行记录这一回合还没有新增内容。
+          ref.invalidate(messagesProvider(conversationId));
+          ref.invalidate(messageImagesProvider(conversationId));
+        }
       }
       if (finished) {
         _invalidateConversation(conversationId);

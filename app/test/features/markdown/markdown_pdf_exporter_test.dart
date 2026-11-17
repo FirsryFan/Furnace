@@ -217,6 +217,185 @@ void main() {
     expect(text, contains('beginbfchar'));
     expect(latin1.decode(bytes, allowInvalid: true), contains('/FontFile2'));
   });
+
+  // ----------------------------------------------------------------------
+  // 双栏：真正的两栏排页（不是只影响预览）
+  // ----------------------------------------------------------------------
+
+  test('双栏导出：走双栏分支、A4 两栏宽度正确、页数 > 0、与单栏输出不同', () async {
+    final font = await loadBundledChineseFont();
+    expect(font, isNotNull, reason: '内置字体资产应当存在');
+    final exporter = MarkdownPdfExporter(
+      fontResolver: FakeMarkdownPdfFontResolver(data: font),
+    );
+    final markdown = <String>[
+      for (var index = 0; index < 40; index++)
+        '## 第 $index 节\n\n这是第 $index 段正文，用来检查 PDF 双栏排版是否真的按两栏输出。',
+    ].join('\n\n');
+    final dualTheme = MarkdownRenderTheme.paper.copyWith(
+      columnsEnabled: true,
+      columnCount: 2,
+      columnGap: 24,
+      columnRule: true,
+    );
+
+    MarkdownPdfLayoutInfo? singleInfo;
+    final single = await exporter.build(
+      markdown: markdown,
+      theme: MarkdownRenderTheme.paper,
+      onLayout: (MarkdownPdfLayoutInfo info) => singleInfo = info,
+    );
+    MarkdownPdfLayoutInfo? dualInfo;
+    final dual = await exporter.build(
+      markdown: markdown,
+      theme: dualTheme,
+      onLayout: (MarkdownPdfLayoutInfo info) => dualInfo = info,
+    );
+
+    // 单栏路径没有被分栏逻辑改写。
+    expect(singleInfo!.columnsEnabled, isFalse);
+    expect(singleInfo!.columnCount, 1);
+    expect(singleInfo!.pageCount, greaterThan(0));
+
+    // 双栏分支真的执行了：栏数 2，栏宽 = (contentWidth - gap) / 2。
+    // A4 宽 595.27559pt，页边距 64px → 48pt，栏缝 24px → 18pt。
+    expect(
+      dualInfo!.columnsEnabled,
+      isTrue,
+      reason: 'theme.columnsEnabled=true 时必须走 PDF 双栏排页',
+    );
+    expect(dualInfo!.columnCount, 2);
+    expect(
+      dualInfo!.columnWidth,
+      closeTo((595.27559 - 48 * 2 - 18) / 2, 0.01),
+    );
+    expect(dualInfo!.pageCount, greaterThan(0));
+
+    expect(dual.length, greaterThan(1000));
+    expect(ascii.decode(dual.sublist(0, 5)), '%PDF-');
+    expect(_pdfPageCount(dual), dualInfo!.pageCount);
+    expect(
+      dual,
+      isNot(equals(single)),
+      reason: '双栏输出（版式/页数）不应与单栏逐字节相同',
+    );
+  });
+
+  test('双栏时栏间竖线画进 PDF；关掉 columnRule 就不画', () async {
+    final font = await loadBundledChineseFont();
+    expect(font, isNotNull, reason: '内置字体资产应当存在');
+    final exporter = MarkdownPdfExporter(
+      fontResolver: FakeMarkdownPdfFontResolver(data: font),
+    );
+    final markdown = <String>[
+      for (var index = 0; index < 12; index++)
+        '## 第 $index 节\n\n这是第 $index 段正文。',
+    ].join('\n\n');
+
+    final withRule = await exporter.build(
+      markdown: markdown,
+      theme: MarkdownRenderTheme.paper.copyWith(
+        columnsEnabled: true,
+        columnCount: 2,
+        columnRule: true,
+      ),
+    );
+    final withoutRule = await exporter.build(
+      markdown: markdown,
+      theme: MarkdownRenderTheme.paper.copyWith(
+        columnsEnabled: true,
+        columnCount: 2,
+        columnRule: false,
+      ),
+    );
+
+    // 栏间竖线是 1pt 宽、整栏高的填充矩形：`0 0 1 <height> re`。
+    final rulePattern = RegExp(r'0 0 1 [\d.]+ re');
+    expect(
+      rulePattern.hasMatch(_decodedFontCmStreams(withRule)),
+      isTrue,
+      reason: 'columnRule=true 时 PDF 内容流里应有 1pt 宽的分栏竖线',
+    );
+    expect(
+      rulePattern.hasMatch(_decodedFontCmStreams(withoutRule)),
+      isFalse,
+      reason: 'columnRule=false 时不应画分栏竖线',
+    );
+    expect(_pdfPageCount(withRule), greaterThan(0));
+    expect(_pdfPageCount(withoutRule), greaterThan(0));
+  });
+
+  test('双栏放不下的大表格：退回单栏并让表格跨页，而不是抛异常', () async {
+    final font = await loadBundledChineseFont();
+    expect(font, isNotNull, reason: '内置字体资产应当存在');
+    final exporter = MarkdownPdfExporter(
+      fontResolver: FakeMarkdownPdfFontResolver(data: font),
+    );
+    // 60 行表格：在整页（通栏）下都比一页高，双栏分页器无法安全放置；
+    // 单栏的 MultiPage 能让 Table 跨页（Table 是 pdf 包的 SpanningWidget）。
+    final buffer = StringBuffer('## 长表格\n\n')
+      ..writeln('| 甲 | 乙 |')
+      ..writeln('| --- | --- |');
+    for (var row = 0; row < 60; row++) {
+      buffer.writeln('| 第 $row 行 | 值 $row |');
+    }
+
+    MarkdownPdfLayoutInfo? info;
+    final bytes = await exporter.build(
+      markdown: buffer.toString(),
+      theme: MarkdownRenderTheme.paper.copyWith(
+        columnsEnabled: true,
+        columnCount: 2,
+      ),
+      onLayout: (MarkdownPdfLayoutInfo value) => info = value,
+    );
+
+    expect(bytes, isNotEmpty);
+    expect(ascii.decode(bytes.sublist(0, 5)), '%PDF-');
+    expect(info!.columnsEnabled, isFalse, reason: '双栏分页不可靠时应退回单栏');
+    expect(info!.columnCount, 1);
+    expect(info!.pageCount, greaterThan(1), reason: '表格应在单栏里跨页');
+  });
+
+  test('半栏放不下、整页放得下的大表格独占通栏页', () async {
+    final font = await loadBundledChineseFont();
+    expect(font, isNotNull, reason: '内置字体资产应当存在');
+    final exporter = MarkdownPdfExporter(
+      fontResolver: FakeMarkdownPdfFontResolver(data: font),
+    );
+    const cell = '较长的单元格文字';
+    final buffer = StringBuffer('## 表格\n\n')
+      ..writeln('| 甲 | 乙 | 丙 | 丁 | 戊 | 己 |')
+      ..writeln('| --- | --- | --- | --- | --- | --- |');
+    for (var row = 0; row < 10; row++) {
+      buffer.writeln(
+        '| ${List<String>.filled(6, '$cell$row').join(' | ')} |',
+      );
+    }
+    buffer.write('\n\n表格之后的正文。');
+
+    MarkdownPdfLayoutInfo? info;
+    final bytes = await exporter.build(
+      markdown: buffer.toString(),
+      theme: MarkdownRenderTheme.paper.copyWith(
+        columnsEnabled: true,
+        columnCount: 2,
+        columnGap: 24,
+      ),
+      onLayout: (MarkdownPdfLayoutInfo value) => info = value,
+    );
+
+    expect(bytes, isNotEmpty);
+    expect(info!.columnsEnabled, isTrue);
+    expect(info!.widePageCount, greaterThanOrEqualTo(1));
+    expect(info!.pageCount, greaterThanOrEqualTo(2));
+  });
+}
+
+/// 数 PDF 里有几个页面对象（`/Type/Page`，不含 `/Type/Pages`）。
+int _pdfPageCount(Uint8List pdf) {
+  final raw = latin1.decode(pdf, allowInvalid: true);
+  return RegExp('/Type/Page(?![s])').allMatches(raw).length;
 }
 
 /// 解压 PDF 里所有能以 zlib(Flate) 解开的流，拼成一段可搜索的文本。

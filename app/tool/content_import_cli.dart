@@ -65,7 +65,7 @@ export 'mindnet_probe.dart' show sha256Hex, sha256HexOfFile;
 ///
 /// 纯 Dart 侧读不到 drift 的常量，所以这里保留一个常量；host 会在报告里返回
 /// `db.schemaVersion`，测试断言两者相等，避免悄悄漂移。
-const int kFurnaceSchemaVersion = 47;
+const int kFurnaceSchemaVersion = 48;
 
 /// host 用例名（`flutter test --plain-name` 选中它）。
 const String contentImportHostTestName = 'content import cli host';

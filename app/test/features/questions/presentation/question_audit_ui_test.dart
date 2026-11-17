@@ -246,6 +246,10 @@ Future<void> _seedBankQuestion(
           subjectKey: const Value<String>('math'),
           sourceLevel: const Value<String>('gaokao'),
           serialNo: Value<int?>(serialNo),
+          // 题库页默认隐藏「答案与解析都为空」的待处理题；这道夹具的考点是
+          // 「体检徽标不挂在学生题库列表」，写成完整题才能出现在列表里。
+          answer: const Value<String>('A'),
+          solution: const Value<String>('解析'),
         ),
       );
 }

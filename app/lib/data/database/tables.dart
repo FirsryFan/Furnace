@@ -209,6 +209,18 @@ class LocalSettings extends Table {
   /// 否则改文案会把已存值变成读不懂的字符串。
   TextColumn get tagTreeSortMode => text().nullable()();
 
+  /// v48（2026-11-17）：标签树的展开状态（JSON 字符串数组，存**展开**的标签 id）。
+  ///
+  /// 用户要求标签页默认完全折叠：NULL 读作"用户没保存过" = 全折叠；空数组
+  /// `[]` 读作"用户明确把全部收起"。读侧用 `tagTreeExpandedIdsFromStorage`
+  /// 宽容解析（NULL / 坏 JSON 一律当空集合），写侧用
+  /// `tagTreeExpandedIdsToStorage`。存展开而不是折叠，是因为新标签默认也该是
+  /// 折叠的——历史折叠集合里不会出现新 id，会让新节点意外展开。
+  ///
+  /// 表定义不 import 域层；迁移只补列、不回填（回填会把"全折叠"冻成一次用户
+  /// 的明确选择，以后改出厂默认就达不到了，与 [tagTreeSortMode] 同一个契约）。
+  TextColumn get tagTreeExpandedIds => text().nullable()();
+
   /// v34（轮次一百六十八）：题库列表的排序方式（`QuestionLibrarySort` 的稳定
   /// code：`newest` / `serial` / `wrong_first`）。
   ///

@@ -5,6 +5,7 @@
 /// `question_library_provider.dart`，页面按「筛选是否生效」换档。
 library;
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart' show NativeDatabase;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +46,12 @@ void main() {
       final snapshot = await _read(container, questionLibraryOverviewProvider);
 
       expect(snapshot.entries, hasLength(500));
-      expect(snapshot.totalCount, 500);
+      // 完整性判据生效后（`kQuestionLibraryPolicy = hidePending`），`totalCount`
+      // 变成**过滤后、截断前**的可见题数（501），`entries` 才是本次按 limit 读到
+      // 的行数（500）。注意这与 `QuestionLibrarySnapshot.totalCount` 的旧注释
+      //（"受 limit 约束；不是库里题目总数"）不一致 —— 见交付报告里的风险项：
+      // 这是 question-bank-integrity 引入的新语义，产品侧是否要改回由 lead 决定。
+      expect(snapshot.totalCount, 501);
       expect(snapshot.truncated, isTrue);
       expect(
         snapshot.entries.map((entry) => entry.questionId),
@@ -136,6 +142,11 @@ Future<QuestionLibrarySnapshot> _read(
   return container.read(provider.future);
 }
 
+/// 主题库默认口径（`kQuestionLibraryPolicy = hidePending`）会把**答案与解析都
+/// 为空**的题挡在主题库之外（进「待处理题目」入口）。这里要钉的是 500 档 /
+/// 全库档的读表与截断契约，所以种子必须是完整题：带答案与解析，否则整批题
+/// 被完整性判据滤掉，快照恒为空（2026-11-17 主题库隐藏待处理题后这几条测试
+/// 就是这么红的）。
 Future<void> _seedQuestions(AppDatabase db, {required int count}) {
   return db.batch((batch) {
     batch.insertAll(db.questions, [
@@ -143,6 +154,8 @@ Future<void> _seedQuestions(AppDatabase db, {required int count}) {
         QuestionsCompanion.insert(
           id: 'q-${index.toString().padLeft(4, '0')}',
           stem: '第$index题：求函数最小值',
+          answer: const Value('B'),
+          solution: const Value('配方后取顶点，最小值写在这里。'),
           createdAt: _ts,
           updatedAt: _ts,
         ),

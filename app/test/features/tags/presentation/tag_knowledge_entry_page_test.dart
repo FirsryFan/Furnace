@@ -383,6 +383,11 @@ void main() {
         ),
       );
       await settle(tester);
+      // v48：标签树默认全折叠，要点「力学」这类子标签得先「全部打开」。
+      await tester.tap(
+        find.byKey(const ValueKey<String>('tag-tree-expand-all')),
+      );
+      await tester.pumpAndSettle();
     }
 
     testWidgets('叶子标签点击进入；返回后再选另一个标签，三块内容随之切换', (tester) async {

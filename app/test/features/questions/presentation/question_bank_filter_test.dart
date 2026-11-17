@@ -640,6 +640,9 @@ Future<void> _seedQuestion(
           subjectKey: Value(subject),
           sourceLevel: const Value('gaokao'),
           serialNo: Value(serialNo),
+          // 题库页默认隐藏「答案与解析都为空」的待处理题：夹具写成完整题。
+          answer: const Value('A'),
+          solution: const Value('解析'),
         ),
       );
 }
@@ -678,6 +681,8 @@ Future<void> _seedManyQuestions(
           updatedAt: _ts,
           subjectKey: const Value(''),
           sourceLevel: const Value('gaokao'),
+          answer: const Value('A'),
+          solution: const Value('解析'),
         ),
     ]);
   });

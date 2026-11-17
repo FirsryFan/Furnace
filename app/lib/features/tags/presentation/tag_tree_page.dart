@@ -5,6 +5,7 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/tags/tag_graph_query.dart';
+import '../../../domain/services/tags/tag_tree_expansion.dart';
 import '../../../domain/services/tags/tag_tree_sort.dart';
 import '../../../domain/services/tags/tag_tree_view.dart';
 import '../../../domain/services/tags/tag_usage.dart';
@@ -68,6 +69,48 @@ class TagTreeSortModeController extends AsyncNotifier<TagTreeSortMode> {
   }
 }
 
+/// 标签树的展开状态（v48，2026-11-17 用户要求）：**展开**的标签 id 集合。
+///
+/// 空集合 = 默认全折叠。第一帧先读 [SettingsRepository.getTagTreeExpandedIds]
+/// 再渲染（与 [tagTreeSortModeProvider] 同一个「不拿猜测的顺序画树」原则），
+/// NULL / 坏 JSON 由 [tagTreeExpandedIdsFromStorage] 宽容翻成空集合 = 全折叠。
+///
+/// 用户每点一次折叠箭头、「全部打开」、「全部折叠」，以及新建/移动后需要露出
+/// 新节点时都立即写回，不等写完成；写失败只记日志——保存不了的偏好不能挡住
+/// 标签页，内存状态保持本次会话有效。
+///
+/// 搜索自动展开**不经过这里**：它只是渲染期的过滤（`tagGraphVisibleNodes`
+/// 的 `onlyIds`，搜索期间忽略折叠），所以搜索结束会自然回到用户自己的状态，
+/// 不会把临时展开写进库（用户 2026-11-17 明确要求）。
+final tagTreeExpandedIdsProvider =
+    AsyncNotifierProvider<TagTreeExpandedIdsController, Set<String>>(
+  TagTreeExpandedIdsController.new,
+);
+
+/// 读持久化的展开集合并写回每一次变化。
+class TagTreeExpandedIdsController extends AsyncNotifier<Set<String>> {
+  @override
+  Future<Set<String>> build() async {
+    final String? raw =
+        await ref.watch(settingsRepositoryProvider).getTagTreeExpandedIds();
+    return tagTreeExpandedIdsFromStorage(raw);
+  }
+
+  /// 立即应用 [next]，然后把最终状态持久化。
+  Future<void> save(Set<String> next) async {
+    final snapshot = Set<String>.unmodifiable(next);
+    state = AsyncData<Set<String>>(snapshot);
+    try {
+      await ref
+          .read(settingsRepositoryProvider)
+          .updateTagTreeExpandedIds(tagTreeExpandedIdsToStorage(snapshot));
+    } catch (error) {
+      // Losing the preference is annoying, not fatal: keep the session state.
+      debugPrint('Failed to persist tag tree expansion state: $error');
+    }
+  }
+}
+
 /// The authoritative display/query path of a tag.
 String _labelOf(Tag tag) =>
     tag.path == null || tag.path!.isEmpty ? tag.name : tag.path!;
@@ -93,6 +136,11 @@ String _tagUsageLabel(AppLocalizations l10n, TagUsage usage) => switch (usage) {
 ///  * 搜索自动展开命中路径（[tagGraphSearchVisibleIds]）；
 ///  * **单击节点 = 打开节点设置浮窗**（居中卡片 + 变暗背景），折叠箭头仍只
 ///    管折叠；多选/排序/批量操作保留。
+///
+/// 2026-11-17（用户要求）：标签页默认**完全折叠**（所有有子节点的节点收起），
+/// AppBar 提供「全部打开 / 全部折叠」；展开/折叠状态按标签 id 存进
+/// `local_settings.tag_tree_expanded_ids`（[tagTreeExpandedIdsProvider]），
+/// 跨页面、跨重启都恢复用户上次结束时的状态。搜索的临时展开不写库。
 class TagTreePage extends ConsumerStatefulWidget {
   const TagTreePage({super.key});
 
@@ -101,9 +149,6 @@ class TagTreePage extends ConsumerStatefulWidget {
 }
 
 class _TagTreePageState extends ConsumerState<TagTreePage> {
-  /// 被用户折叠的标签 id（默认全展开，所以记「折叠」而不是「展开」）。
-  final _collapsed = <String>{};
-
   /// 多选模式：进入后每个节点出现勾选框，底部出现批量操作条。
   bool _selectionMode = false;
   final _selected = <String>{};
@@ -168,6 +213,13 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     // 时退回空快照——任何标签都不声明用途，只是不显示徽标，图照常可用。
     final usageResolver = ref.watch(tagUsageResolverProvider).valueOrNull ??
         TagUsageResolver(const <TagUsageNode>[]);
+    // 展开状态（v48）：先读持久化状态再画树。读失败时 valueOrNull 为空，
+    // 树按出厂默认全折叠渲染而不是卡在加载圈（与排序偏好的降级一致）。
+    final expandedAsync = ref.watch(tagTreeExpandedIdsProvider);
+    final expandedIds = expandedAsync.valueOrNull ?? const <String>{};
+    // 加载完成前按钮禁用：否则「全部打开」会拿空标签表覆盖还没读出来的状态。
+    final canChangeExpansion =
+        expandedAsync.hasValue && tagsAsync.hasValue && !_selectionMode;
 
     return Scaffold(
       appBar: AppBar(
@@ -181,6 +233,19 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
                 ),
               ]
             : [
+                // 折叠状态（v48）：默认全折叠，一键全部打开 / 全部折叠。
+                IconButton(
+                  key: const ValueKey<String>('tag-tree-expand-all'),
+                  tooltip: l10n.tagsExpandAll,
+                  icon: const Icon(Icons.unfold_more),
+                  onPressed: canChangeExpansion ? _expandAll : null,
+                ),
+                IconButton(
+                  key: const ValueKey<String>('tag-tree-collapse-all'),
+                  tooltip: l10n.tagsCollapseAll,
+                  icon: const Icon(Icons.unfold_less),
+                  onPressed: canChangeExpansion ? _collapseAll : null,
+                ),
                 // Mode names still come straight from the domain enum: only the
                 // button tooltip is localized this round.
                 PopupMenuButton<TagTreeSortMode>(
@@ -217,7 +282,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
               tagsAsync.valueOrNull ?? const <Tag>[],
             )
           : null,
-      body: modeAsync.isLoading
+      body: modeAsync.isLoading || expandedAsync.isLoading
           ? const Center(child: CircularProgressIndicator())
           : tagsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -233,6 +298,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
                   tags: tags,
                   usageResolver: usageResolver,
                   mode: mode,
+                  expandedIds: expandedIds,
                 );
               },
             ),
@@ -261,12 +327,19 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
   }
 
   /// 搜索框 + 图本体。搜索没有命中时只显示空态，不画一张空图。
+  ///
+  /// [expandedIds] 是持久化读出来的「展开」集合；本方法把它翻成渲染用的
+  /// 「折叠」集合（有子节点且不在展开集合里 = 折叠），只为复用
+  /// [tagGraphVisibleNodes] 与节点卡片的既有口径。搜索时 `onlyIds` 让
+  /// [tagGraphVisibleNodes] 忽略折叠、自动摊开命中路径，且**不修改**
+  /// [expandedIds]——搜索结束自然回到用户状态。
   Widget _buildGraphArea(
     BuildContext context, {
     required TagTreeView tree,
     required List<Tag> tags,
     required TagUsageResolver usageResolver,
     required TagTreeSortMode mode,
+    required Set<String> expandedIds,
   }) {
     final l10n = AppLocalizations.of(context);
     final query = _query.trim();
@@ -301,9 +374,10 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
       );
     }
 
+    final collapsedIds = _collapsedIdsOf(tree, expandedIds);
     final visible = tagGraphVisibleNodes(
       tree,
-      collapsedIds: _collapsed,
+      collapsedIds: collapsedIds,
       onlyIds: onlyIds,
     );
     final layout = layoutTagGraph(visible);
@@ -321,7 +395,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
       return TagGraphNodeCard(
         key: ValueKey<String>('tag-graph-node-${node.tagId}'),
         node: node,
-        collapsed: _collapsed.contains(node.tagId),
+        collapsed: collapsedIds.contains(node.tagId),
         showObjectCount: mode == TagTreeSortMode.byObjectCount,
         selectionMode: _selectionMode,
         selected: _selected.contains(node.tagId),
@@ -332,7 +406,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
         onTap: _selectionMode
             ? () => _toggleSelected(node.tagId)
             : () => _showNodeSettings(nodeContext, tag),
-        onToggle: () => _toggleCollapsed(node.tagId),
+        onToggle: () => _toggleCollapsed(expandedIds, node.tagId),
         onSelectToggle: () => _toggleSelected(node.tagId),
         onLongPress: _selectionMode
             ? () {}
@@ -431,12 +505,69 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     setState(() => _query = '');
   }
 
-  void _toggleCollapsed(String tagId) {
-    setState(() {
-      if (!_collapsed.remove(tagId)) {
-        _collapsed.add(tagId);
+  // --- 展开/折叠状态（v48）-------------------------------------------------
+  //
+  // 页面自己不再存「折叠集合」：状态的唯一来源是 [tagTreeExpandedIdsProvider]
+  // 里的「展开」集合，渲染时再翻成折叠集合（[_collapsedIdsOf]）。这样搜索、
+  // 排序、刷新标签表都不会各存一份互相打架的状态；每次修改都立刻写库，失败
+  // 只记日志（由 controller 负责）。
+
+  /// 渲染用的折叠集合：有子节点、但不在展开集合里的标签。
+  Set<String> _collapsedIdsOf(TagTreeView tree, Set<String> expandedIds) {
+    final collapsed = <String>{};
+    for (final node in tree.preorder) {
+      if (node.children.isNotEmpty && !expandedIds.contains(node.tagId)) {
+        collapsed.add(node.tagId);
       }
-    });
+    }
+    return collapsed;
+  }
+
+  Set<String> _expandedIdsNow() =>
+      ref.read(tagTreeExpandedIdsProvider).valueOrNull ?? const <String>{};
+
+  /// 折叠箭头的唯一入口：翻转一个标签的展开状态并立即持久化。
+  void _toggleCollapsed(Set<String> expandedIds, String tagId) {
+    final next = <String>{...expandedIds};
+    if (!next.remove(tagId)) {
+      next.add(tagId);
+    }
+    ref.read(tagTreeExpandedIdsProvider.notifier).save(next);
+  }
+
+  /// AppBar「全部打开」：所有标签都记成展开。把叶子也记进去是故意的——叶子
+  /// 以后长出子标签时，用户刚表达过的「全开」仍然成立。
+  void _expandAll() {
+    final tags = ref.read(allTagsProvider).valueOrNull ?? const <Tag>[];
+    ref.read(tagTreeExpandedIdsProvider.notifier).save(
+      <String>{for (final tag in tags) tag.id},
+    );
+  }
+
+  /// AppBar「全部折叠」：清空展开集合（空集合就是出厂默认）。
+  void _collapseAll() {
+    ref.read(tagTreeExpandedIdsProvider.notifier).save(const <String>{});
+  }
+
+  /// 新建子标签 / 移动完成后必须让结果可见：把节点记成展开。
+  void _expandTag(String tagId) {
+    final current = _expandedIdsNow();
+    if (current.contains(tagId)) {
+      return;
+    }
+    ref
+        .read(tagTreeExpandedIdsProvider.notifier)
+        .save(<String>{...current, tagId});
+  }
+
+  /// 删掉标签后把它从展开集合里清掉，避免集合里积累已不存在的 id。
+  void _forgetExpandedTags(Iterable<String> tagIds) {
+    final current = _expandedIdsNow();
+    final next = <String>{...current}..removeAll(tagIds);
+    if (next.length == current.length) {
+      return;
+    }
+    ref.read(tagTreeExpandedIdsProvider.notifier).save(next);
   }
 
   /// 节点设置浮窗（用户 2026-11-15 补充要求）：单击节点打开，居中卡片 +
@@ -512,8 +643,8 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
           parentId: parent?.id,
         );
     if (parent != null) {
-      // 新子节点必须看得见：清掉父节点的折叠，而不是悄悄加一个隐藏节点。
-      _collapsed.remove(parent.id);
+      // 新子节点必须看得见：把父节点记成展开，而不是悄悄加一个隐藏节点。
+      _expandTag(parent.id);
     }
     ref.invalidate(allTagsProvider);
   }
@@ -582,7 +713,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
       return;
     }
     await ref.read(tagRepositoryProvider).deleteTag(tag.id);
-    _collapsed.remove(tag.id);
+    _forgetExpandedTags(<String>[tag.id]);
     _selected.remove(tag.id);
     ref.invalidate(allTagsProvider);
     ref.invalidate(tagObjectCountsProvider);
@@ -652,7 +783,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     }
     if (newParentId != null) {
       // 移动结果要看得见：展开新父节点。
-      setState(() => _collapsed.remove(newParentId));
+      _expandTag(newParentId);
     }
     ref.invalidate(allTagsProvider);
     ref.invalidate(tagObjectCountsProvider);
@@ -908,13 +1039,14 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     final repository = ref.read(tagRepositoryProvider);
     var success = 0;
     final failures = <String>[];
+    final deletedIds = <String>[];
     setState(() => _batchBusy = true);
     try {
       for (final id in ids) {
         try {
           await repository.deleteTag(id);
           success++;
-          _collapsed.remove(id);
+          deletedIds.add(id);
         } catch (error) {
           failures.add('${byId[id] == null ? id : _labelOf(byId[id]!)}：$error');
         }
@@ -927,6 +1059,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
     if (!mounted) {
       return;
     }
+    _forgetExpandedTags(deletedIds);
     setState(() {
       _selected.clear();
       _selectionMode = false;
@@ -1014,7 +1147,7 @@ class _TagTreePageState extends ConsumerState<TagTreePage> {
       return;
     }
     if (newParentId != null) {
-      _collapsed.remove(newParentId);
+      _expandTag(newParentId);
     }
     setState(() {
       _selected.clear();

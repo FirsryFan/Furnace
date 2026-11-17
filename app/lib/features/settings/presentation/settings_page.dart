@@ -328,7 +328,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               subtitle: l10n.settingsUsageDocHint,
               onTap: () => _push(context, const UsageDocPage()),
             ),
-            // 版本、数据位置、两条出网路径与已知缺口都在这一页。
+            // 版本、开源许可与反馈链接都在这一页；数据位置在数据分区。
             SettingsNavTile(
               tileKey: settingsAboutTileKey,
               icon: Icons.info_outline,

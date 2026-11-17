@@ -850,8 +850,8 @@ class _MarkdownSettingsPageState extends ConsumerState<MarkdownSettingsPage> {
             key: MarkdownSettingsKeys.columnsSwitch,
             contentPadding: EdgeInsets.zero,
             value: _theme.columnsEnabled,
-            title: const Text('分栏预览'),
-            subtitle: const Text('按顶层块均衡分栏；PDF 暂不支持分栏'),
+            title: const Text('分栏（预览与 PDF）'),
+            subtitle: const Text('按顶层块均衡分栏；PDF 支持 2 栏，保留页眉/页脚/页码'),
             onChanged: (value) =>
                 _applyTheme(_theme.copyWith(columnsEnabled: value)),
           ),

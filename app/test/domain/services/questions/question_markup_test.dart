@@ -184,6 +184,16 @@ void main() {
       expect(questionCardStemExcerpt('   \n\n '), '');
     });
 
+    test('源格式 {{asset:...}} 占位收成［图］，卡片上不出现原始占位符', () {
+      final excerpt = questionCardStemExcerpt(
+        '利用铁基、钙基物质的化学循环（{{asset:q14_img01.wmf}}'
+        '{{asset:q14_img02.png}}）可从高炉煤气中分离气体',
+      );
+      expect(excerpt.contains('{{asset:'), isFalse);
+      expect(excerpt.contains('［图］'), isTrue);
+      expect(_rendersAsMarkdown(excerpt), isTrue);
+    });
+
     test('摘要始终是结构完整的 Markdown（可交给渲染器）', () {
       final stems = <String>[
         '求函数 \$f(x)=x^2\$ 的最小值',

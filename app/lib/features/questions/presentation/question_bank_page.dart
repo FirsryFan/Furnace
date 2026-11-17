@@ -33,7 +33,6 @@ import '../../../domain/services/media/thumbnail_spec.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/questions/question_stem_excerpt.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../cognitive/presentation/material_intake_page.dart';
 import '../application/question_attempt_stats_provider.dart';
 import '../application/question_bulk_tagging.dart';
 import '../application/question_library_filter.dart';
@@ -47,6 +46,7 @@ import 'question_detail_page.dart';
 import 'question_library_filter_bar.dart';
 import 'question_library_tag_filter_dialog.dart';
 import 'question_media_view.dart';
+import 'question_pending_page.dart';
 import 'paper_generator_page.dart';
 import 'question_paper_page.dart' show QuestionPaperPage, subjectLabelOf;
 import 'question_title_dialog.dart';
@@ -888,7 +888,9 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
                   _EntryRow(
                     l10n: l10n,
                     onPaper: () => _open(const QuestionPaperPage()),
-                    onMaterial: () => _open(const MaterialIntakePage()),
+                    onPending: () => _open(const QuestionPendingPage()),
+                    pendingCount:
+                        ref.watch(questionPendingStatsProvider).valueOrNull?.total,
                   ),
                   const SizedBox(height: 12),
                   if (snapshot.isEmpty) ...[
@@ -1048,24 +1050,32 @@ class _QuestionBankPageState extends ConsumerState<QuestionBankPage> {
   }
 }
 
-/// 两个"往题库里加东西"的入口。放最上面：这一页的主要动作是加题，不是浏览。
+/// 「往题库里加东西」与「待处理」的入口行。放最上面：这一页的主要动作是加题
+/// 与清理待处理题，不是浏览。
 ///
-/// 收题（拍照/手写整理与手动录题）不再从这里进：按用户新政策，照片或文字
-/// 直接发给内置 agent，由 `create_questions` 工具誊写进题库；题库页只留组卷与
-/// 材料入库（题库包/资料导入）。
+/// **「添加资料」（`MaterialIntakePage`）已从题库页移除**（2026-11-17 用户反馈）：
+/// 那个页面做的是 MindNet 的「材料入库」（贴信封/照片 → knowledge_points /
+/// knowledge_edges），不是往题库加题；把它的入口摆在题库页会让人以为题库能
+/// 直接吞资料，而它其实不产生题目。题库的加题入口只有 AI 收题（`create_questions`
+/// 工具，用户把照片/文字发给 agent）+ 题库包导入（多选态导出/导入）。
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
     required this.l10n,
     required this.onPaper,
-    required this.onMaterial,
+    required this.onPending,
+    required this.pendingCount,
   });
 
   final AppLocalizations l10n;
   final VoidCallback onPaper;
-  final VoidCallback onMaterial;
+  final VoidCallback onPending;
+
+  /// 待处理题数；null = 还没读出来（不显示入口，避免闪一个 0）。
+  final int? pendingCount;
 
   @override
   Widget build(BuildContext context) {
+    final pending = pendingCount ?? 0;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -1075,11 +1085,13 @@ class _EntryRow extends StatelessWidget {
           icon: const Icon(Icons.playlist_add_check),
           label: Text(l10n.questionPaperTitle),
         ),
-        OutlinedButton.icon(
-          onPressed: onMaterial,
-          icon: const Icon(Icons.library_add_outlined),
-          label: Text(l10n.materialIntakeTitle),
-        ),
+        if (pending > 0)
+          OutlinedButton.icon(
+            key: questionBankPendingEntryKey,
+            onPressed: onPending,
+            icon: const Icon(Icons.inbox_outlined),
+            label: Text(l10n.questionPendingEntry(pending)),
+          ),
       ],
     );
   }

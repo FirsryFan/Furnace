@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/services/zujuan/zujuan_keywords.dart';
 import '../../../domain/services/zujuan/zujuan_link.dart';
+import '../../../domain/services/zujuan/zujuan_query.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// 入口按钮的 key（widget test 用它定位，也方便将来埋点）。
@@ -50,6 +51,12 @@ final questionZujuanCandidatesProvider =
 );
 
 /// 题面下方的「去组卷网搜这道题」按钮；候选为空时整个 widget 不占版面。
+///
+/// **学科门控**：组卷网只有语数外理化生六个学科列表页
+/// （`zujuanSubjectFor`，见 `zujuan_query.dart:36` 的说明）。历史 / 信息学 /
+/// 强基 / 算法竞赛在站点上没有对应学科，对这类题摆「去组卷网搜这道题」只会
+/// 让人空手而归——所以 `zujuanSubjectFor` 认不出学科时整个入口不渲染，
+/// 不靠题干里碰巧有几个中文词假装能搜。
 class QuestionZujuanSearchButton extends ConsumerWidget {
   const QuestionZujuanSearchButton({
     super.key,
@@ -60,14 +67,19 @@ class QuestionZujuanSearchButton extends ConsumerWidget {
   /// 当前题的题干（页面从 QuestionDetail 里取；本 widget 不读库）。
   final String stem;
 
-  /// 题目学科键（math/chinese/…），用来选检索词长度带。
+  /// 题目学科键（math/chinese/…），用来选检索词长度带、并决定入口是否出现。
   ///
-  /// null/未知按理科处理（与纯逻辑默认一致），不传也不会崩。
+  /// null/未知、或 history/informatics/qiangji/algorithm 这类组卷网没有列表页的
+  /// 学科：入口整个不渲染（`zujuanSubjectFor` 返回 null，不猜）。
   final String? subjectKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    // 站点没有这个学科的列表页：入口不适用，直接零高度。
+    if (zujuanSubjectFor(subjectKey ?? '') == null) {
+      return const SizedBox.shrink();
+    }
     final band = zujuanSubjectBandFor(subjectKey);
     final candidates = ref.watch(
       questionZujuanCandidatesProvider((stem: stem, band: band)),

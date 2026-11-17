@@ -1,4 +1,4 @@
-/// 用户层「学习状态」看板：MindNet 首页与「认知模型」页共用的四块内容。
+/// 用户层「学习状态」看板：学习状态首页的四块内容。
 ///
 /// 用户反馈（task-103）：MindNet 的测试入口、评价体系、可视化太复杂，用户看什么
 /// 与开发者看什么没分开。这一层只放**用户需要看的四件事**：
@@ -7,6 +7,17 @@
 /// 2. 3 个强项 + 3 个弱项（知识点，带证据状态）；
 /// 3. 今日复习/任务数量 + 一个主按钮（开始复习）；
 /// 4. 一句话趋势（最近一周复习），没有数据就说「证据不足」。
+///
+/// **数字来源（2026-11-17 学习状态清理）**：这一层没有任何 MindNet 专属读数。
+/// 档位与强项/弱项来自 `cognitiveReadingsProvider` 的卡片读数 `R = R0 * Psi(t/S)`，
+/// 而那条链的输入是 `card_states` / `card_templates` / `knowledge_points`（见
+/// `cognitive/application/library_diagnosis_reader.dart` 的
+/// `readCognitiveObservationInputs`）；没有复习记录时档位退回学生预设起点。
+/// 今日待复习来自到期卡队列，今日任务来自任务表，趋势来自 `review_logs`。
+/// 因此页面对用户的说法只能是「来自复习记录」，不能叫「MindNet 认知评价」。
+///
+/// 旧 MindNet 的「知识网络图」不再出现在用户学习状态页（只保留在设置页
+/// 开发者分区的 `CognitiveDeveloperPage` 里，作为开发者旧功能）。
 ///
 /// 开发者字段（模型 id、R0/Gain/Σ、band/zone、每卡 due/interval、calibration、
 /// orphan、fast layer、prior count、机制参数）全部在 `CognitiveDeveloperPage`，
@@ -30,7 +41,6 @@ import '../../student_preset/application/preset_selection.dart';
 import '../application/preset_matrix_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../anki/presentation/review_page.dart';
-import 'cognitive_graph_page.dart';
 import 'cognitive_model_page.dart' show cognitiveReadingsProvider;
 import 'today_plan_page.dart';
 
@@ -44,9 +54,8 @@ const Key learningStatusTrendKey = Key('learning-status-trend');
 /// 「开始复习」主按钮。
 const Key mindnetStartReviewKey = Key('mindnet-start-review');
 
-/// 入口：今日清单 / 知识网络。
+/// 入口：今日清单。旧 MindNet 的「知识网络图」入口已从这里删除。
 const Key mindnetTodayPlanEntryKey = Key('mindnet-today-plan-entry');
-const Key mindnetGraphEntryKey = Key('mindnet-graph-entry');
 
 /// 用户层学习状态：只有档位 + 强项/弱项（折算见 [buildLearningStatus]）。
 ///
@@ -140,7 +149,12 @@ class LearningStatusView extends StatelessWidget {
   }
 }
 
-/// 入口：只留「今日清单」「知识网络」。开始复习是上面的主按钮，不重复成一行。
+/// 入口：只留「今日清单」。
+///
+/// 「今日清单」保留的理由（现有产品口径）：学习状态页的职责是回答「今天该做
+/// 什么」，而今日清单页是同一口径下**唯一**展开今日任务/复习步骤的页面；它
+/// 不是新入口，也不复制读数。旧 MindNet 的「知识网络图」入口已删除：那是一张
+/// 开发者视图，现在只从设置 → 开发者信息（`CognitiveDeveloperPage`）进入。
 class LearningStatusEntries extends StatelessWidget {
   const LearningStatusEntries({super.key});
 
@@ -160,21 +174,6 @@ class LearningStatusEntries extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const TodayPlanPage()),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            key: mindnetGraphEntryKey,
-            leading: const Icon(Icons.hub_outlined),
-            title: Text(l10n.cognitiveGraphTitle),
-            subtitle: Text(l10n.cognitiveGraphTapHint),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                  builder: (_) => const CognitiveGraphPage()),
             ),
           ),
         ),

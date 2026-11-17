@@ -4,7 +4,12 @@
 /// [图N] 占位。题库列表、题名兜底、导出提示这些地方只需要「一眼认出是哪道题」，
 /// 所以这里把标记收掉、把公式内部保留、把图片占位换成统一的 [图]，再折叠空白、
 /// 按 runes 截断。真正的图文混排由详情页负责，不走这里。
+///
+/// 整卷源格式的 `{{asset:NAME}}` 占位也在这里收成 [图]：列表没有附件清单，
+/// 判不了图在不在，但不能把源格式占位符直接摆给用户（详情页负责说明缺图）。
 library;
+
+import 'question_asset_placeholder.dart';
 
 /// 列表摘要的默认长度（runes，不是 UTF-16 code unit，避免切坏 emoji）。
 const int kQuestionStemPreviewMaxLength = 60;
@@ -53,6 +58,11 @@ String questionStemPreview(
   text = text.replaceAllMapped(
     _markdownLinkPattern,
     (match) => match.group(1) ?? '',
+  );
+  // 整卷源格式 `{{asset:NAME}}`：列表只给中性「［图］」，绝不把源占位符露出来。
+  text = collapseQuestionAssetPlaceholders(
+    text,
+    token: kQuestionStemPreviewImageToken,
   );
   text =
       text.replaceAll(_imagePlaceholderPattern, kQuestionStemPreviewImageToken);

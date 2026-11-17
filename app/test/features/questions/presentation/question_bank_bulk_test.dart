@@ -505,6 +505,9 @@ Future<void> _seedQuestion(
           sourceLevel: const Value('gaokao'),
           serialNo: Value(serialNo),
           title: Value(title),
+          // 题库页默认隐藏「答案与解析都为空」的待处理题：夹具写成完整题。
+          answer: const Value('A'),
+          solution: const Value('解析'),
         ),
       );
 }

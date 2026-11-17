@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
+import '../../../domain/services/questions/question_readiness.dart';
 import 'question_library_reader.dart';
 
 export 'question_library_reader.dart'
@@ -22,8 +23,22 @@ export 'question_library_reader.dart'
         kQuestionLibraryStemRole,
         readQuestionLibrary;
 
+export '../../../domain/services/questions/question_readiness.dart'
+    show
+        QuestionCompletenessPolicy,
+        QuestionPendingReason,
+        QuestionPendingStats,
+        QuestionReadiness,
+        evaluateQuestionReadiness,
+        questionPendingStats;
+
 /// 不筛选时题库页一次读多少题（超过这个数 `snapshot.truncated` 为真）。
 const int kQuestionLibraryOverviewLimit = 500;
+
+/// 题库页默认的完整性判据：**答案与解析都为空的题不进主题库**，
+/// 改由「待处理题目」入口列（见 `question_pending_page.dart`）。
+const QuestionCompletenessPolicy kQuestionLibraryPolicy =
+    QuestionCompletenessPolicy.hidePending;
 
 /// 题库页该按哪个上限读表：筛选生效时 `0`（不限），否则
 /// [kQuestionLibraryOverviewLimit]。
@@ -43,6 +58,7 @@ final questionLibraryOverviewProvider =
   return readQuestionLibrary(
     ref.watch(appDatabaseProvider),
     limit: questionLibraryReadLimit(filterActive: false),
+    policy: kQuestionLibraryPolicy,
   );
 });
 
@@ -53,6 +69,31 @@ final questionLibraryFullProvider =
   return readQuestionLibrary(
     ref.watch(appDatabaseProvider),
     limit: questionLibraryReadLimit(filterActive: true),
+    policy: kQuestionLibraryPolicy,
+  );
+});
+
+/// 「待处理题目」数据源：只列缺答案/解析（以及配图，若判据要求）的题。
+///
+/// 排序与主题库一致（updatedAt 降序）；不限条数——这个入口本来就是为了把
+/// 待处理题**全部**处理掉，截断反而藏问题。
+final questionPendingLibraryProvider =
+    FutureProvider.autoDispose<QuestionLibrarySnapshot>((ref) async {
+  ref.watchDatabaseRevision();
+  return readQuestionLibrary(
+    ref.watch(appDatabaseProvider),
+    limit: 0,
+    policy: kQuestionLibraryPolicy,
+    pendingOnly: true,
+  );
+});
+
+/// 待处理统计（数量 + 按原因分项），供题库页入口与待处理页共用。
+final questionPendingStatsProvider =
+    FutureProvider.autoDispose<QuestionPendingStats>((ref) async {
+  final snapshot = await ref.watch(questionPendingLibraryProvider.future);
+  return questionPendingStats(
+    <QuestionReadiness>[for (final entry in snapshot.entries) entry.readiness],
   );
 });
 

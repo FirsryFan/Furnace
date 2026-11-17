@@ -1,12 +1,16 @@
-// 用户层「学习状态」验收测试（task-103：MindNet/认知模型删繁就简）。
+// 用户层「学习状态」验收测试（task-103：MindNet/认知模型删繁就简；
+// 2026-11-17 学习状态清理：旧 MindNet「知识网络图」入口从用户页删除）。
 //
-// 守五件事：
-//   1. MindNet 首页只有四块用户内容：档位 / 强项弱项 / 今日 / 趋势；
+// 守六件事：
+//   1. 学习状态首页只有四块用户内容：档位 / 强项弱项 / 今日 / 趋势；
 //   2. 开发者字段（R0/Gain/Σ/band/zone/每卡 due/interval/calibration/fast layer/
 //      prior count/机制参数/评测中心）默认**不可见**；
-//   3. 入口只留「开始复习」「今日清单」「知识网络」；
-//   4. 空态：证据不足显示 `?` /「证据不足」，不显示 0 或假精确；
-//   5. 页面只读：读一遍数据库，前后整库快照一致。
+//   3. 主操作只留「开始复习」，入口只留「今日清单」；旧 MindNet 的「知识网络图」
+//      入口不再出现在用户页；
+//   4. 读数来源写清楚：档位/强弱项来自复习记录（有数据时每条带「复习记录」标记），
+//      不把这一页说成「MindNet 认知评价」；
+//   5. 空态：证据不足显示 `?` /「证据不足」，不显示 0 或假精确；
+//   6. 页面只读：读一遍数据库，前后整库快照一致。
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -198,8 +202,15 @@ void main() {
     await db.close();
   });
 
-  testWidgets('MindNet 首页 = 四块用户内容 + 两个入口，没有开发者字段', (tester) async {
+  testWidgets('学习状态首页 = 四块用户内容 + 两个动作，没有开发者字段', (tester) async {
     await _pump(tester, const MindNetPage(), overrides: _overrides(db: db));
+
+    // 0) 来源文案先说清楚：这些读数来自复习记录/任务表/复习日志，不是 MindNet。
+    expect(find.text(zh.mindnetStatusIntro), findsOneWidget);
+    expect(find.textContaining('MindNet'), findsNothing);
+    // 文案必须点名「复习记录」：数据确实来自卡片/复习记录，不能改叫 MindNet 评价。
+    expect(zh.mindnetStatusIntro, contains('复习记录'));
+    expect(zh.mindnetEvidenceMeasured, '复习记录');
 
     // 1) 档位：3 个有复习记录的知识点、平均 R=0.42 → C 档；依据是「几个知识点
     //    有复习记录」，不是「几张卡」（task-113：认知模型不再以闪存卡为主）。
@@ -216,12 +227,12 @@ void main() {
     // 依据行不再出现"张卡"口径（4 张卡只算 3 个知识点）。
     expect(find.textContaining('张复习过的卡片'), findsNothing);
 
-    // 2) 强项/弱项：按保持度排名，每条只带证据状态（「实测」，不再带张卡数）。
+    // 2) 强项/弱项：按保持度排名，每条只带证据状态（「复习记录」，不再带张卡数）。
     expect(find.byKey(learningStatusStrengthsKey), findsOneWidget);
     expect(find.byKey(learningStatusWeaknessesKey), findsOneWidget);
     expect(find.text('光合作用').evaluate().length, greaterThanOrEqualTo(1));
     // 3 个有观测的知识点 → 强项 2 + 弱项 1，不重叠；
-    // 4 张有观测的卡不再进用户层文案。
+    // 4 张有观测的卡不再进用户层文案，每条证据都写明来自复习记录。
     expect(find.text(zh.mindnetEvidenceMeasured), findsNWidgets(3));
     expect(find.textContaining('张卡'), findsNothing);
 
@@ -234,9 +245,10 @@ void main() {
     expect(find.byKey(learningStatusTrendKey), findsOneWidget);
     expect(find.text(zh.mindnetTrendEmpty), findsOneWidget);
 
-    // 入口只有今日清单 + 知识网络。
+    // 入口只剩今日清单；旧 MindNet 的「知识网络图」入口不再出现。
     expect(find.byKey(mindnetTodayPlanEntryKey), findsOneWidget);
-    expect(find.byKey(mindnetGraphEntryKey), findsOneWidget);
+    expect(find.text(zh.cognitiveGraphTitle), findsNothing);
+    expect(find.byType(CognitiveGraphPage), findsNothing);
 
     // 开发者字段默认不可见。
     for (final hidden in <String>[
@@ -271,6 +283,12 @@ void main() {
         inputs: const CognitiveObservationInputs(units: []),
       ),
     );
+
+    // 空数据时也把来源说清楚：是「没有复习记录」，不是「MindNet 认为你 ? 档」。
+    expect(find.text(zh.mindnetStatusIntro), findsOneWidget);
+    expect(find.textContaining('MindNet'), findsNothing);
+    expect(find.textContaining('知识网络'), findsNothing);
+    expect(zh.mindnetStatusIntro, contains('复习记录'));
 
     expect(
       find.descendant(
@@ -307,34 +325,13 @@ void main() {
 
     // 普通设置视图里既没有「认知模型」这一行，也没有旧的入口 key。
     expect(find.text('认知模型'), findsNothing);
-    expect(find.byKey(const Key('settings-cognitive-model-tile')), findsNothing);
+    expect(
+        find.byKey(const Key('settings-cognitive-model-tile')), findsNothing);
     // 开发者分区里仍有原始读数入口（展开后才构建）。
     expect(find.byKey(settingsCognitiveDeveloperTileKey), findsNothing);
     await tester.tap(find.byKey(settingsDeveloperToggleKey));
     await tester.pumpAndSettle();
     expect(find.byKey(settingsCognitiveDeveloperTileKey), findsOneWidget);
-  });
-
-  testWidgets('点「知识网络」入口打开图页（只读）', (tester) async {
-    await _pump(
-      tester,
-      const MindNetPage(),
-      overrides: [
-        ..._overrides(db: db),
-        // 图的数据只验入口与空态：给空图，不在这里等真实读表。
-        cognitiveGraphProvider
-            .overrideWith((ref) async => CognitiveGraphData.empty),
-      ],
-    );
-
-    await tester.ensureVisible(find.byKey(mindnetGraphEntryKey));
-    await tester.pump();
-    await tester.tap(find.byKey(mindnetGraphEntryKey));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(CognitiveGraphPage), findsOneWidget);
-    // 空库 → 图页如实给空态（不是一张空白画布）。
-    expect(find.text(zh.cognitiveGraphEmpty), findsOneWidget);
   });
 
   testWidgets('用户层页面只读：读一遍前后整库快照一致', (tester) async {

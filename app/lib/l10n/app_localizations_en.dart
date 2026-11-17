@@ -1323,6 +1323,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagsCollapse => 'Collapse';
 
   @override
+  String get tagsExpandAll => 'Expand all';
+
+  @override
+  String get tagsCollapseAll => 'Collapse all';
+
+  @override
   String tagsDeleteTitle(String label) {
     return 'Delete \"$label\"?';
   }
@@ -1947,64 +1953,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUsageDocHint =>
-      'How each part works and what its limits are: AI, review, question bank, paper assembly, photos, learning status';
+      'What the three printed booklets are for, what each part of the app does, and where the numbers come from';
 
   @override
-  String get docAiTitle =>
-      'What the assistant can do, and what waits for your consent';
+  String get docSectionStart => 'Start here';
+
+  @override
+  String get docBooksTitle => 'The three booklets, and how to use them';
+
+  @override
+  String get docBooksBody =>
+      'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and export it as Word.';
+
+  @override
+  String get docSectionModules => 'What each part does, in one line';
+
+  @override
+  String get docModuleTodayTitle => 'Today\'s plan';
+
+  @override
+  String get docModuleTodayBody =>
+      'Opening it gives you today\'s list: the cards due today in a suggested order. The order is advice, not a score, and it changes only when you press sort.';
+
+  @override
+  String get docModuleStatusTitle => 'Learning status';
+
+  @override
+  String get docModuleStatusBody =>
+      'Your current level, strengths and weak spots, and what to review today, all based on your own review history; today\'s task count and review trend come from the task list and review logs respectively. It is read-only, and when there is not enough evidence it says so instead of guessing.';
+
+  @override
+  String get docModuleAssessmentTitle => 'Assessment';
+
+  @override
+  String get docModuleAssessmentBody =>
+      'A few short tasks that run on this device and replace the app\'s guesses with an estimate based on how you actually perform. No network, no grading; you see the result right away.';
+
+  @override
+  String get docModuleLibraryTitle => 'Packages';
+
+  @override
+  String get docModuleLibraryBody =>
+      'The knowledge packages you imported. You can enable, disable, uninstall, import and export them; uninstalling removes only the import record, not the tags, cards or knowledge points it brought in.';
+
+  @override
+  String get docModuleTagsTitle => 'Tag tree';
+
+  @override
+  String get docModuleTagsBody =>
+      'Everything hangs off tags, and tags can be nested as deep as you like. A deck is simply a tag: a daily new/review cap set on one tag covers every tag below it.';
+
+  @override
+  String get docModuleBankTitle => 'Question bank and paper assembly';
+
+  @override
+  String get docModuleBankBody =>
+      'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper or export it to Word for printing.';
+
+  @override
+  String get docSectionDetails => 'When you use it';
+
+  @override
+  String get docAiTitle => 'What the assistant can do';
 
   @override
   String get docAiBody =>
-      'The AI can read your library and change it. It asks before touching data, and you approve each step; deletions are confirmed one by one and can be undone. It can\'t see your API key.';
+      'It can read your library and change it for you: add cards, edit tags, write questions. It asks first and only acts after you agree; deletions are confirmed one by one and can be undone. It never sees your API key.';
 
   @override
   String get docReviewTitle => 'Review and flashcards';
 
   @override
   String get docReviewBody =>
-      'Flashcards hang off tags, and the tag tree is the deck: a daily new/review cap set on one tag covers its whole subtree (no cap if never set). When a card is due is calculated by the app from your history; what you see is only the order for today. Judging is self-reported by default: after each card choose your real state from seven levels (perfect / easy / hard recall / partly recalled / no recall but familiar / no memory at all / new); the app schedules the next appearance from that. You can set a deck to strict auto-grading instead. A wrong card comes back the same day, outside the daily cap.';
+      'Flashcards live under tags, so the tag tree doubles as your decks. By default you grade yourself: after each card, pick the one of seven states that matches you, from perfectly familiar down to no memory at all, and the app schedules the next appearance from that. A wrong card comes back the same day, outside the daily cap.';
 
   @override
-  String get docKnowledgeTitle => 'Knowledge base and tags';
-
-  @override
-  String get docKnowledgeBody =>
-      'Tags form a tree, with / separating the levels. Deleting a tag also deletes its subtree and everything in it (you confirm each step and can undo). Cards that belong to no deck show up as a hint on the readings page, where you can put them into a deck.';
-
-  @override
-  String get docBankTitle => 'Question bank and paper assembly';
-
-  @override
-  String get docBankBody =>
-      'Where questions come from: send photos or pasted text to the assistant, and it transcribes them into the bank, reporting each one; duplicates are never stored twice. Question packs and whole papers from the web also land in the same bank. Paper assembly only uses questions already in the bank, preferring what you most need to practise, and lists what is missing instead of inventing questions. The paper can be copied or exported to Word for printing.';
-
-  @override
-  String get docMaterialTitle => 'Photos, materials and rehearsal';
+  String get docMaterialTitle => 'Photos and materials';
 
   @override
   String get docMaterialBody =>
-      'Photo intake turns one photo into tags, flashcards, knowledge points and questions (transcribed as-is); nothing is written to your study data until you confirm. Material intake turns a piece of material into knowledge points, cards and links; it is saved only after you confirm, with an undo record. Photos can also be used to rehearse a study plan - you see the result without changing your data.';
+      'Send a photo to the assistant and it sorts out tags, flashcards, knowledge points and questions, then shows you the proposal; nothing is written until you confirm. Material intake works the same way, and what it saved can be undone.';
 
   @override
-  String get docTodayTitle => 'What to do today, and when';
+  String get docSectionSorting => 'Ordering and colours';
 
   @override
-  String get docTodayBody =>
-      'Today\'s list shows the cards due today and suggests what to start with from your recent reviews and energy. Conflicting tasks and schedule blocks are flagged and can be pushed back in one tap; the ordering is recalculated only when you press the sort button.';
-
-  @override
-  String get docCognitiveTitle => 'How to read your learning status';
-
-  @override
-  String get docCognitiveBody =>
-      'Learning status is a read-only page: current level, strengths and weak spots, what to review today, and a one-line trend for the last week. The level and the lists are computed per knowledge point, not per flashcard: cards under one knowledge point are averaged first, and only points with review history count as evidence. Below the threshold, or when readings disagree too much, it shows ? or not enough evidence - which does not mean healthy. The knowledge graph draws knowledge points and tags as a read-only picture (colour = zone, size = cards); tap a node to read it. Capability actions groups the steps where you got stuck and lets you find questions by that action. Model parameters and per-card raw readings live under Settings > Developer > Developer info (read-only), collapsed by default. These readings are guidance only and never change your data by themselves.';
-
-  @override
-  String get docFormulaTitle => 'How the score is computed';
+  String get docFormulaTitle => 'How the total score is computed';
 
   @override
   String get docFormulaBody =>
-      'The total is a weighted sum of urgency, goal match, state fit, expected pressure and fatigue; each component is scored 0-1 first, then weighted by the values you set. It is recalculated only when you press the sort button.';
+      'Each event gets a total from five things: urgency, how well it matches your goal, how well it fits your current state, the pressure of its expected time, and fatigue from doing the same kind of thing. Each is scored 0-1 first, then added up with the weights you set.';
 
   @override
   String get docCurrentWeights =>
@@ -2012,53 +2050,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docWeightsNormalized =>
-      'Weights are rescaled automatically - they do not have to add up to 1. If you see no difference, keep the defaults.';
+      'Weights are rescaled automatically and do not have to add up to 1; keep the defaults if you see no difference.';
 
   @override
-  String get docStatusTitle => 'Event bar edge colours';
+  String get docStatusTitle => 'The colour on the left edge of an event';
 
   @override
   String get docStatusBody =>
-      'Green = completed; blue = waiting (expected moment not reached); yellow = expected moment has passed; red = deadline has passed. The colour only expresses state and never changes the ordering.';
+      'Green = done; blue = waiting (expected time not reached); yellow = expected time has passed; red = deadline has passed. The colour reports state and never changes the ordering.';
+
+  @override
+  String get docSectionNumbers => 'Where the numbers come from';
+
+  @override
+  String get docNumbersTitle => 'Measured, preset, uncalibrated';
+
+  @override
+  String get docNumbersBody =>
+      'Numbers in the app come from three different places:\n\n· Measured: computed from your own reviews and answers - the most trustworthy.\n· Preset: a starting value used before you have any history of your own (the shipped default, or the level you picked when you started).\n· Uncalibrated: the figure has not been checked against your real performance yet; treat it as a starting point, not a conclusion.\n\nSo uncalibrated means guidance only. It becomes measured as you review more or take an assessment.';
 
   @override
   String get settingsAbout => 'About';
 
   @override
   String get settingsAboutHint =>
-      'Version, data location, network egress, known gaps';
+      'Version, open-source license and feedback links';
 
   @override
   String get aboutVersionLabel => 'Version';
 
   @override
-  String aboutVersionValue(String version, int build) {
-    return '$version (build $build)';
-  }
+  String get aboutLicenseTitle => 'Open source and license';
 
   @override
-  String get aboutDataTitle => 'Where the data lives';
+  String get aboutLicenseBody =>
+      'Furnace is open source under the MIT license: you may use, modify and share it, keeping the copyright notice. The source code and the issue tracker are on GitHub.';
 
   @override
-  String get aboutDataBody =>
-      'All your data, including AI-written documents and images, lives under this directory. Backing up means copying furnace.db (or using \"Back up data\" above).';
+  String get aboutRepoLabel => 'Source code';
 
   @override
-  String get aboutDataDirLabel => 'Application data directory';
+  String get aboutIssuesLabel => 'Report a problem';
 
   @override
-  String get aboutNetworkTitle => 'Network egress';
+  String get aboutViewLicenses => 'Third-party licenses';
 
   @override
-  String get aboutNetworkBody =>
-      'Only two things reach the network: (1) AI requests, sent to the endpoint you configured in AI settings; (2) public web pages, read without your login information. Detailed limits are in the developer docs.';
-
-  @override
-  String get aboutGapsTitle => 'Known gaps';
-
-  @override
-  String get aboutGapsBody =>
-      'Some advanced features are not finished; they do not affect daily use. The detailed list is in the developer docs.';
+  String get aboutLinkCopied => 'Link copied';
 
   @override
   String get settingsAppearance => 'Appearance';
@@ -4829,7 +4867,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionDetailNoChainYet =>
-      'No reasoning chain yet. Use the button above to have the AI solve it; the chain is saved to your local library.';
+      'No thinking DAG yet: there is no reasoning chain. Tap \"AI solving\" below to have the AI solve it; the chain is saved to your local library.';
 
   @override
   String get questionDetailChainFromLibrary =>
@@ -4922,6 +4960,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionPaperTitle => 'Build a paper';
+
+  @override
+  String get questionPendingTitle => 'Pending questions';
+
+  @override
+  String questionPendingEntry(int count) {
+    return 'Pending ($count)';
+  }
+
+  @override
+  String get questionPendingIntro =>
+      'These questions are in the bank but have no answer/solution (or no figure). Complete them and they return to the main library. This page is read-only; open a question to fix it.';
+
+  @override
+  String get questionPendingEmpty => 'No pending questions';
+
+  @override
+  String get questionPendingEmptyHint =>
+      'Every question in the bank has an answer or a solution.';
+
+  @override
+  String questionPendingSummary(int count) {
+    return '$count pending';
+  }
+
+  @override
+  String questionPendingReasonAnswer(int count) {
+    return '$count missing answer(s)';
+  }
+
+  @override
+  String questionPendingReasonSolution(int count) {
+    return '$count missing solution(s)';
+  }
+
+  @override
+  String questionPendingReasonMedia(int count) {
+    return '$count missing figure(s)';
+  }
+
+  @override
+  String get questionPendingReasonMediaLabel => 'Missing figure';
 
   @override
   String get questionPaperEntryHint =>
@@ -6809,7 +6889,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindnetStatusIntro =>
-      'Only your current study state; model parameters are not shown here.';
+      'Where these readings come from: your level and strengths/weak spots are folded from your review history (card readings grouped by knowledge point); due reviews come from the due-card queue, today\'s tasks from the task list, and the trend from review logs. With no review history, the level falls back to your chosen preset. Model parameters and raw readings are not shown here.';
 
   @override
   String get mindnetBandTitle => 'Current level';
@@ -6843,7 +6923,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mindnetWeaknessesTitle => 'Weak spots';
 
   @override
-  String get mindnetEvidenceMeasured => 'measured';
+  String get mindnetEvidenceMeasured => 'review history';
 
   @override
   String get mindnetStrengthsEmpty => 'Not enough evidence: no reviews yet';
@@ -6972,4 +7052,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiDeveloperParamsHide => 'Hide';
+
+  @override
+  String get questionDetailAnswerSection => 'Answer & solution';
+
+  @override
+  String get questionDetailAnswerEmpty =>
+      'No answer or solution yet (not processed).';
+
+  @override
+  String get questionDetailDagSection => 'Thinking DAG';
+
+  @override
+  String questionDetailDagStepCount(int count) {
+    return '$count steps';
+  }
+
+  @override
+  String get questionDetailMetadataSection => 'Metadata';
+
+  @override
+  String get questionDetailMetadataDifficulty => 'Difficulty';
+
+  @override
+  String get questionDetailMetadataTags => 'Tags';
+
+  @override
+  String get questionDetailMetadataNone => 'None yet';
+
+  @override
+  String get questionDetailSourceSection => 'Source file & package';
+
+  @override
+  String get questionDetailSourcePackage => 'Source package';
+
+  @override
+  String get questionDetailSourceFile => 'Source file';
+
+  @override
+  String get questionDetailSourceEmpty =>
+      'No source package recorded: this question may have been added by hand.';
+
+  @override
+  String questionDetailSourceFailed(String error) {
+    return 'Failed to read source packages: $error';
+  }
+
+  @override
+  String get questionDetailOriginalLink => 'Original link';
+
+  @override
+  String get questionDetailCopyLink => 'Copy link';
+
+  @override
+  String get questionDetailAiCognitiveSection =>
+      'AI solving & MindNet evaluation';
 }

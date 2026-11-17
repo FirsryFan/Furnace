@@ -1,24 +1,32 @@
 /// 题目详情页：一道题的完整视图 + 推理管道的入口与可读展示。
 ///
-/// 三件事按顺序摊在一页上：
+/// 版块顺序（2026-11-17 用户口径：一个合格题库里的题，应该在一页里看全）：
 ///
-///  1. **题目现状**：题干、选项（标出正确答案）、答案、解析、来源/年份/难度。
-///  2. **AI 解题**：按一下调 `QuestionReasoningService.solveAndDecompose`，
-///     模型给的分步思维链当场展示，并（默认）落进 `reasoning_chains` /
-///     `reasoning_steps`——链是派生数据，同一道题可以有多条，互不覆盖。
-///  3. **卡点评估**：`StuckPointEvaluator` 把「模型判断的风险」和「你自己的记忆
-///     状态读数」等权融合，逐步给建议。评估结果**不进数据库**：它是"此刻的看法"，
-///     不是事实；链才是事实。
+///  1. **题干**：题名/题号/来源行 + 题干与题干配图 + 选项与自测；
+///  2. **答案与解析**：答案、解析、坑点与答案截图；缺数据时写「暂无」；
+///  3. **思维 DAG**：AI 解题产出的分步思维链（本地 `reasoning_chains` /
+///     `reasoning_steps`），没有就写「暂无」；AI 解题的按钮与失败面在
+///     页底的「AI 解题 / MindNet 认知评价」版块里；
+///  4. **元数据**：来源说明、年份、地区、题型、难度、能力点、标签（只显示
+///     已有数据；`state`/`origin`/`aiQuality`/内部 id 仍是开发者字段）；
+///  5. **相似题目推荐**：只从题库里找；
+///  6. **来源文件与来源包**：`content_refs` 里的来源包引用 + 原题链接；
+///     组卷网检索入口只对组卷网有列表页的学科出现（信息学/历史/算法竞赛不摆）；
+///  7. **AI 解题 / MindNet 认知评价**：一个完整版块放在页底——跑解题、看失败面、
+///     看 MindNet 只读读数。
 ///
 /// 两条本页坚持的诚实性规则：
 ///
 ///  * **失败面照样展示**：模型没配好、回复不合契约、题目 id 不存在，都显示
 ///    `failureReason` 与已收到的 `rawReply`，不弹一个"出错了"就吞掉。
-///  * **没有状态数据要说出来**：`unmatchedHints` 是"本地没有你的读数"，不是
-///    "这一步没问题"。两者在界面上的差别必须看得见。
+///  * **没有数据要说出来**：缺答案/缺链/缺来源包/缺标签都写「暂无」，
+///    不拿"看着像"的内容凑数，也不留一块空白卡片。
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database.dart';
@@ -33,6 +41,7 @@ import '../../../domain/services/questions/objective_answer.dart';
 import '../../../domain/services/questions/question_capability.dart';
 import '../../../domain/services/questions/question_number_query.dart';
 import '../../../domain/services/questions/question_option_layout.dart';
+import '../../../domain/services/questions/question_source.dart';
 import '../../../domain/services/questions/question_stem_image_plan.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
@@ -83,6 +92,25 @@ const Key questionDetailSimilarSectionKey =
 /// 空态也渲染这张卡（标题 + 一句「还读不到」），所以测试既能断言「有卡片」，
 /// 也能断言空态文案；加载中/读库失败时整块零高度，这个 key 不出现。
 const Key questionCognitiveSectionKey = Key('question-cognitive-section');
+
+/// 「思维 DAG」版块的 key（测试定位用）。空链时也渲染（标题 + 「暂无」），
+/// 所以这个 key 在页面读题成功后恒定出现；自测防剧透期间整块不渲染。
+const Key questionDetailDagSectionKey = Key('question-detail-dag-section');
+
+/// 「元数据」版块的 key（测试定位用）。
+const Key questionDetailMetadataSectionKey =
+    Key('question-detail-metadata-section');
+
+/// 「来源文件与来源包」版块的 key（测试定位用）。
+const Key questionDetailSourceSectionKey =
+    Key('question-detail-source-section');
+
+/// 来源版块里「复制原题链接」按钮的 key（测试定位用）。
+const Key questionDetailSourceCopyKey = Key('question-detail-source-copy');
+
+/// 页底「AI 解题 / MindNet 认知评价」完整版块的 key（测试定位用）。
+const Key questionDetailAiCognitiveSectionKey =
+    Key('question-detail-ai-cognitive-section');
 
 /// 自测历史摘要行的 key（测试定位用）。
 const Key questionAttemptHistoryKey = Key('question-attempt-history');
@@ -307,82 +335,116 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           ),
         ],
       ),
-      body: ListView(
+      // 详情页是"一页看完一道题"：用 SingleChildScrollView 而不是懒加载
+      // ListView——版块顺序是产品口径的一部分，缺数据时也要渲染「暂无」的
+      // 版块（不能用懒加载把屏幕外的版块当成"不存在"）。
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
-          if (detailAsync.isLoading && !detailAsync.hasValue)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: LinearProgressIndicator(),
-            )
-          else if (detailAsync.hasError)
-            Text('${detailAsync.error}')
-          else if (missing)
-            Text(l10n.questionDetailQuestionMissing)
-          else if (detail != null)
-            // 学生视图：只留题干/选项/答案/自测/学习读数；改名、改来源、原题
-            // 链接、配图编辑、入库体检等开发动作统一收进「开发者信息」。
-            _QuestionBody(
-              detail: detail,
-              onSelfTestChanged: _onSelfTestChanged,
-            ),
-          // 组卷网入口紧贴题面（题干/配图）下方：候选为空时它自己是零高度。
-          // 自测未提交时连它一起收起：找原题等于把答案摆到眼前。
-          if (detail != null && !_spoilersHidden)
-            QuestionZujuanSearchButton(
-              stem: detail.question.stem,
-              subjectKey: detail.question.subjectKey,
-            ),
-          // MindNet 认知评价：只读读数；同样不剧透解法，自测中也保留。
-          if (detail != null)
-            QuestionCognitiveSection(questionId: widget.questionId),
-          if (_spoilersHidden)
-            Padding(
-              key: questionDetailSpoilerGuardHintKey,
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                l10n.questionDetailSelfTestSpoilerHidden,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (detailAsync.isLoading && !detailAsync.hasValue)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: LinearProgressIndicator(),
+              )
+            else if (detailAsync.hasError)
+              Text('${detailAsync.error}')
+            else if (missing)
+              Text(l10n.questionDetailQuestionMissing)
+            else if (detail != null)
+              // 学生视图：题干/选项/答案/自测/学习读数。改名、改来源、原题
+              // 链接编辑、配图编辑、入库体检等开发动作统一收进「开发者信息」。
+              _QuestionBody(
+                detail: detail,
+                onSelfTestChanged: _onSelfTestChanged,
               ),
-            )
-          else ...[
-            const SizedBox(height: 16),
-            _ReasoningSection(
-              key: questionDetailReasoningSectionKey,
-              questionId: widget.questionId,
-              running: _running,
-              lastRun: _lastRun,
-              enabled: detail != null,
-              onSolve: _solve,
-            ),
-            const SizedBox(height: 16),
-            _SimilarQuestionsSection(
-              key: questionDetailSimilarSectionKey,
-              questionId: widget.questionId,
-            ),
-          ],
-          // 开发者信息的**唯一**入口：内部字段、来源编辑与配图管理都在那一页。
-          // 学生页不摊开这些，只留一个低权重文字按钮。
-          if (detail != null) ...[
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: questionDeveloperEntryKey,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        QuestionDeveloperPage(questionId: widget.questionId),
+            if (detail != null) ...[
+              // 3. 思维 DAG：AI 解题产出的分步链；没有就写「暂无」。
+              if (!_spoilersHidden) ...[
+                const SizedBox(height: 16),
+                _DagSection(
+                  key: questionDetailDagSectionKey,
+                  questionId: widget.questionId,
+                  lastRun: _lastRun,
+                ),
+              ],
+              // 4. 元数据：来源/年份/地区/题型/难度/能力点/标签，只摆已有数据。
+              const SizedBox(height: 16),
+              _QuestionMetadataSection(
+                key: questionDetailMetadataSectionKey,
+                question: detail.question,
+              ),
+              // 5. 相似题目推荐（自测未提交时收起：相似题会剧透解法）。
+              if (!_spoilersHidden) ...[
+                const SizedBox(height: 16),
+                _SimilarQuestionsSection(
+                  key: questionDetailSimilarSectionKey,
+                  questionId: widget.questionId,
+                ),
+                // 6. 来源文件与来源包（含原题链接；自测未提交时同样收起）。
+                const SizedBox(height: 16),
+                _QuestionSourceSection(
+                  key: questionDetailSourceSectionKey,
+                  question: detail.question,
+                ),
+              ],
+              if (_spoilersHidden)
+                Padding(
+                  key: questionDetailSpoilerGuardHintKey,
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    l10n.questionDetailSelfTestSpoilerHidden,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ),
-                icon: const Icon(Icons.code, size: 16),
-                label: Text(l10n.questionDeveloperEntry),
+              // 7. AI 解题 / MindNet 认知评价：一个完整版块放在页底。
+              const SizedBox(height: 16),
+              Column(
+                key: questionDetailAiCognitiveSectionKey,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.questionDetailAiCognitiveSection,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  if (!_spoilersHidden) ...[
+                    const SizedBox(height: 8),
+                    _ReasoningSection(
+                      key: questionDetailReasoningSectionKey,
+                      questionId: widget.questionId,
+                      running: _running,
+                      lastRun: _lastRun,
+                      enabled: true,
+                      onSolve: _solve,
+                    ),
+                  ],
+                  // MindNet 认知评价：只读读数；不剧透解法，自测中也保留。
+                  QuestionCognitiveSection(questionId: widget.questionId),
+                ],
               ),
-            ),
+              // 开发者信息的**唯一**入口：内部字段、来源编辑与配图管理都在那一页。
+              // 学生页不摊开这些，只留一个低权重文字按钮。
+              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: questionDeveloperEntryKey,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          QuestionDeveloperPage(questionId: widget.questionId),
+                    ),
+                  ),
+                  icon: const Icon(Icons.code, size: 16),
+                  label: Text(l10n.questionDeveloperEntry),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -788,6 +850,10 @@ class _QuestionBodyState extends State<_QuestionBody> {
           ],
         ),
         const SizedBox(height: 12),
+        // 题干版块标题：让「题干 / 答案 / 思维 DAG / 元数据 …」的版块边界
+        // 一眼可见（此前题干没有任何标题，只有题名与来源行）。
+        Text(l10n.questionIntakeStemLabel, style: theme.textTheme.titleSmall),
+        const SizedBox(height: 2),
         // 题干与题干配图混排：文字段/图片段按「［图1］」占位拆分，
         // 没被占位引用的图接在题干文字末尾（见 question_stem_segments.dart）。
         _QuestionStemView(
@@ -795,8 +861,8 @@ class _QuestionBodyState extends State<_QuestionBody> {
           stem: question.stem,
           markdown: markdownText,
         ),
-        // 能力点与扩展关联（handoff §7 M2）：有数据才出现，两边都空时零高度，
-        // 老题看起来与加这个功能之前完全一样。
+        // 扩展关联（handoff §7 M2）：有数据才出现，空时零高度。能力点归
+        // 「元数据」版块（同一份数据只出现一次）。
         _QuestionRelationsSection(question: question),
         if (detail.options.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -855,52 +921,85 @@ class _QuestionBodyState extends State<_QuestionBody> {
         ],
         // 自测历史摘要：放在自测开关/选项这一带；一次没做过时整块不占位。
         _AttemptHistoryLine(questionId: question.id),
-        if (answer.isNotEmpty && !_answersHidden) ...[
-          const SizedBox(height: 16),
-          _LabelledText(
-            label: l10n.questionIntakeAnswerLabel,
-            value: answer,
-            markdown: markdownText,
+        // ---- 答案与解析版块 ----
+        // 自测中（未提交）整块（含版块标题）收起：标题本身不剧透，但答案区
+        // 紧跟着它，摆一个空标题只会让人去猜"下面藏了什么"。
+        if (!_answersHidden) ...[
+          const SizedBox(height: 20),
+          Text(
+            l10n.questionDetailAnswerSection,
+            style: theme.textTheme.titleSmall,
           ),
-          // 答案截图紧跟答案段：组卷网登录后才看得到的整张答案图，
-          // 和题干配图分开存、也分开显示。
+          if (answer.isNotEmpty)
+            _LabelledText(
+              label: l10n.questionIntakeAnswerLabel,
+              value: answer,
+              markdown: markdownText,
+            ),
+          if (solution.isNotEmpty)
+            _LabelledText(
+              label: l10n.questionIntakeSolutionLabel,
+              value: solution,
+              markdown: markdownText,
+            ),
+          if (trapNote.isNotEmpty)
+            _LabelledText(
+              label: l10n.questionDetailTrapNote,
+              value: trapNote,
+              markdown: markdownText,
+            ),
+          // 答案截图：有文字答案时跟在答案段后；没有文字答案时也照样摆
+          // （组卷网登录后才看得到的整张答案图，和题干配图分开存、分开显示）。
           const SizedBox(height: 8),
           QuestionImagesSection(
             questionId: question.id,
             kind: QuestionImagesSectionKind.answer,
           ),
-        ],
-        if (solution.isNotEmpty && !_answersHidden)
-          _LabelledText(
-            label: l10n.questionIntakeSolutionLabel,
-            value: solution,
-            markdown: markdownText,
-          ),
-        if (trapNote.isNotEmpty)
-          _LabelledText(
-            label: l10n.questionDetailTrapNote,
-            value: trapNote,
-            markdown: markdownText,
-          ),
-        if (answer.isEmpty && !_answersHidden) ...[
-          // 没有文字答案时也把答案图摆出来（只读）：不是每道题都有现成
-          // 文字答案，先截一张答案图也可能。
-          const SizedBox(height: 8),
-          QuestionImagesSection(
-            questionId: question.id,
-            kind: QuestionImagesSectionKind.answer,
-          ),
+          // 文字答案/解析/坑点都没有、图片也没有：明说「暂无（未处理）」，
+          // 不留一个只有标题的空版块。
+          if (answer.isEmpty && solution.isEmpty && trapNote.isEmpty)
+            _EmptyAnswerHint(questionId: question.id),
         ],
       ],
     );
   }
 }
 
-/// 题目的「能力点」与「扩展题 / 母题」关联（handoff §7 M2）。
+/// 答案版块的诚实空态：没有文字答案/解析/坑点、也没有答案截图时才显示。
 ///
-/// 两块都是**有数据才出现**：没标能力点、扩展关联两边都空时整块零高度。
-/// 能力点来自 `questions.capability`（JSON 数组文本），扩展关联走
-/// `questionExtensionLinksProvider`（`extension_of` 反查）。
+/// 单独一个 Consumer，是因为"有没有答案图"读的是异步 provider；`_QuestionBody`
+/// 不把这份读数塞进自己的 State，避免为了一个空态把整个正文变成 Consumer。
+class _EmptyAnswerHint extends ConsumerWidget {
+  const _EmptyAnswerHint({required this.questionId});
+
+  final String questionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final images =
+        ref.watch(questionAnswerImagesProvider(questionId)).valueOrNull;
+    if (images != null && images.isNotEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        l10n.questionDetailAnswerEmpty,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// 题目的「扩展题 / 母题」关联（handoff §7 M2）。
+///
+/// **有数据才出现**：扩展关联两边都空时整块零高度。能力点不在这里了——它是
+/// 「元数据」版块的一行（同一份数据只出现一次），判据仍走 `questions.capability`。
+/// 扩展关联走 `questionExtensionLinksProvider`（`extension_of` 反查）。
 class _QuestionRelationsSection extends ConsumerWidget {
   const _QuestionRelationsSection({required this.question});
 
@@ -908,24 +1007,14 @@ class _QuestionRelationsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final codes = decodeQuestionCapability(question.capability);
     final links =
         ref.watch(questionExtensionLinksProvider(question.id)).valueOrNull;
-    final hasCapability = codes.isNotEmpty;
-    final hasLinks = links != null && !links.isEmpty;
-    if (!hasCapability && !hasLinks) {
+    if (links == null || links.isEmpty) {
       return const SizedBox.shrink();
     }
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          if (hasCapability) _QuestionCapabilityChips(codes: codes),
-          if (hasCapability && hasLinks) const SizedBox(height: 12),
-          if (hasLinks) _QuestionExtensionLinksView(links: links),
-        ],
-      ),
+      child: _QuestionExtensionLinksView(links: links),
     );
   }
 }
@@ -1555,7 +1644,103 @@ class _QuestionStemView extends ConsumerWidget {
   }
 }
 
-/// 推理管道区块：按钮 + 失败面 + 链与卡点评估。
+/// 「思维 DAG」版块：AI 解题产出的分步链 + 卡点评估 + 挂载的知识点。
+///
+/// 链是派生数据（`reasoning_chains` / `reasoning_steps`），同一道题可以有多条；
+/// 这里只读库里最新一条、或本次刚跑出来的那条。**没有链时版块照样在**：标题 +
+/// 一句「暂无」，让人知道"这块还没处理"，而不是一块凭空消失的版面。
+class _DagSection extends ConsumerWidget {
+  const _DagSection({
+    super.key,
+    required this.questionId,
+    required this.lastRun,
+  });
+
+  final String questionId;
+  final ReasoningRunResult? lastRun;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+
+    final stored =
+        ref.watch(questionStoredChainProvider(questionId)).valueOrNull;
+    final statesAsync = ref.watch(questionKnowledgeStatesProvider);
+    final knowledgePointIds =
+        ref.watch(questionKnowledgePointIdsProvider(questionId)).valueOrNull ??
+            const <String>[];
+
+    // 本次运行的结果优先（它比库里的新）；没按过按钮就看库里最新那条。
+    final chain = lastRun?.chain ?? stored?.chain;
+    final fromLibrary = lastRun?.chain == null && chain != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.questionDetailDagSection,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                if (chain != null)
+                  Text(
+                    l10n.questionDetailDagStepCount(chain.steps.length),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+            if (knowledgePointIds.isNotEmpty)
+              _KnowledgePointChips(
+                ids: knowledgePointIds,
+                states: statesAsync.valueOrNull,
+              ),
+            const SizedBox(height: 12),
+            if (chain == null)
+              Text(
+                l10n.questionDetailNoChainYet,
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              statesAsync.when(
+                loading: () => Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(l10n.questionDetailStatesLoading),
+                  ],
+                ),
+                error: (error, _) =>
+                    Text(l10n.questionDetailStatesFailed('$error')),
+                data: (states) => _ChainView(
+                  chain: chain,
+                  states: states,
+                  fromLibrary: fromLibrary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// AI 解题版块：跑解题的按钮 + 失败面。
+///
+/// 链与卡点评估在「思维 DAG」版块展示——同一份链不在两处重复画。按钮的文案
+/// 跟着"库里有没有链"变（解一次 / 再解一次），所以这里仍要读一次链读数。
 class _ReasoningSection extends ConsumerWidget {
   const _ReasoningSection({
     super.key,
@@ -1579,14 +1764,7 @@ class _ReasoningSection extends ConsumerWidget {
 
     final stored =
         ref.watch(questionStoredChainProvider(questionId)).valueOrNull;
-    final statesAsync = ref.watch(questionKnowledgeStatesProvider);
-    final knowledgePointIds =
-        ref.watch(questionKnowledgePointIdsProvider(questionId)).valueOrNull ??
-            const <String>[];
-
-    // 本次运行的结果优先（它比库里的新）；没按过按钮就看库里最新那条。
     final chain = lastRun?.chain ?? stored?.chain;
-    final fromLibrary = lastRun?.chain == null && chain != null;
 
     return Card(
       child: Padding(
@@ -1620,38 +1798,6 @@ class _ReasoningSection extends ConsumerWidget {
               ),
             ),
             if (lastRun != null && !lastRun!.ok) _FailureCard(result: lastRun!),
-            if (knowledgePointIds.isNotEmpty)
-              _KnowledgePointChips(
-                ids: knowledgePointIds,
-                states: statesAsync.valueOrNull,
-              ),
-            const SizedBox(height: 12),
-            if (chain == null)
-              Text(
-                l10n.questionDetailNoChainYet,
-                style: theme.textTheme.bodyMedium,
-              )
-            else
-              statesAsync.when(
-                loading: () => Row(
-                  children: [
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(l10n.questionDetailStatesLoading),
-                  ],
-                ),
-                error: (error, _) =>
-                    Text(l10n.questionDetailStatesFailed('$error')),
-                data: (states) => _ChainView(
-                  chain: chain,
-                  states: states,
-                  fromLibrary: fromLibrary,
-                ),
-              ),
           ],
         ),
       ),
@@ -2192,6 +2338,369 @@ class _TransferBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 「元数据」版块：来源说明 / 年份 / 地区 / 题型 / 难度 / 能力点 / 标签。
+///
+/// 只摆库里**已有**的字段。`state` / `origin` / `aiQuality` / 来源分级 / 内部
+/// id 这些开发字段仍在「开发者信息」页，不搬到学生页。没有值的行写「暂无」，
+/// 不猜、不补——「没标注」本身就是要让人看见的信息。
+class _QuestionMetadataSection extends ConsumerWidget {
+  const _QuestionMetadataSection({super.key, required this.question});
+
+  final Question question;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final tags = ref.watch(questionTagsProvider(question.id)).valueOrNull;
+    final codes = decodeQuestionCapability(question.capability);
+    final none = l10n.questionDetailMetadataNone;
+    final sourceLabel = question.sourceLabel.trim();
+    final region = (question.region ?? '').trim();
+    final difficulty = question.difficulty;
+    final year = question.year;
+    final tagPaths = <String>[
+      for (final tag in tags ?? const <Tag>[])
+        (tag.path?.trim().isNotEmpty ?? false)
+            ? tag.path!.trim()
+            : tag.name.trim(),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.questionDetailMetadataSection,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            _MetadataRow(
+              label: l10n.questionIntakeSourceLabelLabel,
+              value: sourceLabel.isEmpty ? none : sourceLabel,
+            ),
+            _MetadataRow(
+              label: l10n.questionIntakeYearLabel,
+              value: year == null ? none : l10n.questionDetailYear(year),
+            ),
+            _MetadataRow(
+              label: l10n.questionIntakeRegionLabel,
+              value: region.isEmpty ? none : region,
+            ),
+            _MetadataRow(
+              label: l10n.questionIntakeQuestionTypeLabel,
+              value: question.questionType.trim().isEmpty
+                  ? none
+                  : questionTypeLabelZh(question.questionType),
+            ),
+            _MetadataRow(
+              label: l10n.questionDetailMetadataDifficulty,
+              value: difficulty == null
+                  ? none
+                  : '${_formatDifficultyValue(difficulty)}/10',
+            ),
+            const SizedBox(height: 10),
+            if (codes.isEmpty)
+              _MetadataRow(
+                label: l10n.questionCapabilitySection,
+                value: none,
+              )
+            else
+              _QuestionCapabilityChips(codes: codes),
+            const SizedBox(height: 10),
+            Text(
+              l10n.questionDetailMetadataTags,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            if (tagPaths.isEmpty)
+              Text(none, style: theme.textTheme.bodyMedium)
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: <Widget>[
+                  for (final path in tagPaths)
+                    Chip(
+                      label: Text(path),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 难度值的展示：整数不带小数点，带小数的保留一位。
+String _formatDifficultyValue(double value) =>
+    value == value.roundToDouble()
+        ? value.round().toString()
+        : value.toStringAsFixed(1);
+
+/// 元数据里的一行「标签 + 值」：标签固定宽度，值占满剩余宽度并自动换行。
+class _MetadataRow extends StatelessWidget {
+  const _MetadataRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(value, style: theme.textTheme.bodyMedium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「来源文件与来源包」版块。
+///
+/// 数据只有两类真实来源：
+///  * `content_refs`：导入时登记的内容包/整卷引用（题目 role=`source_package`，
+///    整卷导入的 content_id 形如 `<paperKey>#Q<n>`），引用摘要里可能带来源图
+///    文件路径；这里只读引用行，不复制正文；
+///  * `questions.source_url`：原题链接（可复制，不引入 url_launcher）。
+///
+/// 两者都没有就写「暂无」。组卷网检索入口也放在这里：它只对组卷网有列表页的
+/// 学科出现（信息学/历史/算法竞赛这类题不摆，见 `question_zujuan_search.dart`）。
+class _QuestionSourceSection extends ConsumerWidget {
+  const _QuestionSourceSection({super.key, required this.question});
+
+  final Question question;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final refsAsync = ref.watch(questionContentRefsProvider(question.id));
+    final source = questionSourceFor(
+      sourceUrl: question.sourceUrl,
+      zujuanQuestionId: question.zujuanQuestionId,
+      zujuanBankId: question.zujuanBankId,
+    );
+    final refs = refsAsync.valueOrNull;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.folder_open_outlined,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.questionDetailSourceSection,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (source == null)
+              _MetadataRow(
+                label: l10n.questionDetailOriginalLink,
+                value: l10n.questionDetailMetadataNone,
+              )
+            else ...[
+              _MetadataRow(
+                label: l10n.questionDetailOriginalLink,
+                value: source.url,
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: questionDetailSourceCopyKey,
+                  onPressed: () => _copySourceUrl(context, source.url),
+                  icon: const Icon(Icons.copy_outlined, size: 16),
+                  label: Text(l10n.questionDetailCopyLink),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            if (refsAsync.isLoading && !refsAsync.hasValue)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: LinearProgressIndicator(),
+              )
+            else if (refsAsync.hasError)
+              Text(l10n.questionDetailSourceFailed('${refsAsync.error}'))
+            else if (refs == null || refs.isEmpty)
+              Text(
+                l10n.questionDetailSourceEmpty,
+                style: theme.textTheme.bodyMedium,
+              )
+            else ...[
+              Text(
+                l10n.questionDetailSourcePackage,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              for (final ref in refs) _SourceRefView(sourceRef: ref),
+            ],
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: QuestionZujuanSearchButton(
+                stem: question.stem,
+                subjectKey: question.subjectKey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 复制原题链接：仓库约定不引入 url_launcher，复制后提示去浏览器粘贴。
+Future<void> _copySourceUrl(BuildContext context, String url) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  await Clipboard.setData(ClipboardData(text: url));
+  if (!context.mounted) {
+    return;
+  }
+  messenger.showSnackBar(SnackBar(content: Text(l10n.questionSourceCopyDone)));
+}
+
+/// 一条来源引用：内容 id + 引用摘要（整卷标题/来源说明/年份/地区/版本）+
+/// 来源图文件路径。摘要解析失败只少一行，不影响版块其余部分。
+class _SourceRefView extends StatelessWidget {
+  const _SourceRefView({required this.sourceRef});
+
+  final ContentRefRow sourceRef;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final summary = _sourceRefSummary(sourceRef);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SelectableText(
+            sourceRef.contentId,
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (summary.parts.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                summary.parts.join(' · '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          if (summary.figurePaths.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '${l10n.questionDetailSourceFile}：${summary.figurePaths.join('、')}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 一条来源引用里能展示的摘要（都来自 `metadata_json` 与版本列，不复制正文）。
+class _SourceRefSummary {
+  const _SourceRefSummary({required this.parts, required this.figurePaths});
+
+  /// 整卷标题/来源说明/年份/地区/版本这类一行摘要。
+  final List<String> parts;
+
+  /// 引用摘要里登记的来源图文件路径。
+  final List<String> figurePaths;
+}
+
+_SourceRefSummary _sourceRefSummary(ContentRefRow sourceRef) {
+  Map<String, Object?>? metadata;
+  final raw = sourceRef.metadataJson;
+  if (raw != null && raw.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, Object?>) {
+        metadata = decoded;
+      }
+    } on FormatException {
+      // 摘要只是引用信息，坏了就少显示一行，不影响页面。
+    }
+  }
+  String textOf(String key) {
+    final value = metadata?[key];
+    if (value is String) {
+      return value.trim();
+    }
+    return value is num ? value.toString() : '';
+  }
+
+  final parts = <String>[
+    if (textOf('paper_title').isNotEmpty) textOf('paper_title'),
+    if (textOf('source_label').isNotEmpty) textOf('source_label'),
+    if (textOf('subject').isNotEmpty) textOf('subject'),
+    if (textOf('year').isNotEmpty) textOf('year'),
+    if (textOf('region').isNotEmpty) textOf('region'),
+    if (sourceRef.contentVersion != null)
+      'v${sourceRef.contentVersion}',
+    if (sourceRef.contentHash != null && sourceRef.contentHash!.isNotEmpty)
+      'hash ${sourceRef.contentHash!.substring(0, sourceRef.contentHash!.length > 12 ? 12 : sourceRef.contentHash!.length)}…',
+  ];
+  final figures = <String>[];
+  final rawFigures = metadata?['figures'];
+  if (rawFigures is List) {
+    for (final figure in rawFigures) {
+      if (figure is Map) {
+        final path = figure['path'];
+        if (path is String && path.trim().isNotEmpty) {
+          figures.add(path.trim());
+        }
+      }
+    }
+  }
+  return _SourceRefSummary(parts: parts, figurePaths: figures);
 }
 
 /// 「MindNet 认知评价」卡片：题目内容 × 认知模型的第一块可测界面。

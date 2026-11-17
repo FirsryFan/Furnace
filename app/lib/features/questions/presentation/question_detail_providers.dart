@@ -14,9 +14,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/state/data_revision.dart';
 import '../../../data/database/app_database_provider.dart';
 import '../../../data/database/database.dart';
+import '../../../data/repositories/content_ref_repository.dart';
 import '../../../data/repositories/question_repository.dart';
 import '../../../data/repositories/repository_providers.dart';
 import '../../../domain/services/cognitive/cognitive_model.dart';
+import '../../../domain/services/content/content_ref_vocab.dart';
 import '../../../domain/services/questions/attempt_history.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../domain/services/reasoning/reasoning_prompt.dart';
@@ -306,4 +308,32 @@ final questionKnowledgePointIdsProvider = FutureProvider.autoDispose
     sourceObjectType: kQuestionObjectType,
   );
   return bySource[questionId] ?? const <String>[];
+});
+
+/// 这道题挂的标签（`object_tags` 里 `object_type = question` 的行）。
+///
+/// 只读；空列表 = **没挂标签**，不是错误，也不是"标签读不出来"。标签展示是
+/// 详情页「元数据」版块的一部分：没有标签就显示「暂无」，不猜学科根。
+final questionTagsProvider = FutureProvider.autoDispose
+    .family<List<Tag>, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  return ref.watch(tagRepositoryProvider).tagsForObject(
+        objectType: kQuestionObjectType,
+        objectId: questionId,
+      );
+});
+
+/// 这道题在 `content_refs` 里的来源引用（内容 id ↔ 产品题目）。
+///
+/// 导入侧给题目写的 `role` 是 `source_package`（整卷导入的 content_id 形如
+/// `<paperKey>#Q<n>`）。这里只读引用行，**不复制正文**；空列表 = 没登记来源包
+/// （手工/拍照入库的题就是这种），界面照实说「暂无」，不反推来源。
+final questionContentRefsProvider = FutureProvider.autoDispose
+    .family<List<ContentRefRow>, String>((ref, questionId) async {
+  ref.watchDatabaseRevision();
+  final repository = ContentRefRepository(ref.watch(appDatabaseProvider));
+  return repository.listForObject(
+    objectType: ContentObjectType.question,
+    objectId: questionId,
+  );
 });

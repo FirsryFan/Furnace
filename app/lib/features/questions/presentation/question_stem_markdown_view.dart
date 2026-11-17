@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/media/image_size.dart';
+import '../../../domain/services/questions/question_asset_placeholder.dart';
 import '../../../domain/services/questions/question_blank_markup.dart';
 import '../../../domain/services/questions/question_image_markdown.dart';
 import '../../markdown/presentation/markdown_renderer.dart';
@@ -64,7 +65,10 @@ class QuestionMarkdownTextWithImages extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!markdown || !text.contains('图')) {
+    // 整卷源格式 `{{asset:NAME}}`：不是「图」字占位，必须单独识别，否则会原样
+    // 当正文显示给用户（历史导入的 2024 英语卷 45 道题就是这样）。
+    final hasAssetReferences = containsQuestionAssetPlaceholder(text);
+    if (!markdown || (!text.contains('图') && !hasAssetReferences)) {
       return MarkdownQuestionText(
         text: text,
         style: style,
@@ -73,10 +77,22 @@ class QuestionMarkdownTextWithImages extends ConsumerWidget {
       );
     }
     final images = ref.watch(questionImagesProvider(questionId)).valueOrNull;
+    // 先把源格式占位换成可渲染的 `［图N］` 或明确的缺失提示。
+    // 附件清单还没读出来时（images == null）只换成中性的「［图］」，读出来重算；
+    // 附件为空时直接给出「图片缺失」（`.wmf` 额外标注格式不支持）。
+    final prepared = hasAssetReferences
+        ? renderQuestionAssetPlaceholders(
+            text,
+            attachmentNames: images == null
+                ? const <String>[]
+                : <String>[for (final image in images) image.fileName],
+            pending: images == null,
+          ).text
+        : text;
     if (images == null || images.isEmpty) {
-      // 图片清单还没读出来：先按纯文字渲染，读出来后同一位置重建。
+      // 图片清单还没读出来 / 没有可渲染附件：先按纯文字渲染，读完或补图后重建。
       return MarkdownQuestionText(
-        text: text,
+        text: prepared,
         style: style,
         textAlign: textAlign,
         markdown: markdown,
@@ -93,14 +109,14 @@ class QuestionMarkdownTextWithImages extends ConsumerWidget {
     }
 
     final markup = questionMarkdownWithImagePlaceholders(
-      text,
+      prepared,
       imageCount: images.length,
       heightOf: (placeholder) =>
           _displayHeight(sizesByOrder[placeholder.order], placeholder.ownLine),
     );
     if (!markup.hasImages) {
       return MarkdownQuestionText(
-        text: text,
+        text: prepared,
         style: style,
         textAlign: textAlign,
         markdown: markdown,

@@ -260,6 +260,10 @@ class _OrphanRepairBanner extends ConsumerWidget {
 /// a user who reads only the first screen must not conclude that the model
 /// 图的入口：读数页是"一列数字"，网络图是"同一批数字的另一种画法"。
 ///
+/// **开发者旧功能（2026-11-17 学习状态清理）**：用户学习状态页的「知识网络图」
+/// 入口已删除；这张旧 MindNet 视图只从这里（设置 → 开发者信息）进入。它不是
+/// 用户学习状态的读数来源，页面上的档位/强弱项也不再依赖它。
+///
 /// 只读是两页共同的承诺；这里只给一条能走到的路（用户反馈"希望有一个可视化的界面"）。
 class _GraphEntryCard extends StatelessWidget {
   const _GraphEntryCard();

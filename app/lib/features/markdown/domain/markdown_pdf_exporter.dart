@@ -8,8 +8,14 @@
 /// 表头、默认文本样式如果没有 font，会退回 WinAnsi 的 Helvetica，中文变乱码。
 ///
 /// 与预览共享的东西：颜色、字号、行距、段距、标题层级/居中/分隔线、表格
-/// 边框/斑马纹/紧凑、代码块背景/行号、页边距、页眉/页脚/页码。PDF 不支持
-/// 左右分栏（见报告），隐藏域 `theme.columnsEnabled` 只影响预览。
+/// 边框/斑马纹/紧凑、代码块背景/行号、页边距、页眉/页脚/页码。
+///
+/// 左右分栏：`theme.columnsEnabled` 为真时走**真正的双栏排页**——A4 纸、栏宽
+/// `(contentWidth - columnGap) / N`、栏间可画竖线，页眉/页脚/页码/页边距全部
+/// 保留。`pdf` 包没有报纸式多栏自动分页（`Partitions` 是两条独立栏流，`Row`
+/// 又不可跨页），所以分页由本文件 + `markdown_pdf_columns.dart` 自己算：
+/// 先用 `pdf` 包自己的 layout 测量每个顶层块在栏宽下的高度，再按"左栏→右栏→
+/// 下一页"的顺序逐页生成 Row。单栏路径保持原 multiPage 实现不变。
 library;
 
 import 'dart:typed_data';
@@ -18,6 +24,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'markdown_ast.dart';
+import 'markdown_columns.dart';
+import 'markdown_pdf_columns.dart';
 import 'markdown_pdf_fonts.dart';
 import 'markdown_render_theme.dart';
 
@@ -29,6 +37,32 @@ class MarkdownPdfExportException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// 一次导出的版面统计：只用于测试/诊断，不参与排版。
+class MarkdownPdfLayoutInfo {
+  const MarkdownPdfLayoutInfo({
+    required this.columnsEnabled,
+    required this.columnCount,
+    required this.columnWidth,
+    required this.pageCount,
+    required this.widePageCount,
+  });
+
+  /// 是否真的走了双栏排页（false = 单栏，或双栏不可用退回单栏）。
+  final bool columnsEnabled;
+
+  /// 实际栏数；单栏为 1。
+  final int columnCount;
+
+  /// 每栏宽度（pt）；单栏为正文宽度。
+  final double columnWidth;
+
+  /// 生成的总页数。
+  final int pageCount;
+
+  /// 其中"通栏页"的数量（半栏放不下、整页放得下的大块独占页）。
+  final int widePageCount;
 }
 
 /// 预览主题 → 一份 A4 PDF。
@@ -45,6 +79,9 @@ class MarkdownPdfExporter {
   Future<Uint8List> build({
     required String markdown,
     required MarkdownRenderTheme theme,
+
+    /// 版面统计回调（测试/诊断用，正常导出不传）。
+    void Function(MarkdownPdfLayoutInfo info)? onLayout,
   }) async {
     final fontData = await fontResolver.resolve();
     final font = pw.Font.ttf(ByteData.sublistView(fontData.bytes));
@@ -108,7 +145,20 @@ class MarkdownPdfExporter {
       );
     }
 
-    final blocks = parseMarkdownBlocks(markdown);
+    final columnCount =
+        MarkdownRenderLimits.clampColumnCount(theme.columnCount);
+    final columnsRequested = theme.columnsEnabled && columnCount > 1;
+
+    // 分栏时先按与预览同一个"顶层块/围栏安全"的切栏函数分块（分栏只支持
+    // 2..3 栏，见 `MarkdownRenderLimits.clampColumnCount`），再按原顺序解析成
+    // 块交给分页器；单栏路径仍整篇解析，行为与以前一致。
+    final markdownChunks = columnsRequested
+        ? splitMarkdownIntoColumns(markdown, columnCount)
+        : <String>[markdown];
+    final blocks = <MarkdownBlock>[
+      for (final chunk in markdownChunks) ...parseMarkdownBlocks(chunk),
+    ];
+
     final pageTheme = pw.PageTheme(
       pageFormat: _a4,
       margin: pw.EdgeInsets.symmetric(
@@ -121,12 +171,14 @@ class MarkdownPdfExporter {
       ),
     );
 
-    final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(base: font, bold: font),
-    );
+    // 正文/测量/文档共用同一份 ThemeData：测量时若用 ThemeData.base()，
+    // 字体的 fallback 行为会和真正排版不一致，实测高度就不可信了。
+    final documentTheme = pw.ThemeData.withFont(base: font, bold: font);
+    final pdf = pw.Document(theme: documentTheme);
 
     List<pw.Widget> buildBlocks(
       List<MarkdownBlock> blocks, {
+      required double blockWidth,
       PdfColor? textColor,
       double depth = 0,
     }) {
@@ -174,9 +226,9 @@ class MarkdownPdfExporter {
                             ),
                           ),
                         ),
-                        child: _alignHeading(text, theme, contentWidth),
+                        child: _alignHeading(text, theme, blockWidth),
                       )
-                    : _alignHeading(text, theme, contentWidth),
+                    : _alignHeading(text, theme, blockWidth),
               ),
             );
           case MarkdownParagraph():
@@ -203,6 +255,7 @@ class MarkdownPdfExporter {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: buildBlocks(
                     block.blocks,
+                    blockWidth: blockWidth,
                     textColor: quoteForeground,
                     depth: depth + 1,
                   ),
@@ -249,6 +302,7 @@ class MarkdownPdfExporter {
                             if (item.children.isNotEmpty)
                               ...buildBlocks(
                                 item.children,
+                                blockWidth: blockWidth,
                                 textColor: textColor,
                                 depth: depth + 1,
                               ),
@@ -403,28 +457,282 @@ class MarkdownPdfExporter {
       );
     }
 
+    // 双栏版面统计（只给 onLayout 诊断用）。
+    var columnsLayoutUsed = false;
+    var columnsLayoutWidth = 0.0;
+    var widePageCount = 0;
+
+    /// 双栏排页：测量 → 分页 → 每页一个固定宽度的 Row。
+    ///
+    /// 返回 null = 本文档不适合双栏（有块比整页还高），调用方退回单栏。
+    pw.MultiPage? buildColumnsMultiPage() {
+      // 测量用独立 PdfDocument：`PdfPage` 构造时会把页对象登记进文档，不能
+      // 借用最终文档，否则会多出一张空白页/污染页码。字体对象按 context 的
+      // document 懒构建（pdf 包的 TtfFont.getFont 会缓存对应文档的 PdfFont），
+      // 所以测量与真正的排版各用各的字体实例，互不干扰。
+      final measureDocument = PdfDocument();
+      final measurePage = PdfPage(measureDocument, pageFormat: _a4);
+      final measureContext = pw.Context(
+        document: measureDocument,
+        page: measurePage,
+        canvas: measurePage.getGraphics(),
+      ).inheritFromAll(<pw.Inherited>[documentTheme]);
+
+      double measureWidgets(List<pw.Widget> widgets, double width) {
+        var total = 0.0;
+        for (final widget in widgets) {
+          total += pw.Widget.measure(
+            widget,
+            context: measureContext,
+            constraints: pw.BoxConstraints(maxWidth: width),
+          ).y;
+        }
+        return total;
+      }
+
+      final gap = pxToPt(theme.columnGap);
+      final columnWidth = pdfColumnWidth(
+        contentWidth: contentWidth,
+        gap: gap,
+        columns: columnCount,
+      );
+      if (columnWidth <= 1) {
+        return null;
+      }
+
+      // MultiPage 的正文高度 = 页高 - 上下边距 - 页眉高 - 页脚高。页眉页脚
+      // 也用同一套控件、同一测量上下文量；再留 1pt 余量，避免浮点误差让整页
+      // 高出可用高度而被 MultiPage 判成"不可分页控件放不下"。
+      final headerHeight = measureWidgets(
+        <pw.Widget>[header(measureContext)],
+        contentWidth,
+      );
+      final footerHeight = measureWidgets(
+        <pw.Widget>[footer(measureContext)],
+        contentWidth,
+      );
+      final pageHeight = _a4.height - margin * 2 - headerHeight - footerHeight;
+      final columnHeight = pageHeight - 1;
+      if (columnHeight <= bodySize) {
+        return null;
+      }
+
+      // 顶层块 → 排版单元。列表按项拆开（长列表也能在两栏之间断开）；其余
+      // 块整体是一个单元（表格/代码块/引用不会被切成两半）。
+      final units = <_ColumnUnit>[];
+      final heights = <ColumnBlockHeight>[];
+      for (final block in blocks) {
+        if (block is MarkdownListBlock) {
+          for (var item = 0; item < block.items.length; item++) {
+            final singleItem = MarkdownListBlock(
+              ordered: block.ordered,
+              items: <MarkdownListItem>[block.items[item]],
+              start: block.start + item,
+            );
+            final unit = _ColumnUnit(
+              build: (double width) => buildBlocks(
+                <MarkdownBlock>[singleItem],
+                blockWidth: width,
+              ),
+              isHeading: false,
+            );
+            final widgets = unit.build(columnWidth);
+            if (widgets.isEmpty) {
+              continue;
+            }
+            unit
+              ..columnWidgets = widgets
+              ..height = measureWidgets(widgets, columnWidth);
+            units.add(unit);
+            heights.add(
+              ColumnBlockHeight(unit.height, isHeading: unit.isHeading),
+            );
+          }
+          continue;
+        }
+        final unit = _ColumnUnit(
+          build: (double width) => buildBlocks(
+            <MarkdownBlock>[block],
+            blockWidth: width,
+          ),
+          isHeading: block is MarkdownHeading,
+        );
+        final widgets = unit.build(columnWidth);
+        if (widgets.isEmpty) {
+          continue;
+        }
+        unit
+          ..columnWidgets = widgets
+          ..height = measureWidgets(widgets, columnWidth);
+        units.add(unit);
+        heights.add(
+          ColumnBlockHeight(unit.height, isHeading: unit.isHeading),
+        );
+      }
+      if (units.isEmpty) {
+        return null;
+      }
+
+      // 半栏放不下、整页放得下的块（超长代码块/大表格）→ 通栏独占一页，
+      // 保证不被横向切断。通栏也放不下 → 整篇退回单栏，交给 multiPage 的
+      // 原有规则处理（Table 这类 SpanningWidget 仍可跨页；单个比整页还高的
+      // 不可分块会和改动前一样抛出可识别的排版异常）。
+      for (var index = 0; index < units.length; index++) {
+        final unit = units[index];
+        if (unit.height <= columnHeight) {
+          continue;
+        }
+        final wideWidgets = unit.build(contentWidth);
+        final wideHeight = measureWidgets(wideWidgets, contentWidth);
+        unit
+          ..wideWidgets = wideWidgets
+          ..wideHeight = wideHeight;
+        heights[index] = ColumnBlockHeight(
+          unit.height,
+          isHeading: unit.isHeading,
+          wideHeight: wideHeight,
+        );
+      }
+
+      final plan = paginateColumnBlocks(
+        blocks: heights,
+        columnHeight: columnHeight,
+        pageHeight: pageHeight,
+        columnCount: columnCount,
+      );
+      if (plan == null || plan.isEmpty) {
+        return null;
+      }
+
+      List<pw.Widget> widgetsOf(List<int> indexes, {required bool wide}) {
+        final result = <pw.Widget>[];
+        for (final index in indexes) {
+          final unit = units[index];
+          result.addAll(
+            wide ? unit.wideWidgets! : unit.columnWidgets,
+          );
+        }
+        return result;
+      }
+
+      double heightOf(List<int> indexes) => indexes.fold<double>(
+            0,
+            (sum, index) => sum + units[index].height,
+          );
+
+      pw.Widget buildPage(PdfColumnPagePlan page) {
+        if (page.isWide) {
+          // 通栏页：正文宽度下重新构建/测量过的块，独自占一页。
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            mainAxisSize: pw.MainAxisSize.min,
+            children: widgetsOf(page.columns.single, wide: true),
+          );
+        }
+
+        // 分栏页：每栏定宽 SizedBox，栏缝用等宽 SizedBox 垫出来；竖线画在
+        // 栏缝正中（只占 1pt，左右各留 (gap-1)/2），所以两栏宽度严格等于
+        // (contentWidth - gap) / N，且 Row 总宽正好是 contentWidth。
+        final columnHeights = <double>[
+          for (final indexes in page.columns) heightOf(indexes),
+        ];
+        final ruleHeight =
+            columnHeights.fold<double>(0, (a, b) => a > b ? a : b);
+        final filledColumns = page.columns
+            .where((List<int> indexes) => indexes.isNotEmpty)
+            .length;
+        final drawRule = theme.columnRule && filledColumns >= 2;
+        final children = <pw.Widget>[];
+        for (var column = 0; column < page.columns.length; column++) {
+          if (column > 0) {
+            children.add(pw.SizedBox(width: gap / 2));
+            if (drawRule) {
+              children.add(
+                pw.Container(width: 1, height: ruleHeight, color: ruleColor),
+              );
+              children.add(pw.SizedBox(width: gap / 2 - 1));
+            } else {
+              children.add(pw.SizedBox(width: gap / 2));
+            }
+          }
+          children.add(
+            pw.SizedBox(
+              width: columnWidth,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                mainAxisSize: pw.MainAxisSize.min,
+                children: widgetsOf(page.columns[column], wide: false),
+              ),
+            ),
+          );
+        }
+        return pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: children,
+        );
+      }
+
+      final pageWidgets = <pw.Widget>[];
+      for (var index = 0; index < plan.length; index++) {
+        // 每页成对生成；`NewPage` 强制页边界，避免下一页的两栏被拼到本页
+        // 剩余空白里。
+        if (index > 0) {
+          pageWidgets.add(pw.NewPage());
+        }
+        pageWidgets.add(buildPage(plan[index]));
+      }
+
+      columnsLayoutUsed = true;
+      columnsLayoutWidth = columnWidth;
+      widePageCount =
+          plan.where((PdfColumnPagePlan page) => page.isWide).length;
+
+      return pw.MultiPage(
+        pageTheme: pageTheme,
+        maxPages: 500,
+        header: header,
+        footer: footer,
+        build: (context) => pageWidgets,
+      );
+    }
+
     try {
+      // 分栏失败（有块高过整页）时退回单栏：单栏的 MultiPage 能跨页切块。
+      final columnsMultiPage = columnsRequested && blocks.isNotEmpty
+          ? buildColumnsMultiPage()
+          : null;
       pdf.addPage(
-        pw.MultiPage(
-          pageTheme: pageTheme,
-          maxPages: 500,
-          header: header,
-          footer: footer,
-          build: (context) => <pw.Widget>[
-            if (blocks.isEmpty)
-              pw.Padding(
-                padding: pw.EdgeInsets.only(top: bodySize),
-                child: pw.Text(
-                  '（空文档）',
-                  style: bodyStyle(color: muted),
-                ),
-              )
-            else
-              ...buildBlocks(blocks),
-          ],
+        columnsMultiPage ??
+            pw.MultiPage(
+              pageTheme: pageTheme,
+              maxPages: 500,
+              header: header,
+              footer: footer,
+              build: (context) => <pw.Widget>[
+                if (blocks.isEmpty)
+                  pw.Padding(
+                    padding: pw.EdgeInsets.only(top: bodySize),
+                    child: pw.Text(
+                      '（空文档）',
+                      style: bodyStyle(color: muted),
+                    ),
+                  )
+                else
+                  ...buildBlocks(blocks, blockWidth: contentWidth),
+              ],
+            ),
+      );
+      final bytes = await pdf.save();
+      onLayout?.call(
+        MarkdownPdfLayoutInfo(
+          columnsEnabled: columnsLayoutUsed,
+          columnCount: columnsLayoutUsed ? columnCount : 1,
+          columnWidth: columnsLayoutUsed ? columnsLayoutWidth : contentWidth,
+          pageCount: pdf.document.pdfPageList.pages.length,
+          widePageCount: widePageCount,
         ),
       );
-      return await pdf.save();
+      return bytes;
     } on MarkdownPdfFontUnavailableException {
       rethrow;
     } on Object catch (error) {
@@ -465,6 +773,24 @@ class MarkdownPdfExporter {
     }
     return buffer.toString();
   }
+}
+
+/// 双栏排版里的一个单元：一个顶层块，或列表里的一项。
+///
+/// [build] 按目标宽度重新构建控件；测量与真正排版都走它，保证"量的"和
+/// "画的"是同一套构建代码。栏宽测量结果缓存在 [columnWidgets]/[height]，
+/// 通栏结果缓存在 [wideWidgets]/[wideHeight]（同一个控件实例在测量后可以
+/// 直接在真正的文档里重新 layout，layout 只覆盖 box，不依赖旧文档）。
+class _ColumnUnit {
+  _ColumnUnit({required this.build, required this.isHeading});
+
+  final List<pw.Widget> Function(double width) build;
+  final bool isHeading;
+
+  List<pw.Widget> columnWidgets = const <pw.Widget>[];
+  double height = 0;
+  List<pw.Widget>? wideWidgets;
+  double wideHeight = 0;
 }
 
 /// 单个行内片段的 PDF span。

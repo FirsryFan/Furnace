@@ -17,7 +17,7 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 ///     且为空，`tasks.kind` / `tasks.source_key` 两列补上；老任务、老完成记录、
 ///     老标签一行不少、一个字段不变。
 ///  2. 升级来的两列是 NULL（老行语义 = `task` / 没有幂等键），迁移**不回填**。
-///  3. 迁移可重复执行：连开两次库不抛错、数据不变、版本停在 47。
+///  3. 迁移可重复执行：连开两次库不抛错、数据不变、版本停在当前 schema（v48）。
 ///  4. 版本号被盖成 v47 但表/列没写的文件，由 `beforeOpen` 自愈补出来（Drift
 ///     在版本已是当前值时跳过 onUpgrade —— 与 v24/v31/v37/v42/v45 同一个坑）。
 ///  5. 全新库（onCreate）就是 v47：两表 + 两列 + `source_key` 唯一索引都在。
@@ -179,41 +179,41 @@ void main() {
     await expectOldDataIntact(db);
     await db.close();
 
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
   });
 
-  test('迁移可重复执行：连开两次不抛错、数据不变、版本停在 47', () async {
+  test('迁移可重复执行：连开两次不抛错、数据不变、版本停在当前 schema', () async {
     final file = await buildPreV47Db(name: 'twice');
 
     var db = AppDatabase.forTesting(NativeDatabase(file));
     await expectV47Structure(db);
     await expectOldDataIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
 
     // 第二次打开：onUpgrade 不再跑，只剩 beforeOpen 的空转探测。
     db = AppDatabase.forTesting(NativeDatabase(file));
     await expectV47Structure(db);
     await expectOldDataIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
   });
 
-  test('版本号盖成 v47 但结构缺失的文件由 beforeOpen 自愈', () async {
-    final file = await buildPreV47Db(name: 'fake47', userVersion: 47);
-    expect(userVersionOf(file.path), 47);
+  test('版本号盖成最新但 v47 结构缺失的文件由 beforeOpen 自愈', () async {
+    final file = await buildPreV47Db(name: 'fake48', userVersion: 48);
+    expect(userVersionOf(file.path), 48);
 
     // 没有自愈的话，下面这几次读写会抛 no such table / no such column。
     final db = AppDatabase.forTesting(NativeDatabase(file));
     await expectV47Structure(db);
     await expectOldDataIntact(db);
     await db.close();
-    expect(userVersionOf(file.path), 47, reason: '已经是最新版本，不再迁移');
+    expect(userVersionOf(file.path), 48, reason: '已经是最新版本，不再迁移');
   });
 
-  test('全新库（onCreate）就是 v47：两表两列与索引都在', () async {
+  test('全新库（onCreate）就含 v47 结构，schemaVersion 是当前版本', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    expect(db.schemaVersion, 47);
+    expect(db.schemaVersion, 48);
     // 触发 onCreate。
     await db.select(db.localSettings).get();
     await expectV47Structure(db);

@@ -17,6 +17,7 @@ import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
 import '../../../domain/services/questions/question_number.dart';
+import '../../../domain/services/questions/question_readiness.dart';
 import '../../../domain/services/questions/question_snapshot_summary.dart';
 import '../../../domain/services/questions/question_stem_preview.dart';
 
@@ -78,6 +79,7 @@ class QuestionLibraryEntry {
     this.snapshotLabel,
     this.snapshotExcerpt,
     this.wrongAttemptCount = 0,
+    this.readiness = QuestionReadiness.ready,
   });
 
   final String questionId;
@@ -120,6 +122,14 @@ class QuestionLibraryEntry {
   ///
   /// 0 表示没答错过（没做过、只做对过、或只做过不可判分的题）。
   final int wrongAttemptCount;
+
+  /// 完整性结论（缺答案/解析/配图）：主题库默认只列 [QuestionReadiness.isReady]
+  /// 的题，「待处理题目」入口列待处理的题。默认 ready 是为了让历史构造点
+  /// （测试/预览）不用全改。
+  final QuestionReadiness readiness;
+
+  /// 是否待处理（不进主题库）。
+  bool get isPending => readiness.isPending;
 
   /// 是否进错题本：至少答错过一次。
   bool get hasWrongAttempt => wrongAttemptCount > 0;
@@ -222,22 +232,34 @@ class QuestionLibrarySnapshot {
 /// [limit] 默认 500（一个平板题库页一次最多画这么多行；`<=0` 表示不限）。
 /// 排序固定为 **updatedAt 降序、id 升序**：最近收/改的题在最上面，同一毫秒内
 /// 也稳定。
+///
+/// [policy] 是完整性判据：默认 [QuestionCompletenessPolicy.includeAll]（读表函数
+/// 的历史行为，任何题都算完整）；主题库数据源传
+/// [QuestionCompletenessPolicy.hidePending]，于是「没答案没解析」的题被滤掉。
+/// [pendingOnly] 为 true 时反过来**只留待处理题**（「待处理题目」入口用）。
+///
+/// 有判据时不能在 SQL 里先 `LIMIT`：那会把第 N 条之后的完整/待处理题判错，所以
+/// 先读全表再筛、再按 `limit` 截断（本地 SQLite、题量万级以内可接受）。
 Future<QuestionLibrarySnapshot> readQuestionLibrary(
   AppDatabase db, {
   int limit = 500,
+  QuestionCompletenessPolicy policy = QuestionCompletenessPolicy.includeAll,
+  bool pendingOnly = false,
 }) async {
+  final filtering = policy.filtersAnything || pendingOnly;
   final capped = limit > 0 ? limit + 1 : 0;
   final query = db.select(db.questions)
     ..orderBy([
       (t) => OrderingTerm.desc(t.updatedAt),
       (t) => OrderingTerm.asc(t.id),
     ]);
-  if (capped > 0) {
+  if (!filtering && capped > 0) {
     query.limit(capped);
   }
   final questionRows = await query.get();
-  final truncated = capped > 0 && questionRows.length > limit;
-  final rows = truncated ? questionRows.sublist(0, limit) : questionRows;
+  final truncatedByRead =
+      !filtering && capped > 0 && questionRows.length > limit;
+  final rows = truncatedByRead ? questionRows.sublist(0, limit) : questionRows;
   if (rows.isEmpty) {
     return const QuestionLibrarySnapshot(
       entries: <QuestionLibraryEntry>[],
@@ -332,13 +354,36 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
             ? snapshot.textExcerpt
             : null,
         wrongAttemptCount: wrongCountByQuestion[row.id] ?? 0,
+        readiness: evaluateQuestionReadiness(
+          answer: row.answer,
+          solution: row.solution,
+          stem: row.stem,
+          stemImageCount: stemImages.length,
+          policy: policy,
+        ),
       ),
     );
   }
 
+  if (!filtering) {
+    return QuestionLibrarySnapshot(
+      entries: List<QuestionLibraryEntry>.unmodifiable(entries),
+      totalCount: entries.length,
+      truncated: truncatedByRead,
+    );
+  }
+
+  // 判据生效：先按 entries 是否完整/待处理筛，再按 limit 截断。
+  final visible = <QuestionLibraryEntry>[
+    for (final entry in entries)
+      if (pendingOnly ? entry.isPending : entry.readiness.isReady) entry,
+  ];
+  final totalCount = visible.length;
+  final truncated = limit > 0 && totalCount > limit;
+  final shown = truncated ? visible.sublist(0, limit) : visible;
   return QuestionLibrarySnapshot(
-    entries: List<QuestionLibraryEntry>.unmodifiable(entries),
-    totalCount: entries.length,
+    entries: List<QuestionLibraryEntry>.unmodifiable(shown),
+    totalCount: totalCount,
     truncated: truncated,
   );
 }

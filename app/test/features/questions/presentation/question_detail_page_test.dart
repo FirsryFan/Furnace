@@ -207,8 +207,10 @@ void main() {
     await _pumpDetail(tester, database, _missingQuestionId, adapter: adapter);
 
     expect(find.text(_zh.questionDetailQuestionMissing), findsOneWidget);
-    await tester.tap(find.text(_zh.questionDetailSolveButton),
-        warnIfMissed: false);
+    // 题不在库里时整页没有可操作内容：连「AI 解题」按钮都不渲染
+    // （2026-11-17 版块化后，详情页内容全部挂在"题目读到了"这个前提上）。
+    expect(find.text(_zh.questionDetailSolveButton), findsNothing);
+    expect(find.byKey(questionDetailReasoningSectionKey), findsNothing);
     await _settle(tester);
     expect(adapter.requests, isEmpty);
   });

@@ -160,8 +160,8 @@ void main() {
     expect(await indexNamesOf(db), containsAll(expectedIndexes));
     await db.close();
 
-    // 当前 schema 是 v47：v44 -> v45 -> v46 -> v47 一路升上来。
-    expect(userVersionOf(file.path), 47);
+    // 当前 schema 是 v48：v44 -> v45 -> v46 -> v47 -> v48 一路升上来。
+    expect(userVersionOf(file.path), 48);
   });
 
   test('迁移幂等：连续打开两次不抛，旧数据与新 run 都不变', () async {
@@ -172,7 +172,7 @@ void main() {
     await AgentRunStore(db).saveRun(newRun());
     expect(await indexNamesOf(db), containsAll(expectedIndexes));
     await db.close();
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
 
     // 第二次打开：onUpgrade 不再跑，只剩 beforeOpen 探表/探列/建索引。
     db = AppDatabase.forTesting(NativeDatabase(file));
@@ -183,12 +183,12 @@ void main() {
     expect(await indexNamesOf(db), containsAll(expectedIndexes));
     await db.close();
 
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
   });
 
   test('版本号已是最新但缺表：beforeOpen 自愈建表，数据不丢', () async {
-    final file = await buildPreV45Db(name: 'fake47', userVersion: 47);
-    expect(userVersionOf(file.path), 47);
+    final file = await buildPreV45Db(name: 'fake48', userVersion: 48);
+    expect(userVersionOf(file.path), 48);
     final raw = sql.sqlite3.open(file.path);
     try {
       expect(
@@ -217,13 +217,12 @@ void main() {
     expect(await store.loadRun('run-v45'), isNotNull);
     await db.close();
 
-    expect(userVersionOf(file.path), 47,
-        reason: '已经是最新版本（v47），不再回退');
+    expect(userVersionOf(file.path), 48, reason: '已经是最新版本（v48），不再回退');
   });
 
   test('全新库（onCreate）：schemaVersion 是最新版本，五表与索引都在', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    expect(db.schemaVersion, 47);
+    expect(db.schemaVersion, 48);
     // 触发 onCreate。
     await db.select(db.agentExperiences).get();
     for (final table in agentTables) {

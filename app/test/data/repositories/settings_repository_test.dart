@@ -105,4 +105,39 @@ void main() {
           reason: '合法集合归域层管，仓库不拒未知编码；读侧降级');
     });
   });
+
+  group('tag tree expansion (v48)', () {
+    test('no settings row yet reads as never saved', () async {
+      expect(await repo.getTagTreeExpandedIds(), isNull);
+    });
+
+    test('creates the settings row on demand and round-trips the JSON',
+        () async {
+      // 第一行设置可能还没建（ensureSettings 是懒建的）：写展开状态必须自己
+      // 建行，否则更新 0 行、用户状态悄悄丢失。
+      expect(await db.select(db.localSettings).get(), isEmpty);
+
+      await repo.updateTagTreeExpandedIds('["t-a","t-b"]');
+      expect(await repo.getTagTreeExpandedIds(), '["t-a","t-b"]');
+
+      await repo.updateTagTreeExpandedIds('[]');
+      expect(await repo.getTagTreeExpandedIds(), '[]',
+          reason: '空数组是"用户明确全折叠"，必须与 NULL（没保存过）区分');
+    });
+
+    test('trims blank to NULL and keeps malformed payloads untouched',
+        () async {
+      await repo.ensureSettings();
+      await repo.updateTagTreeExpandedIds('   ');
+      expect(await repo.getTagTreeExpandedIds(), isNull,
+          reason: '空白不是第三种状态，写 NULL 表示没保存过');
+
+      // 合法集合归域层管，仓库只存原文；坏值由读侧宽容降级成全折叠。
+      await repo.updateTagTreeExpandedIds('not-json');
+      expect(await repo.getTagTreeExpandedIds(), 'not-json');
+
+      await repo.updateTagTreeExpandedIds(null);
+      expect(await repo.getTagTreeExpandedIds(), isNull);
+    });
+  });
 }

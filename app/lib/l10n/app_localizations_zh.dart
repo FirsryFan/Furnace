@@ -1286,6 +1286,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagsCollapse => '折叠';
 
   @override
+  String get tagsExpandAll => '全部打开';
+
+  @override
+  String get tagsCollapseAll => '全部折叠';
+
+  @override
   String tagsDeleteTitle(String label) {
     return '删除「$label」？';
   }
@@ -1872,113 +1878,147 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsUsageDoc => '使用文档';
 
   @override
-  String get settingsUsageDocHint => 'AI、复习、题库、组卷、拍照、学习状态：怎么用、有什么限制都写在这里';
+  String get settingsUsageDocHint => '三个册子怎么用、每个模块干什么、数字从哪来，都写在这里';
 
   @override
-  String get docAiTitle => 'AI 助手能做什么、什么要你确认';
+  String get docSectionStart => '先看这里';
+
+  @override
+  String get docBooksTitle => '三个册子是什么、怎么用';
+
+  @override
+  String get docBooksBody =>
+      'Furnace 把打印出来的练习题分成三本册子：\n\n· 题目册：只有题目，留白给你做。\n· 答案册：只有题号和答案，做完对答案用。\n· 题解册：每道题该怎么想、容易错在哪，不会的时候看。\n\n同一个编号，在三本册子里都是同一道题。用法按顺序来：先做题目册；做完用答案册对答案；错的和不会的，再去翻题解册。册子是把印好的卷子分开装订出来的，App 里负责组卷和导出 Word。';
+
+  @override
+  String get docSectionModules => '每个模块干什么，一句话';
+
+  @override
+  String get docModuleTodayTitle => '今日计划';
+
+  @override
+  String get docModuleTodayBody =>
+      '打开后是一份今日清单：今天到期要复习的卡按建议的顺序排好，照着做就行。顺序只是建议、不是分数，只有你点排序才会重排。';
+
+  @override
+  String get docModuleStatusTitle => '学习状态';
+
+  @override
+  String get docModuleStatusBody =>
+      '看你现在学得怎么样：当前档位、强项和弱项、今天该复习什么，都按你自己的复习记录算；今日任务数与复习趋势也分别来自任务表和复习日志。这一页只读；证据不够时会直接说证据不足，不会硬猜。';
+
+  @override
+  String get docModuleAssessmentTitle => '评测';
+
+  @override
+  String get docModuleAssessmentBody =>
+      '几个几分钟的小任务，用你真实的表现，把 App 里对你的估计换成更贴近你的数字。不联网、不判对错，做完马上能看到结果。';
+
+  @override
+  String get docModuleLibraryTitle => '知识库';
+
+  @override
+  String get docModuleLibraryBody =>
+      '这里是你导入的知识包：能启用、停用、卸载，也能导入导出。卸载只删导入记录，不删它带进来的标签、闪存卡和知识点。';
+
+  @override
+  String get docModuleTagsTitle => '标签树';
+
+  @override
+  String get docModuleTagsBody =>
+      '所有内容都挂在标签下面，标签可以一层一层往下分。卡组就是标签：在某一层设了每天的新卡/复习上限，它下面所有层都算在里面。';
+
+  @override
+  String get docModuleBankTitle => '题库与组卷';
+
+  @override
+  String get docModuleBankBody =>
+      '题目拍照或粘贴发给「智能」就进题库，同一道题不会重复存。组卷只从题库里现有的题挑，凑不齐会照实说缺哪些；卷子可以复制，也可以导出 Word 打印。';
+
+  @override
+  String get docSectionDetails => '用起来要注意';
+
+  @override
+  String get docAiTitle => '「智能」助手能做什么';
 
   @override
   String get docAiBody =>
-      'AI 能查你的库，也能改你的库。动数据前会先问你，你点同意才执行；删除类操作会逐条确认，而且都能撤销。执行前会告诉你改什么。它看不到你的 API key。';
+      '它能查你的库，也能帮你改：加卡、改标签、写题都行。动数据前它会先问你，你点同意才执行；删除会一条条确认，而且都能撤销。它看不到你的 API key。';
 
   @override
   String get docReviewTitle => '复习与闪存卡';
 
   @override
   String get docReviewBody =>
-      '闪存卡挂在标签下，标签树就是卡组：给一个标签设每日新卡/复习上限，它整棵子树都算进去（没有设置就是不限额）。什么时候该复习由软件按你的记录自动计算；你看到的只是「今天先复习哪张」。判分默认由你自己判断：复习完一张，从 7 档里选你的真实状态（完全熟练 / 比较熟练 / 艰难想起 / 想起一部分 / 没想起但有印象 / 完全没印象 / 新知识），软件按这个安排下次出现时间。也可以给某个卡组设成「严格」，由软件自动判分。答错的卡当天会强制重来，不受每日配额限制。';
+      '闪存卡挂在标签下，所以标签树也就是你的卡组。复习默认由你自己判分：复习完一张，从七个状态里选一个最像你的（从完全熟练到完全没印象），软件按这个安排下次什么时候再出现。答错的卡当天会再来一遍，不算进每天的上限。';
 
   @override
-  String get docKnowledgeTitle => '知识库与标签';
-
-  @override
-  String get docKnowledgeBody =>
-      '标签是一棵树，路径用 / 分隔。删除一个标签会连同它整棵子树、子树里的闪存卡与复习记录一起删除（删除前会逐条确认，也能撤销）。没有归组的旧卡会出现在读数页的提示里，按提示可以把它们归进一个卡组。';
-
-  @override
-  String get docBankTitle => '题库与组卷';
-
-  @override
-  String get docBankBody =>
-      '题目从哪来：直接发给「智能」助手（拍照或粘贴），它把题誊写进题库并逐题告诉你入库结果；同一道题不会重复入库。题库包导入与组卷网整卷取题也汇进同一个题库。组卷页只从已有题库里凑卷，优先挑你最近该练的知识点，凑不齐会如实列出缺哪些；卷面可以复制，也可以导出 Word 打印。';
-
-  @override
-  String get docMaterialTitle => '拍照、资料与演练';
+  String get docMaterialTitle => '拍照和资料';
 
   @override
   String get docMaterialBody =>
-      '拍照整理会把一张照片整理成四类待确认内容：标签、闪存卡、知识点、题目（原样誊写），确认前不会写入你的学习数据；资料入库把一段材料整理成知识点/卡片/连接，确认后才保存，撤回有记录。照片也可以拿来先试排一次学习计划，只看结果，不改你的数据。';
+      '把照片发给「智能」，它会整理出标签、闪存卡、知识点和题目，先给你过目；你点了确认才写进去。资料入库也一样：先看提案再保存，保存之后还能撤回。';
 
   @override
-  String get docTodayTitle => '今天做什么、什么时候做';
-
-  @override
-  String get docTodayBody =>
-      '今日清单列出今天到期的卡，并按你最近的复习和精力建议先做哪些。任务与日程时间冲突会提示，可以一键顺延；只有你点排序按钮时才会重新排序。';
-
-  @override
-  String get docCognitiveTitle => '学习状态读数怎么理解';
-
-  @override
-  String get docCognitiveBody =>
-      '「学习状态」是只读页：当前档位、强项/弱项、今天该复习什么、最近一周的一句话趋势。档位与强弱项按**知识点**算（不是按闪存卡张数）：同一知识点下多张卡先取平均，有复习记录的知识点才算证据；少于门槛或差异太大时显示 ? 或「证据不足」，这不等于「没问题」。页面里的「知识网络图」把知识点和标签画成一张只读的图（颜色=认知区域，大小=卡片数），点节点可以看读数。「能力动作画像」按你解题时卡住的动作归纳，点一行可以按动作找题。模型参数与每张卡的原始读数在「设置 → 开发者 → 开发者信息（只读）」里，默认折叠。这里的数字只作参考，不会自己改你的数据。';
+  String get docSectionSorting => '排序和颜色';
 
   @override
   String get docFormulaTitle => '总分怎么算';
 
   @override
   String get docFormulaBody =>
-      '总分由紧急度、目标匹配、状态适配、期望压力和疲劳五项加权得出；每项先算一个 0 到 1 的分，再按你调的比重加权。只有你点排序按钮时才会重算，软件不会在后台自动改顺序。';
+      '每条事件都有一个总分，由五个方面加权得出：紧急度、和你的目标有多相关、和你现在的状态有多搭、期望时间带来的压力、连着做同类事的疲劳。五个方面各打 0 到 1 分，再按你设的权重相加。';
 
   @override
-  String get docCurrentWeights => '当前权重（括号内为出厂值）';
+  String get docCurrentWeights => '当前权重（括号里是出厂值）';
 
   @override
-  String get docWeightsNormalized => '你改的比重会自动折算，不需要凑成 1；看不出差别时保持默认就好。';
+  String get docWeightsNormalized => '权重会自动折算，不用凑成 1；看不出差别就保持默认。';
 
   @override
-  String get docStatusTitle => '事件条左边缘的颜色';
+  String get docStatusTitle => '事件左边那条颜色';
 
   @override
   String get docStatusBody =>
-      '绿色＝已完成；蓝色＝等待中（还没到期望时刻）；黄色＝已经过了期望时刻；红色＝已经过了截止时刻。颜色只表达状态，不改变排序。';
+      '绿色＝已完成；蓝色＝还没到期望时间；黄色＝过了期望时间；红色＝过了截止时间。颜色只表示状态，不影响排序。';
+
+  @override
+  String get docSectionNumbers => '数字从哪来';
+
+  @override
+  String get docNumbersTitle => '实测、预设、未标定';
+
+  @override
+  String get docNumbersBody =>
+      'App 里的数字有三种来历：\n\n· 实测：用你自己的复习和答题记录算出来的，最可信。\n· 预设：还没有你的记录时先用的起点（出厂默认，或你起步时自己选的档位）。\n· 未标定：这个数字还没用你的真实表现核对过，只能当起点，不能当结论。\n\n所以看到「未标定」就只当参考；等你复习得够多，或者做一次评测，它才会慢慢变成「实测」。';
 
   @override
   String get settingsAbout => '关于';
 
   @override
-  String get settingsAboutHint => '版本、数据位置、出网范围、已知未做';
+  String get settingsAboutHint => '版本、开源许可和反馈入口';
 
   @override
   String get aboutVersionLabel => '版本';
 
   @override
-  String aboutVersionValue(String version, int build) {
-    return '$version（构建 $build）';
-  }
+  String get aboutLicenseTitle => '开源与许可';
 
   @override
-  String get aboutDataTitle => '数据位置';
+  String get aboutLicenseBody =>
+      'Furnace 是开源软件，采用 MIT 许可：可以自由使用、修改和分享，保留版权声明即可。源代码和问题反馈都在 GitHub。';
 
   @override
-  String get aboutDataBody =>
-      '你所有的数据、以及 AI 生成的文档与图片都在这个目录下；备份就是复制 furnace.db（也可以用上面的「备份数据」）。';
+  String get aboutRepoLabel => '源代码';
 
   @override
-  String get aboutDataDirLabel => '应用数据目录';
+  String get aboutIssuesLabel => '反馈问题';
 
   @override
-  String get aboutNetworkTitle => '出网范围';
+  String get aboutViewLicenses => '第三方开源许可';
 
   @override
-  String get aboutNetworkBody =>
-      '会主动联网的只有两处：① AI 请求——发给你在「AI 设置」里填的端点；② 读取公开网页——只读取公开内容，不带你的登录信息。详细限制写在开发文档里。';
-
-  @override
-  String get aboutGapsTitle => '已知未做';
-
-  @override
-  String get aboutGapsBody => '还有些高级功能没做完，和日常使用无关；具体清单写在开发文档里。';
+  String get aboutLinkCopied => '链接已复制';
 
   @override
   String get settingsAppearance => '外观';
@@ -4627,7 +4667,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionDetailSolving => '正在解题…';
 
   @override
-  String get questionDetailNoChainYet => '还没有思维链。点上面的按钮让 AI 解一遍，链会存进本地题库。';
+  String get questionDetailNoChainYet =>
+      '暂无思维 DAG：还没有思维链。点下面的「AI 解题」让 AI 解一遍，链会存进本地题库。';
 
   @override
   String get questionDetailChainFromLibrary => '以下是最近一次解题存下来的链；再解一次会另存一条新的。';
@@ -4716,6 +4757,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperTitle => '组卷';
+
+  @override
+  String get questionPendingTitle => '待处理题目';
+
+  @override
+  String questionPendingEntry(int count) {
+    return '待处理（$count）';
+  }
+
+  @override
+  String get questionPendingIntro =>
+      '这些题已入库，但缺答案/解析（或配图）；补齐后会自动回到主题库。这里只读，点开题目去补。';
+
+  @override
+  String get questionPendingEmpty => '没有待处理题目';
+
+  @override
+  String get questionPendingEmptyHint => '题库里的题都有答案或解析。';
+
+  @override
+  String questionPendingSummary(int count) {
+    return '共 $count 道待处理';
+  }
+
+  @override
+  String questionPendingReasonAnswer(int count) {
+    return '缺答案 $count 道';
+  }
+
+  @override
+  String questionPendingReasonSolution(int count) {
+    return '缺解析 $count 道';
+  }
+
+  @override
+  String questionPendingReasonMedia(int count) {
+    return '缺配图 $count 道';
+  }
+
+  @override
+  String get questionPendingReasonMediaLabel => '缺配图';
 
   @override
   String get questionPaperEntryHint => '按薄弱点和危险区，从题库里凑一份练习卷';
@@ -6539,7 +6621,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagKnowledgeNoReviewGroup => '这个标签不属于任何已配置的卡组，所以没有可进入的复习队列。';
 
   @override
-  String get mindnetStatusIntro => '只看学习状态和今天该做什么；模型参数不在这里。';
+  String get mindnetStatusIntro =>
+      '读数来源：档位、强项/弱项由你的复习记录（各知识点的卡片读数）折算；今日待复习来自到期闪存卡，今日任务来自任务表，趋势来自复习日志。没有复习记录时，档位退回你选择的预设起点。模型参数与原始读数不在这里。';
 
   @override
   String get mindnetBandTitle => '当前档位';
@@ -6570,7 +6653,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mindnetWeaknessesTitle => '弱项';
 
   @override
-  String get mindnetEvidenceMeasured => '实测';
+  String get mindnetEvidenceMeasured => '复习记录';
 
   @override
   String get mindnetStrengthsEmpty => '证据不足：还没有复习记录';
@@ -6692,4 +6775,56 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiDeveloperParamsHide => '隐藏';
+
+  @override
+  String get questionDetailAnswerSection => '答案与解析';
+
+  @override
+  String get questionDetailAnswerEmpty => '暂无答案与解析（未处理）。';
+
+  @override
+  String get questionDetailDagSection => '思维 DAG';
+
+  @override
+  String questionDetailDagStepCount(int count) {
+    return '$count 步';
+  }
+
+  @override
+  String get questionDetailMetadataSection => '元数据';
+
+  @override
+  String get questionDetailMetadataDifficulty => '难度';
+
+  @override
+  String get questionDetailMetadataTags => '标签';
+
+  @override
+  String get questionDetailMetadataNone => '暂无';
+
+  @override
+  String get questionDetailSourceSection => '来源文件与来源包';
+
+  @override
+  String get questionDetailSourcePackage => '来源包';
+
+  @override
+  String get questionDetailSourceFile => '来源文件';
+
+  @override
+  String get questionDetailSourceEmpty => '暂无来源文件记录：这道题没有登记来源包，也可能来自手工入库。';
+
+  @override
+  String questionDetailSourceFailed(String error) {
+    return '来源包读取失败：$error';
+  }
+
+  @override
+  String get questionDetailOriginalLink => '原题链接';
+
+  @override
+  String get questionDetailCopyLink => '复制链接';
+
+  @override
+  String get questionDetailAiCognitiveSection => 'AI 解题与 MindNet 认知评价';
 }

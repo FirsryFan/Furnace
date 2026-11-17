@@ -39,15 +39,20 @@ void main() {
     );
   });
 
-  testWidgets('能力点：没标注时整块不出现', (WidgetTester tester) async {
+  testWidgets('能力点：没标注时不在题干下摆 chips，只在元数据里给「暂无」', (
+    WidgetTester tester,
+  ) async {
     final database = _newDatabase();
     final question = await _seedQuestion(database, stem: '没有标能力点的题。');
 
     await _pumpDetail(tester, database, question.id);
     final l10n = _l10nOf(tester);
 
+    // 能力点 chips 区块不再出现（2026-11-17：能力点归「元数据」版块）。
     expect(find.byKey(questionCapabilityChipsKey), findsNothing);
-    expect(find.text(l10n.questionCapabilitySection), findsNothing);
+    // 元数据里仍然明说一句「能力点：暂无」，而不是假装没这回事。
+    expect(find.text(l10n.questionCapabilitySection), findsOneWidget);
+    expect(find.text(l10n.questionDetailMetadataNone), findsWidgets);
   });
 
   testWidgets('母题在库里：入口带母题题号，点进去是母题详情', (WidgetTester tester) async {

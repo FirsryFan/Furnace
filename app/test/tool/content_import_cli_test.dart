@@ -83,6 +83,22 @@ void main() {
   );
 
   // ---------------------------------------------------------------------------
+  // 0b. schema 常量守卫（**不依赖真实内容包，任何环境都跑**）
+  // ---------------------------------------------------------------------------
+  //
+  // `kFurnaceSchemaVersion` 是纯 Dart 手抄常量：drift 的 `schemaVersion` 升级
+  // 时它不会自适应，host 就会把 v48 的库报成 v47（2026-11-17 v47->v48 就是这么
+  // 漂的）。这条断言挪出「真内容包组」的 skip 之外，让漂移在任何机器上立刻红，
+  // 而不是只在本机有内容包时才暴露。
+  test('kFurnaceSchemaVersion 与 drift schemaVersion 一致', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    expect(db.schemaVersion, kFurnaceSchemaVersion,
+        reason: '常量落后于 drift schemaVersion 时 host 会谎报库版本');
+    await db.close();
+    expect(hostSchemaVersion, kFurnaceSchemaVersion);
+  });
+
+  // ---------------------------------------------------------------------------
   // 1. 参数
   // ---------------------------------------------------------------------------
 
@@ -1372,11 +1388,6 @@ void main() {
       expect(result['ok'], isFalse);
       expect('${result['error']}', contains('内容包解析失败'));
       expect((result['parse_errors'] as List).length, 1);
-    });
-
-    test('纯 Dart 常量与 drift schema 一致', () async {
-      expect(db.schemaVersion, kFurnaceSchemaVersion);
-      expect(hostSchemaVersion, kFurnaceSchemaVersion);
     });
   }, skip: _realPackagesPresent ? false : '真实内容包不在本机：${_realPackageDirs.join(', ')}');
 }

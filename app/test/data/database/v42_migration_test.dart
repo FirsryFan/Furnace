@@ -137,7 +137,7 @@ void main() {
     await db.close();
 
     // 迁移把版本号写到当前 schema（v43 起）、列也补上了；禁用是显式 0。
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
     expect(columnNames(file.path, 'knowledge_packages'), contains('enabled'));
     expect(enabledValueOf(file.path), 0, reason: 'false 落库是整数 0（Drift 布尔）');
 
@@ -182,7 +182,7 @@ void main() {
     );
     await db.close();
 
-    expect(userVersionOf(file.path), 47,
+    expect(userVersionOf(file.path), 48,
         reason: '版本被盖成 v42 的库打开时 onUpgrade 会推到当前 schema；自愈只补列');
     expect(
       columnNames(file.path, 'knowledge_packages'),
@@ -203,7 +203,7 @@ void main() {
       isTrue,
     );
     await db.close();
-    expect(userVersionOf(file.path), 47, reason: '第一次打开完成 v41 -> 当前 schema');
+    expect(userVersionOf(file.path), 48, reason: '第一次打开完成 v41 -> 当前 schema');
 
     // 第二次打开：onUpgrade 不再跑，只剩 beforeOpen 探列；NULL 不能被改写。
     db = AppDatabase.forTesting(NativeDatabase(file));
@@ -218,7 +218,7 @@ void main() {
     expect((await repo.getAllPackages()).length, 1);
     await db.close();
 
-    expect(userVersionOf(file.path), 47);
+    expect(userVersionOf(file.path), 48);
     expect(enabledValueOf(file.path), isNull, reason: '两次打开后仍是 NULL');
     expect(packageCountOf(file.path), 1);
   });
