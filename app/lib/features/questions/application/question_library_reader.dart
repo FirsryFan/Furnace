@@ -16,11 +16,13 @@ library;
 import 'package:drift/drift.dart';
 
 import '../../../data/database/database.dart';
+import '../../../data/package/knowledge_package_visibility.dart';
 import '../../../domain/services/questions/question_group.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/questions/question_readiness.dart';
 import '../../../domain/services/questions/question_snapshot_summary.dart';
 import '../../../domain/services/questions/question_stem_preview.dart';
+import '../../../domain/services/tags/object_types.dart';
 
 /// 题干图/答案图的角色（与 `QuestionMediaStore` 的 [QuestionImageRole] 同一组值；
 /// 这里不复用那个类型，是为了让读表层不 import `dart:io`）。
@@ -293,6 +295,13 @@ class QuestionLibrarySnapshot {
 /// [QuestionCompletenessPolicy.hidePending]，于是「没答案没解析」的题被滤掉。
 /// [pendingOnly] 为 true 时反过来**只留待处理题**（「待处理题目」入口用）。
 ///
+/// **知识包开关**：默认过滤掉被禁用知识包独占的题（归属只看
+/// `package_items(object_type='question')`；没有归属的手动题永远不受影响，
+/// 多包共有的题任一启用即可见——规则见
+/// `data/package/knowledge_package_visibility.dart`）。过滤在**题组折叠之前**做，
+/// 隐藏的题不会参与组签名与组卡计数。[includeDisabledPackages] 是整库导出这类
+/// 需要完整内容的调用方的旁路。
+///
 /// 有判据时更不能在 SQL 里先 `LIMIT`：那会把第 N 条之后的完整/待处理题判错，所以
 /// 先读全表再折叠、再筛、再按 `limit` 截断（本地 SQLite、题量万级以内可接受）。
 Future<QuestionLibrarySnapshot> readQuestionLibrary(
@@ -300,14 +309,26 @@ Future<QuestionLibrarySnapshot> readQuestionLibrary(
   int limit = 500,
   QuestionCompletenessPolicy policy = QuestionCompletenessPolicy.includeAll,
   bool pendingOnly = false,
+  bool includeDisabledPackages = false,
 }) async {
   // 先读全表（不 SQL LIMIT）：题组折叠要知道每组的全部行。
-  final questionRows = await (db.select(db.questions)
+  final allQuestionRows = await (db.select(db.questions)
         ..orderBy([
           (t) => OrderingTerm.desc(t.updatedAt),
           (t) => OrderingTerm.asc(t.id),
         ]))
       .get();
+  // 被禁用知识包独占的题在折叠之前就剔除：隐藏的题既不该成为卡片，也不该贡献
+  // 组签名/标签/答错计数。
+  final visibility = await loadPackageVisibility(
+    db,
+    includeDisabledPackages: includeDisabledPackages,
+  );
+  final questionRows = visibility.visible(
+    ObjectTypes.question,
+    allQuestionRows,
+    (row) => row.id,
+  );
   if (questionRows.isEmpty) {
     return const QuestionLibrarySnapshot(
       entries: <QuestionLibraryEntry>[],

@@ -37,6 +37,7 @@ import 'package:furnace/domain/services/zujuan/zujuan_link.dart';
 import 'package:furnace/features/ai/application/ai_providers.dart';
 import 'package:furnace/features/ai/domain/model_adapter.dart';
 import 'package:furnace/features/ai/infrastructure/fake_model_adapter.dart';
+import 'package:furnace/features/questions/application/question_dag_image_providers.dart';
 import 'package:furnace/features/questions/application/question_media_providers.dart';
 import 'package:furnace/features/questions/application/similar_question_provider.dart';
 import 'package:furnace/features/questions/presentation/question_detail_page.dart';
@@ -73,7 +74,13 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: adapter);
     await tester.tap(find.text(_zh.questionDetailSolveButton));
-    await _waitForText(tester, _zh.questionDetailStepTitle(1));
+    await _waitForText(tester, _zh.questionDetailOverallRisk(80));
+    // 用户点完「AI 解题」，DAG 区域先出现的是图片（不是文字步骤链）。
+    await _waitForKey(tester, questionDetailDagImageKey);
+    expect(find.byKey(questionDetailDagImageKey), findsOneWidget);
+    // 逐步文字明细默认收起；展开后才出现。
+    expect(find.text(_zh.questionDetailStepTitle(1)), findsNothing);
+    await _expandDagTextDetails(tester);
 
     expect(find.text(_zh.questionDetailStepTitle(2)), findsOneWidget);
     expect(find.text('确认方程的标准形式'), findsOneWidget);
@@ -171,7 +178,8 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: adapter);
     await tester.tap(find.text(_zh.questionDetailSolveButton));
-    await _waitForText(tester, _zh.questionDetailStepTitle(1));
+    await _waitForText(tester, _zh.questionDetailEvidenceCoverage(2, 2));
+    await _expandDagTextDetails(tester);
 
     expect(find.text(_zh.questionDetailEvidenceCoverage(2, 2)), findsOneWidget);
     expect(find.textContaining('合上你的状态读数'), findsNWidgets(2));
@@ -188,7 +196,8 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: adapter);
     await tester.tap(find.text(_zh.questionDetailSolveButton));
-    await _waitForText(tester, _zh.questionDetailStepTitle(1));
+    await _waitForText(tester, _zh.questionDetailEvidenceCoverage(0, 2));
+    await _expandDagTextDetails(tester);
 
     expect(find.text(_zh.questionDetailEvidenceCoverage(0, 2)), findsOneWidget);
     expect(find.textContaining('（暂无你的状态数据）'), findsNWidgets(2));
@@ -224,6 +233,8 @@ void main() {
 
     await _pumpDetail(tester, database, question.id, adapter: adapter);
     await tester.tap(find.text(_zh.questionDetailSolveButton));
+    await _waitForText(tester, _zh.questionDetailOverallRisk(80));
+    await _expandDagTextDetails(tester);
     await _waitForText(tester, _zh.questionDetailUnknownAction('mystery_move'));
 
     expect(
@@ -265,7 +276,9 @@ void main() {
     ]);
 
     await _pumpDetail(tester, database, question.id, adapter: adapter);
-    await _waitForText(tester, _zh.questionDetailStepTitle(1));
+    await _waitForText(tester, '库里那条链');
+    await _waitForKey(tester, questionDetailDagImageKey);
+    await _expandDagTextDetails(tester);
 
     expect(find.text(_zh.questionDetailChainFromLibrary), findsOneWidget);
     expect(find.text('库里那条链'), findsOneWidget);
@@ -2463,6 +2476,13 @@ Future<void> _pumpDetail(
   List<Override> overrides = const <Override>[],
 }) async {
   _bigSurface(tester);
+  // 思维 DAG 图片会真的生成并落盘；测试绝不写真实数据目录。
+  final dagRoot = Directory.systemTemp.createTempSync('furnace_dag_image_');
+  addTearDown(() {
+    if (dagRoot.existsSync()) {
+      dagRoot.deleteSync(recursive: true);
+    }
+  });
   await tester.pumpWidget(
     ProviderScope(
       overrides: <Override>[
@@ -2471,6 +2491,8 @@ Future<void> _pumpDetail(
         questionMediaStoreProvider.overrideWithValue(
           mediaStore ?? FakeQuestionMediaStore(database: database),
         ),
+        questionDagImageSupportDirectoryProvider
+            .overrideWithValue(() async => dagRoot),
         // 只替换「题干 → 候选」这一步，别的通路照真实 provider 走。
         if (zujuanCandidates != null)
           questionZujuanCandidatesProvider.overrideWith(
@@ -2574,6 +2596,36 @@ Future<void> _waitForType(WidgetTester tester, Type type,
     }
   }
   fail('等了 12 秒也没等到这个控件：$type');
+}
+
+/// 等某个 key 出现（DAG 图片是异步生成 + 落盘的）。
+///
+/// 图片绘制走 `dart:ui` 的 real-async 通道：在 `testWidgets` 的 fake-async 里
+/// 必须用 `tester.runAsync` 开一个真实事件循环窗口，否则永远等不到。
+Future<void> _waitForKey(
+  WidgetTester tester,
+  Key key, {
+  int rounds = 200,
+}) async {
+  for (var i = 0; i < rounds; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+    if (find.byKey(key).evaluate().isNotEmpty) {
+      return;
+    }
+  }
+  fail('等了 20 秒也没等到这个 key：$key');
+}
+
+/// 展开「文字步骤明细」（默认收起；当前版本图片才是 DAG 主视图）。
+Future<void> _expandDagTextDetails(WidgetTester tester) async {
+  final toggle = find.byKey(questionDetailDagTextToggleKey);
+  await tester.ensureVisible(toggle);
+  await _settle(tester);
+  await tester.tap(toggle);
+  await _settle(tester);
 }
 
 /// 等某个 finder 命中指定数量（图片字节异步读回来，widget 才会出现）。

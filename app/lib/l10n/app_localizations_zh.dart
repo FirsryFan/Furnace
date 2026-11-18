@@ -1888,7 +1888,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docBooksBody =>
-      'Furnace 把打印出来的练习题分成三本册子：\n\n· 题目册：只有题目，留白给你做。\n· 答案册：只有题号和答案，做完对答案用。\n· 题解册：每道题该怎么想、容易错在哪，不会的时候看。\n\n同一个编号，在三本册子里都是同一道题。用法按顺序来：先做题目册；做完用答案册对答案；错的和不会的，再去翻题解册。册子是把印好的卷子分开装订出来的，App 里负责组卷和导出 Word。';
+      'Furnace 把打印出来的练习题分成三本册子：\n\n· 题目册：只有题目，留白给你做。\n· 答案册：只有题号和答案，做完对答案用。\n· 题解册：每道题该怎么想、容易错在哪，不会的时候看。\n\n同一个编号，在三本册子里都是同一道题。用法按顺序来：先做题目册；做完用答案册对答案；错的和不会的，再去翻题解册。册子是把印好的卷子分开装订出来的，App 里负责组卷，卷面可以复制出来交给外部排版/PDF 打印。';
 
   @override
   String get docSectionModules => '每个模块干什么，一句话';
@@ -1933,7 +1933,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get docModuleBankBody =>
-      '题目拍照或粘贴发给「智能」就进题库，同一道题不会重复存。组卷只从题库里现有的题挑，凑不齐会照实说缺哪些；卷子可以复制，也可以导出 Word 打印。';
+      '题目拍照或粘贴发给「智能」就进题库，同一道题不会重复存。组卷只从题库里现有的题挑，凑不齐会照实说缺哪些；卷子可以复制，拿去外部排版或打印。';
 
   @override
   String get docSectionDetails => '用起来要注意';
@@ -5112,7 +5112,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questionPaperCopy => '复制卷面';
 
   @override
-  String get questionPaperCopyDone => '卷面已复制：粘到 Word 或打印预览就能用。';
+  String get questionPaperCopyDone => '卷面已复制：粘到 Markdown 编辑器或打印预览就能用。';
 
   @override
   String get questionPaperCopyReasonLabel => '理由';
@@ -5128,72 +5128,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get questionPaperCopyDeferredHeading => '被上限挡下的知识点';
-
-  @override
-  String get questionPaperExportDocx => '导出 Word';
-
-  @override
-  String get questionPaperExportDocxBusy => '正在导出…';
-
-  @override
-  String questionPaperExportDocxDone(
-      int questions, int images, String fileName) {
-    return '已导出 $questions 道题（配图 $images 张）：$fileName';
-  }
-
-  @override
-  String questionPaperExportDocxEmptyDone(String fileName) {
-    return '卷面是空的：只导出了标题与缺口说明（$fileName）';
-  }
-
-  @override
-  String get questionPaperExportDocxFailed => '导出失败';
-
-  @override
-  String questionPaperExportDocxWarnings(int count) {
-    return '有 $count 处提示';
-  }
-
-  @override
-  String get questionPaperExportDocxWarningsAction => '查看';
-
-  @override
-  String get questionPaperExportDocxWarningsTitle => '导出提示';
-
-  @override
-  String get questionPaperExportDocxMissingQuestions => '缺失题目';
-
-  @override
-  String get questionPaperExportDocxSkippedImages => '跳过的配图';
-
-  @override
-  String get questionPaperExportDocxFormulaFailures => '公式编译失败';
-
-  @override
-  String get questionPaperExportDocxImageLoadNotes => '读图提示';
-
-  @override
-  String get questionPaperExportDocxMissingFields => '卷面缺字段';
-
-  @override
-  String questionPaperExportDocxMissingStem(int count) {
-    return '缺题干 $count 道';
-  }
-
-  @override
-  String questionPaperExportDocxMissingAnswer(int count) {
-    return '缺答案 $count 道';
-  }
-
-  @override
-  String questionPaperExportDocxMissingSolution(int count) {
-    return '缺解析 $count 道';
-  }
-
-  @override
-  String questionPaperExportDocxMoreItems(int count) {
-    return '等 $count 条';
-  }
 
   @override
   String get paperSubjectQuotaTitle => '学科配额';
@@ -6789,6 +6723,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String questionDetailDagStepCount(int count) {
     return '$count 步';
   }
+
+  @override
+  String get questionDetailDagImageLoading => '正在生成 DAG 图片…';
+
+  @override
+  String get questionDetailDagImageCaption =>
+      'AI 解题生成的思维 DAG 图片：方框是一步，箭头是先后顺序，颜色是卡点风险。';
+
+  @override
+  String get questionDetailDagImageFailed => 'DAG 图片生成失败';
+
+  @override
+  String get questionDetailDagImageFailedHint => '图片没能画出来，文字链仍可用。下面是原因；可以重试一次。';
+
+  @override
+  String get questionDetailDagImageRetry => '重试';
+
+  @override
+  String questionDetailDagTextSteps(int count) {
+    return '文字步骤明细（$count 步）';
+  }
+
+  @override
+  String get questionDetailDagTextStepsHint => '逐字核对用；默认收起，图片才是主视图。';
 
   @override
   String get questionDetailMetadataSection => '元数据';

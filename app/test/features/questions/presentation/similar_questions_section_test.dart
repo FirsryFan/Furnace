@@ -198,7 +198,14 @@ void main() {
     expect(find.text(zh.questionSimilarCount(2)), findsOneWidget);
 
     // 题干摘要 + 可点进详情：两条候选都有 onTap。
-    final tiles = tester.widgetList<ListTile>(find.byType(ListTile)).toList();
+    // 只数「相似题」版块里的 ListTile：思维 DAG 的文字明细展开区本身也是一个
+    // ExpansionTile（内部同样是 ListTile），不属于相似题候选。
+    final tiles = tester
+        .widgetList<ListTile>(find.descendant(
+          of: find.byKey(questionDetailSimilarSectionKey),
+          matching: find.byType(ListTile),
+        ))
+        .toList();
     expect(tiles.length, 2);
     expect(tiles.every((tile) => tile.onTap != null), isTrue);
 

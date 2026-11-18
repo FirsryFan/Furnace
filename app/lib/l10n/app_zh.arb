@@ -969,7 +969,7 @@
   "settingsUsageDocHint": "三个册子怎么用、每个模块干什么、数字从哪来，都写在这里",
   "docSectionStart": "先看这里",
   "docBooksTitle": "三个册子是什么、怎么用",
-  "docBooksBody": "Furnace 把打印出来的练习题分成三本册子：\n\n· 题目册：只有题目，留白给你做。\n· 答案册：只有题号和答案，做完对答案用。\n· 题解册：每道题该怎么想、容易错在哪，不会的时候看。\n\n同一个编号，在三本册子里都是同一道题。用法按顺序来：先做题目册；做完用答案册对答案；错的和不会的，再去翻题解册。册子是把印好的卷子分开装订出来的，App 里负责组卷和导出 Word。",
+  "docBooksBody": "Furnace 把打印出来的练习题分成三本册子：\n\n· 题目册：只有题目，留白给你做。\n· 答案册：只有题号和答案，做完对答案用。\n· 题解册：每道题该怎么想、容易错在哪，不会的时候看。\n\n同一个编号，在三本册子里都是同一道题。用法按顺序来：先做题目册；做完用答案册对答案；错的和不会的，再去翻题解册。册子是把印好的卷子分开装订出来的，App 里负责组卷，卷面可以复制出来交给外部排版/PDF 打印。",
   "docSectionModules": "每个模块干什么，一句话",
   "docModuleTodayTitle": "今日计划",
   "docModuleTodayBody": "打开后是一份今日清单：今天到期要复习的卡按建议的顺序排好，照着做就行。顺序只是建议、不是分数，只有你点排序才会重排。",
@@ -982,7 +982,7 @@
   "docModuleTagsTitle": "标签树",
   "docModuleTagsBody": "所有内容都挂在标签下面，标签可以一层一层往下分。卡组就是标签：在某一层设了每天的新卡/复习上限，它下面所有层都算在里面。",
   "docModuleBankTitle": "题库与组卷",
-  "docModuleBankBody": "题目拍照或粘贴发给「智能」就进题库，同一道题不会重复存。组卷只从题库里现有的题挑，凑不齐会照实说缺哪些；卷子可以复制，也可以导出 Word 打印。",
+  "docModuleBankBody": "题目拍照或粘贴发给「智能」就进题库，同一道题不会重复存。组卷只从题库里现有的题挑，凑不齐会照实说缺哪些；卷子可以复制，拿去外部排版或打印。",
   "docSectionDetails": "用起来要注意",
   "docAiTitle": "「智能」助手能做什么",
   "docAiBody": "它能查你的库，也能帮你改：加卡、改标签、写题都行。动数据前它会先问你，你点同意才执行；删除会一条条确认，而且都能撤销。它看不到你的 API key。",
@@ -2710,54 +2710,12 @@
     "placeholders": { "actions": { "type": "String" } }
   },
   "questionPaperCopy": "复制卷面",
-  "questionPaperCopyDone": "卷面已复制：粘到 Word 或打印预览就能用。",
+  "questionPaperCopyDone": "卷面已复制：粘到 Markdown 编辑器或打印预览就能用。",
   "questionPaperCopyReasonLabel": "理由",
   "questionPaperCopyImprovementLabel": "提升点",
   "questionPaperCopyBackgroundLabel": "背景",
   "questionPaperCopyUncoveredHeading": "未覆盖的知识点",
   "questionPaperCopyDeferredHeading": "被上限挡下的知识点",
-  "questionPaperExportDocx": "导出 Word",
-  "questionPaperExportDocxBusy": "正在导出…",
-  "questionPaperExportDocxDone": "已导出 {questions} 道题（配图 {images} 张）：{fileName}",
-  "@questionPaperExportDocxDone": {
-    "placeholders": {
-      "questions": { "type": "int" },
-      "images": { "type": "int" },
-      "fileName": { "type": "String" }
-    }
-  },
-  "questionPaperExportDocxEmptyDone": "卷面是空的：只导出了标题与缺口说明（{fileName}）",
-  "@questionPaperExportDocxEmptyDone": {
-    "placeholders": { "fileName": { "type": "String" } }
-  },
-  "questionPaperExportDocxFailed": "导出失败",
-  "questionPaperExportDocxWarnings": "有 {count} 处提示",
-  "@questionPaperExportDocxWarnings": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxWarningsAction": "查看",
-  "questionPaperExportDocxWarningsTitle": "导出提示",
-  "questionPaperExportDocxMissingQuestions": "缺失题目",
-  "questionPaperExportDocxSkippedImages": "跳过的配图",
-  "questionPaperExportDocxFormulaFailures": "公式编译失败",
-  "questionPaperExportDocxImageLoadNotes": "读图提示",
-  "questionPaperExportDocxMissingFields": "卷面缺字段",
-  "questionPaperExportDocxMissingStem": "缺题干 {count} 道",
-  "@questionPaperExportDocxMissingStem": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMissingAnswer": "缺答案 {count} 道",
-  "@questionPaperExportDocxMissingAnswer": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMissingSolution": "缺解析 {count} 道",
-  "@questionPaperExportDocxMissingSolution": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMoreItems": "等 {count} 条",
-  "@questionPaperExportDocxMoreItems": {
-    "placeholders": { "count": { "type": "int" } }
-  },
   "paperSubjectQuotaTitle": "学科配额",
   "paperSubjectQuotaHint": "留空 = 不限；上限 0 = 这一科一道都不选。",
   "paperSubjectQuotaNoSubjects": "学科配额只作用于已选学科：先在上面选中学科，再给每科设上限或保底。",
@@ -4189,6 +4147,16 @@
   "@questionDetailDagStepCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "questionDetailDagImageLoading": "正在生成 DAG 图片…",
+  "questionDetailDagImageCaption": "AI 解题生成的思维 DAG 图片：方框是一步，箭头是先后顺序，颜色是卡点风险。",
+  "questionDetailDagImageFailed": "DAG 图片生成失败",
+  "questionDetailDagImageFailedHint": "图片没能画出来，文字链仍可用。下面是原因；可以重试一次。",
+  "questionDetailDagImageRetry": "重试",
+  "questionDetailDagTextSteps": "文字步骤明细（{count} 步）",
+  "@questionDetailDagTextSteps": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailDagTextStepsHint": "逐字核对用；默认收起，图片才是主视图。",
   "questionDetailMetadataSection": "元数据",
   "questionDetailMetadataDifficulty": "难度",
   "questionDetailMetadataTags": "标签",

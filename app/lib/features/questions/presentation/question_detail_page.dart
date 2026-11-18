@@ -49,10 +49,13 @@ import '../../../domain/services/reasoning/stuck_point_evaluator.dart';
 import '../../../domain/services/srs/dsr_memory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../cognitive/presentation/zone_labels.dart';
+import '../application/dag_image_renderer.dart';
 import '../application/question_cognitive_provider.dart';
+import '../application/question_dag_image_providers.dart';
 import '../application/question_reasoning_service.dart';
 import '../application/question_stem_display_provider.dart';
 import '../application/similar_question_provider.dart';
+import '../data/dag_image_store.dart';
 import 'question_developer_page.dart';
 import 'question_detail_providers.dart';
 import 'question_markdown_view.dart';
@@ -96,6 +99,28 @@ const Key questionCognitiveSectionKey = Key('question-cognitive-section');
 /// 「思维 DAG」版块的 key（测试定位用）。空链时也渲染（标题 + 「暂无」），
 /// 所以这个 key 在页面读题成功后恒定出现；自测防剧透期间整块不渲染。
 const Key questionDetailDagSectionKey = Key('question-detail-dag-section');
+
+/// 「思维 DAG」主视图图片的 key（测试定位用）。
+///
+/// 有链且图片生成成功后出现的是 `Image`；生成中/失败各有自己的 key，页面上
+/// 不会出现"这一块什么都没有"的状态。
+const Key questionDetailDagImageKey = Key('question-detail-dag-image');
+
+/// 图片生成中的占位（测试定位用）。
+const Key questionDetailDagImageLoadingKey =
+    Key('question-detail-dag-image-loading');
+
+/// 图片生成失败面（原因 + 重试）的 key（测试定位用）。
+const Key questionDetailDagImageFailureKey =
+    Key('question-detail-dag-image-failure');
+
+/// 失败面上的「重试」按钮 key（测试定位用）。
+const Key questionDetailDagImageRetryKey =
+    Key('question-detail-dag-image-retry');
+
+/// 「文字步骤明细」展开区的 key（测试定位用）。默认收起，图片是主视图。
+const Key questionDetailDagTextToggleKey =
+    Key('question-detail-dag-text-toggle');
 
 /// 「元数据」版块的 key（测试定位用）。
 const Key questionDetailMetadataSectionKey =
@@ -220,6 +245,28 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
       _running = false;
       _lastRun = result;
     });
+    if (result.ok) {
+      // 「AI 解题完成后」就把图生成好落盘：用户切走再回来时详情页直接读缓存。
+      // 生成失败不影响解题结果——DAG 版块自己会显示失败面 + 重试。
+      await _warmDagImage(result);
+    }
+  }
+
+  /// 解题成功后的图片预热；任何失败都吞掉（失败面由 `_DagImagePanel` 负责）。
+  Future<void> _warmDagImage(ReasoningRunResult result) async {
+    final chain = result.chain;
+    if (chain == null || !mounted) {
+      return;
+    }
+    try {
+      await ref.read(questionDagImageStoreProvider).ensure(
+            cacheKey: DagImageStore.cacheKeyOf(result.chainId, chain),
+            chain: chain,
+            title: AppLocalizations.of(context).questionDetailDagSection,
+          );
+    } on Object {
+      // 这里不处理：详情页的图片面板会重新生成并展示失败原因与重试按钮。
+    }
   }
 
   /// 翻到相邻题：用 `pushReplacement` 而不是 `push`。
@@ -1729,6 +1776,8 @@ class _DagSection extends ConsumerWidget {
     // 本次运行的结果优先（它比库里的新）；没按过按钮就看库里最新那条。
     final chain = lastRun?.chain ?? stored?.chain;
     final fromLibrary = lastRun?.chain == null && chain != null;
+    // 图片缓存键：入库的链用链 id；本次运行但没入库的链由 store 按内容哈希兜底。
+    final chainId = lastRun?.chainId ?? stored?.chainId;
 
     return Card(
       child: Padding(
@@ -1779,10 +1828,22 @@ class _DagSection extends ConsumerWidget {
                 ),
                 error: (error, _) =>
                     Text(l10n.questionDetailStatesFailed('$error')),
-                data: (states) => _ChainView(
-                  chain: chain,
-                  states: states,
-                  fromLibrary: fromLibrary,
+                data: (states) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 当前版本：思维 DAG 的主视图是一张生成的 PNG。
+                    _DagImagePanel(
+                      chain: chain,
+                      chainId: chainId,
+                      title: l10n.questionDetailDagSection,
+                    ),
+                    const SizedBox(height: 12),
+                    _ChainView(
+                      chain: chain,
+                      states: states,
+                      fromLibrary: fromLibrary,
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -1915,11 +1976,240 @@ class _ChainView extends StatelessWidget {
           l10n.questionDetailEvidenceCoverage(covered, report.steps.length),
           style: theme.textTheme.bodySmall,
         ),
-        for (final point in report.steps)
-          _StepCard(point: point, step: parsedByIndex[point.index]),
-        if (report.unmatchedHints.isNotEmpty)
-          _UnmatchedHints(hints: report.unmatchedHints),
+        // 当前版本主视图是上面的图片：逐步文字明细收进展开区，需要逐字核对时
+        // 才展开。下一版会做代码块 / 自适应渲染，届时这一块会被替换。
+        const SizedBox(height: 8),
+        ExpansionTile(
+          key: questionDetailDagTextToggleKey,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+          childrenPadding: EdgeInsets.zero,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          title: Text(
+            l10n.questionDetailDagTextSteps(chain.steps.length),
+            style: theme.textTheme.titleSmall,
+          ),
+          subtitle: Text(
+            l10n.questionDetailDagTextStepsHint,
+            style: theme.textTheme.bodySmall,
+          ),
+          children: [
+            for (final point in report.steps)
+              _StepCard(point: point, step: parsedByIndex[point.index]),
+            if (report.unmatchedHints.isNotEmpty)
+              _UnmatchedHints(hints: report.unmatchedHints),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+/// 「思维 DAG」主视图：由 `reasoning_steps` 生成的 PNG。
+///
+/// 状态只有三种，且**每种都有可见内容**：
+///  * 生成中：转圈 + 一句「正在生成」；
+///  * 成功：`Image.memory`（字节与已落盘文件一致）；
+///  * 失败：原因 + 重试，不显示空白卡片。
+class _DagImagePanel extends ConsumerStatefulWidget {
+  const _DagImagePanel({
+    required this.chain,
+    required this.chainId,
+    required this.title,
+  });
+
+  final ParsedChain chain;
+  final String? chainId;
+  final String title;
+
+  @override
+  ConsumerState<_DagImagePanel> createState() => _DagImagePanelState();
+}
+
+class _DagImagePanelState extends ConsumerState<_DagImagePanel> {
+  Future<DagImageFile>? _image;
+
+  @override
+  void initState() {
+    super.initState();
+    _image = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DagImagePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 再解一次会换成一条新链：图片必须跟着换，不能继续显示旧图。
+    if (!identical(oldWidget.chain, widget.chain) ||
+        oldWidget.chainId != widget.chainId) {
+      _image = _load();
+    }
+  }
+
+  Future<DagImageFile> _load() {
+    return ref.read(questionDagImageStoreProvider).ensure(
+          cacheKey: DagImageStore.cacheKeyOf(widget.chainId, widget.chain),
+          chain: widget.chain,
+          title: widget.title,
+        );
+  }
+
+  void _retry() {
+    setState(() {
+      _image = _load();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return FutureBuilder<DagImageFile>(
+      future: _image,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            key: questionDetailDagImageLoadingKey,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.questionDetailDagImageLoading,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        final data = snapshot.data;
+        if (snapshot.hasError || data == null) {
+          return _DagImageFailure(
+            reason: _failureReason(snapshot.error),
+            onRetry: _retry,
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.memory(
+                data.bytes,
+                key: questionDetailDagImageKey,
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.medium,
+                semanticLabel: l10n.questionDetailDagImageCaption,
+                errorBuilder: (context, error, stack) => _DagImageFailure(
+                  reason: '图片解码失败：$error',
+                  onRetry: _retry,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.questionDetailDagImageCaption,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 把任意异常折成一句人能读的原因：store/renderer 的异常自带原因，其余异常
+  /// 原样带出来，不编一个"未知错误"糊过去。
+  String _failureReason(Object? error) {
+    if (error is DagImageStoreException) {
+      return error.message;
+    }
+    if (error is DagImageRenderException) {
+      return error.message;
+    }
+    if (error == null) {
+      return '图片生成器没有返回任何结果';
+    }
+    return '$error';
+  }
+}
+
+/// 图片生成失败面：标题 + 一句影响说明 + 原因 + 重试按钮。
+class _DagImageFailure extends StatelessWidget {
+  const _DagImageFailure({required this.reason, required this.onRetry});
+
+  final String reason;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    return Card(
+      key: questionDetailDagImageFailureKey,
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.broken_image_outlined,
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.questionDetailDagImageFailed,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.questionDetailDagImageFailedHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
+            const SizedBox(height: 6),
+            SelectableText(
+              reason,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: questionDetailDagImageRetryKey,
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: Text(l10n.questionDetailDagImageRetry),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

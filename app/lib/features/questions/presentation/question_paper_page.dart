@@ -20,7 +20,6 @@ import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/paper_plan_provider.dart';
-import 'paper_docx_export_button.dart';
 import 'paper_domain_quota_view.dart';
 import 'paper_manual_selection_view.dart';
 import 'paper_quality_view.dart';
@@ -379,7 +378,9 @@ class _PaperBody extends ConsumerWidget {
                         : l10n.questionPaperEmptyPlan,
                   ),
                   const SizedBox(height: 8),
-                  // 空卷面也能导出（标题 + 缺口说明）：导出按钮不跟着复制按钮一起禁用。
+                  // 卷面导出只剩「复制卷面」（Markdown/纯文本）：空卷面时禁用，
+                  // 避免把空壳写进剪贴板。App 不提供 Word/docx 导出，也不在这里
+                  // 新造打印格式——打印走外部排版/PDF 管线。
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -391,7 +392,6 @@ class _PaperBody extends ConsumerWidget {
                         knowledgePointNames,
                         enabled: false,
                       ),
-                      PaperDocxExportButton(plan: plan),
                     ],
                   ),
                 ],
@@ -443,7 +443,6 @@ class _PaperBody extends ConsumerWidget {
                   knowledgePointNames,
                   enabled: true,
                 ),
-                PaperDocxExportButton(plan: plan),
               ],
             ),
           ],
@@ -525,7 +524,7 @@ class _PaperBody extends ConsumerWidget {
   ///
   /// 选"禁用"而不是"点完弹提示"的理由：空卷是正常状态（题库还空 / 条件太窄），
   /// 卡片里已经写明了是哪种空；禁用比再弹一条提示更安静，而且点不动就绝不会
-  /// 往剪贴板里写空文本——空文本粘进 Word 等于把用户剪贴板里原来的东西清掉。
+  /// 往剪贴板里写空文本——空文本粘到别处等于把用户剪贴板里原来的东西清掉。
   Widget _copyButton(
     BuildContext context,
     WidgetRef ref,

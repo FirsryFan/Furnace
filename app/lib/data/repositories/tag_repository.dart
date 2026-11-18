@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/services/tags/object_types.dart';
 import '../../domain/services/tags/tag_usage.dart';
 import '../database/database.dart';
 import '../ids.dart';
+import '../package/knowledge_package_visibility.dart';
 
 /// Repository for the hierarchical tag system (v2, spec 1.1.2).
 ///
@@ -73,8 +75,19 @@ class TagRepository {
     return idByNode;
   }
 
-  Future<List<Tag>> getAllTags() {
-    return _db.select(_db.tags).get();
+  /// 全部标签，**默认不包含被禁用知识包独占的标签**。
+  ///
+  /// 归属只看 `package_items(object_type='tag')`：用户手动建的标签没有这一行，
+  /// 永远不受包开关影响；同一标签被多个包拥有时任一启用即可见（规则见
+  /// `knowledge_package_visibility.dart`）。[includeDisabledPackages] 是整库导出
+  /// 这类需要完整内容的调用方的旁路。
+  Future<List<Tag>> getAllTags({bool includeDisabledPackages = false}) async {
+    final rows = await _db.select(_db.tags).get();
+    if (includeDisabledPackages) {
+      return rows;
+    }
+    final visibility = await loadPackageVisibility(_db);
+    return visibility.visible(ObjectTypes.tag, rows, (tag) => tag.id);
   }
 
   Future<Tag?> getTagById(String id) {

@@ -2,8 +2,10 @@ import 'package:drift/drift.dart';
 
 import '../../domain/services/config/furnace_defaults.dart';
 import '../../domain/services/cognitive/learning_metrics.dart';
+import '../../domain/services/tags/object_types.dart';
 import '../database/database.dart';
 import '../ids.dart';
+import '../package/knowledge_package_visibility.dart';
 
 /// `exposure_logs.source` written by the review screen's "读过，没测自己" press.
 ///
@@ -48,13 +50,32 @@ class AnkiRepository {
         .getSingle();
   }
 
-  Future<List<KnowledgePoint>> getKnowledgePoints({String? packageId}) {
+  /// 全部知识点，**默认不包含被禁用知识包独占的知识点**。
+  ///
+  /// 归属只看 `package_items(object_type='knowledge_point')`：用户手动创建/编辑
+  /// 的知识点没有这一行，永远不受包开关影响；同一知识点被多个包拥有时任一启用
+  /// 即可见（规则见 `knowledge_package_visibility.dart`）。[packageId] 是列过滤
+  /// （`knowledge_points.package_id`），与包开关过滤叠加；
+  /// [includeDisabledPackages] 是整库导出这类需要完整内容的调用方的旁路。
+  Future<List<KnowledgePoint>> getKnowledgePoints({
+    String? packageId,
+    bool includeDisabledPackages = false,
+  }) async {
     final query = _db.select(_db.knowledgePoints);
     if (packageId != null) {
       query.where((t) => t.packageId.equals(packageId));
     }
     query.orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
-    return query.get();
+    final rows = await query.get();
+    if (includeDisabledPackages) {
+      return rows;
+    }
+    final visibility = await loadPackageVisibility(_db);
+    return visibility.visible(
+      ObjectTypes.knowledgePoint,
+      rows,
+      (point) => point.id,
+    );
   }
 
   Future<KnowledgePoint?> getKnowledgePointById(String id) {
@@ -231,8 +252,23 @@ class AnkiRepository {
         .get();
   }
 
-  Future<List<CardTemplate>> getAllTemplates() {
-    return _db.select(_db.cardTemplates).get();
+  /// 全部卡模板，**默认不包含被禁用知识包独占的卡模板**。
+  ///
+  /// 归属只看 `package_items(object_type='card_template')`；[includeDisabledPackages]
+  /// 是整库导出这类需要完整内容的调用方的旁路。
+  Future<List<CardTemplate>> getAllTemplates({
+    bool includeDisabledPackages = false,
+  }) async {
+    final rows = await _db.select(_db.cardTemplates).get();
+    if (includeDisabledPackages) {
+      return rows;
+    }
+    final visibility = await loadPackageVisibility(_db);
+    return visibility.visible(
+      ObjectTypes.cardTemplate,
+      rows,
+      (template) => template.id,
+    );
   }
 
   /// The full tag tree paths of several objects at once, keyed by object id.

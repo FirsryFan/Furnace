@@ -86,4 +86,32 @@ void main() {
     final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
     expect(find.text(l10n.packagesEmpty), findsOneWidget);
   });
+
+  testWidgets('the switch still disables and re-enables a package',
+      (tester) async {
+    final db = await importOne();
+    addTearDown(db.close);
+
+    await pumpLibrary(tester, db);
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(find.text(l10n.packagesDisabled), findsNothing);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+    expect(find.text(l10n.packagesDisabled), findsOneWidget);
+    expect(
+      (await PackageRepository(db).getPackageById('pkg-page'))!.enabled,
+      isFalse,
+      reason: '开关必须真的写 knowledge_packages.enabled，而不是只改界面',
+    );
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect((await PackageRepository(db).getPackageById('pkg-page'))!.enabled,
+        isTrue);
+  });
 }

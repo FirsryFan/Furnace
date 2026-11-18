@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 
+import '../../domain/services/tags/object_types.dart';
 import '../database/database.dart';
 import '../ids.dart';
+import '../package/knowledge_package_visibility.dart';
 
 /// Repository for mind maps and mind map nodes.
 class MindMapRepository {
@@ -24,8 +26,17 @@ class MindMapRepository {
         .getSingle();
   }
 
-  Future<List<MindMap>> getMindMaps() {
-    return _db.select(_db.mindMaps).get();
+  /// 全部思维导图，**默认不包含被禁用知识包独占的导图**。
+  ///
+  /// 归属只看 `package_items(object_type='mind_map')`；手动建的导图没有这一行，
+  /// 永远不受包开关影响。[includeDisabledPackages] 是整库导出的旁路。
+  Future<List<MindMap>> getMindMaps({bool includeDisabledPackages = false}) async {
+    final rows = await _db.select(_db.mindMaps).get();
+    if (includeDisabledPackages) {
+      return rows;
+    }
+    final visibility = await loadPackageVisibility(_db);
+    return visibility.visible(ObjectTypes.mindMap, rows, (map) => map.id);
   }
 
   Future<MindNode> addNode({

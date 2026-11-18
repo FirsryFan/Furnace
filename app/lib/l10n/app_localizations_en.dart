@@ -1963,7 +1963,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docBooksBody =>
-      'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and export it as Word.';
+      'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and copy it out for external layout or PDF printing.';
 
   @override
   String get docSectionModules => 'What each part does, in one line';
@@ -2008,7 +2008,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get docModuleBankBody =>
-      'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper or export it to Word for printing.';
+      'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper for external layout or printing.';
 
   @override
   String get docSectionDetails => 'When you use it';
@@ -5332,7 +5332,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get questionPaperCopyDone =>
-      'Paper copied — paste it into Word or a print preview.';
+      'Paper copied — paste it into a Markdown editor or a print preview.';
 
   @override
   String get questionPaperCopyReasonLabel => 'Reason';
@@ -5350,73 +5350,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get questionPaperCopyDeferredHeading =>
       'Knowledge points blocked by the cap';
-
-  @override
-  String get questionPaperExportDocx => 'Export Word';
-
-  @override
-  String get questionPaperExportDocxBusy => 'Exporting…';
-
-  @override
-  String questionPaperExportDocxDone(
-      int questions, int images, String fileName) {
-    return 'Exported $questions question(s) with $images image(s): $fileName';
-  }
-
-  @override
-  String questionPaperExportDocxEmptyDone(String fileName) {
-    return 'The paper is empty: only the title and gap notes were exported ($fileName)';
-  }
-
-  @override
-  String get questionPaperExportDocxFailed => 'Export failed';
-
-  @override
-  String questionPaperExportDocxWarnings(int count) {
-    return '$count warning(s)';
-  }
-
-  @override
-  String get questionPaperExportDocxWarningsAction => 'View';
-
-  @override
-  String get questionPaperExportDocxWarningsTitle => 'Export warnings';
-
-  @override
-  String get questionPaperExportDocxMissingQuestions => 'Missing questions';
-
-  @override
-  String get questionPaperExportDocxSkippedImages => 'Skipped images';
-
-  @override
-  String get questionPaperExportDocxFormulaFailures =>
-      'Formula compilation failures';
-
-  @override
-  String get questionPaperExportDocxImageLoadNotes => 'Image notes';
-
-  @override
-  String get questionPaperExportDocxMissingFields => 'Missing fields';
-
-  @override
-  String questionPaperExportDocxMissingStem(int count) {
-    return '$count missing stem(s)';
-  }
-
-  @override
-  String questionPaperExportDocxMissingAnswer(int count) {
-    return '$count missing answer(s)';
-  }
-
-  @override
-  String questionPaperExportDocxMissingSolution(int count) {
-    return '$count missing solution(s)';
-  }
-
-  @override
-  String questionPaperExportDocxMoreItems(int count) {
-    return 'and $count more';
-  }
 
   @override
   String get paperSubjectQuotaTitle => 'Subject quotas';
@@ -7067,6 +7000,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String questionDetailDagStepCount(int count) {
     return '$count steps';
   }
+
+  @override
+  String get questionDetailDagImageLoading => 'Generating the DAG image…';
+
+  @override
+  String get questionDetailDagImageCaption =>
+      'DAG image generated from AI solving: a box is one step, arrows show order, colour shows stuck-point risk.';
+
+  @override
+  String get questionDetailDagImageFailed => 'Could not generate the DAG image';
+
+  @override
+  String get questionDetailDagImageFailedHint =>
+      'The image could not be drawn; the text chain below still works. The reason is shown below — you can retry.';
+
+  @override
+  String get questionDetailDagImageRetry => 'Retry';
+
+  @override
+  String questionDetailDagTextSteps(int count) {
+    return 'Step details ($count steps)';
+  }
+
+  @override
+  String get questionDetailDagTextStepsHint =>
+      'For checking step by step; collapsed by default because the image is the primary view.';
 
   @override
   String get questionDetailMetadataSection => 'Metadata';

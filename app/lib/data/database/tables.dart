@@ -640,7 +640,11 @@ class KnowledgePackages extends Table {
   TextColumn get fileHash => text().nullable()();
 
   /// v42（2026-11-01）：知识包启用/禁用位。可空、NULL 读作「启用」；
-  /// 只有知识库管理页会写它，已经导入的内容行不受影响。
+  /// 知识库管理页的开关会写它。**内容行不删**，但查询层按 `package_items`
+  /// 归属过滤：只被禁用包拥有的标签/知识点/卡模板/思维导图/题不出现在
+  /// 标签树、闪存卡页、题库等读取里（规则见
+  /// `data/package/knowledge_package_visibility.dart`；手动内容与多包共有的
+  /// 内容不受影响）。
   BoolColumn get enabled => boolean().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
@@ -893,7 +897,8 @@ class Attachments extends Table {
   ///   [QuestionImageRole.stem]（题干配图）处理，旧题库看起来不变。
   /// - 'stem'：题干配图（拍照的题干、印刷页截图）。
   /// - 'answer'：答案/解析截图。组卷网登录后才看得到的答案是一整张 JPEG，
-  ///   用户截图/拍照存进来，导出 Word 时渲染在解析之后。
+  ///   用户截图/拍照存进来；只有 legacy docx 导出会渲染在解析之后（App 当前
+  ///   不向用户交付 Word）。
   /// - 'solution'：预留给以后的「独立解析截图」，本轮没有写入方。
   ///
   /// 只有题目（`ownerType = 'question'`）用这一列；其它 owner 不写，落 NULL。

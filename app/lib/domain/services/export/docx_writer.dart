@@ -1,3 +1,5 @@
+/// Legacy, not delivered — 只服务已下线的 .docx 导出（App 不交付 Word）。
+///
 /// OOXML（.docx）构造器：纯 Dart、不碰 Flutter、不写文件，只把"文档模型"变成
 /// 一个可交给 Word 打开的 zip 字节流。
 ///

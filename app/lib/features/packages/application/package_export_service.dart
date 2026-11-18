@@ -38,9 +38,14 @@ class PackageExportService {
     Set<String> tagIds = const <String>{},
   }) async {
     final filtered = tagIds.isNotEmpty;
-    final tags = await _tags.getAllTags();
-    final knowledgePoints = await _anki.getKnowledgePoints();
-    final mindMaps = filtered ? const <MindMap>[] : await _mindMaps.getMindMaps();
+    // 导出是「整库」语义：被禁用的知识包内容也要带上（禁用只影响浏览查询，
+    // 不删内容），否则用户导出/换机时会静默丢掉自己禁用的包。
+    final tags = await _tags.getAllTags(includeDisabledPackages: true);
+    final knowledgePoints =
+        await _anki.getKnowledgePoints(includeDisabledPackages: true);
+    final mindMaps = filtered
+        ? const <MindMap>[]
+        : await _mindMaps.getMindMaps(includeDisabledPackages: true);
 
     final tagById = {for (final tag in tags) tag.id: tag};
 

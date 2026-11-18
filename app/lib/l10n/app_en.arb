@@ -967,7 +967,7 @@
   "settingsUsageDocHint": "What the three printed booklets are for, what each part of the app does, and where the numbers come from",
   "docSectionStart": "Start here",
   "docBooksTitle": "The three booklets, and how to use them",
-  "docBooksBody": "Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and export it as Word.",
+  "docBooksBody": "Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and copy it out for external layout or PDF printing.",
   "docSectionModules": "What each part does, in one line",
   "docModuleTodayTitle": "Today's plan",
   "docModuleTodayBody": "Opening it gives you today's list: the cards due today in a suggested order. The order is advice, not a score, and it changes only when you press sort.",
@@ -980,7 +980,7 @@
   "docModuleTagsTitle": "Tag tree",
   "docModuleTagsBody": "Everything hangs off tags, and tags can be nested as deep as you like. A deck is simply a tag: a daily new/review cap set on one tag covers every tag below it.",
   "docModuleBankTitle": "Question bank and paper assembly",
-  "docModuleBankBody": "Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper or export it to Word for printing.",
+  "docModuleBankBody": "Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper for external layout or printing.",
   "docSectionDetails": "When you use it",
   "docAiTitle": "What the assistant can do",
   "docAiBody": "It can read your library and change it for you: add cards, edit tags, write questions. It asks first and only acts after you agree; deletions are confirmed one by one and can be undone. It never sees your API key.",
@@ -2831,54 +2831,12 @@
     "placeholders": { "actions": { "type": "String" } }
   },
   "questionPaperCopy": "Copy paper",
-  "questionPaperCopyDone": "Paper copied — paste it into Word or a print preview.",
+  "questionPaperCopyDone": "Paper copied — paste it into a Markdown editor or a print preview.",
   "questionPaperCopyReasonLabel": "Reason",
   "questionPaperCopyImprovementLabel": "Improvement",
   "questionPaperCopyBackgroundLabel": "Background",
   "questionPaperCopyUncoveredHeading": "Knowledge points with no candidates",
   "questionPaperCopyDeferredHeading": "Knowledge points blocked by the cap",
-  "questionPaperExportDocx": "Export Word",
-  "questionPaperExportDocxBusy": "Exporting…",
-  "questionPaperExportDocxDone": "Exported {questions} question(s) with {images} image(s): {fileName}",
-  "@questionPaperExportDocxDone": {
-    "placeholders": {
-      "questions": { "type": "int" },
-      "images": { "type": "int" },
-      "fileName": { "type": "String" }
-    }
-  },
-  "questionPaperExportDocxEmptyDone": "The paper is empty: only the title and gap notes were exported ({fileName})",
-  "@questionPaperExportDocxEmptyDone": {
-    "placeholders": { "fileName": { "type": "String" } }
-  },
-  "questionPaperExportDocxFailed": "Export failed",
-  "questionPaperExportDocxWarnings": "{count} warning(s)",
-  "@questionPaperExportDocxWarnings": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxWarningsAction": "View",
-  "questionPaperExportDocxWarningsTitle": "Export warnings",
-  "questionPaperExportDocxMissingQuestions": "Missing questions",
-  "questionPaperExportDocxSkippedImages": "Skipped images",
-  "questionPaperExportDocxFormulaFailures": "Formula compilation failures",
-  "questionPaperExportDocxImageLoadNotes": "Image notes",
-  "questionPaperExportDocxMissingFields": "Missing fields",
-  "questionPaperExportDocxMissingStem": "{count} missing stem(s)",
-  "@questionPaperExportDocxMissingStem": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMissingAnswer": "{count} missing answer(s)",
-  "@questionPaperExportDocxMissingAnswer": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMissingSolution": "{count} missing solution(s)",
-  "@questionPaperExportDocxMissingSolution": {
-    "placeholders": { "count": { "type": "int" } }
-  },
-  "questionPaperExportDocxMoreItems": "and {count} more",
-  "@questionPaperExportDocxMoreItems": {
-    "placeholders": { "count": { "type": "int" } }
-  },
   "paperSubjectQuotaTitle": "Subject quotas",
   "paperSubjectQuotaHint": "Blank = no limit; a max of 0 selects none from that subject.",
   "paperSubjectQuotaNoSubjects": "Subject quotas only apply to selected subjects: pick subjects above, then set a max or minimum for each.",
@@ -4283,6 +4241,16 @@
   "@questionDetailDagStepCount": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "questionDetailDagImageLoading": "Generating the DAG image…",
+  "questionDetailDagImageCaption": "DAG image generated from AI solving: a box is one step, arrows show order, colour shows stuck-point risk.",
+  "questionDetailDagImageFailed": "Could not generate the DAG image",
+  "questionDetailDagImageFailedHint": "The image could not be drawn; the text chain below still works. The reason is shown below — you can retry.",
+  "questionDetailDagImageRetry": "Retry",
+  "questionDetailDagTextSteps": "Step details ({count} steps)",
+  "@questionDetailDagTextSteps": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "questionDetailDagTextStepsHint": "For checking step by step; collapsed by default because the image is the primary view.",
   "questionDetailMetadataSection": "Metadata",
   "questionDetailMetadataDifficulty": "Difficulty",
   "questionDetailMetadataTags": "Tags",

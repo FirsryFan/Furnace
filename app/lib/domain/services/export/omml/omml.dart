@@ -1,3 +1,5 @@
+/// Legacy, not delivered — 只服务已下线的 .docx 导出（App 不交付 Word）。
+///
 /// LaTeX 子集 → OMML（Word 原生公式）编译器。
 ///
 /// 移植自 paper-composer skill 的参考实现 omml.py（773 行，权威口径），

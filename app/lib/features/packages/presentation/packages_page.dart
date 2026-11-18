@@ -10,7 +10,6 @@ import '../../../core/state/data_revision.dart';
 import '../../../data/database/database.dart';
 import '../../../data/package/knowledge_package_codec.dart';
 import '../../../data/repositories/repository_providers.dart';
-import '../../tags/presentation/tag_tree_page.dart';
 
 /// One row of the library: the package record plus what it brought in.
 class PackageLibraryEntry {
@@ -90,9 +89,12 @@ class PackagesPage extends ConsumerWidget {
     final authorController =
         TextEditingController(text: l10n.packagesDefaultAuthor);
     final versionController = TextEditingController(text: '1.0.0');
-    // `allTagsProvider` is the same tag list the tag page shows; reading it is
-    // what lets the dialog offer the same tag names.
-    final tags = await ref.read(allTagsProvider.future);
+    // 导出是整库语义（被禁用的包内容也会被导出，见 `PackageExportService`），
+    // 所以标签范围列表要包含被禁用包的标签；不能直接用标签树那份
+    // `allTagsProvider`（它按包开关过滤）。
+    final tags = await ref
+        .read(tagRepositoryProvider)
+        .getAllTags(includeDisabledPackages: true);
     if (!context.mounted) {
       return;
     }
@@ -494,6 +496,10 @@ class _PackageTile extends ConsumerWidget {
               await ref
                   .read(packageRepositoryProvider)
                   .setPackageEnabled(row.id, value);
+              // 真机上写库会经 DbWriteInterceptor 触发 data revision，开关自己
+              // 变；widget test 没有拦截器，显式失效一次让行尾布尔与列表状态
+              // 立刻反映这次开关。
+              ref.invalidate(packageLibraryProvider);
             },
           ),
           IconButton(

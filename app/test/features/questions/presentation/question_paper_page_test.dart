@@ -785,6 +785,24 @@ void main() {
     expect(find.text(zh.questionPaperCopyDone), findsOneWidget);
   });
 
+  testWidgets('组卷页不再有 Word 导出入口：只剩「复制卷面」，复制仍可用', (tester) async {
+    await _seedQuestion(db, id: 'q-1', stem: '第一题', subjectKey: 'math');
+
+    await _pumpPaperPage(tester, db: db);
+
+    // Word 是被删掉的交付方案：界面上不能残留按钮/提示/key。
+    expect(find.text('导出 Word'), findsNothing);
+    expect(find.byKey(const Key('paper-export-docx')), findsNothing);
+    expect(find.byKey(questionPaperCopyButtonKey), findsOneWidget);
+
+    // 卷面仍可复制（Markdown/纯文本），复制成功提示照旧。
+    final clipboard = _captureClipboard(tester);
+    final text = await _tapCopyAndWait(tester, clipboard);
+    expect(text, isNotNull);
+    expect(text, contains(zh.questionPaperHeadline(10, 1)));
+    expect(find.text(zh.questionPaperCopyDone), findsOneWidget);
+  });
+
   testWidgets('短卷：文本与页面都如实写"凑到几道"，不假装凑满', (tester) async {
     await _seedQuestion(db, id: 'q-1', stem: '第一题', subjectKey: 'math');
     await _seedQuestion(db, id: 'q-2', stem: '第二题', subjectKey: 'math');
@@ -872,6 +890,9 @@ void main() {
 
     expect(_copiedText(clipboard), isNull);
     expect(find.text(zh.questionPaperCopyDone), findsNothing);
+    // 空卷也不出现 Word 导出入口（旧入口已删，不能只删非空分支）。
+    expect(find.text('导出 Word'), findsNothing);
+    expect(find.byKey(const Key('paper-export-docx')), findsNothing);
     // 空态文案还在（空卷是正常状态，不是错误）。
     expect(find.text(zh.questionPaperEmptyBank), findsOneWidget);
   });

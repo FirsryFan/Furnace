@@ -3415,7 +3415,7 @@ abstract class AppLocalizations {
   /// No description provided for @docBooksBody.
   ///
   /// In en, this message translates to:
-  /// **'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and export it as Word.'**
+  /// **'Furnace divides printed practice into three booklets:\n\n· Question booklet: the questions only, with room to work.\n· Answer booklet: question numbers and answers only, for checking.\n· Solution booklet: how to think through each question and where people go wrong, for when you are stuck.\n\nThe same number is the same question in all three. Use them in order: work in the question booklet, check with the answer booklet, and only then open the solution booklet for the ones you missed. The booklets are how a printed paper is divided; in the app you assemble the paper and copy it out for external layout or PDF printing.'**
   String get docBooksBody;
 
   /// No description provided for @docSectionModules.
@@ -3493,7 +3493,7 @@ abstract class AppLocalizations {
   /// No description provided for @docModuleBankBody.
   ///
   /// In en, this message translates to:
-  /// **'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper or export it to Word for printing.'**
+  /// **'Send a photo or paste text to the assistant and the question enters the bank; the same question is never stored twice. Paper assembly picks only from questions you already have, says plainly what is missing, and lets you copy the paper for external layout or printing.'**
   String get docModuleBankBody;
 
   /// No description provided for @docSectionDetails.
@@ -8950,7 +8950,7 @@ abstract class AppLocalizations {
   /// No description provided for @questionPaperCopyDone.
   ///
   /// In en, this message translates to:
-  /// **'Paper copied — paste it into Word or a print preview.'**
+  /// **'Paper copied — paste it into a Markdown editor or a print preview.'**
   String get questionPaperCopyDone;
 
   /// No description provided for @questionPaperCopyReasonLabel.
@@ -8982,109 +8982,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Knowledge points blocked by the cap'**
   String get questionPaperCopyDeferredHeading;
-
-  /// No description provided for @questionPaperExportDocx.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Word'**
-  String get questionPaperExportDocx;
-
-  /// No description provided for @questionPaperExportDocxBusy.
-  ///
-  /// In en, this message translates to:
-  /// **'Exporting…'**
-  String get questionPaperExportDocxBusy;
-
-  /// No description provided for @questionPaperExportDocxDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Exported {questions} question(s) with {images} image(s): {fileName}'**
-  String questionPaperExportDocxDone(
-      int questions, int images, String fileName);
-
-  /// No description provided for @questionPaperExportDocxEmptyDone.
-  ///
-  /// In en, this message translates to:
-  /// **'The paper is empty: only the title and gap notes were exported ({fileName})'**
-  String questionPaperExportDocxEmptyDone(String fileName);
-
-  /// No description provided for @questionPaperExportDocxFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Export failed'**
-  String get questionPaperExportDocxFailed;
-
-  /// No description provided for @questionPaperExportDocxWarnings.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} warning(s)'**
-  String questionPaperExportDocxWarnings(int count);
-
-  /// No description provided for @questionPaperExportDocxWarningsAction.
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
-  String get questionPaperExportDocxWarningsAction;
-
-  /// No description provided for @questionPaperExportDocxWarningsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Export warnings'**
-  String get questionPaperExportDocxWarningsTitle;
-
-  /// No description provided for @questionPaperExportDocxMissingQuestions.
-  ///
-  /// In en, this message translates to:
-  /// **'Missing questions'**
-  String get questionPaperExportDocxMissingQuestions;
-
-  /// No description provided for @questionPaperExportDocxSkippedImages.
-  ///
-  /// In en, this message translates to:
-  /// **'Skipped images'**
-  String get questionPaperExportDocxSkippedImages;
-
-  /// No description provided for @questionPaperExportDocxFormulaFailures.
-  ///
-  /// In en, this message translates to:
-  /// **'Formula compilation failures'**
-  String get questionPaperExportDocxFormulaFailures;
-
-  /// No description provided for @questionPaperExportDocxImageLoadNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Image notes'**
-  String get questionPaperExportDocxImageLoadNotes;
-
-  /// No description provided for @questionPaperExportDocxMissingFields.
-  ///
-  /// In en, this message translates to:
-  /// **'Missing fields'**
-  String get questionPaperExportDocxMissingFields;
-
-  /// No description provided for @questionPaperExportDocxMissingStem.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} missing stem(s)'**
-  String questionPaperExportDocxMissingStem(int count);
-
-  /// No description provided for @questionPaperExportDocxMissingAnswer.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} missing answer(s)'**
-  String questionPaperExportDocxMissingAnswer(int count);
-
-  /// No description provided for @questionPaperExportDocxMissingSolution.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} missing solution(s)'**
-  String questionPaperExportDocxMissingSolution(int count);
-
-  /// No description provided for @questionPaperExportDocxMoreItems.
-  ///
-  /// In en, this message translates to:
-  /// **'and {count} more'**
-  String questionPaperExportDocxMoreItems(int count);
 
   /// No description provided for @paperSubjectQuotaTitle.
   ///
@@ -11834,6 +11731,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} steps'**
   String questionDetailDagStepCount(int count);
+
+  /// No description provided for @questionDetailDagImageLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating the DAG image…'**
+  String get questionDetailDagImageLoading;
+
+  /// No description provided for @questionDetailDagImageCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'DAG image generated from AI solving: a box is one step, arrows show order, colour shows stuck-point risk.'**
+  String get questionDetailDagImageCaption;
+
+  /// No description provided for @questionDetailDagImageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not generate the DAG image'**
+  String get questionDetailDagImageFailed;
+
+  /// No description provided for @questionDetailDagImageFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The image could not be drawn; the text chain below still works. The reason is shown below — you can retry.'**
+  String get questionDetailDagImageFailedHint;
+
+  /// No description provided for @questionDetailDagImageRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get questionDetailDagImageRetry;
+
+  /// No description provided for @questionDetailDagTextSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Step details ({count} steps)'**
+  String questionDetailDagTextSteps(int count);
+
+  /// No description provided for @questionDetailDagTextStepsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For checking step by step; collapsed by default because the image is the primary view.'**
+  String get questionDetailDagTextStepsHint;
 
   /// No description provided for @questionDetailMetadataSection.
   ///
