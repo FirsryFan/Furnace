@@ -32,7 +32,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
+import '../../../data/database/app_database_provider.dart';
 import '../../../data/repositories/repository_providers.dart';
+import '../../../domain/services/questions/ability_from_attempts.dart';
 import '../../../domain/services/cognitive/ability_band.dart'
     show AbilitySource, AbilityUnknownReason;
 import '../../../domain/services/cognitive/learning_status.dart';
@@ -49,6 +51,7 @@ const Key learningStatusStrengthsKey = Key('learning-status-strengths');
 const Key learningStatusWeaknessesKey = Key('learning-status-weaknesses');
 const Key learningStatusTodayKey = Key('learning-status-today');
 const Key learningStatusTrendKey = Key('learning-status-trend');
+const Key learningStatusAbilityKey = Key('learning-status-ability');
 
 /// 「开始复习」主按钮。
 const Key mindnetStartReviewKey = Key('mindnet-start-review');
@@ -122,6 +125,26 @@ final weeklyReviewTrendProvider =
   return WeeklyReviewTrend.read(samples: samples, now: now);
 });
 
+/// 自测能力读数：从 `question_attempts` × `questions.capability` 聚合。
+///
+/// 只有样本 ≥3 的能力才显示；样本不足不猜。不是 MIRT/能力向量，是题目侧
+/// 能力标签的真实正确率。
+final questionAbilityStatsProvider =
+    FutureProvider.autoDispose<List<AbilityStat>>((ref) async {
+  ref.watchDatabaseRevision();
+  final rows = await ref.watch(appDatabaseProvider).customSelect(
+        'SELECT q.capability AS capability, qa.is_correct AS is_correct '
+        'FROM question_attempts qa JOIN questions q ON q.id = qa.question_id',
+      ).get();
+  return aggregateAbilityStats(<AbilityAttempt>[
+    for (final row in rows)
+      AbilityAttempt(
+        capabilityJson: row.read<String?>('capability'),
+        isCorrect: (row.read<int?>('is_correct') ?? 0) != 0,
+      ),
+  ]);
+});
+
 /// 四块用户层内容。放在页面的滚动容器里用（本身不滚动）。
 class LearningStatusView extends StatelessWidget {
   const LearningStatusView({super.key});
@@ -132,6 +155,8 @@ class LearningStatusView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         _BandCard(),
+        SizedBox(height: 8),
+        _AbilityCard(),
         SizedBox(height: 8),
         _RankCard(kind: _RankKind.strengths),
         SizedBox(height: 8),
@@ -163,6 +188,56 @@ class _CardHeader extends StatelessWidget {
           child: Text(title, style: theme.textTheme.titleMedium),
         ),
       ],
+    );
+  }
+}
+
+/// 自测能力卡：真实正确率，样本 <3 的能力不显示；空数据整卡不渲染。
+class _AbilityCard extends ConsumerWidget {
+  const _AbilityCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(questionAbilityStatsProvider).valueOrNull;
+    if (stats == null || stats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    return Card(
+      key: learningStatusAbilityKey,
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const _CardHeader(
+              icon: Icons.radar_outlined,
+              title: '自测能力',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '来自题目自测（样本 ≥3 才显示），不是模型推断。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final stat in stats.take(5))
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(child: Text('${stat.code} ${stat.labelZh}')),
+                    Text(
+                      '${(stat.accuracy * 100).round()}% · ${stat.correct}/${stat.total}',
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

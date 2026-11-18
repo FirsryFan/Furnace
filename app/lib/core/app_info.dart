@@ -12,7 +12,7 @@ const String kAppVersion = '0.6.21';
 
 /// Build number, matching `pubspec.yaml`'s `version:` after the `+`. Android
 /// publishes this as `versionCode`.
-const int kAppBuildNumber = 50;
+const int kAppBuildNumber = 51;
 
 /// What the app calls itself over HTTP. Kept honest about who is calling rather
 /// than impersonating a browser.
