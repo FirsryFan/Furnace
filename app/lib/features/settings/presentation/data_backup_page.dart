@@ -27,6 +27,7 @@ import '../../../data/storage/app_storage.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/appearance_providers.dart';
 import '../application/diagnostics_bundle.dart';
+import '../application/seven_category_export.dart';
 import 'settings_layout.dart';
 import 'settings_providers.dart' show currentProfileProvider;
 
@@ -71,6 +72,15 @@ class DataBackupSection extends ConsumerWidget {
           title: Text(l10n.settingsTfpkgImport),
           subtitle: Text(l10n.settingsTfpkgImportHint),
           onTap: () => _import(context, ref),
+        ),
+        ListTile(
+          leading: const Icon(Icons.folder_zip_outlined),
+          title: const Text('导出全部数据（7 类 ZIP）'),
+          subtitle: const Text(
+            '标签 / 日程 / 题库 / 闪存卡 / agent 会话 / 技能插件 / 预设矩阵；'
+            '一个 ZIP + manifest。技能插件不在 Furnace 库内，会如实标注不可用。',
+          ),
+          onTap: () => _exportSevenCategory(context, ref),
         ),
       ],
     );
@@ -134,6 +144,34 @@ class DataBackupSection extends ConsumerWidget {
       messenger.showSnackBar(
         SnackBar(content: Text('${l10n.settingsTfpkgExport}: $error')),
       );
+    }
+  }
+
+  Future<void> _exportSevenCategory(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes =
+          await SevenCategoryExport(ref.read(appDatabaseProvider)).buildBytes();
+      final stamp = DateTime.now()
+          .toIso8601String()
+          .substring(0, 16)
+          .replaceAll(':', '')
+          .replaceAll('-', '');
+      final target = await FilePicker.saveFile(
+        dialogTitle: '导出全部数据（7 类）',
+        fileName: 'furnace-all-$stamp.zip',
+        bytes: bytes,
+        type: FileType.any,
+      );
+      if (target == null) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('已导出 7 类数据 ZIP；技能/插件在 manifest 中标注不可用。')),
+      );
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('导出 7 类数据失败：$error')));
     }
   }
 
