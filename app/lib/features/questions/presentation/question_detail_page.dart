@@ -358,11 +358,16 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             else if (missing)
               Text(l10n.questionDetailQuestionMissing)
             else if (detail != null)
-              // 学生视图：题干/选项/答案/自测/学习读数。改名、改来源、原题
-              // 链接编辑、配图编辑、入库体检等开发动作统一收进「开发者信息」。
-              _QuestionBody(
-                detail: detail,
-                onSelfTestChanged: _onSelfTestChanged,
+              // 题干/选项/答案/解析放在同一张遮罩卡片上，与 DAG/元数据/相似题
+              // 等版块保持同一种视觉层级；卡片内部仍按小节标题分段。
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _QuestionBody(
+                    detail: detail,
+                    onSelfTestChanged: _onSelfTestChanged,
+                  ),
+                ),
               ),
             if (detail != null) ...[
               // 3. 思维 DAG：AI 解题产出的分步链；没有就写「暂无」。
@@ -2141,7 +2146,7 @@ class _UnmatchedHints extends StatelessWidget {
 }
 
 /// 题目挂载的知识点；没有读数的那些标一个提示图标。
-class _KnowledgePointChips extends StatelessWidget {
+class _KnowledgePointChips extends ConsumerWidget {
   const _KnowledgePointChips({required this.ids, required this.states});
 
   final List<String> ids;
@@ -2150,10 +2155,16 @@ class _KnowledgePointChips extends StatelessWidget {
   final Map<String, DsrState>? states;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final readings = states;
+    final titles = ref.watch(
+      questionKnowledgePointTitlesProvider(
+        ids.join('\u0001'),
+      ),
+    ).valueOrNull ??
+        const <String, String>{};
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
@@ -2170,7 +2181,8 @@ class _KnowledgePointChips extends StatelessWidget {
             children: [
               for (final id in ids)
                 Chip(
-                  label: Text(id),
+                  // 只显示知识点中文标题；缺标题不把内部 id 冒给用户。
+                  label: Text(titles[id] ?? '未命名知识点'),
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   avatar: readings != null && !readings.containsKey(id)

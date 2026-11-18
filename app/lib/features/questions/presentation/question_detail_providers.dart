@@ -80,6 +80,29 @@ final questionGroupInfoProvider = FutureProvider.autoDispose
   );
 });
 
+/// 题挂载知识点的中文标题；界面不再直接显示 `kp-candidate-…` 内部 id。
+///
+/// 用 join 后的 id 串做 family key（List 不满足 Riverpod 的 `==` 约定）；
+/// 读不到标题的 id 由界面回退为“未命名知识点”，不把内部 id 冒给用户。
+final questionKnowledgePointTitlesProvider = FutureProvider.autoDispose
+    .family<Map<String, String>, String>((ref, joinedIds) async {
+  final ids = joinedIds
+      .split('\u0001')
+      .map((id) => id.trim())
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+  if (ids.isEmpty) return const <String, String>{};
+  final db = ref.watch(appDatabaseProvider);
+  final rows = await (db.select(db.knowledgePoints)
+        ..where((table) => table.id.isIn(ids)))
+      .get();
+  return <String, String>{
+    for (final row in rows)
+      if (row.title.trim().isNotEmpty) row.id: row.title.trim(),
+  };
+});
+
 /// 详情页「上一题 / 下一题」的邻居：按题号找前后最近的一道。
 ///
 /// `null` = 这道题自己没有题号（还没回填 / 被清空），页面就不摆翻页按钮；

@@ -67,11 +67,19 @@ class MarkdownQuestionText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 整卷/OCR 导入的长材料常常只有句号、没有段落空行；直接整段渲染会是一堵字。
+    // 显示层只做排版级分段（不改原文/不改库）：长度足够且没有空行时，按句末
+    // 标点每 2 句补一个空行。公式 `$…$` 内的句号不切。
+    final displayText = _paragraphizeLongText(text);
     if (!markdown) {
-      return QuestionRichText(text: text, style: style, textAlign: textAlign);
+      return QuestionRichText(
+        text: displayText,
+        style: style,
+        textAlign: textAlign,
+      );
     }
-    if (!questionMarkdownRendersAsMarkdown(text)) {
-      return SelectableText(text, style: style, textAlign: textAlign);
+    if (!questionMarkdownRendersAsMarkdown(displayText)) {
+      return SelectableText(displayText, style: style, textAlign: textAlign);
     }
     // 全软件统一渲染入口：LaTeX、标题、表格、代码块、分栏等排版都走它。
     // 填空空位先换成空位标记（`![宽x高](question-blank:N)`），由 imageBuilder
@@ -79,12 +87,49 @@ class MarkdownQuestionText extends StatelessWidget {
     final fontSize =
         style?.fontSize ?? Theme.of(context).textTheme.bodyMedium?.fontSize ?? 14;
     return MarkdownRenderer(
-      markdown: questionMarkdownSource(text, fontSize: fontSize),
+      markdown: questionMarkdownSource(displayText, fontSize: fontSize),
       style: style,
       textAlign: textAlign,
       imageBuilder: questionBlankOrNetworkImage,
     );
   }
+}
+
+/// 长文本显示分段：只在原文没有空行、长度超过 200 时生效；不改原文。
+///
+/// 每 2 个句末标点（。！？；）补一个空行；`$…$`/`$$…$$` 内的标点不切。
+/// 题目/答案/解析都用同一入口，避免只有题干被分段、答案仍是一堵字。
+String _paragraphizeLongText(String text) {
+  if (text.length < 200 || text.contains('\n\n')) {
+    return text;
+  }
+  final buffer = StringBuffer();
+  var sentenceCount = 0;
+  var inInlineMath = false;
+  var inDisplayMath = false;
+  for (var i = 0; i < text.length; i++) {
+    final char = text[i];
+    if (char == r'$' && (i == 0 || text[i - 1] != r'\')) {
+      if (inDisplayMath) {
+        inDisplayMath = false;
+      } else if (!inInlineMath && i + 1 < text.length && text[i + 1] == r'$') {
+        inDisplayMath = true;
+        buffer.write(char);
+        if (i + 1 < text.length) buffer.write(text[++i]);
+        continue;
+      } else {
+        inInlineMath = !inInlineMath;
+      }
+    }
+    buffer.write(char);
+    if (!inInlineMath && !inDisplayMath && '。！？；'.contains(char)) {
+      sentenceCount++;
+      if (sentenceCount % 2 == 0 && i + 1 < text.length) {
+        buffer.write('\n\n');
+      }
+    }
+  }
+  return buffer.toString();
 }
 
 /// 有没有落单的代码栅栏行（行首 ``` 或 ~~~ 的计数为奇数）。
