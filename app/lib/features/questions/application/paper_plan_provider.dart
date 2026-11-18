@@ -21,6 +21,7 @@
 /// （`PaperItem.reasonZh` 会带上 `R0=`）。
 library;
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/state/data_revision.dart';
@@ -31,6 +32,7 @@ import '../../../domain/services/paper/subject_quota.dart';
 import '../../cognitive/presentation/cognitive_model_page.dart'
     show cognitiveLibraryDiagnosisProvider;
 import 'capability_profile_provider.dart';
+import 'paper_fallback.dart';
 import 'paper_plan_builder.dart';
 import 'question_corpus_reader.dart';
 
@@ -357,6 +359,11 @@ final paperPlanProvider = FutureProvider.autoDispose<PaperPlan>((ref) async {
   ref.watchDatabaseRevision();
   final corpus = await ref.watch(paperCorpusProvider.future);
   final spec = ref.watch(paperSpecProvider);
+  // Windows AOT 下 PaperComposer.compose 会 0xC0000005；release 先用明确降级
+  // 的简版组卷，保证「组卷」入口可用。debug/widget 仍走完整算法。
+  if (kReleaseMode) {
+    return buildFallbackPaperPlan(candidates: corpus.candidates, spec: spec);
+  }
   final diagnosis = await ref.watch(cognitiveLibraryDiagnosisProvider.future);
 
   // 「我最该练的动作」来自能力动作画像（推理层读数）；没解过链的库这里是空表。
