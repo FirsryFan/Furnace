@@ -38,6 +38,7 @@ import '../../../domain/services/cognitive/problem_evaluator.dart'
     show ProblemVerdict;
 import '../../../domain/services/paper/similar_questions.dart';
 import '../../../domain/services/questions/objective_answer.dart';
+import '../../../domain/services/questions/measured_difficulty.dart';
 import '../../../domain/services/questions/question_capability.dart';
 import '../../../domain/services/questions/question_number_query.dart';
 import '../../../domain/services/questions/question_option_layout.dart';
@@ -2707,6 +2708,15 @@ class _QuestionMetadataSection extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final tags = ref.watch(questionTagsProvider(question.id)).valueOrNull;
+    final history =
+        ref.watch(questionAttemptHistoryProvider(question.id)).valueOrNull;
+    final measuredDifficulty = history == null
+        ? null
+        : measuredDifficultyFromAttempts(
+            priorDifficulty: question.difficulty,
+            attempts: history.total,
+            correct: history.correct,
+          );
     final codes = decodeQuestionCapability(question.capability);
     final none = l10n.questionDetailMetadataNone;
     final sourceLabel = question.sourceLabel.trim();
@@ -2755,6 +2765,12 @@ class _QuestionMetadataSection extends ConsumerWidget {
                   ? none
                   : '${_formatDifficultyValue(difficulty)}/10',
             ),
+            if (measuredDifficulty != null)
+              _MetadataRow(
+                label: '实测难度',
+                value:
+                    '${_formatDifficultyValue(measuredDifficulty)}/10（${history!.total} 次自测）',
+              ),
             const SizedBox(height: 10),
             if (codes.isEmpty)
               _MetadataRow(
