@@ -577,6 +577,7 @@ class _PaperBody extends ConsumerWidget {
       plan: plan,
       knowledgePointNames: names,
       serialNumbers: serialNumbers,
+      internalNumbers: assignInternalNumbers(plan.items),
     );
     if (text.isEmpty) return; // 兜底：空文本不污染剪贴板。
     await Clipboard.setData(ClipboardData(text: text));
@@ -858,6 +859,7 @@ String renderPaperText({
   required PaperPlan plan,
   required Map<String, String> knowledgePointNames,
   Map<String, int?> serialNumbers = const <String, int?>{},
+  Map<String, String> internalNumbers = const <String, String>{},
 }) {
   if (plan.items.isEmpty) return '';
 
@@ -881,7 +883,7 @@ String renderPaperText({
     buffer
       ..writeln()
       ..writeln(
-        '${index + 1}. $serialLabel'
+        '${internalNumbers[item.questionId] ?? index + 1}. $serialLabel'
         '[${subjectLabelOf(l10n, item.subjectKey)}] '
         '[${sourceLevelLabel(l10n, item.sourceLevel)}] '
         '[${item.zone.labelZh}]',
