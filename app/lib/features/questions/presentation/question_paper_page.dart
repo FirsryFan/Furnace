@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/services/paper/internal_numbering.dart';
 import '../../../domain/services/paper/paper_composer.dart';
 import '../../../domain/services/questions/question_number.dart';
 import '../../../domain/services/reasoning/capability_action.dart';
@@ -356,6 +357,7 @@ class _PaperBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final knowledgePointNames = ref.watch(paperKnowledgePointLabelsProvider);
+    final internalNumbers = assignInternalNumbers(plan.items);
 
     if (plan.items.isEmpty) {
       // 题库空 vs 条件太窄：用"题库里有没有出现过任何学科"区分，别让两种空态说同一句话。
@@ -494,6 +496,7 @@ class _PaperBody extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: _PaperItemCard(
               index: index + 1,
+              internalNo: internalNumbers[plan.items[index].questionId] ?? '',
               item: plan.items[index],
               knowledgePointNames: knowledgePointNames,
             ),
@@ -588,11 +591,13 @@ class _PaperBody extends ConsumerWidget {
 class _PaperItemCard extends StatelessWidget {
   const _PaperItemCard({
     required this.index,
+    required this.internalNo,
     required this.item,
     required this.knowledgePointNames,
   });
 
   final int index;
+  final String internalNo;
   final PaperItem item;
   final AsyncValue<Map<String, String>> knowledgePointNames;
 
@@ -612,6 +617,13 @@ class _PaperItemCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (internalNo.isNotEmpty) ...[
+                  Text(
+                    internalNo,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Text(
                   l10n.questionPaperItemIndex(index),
                   style: Theme.of(context).textTheme.titleSmall,
